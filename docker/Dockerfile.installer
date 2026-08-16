@@ -1,0 +1,29 @@
+# Dockerfile.installer — Instalador web temporal
+#
+# Este contenedor abre una pagina web en el puerto 3001 que guia la instalacion.
+# Una vez completada la instalacion, el contenedor se detiene y se puede borrar.
+#
+# Uso:
+#   docker build -f docker/Dockerfile.installer -t fmc-installer .
+#   docker run -p 3001:3001 -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd):/app fmc-installer
+#
+# Luego abrir http://localhost:3001 en el navegador.
+
+FROM golang:1.23-alpine AS builder
+
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 go build -o /installer ./cmd/installer
+
+FROM alpine:3.20
+
+RUN apk --no-cache add ca-certificates docker-cli
+
+COPY --from=builder /installer /installer
+COPY docker/compile.sh /compile.sh
+
+EXPOSE 3001
+CMD ["/installer"]

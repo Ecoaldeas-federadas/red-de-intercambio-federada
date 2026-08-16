@@ -17,82 +17,102 @@ Cada nodo opera de forma independiente y se federa con otros nodos via protocolo
 
 ## Requisitos
 
-- **Go** 1.21+
-- **Node.js** 18+ y npm
-- **PostgreSQL** o **YugabyteDB** (compatible con protocolo PG)
+- **Docker** y **Docker Compose** (recomendado — instala todo automaticamente)
+- **Go** 1.21+ (solo si compilas manualmente, no necesario con Docker)
 - **Git**
 
-## Instalacion desde cero (desde otro computador)
+## Instalacion rapida (recomendado)
 
-### 1. Clonar el repositorio
+### Opcion A — Script de instalacion (1 comando)
 
+**Windows (PowerShell):**
+```powershell
+git clone https://github.com/discapacidad5/red-de-intercambio-federada.git
+cd red-de-intercambio-federada
+.\install.ps1
+```
+
+**Linux/Mac:**
 ```bash
 git clone https://github.com/discapacidad5/red-de-intercambio-federada.git
 cd red-de-intercambio-federada
+chmod +x install.sh
+./install.sh
 ```
 
-### 2. Levantar la base de datos (con Docker)
+El script te pregunta solo 2 cosas:
+1. **Nombre del nodo** (ej: "Banco Comunitario A")
+2. **Dominio del nodo** (ej: "nodo-a.org")
+
+Todo lo demas se genera automaticamente:
+- Password seguro de la base de datos (aleatorio)
+- JWT secret (aleatorio)
+- Claves Ed25519 del nodo (para federacion)
+- config.yaml con defaults seguros
+- Arranque de Docker
+
+Al terminar, abre el navegador automaticamente en la pagina de setup
+para crear el usuario administrador.
+
+### Opcion B — Binario instalador (Go)
 
 ```bash
+go build -o install ./cmd/install
+./install
+# o no-interactivo:
+./install --name "Banco Comunitario A" --domain nodo-a.org
+```
+
+### Opcion C — Instalador web (Docker)
+
+```bash
+docker build -f docker/Dockerfile.installer -t fmc-installer .
+docker run -p 3001:3001 -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd):/app fmc-installer
+```
+
+Abrir `http://localhost:3001` en el navegador y seguir los pasos.
+
+### Opcion D — Manual (desarrollo)
+
+```bash
+# 1. Levantar la base de datos
 docker compose up -d yugabytedb
-```
 
-Esto levanta YugabyteDB en el puerto `5433`. Esperar ~30 segundos a que inicie.
-
-### 3. Configurar
-
-Editar `config.yaml` con los datos de tu nodo:
-
-```yaml
-node:
-  domain: "nodo-a.org"          # dominio o IP de tu nodo
-  name: "Banco Comunitario A"   # nombre para mostrar
-
-database:
-  host: "localhost"
-  port: 5433
-  name: "fmc_node"
-  user: "fmc"
-  password: "fmcpassword"       # password de la BD
-
-api:
-  port: 8080
-  cors_origins: ["http://localhost:3000"]
-```
-
-### 4. Ejecutar migraciones e iniciar el servidor
-
-**Opcion A — Con Docker (todo junto):**
-
-```bash
-docker compose up -d
-```
-
-Esto levanta la BD + el nodo + el frontend.
-
-**Opcion B — Manual (recomendado para desarrollo):**
-
-```bash
-# Backend: migrar + iniciar
+# 2. El servidor arranca sin config.yaml (usa defaults seguros)
 go run ./cmd/node
 
-# Frontend (en otra terminal):
+# 3. Frontend (en otra terminal)
 cd web
 npm install
 npm run dev
 ```
 
 El backend corre en `http://localhost:8080` y el frontend en `http://localhost:3000`.
+La primera vez redirige a `/setup` para crear el usuario administrador.
 
-### 5. Setup inicial
+## Que se genera automaticamente
 
-Abrir `http://localhost:3000` en el navegador. La primera vez redirige a `/setup` para:
+El instalador genera estos archivos sin que tengas que editar nada:
 
-1. Crear el usuario administrador
-2. Configurar Passkey (WebAuthn) o contrasena
-3. Configurar el nodo (nombre, dominio)
+| Archivo | Contenido | Seguro por defecto |
+|---------|-----------|-------------------|
+| `.env` | DB_PASSWORD, JWT_SECRET | Passwords aleatorios de 24-32 bytes |
+| `config.yaml` | Configuracion completa del nodo | Defaults seguros, solo falta nombre y dominio |
+| `secrets/node_keys.txt` | Claves Ed25519 del nodo | Clave publica + privada generadas con crypto/rand |
 
-Despues del setup, puedes iniciar sesion normalmente.
+**No necesitas editar ningun archivo manualmente.** El unico campo obligatorio
+es el nombre y dominio del nodo, que se ingresan en el instalador.
+
+## Federacion entre nodos
+
+Para que dos nodos se comuniquen, **ambos deben registrarse mutuamente**:
+
+1. Cada nodo tiene su clave publica (en `secrets/node_keys.txt`)
+2. En el nodo A: registrar la clave publica del nodo B
+3. En el nodo B: registrar la clave publica del nodo A
+4. Solo cuando ambos se han registrado, la federacion esta activa
+
+Esto se hace desde la seccion "Federacion" en la web app del nodo.
 
 ## Comandos utiles
 
