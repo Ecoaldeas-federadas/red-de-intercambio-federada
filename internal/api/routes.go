@@ -2,6 +2,8 @@ package api
 
 import (
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -51,6 +53,28 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 	rh.RegisterRoutesWithAuth(r, am)
 	dh.RegisterRoutes(r, am)
 	nh.RegisterRoutes(r, am)
+
+	// Servir el frontend compilado (React/Vite) desde /app/web/dist
+	// En desarrollo, el frontend corre separado en npm run dev (puerto 3000)
+	// En produccion/Docker, el backend sirve los archivos estaticos
+	frontendDir := "/app/web/dist"
+	if _, err := os.Stat(frontendDir); err != nil {
+		// Fallback para desarrollo local
+		frontendDir = "./web/dist"
+	}
+	if _, err := os.Stat(frontendDir); err == nil {
+		// Servir archivos estaticos
+		fileServer := http.FileServer(http.Dir(frontendDir))
+		r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
+			// Si la ruta no es un archivo, servir index.html (SPA routing)
+			path := filepath.Join(frontendDir, r.URL.Path)
+			if _, err := os.Stat(path); err != nil {
+				http.ServeFile(w, r, filepath.Join(frontendDir, "index.html"))
+				return
+			}
+			fileServer.ServeHTTP(w, r)
+		})
+	}
 
 	return r
 }

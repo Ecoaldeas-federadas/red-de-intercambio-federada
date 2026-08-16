@@ -12,7 +12,18 @@ COPY . .
 
 RUN CGO_ENABLED=0 go build -o /fmc-node ./cmd/node
 
-# Stage 2: Final image
+# Stage 2: Build frontend
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /web
+
+COPY web/package.json web/package-lock.json ./
+RUN npm ci --silent
+
+COPY web/ .
+RUN npm run build
+
+# Stage 3: Final image
 FROM alpine:3.20
 
 RUN apk --no-cache add ca-certificates tzdata
@@ -22,6 +33,7 @@ WORKDIR /app
 COPY --from=go-builder /fmc-node /app/fmc-node
 COPY --from=go-builder /app/internal/db/migrations /app/internal/db/migrations
 COPY --from=go-builder /app/config.yaml /app/config.yaml
+COPY --from=frontend-builder /web/dist /app/web/dist
 
 EXPOSE 8080 8443
 
