@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -18,10 +19,11 @@ import (
 type NFCTerminalHandler struct {
 	NFC        *payments.NFCTerminals
 	NodeDomain string
+	Compiler   *payments.FirmwareCompiler
 }
 
-func NewNFCTerminalHandler(nfc *payments.NFCTerminals, nodeDomain string) *NFCTerminalHandler {
-	return &NFCTerminalHandler{NFC: nfc, NodeDomain: nodeDomain}
+func NewNFCTerminalHandler(nfc *payments.NFCTerminals, nodeDomain string, compiler *payments.FirmwareCompiler) *NFCTerminalHandler {
+	return &NFCTerminalHandler{NFC: nfc, NodeDomain: nodeDomain, Compiler: compiler}
 }
 
 func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
@@ -40,6 +42,8 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequirePermission("nfc.register_terminal")).Post("/api/nfc/terminal/register", h.registerTerminal)
 	r.With(am.RequirePermission("nfc.register_terminal")).Post("/api/nfc/terminal/provision", h.provisionTerminal)
 	r.With(am.RequirePermission("nfc.register_terminal")).Get("/api/nfc/terminal/{id}/config.h", h.downloadConfigH)
+	r.With(am.RequirePermission("nfc.register_terminal")).Post("/api/nfc/terminal/{id}/compile", h.compileFirmware)
+	r.With(am.RequirePermission("nfc.register_terminal")).Get("/api/nfc/terminal/{id}/firmware.bin", h.downloadFirmware)
 	r.With(am.RequireAuth).Get("/api/nfc/terminals", h.listTerminals)
 	r.With(am.RequireAuth).Get("/api/nfc/terminals/types", h.listTerminalTypes)
 	r.With(am.RequirePermission("nfc.deactivate_terminal")).Delete("/api/nfc/terminal/{id}", h.deactivateTerminal)
@@ -663,4 +667,75 @@ func (h *NFCTerminalHandler) downloadConfigH(w http.ResponseWriter, r *http.Requ
 	w.Header().Set("Content-Disposition", "attachment; filename=config.h")
 	w.WriteHeader(200)
 	w.Write([]byte(configContent))
+}
+
+// compileFirmware compila el .bin completo del firmware personalizado para el terminal.
+// Usa el contenedor Docker con Arduino CLI. Retorna el build_id para descargar el .bin.
+func (h *NFCTerminalHandler) compileFirmware(w http.ResponseWriter, r *http.Request) {
+	terminalID := chi.URLParam(r, "id")
+	if terminalID == "" {
+		writeError(w, 400, "terminal id is required")
+		return
+	}
+
+	if h.Compiler == nil {
+		writeError(w, 503, "firmware compiler not configured on this server")
+		return
+	}
+
+	// Buscar el terminal para obtener sus datos
+	terminal, token, err := h.NFC.GetTerminalForProvisioning(r.Context(), terminalID)
+	if err != nil {
+		writeError(w, 404, fmt.Sprintf("terminal not found or already registered: %v", err))
+		return
+	}
+
+	serverURL := "https://" + h.NodeDomain
+
+	// Compilar
+	result, err := h.Compiler.CompileFirmware(r.Context(), terminal, token, serverURL)
+	if err != nil {
+		writeError(w, 500, fmt.Sprintf("compilation failed: %v", err))
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"status":       "compiled",
+		"build_id":     result.BuildID,
+		"size":         result.Size,
+		"download_url": fmt.Sprintf("/api/nfc/terminal/%s/firmware.bin?build_id=%s", terminalID, result.BuildID),
+	})
+}
+
+// downloadFirmware sirve el .bin compilado para descarga.
+func (h *NFCTerminalHandler) downloadFirmware(w http.ResponseWriter, r *http.Request) {
+	terminalID := chi.URLParam(r, "id")
+	if terminalID == "" {
+		writeError(w, 400, "terminal id is required")
+		return
+	}
+
+	buildID := r.URL.Query().Get("build_id")
+	if buildID == "" {
+		writeError(w, 400, "build_id parameter is required")
+		return
+	}
+
+	if h.Compiler == nil {
+		writeError(w, 503, "firmware compiler not configured on this server")
+		return
+	}
+
+	binaryPath := fmt.Sprintf("%s/%s/firmware.bin", h.Compiler.BuildDir, buildID)
+
+	// Verificar que el archivo existe
+	if _, err := os.Stat(binaryPath); err != nil {
+		writeError(w, 404, "firmware binary not found. You may need to compile first.")
+		return
+	}
+
+	// Servir el archivo
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s-firmware.bin", terminalID))
+	http.ServeFile(w, r, binaryPath)
 }

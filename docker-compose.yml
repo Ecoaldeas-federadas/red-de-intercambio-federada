@@ -11,13 +11,28 @@ services:
     volumes:
       - ./secrets:/secrets:ro
       - ./config.yaml:/app/config.yaml:ro
+      - ./firmware:/app/firmware:ro
+      - firmware_builds:/tmp/firmware-builds
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       - yugabytedb
     environment:
       - DB_PASSWORD=${DB_PASSWORD:-fmcpassword}
       - CONFIG_PATH=/app/config.yaml
       - MIGRATIONS_DIR=/app/internal/db/migrations
+      - FIRMWARE_DIR=/app/firmware
+      - FIRMWARE_BUILD_DIR=/tmp/firmware-builds
+      - FIRMWARE_DOCKER_IMAGE=fmc-arduino-compiler:latest
     restart: unless-stopped
+
+  arduino-compiler:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.arduino-compiler
+    image: fmc-arduino-compiler:latest
+    profiles: ["compiler"]
+    volumes:
+      - firmware_builds:/build-output
 
   yugabytedb:
     image: yugabytedb/yugabyte:latest
@@ -37,3 +52,4 @@ services:
 volumes:
   yb_data:
   yb_tserver:
+  firmware_builds:

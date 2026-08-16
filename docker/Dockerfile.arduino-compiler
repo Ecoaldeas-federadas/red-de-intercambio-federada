@@ -1,0 +1,59 @@
+# Dockerfile.arduino-compiler — Compilador de firmware ESP32
+#
+# Imagen Docker con Arduino CLI + board support ESP32 + todas las librerias
+# necesarias para compilar los terminales NFC.
+#
+# El servidor Go invoca este contenedor para compilar el firmware personalizado
+# de cada terminal, inyectando el config.h generado y produciendo un .bin listo
+# para flashear.
+
+FROM ubuntu:22.04
+
+ARG ARDUINO_CLI_VERSION=1.0.0
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV ARDUINO_DATA=/arduino-data
+ENV ARDUINO_DOWNLOADS=/arduino-downloads
+
+# Dependencias del sistema
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    wget \
+    xz-utils \
+    ca-certificates \
+    python3 \
+    python3-pip \
+    git \
+    make \
+    && rm -rf /var/lib/apt/lists/*
+
+# Instalar Arduino CLI
+RUN curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh \
+    | BINDIR=/usr/local/bin sh -s -- --version ${ARDUINO_CLI_VERSION}
+
+# Configurar Arduino CLI
+RUN arduino-cli config init --dest-dir ${ARDUINO_DATA} && \
+    arduino-cli config set board_manager.additional_urls \
+        https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+
+# Actualizar indice de paquetes e instalar board support ESP32
+RUN arduino-cli core update-index --config-file ${ARDUINO_DATA}/arduino-cli.yaml && \
+    arduino-cli core install esp32:esp32 --config-file ${ARDUINO_DATA}/arduino-cli.yaml
+
+# Instalar librerias necesarias
+RUN arduino-cli lib install \
+    "Adafruit PN532" \
+    "Adafruit SSD1306" \
+    "ArduinoJson" \
+    "TFT_eSPI" \
+    "XPT2046_Touchscreen" \
+    --config-file ${ARDUINO_DATA}/arduino-cli.yaml
+
+# Directorio de trabajo para compilacion
+WORKDIR /build
+
+# Script de compilacion que sera invocado por el servidor
+COPY compile.sh /compile.sh
+RUN chmod +x /compile.sh
+
+ENTRYPOINT ["/compile.sh"]

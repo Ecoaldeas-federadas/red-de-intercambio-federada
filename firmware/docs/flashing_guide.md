@@ -157,6 +157,40 @@ El TFT_eSPI requiere configurar el display correcto:
 La libreria BLE viene incluida con el ESP32 board support.
 No se necesita instalar nada adicional.
 
+## Compilacion automatica desde el servidor (opcional)
+
+En lugar de compilar manualmente con Arduino IDE, el servidor puede compilar
+el .bin completo con un click. Esto requiere:
+
+1. Construir la imagen Docker del compilador:
+   ```bash
+   docker compose --profile compiler build arduino-compiler
+   ```
+
+2. El servidor Go necesita acceso al socket de Docker:
+   - En docker-compose.yml ya esta configurado (`/var/run/docker.sock`)
+   - En instalacion manual: montar el socket o instalar Docker en el servidor
+
+3. Desde la web app > Provisionar > despues de provisionar:
+   - Click en "Compilar .bin"
+   - El servidor ejecuta el contenedor Docker con Arduino CLI
+   - Inyecta el config.h generado
+   - Compila el firmware completo
+   - Retorna el .bin listo para descargar (2-3 minutos)
+
+4. Descargar el .bin y flashear con esptool:
+   ```bash
+   esptool.py --port COM3 --baud 460800 write_flash 0x10000 firmware.bin
+   ```
+
+### Variables de entorno del compilador
+
+| Variable | Default | Descripcion |
+|----------|---------|-------------|
+| `FIRMWARE_DIR` | `./firmware` | Ruta al codigo fuente del firmware |
+| `FIRMWARE_BUILD_DIR` | `/tmp/firmware-builds` | Directorio temporal para builds |
+| `FIRMWARE_DOCKER_IMAGE` | `fmc-arduino-compiler:latest` | Imagen Docker del compilador |
+
 ## Problemas comunes
 
 | Problema | Solucion |

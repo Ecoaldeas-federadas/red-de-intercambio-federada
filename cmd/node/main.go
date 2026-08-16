@@ -95,7 +95,23 @@ func main() {
 	departmentsSvc := accounts.NewDepartments(database.Pool)
 	departmentsHandler := api.NewDepartmentsHandler(departmentsSvc, cfg.Node.Domain)
 	nfcTerminalsSvc := payments.NewNFCTerminals(database.Pool, cfg.Node.Domain)
-	nfcTerminalHandler := api.NewNFCTerminalHandler(nfcTerminalsSvc, cfg.Node.Domain)
+
+	// Firmware compiler (opcional — solo si Docker esta disponible)
+	firmwareDir := os.Getenv("FIRMWARE_DIR")
+	if firmwareDir == "" {
+		firmwareDir = "./firmware"
+	}
+	buildDir := os.Getenv("FIRMWARE_BUILD_DIR")
+	if buildDir == "" {
+		buildDir = "/tmp/firmware-builds"
+	}
+	dockerImage := os.Getenv("FIRMWARE_DOCKER_IMAGE")
+	if dockerImage == "" {
+		dockerImage = "fmc-arduino-compiler:latest"
+	}
+	firmwareCompiler := payments.NewFirmwareCompiler(firmwareDir, buildDir, dockerImage)
+
+	nfcTerminalHandler := api.NewNFCTerminalHandler(nfcTerminalsSvc, cfg.Node.Domain, firmwareCompiler)
 
 	setupHandler := api.NewSetupHandler(database.Pool, accountsSvc, jwtSecret, cfg.Node.Domain, cfg.Node.Name)
 

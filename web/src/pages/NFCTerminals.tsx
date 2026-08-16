@@ -48,6 +48,8 @@ export default function NFCTerminals() {
   const [provisionLocation, setProvisionLocation] = useState('')
   const [provisionResult, setProvisionResult] = useState<{ terminal_id: string; config_h_url: string } | null>(null)
   const [provisioning, setProvisioning] = useState(false)
+  const [compiling, setCompiling] = useState(false)
+  const [compileResult, setCompileResult] = useState<{ build_id: string; download_url: string; size: number } | null>(null)
 
   const canRegisterTerminal = hasPermission('nfc.register_terminal')
   const canDeactivateTerminal = hasPermission('nfc.deactivate_terminal')
@@ -203,6 +205,39 @@ export default function NFCTerminals() {
     }
   }
 
+  const compileFirmware = async (terminalId: string) => {
+    setError('')
+    setCompiling(true)
+    setCompileResult(null)
+    try {
+      const res = await api.post<{ status: string; build_id: string; size: number; download_url: string }>(`/nfc/terminal/${terminalId}/compile`)
+      setCompileResult({ build_id: res.build_id, download_url: res.download_url, size: res.size })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al compilar')
+    } finally {
+      setCompiling(false)
+    }
+  }
+
+  const downloadFirmwareBin = async (terminalId: string, buildId: string) => {
+    try {
+      const token = localStorage.getItem('fmc_token')
+      const res = await fetch(`/api/nfc/terminal/${terminalId}/firmware.bin?build_id=${buildId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error('Error al descargar firmware.bin')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${terminalId}-firmware.bin`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error')
+    }
+  }
+
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold flex items-center gap-2"><Nfc size={24} /> Terminales NFC</h1>
@@ -278,23 +313,56 @@ export default function NFCTerminals() {
             </button>
           </div>
 
-          {/* Paso 3: Descargar config.h */}
+          {/* Paso 3: Descargar config.h o compilar .bin */}
           {provisionResult && (
             <div className="card bg-green-50 border-green-200 space-y-3">
-              <h3 className="font-medium text-green-800 flex items-center gap-2"><Download size={16} /> Paso 3: Descargar config.h</h3>
+              <h3 className="font-medium text-green-800 flex items-center gap-2"><Download size={16} /> Paso 3: Obtener firmware</h3>
               <p className="text-sm text-green-700">
                 Terminal <strong>{provisionResult.terminal_id}</strong> provisionado correctamente.
               </p>
-              <p className="text-sm text-gray-600">
-                Descarga el config.h generado y copialo a la carpeta del terminal en el firmware.
-                Luego compila y flashea al ESP32.
-              </p>
-              <button
-                onClick={() => downloadConfigH(provisionResult.terminal_id)}
-                className="btn-primary flex items-center gap-2"
-              >
-                <Download size={18} /> Descargar config.h
-              </button>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-700">Opcion A: Descargar config.h (compilar manualmente)</p>
+                <p className="text-xs text-gray-500">
+                  Descarga el config.h, copialo a la carpeta del terminal y compila con Arduino IDE.
+                </p>
+                <button
+                  onClick={() => downloadConfigH(provisionResult.terminal_id)}
+                  className="btn-primary flex items-center gap-2"
+                >
+                  <Download size={18} /> Descargar config.h
+                </button>
+              </div>
+
+              <div className="border-t border-green-200 pt-3 space-y-2">
+                <p className="text-sm font-medium text-gray-700">Opcion B: Compilar .bin desde el servidor (un click)</p>
+                <p className="text-xs text-gray-500">
+                  El servidor compila el firmware completo con el config.h inyectado y devuelve el .bin listo para flashear.
+                  Requiere que el servicio compilador este configurado.
+                </p>
+                <button
+                  onClick={() => compileFirmware(provisionResult.terminal_id)}
+                  disabled={compiling}
+                  className="btn-primary flex items-center gap-2 disabled:opacity-50"
+                >
+                  <Cpu size={18} /> {compiling ? 'Compilando (puede tardar 2-3 min)...' : 'Compilar .bin'}
+                </button>
+
+                {compileResult && (
+                  <div className="bg-white p-3 rounded-lg border border-green-300 space-y-2">
+                    <p className="text-sm text-green-700 font-medium">Compilacion exitosa!</p>
+                    <p className="text-xs text-gray-500">
+                      Tamano: {(compileResult.size / 1024).toFixed(0)} KB · Build ID: {compileResult.build_id.substring(0, 8)}
+                    </p>
+                    <button
+                      onClick={() => downloadFirmwareBin(provisionResult.terminal_id, compileResult.build_id)}
+                      className="btn-primary flex items-center gap-2"
+                    >
+                      <Download size={18} /> Descargar .bin
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
