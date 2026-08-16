@@ -7,6 +7,8 @@
 #include <TFT_eSPI.h>
 #include <XPT2046_Touchscreen.h>
 #include "config.h"
+#include "../shared/hardware_binding.h"
+#include "../shared/wifi_provisioning.h"
 #include "../shared/crypto_helper.h"
 #include "../shared/nfc_reader.h"
 #include "../shared/server_client.h"
@@ -130,6 +132,13 @@ void showTextTouch(const String& text, int color = TFT_WHITE) {
 void setup() {
   Serial.begin(115200);
 
+  // 1. Verificar que este firmware corresponde a este hardware fisico
+  if (!verifyHardwareBinding(EXPECTED_CHIP_ID)) {
+    return;  // verifyHardwareBinding detiene el dispositivo si no coincide
+  }
+  Serial.print("Hardware verificado. Chip ID: ");
+  Serial.println(getFullMacHex());
+
   // Init display
   tft.init();
   tft.setRotation(1);
@@ -149,10 +158,15 @@ void setup() {
 
   pinMode(BUZZER_PIN, OUTPUT);
 
-  // WiFi
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  showTextTouch("Conectando WiFi...");
-  while (WiFi.status() != WL_CONNECTED) delay(500);
+  // 2. Conectar WiFi (provisioning en el sitio si es la primera vez)
+  if (!connectToWifi()) {
+    String apSuffix = String(EXPECTED_CHIP_ID).substring(0, 4);
+    showTextTouch("Configura WiFi\nConectate a:\nTerminal-" + apSuffix);
+    startProvisioningAP(apSuffix);
+    while (true) {
+      provisioningLoop();
+    }
+  }
 
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -37,6 +38,8 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 
 	// Management endpoints (JWT + RequirePermission)
 	r.With(am.RequirePermission("nfc.register_terminal")).Post("/api/nfc/terminal/register", h.registerTerminal)
+	r.With(am.RequirePermission("nfc.register_terminal")).Post("/api/nfc/terminal/provision", h.provisionTerminal)
+	r.With(am.RequirePermission("nfc.register_terminal")).Get("/api/nfc/terminal/{id}/config.h", h.downloadConfigH)
 	r.With(am.RequireAuth).Get("/api/nfc/terminals", h.listTerminals)
 	r.With(am.RequireAuth).Get("/api/nfc/terminals/types", h.listTerminalTypes)
 	r.With(am.RequirePermission("nfc.deactivate_terminal")).Delete("/api/nfc/terminal/{id}", h.deactivateTerminal)
@@ -544,4 +547,114 @@ func parseInt(s string) (int, error) {
 	var n int
 	_, err := fmt.Sscanf(s, "%d", &n)
 	return n, err
+}
+
+// --- Terminal provisioning (generacion de config.h desde el servidor) ---
+
+type ProvisionTerminalRequest struct {
+	ChipID       string `json:"chip_id"`       // MAC/efuse del ESP32 (12 hex chars)
+	TerminalType string `json:"terminal_type"` // keypad, touch, web, community
+	Label        string `json:"label"`
+	Location     string `json:"location"`
+	TerminalID   string `json:"terminal_id"` // opcional, se autogenera si vacio
+	ServerURL    string `json:"server_url"`  // opcional, se usa NodeDomain si vacio
+}
+
+// provisionTerminal registra un terminal vinculado a un chip ID de hardware y
+// retorna los datos para generar el config.h (o descargarlo despues).
+func (h *NFCTerminalHandler) provisionTerminal(w http.ResponseWriter, r *http.Request) {
+	var req ProvisionTerminalRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.ChipID == "" {
+		writeError(w, 400, "chip_id is required (12 hex chars from ESP.getEfuseMac)")
+		return
+	}
+	if len(req.ChipID) != 12 {
+		writeError(w, 400, "chip_id must be 12 hex characters (e.g. AABBCCDDEEFF)")
+		return
+	}
+	if req.TerminalType == "" {
+		req.TerminalType = "keypad"
+	}
+
+	// Generar terminal_id si no se proporciona
+	terminalID := req.TerminalID
+	if terminalID == "" {
+		terminalID = fmt.Sprintf("TERM-%s-%s", strings.ToUpper(req.TerminalType), req.ChipID[:6])
+	}
+
+	terminal, token, err := h.NFC.ProvisionTerminal(r.Context(), terminalID, req.ChipID, req.Label, req.TerminalType, req.Location)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+
+	// Construir server URL
+	serverURL := req.ServerURL
+	if serverURL == "" {
+		serverURL = "https://" + h.NodeDomain
+	}
+
+	writeJSON(w, 201, map[string]interface{}{
+		"terminal":           terminal,
+		"registration_token": token,
+		"server_url":         serverURL,
+		"config_h_url":       fmt.Sprintf("/api/nfc/terminal/%s/config.h", terminalID),
+	})
+}
+
+// downloadConfigH genera y devuelve el archivo config.h listo para compilar.
+// El admin descarga este archivo, lo coloca en la carpeta del terminal y compila.
+func (h *NFCTerminalHandler) downloadConfigH(w http.ResponseWriter, r *http.Request) {
+	terminalID := chi.URLParam(r, "id")
+	if terminalID == "" {
+		writeError(w, 400, "terminal id is required")
+		return
+	}
+
+	// Buscar el terminal por terminal_id para obtener sus datos
+	terminal, token, err := h.NFC.GetTerminalForProvisioning(r.Context(), terminalID)
+	if err != nil {
+		writeError(w, 404, fmt.Sprintf("terminal not found or already registered: %v", err))
+		return
+	}
+
+	serverURL := "https://" + h.NodeDomain
+
+	// Generar el contenido del config.h
+	configContent := fmt.Sprintf(`// config.h — Generado por el servidor para el terminal %s
+// NO EDITAR MANUALMENTE. Este archivo se genera automaticamente.
+// Vinculado al hardware ESP32 con chip ID: %s
+// Si se flashea en otro ESP32, el firmware no arrancara.
+
+#ifndef CONFIG_H
+#define CONFIG_H
+
+// Vinculacion al hardware fisico (chip ID unico del ESP32 en efuse)
+#define EXPECTED_CHIP_ID  "%s"
+
+// Identidad del terminal (generada por el servidor)
+#define TERMINAL_ID        "%s"
+#define REGISTRATION_TOKEN "%s"
+
+// URL del servidor (sin barra final)
+#define SERVER_URL         "%s"
+
+#endif // CONFIG_H
+`,
+		terminalID,
+		terminal.ChipID,
+		terminal.ChipID,
+		terminalID,
+		token,
+		serverURL,
+	)
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Content-Disposition", "attachment; filename=config.h")
+	w.WriteHeader(200)
+	w.Write([]byte(configContent))
 }

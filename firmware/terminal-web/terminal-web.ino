@@ -5,6 +5,8 @@
 #include <WiFi.h>
 #include <ArduinoJson.h>
 #include "config.h"
+#include "../shared/hardware_binding.h"
+#include "../shared/wifi_provisioning.h"
 #include "../shared/crypto_helper.h"
 #include "../shared/nfc_reader.h"
 #include "../shared/display_helper.h"
@@ -25,6 +27,13 @@ ServerConfig config;
 void setup() {
   Serial.begin(115200);
 
+  // 1. Verificar que este firmware corresponde a este hardware fisico
+  if (!verifyHardwareBinding(EXPECTED_CHIP_ID)) {
+    return;  // verifyHardwareBinding detiene el dispositivo si no coincide
+  }
+  Serial.print("Hardware verificado. Chip ID: ");
+  Serial.println(getFullMacHex());
+
   if (!initDisplay()) Serial.println("Display init failed");
   showText("Iniciando...", 1, 24);
 
@@ -35,9 +44,17 @@ void setup() {
 
   pinMode(BUZZER_PIN, OUTPUT);
 
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  showText("Conectando WiFi", 1, 24);
-  while (WiFi.status() != WL_CONNECTED) { delay(500); }
+  // 2. Conectar WiFi (provisioning en el sitio si es la primera vez)
+  if (!connectToWifi()) {
+    showText("Configura WiFi", 1, 16);
+    showText("conectate a:", 1, 32);
+    String apSuffix = String(EXPECTED_CHIP_ID).substring(0, 4);
+    showText("Terminal-" + apSuffix, 1, 48);
+    startProvisioningAP(apSuffix);
+    while (true) {
+      provisioningLoop();
+    }
+  }
   showIP(WiFi.localIP().toString());
 
   config.serverUrl = SERVER_URL;

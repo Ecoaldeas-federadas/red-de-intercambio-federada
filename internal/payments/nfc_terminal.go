@@ -18,22 +18,24 @@ import (
 )
 
 type NFCTerminal struct {
-	ID                uuid.UUID  `json:"id"`
-	NodeDomain        string     `json:"node_domain"`
-	TerminalID        string     `json:"terminal_id"`
-	Label             string     `json:"label"`
-	TerminalType      string     `json:"terminal_type"`
-	Location          string     `json:"location"`
-	WifiSSID          string     `json:"wifi_ssid"`
-	TerminalPublicKey string     `json:"terminal_public_key,omitempty"`
-	ServerPublicKey   string     `json:"server_public_key,omitempty"`
-	RegistrationToken string     `json:"registration_token,omitempty"`
-	IsActive          bool       `json:"is_active"`
-	IsRegistered      bool       `json:"is_registered"`
-	LastSeen          *time.Time `json:"last_seen"`
-	FirmwareVersion   string     `json:"firmware_version"`
-	CreatedAt         time.Time  `json:"created_at"`
-	UpdatedAt         time.Time  `json:"updated_at"`
+	ID                 uuid.UUID  `json:"id"`
+	NodeDomain         string     `json:"node_domain"`
+	TerminalID         string     `json:"terminal_id"`
+	Label              string     `json:"label"`
+	TerminalType       string     `json:"terminal_type"`
+	Location           string     `json:"location"`
+	WifiSSID           string     `json:"wifi_ssid"`
+	ChipID             string     `json:"chip_id,omitempty"`
+	FirmwareBinaryPath string     `json:"firmware_binary_path,omitempty"`
+	TerminalPublicKey  string     `json:"terminal_public_key,omitempty"`
+	ServerPublicKey    string     `json:"server_public_key,omitempty"`
+	RegistrationToken  string     `json:"registration_token,omitempty"`
+	IsActive           bool       `json:"is_active"`
+	IsRegistered       bool       `json:"is_registered"`
+	LastSeen           *time.Time `json:"last_seen"`
+	FirmwareVersion    string     `json:"firmware_version"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
 }
 
 type NFCTerminalSession struct {
@@ -92,6 +94,53 @@ func (nt *NFCTerminals) RegisterTerminal(ctx context.Context, terminalID, label,
 		return nil, "", fmt.Errorf("registering terminal: %w", err)
 	}
 	return &t, token, nil
+}
+
+// ProvisionTerminal registra un terminal vinculado a un chip ID de hardware especifico.
+// El chip_id es el MAC/efuse del ESP32 — el firmware compilado no funcionara en otro chip.
+// Retorna el terminal creado y el registration_token para incluir en el config.h generado.
+func (nt *NFCTerminals) ProvisionTerminal(ctx context.Context, terminalID, chipID, label, terminalType, location string) (*NFCTerminal, string, error) {
+	token := uuid.New().String()
+
+	var t NFCTerminal
+	err := nt.Pool.QueryRow(ctx, `
+		INSERT INTO nfc_terminals (node_domain, terminal_id, chip_id, label, terminal_type, location, registration_token)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, node_domain, terminal_id, chip_id, label, terminal_type, location, wifi_ssid,
+			registration_token, is_active, is_registered, last_seen, firmware_version, created_at, updated_at`,
+		nt.NodeDomain, terminalID, chipID, label, terminalType, location, token,
+	).Scan(&t.ID, &t.NodeDomain, &t.TerminalID, &t.ChipID, &t.Label, &t.TerminalType,
+		&t.Location, &t.WifiSSID, &t.RegistrationToken, &t.IsActive, &t.IsRegistered,
+		&t.LastSeen, &t.FirmwareVersion, &t.CreatedAt, &t.UpdatedAt)
+	if err != nil {
+		return nil, "", fmt.Errorf("provisioning terminal: %w", err)
+	}
+	return &t, token, nil
+}
+
+// GetTerminalForProvisioning busca un terminal por terminal_id que aun no ha sido
+// registrado por el ESP32 (tiene registration_token activo). Retorna el terminal
+// y su registration_token para generar el config.h.
+func (nt *NFCTerminals) GetTerminalForProvisioning(ctx context.Context, terminalID string) (*NFCTerminal, string, error) {
+	var t NFCTerminal
+	var token *string
+	err := nt.Pool.QueryRow(ctx, `
+		SELECT id, node_domain, terminal_id, chip_id, label, terminal_type, location, wifi_ssid,
+			registration_token, is_active, is_registered, last_seen, firmware_version, created_at, updated_at
+		FROM nfc_terminals
+		WHERE terminal_id = $1 AND is_active = true AND is_registered = false AND registration_token IS NOT NULL`,
+		terminalID,
+	).Scan(&t.ID, &t.NodeDomain, &t.TerminalID, &t.ChipID, &t.Label, &t.TerminalType,
+		&t.Location, &t.WifiSSID, &token, &t.IsActive, &t.IsRegistered,
+		&t.LastSeen, &t.FirmwareVersion, &t.CreatedAt, &t.UpdatedAt)
+	if err != nil {
+		return nil, "", fmt.Errorf("terminal not found or already registered: %w", err)
+	}
+	if token == nil {
+		return nil, "", fmt.Errorf("terminal has no registration token")
+	}
+	t.RegistrationToken = *token
+	return &t, *token, nil
 }
 
 func (nt *NFCTerminals) CompleteRegistration(ctx context.Context, terminalID, registrationToken, terminalPublicKey string) (string, error) {

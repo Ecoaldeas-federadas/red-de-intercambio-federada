@@ -142,6 +142,8 @@ red-de-intercambio-federada/
 | POST | `/api/payments/nfc/issue` | Emitir tarjeta NFC |
 | POST | `/api/payments/nfc/lookup` | Buscar tarjeta NFC |
 | POST | `/api/nfc/terminal/register` | Registrar terminal NFC |
+| POST | `/api/nfc/terminal/provision` | Provisionar terminal con chip ID (genera config.h) |
+| GET | `/api/nfc/terminal/{id}/config.h` | Descargar config.h generado por el servidor |
 | POST | `/api/nfc/terminal/payment` | Procesar pago NFC |
 | GET | `/api/transactions` | Historial de transacciones |
 | POST | `/api/transfer` | Transferencia entre cuentas |
