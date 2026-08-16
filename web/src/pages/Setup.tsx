@@ -412,7 +412,7 @@ export default function Setup() {
             )}
 
             <button
-              onClick={() => navigate('/')}
+              onClick={() => { window.location.href = '/' }}
               className="btn-primary w-full flex items-center justify-center gap-2"
             >
               Ir al dashboard
