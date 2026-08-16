@@ -60,6 +60,10 @@ export default function Setup() {
           node_name: s.node_name || '',
           node_domain: s.node_domain || '',
         }))
+        // Si el instalador ya configuro nombre y dominio, saltar al paso 1 (admin)
+        if (s.node_name && s.node_domain) {
+          setStep(1)
+        }
       }
     } catch {
       setError('No se pudo conectar con el servidor')
@@ -239,34 +243,53 @@ export default function Setup() {
         {/* Step 0: Node config */}
         {step === 0 && (
           <div className="space-y-4">
-            <div>
-              <label className="label flex items-center gap-2">
-                <Server size={16} /> Nombre del nodo
-              </label>
-              <input
-                type="text"
-                className="input"
-                value={form.node_name}
-                onChange={(e) => handleChange('node_name', e.target.value)}
-                placeholder="Banco Comunitario A"
-              />
-              <p className="text-xs text-gray-500 mt-1">Nombre visible de tu organizacion</p>
-            </div>
-            <div>
-              <label className="label flex items-center gap-2">
-                <Server size={16} /> Dominio del nodo
-              </label>
-              <input
-                type="text"
-                className="input"
-                value={form.node_domain}
-                onChange={(e) => handleChange('node_domain', e.target.value)}
-                placeholder="nodo-a.org"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Dominio unico para federacion (no se puede cambiar despues)
-              </p>
-            </div>
+            {status?.node_name && status?.node_domain ? (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-2">
+                <p className="text-sm text-green-800 font-medium">
+                  Configuracion del instalador:
+                </p>
+                <p className="text-sm text-gray-700">
+                  <strong>Nombre:</strong> {status.node_name}
+                </p>
+                <p className="text-sm text-gray-700">
+                  <strong>Dominio:</strong> {status.node_domain}
+                </p>
+                <p className="text-xs text-gray-500 mt-2">
+                  Estos valores fueron configurados por el instalador. Presiona Siguiente para crear el administrador.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="label flex items-center gap-2">
+                    <Server size={16} /> Nombre del nodo
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={form.node_name}
+                    onChange={(e) => handleChange('node_name', e.target.value)}
+                    placeholder="Banco Comunitario A"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Nombre visible de tu organizacion</p>
+                </div>
+                <div>
+                  <label className="label flex items-center gap-2">
+                    <Server size={16} /> Dominio del nodo
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={form.node_domain}
+                    onChange={(e) => handleChange('node_domain', e.target.value)}
+                    placeholder="nodo-a.org"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Dominio unico para federacion (no se puede cambiar despues)
+                  </p>
+                </div>
+              </>
+            )}
           </div>
         )}
 
