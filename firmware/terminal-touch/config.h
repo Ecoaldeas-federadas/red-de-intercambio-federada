@@ -19,4 +19,10 @@
 // URL del servidor (sin barra final)
 #define SERVER_URL         "https://tu-servidor.com"
 
+// PIN de bloqueo local (4 digitos)
+// Bloqueo momentaneo de la pantalla — no va al servidor.
+// Para bloquear: tocar y mantener la esquina superior izquierda 2 segundos en IDLE
+// Para desbloquear: ingresar este PIN en la pantalla tactil
+#define LOCK_PIN           "0000"
+
 #endif // CONFIG_H

@@ -231,6 +231,22 @@ func (nt *NFCTerminals) Heartbeat(ctx context.Context, terminalID string) error 
 	return nil
 }
 
+// HeartbeatWithStatus actualiza last_seen y retorna si el terminal esta activo.
+// El terminal usa esto para saber si el dueño cerro el punto desde su panel web.
+func (nt *NFCTerminals) HeartbeatWithStatus(ctx context.Context, terminalID string) (bool, error) {
+	var isActive bool
+	err := nt.Pool.QueryRow(ctx, `
+		UPDATE nfc_terminals SET last_seen = NOW()
+		WHERE terminal_id = $1
+		RETURNING is_active`,
+		terminalID,
+	).Scan(&isActive)
+	if err != nil {
+		return false, fmt.Errorf("heartbeat: %w", err)
+	}
+	return isActive, nil
+}
+
 func (nt *NFCTerminals) GetTerminalStatus(ctx context.Context, terminalID string) (*NFCTerminal, error) {
 	var t NFCTerminal
 	err := nt.Pool.QueryRow(ctx, `

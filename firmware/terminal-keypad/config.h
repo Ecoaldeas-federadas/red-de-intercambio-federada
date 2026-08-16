@@ -19,4 +19,10 @@
 // URL del servidor (sin barra final)
 #define SERVER_URL         "https://tu-servidor.com"
 
+// PIN de bloqueo local (4 digitos)
+// Bloqueo momentaneo del teclado — no va al servidor.
+// Para bloquear: mantener presionada la tecla del encoder 2 segundos en IDLE
+// Para desbloquear: ingresar este PIN
+#define LOCK_PIN           "0000"
+
 #endif // CONFIG_H

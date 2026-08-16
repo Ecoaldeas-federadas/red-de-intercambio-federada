@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { api } from '../api'
+import { api, apiFetch } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
-import { Nfc, Plus, Trash2, CreditCard, KeyRound, Activity, Cpu } from 'lucide-react'
+import { useSerialChipId } from '../hooks/useSerialChipId'
+import { Nfc, Plus, Trash2, CreditCard, KeyRound, Activity, Cpu, Usb, Download, Lock } from 'lucide-react'
 
 interface Terminal {
   id: string
@@ -30,7 +31,7 @@ interface Transaction {
 
 export default function NFCTerminals() {
   const { hasPermission } = usePermissions()
-  const [tab, setTab] = useState<'terminals' | 'cards' | 'transactions'>('terminals')
+  const [tab, setTab] = useState<'terminals' | 'provision' | 'cards' | 'transactions'>('terminals')
   const [terminals, setTerminals] = useState<Terminal[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [terminalTypes, setTerminalTypes] = useState<string[]>([])
@@ -38,6 +39,15 @@ export default function NFCTerminals() {
   const [showRegister, setShowRegister] = useState(false)
   const [showIssueCard, setShowIssueCard] = useState(false)
   const [showResetPIN, setShowResetPIN] = useState<string | null>(null)
+
+  // Provisioning state
+  const { chipId, scanning, error: serialError, supported: serialSupported, scan } = useSerialChipId()
+  const [provisionChipId, setProvisionChipId] = useState('')
+  const [provisionType, setProvisionType] = useState('keypad')
+  const [provisionLabel, setProvisionLabel] = useState('')
+  const [provisionLocation, setProvisionLocation] = useState('')
+  const [provisionResult, setProvisionResult] = useState<{ terminal_id: string; config_h_url: string } | null>(null)
+  const [provisioning, setProvisioning] = useState(false)
 
   const canRegisterTerminal = hasPermission('nfc.register_terminal')
   const canDeactivateTerminal = hasPermission('nfc.deactivate_terminal')
@@ -148,17 +158,162 @@ export default function NFCTerminals() {
     return new Date(ts).toLocaleString()
   }
 
+  // Cuando el escaneo USB encuentra el chip ID, llenar el campo
+  useEffect(() => {
+    if (chipId) setProvisionChipId(chipId)
+  }, [chipId])
+
+  const provisionTerminal = async () => {
+    setError('')
+    setProvisioning(true)
+    setProvisionResult(null)
+    try {
+      const res = await api.post<{ terminal: Terminal; registration_token: string; config_h_url: string }>('/nfc/terminal/provision', {
+        chip_id: provisionChipId,
+        terminal_type: provisionType,
+        label: provisionLabel,
+        location: provisionLocation,
+      })
+      setProvisionResult({ terminal_id: res.terminal.terminal_id, config_h_url: res.config_h_url })
+      loadTerminals()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al provisionar')
+    } finally {
+      setProvisioning(false)
+    }
+  }
+
+  const downloadConfigH = async (terminalId: string) => {
+    try {
+      const token = localStorage.getItem('fmc_token')
+      const res = await fetch(`/api/nfc/terminal/${terminalId}/config.h`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error('Error al descargar config.h')
+      const text = await res.text()
+      const blob = new Blob([text], { type: 'text/plain' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'config.h'
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error')
+    }
+  }
+
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold flex items-center gap-2"><Nfc size={24} /> Terminales NFC</h1>
 
-      <div className="flex gap-2">
-        {([['terminals', 'Terminales'], ['cards', 'Tarjetas'], ['transactions', 'Transacciones']] as const).map(([key, label]) => (
+      <div className="flex gap-2 flex-wrap">
+        {([['terminals', 'Terminales'], ['provision', 'Provisionar'], ['cards', 'Tarjetas'], ['transactions', 'Transacciones']] as const).map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === key ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{label}</button>
         ))}
       </div>
 
       {error && <div className="text-red-600 text-sm">{error}</div>}
+
+      {/* Provision tab */}
+      {tab === 'provision' && (
+        <div className="space-y-4">
+          <h2 className="font-semibold flex items-center gap-2"><Cpu size={18} /> Provisionar Terminal Nuevo</h2>
+          <p className="text-sm text-gray-500">
+            Conecta el ESP32 por USB al computador. Primero flashea el sketch <code className="bg-gray-100 px-1 rounded">chip-id-reader.ino</code> para poder leer el chip ID.
+            Luego escanea el ESP32 desde el navegador o entra el chip ID manualmente.
+          </p>
+
+          {/* Paso 1: Leer chip ID */}
+          <div className="card space-y-3">
+            <h3 className="font-medium flex items-center gap-2"><Usb size={16} /> Paso 1: Leer Chip ID del ESP32</h3>
+
+            {serialSupported ? (
+              <button onClick={scan} disabled={scanning} className="btn-primary flex items-center gap-2">
+                <Usb size={18} /> {scanning ? 'Escaneando...' : 'Escanear ESP32 via USB'}
+              </button>
+            ) : (
+              <p className="text-sm text-orange-600 bg-orange-50 p-3 rounded-lg">
+                Web Serial API no soportada. Usa Chrome o Edge, o entra el chip ID manualmente abajo.
+              </p>
+            )}
+
+            {serialError && <p className="text-sm text-red-600">{serialError}</p>}
+            {chipId && (
+              <p className="text-sm text-green-700 bg-green-50 p-3 rounded-lg">
+                Chip ID detectado: <code className="font-bold">{chipId}</code>
+              </p>
+            )}
+
+            <div>
+              <label className="text-sm text-gray-600 block mb-1">O entra el chip ID manualmente (12 hex chars):</label>
+              <input
+                className="input font-mono"
+                placeholder="Ej: AABBCCDDEEFF"
+                value={provisionChipId}
+                maxLength={12}
+                onChange={(e) => setProvisionChipId(e.target.value.toUpperCase())}
+              />
+            </div>
+          </div>
+
+          {/* Paso 2: Configurar terminal */}
+          <div className="card space-y-3">
+            <h3 className="font-medium flex items-center gap-2"><Cpu size={16} /> Paso 2: Configurar Terminal</h3>
+            <select className="input" value={provisionType} onChange={(e) => setProvisionType(e.target.value)}>
+              <option value="keypad">Keypad (con encoder)</option>
+              <option value="touch">Touch (pantalla tactil)</option>
+              <option value="web">Web (monto desde app)</option>
+              <option value="community">Community (doble tarjeta)</option>
+              <option value="ble-reader">BLE Reader (lector Bluetooth)</option>
+            </select>
+            <input className="input" placeholder="Etiqueta (ej: Ferreteria Don Jose)" value={provisionLabel} onChange={(e) => setProvisionLabel(e.target.value)} />
+            <input className="input" placeholder="Ubicacion (ej: Local 5)" value={provisionLocation} onChange={(e) => setProvisionLocation(e.target.value)} />
+            <button
+              onClick={provisionTerminal}
+              disabled={!provisionChipId || provisionChipId.length !== 12 || provisioning}
+              className="btn-primary w-full disabled:opacity-50"
+            >
+              {provisioning ? 'Provisionando...' : 'Provisionar Terminal'}
+            </button>
+          </div>
+
+          {/* Paso 3: Descargar config.h */}
+          {provisionResult && (
+            <div className="card bg-green-50 border-green-200 space-y-3">
+              <h3 className="font-medium text-green-800 flex items-center gap-2"><Download size={16} /> Paso 3: Descargar config.h</h3>
+              <p className="text-sm text-green-700">
+                Terminal <strong>{provisionResult.terminal_id}</strong> provisionado correctamente.
+              </p>
+              <p className="text-sm text-gray-600">
+                Descarga el config.h generado y copialo a la carpeta del terminal en el firmware.
+                Luego compila y flashea al ESP32.
+              </p>
+              <button
+                onClick={() => downloadConfigH(provisionResult.terminal_id)}
+                className="btn-primary flex items-center gap-2"
+              >
+                <Download size={18} /> Descargar config.h
+              </button>
+            </div>
+          )}
+
+          {/* Info: flujo completo */}
+          <div className="card bg-blue-50 border-blue-200">
+            <h3 className="font-medium text-blue-800 mb-2">Flujo completo de instalacion</h3>
+            <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
+              <li>Flashea <code className="bg-blue-100 px-1 rounded">chip-id-reader.ino</code> al ESP32 nuevo</li>
+              <li>Escanea el ESP32 via USB o lee el chip ID del monitor serie</li>
+              <li>Configura el tipo de terminal, etiqueta y ubicacion</li>
+              <li>Provisiona → el servidor genera terminal_id y token</li>
+              <li>Descarga el config.h generado</li>
+              <li>Copia config.h a la carpeta del terminal y compila</li>
+              <li>Flashea el firmware al ESP32</li>
+              <li>En el sitio: configura WiFi via portal cautivo</li>
+            </ol>
+          </div>
+        </div>
+      )}
 
       {/* Terminals tab */}
       {tab === 'terminals' && (

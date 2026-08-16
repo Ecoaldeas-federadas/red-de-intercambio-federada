@@ -12,6 +12,7 @@
 #include "../shared/crypto_helper.h"
 #include "../shared/nfc_reader.h"
 #include "../shared/server_client.h"
+#include "../shared/local_lock.h"
 
 #define BUZZER_PIN 25
 #define XPT2046_IRQ  36
@@ -29,6 +30,7 @@ uint8_t serverPubKey[32];
 uint8_t sharedKey[32];
 String sessionToken = "";
 unsigned long lastHeartbeat = 0;
+bool serverActive = true;
 
 ServerConfig config;
 
@@ -158,6 +160,9 @@ void setup() {
 
   pinMode(BUZZER_PIN, OUTPUT);
 
+  // Init local lock
+  initLocalLock();
+
   // 2. Conectar WiFi (provisioning en el sitio si es la primera vez)
   if (!connectToWifi()) {
     String apSuffix = String(EXPECTED_CHIP_ID).substring(0, 4);
@@ -212,9 +217,41 @@ void setup() {
 }
 
 void loop() {
+  // Heartbeat — verifica estado activo en el servidor
   if (millis() - lastHeartbeat > 30000) {
-    sendHeartbeat(&config, serverPubKey);
+    String hbResponse = sendHeartbeat(&config, serverPubKey);
+    if (hbResponse.indexOf("\"active\":false") >= 0) {
+      serverActive = false;
+    } else if (hbResponse.length() > 0) {
+      serverActive = true;
+    }
     lastHeartbeat = millis();
+  }
+
+  // Si el servidor desactivo el terminal
+  if (!serverActive) {
+    showTextTouch("Terminal no\ninicializado\n\nContacte admin", TFT_RED);
+    delay(5000);
+    return;
+  }
+
+  // Si esta bloqueado localmente, pedir PIN para desbloquear
+  if (isLocalLocked()) {
+    showTextTouch("BLOQUEADO\n\nIngrese PIN:", TFT_YELLOW);
+    String enteredPIN = inputOnTouchscreen("PIN desbloqueo:", 4);
+    if (checkLockPIN(enteredPIN, LOCK_PIN)) {
+      unlockTerminal();
+      showTextTouch("Desbloqueado", TFT_GREEN);
+      digitalWrite(BUZZER_PIN, HIGH); delay(100);
+      digitalWrite(BUZZER_PIN, LOW);
+      delay(1000);
+    } else {
+      showTextTouch("PIN incorrecto", TFT_RED);
+      digitalWrite(BUZZER_PIN, HIGH); delay(300);
+      digitalWrite(BUZZER_PIN, LOW);
+      delay(2000);
+    }
+    return;
   }
 
   // Step 1: Input amount on touchscreen

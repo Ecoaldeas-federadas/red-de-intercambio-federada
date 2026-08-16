@@ -12,6 +12,7 @@
 #include "../shared/display_helper.h"
 #include "../shared/server_client.h"
 #include "../shared/pin_helper.h"
+#include "../shared/local_lock.h"
 
 #define BUZZER_PIN 25
 
@@ -20,6 +21,8 @@ uint8_t serverPubKey[32];
 uint8_t sharedKey[32];
 String sessionToken = "";
 unsigned long lastHeartbeat = 0;
+bool serverActive = true;  // el servidor marca el terminal como activo
+unsigned long lockPressStart = 0;  // para detectar pulsacion larga (bloqueo)
 
 void setup() {
   Serial.begin(115200);
@@ -48,6 +51,9 @@ void setup() {
 
   // Init buzzer
   pinMode(BUZZER_PIN, OUTPUT);
+
+  // Init local lock
+  initLocalLock();
 
   // 2. Conectar WiFi (provisioning en el sitio si es la primera vez)
   if (!connectToWifi()) {
@@ -106,10 +112,46 @@ void setup() {
 }
 
 void loop() {
-  // Heartbeat every 30s
+  // Heartbeat every 30s — verifica estado activo en el servidor
   if (millis() - lastHeartbeat > 30000) {
-    sendHeartbeat(&config, serverPubKey);
+    String hbResponse = sendHeartbeat(&config, serverPubKey);
+    // El servidor puede indicar que el terminal esta desactivado
+    if (hbResponse.indexOf("\"active\":false") >= 0) {
+      serverActive = false;
+    } else if (hbResponse.length() > 0) {
+      serverActive = true;
+    }
     lastHeartbeat = millis();
+  }
+
+  // Si el servidor desactivo el terminal (dueño cerro el punto)
+  if (!serverActive) {
+    showText("Terminal no", 1, 16);
+    showText("inicializado", 1, 32);
+    showText("Contacte admin", 1, 48);
+    delay(5000);
+    return;
+  }
+
+  // Si esta bloqueado localmente, pedir PIN para desbloquear
+  if (isLocalLocked()) {
+    showText("BLOQUEADO", 2, 16);
+    showText("PIN para", 1, 40);
+    showText("desbloquear:", 1, 56);
+    String enteredPIN = inputPIN("PIN desbloqueo");
+    if (checkLockPIN(enteredPIN, LOCK_PIN)) {
+      unlockTerminal();
+      showText("Desbloqueado", 1, 24);
+      digitalWrite(BUZZER_PIN, HIGH); delay(100);
+      digitalWrite(BUZZER_PIN, LOW);
+      delay(1000);
+    } else {
+      showText("PIN incorrecto", 1, 24);
+      digitalWrite(BUZZER_PIN, HIGH); delay(300);
+      digitalWrite(BUZZER_PIN, LOW);
+      delay(2000);
+    }
+    return;
   }
 
   // Step 1: Input amount via rotary encoder
@@ -183,6 +225,11 @@ void loop() {
 
   delay(3000);
   showReady();
+
+  // Nota: para bloquear localmente, mantener presionado el encoder
+  // 2 segundos cuando el terminal muestra "Listo" (showReady).
+  // Esto se detecta en el inputAmount() con pulsacion larga.
+  // Ver pin_helper.h para la implementacion del encoder.
 }
 
 // Need config as global

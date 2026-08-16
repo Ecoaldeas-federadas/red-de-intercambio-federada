@@ -130,19 +130,25 @@ func (h *NFCTerminalHandler) terminalHeartbeat(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	if err := h.NFC.Heartbeat(r.Context(), req.TerminalID); err != nil {
+	// Heartbeat con estado: el terminal sabe si el dueño lo desactivo
+	isActive, err := h.NFC.HeartbeatWithStatus(r.Context(), req.TerminalID)
+	if err != nil {
 		writeError(w, 500, err.Error())
 		return
 	}
 
 	serverPriv, err := h.NFC.GetServerPrivateKey(r.Context())
 	if err != nil {
-		writeJSON(w, 200, map[string]string{"status": "ok"})
+		writeJSON(w, 200, map[string]interface{}{
+			"status": "ok",
+			"active": isActive,
+		})
 		return
 	}
 	sig := ed25519.Sign(serverPriv, []byte(req.TerminalID))
-	writeJSON(w, 200, map[string]string{
+	writeJSON(w, 200, map[string]interface{}{
 		"status":    "ok",
+		"active":    isActive,
 		"signature": hexEncodeBytes(sig),
 	})
 }

@@ -12,6 +12,7 @@
 #include "../shared/display_helper.h"
 #include "../shared/server_client.h"
 #include "../shared/pin_helper.h"
+#include "../shared/local_lock.h"
 
 #define BUZZER_PIN 25
 
@@ -20,6 +21,7 @@ uint8_t serverPubKey[32];
 uint8_t sharedKey[32];
 String sessionToken = "";
 unsigned long lastHeartbeat = 0;
+bool serverActive = true;
 
 // Community session state
 enum CommunityState {
@@ -60,6 +62,9 @@ void setup() {
 
   initPinInput();
   pinMode(BUZZER_PIN, OUTPUT);
+
+  // Init local lock
+  initLocalLock();
 
   // 2. Conectar WiFi (provisioning en el sitio si es la primera vez)
   if (!connectToWifi()) {
@@ -111,10 +116,45 @@ void setup() {
 }
 
 void loop() {
-  // Heartbeat
+  // Heartbeat — verifica estado activo en el servidor
   if (millis() - lastHeartbeat > 30000) {
-    sendHeartbeat(&config, serverPubKey);
+    String hbResponse = sendHeartbeat(&config, serverPubKey);
+    if (hbResponse.indexOf("\"active\":false") >= 0) {
+      serverActive = false;
+    } else if (hbResponse.length() > 0) {
+      serverActive = true;
+    }
     lastHeartbeat = millis();
+  }
+
+  // Si el servidor desactivo el terminal
+  if (!serverActive) {
+    showText("Terminal no", 1, 16);
+    showText("inicializado", 1, 32);
+    showText("Contacte admin", 1, 48);
+    delay(5000);
+    return;
+  }
+
+  // Si esta bloqueado localmente, pedir PIN para desbloquear
+  if (isLocalLocked()) {
+    showText("BLOQUEADO", 2, 16);
+    showText("PIN para", 1, 40);
+    showText("desbloquear:", 1, 56);
+    String enteredPIN = inputPIN("PIN desbloqueo");
+    if (checkLockPIN(enteredPIN, LOCK_PIN)) {
+      unlockTerminal();
+      showText("Desbloqueado", 1, 24);
+      digitalWrite(BUZZER_PIN, HIGH); delay(100);
+      digitalWrite(BUZZER_PIN, LOW);
+      delay(1000);
+    } else {
+      showText("PIN incorrecto", 1, 24);
+      digitalWrite(BUZZER_PIN, HIGH); delay(300);
+      digitalWrite(BUZZER_PIN, LOW);
+      delay(2000);
+    }
+    return;
   }
 
   switch (commState) {
