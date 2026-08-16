@@ -27,7 +27,7 @@ Cada nodo opera de forma independiente y se federa con otros nodos via protocolo
 ### 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/TU_USUARIO/red-de-intercambio-federada.git
+git clone https://github.com/discapacidad5/red-de-intercambio-federada.git
 cd red-de-intercambio-federada
 ```
 
