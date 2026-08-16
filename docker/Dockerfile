@@ -1,7 +1,7 @@
 # Multi-stage Dockerfile for Federated Credit Node
 
 # Stage 1: Build Go binary
-FROM golang:1.23-alpine AS go-builder
+FROM golang:1.25-alpine AS go-builder
 
 WORKDIR /app
 
