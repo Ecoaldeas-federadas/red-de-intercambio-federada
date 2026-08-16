@@ -170,7 +170,7 @@ CREATE TABLE IF NOT EXISTS approval_rules (
 CREATE TABLE IF NOT EXISTS approval_signatures (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   transaction_id UUID REFERENCES transactions(id),
-  assembly_decision_id UUID REFERENCES assembly_decisions(id),
+  assembly_decision_id UUID,
   admission_request_id UUID,
   signer_id UUID NOT NULL REFERENCES users(id),
   signature TEXT NOT NULL,
@@ -491,3 +491,8 @@ CREATE INDEX IF NOT EXISTS idx_membership_history_user ON membership_history(use
 INSERT INTO federation_global_config (node_global_credit_limit, node_global_debit_limit, node_bilateral_base_limit)
 SELECT -1000000, 1000000, 500000
 WHERE NOT EXISTS (SELECT 1 FROM federation_global_config);
+
+-- Add FK that was deferred (assembly_decisions is created later in this file)
+ALTER TABLE approval_signatures
+  ADD CONSTRAINT approval_signatures_assembly_decision_id_fkey
+  FOREIGN KEY (assembly_decision_id) REFERENCES assembly_decisions(id);
