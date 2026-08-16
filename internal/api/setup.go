@@ -40,6 +40,31 @@ func NewSetupHandler(pool *pgxpool.Pool, accts *accounts.Accounts, jwtSecret, no
 func (sh *SetupHandler) RegisterRoutes(r chi.Router) {
 	r.Get("/api/setup/status", sh.getSetupStatus)
 	r.Post("/api/setup/init", sh.initNode)
+	r.Get("/api/setup/node-keys", sh.getNodeKeys)
+}
+
+// getNodeKeys retorna la clave publica del nodo para que el admin pueda
+// copiarla y registrarla en otros nodos para federarse.
+func (sh *SetupHandler) getNodeKeys(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var nodeDomain, nodeName, nodePubKey string
+	var initialized bool
+	err := sh.Pool.QueryRow(ctx, `
+		SELECT node_domain, node_name, node_public_key, initialized
+		FROM node_config WHERE initialized = true LIMIT 1`).Scan(
+		&nodeDomain, &nodeName, &nodePubKey, &initialized)
+	if err != nil {
+		writeError(w, 404, "node not initialized yet")
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"node_domain":     nodeDomain,
+		"node_name":       nodeName,
+		"node_public_key": nodePubKey,
+		"initialized":     initialized,
+	})
 }
 
 type SetupStatus struct {
@@ -226,7 +251,52 @@ func (sh *SetupHandler) initNode(w http.ResponseWriter, r *http.Request) {
 		_, _ = sh.Pool.Exec(ctx, `INSERT INTO role_permissions (role_id, permission_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, roleID, pid)
 	}
 
-	am := NewAuthMiddleware(sh.JWTSecret)
+	// === Generar claves Ed25519 del nodo (para federacion) ===
+	// Estas claves son distintas a las del usuario admin. Son del nodo como entidad.
+	// Se usan para firmar comunicacion federada con otros nodos.
+	nodePubKey, nodePrivKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		writeError(w, 500, "failed to generate node keypair")
+		return
+	}
+	nodePubKeyHex := hex.EncodeToString(nodePubKey)
+
+	// Encriptar la clave privada del nodo con la password del admin
+	encryptedNodePrivKey, err := encryptPrivateKey(nodePrivKey, req.AdminPassword)
+	if err != nil {
+		writeError(w, 500, "failed to encrypt node private key")
+		return
+	}
+
+	// Generar JWT secret aleatorio si no hay uno seguro
+	jwtSecret := sh.JWTSecret
+	if jwtSecret == "" || jwtSecret == "change-me-in-production" {
+		jwtBytes := make([]byte, 32)
+		if _, err := rand.Read(jwtBytes); err != nil {
+			writeError(w, 500, "failed to generate jwt secret")
+			return
+		}
+		jwtSecret = hex.EncodeToString(jwtBytes)
+	}
+
+	// Guardar la configuracion del nodo en la BD (tabla node_config)
+	_, err = sh.Pool.Exec(ctx, `
+		INSERT INTO node_config (node_domain, node_name, node_public_key, node_private_key_enc, jwt_secret, initialized, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW())
+		ON CONFLICT (node_domain) DO UPDATE SET
+			node_name = $2,
+			node_public_key = $3,
+			node_private_key_enc = $4,
+			jwt_secret = $5,
+			initialized = true,
+			updated_at = NOW()`,
+		nodeDomain, nodeName, nodePubKeyHex, encryptedNodePrivKey, jwtSecret)
+	if err != nil {
+		writeError(w, 500, fmt.Sprintf("failed to save node config: %v", err))
+		return
+	}
+
+	am := NewAuthMiddleware(jwtSecret)
 	token, err := am.GenerateToken(adminUser.ID, adminUser.Username, nodeDomain)
 	if err != nil {
 		writeError(w, 500, "failed to generate token")
@@ -234,13 +304,14 @@ func (sh *SetupHandler) initNode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, 201, map[string]interface{}{
-		"message":     "Node initialized successfully",
-		"token":       token,
-		"username":    adminUser.Username,
-		"node":        nodeDomain,
-		"user_id":     adminUser.ID.String(),
-		"node_name":   nodeName,
-		"node_domain": nodeDomain,
+		"message":         "Node initialized successfully",
+		"token":           token,
+		"username":        adminUser.Username,
+		"node":            nodeDomain,
+		"user_id":         adminUser.ID.String(),
+		"node_name":       nodeName,
+		"node_domain":     nodeDomain,
+		"node_public_key": nodePubKeyHex,
 	})
 }
 

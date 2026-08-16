@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -62,6 +63,16 @@ func (fh *FederationHandler) RegisterRoutesWithAuth(r chi.Router, am *AuthMiddle
 	r.Get("/api/federation/balance/{remoteNode}", fh.getNodeBalance)
 
 	r.Get("/api/federation/volume", fh.getVolumeReport)
+
+	// Registro de nodos pares (claves publicas para federacion)
+	r.Get("/api/federation/peers", fh.listPeers)
+	if am != nil {
+		r.With(am.RequirePermission("federation.change_config")).Post("/api/federation/peers", fh.registerPeer)
+		r.With(am.RequirePermission("federation.change_config")).Delete("/api/federation/peers/{peerDomain}", fh.removePeer)
+	} else {
+		r.Post("/api/federation/peers", fh.registerPeer)
+		r.Delete("/api/federation/peers/{peerDomain}", fh.removePeer)
+	}
 }
 
 func (fh *FederationHandler) getFederationConfig(w http.ResponseWriter, r *http.Request) {
@@ -415,4 +426,136 @@ func (fh *FederationHandler) getVolumeReport(w http.ResponseWriter, r *http.Requ
 		})
 	}
 	writeJSON(w, 200, report)
+}
+
+// === Registro de nodos pares (claves publicas para federacion) ===
+
+type RegisterPeerRequest struct {
+	PeerDomain    string `json:"peer_domain"`
+	PeerName      string `json:"peer_name"`
+	PeerPublicKey string `json:"peer_public_key"`
+	PeerEndpoint  string `json:"peer_endpoint"`
+	Notes         string `json:"notes"`
+}
+
+// listPeers lista todos los nodos pares registrados con sus claves publicas
+func (fh *FederationHandler) listPeers(w http.ResponseWriter, r *http.Request) {
+	rows, err := fh.Pool.Query(r.Context(), `
+		SELECT peer_domain, peer_name, peer_public_key, peer_endpoint,
+			   status, mutual_verified, notes, created_at, updated_at
+		FROM node_federation_keys
+		ORDER BY created_at DESC`)
+	if err != nil {
+		writeError(w, 500, "error listing peers")
+		return
+	}
+	defer rows.Close()
+
+	var peers []map[string]interface{}
+	for rows.Next() {
+		var peerDomain, peerPubKey, status string
+		var peerName, peerEndpoint, notes *string
+		var mutualVerified bool
+		var createdAt, updatedAt interface{}
+		_ = rows.Scan(&peerDomain, &peerName, &peerPubKey, &peerEndpoint,
+			&status, &mutualVerified, &notes, &createdAt, &updatedAt)
+
+		peer := map[string]interface{}{
+			"peer_domain":     peerDomain,
+			"peer_public_key": peerPubKey,
+			"status":          status,
+			"mutual_verified": mutualVerified,
+			"created_at":      createdAt,
+			"updated_at":      updatedAt,
+		}
+		if peerName != nil {
+			peer["peer_name"] = *peerName
+		}
+		if peerEndpoint != nil {
+			peer["peer_endpoint"] = *peerEndpoint
+		}
+		if notes != nil {
+			peer["notes"] = *notes
+		}
+		peers = append(peers, peer)
+	}
+	if peers == nil {
+		peers = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, peers)
+}
+
+// registerPeer registra la clave publica de otro nodo para federarse.
+// Para que la federacion funcione, AMBOS nodos deben registrarse mutuamente.
+func (fh *FederationHandler) registerPeer(w http.ResponseWriter, r *http.Request) {
+	var req RegisterPeerRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	if req.PeerDomain == "" {
+		writeError(w, 400, "peer_domain is required")
+		return
+	}
+	if req.PeerPublicKey == "" {
+		writeError(w, 400, "peer_public_key is required")
+		return
+	}
+	if len(req.PeerPublicKey) != 64 {
+		writeError(w, 400, "peer_public_key must be 32 bytes (64 hex chars)")
+		return
+	}
+
+	// No permitir registrar el propio dominio
+	if req.PeerDomain == fh.NodeDomain {
+		writeError(w, 400, "cannot register self as peer")
+		return
+	}
+
+	// Obtener el userID del contexto (quien registra el peer)
+	var addedBy *uuid.UUID
+	if userID, ok := r.Context().Value("user_id").(uuid.UUID); ok {
+		addedBy = &userID
+	}
+
+	_, err := fh.Pool.Exec(r.Context(), `
+		INSERT INTO node_federation_keys (peer_domain, peer_name, peer_public_key, peer_endpoint, status, added_by, notes, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, 'pending', $5, $6, NOW(), NOW())
+		ON CONFLICT (peer_domain) DO UPDATE SET
+			peer_name = $2,
+			peer_public_key = $3,
+			peer_endpoint = $4,
+			notes = $6,
+			updated_at = NOW()`,
+		req.PeerDomain, req.PeerName, req.PeerPublicKey, req.PeerEndpoint, addedBy, req.Notes)
+	if err != nil {
+		writeError(w, 500, fmt.Sprintf("error registering peer: %v", err))
+		return
+	}
+
+	writeJSON(w, 201, map[string]interface{}{
+		"status":      "registered",
+		"peer_domain": req.PeerDomain,
+		"message":     "Peer registrado. Para federacion activa, el otro nodo tambien debe registrar tu clave publica.",
+		"your_node":   fh.NodeDomain,
+	})
+}
+
+// removePeer elimina un nodo par registrado
+func (fh *FederationHandler) removePeer(w http.ResponseWriter, r *http.Request) {
+	peerDomain := chi.URLParam(r, "peerDomain")
+	if peerDomain == "" {
+		writeError(w, 400, "peerDomain is required")
+		return
+	}
+
+	_, err := fh.Pool.Exec(r.Context(),
+		`DELETE FROM node_federation_keys WHERE peer_domain = $1`, peerDomain)
+	if err != nil {
+		writeError(w, 500, "error removing peer")
+		return
+	}
+
+	writeJSON(w, 200, map[string]string{"status": "removed"})
 }

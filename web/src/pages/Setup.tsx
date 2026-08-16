@@ -33,6 +33,7 @@ export default function Setup() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [nodePublicKey, setNodePublicKey] = useState('')
 
   const [form, setForm] = useState({
     node_name: '',
@@ -120,6 +121,7 @@ export default function Setup() {
         username: string
         node: string
         message: string
+        node_public_key: string
       }>('/setup/init', {
         node_name: form.node_name,
         node_domain: form.node_domain,
@@ -130,9 +132,8 @@ export default function Setup() {
 
       login(result.token, result.username)
       setSuccess('Nodo inicializado correctamente')
-      setTimeout(() => {
-        navigate('/')
-      }, 2000)
+      setNodePublicKey(result.node_public_key || '')
+      setStep(4)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al inicializar el nodo')
     } finally {
@@ -383,9 +384,40 @@ export default function Setup() {
 
         {/* Step 4: Already initialized */}
         {step === 4 && (
-          <div className="text-center py-8">
-            <CheckCircle className="mx-auto text-green-600 mb-4" size={48} />
-            <p className="text-gray-600">Redirigiendo al inicio de sesion...</p>
+          <div className="space-y-4">
+            <div className="text-center py-4">
+              <CheckCircle className="mx-auto text-green-600 mb-4" size={48} />
+              <p className="text-gray-600">Nodo inicializado correctamente!</p>
+            </div>
+
+            {nodePublicKey && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
+                <div className="flex items-center gap-2 font-medium text-blue-800">
+                  <Key size={16} /> Clave publica de tu nodo
+                </div>
+                <p className="text-xs text-blue-700">
+                  Guarda esta clave. La necesitas para federarte con otros nodos:
+                  cada nodo debe registrar la clave publica del otro.
+                </p>
+                <code className="block text-xs bg-white p-2 rounded border border-blue-200 break-all font-mono">
+                  {nodePublicKey}
+                </code>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(nodePublicKey); setSuccess('Clave copiada!'); setTimeout(() => setSuccess(''), 2000) }}
+                  className="btn-primary text-sm py-1 px-3"
+                >
+                  Copiar clave
+                </button>
+              </div>
+            )}
+
+            <button
+              onClick={() => navigate('/')}
+              className="btn-primary w-full flex items-center justify-center gap-2"
+            >
+              Ir al dashboard
+              <ArrowRight size={20} />
+            </button>
           </div>
         )}
 
