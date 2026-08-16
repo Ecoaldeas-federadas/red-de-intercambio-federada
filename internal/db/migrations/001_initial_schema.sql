@@ -91,13 +91,9 @@ CREATE TABLE IF NOT EXISTS ledger_entries (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Node config (key-value store)
-CREATE TABLE IF NOT EXISTS node_config (
-  id SERIAL PRIMARY KEY,
-  key TEXT NOT NULL UNIQUE,
-  value JSONB NOT NULL,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+-- Node config (key-value store) -- eliminada, se crea en la migracion 006
+-- con columnas: node_domain, node_name, node_public_key, etc.
+DROP TABLE IF EXISTS node_config;
 
 -- Member levels
 CREATE TABLE IF NOT EXISTS member_levels (
