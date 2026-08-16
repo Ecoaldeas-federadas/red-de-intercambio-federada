@@ -1,0 +1,204 @@
+package main
+
+import (
+	"context"
+	"crypto/ed25519"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/google/uuid"
+
+	"federated-credit-node/internal/accounts"
+	"federated-credit-node/internal/api"
+	"federated-credit-node/internal/config"
+	"federated-credit-node/internal/crypto"
+	"federated-credit-node/internal/db"
+	"federated-credit-node/internal/external"
+	"federated-credit-node/internal/ledger"
+	"federated-credit-node/internal/payments"
+	"federated-credit-node/internal/pricing"
+)
+
+func main() {
+	configPath := os.Getenv("CONFIG_PATH")
+	if configPath == "" {
+		configPath = "config.yaml"
+	}
+
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	database, err := db.Connect(ctx, cfg.Database.ConnString())
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer database.Close()
+
+	migrationsDir := os.Getenv("MIGRATIONS_DIR")
+	if migrationsDir == "" {
+		migrationsDir = "internal/db/migrations"
+	}
+
+	if err := database.RunMigrations(ctx, migrationsDir); err != nil {
+		log.Fatalf("Failed to run migrations: %v", err)
+	}
+
+	log.Println("Database migrations completed")
+
+	ledgerSvc := ledger.New(database.Pool)
+	accountsSvc := accounts.New(database.Pool)
+	pricingSvc := pricing.New(database.Pool)
+	cryptoSvc := crypto.NewKeyManager()
+	passkeyMgr := crypto.NewPasskeyManager(cfg.Node.Name, cfg.Node.Domain, cfg.API.CORSOrigins)
+
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "change-me-in-production"
+		log.Println("WARNING: JWT_SECRET not set, using default. Set JWT_SECRET env var for production.")
+	}
+
+	authMiddleware := api.NewAuthMiddlewareWithPool(jwtSecret, database.Pool)
+	challengeStore := api.NewChallengeStoreService()
+
+	authHandlers := &api.AuthHandlers{
+		PasskeyManager: &passkeyAdapter{pm: passkeyMgr},
+		KeyManager:     &keyAdapter{km: cryptoSvc},
+		Accounts:       &accountsAdapter{accts: accountsSvc},
+		ChallengeStore: challengeStore,
+		JWTSecret:      jwtSecret,
+		NodeDomain:     cfg.Node.Domain,
+		RPName:         cfg.Node.Name,
+		Pool:           database.Pool,
+	}
+
+	handler := api.NewHandler(ledgerSvc, accountsSvc, pricingSvc, cryptoSvc, cfg.Node.Domain)
+	federationHandler := api.NewFederationHandler(database.Pool, cfg.Node.Domain)
+	orgsSvc := accounts.NewOrganizations(database.Pool)
+	orgHandler := api.NewOrganizationHandler(orgsSvc, cfg.Node.Domain)
+	paymentsSvc := payments.New(database.Pool, cfg.Node.Domain)
+	paymentsHandler := api.NewPaymentsHandler(paymentsSvc, cfg.Node.Domain)
+	dexSvc := external.NewDEX(database.Pool, cfg.Node.Domain)
+	storeSvc := external.NewStore(database.Pool, cfg.Node.Domain)
+	externalHandler := api.NewExternalHandler(dexSvc, storeSvc, cfg.Node.Domain)
+	recoverySvc := accounts.NewRecovery(database.Pool)
+	recoveryHandler := api.NewRecoveryHandler(recoverySvc, cfg.Node.Domain, jwtSecret)
+	departmentsSvc := accounts.NewDepartments(database.Pool)
+	departmentsHandler := api.NewDepartmentsHandler(departmentsSvc, cfg.Node.Domain)
+	nfcTerminalsSvc := payments.NewNFCTerminals(database.Pool, cfg.Node.Domain)
+	nfcTerminalHandler := api.NewNFCTerminalHandler(nfcTerminalsSvc, cfg.Node.Domain)
+
+	setupHandler := api.NewSetupHandler(database.Pool, accountsSvc, jwtSecret, cfg.Node.Domain, cfg.Node.Name)
+
+	router := api.NewRouterWithAuth(handler, authHandlers, federationHandler, orgHandler, paymentsHandler, externalHandler, recoveryHandler, departmentsHandler, nfcTerminalHandler, setupHandler, cfg.API.CORSOrigins, authMiddleware)
+
+	srv := &http.Server{
+		Addr:         fmt.Sprintf(":%d", cfg.API.Port),
+		Handler:      router,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	go func() {
+		log.Printf("Node %s starting on port %d", cfg.Node.Name, cfg.API.Port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server error: %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("Shutting down server...")
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
+	}
+
+	log.Println("Server exited")
+}
+
+type passkeyAdapter struct {
+	pm *crypto.PasskeyManager
+}
+
+func (a *passkeyAdapter) BeginRegistration(userID uuid.UUID, username, displayName string, existingCreds [][]byte) (interface{}, error) {
+	return a.pm.BeginRegistration(userID, username, displayName, existingCreds)
+}
+
+func (a *passkeyAdapter) VerifyRegistration(response interface{}, expectedChallenge, expectedOrigin string) (interface{}, error) {
+	resp, ok := response.(crypto.RegistrationResponse)
+	if !ok {
+		return nil, fmt.Errorf("invalid registration response type")
+	}
+	return a.pm.VerifyRegistration(resp, expectedChallenge, expectedOrigin)
+}
+
+func (a *passkeyAdapter) BeginLogin(credentialIDs [][]byte) (interface{}, error) {
+	return a.pm.BeginLogin(credentialIDs)
+}
+
+func (a *passkeyAdapter) VerifyLogin(response interface{}, expectedChallenge string, storedPubKey []byte, storedSignCount int64) (int64, error) {
+	resp, ok := response.(crypto.LoginResponse)
+	if !ok {
+		return 0, fmt.Errorf("invalid login response type")
+	}
+	return a.pm.VerifyLogin(resp, expectedChallenge, storedPubKey, storedSignCount)
+}
+
+type keyAdapter struct {
+	km *crypto.KeyManager
+}
+
+func (a *keyAdapter) GenerateEd25519KeyPair() (interface{}, interface{}, error) {
+	return a.km.GenerateEd25519KeyPair()
+}
+
+func (a *keyAdapter) EncryptPrivateKey(privKey interface{}, passphrase string) ([]byte, []byte, error) {
+	key, ok := privKey.(ed25519.PrivateKey)
+	if !ok {
+		return nil, nil, fmt.Errorf("invalid private key type")
+	}
+	return a.km.EncryptPrivateKey(key, passphrase)
+}
+
+func (a *keyAdapter) PublicKeyToHex(pubKey interface{}) string {
+	key, ok := pubKey.(ed25519.PublicKey)
+	if !ok {
+		return ""
+	}
+	return a.km.PublicKeyToHex(key)
+}
+
+type accountsAdapter struct {
+	accts *accounts.Accounts
+}
+
+func (a *accountsAdapter) GetUser(ctx context.Context, id uuid.UUID) (interface{}, error) {
+	return a.accts.GetUser(ctx, id)
+}
+
+func (a *accountsAdapter) FindUserByUsername(ctx context.Context, nodeDomain, username string) (interface{}, error) {
+	return a.accts.FindUserByUsername(ctx, nodeDomain, username)
+}
+
+func (a *accountsAdapter) CreateUser(ctx context.Context, params interface{}) (interface{}, error) {
+	p, ok := params.(accounts.CreateUserParams)
+	if !ok {
+		return nil, fmt.Errorf("invalid params type")
+	}
+	return a.accts.CreateUser(ctx, p)
+}

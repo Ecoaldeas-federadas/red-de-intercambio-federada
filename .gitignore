@@ -1,0 +1,53 @@
+# ---- Dependencias ----
+node_modules/
+web/node_modules/
+vendor/
+
+# ---- Build artifacts / binarios ----
+*.exe
+*.dll
+*.so
+*.dylib
+*.o
+*.a
+web/dist/
+dist/
+build/
+out/
+.next/
+
+# ---- Go ----
+# binarios compilados del proyecto
+/red-de-intercambio-federada
+/node
+/bin/
+*.test
+*.out
+coverage.txt
+coverage.html
+
+# ---- Logs / temporales ----
+*.log
+logs/
+*.tmp
+*.swp
+*.bak
+
+# ---- Configuracion local / secretos ----
+.env
+.env.*
+!.env.example
+*.local
+config.local.yaml
+
+# ---- IDE / SO ----
+.idea/
+.vscode/
+*.code-workspace
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- Docker volúmenes locales ----
+data/
+volumes/

@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  node-app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    volumes:
+      - ./secrets:/secrets:ro
+      - ./config.yaml:/app/config.yaml:ro
+    depends_on:
+      - yugabytedb
+    environment:
+      - DB_PASSWORD=${DB_PASSWORD:-fmcpassword}
+      - CONFIG_PATH=/app/config.yaml
+      - MIGRATIONS_DIR=/app/internal/db/migrations
+    restart: unless-stopped
+
+  yugabytedb:
+    image: yugabytedb/yugabyte:latest
+    command: ["bin/yugabyted", "start", "--base_dir=/mnt/master", "--daemon=false"]
+    ports:
+      - "5433:5433"
+      - "7000:7000"
+      - "9000:9000"
+    volumes:
+      - yb_data:/mnt/master
+      - yb_tserver:/mnt/tserver
+    environment:
+      - YUGABYTE_DB_USER=fmc
+      - YUGABYTE_DB_PASSWORD=fmcpassword
+    restart: unless-stopped
+
+volumes:
+  yb_data:
+  yb_tserver:

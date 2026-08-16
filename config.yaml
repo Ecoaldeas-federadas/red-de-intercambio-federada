@@ -1,0 +1,52 @@
+node:
+  domain: "nodo-a.org"
+  name: "Banco Comunitario A"
+  private_key_path: "/secrets/node_private_key.ed25519"
+  certificate_path: "/secrets/node_certificate.pem"
+  ca_certificate_path: "/secrets/ca_root.pem"
+
+database:
+  host: "localhost"
+  port: 5433
+  name: "fmc_node"
+  user: "fmc"
+  password: ""
+  ssl_mode: "disable"
+  ssl_root_cert: ""
+
+federation:
+  listen_port: 8443
+  mtls_required: true
+  known_nodes: []
+  gossip_interval: "60s"
+  balance_sync_enabled: true
+
+limits:
+  node_multilateral_negative: -10000000
+  node_multilateral_positive: 10000000
+  default_individual_negative: -50000
+  default_individual_positive: 50000
+  default_organization_negative: -5000000
+  default_organization_positive: 5000000
+
+taxes:
+  individual:
+    rate: 0.0
+    enabled: false
+  organization:
+    default_rate: 0.05
+    by_type:
+      commerce: 0.05
+      services: 0.03
+      public_service: 0.0
+      cooperative: 0.02
+
+fund:
+  account_username: "fund"
+  multisig_required: 3
+  multisig_authorizers: []
+
+api:
+  port: 8080
+  cors_origins: ["http://localhost:3000"]
+  rate_limit: 100

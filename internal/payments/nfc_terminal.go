@@ -1,0 +1,867 @@
+package payments
+
+import (
+	"context"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
+	"federated-credit-node/internal/crypto"
+	"fmt"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/crypto/bcrypt"
+)
+
+type NFCTerminal struct {
+	ID                uuid.UUID  `json:"id"`
+	NodeDomain        string     `json:"node_domain"`
+	TerminalID        string     `json:"terminal_id"`
+	Label             string     `json:"label"`
+	TerminalType      string     `json:"terminal_type"`
+	Location          string     `json:"location"`
+	WifiSSID          string     `json:"wifi_ssid"`
+	TerminalPublicKey string     `json:"terminal_public_key,omitempty"`
+	ServerPublicKey   string     `json:"server_public_key,omitempty"`
+	RegistrationToken string     `json:"registration_token,omitempty"`
+	IsActive          bool       `json:"is_active"`
+	IsRegistered      bool       `json:"is_registered"`
+	LastSeen          *time.Time `json:"last_seen"`
+	FirmwareVersion   string     `json:"firmware_version"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
+}
+
+type NFCTerminalSession struct {
+	ID                uuid.UUID  `json:"id"`
+	TerminalID        uuid.UUID  `json:"terminal_id"`
+	SessionToken      string     `json:"session_token"`
+	MerchantUserID    *uuid.UUID `json:"merchant_user_id"`
+	CurrentAmount     *int64     `json:"current_amount"`
+	Status            string     `json:"status"`
+	SellerCardUID     string     `json:"seller_card_uid,omitempty"`
+	SellerPinVerified bool       `json:"seller_pin_verified"`
+	BuyerCardUID      string     `json:"buyer_card_uid,omitempty"`
+	ExpiresAt         time.Time  `json:"expires_at"`
+	CreatedAt         time.Time  `json:"created_at"`
+}
+
+type NFCTransaction struct {
+	ID              uuid.UUID  `json:"id"`
+	TerminalID      uuid.UUID  `json:"terminal_id"`
+	CardUID         string     `json:"card_uid"`
+	UserID          *uuid.UUID `json:"user_id"`
+	Amount          int64      `json:"amount"`
+	Status          string     `json:"status"`
+	CryptoToken     string     `json:"crypto_token,omitempty"`
+	PinVerified     bool       `json:"pin_verified"`
+	TransactionType string     `json:"transaction_type"`
+	SellerUserID    *uuid.UUID `json:"seller_user_id,omitempty"`
+	BuyerUserID     *uuid.UUID `json:"buyer_user_id,omitempty"`
+	ErrorMessage    string     `json:"error_message,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
+}
+
+type NFCTerminals struct {
+	Pool       *pgxpool.Pool
+	NodeDomain string
+}
+
+func NewNFCTerminals(pool *pgxpool.Pool, nodeDomain string) *NFCTerminals {
+	return &NFCTerminals{Pool: pool, NodeDomain: nodeDomain}
+}
+
+func (nt *NFCTerminals) RegisterTerminal(ctx context.Context, terminalID, label, terminalType, location, wifiSSID string) (*NFCTerminal, string, error) {
+	token := uuid.New().String()
+
+	var t NFCTerminal
+	err := nt.Pool.QueryRow(ctx, `
+		INSERT INTO nfc_terminals (node_domain, terminal_id, label, terminal_type, location, wifi_ssid, registration_token)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, node_domain, terminal_id, label, terminal_type, location, wifi_ssid,
+			registration_token, is_active, is_registered, last_seen, firmware_version, created_at, updated_at`,
+		nt.NodeDomain, terminalID, label, terminalType, location, wifiSSID, token,
+	).Scan(&t.ID, &t.NodeDomain, &t.TerminalID, &t.Label, &t.TerminalType,
+		&t.Location, &t.WifiSSID, &t.RegistrationToken, &t.IsActive, &t.IsRegistered,
+		&t.LastSeen, &t.FirmwareVersion, &t.CreatedAt, &t.UpdatedAt)
+	if err != nil {
+		return nil, "", fmt.Errorf("registering terminal: %w", err)
+	}
+	return &t, token, nil
+}
+
+func (nt *NFCTerminals) CompleteRegistration(ctx context.Context, terminalID, registrationToken, terminalPublicKey string) (string, error) {
+	var serverPubKey string
+	var t NFCTerminal
+	err := nt.Pool.QueryRow(ctx, `
+		UPDATE nfc_terminals
+		SET terminal_public_key = $3, is_registered = true, registration_token = NULL, updated_at = NOW()
+		WHERE terminal_id = $1 AND registration_token = $2 AND is_active = true
+		RETURNING id, node_domain, terminal_id, label, terminal_type, location, wifi_ssid,
+			terminal_public_key, is_active, is_registered, last_seen, firmware_version, created_at, updated_at`,
+		terminalID, registrationToken, terminalPublicKey,
+	).Scan(&t.ID, &t.NodeDomain, &t.TerminalID, &t.Label, &t.TerminalType,
+		&t.Location, &t.WifiSSID, &t.TerminalPublicKey, &t.IsActive, &t.IsRegistered,
+		&t.LastSeen, &t.FirmwareVersion, &t.CreatedAt, &t.UpdatedAt)
+	if err != nil {
+		return "", fmt.Errorf("completing terminal registration: %w", err)
+	}
+
+	if err := nt.EnsureServerKeys(ctx); err != nil {
+		return "", fmt.Errorf("ensuring server keys: %w", err)
+	}
+
+	err = nt.Pool.QueryRow(ctx, `
+		SELECT public_key FROM nfc_server_keys WHERE node_domain = $1`,
+		nt.NodeDomain,
+	).Scan(&serverPubKey)
+	if err != nil {
+		return "", fmt.Errorf("getting server public key: %w", err)
+	}
+
+	return serverPubKey, nil
+}
+
+func (nt *NFCTerminals) AuthenticateTerminal(ctx context.Context, terminalID string, signature []byte, nonce string, serverPrivKey ed25519.PrivateKey) (string, error) {
+	var t NFCTerminal
+	var pubKeyStr string
+	err := nt.Pool.QueryRow(ctx, `
+		SELECT id, terminal_public_key FROM nfc_terminals
+		WHERE terminal_id = $1 AND is_active = true AND is_registered = true`,
+		terminalID,
+	).Scan(&t.ID, &pubKeyStr)
+	if err != nil {
+		return "", fmt.Errorf("terminal not found or not registered")
+	}
+
+	pubKey, err := hex.DecodeString(pubKeyStr)
+	if err != nil {
+		return "", fmt.Errorf("invalid terminal public key")
+	}
+
+	if !ed25519.Verify(ed25519.PublicKey(pubKey), []byte(nonce), signature) {
+		return "", fmt.Errorf("terminal signature verification failed")
+	}
+
+	_, err = nt.Pool.Exec(ctx, `
+		UPDATE nfc_terminals SET last_seen = NOW() WHERE id = $1`,
+		t.ID,
+	)
+	if err != nil {
+		return "", fmt.Errorf("updating last seen: %w", err)
+	}
+
+	sessionToken := uuid.New().String()
+	respSig := ed25519.Sign(serverPrivKey, []byte(sessionToken))
+
+	_, err = nt.Pool.Exec(ctx, `
+		INSERT INTO nfc_terminal_sessions (terminal_id, session_token, status)
+		VALUES ($1, $2, 'idle')`,
+		t.ID, sessionToken,
+	)
+	if err != nil {
+		return "", fmt.Errorf("creating session: %w", err)
+	}
+
+	_ = respSig
+	return sessionToken, nil
+}
+
+func (nt *NFCTerminals) Heartbeat(ctx context.Context, terminalID string) error {
+	_, err := nt.Pool.Exec(ctx, `
+		UPDATE nfc_terminals SET last_seen = NOW() WHERE terminal_id = $1`,
+		terminalID,
+	)
+	if err != nil {
+		return fmt.Errorf("heartbeat: %w", err)
+	}
+	return nil
+}
+
+func (nt *NFCTerminals) GetTerminalStatus(ctx context.Context, terminalID string) (*NFCTerminal, error) {
+	var t NFCTerminal
+	err := nt.Pool.QueryRow(ctx, `
+		SELECT id, node_domain, terminal_id, label, terminal_type, location, wifi_ssid,
+			is_active, is_registered, last_seen, firmware_version, created_at, updated_at
+		FROM nfc_terminals WHERE terminal_id = $1`,
+		terminalID,
+	).Scan(&t.ID, &t.NodeDomain, &t.TerminalID, &t.Label, &t.TerminalType,
+		&t.Location, &t.WifiSSID, &t.IsActive, &t.IsRegistered,
+		&t.LastSeen, &t.FirmwareVersion, &t.CreatedAt, &t.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("terminal not found: %w", err)
+	}
+	return &t, nil
+}
+
+func (nt *NFCTerminals) ListTerminals(ctx context.Context, nodeDomain string) ([]NFCTerminal, error) {
+	rows, err := nt.Pool.Query(ctx, `
+		SELECT id, node_domain, terminal_id, label, terminal_type, location, wifi_ssid,
+			is_active, is_registered, last_seen, firmware_version, created_at, updated_at
+		FROM nfc_terminals WHERE node_domain = $1 ORDER BY created_at DESC`,
+		nodeDomain,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("listing terminals: %w", err)
+	}
+	defer rows.Close()
+
+	var terminals []NFCTerminal
+	for rows.Next() {
+		var t NFCTerminal
+		if err := rows.Scan(&t.ID, &t.NodeDomain, &t.TerminalID, &t.Label, &t.TerminalType,
+			&t.Location, &t.WifiSSID, &t.IsActive, &t.IsRegistered,
+			&t.LastSeen, &t.FirmwareVersion, &t.CreatedAt, &t.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scanning terminal: %w", err)
+		}
+		terminals = append(terminals, t)
+	}
+	return terminals, nil
+}
+
+func (nt *NFCTerminals) ListTerminalTypes() []string {
+	return []string{"keypad", "web", "touch", "community"}
+}
+
+func (nt *NFCTerminals) DeactivateTerminal(ctx context.Context, terminalID string) error {
+	_, err := nt.Pool.Exec(ctx, `
+		UPDATE nfc_terminals SET is_active = false, updated_at = NOW() WHERE terminal_id = $1`,
+		terminalID,
+	)
+	if err != nil {
+		return fmt.Errorf("deactivating terminal: %w", err)
+	}
+	return nil
+}
+
+func (nt *NFCTerminals) CreateSession(ctx context.Context, terminalID string, merchantUserID *uuid.UUID) (*NFCTerminalSession, error) {
+	var termID uuid.UUID
+	err := nt.Pool.QueryRow(ctx, `
+		SELECT id FROM nfc_terminals WHERE terminal_id = $1 AND is_active = true`,
+		terminalID,
+	).Scan(&termID)
+	if err != nil {
+		return nil, fmt.Errorf("terminal not found")
+	}
+
+	sessionToken := uuid.New().String()
+	var s NFCTerminalSession
+	err = nt.Pool.QueryRow(ctx, `
+		INSERT INTO nfc_terminal_sessions (terminal_id, session_token, merchant_user_id, status)
+		VALUES ($1, $2, $3, 'idle')
+		RETURNING id, terminal_id, session_token, merchant_user_id, current_amount, status, expires_at, created_at`,
+		termID, sessionToken, merchantUserID,
+	).Scan(&s.ID, &s.TerminalID, &s.SessionToken, &s.MerchantUserID,
+		&s.CurrentAmount, &s.Status, &s.ExpiresAt, &s.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("creating session: %w", err)
+	}
+	return &s, nil
+}
+
+func (nt *NFCTerminals) SetTerminalAmount(ctx context.Context, sessionToken string, amount int64) (*NFCTerminalSession, error) {
+	var s NFCTerminalSession
+	err := nt.Pool.QueryRow(ctx, `
+		UPDATE nfc_terminal_sessions
+		SET current_amount = $2, status = 'waiting_card'
+		WHERE session_token = $1 AND expires_at > NOW()
+		RETURNING id, terminal_id, session_token, merchant_user_id, current_amount, status, expires_at, created_at`,
+		sessionToken, amount,
+	).Scan(&s.ID, &s.TerminalID, &s.SessionToken, &s.MerchantUserID,
+		&s.CurrentAmount, &s.Status, &s.ExpiresAt, &s.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("setting amount: %w", err)
+	}
+	return &s, nil
+}
+
+type NFCPaymentPayload struct {
+	CardUID     string `json:"card_uid"`
+	CryptoToken string `json:"crypto_token"`
+	PIN         string `json:"pin"`
+	Amount      int64  `json:"amount"`
+	Timestamp   int64  `json:"timestamp"`
+	Nonce       string `json:"nonce"`
+}
+
+type NFCPaymentResult struct {
+	Status        string `json:"status"`
+	TransactionID string `json:"transaction_id,omitempty"`
+	Message       string `json:"message,omitempty"`
+	UserBalance   *int64 `json:"user_balance,omitempty"`
+}
+
+func (nt *NFCTerminals) ProcessNFCPayment(ctx context.Context, terminalID string, payload NFCPaymentPayload) (*NFCPaymentResult, error) {
+	var termDBID uuid.UUID
+	err := nt.Pool.QueryRow(ctx, `
+		SELECT id FROM nfc_terminals WHERE terminal_id = $1 AND is_active = true`,
+		terminalID,
+	).Scan(&termDBID)
+	if err != nil {
+		return nil, fmt.Errorf("terminal not found or inactive")
+	}
+
+	card, err := nt.lookupCard(ctx, payload.CardUID)
+	if err != nil {
+		nt.logTransaction(ctx, termDBID, payload.CardUID, nil, payload.Amount, "rejected", payload.CryptoToken, false, "single", "", "card not found")
+		return &NFCPaymentResult{Status: "rejected", Message: "tarjeta no encontrada o inactiva"}, nil
+	}
+
+	if card.PinHash != nil {
+		blocked, err := nt.checkCardBlocked(ctx, payload.CardUID)
+		if err != nil {
+			return nil, err
+		}
+		if blocked {
+			nt.logTransaction(ctx, termDBID, payload.CardUID, &card.UserID, payload.Amount, "rejected", payload.CryptoToken, false, "single", "", "card blocked")
+			return &NFCPaymentResult{Status: "rejected", Message: "tarjeta bloqueada por intentos de PIN"}, nil
+		}
+
+		if err := bcrypt.CompareHashAndPassword([]byte(*card.PinHash), []byte(payload.PIN)); err != nil {
+			nt.incrementCardAttempt(ctx, payload.CardUID)
+			nt.logTransaction(ctx, termDBID, payload.CardUID, &card.UserID, payload.Amount, "rejected", payload.CryptoToken, false, "single", "", "invalid PIN")
+			return &NFCPaymentResult{Status: "rejected", Message: "PIN incorrecto"}, nil
+		}
+
+		nt.resetCardAttempts(ctx, payload.CardUID)
+	}
+
+	var balance int64
+	err = nt.Pool.QueryRow(ctx, `SELECT balance FROM users WHERE id = $1`, card.UserID).Scan(&balance)
+	if err != nil {
+		return nil, fmt.Errorf("getting user balance: %w", err)
+	}
+
+	if balance-payload.Amount < -50000 {
+		nt.logTransaction(ctx, termDBID, payload.CardUID, &card.UserID, payload.Amount, "rejected", payload.CryptoToken, true, "single", "", "insufficient balance")
+		return &NFCPaymentResult{Status: "rejected", Message: "saldo insuficiente"}, nil
+	}
+
+	txID := uuid.New()
+	_, err = nt.Pool.Exec(ctx, `
+		UPDATE users SET balance = balance - $2, updated_at = NOW() WHERE id = $1`,
+		card.UserID, payload.Amount,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("debiting user: %w", err)
+	}
+
+	newBalance := balance - payload.Amount
+	nt.logTransaction(ctx, termDBID, payload.CardUID, &card.UserID, payload.Amount, "approved", payload.CryptoToken, true, "single", "", "")
+
+	return &NFCPaymentResult{
+		Status:        "approved",
+		TransactionID: txID.String(),
+		Message:       "transaccion aprobada",
+		UserBalance:   &newBalance,
+	}, nil
+}
+
+type CommunityPaymentPayload struct {
+	SellerCardUID     string `json:"seller_card_uid"`
+	SellerCryptoToken string `json:"seller_crypto_token"`
+	SellerPIN         string `json:"seller_pin"`
+	BuyerCardUID      string `json:"buyer_card_uid"`
+	BuyerCryptoToken  string `json:"buyer_crypto_token"`
+	BuyerPIN          string `json:"buyer_pin"`
+	Amount            int64  `json:"amount"`
+	Timestamp         int64  `json:"timestamp"`
+	Nonce             string `json:"nonce"`
+}
+
+func (nt *NFCTerminals) ProcessCommunityPayment(ctx context.Context, terminalID string, payload CommunityPaymentPayload) (*NFCPaymentResult, error) {
+	var termDBID uuid.UUID
+	err := nt.Pool.QueryRow(ctx, `
+		SELECT id FROM nfc_terminals WHERE terminal_id = $1 AND is_active = true`,
+		terminalID,
+	).Scan(&termDBID)
+	if err != nil {
+		return nil, fmt.Errorf("terminal not found or inactive")
+	}
+
+	sellerCard, err := nt.lookupCard(ctx, payload.SellerCardUID)
+	if err != nil {
+		return &NFCPaymentResult{Status: "rejected", Message: "tarjeta vendedora no encontrada"}, nil
+	}
+
+	buyerCard, err := nt.lookupCard(ctx, payload.BuyerCardUID)
+	if err != nil {
+		return &NFCPaymentResult{Status: "rejected", Message: "tarjeta compradora no encontrada"}, nil
+	}
+
+	if sellerCard.UserID == buyerCard.UserID {
+		return &NFCPaymentResult{Status: "rejected", Message: "vendedor y comprador son la misma persona"}, nil
+	}
+
+	if sellerCard.PinHash != nil {
+		if err := bcrypt.CompareHashAndPassword([]byte(*sellerCard.PinHash), []byte(payload.SellerPIN)); err != nil {
+			nt.logTransaction(ctx, termDBID, payload.SellerCardUID, &sellerCard.UserID, payload.Amount, "rejected", payload.SellerCryptoToken, false, "community", "", "seller PIN invalid")
+			return &NFCPaymentResult{Status: "rejected", Message: "PIN del vendedor incorrecto"}, nil
+		}
+	}
+
+	if buyerCard.PinHash != nil {
+		blocked, _ := nt.checkCardBlocked(ctx, payload.BuyerCardUID)
+		if blocked {
+			return &NFCPaymentResult{Status: "rejected", Message: "tarjeta compradora bloqueada"}, nil
+		}
+		if err := bcrypt.CompareHashAndPassword([]byte(*buyerCard.PinHash), []byte(payload.BuyerPIN)); err != nil {
+			nt.incrementCardAttempt(ctx, payload.BuyerCardUID)
+			nt.logTransaction(ctx, termDBID, payload.BuyerCardUID, &buyerCard.UserID, payload.Amount, "rejected", payload.BuyerCryptoToken, false, "community", "", "buyer PIN invalid")
+			return &NFCPaymentResult{Status: "rejected", Message: "PIN del comprador incorrecto"}, nil
+		}
+		nt.resetCardAttempts(ctx, payload.BuyerCardUID)
+	}
+
+	var buyerBalance int64
+	err = nt.Pool.QueryRow(ctx, `SELECT balance FROM users WHERE id = $1`, buyerCard.UserID).Scan(&buyerBalance)
+	if err != nil {
+		return nil, fmt.Errorf("getting buyer balance: %w", err)
+	}
+
+	if buyerBalance-payload.Amount < -50000 {
+		nt.logTransaction(ctx, termDBID, payload.BuyerCardUID, &buyerCard.UserID, payload.Amount, "rejected", payload.BuyerCryptoToken, true, "community", "", "insufficient balance")
+		return &NFCPaymentResult{Status: "rejected", Message: "saldo insuficiente del comprador"}, nil
+	}
+
+	_, err = nt.Pool.Exec(ctx, `UPDATE users SET balance = balance - $2 WHERE id = $1`, buyerCard.UserID, payload.Amount)
+	if err != nil {
+		return nil, fmt.Errorf("debiting buyer: %w", err)
+	}
+
+	_, err = nt.Pool.Exec(ctx, `UPDATE users SET balance = balance + $2 WHERE id = $1`, sellerCard.UserID, payload.Amount)
+	if err != nil {
+		return nil, fmt.Errorf("crediting seller: %w", err)
+	}
+
+	newBalance := buyerBalance - payload.Amount
+	txID := uuid.New()
+	nt.logTransaction(ctx, termDBID, payload.BuyerCardUID, &buyerCard.UserID, payload.Amount, "approved", payload.BuyerCryptoToken, true, "community", "", "")
+
+	return &NFCPaymentResult{
+		Status:        "approved",
+		TransactionID: txID.String(),
+		Message:       "transaccion comunitaria aprobada",
+		UserBalance:   &newBalance,
+	}, nil
+}
+
+type nfcCardInfo struct {
+	UserID   uuid.UUID
+	CardType string
+	PinHash  *string
+	IsActive bool
+}
+
+func (nt *NFCTerminals) lookupCard(ctx context.Context, cardUID string) (*nfcCardInfo, error) {
+	var c nfcCardInfo
+	var pinHash *string
+	err := nt.Pool.QueryRow(ctx, `
+		SELECT user_id, card_type, pin_hash, is_active
+		FROM nfc_cards WHERE card_uid = $1 AND is_active = true`,
+		cardUID,
+	).Scan(&c.UserID, &c.CardType, &pinHash, &c.IsActive)
+	if err != nil {
+		return nil, fmt.Errorf("card not found or inactive")
+	}
+	c.PinHash = pinHash
+	return &c, nil
+}
+
+func (nt *NFCTerminals) checkCardBlocked(ctx context.Context, cardUID string) (bool, error) {
+	var blockedUntil *time.Time
+	err := nt.Pool.QueryRow(ctx, `
+		SELECT blocked_until FROM nfc_card_attempts WHERE card_uid = $1`,
+		cardUID,
+	).Scan(&blockedUntil)
+	if err != nil {
+		return false, nil
+	}
+	if blockedUntil != nil && time.Now().Before(*blockedUntil) {
+		return true, nil
+	}
+	return false, nil
+}
+
+func (nt *NFCTerminals) incrementCardAttempt(ctx context.Context, cardUID string) {
+	var count int
+	err := nt.Pool.QueryRow(ctx, `
+		SELECT attempt_count FROM nfc_card_attempts WHERE card_uid = $1`,
+		cardUID,
+	).Scan(&count)
+	if err != nil {
+		nt.Pool.Exec(ctx, `
+			INSERT INTO nfc_card_attempts (card_uid, attempt_count, last_attempt_at)
+			VALUES ($1, 1, NOW())`, cardUID)
+		return
+	}
+
+	count++
+	blockedUntil := time.Now().Add(15 * time.Minute)
+	if count >= 3 {
+		nt.Pool.Exec(ctx, `
+			UPDATE nfc_card_attempts SET attempt_count = $2, last_attempt_at = NOW(), blocked_until = $3
+			WHERE card_uid = $1`, cardUID, count, blockedUntil)
+	} else {
+		nt.Pool.Exec(ctx, `
+			UPDATE nfc_card_attempts SET attempt_count = $2, last_attempt_at = NOW()
+			WHERE card_uid = $1`, cardUID, count)
+	}
+}
+
+func (nt *NFCTerminals) resetCardAttempts(ctx context.Context, cardUID string) {
+	nt.Pool.Exec(ctx, `
+		UPDATE nfc_card_attempts SET attempt_count = 0, blocked_until = NULL
+		WHERE card_uid = $1`, cardUID)
+}
+
+func (nt *NFCTerminals) logTransaction(ctx context.Context, terminalID uuid.UUID, cardUID string, userID *uuid.UUID, amount int64, status, cryptoToken string, pinVerified bool, txType, errMsg, _ string) {
+	nt.Pool.Exec(ctx, `
+		INSERT INTO nfc_transactions (terminal_id, card_uid, user_id, amount, status, crypto_token, pin_verified, transaction_type, error_message)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+		terminalID, cardUID, userID, amount, status, cryptoToken, pinVerified, txType, errMsg)
+}
+
+func (nt *NFCTerminals) ListTransactions(ctx context.Context, nodeDomain string, limit int) ([]NFCTransaction, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	rows, err := nt.Pool.Query(ctx, `
+		SELECT t.id, t.terminal_id, t.card_uid, t.user_id, t.amount, t.status,
+			t.crypto_token, t.pin_verified, t.transaction_type, t.seller_user_id, t.buyer_user_id,
+			t.error_message, t.created_at
+		FROM nfc_transactions t
+		JOIN nfc_terminals nt ON nt.id = t.terminal_id
+		WHERE nt.node_domain = $1
+		ORDER BY t.created_at DESC
+		LIMIT $2`,
+		nodeDomain, limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("listing transactions: %w", err)
+	}
+	defer rows.Close()
+
+	var txs []NFCTransaction
+	for rows.Next() {
+		var tx NFCTransaction
+		if err := rows.Scan(&tx.ID, &tx.TerminalID, &tx.CardUID, &tx.UserID, &tx.Amount,
+			&tx.Status, &tx.CryptoToken, &tx.PinVerified, &tx.TransactionType,
+			&tx.SellerUserID, &tx.BuyerUserID, &tx.ErrorMessage, &tx.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scanning transaction: %w", err)
+		}
+		txs = append(txs, tx)
+	}
+	return txs, nil
+}
+
+func (nt *NFCTerminals) IssueCryptoCard(ctx context.Context, userID uuid.UUID, cardUID, cardType, initialPIN string) (*NFCCard, error) {
+	pinHash, err := bcrypt.GenerateFromPassword([]byte(initialPIN), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("hashing PIN: %w", err)
+	}
+
+	var card NFCCard
+	err = nt.Pool.QueryRow(ctx, `
+		INSERT INTO nfc_cards (user_id, card_uid, is_active, card_type, crypto_enabled, pin_hash)
+		VALUES ($1, $2, true, $3, true, $4)
+		ON CONFLICT (card_uid) DO UPDATE SET is_active = true, card_type = $3, crypto_enabled = true, pin_hash = $4
+		RETURNING id, user_id, card_uid, is_active, issued_at, deactivated_at`,
+		userID, cardUID, cardType, string(pinHash),
+	).Scan(&card.ID, &card.UserID, &card.CardUID, &card.IsActive, &card.IssuedAt, &card.DeactivatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("issuing crypto card: %w", err)
+	}
+	return &card, nil
+}
+
+func (nt *NFCTerminals) ChangeCardPIN(ctx context.Context, cardUID, oldPIN, newPIN string) error {
+	var pinHash *string
+	err := nt.Pool.QueryRow(ctx, `
+		SELECT pin_hash FROM nfc_cards WHERE card_uid = $1 AND is_active = true`,
+		cardUID,
+	).Scan(&pinHash)
+	if err != nil {
+		return fmt.Errorf("card not found")
+	}
+
+	if pinHash != nil {
+		if err := bcrypt.CompareHashAndPassword([]byte(*pinHash), []byte(oldPIN)); err != nil {
+			return fmt.Errorf("old PIN incorrect")
+		}
+	}
+
+	newHash, err := bcrypt.GenerateFromPassword([]byte(newPIN), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hashing new PIN: %w", err)
+	}
+
+	_, err = nt.Pool.Exec(ctx, `
+		UPDATE nfc_cards SET pin_hash = $2 WHERE card_uid = $1`,
+		cardUID, string(newHash),
+	)
+	if err != nil {
+		return fmt.Errorf("updating PIN: %w", err)
+	}
+	return nil
+}
+
+func (nt *NFCTerminals) ResetCardPIN(ctx context.Context, cardUID, newPIN string) error {
+	newHash, err := bcrypt.GenerateFromPassword([]byte(newPIN), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hashing new PIN: %w", err)
+	}
+
+	_, err = nt.Pool.Exec(ctx, `
+		UPDATE nfc_cards SET pin_hash = $2, pin_attempts = 0, blocked_until = NULL
+		WHERE card_uid = $1`,
+		cardUID, string(newHash),
+	)
+	if err != nil {
+		return fmt.Errorf("resetting PIN: %w", err)
+	}
+
+	nt.resetCardAttempts(ctx, cardUID)
+	return nil
+}
+
+func (nt *NFCTerminals) GetSession(ctx context.Context, sessionToken string) (*NFCTerminalSession, error) {
+	var s NFCTerminalSession
+	err := nt.Pool.QueryRow(ctx, `
+		SELECT id, terminal_id, session_token, merchant_user_id, current_amount, status,
+			seller_card_uid, seller_pin_verified, buyer_card_uid, expires_at, created_at
+		FROM nfc_terminal_sessions WHERE session_token = $1 AND expires_at > NOW()`,
+		sessionToken,
+	).Scan(&s.ID, &s.TerminalID, &s.SessionToken, &s.MerchantUserID, &s.CurrentAmount,
+		&s.Status, &s.SellerCardUID, &s.SellerPinVerified, &s.BuyerCardUID,
+		&s.ExpiresAt, &s.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("session not found or expired")
+	}
+	return &s, nil
+}
+
+func (nt *NFCTerminals) GetSessionByTerminal(ctx context.Context, terminalID string) (*NFCTerminalSession, error) {
+	var termID uuid.UUID
+	err := nt.Pool.QueryRow(ctx, `SELECT id FROM nfc_terminals WHERE terminal_id = $1`, terminalID).Scan(&termID)
+	if err != nil {
+		return nil, fmt.Errorf("terminal not found")
+	}
+
+	var s NFCTerminalSession
+	err = nt.Pool.QueryRow(ctx, `
+		SELECT id, terminal_id, session_token, merchant_user_id, current_amount, status,
+			seller_card_uid, seller_pin_verified, buyer_card_uid, expires_at, created_at
+		FROM nfc_terminal_sessions
+		WHERE terminal_id = $1 AND expires_at > NOW()
+		ORDER BY created_at DESC LIMIT 1`,
+		termID,
+	).Scan(&s.ID, &s.TerminalID, &s.SessionToken, &s.MerchantUserID, &s.CurrentAmount,
+		&s.Status, &s.SellerCardUID, &s.SellerPinVerified, &s.BuyerCardUID,
+		&s.ExpiresAt, &s.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("no active session")
+	}
+	return &s, nil
+}
+
+func (nt *NFCTerminals) EnsureServerKeys(ctx context.Context) error {
+	var exists bool
+	err := nt.Pool.QueryRow(ctx, `
+		SELECT EXISTS(SELECT 1 FROM nfc_server_keys WHERE node_domain = $1)`,
+		nt.NodeDomain,
+	).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("checking server keys: %w", err)
+	}
+	if exists {
+		return nil
+	}
+
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		return fmt.Errorf("generating server keypair: %w", err)
+	}
+
+	pubHex := hex.EncodeToString(pub)
+	privHex := hex.EncodeToString(priv)
+
+	_, err = nt.Pool.Exec(ctx, `
+		INSERT INTO nfc_server_keys (node_domain, public_key, private_key_encrypted)
+		VALUES ($1, $2, $3)`,
+		nt.NodeDomain, pubHex, []byte(privHex),
+	)
+	if err != nil {
+		return fmt.Errorf("storing server keys: %w", err)
+	}
+	return nil
+}
+
+func (nt *NFCTerminals) GetServerPrivateKey(ctx context.Context) (ed25519.PrivateKey, error) {
+	var privHex string
+	err := nt.Pool.QueryRow(ctx, `
+		SELECT private_key_encrypted::text FROM nfc_server_keys WHERE node_domain = $1`,
+		nt.NodeDomain,
+	).Scan(&privHex)
+	if err != nil {
+		return nil, fmt.Errorf("server keys not found: %w", err)
+	}
+
+	// Remove the \x prefix if present
+	if len(privHex) > 2 && privHex[:2] == "\\x" {
+		privHex = privHex[2:]
+	}
+
+	priv, err := hex.DecodeString(privHex)
+	if err != nil {
+		return nil, fmt.Errorf("decoding server private key: %w", err)
+	}
+	return ed25519.PrivateKey(priv), nil
+}
+
+func (nt *NFCTerminals) GetServerPublicKey(ctx context.Context) (ed25519.PublicKey, error) {
+	var pubHex string
+	err := nt.Pool.QueryRow(ctx, `
+		SELECT public_key FROM nfc_server_keys WHERE node_domain = $1`,
+		nt.NodeDomain,
+	).Scan(&pubHex)
+	if err != nil {
+		return nil, fmt.Errorf("server keys not found: %w", err)
+	}
+
+	pub, err := hex.DecodeString(pubHex)
+	if err != nil {
+		return nil, fmt.Errorf("decoding server public key: %w", err)
+	}
+	return ed25519.PublicKey(pub), nil
+}
+
+func (nt *NFCTerminals) GetTerminalPublicKey(ctx context.Context, terminalID string) (ed25519.PublicKey, error) {
+	var pubHex string
+	err := nt.Pool.QueryRow(ctx, `
+		SELECT terminal_public_key FROM nfc_terminals WHERE terminal_id = $1`,
+		terminalID,
+	).Scan(&pubHex)
+	if err != nil {
+		return nil, fmt.Errorf("terminal not found or not registered: %w", err)
+	}
+
+	pub, err := hex.DecodeString(pubHex)
+	if err != nil {
+		return nil, fmt.Errorf("decoding terminal public key: %w", err)
+	}
+	return ed25519.PublicKey(pub), nil
+}
+
+func (nt *NFCTerminals) DecodePayload(ctx context.Context, terminalID string, encMsg json.RawMessage) (json.RawMessage, []byte, error) {
+	terminalIdentityPub, err := nt.GetTerminalPublicKey(ctx, terminalID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var msg crypto.EphemeralMessage
+	if err := json.Unmarshal(encMsg, &msg); err != nil {
+		return nil, nil, fmt.Errorf("unmarshaling ephemeral message: %w", err)
+	}
+
+	ephPub, err := hex.DecodeString(msg.Handshake.EphemeralPublicKey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("decoding ephemeral public key: %w", err)
+	}
+
+	idSig, err := hex.DecodeString(msg.Handshake.IdentitySignature)
+	if err != nil {
+		return nil, nil, fmt.Errorf("decoding identity signature: %w", err)
+	}
+
+	if !crypto.VerifyEphemeralHandshake(terminalIdentityPub, ed25519.PublicKey(ephPub), msg.Handshake.Nonce, idSig) {
+		return nil, nil, fmt.Errorf("terminal identity signature verification failed")
+	}
+
+	serverEphemeral, err := crypto.GenerateEphemeralKeyPair()
+	if err != nil {
+		return nil, nil, fmt.Errorf("generating server ephemeral keypair: %w", err)
+	}
+
+	sharedKey, err := crypto.PerformEphemeralECDH(serverEphemeral.PrivateKey, ed25519.PublicKey(ephPub))
+	if err != nil {
+		return nil, nil, fmt.Errorf("deriving ephemeral shared key: %w", err)
+	}
+
+	nonce, err := hex.DecodeString(msg.Nonce)
+	if err != nil {
+		return nil, nil, fmt.Errorf("decoding nonce: %w", err)
+	}
+	ciphertext, err := hex.DecodeString(msg.Ciphertext)
+	if err != nil {
+		return nil, nil, fmt.Errorf("decoding ciphertext: %w", err)
+	}
+	signature, err := hex.DecodeString(msg.Signature)
+	if err != nil {
+		return nil, nil, fmt.Errorf("decoding signature: %w", err)
+	}
+
+	if !ed25519.Verify(terminalIdentityPub, ciphertext, signature) {
+		return nil, nil, fmt.Errorf("terminal payload signature verification failed")
+	}
+
+	plaintext, err := cryptoDecrypt(sharedKey, nonce, ciphertext)
+	if err != nil {
+		return nil, nil, fmt.Errorf("decrypting payload: %w", err)
+	}
+
+	return plaintext, sharedKey, nil
+}
+
+func (nt *NFCTerminals) EncodeResponseWithSharedKey(ctx context.Context, terminalID string, payload []byte, sharedKey []byte) (map[string]string, error) {
+	serverIdentityPriv, err := nt.GetServerPrivateKey(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	nonce, ciphertext, err := cryptoEncrypt(sharedKey, payload)
+	if err != nil {
+		return nil, err
+	}
+
+	sig := ed25519.Sign(serverIdentityPriv, ciphertext)
+
+	return map[string]string{
+		"nonce":      hex.EncodeToString(nonce),
+		"ciphertext": hex.EncodeToString(ciphertext),
+		"signature":  hex.EncodeToString(sig),
+	}, nil
+}
+
+func cryptoEncrypt(sharedKey, plaintext []byte) (nonce, ciphertext []byte, err error) {
+	block, err := aes.NewCipher(sharedKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, nil, err
+	}
+	nonce = make([]byte, gcm.NonceSize())
+	if _, err := rand.Read(nonce); err != nil {
+		return nil, nil, err
+	}
+	ciphertext = gcm.Seal(nil, nonce, plaintext, nil)
+	return nonce, ciphertext, nil
+}
+
+func cryptoDecrypt(sharedKey, nonce, ciphertext []byte) ([]byte, error) {
+	block, err := aes.NewCipher(sharedKey)
+	if err != nil {
+		return nil, err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+	return gcm.Open(nil, nonce, ciphertext, nil)
+}
