@@ -85,38 +85,12 @@ $dbPassword = New-SecureToken 24
 $jwtSecret = New-SecureToken 32
 
 # 4. Generar claves Ed25519 del nodo
-# Usamos OpenSSL si esta disponible, sino generamos con .NET
+# Usamos Go (mas confiable en Windows) o openssl como fallback
 $nodePublicKey = ""
 $nodePrivateKey = ""
 
-# Intentar con openssl
-if (Get-Command openssl -ErrorAction SilentlyContinue) {
-    $keyFile = Join-Path $env:TEMP "node_key_$([guid]::NewGuid())"
-    $pubFile = Join-Path $env:TEMP "node_pub_$([guid]::NewGuid())"
-
-    openssl genpkey -algorithm Ed25519 -out $keyFile 2>$null
-    openssl pkey -in $keyFile -pubout -out $pubFile 2>$null
-    openssl pkey -in $keyFile -outform DER 2>$null | openssl dgst -sha256 -hex 2>$null
-
-    # Extraer la clave publica en formato raw (32 bytes hex)
-    $pubDer = openssl pkey -in $pubFile -outform DER 2>$null
-    # Para Ed25519, los ultimos 32 bytes del DER son la clave publica
-    $pubBytes = [System.IO.File]::ReadAllBytes($pubFile)
-    # El formato DER de SubjectPublicKeyInfo para Ed25519 tiene 44 bytes, los ultimos 32 son la key
-    if ($pubBytes.Length -ge 32) {
-        $rawPub = $pubBytes[($pubBytes.Length - 32)..($pubBytes.Length - 1)]
-        $nodePublicKey = [BitConverter]::ToString($rawPub).Replace("-", "").ToLower()
-    }
-
-    # La clave privada en formato DER
-    $privDer = openssl pkey -in $keyFile -outform DER 2>$null
-    $nodePrivateKey = [System.Convert]::ToBase64String([System.IO.File]::ReadAllBytes($keyFile))
-
-    Remove-Item $keyFile, $pubFile -Force -ErrorAction SilentlyContinue
-}
-
-# Si no se pudo generar con openssl, generar con Go (si esta instalado)
-if ([string]::IsNullOrWhiteSpace($nodePublicKey) -and (Get-Command go -ErrorAction SilentlyContinue)) {
+# Metodo 1: Go (preferido — el proyecto requiere Go de todas formas)
+if (Get-Command go -ErrorAction SilentlyContinue) {
     $goScript = @'
 package main
 import (
@@ -134,13 +108,39 @@ func main() {
 '@
     $goFile = Join-Path $env:TEMP "genkey_$([guid]::NewGuid()).go"
     $goScript | Out-File -FilePath $goFile -Encoding utf8
-    $output = go run $goFile 2>$null
+    $output = go run $goFile 2>&1
     $lines = $output -split "`n"
-    if ($lines.Count -ge 2) {
+    if ($lines.Count -ge 2 -and $lines[0].Length -eq 64) {
         $nodePublicKey = $lines[0].Trim()
         $nodePrivateKey = $lines[1].Trim()
     }
     Remove-Item $goFile -Force -ErrorAction SilentlyContinue
+}
+
+# Metodo 2: openssl (fallback)
+if ([string]::IsNullOrWhiteSpace($nodePublicKey) -and (Get-Command openssl -ErrorAction SilentlyContinue)) {
+    $keyFile = Join-Path $env:TEMP "node_key_$([guid]::NewGuid())"
+    $pubFile = Join-Path $env:TEMP "node_pub_$([guid]::NewGuid())"
+
+    openssl genpkey -algorithm Ed25519 -out $keyFile 2>$null
+    openssl pkey -in $keyFile -pubout -out $pubFile 2>$null
+
+    # Extraer la clave publica en formato raw (32 bytes hex)
+    # Usar -pubin para indicar que es una clave publica
+    $pubDer = openssl pkey -pubin -in $pubFile -outform DER 2>$null
+    if ($pubDer) {
+        $pubBytes = [System.IO.File]::ReadAllBytes($pubFile)
+        # El formato PEM tiene la clave base64. Decodificar el DER.
+        # Para Ed25519 SubjectPublicKeyInfo: 44 bytes DER, ultimos 32 son la key
+        $derBytes = openssl pkey -pubin -in $pubFile -outform DER 2>$null
+        if ($derBytes -is [byte[]] -and $derBytes.Length -ge 32) {
+            $rawPub = $derBytes[($derBytes.Length - 32)..($derBytes.Length - 1)]
+            $nodePublicKey = [BitConverter]::ToString($rawPub).Replace("-", "").ToLower()
+        }
+    }
+
+    $nodePrivateKey = [System.Convert]::ToBase64String([System.IO.File]::ReadAllBytes($keyFile))
+    Remove-Item $keyFile, $pubFile -Force -ErrorAction SilentlyContinue
 }
 
 if ([string]::IsNullOrWhiteSpace($nodePublicKey)) {

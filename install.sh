@@ -95,21 +95,8 @@ JWT_SECRET=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -
 NODE_PUBLIC_KEY=""
 NODE_PRIVATE_KEY=""
 
-if command -v openssl &>/dev/null; then
-    KEY_FILE=$(mktemp)
-    PUB_FILE=$(mktemp)
-    openssl genpkey -algorithm Ed25519 -out "$KEY_FILE" 2>/dev/null
-    openssl pkey -in "$KEY_FILE" -pubout -out "$PUB_FILE" 2>/dev/null
-    # Extraer clave publica raw (32 bytes)
-    PUB_DER=$(openssl pkey -in "$PUB_FILE" -outform DER 2>/dev/null | xxd -p | tr -d '\n')
-    # Para Ed25519 SubjectPublicKeyInfo, los ultimos 32 bytes (64 hex chars) son la key
-    NODE_PUBLIC_KEY=$(echo "$PUB_DER" | tail -c 64)
-    NODE_PRIVATE_KEY=$(openssl pkey -in "$KEY_FILE" -outform DER 2>/dev/null | base64 | tr -d '\n')
-    rm -f "$KEY_FILE" "$PUB_FILE"
-fi
-
-# Fallback con Go
-if [ -z "$NODE_PUBLIC_KEY" ] && command -v go &>/dev/null; then
+# Metodo 1: Go (preferido — mas confiable que openssl en algunas plataformas)
+if command -v go &>/dev/null; then
     GO_FILE=$(mktemp --suffix=.go)
     cat > "$GO_FILE" << 'GOEOF'
 package main
@@ -130,6 +117,19 @@ GOEOF
     NODE_PUBLIC_KEY=$(echo "$OUTPUT" | head -1)
     NODE_PRIVATE_KEY=$(echo "$OUTPUT" | tail -1)
     rm -f "$GO_FILE"
+fi
+
+# Metodo 2: openssl (fallback)
+if [ -z "$NODE_PUBLIC_KEY" ] && command -v openssl &>/dev/null; then
+    KEY_FILE=$(mktemp)
+    PUB_FILE=$(mktemp)
+    openssl genpkey -algorithm Ed25519 -out "$KEY_FILE" 2>/dev/null
+    openssl pkey -in "$KEY_FILE" -pubout -out "$PUB_FILE" 2>/dev/null
+    # Usar -pubin para leer clave publica
+    PUB_DER=$(openssl pkey -pubin -in "$PUB_FILE" -outform DER 2>/dev/null | xxd -p | tr -d '\n')
+    NODE_PUBLIC_KEY=$(echo "$PUB_DER" | tail -c 64)
+    NODE_PRIVATE_KEY=$(openssl pkey -in "$KEY_FILE" -outform DER 2>/dev/null | base64 | tr -d '\n')
+    rm -f "$KEY_FILE" "$PUB_FILE"
 fi
 
 if [ -z "$NODE_PUBLIC_KEY" ]; then
