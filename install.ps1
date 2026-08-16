@@ -51,13 +51,17 @@ Write-Host ""
 Write-Host "Configuracion del nodo:" -ForegroundColor White
 Write-Host "Solo necesitas ingresar 2 datos. Todo lo demas se genera automaticamente." -ForegroundColor Gray
 Write-Host ""
+Write-Host "Si estas probando en desarrollo y no tienes un dominio real," -ForegroundColor Gray
+Write-Host "puedes usar cualquier nombre como identificador (ej: localhost, mi-nodo, nodo-local)." -ForegroundColor Gray
+Write-Host "El dominio es un identificador interno — no necesita resolver DNS." -ForegroundColor Gray
+Write-Host ""
 
 do {
     $nodeName = Read-Host "Nombre del nodo (ej: Banco Comunitario A)"
 } while ([string]::IsNullOrWhiteSpace($nodeName))
 
 do {
-    $nodeDomain = Read-Host "Dominio del nodo (ej: nodo-a.org)"
+    $nodeDomain = Read-Host "Dominio del nodo (ej: nodo-a.org o localhost para desarrollo)"
 } while ([string]::IsNullOrWhiteSpace($nodeDomain))
 
 # Validar dominio (sin http://, sin https://, sin barras)

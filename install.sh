@@ -65,6 +65,8 @@ ok "Docker encontrado ($COMPOSE)"
 echo ""
 echo -e "${WHITE}Configuracion del nodo:${NC}"
 echo -e "${GRAY}Solo necesitas ingresar 2 datos. Todo lo demas se genera automaticamente.${NC}"
+echo -e "${GRAY}Si estas probando y no tienes dominio real, usa cualquier nombre${NC}"
+echo -e "${GRAY}(ej: localhost, mi-nodo, nodo-local). No necesita resolver DNS.${NC}"
 echo ""
 
 while true; do
@@ -74,7 +76,7 @@ while true; do
 done
 
 while true; do
-    read -p "Dominio del nodo (ej: nodo-a.org): " NODE_DOMAIN
+    read -p "Dominio del nodo (ej: nodo-a.org o localhost para desarrollo): " NODE_DOMAIN
     [ -n "$NODE_DOMAIN" ] && break
     echo "El dominio es obligatorio"
 done
