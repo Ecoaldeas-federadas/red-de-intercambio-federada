@@ -1,4 +1,4 @@
-# install.ps1 — Instalador del nodo de red de intercambio federada
+# install.ps1 - Instalador del nodo de red de intercambio federada
 #
 # Uso:
 #   .\install.ps1
@@ -53,7 +53,7 @@ Write-Host "Solo necesitas ingresar 2 datos. Todo lo demas se genera automaticam
 Write-Host ""
 Write-Host "Si estas probando en desarrollo y no tienes un dominio real," -ForegroundColor Gray
 Write-Host "puedes usar cualquier nombre como identificador (ej: localhost, mi-nodo, nodo-local)." -ForegroundColor Gray
-Write-Host "El dominio es un identificador interno — no necesita resolver DNS." -ForegroundColor Gray
+Write-Host "El dominio es un identificador interno - no necesita resolver DNS." -ForegroundColor Gray
 Write-Host ""
 
 do {
@@ -89,7 +89,7 @@ $jwtSecret = New-SecureToken 32
 $nodePublicKey = ""
 $nodePrivateKey = ""
 
-# Metodo 1: Go (preferido — el proyecto requiere Go de todas formas)
+# Metodo 1: Go (preferido - el proyecto requiere Go de todas formas)
 if (Get-Command go -ErrorAction SilentlyContinue) {
     $goScript = @'
 package main
@@ -153,7 +153,7 @@ if ([string]::IsNullOrWhiteSpace($nodePublicKey)) {
 
 # 5. Generar archivo .env
 $envContent = @"
-# Generado automaticamente por install.ps1 — no editar manualmente
+# Generado automaticamente por install.ps1 - no editar manualmente
 # Fecha: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 # Nodo: $nodeName ($nodeDomain)
 
@@ -169,7 +169,7 @@ Write-OK "Archivo .env generado (con passwords y secrets aleatorios)"
 
 # 6. Generar config.yaml
 $configContent = @"
-# config.yaml — Generado por install.ps1
+# config.yaml - Generado por install.ps1
 # NO EDITAR MANUALMENTE. Usa la pagina de ajustes del nodo.
 # Fecha: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 
@@ -231,7 +231,7 @@ Write-OK "config.yaml generado"
 
 # 7. Guardar claves del nodo en archivo seguro
 $keysContent = @"
-# node_keys.txt — Claves del nodo para federacion
+# node_keys.txt - Claves del nodo para federacion
 # MANTENER SEGURO. No compartir la clave privada.
 # Nodo: $nodeName ($nodeDomain)
 # Generado: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
@@ -333,3 +333,4 @@ Write-Host ""
 Start-Process $serverUrl
 
 Write-Host "Abriendo navegador..." -ForegroundColor Cyan
+

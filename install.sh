@@ -1,5 +1,5 @@
 #!/bin/bash
-# install.sh — Instalador del nodo de red de intercambio federada
+# install.sh - Instalador del nodo de red de intercambio federada
 #
 # Uso:
 #   ./install.sh
@@ -95,7 +95,7 @@ JWT_SECRET=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -
 NODE_PUBLIC_KEY=""
 NODE_PRIVATE_KEY=""
 
-# Metodo 1: Go (preferido — mas confiable que openssl en algunas plataformas)
+# Metodo 1: Go (preferido - mas confiable que openssl en algunas plataformas)
 if command -v go &>/dev/null; then
     GO_FILE=$(mktemp --suffix=.go)
     cat > "$GO_FILE" << 'GOEOF'
@@ -142,7 +142,7 @@ fi
 
 # 5. Generar archivo .env
 cat > "$ROOT/.env" << EOF
-# Generado automaticamente por install.sh — no editar manualmente
+# Generado automaticamente por install.sh - no editar manualmente
 # Fecha: $(date '+%Y-%m-%d %H:%M:%S')
 # Nodo: $NODE_NAME ($NODE_DOMAIN)
 
@@ -155,7 +155,7 @@ ok "Archivo .env generado (con passwords y secrets aleatorios)"
 
 # 6. Generar config.yaml
 cat > "$ROOT/config.yaml" << EOF
-# config.yaml — Generado por install.sh
+# config.yaml - Generado por install.sh
 # NO EDITAR MANUALMENTE. Usa la pagina de ajustes del nodo.
 # Fecha: $(date '+%Y-%m-%d %H:%M:%S')
 
@@ -215,7 +215,7 @@ ok "config.yaml generado"
 # 7. Guardar claves del nodo
 mkdir -p "$ROOT/secrets"
 cat > "$ROOT/secrets/node_keys.txt" << EOF
-# node_keys.txt — Claves del nodo para federacion
+# node_keys.txt - Claves del nodo para federacion
 # MANTENER SEGURO. No compartir la clave privada.
 # Nodo: $NODE_NAME ($NODE_DOMAIN)
 # Generado: $(date '+%Y-%m-%d %H:%M:%S')
@@ -295,3 +295,4 @@ elif command -v open &>/dev/null; then
 fi
 
 echo -e "${CYAN}Abriendo navegador...${NC}"
+
