@@ -257,22 +257,37 @@ Write-Host ""
 Write-Step "Construyendo imagenes Docker (puede tardar varios minutos la primera vez)..."
 
 # Detectar si docker compose (v2) o docker-compose (v1)
-$composeCmd = "docker-compose"
+$composeExe = "docker-compose"
+$composeArgs = @()
 if (-not (Get-Command docker-compose -ErrorAction SilentlyContinue)) {
-    $composeCmd = "docker compose"
+    $composeExe = "docker"
+    $composeArgs = @("compose")
 }
 
-Invoke-Expression "$composeCmd build 2>&1" | Out-Host
-if ($LASTEXITCODE -ne 0) {
-    Write-Err "Error construyendo las imagenes Docker"
+# Funcion helper para ejecutar docker-compose sin que stderr rompa el script
+function Invoke-Compose($subArgs) {
+    $allArgs = $composeArgs + $subArgs
+    $outFile = Join-Path $env:TEMP "compose-out_$([guid]::NewGuid()).log"
+    $errFile = Join-Path $env:TEMP "compose-err_$([guid]::NewGuid()).log"
+    $p = Start-Process -FilePath $composeExe -ArgumentList $allArgs -NoNewWindow -Wait -PassThru -RedirectStandardError $errFile -RedirectStandardOutput $outFile
+    Get-Content $outFile -ErrorAction SilentlyContinue | Out-Host
+    Get-Content $errFile -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_ -ForegroundColor Yellow }
+    Remove-Item $outFile, $errFile -Force -ErrorAction SilentlyContinue
+    return $p.ExitCode
+}
+
+# Construir
+$buildCode = Invoke-Compose @("build")
+if ($buildCode -ne 0) {
+    Write-Err "Error construyendo las imagenes Docker (codigo $buildCode)"
     exit 1
 }
 Write-OK "Imagenes construidas"
 
 Write-Step "Arrancando servicios..."
-Invoke-Expression "$composeCmd up -d 2>&1" | Out-Host
-if ($LASTEXITCODE -ne 0) {
-    Write-Err "Error arrancando los servicios"
+$upCode = Invoke-Compose @("up", "-d")
+if ($upCode -ne 0) {
+    Write-Err "Error arrancando los servicios (codigo $upCode)"
     exit 1
 }
 Write-OK "Servicios arrancados"
@@ -323,10 +338,11 @@ Write-Host "  Tu clave publica (para registrar en otros nodos):" -ForegroundColo
 Write-Host "  $nodePublicKey" -ForegroundColor Gray
 Write-Host "  Guardada en: secrets/node_keys.txt" -ForegroundColor Gray
 Write-Host ""
+$composeDisplay = if ($composeExe -eq "docker") { "docker compose" } else { "docker-compose" }
 Write-Host "COMANDOS UTILES:" -ForegroundColor Yellow
-Write-Host "  Ver logs:     $composeCmd logs -f" -ForegroundColor Gray
-Write-Host "  Detener:      $composeCmd down" -ForegroundColor Gray
-Write-Host "  Reiniciar:    $composeCmd restart" -ForegroundColor Gray
+Write-Host "  Ver logs:     $composeDisplay logs -f" -ForegroundColor Gray
+Write-Host "  Detener:      $composeDisplay down" -ForegroundColor Gray
+Write-Host "  Reiniciar:    $composeDisplay restart" -ForegroundColor Gray
 Write-Host ""
 
 # Abrir navegador automaticamente
