@@ -49,9 +49,14 @@ if (-not (Test-Path $envPath)) {
 # 1. Git pull
 Write-Host ""
 Write-Step "Bajando ultimos cambios del repositorio..."
-& git pull 2>&1 | Out-Host
-if ($LASTEXITCODE -ne 0) {
-    Write-Warn "Hubo un problema con git pull. Continuando con el rebuild..."
+$prevEAP = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+try {
+    git pull
+} catch {
+    Write-Warn "Aviso durante git pull: $_"
+} finally {
+    $ErrorActionPreference = $prevEAP
 }
 Write-OK "Codigo actualizado"
 
