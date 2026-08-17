@@ -22,10 +22,15 @@ import {
   Instagram,
   Facebook,
   ShieldCheck,
+  ChevronDown,
+  Globe,
+  Zap,
+  Building2,
+  Search,
 } from 'lucide-react'
 import { PageBlocksRenderer } from './public-site/PublicBlocks'
 import { FERIA_CONUQUERA_TEMPLATES } from './public-site/defaultSiteData'
-import { PublicPageData } from '../types/publicSite'
+import { PublicPageData, HeaderStyleType } from '../types/publicSite'
 
 const ICONS: Record<string, any> = {
   home: Home,
@@ -50,6 +55,10 @@ interface PublicSettings {
   social_facebook: string
   social_twitter?: string
   show_join_form: boolean
+  header_style?: HeaderStyleType
+  announcement_text?: string
+  show_announcement?: boolean
+  footer_style?: string
 }
 
 export function PublicLayout({ children }: { children: React.ReactNode }) {
@@ -58,6 +67,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<PublicSettings | null>(null)
   const [pages, setPages] = useState<PublicPageData[]>([])
   const [menuOpen, setMenuOpen] = useState(false)
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
 
   useEffect(() => {
     api.get('/public/settings').then((s: any) => setSettings(s)).catch(() => {})
@@ -81,137 +91,351 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
     }).catch(() => {})
   }, [])
 
+  const headerStyle = settings?.header_style || 'modern_eco'
   const primaryColor = settings?.primary_color || '#162e16'
   const secondaryColor = settings?.secondary_color || '#c2410c'
+  const showAnnouncement = settings?.show_announcement ?? true
+  const announcementText =
+    settings?.announcement_text ||
+    '🗓️ Próximo Encuentro Conuquero: Primer sábado de cada mes en Parque Los Caobos, Caracas | 9:00 AM'
+
+  // Navigation categorization for dropdown style
+  const aboutPages = pages.filter((p) => ['inicio', 'filosofia', 'campo-soberano'].includes(p.slug))
+  const economyPages = pages.filter((p) => ['productos', 'como-funciona'].includes(p.slug))
+  const communityPages = pages.filter((p) => ['comunidad', 'faq', 'contacto'].includes(p.slug))
+  const otherPages = pages.filter(
+    (p) => !['inicio', 'filosofia', 'campo-soberano', 'productos', 'como-funciona', 'comunidad', 'faq', 'contacto'].includes(p.slug)
+  )
 
   return (
-    <div className="min-h-screen flex flex-col font-sans selection:bg-amber-200 selection:text-amber-950 overflow-x-hidden w-full bg-[#fcfbf9]">
-      {/* Top Notification / Announcement Bar */}
-      <div
-        className="text-white text-xs sm:text-sm py-2 px-4 text-center font-medium shadow-inner flex items-center justify-center gap-2"
-        style={{ backgroundColor: '#0f210f' }}
-      >
-        <span className="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-        <span>
-          🗓️ <b>Próximo Encuentro Conuquero:</b> Primer sábado de cada mes en <b>Parque Los Caobos, Caracas</b> | 9:00 AM
-        </span>
-      </div>
+    <div className="min-h-screen flex flex-col font-sans selection:bg-amber-200 selection:text-amber-950 overflow-x-hidden w-full bg-[#fdfbf7]">
+      {/* 1. TOP ANNOUNCEMENT BAR */}
+      {showAnnouncement && (
+        <div
+          className="text-white text-[11px] sm:text-xs py-2 px-4 text-center font-medium shadow-xs flex items-center justify-center gap-2"
+          style={{ backgroundColor: headerStyle === 'fao_institutional' ? '#1b4d3e' : '#0d1f0d' }}
+        >
+          <span className="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse flex-shrink-0" />
+          <span className="truncate max-w-4xl">{announcementText}</span>
+        </div>
+      )}
 
-      {/* Main Header / Navbar */}
-      <header className="shadow-md sticky top-0 z-50 backdrop-blur-md border-b border-white/10" style={{ backgroundColor: primaryColor }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 sm:py-3">
-          <div className="flex items-center justify-between gap-3">
-            {/* Logo & Brand */}
-            <Link to="/p/inicio" className="flex items-center gap-2.5 sm:gap-3 text-white group flex-shrink-0">
-              {settings?.logo_url ? (
-                <img
-                  src={settings.logo_url}
-                  alt="logo"
-                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover border-2 border-amber-400/80 shadow-md group-hover:scale-105 transition"
-                />
-              ) : (
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-amber-500 to-emerald-400 flex items-center justify-center text-white shadow-md group-hover:rotate-6 transition">
-                  <Leaf size={20} />
+      {/* 2. DYNAMIC HEADER BY SELECTED STYLE */}
+
+      {/* STYLE A: FAO INSTITUTIONAL / PORTAL BLANCO (Clean white, sub-bar, search, institutional badges) */}
+      {headerStyle === 'fao_institutional' && (
+        <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 sm:py-3.5">
+            <div className="flex items-center justify-between gap-4">
+              {/* Brand */}
+              <Link to="/p/inicio" className="flex items-center gap-3 group flex-shrink-0">
+                {settings?.logo_url ? (
+                  <img
+                    src={settings.logo_url}
+                    alt="logo"
+                    className="w-10 h-10 rounded-lg object-cover border border-emerald-200 shadow-xs"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-xl bg-emerald-800 text-white flex items-center justify-center font-extrabold shadow-sm">
+                    <Building2 size={22} />
+                  </div>
+                )}
+                <div>
+                  <h1 className="text-base sm:text-lg font-black tracking-tight text-emerald-950 leading-tight">
+                    {settings?.site_title || 'Red de Intercambio Agroecológico'}
+                  </h1>
+                  <p className="text-[11px] text-emerald-700 font-semibold hidden sm:block">
+                    {settings?.site_subtitle || 'Portal Oficial de Soberanía Alimentaria'}
+                  </p>
                 </div>
-              )}
-              <div className="min-w-0">
-                <h1 className="text-sm sm:text-base md:text-lg font-extrabold tracking-tight leading-tight truncate">
-                  {settings?.site_title || 'Feria Conuquera Agroecológica'}
-                </h1>
-                <p className="text-[11px] text-emerald-200/90 hidden md:block font-medium truncate">
-                  {settings?.site_subtitle || 'Parque Los Caobos, Caracas'}
-                </p>
-              </div>
-            </Link>
+              </Link>
 
-            {/* Desktop Navigation Links */}
-            <nav className="hidden xl:flex items-center gap-1">
-              {pages.map((p) => {
-                const Icon = ICONS[p.icon || 'home'] || Home
-                const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
-                return (
+              {/* Desktop Nav */}
+              <nav className="hidden xl:flex items-center gap-1 text-xs font-bold text-gray-700">
+                {pages.map((p) => {
+                  const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
+                  return (
+                    <Link
+                      key={p.slug}
+                      to={`/p/${p.slug}`}
+                      className={`px-3 py-2 rounded-lg transition ${
+                        isActive
+                          ? 'bg-emerald-50 text-emerald-900 font-black border-b-2 border-emerald-800'
+                          : 'hover:bg-gray-100 hover:text-emerald-800'
+                      }`}
+                    >
+                      {p.title}
+                    </Link>
+                  )
+                })}
+              </nav>
+
+              {/* Actions */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {settings?.show_join_form && !isAuthenticated && (
                   <Link
-                    key={p.slug}
-                    to={`/p/${p.slug}`}
-                    className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 whitespace-nowrap ${
-                      isActive
-                        ? 'bg-white/20 text-white shadow-inner border border-white/20'
-                        : 'text-white/85 hover:text-white hover:bg-white/10'
-                    }`}
+                    to="/p/unirse"
+                    className="hidden sm:inline-flex px-4 py-2 rounded-lg text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-700 transition shadow-xs items-center gap-1.5"
                   >
-                    <Icon size={14} />
-                    {p.title}
+                    <Sparkles size={13} />
+                    Solicitar Ingreso
                   </Link>
-                )
-              })}
-            </nav>
+                )}
 
-            {/* Action Buttons */}
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {settings?.show_join_form && !isAuthenticated && (
-                <Link
-                  to="/p/unirse"
-                  className="hidden sm:inline-flex px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold text-white transition shadow hover:brightness-110 active:scale-95 items-center gap-1.5"
-                  style={{ backgroundColor: secondaryColor }}
+                {isAuthenticated ? (
+                  <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
+                    <Link
+                      to="/app/website"
+                      className="px-2.5 py-1 rounded text-xs font-semibold text-gray-800 hover:bg-white"
+                    >
+                      <Edit size={13} className="inline mr-1" />
+                      Editor
+                    </Link>
+                    <Link
+                      to="/app/dashboard"
+                      className="px-2.5 py-1 rounded text-xs font-bold text-white bg-emerald-800"
+                    >
+                      Escritorio
+                    </Link>
+                  </div>
+                ) : (
+                  <Link
+                    to="/login"
+                    className="hidden sm:inline-block px-3 py-1.5 rounded-lg text-xs font-bold text-emerald-900 border border-emerald-800 hover:bg-emerald-50"
+                  >
+                    Acceso
+                  </Link>
+                )}
+
+                <button
+                  className="xl:hidden p-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  onClick={() => setMenuOpen(!menuOpen)}
                 >
-                  <Sparkles size={13} />
-                  Solicitar Unirse
-                </Link>
-              )}
+                  {menuOpen ? <X size={20} /> : <Menu size={20} />}
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
+      )}
 
-              {isAuthenticated ? (
-                <div className="flex items-center gap-1.5 bg-black/25 p-1 rounded-xl border border-white/10">
+      {/* STYLE B: EDITORIAL LATAM / REVISTA BIODIVERSIDAD (Double tier header) */}
+      {headerStyle === 'editorial_latam' && (
+        <header className="sticky top-0 z-50 shadow-md">
+          {/* Top Tier: Logo & Social */}
+          <div className="bg-white border-b border-amber-200/60 py-3 px-4 sm:px-6">
+            <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+              <Link to="/p/inicio" className="flex items-center gap-3">
+                {settings?.logo_url ? (
+                  <img src={settings.logo_url} alt="" className="w-10 h-10 rounded-full object-cover shadow" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-amber-700 text-white flex items-center justify-center font-serif text-xl font-bold">
+                    C
+                  </div>
+                )}
+                <div>
+                  <h1 className="text-base sm:text-xl font-black text-amber-950 uppercase tracking-tight font-serif">
+                    {settings?.site_title || 'Feria Conuquera & Agroecología'}
+                  </h1>
+                  <p className="text-[11px] text-amber-800 italic hidden sm:block">
+                    {settings?.site_subtitle || 'Publicación y Red Comunitaria Autónoma'}
+                  </p>
+                </div>
+              </Link>
+
+              <div className="flex items-center gap-2">
+                <span className="hidden md:inline-block text-xs font-serif font-bold text-amber-900 bg-amber-100 px-3 py-1 rounded-full">
+                  🍃 Semillas Libres & Soberanía
+                </span>
+                {isAuthenticated && (
                   <Link
                     to="/app/website"
-                    className="px-2.5 py-1 rounded-lg text-xs font-semibold text-white hover:bg-white/20 transition flex items-center gap-1"
-                    title="Editar módulos del sitio web"
+                    className="text-xs font-bold bg-amber-800 text-white px-3 py-1.5 rounded-lg shadow-xs"
                   >
-                    <Edit size={13} />
-                    <span className="hidden sm:inline">Editar Módulos</span>
+                    Editar Módulos
                   </Link>
-                  <Link
-                    to="/app/dashboard"
-                    className="px-2.5 py-1 rounded-lg text-xs font-bold text-white transition flex items-center gap-1 shadow-sm"
-                    style={{ backgroundColor: secondaryColor }}
-                  >
-                    <LayoutDashboard size={13} />
-                    <span className="hidden sm:inline">Escritorio</span>
-                  </Link>
-                  <button
-                    onClick={() => {
-                      logout()
-                      window.location.href = '/'
-                    }}
-                    className="p-1 rounded-lg text-xs text-white/80 hover:text-white hover:bg-white/10 transition"
-                    title="Cerrar sesión"
-                  >
-                    <LogOut size={13} />
-                  </button>
-                </div>
-              ) : (
-                <Link
-                  to="/login"
-                  className="hidden sm:inline-block px-3 py-1.5 rounded-xl text-xs font-medium text-white/90 hover:text-white hover:bg-white/10 transition"
+                )}
+                <button
+                  className="xl:hidden p-1.5 text-amber-950 bg-amber-100 rounded-lg"
+                  onClick={() => setMenuOpen(!menuOpen)}
                 >
-                  Iniciar sesión
-                </Link>
-              )}
-
-              {/* Mobile / Tablet Menu Button */}
-              <button
-                className="xl:hidden text-white p-2 rounded-xl bg-white/10 hover:bg-white/20 transition"
-                onClick={() => setMenuOpen(!menuOpen)}
-                aria-label="Abrir menú"
-              >
-                {menuOpen ? <X size={20} /> : <Menu size={20} />}
-              </button>
+                  {menuOpen ? <X size={20} /> : <Menu size={20} />}
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Mobile / Tablet Drawer */}
-          {menuOpen && (
-            <div className="xl:hidden mt-3 pt-3 border-t border-white/10 space-y-1 pb-2">
-              <div className="grid grid-cols-2 gap-1.5 pb-2">
+          {/* Lower Tier: Horizontal Navigation Bar */}
+          <div className="bg-[#1f301d] text-white py-2 px-4 sm:px-6 border-b border-black/20">
+            <div className="max-w-7xl mx-auto flex items-center justify-between">
+              <nav className="hidden xl:flex items-center gap-1 text-xs uppercase font-bold tracking-wider">
+                {pages.map((p) => {
+                  const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
+                  return (
+                    <Link
+                      key={p.slug}
+                      to={`/p/${p.slug}`}
+                      className={`px-3 py-1.5 rounded-md transition ${
+                        isActive ? 'bg-amber-600 text-white font-extrabold' : 'text-gray-200 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      {p.title}
+                    </Link>
+                  )
+                })}
+              </nav>
+
+              <Link
+                to="/p/unirse"
+                className="hidden sm:inline-flex text-xs font-bold text-amber-300 hover:text-white items-center gap-1 ml-auto"
+              >
+                Solicitar Admisión →
+              </Link>
+            </div>
+          </div>
+        </header>
+      )}
+
+      {/* STYLE C: DROPDOWN CATEGORIES (Organized Multi-Level Menu) */}
+      {headerStyle === 'dropdown_categories' && (
+        <header className="sticky top-0 z-50 shadow-md backdrop-blur-md" style={{ backgroundColor: primaryColor }}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 sm:py-3">
+            <div className="flex items-center justify-between gap-4">
+              <Link to="/p/inicio" className="flex items-center gap-2.5 text-white">
+                <div className="w-9 h-9 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold">
+                  <Leaf size={20} />
+                </div>
+                <div>
+                  <h1 className="text-base sm:text-lg font-bold">{settings?.site_title || 'Feria Conuquera'}</h1>
+                  <p className="text-[10px] text-emerald-200 hidden sm:block">{settings?.site_subtitle}</p>
+                </div>
+              </Link>
+
+              {/* Categorized Dropdowns */}
+              <nav className="hidden lg:flex items-center gap-2 text-xs font-bold text-white">
+                <Link to="/p/inicio" className="px-3 py-2 rounded-xl hover:bg-white/10">
+                  Inicio
+                </Link>
+
+                {/* Dropdown 1: Sobre la Red */}
+                <div className="relative group">
+                  <button className="px-3 py-2 rounded-xl hover:bg-white/10 flex items-center gap-1">
+                    Sobre la Red <ChevronDown size={14} />
+                  </button>
+                  <div className="absolute left-0 top-full hidden group-hover:block bg-white text-gray-900 rounded-2xl shadow-xl border border-gray-100 p-2 w-52 space-y-1">
+                    {aboutPages.map((p) => (
+                      <Link
+                        key={p.slug}
+                        to={`/p/${p.slug}`}
+                        className="block px-3 py-2 rounded-xl hover:bg-emerald-50 text-xs font-semibold text-gray-800 hover:text-emerald-900"
+                      >
+                        {p.title}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Dropdown 2: Economía y Cosecha */}
+                <div className="relative group">
+                  <button className="px-3 py-2 rounded-xl hover:bg-white/10 flex items-center gap-1">
+                    Economía & Cosecha <ChevronDown size={14} />
+                  </button>
+                  <div className="absolute left-0 top-full hidden group-hover:block bg-white text-gray-900 rounded-2xl shadow-xl border border-gray-100 p-2 w-56 space-y-1">
+                    {economyPages.map((p) => (
+                      <Link
+                        key={p.slug}
+                        to={`/p/${p.slug}`}
+                        className="block px-3 py-2 rounded-xl hover:bg-emerald-50 text-xs font-semibold text-gray-800 hover:text-emerald-900"
+                      >
+                        {p.title}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Dropdown 3: Comunidad */}
+                <div className="relative group">
+                  <button className="px-3 py-2 rounded-xl hover:bg-white/10 flex items-center gap-1">
+                    Comunidad & Saberes <ChevronDown size={14} />
+                  </button>
+                  <div className="absolute left-0 top-full hidden group-hover:block bg-white text-gray-900 rounded-2xl shadow-xl border border-gray-100 p-2 w-52 space-y-1">
+                    {communityPages.map((p) => (
+                      <Link
+                        key={p.slug}
+                        to={`/p/${p.slug}`}
+                        className="block px-3 py-2 rounded-xl hover:bg-emerald-50 text-xs font-semibold text-gray-800 hover:text-emerald-900"
+                      >
+                        {p.title}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+
+                {otherPages.map((p) => (
+                  <Link key={p.slug} to={`/p/${p.slug}`} className="px-3 py-2 rounded-xl hover:bg-white/10">
+                    {p.title}
+                  </Link>
+                ))}
+              </nav>
+
+              <div className="flex items-center gap-2">
+                <Link
+                  to="/p/unirse"
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white shadow"
+                  style={{ backgroundColor: secondaryColor }}
+                >
+                  Unirse
+                </Link>
+                <button
+                  className="lg:hidden text-white p-2"
+                  onClick={() => setMenuOpen(!menuOpen)}
+                >
+                  {menuOpen ? <X size={20} /> : <Menu size={20} />}
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
+      )}
+
+      {/* STYLE D & DEFAULT: MODERN ECO / ECOVILLAGE (Sleek forest theme) */}
+      {(headerStyle === 'modern_eco' || headerStyle === 'agrodigital_mincyt') && (
+        <header className="shadow-md sticky top-0 z-50 backdrop-blur-md border-b border-white/10" style={{ backgroundColor: primaryColor }}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 sm:py-3">
+            <div className="flex items-center justify-between gap-3">
+              {/* Logo & Brand */}
+              <Link to="/p/inicio" className="flex items-center gap-2.5 text-white group flex-shrink-0">
+                {settings?.logo_url ? (
+                  <img
+                    src={settings.logo_url}
+                    alt="logo"
+                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover border-2 border-amber-400/80 shadow-md group-hover:scale-105 transition"
+                  />
+                ) : (
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-amber-500 to-emerald-400 flex items-center justify-center text-white shadow-md group-hover:rotate-6 transition">
+                    <Leaf size={20} />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <h1 className="text-sm sm:text-base md:text-lg font-extrabold tracking-tight leading-tight truncate">
+                    {settings?.site_title || 'Feria Conuquera Agroecológica'}
+                  </h1>
+                  <p className="text-[11px] text-emerald-200/90 hidden md:block font-medium truncate">
+                    {settings?.site_subtitle || 'Parque Los Caobos, Caracas'}
+                  </p>
+                </div>
+              </Link>
+
+              {/* Energy Badge for Agrodigital Style */}
+              {headerStyle === 'agrodigital_mincyt' && (
+                <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-amber-300 text-xs font-mono border border-white/10">
+                  <Zap size={13} />
+                  <span>1 TQ = 1 kWh</span>
+                </div>
+              )}
+
+              {/* Desktop Navigation Links */}
+              <nav className="hidden xl:flex items-center gap-1">
                 {pages.map((p) => {
                   const Icon = ICONS[p.icon || 'home'] || Home
                   const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
@@ -219,51 +443,138 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                     <Link
                       key={p.slug}
                       to={`/p/${p.slug}`}
-                      onClick={() => setMenuOpen(false)}
-                      className={`px-3 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-2 truncate ${
-                        isActive ? 'bg-white/20 text-white font-bold' : 'text-white/80 hover:text-white hover:bg-white/10'
+                      className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 whitespace-nowrap ${
+                        isActive
+                          ? 'bg-white/20 text-white shadow-inner border border-white/20 font-bold'
+                          : 'text-white/85 hover:text-white hover:bg-white/10'
                       }`}
                     >
-                      <Icon size={14} className="flex-shrink-0" />
-                      <span className="truncate">{p.title}</span>
+                      <Icon size={14} />
+                      {p.title}
                     </Link>
                   )
                 })}
-              </div>
+              </nav>
 
-              <div className="pt-2 border-t border-white/10 space-y-2">
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2 flex-shrink-0">
                 {settings?.show_join_form && !isAuthenticated && (
                   <Link
                     to="/p/unirse"
-                    onClick={() => setMenuOpen(false)}
-                    className="block w-full text-center px-4 py-2 rounded-xl text-xs font-bold text-white shadow"
+                    className="hidden sm:inline-flex px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold text-white transition shadow hover:brightness-110 active:scale-95 items-center gap-1.5"
                     style={{ backgroundColor: secondaryColor }}
                   >
-                    Solicitar Unirse a la Red
+                    <Sparkles size={13} />
+                    Solicitar Unirse
                   </Link>
                 )}
 
-                {!isAuthenticated && (
+                {isAuthenticated ? (
+                  <div className="flex items-center gap-1 bg-black/25 p-1 rounded-xl border border-white/10">
+                    <Link
+                      to="/app/website"
+                      className="px-2.5 py-1 rounded-lg text-xs font-semibold text-white hover:bg-white/20 transition flex items-center gap-1"
+                      title="Editor modular"
+                    >
+                      <Edit size={13} />
+                      <span className="hidden sm:inline">Editor</span>
+                    </Link>
+                    <Link
+                      to="/app/dashboard"
+                      className="px-2.5 py-1 rounded-lg text-xs font-bold text-white transition flex items-center gap-1 shadow-sm"
+                      style={{ backgroundColor: secondaryColor }}
+                    >
+                      <LayoutDashboard size={13} />
+                      <span className="hidden sm:inline">Escritorio</span>
+                    </Link>
+                    <button
+                      onClick={() => {
+                        logout()
+                        window.location.href = '/'
+                      }}
+                      className="p-1 rounded-lg text-xs text-white/80 hover:text-white hover:bg-white/10 transition"
+                      title="Cerrar sesión"
+                    >
+                      <LogOut size={13} />
+                    </button>
+                  </div>
+                ) : (
                   <Link
                     to="/login"
-                    onClick={() => setMenuOpen(false)}
-                    className="block text-center px-3 py-2 rounded-xl text-xs text-white/90 hover:bg-white/10"
+                    className="hidden sm:inline-block px-3 py-1.5 rounded-xl text-xs font-medium text-white/90 hover:text-white hover:bg-white/10 transition"
                   >
                     Iniciar sesión
                   </Link>
                 )}
+
+                {/* Mobile / Tablet Menu Button */}
+                <button
+                  className="xl:hidden text-white p-2 rounded-xl bg-white/10 hover:bg-white/20 transition"
+                  onClick={() => setMenuOpen(!menuOpen)}
+                  aria-label="Abrir menú"
+                >
+                  {menuOpen ? <X size={20} /> : <Menu size={20} />}
+                </button>
               </div>
             </div>
-          )}
-        </div>
-      </header>
+          </div>
+        </header>
+      )}
 
-      {/* Main Page Container */}
+      {/* MOBILE / TABLET DRAWER (Universal & Responsive) */}
+      {menuOpen && (
+        <div className="xl:hidden bg-[#102210] text-white p-4 border-b border-white/10 space-y-3 z-40">
+          <div className="grid grid-cols-2 gap-2">
+            {pages.map((p) => {
+              const Icon = ICONS[p.icon || 'home'] || Home
+              const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
+              return (
+                <Link
+                  key={p.slug}
+                  to={`/p/${p.slug}`}
+                  onClick={() => setMenuOpen(false)}
+                  className={`px-3 py-2.5 rounded-xl text-xs font-semibold transition flex items-center gap-2 truncate ${
+                    isActive ? 'bg-white/20 text-white font-bold' : 'text-white/80 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <Icon size={15} className="flex-shrink-0" />
+                  <span className="truncate">{p.title}</span>
+                </Link>
+              )
+            })}
+          </div>
+
+          <div className="pt-3 border-t border-white/10 space-y-2">
+            {settings?.show_join_form && !isAuthenticated && (
+              <Link
+                to="/p/unirse"
+                onClick={() => setMenuOpen(false)}
+                className="block w-full text-center px-4 py-2.5 rounded-xl text-xs font-bold text-white shadow"
+                style={{ backgroundColor: secondaryColor }}
+              >
+                Solicitar Unirse a la Red
+              </Link>
+            )}
+
+            {!isAuthenticated && (
+              <Link
+                to="/login"
+                onClick={() => setMenuOpen(false)}
+                className="block text-center px-3 py-2 rounded-xl text-xs text-white/90 hover:bg-white/10"
+              >
+                Iniciar sesión miembros
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 3. MAIN PAGE CONTAINER */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {children}
       </main>
 
-      {/* Rich Eco Footer (Inspired by ecovillage.org & ecoaldeas.org) */}
+      {/* 4. RICH FOOTER */}
       <footer className="text-white mt-16 pt-12 pb-8 border-t border-white/10 shadow-2xl" style={{ backgroundColor: '#112211' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 pb-10 border-b border-white/10">

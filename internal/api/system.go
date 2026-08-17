@@ -1509,40 +1509,72 @@ func (h *SystemHandler) getPublicSettings(w http.ResponseWriter, r *http.Request
 	var siteTitle, siteSubtitle, primaryColor, secondaryColor, contactAddress, ig, fb string
 	var logoURL, contactEmail, contactPhone, twitter *string
 	var showJoinForm bool
+	var headerStyle, announcementText, footerStyle *string
+	var showAnnouncement *bool
 
 	err := h.Pool.QueryRow(r.Context(), `
 		SELECT site_title, site_subtitle, COALESCE(logo_url, ''), primary_color, secondary_color,
 		       COALESCE(contact_email, ''), COALESCE(contact_phone, ''), contact_address,
 		       COALESCE(social_instagram, ''), COALESCE(social_facebook, ''), COALESCE(social_twitter, ''),
-		       show_join_form
+		       show_join_form,
+		       COALESCE(header_style, 'modern_eco'),
+		       COALESCE(announcement_text, '🗓️ Próximo Encuentro Conuquero: Primer sábado de cada mes en Parque Los Caobos, Caracas | 9:00 AM'),
+		       COALESCE(show_announcement, true),
+		       COALESCE(footer_style, 'columns')
 		FROM public_settings WHERE node_domain = $1`, nodeDomain).Scan(
 		&siteTitle, &siteSubtitle, &logoURL, &primaryColor, &secondaryColor,
 		&contactEmail, &contactPhone, &contactAddress,
-		&ig, &fb, &twitter, &showJoinForm)
+		&ig, &fb, &twitter, &showJoinForm,
+		&headerStyle, &announcementText, &showAnnouncement, &footerStyle)
 	if err != nil {
 		writeJSON(w, 200, map[string]interface{}{
-			"site_title":      "Feria Conuquera Agroecologica",
-			"site_subtitle":   "Cuando el conuco viene a la ciudad",
-			"primary_color":   "#2d5016",
-			"secondary_color": "#f4a261",
-			"show_join_form":  true,
+			"site_title":        "Feria Conuquera Agroecologica",
+			"site_subtitle":     "Cuando el conuco viene a la ciudad",
+			"primary_color":     "#162e16",
+			"secondary_color":   "#c2410c",
+			"show_join_form":    true,
+			"header_style":      "modern_eco",
+			"announcement_text": "🗓️ Próximo Encuentro Conuquero: Primer sábado de cada mes en Parque Los Caobos, Caracas | 9:00 AM",
+			"show_announcement": true,
+			"footer_style":      "columns",
 		})
 		return
 	}
 
+	hStyle := "modern_eco"
+	if headerStyle != nil && *headerStyle != "" {
+		hStyle = *headerStyle
+	}
+	aText := "🗓️ Próximo Encuentro Conuquero: Primer sábado de cada mes en Parque Los Caobos, Caracas | 9:00 AM"
+	if announcementText != nil && *announcementText != "" {
+		aText = *announcementText
+	}
+	sAnnounce := true
+	if showAnnouncement != nil {
+		sAnnounce = *showAnnouncement
+	}
+	fStyle := "columns"
+	if footerStyle != nil && *footerStyle != "" {
+		fStyle = *footerStyle
+	}
+
 	writeJSON(w, 200, map[string]interface{}{
-		"site_title":       siteTitle,
-		"site_subtitle":    siteSubtitle,
-		"logo_url":         logoURL,
-		"primary_color":    primaryColor,
-		"secondary_color":  secondaryColor,
-		"contact_email":    contactEmail,
-		"contact_phone":    contactPhone,
-		"contact_address":  contactAddress,
-		"social_instagram": ig,
-		"social_facebook":  fb,
-		"social_twitter":   twitter,
-		"show_join_form":   showJoinForm,
+		"site_title":        siteTitle,
+		"site_subtitle":     siteSubtitle,
+		"logo_url":          logoURL,
+		"primary_color":     primaryColor,
+		"secondary_color":   secondaryColor,
+		"contact_email":     contactEmail,
+		"contact_phone":     contactPhone,
+		"contact_address":   contactAddress,
+		"social_instagram":  ig,
+		"social_facebook":   fb,
+		"social_twitter":    twitter,
+		"show_join_form":    showJoinForm,
+		"header_style":      hStyle,
+		"announcement_text": aText,
+		"show_announcement": sAnnounce,
+		"footer_style":      fStyle,
 	})
 }
 
@@ -1774,18 +1806,22 @@ func (h *SystemHandler) getSiteSettings(w http.ResponseWriter, r *http.Request) 
 }
 
 type UpdateSiteSettingsReq struct {
-	SiteTitle       string `json:"site_title"`
-	SiteSubtitle    string `json:"site_subtitle"`
-	LogoURL         string `json:"logo_url"`
-	PrimaryColor    string `json:"primary_color"`
-	SecondaryColor  string `json:"secondary_color"`
-	ContactEmail    string `json:"contact_email"`
-	ContactPhone    string `json:"contact_phone"`
-	ContactAddress  string `json:"contact_address"`
-	SocialInstagram string `json:"social_instagram"`
-	SocialFacebook  string `json:"social_facebook"`
-	SocialTwitter   string `json:"social_twitter"`
-	ShowJoinForm    bool   `json:"show_join_form"`
+	SiteTitle        string `json:"site_title"`
+	SiteSubtitle     string `json:"site_subtitle"`
+	LogoURL          string `json:"logo_url"`
+	PrimaryColor     string `json:"primary_color"`
+	SecondaryColor   string `json:"secondary_color"`
+	ContactEmail     string `json:"contact_email"`
+	ContactPhone     string `json:"contact_phone"`
+	ContactAddress   string `json:"contact_address"`
+	SocialInstagram  string `json:"social_instagram"`
+	SocialFacebook   string `json:"social_facebook"`
+	SocialTwitter    string `json:"social_twitter"`
+	ShowJoinForm     bool   `json:"show_join_form"`
+	HeaderStyle      string `json:"header_style"`
+	AnnouncementText string `json:"announcement_text"`
+	ShowAnnouncement bool   `json:"show_announcement"`
+	FooterStyle      string `json:"footer_style"`
 }
 
 func (h *SystemHandler) updateSiteSettings(w http.ResponseWriter, r *http.Request) {
@@ -1800,16 +1836,26 @@ func (h *SystemHandler) updateSiteSettings(w http.ResponseWriter, r *http.Reques
 		nodeDomain = "localhost"
 	}
 
+	if req.HeaderStyle == "" {
+		req.HeaderStyle = "modern_eco"
+	}
+	if req.FooterStyle == "" {
+		req.FooterStyle = "columns"
+	}
+
 	_, err := h.Pool.Exec(r.Context(), `
 		UPDATE public_settings SET
 			site_title = $1, site_subtitle = $2, logo_url = $3, primary_color = $4, secondary_color = $5,
 			contact_email = $6, contact_phone = $7, contact_address = $8,
 			social_instagram = $9, social_facebook = $10, social_twitter = $11, show_join_form = $12,
+			header_style = $13, announcement_text = $14, show_announcement = $15, footer_style = $16,
 			updated_at = NOW()
-		WHERE node_domain = $13`,
+		WHERE node_domain = $17`,
 		req.SiteTitle, req.SiteSubtitle, req.LogoURL, req.PrimaryColor, req.SecondaryColor,
 		req.ContactEmail, req.ContactPhone, req.ContactAddress,
-		req.SocialInstagram, req.SocialFacebook, req.SocialTwitter, req.ShowJoinForm, nodeDomain)
+		req.SocialInstagram, req.SocialFacebook, req.SocialTwitter, req.ShowJoinForm,
+		req.HeaderStyle, req.AnnouncementText, req.ShowAnnouncement, req.FooterStyle,
+		nodeDomain)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return

@@ -12,6 +12,11 @@ export type BlockType =
   | 'cta_banner'
   | 'richtext'
   | 'contact_location'
+  | 'news_feed'
+  | 'timeline_history'
+  | 'institutions_partners'
+  | 'resource_downloads'
+  | 'calculator_preview'
 
 export interface CtaButton {
   text: string
@@ -30,7 +35,7 @@ export interface HeroBlockData {
   primary_cta?: CtaButton
   secondary_cta?: CtaButton
   alignment?: 'center' | 'left'
-  style?: 'standard' | 'split' | 'card_overlay'
+  style?: 'standard' | 'split' | 'card_overlay' | 'institutional' | 'magazine'
 }
 
 export interface CarouselItem {
@@ -92,7 +97,7 @@ export interface StatsBlockData {
   title?: string
   subtitle?: string
   items: StatItem[]
-  bg_theme?: 'primary' | 'dark' | 'light' | 'amber'
+  bg_theme?: 'primary' | 'dark' | 'light' | 'amber' | 'institutional'
 }
 
 export interface EventScheduleBlockData {
@@ -184,7 +189,7 @@ export interface CtaBannerBlockData {
   button_link: string
   secondary_text?: string
   secondary_link?: string
-  theme?: 'primary' | 'secondary' | 'dark' | 'forest'
+  theme?: 'primary' | 'secondary' | 'dark' | 'forest' | 'institutional'
 }
 
 export interface RichTextBlockData {
@@ -206,6 +211,82 @@ export interface ContactLocationBlockData {
   transport_info?: string
 }
 
+// Blocks inspired by FAO / Mincyt / ACAV / BiodiversidadLA
+export interface ArticleItem {
+  title: string
+  date?: string
+  author?: string
+  category?: string
+  excerpt: string
+  image_url?: string
+  link?: string
+}
+
+export interface NewsFeedBlockData {
+  type: 'news_feed'
+  badge?: string
+  title: string
+  subtitle?: string
+  items: ArticleItem[]
+}
+
+export interface TimelineItem {
+  year: string
+  title: string
+  description: string
+  badge?: string
+}
+
+export interface TimelineHistoryBlockData {
+  type: 'timeline_history'
+  badge?: string
+  title: string
+  subtitle?: string
+  items: TimelineItem[]
+}
+
+export interface PartnerItem {
+  name: string
+  role?: string
+  logo_url?: string
+  link?: string
+}
+
+export interface InstitutionsPartnersBlockData {
+  type: 'institutions_partners'
+  title?: string
+  subtitle?: string
+  items: PartnerItem[]
+}
+
+export interface DownloadResourceItem {
+  title: string
+  category?: string
+  description: string
+  file_format?: string
+  file_size?: string
+  download_url?: string
+}
+
+export interface ResourceDownloadsBlockData {
+  type: 'resource_downloads'
+  title: string
+  subtitle?: string
+  items: DownloadResourceItem[]
+}
+
+export interface CalculatorPreviewBlockData {
+  type: 'calculator_preview'
+  title: string
+  subtitle?: string
+  sample_items?: {
+    work_title: string
+    hours: number
+    kwh_rate: number
+    effort_factor: number
+  }[]
+}
+
 export type SiteBlock =
   | HeroBlockData
   | CarouselBlockData
@@ -220,6 +301,18 @@ export type SiteBlock =
   | CtaBannerBlockData
   | RichTextBlockData
   | ContactLocationBlockData
+  | NewsFeedBlockData
+  | TimelineHistoryBlockData
+  | InstitutionsPartnersBlockData
+  | ResourceDownloadsBlockData
+  | CalculatorPreviewBlockData
+
+export type HeaderStyleType =
+  | 'modern_eco'
+  | 'fao_institutional'
+  | 'editorial_latam'
+  | 'agrodigital_mincyt'
+  | 'dropdown_categories'
 
 export interface PublicPageData {
   id?: string

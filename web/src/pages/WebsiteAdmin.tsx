@@ -34,10 +34,55 @@ import {
   RotateCcw,
   CheckCircle,
   XCircle,
+  Building2,
+  Newspaper,
+  History,
+  Download,
+  Calculator,
+  Layout,
+  Sliders,
 } from 'lucide-react'
-import { SiteBlock, BlockType, PublicPageData } from '../types/publicSite'
+import { SiteBlock, BlockType, HeaderStyleType } from '../types/publicSite'
 import { FERIA_CONUQUERA_TEMPLATES } from '../components/public-site/defaultSiteData'
 import { PageBlocksRenderer } from '../components/public-site/PublicBlocks'
+
+const HEADER_STYLES: {
+  id: HeaderStyleType
+  name: string
+  description: string
+  tag: string
+}[] = [
+  {
+    id: 'modern_eco',
+    name: 'Ecoaldea / Moderno (Ecovillage & Ecoaldeas)',
+    description: 'Cabecera verde bosque con badges, diseño fluido y menú receptivo.',
+    tag: 'Recomendado',
+  },
+  {
+    id: 'fao_institutional',
+    name: 'Institucional / Portal FAO (Fondo Blanco & Badges)',
+    description: 'Portal limpio fondo blanco con logotipo destacado, submenús y enlaces directos.',
+    tag: 'Portal Oficial',
+  },
+  {
+    id: 'editorial_latam',
+    name: 'Revista / Agroecología LATAM & Biodiversidad LA',
+    description: 'Doble barra: franja superior con título y redes + barra inferior oscura de navegación.',
+    tag: 'Editorial',
+  },
+  {
+    id: 'agrodigital_mincyt',
+    name: 'AgroDigital / Mincyt Tecnológico',
+    description: 'Cabecera tecnológica con badge de tasa energética en vivo (1 TQ = 1 kWh) y botones.',
+    tag: 'Tecnológico',
+  },
+  {
+    id: 'dropdown_categories',
+    name: 'Menú por Categorías Desplegables',
+    description: 'Menú agrupado en niveles: "Sobre la Red", "Economía & Cosecha", "Comunidad & Saberes".',
+    tag: 'Multi-Nivel',
+  },
+]
 
 const BLOCK_DEFINITIONS: {
   type: BlockType
@@ -56,7 +101,7 @@ const BLOCK_DEFINITIONS: {
       badge: '🌱 Bienvenidos',
       title: t || 'Feria Conuquera Agroecológica',
       subtitle: 'Soberanía alimentaria y economía solidaria',
-      description: 'Espacio de encuentro popular y trueque comunitario.',
+      description: 'Espacio de encuentro popular y trueque comunitario en Caracas.',
       image_url: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80',
       primary_cta: { text: 'Ver Productos', link: '/p/productos' },
       secondary_cta: { text: 'Unirse', link: '/p/unirse' },
@@ -199,6 +244,94 @@ const BLOCK_DEFINITIONS: {
     }),
   },
   {
+    type: 'news_feed',
+    name: 'Noticias / Comunicados (FAO & Mincyt)',
+    description: 'Cuadrícula de artículos, boletines y pronunciamientos con fechas y fotos.',
+    icon: Newspaper,
+    defaultData: () => ({
+      type: 'news_feed',
+      badge: 'Boletín Conuquero',
+      title: 'Noticias y Articulaciones Populares',
+      subtitle: 'Avances de la producción campesina y soberanía en Caracas.',
+      items: [
+        {
+          title: 'Celebración de 10 Años de Encuentro en Los Caobos',
+          date: 'Octubre 2024',
+          author: 'Equipo Promotor',
+          category: 'Aniversario',
+          excerpt: 'Más de 45 marcas y familias productoras se dieron cita en una jornada multitudinaria de trueque e intercambio.',
+          image_url: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=600&q=80',
+          link: '/p/filosofia',
+        },
+      ],
+    }),
+  },
+  {
+    type: 'timeline_history',
+    name: 'Línea de Tiempo Histórica',
+    description: 'Hitos cronológicos de la red desde sus orígenes hasta la actualidad.',
+    icon: History,
+    defaultData: () => ({
+      type: 'timeline_history',
+      badge: 'Trayectoria',
+      title: 'Hitos de Nuestra Historia Colectiva',
+      subtitle: 'El camino de la siembra y el trueque.',
+      items: [
+        { year: '2014', title: 'Nacimiento de la Feria Conuquera', description: 'Primera feria en Los Caobos tras debates de semillas.', badge: 'Fundacional' },
+        { year: '2015', title: 'Promulgación de la Ley de Semillas', description: 'Victoria popular en la Asamblea Nacional.', badge: 'Ley Popular' },
+        { year: '2024', title: '10 Años de Soberanía Activa', description: 'Consolidación de la red y sistema digital de trueque.', badge: 'Presente' },
+      ],
+    }),
+  },
+  {
+    type: 'calculator_preview',
+    name: 'Simulador / Calculadora de Trueque (kWh)',
+    description: 'Widget interactivo que permite calcular el valor justo en energía (kWh/TQ).',
+    icon: Calculator,
+    defaultData: () => ({
+      type: 'calculator_preview',
+      title: 'Calcula el Valor Energético de tu Producción',
+      subtitle: 'Simulador interactivo basado en horas de trabajo y factores de esfuerzo físico.',
+    }),
+  },
+  {
+    type: 'resource_downloads',
+    name: 'Biblioteca de Guías & Descargas',
+    description: 'Descargas de manuales agroecológicos, guías de semillas y recetas.',
+    icon: Download,
+    defaultData: () => ({
+      type: 'resource_downloads',
+      title: 'Guías y Materiales de Formación',
+      subtitle: 'Descarga gratuita de saberes conuqueros.',
+      items: [
+        {
+          title: 'Manual de Lombricultura y Bioinsumos',
+          category: 'Agroecología',
+          description: 'Aprende a preparar compost, biol y humus líquido en casa.',
+          file_format: 'PDF',
+          file_size: '2.4 MB',
+          download_url: '#',
+        },
+      ],
+    }),
+  },
+  {
+    type: 'institutions_partners',
+    name: 'Aliados e Instituciones Populares',
+    description: 'Logos y menciones de comunas, colectivos e instituciones colaboradoras.',
+    icon: Building2,
+    defaultData: () => ({
+      type: 'institutions_partners',
+      title: 'Red de Colectivos y Organizaciones Aliadas',
+      subtitle: 'Tejiendo alianzas por la soberanía alimentaria.',
+      items: [
+        { name: 'Movimiento Semillas del Pueblo', role: 'Custodios de Semillas' },
+        { name: 'Organopónico Bolívar 1 (EPAU)', role: 'Agricultura Urbana' },
+        { name: 'Colectivo Las Yerbateras', role: 'Medicina Tradicional' },
+      ],
+    }),
+  },
+  {
     type: 'testimonials',
     name: 'Testimonios / Voces Conuqueras',
     description: 'Tarjetas de productores y miembros con citas, nombres, roles y fotos.',
@@ -335,8 +468,8 @@ export default function WebsiteAdmin() {
     site_title: '',
     site_subtitle: '',
     logo_url: '',
-    primary_color: '#1e3a1e',
-    secondary_color: '#c85a32',
+    primary_color: '#162e16',
+    secondary_color: '#c2410c',
     contact_email: '',
     contact_phone: '',
     contact_address: '',
@@ -344,6 +477,10 @@ export default function WebsiteAdmin() {
     social_facebook: '',
     social_twitter: '',
     show_join_form: true,
+    header_style: 'modern_eco' as HeaderStyleType,
+    announcement_text: '🗓️ Próximo Encuentro Conuquero: Primer sábado de cada mes en Parque Los Caobos, Caracas | 9:00 AM',
+    show_announcement: true,
+    footer_style: 'columns',
   })
 
   const load = () => {
@@ -362,8 +499,8 @@ export default function WebsiteAdmin() {
         site_title: settings.site_title || '',
         site_subtitle: settings.site_subtitle || '',
         logo_url: settings.logo_url || '',
-        primary_color: settings.primary_color || '#1e3a1e',
-        secondary_color: settings.secondary_color || '#c85a32',
+        primary_color: settings.primary_color || '#162e16',
+        secondary_color: settings.secondary_color || '#c2410c',
         contact_email: settings.contact_email || '',
         contact_phone: settings.contact_phone || '',
         contact_address: settings.contact_address || '',
@@ -371,6 +508,12 @@ export default function WebsiteAdmin() {
         social_facebook: settings.social_facebook || '',
         social_twitter: settings.social_twitter || '',
         show_join_form: settings.show_join_form ?? true,
+        header_style: (settings.header_style || 'modern_eco') as HeaderStyleType,
+        announcement_text:
+          settings.announcement_text ||
+          '🗓️ Próximo Encuentro Conuquero: Primer sábado de cada mes en Parque Los Caobos, Caracas | 9:00 AM',
+        show_announcement: settings.show_announcement ?? true,
+        footer_style: settings.footer_style || 'columns',
       })
     }
   }, [settings])
@@ -398,13 +541,11 @@ export default function WebsiteAdmin() {
         }
       }
     } catch {
-      // Fallback: convert markdown string to a rich text block
       if (page.content) {
         parsedBlocks = [{ type: 'richtext', title: page.title, content: page.content }]
       }
     }
 
-    // If still empty, check default templates
     if (parsedBlocks.length === 0) {
       const tmpl = FERIA_CONUQUERA_TEMPLATES.find((t) => t.slug === page.slug)
       if (tmpl) {
@@ -489,7 +630,7 @@ export default function WebsiteAdmin() {
     }
   }
 
-  // Reset / Populate all preconfigured templates for Feria Conuquera
+  // Apply preconfigured rich templates for all pages
   const applyAllFeriaTemplates = async () => {
     if (
       !confirm(
@@ -520,7 +661,7 @@ export default function WebsiteAdmin() {
           await api.post('/site/pages', payload)
         }
       }
-      setSuccess('¡Plantilla modular de la Feria Conuquera aplicada con éxito a todas las páginas!')
+      setSuccess('¡Plantilla modular viva aplicada con éxito a todas las páginas!')
       load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al aplicar plantillas')
@@ -533,7 +674,7 @@ export default function WebsiteAdmin() {
     setSuccess('')
     try {
       await api.put('/site/settings', settingsForm)
-      setSuccess('Configuración del sitio guardada')
+      setSuccess('¡Ajustes del sitio y estilo de menú guardados con éxito!')
       load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar')
@@ -556,11 +697,11 @@ export default function WebsiteAdmin() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 pb-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 flex items-center gap-2.5">
-            <Globe className="text-trueque-600" size={28} />
+            <Globe className="text-emerald-700" size={28} />
             Administración del Sitio Web Público
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Editor visual modular, personalización de temas y gestión de solicitudes de admisión.
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">
+            Editor visual modular de páginas, estilos de menú y gestión de solicitudes de ingreso.
           </p>
         </div>
 
@@ -586,24 +727,24 @@ export default function WebsiteAdmin() {
 
       {/* Help Banner */}
       {showHelp && (
-        <div className="card bg-emerald-50/70 border-emerald-200 text-sm text-gray-800 space-y-3">
+        <div className="card bg-emerald-50/70 border-emerald-200 text-xs sm:text-sm text-gray-800 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-emerald-900 flex items-center gap-1.5">
               <Sparkles size={18} className="text-amber-500" />
-              Guía del Editor Modular del Sitio Web
+              Constructor Visual de Páginas y Estilos de Menú
             </h3>
             <button onClick={() => setShowHelp(false)} className="text-gray-400 hover:text-gray-600">
               <X size={18} />
             </button>
           </div>
           <p>
-            <b>¿Cómo funciona el editor de módulos?</b> Cada página pública se compone de bloques modulares independientes (encabezados, carruseles de fotos, tarjetas de pilares, contadores, testimonios, explicador de trueque, etc.).
+            Puedes cambiar el <b>estilo del menú y cabecera</b> desde la pestaña <b>Ajustes y Estilos</b>:
+            Institucional (FAO), Ecoaldea Moderna (Ecovillage), Revista Editorial (BiodiversidadLA), Tecnológico (Mincyt) o Menú por Categorías Desplegables.
           </p>
           <ul className="list-disc list-inside space-y-1 text-xs text-gray-700">
-            <li><b>Añadir módulos:</b> Pulsa en "Añadir Módulo" y selecciona una plantilla prediseñada.</li>
-            <li><b>Reordenar:</b> Usa las flechas (↑ / ↓) para cambiar el orden en que aparecen.</li>
-            <li><b>Editar contenido:</b> Haz clic en "Editar" sobre cualquier módulo para modificar sus textos, imágenes y listas.</li>
-            <li><b>Plantilla completa:</b> Puedes pulsar "Aplicar Plantilla Viva de Feria Conuquera" para cargar automáticamente todo el contenido auténtico de Caracas con un solo clic.</li>
+            <li><b>Módulos disponibles:</b> Encabezados, álbumes de fotos, pilares, noticias y boletines, líneas de tiempo históricas, calculadoras interactivas, descargables, testimonios y más.</li>
+            <li><b>Reordenar:</b> Usa las flechas (↑ / ↓) para ordenar los módulos en cualquier pantalla.</li>
+            <li><b>100% Adaptativo:</b> Todos los componentes y menús se ajustan automáticamente a teléfonos móviles, tablets y monitores grandes sin desbordamientos.</li>
           </ul>
         </div>
       )}
@@ -629,9 +770,9 @@ export default function WebsiteAdmin() {
       <div className="flex gap-2 border-b border-gray-200 pb-2 overflow-x-auto">
         <button
           onClick={() => setTab('pages')}
-          className={`px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${
+          className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${
             tab === 'pages'
-              ? 'bg-trueque-800 text-white shadow-sm'
+              ? 'bg-emerald-900 text-white shadow-sm'
               : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
           }`}
         >
@@ -642,9 +783,9 @@ export default function WebsiteAdmin() {
         {selectedPage && (
           <button
             onClick={() => setTab('builder')}
-            className={`px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${
+            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${
               tab === 'builder'
-                ? 'bg-trueque-800 text-white shadow-sm'
+                ? 'bg-emerald-900 text-white shadow-sm'
                 : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
             }`}
           >
@@ -655,26 +796,26 @@ export default function WebsiteAdmin() {
 
         <button
           onClick={() => setTab('settings')}
-          className={`px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${
+          className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${
             tab === 'settings'
-              ? 'bg-trueque-800 text-white shadow-sm'
+              ? 'bg-emerald-900 text-white shadow-sm'
               : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
           }`}
         >
-          <SettingsIcon size={16} />
-          Ajustes Generales y Tema
+          <Sliders size={16} />
+          Estilos de Menú y Ajustes
         </button>
 
         <button
           onClick={() => setTab('admission')}
-          className={`px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${
+          className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${
             tab === 'admission'
-              ? 'bg-trueque-800 text-white shadow-sm'
+              ? 'bg-emerald-900 text-white shadow-sm'
               : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
           }`}
         >
           <Mail size={16} />
-          Solicitudes de Admisión ({admissionRequests.filter((r) => r.status === 'pending').length} pendientes)
+          Solicitudes de Admisión ({admissionRequests.filter((r) => r.status === 'pending').length})
         </button>
       </div>
 
@@ -685,8 +826,8 @@ export default function WebsiteAdmin() {
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Estructura de Páginas Públicas</h2>
-              <p className="text-xs text-gray-500">Selecciona una página para editar sus módulos o crea una nueva.</p>
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">Estructura de Páginas Públicas</h2>
+              <p className="text-xs text-gray-500">Haz clic en "Editar Módulos" para personalizar los bloques de cada página.</p>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -721,7 +862,6 @@ export default function WebsiteAdmin() {
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {pages.map((p) => {
-              // Count modules
               let moduleCount = 0
               try {
                 const parsed = JSON.parse(p.content)
@@ -749,7 +889,7 @@ export default function WebsiteAdmin() {
                       </span>
                     </div>
 
-                    <h3 className="text-lg font-bold text-gray-900 group-hover:text-trueque-700 transition">
+                    <h3 className="text-base sm:text-lg font-bold text-gray-900 group-hover:text-emerald-800 transition">
                       {p.title}
                     </h3>
                     {p.subtitle && (
@@ -757,33 +897,31 @@ export default function WebsiteAdmin() {
                     )}
 
                     <div className="flex items-center gap-2 text-xs text-gray-400 pt-1">
-                      <Layers size={14} className="text-trueque-600" />
+                      <Layers size={14} className="text-emerald-700" />
                       <span>{moduleCount} {moduleCount === 1 ? 'módulo' : 'módulos'}</span>
                       <span>•</span>
-                      <span>Orden menú: #{p.menu_order}</span>
+                      <span>Orden: #{p.menu_order}</span>
                     </div>
                   </div>
 
                   <div className="pt-4 mt-3 border-t border-gray-100 flex items-center justify-between">
                     <button
                       onClick={() => openPageBuilder(p)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-trueque-700 hover:bg-trueque-800 text-white text-xs font-bold transition shadow-xs"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs"
                     >
                       <Edit size={14} />
                       Editar Módulos
                     </button>
 
-                    <div className="flex items-center gap-1">
-                      <a
-                        href={`/p/${p.slug}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-1.5 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition"
-                        title="Ver en vivo"
-                      >
-                        <Eye size={16} />
-                      </a>
-                    </div>
+                    <a
+                      href={`/p/${p.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1.5 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition"
+                      title="Ver en vivo"
+                    >
+                      <Eye size={16} />
+                    </a>
                   </div>
                 </div>
               )
@@ -807,10 +945,10 @@ export default function WebsiteAdmin() {
                 ← Volver a lista
               </button>
               <div>
-                <h2 className="text-lg font-bold text-gray-900">
-                  Editando: <span className="text-trueque-700">{pageMeta.title}</span>
+                <h2 className="text-base sm:text-lg font-bold text-gray-900">
+                  Editando: <span className="text-emerald-800">{pageMeta.title}</span>
                 </h2>
-                <p className="text-xs text-gray-500 font-mono">Ruta pública: /p/{pageMeta.slug}</p>
+                <p className="text-xs text-gray-500 font-mono">/p/{pageMeta.slug}</p>
               </div>
             </div>
 
@@ -841,20 +979,20 @@ export default function WebsiteAdmin() {
                 className="btn-primary text-xs sm:text-sm flex items-center gap-1.5 shadow"
               >
                 <Save size={16} />
-                Guardar Cambios
+                Guardar Módulos
               </button>
             </div>
           </div>
 
           {/* Live Preview Screen */}
           {previewMode ? (
-            <div className="bg-white rounded-3xl p-6 sm:p-10 shadow-lg border border-gray-200">
+            <div className="bg-[#fcfbf9] rounded-3xl p-4 sm:p-8 shadow-lg border border-gray-200">
               <div className="border-b border-gray-200 pb-3 mb-6 flex items-center justify-between text-xs text-gray-500">
                 <span className="font-bold text-gray-700 flex items-center gap-1.5">
                   <Eye size={15} className="text-amber-500" />
                   Vista Previa en Vivo de /p/{pageMeta.slug}
                 </span>
-                <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-semibold">
+                <span className="bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded font-semibold">
                   {blocks.length} módulos cargados
                 </span>
               </div>
@@ -886,7 +1024,7 @@ export default function WebsiteAdmin() {
                 {/* Metadata Card */}
                 <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 space-y-3">
                   <h3 className="font-bold text-sm text-gray-900 flex items-center gap-1.5">
-                    <FileText size={16} className="text-trueque-600" />
+                    <FileText size={16} className="text-emerald-700" />
                     Propiedades de la Página
                   </h3>
 
@@ -955,12 +1093,12 @@ export default function WebsiteAdmin() {
                 <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 space-y-3">
                   <div className="flex items-center justify-between">
                     <h3 className="font-bold text-sm text-gray-900 flex items-center gap-1.5">
-                      <Layers size={16} className="text-trueque-600" />
+                      <Layers size={16} className="text-emerald-700" />
                       Módulos en esta Página ({blocks.length})
                     </h3>
                     <button
                       onClick={() => setShowAddBlockModal(true)}
-                      className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-emerald-700 text-white text-xs font-bold hover:bg-emerald-600 transition shadow-xs"
+                      className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-emerald-800 text-white text-xs font-bold hover:bg-emerald-700 transition shadow-xs"
                     >
                       <Plus size={14} />
                       Añadir Módulo
@@ -973,7 +1111,7 @@ export default function WebsiteAdmin() {
                       <p>Esta página no tiene módulos aún.</p>
                       <button
                         onClick={() => setShowAddBlockModal(true)}
-                        className="text-trueque-700 font-bold hover:underline"
+                        className="text-emerald-800 font-bold hover:underline"
                       >
                         Añadir el primer módulo
                       </button>
@@ -991,7 +1129,7 @@ export default function WebsiteAdmin() {
                             onClick={() => setEditingBlockIndex(idx)}
                             className={`p-3 rounded-xl border transition flex items-center justify-between gap-3 cursor-pointer ${
                               isSelected
-                                ? 'bg-trueque-50 border-trueque-500 shadow-sm'
+                                ? 'bg-emerald-50 border-emerald-500 shadow-sm'
                                 : 'bg-gray-50 hover:bg-gray-100 border-gray-200'
                             }`}
                           >
@@ -999,7 +1137,7 @@ export default function WebsiteAdmin() {
                               <span className="w-5 h-5 rounded-full bg-gray-200 text-gray-700 text-[11px] font-bold flex items-center justify-center flex-shrink-0">
                                 {idx + 1}
                               </span>
-                              <div className="p-1.5 rounded-lg bg-white text-trueque-700 shadow-xs flex-shrink-0">
+                              <div className="p-1.5 rounded-lg bg-white text-emerald-800 shadow-xs flex-shrink-0">
                                 <Icon size={16} />
                               </div>
                               <div className="min-w-0">
@@ -1059,7 +1197,7 @@ export default function WebsiteAdmin() {
                   <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 space-y-4">
                     <div className="flex items-center justify-between border-b border-gray-200 pb-3">
                       <div>
-                        <span className="text-[11px] font-bold text-trueque-600 uppercase tracking-wider block">
+                        <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block">
                           Módulo #{editingBlockIndex + 1}
                         </span>
                         <h3 className="font-bold text-base text-gray-900">
@@ -1074,7 +1212,6 @@ export default function WebsiteAdmin() {
                       </button>
                     </div>
 
-                    {/* Dynamic Block Editor Component */}
                     <BlockCustomizer
                       block={blocks[editingBlockIndex]}
                       onChange={(updated) => {
@@ -1100,184 +1237,156 @@ export default function WebsiteAdmin() {
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 3: SETTINGS & THEME                                                  */}
+      {/* TAB 3: MENU STYLES & SETTINGS                                            */}
       {/* ========================================================================= */}
       {tab === 'settings' && (
-        <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-gray-200 space-y-6 max-w-4xl">
+        <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-gray-200 space-y-8 max-w-4xl">
           <div className="border-b border-gray-200 pb-4">
-            <h2 className="text-xl font-bold text-gray-900">Ajustes Generales e Identidad Visual</h2>
+            <h2 className="text-xl font-bold text-gray-900">Estilos de Menú y Ajustes de Identidad</h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              Configura el nombre del nodo, logotipo, paleta de colores y enlaces de contacto de la comunidad.
+              Elige cómo se ve la cabecera y navegación del portal inspirada en FAO, Mincyt, Ecoaldeas y Revistas Agroecológicas.
             </p>
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <label className="label font-semibold">Título del Sitio Web *</label>
-              <input
-                className="input"
-                value={settingsForm.site_title}
-                onChange={(e) => setSettingsForm({ ...settingsForm, site_title: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="label font-semibold">Subtítulo / Slogan</label>
-              <input
-                className="input"
-                value={settingsForm.site_subtitle}
-                onChange={(e) => setSettingsForm({ ...settingsForm, site_subtitle: e.target.value })}
-              />
-            </div>
-          </div>
+          {/* 1. Header & Menu Style Selector */}
+          <div className="space-y-3">
+            <h3 className="font-bold text-sm text-gray-900 flex items-center gap-2">
+              <Layout size={18} className="text-emerald-800" />
+              Selecciona el Estilo de Menú y Cabecera
+            </h3>
 
-          <div>
-            <label className="label font-semibold">URL del Logotipo</label>
-            <input
-              className="input"
-              placeholder="https://ejemplo.com/logo-conuquero.png"
-              value={settingsForm.logo_url}
-              onChange={(e) => setSettingsForm({ ...settingsForm, logo_url: e.target.value })}
-            />
-            <p className="text-xs text-gray-400 mt-1">
-              URL de una imagen cuadrada o circular con el logo de la feria/nodo.
-            </p>
-          </div>
-
-          {/* Color Scheme Picker */}
-          <div className="space-y-3 pt-2">
-            <h4 className="font-bold text-sm text-gray-900">Paleta de Colores</h4>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div>
-                <label className="label font-semibold">Color Primario (Encabezado/Fondo)</label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    className="w-10 h-10 rounded-lg cursor-pointer border border-gray-200"
-                    value={settingsForm.primary_color}
-                    onChange={(e) => setSettingsForm({ ...settingsForm, primary_color: e.target.value })}
-                  />
-                  <input
-                    className="input font-mono text-sm"
-                    value={settingsForm.primary_color}
-                    onChange={(e) => setSettingsForm({ ...settingsForm, primary_color: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="label font-semibold">Color Secundario (Botones/Acciones)</label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    className="w-10 h-10 rounded-lg cursor-pointer border border-gray-200"
-                    value={settingsForm.secondary_color}
-                    onChange={(e) => setSettingsForm({ ...settingsForm, secondary_color: e.target.value })}
-                  />
-                  <input
-                    className="input font-mono text-sm"
-                    value={settingsForm.secondary_color}
-                    onChange={(e) => setSettingsForm({ ...settingsForm, secondary_color: e.target.value })}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Presets */}
-            <div className="flex flex-wrap gap-2 pt-1">
-              <span className="text-xs text-gray-500 font-semibold self-center">Estilos predefinidos:</span>
-              {[
-                { name: 'Bosque Conuquero', p: '#1e3a1e', s: '#c85a32' },
-                { name: 'Sol & Conuco', p: '#1b3815', s: '#e9a825' },
-                { name: 'Terracota Ecoaldea', p: '#2d2013', s: '#d96b27' },
-                { name: 'Montaña Esmeralda', p: '#0f2b1d', s: '#10b981' },
-              ].map((preset, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() =>
-                    setSettingsForm({
-                      ...settingsForm,
-                      primary_color: preset.p,
-                      secondary_color: preset.s,
-                    })
-                  }
-                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 transition"
+            <div className="grid sm:grid-cols-2 gap-3">
+              {HEADER_STYLES.map((st) => (
+                <div
+                  key={st.id}
+                  onClick={() => setSettingsForm({ ...settingsForm, header_style: st.id })}
+                  className={`p-4 rounded-2xl border-2 transition cursor-pointer flex flex-col justify-between ${
+                    settingsForm.header_style === st.id
+                      ? 'border-emerald-700 bg-emerald-50/70 shadow-sm ring-2 ring-emerald-500/20'
+                      : 'border-gray-200 hover:border-gray-300 bg-gray-50/50'
+                  }`}
                 >
-                  {preset.name}
-                </button>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <b className="text-xs sm:text-sm text-gray-900">{st.name}</b>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-gray-200 text-emerald-800">
+                        {st.tag}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-600 leading-relaxed">{st.description}</p>
+                  </div>
+                  <div className="pt-3 mt-2 border-t border-gray-200/60 flex items-center gap-2 text-xs font-bold text-emerald-800">
+                    <input
+                      type="radio"
+                      name="header_style"
+                      checked={settingsForm.header_style === st.id}
+                      onChange={() => setSettingsForm({ ...settingsForm, header_style: st.id })}
+                      className="accent-emerald-700"
+                    />
+                    <span>{settingsForm.header_style === st.id ? 'Estilo Activo' : 'Activar este estilo'}</span>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
 
-          <div className="space-y-4 pt-3 border-t border-gray-200">
-            <h4 className="font-bold text-sm text-gray-900">Ubicación y Contacto</h4>
+          {/* 2. Announcement bar */}
+          <div className="space-y-3 pt-2 border-t border-gray-200">
+            <h3 className="font-bold text-sm text-gray-900 flex items-center gap-2">
+              <Sparkles size={16} className="text-amber-500" />
+              Barra Superior de Avisos & Encuentros
+            </h3>
             <div>
-              <label className="label font-semibold">Dirección de Encuentro</label>
+              <label className="label text-xs font-semibold">Texto del Aviso</label>
               <input
-                className="input"
-                placeholder="Parque Los Caobos, Caracas, Venezuela"
-                value={settingsForm.contact_address}
-                onChange={(e) => setSettingsForm({ ...settingsForm, contact_address: e.target.value })}
+                className="input text-sm"
+                value={settingsForm.announcement_text}
+                onChange={(e) => setSettingsForm({ ...settingsForm, announcement_text: e.target.value })}
               />
             </div>
-
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div>
-                <label className="label font-semibold">Usuario de Instagram</label>
-                <input
-                  className="input"
-                  placeholder="feriaconuquera"
-                  value={settingsForm.social_instagram}
-                  onChange={(e) => setSettingsForm({ ...settingsForm, social_instagram: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="label font-semibold">Usuario de Facebook</label>
-                <input
-                  className="input"
-                  placeholder="feriaconuquera"
-                  value={settingsForm.social_facebook}
-                  onChange={(e) => setSettingsForm({ ...settingsForm, social_facebook: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div>
-                <label className="label font-semibold">Correo de Contacto</label>
-                <input
-                  className="input"
-                  placeholder="contacto@feriaconuquera.org"
-                  value={settingsForm.contact_email}
-                  onChange={(e) => setSettingsForm({ ...settingsForm, contact_email: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="label font-semibold">Teléfono / WhatsApp</label>
-                <input
-                  className="input"
-                  placeholder="+58 212 0000000"
-                  value={settingsForm.contact_phone}
-                  onChange={(e) => setSettingsForm({ ...settingsForm, contact_phone: e.target.value })}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-2 border-t border-gray-200">
-            <label className="flex items-center gap-2.5 text-sm font-semibold text-gray-800">
+            <label className="flex items-center gap-2 text-xs font-semibold text-gray-700">
               <input
                 type="checkbox"
-                checked={settingsForm.show_join_form}
-                onChange={(e) => setSettingsForm({ ...settingsForm, show_join_form: e.target.checked })}
+                checked={settingsForm.show_announcement}
+                onChange={(e) => setSettingsForm({ ...settingsForm, show_announcement: e.target.checked })}
               />
-              Habilitar botón y formulario público de "Solicitar Unirse" (/p/unirse)
+              Mostrar barra superior de avisos
             </label>
+          </div>
+
+          {/* 3. Identity */}
+          <div className="space-y-4 pt-2 border-t border-gray-200">
+            <h3 className="font-bold text-sm text-gray-900">Datos de Identidad</h3>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="label font-semibold text-xs">Título del Portal *</label>
+                <input
+                  className="input"
+                  value={settingsForm.site_title}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, site_title: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="label font-semibold text-xs">Subtítulo / Slogan</label>
+                <input
+                  className="input"
+                  value={settingsForm.site_subtitle}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, site_subtitle: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="label font-semibold text-xs">URL del Logotipo</label>
+              <input
+                className="input text-sm"
+                placeholder="https://ejemplo.com/logo-conuquero.png"
+                value={settingsForm.logo_url}
+                onChange={(e) => setSettingsForm({ ...settingsForm, logo_url: e.target.value })}
+              />
+            </div>
+
+            {/* Colors */}
+            <div className="grid sm:grid-cols-2 gap-4 pt-1">
+              <div>
+                <label className="label font-semibold text-xs">Color Primario</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    className="w-10 h-10 rounded-lg cursor-pointer border border-gray-200"
+                    value={settingsForm.primary_color}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, primary_color: e.target.value })}
+                  />
+                  <input
+                    className="input font-mono text-xs"
+                    value={settingsForm.primary_color}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, primary_color: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="label font-semibold text-xs">Color Secundario</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    className="w-10 h-10 rounded-lg cursor-pointer border border-gray-200"
+                    value={settingsForm.secondary_color}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, secondary_color: e.target.value })}
+                  />
+                  <input
+                    className="input font-mono text-xs"
+                    value={settingsForm.secondary_color}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, secondary_color: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           <button onClick={saveSettings} className="btn-primary flex items-center gap-2 shadow">
             <Save size={18} />
-            Guardar Configuración General
+            Guardar Todos los Ajustes
           </button>
         </div>
       )}
@@ -1350,12 +1459,6 @@ export default function WebsiteAdmin() {
                     </div>
                   )}
 
-                  {req.how_heard && (
-                    <p className="text-xs text-gray-400">
-                      <b>Cómo se enteró:</b> {req.how_heard}
-                    </p>
-                  )}
-
                   {req.status === 'pending' && (
                     <div className="flex gap-2 pt-2 border-t border-gray-100">
                       <button
@@ -1386,14 +1489,14 @@ export default function WebsiteAdmin() {
       {/* ========================================================================= */}
       {showAddBlockModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-gray-100 max-h-[85vh] flex flex-col">
+          <div className="bg-white rounded-3xl max-w-3xl w-full p-6 shadow-2xl border border-gray-100 max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between border-b border-gray-200 pb-3 mb-4">
               <div>
                 <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <Plus size={20} className="text-emerald-700" />
+                  <Plus size={20} className="text-emerald-800" />
                   Añadir Nuevo Módulo a la Página
                 </h3>
-                <p className="text-xs text-gray-500">Selecciona el tipo de componente que deseas integrar.</p>
+                <p className="text-xs text-gray-500">Selecciona entre los componentes visuales disponibles.</p>
               </div>
               <button
                 onClick={() => setShowAddBlockModal(false)}
@@ -1412,7 +1515,7 @@ export default function WebsiteAdmin() {
                     onClick={() => addBlock(def.type)}
                     className="p-3.5 rounded-2xl border border-gray-200 hover:border-emerald-500 hover:bg-emerald-50/50 text-left transition flex items-start gap-3 group"
                   >
-                    <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-800 group-hover:bg-emerald-700 group-hover:text-white transition flex-shrink-0">
+                    <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-800 group-hover:bg-emerald-800 group-hover:text-white transition flex-shrink-0">
                       <Icon size={20} />
                     </div>
                     <div className="min-w-0">
@@ -1435,7 +1538,7 @@ export default function WebsiteAdmin() {
 }
 
 // -------------------------------------------------------------
-// DYNAMIC BLOCK CUSTOMIZER (Form for each block type)
+// DYNAMIC BLOCK CUSTOMIZER
 // -------------------------------------------------------------
 function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (updated: SiteBlock) => void }) {
   const updateField = (field: string, val: any) => {
@@ -1444,7 +1547,6 @@ function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (upd
 
   return (
     <div className="space-y-4 text-xs">
-      {/* Title & Subtitle for almost all blocks */}
       {'title' in block && (
         <div>
           <label className="label text-xs font-semibold">Título del Módulo</label>
@@ -1520,14 +1622,14 @@ function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (upd
               className="input text-sm"
               value={block.primary_cta?.link || ''}
               onChange={(e) =>
-                updateField('primary_cta', { ...block.primary_cta, link: e.target.value, text: block.primary_cta?.text || 'Conoce Más' })
+                updateField('primary_cta', { ...block.primary_cta, link: e.target.value, text: block.primary_cta?.text || 'Ver Más' })
               }
             />
           </div>
         </div>
       )}
 
-      {/* Carousel Specific items manager */}
+      {/* Carousel items */}
       {block.type === 'carousel' && (
         <div className="space-y-3 pt-2 border-t border-gray-100">
           <div className="flex items-center justify-between">
@@ -1589,7 +1691,7 @@ function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (upd
                   />
                   <input
                     className="input text-xs"
-                    placeholder="Etiqueta / Tag"
+                    placeholder="Tag"
                     value={it.tag || ''}
                     onChange={(e) => {
                       const newItems = [...block.items]
@@ -1604,141 +1706,7 @@ function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (upd
         </div>
       )}
 
-      {/* Features Grid Specific items manager */}
-      {block.type === 'features_grid' && (
-        <div className="space-y-3 pt-2 border-t border-gray-100">
-          <div className="flex items-center justify-between">
-            <h4 className="font-bold text-xs text-gray-800">Tarjetas ({block.items.length})</h4>
-            <button
-              onClick={() => {
-                const newItems = [
-                  ...block.items,
-                  { icon: 'leaf', title: 'Nuevo Pilar', description: 'Descripción del pilar', badge: 'Nuevo' },
-                ]
-                updateField('items', newItems)
-              }}
-              className="btn-secondary text-[11px] py-1 px-2.5"
-            >
-              + Añadir Tarjeta
-            </button>
-          </div>
-
-          <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-            {block.items.map((it, i) => (
-              <div key={i} className="p-3 bg-gray-50 rounded-xl border border-gray-200 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-gray-700">Tarjeta #{i + 1}</span>
-                  <button
-                    onClick={() => {
-                      const newItems = block.items.filter((_, idx) => idx !== i)
-                      updateField('items', newItems)
-                    }}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    className="input text-xs font-bold"
-                    placeholder="Título"
-                    value={it.title}
-                    onChange={(e) => {
-                      const newItems = [...block.items]
-                      newItems[i].title = e.target.value
-                      updateField('items', newItems)
-                    }}
-                  />
-                  <input
-                    className="input text-xs"
-                    placeholder="Etiqueta / Badge"
-                    value={it.badge || ''}
-                    onChange={(e) => {
-                      const newItems = [...block.items]
-                      newItems[i].badge = e.target.value
-                      updateField('items', newItems)
-                    }}
-                  />
-                </div>
-                <textarea
-                  rows={2}
-                  className="input text-xs"
-                  placeholder="Descripción"
-                  value={it.description}
-                  onChange={(e) => {
-                    const newItems = [...block.items]
-                    newItems[i].description = e.target.value
-                    updateField('items', newItems)
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* FAQ Specific items manager */}
-      {block.type === 'faq' && (
-        <div className="space-y-3 pt-2 border-t border-gray-100">
-          <div className="flex items-center justify-between">
-            <h4 className="font-bold text-xs text-gray-800">Preguntas y Respuestas ({block.items.length})</h4>
-            <button
-              onClick={() => {
-                const newItems = [
-                  ...block.items,
-                  { question: '¿Nueva pregunta?', answer: 'Respuesta explicativa...' },
-                ]
-                updateField('items', newItems)
-              }}
-              className="btn-secondary text-[11px] py-1 px-2.5"
-            >
-              + Añadir Pregunta
-            </button>
-          </div>
-
-          <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-            {block.items.map((it, i) => (
-              <div key={i} className="p-3 bg-gray-50 rounded-xl border border-gray-200 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-gray-700">FAQ #{i + 1}</span>
-                  <button
-                    onClick={() => {
-                      const newItems = block.items.filter((_, idx) => idx !== i)
-                      updateField('items', newItems)
-                    }}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-                <input
-                  className="input text-xs font-bold"
-                  placeholder="Pregunta"
-                  value={it.question}
-                  onChange={(e) => {
-                    const newItems = [...block.items]
-                    newItems[i].question = e.target.value
-                    updateField('items', newItems)
-                  }}
-                />
-                <textarea
-                  rows={2}
-                  className="input text-xs"
-                  placeholder="Respuesta"
-                  value={it.answer}
-                  onChange={(e) => {
-                    const newItems = [...block.items]
-                    newItems[i].answer = e.target.value
-                    updateField('items', newItems)
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* RichText Specific */}
+      {/* RichText */}
       {block.type === 'richtext' && (
         <div>
           <label className="label text-xs font-semibold">Contenido (Markdown / Texto)</label>
@@ -1748,28 +1716,6 @@ function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (upd
             value={block.content}
             onChange={(e) => updateField('content', e.target.value)}
           />
-        </div>
-      )}
-
-      {/* CTA Banner Specific */}
-      {block.type === 'cta_banner' && (
-        <div className="grid grid-cols-2 gap-3 pt-2">
-          <div>
-            <label className="label text-xs font-semibold">Texto del Botón</label>
-            <input
-              className="input text-sm"
-              value={block.button_text}
-              onChange={(e) => updateField('button_text', e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="label text-xs font-semibold">Enlace del Botón</label>
-            <input
-              className="input text-sm"
-              value={block.button_link}
-              onChange={(e) => updateField('button_link', e.target.value)}
-            />
-          </div>
         </div>
       )}
     </div>
