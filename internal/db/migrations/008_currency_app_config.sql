@@ -4,9 +4,9 @@ ALTER TABLE node_config ADD COLUMN IF NOT EXISTS currency_name VARCHAR(50) DEFAU
 ALTER TABLE node_config ADD COLUMN IF NOT EXISTS app_name VARCHAR(255) DEFAULT 'Red de Intercambio';
 
 -- Permiso para gestionar configuracion
-INSERT INTO permissions (id, name, description, category, requires_multisig, required_approvals)
+INSERT INTO permissions (name, description, category, requires_multisig, required_approvals)
 VALUES ('config.manage', 'Gestionar configuracion del nodo', 'Cambiar moneda, nombre, tarifa energetica, niveles', 'admin', false, 1)
-ON CONFLICT DO NOTHING;
+ON CONFLICT (name) DO NOTHING;
 
 -- Tabla energy_tariff puede no tener node_domain como UNIQUE
 -- Asegurar que existe el constraint
