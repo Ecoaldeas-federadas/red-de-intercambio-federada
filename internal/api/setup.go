@@ -268,15 +268,12 @@ func (sh *SetupHandler) initNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generar JWT secret aleatorio si no hay uno seguro
+	// Usar el JWT secret del environment (configurado por el instalador).
+	// NO generar uno nuevo aqui - si lo hacemos, el middleware de auth
+	// (que usa el secret del env) no podra validar los tokens.
 	jwtSecret := sh.JWTSecret
-	if jwtSecret == "" || jwtSecret == "change-me-in-production" {
-		jwtBytes := make([]byte, 32)
-		if _, err := rand.Read(jwtBytes); err != nil {
-			writeError(w, 500, "failed to generate jwt secret")
-			return
-		}
-		jwtSecret = hex.EncodeToString(jwtBytes)
+	if jwtSecret == "" {
+		jwtSecret = "change-me-in-production"
 	}
 
 	// Guardar la configuracion del nodo en la BD (tabla node_config)

@@ -16,6 +16,7 @@ services:
       - yugabytedb
     environment:
       - DB_PASSWORD=${DB_PASSWORD:-fmcpassword}
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - CONFIG_PATH=/app/config.yaml
       - MIGRATIONS_DIR=/app/internal/db/migrations
       - FIRMWARE_DIR=/app/firmware
