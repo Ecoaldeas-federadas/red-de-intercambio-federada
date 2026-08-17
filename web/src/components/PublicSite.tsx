@@ -270,7 +270,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           {/* Top bar: logo + actions */}
           <div className="border-b-2" style={{ borderColor: primaryColor }}>
             <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 flex items-center justify-between gap-3">
-              <Link to="/p/inicio" className="flex items-center gap-2.5 flex-shrink-0 max-w-xs truncate">
+              <Link to="/p/inicio" className="flex items-center gap-2.5 flex-shrink-0 max-w-xs sm:max-w-sm">
                 {settings?.logo_url ? (
                   <img src={settings.logo_url} alt="logo" className="w-10 h-10 rounded-xl object-cover shadow-sm flex-shrink-0" />
                 ) : (
@@ -278,8 +278,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                     <Leaf size={20} />
                   </div>
                 )}
-                <div className="truncate">
-                  <h1 className="text-sm sm:text-base font-black tracking-tight truncate leading-tight" style={{ color: (settings as any)?.text_color || '#1a1a1a' }}>
+                <div>
+                  <h1 className="text-sm sm:text-base font-black tracking-tight leading-tight" style={{ color: (settings as any)?.text_color || '#1a1a1a' }}>
                     {settings?.site_title || 'Feria Conuquera Agroecológica'}
                   </h1>
                   <p className="text-[10px] sm:text-[11px] font-semibold hidden sm:block truncate" style={{ color: (settings as any)?.link_color || '#15803d' }}>
@@ -360,7 +360,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         <header className={`${stickyClass} z-50 shadow-md w-full`}>
           <div className="py-2.5 px-3 sm:px-6 border-b" style={{ backgroundColor: headerTopBgColor || '#ffffff', borderColor: `${headerBottomBgColor || primaryColor}30` }}>
             <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-              <Link to="/p/inicio" className="flex items-center gap-2.5 truncate max-w-sm" style={{ color: headerTopTextColor || (settings as any)?.text_color || '#1a1a1a' }}>
+              <Link to="/p/inicio" className="flex items-center gap-2.5 max-w-sm" style={{ color: headerTopTextColor || (settings as any)?.text_color || '#1a1a1a' }}>
                 {settings?.logo_url ? (
                   <img src={settings.logo_url} alt="logo" className="w-9 h-9 rounded-full object-cover border border-amber-300 shadow-sm flex-shrink-0" />
                 ) : (
@@ -368,8 +368,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                     <Leaf size={18} />
                   </div>
                 )}
-                <div className="truncate">
-                  <h1 className="text-xs sm:text-sm md:text-base font-black text-amber-950 uppercase tracking-tight font-serif truncate leading-tight">
+                <div>
+                  <h1 className="text-xs sm:text-sm md:text-base font-black text-amber-950 uppercase tracking-tight font-serif leading-tight">
                     {settings?.site_title || 'Feria Conuquera & Agroecología'}
                   </h1>
                   <p className="text-[10px] text-amber-800 italic hidden sm:block truncate">
@@ -464,7 +464,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
       {headerStyle === 'dropdown_categories' && (
         <header className={`${stickyClass} z-50 shadow-md backdrop-blur-md w-full`} style={{ backgroundColor: primaryColor }}>
           <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-3">
-            <Link to="/p/inicio" className="flex items-center gap-2 text-white truncate max-w-xs" style={{ color: headerTextColorResolved }}>
+            <Link to="/p/inicio" className="flex items-center gap-2 text-white max-w-xs" style={{ color: headerTextColorResolved }}>
               {settings?.logo_url ? (
                 <img src={settings.logo_url} alt="logo" className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover border border-white/30 shadow flex-shrink-0" />
               ) : (
@@ -472,8 +472,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                   <Leaf size={18} />
                 </div>
               )}
-              <div className="truncate">
-                <h1 className="text-xs sm:text-sm md:text-base font-bold truncate leading-tight">
+              <div>
+                <h1 className="text-xs sm:text-sm md:text-base font-bold leading-tight">
                   {settings?.site_title || 'Feria Conuquera'}
                 </h1>
                 <p className="text-[10px] text-emerald-200 hidden sm:block truncate">{settings?.site_subtitle}</p>
@@ -739,7 +739,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             )}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between gap-3 relative z-10">
               {/* Logo + brand overlaid on image */}
-              <Link to="/p/inicio" className="flex items-center gap-3 text-white group flex-shrink-0 max-w-xs sm:max-w-md truncate" style={{ color: headerTextColorResolved }}>
+              <Link to="/p/inicio" className="flex items-center gap-3 text-white group flex-shrink-0 max-w-xs sm:max-w-md" style={{ color: headerTextColorResolved }}>
                 {settings?.logo_url ? (
                   <img
                     src={settings.logo_url}
@@ -751,8 +751,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                     <Leaf size={26} />
                   </div>
                 )}
-                <div className="truncate">
-                  <h1 className="text-sm sm:text-xl font-black tracking-tight leading-tight truncate drop-shadow-lg">
+                <div>
+                  <h1 className="text-sm sm:text-xl font-black tracking-tight leading-tight drop-shadow-lg">
                     {settings?.site_title || 'Feria Conuquera Agroecológica'}
                   </h1>
                   <p className="text-[11px] sm:text-xs text-white/80 font-medium hidden sm:block truncate drop-shadow">
@@ -1018,7 +1018,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
       {headerStyle === 'hero_overlay' && (
         <header className={`${headerSticky ? 'fixed' : 'absolute'} top-0 left-0 right-0 z-50 w-full transition-all duration-300`} style={{ backgroundColor: `${headerTransparencyColor}${Math.round(headerTransparency * 2.55).toString(16).padStart(2, '0')}`, backdropFilter: `blur(${headerBlur}px)` }}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-3 py-3">
-            <Link to="/p/inicio" className="flex items-center gap-2.5 text-white flex-shrink-0 max-w-xs truncate">
+            <Link to="/p/inicio" className="flex items-center gap-2.5 text-white flex-shrink-0 max-w-xs sm:max-w-sm" style={{ color: headerTextColorResolved }}>
               {settings?.logo_url ? (
                 <img src={settings.logo_url} alt="logo" className="w-10 h-10 rounded-lg object-cover border border-white/30 shadow flex-shrink-0" />
               ) : (
@@ -1026,9 +1026,9 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                   <Leaf size={20} />
                 </div>
               )}
-              <div className="truncate">
-                <h1 className="text-sm font-black tracking-tight truncate drop-shadow">{settings?.site_title || 'Feria Conuquera'}</h1>
-                <p className="text-[10px] text-white/70 hidden sm:block truncate">{settings?.site_subtitle}</p>
+              <div>
+                <h1 className="text-sm font-black tracking-tight drop-shadow">{settings?.site_title || 'Feria Conuquera'}</h1>
+                <p className="text-[10px] text-white/70 hidden sm:block">{settings?.site_subtitle}</p>
               </div>
             </Link>
 
@@ -1141,7 +1141,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         <header className={`shadow-md ${stickyClass} z-50 backdrop-blur-md border-b border-white/10 w-full`} style={{ backgroundColor: primaryColor }}>
           <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-3">
             {/* Logo & Brand */}
-            <Link to="/p/inicio" className="flex items-center gap-2 sm:gap-2.5 text-white group flex-shrink-0 max-w-[180px] sm:max-w-xs md:max-w-sm truncate" style={{ color: headerTextColorResolved }}>
+            <Link to="/p/inicio" className="flex items-center gap-2 sm:gap-2.5 text-white group flex-shrink-0 max-w-[200px] sm:max-w-xs md:max-w-sm" style={{ color: headerTextColorResolved }}>
               {settings?.logo_url ? (
                 <img
                   src={settings.logo_url}
@@ -1153,11 +1153,11 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                   <Leaf size={18} />
                 </div>
               )}
-              <div className="truncate">
-                <h1 className="text-xs sm:text-sm md:text-base font-extrabold tracking-tight leading-tight truncate">
+              <div>
+                <h1 className="text-xs sm:text-sm md:text-base font-extrabold tracking-tight leading-tight">
                   {settings?.site_title || 'Feria Conuquera Agroecológica'}
                 </h1>
-                <p className="text-[10px] sm:text-[11px] text-emerald-200/90 hidden md:block font-medium truncate">
+                <p className="text-[10px] sm:text-[11px] text-emerald-200/90 hidden md:block font-medium">
                   {settings?.site_subtitle || 'Parque Los Caobos, Caracas'}
                 </p>
               </div>
@@ -1306,12 +1306,12 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                   key={p.slug}
                   to={`/p/${p.slug}`}
                   onClick={() => setMenuOpen(false)}
-                  className={`px-2.5 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 truncate ${
+                  className={`px-2.5 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
                     isActive ? 'bg-white/20 text-white font-bold' : 'text-white/80 hover:text-white hover:bg-white/10'
                   }`}
                 >
                   <Icon size={14} className="flex-shrink-0" />
-                  <span className="truncate">{p.title}</span>
+                  <span>{p.title}</span>
                 </Link>
               )
             })}
