@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api'
-import { Home, Heart, ShoppingCart, Users, HelpCircle, Mail, Leaf, Menu, X } from 'lucide-react'
+import { useAuth } from '../hooks/useAuth'
+import { Home, Heart, ShoppingCart, Users, HelpCircle, Mail, Leaf, Menu, X, LayoutDashboard, LogOut, Edit } from 'lucide-react'
 
 const ICONS: Record<string, any> = {
   home: Home, heart: Heart, 'shopping-cart': ShoppingCart, users: Users,
@@ -29,6 +30,7 @@ interface PublicSettings {
 }
 
 export function PublicLayout({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, username, logout } = useAuth()
   const [settings, setSettings] = useState<PublicSettings | null>(null)
   const [pages, setPages] = useState<PublicPage[]>([])
   const [menuOpen, setMenuOpen] = useState(false)
@@ -74,7 +76,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                   </Link>
                 )
               })}
-              {settings?.show_join_form && (
+              {settings?.show_join_form && !isAuthenticated && (
                 <Link
                   to="/p/unirse"
                   className="px-4 py-2 rounded-lg text-sm font-medium text-white transition"
@@ -83,12 +85,41 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                   Solicitar unirse
                 </Link>
               )}
-              <Link
-                to="/login"
-                className="px-3 py-2 rounded-lg text-sm text-white/80 hover:text-white hover:bg-white/10 transition"
-              >
-                Iniciar sesion
-              </Link>
+              {isAuthenticated ? (
+                <>
+                  <Link
+                    to="/app/website"
+                    className="px-3 py-2 rounded-lg text-sm text-white hover:bg-white/20 transition flex items-center gap-1"
+                    title="Editar sitio web"
+                  >
+                    <Edit size={14} />
+                    Editar
+                  </Link>
+                  <Link
+                    to="/app/dashboard"
+                    className="px-4 py-2 rounded-lg text-sm font-medium text-white transition flex items-center gap-1"
+                    style={{ backgroundColor: secondaryColor }}
+                  >
+                    <LayoutDashboard size={14} />
+                    Escritorio
+                  </Link>
+                  <button
+                    onClick={() => { logout(); window.location.href = '/' }}
+                    className="px-3 py-2 rounded-lg text-sm text-white/80 hover:text-white hover:bg-white/10 transition flex items-center gap-1"
+                    title="Cerrar sesion"
+                  >
+                    <LogOut size={14} />
+                    Salir
+                  </button>
+                </>
+              ) : (
+                <Link
+                  to="/login"
+                  className="px-3 py-2 rounded-lg text-sm text-white/80 hover:text-white hover:bg-white/10 transition"
+                >
+                  Iniciar sesion
+                </Link>
+              )}
             </nav>
 
             {/* Mobile menu button */}
@@ -117,7 +148,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                   </Link>
                 )
               })}
-              {settings?.show_join_form && (
+              {settings?.show_join_form && !isAuthenticated && (
                 <Link
                   to="/p/unirse"
                   onClick={() => setMenuOpen(false)}
@@ -127,13 +158,39 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                   Solicitar unirse
                 </Link>
               )}
-              <Link
-                to="/login"
-                onClick={() => setMenuOpen(false)}
-                className="block px-3 py-2 rounded-lg text-sm text-white/80 hover:text-white"
-              >
-                Iniciar sesion
-              </Link>
+              {isAuthenticated ? (
+                <>
+                  <Link
+                    to="/app/website"
+                    onClick={() => setMenuOpen(false)}
+                    className="block px-3 py-2 rounded-lg text-sm text-white hover:bg-white/20"
+                  >
+                    Editar sitio
+                  </Link>
+                  <Link
+                    to="/app/dashboard"
+                    onClick={() => setMenuOpen(false)}
+                    className="block px-4 py-2 rounded-lg text-sm font-medium text-white text-center"
+                    style={{ backgroundColor: secondaryColor }}
+                  >
+                    Escritorio
+                  </Link>
+                  <button
+                    onClick={() => { logout(); window.location.href = '/' }}
+                    className="block w-full text-left px-3 py-2 rounded-lg text-sm text-white/80 hover:text-white"
+                  >
+                    Cerrar sesion ({username})
+                  </button>
+                </>
+              ) : (
+                <Link
+                  to="/login"
+                  onClick={() => setMenuOpen(false)}
+                  className="block px-3 py-2 rounded-lg text-sm text-white/80 hover:text-white"
+                >
+                  Iniciar sesion
+                </Link>
+              )}
             </nav>
           )}
         </div>
@@ -161,9 +218,15 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               </a>
             )}
           </div>
-          <Link to="/login" className="inline-block pt-2 text-white/60 hover:text-white text-xs">
-            Iniciar sesion miembros
-          </Link>
+          {isAuthenticated ? (
+            <Link to="/app/dashboard" className="inline-block pt-2 text-white/60 hover:text-white text-xs">
+              Ir al escritorio
+            </Link>
+          ) : (
+            <Link to="/login" className="inline-block pt-2 text-white/60 hover:text-white text-xs">
+              Iniciar sesion miembros
+            </Link>
+          )}
         </div>
       </footer>
     </div>

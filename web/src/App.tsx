@@ -88,8 +88,20 @@ export default function App() {
         <Route path="/app/calculator/params" element={<Layout><CalculatorParams /></Layout>} />
         <Route path="/app/website" element={<Layout><WebsiteAdmin /></Layout>} />
         <Route path="/login" element={<Navigate to="/app/dashboard" replace />} />
-        <Route path="/" element={<Navigate to="/app/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/app/dashboard" replace />} />
+        {/* Sitio publico tambien accesible cuando estas logueado */}
+        <Route path="/" element={<Navigate to="/p/inicio" replace />} />
+        <Route path="/p/inicio" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+        <Route path="/p/filosofia" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+        <Route path="/p/productos" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+        <Route path="/p/comunidad" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+        <Route path="/p/como-funciona" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+        <Route path="/p/campo-soberano" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+        <Route path="/p/faq" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+        <Route path="/p/contacto" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+        <Route path="/p/unirse" element={<PublicLayout><PublicJoinForm /></PublicLayout>} />
+        <Route path="/p/:slug" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+        <Route path="/p" element={<Navigate to="/p/inicio" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     )
   }

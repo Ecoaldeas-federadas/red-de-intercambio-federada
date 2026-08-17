@@ -4,7 +4,7 @@ import {
   Home, ArrowLeftRight, History, Package, Calculator, Store,
   Network, Scale, Users, Gavel, FileSearch, Globe, UserPlus, Wallet, Shield,
   Building2, Nfc, Settings, User, PiggyBank, Zap,
-  LogOut, Menu, X,
+  LogOut, Menu, X, ExternalLink,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -58,7 +58,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <NavLink
               key={to}
               to={to}
-              end={to === '/'}
+              end={to === '/app/dashboard'}
               onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
@@ -70,6 +70,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               {label}
             </NavLink>
           ))}
+          <a
+            href="/"
+            target="_blank"
+            rel="noopener"
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-trueque-100 hover:bg-trueque-700 mt-4 border-t border-trueque-700 pt-4"
+          >
+            <ExternalLink size={18} />
+            Ver sitio publico
+          </a>
         </nav>
       </aside>
 
@@ -85,6 +94,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <Menu size={24} />
           </button>
           <div className="flex items-center gap-3 ml-auto">
+            <a href="/" target="_blank" rel="noopener" className="text-sm text-trueque-600 hover:text-trueque-800 flex items-center gap-1">
+              <ExternalLink size={16} />
+              <span className="hidden sm:inline">Sitio publico</span>
+            </a>
             <span className="text-sm text-gray-600">{username}</span>
             <button onClick={handleLogout} className="text-gray-500 hover:text-red-600">
               <LogOut size={20} />
