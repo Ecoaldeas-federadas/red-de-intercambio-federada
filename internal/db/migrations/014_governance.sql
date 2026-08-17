@@ -25,27 +25,65 @@ CREATE TABLE IF NOT EXISTS assembly_config (
   UNIQUE(node_domain, proposal_type)
 );
 
--- Configuracion por defecto para tipos de propuesta comunes
+-- Configuracion por defecto con INSERTs individuales seguros
 INSERT INTO assembly_config (node_domain, proposal_type, approval_method, required_percentage, description)
-SELECT 'localhost', t.proposal_type, t.method, t.pct, t.desc
-FROM (VALUES
-  ('limit_change', 'assembly', 50.00, 'Cambios de limites de credito/debito - mayoria simple'),
-  ('tax_change', 'assembly', 66.67, 'Cambios de impuestos - 2/3 de la asamblea'),
-  ('member_level', 'assembly', 50.00, 'Crear/modificar niveles de miembro - mayoria simple'),
-  ('org_level', 'assembly', 50.00, 'Crear/modificar niveles de organizacion - mayoria simple'),
-  ('admission', 'assembly', 50.00, 'Admision de nuevos miembros - mayoria simple'),
-  ('expulsion', 'assembly', 75.00, 'Expulsion de miembro - 75% de la asamblea'),
-  ('budget_increase', 'assembly', 50.00, 'Distribucion del fondo comunitario - mayoria simple'),
-  ('fund_distribution', 'assembly', 50.00, 'Distribucion del fondo - mayoria simple'),
-  ('energy_rate_change', 'assembly', 66.67, 'Cambio de tarifas energeticas - 2/3 de la asamblea'),
-  ('federation_config', 'assembly', 66.67, 'Configuracion de federacion - 2/3 de la asamblea'),
-  ('recovery_config', 'multisig', 100.00, 'Configuracion de recuperacion - multi-firma'),
-  ('policy', 'assembly', 50.00, 'Politicas generales - mayoria simple'),
-  ('create_account', 'assembly', 50.00, 'Creacion de cuentas - mayoria simple'),
-  ('product_modification', 'assembly', 50.00, 'Modificacion de productos - mayoria simple'),
-  ('free_proposal', 'assembly', 50.00, 'Propuesta libre - mayoria simple')
-) AS t(proposal_type, method, pct, desc)
-WHERE NOT EXISTS (SELECT 1 FROM assembly_config WHERE node_domain = 'localhost' LIMIT 1)
+VALUES ('localhost', 'limit_change', 'assembly', 50.00, 'Cambios de limites de credito/debito - mayoria simple')
+ON CONFLICT (node_domain, proposal_type) DO NOTHING;
+
+INSERT INTO assembly_config (node_domain, proposal_type, approval_method, required_percentage, description)
+VALUES ('localhost', 'tax_change', 'assembly', 66.67, 'Cambios de impuestos - 2/3 de la asamblea')
+ON CONFLICT (node_domain, proposal_type) DO NOTHING;
+
+INSERT INTO assembly_config (node_domain, proposal_type, approval_method, required_percentage, description)
+VALUES ('localhost', 'member_level', 'assembly', 50.00, 'Crear/modificar niveles de miembro - mayoria simple')
+ON CONFLICT (node_domain, proposal_type) DO NOTHING;
+
+INSERT INTO assembly_config (node_domain, proposal_type, approval_method, required_percentage, description)
+VALUES ('localhost', 'org_level', 'assembly', 50.00, 'Crear/modificar niveles de organizacion - mayoria simple')
+ON CONFLICT (node_domain, proposal_type) DO NOTHING;
+
+INSERT INTO assembly_config (node_domain, proposal_type, approval_method, required_percentage, description)
+VALUES ('localhost', 'admission', 'assembly', 50.00, 'Admision de nuevos miembros - mayoria simple')
+ON CONFLICT (node_domain, proposal_type) DO NOTHING;
+
+INSERT INTO assembly_config (node_domain, proposal_type, approval_method, required_percentage, description)
+VALUES ('localhost', 'expulsion', 'assembly', 75.00, 'Expulsion de miembro - 75% de la asamblea')
+ON CONFLICT (node_domain, proposal_type) DO NOTHING;
+
+INSERT INTO assembly_config (node_domain, proposal_type, approval_method, required_percentage, description)
+VALUES ('localhost', 'budget_increase', 'assembly', 50.00, 'Distribucion del fondo comunitario - mayoria simple')
+ON CONFLICT (node_domain, proposal_type) DO NOTHING;
+
+INSERT INTO assembly_config (node_domain, proposal_type, approval_method, required_percentage, description)
+VALUES ('localhost', 'fund_distribution', 'assembly', 50.00, 'Distribucion del fondo - mayoria simple')
+ON CONFLICT (node_domain, proposal_type) DO NOTHING;
+
+INSERT INTO assembly_config (node_domain, proposal_type, approval_method, required_percentage, description)
+VALUES ('localhost', 'energy_rate_change', 'assembly', 66.67, 'Cambio de tarifas energeticas - 2/3 de la asamblea')
+ON CONFLICT (node_domain, proposal_type) DO NOTHING;
+
+INSERT INTO assembly_config (node_domain, proposal_type, approval_method, required_percentage, description)
+VALUES ('localhost', 'federation_config', 'assembly', 66.67, 'Configuracion de federacion - 2/3 de la asamblea')
+ON CONFLICT (node_domain, proposal_type) DO NOTHING;
+
+INSERT INTO assembly_config (node_domain, proposal_type, approval_method, required_percentage, description)
+VALUES ('localhost', 'recovery_config', 'multisig', 100.00, 'Configuracion de recuperacion - multi-firma')
+ON CONFLICT (node_domain, proposal_type) DO NOTHING;
+
+INSERT INTO assembly_config (node_domain, proposal_type, approval_method, required_percentage, description)
+VALUES ('localhost', 'policy', 'assembly', 50.00, 'Politicas generales - mayoria simple')
+ON CONFLICT (node_domain, proposal_type) DO NOTHING;
+
+INSERT INTO assembly_config (node_domain, proposal_type, approval_method, required_percentage, description)
+VALUES ('localhost', 'create_account', 'assembly', 50.00, 'Creacion de cuentas - mayoria simple')
+ON CONFLICT (node_domain, proposal_type) DO NOTHING;
+
+INSERT INTO assembly_config (node_domain, proposal_type, approval_method, required_percentage, description)
+VALUES ('localhost', 'product_modification', 'assembly', 50.00, 'Modificacion de productos - mayoria simple')
+ON CONFLICT (node_domain, proposal_type) DO NOTHING;
+
+INSERT INTO assembly_config (node_domain, proposal_type, approval_method, required_percentage, description)
+VALUES ('localhost', 'free_proposal', 'assembly', 50.00, 'Propuesta libre - mayoria simple')
 ON CONFLICT (node_domain, proposal_type) DO NOTHING;
 
 -- 2. Junta directiva por organizacion
