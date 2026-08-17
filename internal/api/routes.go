@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func NewRouter(h *Handler, corsOrigins []string) http.Handler {
@@ -26,7 +27,7 @@ func NewRouter(h *Handler, corsOrigins []string) http.Handler {
 	return r
 }
 
-func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *OrganizationHandler, ph *PaymentsHandler, eh *ExternalHandler, rh *RecoveryHandler, dh *DepartmentsHandler, nh *NFCTerminalHandler, sh *SetupHandler, corsOrigins []string, am *AuthMiddleware) http.Handler {
+func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *OrganizationHandler, ph *PaymentsHandler, eh *ExternalHandler, rh *RecoveryHandler, dh *DepartmentsHandler, nh *NFCTerminalHandler, sh *SetupHandler, corsOrigins []string, am *AuthMiddleware, pool *pgxpool.Pool) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -53,6 +54,12 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 	rh.RegisterRoutesWithAuth(r, am)
 	dh.RegisterRoutes(r, am)
 	nh.RegisterRoutes(r, am)
+
+	// Assembly y Tax
+	asmbH := &AssemblyHandler{Pool: pool, Auth: am}
+	asmbH.RegisterRoutes(r, am)
+	taxH := &TaxHandler{Pool: pool, Auth: am}
+	taxH.RegisterRoutes(r, am)
 
 	// Servir el frontend compilado (React/Vite) desde /app/web/dist
 	// En desarrollo, el frontend corre separado en npm run dev (puerto 3000)

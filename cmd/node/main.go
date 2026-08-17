@@ -117,7 +117,7 @@ func main() {
 
 	setupHandler := api.NewSetupHandler(database.Pool, accountsSvc, jwtSecret, cfg.Node.Domain, cfg.Node.Name)
 
-	router := api.NewRouterWithAuth(handler, authHandlers, federationHandler, orgHandler, paymentsHandler, externalHandler, recoveryHandler, departmentsHandler, nfcTerminalHandler, setupHandler, cfg.API.CORSOrigins, authMiddleware)
+	router := api.NewRouterWithAuth(handler, authHandlers, federationHandler, orgHandler, paymentsHandler, externalHandler, recoveryHandler, departmentsHandler, nfcTerminalHandler, setupHandler, cfg.API.CORSOrigins, authMiddleware, database.Pool)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.API.Port),
