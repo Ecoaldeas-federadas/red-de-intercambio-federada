@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  EdText,
+  EdArrayText,
+  EdImage,
+  EdArrayImage,
+  InlineEditProvider,
+  useInlineEdit,
+} from './InlineEditable'
+import {
   Leaf,
   Heart,
   ShoppingCart,
@@ -90,20 +98,18 @@ export function HeroBlock({ data }: { data: HeroBlockData }) {
           <div className="max-w-4xl space-y-3">
             {data.badge && (
               <span className="inline-block px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-amber-400 text-gray-950">
-                {data.badge}
+                <EdText field="badge" value={data.badge} as="span" />
               </span>
             )}
-            <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">
-              {data.title}
-            </h1>
+            <EdText field="title" value={data.title} as="h1" className="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight" />
             {data.subtitle && (
-              <p className="text-sm sm:text-lg text-emerald-100 font-medium">{data.subtitle}</p>
+              <EdText field="subtitle" value={data.subtitle} as="p" className="text-sm sm:text-lg text-emerald-100 font-medium" />
             )}
           </div>
         </div>
         {data.description && (
           <div className="p-6 sm:p-8 bg-gray-50 text-xs sm:text-sm text-gray-700 leading-relaxed border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <p className="max-w-3xl">{data.description}</p>
+            <EdText field="description" value={data.description} as="p" className="max-w-3xl" />
             {data.primary_cta && (
               <Link
                 to={data.primary_cta.link}
@@ -127,21 +133,15 @@ export function HeroBlock({ data }: { data: HeroBlockData }) {
             {data.badge && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/15 text-emerald-200 backdrop-blur-sm border border-white/10 shadow-sm">
                 <Sparkles size={13} className="text-amber-400" />
-                {data.badge}
+                <EdText field="badge" value={data.badge} as="span" />
               </span>
             )}
-            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight text-white drop-shadow-sm">
-              {data.title}
-            </h1>
+            <EdText field="title" value={data.title} as="h1" className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight text-white drop-shadow-sm" />
             {data.subtitle && (
-              <p className="text-base sm:text-xl font-medium text-emerald-100/90 leading-snug">
-                {data.subtitle}
-              </p>
+              <EdText field="subtitle" value={data.subtitle} as="p" className="text-base sm:text-xl font-medium text-emerald-100/90 leading-snug" />
             )}
             {data.description && (
-              <p className="text-xs sm:text-sm md:text-base text-gray-200 leading-relaxed max-w-2xl">
-                {data.description}
-              </p>
+              <EdText field="description" value={data.description} as="p" className="text-xs sm:text-sm md:text-base text-gray-200 leading-relaxed max-w-2xl" multiline />
             )}
             <div className="flex flex-wrap gap-2.5 sm:gap-3 pt-2">
               {data.primary_cta && (
@@ -165,11 +165,7 @@ export function HeroBlock({ data }: { data: HeroBlockData }) {
           </div>
           <div className="lg:col-span-5 relative">
             <div className="relative rounded-2xl overflow-hidden shadow-2xl border-2 sm:border-4 border-white/10 aspect-[4/3] group">
-              <img
-                src={data.image_url}
-                alt={data.title}
-                className="w-full h-full object-cover transition duration-700 group-hover:scale-105"
-              />
+              <EdImage field="image_url" src={data.image_url} alt={data.title} className="w-full h-full object-cover transition duration-700 group-hover:scale-105" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
               <div className="absolute bottom-3 left-3 right-3 text-[11px] sm:text-xs text-white/90 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10">
                 🌱 Parque Los Caobos, Caracas
@@ -196,21 +192,15 @@ export function HeroBlock({ data }: { data: HeroBlockData }) {
         {data.badge && (
           <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-semibold bg-white/20 text-emerald-200 backdrop-blur-sm border border-white/20 shadow-sm">
             <Sparkles size={13} className="text-amber-400" />
-            {data.badge}
+            <EdText field="badge" value={data.badge} as="span" />
           </span>
         )}
-        <h1 className="text-2xl sm:text-4xl md:text-5xl font-extrabold tracking-tight leading-tight">
-          {data.title}
-        </h1>
+        <EdText field="title" value={data.title} as="h1" className="text-2xl sm:text-4xl md:text-5xl font-extrabold tracking-tight leading-tight" />
         {data.subtitle && (
-          <p className="text-sm sm:text-xl font-medium text-emerald-100 max-w-2xl mx-auto leading-snug">
-            {data.subtitle}
-          </p>
+          <EdText field="subtitle" value={data.subtitle} as="p" className="text-sm sm:text-xl font-medium text-emerald-100 max-w-2xl mx-auto leading-snug" />
         )}
         {data.description && (
-          <p className="text-xs sm:text-sm md:text-base text-gray-200 leading-relaxed max-w-2xl mx-auto">
-            {data.description}
-          </p>
+          <EdText field="description" value={data.description} as="p" className="text-xs sm:text-sm md:text-base text-gray-200 leading-relaxed max-w-2xl mx-auto" multiline />
         )}
         <div className="flex flex-wrap justify-center gap-2.5 sm:gap-3 pt-2">
           {data.primary_cta && (
@@ -260,36 +250,28 @@ export function CarouselBlock({ data }: { data: CarouselBlockData }) {
     <section className="my-8 sm:my-10 space-y-4">
       {(data.title || data.subtitle) && (
         <div className="text-center space-y-1 max-w-2xl mx-auto mb-4 sm:mb-6">
-          {data.title && <h2 className="text-xl sm:text-3xl font-bold text-gray-900">{data.title}</h2>}
-          {data.subtitle && <p className="text-gray-600 text-xs sm:text-sm">{data.subtitle}</p>}
+          {data.title && <EdText field="title" value={data.title} as="h2" className="text-xl sm:text-3xl font-bold text-gray-900" />}
+          {data.subtitle && <EdText field="subtitle" value={data.subtitle} as="p" className="text-gray-600 text-xs sm:text-sm" />}
         </div>
       )}
 
       {/* Main Slide Card */}
       <div className="relative rounded-3xl overflow-hidden shadow-xl bg-gray-950 aspect-[16/9] sm:aspect-[21/9] group border border-gray-200">
-        <img
-          src={currentItem.image_url}
-          alt={currentItem.title || 'Foto de la feria'}
-          className="w-full h-full object-cover transition-all duration-700"
-        />
+        <EdArrayImage arrayField="items" index={current} itemField="image_url" src={currentItem.image_url} alt={currentItem.title || 'Foto de la feria'} className="w-full h-full object-cover transition-all duration-700" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
 
         {/* Caption Overlay */}
         <div className="absolute bottom-0 inset-x-0 p-4 sm:p-8 text-white space-y-1">
           {currentItem.tag && (
             <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500 text-amber-950 shadow">
-              {currentItem.tag}
+              <EdArrayText arrayField="items" index={current} itemField="tag" value={currentItem.tag} as="span" />
             </span>
           )}
           {currentItem.title && (
-            <h3 className="text-base sm:text-2xl font-bold text-white drop-shadow">
-              {currentItem.title}
-            </h3>
+            <EdArrayText arrayField="items" index={current} itemField="title" value={currentItem.title} as="h3" className="text-base sm:text-2xl font-bold text-white drop-shadow" />
           )}
           {currentItem.caption && (
-            <p className="text-xs sm:text-sm text-gray-200 max-w-2xl line-clamp-2 sm:line-clamp-none">
-              {currentItem.caption}
-            </p>
+            <EdArrayText arrayField="items" index={current} itemField="caption" value={currentItem.caption} as="p" className="text-xs sm:text-sm text-gray-200 max-w-2xl line-clamp-2 sm:line-clamp-none" multiline />
           )}
         </div>
 
@@ -388,9 +370,9 @@ export function FeaturesGridBlock({ data }: { data: FeaturesGridBlockData }) {
       {(data.title || data.subtitle) && (
         <div className="text-center space-y-1.5 max-w-3xl mx-auto mb-6">
           {data.title && (
-            <h2 className="text-xl sm:text-3xl font-extrabold text-gray-900">{data.title}</h2>
+            <EdText field="title" value={data.title} as="h2" className="text-xl sm:text-3xl font-extrabold text-gray-900" />
           )}
-          {data.subtitle && <p className="text-gray-600 text-xs sm:text-sm">{data.subtitle}</p>}
+          {data.subtitle && <EdText field="subtitle" value={data.subtitle} as="p" className="text-gray-600 text-xs sm:text-sm" />}
         </div>
       )}
 
@@ -410,14 +392,12 @@ export function FeaturesGridBlock({ data }: { data: FeaturesGridBlockData }) {
                   </div>
                   {item.badge && (
                     <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                      {item.badge}
+                      <EdArrayText arrayField="items" index={idx} itemField="badge" value={item.badge} as="span" />
                     </span>
                   )}
                 </div>
-                <h3 className="text-base sm:text-lg font-bold text-gray-900 group-hover:text-emerald-800 transition">
-                  {item.title}
-                </h3>
-                <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">{item.description}</p>
+                <EdArrayText arrayField="items" index={idx} itemField="title" value={item.title} as="h3" className="text-base sm:text-lg font-bold text-gray-900 group-hover:text-emerald-800 transition" />
+                <EdArrayText arrayField="items" index={idx} itemField="description" value={item.description} as="p" className="text-xs sm:text-sm text-gray-600 leading-relaxed" multiline />
               </div>
 
               {item.link && (
@@ -452,11 +432,7 @@ export function SplitStoryBlock({ data }: { data: SplitStoryBlockData }) {
         <div className={`lg:col-span-5 ${isLeft ? 'lg:order-1' : 'lg:order-2'}`}>
           {data.image_url ? (
             <div className="rounded-2xl overflow-hidden shadow-lg border-2 sm:border-4 border-emerald-50 aspect-[4/3] relative group">
-              <img
-                src={data.image_url}
-                alt={data.title}
-                className="w-full h-full object-cover transition duration-700 group-hover:scale-105"
-              />
+              <EdImage field="image_url" src={data.image_url} alt={data.title} className="w-full h-full object-cover transition duration-700 group-hover:scale-105" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
             </div>
           ) : (
@@ -470,25 +446,21 @@ export function SplitStoryBlock({ data }: { data: SplitStoryBlockData }) {
         <div className={`lg:col-span-7 space-y-3 sm:space-y-4 ${isLeft ? 'lg:order-2' : 'lg:order-1'}`}>
           {data.badge && (
             <span className="inline-block text-[11px] sm:text-xs font-bold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800">
-              {data.badge}
+              <EdText field="badge" value={data.badge} as="span" />
             </span>
           )}
-          <h2 className="text-xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
-            {data.title}
-          </h2>
+          <EdText field="title" value={data.title} as="h2" className="text-xl sm:text-3xl font-extrabold text-gray-900 tracking-tight" />
           {data.subtitle && (
-            <p className="text-sm sm:text-base font-semibold text-emerald-800">{data.subtitle}</p>
+            <EdText field="subtitle" value={data.subtitle} as="p" className="text-sm sm:text-base font-semibold text-emerald-800" />
           )}
-          <div className="text-xs sm:text-sm text-gray-700 leading-relaxed whitespace-pre-line space-y-2">
-            {data.content}
-          </div>
+          <EdText field="content" value={data.content} as="div" className="text-xs sm:text-sm text-gray-700 leading-relaxed whitespace-pre-line space-y-2" multiline />
 
           {data.highlights && data.highlights.length > 0 && (
             <div className="pt-2 space-y-2">
               {data.highlights.map((h, i) => (
                 <div key={i} className="flex items-start gap-2.5 text-xs sm:text-sm text-gray-800">
                   <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0 mt-0.5" />
-                  <span>{h}</span>
+                  <EdArrayText arrayField="highlights" index={i} itemField="value" value={h} as="span" multiline />
                 </div>
               ))}
             </div>
@@ -496,10 +468,10 @@ export function SplitStoryBlock({ data }: { data: SplitStoryBlockData }) {
 
           {data.quote && (
             <blockquote className="mt-3 p-3.5 rounded-xl bg-amber-50 border-l-4 border-amber-500 text-amber-950 text-xs sm:text-sm italic">
-              "{data.quote.text}"
+              "<EdText field="quote.text" value={data.quote.text} as="span" multiline />"
               {data.quote.author && (
                 <span className="block mt-1 text-[11px] font-bold not-italic text-amber-800">
-                  — {data.quote.author}
+                  — <EdText field="quote.author" value={data.quote.author} as="span" />
                 </span>
               )}
             </blockquote>
@@ -527,12 +499,10 @@ export function StatsBlock({ data }: { data: StatsBlockData }) {
       {(data.title || data.subtitle) && (
         <div className="max-w-2xl mx-auto space-y-1.5 mb-6 sm:mb-8">
           {data.title && (
-            <h2 className="text-xl sm:text-3xl font-extrabold tracking-tight">{data.title}</h2>
+            <EdText field="title" value={data.title} as="h2" className="text-xl sm:text-3xl font-extrabold tracking-tight" />
           )}
           {data.subtitle && (
-            <p className={`text-xs sm:text-sm ${isPrimary ? 'text-emerald-100' : 'text-gray-600'}`}>
-              {data.subtitle}
-            </p>
+            <EdText field="subtitle" value={data.subtitle} as="p" className={`text-xs sm:text-sm ${isPrimary ? 'text-emerald-100' : 'text-gray-600'}`} />
           )}
         </div>
       )}
@@ -545,18 +515,10 @@ export function StatsBlock({ data }: { data: StatsBlockData }) {
               isPrimary ? 'bg-white/10 backdrop-blur-sm border border-white/10' : 'bg-gray-50 border border-gray-100'
             }`}
           >
-            <div className="text-2xl sm:text-4xl font-extrabold text-amber-400 mb-1 tracking-tight">
-              {stat.value}
-            </div>
-            <div className="font-bold text-xs sm:text-sm mb-0.5">{stat.label}</div>
+            <EdArrayText arrayField="items" index={idx} itemField="value" value={stat.value} as="div" className="text-2xl sm:text-4xl font-extrabold text-amber-400 mb-1 tracking-tight" />
+            <EdArrayText arrayField="items" index={idx} itemField="label" value={stat.label} as="div" className="font-bold text-xs sm:text-sm mb-0.5" />
             {stat.description && (
-              <p
-                className={`text-[11px] ${
-                  isPrimary ? 'text-gray-300' : 'text-gray-500'
-                } leading-relaxed hidden sm:block`}
-              >
-                {stat.description}
-              </p>
+              <EdArrayText arrayField="items" index={idx} itemField="description" value={stat.description} as="p" className={`text-[11px] ${isPrimary ? 'text-gray-300' : 'text-gray-500'} leading-relaxed hidden sm:block`} />
             )}
           </div>
         ))}
@@ -575,10 +537,10 @@ export function EventScheduleBlock({ data }: { data: EventScheduleBlockData }) {
         <div className="lg:col-span-7 space-y-3 sm:space-y-4">
           {data.badge && (
             <span className="inline-block text-[11px] sm:text-xs font-bold px-3 py-1 rounded-full bg-amber-200 text-amber-900">
-              {data.badge}
+              <EdText field="badge" value={data.badge} as="span" />
             </span>
           )}
-          <h2 className="text-xl sm:text-3xl font-extrabold text-gray-900">{data.title}</h2>
+          <EdText field="title" value={data.title} as="h2" className="text-xl sm:text-3xl font-extrabold text-gray-900" />
 
           <div className="grid sm:grid-cols-2 gap-2.5 sm:gap-3 pt-1">
             <div className="flex items-center gap-3 bg-white/85 backdrop-blur p-3 rounded-xl border border-amber-100 shadow-xs">
@@ -587,7 +549,7 @@ export function EventScheduleBlock({ data }: { data: EventScheduleBlockData }) {
               </div>
               <div className="min-w-0">
                 <span className="text-[11px] text-gray-500 block font-medium">Frecuencia</span>
-                <b className="text-xs sm:text-sm text-gray-900 truncate block">{data.date_text}</b>
+                <EdText field="date_text" value={data.date_text} as="b" className="text-xs sm:text-sm text-gray-900 truncate block" />
               </div>
             </div>
 
@@ -597,7 +559,7 @@ export function EventScheduleBlock({ data }: { data: EventScheduleBlockData }) {
               </div>
               <div className="min-w-0">
                 <span className="text-[11px] text-gray-500 block font-medium">Horario</span>
-                <b className="text-xs sm:text-sm text-gray-900 truncate block">{data.time_text}</b>
+                <EdText field="time_text" value={data.time_text} as="b" className="text-xs sm:text-sm text-gray-900 truncate block" />
               </div>
             </div>
           </div>
@@ -607,8 +569,8 @@ export function EventScheduleBlock({ data }: { data: EventScheduleBlockData }) {
               <MapPin size={18} />
             </div>
             <div className="space-y-0.5">
-              <b className="text-xs sm:text-sm text-gray-900 block">{data.location_name}</b>
-              <p className="text-[11px] sm:text-xs text-gray-600 leading-relaxed">{data.address}</p>
+              <EdText field="location_name" value={data.location_name} as="b" className="text-xs sm:text-sm text-gray-900 block" />
+              <EdText field="address" value={data.address} as="p" className="text-[11px] sm:text-xs text-gray-600 leading-relaxed" multiline />
             </div>
           </div>
 
@@ -662,9 +624,9 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
       {(data.title || data.subtitle) && (
         <div className="text-center space-y-1.5 max-w-3xl mx-auto mb-6">
           {data.title && (
-            <h2 className="text-xl sm:text-3xl font-extrabold text-gray-900">{data.title}</h2>
+            <EdText field="title" value={data.title} as="h2" className="text-xl sm:text-3xl font-extrabold text-gray-900" />
           )}
-          {data.subtitle && <p className="text-gray-600 text-xs sm:text-sm">{data.subtitle}</p>}
+          {data.subtitle && <EdText field="subtitle" value={data.subtitle} as="p" className="text-gray-600 text-xs sm:text-sm" />}
         </div>
       )}
 
@@ -699,21 +661,19 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
 
       {/* Products Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        {filtered.map((prod, idx) => (
+        {filtered.map((prod, idx) => {
+          const realIdx = items.indexOf(prod)
+          return (
           <div
             key={idx}
             className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 flex flex-col"
           >
             {prod.image_url ? (
               <div className="aspect-[4/3] overflow-hidden relative bg-gray-100">
-                <img
-                  src={prod.image_url}
-                  alt={prod.name}
-                  className="w-full h-full object-cover transition duration-500 group-hover:scale-105"
-                />
+                <EdArrayImage arrayField="items" index={realIdx} itemField="image_url" src={prod.image_url} alt={prod.name} className="w-full h-full object-cover transition duration-500 group-hover:scale-105" />
                 {prod.badge && (
                   <span className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500 text-amber-950 shadow">
-                    {prod.badge}
+                    <EdArrayText arrayField="items" index={realIdx} itemField="badge" value={prod.badge} as="span" />
                   </span>
                 )}
               </div>
@@ -726,27 +686,22 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
             <div className="p-4 flex-1 flex flex-col justify-between space-y-2">
               <div>
                 {prod.category && (
-                  <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">
-                    {prod.category}
-                  </span>
+                  <EdArrayText arrayField="items" index={realIdx} itemField="category" value={prod.category} as="span" className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block" />
                 )}
-                <h4 className="font-bold text-gray-900 text-sm group-hover:text-emerald-800 transition">
-                  {prod.name}
-                </h4>
-                <p className="text-xs text-gray-600 leading-relaxed line-clamp-3 mt-1">
-                  {prod.description}
-                </p>
+                <EdArrayText arrayField="items" index={realIdx} itemField="name" value={prod.name} as="h4" className="font-bold text-gray-900 text-sm group-hover:text-emerald-800 transition" />
+                <EdArrayText arrayField="items" index={realIdx} itemField="description" value={prod.description} as="p" className="text-xs text-gray-600 leading-relaxed line-clamp-3 mt-1" multiline />
               </div>
 
               {prod.price_energy && (
                 <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
                   <span className="text-gray-500">Valor Energético</span>
-                  <span className="font-bold text-amber-600">{prod.price_energy}</span>
+                  <EdArrayText arrayField="items" index={realIdx} itemField="price_energy" value={prod.price_energy} as="span" className="font-bold text-amber-600" />
                 </div>
               )}
             </div>
           </div>
-        ))}
+          )
+        })}
       </div>
     </section>
   )
@@ -761,9 +716,9 @@ export function TestimonialsBlock({ data }: { data: TestimonialsBlockData }) {
       {(data.title || data.subtitle) && (
         <div className="text-center space-y-1.5 max-w-2xl mx-auto mb-6">
           {data.title && (
-            <h2 className="text-xl sm:text-3xl font-extrabold text-gray-900">{data.title}</h2>
+            <EdText field="title" value={data.title} as="h2" className="text-xl sm:text-3xl font-extrabold text-gray-900" />
           )}
-          {data.subtitle && <p className="text-gray-600 text-xs sm:text-sm">{data.subtitle}</p>}
+          {data.subtitle && <EdText field="subtitle" value={data.subtitle} as="p" className="text-gray-600 text-xs sm:text-sm" />}
         </div>
       )}
 
@@ -775,29 +730,21 @@ export function TestimonialsBlock({ data }: { data: TestimonialsBlockData }) {
           >
             <div className="space-y-2">
               <span className="text-3xl text-emerald-300 font-serif leading-none block">“</span>
-              <p className="text-xs sm:text-sm text-gray-700 italic leading-relaxed">
-                {item.quote}
-              </p>
+              <EdArrayText arrayField="items" index={idx} itemField="quote" value={item.quote} as="p" className="text-xs sm:text-sm text-gray-700 italic leading-relaxed" multiline />
             </div>
 
             <div className="pt-4 mt-3 border-t border-gray-100 flex items-center gap-3">
               {item.avatar_url ? (
-                <img
-                  src={item.avatar_url}
-                  alt={item.name}
-                  className="w-10 h-10 rounded-full object-cover border-2 border-emerald-500 shadow-sm"
-                />
+                <EdArrayImage arrayField="items" index={idx} itemField="avatar_url" src={item.avatar_url} alt={item.name} className="w-10 h-10 rounded-full object-cover border-2 border-emerald-500 shadow-sm" />
               ) : (
                 <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-700 to-teal-800 text-white flex items-center justify-center font-bold text-sm shadow-sm">
                   {item.name.charAt(0)}
                 </div>
               )}
               <div>
-                <b className="text-xs sm:text-sm text-gray-900 block">{item.name}</b>
-                <span className="text-[11px] text-emerald-800 font-medium block">
-                  {item.role || item.project}
-                </span>
-                {item.location && <span className="text-[10px] text-gray-400 block">{item.location}</span>}
+                <EdArrayText arrayField="items" index={idx} itemField="name" value={item.name} as="b" className="text-xs sm:text-sm text-gray-900 block" />
+                <EdArrayText arrayField="items" index={idx} itemField="role" value={item.role || item.project} as="span" className="text-[11px] text-emerald-800 font-medium block" />
+                {item.location && <EdArrayText arrayField="items" index={idx} itemField="location" value={item.location} as="span" className="text-[10px] text-gray-400 block" />}
               </div>
             </div>
           </div>
@@ -814,12 +761,12 @@ export function TruequeExplainerBlock({ data }: { data: TruequeExplainerBlockDat
   return (
     <section className="my-8 sm:my-12 bg-white rounded-3xl p-5 sm:p-10 shadow-sm border border-gray-100 space-y-6">
       <div className="text-center space-y-2 max-w-3xl mx-auto">
-        <h2 className="text-xl sm:text-3xl font-extrabold text-gray-900">{data.title}</h2>
-        {data.subtitle && <p className="text-gray-600 text-xs sm:text-sm">{data.subtitle}</p>}
+        <EdText field="title" value={data.title} as="h2" className="text-xl sm:text-3xl font-extrabold text-gray-900" />
+        {data.subtitle && <EdText field="subtitle" value={data.subtitle} as="p" className="text-gray-600 text-xs sm:text-sm" />}
         {data.energy_rate_text && (
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-50 text-amber-900 text-xs font-semibold border border-amber-200">
             <Zap size={14} className="text-amber-600" />
-            {data.energy_rate_text}
+            <EdText field="energy_rate_text" value={data.energy_rate_text} as="span" />
           </div>
         )}
       </div>
@@ -841,8 +788,8 @@ export function TruequeExplainerBlock({ data }: { data: TruequeExplainerBlockDat
                     <IconComp size={16} />
                   </div>
                 </div>
-                <h3 className="font-bold text-gray-900 text-sm">{s.title}</h3>
-                <p className="text-xs text-gray-600 leading-relaxed">{s.description}</p>
+                <EdArrayText arrayField="steps" index={idx} itemField="title" value={s.title} as="h3" className="font-bold text-gray-900 text-sm" />
+                <EdArrayText arrayField="steps" index={idx} itemField="description" value={s.description} as="p" className="text-xs text-gray-600 leading-relaxed" multiline />
               </div>
             </div>
           )
@@ -891,11 +838,11 @@ export function NewsFeedBlock({ data }: { data: NewsFeedBlockData }) {
         <div>
           {data.badge && (
             <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block">
-              {data.badge}
+              <EdText field="badge" value={data.badge} as="span" />
             </span>
           )}
-          <h2 className="text-xl sm:text-3xl font-extrabold text-gray-900">{data.title}</h2>
-          {data.subtitle && <p className="text-xs sm:text-sm text-gray-500">{data.subtitle}</p>}
+          <EdText field="title" value={data.title} as="h2" className="text-xl sm:text-3xl font-extrabold text-gray-900" />
+          {data.subtitle && <EdText field="subtitle" value={data.subtitle} as="p" className="text-xs sm:text-sm text-gray-500" />}
         </div>
       </div>
 
@@ -908,14 +855,10 @@ export function NewsFeedBlock({ data }: { data: NewsFeedBlockData }) {
             <div>
               {art.image_url ? (
                 <div className="aspect-[16/9] overflow-hidden relative">
-                  <img
-                    src={art.image_url}
-                    alt={art.title}
-                    className="w-full h-full object-cover transition duration-500 group-hover:scale-105"
-                  />
+                  <EdArrayImage arrayField="items" index={idx} itemField="image_url" src={art.image_url} alt={art.title} className="w-full h-full object-cover transition duration-500 group-hover:scale-105" />
                   {art.category && (
                     <span className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-800 text-white shadow">
-                      {art.category}
+                      <EdArrayText arrayField="items" index={idx} itemField="category" value={art.category} as="span" />
                     </span>
                   )}
                 </div>
@@ -925,12 +868,10 @@ export function NewsFeedBlock({ data }: { data: NewsFeedBlockData }) {
 
               <div className="p-4 space-y-2">
                 {art.date && (
-                  <span className="text-[11px] text-gray-400 font-medium block">{art.date}</span>
+                  <EdArrayText arrayField="items" index={idx} itemField="date" value={art.date} as="span" className="text-[11px] text-gray-400 font-medium block" />
                 )}
-                <h3 className="font-bold text-sm sm:text-base text-gray-900 group-hover:text-emerald-800 transition line-clamp-2">
-                  {art.title}
-                </h3>
-                <p className="text-xs text-gray-600 leading-relaxed line-clamp-3">{art.excerpt}</p>
+                <EdArrayText arrayField="items" index={idx} itemField="title" value={art.title} as="h3" className="font-bold text-sm sm:text-base text-gray-900 group-hover:text-emerald-800 transition line-clamp-2" />
+                <EdArrayText arrayField="items" index={idx} itemField="excerpt" value={art.excerpt} as="p" className="text-xs text-gray-600 leading-relaxed line-clamp-3" multiline />
               </div>
             </div>
 
@@ -961,11 +902,11 @@ export function TimelineHistoryBlock({ data }: { data: TimelineHistoryBlockData 
       <div className="text-center space-y-1.5 max-w-2xl mx-auto mb-6">
         {data.badge && (
           <span className="inline-block text-[11px] font-bold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800">
-            {data.badge}
+            <EdText field="badge" value={data.badge} as="span" />
           </span>
         )}
-        <h2 className="text-xl sm:text-3xl font-extrabold text-gray-900">{data.title}</h2>
-        {data.subtitle && <p className="text-gray-600 text-xs sm:text-sm">{data.subtitle}</p>}
+        <EdText field="title" value={data.title} as="h2" className="text-xl sm:text-3xl font-extrabold text-gray-900" />
+        {data.subtitle && <EdText field="subtitle" value={data.subtitle} as="p" className="text-gray-600 text-xs sm:text-sm" />}
       </div>
 
       <div className="relative border-l-2 border-emerald-500 ml-4 sm:ml-8 pl-6 sm:pl-8 space-y-8">
@@ -976,17 +917,15 @@ export function TimelineHistoryBlock({ data }: { data: TimelineHistoryBlockData 
             </span>
             <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200 group-hover:border-emerald-400 group-hover:bg-emerald-50/30 transition space-y-1">
               <div className="flex items-center justify-between gap-2">
-                <span className="font-extrabold text-emerald-800 text-sm sm:text-base">
-                  {item.year}
-                </span>
+                <EdArrayText arrayField="items" index={idx} itemField="year" value={item.year} as="span" className="font-extrabold text-emerald-800 text-sm sm:text-base" />
                 {item.badge && (
                   <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                    {item.badge}
+                    <EdArrayText arrayField="items" index={idx} itemField="badge" value={item.badge} as="span" />
                   </span>
                 )}
               </div>
-              <h4 className="font-bold text-gray-900 text-sm">{item.title}</h4>
-              <p className="text-xs text-gray-600 leading-relaxed">{item.description}</p>
+              <EdArrayText arrayField="items" index={idx} itemField="title" value={item.title} as="h4" className="font-bold text-gray-900 text-sm" />
+              <EdArrayText arrayField="items" index={idx} itemField="description" value={item.description} as="p" className="text-xs text-gray-600 leading-relaxed" multiline />
             </div>
           </div>
         ))}
@@ -1189,9 +1128,9 @@ export function FaqBlock({ data }: { data: FaqBlockData }) {
       {(data.title || data.subtitle) && (
         <div className="text-center space-y-1.5 max-w-2xl mx-auto mb-6">
           {data.title && (
-            <h2 className="text-xl sm:text-3xl font-extrabold text-gray-900">{data.title}</h2>
+            <EdText field="title" value={data.title} as="h2" className="text-xl sm:text-3xl font-extrabold text-gray-900" />
           )}
-          {data.subtitle && <p className="text-gray-600 text-xs sm:text-sm">{data.subtitle}</p>}
+          {data.subtitle && <EdText field="subtitle" value={data.subtitle} as="p" className="text-gray-600 text-xs sm:text-sm" />}
         </div>
       )}
 
@@ -1207,16 +1146,14 @@ export function FaqBlock({ data }: { data: FaqBlockData }) {
                 onClick={() => setOpenIdx(isOpen ? null : idx)}
                 className="w-full p-4 sm:p-5 text-left flex items-center justify-between gap-4 hover:bg-gray-50 transition"
               >
-                <span className="font-bold text-gray-900 text-xs sm:text-sm">
-                  {faq.question}
-                </span>
+                <EdArrayText arrayField="items" index={idx} itemField="question" value={faq.question} as="span" className="font-bold text-gray-900 text-xs sm:text-sm" />
                 <span className="p-1 rounded-full bg-gray-100 text-gray-600 flex-shrink-0">
                   {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </span>
               </button>
               {isOpen && (
                 <div className="px-4 sm:px-5 pb-4 pt-1 text-xs text-gray-600 leading-relaxed border-t border-gray-100">
-                  {faq.answer}
+                  <EdArrayText arrayField="items" index={idx} itemField="answer" value={faq.answer} as="div" multiline />
                 </div>
               )}
             </div>
@@ -1243,12 +1180,12 @@ export function CtaBannerBlock({ data }: { data: CtaBannerBlockData }) {
       <div className="max-w-2xl mx-auto space-y-3 sm:space-y-4">
         {data.badge && (
           <span className="inline-block px-3 py-0.5 rounded-full text-xs font-bold bg-white/20 text-white backdrop-blur">
-            {data.badge}
+            <EdText field="badge" value={data.badge} as="span" />
           </span>
         )}
-        <h2 className="text-xl sm:text-3xl font-extrabold tracking-tight">{data.title}</h2>
+        <EdText field="title" value={data.title} as="h2" className="text-xl sm:text-3xl font-extrabold tracking-tight" />
         {data.subtitle && (
-          <p className="text-xs sm:text-base text-emerald-100/90 leading-relaxed">{data.subtitle}</p>
+          <EdText field="subtitle" value={data.subtitle} as="p" className="text-xs sm:text-base text-emerald-100/90 leading-relaxed" multiline />
         )}
         <div className="flex flex-wrap justify-center gap-2.5 sm:gap-3 pt-3">
           <Link
@@ -1279,11 +1216,9 @@ export function RichTextBlock({ data }: { data: RichTextBlockData }) {
   return (
     <section className="my-6 bg-white rounded-3xl p-5 sm:p-10 shadow-sm border border-gray-100">
       {data.title && (
-        <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900 mb-3">{data.title}</h2>
+        <EdText field="title" value={data.title} as="h2" className="text-xl sm:text-2xl font-extrabold text-gray-900 mb-3" />
       )}
-      <div className="prose prose-emerald max-w-none text-xs sm:text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-        {data.content}
-      </div>
+      <EdText field="content" value={data.content} as="div" className="prose prose-emerald max-w-none text-xs sm:text-sm text-gray-700 leading-relaxed whitespace-pre-wrap" multiline />
     </section>
   )
 }
@@ -1296,8 +1231,8 @@ export function ContactLocationBlock({ data }: { data: ContactLocationBlockData 
     <section className="my-8 bg-white rounded-3xl p-5 sm:p-10 shadow-sm border border-gray-100 space-y-6">
       {(data.title || data.subtitle) && (
         <div className="space-y-1">
-          {data.title && <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900">{data.title}</h2>}
-          {data.subtitle && <p className="text-gray-600 text-xs sm:text-sm">{data.subtitle}</p>}
+          {data.title && <EdText field="title" value={data.title} as="h2" className="text-xl sm:text-2xl font-extrabold text-gray-900" />}
+          {data.subtitle && <EdText field="subtitle" value={data.subtitle} as="p" className="text-gray-600 text-xs sm:text-sm" />}
         </div>
       )}
 
@@ -1308,7 +1243,7 @@ export function ContactLocationBlock({ data }: { data: ContactLocationBlockData 
               <MapPin size={16} />
               Ubicación
             </div>
-            <p className="text-xs text-gray-700 leading-relaxed">{data.address}</p>
+            <EdText field="address" value={data.address} as="p" className="text-xs text-gray-700 leading-relaxed" multiline />
           </div>
         )}
 
@@ -1318,7 +1253,7 @@ export function ContactLocationBlock({ data }: { data: ContactLocationBlockData 
               <Calendar size={16} />
               Horario
             </div>
-            <p className="text-xs text-gray-700 leading-relaxed">{data.schedule}</p>
+            <EdText field="schedule" value={data.schedule} as="p" className="text-xs text-gray-700 leading-relaxed" multiline />
           </div>
         )}
 
@@ -1328,7 +1263,7 @@ export function ContactLocationBlock({ data }: { data: ContactLocationBlockData 
               <ExternalLink size={16} />
               Transporte
             </div>
-            <p className="text-xs text-gray-700 leading-relaxed">{data.transport_info}</p>
+            <EdText field="transport_info" value={data.transport_info} as="p" className="text-xs text-gray-700 leading-relaxed" multiline />
           </div>
         )}
       </div>
@@ -1373,47 +1308,72 @@ export function ContactLocationBlock({ data }: { data: ContactLocationBlockData 
 // -------------------------------------------------------------
 // MASTER BLOCK RENDERER
 // -------------------------------------------------------------
-export function BlockRenderer({ block }: { block: SiteBlock }) {
-  switch (block.type) {
-    case 'hero':
-      return <HeroBlock data={block} />
-    case 'carousel':
-      return <CarouselBlock data={block} />
-    case 'features_grid':
-      return <FeaturesGridBlock data={block} />
-    case 'split_story':
-      return <SplitStoryBlock data={block} />
-    case 'stats':
-      return <StatsBlock data={block} />
-    case 'event_schedule':
-      return <EventScheduleBlock data={block} />
-    case 'products_showcase':
-      return <ProductsShowcaseBlock data={block} />
-    case 'testimonials':
-      return <TestimonialsBlock data={block} />
-    case 'trueque_explainer':
-      return <TruequeExplainerBlock data={block} />
-    case 'faq':
-      return <FaqBlock data={block} />
-    case 'cta_banner':
-      return <CtaBannerBlock data={block} />
-    case 'news_feed':
-      return <NewsFeedBlock data={block} />
-    case 'timeline_history':
-      return <TimelineHistoryBlock data={block} />
-    case 'institutions_partners':
-      return <InstitutionsPartnersBlock data={block} />
-    case 'resource_downloads':
-      return <ResourceDownloadsBlock data={block} />
-    case 'calculator_preview':
-      return <CalculatorPreviewBlock data={block} />
-    case 'richtext':
-      return <RichTextBlock data={block} />
-    case 'contact_location':
-      return <ContactLocationBlock data={block} />
-    default:
-      return null
+export function BlockRenderer({
+  block,
+  editMode = false,
+  onFieldChange,
+}: {
+  block: SiteBlock
+  editMode?: boolean
+  onFieldChange?: (path: string, value: any) => void
+}) {
+  // Helper to apply field changes to the block data
+  const handleFieldChange = (path: string, value: any) => {
+    if (!onFieldChange) return
+    onFieldChange(path, value)
   }
+
+  const inner = (() => {
+    switch (block.type) {
+      case 'hero':
+        return <HeroBlock data={block} />
+      case 'carousel':
+        return <CarouselBlock data={block} />
+      case 'features_grid':
+        return <FeaturesGridBlock data={block} />
+      case 'split_story':
+        return <SplitStoryBlock data={block} />
+      case 'stats':
+        return <StatsBlock data={block} />
+      case 'event_schedule':
+        return <EventScheduleBlock data={block} />
+      case 'products_showcase':
+        return <ProductsShowcaseBlock data={block} />
+      case 'testimonials':
+        return <TestimonialsBlock data={block} />
+      case 'trueque_explainer':
+        return <TruequeExplainerBlock data={block} />
+      case 'faq':
+        return <FaqBlock data={block} />
+      case 'cta_banner':
+        return <CtaBannerBlock data={block} />
+      case 'news_feed':
+        return <NewsFeedBlock data={block} />
+      case 'timeline_history':
+        return <TimelineHistoryBlock data={block} />
+      case 'institutions_partners':
+        return <InstitutionsPartnersBlock data={block} />
+      case 'resource_downloads':
+        return <ResourceDownloadsBlock data={block} />
+      case 'calculator_preview':
+        return <CalculatorPreviewBlock data={block} />
+      case 'richtext':
+        return <RichTextBlock data={block} />
+      case 'contact_location':
+        return <ContactLocationBlock data={block} />
+      default:
+        return null
+    }
+  })()
+
+  if (editMode) {
+    return (
+      <InlineEditProvider editMode={editMode} onFieldChange={handleFieldChange}>
+        {inner}
+      </InlineEditProvider>
+    )
+  }
+  return inner
 }
 
 // Render page content (either JSON array of blocks or raw text)

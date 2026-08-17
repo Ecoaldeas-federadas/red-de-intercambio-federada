@@ -294,6 +294,29 @@ const BLOCK_TEMPLATES: {
   },
 ]
 
+// Helper to set a nested field by dot path (e.g. "items.0.title", "quote.text")
+function setNestedField(obj: any, path: string, value: any) {
+  const parts = path.split('.')
+  let current = obj
+  for (let i = 0; i < parts.length - 1; i++) {
+    const part = parts[i]
+    if (/^\d+$/.test(part)) {
+      const idx = parseInt(part)
+      if (!Array.isArray(current)) return
+      current = current[idx]
+    } else {
+      if (current[part] === undefined) current[part] = {}
+      current = current[part]
+    }
+  }
+  const last = parts[parts.length - 1]
+  if (/^\d+$/.test(last)) {
+    (current as any[])[parseInt(last)] = value
+  } else {
+    current[last] = value
+  }
+}
+
 interface LivePageEditorProps {
   pageId?: string
   slug: string
@@ -420,10 +443,13 @@ export function LivePageEditor({
         <div className="flex items-center gap-2 sm:gap-3">
           <span className="flex items-center gap-1.5 text-xs font-bold bg-amber-500 text-gray-950 px-3 py-1 rounded-full shadow-xs animate-pulse">
             <Sparkles size={13} />
-            Edición en Vivo Activa
+            Edición en Vivo
           </span>
           <span className="text-xs text-emerald-200 hidden sm:inline font-mono">
             /p/{slug} ({blocks.length} módulos)
+          </span>
+          <span className="text-[11px] text-amber-200 hidden md:inline">
+            💡 Clic en cualquier texto para editarlo · Clic en imágenes para cambiarlas
           </span>
         </div>
 
@@ -518,17 +544,6 @@ export function LivePageEditor({
                   </span>
 
                   <button
-                    onClick={() => setActiveInspectorIndex(isSelected ? null : index)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition ${
-                      isSelected ? 'bg-emerald-600 text-white' : 'hover:bg-white/20 text-gray-200'
-                    }`}
-                    title="Editar propiedades y contenido en vivo"
-                  >
-                    <Sliders size={13} />
-                    <span>Ajustes</span>
-                  </button>
-
-                  <button
                     onClick={() => moveBlock(index, 'up')}
                     disabled={index === 0}
                     className="p-1 text-gray-300 hover:text-white disabled:opacity-20"
@@ -563,9 +578,20 @@ export function LivePageEditor({
                   </button>
                 </div>
 
-                {/* Actual Live Module Rendering */}
+                {/* Actual Live Module Rendering - WYSIWYG inline editing */}
                 <div className="pointer-events-auto">
-                  <BlockRenderer block={block} />
+                  <BlockRenderer
+                    block={block}
+                    editMode
+                    onFieldChange={(path, value) => {
+                      const updated = [...blocks]
+                      const newBlock = JSON.parse(JSON.stringify(updated[index])) as SiteBlock
+                      setNestedField(newBlock, path, value)
+                      updated[index] = newBlock
+                      setBlocks(updated)
+                      setHasChanges(true)
+                    }}
+                  />
                 </div>
               </div>
 
@@ -601,56 +627,7 @@ export function LivePageEditor({
         )}
       </div>
 
-      {/* 3. SLIDE-OVER LIVE INSPECTOR DRAWER (Right Side) */}
-      {activeInspectorIndex !== null && blocks[activeInspectorIndex] && (
-        <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-96 md:w-[420px] bg-white shadow-2xl border-l border-gray-200 flex flex-col animate-in slide-in-from-right duration-200">
-          <div className="p-4 bg-emerald-950 text-white flex items-center justify-between border-b border-emerald-800">
-            <div>
-              <span className="text-[10px] uppercase tracking-wider font-bold text-amber-400 block">
-                Módulo #{activeInspectorIndex + 1}
-              </span>
-              <h3 className="font-extrabold text-sm sm:text-base text-white">
-                Ajustes: {blocks[activeInspectorIndex].type}
-              </h3>
-            </div>
-            <button
-              onClick={() => setActiveInspectorIndex(null)}
-              className="p-1 text-gray-300 hover:text-white rounded-lg"
-            >
-              <X size={20} />
-            </button>
-          </div>
-
-          <div className="p-4 overflow-y-auto flex-1 space-y-4 text-xs">
-            <p className="text-[11px] text-gray-500 bg-emerald-50 p-2.5 rounded-xl border border-emerald-100">
-              💡 Todos los cambios que hagas aquí se actualizan <b>en vivo al instante</b> en la página.
-            </p>
-
-            <LiveBlockCustomizer
-              block={blocks[activeInspectorIndex]}
-              onChange={(updated) => updateBlock(activeInspectorIndex, updated)}
-            />
-          </div>
-
-          <div className="p-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
-            <button
-              onClick={() => setActiveInspectorIndex(null)}
-              className="btn-secondary text-xs"
-            >
-              Listo
-            </button>
-            <button
-              onClick={saveChanges}
-              className="btn-primary text-xs flex items-center gap-1.5 shadow"
-            >
-              <Save size={14} />
-              Guardar Página
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 4. MODAL: INSERT MODULE */}
+      {/* 3. MODAL: INSERT MODULE */}
       {insertModalIndex !== null && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-gray-100 max-h-[85vh] flex flex-col">
