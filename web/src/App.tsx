@@ -23,6 +23,7 @@ import Recovery from './pages/Recovery'
 import Departments from './pages/Departments'
 import NFCTerminals from './pages/NFCTerminals'
 import FederationPeers from './pages/FederationPeers'
+import NodeSettings from './pages/NodeSettings'
 
 export default function App() {
   const { isAuthenticated } = useAuth()
@@ -84,6 +85,7 @@ export default function App() {
         <Route path="/departments" element={<Departments />} />
         <Route path="/nfc-terminals" element={<NFCTerminals />} />
         <Route path="/federation/peers" element={<FederationPeers />} />
+        <Route path="/settings" element={<NodeSettings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

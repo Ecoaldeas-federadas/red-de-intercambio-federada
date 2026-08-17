@@ -41,16 +41,9 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 
 	r.Post("/api/transfer", h.transfer)
 
-	r.Get("/api/member-levels", h.listMemberLevels)
-
 	r.Post("/api/admission/apply", h.applyAdmission)
 	r.Get("/api/admission/requests", h.listAdmissionRequests)
 
-	r.Get("/api/products", h.listProducts)
-	r.Get("/api/products/{id}", h.getProduct)
-	r.Post("/api/products", h.createProduct)
-
-	r.Get("/api/calculator/tariff", h.getTariff)
 	r.Post("/api/calculator/internal", h.calcInternal)
 	r.Post("/api/calculator/external", h.calcExternal)
 	r.Post("/api/calculator/labor", h.calcLabor)
@@ -65,18 +58,11 @@ func (h *Handler) RegisterRoutesWithAuth(r chi.Router, am *AuthMiddleware) {
 
 	r.Post("/api/transfer", h.transfer)
 
-	r.Get("/api/member-levels", h.listMemberLevels)
-
 	r.Post("/api/admission/apply", h.applyAdmission)
 	r.Get("/api/admission/requests", h.listAdmissionRequests)
 	r.With(am.RequirePermission("accounts.approve_admission")).Post("/api/admission/requests/{id}/approve", h.approveAdmission)
 	r.With(am.RequirePermission("accounts.reject_admission")).Post("/api/admission/requests/{id}/reject", h.rejectAdmission)
 
-	r.Get("/api/products", h.listProducts)
-	r.Get("/api/products/{id}", h.getProduct)
-	r.Post("/api/products", h.createProduct)
-
-	r.Get("/api/calculator/tariff", h.getTariff)
 	r.Post("/api/calculator/internal", h.calcInternal)
 	r.Post("/api/calculator/external", h.calcExternal)
 	r.Post("/api/calculator/labor", h.calcLabor)

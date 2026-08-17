@@ -61,6 +61,10 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 	taxH := &TaxHandler{Pool: pool, Auth: am}
 	taxH.RegisterRoutes(r, am)
 
+	// System: auditoria, config, niveles, tarifa, productos
+	sysH := &SystemHandler{Pool: pool, Auth: am}
+	sysH.RegisterRoutes(r, am)
+
 	// Servir el frontend compilado (React/Vite) desde /app/web/dist
 	// En desarrollo, el frontend corre separado en npm run dev (puerto 3000)
 	// En produccion/Docker, el backend sirve los archivos estaticos

@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth'
 import {
   Home, ArrowLeftRight, History, Package, Calculator, Store,
   Network, Scale, Users, Gavel, FileSearch, Globe, UserPlus, Wallet, Shield,
-  Building2, Nfc,
+  Building2, Nfc, Settings,
   LogOut, Menu, X,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -26,6 +26,7 @@ const navItems = [
   { to: '/external', label: 'Comercio Externo', icon: Globe },
   { to: '/admission', label: 'Admision', icon: UserPlus },
   { to: '/recovery', label: 'Recuperacion', icon: Shield },
+  { to: '/settings', label: 'Configuracion', icon: Settings },
 ]
 
 export default function Layout({ children }: { children: React.ReactNode }) {
