@@ -100,9 +100,18 @@ export default function FederationLimits() {
                 ))}
               </select>
             ) : (
-              <input className="input" placeholder="No hay nodos federados. Registra un nodo primero." value={form.remote_node} onChange={(e) => setForm({ ...form, remote_node: e.target.value })} />
+              <div className="space-y-2">
+                <select className="input bg-gray-100" disabled>
+                  <option value="">No hay nodos federados registrados</option>
+                </select>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
+                  <p>No hay nodos federados registrados todavia.</p>
+                  <p className="text-xs mt-1">Para proponer un limite bilateral, primero debes registrar un nodo peer.</p>
+                  <a href="/federation/peers" className="inline-block mt-2 text-blue-600 underline text-sm font-medium">Ir a registrar nodo peer →</a>
+                </div>
+              </div>
             )}
-            <p className="text-xs text-gray-400 mt-1">Selecciona de la lista de nodos federados registrados.</p>
+            {nodes.length > 0 && <p className="text-xs text-gray-400 mt-1">Selecciona de la lista de nodos federados registrados.</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
