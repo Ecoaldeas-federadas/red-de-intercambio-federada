@@ -164,7 +164,10 @@ NODE_NAME=$nodeName
 "@
 
 $envPath = Join-Path $ROOT ".env"
-$envContent | Out-File -FilePath $envPath -Encoding utf8 -Force
+# Usar [System.IO.File]::WriteAllText para evitar BOM y CRLF
+# Out-File -Encoding utf8 en PowerShell 5.1 agrega BOM que corrompe variables
+$envContent = $envContent -replace "`r`n", "`n"
+[System.IO.File]::WriteAllText($envPath, $envContent, [System.Text.UTF8Encoding]::new($false))
 Write-OK "Archivo .env generado (con passwords y secrets aleatorios)"
 
 # 6. Generar config.yaml

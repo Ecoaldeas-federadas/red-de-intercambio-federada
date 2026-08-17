@@ -26,7 +26,7 @@ export default function Login() {
         password,
       })
       login(result.token, result.username)
-      navigate('/')
+      window.location.href = '/'
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al iniciar sesion')
     } finally {
@@ -109,7 +109,7 @@ export default function Login() {
               className="input"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="@usuario@nodo.org"
+              placeholder="admin"
               onKeyDown={(e) => e.key === 'Enter' && (mode === 'password' ? handlePasswordLogin() : handlePasskeyLogin())}
             />
           </div>

@@ -65,6 +65,8 @@ func main() {
 	if jwtSecret == "" {
 		jwtSecret = "change-me-in-production"
 		log.Println("WARNING: JWT_SECRET not set, using default. Set JWT_SECRET env var for production.")
+	} else {
+		log.Printf("JWT_SECRET loaded from env (length=%d, first6=%s)", len(jwtSecret), jwtSecret[:minInt(6, len(jwtSecret))])
 	}
 
 	authMiddleware := api.NewAuthMiddlewareWithPool(jwtSecret, database.Pool)
@@ -145,6 +147,13 @@ func main() {
 	}
 
 	log.Println("Server exited")
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 type passkeyAdapter struct {
