@@ -1,0 +1,22 @@
+fix: migracion 013 - dollar-quoting + ASCII sin acentos
+
+ERRORES PREVIOS:
+1. value too long for type character varying(50) - inferencia de tipos del VALUES
+2. INSERT has more expressions than target columns - parsing de strings multi-linea
+
+CAUSA RAIZ:
+- YugabyteDB tiene problemas parseando strings SQL multi-linea con caracteres
+  acentuados (UTF-8). Los acentos pueden confundir el parser sobre donde
+  termina el string literal.
+
+FIX:
+1. Usar dollar-quoting ($txt$...$txt$) para el campo content en vez de
+   comillas simples. Esto evita cualquier problema con comillas internas.
+2. Remover todos los acentos y caracteres especiales del contenido.
+   El contenido se guarda en ASCII puro. Los acentos se pueden anadir
+   despues desde el admin del sitio web.
+3. Mantener INSERTs individuales con ON CONFLICT DO NOTHING.
+
+Generado con [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>
