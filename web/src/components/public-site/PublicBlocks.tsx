@@ -1075,6 +1075,7 @@ export function CalculatorPreviewBlock({ data }: { data: CalculatorPreviewBlockD
   const [hours, setHours] = useState(4)
   const [effort, setEffort] = useState(1.0)
   const [kwhRate, setKwhRate] = useState(0.19)
+  const [categoryType, setCategoryType] = useState('conuco')
 
   const totalKwh = (hours * kwhRate * effort).toFixed(2)
 
@@ -1088,15 +1089,23 @@ export function CalculatorPreviewBlock({ data }: { data: CalculatorPreviewBlockD
           </span>
           <h2 className="text-2xl sm:text-3xl font-extrabold">{data.title}</h2>
           <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
-            {data.subtitle || 'Calcula el valor objetivo de cualquier trabajo agrícola o artesanal en Trueques (1 TQ = 1 kWh de energía física invertida).'}
+            {data.subtitle ||
+              'Calcula el valor objetivo de cualquier labor agrícola o artesanal en unidades de energía (1 TQ = 1 kWh de energía física invertida). El trueque no es dinero: es un registro contable de aportes para intercambiar en el futuro.'}
           </p>
 
-          <div className="pt-2">
+          <div className="pt-2 flex flex-wrap gap-2.5">
             <Link
-              to="/app/calculator"
+              to="/p/como-funciona"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold bg-white/15 hover:bg-white/25 text-white border border-white/20 text-xs shadow-sm transition"
+            >
+              ¿Cómo Funciona el Trueque?
+              <ArrowRight size={14} />
+            </Link>
+            <Link
+              to="/p/unirse"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold bg-amber-500 text-gray-950 hover:bg-amber-400 text-xs shadow-md transition"
             >
-              Abrir Calculadora Completa
+              Solicitar Ingreso a la Red
               <ArrowRight size={14} />
             </Link>
           </div>
@@ -1104,9 +1113,12 @@ export function CalculatorPreviewBlock({ data }: { data: CalculatorPreviewBlockD
 
         <div className="lg:col-span-6 bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 space-y-4">
           <div>
-            <label className="text-xs font-bold text-gray-200 block mb-1">
-              Horas de Trabajo ({hours} horas)
-            </label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="text-xs font-bold text-gray-200">
+                Horas de Labor Aportada:
+              </label>
+              <span className="text-sm font-extrabold text-amber-300">{hours} horas</span>
+            </div>
             <input
               type="range"
               min="1"
@@ -1119,41 +1131,47 @@ export function CalculatorPreviewBlock({ data }: { data: CalculatorPreviewBlockD
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-gray-200 block mb-1">Costo Base kWh/hora</label>
+              <label className="text-xs font-bold text-gray-200 block mb-1">Tipo de Labor</label>
               <select
                 className="w-full bg-black/30 border border-white/20 rounded-xl px-3 py-2 text-xs text-white"
                 value={kwhRate}
-                onChange={(e) => setKwhRate(parseFloat(e.target.value) || 0.19)}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value) || 0.19
+                  setKwhRate(val)
+                }}
               >
-                <option value="0.05" className="text-gray-900">Administrativo (0.05 kWh)</option>
-                <option value="0.19" className="text-gray-900">Técnico / Conuco (0.19 kWh)</option>
-                <option value="0.30" className="text-gray-900">Carga Pesada (0.30 kWh)</option>
+                <option value="0.05" className="text-gray-900">Gestión / Coordinación (0.05 kWh/h)</option>
+                <option value="0.19" className="text-gray-900">Siembra & Conuco (0.19 kWh/h)</option>
+                <option value="0.30" className="text-gray-900">Carga Pesada & Mecánica (0.30 kWh/h)</option>
               </select>
             </div>
 
             <div>
-              <label className="text-xs font-bold text-gray-200 block mb-1">Factor Esfuerzo</label>
+              <label className="text-xs font-bold text-gray-200 block mb-1">Dificultad / Esfuerzo</label>
               <select
                 className="w-full bg-black/30 border border-white/20 rounded-xl px-3 py-2 text-xs text-white"
                 value={effort}
                 onChange={(e) => setEffort(parseFloat(e.target.value) || 1.0)}
               >
-                <option value="1.0" className="text-gray-900">Normal (x1.0)</option>
+                <option value="1.0" className="text-gray-900">Esfuerzo Base (x1.0)</option>
                 <option value="1.15" className="text-gray-900">Especializado (x1.15)</option>
-                <option value="1.3" className="text-gray-900">Intenso / Sol (x1.3)</option>
+                <option value="1.3" className="text-gray-900">Intenso / Sol Fuerte (x1.3)</option>
               </select>
             </div>
           </div>
 
           <div className="p-4 rounded-xl bg-amber-400 text-gray-950 flex items-center justify-between font-extrabold shadow-md">
             <div>
-              <span className="text-[11px] uppercase tracking-wider block opacity-80">Valor Justo Calculado</span>
+              <span className="text-[11px] uppercase tracking-wider block opacity-80">Aporte Energético Objetivo</span>
               <span className="text-2xl">{totalKwh} TQ</span>
             </div>
             <span className="text-xs bg-black/15 px-3 py-1.5 rounded-lg">
-              = {totalKwh} kWh
+              = {totalKwh} kWh de energía
             </span>
           </div>
+          <p className="text-[10px] text-gray-300 italic text-center">
+            Este valor se registra en tu cuenta de aportes para que en el futuro recibas el equivalente en productos o labores de otros miembros.
+          </p>
         </div>
       </div>
     </section>

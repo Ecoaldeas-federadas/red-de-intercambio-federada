@@ -464,9 +464,9 @@ func (d *DB) SeedPublicPages(ctx context.Context, nodeDomain string) error {
       }
     ],
     "key_points": {
-      "positive_balance": "Indica que has aportado más de lo que has recibido. Tienes derecho a adquirir bienes o servicios de otros miembros.",
-      "negative_balance": "Es un saldo deudor solidario: has recibido sustento y lo retribuirás con tu propia cosecha, productos o trabajo.",
-      "zero_sum": "El sistema no crea dinero de la nada ni cobra intereses usureros. Se basa en el trabajo real y la confianza mutua."
+      "positive_balance": "Indica que has aportado más de lo que has recibido. Tienes derecho a recibir bienes o labores equivalentes de otros miembros en el futuro.",
+      "negative_balance": "Es un compromiso adquirido: has recibido sustento de la comunidad y lo retribuirás con tu propia cosecha, productos o trabajo.",
+      "zero_sum": "No es dinero bancario ni financiero: es un registro contable de compromisos adquiridos y aportes recíprocos. Permite el trueque diferido y multilateral: aportas trabajo o cosecha hoy, queda registrado su costo objetivo en energía (kWh), y en el futuro recibes esa misma energía cuando la necesites."
     }
   },
   {

@@ -242,9 +242,9 @@ const BLOCK_TEMPLATES: {
         { step: 4, title: 'Suma Siempre Cero', description: 'Sin inflación ni especulación.', icon: 'scale' },
       ],
       key_points: {
-        positive_balance: 'Compromiso de entrega de la comunidad hacia ti.',
-        negative_balance: 'Compromiso de retribuir bienes o trabajo.',
-        zero_sum: 'Todo el sistema permanece en equilibrio perfecto.',
+        positive_balance: 'Aportes entregados pendientes de retribución por la comunidad.',
+        negative_balance: 'Compromiso adquirido de retribuir bienes o trabajo.',
+        zero_sum: 'Registro contable de aportes en energía para intercambio diferido.',
       },
     }),
   },
