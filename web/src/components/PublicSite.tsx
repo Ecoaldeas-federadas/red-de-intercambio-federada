@@ -882,11 +882,14 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         </header>
       )}
 
-      {/* MOBILE / TABLET DRAWER */}
+      {/* MOBILE / TABLET DRAWER — style-specific */}
       {menuOpen && (
-        <div className="lg:hidden bg-[#102210] text-white p-3.5 border-b border-white/10 space-y-2.5 z-40 w-full">
+
+        /* === MOBILE: MODERN ECO / AGRODIGITAL === */
+        (headerStyle === 'modern_eco' || headerStyle === 'agrodigital_mincyt') && (
+        <div className="lg:hidden text-white p-3.5 border-b border-white/10 space-y-2.5 z-40 w-full" style={{ backgroundColor: primaryColor }}>
           <div className="grid grid-cols-2 gap-1.5">
-            {pages.map((p) => {
+            {menuPages.map((p) => {
               const Icon = ICONS[p.icon || 'home'] || Home
               const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
               return (
@@ -904,26 +907,220 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               )
             })}
           </div>
-
           <div className="pt-2 border-t border-white/10 space-y-1.5">
             {settings?.show_join_form && !isAuthenticated && (
-              <Link
-                to="/p/unirse"
-                onClick={() => setMenuOpen(false)}
-                className="block w-full text-center px-3 py-2 rounded-lg text-xs font-bold text-white shadow"
-                style={{ backgroundColor: secondaryColor }}
-              >
+              <Link to="/p/unirse" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-2 rounded-lg text-xs font-bold text-white shadow" style={{ backgroundColor: secondaryColor }}>
                 Solicitar Unirse a la Red
               </Link>
             )}
-
             {!isAuthenticated && (
-              <Link
-                to="/login"
-                onClick={() => setMenuOpen(false)}
-                className="block text-center px-3 py-1.5 rounded-lg text-xs text-white/90 hover:bg-white/10"
-              >
+              <Link to="/login" onClick={() => setMenuOpen(false)} className="block text-center px-3 py-1.5 rounded-lg text-xs text-white/90 hover:bg-white/10">
                 Iniciar sesión miembros
+              </Link>
+            )}
+          </div>
+        </div>
+        )
+
+      )}
+
+      {menuOpen && headerStyle === 'fao_institutional' && (
+        /* === MOBILE: PORTAL BLANCO — lista formal sobre blanco === */
+        <div className="lg:hidden bg-white border-b border-gray-200 p-3 space-y-1 z-40 w-full shadow-md">
+          {menuPages.map((p) => {
+            const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
+            return (
+              <Link
+                key={p.slug}
+                to={`/p/${p.slug}`}
+                onClick={() => setMenuOpen(false)}
+                className={`block px-3 py-2 rounded-lg text-sm font-bold transition ${
+                  isActive ? 'border-l-4 pl-2' : 'hover:bg-gray-100'
+                }`}
+                style={isActive ? { color: primaryColor, borderLeftColor: primaryColor, backgroundColor: ((settings as any)?.module_bg_color || '#f0fdf4') } : { color: (settings as any)?.text_color || '#1a1a1a' }}
+              >
+                {p.title}
+              </Link>
+            )
+          })}
+          <div className="pt-2 border-t border-gray-200 space-y-1.5">
+            {settings?.show_join_form && !isAuthenticated && (
+              <Link to="/p/unirse" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-2 rounded-lg text-xs font-bold text-white shadow" style={{ backgroundColor: primaryColor }}>
+                Solicitar Ingreso
+              </Link>
+            )}
+            {!isAuthenticated && (
+              <Link to="/login" onClick={() => setMenuOpen(false)} className="block text-center px-3 py-1.5 rounded-lg text-xs font-medium border" style={{ color: primaryColor, borderColor: primaryColor }}>
+                Acceso Miembros
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
+      {menuOpen && headerStyle === 'editorial_latam' && (
+        /* === MOBILE: EDITORIAL — fondo oscuro, serif, mayúsculas === */
+        <div className="lg:hidden text-white p-4 space-y-1 z-40 w-full" style={{ backgroundColor: '#1f301d' }}>
+          <p className="text-[10px] uppercase tracking-widest text-amber-400 font-serif font-bold mb-2">Secciones</p>
+          {menuPages.map((p) => {
+            const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
+            return (
+              <Link
+                key={p.slug}
+                to={`/p/${p.slug}`}
+                onClick={() => setMenuOpen(false)}
+                className={`block px-3 py-2 rounded-lg text-sm uppercase font-bold tracking-wider transition font-serif ${
+                  isActive ? 'bg-amber-600 text-white' : 'text-gray-200 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                {p.title}
+              </Link>
+            )
+          })}
+          <div className="pt-2 border-t border-white/10 space-y-1.5">
+            {settings?.show_join_form && !isAuthenticated && (
+              <Link to="/p/unirse" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-2 rounded-lg text-xs font-bold text-white bg-amber-700">
+                Solicitar Admisión →
+              </Link>
+            )}
+            {!isAuthenticated && (
+              <Link to="/login" onClick={() => setMenuOpen(false)} className="block text-center px-3 py-1.5 rounded-lg text-xs text-amber-300 hover:bg-white/10">
+                Iniciar sesión miembros
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
+      {menuOpen && headerStyle === 'dropdown_categories' && (
+        /* === MOBILE: MEGA MENU — agrupado por categorías === */
+        <div className="lg:hidden text-white p-4 space-y-3 z-40 w-full" style={{ backgroundColor: primaryColor }}>
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-white/60 font-bold mb-1.5">Sobre la Red</p>
+            <div className="space-y-0.5">
+              {aboutPages.map((p) => (
+                <Link key={p.slug} to={`/p/${p.slug}`} onClick={() => setMenuOpen(false)} className="block px-3 py-1.5 rounded-lg text-sm hover:bg-white/10">
+                  {p.title}
+                </Link>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-white/60 font-bold mb-1.5">Economía & Cosecha</p>
+            <div className="space-y-0.5">
+              {economyPages.map((p) => (
+                <Link key={p.slug} to={`/p/${p.slug}`} onClick={() => setMenuOpen(false)} className="block px-3 py-1.5 rounded-lg text-sm hover:bg-white/10">
+                  {p.title}
+                </Link>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-white/60 font-bold mb-1.5">Comunidad & Saberes</p>
+            <div className="space-y-0.5">
+              {communityPages.map((p) => (
+                <Link key={p.slug} to={`/p/${p.slug}`} onClick={() => setMenuOpen(false)} className="block px-3 py-1.5 rounded-lg text-sm hover:bg-white/10">
+                  {p.title}
+                </Link>
+              ))}
+            </div>
+          </div>
+          {otherPages.length > 0 && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-white/60 font-bold mb-1.5">Otros</p>
+              <div className="space-y-0.5">
+                {otherPages.map((p) => (
+                  <Link key={p.slug} to={`/p/${p.slug}`} onClick={() => setMenuOpen(false)} className="block px-3 py-1.5 rounded-lg text-sm hover:bg-white/10">
+                    {p.title}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="pt-2 border-t border-white/10 space-y-1.5">
+            {settings?.show_join_form && !isAuthenticated && (
+              <Link to="/p/unirse" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-2 rounded-lg text-xs font-bold text-white shadow" style={{ backgroundColor: secondaryColor }}>
+                Unirse a la Red
+              </Link>
+            )}
+            {!isAuthenticated && (
+              <Link to="/login" onClick={() => setMenuOpen(false)} className="block text-center px-3 py-1.5 rounded-lg text-xs text-white/90 hover:bg-white/10">
+                Iniciar sesión miembros
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
+      {menuOpen && headerStyle === 'compact' && (
+        /* === MOBILE: LOGO CENTRADO — lista centrada sobre fondo claro === */
+        <div className="lg:hidden p-4 space-y-1 z-40 w-full border-b" style={{ backgroundColor: (settings as any)?.page_bg_color || '#f8faf5', borderColor: ((settings as any)?.module_bg_color || '#e5e7eb') }}>
+          {menuPages.map((p) => {
+            const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
+            return (
+              <Link
+                key={p.slug}
+                to={`/p/${p.slug}`}
+                onClick={() => setMenuOpen(false)}
+                className={`block px-4 py-2.5 rounded-lg text-center text-sm font-bold transition ${
+                  isActive ? 'text-white shadow' : 'hover:bg-gray-100'
+                }`}
+                style={isActive ? { backgroundColor: primaryColor, color: '#fff' } : { color: (settings as any)?.text_color || '#1a1a1a' }}
+              >
+                {p.title}
+              </Link>
+            )
+          })}
+          <div className="pt-2 border-t space-y-1.5" style={{ borderColor: ((settings as any)?.module_bg_color || '#e5e7eb') }}>
+            {settings?.show_join_form && !isAuthenticated && (
+              <Link to="/p/unirse" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-2 rounded-lg text-xs font-bold text-white shadow" style={{ backgroundColor: secondaryColor }}>
+                Unirse a la Red
+              </Link>
+            )}
+            {!isAuthenticated && (
+              <Link to="/login" onClick={() => setMenuOpen(false)} className="block text-center px-3 py-1.5 rounded-lg text-xs font-medium border" style={{ color: primaryColor, borderColor: primaryColor }}>
+                Acceso Miembros
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
+      {menuOpen && headerStyle === 'banner' && (
+        /* === MOBILE: BANNER — overlay oscuro con imagen de fondo === */
+        <div
+          className="lg:hidden text-white p-4 space-y-1 z-40 w-full"
+          style={{
+            backgroundColor: primaryColor,
+            backgroundImage: 'linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.6)), url(https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=800&q=80)',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+        >
+          {menuPages.map((p) => {
+            const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
+            return (
+              <Link
+                key={p.slug}
+                to={`/p/${p.slug}`}
+                onClick={() => setMenuOpen(false)}
+                className={`block px-4 py-2.5 rounded-lg text-sm font-bold transition ${
+                  isActive ? 'bg-white/25' : 'hover:bg-white/15'
+                }`}
+              >
+                {p.title}
+              </Link>
+            )
+          })}
+          <div className="pt-2 border-t border-white/20 space-y-1.5">
+            {settings?.show_join_form && !isAuthenticated && (
+              <Link to="/p/unirse" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-2 rounded-lg text-xs font-bold text-white shadow" style={{ backgroundColor: secondaryColor }}>
+                Unirse a la Red
+              </Link>
+            )}
+            {!isAuthenticated && (
+              <Link to="/login" onClick={() => setMenuOpen(false)} className="block text-center px-3 py-1.5 rounded-lg text-xs text-white/90 hover:bg-white/10 border border-white/30">
+                Acceso Miembros
               </Link>
             )}
           </div>
