@@ -1,7 +1,22 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
-import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon } from 'lucide-react'
+import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon, Vote as VoteIcon } from 'lucide-react'
+
+// Opciones del 1 al 10 para el numero de nivel (seleccionable, no texto libre)
+const LEVEL_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1)
+const LEVEL_LABELS: Record<number, string> = {
+  1: '1 - Basico (recien admitido, sin derechos)',
+  2: '2 - Iniciado (voz, sin voto)',
+  3: '3 - Intermedio (voz, sin voto)',
+  4: '4 - Avanzado (voz, sin voto)',
+  5: '5 - Activo (voz y voto, forma parte de asamblea)',
+  6: '6 - Destacado (voz y voto)',
+  7: '7 - Referente (voz y voto)',
+  8: '8 - Coordinador (voz y voto)',
+  9: '9 - Directivo (voz y voto)',
+  10: '10 - Administrador (todos los derechos)',
+}
 
 export default function NodeSettings() {
   const { hasPermission } = usePermissions()
@@ -76,13 +91,40 @@ export default function NodeSettings() {
   const saveLevel = async () => {
     setError(''); setSuccess('')
     try {
-      if (editingLevel) {
-        await api.put(`/member-levels/${editingLevel.id}`, levelForm)
-        setSuccess('Nivel de miembro actualizado')
-      } else {
-        await api.post('/member-levels', levelForm)
-        setSuccess('Nivel de miembro creado')
-      }
+      // Los cambios de nivel NO se guardan directamente.
+      // Se envian como propuesta a la Asamblea para aprobacion.
+      // Mientras no se apruebe, siguen funcionando los parametros anteriores.
+      const proposalDesc = editingLevel
+        ? `Cambiar nivel de miembro "${editingLevel.name}" a "${levelForm.name}" (nivel ${levelForm.level})`
+        : `Crear nuevo nivel de miembro "${levelForm.name}" (nivel ${levelForm.level})`
+      await api.post('/assembly/proposals', {
+        proposal_type: 'member_level',
+        title: proposalDesc,
+        description: proposalDesc,
+        parameters: {
+          level_id: editingLevel?.id || '',
+          name: levelForm.name,
+          description: levelForm.description,
+          level: levelForm.level,
+          has_voice: levelForm.has_voice,
+          has_vote: levelForm.has_vote,
+          counts_in_quorum: levelForm.counts_in_quorum,
+          credit_limit: levelForm.credit_limit,
+          debit_limit: levelForm.debit_limit,
+          tax_rate: levelForm.tax_rate,
+          can_create_organization: levelForm.can_create_organization,
+          can_cross_node_trade: levelForm.can_cross_node_trade,
+          can_receive_nfc_card: levelForm.can_receive_nfc_card,
+          can_view_audit: levelForm.can_view_audit,
+          can_use_external_bridge: levelForm.can_use_external_bridge,
+          max_organizations: levelForm.max_organizations,
+          can_request_limit_increase: levelForm.can_request_limit_increase,
+        },
+        required_signatures: 1,
+      })
+      setSuccess(editingLevel
+        ? 'Solicitud de cambio enviada a la Asamblea. Los parametros actuales siguen vigentes hasta que la Asamblea apruebe el cambio.'
+        : 'Solicitud de creacion enviada a la Asamblea. El nivel se creara cuando la Asamblea lo apruebe.')
       setShowLevelForm(false)
       setEditingLevel(null)
       load()
@@ -112,13 +154,33 @@ export default function NodeSettings() {
   const saveOrgLevel = async () => {
     setError(''); setSuccess('')
     try {
-      if (editingOrgLevel) {
-        await api.put(`/organization-levels/${editingOrgLevel.id}`, orgLevelForm)
-        setSuccess('Nivel de organizacion actualizado')
-      } else {
-        await api.post('/organization-levels', orgLevelForm)
-        setSuccess('Nivel de organizacion creado')
-      }
+      // Los cambios de nivel de organizacion NO se guardan directamente.
+      // Se envian como propuesta a la Asamblea para aprobacion.
+      const proposalDesc = editingOrgLevel
+        ? `Cambiar nivel de organizacion "${editingOrgLevel.name}" a "${orgLevelForm.name}" (nivel ${orgLevelForm.level})`
+        : `Crear nuevo nivel de organizacion "${orgLevelForm.name}" (nivel ${orgLevelForm.level})`
+      await api.post('/assembly/proposals', {
+        proposal_type: 'org_level',
+        title: proposalDesc,
+        description: proposalDesc,
+        parameters: {
+          level_id: editingOrgLevel?.id || '',
+          name: orgLevelForm.name,
+          description: orgLevelForm.description,
+          level: orgLevelForm.level,
+          credit_limit: orgLevelForm.credit_limit,
+          debit_limit: orgLevelForm.debit_limit,
+          tax_rate: orgLevelForm.tax_rate,
+          can_cross_node_trade: orgLevelForm.can_cross_node_trade,
+          can_use_external_bridge: orgLevelForm.can_use_external_bridge,
+          can_view_audit: orgLevelForm.can_view_audit,
+          max_members: orgLevelForm.max_members,
+        },
+        required_signatures: 1,
+      })
+      setSuccess(editingOrgLevel
+        ? 'Solicitud de cambio enviada a la Asamblea. Los parametros actuales siguen vigentes hasta que la Asamblea apruebe el cambio.'
+        : 'Solicitud de creacion enviada a la Asamblea. El nivel se creara cuando la Asamblea lo apruebe.')
       setShowOrgLevelForm(false)
       setEditingOrgLevel(null)
       load()
@@ -209,7 +271,7 @@ export default function NodeSettings() {
           <div className="flex justify-between items-center">
             <h2 className="font-semibold flex items-center gap-2"><UsersIcon size={18} />Niveles de Miembro</h2>
             {canManage && (
-              <button onClick={() => { setShowLevelForm(!showLevelForm); setEditingLevel(null) }} className="btn-primary flex items-center gap-2"><Plus size={18} />Nuevo Nivel</button>
+              <button onClick={() => { setShowLevelForm(!showLevelForm); setEditingLevel(null) }} className="btn-primary flex items-center gap-2"><Plus size={18} />Solicitar Nuevo Nivel</button>
             )}
           </div>
 
@@ -222,7 +284,7 @@ export default function NodeSettings() {
 
           {showLevelForm && canManage && (
             <div className="card space-y-4">
-              <h3 className="font-semibold">{editingLevel ? 'Editar Nivel de Miembro' : 'Nuevo Nivel de Miembro'}</h3>
+              <h3 className="font-semibold">{editingLevel ? 'Solicitar cambio de Nivel de Miembro' : 'Solicitar nuevo Nivel de Miembro'}</h3>
 
               <div>
                 <label className="label">Nombre del nivel</label>
@@ -235,9 +297,13 @@ export default function NodeSettings() {
                 <p className="text-xs text-gray-400 mt-1">Explica que significa este nivel. Ej: Miembro pleno con todos los derechos.</p>
               </div>
               <div>
-                <label className="label">Numero de nivel (1=basico, 10=admin)</label>
-                <input type="number" min="1" max="99" className="input" value={levelForm.level} onChange={(e) => setLevelForm({ ...levelForm, level: parseInt(e.target.value) || 1 })} />
-                <p className="text-xs text-gray-400 mt-1">Prioridad del nivel. 1 = miembro nuevo (sin derechos), 5 = miembro activo (voz y voto), 10 = administrador. No es el numero de permisos, es la jerarquia. Dos niveles pueden tener el mismo numero.</p>
+                <label className="label">Numero de nivel (jerarquia 1-10)</label>
+                <select className="input" value={levelForm.level} onChange={(e) => setLevelForm({ ...levelForm, level: parseInt(e.target.value) || 1 })}>
+                  {LEVEL_OPTIONS.map((n) => (
+                    <option key={n} value={n}>{LEVEL_LABELS[n]}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-400 mt-1">Selecciona la jerarquia del nivel. 1 = miembro nuevo (sin derechos), 5 = miembro activo (voz y voto), 10 = administrador. No es el numero de permisos, es la jerarquia. Dos niveles pueden tener el mismo numero.</p>
               </div>
 
               <div>
@@ -308,7 +374,11 @@ export default function NodeSettings() {
                 <p className="text-xs text-gray-400 mt-1">Cuantas organizaciones puede crear o pertenecer este miembro. 0 = sin limite.</p>
               </div>
 
-              <button onClick={saveLevel} className="btn-primary">{editingLevel ? 'Actualizar' : 'Crear'}</button>
+              <div className="card bg-amber-50 border-amber-200 text-sm text-amber-800">
+                <p className="flex items-center gap-2"><VoteIcon size={16} /> <strong>Cambio pendiente de aprobacion:</strong> Este cambio no se guarda directamente. Se enviara como propuesta a la Asamblea. Los parametros actuales seguiran vigentes hasta que la Asamblea apruebe el cambio.</p>
+              </div>
+
+              <button onClick={saveLevel} className="btn-primary flex items-center gap-2"><VoteIcon size={18} />{editingLevel ? 'Solicitar aprobacion de la Asamblea' : 'Solicitar creacion a la Asamblea'}</button>
             </div>
           )}
 
@@ -353,7 +423,7 @@ export default function NodeSettings() {
           <div className="flex justify-between items-center">
             <h2 className="font-semibold flex items-center gap-2"><Building2 size={18} />Niveles de Organizacion</h2>
             {canManage && (
-              <button onClick={() => { setShowOrgLevelForm(!showOrgLevelForm); setEditingOrgLevel(null) }} className="btn-primary flex items-center gap-2"><Plus size={18} />Nuevo Nivel</button>
+              <button onClick={() => { setShowOrgLevelForm(!showOrgLevelForm); setEditingOrgLevel(null) }} className="btn-primary flex items-center gap-2"><Plus size={18} />Solicitar Nuevo Nivel</button>
             )}
           </div>
 
@@ -366,7 +436,7 @@ export default function NodeSettings() {
 
           {showOrgLevelForm && canManage && (
             <div className="card space-y-4">
-              <h3 className="font-semibold">{editingOrgLevel ? 'Editar Nivel de Organizacion' : 'Nuevo Nivel de Organizacion'}</h3>
+              <h3 className="font-semibold">{editingOrgLevel ? 'Solicitar cambio de Nivel de Organizacion' : 'Solicitar nuevo Nivel de Organizacion'}</h3>
 
               <div>
                 <label className="label">Nombre del nivel</label>
@@ -379,9 +449,13 @@ export default function NodeSettings() {
                 <p className="text-xs text-gray-400 mt-1">Explica que tipo de organizaciones pertenecen a este nivel. Ej: Fabrica o produce bienes.</p>
               </div>
               <div>
-                <label className="label">Numero de nivel (jerarquia)</label>
-                <input type="number" min="1" max="99" className="input" value={orgLevelForm.level} onChange={(e) => setOrgLevelForm({ ...orgLevelForm, level: parseInt(e.target.value) || 1 })} />
-                <p className="text-xs text-gray-400 mt-1">Prioridad del nivel dentro de las organizaciones. 1 = nivel basico. No es cantidad de permisos, es jerarquia.</p>
+                <label className="label">Numero de nivel (jerarquia 1-10)</label>
+                <select className="input" value={orgLevelForm.level} onChange={(e) => setOrgLevelForm({ ...orgLevelForm, level: parseInt(e.target.value) || 1 })}>
+                  {LEVEL_OPTIONS.map((n) => (
+                    <option key={n} value={n}>{n} - {n <= 3 ? 'Basico' : n <= 7 ? 'Intermedio' : 'Avanzado'}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-400 mt-1">Selecciona la jerarquia del nivel dentro de las organizaciones. 1 = nivel basico, 10 = nivel maximo. No es cantidad de permisos, es jerarquia.</p>
               </div>
 
               <div>
@@ -424,7 +498,11 @@ export default function NodeSettings() {
                 <p className="text-xs text-gray-400 mt-1">Cuantas personas pueden pertenecer a una organizacion de este nivel. 0 = sin limite.</p>
               </div>
 
-              <button onClick={saveOrgLevel} className="btn-primary">{editingOrgLevel ? 'Actualizar' : 'Crear'}</button>
+              <div className="card bg-amber-50 border-amber-200 text-sm text-amber-800">
+                <p className="flex items-center gap-2"><VoteIcon size={16} /> <strong>Cambio pendiente de aprobacion:</strong> Este cambio no se guarda directamente. Se enviara como propuesta a la Asamblea. Los parametros actuales seguiran vigentes hasta que la Asamblea apruebe el cambio.</p>
+              </div>
+
+              <button onClick={saveOrgLevel} className="btn-primary flex items-center gap-2"><VoteIcon size={18} />{editingOrgLevel ? 'Solicitar aprobacion de la Asamblea' : 'Solicitar creacion a la Asamblea'}</button>
             </div>
           )}
 

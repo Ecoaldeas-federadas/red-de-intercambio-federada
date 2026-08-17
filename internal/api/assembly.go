@@ -422,6 +422,89 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 				ON CONFLICT (node_domain) DO UPDATE SET tax_rate = $2, updated_at = NOW()`,
 				nodeDomain, rate/100)
 		}
+	case "member_level":
+		// Crear o modificar un nivel de miembro (aprobado por asamblea)
+		levelID, _ := params["level_id"].(string)
+		name, _ := params["name"].(string)
+		description, _ := params["description"].(string)
+		levelNum, _ := params["level"].(float64)
+		hasVoice, _ := params["has_voice"].(bool)
+		hasVote, _ := params["has_vote"].(bool)
+		quorum, _ := params["counts_in_quorum"].(bool)
+		creditLimit, _ := params["credit_limit"].(float64)
+		debitLimit, _ := params["debit_limit"].(float64)
+		taxRate, _ := params["tax_rate"].(float64)
+		canCreateOrg, _ := params["can_create_organization"].(bool)
+		canCrossNode, _ := params["can_cross_node_trade"].(bool)
+		canNFC, _ := params["can_receive_nfc_card"].(bool)
+		canAudit, _ := params["can_view_audit"].(bool)
+		canBridge, _ := params["can_use_external_bridge"].(bool)
+		maxOrgs, _ := params["max_organizations"].(float64)
+		canReqLimit, _ := params["can_request_limit_increase"].(bool)
+
+		nodeDomain := r.Header.Get("X-Node-Domain")
+		if nodeDomain == "" {
+			nodeDomain = "localhost"
+		}
+
+		if levelID != "" {
+			// Actualizar nivel existente
+			h.Pool.Exec(r.Context(), `
+				UPDATE member_levels SET
+					name = $1, description = $2, level = $3, has_voice = $4, has_vote = $5, counts_in_quorum = $6,
+					credit_limit = $7, debit_limit = $8, tax_rate = $9,
+					can_create_organization = $10, can_cross_node_trade = $11, can_receive_nfc_card = $12,
+					can_view_audit = $13, can_use_external_bridge = $14, max_organizations = $15, can_request_limit_increase = $16
+				WHERE id = $17`,
+				name, description, int(levelNum), hasVoice, hasVote, quorum,
+				int64(creditLimit), int64(debitLimit), taxRate,
+				canCreateOrg, canCrossNode, canNFC, canAudit, canBridge, int(maxOrgs), canReqLimit, levelID)
+		} else if name != "" {
+			// Crear nuevo nivel
+			h.Pool.Exec(r.Context(), `
+				INSERT INTO member_levels (id, node_domain, name, description, level, has_voice, has_vote, counts_in_quorum,
+					credit_limit, debit_limit, tax_rate, can_create_organization, can_cross_node_trade, can_receive_nfc_card,
+					can_view_audit, can_use_external_bridge, max_organizations, can_request_limit_increase)
+				VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+				nodeDomain, name, description, int(levelNum), hasVoice, hasVote, quorum,
+				int64(creditLimit), int64(debitLimit), taxRate,
+				canCreateOrg, canCrossNode, canNFC, canAudit, canBridge, int(maxOrgs), canReqLimit)
+		}
+	case "org_level":
+		// Crear o modificar un nivel de organizacion (aprobado por asamblea)
+		levelID, _ := params["level_id"].(string)
+		name, _ := params["name"].(string)
+		description, _ := params["description"].(string)
+		levelNum, _ := params["level"].(float64)
+		creditLimit, _ := params["credit_limit"].(float64)
+		debitLimit, _ := params["debit_limit"].(float64)
+		taxRate, _ := params["tax_rate"].(float64)
+		canCrossNode, _ := params["can_cross_node_trade"].(bool)
+		canBridge, _ := params["can_use_external_bridge"].(bool)
+		canAudit, _ := params["can_view_audit"].(bool)
+		maxMembers, _ := params["max_members"].(float64)
+
+		nodeDomain := r.Header.Get("X-Node-Domain")
+		if nodeDomain == "" {
+			nodeDomain = "localhost"
+		}
+
+		if levelID != "" {
+			h.Pool.Exec(r.Context(), `
+				UPDATE organization_levels SET
+					name = $1, description = $2, level = $3, credit_limit = $4, debit_limit = $5, tax_rate = $6,
+					can_cross_node_trade = $7, can_use_external_bridge = $8, can_view_audit = $9, max_members = $10
+				WHERE id = $11::uuid`,
+				name, description, int(levelNum), int64(creditLimit), int64(debitLimit), taxRate,
+				canCrossNode, canBridge, canAudit, int(maxMembers), levelID)
+		} else if name != "" {
+			h.Pool.Exec(r.Context(), `
+				INSERT INTO organization_levels (node_domain, name, description, level, credit_limit, debit_limit, tax_rate,
+					can_cross_node_trade, can_use_external_bridge, can_view_audit, max_members)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+				nodeDomain, name, description, int(levelNum), int64(creditLimit), int64(debitLimit), taxRate,
+				canCrossNode, canBridge, canAudit, int(maxMembers))
+		}
 	}
 	return nil
 }
