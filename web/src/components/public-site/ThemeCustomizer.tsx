@@ -39,8 +39,17 @@ export interface ThemeDraft {
   header_transparency: number
   header_transparency_color: string
   header_blur: number
+  // Header colors (empty = use theme palette)
   header_bg_color: string
   header_text_color: string
+  header_active_color: string       // color of active/selected menu item text
+  header_active_bg_color: string    // background of active/selected menu item
+  header_hover_color: string        // background on hover
+  // For dual-row headers (editorial_latam)
+  header_top_bg_color: string       // top row background
+  header_top_text_color: string     // top row text
+  header_bottom_bg_color: string    // bottom row background
+  header_bottom_text_color: string  // bottom row text
 }
 
 export interface PageMenuItem {
@@ -532,44 +541,66 @@ export function ThemeCustomizer({
 
               {/* Colors override for this header */}
               <div className="space-y-2 pt-2 border-t border-gray-200">
-                <p className="text-[11px] font-bold text-gray-600">Colores de la cabecera</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-bold text-gray-600">Colores de la cabecera</p>
+                  <button
+                    onClick={() => setDraft({
+                      ...draft,
+                      header_bg_color: '', header_text_color: '',
+                      header_active_color: '', header_active_bg_color: '', header_hover_color: '',
+                      header_top_bg_color: '', header_top_text_color: '',
+                      header_bottom_bg_color: '', header_bottom_text_color: '',
+                    })}
+                    className="text-[10px] text-emerald-600 hover:text-emerald-800 font-bold"
+                  >
+                    Usar tema
+                  </button>
+                </div>
                 <p className="text-[10px] text-gray-400">Deja vacío para usar los colores de la paleta general.</p>
 
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={draft.header_bg_color || draft.primary_color}
-                    onChange={(e) => setDraft({ ...draft, header_bg_color: e.target.value })}
-                    className="w-8 h-8 rounded-lg border border-gray-200 cursor-pointer flex-shrink-0"
-                  />
-                  <div className="flex-1">
-                    <p className="text-[10px] font-bold text-gray-700">Color de fondo</p>
-                    <input
-                      className="input text-[10px] font-mono py-0.5"
-                      value={draft.header_bg_color}
-                      onChange={(e) => setDraft({ ...draft, header_bg_color: e.target.value })}
-                      placeholder="Usar paleta general"
-                    />
-                  </div>
-                </div>
+                {/* Color picker helper component */}
+                {(() => {
+                  const ColorRow = ({ label, value, onChange, defaultColor }: { label: string; value: string; onChange: (v: string) => void; defaultColor: string }) => (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={value || defaultColor}
+                        onChange={(e) => onChange(e.target.value)}
+                        className="w-8 h-8 rounded-lg border border-gray-200 cursor-pointer flex-shrink-0"
+                      />
+                      <div className="flex-1">
+                        <p className="text-[10px] font-bold text-gray-700">{label}</p>
+                        <input
+                          className="input text-[10px] font-mono py-0.5"
+                          value={value}
+                          onChange={(e) => onChange(e.target.value)}
+                          placeholder="Usar paleta general"
+                        />
+                      </div>
+                    </div>
+                  )
+                  return (
+                    <>
+                      <ColorRow label="Color de fondo" value={draft.header_bg_color} onChange={(v) => setDraft({ ...draft, header_bg_color: v })} defaultColor={draft.primary_color} />
+                      <ColorRow label="Color de texto" value={draft.header_text_color} onChange={(v) => setDraft({ ...draft, header_text_color: v })} defaultColor={draft.text_color} />
+                      <ColorRow label="Color texto activo" value={draft.header_active_color} onChange={(v) => setDraft({ ...draft, header_active_color: v })} defaultColor="#ffffff" />
+                      <ColorRow label="Color fondo botón activo" value={draft.header_active_bg_color} onChange={(v) => setDraft({ ...draft, header_active_bg_color: v })} defaultColor={draft.secondary_color} />
+                      <ColorRow label="Color hover (pasar mouse)" value={draft.header_hover_color} onChange={(v) => setDraft({ ...draft, header_hover_color: v })} defaultColor={draft.primary_color} />
 
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={draft.header_text_color || draft.text_color}
-                    onChange={(e) => setDraft({ ...draft, header_text_color: e.target.value })}
-                    className="w-8 h-8 rounded-lg border border-gray-200 cursor-pointer flex-shrink-0"
-                  />
-                  <div className="flex-1">
-                    <p className="text-[10px] font-bold text-gray-700">Color de texto</p>
-                    <input
-                      className="input text-[10px] font-mono py-0.5"
-                      value={draft.header_text_color}
-                      onChange={(e) => setDraft({ ...draft, header_text_color: e.target.value })}
-                      placeholder="Usar paleta general"
-                    />
-                  </div>
-                </div>
+                      {/* Dual-row colors for editorial_latam */}
+                      {draft.header_style === 'editorial_latam' && (
+                        <div className="pt-2 mt-2 border-t border-gray-200 space-y-2">
+                          <p className="text-[10px] font-bold text-gray-600">Fila superior (marca)</p>
+                          <ColorRow label="Fondo fila superior" value={draft.header_top_bg_color} onChange={(v) => setDraft({ ...draft, header_top_bg_color: v })} defaultColor="#ffffff" />
+                          <ColorRow label="Texto fila superior" value={draft.header_top_text_color} onChange={(v) => setDraft({ ...draft, header_top_text_color: v })} defaultColor={draft.text_color} />
+                          <p className="text-[10px] font-bold text-gray-600 pt-1">Fila inferior (menú)</p>
+                          <ColorRow label="Fondo fila inferior" value={draft.header_bottom_bg_color} onChange={(v) => setDraft({ ...draft, header_bottom_bg_color: v })} defaultColor="#1f301d" />
+                          <ColorRow label="Texto fila inferior" value={draft.header_bottom_text_color} onChange={(v) => setDraft({ ...draft, header_bottom_text_color: v })} defaultColor="#ffffff" />
+                        </div>
+                      )}
+                    </>
+                  )
+                })()}
               </div>
 
               {/* Banner image (for banner style) */}

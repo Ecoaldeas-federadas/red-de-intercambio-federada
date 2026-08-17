@@ -170,9 +170,21 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
   const headerBlur = (settings as any)?.header_blur ?? 4
   const headerBgColor = (settings as any)?.header_bg_color || ''
   const headerTextColor = (settings as any)?.header_text_color || ''
+  const headerActiveColor = (settings as any)?.header_active_color || ''
+  const headerActiveBgColor = (settings as any)?.header_active_bg_color || ''
+  const headerHoverColor = (settings as any)?.header_hover_color || ''
+  const headerTopBgColor = (settings as any)?.header_top_bg_color || ''
+  const headerTopTextColor = (settings as any)?.header_top_text_color || ''
+  const headerBottomBgColor = (settings as any)?.header_bottom_bg_color || ''
+  const headerBottomTextColor = (settings as any)?.header_bottom_text_color || ''
   const primaryColor = headerBgColor || settings?.primary_color || '#162e16'
   const secondaryColor = settings?.secondary_color || '#c2410c'
-  const headerTextColorResolved = headerTextColor || (settings as any)?.text_color || '#1a1a1a'
+  // Headers with colored backgrounds default to white text; light backgrounds default to dark text
+  const coloredHeaderStyles = ['modern_eco', 'agrodigital_mincyt', 'dropdown_categories', 'compact', 'banner', 'sidebar_left', 'split_center', 'hero_overlay']
+  const headerTextColorResolved = headerTextColor || (coloredHeaderStyles.includes(headerStyle) ? '#ffffff' : (settings as any)?.text_color || '#1a1a1a')
+  const headerActiveColorResolved = headerActiveColor || (coloredHeaderStyles.includes(headerStyle) ? '#ffffff' : primaryColor)
+  const headerActiveBgResolved = headerActiveBgColor || `${primaryColor}40` // semi-transparent primary
+  const headerHoverResolved = headerHoverColor || `${primaryColor}25`
   const stickyClass = headerSticky ? 'sticky top-0' : ''
   const showAnnouncement = settings?.show_announcement ?? true
   const announcementText =
@@ -327,9 +339,9 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
       {/* STYLE B: EDITORIAL LATAM */}
       {headerStyle === 'editorial_latam' && (
         <header className={`${stickyClass} z-50 shadow-md w-full`}>
-          <div className="bg-white border-b border-amber-200/60 py-2.5 px-3 sm:px-6">
+          <div className="py-2.5 px-3 sm:px-6 border-b" style={{ backgroundColor: headerTopBgColor || '#ffffff', borderColor: `${headerBottomBgColor || primaryColor}30` }}>
             <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-              <Link to="/p/inicio" className="flex items-center gap-2.5 truncate max-w-sm">
+              <Link to="/p/inicio" className="flex items-center gap-2.5 truncate max-w-sm" style={{ color: headerTopTextColor || (settings as any)?.text_color || '#1a1a1a' }}>
                 {settings?.logo_url ? (
                   <img src={settings.logo_url} alt="logo" className="w-9 h-9 rounded-full object-cover border border-amber-300 shadow-sm flex-shrink-0" />
                 ) : (
@@ -369,9 +381,9 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          <div className="bg-[#1f301d] text-white py-1.5 px-3 sm:px-6 border-b border-black/20">
+          <div className="py-1.5 px-3 sm:px-6 border-b border-black/20" style={{ backgroundColor: headerBottomBgColor || '#1f301d', color: headerBottomTextColor || '#ffffff' }}>
             <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
-              <nav className="hidden lg:flex items-center gap-1 text-[11px] sm:text-xs uppercase font-bold tracking-wider">
+              <nav className="hidden lg:flex items-center gap-1 text-[11px] sm:text-xs uppercase font-bold tracking-wider" style={{ color: headerBottomTextColor || '#ffffff' }}>
                 {visiblePages.map((p) => {
                   const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
                   return (
@@ -379,8 +391,12 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                       key={p.slug}
                       to={`/p/${p.slug}`}
                       className={`px-2.5 py-1 rounded transition ${
-                        isActive ? 'bg-amber-600 text-white font-extrabold' : 'text-gray-200 hover:text-white hover:bg-white/10'
+                        isActive ? 'font-extrabold' : 'hover:bg-white/10'
                       }`}
+                      style={isActive
+                        ? { backgroundColor: headerActiveBgColor || secondaryColor, color: headerActiveColor || '#ffffff' }
+                        : { color: headerBottomTextColor || '#ffffff' }
+                      }
                     >
                       {getShortLabel(p)}
                     </Link>
@@ -429,7 +445,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
       {headerStyle === 'dropdown_categories' && (
         <header className={`${stickyClass} z-50 shadow-md backdrop-blur-md w-full`} style={{ backgroundColor: primaryColor }}>
           <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-3">
-            <Link to="/p/inicio" className="flex items-center gap-2 text-white truncate max-w-xs">
+            <Link to="/p/inicio" className="flex items-center gap-2 text-white truncate max-w-xs" style={{ color: headerTextColorResolved }}>
               {settings?.logo_url ? (
                 <img src={settings.logo_url} alt="logo" className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover border border-white/30 shadow flex-shrink-0" />
               ) : (
@@ -445,7 +461,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               </div>
             </Link>
 
-            <nav className="hidden lg:flex items-center gap-1 text-xs font-bold text-white">
+            <nav className="hidden lg:flex items-center gap-1 text-xs font-bold text-white" style={{ color: headerTextColorResolved }}>
               {hasHierarchy ? (
                 // Hierarchical mode: use parent_slug from page settings
                 hierarchicalTop.map((parent) => {
@@ -610,7 +626,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           {/* Bottom row: horizontal menu bar */}
           <div style={{ backgroundColor: primaryColor }}>
             <div className="max-w-7xl mx-auto px-3 sm:px-6 flex items-center justify-center gap-0.5 py-1.5">
-              <nav className="hidden lg:flex items-center gap-0.5 text-xs font-bold text-white">
+              <nav className="hidden lg:flex items-center gap-0.5 text-xs font-bold text-white" style={{ color: headerTextColorResolved }}>
                 {visiblePages.map((p) => {
                   const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
                   return (
@@ -678,7 +694,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between gap-3 relative z-10">
               {/* Logo + brand overlaid on image */}
-              <Link to="/p/inicio" className="flex items-center gap-3 text-white group flex-shrink-0 max-w-xs sm:max-w-md truncate">
+              <Link to="/p/inicio" className="flex items-center gap-3 text-white group flex-shrink-0 max-w-xs sm:max-w-md truncate" style={{ color: headerTextColorResolved }}>
                 {settings?.logo_url ? (
                   <img
                     src={settings.logo_url}
@@ -741,7 +757,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           {/* Menu bar at bottom of banner - translucent */}
           <div className="w-full backdrop-blur-md" style={{ backgroundColor: primaryColor }}>
             <div className="max-w-7xl mx-auto px-3 sm:px-6 flex items-center justify-center py-1.5">
-              <nav className="hidden lg:flex items-center gap-1 text-xs font-bold text-white">
+              <nav className="hidden lg:flex items-center gap-1 text-xs font-bold text-white" style={{ color: headerTextColorResolved }}>
                 {visiblePages.map((p) => {
                   const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
                   return (
@@ -792,7 +808,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         <header className={`${headerSticky ? 'fixed' : 'absolute'} left-0 top-0 bottom-0 w-56 z-50 flex flex-col shadow-xl`} style={{ backgroundColor: primaryColor }}>
           {/* Logo top */}
           <div className="p-4 border-b border-white/10 flex-shrink-0">
-            <Link to="/p/inicio" className="flex flex-col items-center gap-2 text-white text-center">
+            <Link to="/p/inicio" className="flex flex-col items-center gap-2 text-white text-center" style={{ color: headerTextColorResolved }}>
               {settings?.logo_url ? (
                 <img src={settings.logo_url} alt="logo" className="w-12 h-12 rounded-xl object-cover border-2 border-white/40 shadow flex-shrink-0" />
               ) : (
@@ -855,7 +871,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         <header className={`${stickyClass} z-50 shadow-md w-full`} style={{ backgroundColor: primaryColor }}>
           <div className="max-w-7xl mx-auto px-3 sm:px-6 flex items-center justify-between gap-2 py-2">
             {/* Left menu */}
-            <nav className="hidden lg:flex items-center gap-1 text-xs font-bold text-white flex-1 justify-end">
+            <nav className="hidden lg:flex items-center gap-1 text-xs font-bold text-white flex-1 justify-end" style={{ color: headerTextColorResolved }}>
               {menuPages.slice(0, Math.ceil(menuPages.length / 2)).map((p) => {
                 const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
                 return (
@@ -867,7 +883,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             </nav>
 
             {/* Center logo */}
-            <Link to="/p/inicio" className="flex flex-col items-center gap-1 text-white flex-shrink-0 px-4">
+            <Link to="/p/inicio" className="flex flex-col items-center gap-1 text-white flex-shrink-0 px-4" style={{ color: headerTextColorResolved }}>
               {settings?.logo_url ? (
                 <img src={settings.logo_url} alt="logo" className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-white/50 shadow flex-shrink-0" />
               ) : (
@@ -879,7 +895,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             </Link>
 
             {/* Right menu */}
-            <nav className="hidden lg:flex items-center gap-1 text-xs font-bold text-white flex-1">
+            <nav className="hidden lg:flex items-center gap-1 text-xs font-bold text-white flex-1" style={{ color: headerTextColorResolved }}>
               {menuPages.slice(Math.ceil(menuPages.length / 2)).map((p) => {
                 const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
                 return (
@@ -971,7 +987,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               </div>
             </Link>
 
-            <nav className="hidden lg:flex items-center gap-1 text-sm font-semibold text-white">
+            <nav className="hidden lg:flex items-center gap-1 text-sm font-semibold text-white" style={{ color: headerTextColorResolved }}>
               {visiblePages.map((p) => {
                 const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
                 return (
@@ -1080,7 +1096,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         <header className={`shadow-md ${stickyClass} z-50 backdrop-blur-md border-b border-white/10 w-full`} style={{ backgroundColor: primaryColor }}>
           <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-3">
             {/* Logo & Brand */}
-            <Link to="/p/inicio" className="flex items-center gap-2 sm:gap-2.5 text-white group flex-shrink-0 max-w-[180px] sm:max-w-xs md:max-w-sm truncate">
+            <Link to="/p/inicio" className="flex items-center gap-2 sm:gap-2.5 text-white group flex-shrink-0 max-w-[180px] sm:max-w-xs md:max-w-sm truncate" style={{ color: headerTextColorResolved }}>
               {settings?.logo_url ? (
                 <img
                   src={settings.logo_url}
@@ -1111,7 +1127,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             )}
 
             {/* Desktop Navigation with Overflow Protection */}
-            <nav className="hidden lg:flex items-center gap-1">
+            <nav className="hidden lg:flex items-center gap-1" style={{ color: headerTextColorResolved }}>
               {visiblePages.map((p) => {
                 const Icon = ICONS[p.icon || 'home'] || Home
                 const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
@@ -1121,9 +1137,13 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                     to={`/p/${p.slug}`}
                     className={`px-2 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1 whitespace-nowrap ${
                       isActive
-                        ? 'bg-white/20 text-white shadow-inner border border-white/20 font-bold'
-                        : 'text-white/85 hover:text-white hover:bg-white/10'
+                        ? 'shadow-inner border font-bold'
+                        : 'hover:bg-white/10'
                     }`}
+                    style={isActive
+                      ? { backgroundColor: headerActiveBgResolved, color: headerActiveColorResolved, borderColor: `${primaryColor}40` }
+                      : { color: headerTextColorResolved }
+                    }
                   >
                     <Icon size={13} />
                     {getShortLabel(p)}
@@ -1778,6 +1798,13 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                     header_blur: (settings as any)?.header_blur ?? 4,
                     header_bg_color: (settings as any)?.header_bg_color || '',
                     header_text_color: (settings as any)?.header_text_color || '',
+                    header_active_color: (settings as any)?.header_active_color || '',
+                    header_active_bg_color: (settings as any)?.header_active_bg_color || '',
+                    header_hover_color: (settings as any)?.header_hover_color || '',
+                    header_top_bg_color: (settings as any)?.header_top_bg_color || '',
+                    header_top_text_color: (settings as any)?.header_top_text_color || '',
+                    header_bottom_bg_color: (settings as any)?.header_bottom_bg_color || '',
+                    header_bottom_text_color: (settings as any)?.header_bottom_text_color || '',
                   })
                   setDraftPages(pages.map((p) => ({
                     slug: p.slug,
@@ -1843,6 +1870,9 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           header_banner_height: 120, header_transparency: 25,
           header_transparency_color: '#000000', header_blur: 4,
           header_bg_color: '', header_text_color: '',
+          header_active_color: '', header_active_bg_color: '', header_hover_color: '',
+          header_top_bg_color: '', header_top_text_color: '',
+          header_bottom_bg_color: '', header_bottom_text_color: '',
         }}
         initialPages={draftPages}
         onDraftChange={(newDraft, newPages) => {
