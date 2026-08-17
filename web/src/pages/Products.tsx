@@ -2,23 +2,25 @@ import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useConfig } from '../hooks/useConfig'
-import { Plus, HelpCircle, Package, Pencil, Check, X, Upload, Trash2 } from 'lucide-react'
+import { Plus, HelpCircle, Package, Pencil, Check, X, Upload, Eye, EyeOff } from 'lucide-react'
 
 interface ProductForm {
   name: string
   description: string
   unit: string
   category: string
+  subcategory: string
   price: number
   product_code: string
   badge: string
   image_url: string
   origin: string
+  is_hidden: boolean
 }
 
 const emptyForm: ProductForm = {
-  name: '', description: '', unit: 'unidad', category: '', price: 0,
-  product_code: '', badge: '', image_url: '', origin: 'internal'
+  name: '', description: '', unit: 'unidad', category: '', subcategory: '', price: 0,
+  product_code: '', badge: '', image_url: '', origin: 'internal', is_hidden: false
 }
 
 export default function Products() {
@@ -43,11 +45,13 @@ export default function Products() {
       description: p.description || '',
       unit: p.unit || 'unidad',
       category: p.category || '',
+      subcategory: p.subcategory || '',
       price: p.price || 0,
       product_code: p.product_code || '',
       badge: p.badge || '',
       image_url: p.image_url || '',
       origin: p.origin || 'internal',
+      is_hidden: p.is_hidden || false,
     })
     setShowForm(false)
   }
@@ -136,23 +140,42 @@ export default function Products() {
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="label">Unidad de medida</label>
-          <input className="input" placeholder="Ej: kg, litro, unidad, hora" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
-        </div>
-        <div>
           <label className="label">Categoría</label>
           <input className="input" placeholder="Ej: Cosecha Fresca, Gastronomía" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+        </div>
+        <div>
+          <label className="label">Subcategoría (opcional)</label>
+          <input className="input" placeholder="Ej: Hojas verdes, Tubérculos" value={form.subcategory} onChange={(e) => setForm({ ...form, subcategory: e.target.value })} />
+          <p className="text-xs text-gray-400 mt-1">Organiza los productos dentro de una categoría.</p>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div>
+          <label className="label">Unidad de medida</label>
+          <input className="input" placeholder="Ej: kg, litro, unidad, hora" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
+        </div>
+        <div>
           <label className="label">Precio ({currency})</label>
           <input type="number" className="input" placeholder="Ej: 50" value={form.price} onChange={(e) => setForm({ ...form, price: parseInt(e.target.value) || 0 })} />
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="label">Código de producto (opcional)</label>
           <input className="input" placeholder="Ej: PAN-001" value={form.product_code} onChange={(e) => setForm({ ...form, product_code: e.target.value })} />
+        </div>
+        <div>
+          <label className="label">Visibilidad en página pública</label>
+          <button
+            type="button"
+            onClick={() => setForm({ ...form, is_hidden: !form.is_hidden })}
+            className={`input flex items-center gap-2 cursor-pointer ${form.is_hidden ? 'text-amber-700' : 'text-emerald-700'}`}
+          >
+            {form.is_hidden ? <><EyeOff size={16} /> Oculto (no se muestra)</> : <><Eye size={16} /> Visible (se muestra)</>}
+          </button>
+          <p className="text-xs text-gray-400 mt-1">Ocultar no elimina el producto, solo lo quita de la página pública.</p>
         </div>
       </div>
 
@@ -230,15 +253,31 @@ export default function Products() {
                       <h3 className="font-semibold">{p.name}</h3>
                       <p className="text-sm text-gray-600 mt-1">{p.description}</p>
                     </div>
-                    {canManage && (
-                      <button onClick={() => startEdit(p)} className="text-gray-400 hover:text-emerald-600 transition flex-shrink-0">
-                        <Pencil size={16} />
-                      </button>
-                    )}
+                    <div className="flex gap-1 flex-shrink-0">
+                      {canManage && (
+                        <>
+                          <button
+                            onClick={async () => {
+                              await api.put(`/products/${p.id}`, { ...p, is_hidden: !p.is_hidden })
+                              load()
+                            }}
+                            className={`transition ${p.is_hidden ? 'text-amber-500 hover:text-amber-700' : 'text-gray-400 hover:text-emerald-600'}`}
+                            title={p.is_hidden ? 'Mostrar en página pública' : 'Ocultar de página pública'}
+                          >
+                            {p.is_hidden ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                          <button onClick={() => startEdit(p)} className="text-gray-400 hover:text-emerald-600 transition">
+                            <Pencil size={16} />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                   <div className="mt-3 space-y-1">
                     <p className="text-lg font-bold text-trueque-700">{p.price} {currency}</p>
-                    <p className="text-xs text-gray-400">Unidad: {p.unit} | Categoría: {p.category || 'N/A'}</p>
+                    <p className="text-xs text-gray-400">
+                      {p.category || 'N/A'}{p.subcategory ? ` › ${p.subcategory}` : ''} | Unidad: {p.unit}
+                    </p>
                     {p.product_code && <p className="text-xs text-gray-400">Código: {p.product_code}</p>}
                     <div className="flex items-center gap-2 pt-1">
                       {p.is_approved ? (
@@ -248,6 +287,9 @@ export default function Products() {
                       )}
                       {p.is_system && (
                         <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">Sistema</span>
+                      )}
+                      {p.is_hidden && (
+                        <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">Oculto</span>
                       )}
                     </div>
                   </div>

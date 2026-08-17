@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { Image as ImageIcon, X, Check, Plus, Trash2, Upload, Link2 } from 'lucide-react'
 import { api } from '../../api'
 
@@ -62,6 +63,47 @@ export function InlineEditProvider({
     <InlineEditContext.Provider value={{ editMode, updateField, updateArrayItem, updateNested, addArrayItem, removeArrayItem }}>
       {children}
     </InlineEditContext.Provider>
+  )
+}
+
+// -------------------------------------------------------------
+// EDITABLE LINK - blocks navigation in edit mode
+// -------------------------------------------------------------
+export function EdLink({
+  to,
+  className = '',
+  children,
+  onClick,
+  ...rest
+}: {
+  to: string
+  className?: string
+  children: React.ReactNode
+  onClick?: (e: any) => void
+  [key: string]: any
+}) {
+  const { editMode } = useInlineEdit()
+
+  if (editMode) {
+    // In edit mode: render as a span that looks like a link but doesn't navigate
+    return (
+      <span
+        className={`${className} cursor-default pointer-events-none`}
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+        }}
+        {...rest}
+      >
+        {children}
+      </span>
+    )
+  }
+
+  return (
+    <Link to={to} className={className} onClick={onClick} {...rest}>
+      {children}
+    </Link>
   )
 }
 
@@ -405,8 +447,19 @@ function ImageEditorModal({
   }
 
   return (
-    <div className={`bg-white/95 flex flex-col items-center justify-center p-3 gap-2 rounded-lg ${compact ? '' : 'z-30 absolute inset-0'}`}>
-      {/* Upload area */}
+    <div className={`bg-white/95 flex flex-col items-center justify-center p-3 gap-2 rounded-lg overflow-y-auto max-h-[90%] ${compact ? '' : 'z-30 absolute inset-0'}`}>
+      {/* Close button - always visible */}
+      <div className="w-full flex justify-end">
+        <button
+          onClick={onCancel}
+          className="w-6 h-6 bg-gray-200 hover:bg-gray-300 rounded-full flex items-center justify-center text-gray-600 flex-shrink-0"
+          title="Cerrar sin cambiar"
+        >
+          <X size={14} />
+        </button>
+      </div>
+
+      {/* Upload area - centered */}
       <div
         onClick={() => fileRef.current?.click()}
         className="w-full max-w-xs border-2 border-dashed border-emerald-400 rounded-xl p-3 text-center cursor-pointer hover:bg-emerald-50 transition"
@@ -468,12 +521,6 @@ function ImageEditorModal({
           className="px-3 py-1 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 flex items-center gap-1"
         >
           <Check size={12} /> Aplicar
-        </button>
-        <button
-          onClick={onCancel}
-          className="px-3 py-1 bg-gray-200 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-300 flex items-center gap-1"
-        >
-          <X size={12} /> Cancelar
         </button>
       </div>
     </div>

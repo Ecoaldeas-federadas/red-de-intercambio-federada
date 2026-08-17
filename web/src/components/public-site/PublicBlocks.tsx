@@ -6,6 +6,7 @@ import {
   EdImage,
   EdArrayImage,
   EdButton,
+  EdLink,
   EdAddItem,
   EdRemoveItem,
   InlineEditProvider,
@@ -114,12 +115,12 @@ export function HeroBlock({ data }: { data: HeroBlockData }) {
           <div className="p-6 sm:p-8 bg-gray-50 text-xs sm:text-sm text-gray-700 leading-relaxed border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <EdText field="description" value={data.description} as="p" className="max-w-3xl" />
             {data.primary_cta && (
-              <Link
+              <EdLink
                 to={data.primary_cta.link}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-white bg-emerald-800 hover:bg-emerald-700 active:scale-95 transition text-xs flex-shrink-0 shadow-sm"
               >
                 <EdButton textField="primary_cta.text" textValue={data.primary_cta.text} linkField="primary_cta.link" linkValue={data.primary_cta.link} defaultLink="/p/productos" icon={<ArrowRight size={14} />} />
-              </Link>
+              </EdLink>
             )}
           </div>
         )}
@@ -147,20 +148,20 @@ export function HeroBlock({ data }: { data: HeroBlockData }) {
             )}
             <div className="flex flex-wrap gap-2.5 sm:gap-3 pt-2">
               {data.primary_cta && (
-                <Link
+                <EdLink
                   to={data.primary_cta.link}
                   className="inline-flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl font-semibold text-white bg-amber-600 hover:bg-amber-500 active:scale-95 transition-all shadow-lg text-xs sm:text-sm"
                 >
                   <EdButton textField="primary_cta.text" textValue={data.primary_cta.text} linkField="primary_cta.link" linkValue={data.primary_cta.link} defaultLink="/p/productos" icon={<ArrowRight size={15} />} />
-                </Link>
+                </EdLink>
               )}
               {data.secondary_cta && (
-                <Link
+                <EdLink
                   to={data.secondary_cta.link}
                   className="inline-flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl font-semibold text-white bg-white/15 hover:bg-white/25 active:scale-95 transition-all backdrop-blur-sm border border-white/20 text-xs sm:text-sm"
                 >
                   <EdButton textField="secondary_cta.text" textValue={data.secondary_cta.text} linkField="secondary_cta.link" linkValue={data.secondary_cta.link} defaultLink="/p/unirse" />
-                </Link>
+                </EdLink>
               )}
             </div>
           </div>
@@ -205,20 +206,20 @@ export function HeroBlock({ data }: { data: HeroBlockData }) {
         )}
         <div className="flex flex-wrap justify-center gap-2.5 sm:gap-3 pt-2">
           {data.primary_cta && (
-            <Link
+            <EdLink
               to={data.primary_cta.link}
               className="inline-flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl font-semibold text-white bg-amber-600 hover:bg-amber-500 active:scale-95 transition shadow-lg text-xs sm:text-sm"
             >
               <EdButton textField="primary_cta.text" textValue={data.primary_cta.text} linkField="primary_cta.link" linkValue={data.primary_cta.link} defaultLink="/p/productos" icon={<ArrowRight size={15} />} />
-            </Link>
+            </EdLink>
           )}
           {data.secondary_cta && (
-            <Link
+            <EdLink
               to={data.secondary_cta.link}
               className="inline-flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl font-semibold text-white bg-white/20 hover:bg-white/30 active:scale-95 transition backdrop-blur-sm border border-white/20 text-xs sm:text-sm"
             >
               <EdButton textField="secondary_cta.text" textValue={data.secondary_cta.text} linkField="secondary_cta.link" linkValue={data.secondary_cta.link} defaultLink="/p/unirse" />
-            </Link>
+            </EdLink>
           )}
         </div>
       </div>
@@ -598,12 +599,12 @@ export function EventScheduleBlock({ data }: { data: EventScheduleBlockData }) {
 
           {data.cta_text && data.cta_link && (
             <div className="pt-2">
-              <Link
+              <EdLink
                 to={data.cta_link}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-white bg-emerald-800 hover:bg-emerald-700 active:scale-95 transition shadow text-xs sm:text-sm"
               >
                 <EdButton textField="cta_text" textValue={data.cta_text} linkField="cta_link" linkValue={data.cta_link} defaultLink="/p/unirse" icon={<ArrowRight size={15} />} />
-              </Link>
+              </EdLink>
             </div>
           )}
         </div>
@@ -654,6 +655,7 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
     ? backendProducts.map((p: any) => ({
         name: p.name,
         category: p.category || 'General',
+        subcategory: p.subcategory || '',
         description: p.description || '',
         badge: p.badge || (p.is_approved ? 'Aprobado' : ''),
         image_url: p.image_url || '',
@@ -1241,7 +1243,7 @@ export function FaqBlock({ data }: { data: FaqBlockData }) {
 export function CtaBannerBlock({ data }: { data: CtaBannerBlockData }) {
   const themeStyles =
     data.theme === 'forest'
-      ? 'bg-gradient-to-br from-trueque-950 via-trueque-900 to-emerald-950 text-white'
+      ? 'bg-gradient-to-br from-emerald-950 via-emerald-900 to-green-950 text-white'
       : data.theme === 'secondary'
       ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
       : 'bg-gradient-to-r from-emerald-900 to-teal-900 text-white'
@@ -1259,19 +1261,19 @@ export function CtaBannerBlock({ data }: { data: CtaBannerBlockData }) {
           <EdText field="subtitle" value={data.subtitle} as="p" className="text-xs sm:text-base text-emerald-100/90 leading-relaxed" multiline />
         )}
         <div className="flex flex-wrap justify-center gap-2.5 sm:gap-3 pt-3">
-          <Link
+          <EdLink
             to={data.button_link}
             className="inline-flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl font-bold text-gray-900 bg-white hover:bg-gray-100 active:scale-95 transition shadow text-xs sm:text-sm"
           >
             <EdButton textField="button_text" textValue={data.button_text} linkField="button_link" linkValue={data.button_link} defaultLink="/p/unirse" icon={<ArrowRight size={15} />} />
-          </Link>
+          </EdLink>
           {data.secondary_text && data.secondary_link && (
-            <Link
+            <EdLink
               to={data.secondary_link}
               className="inline-flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl font-bold text-white bg-white/20 hover:bg-white/30 active:scale-95 transition backdrop-blur border border-white/20 text-xs sm:text-sm"
             >
               <EdButton textField="secondary_text" textValue={data.secondary_text} linkField="secondary_link" linkValue={data.secondary_link} defaultLink="/p/unirse" />
-            </Link>
+            </EdLink>
           )}
         </div>
       </div>

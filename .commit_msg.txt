@@ -1,21 +1,40 @@
-feat(products): edicion completa de productos con foto, badge y subida de imagenes
+fix(editor): botones bloqueados en edicion + subcategorias + logo editable + CTA fix
 
-Backend:
-- CreateSystemProductRequest incluye Badge, ImageURL, ProductCode
-- createProduct y updateProduct guardan badge, image_url, product_code
-- listProducts y getProduct devuelven badge, image_url, product_code, is_system
+Botones en modo edicion:
+- EdLink: renderiza como span con pointer-events-none en modo edicion
+- Los botones CTA ya no navegan cuando estas editando
+- Reemplazados todos los Link por EdLink en Hero, CtaBanner, EventSchedule
 
-Frontend (Products.tsx reescrito):
-- Edicion inline de productos existentes (icono lapiz en cada tarjeta)
-- Campos nuevos: etiqueta destacada (badge), foto del producto
-- Subida de imagen desde PC (usa endpoint /api/uploads/image)
-- Vista de tarjeta con foto, badge, estado (Aprobado/Pendiente/Sistema)
-- Productos de sistema marcados con etiqueta azul "Sistema"
-- Ayuda actualizada explicando que los productos de muestra son editables
+CTA Banner transparente:
+- from-trueque-950 no existia en Tailwind (no hay 950 en la paleta)
+- Cambiado a from-emerald-950 via-emerald-900 to-green-950
+- Ahora el fondo se ve correctamente oscuro con texto blanco
 
-Los 8 productos de muestra de la Feria Conuquera ahora son totalmente
-editables: puedes cambiar nombre, foto, descripcion, badge, categoria,
-precio, etc. desde /app/products.
+Subcategorias en productos:
+- Migracion 019: subcategory e is_hidden en tabla products
+- Backend: createProduct, updateProduct, listProducts, getProduct
+  incluyen subcategory e is_hidden
+- listPublicProducts filtra is_hidden = false
+- Frontend Products.tsx: campo subcategoria en formulario
+- ProductsShowcaseBlock pasa subcategory del backend
+
+No eliminar productos, solo ocultar:
+- Boton de eliminar quitado, reemplazado por Eye/EyeOff
+- Toggle rapido de ocultar/mostrar en cada tarjeta
+- Etiqueta "Oculto" visible en tarjetas ocultas
+- Productos ocultos no aparecen en la pagina publica
+
+Logo y cabecera editable:
+- Boton flotante "Cabecera & Logo" (esquina inferior izquierda)
+- Modal con: logo (subir desde PC o URL), titulo, subtitulo,
+  estilo de menu (4 opciones), footer_about, footer_schedule,
+  direccion, instagram, facebook
+- Guarda via PUT /site/settings
+
+Modal de imagen mejorado:
+- Boton X de cerrar siempre visible arriba a la derecha
+- Scroll interno (overflow-y-auto, max-h-90%)
+- Centrado vertical y horizontal
 
 Generated with [Devin](https://devin.ai)
 

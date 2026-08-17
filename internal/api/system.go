@@ -533,8 +533,8 @@ func (h *SystemHandler) updateTariff(w http.ResponseWriter, r *http.Request) {
 
 func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.Pool.Query(r.Context(), `
-		SELECT id, name, description, category, unit, price_per_unit, is_approved, origin, badge, image_url, product_code, is_system
-		FROM products ORDER BY category, name LIMIT 200`)
+		SELECT id, name, description, category, subcategory, unit, price_per_unit, is_approved, origin, badge, image_url, product_code, is_system, is_hidden
+		FROM products ORDER BY category, subcategory, name LIMIT 200`)
 	if err != nil {
 		writeJSON(w, 200, []interface{}{})
 		return
@@ -544,11 +544,11 @@ func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 	var products []map[string]interface{}
 	for rows.Next() {
 		var id uuid.UUID
-		var name, description, category, unit, origin string
+		var name, description, category, subcategory, unit, origin string
 		var price float64
-		var isApproved, isSystem bool
+		var isApproved, isSystem, isHidden bool
 		var badge, imageURL, productCode *string
-		if err := rows.Scan(&id, &name, &description, &category, &unit, &price, &isApproved, &origin, &badge, &imageURL, &productCode, &isSystem); err != nil {
+		if err := rows.Scan(&id, &name, &description, &category, &subcategory, &unit, &price, &isApproved, &origin, &badge, &imageURL, &productCode, &isSystem, &isHidden); err != nil {
 			continue
 		}
 		bdg := ""
@@ -568,6 +568,7 @@ func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 			"name":         name,
 			"description":  description,
 			"category":     category,
+			"subcategory":  subcategory,
 			"unit":         unit,
 			"price":        price,
 			"is_approved":  isApproved,
@@ -576,6 +577,7 @@ func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 			"image_url":    imgURL,
 			"product_code": pcode,
 			"is_system":    isSystem,
+			"is_hidden":    isHidden,
 		})
 	}
 	if products == nil {
@@ -591,13 +593,13 @@ func (h *SystemHandler) getProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var name, description, category, unit, origin string
+	var name, description, category, subcategory, unit, origin string
 	var price float64
-	var isApproved bool
+	var isApproved, isHidden bool
 	var badge, imageURL, productCode *string
 	err = h.Pool.QueryRow(r.Context(), `
-		SELECT name, description, category, unit, price_per_unit, is_approved, origin, badge, image_url, product_code
-		FROM products WHERE id = $1`, id).Scan(&name, &description, &category, &unit, &price, &isApproved, &origin, &badge, &imageURL, &productCode)
+		SELECT name, description, category, subcategory, unit, price_per_unit, is_approved, origin, badge, image_url, product_code, is_hidden
+		FROM products WHERE id = $1`, id).Scan(&name, &description, &category, &subcategory, &unit, &price, &isApproved, &origin, &badge, &imageURL, &productCode, &isHidden)
 	if err != nil {
 		writeError(w, 404, "product not found")
 		return
@@ -621,6 +623,7 @@ func (h *SystemHandler) getProduct(w http.ResponseWriter, r *http.Request) {
 		"name":         name,
 		"description":  description,
 		"category":     category,
+		"subcategory":  subcategory,
 		"unit":         unit,
 		"price":        price,
 		"is_approved":  isApproved,
@@ -628,6 +631,7 @@ func (h *SystemHandler) getProduct(w http.ResponseWriter, r *http.Request) {
 		"badge":        bdg,
 		"image_url":    imgURL,
 		"product_code": pcode,
+		"is_hidden":    isHidden,
 	})
 }
 
@@ -635,12 +639,14 @@ type CreateSystemProductRequest struct {
 	Name        string  `json:"name"`
 	Description string  `json:"description"`
 	Category    string  `json:"category"`
+	Subcategory string  `json:"subcategory"`
 	Unit        string  `json:"unit"`
 	Price       float64 `json:"price"`
 	Origin      string  `json:"origin"`
 	Badge       string  `json:"badge"`
 	ImageURL    string  `json:"image_url"`
 	ProductCode string  `json:"product_code"`
+	IsHidden    *bool   `json:"is_hidden"`
 }
 
 func (h *SystemHandler) createProduct(w http.ResponseWriter, r *http.Request) {
@@ -662,9 +668,9 @@ func (h *SystemHandler) createProduct(w http.ResponseWriter, r *http.Request) {
 
 	id := uuid.New()
 	_, err := h.Pool.Exec(r.Context(), `
-		INSERT INTO products (id, name, description, category, unit, price_per_unit, origin, badge, image_url, product_code, is_approved)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false)`,
-		id, req.Name, req.Description, req.Category, req.Unit, req.Price, req.Origin, req.Badge, req.ImageURL, req.ProductCode)
+		INSERT INTO products (id, name, description, category, subcategory, unit, price_per_unit, origin, badge, image_url, product_code, is_approved)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, false)`,
+		id, req.Name, req.Description, req.Category, req.Subcategory, req.Unit, req.Price, req.Origin, req.Badge, req.ImageURL, req.ProductCode)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -692,10 +698,15 @@ func (h *SystemHandler) updateProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	isHidden := false
+	if req.IsHidden != nil {
+		isHidden = *req.IsHidden
+	}
+
 	_, err = h.Pool.Exec(r.Context(), `
-		UPDATE products SET name = $1, description = $2, category = $3, unit = $4, price_per_unit = $5, origin = $6, badge = $7, image_url = $8, product_code = $9, updated_at = NOW()
-		WHERE id = $10`,
-		req.Name, req.Description, req.Category, req.Unit, req.Price, req.Origin, req.Badge, req.ImageURL, req.ProductCode, id)
+		UPDATE products SET name = $1, description = $2, category = $3, subcategory = $4, unit = $5, price_per_unit = $6, origin = $7, badge = $8, image_url = $9, product_code = $10, is_hidden = $11, updated_at = NOW()
+		WHERE id = $12`,
+		req.Name, req.Description, req.Category, req.Subcategory, req.Unit, req.Price, req.Origin, req.Badge, req.ImageURL, req.ProductCode, isHidden, id)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -2280,8 +2291,8 @@ func randomString(n int) string {
 
 func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.Pool.Query(r.Context(), `
-		SELECT id, name, description, category, unit, price_per_unit, product_code, is_approved, origin, badge, image_url
-		FROM products WHERE is_approved = true ORDER BY category, name LIMIT 200`)
+		SELECT id, name, description, category, subcategory, unit, price_per_unit, product_code, is_approved, origin, badge, image_url
+		FROM products WHERE is_approved = true AND is_hidden = false ORDER BY category, subcategory, name LIMIT 200`)
 	if err != nil {
 		writeJSON(w, 200, []interface{}{})
 		return
@@ -2290,11 +2301,11 @@ func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Reques
 
 	products := []map[string]interface{}{}
 	for rows.Next() {
-		var id, name, description, category, unit, origin string
+		var id, name, description, category, subcategory, unit, origin string
 		var price int64
 		var productCode, badge, imageURL *string
 		var isApproved bool
-		_ = rows.Scan(&id, &name, &description, &category, &unit, &price, &productCode, &isApproved, &origin, &badge, &imageURL)
+		_ = rows.Scan(&id, &name, &description, &category, &subcategory, &unit, &price, &productCode, &isApproved, &origin, &badge, &imageURL)
 
 		code := ""
 		if productCode != nil {
@@ -2314,6 +2325,7 @@ func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Reques
 			"name":          name,
 			"description":   description,
 			"category":      category,
+			"subcategory":   subcategory,
 			"unit":          unit,
 			"price_trueque": price,
 			"product_code":  code,
