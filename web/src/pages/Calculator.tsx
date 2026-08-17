@@ -1,220 +1,425 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { api } from '../api'
-import { Calculator as CalcIcon, HelpCircle, X } from 'lucide-react'
+import { Calculator as CalcIcon, HelpCircle, Plus, Trash2, X } from 'lucide-react'
 
-interface CalcForm {
-  e_direct: number
-  e_human: number
-  e_inputs: number
-  e_amortization: number
-  effort_factor: number
-  work_hours: number
-  work_days: number
-  human_energy_rate: number
-  tariff: number
-  product_id: string
-}
-
-const defaultForm: CalcForm = {
-  e_direct: 0,
-  e_human: 0,
-  e_inputs: 0,
-  e_amortization: 0,
-  effort_factor: 1.0,
-  work_hours: 0,
-  work_days: 0,
-  human_energy_rate: 0.1,
-  tariff: 1,
-  product_id: '',
-}
-
-const fieldHelp: Record<string, string> = {
-  e_direct: 'Energia consumida directamente en el proceso (electricidad, gas, combustible)',
-  e_human: 'Energia del trabajo humano. Calcula: horas_trabajo x tarifa_energetica_humana',
-  e_inputs: 'Energia incorporada en los materiales e insumos utilizados',
-  e_amortization: 'Energia amortizada de herramientas y equipos (costo_energetico / vida_util)',
-  effort_factor: 'Multiplicador segun dificultad/esfuerzo del trabajo (1.0 = normal, 1.5 = alto esfuerzo)',
-  work_hours: 'Horas de trabajo humano invertidas',
-  work_days: 'Dias de trabajo invertidos',
-  human_energy_rate: 'kWh por hora de trabajo humano (ej: 0.1 kWh/h)',
-  tariff: 'Tarifa de conversion kWh a Trueques (por defecto 1:1)',
-}
-
-const fieldLabels: Record<string, string> = {
-  e_direct: 'E_directa (Energia directa)',
-  e_human: 'E_humana (Energia humana)',
-  e_inputs: 'E_insumos (Energia insumos)',
-  e_amortization: 'E_amortizacion (Amortizacion)',
-  effort_factor: 'effort_factor (Factor de esfuerzo)',
-  work_hours: 'work_hours (Horas de trabajo)',
-  work_days: 'work_days (Dias de trabajo)',
-  human_energy_rate: 'human_energy_rate (Tarifa energia humana)',
-  tariff: 'tariff (Tarifa)',
-}
-
-const energyFields: { key: keyof CalcForm; unit: string }[] = [
-  { key: 'e_direct', unit: 'kWh' },
-  { key: 'e_human', unit: 'kWh' },
-  { key: 'e_inputs', unit: 'kWh' },
-  { key: 'e_amortization', unit: 'kWh' },
+// Tipos de trabajo predefinidos con su costo energetico (kWh por hora)
+// Basado en estudios de costo energetico humano
+const WORK_TYPES: { category: string; types: { name: string; kWhPerHour: number; description: string }[] }[] = [
+  {
+    category: 'Agricultura',
+    types: [
+      { name: 'Siembra manual', kWhPerHour: 0.15, description: 'Sembrar semillas a mano en el campo' },
+      { name: 'Cosecha manual', kWhPerHour: 0.18, description: 'Recolectar frutos, verduras o granos a mano' },
+      { name: 'Cavado de tierra', kWhPerHour: 0.22, description: 'Cavar o arar la tierra con pala/azadon' },
+      { name: 'Riego manual', kWhPerHour: 0.12, description: 'Regar plantas con regadera o manguera' },
+      { name: 'Cuidado de animales', kWhPerHour: 0.10, description: 'Alimentar, limpiar y cuidar animales' },
+      { name: 'Ordeño manual', kWhPerHour: 0.14, description: 'Ordeñar vacas o cabras a mano' },
+    ],
+  },
+  {
+    category: 'Produccion de alimentos',
+    types: [
+      { name: 'Cocina a leña', kWhPerHour: 0.08, description: 'Cocinar usando fogon o leña' },
+      { name: 'Cocina a gas', kWhPerHour: 0.06, description: 'Cocinar usando estufa de gas' },
+      { name: 'Panaderia manual', kWhPerHour: 0.12, description: 'Amasar, formar y hornear pan a mano' },
+      { name: 'Conservas y envasado', kWhPerHour: 0.10, description: 'Preparar conservas, mermeladas, encurtidos' },
+      { name: 'Lacteos (queso/yogurt)', kWhPerHour: 0.11, description: 'Elaborar queso, yogurt o mantequilla' },
+      { name: 'Molienda manual', kWhPerHour: 0.16, description: 'Moler granos, cafe o especias a mano' },
+    ],
+  },
+  {
+    category: 'Artesania y manufactura',
+    types: [
+      { name: 'Costura a mano', kWhPerHour: 0.07, description: 'Coser, bordar o tejer a mano' },
+      { name: 'Costura a maquina', kWhPerHour: 0.05, description: 'Coser con maquina de coser electrica' },
+      { name: 'Carpinteria manual', kWhPerHour: 0.17, description: 'Trabajar madera con herramientas manuales' },
+      { name: 'Carpinteria electrica', kWhPerHour: 0.09, description: 'Trabajar madera con herramientas electricas' },
+      { name: 'Ceramica/alfareria', kWhPerHour: 0.13, description: 'Modelar y cocer ceramica' },
+      { name: 'Herreria', kWhPerHour: 0.20, description: 'Trabajar el metal con fragua' },
+      { name: 'Joyeria manual', kWhPerHour: 0.08, description: 'Elaborar joyas a mano' },
+    ],
+  },
+  {
+    category: 'Construccion',
+    types: [
+      { name: 'Albañileria', kWhPerHour: 0.19, description: 'Levantar muros, mezclar cemento' },
+      { name: 'Pintura', kWhPerHour: 0.09, description: 'Pintar paredes o superficies' },
+      { name: 'Plomeria', kWhPerHour: 0.11, description: 'Instalar o reparar tuberias' },
+      { name: 'Electricidad', kWhPerHour: 0.10, description: 'Instalar o reparar cableado electrico' },
+    ],
+  },
+  {
+    category: 'Servicios',
+    types: [
+      { name: 'Limpieza', kWhPerHour: 0.06, description: 'Limpieza de espacios o viviendas' },
+      { name: 'Cuidado de personas', kWhPerHour: 0.07, description: 'Cuidar niños, ancianos o enfermos' },
+      { name: 'Enseñanza', kWhPerHour: 0.05, description: 'Dar clases o talleres' },
+      { name: 'Transporte manual', kWhPerHour: 0.14, description: 'Cargar y transportar objetos pesados' },
+      { name: 'Reparaciones generales', kWhPerHour: 0.10, description: 'Reparar electrodomesticos, muebles, etc' },
+    ],
+  },
+  {
+    category: 'Trabajo intelectual',
+    types: [
+      { name: 'Oficina/administracion', kWhPerHour: 0.03, description: 'Trabajo de oficina, contabilidad, gestion' },
+      { name: 'Computacion/programacion', kWhPerHour: 0.04, description: 'Trabajo con computadora' },
+      { name: 'Diseno/escritura', kWhPerHour: 0.04, description: 'Disenar, escribir, crear contenido' },
+    ],
+  },
 ]
 
-const extraFields: { key: keyof CalcForm; unit: string }[] = [
-  { key: 'effort_factor', unit: 'x' },
-  { key: 'work_hours', unit: 'h' },
-  { key: 'work_days', unit: 'd' },
-  { key: 'human_energy_rate', unit: 'kWh/h' },
-  { key: 'tariff', unit: 'TQ/kWh' },
+// Insumos comunes con su costo energetico aproximado (kWh por unidad)
+const COMMON_INPUTS: { name: string; unit: string; kWhPerUnit: number }[] = [
+  { name: 'Agua potable', unit: 'litros', kWhPerUnit: 0.0003 },
+  { name: 'Electricidad', unit: 'kWh', kWhPerUnit: 1.0 },
+  { name: 'Gas natural', unit: 'm3', kWhPerUnit: 10.5 },
+  { name: 'Gas de cilindro', unit: 'kg', kWhPerUnit: 13.9 },
+  { name: 'Leña', unit: 'kg', kWhPerUnit: 4.0 },
+  { name: 'Carbón', unit: 'kg', kWhPerUnit: 8.0 },
+  { name: 'Sal', unit: 'kg', kWhPerUnit: 0.7 },
+  { name: 'Azúcar', unit: 'kg', kWhPerUnit: 1.5 },
+  { name: 'Harina de trigo', unit: 'kg', kWhPerUnit: 1.8 },
+  { name: 'Harina de maiz', unit: 'kg', kWhPerUnit: 1.6 },
+  { name: 'Arroz', unit: 'kg', kWhPerUnit: 2.0 },
+  { name: 'Frijoles', unit: 'kg', kWhPerUnit: 2.2 },
+  { name: 'Aceite vegetal', unit: 'litros', kWhPerUnit: 5.0 },
+  { name: 'Leche', unit: 'litros', kWhPerUnit: 0.8 },
+  { name: 'Huevos', unit: 'docena', kWhPerUnit: 1.2 },
+  { name: 'Madera', unit: 'kg', kWhPerUnit: 2.5 },
+  { name: 'Cemento', unit: 'kg', kWhPerUnit: 1.4 },
+  { name: 'Alambre/hierro', unit: 'kg', kWhPerUnit: 8.5 },
+  { name: 'Tela de algodon', unit: 'metros', kWhPerUnit: 3.0 },
+  { name: 'Hilo', unit: 'rollos', kWhPerUnit: 0.5 },
 ]
+
+interface InputItem {
+  id: string
+  name: string
+  unit: string
+  quantity: number
+  kWhPerUnit: number
+}
+
+interface WorkItem {
+  id: string
+  typeName: string
+  kWhPerHour: number
+  hours: number
+}
 
 export default function Calculator() {
-  const [form, setForm] = useState<CalcForm>(defaultForm)
-  const [result, setResult] = useState<any>(null)
-  const [error, setError] = useState('')
+  const [mode, setMode] = useState<'simple' | 'advanced'>('simple')
   const [showHelp, setShowHelp] = useState(false)
+  const [products, setProducts] = useState<any[]>([])
+  const [error, setError] = useState('')
 
-  const calculate = async () => {
+  // Simple mode state
+  const [workItems, setWorkItems] = useState<WorkItem[]>([])
+  const [inputs, setInputs] = useState<InputItem[]>([])
+  const [selectedWorkCategory, setSelectedWorkCategory] = useState('')
+  const [selectedWorkType, setSelectedWorkType] = useState('')
+  const [workHours, setWorkHours] = useState(1)
+  const [selectedInput, setSelectedInput] = useState('')
+  const [inputQty, setInputQty] = useState(1)
+  const [result, setResult] = useState<{ workKWh: number; inputsKWh: number; totalKWh: number; totalTQ: number } | null>(null)
+
+  // Advanced mode state
+  const [advForm, setAdvForm] = useState({ e_direct: 0, e_human: 0, e_inputs: 0, e_amortization: 0, effort_factor: 1.0, tariff: 1.0 })
+
+  useEffect(() => {
+    api.get('/pricing/products').then((d: any) => setProducts(Array.isArray(d) ? d : d?.products ?? [])).catch(() => {})
+  }, [])
+
+  const addWork = () => {
+    if (!selectedWorkType) return
+    const cat = WORK_TYPES.find((c) => c.category === selectedWorkCategory)
+    const type = cat?.types.find((t) => t.name === selectedWorkType)
+    if (!type) return
+    setWorkItems([...workItems, {
+      id: crypto.randomUUID(),
+      typeName: type.name,
+      kWhPerHour: type.kWhPerHour,
+      hours: workHours,
+    }])
+    setSelectedWorkType('')
+    setWorkHours(1)
+  }
+
+  const removeWork = (id: string) => setWorkItems(workItems.filter((w) => w.id !== id))
+
+  const addInput = () => {
+    if (!selectedInput) return
+    const item = COMMON_INPUTS.find((i) => i.name === selectedInput)
+    if (!item) return
+    setInputs([...inputs, {
+      id: crypto.randomUUID(),
+      name: item.name,
+      unit: item.unit,
+      quantity: inputQty,
+      kWhPerUnit: item.kWhPerUnit,
+    }])
+    setSelectedInput('')
+    setInputQty(1)
+  }
+
+  const addProductAsInput = (product: any) => {
+    setInputs([...inputs, {
+      id: crypto.randomUUID(),
+      name: product.name,
+      unit: product.unit || 'unidad',
+      quantity: 1,
+      kWhPerUnit: product.price_trueque || 0,
+    }])
+  }
+
+  const removeInput = (id: string) => setInputs(inputs.filter((i) => i.id !== id))
+
+  const calculate = () => {
+    setError('')
+    const workKWh = workItems.reduce((sum, w) => sum + w.kWhPerHour * w.hours, 0)
+    const inputsKWh = inputs.reduce((sum, i) => sum + i.kWhPerUnit * i.quantity, 0)
+    const totalKWh = workKWh + inputsKWh
+    const totalTQ = totalKWh // 1 TQ = 1 kWh
+    setResult({ workKWh, inputsKWh, totalKWh, totalTQ })
+  }
+
+  const calculateAdvanced = async () => {
     setError('')
     try {
-      const res = await api.post('/pricing/calculate', form)
-      setResult(res)
+      const res = await api.post('/pricing/calculate', advForm)
+      setResult({
+        workKWh: advForm.e_human,
+        inputsKWh: advForm.e_inputs + advForm.e_direct,
+        totalKWh: res.total_energy ?? (advForm.e_direct + advForm.e_human + advForm.e_inputs + advForm.e_amortization) * advForm.effort_factor * advForm.tariff,
+        totalTQ: res.price_trueque ?? (advForm.e_direct + advForm.e_human + advForm.e_inputs + advForm.e_amortization) * advForm.effort_factor * advForm.tariff,
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al calcular')
     }
   }
 
-  const handleChange = (key: keyof CalcForm, value: string) => {
-    setForm({ ...form, [key]: parseFloat(value) || 0 })
-  }
-
-  // Calculo local para desglose (independiente del backend)
-  const baseEnergy = form.e_direct + form.e_human + form.e_inputs + form.e_amortization
-  const totalEnergy = baseEnergy * form.effort_factor
-  const totalTrueque = totalEnergy * form.tariff
-
-  const renderField = (key: keyof CalcForm, unit: string) => (
-    <div key={key}>
-      <label className="label">{fieldLabels[key]}</label>
-      <div className="flex items-center gap-2">
-        <input
-          type="number"
-          step="any"
-          className="input"
-          value={form[key]}
-          onChange={(e) => handleChange(key, e.target.value)}
-        />
-        <span className="text-xs text-gray-500 whitespace-nowrap">{unit}</span>
-      </div>
-      <p className="text-xs text-gray-500 mt-1">{fieldHelp[key]}</p>
-    </div>
-  )
-
   return (
-    <div className="max-w-lg mx-auto space-y-4">
+    <div className="max-w-2xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Calculadora de Precios</h1>
-        <button
-          onClick={() => setShowHelp(true)}
-          className="btn-primary flex items-center gap-1 px-3 py-1 text-sm"
-          title="Ayuda del modelo energetico"
-        >
-          <HelpCircle size={16} /> ?
+        <h1 className="text-2xl font-bold flex items-center gap-2"><CalcIcon size={24} />Calculadora de Precios</h1>
+        <div className="flex gap-2">
+          <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
+            <HelpCircle size={20} />
+          </button>
+        </div>
+      </div>
+
+      {/* Selector de modo */}
+      <div className="flex gap-2">
+        <button onClick={() => setMode('simple')} className={`px-4 py-2 rounded-lg text-sm font-medium ${mode === 'simple' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>
+          Modo facil (cuestionario)
+        </button>
+        <button onClick={() => setMode('advanced')} className={`px-4 py-2 rounded-lg text-sm font-medium ${mode === 'advanced' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>
+          Modo avanzado (numeros)
         </button>
       </div>
 
-      <p className="text-sm text-gray-600">
-        E_total = (E_directa + E_humana + E_insumos + E_amortizacion) x factor_esfuerzo x tarifa
-      </p>
-
-      {error && <div className="text-red-600 text-sm">{error}</div>}
-
-      <div className="card space-y-3">
-        <h2 className="font-semibold text-sm uppercase text-gray-500">Componentes de energia</h2>
-        {energyFields.map((f) => renderField(f.key, f.unit))}
-
-        <h2 className="font-semibold text-sm uppercase text-gray-500 pt-2">Parametros adicionales</h2>
-        {extraFields.map((f) => renderField(f.key, f.unit))}
-
-        <button onClick={calculate} className="btn-primary w-full flex items-center justify-center gap-2">
-          <CalcIcon size={18} /> Calcular
-        </button>
-      </div>
-
-      {/* Resultado desglosado */}
-      {result && (
-        <div className="card bg-trueque-50 space-y-2">
-          <h3 className="font-semibold">Resultado desglosado</h3>
-          <div className="space-y-1 text-sm">
-            <div className="flex justify-between">
-              <span>E_directa</span>
-              <span>{form.e_direct} kWh</span>
-            </div>
-            <div className="flex justify-between">
-              <span>E_humana</span>
-              <span>{form.e_human} kWh</span>
-            </div>
-            <div className="flex justify-between">
-              <span>E_insumos</span>
-              <span>{form.e_inputs} kWh</span>
-            </div>
-            <div className="flex justify-between">
-              <span>E_amortizacion</span>
-              <span>{form.e_amortization} kWh</span>
-            </div>
-            <div className="flex justify-between border-t pt-1">
-              <span>Subtotal (base)</span>
-              <span>{baseEnergy} kWh</span>
-            </div>
-            <div className="flex justify-between">
-              <span>x factor_esfuerzo ({form.effort_factor})</span>
-              <span>{totalEnergy} kWh</span>
-            </div>
-            <div className="flex justify-between">
-              <span>x tarifa ({form.tariff} TQ/kWh)</span>
-              <span>{totalTrueque} TQ</span>
-            </div>
-          </div>
-          <div className="border-t pt-2 mt-2">
-            <p className="text-2xl font-bold text-trueque-700">
-              {result.total_energy ?? totalEnergy} kWh = {result.price_trueque ?? totalTrueque} TQ
-            </p>
-          </div>
+      {showHelp && (
+        <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
+          <p><strong>Calculadora de Precios - Ayuda</strong></p>
+          <p><strong>Para que sirve:</strong> Calcula el precio de un producto o servicio basado en su costo energetico real. El precio en Trueques (TQ) equivale a la energia total invertida: 1 TQ = 1 kWh.</p>
+          <p><strong>Modo facil:</strong> Responde un cuestionario. Selecciona el tipo de trabajo, cuantas horas, y que materiales usaste. El sistema calcula todo automaticamente.</p>
+          <p><strong>Modo avanzado:</strong> Para usuarios avanzados que conocen los valores exactos en kWh. Permite ingresar energia directa, humana, insumos y amortizacion manualmente.</p>
+          <p><strong>Como se calcula:</strong> Precio = (Energia del trabajo + Energia de los insumos) x factor de esfuerzo. El factor de esfuerzo aumenta el costo si el trabajo es especialmente dificil.</p>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
         </div>
       )}
 
-      {/* Modal de ayuda */}
-      {showHelp && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="card bg-white max-w-md space-y-3 relative">
-            <button
-              onClick={() => setShowHelp(false)}
-              className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
-            >
-              <X size={18} />
-            </button>
-            <h3 className="font-semibold text-lg">Modelo energetico</h3>
-            <p className="text-sm text-gray-600">
-              El precio de un producto o servicio se calcula en funcion de la energia total invertida,
-              expresada en kWh y convertida a Trueques (TQ).
-            </p>
-            <div className="text-sm space-y-1">
-              <p className="font-semibold">Formula:</p>
-              <p className="bg-gray-100 p-2 rounded">
-                E_total = (E_directa + E_humana + E_insumos + E_amortizacion) x factor_esfuerzo x tarifa
-              </p>
+      {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</div>}
+
+      {/* MODO FACIL */}
+      {mode === 'simple' && (
+        <div className="space-y-4">
+          {/* Paso 1: Trabajo */}
+          <div className="card space-y-4">
+            <h2 className="font-semibold">Paso 1: Que trabajo hiciste?</h2>
+            <p className="text-xs text-gray-500">Selecciona el tipo de trabajo y cuantas horas trabajaste. El sistema sabe cuanto energia gasta cada tipo de trabajo.</p>
+
+            <div>
+              <label className="label">Categoria de trabajo</label>
+              <select className="input" value={selectedWorkCategory} onChange={(e) => { setSelectedWorkCategory(e.target.value); setSelectedWorkType('') }}>
+                <option value="">Seleccionar categoria...</option>
+                {WORK_TYPES.map((cat) => (
+                  <option key={cat.category} value={cat.category}>{cat.category}</option>
+                ))}
+              </select>
             </div>
-            <ul className="text-sm space-y-1 text-gray-600">
-              <li><strong>E_directa:</strong> {fieldHelp.e_direct}</li>
-              <li><strong>E_humana:</strong> {fieldHelp.e_human}</li>
-              <li><strong>E_insumos:</strong> {fieldHelp.e_inputs}</li>
-              <li><strong>E_amortizacion:</strong> {fieldHelp.e_amortization}</li>
-              <li><strong>factor_esfuerzo:</strong> {fieldHelp.effort_factor}</li>
-              <li><strong>tarifa:</strong> {fieldHelp.tariff}</li>
-            </ul>
-            <p className="text-xs text-gray-500">
-              La energia humana puede calcularse como: work_hours x human_energy_rate.
-            </p>
+
+            {selectedWorkCategory && (
+              <div>
+                <label className="label">Tipo de trabajo</label>
+                <select className="input" value={selectedWorkType} onChange={(e) => setSelectedWorkType(e.target.value)}>
+                  <option value="">Seleccionar tipo...</option>
+                  {WORK_TYPES.find((c) => c.category === selectedWorkCategory)?.types.map((t) => (
+                    <option key={t.name} value={t.name}>{t.name} — {t.description}</option>
+                  ))}
+                </select>
+                {selectedWorkType && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Costo energetico: {WORK_TYPES.find((c) => c.category === selectedWorkCategory)?.types.find((t) => t.name === selectedWorkType)?.kWhPerHour} kWh por hora
+                  </p>
+                )}
+              </div>
+            )}
+
+            {selectedWorkType && (
+              <div>
+                <label className="label">Horas trabajadas</label>
+                <input type="number" min="0.5" step="0.5" className="input" value={workHours} onChange={(e) => setWorkHours(parseFloat(e.target.value) || 1)} />
+                <p className="text-xs text-gray-400 mt-1">Cuantas horas dedicaste a este trabajo.</p>
+              </div>
+            )}
+
+            {selectedWorkType && (
+              <button onClick={addWork} className="btn-secondary flex items-center gap-2"><Plus size={16} /> Agregar trabajo</button>
+            )}
+
+            {/* Lista de trabajos agregados */}
+            {workItems.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium">Trabajos agregados:</h3>
+                {workItems.map((w) => (
+                  <div key={w.id} className="flex items-center justify-between bg-gray-50 rounded-lg p-3 text-sm">
+                    <div>
+                      <span className="font-medium">{w.typeName}</span>
+                      <span className="text-gray-500 ml-2">{w.hours}h x {w.kWhPerHour} kWh/h = {(w.kWhPerHour * w.hours).toFixed(2)} kWh</span>
+                    </div>
+                    <button onClick={() => removeWork(w.id)} className="text-red-500"><Trash2 size={16} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+
+          {/* Paso 2: Insumos */}
+          <div className="card space-y-4">
+            <h2 className="font-semibold">Paso 2: Que materiales/insumos usaste?</h2>
+            <p className="text-xs text-gray-500">Agrega los materiales que usaste. Puedes seleccionar de la lista comun o de los productos ya registrados en la plataforma.</p>
+
+            <div>
+              <label className="label">Insumo comun</label>
+              <select className="input" value={selectedInput} onChange={(e) => setSelectedInput(e.target.value)}>
+                <option value="">Seleccionar insumo...</option>
+                {COMMON_INPUTS.map((i) => (
+                  <option key={i.name} value={i.name}>{i.name} (por {i.unit})</option>
+                ))}
+              </select>
+            </div>
+
+            {selectedInput && (
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <label className="label">Cantidad ({COMMON_INPUTS.find((i) => i.name === selectedInput)?.unit})</label>
+                  <input type="number" min="0.1" step="0.1" className="input" value={inputQty} onChange={(e) => setInputQty(parseFloat(e.target.value) || 1)} />
+                </div>
+                <button onClick={addInput} className="btn-secondary flex items-center gap-2"><Plus size={16} /> Agregar</button>
+              </div>
+            )}
+
+            {/* Productos del registro como insumos */}
+            {products.length > 0 && (
+              <div>
+                <label className="label">O agrega un producto del registro como insumo</label>
+                <div className="flex gap-2 flex-wrap">
+                  {products.slice(0, 10).map((p) => (
+                    <button key={p.id} onClick={() => addProductAsInput(p)} className="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded">
+                      + {p.name} ({p.price_trueque} TQ)
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Lista de insumos agregados */}
+            {inputs.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium">Insumos agregados:</h3>
+                {inputs.map((i) => (
+                  <div key={i.id} className="flex items-center justify-between bg-gray-50 rounded-lg p-3 text-sm">
+                    <div>
+                      <span className="font-medium">{i.name}</span>
+                      <span className="text-gray-500 ml-2">{i.quantity} {i.unit} x {i.kWhPerUnit} kWh = {(i.kWhPerUnit * i.quantity).toFixed(2)} kWh</span>
+                    </div>
+                    <button onClick={() => removeInput(i.id)} className="text-red-500"><Trash2 size={16} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Calcular */}
+          <button onClick={calculate} className="btn-primary w-full flex items-center justify-center gap-2" disabled={workItems.length === 0 && inputs.length === 0}>
+            <CalcIcon size={18} /> Calcular precio
+          </button>
+        </div>
+      )}
+
+      {/* MODO AVANZADO */}
+      {mode === 'advanced' && (
+        <div className="card space-y-4">
+          <h2 className="font-semibold">Modo avanzado</h2>
+          <p className="text-xs text-gray-500">Para usuarios avanzados que conocen los valores exactos en kWh. Si no sabes que significa cada campo, usa el modo facil.</p>
+
+          <div>
+            <label className="label">Energia directa (kWh)</label>
+            <input type="number" className="input" value={advForm.e_direct} onChange={(e) => setAdvForm({ ...advForm, e_direct: parseFloat(e.target.value) || 0 })} />
+            <p className="text-xs text-gray-400 mt-1">Electricidad, gas o combustible consumido directamente.</p>
+          </div>
+          <div>
+            <label className="label">Energia humana (kWh)</label>
+            <input type="number" className="input" value={advForm.e_human} onChange={(e) => setAdvForm({ ...advForm, e_human: parseFloat(e.target.value) || 0 })} />
+            <p className="text-xs text-gray-400 mt-1">Energia del trabajo humano (horas x tarifa energetica).</p>
+          </div>
+          <div>
+            <label className="label">Energia de insumos (kWh)</label>
+            <input type="number" className="input" value={advForm.e_inputs} onChange={(e) => setAdvForm({ ...advForm, e_inputs: parseFloat(e.target.value) || 0 })} />
+            <p className="text-xs text-gray-400 mt-1">Energia incorporada en materiales e insumos.</p>
+          </div>
+          <div>
+            <label className="label">Amortizacion (kWh)</label>
+            <input type="number" className="input" value={advForm.e_amortization} onChange={(e) => setAdvForm({ ...advForm, e_amortization: parseFloat(e.target.value) || 0 })} />
+            <p className="text-xs text-gray-400 mt-1">Energia amortizada de herramientas y equipos.</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Factor de esfuerzo</label>
+              <input type="number" step="0.1" className="input" value={advForm.effort_factor} onChange={(e) => setAdvForm({ ...advForm, effort_factor: parseFloat(e.target.value) || 1 })} />
+              <p className="text-xs text-gray-400 mt-1">1.0 = normal, 1.5 = alto esfuerzo.</p>
+            </div>
+            <div>
+              <label className="label">Tarifa de conversion</label>
+              <input type="number" step="0.1" className="input" value={advForm.tariff} onChange={(e) => setAdvForm({ ...advForm, tariff: parseFloat(e.target.value) || 1 })} />
+              <p className="text-xs text-gray-400 mt-1">kWh a TQ (por defecto 1:1).</p>
+            </div>
+          </div>
+          <button onClick={calculateAdvanced} className="btn-primary w-full flex items-center justify-center gap-2"><CalcIcon size={18} /> Calcular</button>
+        </div>
+      )}
+
+      {/* Resultado */}
+      {result && (
+        <div className="card bg-trueque-50 space-y-3">
+          <h3 className="font-semibold">Resultado del calculo</h3>
+          <div className="space-y-1 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Energia del trabajo humano:</span>
+              <span className="font-medium">{result.workKWh.toFixed(2)} kWh</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Energia de insumos y materiales:</span>
+              <span className="font-medium">{result.inputsKWh.toFixed(2)} kWh</span>
+            </div>
+            <div className="border-t border-trueque-200 pt-2 flex justify-between text-lg">
+              <span className="font-bold text-trueque-700">Precio total:</span>
+              <span className="font-bold text-trueque-700">{result.totalTQ.toFixed(2)} TQ</span>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500">Este es el precio sugerido para tu producto. Llevalo a la asamblea para que lo aprueben y lo agreguen al registro de productos.</p>
         </div>
       )}
     </div>
