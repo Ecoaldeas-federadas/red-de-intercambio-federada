@@ -13,26 +13,30 @@ import (
 type DepartmentsHandler struct {
 	Departments *accounts.Departments
 	NodeDomain  string
+	Auth        *AuthMiddleware
 }
 
-func NewDepartmentsHandler(depts *accounts.Departments, nodeDomain string) *DepartmentsHandler {
-	return &DepartmentsHandler{Departments: depts, NodeDomain: nodeDomain}
+func NewDepartmentsHandler(depts *accounts.Departments, nodeDomain string, am *AuthMiddleware) *DepartmentsHandler {
+	return &DepartmentsHandler{Departments: depts, NodeDomain: nodeDomain, Auth: am}
 }
 
 func (dh *DepartmentsHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
-	r.Get("/api/departments", dh.listDepartments)
-	r.Post("/api/departments", dh.createDepartment)
-	r.Put("/api/departments/{id}", dh.updateDepartment)
-	r.Get("/api/departments/{id}", dh.getDepartment)
-	r.Get("/api/departments/{id}/members", dh.listMembers)
-	r.Post("/api/departments/{id}/members", dh.assignMember)
-	r.Delete("/api/departments/{id}/members/{userId}", dh.removeMember)
-	r.Get("/api/departments/{id}/roles", dh.listRoles)
-	r.Post("/api/departments/{id}/roles", dh.createRole)
-	r.Put("/api/roles/{id}/permissions", dh.setRolePermissions)
-	r.Get("/api/roles/{id}/permissions", dh.listRolePermissions)
-	r.Get("/api/permissions", dh.listAllPermissions)
-	r.Get("/api/users/me/permissions", dh.listMyPermissions)
+	r.Group(func(r chi.Router) {
+		r.Use(am.RequireAuth)
+		r.Get("/api/departments", dh.listDepartments)
+		r.Post("/api/departments", dh.createDepartment)
+		r.Put("/api/departments/{id}", dh.updateDepartment)
+		r.Get("/api/departments/{id}", dh.getDepartment)
+		r.Get("/api/departments/{id}/members", dh.listMembers)
+		r.Post("/api/departments/{id}/members", dh.assignMember)
+		r.Delete("/api/departments/{id}/members/{userId}", dh.removeMember)
+		r.Get("/api/departments/{id}/roles", dh.listRoles)
+		r.Post("/api/departments/{id}/roles", dh.createRole)
+		r.Put("/api/roles/{id}/permissions", dh.setRolePermissions)
+		r.Get("/api/roles/{id}/permissions", dh.listRolePermissions)
+		r.Get("/api/permissions", dh.listAllPermissions)
+		r.Get("/api/users/me/permissions", dh.listMyPermissions)
+	})
 }
 
 func (dh *DepartmentsHandler) listDepartments(w http.ResponseWriter, r *http.Request) {
@@ -158,7 +162,7 @@ func (dh *DepartmentsHandler) assignMember(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	am := NewAuthMiddleware("")
+	am := dh.Auth
 	userID, _ := am.GetUserID(r)
 	var assignedBy *uuid.UUID
 	if userID != uuid.Nil {
@@ -260,7 +264,7 @@ func (dh *DepartmentsHandler) setRolePermissions(w http.ResponseWriter, r *http.
 		return
 	}
 
-	am := NewAuthMiddleware("")
+	am := dh.Auth
 	userID, _ := am.GetUserID(r)
 	var grantedBy *uuid.UUID
 	if userID != uuid.Nil {
@@ -302,8 +306,7 @@ func (dh *DepartmentsHandler) listAllPermissions(w http.ResponseWriter, r *http.
 }
 
 func (dh *DepartmentsHandler) listMyPermissions(w http.ResponseWriter, r *http.Request) {
-	am := NewAuthMiddleware("")
-	userID, err := am.GetUserID(r)
+	userID, err := dh.Auth.GetUserID(r)
 	if err != nil {
 		writeError(w, 401, "authentication required")
 		return

@@ -1,42 +1,51 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"federated-credit-node/internal/accounts"
 	"federated-credit-node/internal/payments"
 )
 
 type PaymentsHandler struct {
 	Payments   *payments.Payments
 	NodeDomain string
+	Auth       *AuthMiddleware
+	Accounts   accountsService
 }
 
-func NewPaymentsHandler(p *payments.Payments, nodeDomain string) *PaymentsHandler {
-	return &PaymentsHandler{Payments: p, NodeDomain: nodeDomain}
+type accountsService interface {
+	GetUser(ctx context.Context, id uuid.UUID) (*accounts.User, error)
 }
 
-func (ph *PaymentsHandler) RegisterRoutes(r chi.Router) {
-	r.Post("/api/payments/qr/generate", ph.generateQR)
-	r.Post("/api/payments/qr/parse", ph.parseQR)
-	r.Post("/api/payments/qr/pos", ph.posGenerateQR)
-	r.Post("/api/payments/manual", ph.manualPayment)
+func NewPaymentsHandler(p *payments.Payments, nodeDomain string, am *AuthMiddleware, accts accountsService) *PaymentsHandler {
+	return &PaymentsHandler{Payments: p, NodeDomain: nodeDomain, Auth: am, Accounts: accts}
+}
 
-	r.Post("/api/payments/nfc/issue", ph.issueNFCCard)
-	r.Post("/api/payments/nfc/lookup", ph.lookupNFCCard)
-	r.Delete("/api/payments/nfc/{cardUID}", ph.deactivateNFCCard)
-	r.Get("/api/payments/nfc", ph.listNFCCards)
+func (ph *PaymentsHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
+	r.Group(func(r chi.Router) {
+		r.Use(am.RequireAuth)
+		r.Post("/api/payments/qr/generate", ph.generateQR)
+		r.Post("/api/payments/qr/parse", ph.parseQR)
+		r.Post("/api/payments/qr/pos", ph.posGenerateQR)
+		r.Post("/api/payments/manual", ph.manualPayment)
+
+		r.Post("/api/payments/nfc/issue", ph.issueNFCCard)
+		r.Post("/api/payments/nfc/lookup", ph.lookupNFCCard)
+		r.Delete("/api/payments/nfc/{cardUID}", ph.deactivateNFCCard)
+		r.Get("/api/payments/nfc", ph.listNFCCards)
+	})
 }
 
 type GenerateQRRequest struct {
-	UserID      uuid.UUID `json:"user_id"`
-	Username    string    `json:"username"`
-	DisplayName string    `json:"display_name"`
-	Amount      *int64    `json:"amount"`
-	Label       string    `json:"label"`
+	DisplayName string `json:"display_name"`
+	Amount      *int64 `json:"amount"`
+	Label       string `json:"label"`
 }
 
 func (ph *PaymentsHandler) generateQR(w http.ResponseWriter, r *http.Request) {
@@ -46,9 +55,23 @@ func (ph *PaymentsHandler) generateQR(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Obtener user del contexto (auth middleware)
+	userID, err := ph.Auth.GetUserID(r)
+	if err != nil {
+		writeError(w, 401, "authentication required")
+		return
+	}
+
+	// Obtener datos del usuario desde la BD
+	user, err := ph.Accounts.GetUser(r.Context(), userID)
+	if err != nil {
+		writeError(w, 500, "failed to get user info")
+		return
+	}
+
 	paymentReq, qrBase64, err := ph.Payments.GenerateQR(r.Context(), payments.GenerateQRParams{
-		UserID:      req.UserID,
-		Username:    req.Username,
+		UserID:      userID,
+		Username:    user.Username,
 		DisplayName: req.DisplayName,
 		Amount:      req.Amount,
 		Label:       req.Label,
@@ -93,11 +116,9 @@ func (ph *PaymentsHandler) parseQR(w http.ResponseWriter, r *http.Request) {
 }
 
 type POSGenerateQRRequest struct {
-	UserID      uuid.UUID `json:"user_id"`
-	Username    string    `json:"username"`
-	DisplayName string    `json:"display_name"`
-	Amount      int64     `json:"amount"`
-	Label       string    `json:"label"`
+	DisplayName string `json:"display_name"`
+	Amount      int64  `json:"amount"`
+	Label       string `json:"label"`
 }
 
 func (ph *PaymentsHandler) posGenerateQR(w http.ResponseWriter, r *http.Request) {
@@ -111,9 +132,20 @@ func (ph *PaymentsHandler) posGenerateQR(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	userID, err := ph.Auth.GetUserID(r)
+	if err != nil {
+		writeError(w, 401, "authentication required")
+		return
+	}
+	user, err := ph.Accounts.GetUser(r.Context(), userID)
+	if err != nil {
+		writeError(w, 500, "failed to get user info")
+		return
+	}
+
 	paymentReq, qrBase64, err := ph.Payments.GenerateQR(r.Context(), payments.GenerateQRParams{
-		UserID:      req.UserID,
-		Username:    req.Username,
+		UserID:      userID,
+		Username:    user.Username,
 		DisplayName: req.DisplayName,
 		Amount:      &req.Amount,
 		Label:       req.Label,
@@ -130,7 +162,6 @@ func (ph *PaymentsHandler) posGenerateQR(w http.ResponseWriter, r *http.Request)
 }
 
 type ManualPaymentRequest struct {
-	SenderID   uuid.UUID `json:"sender_id"`
 	ReceiverID uuid.UUID `json:"receiver_id"`
 	Amount     int64     `json:"amount"`
 	Reference  string    `json:"reference"`
@@ -143,8 +174,15 @@ func (ph *PaymentsHandler) manualPayment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Obtener sender del contexto (auth middleware)
+	senderID, err := ph.Auth.GetUserID(r)
+	if err != nil {
+		writeError(w, 401, "authentication required")
+		return
+	}
+
 	if err := ph.Payments.ManualPayment(r.Context(), payments.ManualPaymentParams{
-		SenderID:   req.SenderID,
+		SenderID:   senderID,
 		ReceiverID: req.ReceiverID,
 		Amount:     req.Amount,
 		Reference:  req.Reference,

@@ -43,7 +43,7 @@ export default function Payments() {
   const [nfcResult, setNfcResult] = useState<any>(null)
 
   // Manual state
-  const [manual, setManual] = useState({ sender_id: '', receiver_id: '', amount: 0, reference: '' })
+  const [manual, setManual] = useState({ receiver_id: '', amount: 0, reference: '' })
   const [manualResult, setManualResult] = useState<any>(null)
 
   const generateQR = async () => {
@@ -51,8 +51,6 @@ export default function Payments() {
     try {
       const amount = genAmount ? parseInt(genAmount) : null
       const res = await api.post<{ qr_data: string; payment_req: PaymentRequest }>('/payments/qr/generate', {
-        user_id: 'me',
-        username: 'me',
         display_name: genDisplayName || undefined,
         amount,
         label: genLabel || undefined,
@@ -93,7 +91,6 @@ export default function Payments() {
         return
       }
       await api.post('/payments/manual', {
-        sender_id: 'me',
         receiver_id: scanResult?.payment_req.user_id,
         amount,
         reference: `QR: ${scanResult?.payment_req.account}`,
@@ -225,8 +222,7 @@ export default function Payments() {
       {tab === 'manual' && (
         <div className="card space-y-3">
           <div className="flex items-center gap-2"><Send size={20} /><h2 className="font-semibold">Pago Manual</h2></div>
-          <input className="input" placeholder="ID remitente" value={manual.sender_id} onChange={(e) => setManual({ ...manual, sender_id: e.target.value })} />
-          <input className="input" placeholder="ID destinatario" value={manual.receiver_id} onChange={(e) => setManual({ ...manual, receiver_id: e.target.value })} />
+          <input className="input" placeholder="ID destinatario (UUID)" value={manual.receiver_id} onChange={(e) => setManual({ ...manual, receiver_id: e.target.value })} />
           <input type="number" className="input" placeholder="Monto" value={manual.amount} onChange={(e) => setManual({ ...manual, amount: parseInt(e.target.value) || 0 })} />
           <input className="input" placeholder="Referencia" value={manual.reference} onChange={(e) => setManual({ ...manual, reference: e.target.value })} />
           <button onClick={sendManual} className="btn-primary">Enviar</button>

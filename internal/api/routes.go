@@ -48,7 +48,7 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 	h.RegisterRoutesWithAuth(r, am)
 	fh.RegisterRoutesWithAuth(r, am)
 	oh.RegisterRoutesWithAuth(r, am)
-	ph.RegisterRoutes(r)
+	ph.RegisterRoutes(r, am)
 	eh.RegisterRoutesWithAuth(r, am)
 	rh.RegisterRoutesWithAuth(r, am)
 	dh.RegisterRoutes(r, am)
