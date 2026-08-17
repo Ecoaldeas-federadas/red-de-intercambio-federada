@@ -183,7 +183,9 @@ func (sh *SetupHandler) initNode(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var creditLimit, debitLimit int64 = 1000000, 1000000
+	// Admin tiene limites pequenos para pruebas (100 Trueques)
+	// Esto le permite transferir y probar el sistema sin tener poder ilimitado
+	var creditLimit, debitLimit int64 = 100, 100
 	adminUser, err := sh.Accounts.CreateUser(ctx, accounts.CreateUserParams{
 		NodeDomain:       nodeDomain,
 		Username:         req.AdminUsername,

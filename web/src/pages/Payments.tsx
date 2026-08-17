@@ -310,7 +310,7 @@ export default function Payments() {
             {qrData && (
               <div className="space-y-3">
                 <div ref={qrWrapperRef} className="bg-white border-2 border-gray-200 rounded-lg p-4 flex justify-center">
-                  <QRCodeSVG value={qrData} size={256} level="M" includeID={false} />
+                  <QRCodeSVG value={qrData} size={256} level="M" />
                 </div>
                 <div className="flex gap-2 flex-wrap">
                   <button onClick={downloadQR} className="btn-secondary flex items-center gap-1">
