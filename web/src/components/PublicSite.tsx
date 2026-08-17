@@ -820,6 +820,16 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             <>
               <button
                 onClick={() => {
+                  window.dispatchEvent(new Event('start-live-edit'))
+                  setShowAdminMenu(false)
+                }}
+                className="bg-emerald-900 hover:bg-emerald-800 text-white px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2 text-xs font-bold transition border-2 border-amber-400"
+              >
+                <Sparkles size={16} className="text-amber-400" />
+                Editar en Vivo Esta Página
+              </button>
+              <button
+                onClick={() => {
                   setDraftSettings({
                     site_title: settings?.site_title || '',
                     site_subtitle: settings?.site_subtitle || '',
@@ -998,6 +1008,13 @@ export function PublicPageView() {
     setIsLiveEditing(false)
   }, [targetSlug])
 
+  // Listen for "start live edit" event from the consolidated admin button in PublicLayout
+  useEffect(() => {
+    const handleStartLiveEdit = () => setIsLiveEditing(true)
+    window.addEventListener('start-live-edit', handleStartLiveEdit)
+    return () => window.removeEventListener('start-live-edit', handleStartLiveEdit)
+  }, [])
+
   if (loading) {
     return (
       <div className="text-center py-24 space-y-3">
@@ -1036,21 +1053,6 @@ export function PublicPageView() {
 
   return (
     <div className="relative">
-      {/* Floating Live Edit Trigger for Logged In Admins */}
-      {isAuthenticated && !isLiveEditing && (
-        <div className="fixed bottom-6 right-6 z-40">
-          <button
-            onClick={() => setIsLiveEditing(true)}
-            className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-emerald-900 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-2xl border-2 border-amber-400 active:scale-95 transition-all group"
-          >
-            <div className="w-6 h-6 rounded-lg bg-amber-400 text-gray-950 flex items-center justify-center group-hover:rotate-12 transition">
-              <Sparkles size={14} />
-            </div>
-            <span>Editar en Vivo Esta Página</span>
-          </button>
-        </div>
-      )}
-
       {/* When in Live Edit Mode, render the Interactive WYSIWYG Editor */}
       {isLiveEditing ? (
         <LivePageEditor

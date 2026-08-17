@@ -1,46 +1,22 @@
-feat(ecoaldeas): nueva pagina ecoaldeas del mundo + referentes reales
+fix(admin): integrar Editar en Vivo dentro del boton flotante consolidado
 
-Nueva pagina "Ecoaldeas en el Mundo" (/p/ecoaldeas-mundo):
+El boton "Editar en Vivo Esta Página" estaba fuera del boton flotante
+consolidado, como un boton separado. Ahora esta integrado dentro del
+menu desplegable del boton flotante unico.
 
-Redes globales:
-- GEN (Global Ecovillage Network, 1995)
-- CASA Latina (Consejo de Asentamientos Sustentables de AL)
+Cambios:
+- Eliminado el boton flotante separado de "Editar en Vivo" en
+  PublicPageView
+- Anadido listener de evento 'start-live-edit' en PublicPageView
+- Anadida opcion "Editar en Vivo Esta Página" como primera opcion
+  del menu desplegable del boton consolidado en PublicLayout
+- Al hacer clic despacha el evento que activa el modo edicion en
+  vivo de la pagina actual
 
-Ecoaldeas emblematicas con informacion real:
-- Findhorn (Escocia, 1962): 60 anos, UN-Habitat Best Practice,
-  turbina Vestas 75kW, Living Machine
-- Damanhur (Italia, 1975): 600 habitantes, moneda propia Credito,
-  constitucion, Templos de la Humanidad
-- Tamera (Portugal, 1995): 29 lagos de retencion de agua, 0.62 a
-  8.32 ha de cuerpos de agua, Nuevo Paradigma del Agua
-- Huehuecoyotl (Mexico, 1982): primera ecoaldea de Mexico,
-  tribu artistica nomada Los Elefantes Iluminados, Tepoztlan Morelos
-
-4 pilares de la vida en ecoaldea:
-- Permacultura y agroecologia (sin quimicos, compost, biol)
-- Bioconstruccion (adobe, bahareque, barro, paja)
-- Energias limpias y gestion de residuos (solar, biodigestores,
-  banos secos, reciclaje agua lluvia)
-- Economia solidaria y saberes ancestrales (trueque, monedas
-  locales, plantas medicinales, consenso)
-
-Otras experiencias que inspiran:
-- LETS, Club del Trueque Argentina, Via Campesina, Slow Food,
-  Red de Semillas Libres, Permacultura
-
-Correccion importante:
-- Cambiado "Movimientos Hermanos" por "Otras Experiencias en el Mundo"
-- Aclarado explicitamente: "No son aliados ni socios: son
-  referentes que nos inspiran y de los cuales aprendemos"
-- Ninguna comunidad o movimiento se presenta como aliado
-
-Fuentes reales:
-- ecovillage.org (GEN, CASA Latina)
-- ecovillagefindhorn.org, Wikipedia (Findhorn)
-- damanhur.org, Wikipedia (Damanhur)
-- tamera.org, Climate-ADAPT (Tamera)
-- huehuecoyotl.net, GEN, Truthout (Huehuecoyotl)
-- redcasalatina.org (CASA Latina)
+Ahora el boton flotante unico despliega 3 opciones:
+1. Editar en Vivo Esta Página (nueva)
+2. Personalizar Tema
+3. Panel Web
 
 Generated with [Devin](https://devin.ai)
 
