@@ -1310,7 +1310,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
     ],
   },
   {
-    slug: 'filosofia',
+    slug: 'filosofia-conuquera',
     title: 'Filosofía Conuquera',
     subtitle: 'Agroecología, Soberanía y Vida Comunitaria',
     icon: 'heart',
