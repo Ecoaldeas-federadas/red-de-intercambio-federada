@@ -949,7 +949,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         description:
           'Las semillas son el primer eslabón de la cadena alimentaria. Quien controla las semillas controla la alimentación. Por eso defendemos las semillas criollas y nativas: porque son patrimonio colectivo de los pueblos, se reproducen libremente, están adaptadas a nuestro clima y han sido seleccionadas por generaciones de campesinos y campesinas.',
         image_url:
-          'https://images.unsplash.com/photo-1574943323817-4c67cb2f9f3b?auto=format&fit=crop&w=1200&q=80',
+          'https://images.unsplash.com/photo-1746474072546-9fbda10daffe?auto=format&fit=crop&w=1200&q=80',
         style: 'split',
       },
       {

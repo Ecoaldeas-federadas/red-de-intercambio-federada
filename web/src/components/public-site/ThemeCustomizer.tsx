@@ -139,6 +139,33 @@ export function ThemeCustomizer({
   const [saving, setSaving] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // Panel position and minimization state
+  const [minimized, setMinimized] = useState(false)
+  const [panelPos, setPanelPos] = useState({ x: 0, y: 0 })
+  const [dragging, setDragging] = useState(false)
+  const dragStart = useRef({ x: 0, y: 0, posX: 0, posY: 0 })
+
+  const handleDragStart = (e: React.MouseEvent) => {
+    setDragging(true)
+    dragStart.current = { x: e.clientX, y: e.clientY, posX: panelPos.x, posY: panelPos.y }
+  }
+
+  useEffect(() => {
+    if (!dragging) return
+    const handleMove = (e: MouseEvent) => {
+      const dx = e.clientX - dragStart.current.x
+      const dy = e.clientY - dragStart.current.y
+      setPanelPos({ x: dragStart.current.posX + dx, y: dragStart.current.posY + dy })
+    }
+    const handleUp = () => setDragging(false)
+    window.addEventListener('mousemove', handleMove)
+    window.addEventListener('mouseup', handleUp)
+    return () => {
+      window.removeEventListener('mousemove', handleMove)
+      window.removeEventListener('mouseup', handleUp)
+    }
+  }, [dragging])
+
   // Reset draft when opening
   useEffect(() => {
     if (open) {
@@ -178,9 +205,12 @@ export function ThemeCustomizer({
     const newPages = [...draftPages]
     const target = dir === 'up' ? idx - 1 : idx + 1
     if (target < 0 || target >= newPages.length) return
-    ;[newPages[idx], newPages[target]] = [newPages[target], newPages[idx]]
-    newPages.forEach((p, i) => { p.menu_order = i })
-    setDraftPages(newPages)
+    const tmp = newPages[idx]
+    newPages[idx] = newPages[target]
+    newPages[target] = tmp
+    // Reassign menu_order based on new position, creating new objects to avoid mutation
+    const reordered = newPages.map((p, i) => ({ ...p, menu_order: i }))
+    setDraftPages(reordered)
   }
 
   const toggleMenuVisible = (idx: number) => {
@@ -208,21 +238,60 @@ export function ThemeCustomizer({
   const activePreset = COLOR_PRESETS.find((p) => matchesPreset(draft, p))
 
   return (
-    <div className="fixed inset-y-0 left-0 z-50 w-full sm:w-96 md:w-[420px] bg-white shadow-2xl border-r border-gray-200 flex flex-col animate-in slide-in-from-left duration-200">
-      {/* Header */}
-      <div className="p-4 bg-gradient-to-r from-emerald-900 to-emerald-800 text-white flex items-center justify-between">
+    <div
+      className="fixed z-50 bg-white shadow-2xl border border-gray-200 flex flex-col rounded-lg overflow-hidden"
+      style={{
+        top: 0,
+        left: 0,
+        width: minimized ? 'auto' : '100%',
+        maxWidth: minimized ? '200px' : '420px',
+        height: minimized ? 'auto' : '100vh',
+        transform: `translate(${panelPos.x}px, ${panelPos.y}px)`,
+        cursor: dragging ? 'grabbing' : 'default',
+      }}
+    >
+      {/* Header - draggable */}
+      <div
+        className="p-4 bg-gradient-to-r from-emerald-900 to-emerald-800 text-white flex items-center justify-between cursor-grab active:cursor-grabbing select-none"
+        onMouseDown={handleDragStart}
+      >
         <div className="flex items-center gap-2">
           <Sparkles size={18} className="text-amber-400" />
           <div>
             <h3 className="font-extrabold text-sm">Personalizador del Tema</h3>
-            <p className="text-[10px] text-emerald-200">Ves los cambios en vivo. Solo se guardan al darle "Guardar".</p>
+            <p className="text-[10px] text-emerald-200">Arrastra para mover · Ves cambios en vivo</p>
           </div>
         </div>
-        <button onClick={onClose} className="p-1 text-gray-300 hover:text-white rounded-lg">
-          <X size={20} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setMinimized(!minimized)}
+            className="p-1 text-gray-300 hover:text-white rounded-lg transition"
+            title={minimized ? 'Expandir' : 'Minimizar'}
+          >
+            {minimized ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+          </button>
+          <button onClick={onClose} className="p-1 text-gray-300 hover:text-white rounded-lg transition" title="Cerrar">
+            <X size={20} />
+          </button>
+        </div>
       </div>
 
+      {/* Minimized view - just show expand hint */}
+      {minimized && (
+        <div className="p-3 bg-emerald-50 text-center">
+          <p className="text-xs text-emerald-700 font-medium">Panel minimizado</p>
+          <button
+            onClick={() => setMinimized(false)}
+            className="mt-1 text-[10px] text-emerald-600 hover:text-emerald-800 font-bold underline"
+          >
+            Expandir para editar
+          </button>
+        </div>
+      )}
+
+      {/* Full view */}
+      {!minimized && (
+        <>
       {/* Tabs */}
       <div className="flex border-b border-gray-200 bg-gray-50">
         {[
@@ -559,6 +628,8 @@ export function ThemeCustomizer({
           {saving ? 'Guardando...' : 'Guardar Todo'}
         </button>
       </div>
+        </>
+      )}
     </div>
   )
 }

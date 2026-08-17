@@ -1,43 +1,27 @@
-fix(seed): 4 paginas nuevas en seed.go + merge frontend de plantillas
+fix(customizer): panel movible + minimizable + foto semillas + bug menu
 
-Problema: las paginas nuevas (Semillas, Saberes Ancestrales, Filosofia
-Conuquera, Ecoaldeas del Mundo) solo existian en defaultSiteData.ts
-(fallback del frontend). Cuando la base de datos ya tenia paginas
-sembradas, las nuevas no aparecian porque el frontend cargaba las
-paginas de la BD y nunca llegaba al fallback.
+3 problemas corregidos:
 
-Solucion doble:
+1. Foto de la pagina de semillas no cargaba (404 en Unsplash)
+   - Cambiada URL de photo-1574943323817 (404) a
+     photo-1746474072546 (manos sosteniendo semillas, verificada)
+   - Actualizada en defaultSiteData.ts y seed.go
 
-1. Backend (seed.go): Anadidas las 4 paginas nuevas con contenido
-   completo de la Feria Conuquera:
-   - semillas (menu_order 9): banco de semillas, trueque de semillas
-     en Parque Los Caobos, semillas criollas vs transgenicos
-   - saberes-ancestrales (menu_order 10): bahareque, ollas de barro,
-     casas de cultivo, medicina natural venezolana, cosmovision conuquera
-   - filosofia-conuquera (menu_order 11): filosofia, historia 2014-2024,
-     productos reales de la feria, actividades
-   - ecoaldeas-mundo (menu_order 12): GEN, CASA Latina, Findhorn,
-     Damanhur, Tamera, Huehuecoyotl, 4 pilares, otras experiencias
+2. Personalizador de tema ahora es movible y minimizable
+   - Se puede arrastrar desde la cabecera para moverlo a cualquier
+     posicion de la pantalla
+   - Boton de minimizar (chevron) que colapsa el panel a una vista
+     compacta para poder ver la pagina sin interferencia
+   - Boton de expandir para volver al modo completo
+   - Cursor grab/grabbing para indicar que se puede arrastrar
 
-   Tambien actualizado el contenido de como-funciona con las 7
-   secciones enriquecidas (que es trueque, limites, agroecologia,
-   semillas, ecoaldea, experiencias del mundo).
-
-   El seed usa ON CONFLICT DO UPDATE, asi que en el proximo reinicio
-   del nodo, las paginas existentes se actualizan y las nuevas se
-   insertan sin perder datos.
-
-2. Frontend (PublicSite.tsx): Logica de merge. Cuando se cargan las
-   paginas de la BD, se añaden automaticamente las plantillas cuyo
-   slug no existe en la BD. Asi, si alguien instala la app sin la
-   feria conuquera, las paginas genericas (ecoaldeas, agroecologia)
-   aparecen como plantilla por defecto.
-
-Arquitectura segun indicacion del usuario:
-- Contenido generico (ecoaldeas del mundo, conceptos de agroecologia):
-  puede estar en defaultSiteData.ts como plantilla por defecto
-- Contenido especifico de la Feria Conuquera (Parque Los Caobos,
-  productos reales, historia, actividades): en seed.go / base de datos
+3. Bug al reordenar menu de cabecera: algunas paginas se quedaban
+   en blanco
+   - Causa: movePage mutaba los objetos existentes en lugar de
+     crear nuevos, causando que React no detectara los cambios
+     correctamente
+   - Fix: movePage ahora crea nuevos objetos con spread operator
+     al reasignar menu_order, evitando mutacion directa
 
 Generated with [Devin](https://devin.ai)
 
