@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"federated-credit-node/internal/accounts"
 	"federated-credit-node/internal/crypto"
@@ -20,15 +21,17 @@ type Handler struct {
 	pricing    *pricing.Pricing
 	crypto     *crypto.KeyManager
 	nodeDomain string
+	Pool       *pgxpool.Pool
 }
 
-func NewHandler(l *ledger.Ledger, a *accounts.Accounts, p *pricing.Pricing, c *crypto.KeyManager, nodeDomain string) *Handler {
+func NewHandler(l *ledger.Ledger, a *accounts.Accounts, p *pricing.Pricing, c *crypto.KeyManager, nodeDomain string, pool *pgxpool.Pool) *Handler {
 	return &Handler{
 		ledger:     l,
 		accounts:   a,
 		pricing:    p,
 		crypto:     c,
 		nodeDomain: nodeDomain,
+		Pool:       pool,
 	}
 }
 
@@ -165,18 +168,49 @@ func (h *Handler) transfer(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 401, "authentication required")
 		return
 	}
+
+	// Calcular impuesto
+	var taxAmount int64
+	var taxTargetAccount *uuid.UUID
+	if h.Pool != nil {
+		var taxRate float64
+		var isActive bool
+		var minAmount int64
+		var taxAcctID *uuid.UUID
+		_ = h.Pool.QueryRow(r.Context(), `
+			SELECT tax_rate, is_active, min_amount, tax_account_id
+			FROM tax_config WHERE node_domain = $1`, h.nodeDomain).Scan(&taxRate, &isActive, &minAmount, &taxAcctID)
+		if isActive && taxRate > 0 && req.Amount >= minAmount {
+			taxAmount = int64(float64(req.Amount) * taxRate)
+			taxTargetAccount = taxAcctID
+		}
+	}
+
 	tx, err := h.ledger.InternalTransfer(r.Context(), ledger.InternalTransferParams{
-		SenderID:      senderID,
-		ReceiverID:    receiverID,
-		Amount:        req.Amount,
-		TaxAmount:     0,
-		UserSignature: "",
-		NodeSignature: "",
+		SenderID:         senderID,
+		ReceiverID:       receiverID,
+		Amount:           req.Amount,
+		TaxAmount:        taxAmount,
+		TaxTargetAccount: taxTargetAccount,
+		UserSignature:    "",
+		NodeSignature:    "",
 	})
 	if err != nil {
 		writeError(w, 400, err.Error())
 		return
 	}
+
+	// Audit log
+	if h.Pool != nil {
+		details, _ := json.Marshal(map[string]interface{}{
+			"amount":      req.Amount,
+			"receiver_id": receiverID.String(),
+			"tax_amount":  taxAmount,
+		})
+		h.Pool.Exec(r.Context(), `INSERT INTO audit_log (actor_id, action, target_id, details) VALUES ($1, 'transfer', $2, $3)`,
+			senderID, receiverID, details)
+	}
+
 	writeJSON(w, 201, tx)
 }
 
@@ -246,6 +280,12 @@ func (h *Handler) approveAdmission(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, err.Error())
 		return
 	}
+	// Audit log
+	if h.Pool != nil {
+		details, _ := json.Marshal(map[string]interface{}{"admission_request_id": id.String(), "new_user": user.Username})
+		h.Pool.Exec(r.Context(), `INSERT INTO audit_log (actor_id, action, target_id, details) VALUES ($1, 'admission_approve', $2, $3)`,
+			reviewerID, user.ID, details)
+	}
 	writeJSON(w, 201, user)
 }
 
@@ -271,6 +311,12 @@ func (h *Handler) rejectAdmission(w http.ResponseWriter, r *http.Request) {
 	if err := h.accounts.RejectAdmissionRequest(r.Context(), id, reviewerID, req.Reason); err != nil {
 		writeError(w, 400, err.Error())
 		return
+	}
+	// Audit log
+	if h.Pool != nil {
+		details, _ := json.Marshal(map[string]interface{}{"admission_request_id": id.String(), "reason": req.Reason})
+		h.Pool.Exec(r.Context(), `INSERT INTO audit_log (actor_id, action, details) VALUES ($1, 'admission_reject', $2)`,
+			reviewerID, details)
 	}
 	writeJSON(w, 200, map[string]string{"status": "rejected"})
 }

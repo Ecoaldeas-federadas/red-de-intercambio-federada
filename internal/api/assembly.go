@@ -267,6 +267,12 @@ func (h *AssemblyHandler) createProposal(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Audit log
+	userID, _ := h.Auth.GetUserID(r)
+	auditDetails, _ := json.Marshal(map[string]interface{}{"proposal_type": req.ProposalType, "description": req.Description})
+	h.Pool.Exec(r.Context(), `INSERT INTO audit_log (actor_id, action, target_id, details) VALUES ($1, 'assembly_decision', $2, $3)`,
+		userID, id, auditDetails)
+
 	writeJSON(w, 201, map[string]interface{}{
 		"id":                  id.String(),
 		"proposal_type":       req.ProposalType,
@@ -376,6 +382,12 @@ func (h *AssemblyHandler) executeProposal(w http.ResponseWriter, r *http.Request
 			json.Unmarshal(*newValue, &params)
 		}
 		_ = h.executeDecision(r, decisionType, targetAccount, params)
+
+		// Audit log
+		userID, _ := h.Auth.GetUserID(r)
+		execDetails, _ := json.Marshal(map[string]interface{}{"decision_type": decisionType, "votes_for": votesFor, "votes_against": votesAgainst})
+		h.Pool.Exec(r.Context(), `INSERT INTO audit_log (actor_id, action, target_id, details) VALUES ($1, 'assembly_execute', $2, $3)`,
+			userID, decisionID, execDetails)
 
 		writeJSON(w, 200, map[string]interface{}{"status": "executed", "votes_for": votesFor, "votes_against": votesAgainst})
 	} else {

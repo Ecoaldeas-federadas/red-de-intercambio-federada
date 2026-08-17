@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
+import { useConfig } from '../hooks/useConfig'
 import { Wallet, AlertTriangle, Network, HelpCircle } from 'lucide-react'
 
 export default function Dashboard() {
+  const { currency } = useConfig()
   const [balance, setBalance] = useState<number | null>(null)
   const [creditLimit, setCreditLimit] = useState<number | null>(null)
   const [debitLimit, setDebitLimit] = useState<number | null>(null)
@@ -40,7 +42,7 @@ export default function Dashboard() {
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
           <p><strong>Panel Principal - Ayuda</strong></p>
           <p>Esta es la pantalla principal de tu nodo. Aqui ves un resumen de tu cuenta y del estado de la federacion.</p>
-          <p><strong>Mi Balance:</strong> Tu saldo actual en Trueques (TQ). Puede ser positivo (tienes credito) o negativo (debes). Un saldo de 0 significa que no has hecho transacciones todavia. El saldo negativo es normal: significa que compraste y despues pagaras vendiendo o trabajando.</p>
+          <p><strong>Mi Balance:</strong> Tu saldo actual en Trueques ({currency}). Puede ser positivo (tienes credito) o negativo (debes). Un saldo de 0 significa que no has hecho transacciones todavia. El saldo negativo es normal: significa que compraste y despues pagaras vendiendo o trabajando.</p>
           <p><strong>Nodos Federados:</strong> Cuantos nodos de otras comunidades estan conectados al tuyo. La federacion permite intercambiar entre comunidades distintas. Si dice 0, significa que tu nodo esta solo (no esta federado con nadie todavia).</p>
           <p><strong>Avisos Activos:</strong> Alertas sobre limites de federacion. Aparecen cuando te acercas al limite de deuda o credito con otros nodos. Si dice 0, no hay problemas.</p>
           <p><strong>Nodos Conectados:</strong> Lista de las comunidades federadas y el saldo con cada una. Saldo negativo = debes a esa comunidad. Saldo positivo = te deben.</p>
@@ -57,11 +59,11 @@ export default function Dashboard() {
             <h2 className="text-lg font-semibold">Mi Balance</h2>
           </div>
           <p className="text-3xl font-bold text-trueque-700">
-            {balance !== null ? `${balance.toLocaleString()} TQ` : '...'}
+            {balance !== null ? `${balance.toLocaleString()} ${currency}` : '...'}
           </p>
           {creditLimit !== null && debitLimit !== null && (
             <p className="text-xs text-gray-500 mt-2">
-              Limite credito: +{creditLimit.toLocaleString()} TQ | Limite debito: -{debitLimit.toLocaleString()} TQ
+              Limite credito: +{creditLimit.toLocaleString()} {currency} | Limite debito: -{debitLimit.toLocaleString()} {currency}
             </p>
           )}
           <p className="text-xs text-gray-400 mt-1">
@@ -121,7 +123,7 @@ export default function Dashboard() {
               <div key={i} className="flex items-center justify-between border-b border-gray-100 py-2">
                 <span className="font-medium">{n.remote_node}</span>
                 <span className={`text-sm ${n.balance < 0 ? 'text-red-600' : 'text-trueque-600'}`}>
-                  {n.balance?.toLocaleString()} TQ
+                  {n.balance?.toLocaleString()} {currency}
                 </span>
               </div>
             ))}

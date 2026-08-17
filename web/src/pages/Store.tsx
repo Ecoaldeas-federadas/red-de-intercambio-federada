@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
+import { useConfig } from '../hooks/useConfig'
 import { ShoppingCart, Plus, HelpCircle, Trash2, Search, Store as StoreIcon } from 'lucide-react'
 
 export default function Store() {
+  const { currency } = useConfig()
   const [view, setView] = useState<'mine' | 'browse'>('mine')
   const [items, setItems] = useState<any[]>([])
   const [products, setProducts] = useState<any[]>([])
@@ -156,7 +158,7 @@ export default function Store() {
                   <select className="input" value={form.product_id} onChange={(e) => setForm({ ...form, product_id: e.target.value })}>
                     <option value="">Seleccionar producto...</option>
                     {filteredProducts.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name} — {p.price_trueque} TQ ({p.category || 'sin categoria'})</option>
+                      <option key={p.id} value={p.id}>{p.name} — {p.price_trueque} {currency} ({p.category || 'sin categoria'})</option>
                     ))}
                   </select>
                 )}
@@ -188,7 +190,7 @@ export default function Store() {
                     <p className="text-sm text-gray-600">{item.description || product?.description}</p>
                     {item.category && <span className="text-xs bg-gray-100 px-2 py-0.5 rounded mt-1 inline-block">{item.category}</span>}
                     <div className="flex items-center justify-between mt-3">
-                      <span className="text-lg font-bold text-trueque-700">{item.price_trueque || product?.price_trueque} TQ</span>
+                      <span className="text-lg font-bold text-trueque-700">{item.price_trueque || product?.price_trueque} {currency}</span>
                       <span className={`text-sm ${item.stock === 0 ? 'text-red-500' : 'text-gray-500'}`}>
                         Stock: {item.stock}{item.stock === 0 ? ' (agotado)' : ''}
                       </span>
@@ -248,7 +250,7 @@ export default function Store() {
                           {s.stock > 0 && <span className="ml-2 text-xs text-gray-500">Stock: {s.stock}</span>}
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="font-bold text-trueque-700">{s.price_trueque} TQ</span>
+                          <span className="font-bold text-trueque-700">{s.price_trueque} {currency}</span>
                           {s.stock > 0 && (
                             <button onClick={() => buy(s)} className="btn-primary text-sm flex items-center gap-1">
                               <ShoppingCart size={14} /> Comprar

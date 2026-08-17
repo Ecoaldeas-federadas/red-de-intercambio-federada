@@ -24,6 +24,8 @@ import Departments from './pages/Departments'
 import NFCTerminals from './pages/NFCTerminals'
 import FederationPeers from './pages/FederationPeers'
 import NodeSettings from './pages/NodeSettings'
+import Profile from './pages/Profile'
+import CommunityFund from './pages/CommunityFund'
 
 export default function App() {
   const { isAuthenticated } = useAuth()
@@ -86,6 +88,8 @@ export default function App() {
         <Route path="/nfc-terminals" element={<NFCTerminals />} />
         <Route path="/federation/peers" element={<FederationPeers />} />
         <Route path="/settings" element={<NodeSettings />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/fund" element={<CommunityFund />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

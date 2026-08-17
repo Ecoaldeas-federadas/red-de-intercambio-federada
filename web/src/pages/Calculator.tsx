@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
+import { useConfig } from '../hooks/useConfig'
 import { Calculator as CalcIcon, HelpCircle, Plus, Trash2, X } from 'lucide-react'
 
 // Tipos de trabajo predefinidos con su costo energetico (kWh por hora)
@@ -108,6 +109,7 @@ interface WorkItem {
 }
 
 export default function Calculator() {
+  const { currency } = useConfig()
   const [mode, setMode] = useState<'simple' | 'advanced'>('simple')
   const [showHelp, setShowHelp] = useState(false)
   const [products, setProducts] = useState<any[]>([])
@@ -222,7 +224,7 @@ export default function Calculator() {
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
           <p><strong>Calculadora de Precios - Ayuda</strong></p>
-          <p><strong>Para que sirve:</strong> Calcula el precio de un producto o servicio basado en su costo energetico real. El precio en Trueques (TQ) equivale a la energia total invertida: 1 TQ = 1 kWh.</p>
+          <p><strong>Para que sirve:</strong> Calcula el precio de un producto o servicio basado en su costo energetico real. El precio en Trueques ({currency}) equivale a la energia total invertida: 1 {currency} = 1 kWh.</p>
           <p><strong>Modo facil:</strong> Responde un cuestionario. Selecciona el tipo de trabajo, cuantas horas, y que materiales usaste. El sistema calcula todo automaticamente.</p>
           <p><strong>Modo avanzado:</strong> Para usuarios avanzados que conocen los valores exactos en kWh. Permite ingresar energia directa, humana, insumos y amortizacion manualmente.</p>
           <p><strong>Como se calcula:</strong> Precio = (Energia del trabajo + Energia de los insumos) x factor de esfuerzo. El factor de esfuerzo aumenta el costo si el trabajo es especialmente dificil.</p>
@@ -328,7 +330,7 @@ export default function Calculator() {
                 <div className="flex gap-2 flex-wrap">
                   {products.slice(0, 10).map((p) => (
                     <button key={p.id} onClick={() => addProductAsInput(p)} className="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded">
-                      + {p.name} ({p.price_trueque} TQ)
+                      + {p.name} ({p.price_trueque} {currency})
                     </button>
                   ))}
                 </div>
@@ -394,7 +396,7 @@ export default function Calculator() {
             <div>
               <label className="label">Tarifa de conversion</label>
               <input type="number" step="0.1" className="input" value={advForm.tariff} onChange={(e) => setAdvForm({ ...advForm, tariff: parseFloat(e.target.value) || 1 })} />
-              <p className="text-xs text-gray-400 mt-1">kWh a TQ (por defecto 1:1).</p>
+              <p className="text-xs text-gray-400 mt-1">kWh a {currency} (por defecto 1:1).</p>
             </div>
           </div>
           <button onClick={calculateAdvanced} className="btn-primary w-full flex items-center justify-center gap-2"><CalcIcon size={18} /> Calcular</button>
@@ -416,7 +418,7 @@ export default function Calculator() {
             </div>
             <div className="border-t border-trueque-200 pt-2 flex justify-between text-lg">
               <span className="font-bold text-trueque-700">Precio total:</span>
-              <span className="font-bold text-trueque-700">{result.totalTQ.toFixed(2)} TQ</span>
+              <span className="font-bold text-trueque-700">{result.totalTQ.toFixed(2)} {currency}</span>
             </div>
           </div>
           <p className="text-xs text-gray-500">Este es el precio sugerido para tu producto. Llevalo a la asamblea para que lo aprueben y lo agreguen al registro de productos.</p>

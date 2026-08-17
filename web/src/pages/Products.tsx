@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
+import { useConfig } from '../hooks/useConfig'
 import { Plus, HelpCircle, Package } from 'lucide-react'
 
 export default function Products() {
   const { hasPermission } = usePermissions()
+  const { currency } = useConfig()
   const canManage = hasPermission('assembly.propose') || hasPermission('pricing.manage')
   const [products, setProducts] = useState<any[]>([])
   const [showForm, setShowForm] = useState(false)
@@ -98,9 +100,9 @@ export default function Products() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">Precio (TQ)</label>
+              <label className="label">Precio ({currency})</label>
               <input type="number" className="input" value={form.price_trueque} onChange={(e) => setForm({ ...form, price_trueque: parseInt(e.target.value) || 0 })} />
-              <p className="text-xs text-gray-400 mt-1">Precio fijo en Trueques. 1 TQ = 1 kWh. Use la Calculadora para calcular el costo energetico.</p>
+              <p className="text-xs text-gray-400 mt-1">Precio fijo en Trueques. 1 {currency} = 1 kWh. Use la Calculadora para calcular el costo energetico.</p>
             </div>
             <div>
               <label className="label">Codigo de producto (opcional)</label>
@@ -125,7 +127,7 @@ export default function Products() {
               <h3 className="font-semibold">{p.name}</h3>
               <p className="text-sm text-gray-600">{p.description}</p>
               <div className="mt-3 space-y-1">
-                <p className="text-lg font-bold text-trueque-700">{p.price_trueque} TQ</p>
+                <p className="text-lg font-bold text-trueque-700">{p.price_trueque} {currency}</p>
                 <p className="text-xs text-gray-400">Unidad: {p.unit} | Categoria: {p.category || 'N/A'}</p>
                 {p.product_code && <p className="text-xs text-gray-400">Codigo: {p.product_code}</p>}
               </div>

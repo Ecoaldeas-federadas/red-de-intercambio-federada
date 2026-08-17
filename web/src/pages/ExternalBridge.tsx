@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
+import { useConfig } from '../hooks/useConfig'
 import { Plus, Check, X, HelpCircle, Globe } from 'lucide-react'
 
 export default function ExternalBridge() {
+  const { currency } = useConfig()
   const [fc, setFc] = useState<any>(null)
   const [ops, setOps] = useState<any[]>([])
   const [showForm, setShowForm] = useState(false)
@@ -42,9 +44,9 @@ export default function ExternalBridge() {
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
           <p><strong>Comercio Externo (DEX) - Ayuda</strong></p>
           <p><strong>Que es:</strong> El DEX (Decentralized Exchange) permite comprar y vender productos con el exterior de la red federada, usando monedas externas (USD, etc).</p>
-          <p><strong>Factor de Conversion (FC):</strong> Relacion entre la moneda externa (USD) y el Trueque (TQ). Se calcula comparando el costo de vida externo (CPI) con el costo energetico local.</p>
-          <p><strong>Importacion:</strong> Traer productos de fuera. Paga en TQ, el sistema convierte al precio externo usando el FC.</p>
-          <p><strong>Exportacion:</strong> Vender productos al exterior. Recibes TQ, el externo paga en su moneda.</p>
+          <p><strong>Factor de Conversion (FC):</strong> Relacion entre la moneda externa (USD) y el Trueque ({currency}). Se calcula comparando el costo de vida externo (CPI) con el costo energetico local.</p>
+          <p><strong>Importacion:</strong> Traer productos de fuera. Paga en {currency}, el sistema convierte al precio externo usando el FC.</p>
+          <p><strong>Exportacion:</strong> Vender productos al exterior. Recibes {currency}, el externo paga en su moneda.</p>
           <p><strong>Logistica e impuestos:</strong> Se agregan al costo total como porcentajes. La logistica cubre transporte, los impuestos son aranceles externos.</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
         </div>
@@ -53,7 +55,7 @@ export default function ExternalBridge() {
       {fc && (
         <div className="card bg-blue-50">
           <h2 className="font-semibold">Factor de Conversion Actual (FC)</h2>
-          <p className="text-2xl font-bold text-blue-700 mt-1">1 USD = {fc.factor} TQ</p>
+          <p className="text-2xl font-bold text-blue-700 mt-1">1 USD = {fc.factor} {currency}</p>
           <div className="grid grid-cols-2 gap-3 mt-2 text-sm">
             <div><span className="text-gray-500">CPI externo:</span> <b>{fc.external_cpi}</b></div>
             <div><span className="text-gray-500">Costo energia local:</span> <b>{fc.local_energy_cost} kWh</b></div>
@@ -91,7 +93,7 @@ export default function ExternalBridge() {
               <p className="text-xs text-gray-400 mt-1">Precio en dolares por unidad.</p>
             </div>
             <div>
-              <label className="label">Precio local (TQ)</label>
+              <label className="label">Precio local ({currency})</label>
               <input type="number" className="input" value={form.local_price_trueque} onChange={(e) => setForm({ ...form, local_price_trueque: parseInt(e.target.value) || 0 })} />
               <p className="text-xs text-gray-400 mt-1">Precio en Trueques por unidad.</p>
             </div>
@@ -122,7 +124,7 @@ export default function ExternalBridge() {
           <div key={i} className="card flex items-center justify-between">
             <div>
               <span className="font-medium">{op.operation_type === 'import' ? 'Importacion' : 'Exportacion'}: {op.product_name}</span>
-              <p className="text-sm text-gray-600">Cant: {op.quantity} | Total: {op.total_trueque} TQ | FC usado: {op.fc_used}</p>
+              <p className="text-sm text-gray-600">Cant: {op.quantity} | Total: {op.total_trueque} {currency} | FC usado: {op.fc_used}</p>
             </div>
             <div className="flex items-center gap-2">
               <span className={`text-xs px-2 py-1 rounded ${op.status === 'approved' ? 'bg-trueque-100 text-trueque-700' : op.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{op.status}</span>

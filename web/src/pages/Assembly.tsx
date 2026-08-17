@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
+import { useConfig } from '../hooks/useConfig'
 import { Plus, Check, X, HelpCircle, Users, Calendar, Shield, Vote as VoteIcon, DollarSign, Crown, Trash2 } from 'lucide-react'
 
 type ProposalType =
@@ -31,11 +32,11 @@ const PROPOSAL_HELP: Record<ProposalType, string> = {
   policy: 'Cualquier decision de politica general de la comunidad.',
 }
 
-const PROPOSAL_FIELDS: Record<ProposalType, { key: string; label: string; placeholder: string; type?: string }[]> = {
+const PROPOSAL_FIELDS = (currency: string): Record<ProposalType, { key: string; label: string; placeholder: string; type?: string }[]> => ({
   limit_change: [
     { key: 'usuario_organizacion', label: 'Usuario u organizacion', placeholder: 'ej: maria' },
-    { key: 'nuevo_limite_credito', label: 'Nuevo limite de credito (TQ)', placeholder: '200', type: 'number' },
-    { key: 'nuevo_limite_debito', label: 'Nuevo limite de debito (TQ)', placeholder: '200', type: 'number' },
+    { key: 'nuevo_limite_credito', label: `Nuevo limite de credito (${currency})`, placeholder: '200', type: 'number' },
+    { key: 'nuevo_limite_debito', label: `Nuevo limite de debito (${currency})`, placeholder: '200', type: 'number' },
   ],
   admission: [
     { key: 'usuario', label: 'Usuario a admitir', placeholder: 'ej: nuevo_miembro' },
@@ -47,11 +48,11 @@ const PROPOSAL_FIELDS: Record<ProposalType, { key: string; label: string; placeh
   ],
   budget_increase: [
     { key: 'organizacion', label: 'Organizacion', placeholder: 'ej: coop_norte' },
-    { key: 'monto', label: 'Monto (TQ)', placeholder: '500', type: 'number' },
+    { key: 'monto', label: `Monto (${currency})`, placeholder: '500', type: 'number' },
   ],
   federation_config: [
     { key: 'nodo', label: 'Nodo federado', placeholder: 'ej: nodo-b.org' },
-    { key: 'limite', label: 'Nuevo limite (TQ)', placeholder: '1000', type: 'number' },
+    { key: 'limite', label: `Nuevo limite (${currency})`, placeholder: '1000', type: 'number' },
   ],
   recovery_config: [
     { key: 'modo', label: 'Modo de aprobacion', placeholder: 'assembly, council, multi_sig' },
@@ -63,13 +64,13 @@ const PROPOSAL_FIELDS: Record<ProposalType, { key: string; label: string; placeh
   member_level: [
     { key: 'nombre_nivel', label: 'Nombre del nivel', placeholder: 'ej: pleno' },
     { key: 'descripcion_nivel', label: 'Descripcion', placeholder: 'Permisos y alcances' },
-    { key: 'limite_credito', label: 'Limite de credito (TQ)', placeholder: '500', type: 'number' },
-    { key: 'limite_debito', label: 'Limite de debito (TQ)', placeholder: '500', type: 'number' },
+    { key: 'limite_credito', label: `Limite de credito (${currency})`, placeholder: '500', type: 'number' },
+    { key: 'limite_debito', label: `Limite de debito (${currency})`, placeholder: '500', type: 'number' },
   ],
   policy: [
     { key: 'detalle', label: 'Detalle de la politica', placeholder: 'Descripcion de la decision' },
   ],
-}
+})
 
 const BOARD_POSITIONS = [
   { value: 'presidente', label: 'Presidente' },
@@ -82,6 +83,7 @@ const BOARD_POSITIONS = [
 
 export default function Assembly() {
   const { hasPermission } = usePermissions()
+  const { currency } = useConfig()
   const canManageBoard = hasPermission('assembly.manage_board')
   const canManageTax = hasPermission('tax.manage')
 
@@ -256,7 +258,7 @@ export default function Assembly() {
                 <p className="text-xs text-gray-400 mt-1">{PROPOSAL_HELP[proposalType]}</p>
               </div>
 
-              {PROPOSAL_FIELDS[proposalType]?.map((field) => (
+              {PROPOSAL_FIELDS(currency)[proposalType]?.map((field) => (
                 <div key={field.key}>
                   <label className="label">{field.label}</label>
                   <input
@@ -349,7 +351,7 @@ export default function Assembly() {
                     </div>
                     <p className="text-xs text-gray-500 mt-1">{ml.description}</p>
                     <p className="text-xs text-gray-400 mt-1">
-                      Limite credito: {ml.credit_limit} TQ | Limite debito: {ml.debit_limit} TQ
+                      Limite credito: {ml.credit_limit} {currency} | Limite debito: {ml.debit_limit} {currency}
                       {ml.tax_rate && ` | Impuesto: ${(ml.tax_rate * 100).toFixed(2)}%`}
                     </p>
                   </div>
@@ -533,7 +535,7 @@ export default function Assembly() {
                 </div>
                 <div>
                   <label className="label">Monto minimo</label>
-                  <b>{taxConfig.min_amount || 0} TQ</b>
+                  <b>{taxConfig.min_amount || 0} {currency}</b>
                 </div>
               </div>
             </div>
@@ -545,7 +547,7 @@ export default function Assembly() {
               {taxAccount.tax_account ? (
                 <div className="text-sm">
                   <p><span className="text-gray-500">Cuenta:</span> <b>{taxAccount.tax_account}</b></p>
-                  <p className="mt-1"><span className="text-gray-500">Balance recaudado:</span> <b className="text-trueque-700">{taxAccount.balance} TQ</b></p>
+                  <p className="mt-1"><span className="text-gray-500">Balance recaudado:</span> <b className="text-trueque-700">{taxAccount.balance} {currency}</b></p>
                 </div>
               ) : (
                 <p className="text-sm text-amber-600">No hay cuenta de impuestos configurada. La asamblea debe asignar una cuenta para recibir los impuestos recaudados.</p>

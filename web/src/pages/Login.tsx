@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useConfig } from '../hooks/useConfig'
 import { api } from '../api'
 import { Fingerprint, AlertCircle, Lock, User } from 'lucide-react'
 
 export default function Login() {
   const { login } = useAuth()
+  const { currency } = useConfig()
   const navigate = useNavigate()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')

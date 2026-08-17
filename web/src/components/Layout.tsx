@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth'
 import {
   Home, ArrowLeftRight, History, Package, Calculator, Store,
   Network, Scale, Users, Gavel, FileSearch, Globe, UserPlus, Wallet, Shield,
-  Building2, Nfc, Settings,
+  Building2, Nfc, Settings, User, PiggyBank,
   LogOut, Menu, X,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -26,6 +26,8 @@ const navItems = [
   { to: '/external', label: 'Comercio Externo', icon: Globe },
   { to: '/admission', label: 'Admision', icon: UserPlus },
   { to: '/recovery', label: 'Recuperacion', icon: Shield },
+  { to: '/fund', label: 'Fondo Comunitario', icon: PiggyBank },
+  { to: '/profile', label: 'Mi Perfil', icon: User },
   { to: '/settings', label: 'Configuracion', icon: Settings },
 ]
 

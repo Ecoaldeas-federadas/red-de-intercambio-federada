@@ -40,6 +40,17 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequirePermission("products.manage")).Post("/api/products", h.createProduct)
 	r.With(am.RequirePermission("products.manage")).Put("/api/products/{id}", h.updateProduct)
 	r.With(am.RequirePermission("products.manage")).Post("/api/products/{id}/approve", h.approveProduct)
+
+	// Productores
+	r.With(am.RequireAuth).Get("/api/products/{id}/producers", h.listProducers)
+	r.With(am.RequirePermission("products.manage")).Post("/api/products/{id}/producers", h.addProducer)
+	r.With(am.RequirePermission("products.manage")).Delete("/api/products/producers/{pid}", h.removeProducer)
+
+	// Historial de precios
+	r.With(am.RequireAuth).Get("/api/products/{id}/price-history", h.getPriceHistory)
+
+	// Fondo comunitario
+	r.With(am.RequireAuth).Get("/api/fund/balance", h.getFundBalance)
 }
 
 // ===== AUDITORIA =====
@@ -620,6 +631,202 @@ func (h *SystemHandler) approveProduct(w http.ResponseWriter, r *http.Request) {
 		id, userID)
 
 	writeJSON(w, 200, map[string]interface{}{"message": "Producto aprobado"})
+}
+
+// ===== PRODUCTORES =====
+
+func (h *SystemHandler) listProducers(w http.ResponseWriter, r *http.Request) {
+	productID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid product id")
+		return
+	}
+
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT pp.id, pp.producer_id, u.username, u.display_name,
+			   pp.energy_direct, pp.energy_human, pp.energy_inputs, pp.energy_amortization,
+			   pp.price_per_unit, pp.is_active
+		FROM product_producers pp
+		JOIN users u ON u.id = pp.producer_id
+		WHERE pp.product_id = $1 AND pp.is_active = true`, productID)
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+
+	var producers []map[string]interface{}
+	for rows.Next() {
+		var id, producerID uuid.UUID
+		var username string
+		var displayName *string
+		var energyDirect, energyHuman, energyInputs, energyAmortization float64
+		var pricePerUnit float64
+		var isActive bool
+		if err := rows.Scan(&id, &producerID, &username, &displayName, &energyDirect, &energyHuman, &energyInputs, &energyAmortization, &pricePerUnit, &isActive); err != nil {
+			continue
+		}
+		producers = append(producers, map[string]interface{}{
+			"id":                  id.String(),
+			"producer_id":         producerID.String(),
+			"username":            username,
+			"display_name":        deref(displayName),
+			"energy_direct":       energyDirect,
+			"energy_human":        energyHuman,
+			"energy_inputs":       energyInputs,
+			"energy_amortization": energyAmortization,
+			"price_per_unit":      pricePerUnit,
+			"is_active":           isActive,
+		})
+	}
+	if producers == nil {
+		producers = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, producers)
+}
+
+type AddProducerRequest struct {
+	ProducerID         string  `json:"producer_id"`
+	EnergyDirect       float64 `json:"energy_direct"`
+	EnergyHuman        float64 `json:"energy_human"`
+	EnergyInputs       float64 `json:"energy_inputs"`
+	EnergyAmortization float64 `json:"energy_amortization"`
+}
+
+func (h *SystemHandler) addProducer(w http.ResponseWriter, r *http.Request) {
+	productID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid product id")
+		return
+	}
+
+	var req AddProducerRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	producerID, err := uuid.Parse(req.ProducerID)
+	if err != nil {
+		// Buscar por username
+		err = h.Pool.QueryRow(r.Context(), `SELECT id FROM users WHERE username = $1`, req.ProducerID).Scan(&producerID)
+		if err != nil {
+			writeError(w, 404, "producer not found")
+			return
+		}
+	}
+
+	// Calcular precio total
+	totalEnergy := req.EnergyDirect + req.EnergyHuman + req.EnergyInputs + req.EnergyAmortization
+
+	id := uuid.New()
+	_, err = h.Pool.Exec(r.Context(), `
+		INSERT INTO product_producers (id, product_id, producer_id, energy_direct, energy_human, energy_inputs, energy_amortization, price_per_unit, is_active)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)
+		ON CONFLICT (product_id, producer_id) DO UPDATE SET
+			energy_direct = $4, energy_human = $5, energy_inputs = $6, energy_amortization = $7, price_per_unit = $8, is_active = true`,
+		id, productID, producerID, req.EnergyDirect, req.EnergyHuman, req.EnergyInputs, req.EnergyAmortization, totalEnergy)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	writeJSON(w, 201, map[string]interface{}{
+		"id":             id.String(),
+		"producer_id":    producerID.String(),
+		"price_per_unit": totalEnergy,
+		"message":        "Productor agregado",
+	})
+}
+
+func (h *SystemHandler) removeProducer(w http.ResponseWriter, r *http.Request) {
+	pid, err := uuid.Parse(chi.URLParam(r, "pid"))
+	if err != nil {
+		writeError(w, 400, "invalid producer id")
+		return
+	}
+	_, err = h.Pool.Exec(r.Context(), `UPDATE product_producers SET is_active = false WHERE id = $1`, pid)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{"status": "removed"})
+}
+
+// ===== HISTORIAL DE PRECIOS =====
+
+func (h *SystemHandler) getPriceHistory(w http.ResponseWriter, r *http.Request) {
+	productID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid product id")
+		return
+	}
+
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT id, old_price, new_price, change_reason, approved_by, created_at
+		FROM product_price_history
+		WHERE product_id = $1
+		ORDER BY created_at DESC LIMIT 50`, productID)
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+
+	var history []map[string]interface{}
+	for rows.Next() {
+		var id uuid.UUID
+		var oldPrice, newPrice float64
+		var changeReason *string
+		var approvedBy *uuid.UUID
+		var createdAt time.Time
+		if err := rows.Scan(&id, &oldPrice, &newPrice, &changeReason, &approvedBy, &createdAt); err != nil {
+			continue
+		}
+		history = append(history, map[string]interface{}{
+			"id":            id.String(),
+			"old_price":     oldPrice,
+			"new_price":     newPrice,
+			"change_reason": deref(changeReason),
+			"approved_by":   derefUUID(approvedBy),
+			"created_at":    createdAt,
+		})
+	}
+	if history == nil {
+		history = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, history)
+}
+
+// ===== FONDO COMUNITARIO =====
+
+func (h *SystemHandler) getFundBalance(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	// Buscar cuenta del fondo
+	var fundID uuid.UUID
+	var balance int64
+	var username string
+	err := h.Pool.QueryRow(r.Context(), `
+		SELECT id, balance, username FROM users WHERE node_domain = $1 AND account_type = 'fund' AND is_active = true LIMIT 1`,
+		nodeDomain).Scan(&fundID, &balance, &username)
+	if err != nil {
+		writeJSON(w, 200, map[string]interface{}{
+			"fund_account": nil,
+			"balance":      0,
+			"message":      "No hay cuenta de fondo comunitario. Crea una cuenta tipo 'fund' para acumular impuestos.",
+		})
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"fund_account": fundID.String(),
+		"username":     username,
+		"balance":      balance,
+	})
 }
 
 // ===== HELPER =====
