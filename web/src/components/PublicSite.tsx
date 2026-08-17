@@ -65,7 +65,6 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
       if (Array.isArray(d) && d.length > 0) {
         setPages(d)
       } else {
-        // Fallback to default pages
         setPages(
           FERIA_CONUQUERA_TEMPLATES.map((t) => ({
             slug: t.slug,
@@ -82,15 +81,15 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
     }).catch(() => {})
   }, [])
 
-  const primaryColor = settings?.primary_color || '#1e3a1e'
-  const secondaryColor = settings?.secondary_color || '#c85a32'
+  const primaryColor = settings?.primary_color || '#162e16'
+  const secondaryColor = settings?.secondary_color || '#c2410c'
 
   return (
-    <div className="min-h-screen flex flex-col font-sans selection:bg-amber-200 selection:text-amber-950" style={{ backgroundColor: '#faf8f5' }}>
+    <div className="min-h-screen flex flex-col font-sans selection:bg-amber-200 selection:text-amber-950 overflow-x-hidden w-full bg-[#fcfbf9]">
       {/* Top Notification / Announcement Bar */}
       <div
         className="text-white text-xs sm:text-sm py-2 px-4 text-center font-medium shadow-inner flex items-center justify-center gap-2"
-        style={{ backgroundColor: '#142a14' }}
+        style={{ backgroundColor: '#0f210f' }}
       >
         <span className="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
         <span>
@@ -100,33 +99,33 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
       {/* Main Header / Navbar */}
       <header className="shadow-md sticky top-0 z-50 backdrop-blur-md border-b border-white/10" style={{ backgroundColor: primaryColor }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
-          <div className="flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 sm:py-3">
+          <div className="flex items-center justify-between gap-3">
             {/* Logo & Brand */}
-            <Link to="/p/inicio" className="flex items-center gap-3 text-white group flex-shrink-0">
+            <Link to="/p/inicio" className="flex items-center gap-2.5 sm:gap-3 text-white group flex-shrink-0">
               {settings?.logo_url ? (
                 <img
                   src={settings.logo_url}
                   alt="logo"
-                  className="w-10 h-10 rounded-full object-cover border-2 border-amber-400/80 shadow-md group-hover:scale-105 transition"
+                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover border-2 border-amber-400/80 shadow-md group-hover:scale-105 transition"
                 />
               ) : (
-                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-500 to-emerald-400 flex items-center justify-center text-white shadow-md group-hover:rotate-6 transition">
-                  <Leaf size={22} />
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-amber-500 to-emerald-400 flex items-center justify-center text-white shadow-md group-hover:rotate-6 transition">
+                  <Leaf size={20} />
                 </div>
               )}
-              <div>
-                <h1 className="text-base sm:text-lg font-extrabold tracking-tight leading-tight">
+              <div className="min-w-0">
+                <h1 className="text-sm sm:text-base md:text-lg font-extrabold tracking-tight leading-tight truncate">
                   {settings?.site_title || 'Feria Conuquera Agroecológica'}
                 </h1>
-                <p className="text-[11px] text-emerald-200/90 hidden sm:block font-medium">
+                <p className="text-[11px] text-emerald-200/90 hidden md:block font-medium truncate">
                   {settings?.site_subtitle || 'Parque Los Caobos, Caracas'}
                 </p>
               </div>
             </Link>
 
             {/* Desktop Navigation Links */}
-            <nav className="hidden lg:flex items-center gap-1 xl:gap-2">
+            <nav className="hidden xl:flex items-center gap-1">
               {pages.map((p) => {
                 const Icon = ICONS[p.icon || 'home'] || Home
                 const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
@@ -134,56 +133,56 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                   <Link
                     key={p.slug}
                     to={`/p/${p.slug}`}
-                    className={`px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 ${
+                    className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 whitespace-nowrap ${
                       isActive
                         ? 'bg-white/20 text-white shadow-inner border border-white/20'
                         : 'text-white/85 hover:text-white hover:bg-white/10'
                     }`}
                   >
-                    <Icon size={15} />
+                    <Icon size={14} />
                     {p.title}
                   </Link>
                 )
               })}
             </nav>
 
-            {/* Desktop Action Buttons */}
-            <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 flex-shrink-0">
               {settings?.show_join_form && !isAuthenticated && (
                 <Link
                   to="/p/unirse"
-                  className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-white transition shadow hover:brightness-110 active:scale-95 flex items-center gap-1.5"
+                  className="hidden sm:inline-flex px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold text-white transition shadow hover:brightness-110 active:scale-95 items-center gap-1.5"
                   style={{ backgroundColor: secondaryColor }}
                 >
-                  <Sparkles size={14} />
+                  <Sparkles size={13} />
                   Solicitar Unirse
                 </Link>
               )}
 
               {isAuthenticated ? (
-                <div className="flex items-center gap-1.5 bg-black/20 p-1 rounded-xl border border-white/10">
+                <div className="flex items-center gap-1.5 bg-black/25 p-1 rounded-xl border border-white/10">
                   <Link
                     to="/app/website"
-                    className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white hover:bg-white/20 transition flex items-center gap-1"
+                    className="px-2.5 py-1 rounded-lg text-xs font-semibold text-white hover:bg-white/20 transition flex items-center gap-1"
                     title="Editar módulos del sitio web"
                   >
                     <Edit size={13} />
-                    Editar Módulos
+                    <span className="hidden sm:inline">Editar Módulos</span>
                   </Link>
                   <Link
                     to="/app/dashboard"
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold text-white transition flex items-center gap-1 shadow-sm"
+                    className="px-2.5 py-1 rounded-lg text-xs font-bold text-white transition flex items-center gap-1 shadow-sm"
                     style={{ backgroundColor: secondaryColor }}
                   >
                     <LayoutDashboard size={13} />
-                    Escritorio
+                    <span className="hidden sm:inline">Escritorio</span>
                   </Link>
                   <button
                     onClick={() => {
                       logout()
                       window.location.href = '/'
                     }}
-                    className="px-2 py-1.5 rounded-lg text-xs text-white/80 hover:text-white hover:bg-white/10 transition"
+                    className="p-1 rounded-lg text-xs text-white/80 hover:text-white hover:bg-white/10 transition"
                     title="Cerrar sesión"
                   >
                     <LogOut size={13} />
@@ -192,90 +191,63 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               ) : (
                 <Link
                   to="/login"
-                  className="px-3 py-2 rounded-xl text-xs sm:text-sm font-medium text-white/90 hover:text-white hover:bg-white/10 transition"
+                  className="hidden sm:inline-block px-3 py-1.5 rounded-xl text-xs font-medium text-white/90 hover:text-white hover:bg-white/10 transition"
                 >
                   Iniciar sesión
                 </Link>
               )}
-            </div>
 
-            {/* Mobile Menu Button */}
-            <button
-              className="lg:hidden text-white p-2 rounded-xl bg-white/10 hover:bg-white/20 transition"
-              onClick={() => setMenuOpen(!menuOpen)}
-              aria-label="Abrir menú"
-            >
-              {menuOpen ? <X size={22} /> : <Menu size={22} />}
-            </button>
+              {/* Mobile / Tablet Menu Button */}
+              <button
+                className="xl:hidden text-white p-2 rounded-xl bg-white/10 hover:bg-white/20 transition"
+                onClick={() => setMenuOpen(!menuOpen)}
+                aria-label="Abrir menú"
+              >
+                {menuOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>
+            </div>
           </div>
 
-          {/* Mobile Menu Drawer */}
+          {/* Mobile / Tablet Drawer */}
           {menuOpen && (
-            <div className="lg:hidden mt-3 pt-3 border-t border-white/10 space-y-1 pb-2">
-              {pages.map((p) => {
-                const Icon = ICONS[p.icon || 'home'] || Home
-                const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
-                return (
-                  <Link
-                    key={p.slug}
-                    to={`/p/${p.slug}`}
-                    onClick={() => setMenuOpen(false)}
-                    className={`block px-3.5 py-2.5 rounded-xl text-sm font-semibold transition flex items-center gap-2.5 ${
-                      isActive ? 'bg-white/20 text-white' : 'text-white/80 hover:text-white hover:bg-white/10'
-                    }`}
-                  >
-                    <Icon size={16} />
-                    {p.title}
-                  </Link>
-                )
-              })}
+            <div className="xl:hidden mt-3 pt-3 border-t border-white/10 space-y-1 pb-2">
+              <div className="grid grid-cols-2 gap-1.5 pb-2">
+                {pages.map((p) => {
+                  const Icon = ICONS[p.icon || 'home'] || Home
+                  const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
+                  return (
+                    <Link
+                      key={p.slug}
+                      to={`/p/${p.slug}`}
+                      onClick={() => setMenuOpen(false)}
+                      className={`px-3 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-2 truncate ${
+                        isActive ? 'bg-white/20 text-white font-bold' : 'text-white/80 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      <Icon size={14} className="flex-shrink-0" />
+                      <span className="truncate">{p.title}</span>
+                    </Link>
+                  )
+                })}
+              </div>
 
-              <div className="pt-3 mt-2 border-t border-white/10 space-y-2">
+              <div className="pt-2 border-t border-white/10 space-y-2">
                 {settings?.show_join_form && !isAuthenticated && (
                   <Link
                     to="/p/unirse"
                     onClick={() => setMenuOpen(false)}
-                    className="block w-full text-center px-4 py-2.5 rounded-xl text-sm font-bold text-white shadow"
+                    className="block w-full text-center px-4 py-2 rounded-xl text-xs font-bold text-white shadow"
                     style={{ backgroundColor: secondaryColor }}
                   >
-                    Solicitar unirse
+                    Solicitar Unirse a la Red
                   </Link>
                 )}
 
-                {isAuthenticated ? (
-                  <div className="space-y-1">
-                    <Link
-                      to="/app/website"
-                      onClick={() => setMenuOpen(false)}
-                      className="block px-3 py-2 rounded-lg text-sm text-white hover:bg-white/20 flex items-center gap-2"
-                    >
-                      <Edit size={16} />
-                      Editar módulos del sitio
-                    </Link>
-                    <Link
-                      to="/app/dashboard"
-                      onClick={() => setMenuOpen(false)}
-                      className="block px-4 py-2.5 rounded-xl text-sm font-bold text-white text-center shadow"
-                      style={{ backgroundColor: secondaryColor }}
-                    >
-                      Ir al Escritorio ({username})
-                    </Link>
-                    <button
-                      onClick={() => {
-                        logout()
-                        window.location.href = '/'
-                      }}
-                      className="block w-full text-left px-3 py-2 rounded-lg text-sm text-red-200 hover:text-white flex items-center gap-2"
-                    >
-                      <LogOut size={16} />
-                      Cerrar sesión
-                    </button>
-                  </div>
-                ) : (
+                {!isAuthenticated && (
                   <Link
                     to="/login"
                     onClick={() => setMenuOpen(false)}
-                    className="block text-center px-3 py-2 rounded-xl text-sm text-white/90 hover:bg-white/10"
+                    className="block text-center px-3 py-2 rounded-xl text-xs text-white/90 hover:bg-white/10"
                   >
                     Iniciar sesión
                   </Link>
@@ -287,21 +259,21 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* Main Page Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {children}
       </main>
 
       {/* Rich Eco Footer (Inspired by ecovillage.org & ecoaldeas.org) */}
-      <footer className="text-white mt-16 pt-12 pb-8 border-t border-white/10 shadow-2xl" style={{ backgroundColor: '#152b15' }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+      <footer className="text-white mt-16 pt-12 pb-8 border-t border-white/10 shadow-2xl" style={{ backgroundColor: '#112211' }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 pb-10 border-b border-white/10">
             {/* Column 1: Brand & Slogan */}
             <div className="space-y-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold">
+                <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold shadow">
                   <Leaf size={18} />
                 </div>
-                <h3 className="font-extrabold text-base tracking-tight text-white">
+                <h3 className="font-extrabold text-sm tracking-tight text-white">
                   {settings?.site_title || 'Feria Conuquera Agroecológica'}
                 </h3>
               </div>
@@ -316,7 +288,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
             {/* Column 2: Quick Links */}
             <div className="space-y-3">
-              <h4 className="font-bold text-sm uppercase tracking-wider text-amber-400">
+              <h4 className="font-bold text-xs uppercase tracking-wider text-amber-400">
                 Páginas del Nodo
               </h4>
               <ul className="space-y-1.5 text-xs text-gray-300">
@@ -333,7 +305,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
             {/* Column 3: Location & Meeting */}
             <div className="space-y-3">
-              <h4 className="font-bold text-sm uppercase tracking-wider text-amber-400">
+              <h4 className="font-bold text-xs uppercase tracking-wider text-amber-400">
                 Lugar de Encuentro
               </h4>
               <div className="text-xs text-gray-300 space-y-2">
@@ -350,7 +322,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
             {/* Column 4: Social & Admission */}
             <div className="space-y-3">
-              <h4 className="font-bold text-sm uppercase tracking-wider text-amber-400">
+              <h4 className="font-bold text-xs uppercase tracking-wider text-amber-400">
                 Comunidad & Redes
               </h4>
               <div className="space-y-2 text-xs text-gray-300">
@@ -411,7 +383,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 }
 
 // -------------------------------------------------------------
-// PUBLIC PAGE VIEW (Handles modular blocks or markdown)
+// PUBLIC PAGE VIEW (Handles modular blocks or rich template fallback)
 // -------------------------------------------------------------
 export function PublicPageView() {
   const { slug } = useParams<{ slug?: string }>()
@@ -424,11 +396,31 @@ export function PublicPageView() {
     api
       .get(`/public/pages/${targetSlug}`)
       .then((d: any) => {
-        setPage(d)
+        let contentToUse = d.content
+
+        // Check if content is valid JSON blocks
+        let isValidJson = false
+        try {
+          const parsed = JSON.parse(d.content)
+          if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].type) {
+            isValidJson = true
+          }
+        } catch {
+          isValidJson = false
+        }
+
+        // If not JSON modular blocks, load rich template for this slug
+        if (!isValidJson) {
+          const tmpl = FERIA_CONUQUERA_TEMPLATES.find((t) => t.slug === targetSlug)
+          if (tmpl) {
+            contentToUse = JSON.stringify(tmpl.blocks)
+          }
+        }
+
+        setPage({ ...d, content: contentToUse })
         setLoading(false)
       })
       .catch(() => {
-        // Fallback to preconfigured template if not in db yet
         const tmpl = FERIA_CONUQUERA_TEMPLATES.find((t) => t.slug === targetSlug)
         if (tmpl) {
           setPage({
