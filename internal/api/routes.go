@@ -69,8 +69,19 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 			// Si la ruta no es un archivo, servir index.html (SPA routing)
 			path := filepath.Join(frontendDir, r.URL.Path)
 			if _, err := os.Stat(path); err != nil {
+				// index.html: NUNCA cachear (para que cambios de JS/CSS se carguen siempre)
+				w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+				w.Header().Set("Pragma", "no-cache")
+				w.Header().Set("Expires", "0")
 				http.ServeFile(w, r, filepath.Join(frontendDir, "index.html"))
 				return
+			}
+			// Assets con hash (assets/index-XXXX.js): cachear por 1 hora
+			// (cambian el nombre con cada build, asi que es seguro)
+			if len(r.URL.Path) > 8 && r.URL.Path[:8] == "/assets/" {
+				w.Header().Set("Cache-Control", "public, max-age=3600")
+			} else {
+				w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 			}
 			fileServer.ServeHTTP(w, r)
 		})
