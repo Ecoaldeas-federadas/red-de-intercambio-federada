@@ -99,11 +99,10 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [moreMenuOpen, setMoreMenuOpen] = useState(false)
   const moreMenuRef = useRef<HTMLDivElement>(null)
-  const [showHeaderEditor, setShowHeaderEditor] = useState(false)
-  const [headerForm, setHeaderForm] = useState<any>(null)
   const [showCustomizer, setShowCustomizer] = useState(false)
   const [draftSettings, setDraftSettings] = useState<ThemeDraft | null>(null)
   const [draftPages, setDraftPages] = useState<PageMenuItem[]>([])
+  const [showAdminMenu, setShowAdminMenu] = useState(false)
 
   useEffect(() => {
     api.get('/public/settings').then((s: any) => setSettings(s)).catch(() => {})
@@ -135,20 +134,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
-
-    // When customizer is open, use draft settings for live preview
-    if (showCustomizer && draftSettings) {
-      setSettings({ ...settings, ...draftSettings } as any)
-    }
-    // Also update pages order for live menu preview
-    if (showCustomizer && draftPages.length > 0) {
-      setPages(draftPages.map((dp) => {
-        const existing = pages.find((p) => p.slug === dp.slug)
-        return existing ? { ...existing, menu_order: dp.menu_order, show_in_menu: dp.show_in_menu } : existing
-      }).filter(Boolean) as any)
-    }
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [showCustomizer, draftSettings, draftPages])
+  }, [])
 
   const headerStyle = settings?.header_style || 'modern_eco'
   const primaryColor = settings?.primary_color || '#162e16'
@@ -171,7 +158,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
   )
 
   return (
-    <div className="min-h-screen flex flex-col font-sans selection:bg-amber-200 selection:text-amber-950 overflow-x-hidden w-full max-w-full bg-[#fdfbf7]">
+    <div className="min-h-screen flex flex-col font-sans selection:bg-amber-200 selection:text-amber-950 overflow-x-hidden w-full max-w-full" style={{ backgroundColor: (settings as any)?.page_bg_color || '#fdfbf7' }}>
       {/* 1. TOP ANNOUNCEMENT BAR */}
       {showAnnouncement && (
         <div
@@ -705,35 +692,41 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* 4. RICH FOOTER */}
-      <footer className="text-white mt-12 sm:mt-16 pt-10 sm:pt-12 pb-8 border-t border-white/10 shadow-2xl w-full overflow-hidden" style={{ backgroundColor: '#112211' }}>
+      <footer className="text-white mt-12 sm:mt-16 pt-10 sm:pt-12 pb-8 border-t border-white/10 shadow-2xl w-full overflow-hidden" style={{ backgroundColor: settings?.footer_bg_color || '#112211' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 pb-8 sm:pb-10 border-b border-white/10">
             {/* Column 1: Brand & Slogan */}
             <div className="space-y-2.5">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold shadow">
-                  <Leaf size={16} />
-                </div>
-                <h3 className="font-extrabold text-xs sm:text-sm tracking-tight text-white">
-                  {settings?.site_title || 'Feria Conuquera Agroecológica'}
-                </h3>
+                {settings?.logo_url ? (
+                  <img src={settings.logo_url} alt="logo" className="w-7 h-7 rounded-full object-cover shadow" />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold shadow">
+                    <Leaf size={16} />
+                  </div>
+                )}
+                {settings?.footer_col1_title && (
+                  <h3 className="font-extrabold text-xs sm:text-sm tracking-tight text-white">
+                    {settings.footer_col1_title}
+                  </h3>
+                )}
               </div>
               <p className="text-[11px] sm:text-xs text-gray-300 leading-relaxed">
                 {settings?.footer_about || 'Mercado a cielo abierto para todo el público en moneda local, agroecología, trueque y soberanía alimentaria en Caracas desde octubre de 2014.'}
               </p>
               <div className="flex items-center gap-2 text-[11px] text-emerald-300 font-semibold pt-1">
                 <ShieldCheck size={14} />
-                <span>100% Autogestión & Suelo Vivo</span>
+                <span>{settings?.footer_slogan || '100% Autogestión & Suelo Vivo'}</span>
               </div>
             </div>
 
             {/* Column 2: Quick Links */}
             <div className="space-y-2.5">
               <h4 className="font-bold text-xs uppercase tracking-wider text-amber-400">
-                Páginas del Nodo
+                {settings?.footer_col2_title || 'Páginas del Nodo'}
               </h4>
               <ul className="space-y-1.5 text-xs text-gray-300">
-                {pages.slice(0, 6).map((p) => (
+                {pages.filter((p) => p.show_in_menu !== false).slice(0, 6).map((p) => (
                   <li key={p.slug}>
                     <Link to={`/p/${p.slug}`} className="hover:text-amber-300 transition flex items-center gap-1.5">
                       <span>•</span>
@@ -747,7 +740,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             {/* Column 3: Location & Meeting */}
             <div className="space-y-2.5">
               <h4 className="font-bold text-xs uppercase tracking-wider text-amber-400">
-                Lugar de Encuentro
+                {settings?.footer_col3_title || 'Lugar de Encuentro'}
               </h4>
               <div className="text-xs text-gray-300 space-y-2">
                 <div className="flex items-start gap-2">
@@ -764,7 +757,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             {/* Column 4: Social & Admission */}
             <div className="space-y-2.5">
               <h4 className="font-bold text-xs uppercase tracking-wider text-amber-400">
-                Comunidad & Redes
+                {settings?.footer_col4_title || 'Comunidad & Redes'}
               </h4>
               <div className="space-y-2 text-xs text-gray-300">
                 {settings?.social_instagram && (
@@ -786,7 +779,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                     className="flex items-center gap-2 hover:text-blue-300 transition"
                   >
                     <Facebook size={15} className="text-blue-400" />
-                    <span>Facebook: Feria Conuquera</span>
+                    <span>Facebook: {settings.social_facebook}</span>
                   </a>
                 )}
                 <div className="pt-1.5">
@@ -794,7 +787,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                     to="/p/unirse"
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold border border-white/20 transition"
                   >
-                    <span>Llenar Solicitud de Ingreso</span>
+                    <span>{settings?.footer_admission_text || 'Llenar Solicitud de Ingreso'}</span>
                     <ArrowRight size={12} />
                   </Link>
                 </div>
@@ -820,39 +813,73 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         </div>
       </footer>
 
-      {/* FLOATING BUTTON: Theme Customizer (admin only) */}
+      {/* SINGLE FLOATING BUTTON: Admin actions (expands to show options) */}
       {isAuthenticated && (
-        <button
-          onClick={() => {
-            setDraftSettings({
-              site_title: settings?.site_title || '',
-              site_subtitle: settings?.site_subtitle || '',
-              logo_url: settings?.logo_url || '',
-              primary_color: settings?.primary_color || '#162e16',
-              secondary_color: settings?.secondary_color || '#c2410c',
-              header_style: settings?.header_style || 'modern_eco',
-              contact_address: settings?.contact_address || '',
-              social_instagram: settings?.social_instagram || '',
-              social_facebook: settings?.social_facebook || '',
-              footer_about: settings?.footer_about || '',
-              footer_schedule: settings?.footer_schedule || '',
-            })
-            setDraftPages(pages.map((p) => ({
-              slug: p.slug,
-              title: p.title,
-              icon: p.icon,
-              menu_order: p.menu_order || 0,
-              show_in_menu: p.show_in_menu ?? true,
-              is_published: p.is_published ?? true,
-            })))
-            setShowCustomizer(true)
-          }}
-          className="fixed bottom-4 left-4 z-40 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl shadow-xl flex items-center gap-2 text-xs font-bold transition"
-          title="Personalizar tema: logo, colores, cabecera, menú, pie de página"
-        >
-          <Sparkles size={14} />
-          Personalizar Tema
-        </button>
+        <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-2">
+          {showAdminMenu && (
+            <>
+              <button
+                onClick={() => {
+                  setDraftSettings({
+                    site_title: settings?.site_title || '',
+                    site_subtitle: settings?.site_subtitle || '',
+                    logo_url: settings?.logo_url || '',
+                    primary_color: settings?.primary_color || '#162e16',
+                    secondary_color: settings?.secondary_color || '#c2410c',
+                    text_color: (settings as any)?.text_color || '#1a1a1a',
+                    button_hover_color: (settings as any)?.button_hover_color || '#15803d',
+                    module_bg_color: (settings as any)?.module_bg_color || '#ffffff',
+                    page_bg_color: (settings as any)?.page_bg_color || '#f8faf5',
+                    footer_bg_color: (settings as any)?.footer_bg_color || '#112211',
+                    link_color: (settings as any)?.link_color || '#15803d',
+                    link_visited_color: (settings as any)?.link_visited_color || '#6b21a8',
+                    header_style: settings?.header_style || 'modern_eco',
+                    contact_address: settings?.contact_address || '',
+                    social_instagram: settings?.social_instagram || '',
+                    social_facebook: settings?.social_facebook || '',
+                    footer_about: settings?.footer_about || '',
+                    footer_schedule: settings?.footer_schedule || '',
+                    footer_col1_title: (settings as any)?.footer_col1_title || '',
+                    footer_col2_title: (settings as any)?.footer_col2_title || 'Páginas del Nodo',
+                    footer_col3_title: (settings as any)?.footer_col3_title || 'Lugar de Encuentro',
+                    footer_col4_title: (settings as any)?.footer_col4_title || 'Comunidad & Redes',
+                    footer_slogan: (settings as any)?.footer_slogan || '100% Autogestión & Suelo Vivo',
+                    footer_admission_text: (settings as any)?.footer_admission_text || 'Llenar Solicitud de Ingreso',
+                  })
+                  setDraftPages(pages.map((p) => ({
+                    slug: p.slug,
+                    title: p.title,
+                    icon: p.icon,
+                    menu_order: p.menu_order || 0,
+                    show_in_menu: p.show_in_menu ?? true,
+                    is_published: p.is_published ?? true,
+                  })))
+                  setShowAdminMenu(false)
+                  setShowCustomizer(true)
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2 text-xs font-bold transition"
+              >
+                <Sparkles size={16} />
+                Personalizar Tema
+              </button>
+              <Link
+                to="/app/website"
+                className="bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2 text-xs font-bold transition"
+                onClick={() => setShowAdminMenu(false)}
+              >
+                <LayoutDashboard size={16} />
+                Panel Web
+              </Link>
+            </>
+          )}
+          <button
+            onClick={() => setShowAdminMenu(!showAdminMenu)}
+            className="bg-gray-900 hover:bg-gray-800 text-white w-12 h-12 rounded-full shadow-xl flex items-center justify-center transition"
+            title="Opciones de administración"
+          >
+            {showAdminMenu ? <X size={22} /> : <Edit size={22} />}
+          </button>
+        </div>
       )}
 
       {/* THEME CUSTOMIZER PANEL */}
@@ -861,20 +888,39 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         onClose={() => {
           // Revert to original settings
           api.get('/public/settings').then((s: any) => setSettings(s)).catch(() => {})
+          api.get('/public/pages').then((d: any) => {
+            if (Array.isArray(d)) setPages(d)
+          }).catch(() => {})
           setShowCustomizer(false)
         }}
         initialSettings={draftSettings || {
           site_title: '', site_subtitle: '', logo_url: '',
           primary_color: '#162e16', secondary_color: '#c2410c',
+          text_color: '#1a1a1a', button_hover_color: '#15803d',
+          module_bg_color: '#ffffff', page_bg_color: '#f8faf5',
+          footer_bg_color: '#112211', link_color: '#15803d', link_visited_color: '#6b21a8',
           header_style: 'modern_eco', contact_address: '',
           social_instagram: '', social_facebook: '',
           footer_about: '', footer_schedule: '',
+          footer_col1_title: '', footer_col2_title: 'Páginas del Nodo',
+          footer_col3_title: 'Lugar de Encuentro', footer_col4_title: 'Comunidad & Redes',
+          footer_slogan: '100% Autogestión & Suelo Vivo',
+          footer_admission_text: 'Llenar Solicitud de Ingreso',
         }}
         initialPages={draftPages}
+        onDraftChange={(newDraft, newPages) => {
+          // Apply draft to settings for live preview
+          setSettings((prev) => ({ ...prev, ...newDraft } as any))
+          // Apply draft page order for live menu preview
+          setPages((prev) => {
+            return newPages.map((dp) => {
+              const existing = prev.find((p) => p.slug === dp.slug)
+              return existing ? { ...existing, menu_order: dp.menu_order, show_in_menu: dp.show_in_menu } : existing
+            }).filter(Boolean) as any
+          })
+        }}
         onSave={async (newSettings, newPages) => {
-          // Save settings
           await api.put('/site/settings', newSettings)
-          // Save page menu order and visibility
           for (const page of newPages) {
             const existing = pages.find((p) => p.slug === page.slug)
             if (existing && existing.id) {
@@ -885,7 +931,6 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               }).catch(() => {})
             }
           }
-          // Reload settings
           await api.get('/public/settings').then((s: any) => setSettings(s))
           await api.get('/public/pages').then((d: any) => {
             if (Array.isArray(d)) setPages(d)

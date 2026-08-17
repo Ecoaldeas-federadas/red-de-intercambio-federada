@@ -1569,6 +1569,8 @@ func (h *SystemHandler) getPublicSettings(w http.ResponseWriter, r *http.Request
 	var headerStyle, announcementText, footerStyle *string
 	var showAnnouncement *bool
 	var footerAbout, footerSchedule *string
+	var textColor, buttonHoverColor, moduleBgColor, pageBgColor, footerBgColor, linkColor, linkVisitedColor *string
+	var footerCol1Title, footerCol2Title, footerCol3Title, footerCol4Title, footerSlogan, footerAdmission *string
 
 	err := h.Pool.QueryRow(r.Context(), `
 		SELECT site_title, site_subtitle, COALESCE(logo_url, ''), primary_color, secondary_color,
@@ -1580,13 +1582,30 @@ func (h *SystemHandler) getPublicSettings(w http.ResponseWriter, r *http.Request
 		       COALESCE(show_announcement, true),
 		       COALESCE(footer_style, 'columns'),
 		       COALESCE(footer_about, 'Mercado a cielo abierto para todo el público en moneda local, agroecología, trueque y soberanía alimentaria en Caracas desde octubre de 2014.'),
-		       COALESCE(footer_schedule, 'Primer sábado de cada mes (9:00 AM a 1:00 PM). Venta en moneda local.')
+		       COALESCE(footer_schedule, 'Primer sábado de cada mes (9:00 AM a 1:00 PM). Venta en moneda local.'),
+		       COALESCE(text_color, '#1a1a1a'),
+		       COALESCE(button_hover_color, '#15803d'),
+		       COALESCE(module_bg_color, '#ffffff'),
+		       COALESCE(page_bg_color, '#f8faf5'),
+		       COALESCE(footer_bg_color, '#112211'),
+		       COALESCE(link_color, '#15803d'),
+		       COALESCE(link_visited_color, '#6b21a8'),
+		       COALESCE(footer_col1_title, ''),
+		       COALESCE(footer_col2_title, 'Páginas del Nodo'),
+		       COALESCE(footer_col3_title, 'Lugar de Encuentro'),
+		       COALESCE(footer_col4_title, 'Comunidad & Redes'),
+		       COALESCE(footer_slogan, '100% Autogestión & Suelo Vivo'),
+		       COALESCE(footer_admission_text, 'Llenar Solicitud de Ingreso')
 		FROM public_settings WHERE node_domain = $1`, nodeDomain).Scan(
 		&siteTitle, &siteSubtitle, &logoURL, &primaryColor, &secondaryColor,
 		&contactEmail, &contactPhone, &contactAddress,
 		&ig, &fb, &twitter, &showJoinForm,
 		&headerStyle, &announcementText, &showAnnouncement, &footerStyle,
-		&footerAbout, &footerSchedule)
+		&footerAbout, &footerSchedule,
+		&textColor, &buttonHoverColor, &moduleBgColor, &pageBgColor,
+		&footerBgColor, &linkColor, &linkVisitedColor,
+		&footerCol1Title, &footerCol2Title, &footerCol3Title, &footerCol4Title,
+		&footerSlogan, &footerAdmission)
 	if err != nil {
 		writeJSON(w, 200, map[string]interface{}{
 			"site_title":        "Feria Conuquera Agroecologica",
@@ -1619,25 +1638,46 @@ func (h *SystemHandler) getPublicSettings(w http.ResponseWriter, r *http.Request
 		fStyle = *footerStyle
 	}
 
+	// Helper to deref optional strings with fallback
+	deref := func(p *string, fallback string) string {
+		if p != nil && *p != "" {
+			return *p
+		}
+		return fallback
+	}
+
 	writeJSON(w, 200, map[string]interface{}{
-		"site_title":        siteTitle,
-		"site_subtitle":     siteSubtitle,
-		"logo_url":          logoURL,
-		"primary_color":     primaryColor,
-		"secondary_color":   secondaryColor,
-		"contact_email":     contactEmail,
-		"contact_phone":     contactPhone,
-		"contact_address":   contactAddress,
-		"social_instagram":  ig,
-		"social_facebook":   fb,
-		"social_twitter":    twitter,
-		"show_join_form":    showJoinForm,
-		"header_style":      hStyle,
-		"announcement_text": aText,
-		"show_announcement": sAnnounce,
-		"footer_style":      fStyle,
-		"footer_about":      footerAbout,
-		"footer_schedule":   footerSchedule,
+		"site_title":            siteTitle,
+		"site_subtitle":         siteSubtitle,
+		"logo_url":              logoURL,
+		"primary_color":         primaryColor,
+		"secondary_color":       secondaryColor,
+		"contact_email":         contactEmail,
+		"contact_phone":         contactPhone,
+		"contact_address":       contactAddress,
+		"social_instagram":      ig,
+		"social_facebook":       fb,
+		"social_twitter":        twitter,
+		"show_join_form":        showJoinForm,
+		"header_style":          hStyle,
+		"announcement_text":     aText,
+		"show_announcement":     sAnnounce,
+		"footer_style":          fStyle,
+		"footer_about":          deref(footerAbout, "Mercado a cielo abierto para todo el público en moneda local, agroecología, trueque y soberanía alimentaria en Caracas desde octubre de 2014."),
+		"footer_schedule":       deref(footerSchedule, "Primer sábado de cada mes (9:00 AM a 1:00 PM). Venta en moneda local."),
+		"text_color":            deref(textColor, "#1a1a1a"),
+		"button_hover_color":    deref(buttonHoverColor, "#15803d"),
+		"module_bg_color":       deref(moduleBgColor, "#ffffff"),
+		"page_bg_color":         deref(pageBgColor, "#f8faf5"),
+		"footer_bg_color":       deref(footerBgColor, "#112211"),
+		"link_color":            deref(linkColor, "#15803d"),
+		"link_visited_color":    deref(linkVisitedColor, "#6b21a8"),
+		"footer_col1_title":     deref(footerCol1Title, ""),
+		"footer_col2_title":     deref(footerCol2Title, "Páginas del Nodo"),
+		"footer_col3_title":     deref(footerCol3Title, "Lugar de Encuentro"),
+		"footer_col4_title":     deref(footerCol4Title, "Comunidad & Redes"),
+		"footer_slogan":         deref(footerSlogan, "100% Autogestión & Suelo Vivo"),
+		"footer_admission_text": deref(footerAdmission, "Llenar Solicitud de Ingreso"),
 	})
 }
 
@@ -1957,6 +1997,13 @@ type UpdateSiteSettingsReq struct {
 	LogoURL          string `json:"logo_url"`
 	PrimaryColor     string `json:"primary_color"`
 	SecondaryColor   string `json:"secondary_color"`
+	TextColor        string `json:"text_color"`
+	ButtonHoverColor string `json:"button_hover_color"`
+	ModuleBgColor    string `json:"module_bg_color"`
+	PageBgColor      string `json:"page_bg_color"`
+	FooterBgColor    string `json:"footer_bg_color"`
+	LinkColor        string `json:"link_color"`
+	LinkVisitedColor string `json:"link_visited_color"`
 	ContactEmail     string `json:"contact_email"`
 	ContactPhone     string `json:"contact_phone"`
 	ContactAddress   string `json:"contact_address"`
@@ -1970,6 +2017,12 @@ type UpdateSiteSettingsReq struct {
 	FooterStyle      string `json:"footer_style"`
 	FooterAbout      string `json:"footer_about"`
 	FooterSchedule   string `json:"footer_schedule"`
+	FooterCol1Title  string `json:"footer_col1_title"`
+	FooterCol2Title  string `json:"footer_col2_title"`
+	FooterCol3Title  string `json:"footer_col3_title"`
+	FooterCol4Title  string `json:"footer_col4_title"`
+	FooterSlogan     string `json:"footer_slogan"`
+	FooterAdmission  string `json:"footer_admission_text"`
 }
 
 func (h *SystemHandler) updateSiteSettings(w http.ResponseWriter, r *http.Request) {
@@ -1998,13 +2051,21 @@ func (h *SystemHandler) updateSiteSettings(w http.ResponseWriter, r *http.Reques
 			social_instagram = $9, social_facebook = $10, social_twitter = $11, show_join_form = $12,
 			header_style = $13, announcement_text = $14, show_announcement = $15, footer_style = $16,
 			footer_about = $17, footer_schedule = $18,
+			text_color = $19, button_hover_color = $20, module_bg_color = $21, page_bg_color = $22,
+			footer_bg_color = $23, link_color = $24, link_visited_color = $25,
+			footer_col1_title = $26, footer_col2_title = $27, footer_col3_title = $28, footer_col4_title = $29,
+			footer_slogan = $30, footer_admission_text = $31,
 			updated_at = NOW()
-		WHERE node_domain = $19`,
+		WHERE node_domain = $32`,
 		req.SiteTitle, req.SiteSubtitle, req.LogoURL, req.PrimaryColor, req.SecondaryColor,
 		req.ContactEmail, req.ContactPhone, req.ContactAddress,
 		req.SocialInstagram, req.SocialFacebook, req.SocialTwitter, req.ShowJoinForm,
 		req.HeaderStyle, req.AnnouncementText, req.ShowAnnouncement, req.FooterStyle,
 		req.FooterAbout, req.FooterSchedule,
+		req.TextColor, req.ButtonHoverColor, req.ModuleBgColor, req.PageBgColor,
+		req.FooterBgColor, req.LinkColor, req.LinkVisitedColor,
+		req.FooterCol1Title, req.FooterCol2Title, req.FooterCol3Title, req.FooterCol4Title,
+		req.FooterSlogan, req.FooterAdmission,
 		nodeDomain)
 	if err != nil {
 		writeError(w, 500, err.Error())

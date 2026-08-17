@@ -1,40 +1,46 @@
-feat(customizer): personalizador de tema visual con preview en vivo
+fix(customizer): preview en vivo real + paleta 8 colores + un solo boton flotante
 
-Nuevo ThemeCustomizer con 4 pestañas:
-
-1. CABECERA:
-   - Logo (subir desde PC o URL) - el mismo logo en cabecera y pie
-   - Titulo y subtitulo del nodo
-   - 4 tipos de cabecera con preview en vivo:
-     * Eco Moderno
-     * Institucional FAO
-     * Compacto
-     * Banner
-
-2. MENU:
-   - Reordenar items del menu (subir/bajar)
-   - Mostrar/ocultar paginas del menu (eye/eye-off)
-   - Vista previa en vivo del menu reorganizado
-
-3. COLORES:
-   - 6 paletas predefinidas (Verde Conuquero, Tierra Barlovento,
-     Caribe Azul, Sol Andino, Bosque Humedo, Aurora)
-   - Color primario y secundario personalizados (color picker)
-   - Vista previa de los colores
-
-4. PIE DE PAGINA:
-   - Descripcion del nodo
-   - Horario
-   - Direccion
-   - Instagram y Facebook
-
-Cambios NO se aplican hasta darle "Guardar Todo":
-- Boton "Descartar" revierte todos los cambios
-- Boton "Guardar Todo" guarda settings + orden del menu
-- Preview en vivo: cabecera, colores y menu cambian al instante
+Preview en vivo arreglado:
+- ThemeCustomizer ahora usa onDraftChange callback
+- Cada cambio (cabecera, color, menu, footer) se aplica al instante
+- El PublicLayout recibe los cambios del draft en tiempo real
 - Al cerrar sin guardar, se recarga la configuracion original
 
-Boton flotante "Personalizar Tema" (esquina inferior izquierda, azul)
+Paleta de colores completa (8 colores por tema):
+- Color primario (cabecera, botones)
+- Color secundario (acentos, badges)
+- Hover de botones
+- Color de texto
+- Color de enlaces
+- Color de enlaces visitados
+- Fondo de modulos/tarjetas
+- Fondo de la pagina
+- Fondo del pie de pagina
+- 6 paletas predefinidas con los 8 colores cada una
+- Marca visualmente cual paleta esta activa ("✓ Activa")
+- Color picker personalizado para cada uno de los 8 colores
+- Vista previa con botones, modulo, fondo de pagina y footer
+
+Footer sincronizado con el real:
+- Columna 1: titulo (opcional), descripcion, slogan
+- Columna 2: titulo de columna (paginas se reorganizan desde Menu)
+- Columna 3: titulo, direccion, horario
+- Columna 4: titulo, instagram, facebook, texto del boton de admision
+- Todos los campos se ven en vivo en el footer real
+
+Un solo boton flotante (derecha):
+- Boton circular gris con icono de editar
+- Al pulsarlo se despliegan dos botones:
+  * Personalizar Tema (azul)
+  * Panel Web (verde)
+- Al pulsar de nuevo se contraen
+
+Backend:
+- Migracion 020: 7 nuevos campos de color + 6 campos de footer
+- getPublicSettings devuelve todos los campos nuevos
+- updateSiteSettings persiste todos los campos nuevos
+- page_bg_color se aplica al contenedor principal
+- footer_bg_color se aplica al footer
 
 Generated with [Devin](https://devin.ai)
 
