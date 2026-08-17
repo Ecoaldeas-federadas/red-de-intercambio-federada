@@ -474,6 +474,42 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         style: 'standard',
       },
       {
+        type: 'features_grid',
+        title: '¿Qué es el Trueque?',
+        subtitle: 'Una forma milenaria de intercambio que renace en las comunidades contemporáneas',
+        columns: 2,
+        items: [
+          {
+            icon: 'users',
+            title: 'Intercambio sin dinero',
+            description:
+              'El trueque es una forma de intercambio basada en la colaboración y el valor compartido. A través de la red, personas y comunidades intercambian bienes y servicios directamente, sin necesidad de dinero, bancos ni intermediarios financieros. Promueve la autosuficiencia, el apoyo mutuo y el desarrollo sostenible.',
+            badge: 'Sin dinero',
+          },
+          {
+            icon: 'scale',
+            title: 'Valor por energía, no por precio',
+            description:
+              'No existe un precio en unidades monetarias. El valor lo determina la energía física invertida en producir cada bien o servicio: horas de trabajo, esfuerzo, insumos, herramientas y amortización. Una hora de trabajo manual equivale aproximadamente a 0.1 kWh; un litro de leche de cabra pastoreada libre requiere energía directa, humana y de insumos.',
+            badge: 'Energía objetiva',
+          },
+          {
+            icon: 'heart',
+            title: 'Multilateral y diferido',
+            description:
+              'No necesitas encontrar a alguien que tenga exactamente lo que tú quieres y quiera exactamente lo que tú ofreces (la "doble coincidencia" del trueque directo). El sistema de crédito mutuo permite que aportes hoy a una persona y recibas mañana de otra. El trueque se vuelve diferido y multilateral: aportas cuando puedes, recibes cuando necesitas.',
+            badge: 'Diferido',
+          },
+          {
+            icon: 'leaf',
+            title: 'Sin interés, sin acumulación',
+            description:
+              'No se cobra interés sobre los saldos negativos ni se premia la acumulación de saldos positivos. El sistema está diseñado para que la riqueza circule, no para que se concentre. Las experiencias históricas de clubes de trueque en Argentina, LETS en Europa y redes de moneda social en América Latina demuestran que el crédito mutuo sin interés fomenta el intercambio equitativo.',
+            badge: 'Sin interés',
+          },
+        ],
+      },
+      {
         type: 'trueque_explainer',
         title: 'Los 4 Pasos del Crédito Mutuo para Miembros',
         subtitle: 'Comprende la lógica solidaria y transparente del sistema de trueque.',
@@ -483,28 +519,28 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
             step: 1,
             title: 'Empiezas en Cero (0 TQ)',
             description:
-              'Al ingresar formalmente a la red, tu cuenta inicia en balance 0. No necesitas comprar monedas ni aportar capital.',
+              'Al ingresar formalmente a la red, tu cuenta inicia en balance 0. No necesitas comprar monedas, pagar inscripción ni aportar capital. Tampoco necesitas tener nada ahorrado para empezar a recibir beneficios.',
             icon: 'users',
           },
           {
             step: 2,
             title: 'Al Recibir Bienes en Trueque',
             description:
-              'Tu cuenta registra saldo negativo (-TQ). Es un compromiso ético de entregar productos o trabajo futuro a la comunidad.',
+              'Tu cuenta registra saldo negativo (-TQ). No es una deuda financiera: es un compromiso ético de entregar productos o trabajo futuro a la comunidad. Puedes recibir alimentos, medicinas naturales, servicios o artesanías sin tener saldo positivo previo.',
             icon: 'shopping-cart',
           },
           {
             step: 3,
             title: 'Al Aportar Cosecha o Trabajo',
             description:
-              'Tu cuenta registra saldo positivo (+TQ). Significa que has entregado valor a la comunidad y puedes adquirir bienes de otros miembros.',
+              'Tu cuenta registra saldo positivo (+TQ). Significa que has entregado valor a la comunidad y puedes adquirir bienes de otros miembros. Cada vez que aportas, tu saldo sube; cada vez que recibes, baja.',
             icon: 'leaf',
           },
           {
             step: 4,
             title: 'La Suma Total Siempre es Cero',
             description:
-              'El total de todas las cuentas de la red da exactamente 0 TQ. No existe inflación, devaluación ni intermediarios bancarios.',
+              'El total de todas las cuentas de la red da exactamente 0 TQ. No existe inflación, devaluación ni intermediarios bancarios. Nadie "emite" moneda: cada intercambio crea un saldo positivo y uno negativo equivalente. Es un registro contable puro de compromisos y aportes.',
             icon: 'scale',
           },
         ],
@@ -512,10 +548,218 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
           positive_balance:
             'Indica que has aportado más de lo que has recibido. Tienes derecho a recibir bienes o labores equivalentes de otros miembros en el futuro.',
           negative_balance:
-            'Es un compromiso adquirido: has recibido sustento de la comunidad y lo retribuirás con tu propia cosecha, productos o trabajo.',
+            'Es un compromiso adquirido: has recibido sustento de la comunidad y lo retribuirás con tu propia cosecha, productos o trabajo. No hay vergüenza en tener saldo negativo: es la prueba de que el sistema funciona, de que alguien recibió lo que necesitaba.',
           zero_sum:
             'No es dinero bancario ni financiero: es un registro contable de compromisos adquiridos y aportes recíprocos. Permite el trueque diferido y multilateral: aportas trabajo o cosecha hoy, queda registrado su costo objetivo en energía (kWh), y en el futuro recibes esa misma energía cuando la necesites.',
         },
+      },
+      {
+        type: 'features_grid',
+        title: 'Límites y Confianza Progresiva',
+        subtitle: 'El sistema crece contigo: entre más participas, más confianza acumulas',
+        columns: 3,
+        items: [
+          {
+            icon: 'users',
+            title: 'Personas Naturales',
+            description:
+              'Cada persona natural que ingresa recibe un límite inicial de saldo negativo (por ejemplo, -50 TQ) y un límite positivo equivalente. Esto significa que puedes recibir hasta 50 TQ en bienes y servicios sin haber aportado nada todavía. Es la confianza inicial que la comunidad te otorga para que empieces a participar.',
+            badge: 'Límite inicial',
+          },
+          {
+            icon: 'building',
+            title: 'Organizaciones y Colectivos',
+            description:
+              'Las organizaciones, cooperativas y colectivos registrados tienen límites más amplios porque su volumen de intercambio es mayor. Una organización puede tener un límite de -200 TQ o más, según su tamaño y trayectoria. Esto permite que las organizaciones puedan recibir insumos y herramientas a crédito y retribuir con su producción colectiva.',
+            badge: 'Límite ampliado',
+          },
+          {
+            icon: 'trending-up',
+            title: 'Tu límite sube con el tiempo',
+            description:
+              'A medida que participas activamente, aportas regularmente y cumples tus compromisos, la asamblea puede aumentar tu límite. La confianza se construye con hechos, no con dinero. Un miembro con un año de participación activa y buen cumplimiento puede tener un límite 3 o 4 veces mayor que al ingresar.',
+            badge: 'Crece contigo',
+          },
+          {
+            icon: 'shield',
+            title: 'Sin dinero para entrar',
+            description:
+              'No necesitas dinero para ingresar ni para recibir beneficios. No pagas inscripción, no compras "monedas", no necesitas tener ahorros. El sistema está diseñado para incluir a quienes no tienen acceso al dinero o al sistema bancario. Tu capacidad de recibir y aportar se basa en tu compromiso comunitario, no en tu capital.',
+            badge: 'Sin barreras',
+          },
+          {
+            icon: 'heart',
+            title: 'Recibir sin tener',
+            description:
+              'Puedes recibir beneficios sin tener nada previo. Recibes alimentos, medicinas, servicios o herramientas y quedas en compromiso negativo. Ese compromiso lo saldas aportando tu trabajo, tu cosecha o tus productos cuando puedas. Es la esencia del trueque diferido: hoy recibes, mañana aportas.',
+            badge: 'Recibir primero',
+          },
+          {
+            icon: 'rotate-cw',
+            title: 'Aportar para salir de deuda',
+            description:
+              'Cuando tu saldo es negativo, no hay cobradores ni intereses. Simplemente aportas lo que produces: cosecha, pan, artesanía, trabajo en la feria, talleres, cayapas. Cada aporte reduce tu saldo negativo hasta llegar a cero o volverse positivo. La comunidad te acompaña, no te presiona.',
+            badge: 'Aportar y sanar',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'Filosofía Agroecológica',
+        subtitle: 'Más que una técnica de cultivo, una forma de habitar la Tierra',
+        columns: 2,
+        items: [
+          {
+            icon: 'leaf',
+            title: 'Agroecología: ciencia, práctica y movimiento',
+            description:
+              'La agroecología no es solo una forma de cultivar sin agrotóxicos. Es una ciencia que aplica principios ecológicos a la agricultura, una práctica productiva que respeta los ciclos naturales, y un movimiento social que defiende la soberanía alimentaria, la justicia social y los derechos de los pueblos. La FAO la reconoce como método capaz de transformar los sistemas alimentarios hacia la sostenibilidad.',
+            badge: 'Ciencia viva',
+          },
+          {
+            icon: 'sprout',
+            title: 'Producción natural vs. sintética',
+            description:
+              'La agricultura industrial se basa en fertilizantes químicos, plaguicidas, semillas modificadas genéticamente, alta mecanización y consumo de combustibles fósiles. Contamina suelo, agua y aire; reduce la biodiversidad; y excluye a los pequeños productores que no pueden pagar los costosos insumos. La agroecología, en cambio, recicla nutrientes, fija nitrógeno biológicamente, controla plagas con biodiversidad asociada y produce alimentos seguros y de mayor calidad nutricional.',
+            badge: 'Natural',
+          },
+          {
+            icon: 'users',
+            title: 'Sin explotación de personas',
+            description:
+              'La agroecología promueve el respeto de los derechos laborales, la igualdad de género, el intercambio justo entre productores y consumidores, y la valoración de los conocimientos tradicionales. Ningún alimento agroecológico debe provenir de explotación humana. La producción se basa en relaciones justas, no en el lucro a costa del trabajo ajeno.',
+            badge: 'Justicia',
+          },
+          {
+            icon: 'heart',
+            title: 'Soberanía alimentaria',
+            description:
+              'La soberanía alimentaria es el derecho de los pueblos a definir sus propios sistemas alimentarios: qué sembrar, cómo sembrar, para quién producir y cómo distribuir. No es solo seguridad alimentaria (tener qué comer), es autonomía: que la comunidad controle su alimentación, no las corporaciones transnacionales que monopolizan las semillas y los agroquímicos.',
+            badge: 'Autonomía',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'Semillas: Patrimonio de los Pueblos',
+        subtitle: 'Conservar nuestras semillas criollas y nativas es conservar nuestra libertad',
+        columns: 2,
+        items: [
+          {
+            icon: 'sprout',
+            title: 'Semillas criollas y nativas',
+            description:
+              'Desde épocas ancestrales, las poblaciones humanas —y en especial las mujeres— dieron origen a la agricultura domesticando, mejorando y adaptando una gran diversidad de cultivos. Las civilizaciones de América Latina desarrollaron innumerables variedades nativas de maíz, frijol, papa, yuca, tomate, frutales y otros cultivos que aún hoy sustentan la alimentación global. Estas semillas son patrimonio colectivo de los pueblos y han circulado libremente entre la población rural, garantizando autonomía frente a las crisis.',
+            badge: 'Patrimonio',
+          },
+          {
+            icon: 'shield',
+            title: 'Libres de transgénicos',
+            description:
+              'Las semillas transgénicas son modificadas genéticamente en laboratorios y patentadas por corporaciones. Su uso obliga a los agricultores a comprar semillas nuevas cada temporada, crea dependencia económica, contamina las variedades nativas por polinización cruzada y reduce la biodiversidad. En la feria promovemos territorios libres de transgénicos: nuestras semillas criollas son libres, reproducibles y adaptadas a nuestro clima.',
+            badge: 'Sin transgénicos',
+          },
+          {
+            icon: 'leaf',
+            title: 'Semillas no procesadas',
+            description:
+              'Las semillas que intercambiamos no son procesadas, tratadas con fungicidas industriales ni recubiertas con químicos. Son semillas vivas, recién cosechadas, que conservan su vitalidad natural. Cada semilla que intercambias en la feria puede ser sembrada, reproducida y compartida nuevamente. Es un ciclo de vida que no se puede comprar en una tienda.',
+            badge: 'Vivas',
+          },
+          {
+            icon: 'rotate-cw',
+            title: 'Trueque libre de semillas',
+            description:
+              'En cada encuentro mensual abrimos un espacio de trueque libre de semillas criollas y nativas entre agricultores y vecinos. Traes tus semillas, llevas las de otros. No hay dinero de por medio. Es la forma más antigua de garantizar que la diversidad agrícola se mantenga viva: cada semilla que viaja de una mano a otra es un acto de soberanía.',
+            badge: 'Intercambio',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'El Sueño de la Ecoaldea',
+        subtitle: 'Comunidades intencionales que concretizan el Buen Vivir',
+        columns: 2,
+        items: [
+          {
+            icon: 'home',
+            title: '¿Qué es una ecoaldea?',
+            description:
+              'Una ecoaldea es un asentamiento humano a escala humana, diseñado conscientemente mediante procesos participativos para asegurar la sostenibilidad a largo plazo. Integran las cuatro dimensiones de la sostenibilidad: ecológica, económica, social y cultural. Pueden ser rurales o urbanas, intencionales o tradicionales. La Red Global de Ecoaldeas (GEN), fundada en 1995, conecta comunidades en África, Europa, América, Asia y Oceanía que regeneran sus entornos sociales y naturales.',
+            badge: 'Comunidad',
+          },
+          {
+            icon: 'leaf',
+            title: 'Más que una utopía',
+            description:
+              'Las ecoaldeas no son utopías aisladas: son modelos funcionales de lo que significa vivir en armonía con la naturaleza de forma sostenible y espiritualmente satisfactoria. En casi todos los casos, son construidas por personas con pocos recursos personales pero con alto grado de idealismo y dedicación. El mundo necesita buenos ejemplos de convivencia regenerativa, y las ecoaldeas son laboratorios vivos de la sociedad futura.',
+            badge: 'Modelo real',
+          },
+          {
+            icon: 'globe',
+            title: 'Un movimiento global',
+            description:
+              'Desde la Cumbre de la Tierra de Río en 1992, las ecoaldeas se han expandido como respuesta local a problemas globales urgentes. Hay ecoaldeas en Filipinas, granjas de permacultura en Senegal, proyectos de cohousing urbano en Berlín, comunidades tradicionales en los Andes donde los ancianos transmiten la sabiduría de la tierra. La Feria Conuquera comparte principios con este movimiento: soberanía alimentaria, energía limpia, gobernanza comunitaria y economía solidaria.',
+            badge: 'Global',
+          },
+          {
+            icon: 'sparkles',
+            title: 'Nuestro Campo Soberano',
+            description:
+              'Soñamos con estructurar una comunidad intencional agroecológica de ciclo cerrado: permacultura, propiedad colectiva indivisible, energía solar y eólica off-grid, biodigestores, gobernanza sociocrática y economía de crédito mutuo. No es escapar del mundo: es crear el mundo que queremos ver. Conocer más sobre este proyecto en la sección Campo Soberano.',
+            badge: 'Nuestro sueño',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'Movimientos Hermanos en el Mundo',
+        subtitle: 'No estamos solos: la agroecología y el trueque son movimientos planetarios',
+        columns: 3,
+        items: [
+          {
+            icon: 'globe',
+            title: 'Red Global de Ecoaldeas (GEN)',
+            description:
+              'Fundada en 1995, conecta ecoaldeas en todos los continentes. Promueve el intercambio de conocimientos, soluciones y mejores prácticas entre comunidades regenerativas. Su lema: "El mundo necesita más ecoaldeas".',
+            badge: 'GEN',
+          },
+          {
+            icon: 'scale',
+            title: 'Sistemas LETS',
+            description:
+              'Los Local Exchange Trading Systems (LETS) nacieron en Canadá en 1983 y se expandieron por Europa y Oceanía. Son sistemas de crédito mutuo donde los miembros intercambian bienes y servicios sin dinero, usando una unidad de cuenta interna. Todas las cuentas empiezan en cero y la suma total siempre es cero. Inspiraron nuestro sistema TQ.',
+            badge: 'LETS',
+          },
+          {
+            icon: 'users',
+            title: 'Club del Trueque (Argentina)',
+            description:
+              'En Argentina, las redes de trueque surgieron en los años 90 como respuesta a la crisis económica. Llegaron a tener millones de participantes que intercambiaban bienes y servicios con "créditos" sin usar dinero oficial. Demostraron que el crédito mutuo es una herramienta poderosa de inclusión para quienes el sistema financiero excluye.',
+            badge: 'Argentina',
+          },
+          {
+            icon: 'sprout',
+            title: 'Red de Semillas Libres',
+            description:
+              'Movimientos como la Red de Semillas Libres de Colombia y la Red Guardianes de Semillas de Vida defienden las semillas nativas y criollas frente al avance corporativo. Promueven territorios libres de transgénicos y la soberanía alimentaria como derecho inalienable de los pueblos.',
+            badge: 'Semillas libres',
+          },
+          {
+            icon: 'leaf',
+            title: 'Vía Campesina',
+            description:
+              'La Vía Campesina es el movimiento internacional de campesinos, pueblos indígenas y trabajadores agrícolas más grande del mundo, presente en más de 80 países. Defiende la agricultura campesina y la agroecología como alternativa al modelo agroindustrial. Acuñó el concepto de soberanía alimentaria.',
+            badge: 'Vía Campesina',
+          },
+          {
+            icon: 'heart',
+            title: 'Slow Food',
+            description:
+              'Movimiento global nacido en Italia en 1986 que promueve alimentos "buenos, limpios y justos": buenos para quien los come, limpios para el planeta, justos para quien los produce. Defiende la biodiversidad alimentaria y las tradiciones culinarias locales frente a la homogeneización de la comida rápida.',
+            badge: 'Slow Food',
+          },
+        ],
       },
       {
         type: 'calculator_preview',

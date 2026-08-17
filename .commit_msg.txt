@@ -1,46 +1,61 @@
-fix(customizer): preview en vivo real + paleta 8 colores + un solo boton flotante
+feat(trueque): pagina enriquecida con filosofia, limites, semillas y ecoaldea
 
-Preview en vivo arreglado:
-- ThemeCustomizer ahora usa onDraftChange callback
-- Cada cambio (cabecera, color, menu, footer) se aplica al instante
-- El PublicLayout recibe los cambios del draft en tiempo real
-- Al cerrar sin guardar, se recarga la configuracion original
+La pagina "Como Funciona el Trueque" ahora tiene 7 secciones con
+contenido real y educativo basado en investigacion:
 
-Paleta de colores completa (8 colores por tema):
-- Color primario (cabecera, botones)
-- Color secundario (acentos, badges)
-- Hover de botones
-- Color de texto
-- Color de enlaces
-- Color de enlaces visitados
-- Fondo de modulos/tarjetas
-- Fondo de la pagina
-- Fondo del pie de pagina
-- 6 paletas predefinidas con los 8 colores cada una
-- Marca visualmente cual paleta esta activa ("✓ Activa")
-- Color picker personalizado para cada uno de los 8 colores
-- Vista previa con botones, modulo, fondo de pagina y footer
+1. Que es el Trueque (4 tarjetas):
+   - Intercambio sin dinero
+   - Valor por energia, no por precio
+   - Multilateral y diferido
+   - Sin interes, sin acumulacion
 
-Footer sincronizado con el real:
-- Columna 1: titulo (opcional), descripcion, slogan
-- Columna 2: titulo de columna (paginas se reorganizan desde Menu)
-- Columna 3: titulo, direccion, horario
-- Columna 4: titulo, instagram, facebook, texto del boton de admision
-- Todos los campos se ven en vivo en el footer real
+2. Los 4 Pasos del Credito Mutuo (mejorado):
+   - Empiezas en cero, sin pagar nada
+   - Recibir sin tener saldo positivo
+   - Aportar para salir de deuda
+   - La suma total siempre es cero
 
-Un solo boton flotante (derecha):
-- Boton circular gris con icono de editar
-- Al pulsarlo se despliegan dos botones:
-  * Personalizar Tema (azul)
-  * Panel Web (verde)
-- Al pulsar de nuevo se contraen
+3. Limites y Confianza Progresiva (6 tarjetas):
+   - Personas naturales: limite inicial negativo
+   - Organizaciones: limite ampliado
+   - Tu limite sube con el tiempo
+   - Sin dinero para entrar
+   - Recibir sin tener
+   - Aportar para salir de deuda
 
-Backend:
-- Migracion 020: 7 nuevos campos de color + 6 campos de footer
-- getPublicSettings devuelve todos los campos nuevos
-- updateSiteSettings persiste todos los campos nuevos
-- page_bg_color se aplica al contenedor principal
-- footer_bg_color se aplica al footer
+4. Filosofia Agroecologica (4 tarjetas):
+   - Agroecologia como ciencia, practica y movimiento
+   - Produccion natural vs sintetica
+   - Sin explotacion de personas
+   - Soberania alimentaria
+
+5. Semillas: Patrimonio de los Pueblos (4 tarjetas):
+   - Semillas criollas y nativas
+   - Libres de transgenicos
+   - Semillas no procesadas
+   - Trueque libre de semillas
+
+6. El Sueno de la Ecoaldea (4 tarjetas):
+   - Que es una ecoaldea (definicion GEN)
+   - Mas que una utopia
+   - Un movimiento global
+   - Nuestro Campo Soberano
+
+7. Movimientos Hermanos en el Mundo (6 tarjetas):
+   - Red Global de Ecoaldeas (GEN)
+   - Sistemas LETS
+   - Club del Trueque (Argentina)
+   - Red de Semillas Libres
+   - Via Campesina
+   - Slow Food
+
+Informacion basada en fuentes reales:
+- Global Ecovillage Network (ecovillage.org)
+- FAO (enfoques agroecologicos)
+- Red de Semillas Libres de Colombia
+- Sistemas LETS (LetsLink UK, Cork LETS, Birmingham LETS)
+- Club del Trueque Argentina
+- Estudios academicos sobre soberania alimentaria
 
 Generated with [Devin](https://devin.ai)
 
