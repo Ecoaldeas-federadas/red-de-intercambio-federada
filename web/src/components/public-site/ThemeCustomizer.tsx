@@ -37,6 +37,10 @@ export interface ThemeDraft {
   header_banner_image: string
   header_banner_height: number
   header_transparency: number
+  header_transparency_color: string
+  header_blur: number
+  header_bg_color: string
+  header_text_color: string
 }
 
 export interface PageMenuItem {
@@ -515,29 +519,88 @@ export function ThemeCustomizer({
             <div className="space-y-3 p-3 rounded-xl bg-gray-50 border border-gray-200">
               <p className="text-xs font-bold text-gray-700">Ajustes de la cabecera</p>
 
-              {/* Sticky toggle */}
-              <label className="flex items-center justify-between gap-2 cursor-pointer">
-                <span className="text-[11px] font-semibold text-gray-600">Menú fijo (anclado arriba al hacer scroll)</span>
-                <button
-                  onClick={() => setDraft({ ...draft, header_sticky: !draft.header_sticky })}
-                  className={`relative w-10 h-5 rounded-full transition ${draft.header_sticky ? 'bg-emerald-600' : 'bg-gray-300'}`}
-                >
-                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${draft.header_sticky ? 'left-5' : 'left-0.5'}`} />
-                </button>
-              </label>
+              {/* Sticky toggle — for all headers except fixed ones */}
+              {draft.header_style !== 'sidebar_left' && draft.header_style !== 'hero_overlay' && (
+                <label className="flex items-center justify-between gap-2 cursor-pointer">
+                  <span className="text-[11px] font-semibold text-gray-600">Menú fijo (anclado arriba al hacer scroll)</span>
+                  <button
+                    onClick={() => setDraft({ ...draft, header_sticky: !draft.header_sticky })}
+                    className={`relative w-10 h-5 rounded-full transition ${draft.header_sticky ? 'bg-emerald-600' : 'bg-gray-300'}`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${draft.header_sticky ? 'left-5' : 'left-0.5'}`} />
+                  </button>
+                </label>
+              )}
+
+              {/* Colors override for this header */}
+              <div className="space-y-2 pt-2 border-t border-gray-200">
+                <p className="text-[11px] font-bold text-gray-600">Colores de la cabecera</p>
+                <p className="text-[10px] text-gray-400">Deja vacío para usar los colores de la paleta general.</p>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={draft.header_bg_color || draft.primary_color}
+                    onChange={(e) => setDraft({ ...draft, header_bg_color: e.target.value })}
+                    className="w-8 h-8 rounded-lg border border-gray-200 cursor-pointer flex-shrink-0"
+                  />
+                  <div className="flex-1">
+                    <p className="text-[10px] font-bold text-gray-700">Color de fondo</p>
+                    <input
+                      className="input text-[10px] font-mono py-0.5"
+                      value={draft.header_bg_color}
+                      onChange={(e) => setDraft({ ...draft, header_bg_color: e.target.value })}
+                      placeholder="Usar paleta general"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={draft.header_text_color || draft.text_color}
+                    onChange={(e) => setDraft({ ...draft, header_text_color: e.target.value })}
+                    className="w-8 h-8 rounded-lg border border-gray-200 cursor-pointer flex-shrink-0"
+                  />
+                  <div className="flex-1">
+                    <p className="text-[10px] font-bold text-gray-700">Color de texto</p>
+                    <input
+                      className="input text-[10px] font-mono py-0.5"
+                      value={draft.header_text_color}
+                      onChange={(e) => setDraft({ ...draft, header_text_color: e.target.value })}
+                      placeholder="Usar paleta general"
+                    />
+                  </div>
+                </div>
+              </div>
 
               {/* Banner image (for banner style) */}
               {draft.header_style === 'banner' && (
-                <div>
-                  <label className="label text-[11px] font-bold">Imagen de fondo del banner</label>
-                  <input
-                    type="text"
-                    value={draft.header_banner_image}
-                    onChange={(e) => setDraft({ ...draft, header_banner_image: e.target.value })}
-                    placeholder="https://... (URL de la imagen)"
-                    className="input text-[11px]"
-                  />
-                  <p className="text-[10px] text-gray-400 mt-0.5">Deja vacío para usar imagen por defecto</p>
+                <div className="space-y-2 pt-2 border-t border-gray-200">
+                  <p className="text-[11px] font-bold text-gray-600">Imagen del banner</p>
+                  <div className="flex items-center gap-2">
+                    {draft.header_banner_image && (
+                      <img src={draft.header_banner_image} alt="banner" className="w-16 h-10 rounded object-cover border border-gray-200" />
+                    )}
+                    <div className="flex-1 space-y-2">
+                      <input
+                        type="text"
+                        value={draft.header_banner_image}
+                        onChange={(e) => setDraft({ ...draft, header_banner_image: e.target.value })}
+                        placeholder="URL de la imagen..."
+                        className="input text-[11px]"
+                      />
+                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 text-[11px] font-bold hover:bg-emerald-200 transition cursor-pointer border border-emerald-300">
+                        <Upload size={14} />
+                        Subir imagen
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                          const f = e.target.files?.[0]
+                          if (f) handleLogoUpload(f).then((url: string) => setDraft({ ...draft, header_banner_image: url }))
+                        }} />
+                      </label>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-gray-400">Deja vacío para usar imagen por defecto</p>
                 </div>
               )}
 
@@ -557,20 +620,51 @@ export function ThemeCustomizer({
                 </div>
               )}
 
-              {/* Transparency (for hero_overlay style) */}
+              {/* Transparency settings (for hero_overlay style) */}
               {draft.header_style === 'hero_overlay' && (
-                <div>
-                  <label className="label text-[11px] font-bold">Transparencia: {draft.header_transparency}%</label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="80"
-                    step="5"
-                    value={draft.header_transparency}
-                    onChange={(e) => setDraft({ ...draft, header_transparency: parseInt(e.target.value) })}
-                    className="w-full accent-emerald-600"
-                  />
-                  <p className="text-[10px] text-gray-400 mt-0.5">0% = solido, 80% = muy transparente</p>
+                <div className="space-y-3 pt-2 border-t border-gray-200">
+                  <p className="text-[11px] font-bold text-gray-600">Transparencia y distorsión</p>
+
+                  <div>
+                    <label className="label text-[11px] font-bold">Nivel de transparencia: {draft.header_transparency}%</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="80"
+                      step="5"
+                      value={draft.header_transparency}
+                      onChange={(e) => setDraft({ ...draft, header_transparency: parseInt(e.target.value) })}
+                      className="w-full accent-emerald-600"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-0.5">0% = solido, 80% = muy transparente</p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={draft.header_transparency_color}
+                      onChange={(e) => setDraft({ ...draft, header_transparency_color: e.target.value })}
+                      className="w-8 h-8 rounded-lg border border-gray-200 cursor-pointer flex-shrink-0"
+                    />
+                    <div className="flex-1">
+                      <p className="text-[10px] font-bold text-gray-700">Color de la transparencia</p>
+                      <p className="text-[10px] text-gray-400">Negro = oscuro, azul = vidrio, etc.</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="label text-[11px] font-bold">Distorsión (blur): {draft.header_blur}px</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="20"
+                      step="1"
+                      value={draft.header_blur}
+                      onChange={(e) => setDraft({ ...draft, header_blur: parseInt(e.target.value) })}
+                      className="w-full accent-emerald-600"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-0.5">0 = sin distorsión, 20 = muy borroso</p>
+                  </div>
                 </div>
               )}
             </div>

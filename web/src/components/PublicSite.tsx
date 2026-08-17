@@ -86,8 +86,16 @@ function getShortLabel(p: { slug: string; title: string }): string {
       return 'FAQ'
     case 'contacto':
       return 'Contacto'
+    case 'semillas':
+      return 'Semillas'
+    case 'saberes-ancestrales':
+      return 'Saberes'
+    case 'filosofia-conuquera':
+      return 'Filosofía'
+    case 'ecoaldeas-mundo':
+      return 'Ecoaldeas'
     default:
-      return p.title && p.title.length > 14 ? p.title.slice(0, 12) + '…' : p.title || p.slug
+      return p.title || p.slug
   }
 }
 
@@ -154,12 +162,17 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
   }, [])
 
   const headerStyle = settings?.header_style || 'modern_eco'
-  const primaryColor = settings?.primary_color || '#162e16'
+  const primaryColor = headerBgColor || settings?.primary_color || '#162e16'
   const secondaryColor = settings?.secondary_color || '#c2410c'
+  const headerTextColorResolved = headerTextColor || (settings as any)?.text_color || '#1a1a1a'
   const headerSticky = (settings as any)?.header_sticky ?? true
   const headerBannerImage = (settings as any)?.header_banner_image || ''
   const headerBannerHeight = (settings as any)?.header_banner_height || 120
   const headerTransparency = (settings as any)?.header_transparency ?? 25
+  const headerTransparencyColor = (settings as any)?.header_transparency_color || '#000000'
+  const headerBlur = (settings as any)?.header_blur ?? 4
+  const headerBgColor = (settings as any)?.header_bg_color || ''
+  const headerTextColor = (settings as any)?.header_text_color || ''
   const stickyClass = headerSticky ? 'sticky top-0' : ''
   const showAnnouncement = settings?.show_announcement ?? true
   const announcementText =
@@ -171,10 +184,23 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
   const menuPages = pages
     .filter((p) => p.show_in_menu !== false)
     .sort((a, b) => (a.menu_order || 0) - (b.menu_order || 0))
-  // Show all menu items by default; "Más" only appears if there are too many.
-  // Most headers have enough horizontal space for 10+ items.
-  // Split-center divides items in half so it can show more.
-  const maxVisible = headerStyle === 'split_center' ? 14 : 12
+  // Show menu items; "Más" appears when there are too many to fit.
+  // Different headers have different space constraints.
+  const maxVisibleByStyle: Record<string, number> = {
+    modern_eco: 7,
+    agrodigital_mincyt: 7,
+    fao_institutional: 8,
+    editorial_latam: 8,
+    dropdown_categories: 10, // uses dropdowns so takes less space
+    compact: 8,
+    banner: 8,
+    sidebar_left: 20, // vertical, plenty of space
+    split_center: 10, // split in half
+    minimal_underline: 8,
+    hero_overlay: 7,
+    sticky_pill: 6, // pill is compact
+  }
+  const maxVisible = maxVisibleByStyle[headerStyle] ?? 8
   const visiblePages = menuPages.slice(0, maxVisible)
   const overflowPages = menuPages.slice(maxVisible)
 
@@ -193,7 +219,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
     pages.filter((p) => (p as any).parent_slug === parentSlug && p.show_in_menu !== false)
 
   return (
-    <div className="min-h-screen flex flex-col font-sans selection:bg-amber-200 selection:text-amber-950 overflow-x-hidden w-full max-w-full" style={{ backgroundColor: (settings as any)?.page_bg_color || '#fdfbf7' }}>
+    <div className="min-h-screen flex flex-col font-sans selection:bg-amber-200 selection:text-amber-950 overflow-x-clip w-full max-w-full" style={{ backgroundColor: (settings as any)?.page_bg_color || '#fdfbf7' }}>
       {/* 1. TOP ANNOUNCEMENT BAR */}
       {showAnnouncement && (
         <div
@@ -256,7 +282,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
           {/* Menu as cards with icons */}
           <div className="max-w-7xl mx-auto px-2 sm:px-4 hidden lg:block">
-            <nav className="flex items-center gap-1.5 py-1.5 overflow-x-auto">
+            <nav className="flex items-center gap-1.5 py-1.5 flex-wrap">
               {visiblePages.map((p) => {
                 const Icon = ICONS[p.icon || 'home'] || Home
                 const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
@@ -929,7 +955,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
       {/* STYLE J: HERO OVERLAY — Menu transparente superpuesto, se vuelve solido al scroll */}
       {headerStyle === 'hero_overlay' && (
-        <header className="fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300" style={{ backgroundColor: `rgba(0,0,0,${headerTransparency / 100})`, backdropFilter: 'blur(4px)' }}>
+        <header className="fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300" style={{ backgroundColor: `${headerTransparencyColor}${Math.round(headerTransparency * 2.55).toString(16).padStart(2, '0')}`, backdropFilter: `blur(${headerBlur}px)` }}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-3 py-3">
             <Link to="/p/inicio" className="flex items-center gap-2.5 text-white flex-shrink-0 max-w-xs truncate">
               {settings?.logo_url ? (
@@ -989,8 +1015,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
       {/* STYLE K: STICKY PILL — Pildora flotante centrada */}
       {headerStyle === 'sticky_pill' && (
         <div className={`${headerSticky ? 'sticky top-3' : 'relative'} z-50 w-full px-4 flex justify-center`}>
-          <header className="bg-white rounded-full shadow-lg border border-gray-200/60 flex items-center gap-2 px-3 sm:px-4 py-2 max-w-5xl w-full">
-            <Link to="/p/inicio" className="flex items-center gap-2 flex-shrink-0">
+          <header className="bg-white rounded-full shadow-lg border border-gray-200/60 flex items-center gap-2 px-3 sm:px-4 py-2 max-w-5xl w-full overflow-hidden">
+            <Link to="/p/inicio" className="flex items-center gap-2 flex-shrink-0 min-w-0">
               {settings?.logo_url ? (
                 <img src={settings.logo_url} alt="logo" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
               ) : (
@@ -998,12 +1024,12 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                   <Leaf size={16} />
                 </div>
               )}
-              <h1 className="text-xs font-bold hidden sm:block truncate max-w-[140px]" style={{ color: (settings as any)?.text_color || '#1a1a1a' }}>
+              <h1 className="text-xs font-bold hidden sm:block truncate max-w-[120px]" style={{ color: (settings as any)?.text_color || '#1a1a1a' }}>
                 {settings?.site_title || 'Feria Conuquera'}
               </h1>
             </Link>
 
-            <nav className="hidden lg:flex items-center gap-0.5 text-xs font-semibold mx-auto" style={{ color: (settings as any)?.text_color || '#1a1a1a' }}>
+            <nav className="hidden lg:flex items-center gap-0.5 text-xs font-semibold flex-1 min-w-0 justify-center overflow-hidden" style={{ color: (settings as any)?.text_color || '#1a1a1a' }}>
               {visiblePages.map((p) => {
                 const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
                 return (
@@ -1744,6 +1770,10 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                     header_banner_image: (settings as any)?.header_banner_image || '',
                     header_banner_height: (settings as any)?.header_banner_height || 120,
                     header_transparency: (settings as any)?.header_transparency ?? 25,
+                    header_transparency_color: (settings as any)?.header_transparency_color || '#000000',
+                    header_blur: (settings as any)?.header_blur ?? 4,
+                    header_bg_color: (settings as any)?.header_bg_color || '',
+                    header_text_color: (settings as any)?.header_text_color || '',
                   })
                   setDraftPages(pages.map((p) => ({
                     slug: p.slug,
@@ -1807,6 +1837,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           footer_admission_text: 'Llenar Solicitud de Ingreso',
           header_sticky: true, header_banner_image: '',
           header_banner_height: 120, header_transparency: 25,
+          header_transparency_color: '#000000', header_blur: 4,
+          header_bg_color: '', header_text_color: '',
         }}
         initialPages={draftPages}
         onDraftChange={(newDraft, newPages) => {
