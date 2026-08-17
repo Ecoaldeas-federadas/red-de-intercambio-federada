@@ -927,4 +927,594 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
       },
     ],
   },
+  {
+    slug: 'semillas',
+    title: 'Semillas & Banco de Semillas',
+    subtitle: 'Patrimonio Colectivo, Soberanía Alimentaria y Biodiversidad',
+    icon: 'sprout',
+    menu_order: 9,
+    blocks: [
+      {
+        type: 'hero',
+        badge: '🌱 Las Semillas Son Vida',
+        title: 'Banco Comunitario de Semillas Criollas',
+        subtitle: 'Conservar nuestras semillas es conservar nuestra libertad.',
+        description:
+          'Las semillas son el primer eslabón de la cadena alimentaria. Quien controla las semillas controla la alimentación. Por eso defendemos las semillas criollas y nativas: porque son patrimonio colectivo de los pueblos, se reproducen libremente, están adaptadas a nuestro clima y han sido seleccionadas por generaciones de campesinos y campesinas.',
+        image_url:
+          'https://images.unsplash.com/photo-1574943323817-4c67cb2f9f3b?auto=format&fit=crop&w=1200&q=80',
+        style: 'split',
+      },
+      {
+        type: 'features_grid',
+        title: '¿Qué es un Banco Comunitario de Semillas?',
+        subtitle: 'Una alternativa de conservación colectiva de la agrobiodiversidad',
+        columns: 2,
+        items: [
+          {
+            icon: 'users',
+            title: 'Administración colectiva',
+            description:
+              'Un banco comunitario de semillas es un modelo de administración colectiva de la reserva de semillas necesaria para la siembra entre los productores de una comunidad. Su funcionamiento se basa en el sistema de préstamo y devolución: los productores asociados toman prestada una cantidad de semilla y, tras la cosecha, la devuelven con un porcentaje adicional. Así cada agricultor produce y mejora su propia semilla.',
+            badge: 'Colectivo',
+          },
+          {
+            icon: 'leaf',
+            title: 'Conservación de agrobiodiversidad',
+            description:
+              'Los bancos comunitarios conservan importantes genes que aportan sabor, color, olor, resistencia a plagas y adaptación al clima. La FAO reconoce que estos bancos son vitales para perpetuar el acervo genético de las especies vegetales y asegurar la seguridad alimentaria frente al cambio climático y la homogeneización corporativa.',
+            badge: 'Biodiversidad',
+          },
+          {
+            icon: 'shield',
+            title: 'Confianza en la propia semilla',
+            description:
+              'Los agricultores confían en sus semillas porque han sido seleccionadas por ellos mismos, conocen el desempeño de las plantas de las que provienen y saben cómo se comportarán bajo las condiciones agroecológicas locales. Esta confianza es la base de la autonomía campesina: no dependes de una tienda ni de una corporación para sembrar.',
+            badge: 'Autonomía',
+          },
+          {
+            icon: 'rotate-cw',
+            title: 'Sistema de préstamo y devolución',
+            description:
+              'El banco define colectivamente cuánta semilla deposita cada agricultor y qué porcentaje debe agregar al devolverla. Este sistema permite que el banco crezca con cada ciclo, que la semilla se adapte a las condiciones locales y que nuevos productores puedan acceder a semilla de calidad sin comprarla. Es un círculo de vida que se multiplica.',
+            badge: 'Círculo virtuoso',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'Semillas Criollas vs. Transgénicas',
+        subtitle: 'La diferencia entre libertad y dependencia',
+        columns: 2,
+        items: [
+          {
+            icon: 'sprout',
+            title: 'Semillas criollas y nativas',
+            description:
+              'Las semillas criollas son aquellas que han sido seleccionadas y adaptadas por los campesinos durante generaciones. Son libres: puedes guardarlas, intercambiarlas, venderlas y sembrarlas sin restricciones. Se adaptan a las condiciones locales, resisten plagas nativas, requieren menos insumos externos y conservan la diversidad genética. Cada variedad criolla es resultado de siglos de conocimiento campesino.',
+            badge: 'Libres',
+          },
+          {
+            icon: 'alert-triangle',
+            title: 'Semillas transgénicas',
+            description:
+              'Las semillas transgénicas son modificadas genéticamente en laboratorios y patentadas por corporaciones. Su uso obliga a comprar semillas nuevas cada temporada (están diseñadas para no reproroducirse), crea dependencia económica, contamina las variedades nativas por polinización cruzada, reduce la biodiversidad y concentra el control de la alimentación en unas pocas empresas transnacionales.',
+            badge: 'Dependencia',
+          },
+          {
+            icon: 'shield',
+            title: 'Territorios libres de transgénicos',
+            description:
+              'En América Latina, comunidades indígenas y campesinas han declarado Territorios Libres de Transgénicos (TLT) como acto de autodeterminación. En Colombia, resguardos indígenas Zenú y comunidades afrodescendientes de la Región Caribe han recuperado decenas de variedades de maíz criollo y declarado sus territorios libres de transgénicos. Es un movimiento que crece.',
+            badge: 'Resistencia',
+          },
+          {
+            icon: 'globe',
+            title: 'Patrimonio de los pueblos',
+            description:
+              'Las semillas constituyen un don sagrado, patrimonio colectivo de los pueblos. Han circulado libremente entre la población rural latinoamericana garantizando soberanía y autonomía alimentaria frente a las crisis. Los derechos colectivos de uso, manejo, intercambio y control local de las semillas tienen carácter inalienable e imprescriptible.',
+            badge: 'Patrimonio',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'El Trueque de Semillas en la Feria',
+        subtitle: 'Cada encuentro mensual es un intercambio libre de vida',
+        columns: 3,
+        items: [
+          {
+            icon: 'rotate-cw',
+            title: 'Cómo funciona',
+            description:
+              'Traes tus semillas en sobres o frascos etiquetados con el nombre de la variedad, fecha de cosecha y lugar de procedencia. Las intercambias por las semillas de otros agricultores y vecinos. No hay dinero de por medio. Una semilla de maíz criollo por una de frijol, un puñado de ají dulce por semillas de lechuga.',
+            badge: 'Intercambio',
+          },
+          {
+            icon: 'leaf',
+            title: 'Por qué importa',
+            description:
+              'Cada semilla que viaja de una mano a otra es un acto de soberanía. Si las semillas solo estuvieran en una tienda, perderíamos la diversidad. El trueque mantiene vivas variedades que no se consiguen comercialmente: el maíz cariaco, el frijol caraota de enredadera, el ají topito, la lechuga de hoja suelta.',
+            badge: 'Soberanía',
+          },
+          {
+            icon: 'heart',
+            title: 'Para todos',
+            description:
+              'No necesitas ser productor profesional para participar. Si tienes un balcón con hierbas, un patio con un árbol frutal o un huerto comunitario, puedes traer tus semillas. También puedes llevar semillas para empezar tu propio huerto en casa. La semilla es el primer paso hacia la soberanía alimentaria urbana.',
+            badge: 'Abierto',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'La Campaña Semillas de Identidad',
+        subtitle: 'Recuperar, visibilizar y multiplicar nuestras semillas nativas',
+        columns: 2,
+        items: [
+          {
+            icon: 'sprout',
+            title: 'Recuperación de variedades perdidas',
+            description:
+              'En Colombia, la campaña "Semillas de Identidad" identificó 27 variedades de maíz criollo entre Urabá y Boliván. En Venezuela, colectivos agroecológicos recuperan variedades de caraota, maíz, ají y tubérculos que habían desaparecido del mercado pero seguían vivas en los conucos de los abuelos. Cada variedad recuperada es un triunfo contra la homogeneización.',
+            badge: 'Recuperación',
+          },
+          {
+            icon: 'users',
+            title: 'Guardianes de semillas',
+            description:
+              'Los guardianes de semillas son campesinos, indígenas y urbanos que conservan variedades específicas en sus huertos y conucos. No lo hacen por lucro: lo hacen por convicción. Saben que si ellos no guardan esa semilla, se pierde para siempre. Las Redes de Guardianes de Semillas articulan a estos custodios en toda América Latina.',
+            badge: 'Guardianes',
+          },
+          {
+            icon: 'book-open',
+            title: 'Diálogo de saberes',
+            description:
+              'El banco de semillas no es solo un depósito: es un espacio de diálogo entre el conocimiento campesino ancestral y la ciencia agroecológica. Los abuelos saben cuándo sembrar según las lluvias, qué variedad va mejor en cada suelo, cómo preparar remedios naturales contra plagas. Los jóvenes aportan técnicas de documentación, registro y experimentación.',
+            badge: 'Diálogo',
+          },
+          {
+            icon: 'globe',
+            title: 'Redes de semillas libres',
+            description:
+              'La Red de Semillas Libres de Colombia, la Red de Guardianes de Semillas de Vida, la Campaña Global por la Soberanía de las Semillas: movimientos que defienden el derecho de los pueblos a guardar, intercambiar y mejorar sus semillas frente a las leyes que pretenden privatizar la vida.',
+            badge: 'Red global',
+          },
+        ],
+      },
+      {
+        type: 'cta_banner',
+        badge: '🌱 Participa',
+        title: 'Trae tus semillas a la próxima feria',
+        subtitle: 'Cada primer sábado de mes en Parque Los Caobos. Intercambio libre de semillas criollas, plántulas medicinales y esquejes. No necesitas ser miembro para participar en el trueque de semillas.',
+        button_text: 'Ver Próxima Feria',
+        button_link: '/p/contacto',
+        theme: 'forest',
+      },
+    ],
+  },
+  {
+    slug: 'saberes-ancestrales',
+    title: 'Saberes Ancestrales',
+    subtitle: 'Conocimientos Tradicionales que Sostienen la Vida Comunitaria',
+    icon: 'book-open',
+    menu_order: 10,
+    blocks: [
+      {
+        type: 'hero',
+        badge: '🏺 Saberes que Viene del Conuco',
+        title: 'Saberes Ancestrales y Conocimiento Tradicional',
+        subtitle: 'La sabiduría de los abuelos no es pasado: es futuro.',
+        description:
+          'Los saberes ancestrales son conocimientos transmitidos de generación en generación, nacidos de la observación paciente de la naturaleza y de la relación respetuosa entre las personas y la tierra. No son recetas del pasado: son tecnologías vivas, adaptadas y vigentes, que ofrecen respuestas a los problemas contemporáneos de alimentación, salud, vivienda y comunidad.',
+        image_url:
+          'https://images.unsplash.com/photo-1466637574441-749b8f19452f?auto=format&fit=crop&w=1200&q=80',
+        style: 'standard',
+      },
+      {
+        type: 'features_grid',
+        title: 'Casas de Bahareque: Construcción Natural Ancestral',
+        subtitle: 'Cuatro siglos de arquitectura sostenible en Venezuela',
+        columns: 2,
+        items: [
+          {
+            icon: 'home',
+            title: '¿Qué es el bahareque?',
+            description:
+              'El bahareque es una técnica constructiva prehispánica que ha sobrevivido hasta nuestros días en Venezuela, especialmente en el estado Zulia, desde el siglo XVII. Está compuesto por columnas de madera (horconadura), varas horizontales amarradas a ambos lados (enlatado), un relleno de barro con piedras y paja (embutido), y un acabado de barro con o sin cal (empañetado). Es arquitectura de tierra: vernácula, sostenible y patrimonial.',
+            badge: 'Técnica ancestral',
+          },
+          {
+            icon: 'leaf',
+            title: 'Construcción sostenible',
+            description:
+              'El bahareque usa materiales locales y reciclables: madera, barro, caña, bejucos, paja. Requiere poca energía y agua para construirse. No contamina. Se integra al paisaje. Regula la temperatura naturalmente (fresco durante el día, cálido en la noche). Estudios de la Universidad Central de Venezuela demuestran que es posible construir y reparar bahareque con materiales disponibles hoy, aplicando principios de construcción sostenible.',
+            badge: 'Sostenible',
+          },
+          {
+            icon: 'users',
+            title: 'Construcción comunitaria (cayapas)',
+            description:
+              'Las casas de bahareque se construían mediante cayapas: jornadas colectivas donde toda la comunidad ayudaba voluntariamente. Cada quien contribuía con lo que tenía: horcones, latas, bejucos, varas. El barro se traía en mapires y cajones al hombro o sobre burros. La paja se transportaba en haces desde los cerros. Era una fiesta pueblerina, llena de camaradería, donde viejos, mozos, niños, varones y hembras participaban.',
+            badge: 'Cayapa',
+          },
+          {
+            icon: 'shield',
+            title: 'Patrimonio que se pierde',
+            description:
+              'A mediados del siglo XX, el bahareque fue desplazado por el ladrillo y el cemento en las ciudades. Varias edificaciones de bahareque que aún están en pie son consideradas patrimonio nacional o regional. Pero el conocimiento se está perdiendo: los jóvenes ya no saben construir con barro. Recuperar esta técnica es recuperar autonomía habitacional, patrimonio cultural y una forma de construcción que no destruye el planeta.',
+            badge: 'Patrimonio',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'Ollas de Barro: Cocina Ancestral',
+        subtitle: '4.000 años de tradición cerámica que transforma el sabor y nutre el cuerpo',
+        columns: 2,
+        items: [
+          {
+            icon: 'utensils',
+            title: 'Cocción lenta y uniforme',
+            description:
+              'La olla de barro permite una cocción lenta y uniforme que resalta los sabores naturales de los ingredientes. La porosidad del barro hace que los alimentos se cocinen de manera suave, manteniendo la humedad y potenciando los aromas. El secreto del buen sabor es que la cocción es lenta: los ingredientes necesitan su tiempo para sacar sus sabores, texturas y aromas.',
+            badge: 'Sabor',
+          },
+          {
+            icon: 'heart',
+            title: 'Beneficios para la salud',
+            description:
+              'El barro contiene minerales que se transfieren a los alimentos durante la cocción, enriqueciéndolos naturalmente. Las ollas de barro retienen el calor de manera uniforme, preservando las vitaminas y minerales que otros materiales degradan. La cocción suave favorece la digestión. A diferencia del aluminio o el teflón, el barro no libera sustancias tóxicas a altas temperaturas.',
+            badge: 'Salud',
+          },
+          {
+            icon: 'history',
+            title: '4.000 años de tradición',
+            description:
+              'El uso de ollas de barro se remonta a las culturas originarias de América. En Ecuador, la cultura Valdivia ya elaboraba vasijas para procesar, servir y guardar alimentos hace 4.000 años. En Venezuela, comunidades de Barinas, Mérida y los Andes mantienen viva la tradición alfarera. Cada olla es única: hecha a mano, cocida en horno a 1000°C, con la arcilla del lugar.',
+            badge: 'Tradición',
+          },
+          {
+            icon: 'leaf',
+            title: 'Cocina sin dependencia industrial',
+            description:
+              'Usar ollas de barro es un acto de soberanía: no dependes de utensilios industriales importados, apoyas a los alfareros locales, reduces el consumo de metal y plástico, y recuperas una forma de cocinar que es más sabrosa, más saludable y más justa. En la feria conseguimos ollas, budares, tiestos y vasijas de barro hechas por artesanos venezolanos.',
+            badge: 'Soberanía',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'Casas de Cultivo e Invernaderos',
+        subtitle: 'Agricultura urbana protegida para producir alimentos todo el año',
+        columns: 2,
+        items: [
+          {
+            icon: 'home',
+            title: '¿Qué es una casa de cultivo?',
+            description:
+              'Las casas de cultivo son estructuras protegidas que permiten producir hortalizas durante todo el año, protegiendo los cultivos del sol intenso, la lluvia excesiva y las plagas. En Caracas, experiencias como el AVIVIR La Limonera (Baruta) y casas de cultivo en El Junquito han demostrado que se pueden producir tomates, pimentones, pepinos y lechugas de forma agroecológica en espacios urbanos.',
+            badge: 'Cultivo protegido',
+          },
+          {
+            icon: 'leaf',
+            title: 'Producción agroecológica urbana',
+            description:
+              'En las casas de cultivo se usan abonos orgánicos (humus de lombriz, biol), control biológico de plagas (Trichoderma, Bacillus thuringiensis, Beauveria bassiana) y caldos naturales (sulfocalcico). No se usan agrotóxicos. En El Junquito, una casa de cultivo de 300 m² produce hasta 8.000 kg de tomate por ciclo, libre de agrotóxicos.',
+            badge: 'Sin agrotóxicos',
+          },
+          {
+            icon: 'users',
+            title: 'Agricultura comunitaria',
+            description:
+              'En barios como Catia, los huertos urbanos se han convertido en centros de desarrollo comunitario. El Centro Agro Catia, en un predio que fue campamento de damnificados, ahora produce tomate, cebollín, ají, pimentón, repollo y lechuga. Escolares visitan para aprender a cultivar. La siembra urbana es herramienta de soberanía alimentaria, educación y tejido social.',
+            badge: 'Comunidad',
+          },
+          {
+            icon: 'sparkles',
+            title: 'Huerto en casa',
+            description:
+              'No necesitas un campo grande: un balcón, un patio, un terrario o un cantero vertical basta para empezar. En la feria conseguimos plántulas, semillas, sustratos orgánicos, lombrices californianas para compostaje y asesoría para montar tu huerto familiar. Producir tus own hierbas y hortalizas es el primer paso hacia la autonomía alimentaria.',
+            badge: 'Huerto familiar',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'Medicina Natural y Botica Conuquera',
+        subtitle: 'El conocimiento etnobotánico de las comunidades venezolanas',
+        columns: 2,
+        items: [
+          {
+            icon: 'heart',
+            title: 'Plantas medicinales: patrimonio vivo',
+            description:
+              'Estudios etnobotánicos en comunidades campesinas de Aragua, Mérida, Anzoátegui y Barinas documentan cientos de especies de plantas medicinales usadas por los venezolanos. En El Onoto (Aragua), todas las familias usan plantas medicinales, desde niños hasta ancianos. Es patrimonio cultural y ancestral que se transmite oralmente, de abuelos a nietos.',
+            badge: 'Etnobotánica',
+          },
+          {
+            icon: 'leaf',
+            title: 'Tinturas madres y preparados',
+            description:
+              'En la feria conseguimos tinturas madres de propóleo, moringa, cúrcuma, jengibre y árnica; ungüentos naturales; jarabes para la tos; aceites esenciales. Cada preparado se hace con plantas cultivadas agroecológicamente o recolectadas respetando los ciclos naturales. La farmacopea tradicional no reemplaza la medicina moderna, la complementa.',
+            badge: 'Botica',
+          },
+          {
+            icon: 'shield',
+            title: 'Primer recurso de salud',
+            description:
+              'En comunidades rurales con deficiencias en servicios de salud, las plantas medicinales son el primer recurso para atender afecciones respiratorias, digestivas, cutáneas y renales. Las hojas, frutos y cortezas se preparan en decocción o maceración. Este conocimiento es una alternativa real de atención primaria, especialmente donde el Estado no llega.',
+            badge: 'Salud comunitaria',
+          },
+          {
+            icon: 'alert-triangle',
+            title: 'Conocimiento en riesgo',
+            description:
+              'Los estudios advierten que el conocimiento tradicional se está erosionando por la modernización, la migración y la pérdida de transmisión intergeneracional. Por eso es vital documentar, visibilizar y transmitir estos saberes. La feria es un espacio de diálogo de saberes: los abuelos comparten, los jóvenes registran y experimentan.',
+            badge: 'Urgente',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'La Cosmovisión Conuquera',
+        subtitle: 'El conuco como forma de vida, no solo de producción',
+        columns: 2,
+        items: [
+          {
+            icon: 'sprout',
+            title: '¿Qué es el conuco?',
+            description:
+              'El conuco es el sistema agrícola tradicional de los pueblos originarios y campesinos de Venezuela y el Caribe. No es solo una parcela: es una forma de relación con la tierra basada en la diversidad, la reciprocidad y el respeto. En el conuco se siembran juntos maíz, caraota, frijol, yuca, ají, lechosa: cada planta protege y nutre a las demás. Es el modelo original de la agroecología.',
+            badge: 'Conuco',
+          },
+          {
+            icon: 'heart',
+            title: 'La Pachamama y la Cruz de Mayo',
+            description:
+              'Cada mayo, los productores de la Feria Conuquera celebran un convite en honor a la Cruz de Mayo, un sentido homenaje a la Pachamama que les provee sustento y vida. No es solo una festividad: es un acto de gratitud a la tierra. La cosmovisión conuquera entiende que la tierra no es un recurso que se explota, sino un ser vivo del que se es parte y al que se debe respeto.',
+            badge: 'Pachamama',
+          },
+          {
+            icon: 'users',
+            title: 'El convite y la cayapa',
+            description:
+              'El convite es la jornada colectiva de siembra, cosecha o construcción donde toda la comunidad participa voluntariamente. La cayapa es lo mismo: ayuda mutua sin pago monetario. Estas prácticas ancestrales son la base de la economía solidaria: no necesitas dinero para construir una casa, sembrar un conuco o cosechar una parcela. Necesitas comunidad.',
+            badge: 'Convite',
+          },
+          {
+            icon: 'book-open',
+            title: 'Diálogo intergeneracional',
+            description:
+              'La feria es un puente entre generaciones: los abuelos enseñan a seleccionar semillas, preparar remedios y cocinar recetas ancestrales; los jóvenes aportan técnicas de documentación, redes sociales y experimentación agroecológica. El conocimiento no se pierde cuando circula. La Feria Conuquera busca "rescatar las recetas y alimentos soberanos" y "restaurar la cultura alimentaria de los ancestros".',
+            badge: 'Diálogo',
+          },
+        ],
+      },
+      {
+        type: 'cta_banner',
+        badge: '🏺 Recupera tus Saberes',
+        title: 'Los saberes ancestrales son tecnología vigente',
+        subtitle: 'Bahareque, ollas de barro, medicina natural, conuco, convite: no son pasado, son futuro. Conócelos, practícalos, transmítenos. Visita la próxima feria y participa en los talleres formativos.',
+        button_text: 'Ver Próximas Actividades',
+        button_link: '/p/contacto',
+        theme: 'forest',
+      },
+    ],
+  },
+  {
+    slug: 'filosofia',
+    title: 'Filosofía Conuquera',
+    subtitle: 'Agroecología, Soberanía y Vida Comunitaria',
+    icon: 'heart',
+    menu_order: 11,
+    blocks: [
+      {
+        type: 'hero',
+        badge: '🌱 Más que un Mercado, una Forma de Vida',
+        title: 'Filosofía Conuquera',
+        subtitle: 'La Feria Conuquera no es solo un mercado: es una organización que aglutina a colectivos, familias y comunidades que buscan transformar cómo producimos, distribuimos y consumimos alimentos.',
+        description:
+          'Nacimos en 2014 como respuesta a la crisis alimentaria y la guerra económica. Frente a las colas, el desabastecimiento y la comida procesada, retomamos el concepto y la práctica conuquera: producir sin agrotóxicos, distribuir sin intermediarios, consumir alimentos soberanos y tejer comunidad alrededor de la tierra.',
+        image_url:
+          'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1200&q=80',
+        style: 'standard',
+      },
+      {
+        type: 'features_grid',
+        title: 'Nuestra Filosofía',
+        subtitle: 'Los principios que guían todo lo que hacemos',
+        columns: 2,
+        items: [
+          {
+            icon: 'leaf',
+            title: 'Agroecología como modelo de vida',
+            description:
+              'La agroecología no es solo una técnica de cultivo: es una ciencia, una práctica y un movimiento. Ciencia que aplica principios ecológicos a la agricultura. Práctica que respeta los ciclos naturales, recicla nutrientes y controla plagas con biodiversidad. Movimiento que defiende la soberanía alimentaria, la justicia social y los derechos de los pueblos. La FAO la reconoce como método capaz de transformar los sistemas alimentarios hacia la sostenibilidad.',
+            badge: 'Agroecología',
+          },
+          {
+            icon: 'shield',
+            title: 'Soberanía alimentaria',
+            description:
+              'La soberanía alimentaria es el derecho de los pueblos a definir sus propios sistemas alimentarios: qué sembrar, cómo sembrar, para quién producir y cómo distribuir. No es solo tener qué comer: es autonomía. Que la comunidad controle su alimentación, no las corporaciones transnacionales que monopolizan semillas y agroquímicos. La Vía Campesina acuñó este concepto y lo defendemos.',
+            badge: 'Soberanía',
+          },
+          {
+            icon: 'users',
+            title: 'Economía solidaria',
+            description:
+              'Frente al capitalismo que explota personas y tierra, proponemos la economía solidaria: trueque, crédito mutuo, convite, cayapa, distribución sin intermediarios, precios justos. El dinero no es el centro: el centro son las personas. Producimos para el bien común, no para la acumulación. La Feria Conuquera es un mercado a costo solidario, no a precio de mercado.',
+            badge: 'Solidaridad',
+          },
+          {
+            icon: 'heart',
+            title: 'Respeto a la Madre Tierra',
+            description:
+              'La tierra no es un recurso: es un ser vivo del que somos parte. La cosmovisión conuquera entiende que la Pachamama nos provee sustento y vida, y merece gratitud y respeto. Por eso prohibimos el plástico desechable, usamos agroecología sin agrotóxicos, reciclamos nutrientes y promovemos construcciones naturales como el bahareque. Cuidar la tierra es cuidarnos a nosotros mismos.',
+            badge: 'Pachamama',
+          },
+          {
+            icon: 'book-open',
+            title: 'Saberes ancestrales',
+            description:
+              'Los conocimientos de los abuelos no son pasado: son tecnología vigente. El conuco, las semillas criollas, las ollas de barro, la medicina natural, el bahareque, el convite: todo eso son saberes que ofrecen respuestas contemporáneas a los problemas de alimentación, salud, vivienda y comunidad. La feria es un espacio de diálogo intergeneracional donde estos saberes circulan.',
+            badge: 'Saberes',
+          },
+          {
+            icon: 'globe',
+            title: 'Red global de resistencia',
+            description:
+              'No estamos solos. La Feria Conuquera es parte de un movimiento planetario: la Red Global de Ecoaldeas, la Vía Campesina, Slow Food, las Redes de Semillas Libres, los sistemas LETS, los clubes de trueque. En todos los continentes hay comunidades que están construyendo alternativas al modelo agroindustrial. Somos parte de esa red global de resistencia regenerativa.',
+            badge: 'Global',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'Nuestra Historia',
+        subtitle: 'De la crisis a la organización, de la organización a la soberanía',
+        columns: 2,
+        items: [
+          {
+            icon: 'calendar',
+            title: '2014: Nacimiento en la crisis',
+            description:
+              'La Feria Conuquera Agroecológica nace en 2014 como respuesta al contexto de guerra económica. La compra compulsiva de alimentos procesados y las colas llevaron a miles de personas a asumir prácticas nuevas para acceder a bienes. Frente a ese panorama, un colectivo de productores decidió articular una red popular para generar una alternativa de distribución de alimentos sanos, producidos agroecológicamente.',
+            badge: '2014',
+          },
+          {
+            icon: 'leaf',
+            title: '2015: Primera feria en Los Caobos',
+            description:
+              'La primera Feria Conuquera se realizó en el Parque Los Caobos de Caracas. El objetivo era visibilizar el trabajo del productor y la productora de alimentos e incentivar al caraqueño a incorporarse al sector productivo. Desde entonces, cada primer sábado de mes, el parque se transforma en un mercado a cielo abierto donde se venden e intercambian alimentos agroecológicos.',
+            badge: '2015',
+          },
+          {
+            icon: 'users',
+            title: 'Crecimiento y red de colectivos',
+            description:
+              'La feria creció. Hoy aglutina a más de 40 productores de Valles del Tuy, El Hatillo, Baruta, El Junquito, Puerta Caracas y otras comunidades alrededor de Caracas. Se venden frutas, verduras, quesos de búfala y cabra, productos de miel, licores artesanales, cosmética natural, semillas criollas, plántulas medicinales y comida ancestral. Más que un mercado, es una red de colectivos.',
+            badge: 'Red',
+          },
+          {
+            icon: 'sparkles',
+            title: '10 años de resistencia',
+            description:
+              'En octubre celebramos nuestro aniversario. Diez años de organización, formación y trabajo colectivo. Diez años demostrando que es posible producir alimentos sanos sin agrotóxicos, distribuir sin intermediarios, intercambiar sin dinero y tejer comunidad alrededor de la tierra. La Feria Conuquera es prueba viviente de que otra forma de vida es posible.',
+            badge: '10 años',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'Qué Consigues en la Feria',
+        subtitle: 'Productos reales de productores reales, sin intermediarios',
+        columns: 3,
+        items: [
+          {
+            icon: 'leaf',
+            title: 'Cosecha fresca',
+            description:
+              'Hortalizas y hojas verdes de El Junquito: col rizada, acelgas, lechugas variadas, cebollín, cilantro, perejil, espinaca. Tubérculos ancestrales: ñame morado criollo, ocumo blanco y morado, yuca dulce de Carayaca, auyama madura, cambur morado. Todo cosechado en la mañana, sin agrotóxicos.',
+            badge: 'Fresco',
+          },
+          {
+            icon: 'heart',
+            title: 'Medicina botánica',
+            description:
+              'Tinturas madres de propóleo, moringa, cúrcuma, jengibre y árnica. Ungüentos naturales. Jarabes para la tos. Cosmética sin químicos: desodorantes de aceite de coco y bicarbonato, bálsamos labiales de cera de abejas, jabones artesanales, toallas reutilizables.',
+            badge: 'Botica',
+          },
+          {
+            icon: 'utensils',
+            title: 'Gastronomía artesanal',
+            description:
+              'Cafunga de Barlovento (postre afro-venezolano con plátano maduro, coco y papelón). Quesos de búfala y cabra: añejados, frescos, dulce de leche, yogur, mantequilla. Cacao puro, chocolates bean-to-bar de Barlovento y Chuao. Café de montaña tostado en leña.',
+            badge: 'Gastronomía',
+          },
+          {
+            icon: 'sprout',
+            title: 'Semillas y plántulas',
+            description:
+              'Semillas criollas libres de transgénicos: maíz cariaco, caraota de enredadera, ají topito, lechuga de hoja suelta. Plántulas medicinales: poleo, stevia, hierbaluisa, romero, ruda, orégano orejón. Esquejes de frutales. Todo para tu huerto familiar.',
+            badge: 'Semillas',
+          },
+          {
+            icon: 'home',
+            title: 'Artesanía y ollas de barro',
+            description:
+              'Ollas, budares y tiestos de barro hechos por alfareros venezolanos. Cestería tradicional. Vasijas de arcilla. Productos de fibras naturales. Cada pieza es única, hecha a mano con técnicas ancestrales y materiales del lugar.',
+            badge: 'Artesanía',
+          },
+          {
+            icon: 'zap',
+            title: 'Miel y derivados',
+            description:
+              'Miel pura de abejas criollas. Polen. Propóleo. Cera de abejas. Productos de la colmena producidos por apicultores que respetan los ciclos naturales y no alimentan a las abejas con azúcar.',
+            badge: 'Miel',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'Actividades de la Feria',
+        subtitle: 'Más que comprar y vender: formación, cultura y comunidad',
+        columns: 2,
+        items: [
+          {
+            icon: 'book-open',
+            title: 'Talleres formativos gratuitos',
+            description:
+              'En cada jornada se ofrecen talleres gratuitos: siembra y lombricultura, preparación de bioinsumos, conservación de semillas, medicina natural, cocina ancestral, construcción con barro. La formación es continua: no solo aprendes a comprar, aprendes a producir.',
+            badge: 'Formación',
+          },
+          {
+            icon: 'rotate-cw',
+            title: 'Trueque libre de semillas',
+            description:
+              'Espacio abierto donde agricultores y vecinos intercambian semillas criollas, plántulas y esquejes sin dinero. Traes lo que tienes, llevas lo que necesitas. Cada semilla que viaja es un acto de soberanía.',
+            badge: 'Trueque',
+          },
+          {
+            icon: 'book',
+            title: 'Dona y adopta un libro',
+            description:
+              'Intercambio libre de libros: traes los que ya leíste, te llevas los que quieres leer. No es una librería: es un círculo de lectura comunitaria que promueve el acceso al conocimiento sin barreras económicas.',
+            badge: 'Libros',
+          },
+          {
+            icon: 'music',
+            title: 'Música y cultura popular',
+            description:
+              'Música popular en vivo: tambores, cuatros, cantos de trabajo y decimas. Actividades lúdicas para niños y familias. La feria es celebración: no solo se vende, se canta, se baila, se comparte.',
+            badge: 'Cultura',
+          },
+          {
+            icon: 'users',
+            title: 'Asambleas y comisiones',
+            description:
+              'Asambleas Generales cada 3 meses para la toma de decisiones colectivas. Comisiones temáticas: logística, comunicación, bioinsumos, cultura. La feria se gobierna horizontalmente, por consentimiento y no por jerarquía.',
+            badge: 'Gobernanza',
+          },
+          {
+            icon: 'leaf',
+            title: 'Cayapas y visitas a conucos',
+            description:
+              'Organizamos cayapas (jornadas colectivas de trabajo) y visitas a los conucos de los productores fuera de Caracas. Es ayuda mutua: vas a sembrar o cosechar con el compañero, aprendes de su práctica y fortaleces el vínculo rural-urbano.',
+            badge: 'Cayapa',
+          },
+        ],
+      },
+      {
+        type: 'cta_banner',
+        badge: '🤝 Únete a la Red',
+        title: 'La Feria Conuquera es una forma de vida',
+        subtitle: 'No solo vienes a comprar: vienes a aprender, a intercambiar, a compartir, a construir comunidad. Si deseas ingresar como productor o participar en las asambleas y trueques, postúlate ante la asamblea.',
+        button_text: 'Completar Solicitud de Admisión',
+        button_link: '/p/unirse',
+        theme: 'forest',
+      },
+    ],
+  },
 ]
