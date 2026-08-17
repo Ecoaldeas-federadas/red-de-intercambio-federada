@@ -310,5 +310,5 @@ Primer sábado de cada mes, desde las 9:00 AM hasta pasado el mediodía.
 
 Si quieres ser parte de nuestra comunidad, completa el formulario de solicitud de admisión y nos pondremos en contacto contigo.',
    'mail', 8, true, true)
-) AS t(slug, title, subtitle, content, icon, menu_order, show_in_menu)
+) AS t(slug TEXT, title TEXT, subtitle TEXT, content TEXT, icon TEXT, menu_order INT, show_in_menu BOOLEAN)
 WHERE NOT EXISTS (SELECT 1 FROM public_pages WHERE node_domain = 'localhost' LIMIT 1);
