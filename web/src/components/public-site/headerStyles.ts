@@ -25,9 +25,9 @@ export const HEADER_STYLES: HeaderStyleDef[] = [
   },
   {
     id: 'fao_institutional',
-    name: 'Portal Blanco',
-    description: 'Fondo blanco, logo+texto, menu formal con subrayado. Estilo portal institucional.',
-    tag: 'Institucional',
+    name: 'Tarjetas con Iconos',
+    description: 'Dos filas: logo arriba, menu de tarjetas con iconos y borde abajo. Cada item es una tarjeta visual.',
+    tag: 'Tarjetas',
   },
   {
     id: 'editorial_latam',

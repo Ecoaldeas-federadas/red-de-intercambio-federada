@@ -32,6 +32,11 @@ export interface ThemeDraft {
   footer_col4_title: string
   footer_slogan: string
   footer_admission_text: string
+  // Per-header settings
+  header_sticky: boolean
+  header_banner_image: string
+  header_banner_height: number
+  header_transparency: number
 }
 
 export interface PageMenuItem {
@@ -441,6 +446,70 @@ export function ThemeCustomizer({
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Per-header settings */}
+            <div className="space-y-3 p-3 rounded-xl bg-gray-50 border border-gray-200">
+              <p className="text-xs font-bold text-gray-700">Ajustes de la cabecera</p>
+
+              {/* Sticky toggle */}
+              <label className="flex items-center justify-between gap-2 cursor-pointer">
+                <span className="text-[11px] font-semibold text-gray-600">Menú fijo (anclado arriba al hacer scroll)</span>
+                <button
+                  onClick={() => setDraft({ ...draft, header_sticky: !draft.header_sticky })}
+                  className={`relative w-10 h-5 rounded-full transition ${draft.header_sticky ? 'bg-emerald-600' : 'bg-gray-300'}`}
+                >
+                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${draft.header_sticky ? 'left-5' : 'left-0.5'}`} />
+                </button>
+              </label>
+
+              {/* Banner image (for banner style) */}
+              {draft.header_style === 'banner' && (
+                <div>
+                  <label className="label text-[11px] font-bold">Imagen de fondo del banner</label>
+                  <input
+                    type="text"
+                    value={draft.header_banner_image}
+                    onChange={(e) => setDraft({ ...draft, header_banner_image: e.target.value })}
+                    placeholder="https://... (URL de la imagen)"
+                    className="input text-[11px]"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-0.5">Deja vacío para usar imagen por defecto</p>
+                </div>
+              )}
+
+              {/* Banner height (for banner style) */}
+              {draft.header_style === 'banner' && (
+                <div>
+                  <label className="label text-[11px] font-bold">Altura del banner: {draft.header_banner_height}px</label>
+                  <input
+                    type="range"
+                    min="80"
+                    max="300"
+                    step="10"
+                    value={draft.header_banner_height}
+                    onChange={(e) => setDraft({ ...draft, header_banner_height: parseInt(e.target.value) })}
+                    className="w-full accent-emerald-600"
+                  />
+                </div>
+              )}
+
+              {/* Transparency (for hero_overlay style) */}
+              {draft.header_style === 'hero_overlay' && (
+                <div>
+                  <label className="label text-[11px] font-bold">Transparencia: {draft.header_transparency}%</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="80"
+                    step="5"
+                    value={draft.header_transparency}
+                    onChange={(e) => setDraft({ ...draft, header_transparency: parseInt(e.target.value) })}
+                    className="w-full accent-emerald-600"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-0.5">0% = solido, 80% = muy transparente</p>
+                </div>
+              )}
             </div>
           </div>
         )}

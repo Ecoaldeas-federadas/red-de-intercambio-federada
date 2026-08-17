@@ -156,6 +156,11 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
   const headerStyle = settings?.header_style || 'modern_eco'
   const primaryColor = settings?.primary_color || '#162e16'
   const secondaryColor = settings?.secondary_color || '#c2410c'
+  const headerSticky = (settings as any)?.header_sticky ?? true
+  const headerBannerImage = (settings as any)?.header_banner_image || ''
+  const headerBannerHeight = (settings as any)?.header_banner_height || 120
+  const headerTransparency = (settings as any)?.header_transparency ?? 25
+  const stickyClass = headerSticky ? 'sticky top-0' : ''
   const showAnnouncement = settings?.show_announcement ?? true
   const announcementText =
     settings?.announcement_text ||
@@ -166,8 +171,12 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
   const menuPages = pages
     .filter((p) => p.show_in_menu !== false)
     .sort((a, b) => (a.menu_order || 0) - (b.menu_order || 0))
-  const visiblePages = menuPages.slice(0, 5)
-  const overflowPages = menuPages.slice(5)
+  // Show all menu items by default; "Más" only appears if there are too many.
+  // Most headers have enough horizontal space for 10+ items.
+  // Split-center divides items in half so it can show more.
+  const maxVisible = headerStyle === 'split_center' ? 14 : 12
+  const visiblePages = menuPages.slice(0, maxVisible)
+  const overflowPages = menuPages.slice(maxVisible)
 
   // Navigation categorization for dropdown style (use menu-visible pages only)
   const aboutPages = menuPages.filter((p) => ['inicio', 'filosofia', 'filosofia-conuquera', 'campo-soberano'].includes(p.slug))
@@ -192,74 +201,85 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
       {/* 2. DYNAMIC HEADER BY SELECTED STYLE */}
 
-      {/* STYLE A: FAO INSTITUTIONAL / PORTAL BLANCO */}
+      {/* STYLE A: TARJETAS CON ICONOS — cada item del menu es una tarjeta con icono */}
       {headerStyle === 'fao_institutional' && (
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-xs w-full">
-          <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-3 flex items-center justify-between gap-3">
-            {/* Brand */}
-            <Link to="/p/inicio" className="flex items-center gap-2.5 sm:gap-3 flex-shrink-0 max-w-[200px] sm:max-w-xs md:max-w-sm truncate">
-              {settings?.logo_url ? (
-                <img
-                  src={settings.logo_url}
-                  alt="logo"
-                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg object-cover border shadow-xs flex-shrink-0"
-                  style={{ borderColor: ((settings as any)?.module_bg_color || '#ffffff') }}
-                />
-              ) : (
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl text-white flex items-center justify-center font-extrabold shadow-sm flex-shrink-0" style={{ backgroundColor: primaryColor }}>
-                  <Building2 size={20} />
+        <header className={`${stickyClass} z-50 shadow-md w-full`} style={{ backgroundColor: (settings as any)?.page_bg_color || '#f8faf5' }}>
+          {/* Top bar: logo + actions */}
+          <div className="border-b-2" style={{ borderColor: primaryColor }}>
+            <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 flex items-center justify-between gap-3">
+              <Link to="/p/inicio" className="flex items-center gap-2.5 flex-shrink-0 max-w-xs truncate">
+                {settings?.logo_url ? (
+                  <img src={settings.logo_url} alt="logo" className="w-10 h-10 rounded-xl object-cover shadow-sm flex-shrink-0" />
+                ) : (
+                  <div className="w-10 h-10 rounded-xl text-white flex items-center justify-center shadow-sm flex-shrink-0" style={{ backgroundColor: primaryColor }}>
+                    <Leaf size={20} />
+                  </div>
+                )}
+                <div className="truncate">
+                  <h1 className="text-sm sm:text-base font-black tracking-tight truncate leading-tight" style={{ color: (settings as any)?.text_color || '#1a1a1a' }}>
+                    {settings?.site_title || 'Feria Conuquera Agroecológica'}
+                  </h1>
+                  <p className="text-[10px] sm:text-[11px] font-semibold hidden sm:block truncate" style={{ color: (settings as any)?.link_color || '#15803d' }}>
+                    {settings?.site_subtitle || 'Soberanía Alimentaria'}
+                  </p>
                 </div>
-              )}
-              <div className="truncate">
-                <h1 className="text-xs sm:text-sm md:text-base font-black tracking-tight truncate leading-tight" style={{ color: (settings as any)?.text_color || '#1a1a1a' }}>
-                  {settings?.site_title || 'Feria Conuquera Agroecológica'}
-                </h1>
-                <p className="text-[10px] sm:text-[11px] font-semibold hidden md:block truncate" style={{ color: (settings as any)?.link_color || '#15803d' }}>
-                  {settings?.site_subtitle || 'Portal Oficial de Soberanía Alimentaria'}
-                </p>
-              </div>
-            </Link>
+              </Link>
 
-            {/* Desktop Navigation with Overflow Protection */}
-            <nav className="hidden lg:flex items-center gap-1 text-xs font-bold" style={{ color: (settings as any)?.text_color || '#1a1a1a' }}>
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+                {settings?.show_join_form && !isAuthenticated && (
+                  <Link to="/p/unirse" className="hidden sm:inline-flex px-4 py-2 rounded-lg text-xs font-bold text-white shadow transition hover:opacity-90 items-center gap-1" style={{ backgroundColor: secondaryColor }}>
+                    <Sparkles size={12} />
+                    Ingreso
+                  </Link>
+                )}
+                {isAuthenticated ? (
+                  <Link to="/app/dashboard" className="px-3 py-2 rounded-lg text-xs font-bold text-white shadow" style={{ backgroundColor: primaryColor }}>
+                    Escritorio
+                  </Link>
+                ) : (
+                  <Link to="/login" className="hidden sm:inline-block px-3 py-2 rounded-lg text-xs font-bold border-2 transition hover:bg-gray-50" style={{ color: primaryColor, borderColor: primaryColor }}>
+                    Acceso
+                  </Link>
+                )}
+                <button className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100" style={{ color: (settings as any)?.text_color || '#1a1a1a' }} onClick={() => setMenuOpen(!menuOpen)}>
+                  {menuOpen ? <X size={18} /> : <Menu size={18} />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Menu as cards with icons */}
+          <div className="max-w-7xl mx-auto px-2 sm:px-4 hidden lg:block">
+            <nav className="flex items-center gap-1.5 py-1.5 overflow-x-auto">
               {visiblePages.map((p) => {
+                const Icon = ICONS[p.icon || 'home'] || Home
                 const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
                 return (
                   <Link
                     key={p.slug}
                     to={`/p/${p.slug}`}
-                    className={`px-2.5 py-1.5 rounded-lg transition ${
-                      isActive
-                        ? 'font-black border-b-2'
-                        : 'hover:bg-gray-100'
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap border-2 ${
+                      isActive ? 'text-white shadow-md' : 'border-transparent hover:shadow-sm'
                     }`}
-                    style={isActive ? { backgroundColor: ((settings as any)?.module_bg_color || '#f0fdf4'), color: primaryColor, borderBottomColor: primaryColor } : { color: (settings as any)?.text_color || '#1a1a1a' }}
+                    style={isActive
+                      ? { backgroundColor: primaryColor, borderColor: primaryColor, color: '#fff' }
+                      : { color: (settings as any)?.text_color || '#1a1a1a', backgroundColor: (settings as any)?.module_bg_color || '#ffffff', borderColor: 'rgba(0,0,0,0.06)' }
+                    }
                   >
+                    <Icon size={15} className="flex-shrink-0" />
                     {getShortLabel(p)}
                   </Link>
                 )
               })}
-
               {overflowPages.length > 0 && (
                 <div className="relative" ref={moreMenuRef}>
-                  <button
-                    onClick={() => setMoreMenuOpen(!moreMenuOpen)}
-                    className="px-2.5 py-1.5 rounded-lg hover:bg-gray-100 flex items-center gap-1"
-                    style={{ color: (settings as any)?.text_color || '#1a1a1a' }}
-                  >
-                    <span>Más</span>
-                    <ChevronDown size={13} />
+                  <button onClick={() => setMoreMenuOpen(!moreMenuOpen)} className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold border-2 border-transparent hover:shadow-sm" style={{ color: (settings as any)?.text_color || '#1a1a1a', backgroundColor: (settings as any)?.module_bg_color || '#ffffff' }}>
+                    <span>Más</span><ChevronDown size={13} />
                   </button>
                   {moreMenuOpen && (
-                    <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-xl border border-gray-100 p-1.5 space-y-0.5 z-50">
+                    <div className="absolute right-0 top-full mt-1 w-48 rounded-xl shadow-xl border p-1.5 space-y-0.5 z-50" style={{ backgroundColor: (settings as any)?.module_bg_color || '#ffffff', borderColor: 'rgba(0,0,0,0.08)' }}>
                       {overflowPages.map((p) => (
-                        <Link
-                          key={p.slug}
-                          to={`/p/${p.slug}`}
-                          onClick={() => setMoreMenuOpen(false)}
-                          className="block px-3 py-1.5 rounded-lg text-xs hover:bg-gray-100"
-                          style={{ color: (settings as any)?.text_color || '#1a1a1a' }}
-                        >
+                        <Link key={p.slug} to={`/p/${p.slug}`} onClick={() => setMoreMenuOpen(false)} className="block px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-gray-100" style={{ color: (settings as any)?.text_color || '#1a1a1a' }}>
                           {p.title}
                         </Link>
                       ))}
@@ -268,64 +288,23 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 </div>
               )}
             </nav>
-
-            {/* Actions */}
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-              {settings?.show_join_form && !isAuthenticated && (
-                <Link
-                  to="/p/unirse"
-                  className="hidden sm:inline-flex px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-700 transition shadow-xs items-center gap-1"
-                >
-                  <Sparkles size={12} />
-                  Ingreso
-                </Link>
-              )}
-
-              {isAuthenticated ? (
-                <div className="flex items-center gap-1 bg-gray-100 p-0.5 sm:p-1 rounded-lg">
-                  <Link
-                    to="/app/website"
-                    className="px-2 py-1 rounded text-[11px] sm:text-xs font-semibold text-gray-800 hover:bg-white"
-                  >
-                    <Edit size={12} className="inline mr-1" />
-                    Editor
-                  </Link>
-                  <Link
-                    to="/app/dashboard"
-                    className="px-2 py-1 rounded text-[11px] sm:text-xs font-bold text-white bg-emerald-800"
-                  >
-                    Escritorio
-                  </Link>
-                </div>
-              ) : (
-                <Link
-                  to="/login"
-                  className="hidden sm:inline-block px-2.5 py-1.5 rounded-lg text-xs font-bold text-emerald-900 border border-emerald-800 hover:bg-emerald-50"
-                >
-                  Acceso
-                </Link>
-              )}
-
-              <button
-                className="lg:hidden p-1.5 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200"
-                onClick={() => setMenuOpen(!menuOpen)}
-              >
-                {menuOpen ? <X size={18} /> : <Menu size={18} />}
-              </button>
-            </div>
           </div>
         </header>
       )}
 
       {/* STYLE B: EDITORIAL LATAM */}
       {headerStyle === 'editorial_latam' && (
-        <header className="sticky top-0 z-50 shadow-md w-full">
+        <header className={`${stickyClass} z-50 shadow-md w-full`}>
           <div className="bg-white border-b border-amber-200/60 py-2.5 px-3 sm:px-6">
             <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
               <Link to="/p/inicio" className="flex items-center gap-2.5 truncate max-w-sm">
-                <div className="w-9 h-9 rounded-full bg-amber-700 text-white flex items-center justify-center font-serif text-lg font-bold flex-shrink-0">
-                  C
-                </div>
+                {settings?.logo_url ? (
+                  <img src={settings.logo_url} alt="logo" className="w-9 h-9 rounded-full object-cover border border-amber-300 shadow-sm flex-shrink-0" />
+                ) : (
+                  <div className="w-9 h-9 rounded-full bg-amber-700 text-white flex items-center justify-center font-serif text-lg font-bold flex-shrink-0">
+                    <Leaf size={18} />
+                  </div>
+                )}
                 <div className="truncate">
                   <h1 className="text-xs sm:text-sm md:text-base font-black text-amber-950 uppercase tracking-tight font-serif truncate leading-tight">
                     {settings?.site_title || 'Feria Conuquera & Agroecología'}
@@ -416,12 +395,16 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
       {/* STYLE C: DROPDOWN CATEGORIES */}
       {headerStyle === 'dropdown_categories' && (
-        <header className="sticky top-0 z-50 shadow-md backdrop-blur-md w-full" style={{ backgroundColor: primaryColor }}>
+        <header className={`${stickyClass} z-50 shadow-md backdrop-blur-md w-full`} style={{ backgroundColor: primaryColor }}>
           <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-3">
             <Link to="/p/inicio" className="flex items-center gap-2 text-white truncate max-w-xs">
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold flex-shrink-0">
-                <Leaf size={18} />
-              </div>
+              {settings?.logo_url ? (
+                <img src={settings.logo_url} alt="logo" className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover border border-white/30 shadow flex-shrink-0" />
+              ) : (
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0">
+                  <Leaf size={18} />
+                </div>
+              )}
               <div className="truncate">
                 <h1 className="text-xs sm:text-sm md:text-base font-bold truncate leading-tight">
                   {settings?.site_title || 'Feria Conuquera'}
@@ -517,7 +500,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
       {/* STYLE E: COMPACT — Logo grande centrado, menú debajo horizontal */}
       {headerStyle === 'compact' && (
-        <header className="sticky top-0 z-50 shadow-md w-full" style={{ backgroundColor: (settings as any)?.page_bg_color || '#f8faf5' }}>
+        <header className={`${stickyClass} z-50 shadow-md w-full`} style={{ backgroundColor: (settings as any)?.page_bg_color || '#f8faf5' }}>
           {/* Top row: centered logo */}
           <div className="border-b" style={{ borderColor: ((settings as any)?.module_bg_color || '#ffffff') }}>
             <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col items-center justify-center gap-1">
@@ -612,16 +595,16 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
       {/* STYLE F: BANNER — Imagen de fondo, logo superpuesto, menú inferior translúcido */}
       {headerStyle === 'banner' && (
-        <header className="sticky top-0 z-50 w-full shadow-lg">
+        <header className={`${stickyClass} z-50 w-full shadow-lg`}>
           {/* Banner with background image */}
           <div
             className="relative w-full overflow-hidden"
             style={{
-              backgroundImage: `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.55)), url(${settings?.logo_url ? '' : 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1600&q=80'})`,
+              backgroundImage: `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.55)), url(${headerBannerImage || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1600&q=80'})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
               backgroundColor: primaryColor,
-              minHeight: '120px',
+              minHeight: `${headerBannerHeight}px`,
             }}
           >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between gap-3 relative z-10">
@@ -800,7 +783,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
       {/* STYLE H: SPLIT CENTER — Logo centrado, menu dividido a lados */}
       {headerStyle === 'split_center' && (
-        <header className="sticky top-0 z-50 shadow-md w-full" style={{ backgroundColor: primaryColor }}>
+        <header className={`${stickyClass} z-50 shadow-md w-full`} style={{ backgroundColor: primaryColor }}>
           <div className="max-w-7xl mx-auto px-3 sm:px-6 flex items-center justify-between gap-2 py-2">
             {/* Left menu */}
             <nav className="hidden lg:flex items-center gap-1 text-xs font-bold text-white flex-1 justify-end">
@@ -823,7 +806,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                   <Leaf size={22} />
                 </div>
               )}
-              <h1 className="text-[10px] sm:text-xs font-black leading-tight text-center max-w-[120px] truncate">{settings?.site_title || 'Feria Conuquera'}</h1>
+              <h1 className="text-[10px] sm:text-xs font-black leading-tight text-center max-w-[180px] sm:max-w-[220px]">{settings?.site_title || 'Feria Conuquera'}</h1>
             </Link>
 
             {/* Right menu */}
@@ -852,7 +835,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
       {/* STYLE I: MINIMAL UNDERLINE — Sin fondo, solo texto con subrayado */}
       {headerStyle === 'minimal_underline' && (
-        <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-md border-b border-gray-100">
+        <header className={`${stickyClass} z-50 w-full bg-white/95 backdrop-blur-md border-b border-gray-100`}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-4 py-3">
             <Link to="/p/inicio" className="flex items-center gap-2 flex-shrink-0">
               {settings?.logo_url ? (
@@ -903,7 +886,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
       {/* STYLE J: HERO OVERLAY — Menu transparente superpuesto, se vuelve solido al scroll */}
       {headerStyle === 'hero_overlay' && (
-        <header className="fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300" style={{ backgroundColor: 'rgba(0,0,0,0.25)', backdropFilter: 'blur(4px)' }}>
+        <header className="fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300" style={{ backgroundColor: `rgba(0,0,0,${headerTransparency / 100})`, backdropFilter: 'blur(4px)' }}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-3 py-3">
             <Link to="/p/inicio" className="flex items-center gap-2.5 text-white flex-shrink-0 max-w-xs truncate">
               {settings?.logo_url ? (
@@ -962,7 +945,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
       {/* STYLE K: STICKY PILL — Pildora flotante centrada */}
       {headerStyle === 'sticky_pill' && (
-        <div className="sticky top-3 z-50 w-full px-4 flex justify-center">
+        <div className={`${headerSticky ? 'sticky top-3' : 'relative'} z-50 w-full px-4 flex justify-center`}>
           <header className="bg-white rounded-full shadow-lg border border-gray-200/60 flex items-center gap-2 px-3 sm:px-4 py-2 max-w-5xl w-full">
             <Link to="/p/inicio" className="flex items-center gap-2 flex-shrink-0">
               {settings?.logo_url ? (
@@ -1025,7 +1008,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
       {/* STYLE D & DEFAULT: MODERN ECO / ECOVILLAGE */}
       {(headerStyle === 'modern_eco' || headerStyle === 'agrodigital_mincyt') && (
-        <header className="shadow-md sticky top-0 z-50 backdrop-blur-md border-b border-white/10 w-full" style={{ backgroundColor: primaryColor }}>
+        <header className={`shadow-md ${stickyClass} z-50 backdrop-blur-md border-b border-white/10 w-full`} style={{ backgroundColor: primaryColor }}>
           <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-3">
             {/* Logo & Brand */}
             <Link to="/p/inicio" className="flex items-center gap-2 sm:gap-2.5 text-white group flex-shrink-0 max-w-[180px] sm:max-w-xs md:max-w-sm truncate">
@@ -1714,6 +1697,10 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                     footer_col4_title: (settings as any)?.footer_col4_title || 'Comunidad & Redes',
                     footer_slogan: (settings as any)?.footer_slogan || '100% Autogestión & Suelo Vivo',
                     footer_admission_text: (settings as any)?.footer_admission_text || 'Llenar Solicitud de Ingreso',
+                    header_sticky: (settings as any)?.header_sticky ?? true,
+                    header_banner_image: (settings as any)?.header_banner_image || '',
+                    header_banner_height: (settings as any)?.header_banner_height || 120,
+                    header_transparency: (settings as any)?.header_transparency ?? 25,
                   })
                   setDraftPages(pages.map((p) => ({
                     slug: p.slug,
@@ -1775,6 +1762,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           footer_col3_title: 'Lugar de Encuentro', footer_col4_title: 'Comunidad & Redes',
           footer_slogan: '100% Autogestión & Suelo Vivo',
           footer_admission_text: 'Llenar Solicitud de Ingreso',
+          header_sticky: true, header_banner_image: '',
+          header_banner_height: 120, header_transparency: 25,
         }}
         initialPages={draftPages}
         onDraftChange={(newDraft, newPages) => {
