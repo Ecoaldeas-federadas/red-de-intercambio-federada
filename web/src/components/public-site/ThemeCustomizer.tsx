@@ -519,18 +519,16 @@ export function ThemeCustomizer({
             <div className="space-y-3 p-3 rounded-xl bg-gray-50 border border-gray-200">
               <p className="text-xs font-bold text-gray-700">Ajustes de la cabecera</p>
 
-              {/* Sticky toggle — for all headers except fixed ones */}
-              {draft.header_style !== 'sidebar_left' && draft.header_style !== 'hero_overlay' && (
-                <label className="flex items-center justify-between gap-2 cursor-pointer">
-                  <span className="text-[11px] font-semibold text-gray-600">Menú fijo (anclado arriba al hacer scroll)</span>
-                  <button
-                    onClick={() => setDraft({ ...draft, header_sticky: !draft.header_sticky })}
-                    className={`relative w-10 h-5 rounded-full transition ${draft.header_sticky ? 'bg-emerald-600' : 'bg-gray-300'}`}
-                  >
-                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${draft.header_sticky ? 'left-5' : 'left-0.5'}`} />
-                  </button>
-                </label>
-              )}
+              {/* Sticky toggle — for all headers */}
+              <label className="flex items-center justify-between gap-2 cursor-pointer">
+                <span className="text-[11px] font-semibold text-gray-600">Menú fijo (anclado arriba al hacer scroll)</span>
+                <button
+                  onClick={() => setDraft({ ...draft, header_sticky: !draft.header_sticky })}
+                  className={`relative w-10 h-5 rounded-full transition ${draft.header_sticky ? 'bg-emerald-600' : 'bg-gray-300'}`}
+                >
+                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${draft.header_sticky ? 'left-5' : 'left-0.5'}`} />
+                </button>
+              </label>
 
               {/* Colors override for this header */}
               <div className="space-y-2 pt-2 border-t border-gray-200">

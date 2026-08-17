@@ -219,7 +219,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
     pages.filter((p) => (p as any).parent_slug === parentSlug && p.show_in_menu !== false)
 
   return (
-    <div className="min-h-screen flex flex-col font-sans selection:bg-amber-200 selection:text-amber-950 overflow-x-clip w-full max-w-full" style={{ backgroundColor: (settings as any)?.page_bg_color || '#fdfbf7' }}>
+    <div className="min-h-screen flex flex-col font-sans selection:bg-amber-200 selection:text-amber-950 w-full max-w-full" style={{ backgroundColor: (settings as any)?.page_bg_color || '#fdfbf7' }}>
       {/* 1. TOP ANNOUNCEMENT BAR */}
       {showAnnouncement && (
         <div
@@ -789,7 +789,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
       {/* STYLE G: SIDEBAR LEFT — Menu vertical fijo a la izquierda */}
       {headerStyle === 'sidebar_left' && (
-        <header className="fixed left-0 top-0 bottom-0 w-56 z-50 flex flex-col shadow-xl" style={{ backgroundColor: primaryColor }}>
+        <header className={`${headerSticky ? 'fixed' : 'absolute'} left-0 top-0 bottom-0 w-56 z-50 flex flex-col shadow-xl`} style={{ backgroundColor: primaryColor }}>
           {/* Logo top */}
           <div className="p-4 border-b border-white/10 flex-shrink-0">
             <Link to="/p/inicio" className="flex flex-col items-center gap-2 text-white text-center">
@@ -955,7 +955,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
       {/* STYLE J: HERO OVERLAY — Menu transparente superpuesto, se vuelve solido al scroll */}
       {headerStyle === 'hero_overlay' && (
-        <header className="fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300" style={{ backgroundColor: `${headerTransparencyColor}${Math.round(headerTransparency * 2.55).toString(16).padStart(2, '0')}`, backdropFilter: `blur(${headerBlur}px)` }}>
+        <header className={`${headerSticky ? 'fixed' : 'absolute'} top-0 left-0 right-0 z-50 w-full transition-all duration-300`} style={{ backgroundColor: `${headerTransparencyColor}${Math.round(headerTransparency * 2.55).toString(16).padStart(2, '0')}`, backdropFilter: `blur(${headerBlur}px)` }}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-3 py-3">
             <Link to="/p/inicio" className="flex items-center gap-2.5 text-white flex-shrink-0 max-w-xs truncate">
               {settings?.logo_url ? (
@@ -1602,7 +1602,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* 3. MAIN PAGE CONTAINER (Guaranteed 100% fluid & responsive) */}
-      <main className={`flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 box-border overflow-hidden ${headerStyle === 'sidebar_left' ? 'lg:ml-56' : ''}`}>
+      <main className={`flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 box-border ${headerStyle === 'sidebar_left' ? 'lg:ml-56' : ''}`}>
         {children}
       </main>
 
