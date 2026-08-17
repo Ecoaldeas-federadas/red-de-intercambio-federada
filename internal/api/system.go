@@ -51,6 +51,9 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 
 	// Fondo comunitario
 	r.With(am.RequireAuth).Get("/api/fund/balance", h.getFundBalance)
+
+	// Auto-ascenso de nivel
+	r.With(am.RequireAuth).Post("/api/member-levels/auto-upgrade", h.autoUpgradeLevel)
 }
 
 // ===== AUDITORIA =====
@@ -826,6 +829,114 @@ func (h *SystemHandler) getFundBalance(w http.ResponseWriter, r *http.Request) {
 		"fund_account": fundID.String(),
 		"username":     username,
 		"balance":      balance,
+	})
+}
+
+// ===== AUTO-ASCENSO DE NIVEL =====
+
+func (h *SystemHandler) autoUpgradeLevel(w http.ResponseWriter, r *http.Request) {
+	userID, err := h.Auth.GetUserID(r)
+	if err != nil {
+		writeError(w, 401, "authentication required")
+		return
+	}
+
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	// Obtener nivel actual del usuario y cuando fue creado
+	var currentLevelID string
+	var createdAt time.Time
+	err = h.Pool.QueryRow(r.Context(), `
+		SELECT member_level_id, created_at FROM users WHERE id = $1`, userID).Scan(&currentLevelID, &createdAt)
+	if err != nil {
+		writeError(w, 404, "user not found")
+		return
+	}
+
+	// Obtener configuracion del nivel actual
+	var autoUpgradeDays *int
+	var upgradeTo *string
+	var levelName string
+	err = h.Pool.QueryRow(r.Context(), `
+		SELECT auto_upgrade_after_days, upgrade_to, name
+		FROM member_levels WHERE id = $1 AND node_domain = $2`,
+		currentLevelID, nodeDomain).Scan(&autoUpgradeDays, &upgradeTo, &levelName)
+	if err != nil {
+		writeError(w, 500, "error getting current level")
+		return
+	}
+
+	if autoUpgradeDays == nil || *autoUpgradeDays <= 0 || upgradeTo == nil || *upgradeTo == "" {
+		writeJSON(w, 200, map[string]interface{}{
+			"upgraded": false,
+			"message":  "Tu nivel actual no tiene auto-ascenso configurado.",
+			"level":    levelName,
+		})
+		return
+	}
+
+	// Verificar si ya paso el tiempo requerido
+	daysSinceCreation := int(time.Since(createdAt).Hours() / 24)
+	if daysSinceCreation < *autoUpgradeDays {
+		remaining := *autoUpgradeDays - daysSinceCreation
+		writeJSON(w, 200, map[string]interface{}{
+			"upgraded":  false,
+			"message":   "Aun no puedes ascender.",
+			"level":     levelName,
+			"days_left": remaining,
+			"required":  *autoUpgradeDays,
+		})
+		return
+	}
+
+	// Verificar que el nivel destino existe
+	var newLevelID string
+	var newLevelName string
+	err = h.Pool.QueryRow(r.Context(), `
+		SELECT id, name FROM member_levels WHERE id = $1 AND node_domain = $2 AND is_active = true`,
+		*upgradeTo, nodeDomain).Scan(&newLevelID, &newLevelName)
+	if err != nil {
+		writeJSON(w, 200, map[string]interface{}{
+			"upgraded": false,
+			"message":  "El nivel destino no existe. Contacta al administrador.",
+		})
+		return
+	}
+
+	// Obtener limites del nuevo nivel
+	var newCreditLimit, newDebitLimit int64
+	h.Pool.QueryRow(r.Context(), `SELECT credit_limit, debit_limit FROM member_levels WHERE id = $1`, newLevelID).Scan(&newCreditLimit, &newDebitLimit)
+
+	// Ascender
+	_, err = h.Pool.Exec(r.Context(), `
+		UPDATE users SET member_level_id = $1, credit_limit = $2, debit_limit = $3 WHERE id = $4`,
+		newLevelID, newCreditLimit, newDebitLimit, userID)
+	if err != nil {
+		writeError(w, 500, "error upgrading level")
+		return
+	}
+
+	// Registrar en historial
+	h.Pool.Exec(r.Context(), `
+		INSERT INTO membership_history (user_id, old_level, new_level, new_status, reason, approved_by)
+		VALUES ($1, $2, $3, 'active', 'Auto-ascenso despues de dias', $4)`,
+		userID, currentLevelID, newLevelID, userID)
+
+	// Audit log
+	details, _ := json.Marshal(map[string]interface{}{"old_level": currentLevelID, "new_level": newLevelID, "days": daysSinceCreation})
+	h.Pool.Exec(r.Context(), `INSERT INTO audit_log (actor_id, action, details) VALUES ($1, 'level_upgrade', $2)`,
+		userID, details)
+
+	writeJSON(w, 200, map[string]interface{}{
+		"upgraded":   true,
+		"message":    "Felicidades! Has ascendido de nivel.",
+		"old_level":  levelName,
+		"new_level":  newLevelName,
+		"new_credit": newCreditLimit,
+		"new_debit":  newDebitLimit,
 	})
 }
 

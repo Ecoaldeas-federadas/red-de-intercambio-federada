@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
-import { HelpCircle, User, Key, CreditCard, History, Shield } from 'lucide-react'
+import { HelpCircle, User, Key, CreditCard, History, Shield, TrendingUp } from 'lucide-react'
 
 export default function Profile() {
   const { currency } = useConfig()
@@ -12,6 +12,7 @@ export default function Profile() {
   const [nfcCards, setNfcCards] = useState<any[]>([])
   const [history, setHistory] = useState<any[]>([])
   const [error, setError] = useState('')
+  const [upgradeMsg, setUpgradeMsg] = useState('')
 
   const load = () => {
     api.get('/auth/me').then((d: any) => {
@@ -44,6 +45,17 @@ export default function Profile() {
       load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error')
+    }
+  }
+
+  const tryUpgrade = async () => {
+    setUpgradeMsg('')
+    try {
+      const res: any = await api.post('/member-levels/auto-upgrade', {})
+      setUpgradeMsg(res.message || 'Procesado')
+      if (res.upgraded) load()
+    } catch (err) {
+      setUpgradeMsg(err instanceof Error ? err.message : 'Error')
     }
   }
 
@@ -88,6 +100,8 @@ export default function Profile() {
       {/* Nivel de miembro */}
       <div className="card">
         <h2 className="font-semibold flex items-center gap-2 mb-3"><Shield size={18} />Nivel de Miembro</h2>
+        {upgradeMsg && <div className="text-sm bg-blue-50 text-blue-700 p-3 rounded-lg mb-3">{upgradeMsg}</div>}
+        <button onClick={tryUpgrade} className="btn-secondary flex items-center gap-2 mb-3 text-sm"><TrendingUp size={16} />Verificar auto-ascenso</button>
         {myLevel ? (
           <div className="space-y-2 text-sm">
             <div className="flex justify-between"><span className="text-gray-500">Nivel:</span> <b>{myLevel.name}</b></div>
