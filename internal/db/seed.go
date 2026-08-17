@@ -15,47 +15,49 @@ type seedPage struct {
 }
 
 // SeedPublicPages inserta o actualiza las paginas del sitio publico con
-// la plantilla modular rica (Hero, Carrusel, Tarjetas, Estadisticas, etc.)
+// la plantilla modular rica y datos reales de la Feria Conuquera en Caracas.
 func (d *DB) SeedPublicPages(ctx context.Context, nodeDomain string) error {
 	pages := []seedPage{
 		{
 			Slug:     "inicio",
 			Title:    "Inicio",
-			Subtitle: "Bienvenida a la Feria Conuquera Agroecologica",
+			Subtitle: "Mercado a Cielo Abierto y Red de Soberania Alimentaria",
 			Content: `[
   {
     "type": "hero",
-    "badge": "🌱 10 Años Tejiendo Soberanía Alimentaria en Caracas",
+    "badge": "🌱 Mercado a Cielo Abierto & 10 Años de Historia",
     "title": "Feria Conuquera Agroecológica",
-    "subtitle": "Cuando el conuco viene a la ciudad, la soberanía alimenta el alma y florece la comunidad.",
-    "description": "Un espacio autogestionado de encuentro popular, economía solidaria y trueque en las faldas del Parque Los Caobos. Conectamos directamente a familias campesinas y conuqueras con los habitantes de Caracas, sin intermediarios, especulación ni agrotóxicos.",
+    "subtitle": "Cosecha fresca, alimentos sanos y saberes campesinos para toda Caracas.",
+    "description": "El primer sábado de cada mes abrimos nuestro mercado a cielo abierto en Parque Los Caobos para todo el público general en moneda local. Un espacio autogestionado donde compras directo al productor sin intermediarios ni agrotóxicos, y donde los miembros de la red además intercambian en trueque y crédito mutuo.",
     "image_url": "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80",
     "primary_cta": {
-      "text": "Conoce Nuestros Productos",
+      "text": "Ver Catálogo de Productos",
       "link": "/p/productos"
     },
     "secondary_cta": {
-      "text": "¿Cómo Funciona el Trueque?",
-      "link": "/p/como-funciona"
+      "text": "Horarios y Ubicación",
+      "link": "/p/contacto"
     },
     "style": "split"
   },
   {
     "type": "event_schedule",
-    "badge": "📍 Próxima Cita en Los Caobos",
-    "title": "Encuentro Mensual Conuquero",
+    "badge": "📍 Mercado Abierto al Público General",
+    "title": "Encuentro Mensual en Los Caobos",
     "date_text": "El primer sábado de cada mes",
     "time_text": "Desde las 9:00 AM hasta pasado el mediodía",
     "location_name": "Parque Los Caobos, Caracas",
     "address": "Zona Sur, área del estacionamiento principal, cerca de la Fuente Venezuela (Metro Bellas Artes / Colegio de Ingenieros)",
     "guidelines": [
-      "🚫 Prohibido el uso de bolsas plásticas desechables: trae tu morral, bolsa de tela o canasta.",
-      "🌾 Trueque abierto de semillas nativas y criollas libres de transgénicos.",
-      "📚 Espacio 'Dona y adopta un libro' de intercambio libre de saberes.",
-      "🎵 Música en vivo, poesía campesina y talleres abiertos para toda la familia.",
-      "💳 Registro de crédito mutuo y pagos digitales autónomos disponibles en el nodo."
+      "�️ Venta abierta a todo el público en moneda local (no necesitas ser miembro para comprar).",
+      "�🚫 Prohibido el uso de bolsas plásticas desechables: trae tu morral, bolsa de tela o canasta.",
+      "🌾 Trueque abierto de semillas criollas y nativas entre agricultores y vecinos.",
+      "📚 Espacio 'Dona y adopta un libro' de intercambio libre de lectura.",
+      "� Talleres de aprendizaje en vivo (lombricultura, bioinsumos, salud botánica).",
+      "🎵 Música popular, actividades culturales y dinámicas para niños.",
+      "💳 Sistema de trueque y crédito mutuo disponible para miembros registrados."
     ],
-    "cta_text": "Solicitar Unirse como Productor o Miembro",
+    "cta_text": "Solicitar Ingreso como Productor o Miembro",
     "cta_link": "/p/unirse"
   },
   {
@@ -67,7 +69,7 @@ func (d *DB) SeedPublicPages(ctx context.Context, nodeDomain string) error {
       {
         "value": "+10 Años",
         "label": "De Encuentro Continuo",
-        "description": "Mes a mes en Parque Los Caobos desde octubre de 2014"
+        "description": "Mercado mensual en Parque Los Caobos desde octubre de 2014"
       },
       {
         "value": "+45 Colectivos",
@@ -80,28 +82,28 @@ func (d *DB) SeedPublicPages(ctx context.Context, nodeDomain string) error {
         "description": "Suelos vivos, abonos orgánicos y semillas ancestrales"
       },
       {
-        "value": "0 Bolsas Plásticas",
-        "label": "Compromiso Ecológico",
-        "description": "Respeto absoluto a la Madre Tierra y ciclos naturales"
+        "value": "Venta Libre",
+        "label": "Moneda Local & Trueque",
+        "description": "Abierto a toda Caracas con opción de trueque para miembros"
       }
     ]
   },
   {
     "type": "carousel",
-    "title": "Galería Viva de Nuestras Cosechas",
-    "subtitle": "Postales de las jornadas de encuentro, intercambio y saberes en Los Caobos.",
+    "title": "Galería Viva de Nuestras Jornadas",
+    "subtitle": "Postales de las jornadas de mercado, talleres, cultura y trueque en Los Caobos.",
     "autoplay": true,
     "items": [
       {
         "image_url": "https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&w=1000&q=80",
         "title": "Hortalizas Frescas y Rubros Ancestrales",
-        "caption": "Cosechadas en la madrugada en El Junquito y La Pastora y traídas directamente al parque.",
+        "caption": "Cosechadas en la madrugada en El Junquito y La Pastora para venta directa en moneda local.",
         "tag": "Cosecha del Día"
       },
       {
         "image_url": "https://images.unsplash.com/photo-1597848212624-a19eb35e2651?auto=format&fit=crop&w=1000&q=80",
         "title": "Botica Conuquera y Medicina Tradicional",
-        "caption": "Tinturas de propóleo, pomadas botánicas, aceites esenciales y plantas vivas medicinales.",
+        "caption": "Tinturas de propóleo, pomadas botánicas, aceites esenciales y plantas medicinales.",
         "tag": "Salud Botánica"
       },
       {
@@ -112,61 +114,61 @@ func (d *DB) SeedPublicPages(ctx context.Context, nodeDomain string) error {
       },
       {
         "image_url": "https://images.unsplash.com/photo-1595974482597-4b8da8879bc5?auto=format&fit=crop&w=1000&q=80",
-        "title": "Trueque de Semillas Libres",
-        "caption": "Intercambio solidario de maíces criollos, frijoles ancestrales y tubérculos autóctonos.",
-        "tag": "Semilla Campesina"
+        "title": "Talleres en Vivo & Trueque de Semillas",
+        "caption": "Intercambio solidario de saberes, semillas nativas y libros para toda la comunidad.",
+        "tag": "Formación Popular"
       }
     ]
   },
   {
     "type": "features_grid",
-    "title": "Nuestros Pilares de Acción Comunitaria",
-    "subtitle": "Principios que guían cada jornada de la red conuquera y agroecológica.",
+    "title": "Dinámica y Organización de la Red",
+    "subtitle": "Cómo funciona la Feria Conuquera tanto en el mercado mensual como en su vida interna.",
     "columns": 3,
     "items": [
       {
-        "icon": "leaf",
-        "title": "Agroecología Ecosocialista",
-        "description": "El conuco como laboratorio de vida integral frente a la lógica destructiva del monocultivo y el agronegocio transnacional.",
-        "badge": "Suelo Vivo"
-      },
-      {
-        "icon": "users",
-        "title": "Comercio Justo y Directo",
-        "description": "Relación fraterna entre quien siembra y quien consume, eliminando intermediarios usureros y especulación.",
-        "badge": "Sin Intermediarios"
+        "icon": "shopping-cart",
+        "title": "Mercado Mensual a Cielo Abierto",
+        "description": "Venta directa al público general en moneda local cada primer sábado de mes en Parque Los Caobos. Sin intermediarios ni usura.",
+        "badge": "Venta Pública"
       },
       {
         "icon": "scale",
-        "title": "Crédito Mutuo y Trueque",
-        "description": "Sistema contable de suma cero respaldado en valor energético (1 TQ = 1 kWh) y confianza comunitaria, sin intereses bancarios.",
-        "badge": "Moneda Social"
+        "title": "Trueque & Crédito Mutuo",
+        "description": "Los miembros de la red pueden intercambiar productos y trabajo mediante el sistema contable de suma cero (1 TQ = 1 kWh).",
+        "badge": "Para Miembros"
+      },
+      {
+        "icon": "users",
+        "title": "Asambleas Trimestrales",
+        "description": "Encuentros de gobernanza cada 3 meses donde los colectivos y productores deciden acuerdos, normas y planificación.",
+        "badge": "Gobernanza"
+      },
+      {
+        "icon": "leaf",
+        "title": "Talleres & Formación Popular",
+        "description": "Espacios educativos abiertos durante la feria y visitas a conucos sobre lombricultura, bioinsumos y agroecología.",
+        "badge": "Educación"
       },
       {
         "icon": "heart",
-        "title": "Semillas Libres y Nativas",
-        "description": "Defensa irrestricta de la Ley de Semillas de Venezuela: protección de variedades criollas frente a semillas transgénicas patentadas.",
-        "badge": "Biodiversidad"
-      },
-      {
-        "icon": "shopping-cart",
-        "title": "Gastronomía y Saberes",
-        "description": "Rescate de recetas patrimoniales como la cafunga de Barlovento, harinas ancestrales, fermentos y medicina botánica.",
-        "badge": "Tradición Viva"
+        "title": "Cultura, Música & Comunidad",
+        "description": "Presentaciones musicales, poesía popular, actividades infantiles y comidas comunitarias en cada edición.",
+        "badge": "Cultura Viva"
       },
       {
         "icon": "home",
-        "title": "Comunidad Ecoaldeana",
-        "description": "Articulación con el Proyecto Campo Soberano para el desarrollo de hábitats rurales de ciclo cerrado y soberanía integral.",
-        "badge": "Permacultura"
+        "title": "Comisiones & Cayapas de Campo",
+        "description": "Trabajo colectivo fuera del parque: comisiones temáticas, visitas técnicas a conucos y articulación ecoaldeana.",
+        "badge": "Comunidad"
       }
     ]
   },
   {
     "type": "cta_banner",
     "badge": "🤝 Participa en la Red",
-    "title": "¿Eres productor agroecológico o artesano?",
-    "subtitle": "Súmate a la red comunitaria. La asamblea evalúa solicitudes de familias productoras, colectivos y vecinos que deseen integrarse al sistema de intercambio solidario.",
+    "title": "¿Eres productor agroecológico o deseas sumarte?",
+    "subtitle": "Cualquier persona puede comprar en la feria. Si deseas ingresar como productor o participar en las asambleas y trueques, postúlate ante la asamblea.",
     "button_text": "Completar Solicitud de Admisión",
     "button_link": "/p/unirse",
     "secondary_text": "Preguntas Frecuentes",
@@ -179,69 +181,87 @@ func (d *DB) SeedPublicPages(ctx context.Context, nodeDomain string) error {
 		},
 		{
 			Slug:     "filosofia",
-			Title:    "Historia y Filosofía",
-			Subtitle: "Nuestra Trayectoria, Conuco y Resistencia",
+			Title:    "Historia y Organización",
+			Subtitle: "Nuestra Trayectoria, Asambleas y Vida Comunitaria",
 			Content: `[
   {
     "type": "hero",
     "badge": "📜 Nacidos el 29 de Octubre de 2014",
     "title": "Un Movimiento al Calor de la Semilla Libre",
     "subtitle": "El conuco como horizonte histórico, político y espiritual de soberanía integral.",
-    "description": "Nacimos en un momento crucial de la historia agrícola nacional, al calor de los intensos debates populares organizados por el Movimiento Semillas del Pueblo para la construcción colectiva de la Ley de Semillas de Venezuela.",
+    "description": "Nacimos en un momento crucial de la historia agrícola nacional, al calor de los debates populares del Movimiento Semillas del Pueblo para la construcción de la Ley de Semillas de Venezuela. La feria es tanto un mercado mensual como una organización viva con asambleas y comisiones activas.",
     "image_url": "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=1200&q=80",
     "style": "split"
   },
   {
     "type": "split_story",
-    "badge": "🌱 Concepción Agroecológica",
-    "title": "El Conuco como Laboratorio de Vida",
-    "subtitle": "Resistencia frente al monocultivo y la usura comercial",
-    "content": "Para nosotros, el conuco no es una técnica atrasada de cultivo, sino un laboratorio de vida integral y una forma de resistencia activa. Es un policultivo biodiverso que respeta los tiempos de la naturaleza, regenera los microorganismos del suelo y rompe de raíz con la dependencia del agronegocio transnacional y los venenos químicos.\n\nHeredamos los saberes de nuestros antepasados indígenas, campesinos y afrodescendientes para demostrar que la producción sana en la ciudad y sus periferias es un proyecto político y pedagógico que transforma la conciencia humana.",
+    "badge": "�️ Estructura y Organización",
+    "title": "Vida Organizativa Más Allá del Mercado",
+    "subtitle": "Asambleas trimestrales, comisiones y trabajo colectivo",
+    "content": "La Feria Conuquera no es solo el evento de venta del primer sábado de cada mes. Contamos con una estructura organizativa sólida y horizontal:\n\n• Asambleas Trimestrales: Cada 3 meses, todos los colectivos y familias productoras se reúnen en asamblea formal para evaluar el funcionamiento, admitir nuevos proyectos y debatir políticas colectivas.\n• Comisiones de Trabajo: Se conforman comisiones periódicas para la logística, comunicación, bioinsumos, cultura y articulación comunitaria.\n• Actividades y Cayapas de Campo: Organizamos jornadas de trabajo voluntario y formativo en los conucos y unidades productivas en El Junquito, La Pastora, Baruta y Valles del Tuy.",
     "image_url": "https://images.unsplash.com/photo-1592417817098-8f3d69102a5e?auto=format&fit=crop&w=900&q=80",
     "image_position": "left",
     "highlights": [
-      "Policultivo sin venenos químicos ni semillas transgénicas.",
-      "Manejo biológico de plagas con extractos botánicos (neem, ajo, ají).",
-      "Abonos orgánicos: compost, biol, bocashi y lombricultura comunitaria.",
-      "Soberanía hídrica con recolección de aguas de lluvia y acequias de infiltración."
+      "Mercado mensual a cielo abierto con venta al público en moneda local.",
+      "Asamblea general cada 3 meses para toma de decisiones democráticas.",
+      "Talleres y actividades pedagógicas permanentes de campesino a campesino.",
+      "Comisiones de trabajo voluntario para el cuidado colectivo."
     ],
     "quote": {
-      "text": "El conuco es la escuela donde la tierra nos enseña que la abundancia nace de la diversidad y el respeto mutuo.",
+      "text": "El conuco es la escuela donde la tierra nos enseña que la abundancia nace de la diversidad y la organización comunitaria.",
       "author": "Vocería Colectiva de la Feria Conuquera"
     }
   },
   {
+    "type": "timeline_history",
+    "badge": "Hitos",
+    "title": "Nuestra Línea de Tiempo",
+    "subtitle": "Más de una década de siembra, trueque y organización popular.",
+    "items": [
+      {
+        "year": "Octubre 2014",
+        "title": "Nacimiento de la Feria Conuquera",
+        "description": "Primer mercado en Los Caobos articulando a productores urbanos y rurales en resistencia económica.",
+        "badge": "Fundación"
+      },
+      {
+        "year": "Diciembre 2015",
+        "title": "Aprobación de la Ley de Semillas",
+        "description": "Victoria popular protegiendo las semillas nativas y prohibiendo transgénicos y patentes agrícolas.",
+        "badge": "Ley Popular"
+      },
+      {
+        "year": "2016 - 2023",
+        "title": "Consolidación de Asambleas y Talleres",
+        "description": "Encuentros trimestrales continuos, formación en bioinsumos y articulación con escuelas y organopónicos.",
+        "badge": "Crecimiento"
+      },
+      {
+        "year": "Octubre 2024",
+        "title": "10 Años de Encuentro Ininterrumpido",
+        "description": "Celebración de una década en Los Caobos e integración de sistemas digitales de trueque y crédito mutuo.",
+        "badge": "Presente"
+      }
+    ]
+  },
+  {
     "type": "testimonials",
     "title": "Colectivos y Familias Fundadoras",
-    "subtitle": "Algunas de las experiencias que hacen vida mes a mes en la red.",
+    "subtitle": "Algunas de las experiencias que hacen vida activa en la red.",
     "items": [
       {
         "name": "Melissa Producción Diversificada",
         "role": "Mónica Pérez y Luis Araujo",
         "project": "Camino de los Españoles, La Pastora",
-        "quote": "Comenzamos sembrando en las faldas de El Ávila para demostrar que la montaña puede alimentar a Caracas con dignidad y amor a la naturaleza.",
+        "quote": "Sembrar en las faldas de El Ávila nos ha permitido alimentar a Caracas con dignidad, amor a la tierra y precios justos para nuestro pueblo.",
         "location": "Caracas, Dto. Capital"
-      },
-      {
-        "name": "Unidad Productiva La Buhardilla",
-        "role": "Giselle Perdomo (Bióloga)",
-        "project": "Salud Botánica y Cosmética Eco-Sustentable",
-        "quote": "Empecé a investigar y formular cosmética y medicina natural para el cuidado de mi hijo con discapacidad. Hoy es nuestro aporte para la salud comunitaria.",
-        "location": "Caracas"
       },
       {
         "name": "Alfivegetales Km 38",
         "role": "Familia Miranda",
-        "project": "Hortalizas y Caprinos en El Junquito",
-        "quote": "Llevamos 10 años ininterrumpidos en Los Caobos trayendo acelgas, col rizada, queso de cabra y tubérculos 100% agroecológicos.",
+        "project": "El Junquito Km 38",
+        "quote": "Llevamos 10 años trayendo acelgas, col rizada, queso de cabra y tubérculos 100% agroecológicos para venta directa en moneda local a toda la ciudad.",
         "location": "El Junquito, Miranda"
-      },
-      {
-        "name": "Cooperativa EPAU",
-        "role": "Escuela Popular de Agricultura Urbana",
-        "project": "Organopónico Bolívar 1, Bellas Artes",
-        "quote": "Formamos a cientos de jóvenes y vecinos en lombricultura, compostaje y bioinsumos para llenar de huertos urbanos toda la ciudad.",
-        "location": "Bellas Artes, Caracas"
       }
     ]
   }
@@ -252,21 +272,21 @@ func (d *DB) SeedPublicPages(ctx context.Context, nodeDomain string) error {
 		{
 			Slug:     "productos",
 			Title:    "Nuestros Productos",
-			Subtitle: "Catálogo de Cosecha Fresca, Medicina y Gastronomía",
+			Subtitle: "Venta Abierta en Moneda Local y Catálogo de Cosecha",
 			Content: `[
   {
     "type": "hero",
-    "badge": "Del Campo a tu Mesa sin Intermediarios",
-    "title": "Sabores, Cosecha Sana y Bienestar",
-    "subtitle": "Todo lo que necesitas para una alimentación nutritiva, limpia y libre de agrotóxicos.",
-    "description": "Encuentra hortalizas frescas de temporada, semillas ancestrales, tubérculos autóctonos, derivados lácteos artesanales, botica conuquera, cosmética natural y delicias gastronómicas tradicionales.",
+    "badge": "🥦 Venta Directa en Moneda Local",
+    "title": "Cosecha Sana, Sabores y Medicina",
+    "subtitle": "Compra directamente a los productores en moneda local cada primer sábado de mes.",
+    "description": "No necesitas ser miembro de la feria para comprar. Ven a Parque Los Caobos y encuentra hortalizas recién cosechadas, tubérculos ancestrales, quesos artesanales, botica conuquera, cosmética natural y delicias tradicionales a precios solidarios.",
     "image_url": "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=1200&q=80",
     "style": "standard"
   },
   {
     "type": "products_showcase",
-    "title": "Catálogo de Rubros y Especialidades",
-    "subtitle": "Conoce la variedad de bienes disponibles cada primer sábado de mes.",
+    "title": "Catálogo de Rubros en la Feria",
+    "subtitle": "Variedad de alimentos y productos artesanales disponibles en cada jornada.",
     "categories": [
       "Cosecha Fresca",
       "Medicina Botánica & Cosmética",
@@ -277,7 +297,7 @@ func (d *DB) SeedPublicPages(ctx context.Context, nodeDomain string) error {
       {
         "name": "Hortalizas y Hojas Verdes de El Junquito",
         "category": "Cosecha Fresca",
-        "description": "Col rizada (kale portuguesa), acelgas, lechugas variadas, cebollín, cilantro de monte y apio España cosechados el mismo día.",
+        "description": "Col rizada (kale portuguesa), acelgas, lechugas variadas, cebollín, cilantro de monte y apio España cosechados en la mañana.",
         "badge": "Fresco del Día",
         "image_url": "https://images.unsplash.com/photo-1576045057995-568f588f82fb?auto=format&fit=crop&w=600&q=80"
       },
@@ -298,7 +318,7 @@ func (d *DB) SeedPublicPages(ctx context.Context, nodeDomain string) error {
       {
         "name": "Cosmética Natural sin Químicos",
         "category": "Medicina Botánica & Cosmética",
-        "description": "Desodorantes ecológicos de aceite de coco y bicarbonato, bálsamos labiales de cera de abeja, jabones artesanales y toallas ecológicas reutilizables.",
+        "description": "Desodorantes ecológicos de aceite de coco y bicarbonato, bálsamos labiales de cera de abeja, jabones artesanales y toallas reutilizables.",
         "badge": "Residuo Cero",
         "image_url": "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80"
       },
@@ -312,7 +332,7 @@ func (d *DB) SeedPublicPages(ctx context.Context, nodeDomain string) error {
       {
         "name": "Quesos Artesanales de Búfala y Cabra",
         "category": "Gastronomía Artesanal",
-        "description": "Quesos madurados y frescos, dulce de leche de cabra, yogurt natural y mantequilla artesanal de pequeños rebaños pastoreados.",
+        "description": "Quesos madurados y frescos, dulce de leche de cabra, yogurt natural y mantequilla de pequeños rebaños pastoreados.",
         "badge": "Pastoreo Libre",
         "image_url": "https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?auto=format&fit=crop&w=600&q=80"
       },
@@ -339,40 +359,58 @@ func (d *DB) SeedPublicPages(ctx context.Context, nodeDomain string) error {
 		{
 			Slug:     "comunidad",
 			Title:    "Comunidad y Saberes",
-			Subtitle: "Educación Popular, Trueque de Semillas y Cultura",
+			Subtitle: "Talleres en Vivo, Cultura, Semillas y Asambleas",
 			Content: `[
   {
     "type": "hero",
-    "badge": "🎨 Un Espacio de Intercambio Integral",
-    "title": "Más que un Mercado: Aula Abierta y Cultura",
-    "subtitle": "Talleres gratuitos, trueque libre de semillas y libros, y música en vivo.",
-    "description": "Inspirados en la metodología 'de campesino a campesino', cada jornada en Parque Los Caobos cuenta con actividades pedagógicas gratuitas para compartir conocimientos de lombricultura, salud botánica, fermentos y agroecología.",
+    "badge": "🎨 Aula Abierta, Cultura & Deportes",
+    "title": "Más que un Mercado: Espacio de Formación Popular",
+    "subtitle": "Talleres gratuitos, música en vivo, trueque de libros y semillas para toda la familia.",
+    "description": "Inspirados en la metodología 'de campesino a campesino', cada jornada en Parque Los Caobos cuenta con actividades pedagógicas gratuitas para compartir conocimientos de siembra, lombricultura, salud botánica y fermentos.",
     "image_url": "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=80",
     "style": "split"
   },
   {
     "type": "features_grid",
-    "title": "Espacios Solidarios Permanentes",
-    "subtitle": "Dinámicas que puedes disfrutar en cada edición de la feria.",
+    "title": "Actividades Permanentes en la Feria",
+    "subtitle": "Dinámicas formativas y culturales gratuitas en cada edición.",
     "columns": 3,
     "items": [
       {
         "icon": "leaf",
-        "title": "Trueque de Semillas Nativas",
-        "description": "Mesa comunitaria para entregar y recibir semillas libres de patentes. Protegemos nuestra agrobiodiversidad compartiendo variedades locales.",
-        "badge": "Libre y Gratuito"
+        "title": "Trueque Libre de Semillas Criollas",
+        "description": "Mesa comunitaria de intercambio de semillas nativas y locales. Trae las tuyas y llévate variedades adaptadas sin costo alguno.",
+        "badge": "Intercambio"
       },
       {
         "icon": "heart",
         "title": "Dona y Adopta un Libro",
-        "description": "Punto de intercambio de novelas, manuales agrícolas, textos de ecología y poesía. Llévate un libro con la promesa de seguir compartiendo el saber.",
+        "description": "Punto de intercambio de novelas, manuales de siembra y poesía. Llévate un libro con el compromiso de seguir compartiendo el saber.",
         "badge": "Lectura Libre"
       },
       {
         "icon": "users",
         "title": "Aula Conuquera Abierta",
-        "description": "Talleres prácticos: elaboración de kokedamas, preparación de sustratos con fibra de coco, extractos botánicos y crianza de lombrices.",
-        "badge": "Talleres en Vivo"
+        "description": "Talleres prácticos en vivo: sustratos con fibra de coco, biofertilizantes, kokedamas, medicina tradicional y bioinsumos.",
+        "badge": "Talleres Gratis"
+      },
+      {
+        "icon": "shopping-cart",
+        "title": "Música & Expresiones Culturales",
+        "description": "Música tradicional venezolana, ska popular, cantautores populares con cuatro y poesía campesina en vivo.",
+        "badge": "Música en Vivo"
+      },
+      {
+        "icon": "scale",
+        "title": "Dinámicas Infantiles & Familiares",
+        "description": "Juegos educativos, títeres y actividades recreativas y deportivas al aire libre para los más pequeños.",
+        "badge": "Para la Familia"
+      },
+      {
+        "icon": "home",
+        "title": "Encuentros y Asambleas Trimestrales",
+        "description": "Espacios de deliberación y planificación interna entre colectivos, además de visitas y cayapas en conucos periurbanos.",
+        "badge": "Organización"
       }
     ]
   }
@@ -383,72 +421,58 @@ func (d *DB) SeedPublicPages(ctx context.Context, nodeDomain string) error {
 		{
 			Slug:     "como-funciona",
 			Title:    "Cómo Funciona el Trueque",
-			Subtitle: "Sistema Contable de Crédito Mutuo con Saldo Cero",
+			Subtitle: "Crédito Mutuo Comunitario para Miembros Registrados",
 			Content: `[
   {
     "type": "hero",
     "badge": "⚡ 1 TQ = 1 kWh de Energía Objetiva",
-    "title": "Contabilidad Mutua, No Dinero Tradicional",
-    "subtitle": "Una herramienta de registro comunitario donde lo que das y lo que recibes siempre suma cero.",
-    "description": "El trueque no es dinero emitido por un banco ni se compra ni se vende. Es un registro transparente de compromisos entre miembros de la comunidad que permite el intercambio de bienes, trabajo y saberes sin intermediación financiera.",
+    "title": "Venta en Moneda Local vs. Trueque Comunitario",
+    "subtitle": "Todo el público puede comprar en moneda local; los miembros además intercambian en Trueque TQ.",
+    "description": "En la feria, la venta al público general se realiza de forma directa en moneda local. Paralelamente, los miembros registrados cuentan con una herramienta contable de crédito mutuo donde lo que das y lo que recibes se calcula en base a la energía física invertida (1 TQ = 1 kWh).",
     "image_url": "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=1200&q=80",
     "style": "standard"
   },
   {
     "type": "trueque_explainer",
-    "title": "Los 4 Pasos del Crédito Mutuo",
-    "subtitle": "Comprende la lógica solidaria y transparente del sistema contable.",
-    "energy_rate_text": "El valor de referencia es 1 TQ = 1 kWh de energía total invertida en la producción.",
+    "title": "Los 4 Pasos del Crédito Mutuo para Miembros",
+    "subtitle": "Comprende la lógica solidaria y transparente del sistema de trueque.",
+    "energy_rate_text": "Valor de referencia objetivo: 1 TQ = 1 kWh de energía",
     "steps": [
       {
         "step": 1,
         "title": "Empiezas en Cero (0 TQ)",
-        "description": "Al unirte a la red, tu cuenta inicia en balance 0. No necesitas comprar monedas ni aportar capital para participar.",
+        "description": "Al ingresar formalmente a la red, tu cuenta inicia en balance 0. No necesitas comprar monedas ni aportar capital.",
         "icon": "users"
       },
       {
         "step": 2,
-        "title": "Cuando Compras o Recibes Bienes",
-        "description": "Tu cuenta registra saldo negativo (ej: -50 TQ). No es una deuda bancaria usurera: es un compromiso de entregar productos o trabajo futuro a la comunidad.",
+        "title": "Al Recibir Bienes en Trueque",
+        "description": "Tu cuenta registra saldo negativo (-TQ). Es un compromiso ético de entregar productos o trabajo futuro a la comunidad.",
         "icon": "shopping-cart"
       },
       {
         "step": 3,
-        "title": "Cuando Vendes o Aportas Trabajo",
-        "description": "Tu cuenta registra saldo positivo (ej: +50 TQ). Significa que has entregado valor a la comunidad y tienes derecho a adquirir bienes de otros miembros.",
+        "title": "Al Aportar Cosecha o Trabajo",
+        "description": "Tu cuenta registra saldo positivo (+TQ). Significa que has entregado valor a la comunidad y puedes adquirir bienes de otros miembros.",
         "icon": "leaf"
       },
       {
         "step": 4,
         "title": "La Suma Total Siempre es Cero",
-        "description": "La suma de todas las cuentas de la red da exactamente 0 TQ. No existe inflación, devaluación ni emisión descontrolada.",
+        "description": "El total de todas las cuentas de la red da exactamente 0 TQ. No existe inflación, devaluación ni intermediarios bancarios.",
         "icon": "scale"
       }
     ],
     "key_points": {
-      "positive_balance": "Indica que has aportado más de lo que has consumido. Puedes canjearlo por bienes de cualquier otro miembro de la red.",
-      "negative_balance": "Es un saldo deudor ético: has recibido sustento y lo retribuirás con tu propia producción o servicios. Existen topes definidos por la asamblea.",
-      "zero_sum": "Nadie lucra con la emisión. No hay tasas de interés sobre el ahorro ni penalizaciones financieras sobre el saldo negativo."
+      "positive_balance": "Indica que has aportado más de lo que has recibido. Tienes derecho a adquirir bienes o servicios de otros miembros.",
+      "negative_balance": "Es un saldo deudor solidario: has recibido sustento y lo retribuirás con tu propia cosecha, productos o trabajo.",
+      "zero_sum": "El sistema no crea dinero de la nada ni cobra intereses usureros. Se basa en el trabajo real y la confianza mutua."
     }
   },
   {
-    "type": "faq",
-    "title": "Preguntas Clave sobre el Trueque",
-    "subtitle": "Dudas comunes sobre valor, límites y gobernanza.",
-    "items": [
-      {
-        "question": "¿Por qué se utiliza la energía (kWh) como referencia de valor?",
-        "answer": "Porque la energía es una medida objetiva y física del esfuerzo humano, de los insumos y de las herramientas utilizadas para producir cualquier bien, protegiendo a la comunidad de la especulación monetaria."
-      },
-      {
-        "question": "¿Qué evita que alguien acumule o gaste sin límite?",
-        "answer": "La asamblea establece límites máximos de crédito (tope positivo) y límites de débito (tope negativo) según el nivel de cada miembro u organización."
-      },
-      {
-        "question": "¿Qué pasa si un miembro decide retirarse de la red?",
-        "answer": "Si su saldo es cero, se retira sin obligaciones. Si tiene saldo negativo, debe compensar entregando bienes o trabajo. Si tiene saldo positivo, puede consumir su balance antes de salir."
-      }
-    ]
+    "type": "calculator_preview",
+    "title": "Simula el Valor Energético de tu Producción",
+    "subtitle": "Prueba cómo se calcula el valor objetivo según horas de trabajo y factores de esfuerzo."
   }
 ]`,
 			Icon:      "help-circle",
@@ -519,43 +543,47 @@ func (d *DB) SeedPublicPages(ctx context.Context, nodeDomain string) error {
 		{
 			Slug:     "faq",
 			Title:    "Preguntas Frecuentes",
-			Subtitle: "Dudas Frecuentes para Visitantes y Nuevos Productores",
+			Subtitle: "Dudas sobre Compras en Moneda Local, Trueque y Asambleas",
 			Content: `[
   {
     "type": "hero",
     "badge": "💡 Centro de Respuestas",
     "title": "Preguntas Frecuentes",
-    "subtitle": "Todo lo que necesitas saber para visitarnos, comprar, truequear o sumarte a la feria.",
+    "subtitle": "Información clara sobre cómo comprar, participar, truequear y sumarte a la feria.",
     "image_url": "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=1200&q=80",
     "style": "standard"
   },
   {
     "type": "faq",
-    "title": "Información General y Participación",
+    "title": "Preguntas Frecuentes de Visitantes y Productores",
     "items": [
       {
-        "question": "¿Cuándo y dónde se realiza la Feria Conuquera?",
-        "answer": "Se celebra el primer sábado de cada mes en el Parque Los Caobos de Caracas (zona sur, cerca del estacionamiento y la Fuente Venezuela), desde las 9:00 AM hasta la 1:00 PM aproximadamente."
+        "question": "¿Necesito ser miembro de la feria para comprar productos?",
+        "answer": "¡No! El evento del primer sábado de cada mes en Parque Los Caobos es un mercado a cielo abierto abierto a todo el público general. Cualquier persona puede venir y comprar hortalizas frescas, tubérculos, quesos, panes, botica natural y comida artesanal directamente de los productores pagando en moneda local."
+      },
+      {
+        "question": "¿Quiénes pueden participar en los intercambios de trueque?",
+        "answer": "El trueque directo y el sistema de crédito mutuo (Trueque TQ) está disponible para los miembros y colectivos registrados en la red. Si deseas participar formalmente en los intercambios de crédito mutuo o traer tu propia producción a la feria, puedes llenar la solicitud de admisión para ser evaluado por la asamblea."
+      },
+      {
+        "question": "¿Cómo se organiza la Feria Conuquera más allá del día de mercado?",
+        "answer": "La feria tiene una vida organizativa continua: celebramos Asambleas Generales cada 3 meses para la toma de decisiones colectivas, estructuramos comisiones temáticas periódicas (logística, comunicación, bioinsumos, cultura), realizamos talleres formativos presenciales y organizamos cayapas y visitas a los conucos fuera de Caracas."
+      },
+      {
+        "question": "¿Cuándo y en qué horario se realiza el mercado mensual?",
+        "answer": "Se realiza el primer sábado de cada mes en el Parque Los Caobos de Caracas (área sur, cerca del estacionamiento y la Fuente Venezuela), desde las 9:00 AM hasta la 1:00 PM aproximadamente."
       },
       {
         "question": "¿Cómo llegar en transporte público?",
-        "answer": "Puedes llegar en Metro de Caracas bajándote en la estación Bellas Artes o Colegio de Ingenieros. Desde allí caminas 5 minutos hacia el Parque Los Caobos."
+        "answer": "Puedes llegar cómodamente en Metro de Caracas bajándote en la estación Bellas Artes o Colegio de Ingenieros (Línea 1). Desde ambas estaciones caminas unos 5 minutos hacia el Parque Los Caobos."
       },
       {
-        "question": "¿Por qué no se permiten bolsas plásticas desechables?",
-        "answer": "Porque la agroecología es un compromiso integral con la vida. El plástico contamina ríos y suelos. Te invitamos a traer bolsas de tela, morrales, recipientes o canastas reutilizables."
+        "question": "¿Por qué está prohibido el uso de bolsas plásticas desechables?",
+        "answer": "Porque la agroecología es un compromiso ético de cuidado hacia la Madre Tierra. El plástico contamina suelos y ríos. Te invitamos a traer bolsas reutilizables de tela, morrales, recipientes o canastas."
       },
       {
-        "question": "Soy productor agroecológico y quiero participar, ¿qué debo hacer?",
-        "answer": "Debes llenar el formulario de solicitud de admisión en esta plataforma. La asamblea conuquera evalúa que la producción sea 100% agroecológica (sin agrotóxicos) y coordina una visita formativa."
-      },
-      {
-        "question": "¿Se puede pagar con moneda convencional o solo trueque?",
-        "answer": "Se promueve activamente el trueque directo y el sistema de crédito mutuo (Trueque TQ), pero los visitantes que aún no tienen cuenta pueden coordinar intercambios o adquirir productos con aportes solidarios directos a los productores."
-      },
-      {
-        "question": "¿Tienen actividades para niños y familias?",
-        "answer": "¡Sí! Cada edición incluye títeres, trueque de libros infantiles, talleres de siembra para niños y música popular venezolana al aire libre."
+        "question": "¿Qué actividades culturales y formativas se realizan durante la feria?",
+        "answer": "En cada jornada mensual se ofrecen talleres gratuitos de siembra y lombricultura, trueque libre de semillas criollas, intercambio de libros ('Dona y adopta un libro'), música popular en vivo y actividades lúdicas para niños y familias."
       }
     ]
   }
@@ -566,25 +594,25 @@ func (d *DB) SeedPublicPages(ctx context.Context, nodeDomain string) error {
 		{
 			Slug:     "contacto",
 			Title:    "Contacto y Ubicación",
-			Subtitle: "Canales de Comunicación y Cómo Llegar",
+			Subtitle: "Canales de Comunicación y Cómo Llegar a Los Caobos",
 			Content: `[
   {
     "type": "contact_location",
-    "title": "Ponte en Contacto con la Red Conuquera",
-    "subtitle": "Estamos a tu disposición para dudas, voluntariado o articulación comunitaria.",
+    "title": "Visítanos en Parque Los Caobos",
+    "subtitle": "Abierto al público general cada primer sábado de mes.",
     "address": "Parque Los Caobos, área del estacionamiento sur, cerca de la Fuente Venezuela, Caracas, Distrito Capital, Venezuela.",
-    "schedule": "Primer sábado de cada mes, de 9:00 AM a 1:00 PM",
+    "schedule": "Primer sábado de cada mes, de 9:00 AM a 1:00 PM (Venta en moneda local y actividades abiertas)",
     "instagram": "feriaconuquera",
     "facebook": "feriaconuquera",
     "email": "contacto@feriaconuquera.org",
     "phone": "+58 212 000-0000",
-    "transport_info": "Estación Metro Bellas Artes (Línea 1) o Colegio de Ingenieros. Acceso vehicular por la avenida México y Plaza Venezuela."
+    "transport_info": "Estaciones de Metro Bellas Artes o Colegio de Ingenieros (Línea 1). Acceso peatonal y vehicular por Plaza Venezuela o Av. México."
   },
   {
     "type": "cta_banner",
-    "badge": "📩 Formulario Abierto",
-    "title": "¿Deseas enviar una solicitud de ingreso formal?",
-    "subtitle": "Llena nuestro formulario público y un vocero de la asamblea te contactará.",
+    "badge": "📩 Postulación Comunitaria",
+    "title": "¿Deseas postularte como productor conuquero o miembro?",
+    "subtitle": "Llena nuestro formulario público de postulación para ser evaluado por la asamblea trimestral.",
     "button_text": "Ir al Formulario de Admisión",
     "button_link": "/p/unirse",
     "theme": "forest"
@@ -596,7 +624,6 @@ func (d *DB) SeedPublicPages(ctx context.Context, nodeDomain string) error {
 	}
 
 	for _, p := range pages {
-		// Inserta o actualiza para garantizar que el contenido modular rico este presente
 		_, err := d.Pool.Exec(ctx,
 			`INSERT INTO public_pages (node_domain, slug, title, subtitle, content, icon, menu_order, is_published, show_in_menu)
 			 VALUES ($1, $2, $3, $4, $5, $6, $7, true, true)
