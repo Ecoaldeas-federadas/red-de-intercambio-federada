@@ -32,6 +32,7 @@ import {
 import { PageBlocksRenderer } from './public-site/PublicBlocks'
 import { LivePageEditor } from './public-site/LivePageEditor'
 import { DynamicAdmissionForm } from './public-site/DynamicAdmissionForm'
+import { ThemeCustomizer, ThemeDraft, PageMenuItem } from './public-site/ThemeCustomizer'
 import { FERIA_CONUQUERA_TEMPLATES } from './public-site/defaultSiteData'
 import { PublicPageData, HeaderStyleType, SiteBlock } from '../types/publicSite'
 
@@ -100,6 +101,9 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
   const moreMenuRef = useRef<HTMLDivElement>(null)
   const [showHeaderEditor, setShowHeaderEditor] = useState(false)
   const [headerForm, setHeaderForm] = useState<any>(null)
+  const [showCustomizer, setShowCustomizer] = useState(false)
+  const [draftSettings, setDraftSettings] = useState<ThemeDraft | null>(null)
+  const [draftPages, setDraftPages] = useState<PageMenuItem[]>([])
 
   useEffect(() => {
     api.get('/public/settings').then((s: any) => setSettings(s)).catch(() => {})
@@ -131,8 +135,20 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
+
+    // When customizer is open, use draft settings for live preview
+    if (showCustomizer && draftSettings) {
+      setSettings({ ...settings, ...draftSettings } as any)
+    }
+    // Also update pages order for live menu preview
+    if (showCustomizer && draftPages.length > 0) {
+      setPages(draftPages.map((dp) => {
+        const existing = pages.find((p) => p.slug === dp.slug)
+        return existing ? { ...existing, menu_order: dp.menu_order, show_in_menu: dp.show_in_menu } : existing
+      }).filter(Boolean) as any)
+    }
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+  }, [showCustomizer, draftSettings, draftPages])
 
   const headerStyle = settings?.header_style || 'modern_eco'
   const primaryColor = settings?.primary_color || '#162e16'
@@ -804,14 +820,16 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         </div>
       </footer>
 
-      {/* FLOATING BUTTON: Edit Header & Logo (admin only) */}
+      {/* FLOATING BUTTON: Theme Customizer (admin only) */}
       {isAuthenticated && (
         <button
           onClick={() => {
-            setHeaderForm({
+            setDraftSettings({
               site_title: settings?.site_title || '',
               site_subtitle: settings?.site_subtitle || '',
               logo_url: settings?.logo_url || '',
+              primary_color: settings?.primary_color || '#162e16',
+              secondary_color: settings?.secondary_color || '#c2410c',
               header_style: settings?.header_style || 'modern_eco',
               contact_address: settings?.contact_address || '',
               social_instagram: settings?.social_instagram || '',
@@ -819,146 +837,61 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               footer_about: settings?.footer_about || '',
               footer_schedule: settings?.footer_schedule || '',
             })
-            setShowHeaderEditor(true)
+            setDraftPages(pages.map((p) => ({
+              slug: p.slug,
+              title: p.title,
+              icon: p.icon,
+              menu_order: p.menu_order || 0,
+              show_in_menu: p.show_in_menu ?? true,
+              is_published: p.is_published ?? true,
+            })))
+            setShowCustomizer(true)
           }}
           className="fixed bottom-4 left-4 z-40 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl shadow-xl flex items-center gap-2 text-xs font-bold transition"
-          title="Editar cabecera, logo y pie de página"
+          title="Personalizar tema: logo, colores, cabecera, menú, pie de página"
         >
-          <Edit size={14} />
-          Cabecera & Logo
+          <Sparkles size={14} />
+          Personalizar Tema
         </button>
       )}
 
-      {/* HEADER/FOOTER EDITOR MODAL */}
-      {showHeaderEditor && headerForm && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl max-h-[85vh] overflow-y-auto space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-200 pb-3">
-              <h3 className="font-bold text-gray-900">Editar Cabecera, Logo y Pie de Página</h3>
-              <button onClick={() => setShowHeaderEditor(false)} className="text-gray-400 hover:text-gray-700">
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Logo */}
-            <div>
-              <label className="label text-xs font-bold">Logo del nodo</label>
-              <div className="flex items-center gap-3">
-                {headerForm.logo_url && (
-                  <img src={headerForm.logo_url} alt="logo" className="w-12 h-12 rounded-lg object-cover border border-gray-200" />
-                )}
-                <div className="flex-1 space-y-2">
-                  <input
-                    className="input text-xs"
-                    placeholder="URL del logo..."
-                    value={headerForm.logo_url}
-                    onChange={(e) => setHeaderForm({ ...headerForm, logo_url: e.target.value })}
-                  />
-                  <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-bold hover:bg-emerald-200 transition cursor-pointer border border-emerald-300">
-                    <Upload size={14} />
-                    Subir logo desde PC
-                    <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
-                      const f = e.target.files?.[0]
-                      if (!f) return
-                      const formData = new FormData()
-                      formData.append('file', f)
-                      try {
-                        const token = localStorage.getItem('fmc_token')
-                        const res = await fetch('/api/uploads/image', {
-                          method: 'POST',
-                          headers: token ? { Authorization: `Bearer ${token}` } : {},
-                          body: formData,
-                        })
-                        if (!res.ok) throw new Error('Upload failed')
-                        const data = await res.json()
-                        setHeaderForm({ ...headerForm, logo_url: data.url })
-                      } catch {
-                        alert('No se pudo subir el logo')
-                      }
-                    }} />
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            {/* Site Title & Subtitle */}
-            <div className="grid grid-cols-1 gap-3">
-              <div>
-                <label className="label text-xs font-bold">Título del nodo</label>
-                <input className="input text-xs" value={headerForm.site_title} onChange={(e) => setHeaderForm({ ...headerForm, site_title: e.target.value })} />
-              </div>
-              <div>
-                <label className="label text-xs font-bold">Subtítulo</label>
-                <input className="input text-xs" value={headerForm.site_subtitle} onChange={(e) => setHeaderForm({ ...headerForm, site_subtitle: e.target.value })} />
-              </div>
-            </div>
-
-            {/* Header Style */}
-            <div>
-              <label className="label text-xs font-bold">Estilo de menú (cabecera)</label>
-              <select
-                className="input text-xs"
-                value={headerForm.header_style}
-                onChange={(e) => setHeaderForm({ ...headerForm, header_style: e.target.value })}
-              >
-                <option value="modern_eco">Eco Moderno (verde con logo)</option>
-                <option value="fao_institutional">Institucional FAO (blanco, portal)</option>
-                <option value="compact">Compacto (minimalista)</option>
-                <option value="banner">Banner (con imagen de fondo)</option>
-              </select>
-            </div>
-
-            {/* Footer fields */}
-            <div className="border-t border-gray-200 pt-3 space-y-3">
-              <h4 className="font-bold text-xs text-gray-700">Pie de Página</h4>
-              <div>
-                <label className="label text-xs font-bold">Descripción del nodo</label>
-                <textarea rows={2} className="input text-xs" value={headerForm.footer_about} onChange={(e) => setHeaderForm({ ...headerForm, footer_about: e.target.value })} />
-              </div>
-              <div>
-                <label className="label text-xs font-bold">Horario</label>
-                <input className="input text-xs" value={headerForm.footer_schedule} onChange={(e) => setHeaderForm({ ...headerForm, footer_schedule: e.target.value })} />
-              </div>
-              <div>
-                <label className="label text-xs font-bold">Dirección</label>
-                <input className="input text-xs" value={headerForm.contact_address} onChange={(e) => setHeaderForm({ ...headerForm, contact_address: e.target.value })} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label text-xs font-bold">Instagram (sin @)</label>
-                  <input className="input text-xs" value={headerForm.social_instagram} onChange={(e) => setHeaderForm({ ...headerForm, social_instagram: e.target.value })} />
-                </div>
-                <div>
-                  <label className="label text-xs font-bold">Facebook</label>
-                  <input className="input text-xs" value={headerForm.social_facebook} onChange={(e) => setHeaderForm({ ...headerForm, social_facebook: e.target.value })} />
-                </div>
-              </div>
-            </div>
-
-            {/* Save */}
-            <div className="flex gap-2 pt-2 border-t border-gray-200">
-              <button
-                onClick={async () => {
-                  try {
-                    await api.put('/site/settings', headerForm)
-                    setSettings({ ...settings, ...headerForm } as any)
-                    setShowHeaderEditor(false)
-                  } catch (err) {
-                    alert(err instanceof Error ? err.message : 'Error al guardar')
-                  }
-                }}
-                className="btn-primary flex items-center gap-2"
-              >
-                <Check size={16} />
-                Guardar Cambios
-              </button>
-              <button onClick={() => setShowHeaderEditor(false)} className="btn-secondary">
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* THEME CUSTOMIZER PANEL */}
+      <ThemeCustomizer
+        open={showCustomizer}
+        onClose={() => {
+          // Revert to original settings
+          api.get('/public/settings').then((s: any) => setSettings(s)).catch(() => {})
+          setShowCustomizer(false)
+        }}
+        initialSettings={draftSettings || {
+          site_title: '', site_subtitle: '', logo_url: '',
+          primary_color: '#162e16', secondary_color: '#c2410c',
+          header_style: 'modern_eco', contact_address: '',
+          social_instagram: '', social_facebook: '',
+          footer_about: '', footer_schedule: '',
+        }}
+        initialPages={draftPages}
+        onSave={async (newSettings, newPages) => {
+          // Save settings
+          await api.put('/site/settings', newSettings)
+          // Save page menu order and visibility
+          for (const page of newPages) {
+            const existing = pages.find((p) => p.slug === page.slug)
+            if (existing && existing.id) {
+              await api.put(`/site/pages/${existing.id}`, {
+                ...existing,
+                menu_order: page.menu_order,
+                show_in_menu: page.show_in_menu,
+              }).catch(() => {})
+            }
+          }
+          // Reload settings
+          await api.get('/public/settings').then((s: any) => setSettings(s))
+          await api.get('/public/pages').then((d: any) => {
+            if (Array.isArray(d)) setPages(d)
+          })
+        }}
+      />
     </div>
   )
 }

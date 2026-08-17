@@ -1,40 +1,40 @@
-fix(editor): botones bloqueados en edicion + subcategorias + logo editable + CTA fix
+feat(customizer): personalizador de tema visual con preview en vivo
 
-Botones en modo edicion:
-- EdLink: renderiza como span con pointer-events-none en modo edicion
-- Los botones CTA ya no navegan cuando estas editando
-- Reemplazados todos los Link por EdLink en Hero, CtaBanner, EventSchedule
+Nuevo ThemeCustomizer con 4 pestañas:
 
-CTA Banner transparente:
-- from-trueque-950 no existia en Tailwind (no hay 950 en la paleta)
-- Cambiado a from-emerald-950 via-emerald-900 to-green-950
-- Ahora el fondo se ve correctamente oscuro con texto blanco
+1. CABECERA:
+   - Logo (subir desde PC o URL) - el mismo logo en cabecera y pie
+   - Titulo y subtitulo del nodo
+   - 4 tipos de cabecera con preview en vivo:
+     * Eco Moderno
+     * Institucional FAO
+     * Compacto
+     * Banner
 
-Subcategorias en productos:
-- Migracion 019: subcategory e is_hidden en tabla products
-- Backend: createProduct, updateProduct, listProducts, getProduct
-  incluyen subcategory e is_hidden
-- listPublicProducts filtra is_hidden = false
-- Frontend Products.tsx: campo subcategoria en formulario
-- ProductsShowcaseBlock pasa subcategory del backend
+2. MENU:
+   - Reordenar items del menu (subir/bajar)
+   - Mostrar/ocultar paginas del menu (eye/eye-off)
+   - Vista previa en vivo del menu reorganizado
 
-No eliminar productos, solo ocultar:
-- Boton de eliminar quitado, reemplazado por Eye/EyeOff
-- Toggle rapido de ocultar/mostrar en cada tarjeta
-- Etiqueta "Oculto" visible en tarjetas ocultas
-- Productos ocultos no aparecen en la pagina publica
+3. COLORES:
+   - 6 paletas predefinidas (Verde Conuquero, Tierra Barlovento,
+     Caribe Azul, Sol Andino, Bosque Humedo, Aurora)
+   - Color primario y secundario personalizados (color picker)
+   - Vista previa de los colores
 
-Logo y cabecera editable:
-- Boton flotante "Cabecera & Logo" (esquina inferior izquierda)
-- Modal con: logo (subir desde PC o URL), titulo, subtitulo,
-  estilo de menu (4 opciones), footer_about, footer_schedule,
-  direccion, instagram, facebook
-- Guarda via PUT /site/settings
+4. PIE DE PAGINA:
+   - Descripcion del nodo
+   - Horario
+   - Direccion
+   - Instagram y Facebook
 
-Modal de imagen mejorado:
-- Boton X de cerrar siempre visible arriba a la derecha
-- Scroll interno (overflow-y-auto, max-h-90%)
-- Centrado vertical y horizontal
+Cambios NO se aplican hasta darle "Guardar Todo":
+- Boton "Descartar" revierte todos los cambios
+- Boton "Guardar Todo" guarda settings + orden del menu
+- Preview en vivo: cabecera, colores y menu cambian al instante
+- Al cerrar sin guardar, se recarga la configuracion original
+
+Boton flotante "Personalizar Tema" (esquina inferior izquierda, azul)
 
 Generated with [Devin](https://devin.ai)
 
