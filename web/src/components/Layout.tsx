@@ -30,6 +30,7 @@ const navItems = [
   { to: '/fund', label: 'Fondo Comunitario', icon: PiggyBank },
   { to: '/profile', label: 'Mi Perfil', icon: User },
   { to: '/settings', label: 'Configuracion', icon: Settings },
+  { to: '/website', label: 'Sitio Web Publico', icon: Globe },
 ]
 
 export default function Layout({ children }: { children: React.ReactNode }) {

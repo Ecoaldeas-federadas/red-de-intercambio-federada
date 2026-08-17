@@ -1,0 +1,43 @@
+feat: sitio web publico + moneda con nombre completo y abreviatura
+
+1. MONEDA: nombre completo + abreviatura
+- Nuevo campo currency_full_name en node_config (migracion 013)
+- getConfig/updateConfig manejan ambos campos
+- useConfig expone currency (abreviatura) y currencyFull (nombre completo)
+- NodeSettings: dos campos separados (Nombre completo: Trueque, Abreviatura: TQ)
+
+2. SITIO WEB PUBLICO (sin login)
+- Migracion 013: tablas public_settings, public_pages, admission_requests
+- 8 paginas preconfiguradas con contenido de Feria Conuquera:
+  * Inicio (bienvenida, datos clave, compromiso ecologico)
+  * Filosofia (historia, conuco, colectivos conuqueros)
+  * Productos (cosecha, medicina, gastronomia artesanal)
+  * Comunidad (talleres, trueque de semillas, musica)
+  * Como funciona el trueque (sistema de credito mutuo explicado)
+  * Campo Soberano (proyecto ecoaldea)
+  * FAQ (preguntas frecuentes)
+  * Contacto (redes, ubicacion, horario)
+- Backend: endpoints publicos sin auth:
+  * GET /api/public/settings
+  * GET /api/public/pages
+  * GET /api/public/pages/{slug}
+  * POST /api/public/admission-request
+- Backend: endpoints admin para gestion del sitio:
+  * GET/POST/PUT/DELETE /api/site/pages
+  * GET/PUT /api/site/settings
+  * GET /api/admission-requests
+  * POST /api/admission-requests/{id}/approve|reject
+- Frontend: PublicLayout con header, menu, footer (colores configurables)
+- Frontend: PublicPageView muestra contenido de cada pagina
+- Frontend: PublicJoinForm formulario de solicitud de admision
+- Frontend: WebsiteAdmin para gestionar paginas, settings y solicitudes
+- Rutas publicas en /p/* accesibles sin login
+
+3. FORMULARIO DE ADMISION PUBLICO
+- Cual persona externa puede solicitar unirse
+- Campos: nombre, email, telefono, ubicacion, motivo, saberes, como se entero
+- Las solicitudes llegan al admin para aprobacion/rechazo
+
+Generado con [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

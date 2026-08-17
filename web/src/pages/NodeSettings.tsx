@@ -28,7 +28,7 @@ export default function NodeSettings() {
   const [success, setSuccess] = useState('')
 
   // Config general
-  const [config, setConfig] = useState({ node_name: '', currency_name: 'TQ', app_name: 'Red de Intercambio' })
+  const [config, setConfig] = useState({ node_name: '', currency_name: 'TQ', currency_full_name: 'Trueque', app_name: 'Red de Intercambio' })
 
   // Niveles de miembro (usuarios individuales)
   const [levels, setLevels] = useState<any[]>([])
@@ -245,9 +245,15 @@ export default function NodeSettings() {
           </div>
 
           <div>
-            <label className="label">Nombre de la moneda</label>
-            <input className="input" value={config.currency_name} onChange={(e) => setConfig({ ...config, currency_name: e.target.value })} disabled={!canManage} placeholder="Ej: TQ, Trueques, Horas, Puntos" />
-            <p className="text-xs text-gray-400 mt-1">Como se llama la moneda interna. Aparece en todos los balances, transferencias y precios.</p>
+            <label className="label">Nombre completo de la moneda</label>
+            <input className="input" value={config.currency_full_name} onChange={(e) => setConfig({ ...config, currency_full_name: e.target.value })} disabled={!canManage} placeholder="Ej: Trueque, Hora, Punto, Sol" />
+            <p className="text-xs text-gray-400 mt-1">Nombre completo de la moneda interna. Ej: Trueque, Hora, Punto. Aparece en textos explicativos y en el sitio publico.</p>
+          </div>
+
+          <div>
+            <label className="label">Abreviatura de la moneda</label>
+            <input className="input" value={config.currency_name} onChange={(e) => setConfig({ ...config, currency_name: e.target.value })} disabled={!canManage} placeholder="Ej: TQ, HR, PT, SOL" />
+            <p className="text-xs text-gray-400 mt-1">Abreviatura corta de la moneda. Aparece en balances, transferencias y precios. Ej: TQ para Trueque, HR para Hora.</p>
           </div>
 
           <div>

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from './hooks/useAuth'
 import { api } from './api'
 import Layout from './components/Layout'
+import { PublicLayout, PublicPageView, PublicJoinForm } from './components/PublicSite'
 import Login from './pages/Login'
 import Setup from './pages/Setup'
 import Dashboard from './pages/Dashboard'
@@ -27,6 +28,7 @@ import NodeSettings from './pages/NodeSettings'
 import Profile from './pages/Profile'
 import CommunityFund from './pages/CommunityFund'
 import CalculatorParams from './pages/CalculatorParams'
+import WebsiteAdmin from './pages/WebsiteAdmin'
 
 export default function App() {
   const { isAuthenticated } = useAuth()
@@ -57,9 +59,21 @@ export default function App() {
     )
   }
 
+  // Rutas publicas del sitio web (siempre accesibles sin login)
   if (!isAuthenticated) {
     return (
       <Routes>
+        <Route path="/p/inicio" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+        <Route path="/p/filosofia" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+        <Route path="/p/productos" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+        <Route path="/p/comunidad" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+        <Route path="/p/como-funciona" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+        <Route path="/p/campo-soberano" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+        <Route path="/p/faq" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+        <Route path="/p/contacto" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+        <Route path="/p/unirse" element={<PublicLayout><PublicJoinForm /></PublicLayout>} />
+        <Route path="/p/:slug" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+        <Route path="/p" element={<Navigate to="/p/inicio" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/setup" element={<Setup />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
@@ -92,6 +106,8 @@ export default function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/fund" element={<CommunityFund />} />
         <Route path="/calculator/params" element={<CalculatorParams />} />
+        <Route path="/website" element={<WebsiteAdmin />} />
+        <Route path="/p/*" element={<PublicLayout><PublicPageView /></PublicLayout>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

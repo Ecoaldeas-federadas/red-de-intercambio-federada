@@ -4,6 +4,7 @@ import { api } from '../api'
 interface NodeConfig {
   node_name: string
   currency_name: string
+  currency_full_name: string
   app_name: string
   node_domain: string
 }
@@ -11,6 +12,7 @@ interface NodeConfig {
 const ConfigContext = createContext<NodeConfig>({
   node_name: '',
   currency_name: 'TQ',
+  currency_full_name: 'Trueque',
   app_name: 'Red de Intercambio',
   node_domain: 'localhost',
 })
@@ -19,6 +21,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<NodeConfig>({
     node_name: '',
     currency_name: 'TQ',
+    currency_full_name: 'Trueque',
     app_name: 'Red de Intercambio',
     node_domain: 'localhost',
   })
@@ -46,6 +49,7 @@ export function useConfig() {
   return {
     ...ctx,
     currency: ctx.currency_name || 'TQ',
+    currencyFull: ctx.currency_full_name || 'Trueque',
     appName: ctx.app_name || 'Red de Intercambio',
   }
 }

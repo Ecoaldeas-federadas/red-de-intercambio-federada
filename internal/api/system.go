@@ -20,6 +20,27 @@ type SystemHandler struct {
 }
 
 func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
+	// ===== ENDPOINTS PUBLICOS (sin auth) - Sitio web del nodo =====
+	r.Get("/api/public/settings", h.getPublicSettings)
+	r.Get("/api/public/pages", h.listPublicPages)
+	r.Get("/api/public/pages/{slug}", h.getPublicPage)
+	r.Post("/api/public/admission-request", h.submitAdmissionRequest)
+
+	// ===== ENDPOINTS PRIVADOS (requieren auth) =====
+
+	// Gestion del sitio publico (admin)
+	r.With(am.RequireAuth).Get("/api/site/pages", h.listSitePages)
+	r.With(am.RequirePermission("config.manage")).Post("/api/site/pages", h.createSitePage)
+	r.With(am.RequirePermission("config.manage")).Put("/api/site/pages/{id}", h.updateSitePage)
+	r.With(am.RequirePermission("config.manage")).Delete("/api/site/pages/{id}", h.deleteSitePage)
+	r.With(am.RequireAuth).Get("/api/site/settings", h.getSiteSettings)
+	r.With(am.RequirePermission("config.manage")).Put("/api/site/settings", h.updateSiteSettings)
+
+	// Solicitudes de admision (admin)
+	r.With(am.RequireAuth).Get("/api/admission-requests", h.listAdmissionRequests)
+	r.With(am.RequirePermission("admission.manage")).Post("/api/admission-requests/{id}/approve", h.approveAdmissionRequest)
+	r.With(am.RequirePermission("admission.manage")).Post("/api/admission-requests/{id}/reject", h.rejectAdmissionRequest)
+
 	// Auditoria
 	r.With(am.RequireAuth).Get("/api/audit", h.listAudit)
 
@@ -175,33 +196,37 @@ func (h *SystemHandler) getConfig(w http.ResponseWriter, r *http.Request) {
 		nodeDomain = "localhost"
 	}
 
-	var nodeName, currencyName, appName string
+	var nodeName, currencyName, appName, currencyFullName string
 	err := h.Pool.QueryRow(r.Context(), `
-		SELECT node_name, currency_name, app_name FROM node_config WHERE node_domain = $1`,
-		nodeDomain).Scan(&nodeName, &currencyName, &appName)
+		SELECT node_name, currency_name, app_name, COALESCE(currency_full_name, 'Trueque')
+		FROM node_config WHERE node_domain = $1`,
+		nodeDomain).Scan(&nodeName, &currencyName, &appName, &currencyFullName)
 	if err != nil {
 		// Defaults
 		writeJSON(w, 200, map[string]interface{}{
-			"node_name":     nodeDomain,
-			"currency_name": "TQ",
-			"app_name":      "Red de Intercambio",
-			"node_domain":   nodeDomain,
+			"node_name":          nodeDomain,
+			"currency_name":      "TQ",
+			"currency_full_name": "Trueque",
+			"app_name":           "Red de Intercambio",
+			"node_domain":        nodeDomain,
 		})
 		return
 	}
 
 	writeJSON(w, 200, map[string]interface{}{
-		"node_name":     nodeName,
-		"currency_name": currencyName,
-		"app_name":      appName,
-		"node_domain":   nodeDomain,
+		"node_name":          nodeName,
+		"currency_name":      currencyName,
+		"currency_full_name": currencyFullName,
+		"app_name":           appName,
+		"node_domain":        nodeDomain,
 	})
 }
 
 type UpdateNodeConfigRequest struct {
-	NodeName     string `json:"node_name"`
-	CurrencyName string `json:"currency_name"`
-	AppName      string `json:"app_name"`
+	NodeName         string `json:"node_name"`
+	CurrencyName     string `json:"currency_name"`
+	CurrencyFullName string `json:"currency_full_name"`
+	AppName          string `json:"app_name"`
 }
 
 func (h *SystemHandler) updateConfig(w http.ResponseWriter, r *http.Request) {
@@ -217,18 +242,19 @@ func (h *SystemHandler) updateConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err := h.Pool.Exec(r.Context(), `
-		UPDATE node_config SET node_name = $1, currency_name = $2, app_name = $3 WHERE node_domain = $4`,
-		req.NodeName, req.CurrencyName, req.AppName, nodeDomain)
+		UPDATE node_config SET node_name = $1, currency_name = $2, app_name = $3, currency_full_name = $4 WHERE node_domain = $5`,
+		req.NodeName, req.CurrencyName, req.AppName, req.CurrencyFullName, nodeDomain)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
 	}
 
 	writeJSON(w, 200, map[string]interface{}{
-		"node_name":     req.NodeName,
-		"currency_name": req.CurrencyName,
-		"app_name":      req.AppName,
-		"message":       "Configuracion actualizada",
+		"node_name":          req.NodeName,
+		"currency_name":      req.CurrencyName,
+		"currency_full_name": req.CurrencyFullName,
+		"app_name":           req.AppName,
+		"message":            "Configuracion actualizada",
 	})
 }
 
@@ -1459,6 +1485,408 @@ func (h *SystemHandler) updateOrganizationLevel(w http.ResponseWriter, r *http.R
 	}
 
 	writeJSON(w, 200, map[string]interface{}{"message": "Nivel de organizacion actualizado"})
+}
+
+// ===== SITIO WEB PUBLICO =====
+
+func (h *SystemHandler) getPublicSettings(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.URL.Query().Get("node")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	var siteTitle, siteSubtitle, primaryColor, secondaryColor, contactAddress, ig, fb string
+	var logoURL, contactEmail, contactPhone, twitter *string
+	var showJoinForm bool
+
+	err := h.Pool.QueryRow(r.Context(), `
+		SELECT site_title, site_subtitle, COALESCE(logo_url, ''), primary_color, secondary_color,
+		       COALESCE(contact_email, ''), COALESCE(contact_phone, ''), contact_address,
+		       COALESCE(social_instagram, ''), COALESCE(social_facebook, ''), COALESCE(social_twitter, ''),
+		       show_join_form
+		FROM public_settings WHERE node_domain = $1`, nodeDomain).Scan(
+		&siteTitle, &siteSubtitle, &logoURL, &primaryColor, &secondaryColor,
+		&contactEmail, &contactPhone, &contactAddress,
+		&ig, &fb, &twitter, &showJoinForm)
+	if err != nil {
+		writeJSON(w, 200, map[string]interface{}{
+			"site_title":      "Feria Conuquera Agroecologica",
+			"site_subtitle":   "Cuando el conuco viene a la ciudad",
+			"primary_color":   "#2d5016",
+			"secondary_color": "#f4a261",
+			"show_join_form":  true,
+		})
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"site_title":       siteTitle,
+		"site_subtitle":    siteSubtitle,
+		"logo_url":         logoURL,
+		"primary_color":    primaryColor,
+		"secondary_color":  secondaryColor,
+		"contact_email":    contactEmail,
+		"contact_phone":    contactPhone,
+		"contact_address":  contactAddress,
+		"social_instagram": ig,
+		"social_facebook":  fb,
+		"social_twitter":   twitter,
+		"show_join_form":   showJoinForm,
+	})
+}
+
+func (h *SystemHandler) listPublicPages(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.URL.Query().Get("node")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT slug, title, subtitle, icon, menu_order
+		FROM public_pages
+		WHERE node_domain = $1 AND is_published = true AND show_in_menu = true
+		ORDER BY menu_order`, nodeDomain)
+	if err != nil {
+		writeJSON(w, 200, []map[string]interface{}{})
+		return
+	}
+	defer rows.Close()
+
+	var pages []map[string]interface{}
+	for rows.Next() {
+		var slug, title string
+		var subtitle, icon *string
+		var menuOrder int
+		if err := rows.Scan(&slug, &title, &subtitle, &icon, &menuOrder); err != nil {
+			continue
+		}
+		pages = append(pages, map[string]interface{}{
+			"slug":       slug,
+			"title":      title,
+			"subtitle":   deref(subtitle),
+			"icon":       deref(icon),
+			"menu_order": menuOrder,
+		})
+	}
+	if pages == nil {
+		pages = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, pages)
+}
+
+func (h *SystemHandler) getPublicPage(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.URL.Query().Get("node")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+	slug := chi.URLParam(r, "slug")
+
+	var title, content string
+	var subtitle *string
+	err := h.Pool.QueryRow(r.Context(), `
+		SELECT title, subtitle, content FROM public_pages
+		WHERE node_domain = $1 AND slug = $2 AND is_published = true`,
+		nodeDomain, slug).Scan(&title, &subtitle, &content)
+	if err != nil {
+		writeError(w, 404, "pagina no encontrada")
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"slug":     slug,
+		"title":    title,
+		"subtitle": deref(subtitle),
+		"content":  content,
+	})
+}
+
+type AdmissionRequestReq struct {
+	FullName string `json:"full_name"`
+	Email    string `json:"email"`
+	Phone    string `json:"phone"`
+	Location string `json:"location"`
+	Reason   string `json:"reason"`
+	Skills   string `json:"skills"`
+	HowHeard string `json:"how_heard"`
+}
+
+func (h *SystemHandler) submitAdmissionRequest(w http.ResponseWriter, r *http.Request) {
+	var req AdmissionRequestReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.FullName == "" {
+		writeError(w, 400, "full_name is required")
+		return
+	}
+
+	nodeDomain := r.URL.Query().Get("node")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	var id uuid.UUID
+	err := h.Pool.QueryRow(r.Context(), `
+		INSERT INTO admission_requests (node_domain, full_name, email, phone, location, reason, skills, how_heard)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+		nodeDomain, req.FullName, req.Email, req.Phone, req.Location, req.Reason, req.Skills, req.HowHeard).Scan(&id)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	writeJSON(w, 201, map[string]interface{}{
+		"id":      id.String(),
+		"message": "Solicitud enviada. Nos pondremos en contacto contigo.",
+		"status":  "pending",
+	})
+}
+
+// ===== GESTION DEL SITIO (admin) =====
+
+func (h *SystemHandler) listSitePages(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT id::text, slug, title, subtitle, icon, menu_order, is_published, show_in_menu
+		FROM public_pages WHERE node_domain = $1 ORDER BY menu_order`, nodeDomain)
+	if err != nil {
+		writeJSON(w, 200, []map[string]interface{}{})
+		return
+	}
+	defer rows.Close()
+
+	var pages []map[string]interface{}
+	for rows.Next() {
+		var id, slug, title string
+		var subtitle, icon *string
+		var menuOrder int
+		var isPublished, showInMenu bool
+		if err := rows.Scan(&id, &slug, &title, &subtitle, &icon, &menuOrder, &isPublished, &showInMenu); err != nil {
+			continue
+		}
+		pages = append(pages, map[string]interface{}{
+			"id":           id,
+			"slug":         slug,
+			"title":        title,
+			"subtitle":     deref(subtitle),
+			"icon":         deref(icon),
+			"menu_order":   menuOrder,
+			"is_published": isPublished,
+			"show_in_menu": showInMenu,
+		})
+	}
+	if pages == nil {
+		pages = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, pages)
+}
+
+type CreateSitePageReq struct {
+	Slug        string `json:"slug"`
+	Title       string `json:"title"`
+	Subtitle    string `json:"subtitle"`
+	Content     string `json:"content"`
+	Icon        string `json:"icon"`
+	MenuOrder   int    `json:"menu_order"`
+	IsPublished bool   `json:"is_published"`
+	ShowInMenu  bool   `json:"show_in_menu"`
+}
+
+func (h *SystemHandler) createSitePage(w http.ResponseWriter, r *http.Request) {
+	var req CreateSitePageReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.Slug == "" || req.Title == "" {
+		writeError(w, 400, "slug and title are required")
+		return
+	}
+
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	var id uuid.UUID
+	err := h.Pool.QueryRow(r.Context(), `
+		INSERT INTO public_pages (node_domain, slug, title, subtitle, content, icon, menu_order, is_published, show_in_menu)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+		nodeDomain, req.Slug, req.Title, req.Subtitle, req.Content, req.Icon, req.MenuOrder, req.IsPublished, req.ShowInMenu).Scan(&id)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	writeJSON(w, 201, map[string]interface{}{"id": id.String(), "message": "Pagina creada"})
+}
+
+func (h *SystemHandler) updateSitePage(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var req CreateSitePageReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	_, err := h.Pool.Exec(r.Context(), `
+		UPDATE public_pages SET
+			slug = $1, title = $2, subtitle = $3, content = $4, icon = $5,
+			menu_order = $6, is_published = $7, show_in_menu = $8, updated_at = NOW()
+		WHERE id = $9::uuid`,
+		req.Slug, req.Title, req.Subtitle, req.Content, req.Icon, req.MenuOrder, req.IsPublished, req.ShowInMenu, id)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{"message": "Pagina actualizada"})
+}
+
+func (h *SystemHandler) deleteSitePage(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	_, err := h.Pool.Exec(r.Context(), `DELETE FROM public_pages WHERE id = $1::uuid`, id)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{"message": "Pagina eliminada"})
+}
+
+func (h *SystemHandler) getSiteSettings(w http.ResponseWriter, r *http.Request) {
+	h.getPublicSettings(w, r)
+}
+
+type UpdateSiteSettingsReq struct {
+	SiteTitle       string `json:"site_title"`
+	SiteSubtitle    string `json:"site_subtitle"`
+	LogoURL         string `json:"logo_url"`
+	PrimaryColor    string `json:"primary_color"`
+	SecondaryColor  string `json:"secondary_color"`
+	ContactEmail    string `json:"contact_email"`
+	ContactPhone    string `json:"contact_phone"`
+	ContactAddress  string `json:"contact_address"`
+	SocialInstagram string `json:"social_instagram"`
+	SocialFacebook  string `json:"social_facebook"`
+	SocialTwitter   string `json:"social_twitter"`
+	ShowJoinForm    bool   `json:"show_join_form"`
+}
+
+func (h *SystemHandler) updateSiteSettings(w http.ResponseWriter, r *http.Request) {
+	var req UpdateSiteSettingsReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	_, err := h.Pool.Exec(r.Context(), `
+		UPDATE public_settings SET
+			site_title = $1, site_subtitle = $2, logo_url = $3, primary_color = $4, secondary_color = $5,
+			contact_email = $6, contact_phone = $7, contact_address = $8,
+			social_instagram = $9, social_facebook = $10, social_twitter = $11, show_join_form = $12,
+			updated_at = NOW()
+		WHERE node_domain = $13`,
+		req.SiteTitle, req.SiteSubtitle, req.LogoURL, req.PrimaryColor, req.SecondaryColor,
+		req.ContactEmail, req.ContactPhone, req.ContactAddress,
+		req.SocialInstagram, req.SocialFacebook, req.SocialTwitter, req.ShowJoinForm, nodeDomain)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{"message": "Configuracion del sitio actualizada"})
+}
+
+// ===== SOLICITUDES DE ADMISION (admin) =====
+
+func (h *SystemHandler) listAdmissionRequests(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	status := r.URL.Query().Get("status")
+	query := `SELECT id::text, full_name, email, phone, location, reason, skills, how_heard, status, created_at
+		FROM admission_requests WHERE node_domain = $1`
+	args := []interface{}{nodeDomain}
+	if status != "" {
+		query += ` AND status = $2`
+		args = append(args, status)
+	}
+	query += ` ORDER BY created_at DESC LIMIT 100`
+
+	rows, err := h.Pool.Query(r.Context(), query, args...)
+	if err != nil {
+		writeJSON(w, 200, []map[string]interface{}{})
+		return
+	}
+	defer rows.Close()
+
+	var requests []map[string]interface{}
+	for rows.Next() {
+		var id, fullName, status string
+		var email, phone, location, reason, skills, howHeard *string
+		var createdAt time.Time
+		if err := rows.Scan(&id, &fullName, &email, &phone, &location, &reason, &skills, &howHeard, &status, &createdAt); err != nil {
+			continue
+		}
+		requests = append(requests, map[string]interface{}{
+			"id":         id,
+			"full_name":  fullName,
+			"email":      deref(email),
+			"phone":      deref(phone),
+			"location":   deref(location),
+			"reason":     deref(reason),
+			"skills":     deref(skills),
+			"how_heard":  deref(howHeard),
+			"status":     status,
+			"created_at": createdAt,
+		})
+	}
+	if requests == nil {
+		requests = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, requests)
+}
+
+func (h *SystemHandler) approveAdmissionRequest(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	userID, _ := h.Auth.GetUserID(r)
+
+	_, err := h.Pool.Exec(r.Context(), `
+		UPDATE admission_requests SET status = 'approved', reviewed_by = $1, reviewed_at = NOW() WHERE id = $2::uuid`,
+		userID, id)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{"message": "Solicitud aprobada"})
+}
+
+func (h *SystemHandler) rejectAdmissionRequest(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	userID, _ := h.Auth.GetUserID(r)
+
+	_, err := h.Pool.Exec(r.Context(), `
+		UPDATE admission_requests SET status = 'rejected', reviewed_by = $1, reviewed_at = NOW() WHERE id = $2::uuid`,
+		userID, id)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{"message": "Solicitud rechazada"})
 }
 
 // ===== HELPER =====
