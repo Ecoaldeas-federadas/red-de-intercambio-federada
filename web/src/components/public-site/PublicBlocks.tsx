@@ -5,6 +5,9 @@ import {
   EdArrayText,
   EdImage,
   EdArrayImage,
+  EdButton,
+  EdAddItem,
+  EdRemoveItem,
   InlineEditProvider,
   useInlineEdit,
 } from './InlineEditable'
@@ -115,8 +118,7 @@ export function HeroBlock({ data }: { data: HeroBlockData }) {
                 to={data.primary_cta.link}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-white bg-emerald-800 hover:bg-emerald-700 active:scale-95 transition text-xs flex-shrink-0 shadow-sm"
               >
-                {data.primary_cta.text}
-                <ArrowRight size={14} />
+                <EdButton textField="primary_cta.text" textValue={data.primary_cta.text} linkField="primary_cta.link" linkValue={data.primary_cta.link} defaultLink="/p/productos" icon={<ArrowRight size={14} />} />
               </Link>
             )}
           </div>
@@ -149,8 +151,7 @@ export function HeroBlock({ data }: { data: HeroBlockData }) {
                   to={data.primary_cta.link}
                   className="inline-flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl font-semibold text-white bg-amber-600 hover:bg-amber-500 active:scale-95 transition-all shadow-lg text-xs sm:text-sm"
                 >
-                  {data.primary_cta.text}
-                  <ArrowRight size={15} />
+                  <EdButton textField="primary_cta.text" textValue={data.primary_cta.text} linkField="primary_cta.link" linkValue={data.primary_cta.link} defaultLink="/p/productos" icon={<ArrowRight size={15} />} />
                 </Link>
               )}
               {data.secondary_cta && (
@@ -158,7 +159,7 @@ export function HeroBlock({ data }: { data: HeroBlockData }) {
                   to={data.secondary_cta.link}
                   className="inline-flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl font-semibold text-white bg-white/15 hover:bg-white/25 active:scale-95 transition-all backdrop-blur-sm border border-white/20 text-xs sm:text-sm"
                 >
-                  {data.secondary_cta.text}
+                  <EdButton textField="secondary_cta.text" textValue={data.secondary_cta.text} linkField="secondary_cta.link" linkValue={data.secondary_cta.link} defaultLink="/p/unirse" />
                 </Link>
               )}
             </div>
@@ -208,8 +209,7 @@ export function HeroBlock({ data }: { data: HeroBlockData }) {
               to={data.primary_cta.link}
               className="inline-flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl font-semibold text-white bg-amber-600 hover:bg-amber-500 active:scale-95 transition shadow-lg text-xs sm:text-sm"
             >
-              {data.primary_cta.text}
-              <ArrowRight size={15} />
+              <EdButton textField="primary_cta.text" textValue={data.primary_cta.text} linkField="primary_cta.link" linkValue={data.primary_cta.link} defaultLink="/p/productos" icon={<ArrowRight size={15} />} />
             </Link>
           )}
           {data.secondary_cta && (
@@ -217,7 +217,7 @@ export function HeroBlock({ data }: { data: HeroBlockData }) {
               to={data.secondary_cta.link}
               className="inline-flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl font-semibold text-white bg-white/20 hover:bg-white/30 active:scale-95 transition backdrop-blur-sm border border-white/20 text-xs sm:text-sm"
             >
-              {data.secondary_cta.text}
+              <EdButton textField="secondary_cta.text" textValue={data.secondary_cta.text} linkField="secondary_cta.link" linkValue={data.secondary_cta.link} defaultLink="/p/unirse" />
             </Link>
           )}
         </div>
@@ -309,20 +309,30 @@ export function CarouselBlock({ data }: { data: CarouselBlockData }) {
       {items.length > 1 && (
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin justify-center">
           {items.map((item, idx) => (
-            <button
-              key={idx}
-              onClick={() => setCurrent(idx)}
-              className={`relative rounded-xl overflow-hidden w-16 sm:w-24 h-10 sm:h-14 flex-shrink-0 border-2 transition-all ${
-                current === idx
-                  ? 'border-amber-500 scale-105 shadow-md'
-                  : 'border-transparent opacity-60 hover:opacity-100'
-              }`}
-            >
-              <img src={item.image_url} alt="" className="w-full h-full object-cover" />
-            </button>
+            <div key={idx} className="relative">
+              <button
+                onClick={() => setCurrent(idx)}
+                className={`relative rounded-xl overflow-hidden w-16 sm:w-24 h-10 sm:h-14 flex-shrink-0 border-2 transition-all ${
+                  current === idx
+                    ? 'border-amber-500 scale-105 shadow-md'
+                    : 'border-transparent opacity-60 hover:opacity-100'
+                }`}
+              >
+                <img src={item.image_url} alt="" className="w-full h-full object-cover" />
+              </button>
+              <EdRemoveItem arrayField="items" index={idx} className="absolute -top-1 -right-1 z-10" />
+            </div>
           ))}
         </div>
       )}
+
+      <div className="text-center">
+        <EdAddItem
+          arrayField="items"
+          template={{ image_url: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1000&q=80', title: 'Nueva Foto', caption: 'Descripción de la foto', tag: 'Feria' }}
+          label="+ Añadir foto al carrusel"
+        />
+      </div>
 
       {/* Lightbox Modal */}
       {lightboxIndex !== null && (
@@ -384,6 +394,7 @@ export function FeaturesGridBlock({ data }: { data: FeaturesGridBlockData }) {
               key={idx}
               className="group bg-white rounded-2xl p-5 sm:p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 flex flex-col justify-between relative overflow-hidden"
             >
+              <EdRemoveItem arrayField="items" index={idx} className="absolute top-2 right-2 z-20" />
               <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-50 rounded-bl-full -z-0 transition group-hover:scale-125" />
               <div className="relative z-10 space-y-3">
                 <div className="flex items-center justify-between">
@@ -414,6 +425,9 @@ export function FeaturesGridBlock({ data }: { data: FeaturesGridBlockData }) {
             </div>
           )
         })}
+      </div>
+      <div className="text-center mt-4">
+        <EdAddItem arrayField="items" template={{ icon: 'leaf', title: 'Nueva Tarjeta', description: 'Descripción de la tarjeta', badge: 'Nuevo' }} label="+ Añadir tarjeta" />
       </div>
     </section>
   )
@@ -458,13 +472,17 @@ export function SplitStoryBlock({ data }: { data: SplitStoryBlockData }) {
           {data.highlights && data.highlights.length > 0 && (
             <div className="pt-2 space-y-2">
               {data.highlights.map((h, i) => (
-                <div key={i} className="flex items-start gap-2.5 text-xs sm:text-sm text-gray-800">
+                <div key={i} className="flex items-start gap-2.5 text-xs sm:text-sm text-gray-800 relative">
                   <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0 mt-0.5" />
-                  <EdArrayText arrayField="highlights" index={i} itemField="value" value={h} as="span" multiline />
+                  <EdArrayText arrayField="highlights" index={i} itemField="value" value={h} as="span" multiline className="flex-1" />
+                  <EdRemoveItem arrayField="highlights" index={i} className="absolute -right-1 -top-1" />
                 </div>
               ))}
             </div>
           )}
+          <div>
+            <EdAddItem arrayField="highlights" template="Nuevo punto destacado" label="+ Añadir punto" />
+          </div>
 
           {data.quote && (
             <blockquote className="mt-3 p-3.5 rounded-xl bg-amber-50 border-l-4 border-amber-500 text-amber-950 text-xs sm:text-sm italic">
@@ -511,10 +529,11 @@ export function StatsBlock({ data }: { data: StatsBlockData }) {
         {data.items.map((stat, idx) => (
           <div
             key={idx}
-            className={`p-4 sm:p-5 rounded-2xl ${
+            className={`p-4 sm:p-5 rounded-2xl relative ${
               isPrimary ? 'bg-white/10 backdrop-blur-sm border border-white/10' : 'bg-gray-50 border border-gray-100'
             }`}
           >
+            <EdRemoveItem arrayField="items" index={idx} className="absolute top-1 right-1 z-10" />
             <EdArrayText arrayField="items" index={idx} itemField="value" value={stat.value} as="div" className="text-2xl sm:text-4xl font-extrabold text-amber-400 mb-1 tracking-tight" />
             <EdArrayText arrayField="items" index={idx} itemField="label" value={stat.label} as="div" className="font-bold text-xs sm:text-sm mb-0.5" />
             {stat.description && (
@@ -522,6 +541,9 @@ export function StatsBlock({ data }: { data: StatsBlockData }) {
             )}
           </div>
         ))}
+      </div>
+      <div className="text-center mt-4">
+        <EdAddItem arrayField="items" template={{ value: '0', label: 'Nueva estadística', description: 'Descripción' }} label="+ Añadir estadística" />
       </div>
     </section>
   )
@@ -580,8 +602,7 @@ export function EventScheduleBlock({ data }: { data: EventScheduleBlockData }) {
                 to={data.cta_link}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-white bg-emerald-800 hover:bg-emerald-700 active:scale-95 transition shadow text-xs sm:text-sm"
               >
-                {data.cta_text}
-                <ArrowRight size={15} />
+                <EdButton textField="cta_text" textValue={data.cta_text} linkField="cta_link" linkValue={data.cta_link} defaultLink="/p/unirse" icon={<ArrowRight size={15} />} />
               </Link>
             </div>
           )}
@@ -594,12 +615,14 @@ export function EventScheduleBlock({ data }: { data: EventScheduleBlockData }) {
           </h3>
           <ul className="space-y-2 text-xs sm:text-sm text-gray-700">
             {(data.guidelines || []).map((g, i) => (
-              <li key={i} className="flex items-start gap-2">
+              <li key={i} className="flex items-start gap-2 relative">
                 <span className="text-emerald-600 font-bold">•</span>
-                <span>{g}</span>
+                <EdArrayText arrayField="guidelines" index={i} itemField="value" value={g} as="span" multiline className="flex-1" />
+                <EdRemoveItem arrayField="guidelines" index={i} className="absolute -right-1 -top-1" />
               </li>
             ))}
           </ul>
+          <EdAddItem arrayField="guidelines" template="Nueva norma o recomendación" label="+ Añadir norma" />
         </div>
       </div>
     </section>
@@ -666,8 +689,9 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
           return (
           <div
             key={idx}
-            className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 flex flex-col"
+            className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 flex flex-col relative"
           >
+            <EdRemoveItem arrayField="items" index={realIdx} className="absolute top-2 right-2 z-20" />
             {prod.image_url ? (
               <div className="aspect-[4/3] overflow-hidden relative bg-gray-100">
                 <EdArrayImage arrayField="items" index={realIdx} itemField="image_url" src={prod.image_url} alt={prod.name} className="w-full h-full object-cover transition duration-500 group-hover:scale-105" />
@@ -703,6 +727,9 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
           )
         })}
       </div>
+      <div className="text-center mt-4">
+        <EdAddItem arrayField="items" template={{ name: 'Nuevo Producto', category: 'Cosecha Fresca', description: 'Descripción del producto', badge: '', image_url: '', price_energy: '' }} label="+ Añadir producto" />
+      </div>
     </section>
   )
 }
@@ -728,6 +755,7 @@ export function TestimonialsBlock({ data }: { data: TestimonialsBlockData }) {
             key={idx}
             className="bg-white rounded-3xl p-5 sm:p-8 shadow-sm hover:shadow-md transition border border-gray-100 flex flex-col justify-between relative"
           >
+            <EdRemoveItem arrayField="items" index={idx} className="absolute top-2 right-2 z-10" />
             <div className="space-y-2">
               <span className="text-3xl text-emerald-300 font-serif leading-none block">“</span>
               <EdArrayText arrayField="items" index={idx} itemField="quote" value={item.quote} as="p" className="text-xs sm:text-sm text-gray-700 italic leading-relaxed" multiline />
@@ -749,6 +777,9 @@ export function TestimonialsBlock({ data }: { data: TestimonialsBlockData }) {
             </div>
           </div>
         ))}
+      </div>
+      <div className="text-center mt-4">
+        <EdAddItem arrayField="items" template={{ name: 'Nuevo Miembro', role: 'Productor', project: '', quote: 'Cita del miembro', location: '' }} label="+ Añadir testimonio" />
       </div>
     </section>
   )
@@ -777,8 +808,9 @@ export function TruequeExplainerBlock({ data }: { data: TruequeExplainerBlockDat
           return (
             <div
               key={idx}
-              className="bg-gray-50 rounded-2xl p-4 border border-gray-100 flex flex-col justify-between group hover:bg-emerald-50/50 hover:border-emerald-200 transition"
+              className="bg-gray-50 rounded-2xl p-4 border border-gray-100 flex flex-col justify-between group hover:bg-emerald-50/50 hover:border-emerald-200 transition relative"
             >
+              <EdRemoveItem arrayField="steps" index={idx} className="absolute top-1 right-1 z-10" />
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="w-7 h-7 rounded-full bg-emerald-800 text-white font-bold text-xs flex items-center justify-center shadow">
@@ -794,6 +826,9 @@ export function TruequeExplainerBlock({ data }: { data: TruequeExplainerBlockDat
             </div>
           )
         })}
+      </div>
+      <div className="text-center mt-2">
+        <EdAddItem arrayField="steps" template={{ step: 5, title: 'Nuevo Paso', description: 'Descripción del paso', icon: 'scale' }} label="+ Añadir paso" />
       </div>
 
       {data.key_points && (
@@ -850,8 +885,9 @@ export function NewsFeedBlock({ data }: { data: NewsFeedBlockData }) {
         {data.items.map((art, idx) => (
           <article
             key={idx}
-            className="bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-lg transition flex flex-col justify-between group"
+            className="bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-lg transition flex flex-col justify-between group relative"
           >
+            <EdRemoveItem arrayField="items" index={idx} className="absolute top-2 right-2 z-10" />
             <div>
               {art.image_url ? (
                 <div className="aspect-[16/9] overflow-hidden relative">
@@ -889,6 +925,9 @@ export function NewsFeedBlock({ data }: { data: NewsFeedBlockData }) {
           </article>
         ))}
       </div>
+      <div className="text-center mt-4">
+        <EdAddItem arrayField="items" template={{ title: 'Nueva noticia', date: '2025', author: '', category: 'Noticia', excerpt: 'Resumen de la noticia', image_url: '' }} label="+ Añadir noticia" />
+      </div>
     </section>
   )
 }
@@ -912,6 +951,7 @@ export function TimelineHistoryBlock({ data }: { data: TimelineHistoryBlockData 
       <div className="relative border-l-2 border-emerald-500 ml-4 sm:ml-8 pl-6 sm:pl-8 space-y-8">
         {data.items.map((item, idx) => (
           <div key={idx} className="relative group">
+            <EdRemoveItem arrayField="items" index={idx} className="absolute -right-2 top-0 z-10" />
             <span className="absolute -left-[33px] sm:-left-[41px] top-1 w-6 h-6 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center ring-4 ring-white shadow">
               ✓
             </span>
@@ -929,6 +969,9 @@ export function TimelineHistoryBlock({ data }: { data: TimelineHistoryBlockData 
             </div>
           </div>
         ))}
+      </div>
+      <div className="text-center mt-4">
+        <EdAddItem arrayField="items" template={{ year: '2025', title: 'Nuevo hito', description: 'Descripción del hito', badge: 'Hito' }} label="+ Añadir hito" />
       </div>
     </section>
   )
@@ -1140,8 +1183,9 @@ export function FaqBlock({ data }: { data: FaqBlockData }) {
           return (
             <div
               key={idx}
-              className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-xs transition"
+              className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-xs transition relative"
             >
+              <EdRemoveItem arrayField="items" index={idx} className="absolute top-2 right-2 z-10" />
               <button
                 onClick={() => setOpenIdx(isOpen ? null : idx)}
                 className="w-full p-4 sm:p-5 text-left flex items-center justify-between gap-4 hover:bg-gray-50 transition"
@@ -1159,6 +1203,9 @@ export function FaqBlock({ data }: { data: FaqBlockData }) {
             </div>
           )
         })}
+      </div>
+      <div className="text-center mt-4">
+        <EdAddItem arrayField="items" template={{ question: 'Nueva pregunta', answer: 'Respuesta a la pregunta' }} label="+ Añadir pregunta" />
       </div>
     </section>
   )
@@ -1192,15 +1239,14 @@ export function CtaBannerBlock({ data }: { data: CtaBannerBlockData }) {
             to={data.button_link}
             className="inline-flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl font-bold text-gray-900 bg-white hover:bg-gray-100 active:scale-95 transition shadow text-xs sm:text-sm"
           >
-            {data.button_text}
-            <ArrowRight size={15} />
+            <EdButton textField="button_text" textValue={data.button_text} linkField="button_link" linkValue={data.button_link} defaultLink="/p/unirse" icon={<ArrowRight size={15} />} />
           </Link>
           {data.secondary_text && data.secondary_link && (
             <Link
               to={data.secondary_link}
               className="inline-flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl font-bold text-white bg-white/20 hover:bg-white/30 active:scale-95 transition backdrop-blur border border-white/20 text-xs sm:text-sm"
             >
-              {data.secondary_text}
+              <EdButton textField="secondary_text" textValue={data.secondary_text} linkField="secondary_link" linkValue={data.secondary_link} defaultLink="/p/unirse" />
             </Link>
           )}
         </div>
@@ -1277,7 +1323,7 @@ export function ContactLocationBlock({ data }: { data: ContactLocationBlockData 
             className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-pink-50 text-pink-700 border border-pink-200 text-xs font-bold hover:bg-pink-100 transition"
           >
             <Instagram size={15} />
-            Instagram @{data.instagram}
+            Instagram @<EdText field="instagram" value={data.instagram} as="span" />
           </a>
         )}
         {data.facebook && (
@@ -1288,7 +1334,7 @@ export function ContactLocationBlock({ data }: { data: ContactLocationBlockData 
             className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold hover:bg-blue-100 transition"
           >
             <Facebook size={15} />
-            Facebook @{data.facebook}
+            Facebook @<EdText field="facebook" value={data.facebook} as="span" />
           </a>
         )}
         {data.email && (
@@ -1297,7 +1343,7 @@ export function ContactLocationBlock({ data }: { data: ContactLocationBlockData 
             className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold hover:bg-emerald-100 transition"
           >
             <Mail size={15} />
-            {data.email}
+            <EdText field="email" value={data.email} as="span" />
           </a>
         )}
       </div>
@@ -1312,10 +1358,12 @@ export function BlockRenderer({
   block,
   editMode = false,
   onFieldChange,
+  onArrayChange,
 }: {
   block: SiteBlock
   editMode?: boolean
   onFieldChange?: (path: string, value: any) => void
+  onArrayChange?: (action: 'add' | 'remove', arrayField: string, index?: number, item?: any) => void
 }) {
   // Helper to apply field changes to the block data
   const handleFieldChange = (path: string, value: any) => {
@@ -1368,7 +1416,7 @@ export function BlockRenderer({
 
   if (editMode) {
     return (
-      <InlineEditProvider editMode={editMode} onFieldChange={handleFieldChange}>
+      <InlineEditProvider editMode={editMode} onFieldChange={handleFieldChange} onArrayChange={onArrayChange}>
         {inner}
       </InlineEditProvider>
     )

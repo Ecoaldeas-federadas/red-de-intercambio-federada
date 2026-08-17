@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react'
-import { Image as ImageIcon, X, Check } from 'lucide-react'
+import { Image as ImageIcon, X, Check, Plus, Trash2, Upload, Link2 } from 'lucide-react'
+import { api } from '../../api'
 
 // -------------------------------------------------------------
 // INLINE EDIT CONTEXT
@@ -9,6 +10,8 @@ interface InlineEditContextType {
   updateField: (field: string, value: any) => void
   updateArrayItem: (arrayField: string, index: number, itemField: string, value: any) => void
   updateNested: (path: string, value: any) => void
+  addArrayItem: (arrayField: string, template: any) => void
+  removeArrayItem: (arrayField: string, index: number) => void
 }
 
 const InlineEditContext = createContext<InlineEditContextType>({
@@ -16,6 +19,8 @@ const InlineEditContext = createContext<InlineEditContextType>({
   updateField: () => {},
   updateArrayItem: () => {},
   updateNested: () => {},
+  addArrayItem: () => {},
+  removeArrayItem: () => {},
 })
 
 export function useInlineEdit() {
@@ -25,10 +30,12 @@ export function useInlineEdit() {
 export function InlineEditProvider({
   editMode,
   onFieldChange,
+  onArrayChange,
   children,
 }: {
   editMode: boolean
   onFieldChange: (path: string, value: any) => void
+  onArrayChange?: (action: 'add' | 'remove', arrayField: string, index?: number, item?: any) => void
   children: React.ReactNode
 }) {
   const updateField = useCallback((field: string, value: any) => {
@@ -43,8 +50,16 @@ export function InlineEditProvider({
     onFieldChange(path, value)
   }, [onFieldChange])
 
+  const addArrayItem = useCallback((arrayField: string, template: any) => {
+    if (onArrayChange) onArrayChange('add', arrayField, undefined, template)
+  }, [onArrayChange])
+
+  const removeArrayItem = useCallback((arrayField: string, index: number) => {
+    if (onArrayChange) onArrayChange('remove', arrayField, index)
+  }, [onArrayChange])
+
   return (
-    <InlineEditContext.Provider value={{ editMode, updateField, updateArrayItem, updateNested }}>
+    <InlineEditContext.Provider value={{ editMode, updateField, updateArrayItem, updateNested, addArrayItem, removeArrayItem }}>
       {children}
     </InlineEditContext.Provider>
   )
@@ -56,7 +71,7 @@ export function InlineEditProvider({
 interface EdTextProps {
   field: string
   value: string
-  as?: 'h1' | 'h2' | 'h3' | 'h4' | 'p' | 'span' | 'div' | 'li'
+  as?: 'h1' | 'h2' | 'h3' | 'h4' | 'p' | 'span' | 'div' | 'li' | 'b' | 'a'
   className?: string
   placeholder?: string
   multiline?: boolean
@@ -73,7 +88,6 @@ export function EdText({
   const { editMode, updateField } = useInlineEdit()
   const ref = useRef<HTMLElement>(null)
 
-  // Sync external value changes to DOM (only when not focused)
   useEffect(() => {
     if (ref.current && document.activeElement !== ref.current) {
       ref.current.textContent = value || ''
@@ -113,14 +127,14 @@ export function EdText({
 }
 
 // -------------------------------------------------------------
-// EDITABLE ARRAY ITEM TEXT - for items inside arrays
+// EDITABLE ARRAY ITEM TEXT
 // -------------------------------------------------------------
 interface EdArrayTextProps {
   arrayField: string
   index: number
   itemField: string
   value: string
-  as?: 'h1' | 'h2' | 'h3' | 'h4' | 'p' | 'span' | 'div' | 'li'
+  as?: 'h1' | 'h2' | 'h3' | 'h4' | 'p' | 'span' | 'div' | 'li' | 'b'
   className?: string
   multiline?: boolean
 }
@@ -173,7 +187,301 @@ export function EdArrayText({
 }
 
 // -------------------------------------------------------------
-// EDITABLE IMAGE - click to change URL
+// EDITABLE BUTTON - edit text inline, no navigation in edit mode
+// -------------------------------------------------------------
+interface EdButtonProps {
+  textField: string
+  textValue: string
+  linkField?: string
+  linkValue?: string
+  className?: string
+  icon?: React.ReactNode
+  defaultLink?: string
+}
+
+export function EdButton({
+  textField,
+  textValue,
+  linkField,
+  linkValue,
+  className = '',
+  icon,
+  defaultLink = '/p/unirse',
+}: EdButtonProps) {
+  const { editMode, updateField } = useInlineEdit()
+  const ref = useRef<HTMLSpanElement>(null)
+  const [showLinkEditor, setShowLinkEditor] = useState(false)
+  const [tempLink, setTempLink] = useState(linkValue || '')
+
+  useEffect(() => {
+    if (ref.current && document.activeElement !== ref.current) {
+      ref.current.textContent = textValue || ''
+    }
+  }, [textValue])
+
+  if (!editMode) {
+    return (
+      <span className={className}>
+        {textValue}
+        {icon}
+      </span>
+    )
+  }
+
+  return (
+    <span className="relative inline-block group/btn">
+      <span
+        ref={ref}
+        contentEditable
+        suppressContentEditableWarning
+        onBlur={(e) => {
+          const newText = e.currentTarget.textContent || ''
+          if (newText !== textValue) updateField(textField, newText)
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            e.currentTarget.blur()
+          }
+        }}
+        className={`${className} outline-none cursor-text hover:bg-yellow-100/40 focus:bg-yellow-100/60 focus:ring-2 focus:ring-amber-400 rounded-sm`}
+        title="Clic para editar texto del botón"
+      />
+      {linkField && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            setTempLink(linkValue || '')
+            setShowLinkEditor(!showLinkEditor)
+          }}
+          className="absolute -top-2 -right-2 w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover/btn:opacity-100 transition shadow-lg"
+          title="Editar enlace del botón"
+        >
+          <Link2 size={11} />
+        </button>
+      )}
+      {showLinkEditor && linkField && (
+        <div className="absolute top-full left-0 mt-1 z-50 bg-white rounded-lg shadow-xl border border-gray-200 p-2 flex items-center gap-1.5 min-w-[220px]">
+          <input
+            type="text"
+            value={tempLink}
+            onChange={(e) => setTempLink(e.target.value)}
+            placeholder="/p/..."
+            className="flex-1 px-2 py-1 text-[11px] border border-gray-300 rounded outline-none focus:border-emerald-500"
+            autoFocus
+          />
+          <button
+            onClick={() => {
+              updateField(linkField, tempLink || defaultLink)
+              setShowLinkEditor(false)
+            }}
+            className="px-2 py-1 bg-emerald-600 text-white text-[10px] font-bold rounded hover:bg-emerald-700"
+          >
+            <Check size={11} />
+          </button>
+          <button
+            onClick={() => setShowLinkEditor(false)}
+            className="px-1.5 py-1 bg-gray-200 text-gray-700 text-[10px] font-bold rounded hover:bg-gray-300"
+          >
+            <X size={11} />
+          </button>
+        </div>
+      )}
+    </span>
+  )
+}
+
+// -------------------------------------------------------------
+// ADD / REMOVE ITEM CONTROLS - for arrays
+// -------------------------------------------------------------
+export function EdAddItem({
+  arrayField,
+  template,
+  label = '+ Añadir',
+  className = '',
+}: {
+  arrayField: string
+  template: any
+  label?: string
+  className?: string
+}) {
+  const { editMode, addArrayItem } = useInlineEdit()
+  if (!editMode) return null
+  return (
+    <button
+      onClick={() => addArrayItem(arrayField, template)}
+      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-[11px] font-bold hover:bg-emerald-200 transition border border-emerald-300 ${className}`}
+    >
+      <Plus size={12} />
+      {label}
+    </button>
+  )
+}
+
+export function EdRemoveItem({
+  arrayField,
+  index,
+  className = '',
+}: {
+  arrayField: string
+  index: number
+  className?: string
+}) {
+  const { editMode, removeArrayItem } = useInlineEdit()
+  if (!editMode) return null
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation()
+        removeArrayItem(arrayField, index)
+      }}
+      className={`inline-flex items-center justify-center w-5 h-5 bg-red-500 text-white rounded-full hover:bg-red-600 transition shadow ${className}`}
+      title="Eliminar este item"
+    >
+      <Trash2 size={11} />
+    </button>
+  )
+}
+
+// -------------------------------------------------------------
+// IMAGE UPLOAD HELPER
+// -------------------------------------------------------------
+async function uploadImage(file: File): Promise<string | null> {
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    const token = localStorage.getItem('fmc_token')
+    const res = await fetch('/api/uploads/image', {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.url || data.path || null
+  } catch {
+    return null
+  }
+}
+
+// -------------------------------------------------------------
+// IMAGE EDITOR MODAL - URL + Upload + Presets
+// -------------------------------------------------------------
+function ImageEditorModal({
+  initialUrl,
+  onApply,
+  onCancel,
+  compact = false,
+}: {
+  initialUrl: string
+  onApply: (url: string) => void
+  onCancel: () => void
+  compact?: boolean
+}) {
+  const [tempUrl, setTempUrl] = useState(initialUrl)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const presets = [
+    { label: 'Hortalizas', url: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80' },
+    { label: 'Siembra', url: 'https://images.unsplash.com/photo-1592417817098-8f3d69102a5e?auto=format&fit=crop&w=900&q=80' },
+    { label: 'Cosecha', url: 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&w=1000&q=80' },
+    { label: 'Ecoaldea', url: 'https://images.unsplash.com/photo-1516253593875-bd7ba052fbc5?auto=format&fit=crop&w=1200&q=80' },
+    { label: 'Mercado', url: 'https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&w=1200&q=80' },
+    { label: 'Semillas', url: 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?auto=format&fit=crop&w=900&q=80' },
+  ]
+
+  const handleUpload = async (file: File) => {
+    setUploading(true)
+    setUploadError('')
+    const url = await uploadImage(file)
+    setUploading(false)
+    if (url) {
+      setTempUrl(url)
+    } else {
+      setUploadError('No se pudo subir. Verifica que el servidor tenga el endpoint /api/uploads/image')
+    }
+  }
+
+  return (
+    <div className={`bg-white/95 flex flex-col items-center justify-center p-3 gap-2 rounded-lg ${compact ? '' : 'z-30 absolute inset-0'}`}>
+      {/* Upload area */}
+      <div
+        onClick={() => fileRef.current?.click()}
+        className="w-full max-w-xs border-2 border-dashed border-emerald-400 rounded-xl p-3 text-center cursor-pointer hover:bg-emerald-50 transition"
+      >
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) handleUpload(f)
+          }}
+        />
+        {uploading ? (
+          <p className="text-xs text-emerald-700 font-bold">Subiendo...</p>
+        ) : (
+          <>
+            <Upload size={20} className="mx-auto text-emerald-600 mb-1" />
+            <p className="text-[11px] text-gray-600 font-semibold">Subir imagen desde tu PC</p>
+          </>
+        )}
+      </div>
+      {uploadError && <p className="text-[10px] text-red-500">{uploadError}</p>}
+
+      {/* URL input */}
+      <div className="flex items-center gap-1.5 w-full max-w-xs">
+        <input
+          type="text"
+          value={tempUrl}
+          onChange={(e) => setTempUrl(e.target.value)}
+          placeholder="O pega una URL..."
+          className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded-lg outline-none focus:border-emerald-500"
+        />
+      </div>
+
+      {/* Presets */}
+      <div className="flex flex-wrap gap-1 max-w-xs justify-center">
+        {presets.map((pic) => (
+          <button
+            key={pic.label}
+            onClick={() => setTempUrl(pic.url)}
+            className="px-2 py-0.5 bg-gray-100 hover:bg-emerald-100 text-[10px] text-gray-700 rounded"
+          >
+            {pic.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Preview */}
+      {tempUrl && (
+        <img src={tempUrl} alt="" className="max-h-20 rounded-lg object-cover" />
+      )}
+
+      {/* Actions */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => onApply(tempUrl)}
+          className="px-3 py-1 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 flex items-center gap-1"
+        >
+          <Check size={12} /> Aplicar
+        </button>
+        <button
+          onClick={onCancel}
+          className="px-3 py-1 bg-gray-200 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-300 flex items-center gap-1"
+        >
+          <X size={12} /> Cancelar
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// -------------------------------------------------------------
+// EDITABLE IMAGE
 // -------------------------------------------------------------
 interface EdImageProps {
   field: string
@@ -186,7 +494,6 @@ interface EdImageProps {
 export function EdImage({ field, src, alt = '', className = '', style }: EdImageProps) {
   const { editMode, updateField } = useInlineEdit()
   const [showEditor, setShowEditor] = useState(false)
-  const [tempUrl, setTempUrl] = useState(src)
 
   if (!editMode) {
     return <img src={src} alt={alt} className={className} style={style} />
@@ -198,65 +505,24 @@ export function EdImage({ field, src, alt = '', className = '', style }: EdImage
         src={src}
         alt={alt}
         className={`${className} cursor-pointer`}
-        onClick={() => {
-          setTempUrl(src)
-          setShowEditor(true)
-        }}
+        onClick={() => setShowEditor(true)}
       />
-      <div
-        className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center pointer-events-none"
-      >
+      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center pointer-events-none">
         <div className="bg-white/90 rounded-lg px-3 py-1.5 text-xs font-bold text-gray-900 flex items-center gap-1.5">
           <ImageIcon size={14} />
           Clic para cambiar imagen
         </div>
       </div>
       {showEditor && (
-        <div className="absolute inset-0 z-30 bg-white/95 flex flex-col items-center justify-center p-3 gap-2 rounded-lg">
-          <div className="flex items-center gap-2 w-full max-w-xs">
-            <input
-              type="text"
-              value={tempUrl}
-              onChange={(e) => setTempUrl(e.target.value)}
-              placeholder="URL de la imagen..."
-              className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded-lg outline-none focus:border-emerald-500"
-              autoFocus
-            />
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                updateField(field, tempUrl)
-                setShowEditor(false)
-              }}
-              className="px-3 py-1 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 flex items-center gap-1"
-            >
-              <Check size={12} /> Aplicar
-            </button>
-            <button
-              onClick={() => setShowEditor(false)}
-              className="px-3 py-1 bg-gray-200 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-300 flex items-center gap-1"
-            >
-              <X size={12} /> Cancelar
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-1 max-w-xs justify-center">
-            {[
-              { label: 'Hortalizas', url: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80' },
-              { label: 'Siembra', url: 'https://images.unsplash.com/photo-1592417817098-8f3d69102a5e?auto=format&fit=crop&w=900&q=80' },
-              { label: 'Cosecha', url: 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&w=1000&q=80' },
-              { label: 'Ecoaldea', url: 'https://images.unsplash.com/photo-1516253593875-bd7ba052fbc5?auto=format&fit=crop&w=1200&q=80' },
-              { label: 'Mercado', url: 'https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&w=1200&q=80' },
-            ].map((pic) => (
-              <button
-                key={pic.label}
-                onClick={() => setTempUrl(pic.url)}
-                className="px-2 py-0.5 bg-gray-100 hover:bg-emerald-100 text-[10px] text-gray-700 rounded"
-              >
-                {pic.label}
-              </button>
-            ))}
-          </div>
+        <div className="absolute inset-0 z-30">
+          <ImageEditorModal
+            initialUrl={src}
+            onApply={(url) => {
+              updateField(field, url)
+              setShowEditor(false)
+            }}
+            onCancel={() => setShowEditor(false)}
+          />
         </div>
       )}
     </div>
@@ -287,7 +553,6 @@ export function EdArrayImage({
 }: EdArrayImageProps) {
   const { editMode, updateArrayItem } = useInlineEdit()
   const [showEditor, setShowEditor] = useState(false)
-  const [tempUrl, setTempUrl] = useState(src)
 
   if (!editMode) {
     return <img src={src} alt={alt} className={className} style={style} />
@@ -299,10 +564,7 @@ export function EdArrayImage({
         src={src}
         alt={alt}
         className={`${className} cursor-pointer`}
-        onClick={() => {
-          setTempUrl(src)
-          setShowEditor(true)
-        }}
+        onClick={() => setShowEditor(true)}
       />
       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center pointer-events-none">
         <div className="bg-white/90 rounded-lg px-2 py-1 text-[10px] font-bold text-gray-900 flex items-center gap-1">
@@ -310,32 +572,16 @@ export function EdArrayImage({
         </div>
       </div>
       {showEditor && (
-        <div className="absolute inset-0 z-30 bg-white/95 flex flex-col items-center justify-center p-2 gap-1.5 rounded-lg">
-          <input
-            type="text"
-            value={tempUrl}
-            onChange={(e) => setTempUrl(e.target.value)}
-            placeholder="URL..."
-            className="w-full max-w-[200px] px-2 py-1 text-[11px] border border-gray-300 rounded outline-none focus:border-emerald-500"
-            autoFocus
+        <div className="absolute inset-0 z-30">
+          <ImageEditorModal
+            initialUrl={src}
+            compact
+            onApply={(url) => {
+              updateArrayItem(arrayField, index, itemField, url)
+              setShowEditor(false)
+            }}
+            onCancel={() => setShowEditor(false)}
           />
-          <div className="flex gap-1.5">
-            <button
-              onClick={() => {
-                updateArrayItem(arrayField, index, itemField, tempUrl)
-                setShowEditor(false)
-              }}
-              className="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-bold rounded hover:bg-emerald-700 flex items-center gap-0.5"
-            >
-              <Check size={10} /> OK
-            </button>
-            <button
-              onClick={() => setShowEditor(false)}
-              className="px-2 py-0.5 bg-gray-200 text-gray-700 text-[10px] font-bold rounded hover:bg-gray-300"
-            >
-              <X size={10} />
-            </button>
-          </div>
         </div>
       )}
     </div>

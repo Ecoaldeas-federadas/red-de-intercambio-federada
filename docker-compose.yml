@@ -11,6 +11,7 @@ services:
       - ./config.yaml:/app/config.yaml:ro
       - ./firmware:/app/firmware:ro
       - firmware_builds:/tmp/firmware-builds
+      - uploads:/app/uploads
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       - yugabytedb
@@ -52,3 +53,4 @@ volumes:
   yb_data:
   yb_tserver:
   firmware_builds:
+  uploads:

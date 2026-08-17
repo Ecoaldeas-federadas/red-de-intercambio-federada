@@ -1,15 +1,36 @@
-fix(auth): RequirePermission valida JWT propio y super admin bypass
+feat(editor): edicion inline completa + subida de imagenes + footer editable
 
-RequirePermission dependia de RequireAuth para poner user_id en contexto,
-pero en system.go las rutas POST/PUT solo usan RequirePermission. Eso
-provocaba 401 "authentication required" incluso para el super admin.
+Edicion WYSIWYG mejorada:
+- EdButton: botones CTA editables inline (texto + enlace), no navegan en edicion
+- EdAddItem / EdRemoveItem: agregar y quitar items en todos los arrays
+  - Carrusel: añadir/quitar fotos
+  - Features grid: añadir/quitar tarjetas
+  - Testimonios: añadir/quitar voces
+  - Timeline: añadir/quitar hitos
+  - FAQ: añadir/quitar preguntas
+  - Trueque explainer: añadir/quitar pasos
+  - Event schedule: añadir/quitar normas
+  - News feed: añadir/quitar noticias
+  - Products showcase: añadir/quitar productos
+  - Stats: añadir/quitar estadísticas
+  - Split story: añadir/quitar highlights
+- Contact location: instagram, facebook, email editables inline
+- ImageEditorModal: subir imagen desde PC + URL + presets
 
-Ahora RequirePermission valida el token JWT y popula el contexto antes
-de revisar permisos, y el super admin sigue teniendo acceso a todo.
+Backend:
+- Migracion 017: footer_about, footer_schedule + tabla uploaded_images
+- Endpoint POST /api/uploads/image (subir imagenes, max 10MB)
+- Endpoint GET /api/uploads/images (listar imagenes subidas)
+- Servir /uploads/* como archivos estaticos
+- getPublicSettings y updateSiteSettings incluyen footer_about, footer_schedule
 
-Ademas, Products.tsx ahora oculta el boton Nuevo y el formulario a
-usuarios sin products.manage (antes usaba assembly.propose|pricing.manage
-que no coincidian con el permiso real del backend).
+Docker:
+- Volumen uploads:/app/uploads para persistir imagenes subidas
+
+Footer:
+- Usa footer_about y footer_schedule desde la BD
+- WebsiteAdmin: nueva seccion "Pie de Pagina" con todos los campos editables
+  (footer_about, footer_schedule, instagram, facebook, direccion)
 
 Generated with [Devin](https://devin.ai)
 

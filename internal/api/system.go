@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -98,6 +101,10 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequirePermission("calculator.manage_params")).Delete("/api/calculator/params/{id}", h.deleteCalcParam)
 	r.With(am.RequirePermission("calculator.manage_params")).Post("/api/calculator/params/{id}/approve", h.approveCalcParam)
 	r.With(am.RequirePermission("calculator.manage_params")).Post("/api/calculator/categories", h.createCalcCategory)
+
+	// Subida de imagenes (para el editor visual del sitio publico)
+	r.With(am.RequireAuth).Post("/api/uploads/image", h.uploadImage)
+	r.With(am.RequireAuth).Get("/api/uploads/images", h.listUploadedImages)
 }
 
 // ===== AUDITORIA =====
@@ -1514,6 +1521,7 @@ func (h *SystemHandler) getPublicSettings(w http.ResponseWriter, r *http.Request
 	var showJoinForm bool
 	var headerStyle, announcementText, footerStyle *string
 	var showAnnouncement *bool
+	var footerAbout, footerSchedule *string
 
 	err := h.Pool.QueryRow(r.Context(), `
 		SELECT site_title, site_subtitle, COALESCE(logo_url, ''), primary_color, secondary_color,
@@ -1523,12 +1531,15 @@ func (h *SystemHandler) getPublicSettings(w http.ResponseWriter, r *http.Request
 		       COALESCE(header_style, 'modern_eco'),
 		       COALESCE(announcement_text, '🗓️ Próximo Encuentro Conuquero: Primer sábado de cada mes en Parque Los Caobos, Caracas | 9:00 AM'),
 		       COALESCE(show_announcement, true),
-		       COALESCE(footer_style, 'columns')
+		       COALESCE(footer_style, 'columns'),
+		       COALESCE(footer_about, 'Mercado a cielo abierto para todo el público en moneda local, agroecología, trueque y soberanía alimentaria en Caracas desde octubre de 2014.'),
+		       COALESCE(footer_schedule, 'Primer sábado de cada mes (9:00 AM a 1:00 PM). Venta en moneda local.')
 		FROM public_settings WHERE node_domain = $1`, nodeDomain).Scan(
 		&siteTitle, &siteSubtitle, &logoURL, &primaryColor, &secondaryColor,
 		&contactEmail, &contactPhone, &contactAddress,
 		&ig, &fb, &twitter, &showJoinForm,
-		&headerStyle, &announcementText, &showAnnouncement, &footerStyle)
+		&headerStyle, &announcementText, &showAnnouncement, &footerStyle,
+		&footerAbout, &footerSchedule)
 	if err != nil {
 		writeJSON(w, 200, map[string]interface{}{
 			"site_title":        "Feria Conuquera Agroecologica",
@@ -1578,6 +1589,8 @@ func (h *SystemHandler) getPublicSettings(w http.ResponseWriter, r *http.Request
 		"announcement_text": aText,
 		"show_announcement": sAnnounce,
 		"footer_style":      fStyle,
+		"footer_about":      footerAbout,
+		"footer_schedule":   footerSchedule,
 	})
 }
 
@@ -1908,6 +1921,8 @@ type UpdateSiteSettingsReq struct {
 	AnnouncementText string `json:"announcement_text"`
 	ShowAnnouncement bool   `json:"show_announcement"`
 	FooterStyle      string `json:"footer_style"`
+	FooterAbout      string `json:"footer_about"`
+	FooterSchedule   string `json:"footer_schedule"`
 }
 
 func (h *SystemHandler) updateSiteSettings(w http.ResponseWriter, r *http.Request) {
@@ -1935,12 +1950,14 @@ func (h *SystemHandler) updateSiteSettings(w http.ResponseWriter, r *http.Reques
 			contact_email = $6, contact_phone = $7, contact_address = $8,
 			social_instagram = $9, social_facebook = $10, social_twitter = $11, show_join_form = $12,
 			header_style = $13, announcement_text = $14, show_announcement = $15, footer_style = $16,
+			footer_about = $17, footer_schedule = $18,
 			updated_at = NOW()
-		WHERE node_domain = $17`,
+		WHERE node_domain = $19`,
 		req.SiteTitle, req.SiteSubtitle, req.LogoURL, req.PrimaryColor, req.SecondaryColor,
 		req.ContactEmail, req.ContactPhone, req.ContactAddress,
 		req.SocialInstagram, req.SocialFacebook, req.SocialTwitter, req.ShowJoinForm,
 		req.HeaderStyle, req.AnnouncementText, req.ShowAnnouncement, req.FooterStyle,
+		req.FooterAbout, req.FooterSchedule,
 		nodeDomain)
 	if err != nil {
 		writeError(w, 500, err.Error())
@@ -2085,4 +2102,138 @@ func itoa(n int) string {
 		n /= 10
 	}
 	return s
+}
+
+// -------------------------------------------------------------
+// IMAGE UPLOAD - for the visual site editor
+// -------------------------------------------------------------
+
+func (h *SystemHandler) uploadImage(w http.ResponseWriter, r *http.Request) {
+	// Limit to 10MB
+	r.Body = http.MaxBytesReader(w, r.Body, 10<<20)
+
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		writeError(w, 400, "file too large or invalid form (max 10MB)")
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		writeError(w, 400, "no file provided")
+		return
+	}
+	defer file.Close()
+
+	// Validate mime type
+	mimeType := header.Header.Get("Content-Type")
+	if !isAllowedImageType(mimeType) {
+		writeError(w, 400, "only image files are allowed (jpg, png, gif, webp)")
+		return
+	}
+
+	// Generate unique filename
+	ext := ".jpg"
+	switch mimeType {
+	case "image/png":
+		ext = ".png"
+	case "image/gif":
+		ext = ".gif"
+	case "image/webp":
+		ext = ".webp"
+	}
+
+	filename := fmt.Sprintf("img_%d_%s%s", time.Now().UnixNano(), randomString(6), ext)
+
+	// Save to /app/uploads/ (Docker volume)
+	uploadDir := "/app/uploads"
+	if _, err := os.Stat(uploadDir); err != nil {
+		// Fallback for local dev
+		uploadDir = "./uploads"
+	}
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		writeError(w, 500, "failed to create upload directory")
+		return
+	}
+
+	filePath := filepath.Join(uploadDir, filename)
+	dst, err := os.Create(filePath)
+	if err != nil {
+		writeError(w, 500, "failed to save file")
+		return
+	}
+	defer dst.Close()
+
+	if _, err := io.Copy(dst, file); err != nil {
+		writeError(w, 500, "failed to write file")
+		return
+	}
+
+	// URL to access the image
+	url := "/uploads/" + filename
+
+	// Save metadata in DB
+	userID, _ := h.Auth.GetUserID(r)
+	_, _ = h.Pool.Exec(r.Context(), `
+		INSERT INTO uploaded_images (id, filename, original_name, mime_type, file_size, url, uploaded_by, created_at)
+		VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, NOW())`,
+		filename, header.Filename, mimeType, header.Size, url, userID)
+
+	writeJSON(w, 201, map[string]interface{}{
+		"url":       url,
+		"filename":  filename,
+		"original":  header.Filename,
+		"size":      header.Size,
+		"mime_type": mimeType,
+	})
+}
+
+func (h *SystemHandler) listUploadedImages(w http.ResponseWriter, r *http.Request) {
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT url, filename, original_name, mime_type, file_size, created_at
+		FROM uploaded_images ORDER BY created_at DESC LIMIT 100`)
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+
+	images := []map[string]interface{}{}
+	for rows.Next() {
+		var url, filename, mimeType string
+		var originalName *string
+		var fileSize int64
+		var createdAt time.Time
+		_ = rows.Scan(&url, &filename, &originalName, &mimeType, &fileSize, &createdAt)
+		origName := ""
+		if originalName != nil {
+			origName = *originalName
+		}
+		images = append(images, map[string]interface{}{
+			"url":           url,
+			"filename":      filename,
+			"original_name": origName,
+			"mime_type":     mimeType,
+			"file_size":     fileSize,
+			"created_at":    createdAt,
+		})
+	}
+	writeJSON(w, 200, images)
+}
+
+func isAllowedImageType(mimeType string) bool {
+	switch mimeType {
+	case "image/jpeg", "image/png", "image/gif", "image/webp":
+		return true
+	}
+	return false
+}
+
+func randomString(n int) string {
+	const letters = "abcdefghijklmnopqrstuvwxyz0123456789"
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letters[time.Now().UnixNano()%int64(len(letters))]
+		time.Sleep(1 * time.Nanosecond)
+	}
+	return string(b)
 }

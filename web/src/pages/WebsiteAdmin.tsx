@@ -494,6 +494,8 @@ export default function WebsiteAdmin() {
     announcement_text: '🗓️ Próximo Encuentro Conuquero: Primer sábado de cada mes en Parque Los Caobos, Caracas | 9:00 AM',
     show_announcement: true,
     footer_style: 'columns',
+    footer_about: '',
+    footer_schedule: '',
   })
 
   const load = () => {
@@ -536,6 +538,8 @@ export default function WebsiteAdmin() {
           '🗓️ Próximo Encuentro Conuquero: Primer sábado de cada mes en Parque Los Caobos, Caracas | 9:00 AM',
         show_announcement: settings.show_announcement ?? true,
         footer_style: settings.footer_style || 'columns',
+        footer_about: settings.footer_about || '',
+        footer_schedule: settings.footer_schedule || '',
       })
     }
   }, [settings])
@@ -1420,6 +1424,64 @@ export default function WebsiteAdmin() {
                   />
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Footer Settings */}
+          <div className="card space-y-3">
+            <h3 className="font-bold text-sm text-gray-900">Pie de Página (Footer)</h3>
+            <p className="text-xs text-gray-500">Edita los textos que aparecen en el pie de página del sitio público.</p>
+
+            <div>
+              <label className="label text-xs font-bold">Descripción del nodo (footer_about)</label>
+              <textarea
+                rows={3}
+                className="input text-xs"
+                value={settingsForm.footer_about}
+                onChange={(e) => setSettingsForm({ ...settingsForm, footer_about: e.target.value })}
+                placeholder="Mercado a cielo abierto para todo el público..."
+              />
+            </div>
+
+            <div>
+              <label className="label text-xs font-bold">Horario del footer (footer_schedule)</label>
+              <input
+                className="input text-xs"
+                value={settingsForm.footer_schedule}
+                onChange={(e) => setSettingsForm({ ...settingsForm, footer_schedule: e.target.value })}
+                placeholder="Primer sábado de cada mes (9:00 AM a 1:00 PM)..."
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label text-xs font-bold">Instagram (usuario sin @)</label>
+                <input
+                  className="input text-xs"
+                  value={settingsForm.social_instagram}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, social_instagram: e.target.value })}
+                  placeholder="feriaconuquera"
+                />
+              </div>
+              <div>
+                <label className="label text-xs font-bold">Facebook (nombre de página)</label>
+                <input
+                  className="input text-xs"
+                  value={settingsForm.social_facebook}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, social_facebook: e.target.value })}
+                  placeholder="feriaconuquera"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="label text-xs font-bold">Dirección (contact_address)</label>
+              <input
+                className="input text-xs"
+                value={settingsForm.contact_address}
+                onChange={(e) => setSettingsForm({ ...settingsForm, contact_address: e.target.value })}
+                placeholder="Parque Los Caobos, Caracas..."
+              />
             </div>
           </div>
 

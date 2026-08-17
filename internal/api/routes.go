@@ -66,6 +66,18 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 	sysH := &SystemHandler{Pool: pool, Auth: am, nodeDomain: h.nodeDomain}
 	sysH.RegisterRoutes(r, am)
 
+	// Servir imagenes subidas desde /uploads/
+	r.Get("/uploads/*", func(w http.ResponseWriter, r *http.Request) {
+		uploadDir := "/app/uploads"
+		if _, err := os.Stat(uploadDir); err != nil {
+			uploadDir = "./uploads"
+		}
+		fileServer := http.FileServer(http.Dir(uploadDir))
+		// Cache uploaded images for 1 day
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		http.StripPrefix("/uploads/", fileServer).ServeHTTP(w, r)
+	})
+
 	// Servir el frontend compilado (React/Vite) desde /app/web/dist
 	// En desarrollo, el frontend corre separado en npm run dev (puerto 3000)
 	// En produccion/Docker, el backend sirve los archivos estaticos

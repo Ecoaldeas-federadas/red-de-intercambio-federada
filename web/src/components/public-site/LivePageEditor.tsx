@@ -591,6 +591,26 @@ export function LivePageEditor({
                       setBlocks(updated)
                       setHasChanges(true)
                     }}
+                    onArrayChange={(action, arrayField, index, item) => {
+                      const updated = [...blocks]
+                      const newBlock = JSON.parse(JSON.stringify(updated[index])) as SiteBlock
+                      if (action === 'add') {
+                        const arr = (newBlock as any)[arrayField]
+                        if (Array.isArray(arr)) {
+                          arr.push(item)
+                        } else {
+                          (newBlock as any)[arrayField] = [item]
+                        }
+                      } else if (action === 'remove' && index !== undefined) {
+                        const arr = (newBlock as any)[arrayField]
+                        if (Array.isArray(arr)) {
+                          arr.splice(index, 1)
+                        }
+                      }
+                      updated[index] = newBlock
+                      setBlocks(updated)
+                      setHasChanges(true)
+                    }}
                   />
                 </div>
               </div>

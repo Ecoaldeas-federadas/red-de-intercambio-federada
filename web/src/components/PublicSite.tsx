@@ -60,6 +60,8 @@ interface PublicSettings {
   announcement_text?: string
   show_announcement?: boolean
   footer_style?: string
+  footer_about?: string
+  footer_schedule?: string
 }
 
 // Helper to provide concise, clean labels in navigation bars so menus never overflow
@@ -697,7 +699,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 </h3>
               </div>
               <p className="text-[11px] sm:text-xs text-gray-300 leading-relaxed">
-                Mercado a cielo abierto para todo el público en moneda local, agroecología, trueque y soberanía alimentaria en Caracas desde octubre de 2014.
+                {settings?.footer_about || 'Mercado a cielo abierto para todo el público en moneda local, agroecología, trueque y soberanía alimentaria en Caracas desde octubre de 2014.'}
               </p>
               <div className="flex items-center gap-2 text-[11px] text-emerald-300 font-semibold pt-1">
                 <ShieldCheck size={14} />
@@ -730,11 +732,11 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               <div className="text-xs text-gray-300 space-y-2">
                 <div className="flex items-start gap-2">
                   <MapPin size={15} className="text-amber-400 flex-shrink-0 mt-0.5" />
-                  <span>Parque Los Caobos, Caracas. Zona sur cerca de la Fuente Venezuela.</span>
+                  <span>{settings?.contact_address || 'Parque Los Caobos, Caracas. Zona sur cerca de la Fuente Venezuela.'}</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <Calendar size={15} className="text-amber-400 flex-shrink-0 mt-0.5" />
-                  <span>Primer sábado de cada mes (9:00 AM a 1:00 PM). Venta en moneda local.</span>
+                  <span>{settings?.footer_schedule || 'Primer sábado de cada mes (9:00 AM a 1:00 PM). Venta en moneda local.'}</span>
                 </div>
               </div>
             </div>
