@@ -829,7 +829,7 @@ func (h *SystemHandler) getFundBalance(w http.ResponseWriter, r *http.Request) {
 	var balance int64
 	var username string
 	err := h.Pool.QueryRow(r.Context(), `
-		SELECT id, balance, username FROM users WHERE node_domain = $1 AND account_type = 'fund' AND is_active = true LIMIT 1`,
+		SELECT id, balance, username FROM users WHERE node_domain = $1 AND account_type = 'fund' AND membership_status = 'active' LIMIT 1`,
 		nodeDomain).Scan(&fundID, &balance, &username)
 	if err != nil {
 		writeJSON(w, 200, map[string]interface{}{

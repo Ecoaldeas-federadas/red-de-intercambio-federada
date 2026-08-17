@@ -1,0 +1,19 @@
+fix: migracion 011 - users no tiene columna is_active
+
+ERROR:
+  Failed to run migrations: executing migration 011_default_levels_and_fund.sql:
+  ERROR: column is_active of relation users does not exist (SQLSTATE 42703)
+
+CAUSA:
+- La tabla users (migracion 001) no tiene columna is_active.
+- Usa membership_status='active' para indicar actividad.
+- La migracion 011 intentaba INSERT INTO users (..., is_active) VALUES (..., true).
+
+FIX:
+- Migracion 011: quitar is_active de los INSERTs de users (fondo_comunitario, impuestos).
+- system.go getFundBalance: cambiar is_active=true por membership_status='active'.
+- Las inserciones de member_levels SI usan is_active (esa tabla si lo tiene).
+
+Generado con [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>
