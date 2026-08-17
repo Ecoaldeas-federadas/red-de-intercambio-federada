@@ -46,6 +46,59 @@ if (-not (Get-Command docker-compose -ErrorAction SilentlyContinue) -and -not (G
 }
 Write-OK "Docker encontrado"
 
+# 1.5. Verificar si el nodo ya esta configurado
+$envPath = Join-Path $ROOT ".env"
+$configPath = Join-Path $ROOT "config.yaml"
+
+if ((Test-Path $envPath) -and (Test-Path $configPath)) {
+    Write-Host ""
+    Write-Warn "Este nodo ya esta configurado."
+    Write-Host "Se encontraron .env y config.yaml existentes." -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "Que quieres hacer?" -ForegroundColor White
+    Write-Host "  1. ACTUALIZAR (recomendado) - git pull + rebuild sin perder datos" -ForegroundColor Green
+    Write-Host "  2. RECONFIGURAR - regenerar config y secrets (¡puede invalidar sesiones!)" -ForegroundColor Yellow
+    Write-Host "  3. CANCELAR" -ForegroundColor Gray
+    Write-Host ""
+    $choice = Read-Host "Opcion (1/2/3)"
+
+    if ($choice -eq "1") {
+        Write-Host ""
+        Write-Step "Ejecutando actualizacion sin perder datos..."
+        $updateScript = Join-Path $ROOT "update.ps1"
+        if (Test-Path $updateScript) {
+            & $updateScript
+        } else {
+            # Fallback: git pull + docker-compose up -d --build
+            git pull
+            $composeExe = "docker-compose"
+            $composeArgs = @()
+            if (-not (Get-Command docker-compose -ErrorAction SilentlyContinue)) {
+                $composeExe = "docker"
+                $composeArgs = @("compose")
+            }
+            & $composeExe ($composeArgs + @("build"))
+            & $composeExe ($composeArgs + @("up", "-d"))
+        }
+        exit 0
+    } elseif ($choice -eq "2") {
+        Write-Host ""
+        Write-Warn "RECONFIGURAR: Se regeneraran los secrets."
+        Write-Warn "Las sesiones existentes se invalidaran (usuarios deben loguear de nuevo)."
+        Write-Warn "La base de datos NO se borrara (los datos se conservan)."
+        Write-Host ""
+        $confirm = Read-Host "Continuar? (s/N)"
+        if ($confirm -ne "s" -and $confirm -ne "S") {
+            Write-Host "Cancelado."
+            exit 0
+        }
+        # Continuar con la configuracion
+    } else {
+        Write-Host "Cancelado."
+        exit 0
+    }
+}
+
 # 2. Preguntar datos del nodo
 Write-Host ""
 Write-Host "Configuracion del nodo:" -ForegroundColor White
