@@ -55,6 +55,9 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequirePermission("nfc.reset_pin")).Put("/api/nfc/cards/{uid}/pin/reset", h.resetCardPIN)
 
 	r.With(am.RequireAuth).Get("/api/nfc/transactions", h.listTransactions)
+
+	// Descargar sketch chip-id-reader.ino para flashear al ESP32
+	r.With(am.RequirePermission("nfc.register_terminal")).Get("/api/nfc/chip-id-reader.ino", h.downloadChipIdReader)
 }
 
 // --- Terminal-facing endpoints ---
@@ -738,4 +741,31 @@ func (h *NFCTerminalHandler) downloadFirmware(w http.ResponseWriter, r *http.Req
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s-firmware.bin", terminalID))
 	http.ServeFile(w, r, binaryPath)
+}
+
+// downloadChipIdReader sirve el sketch chip-id-reader.ino para flashear al ESP32
+func (h *NFCTerminalHandler) downloadChipIdReader(w http.ResponseWriter, r *http.Request) {
+	// Buscar el archivo en varias ubicaciones posibles
+	candidates := []string{
+		"/app/firmware/chip-id-reader/chip-id-reader.ino",
+		"./firmware/chip-id-reader/chip-id-reader.ino",
+		"../firmware/chip-id-reader/chip-id-reader.ino",
+	}
+
+	var foundPath string
+	for _, p := range candidates {
+		if _, err := os.Stat(p); err == nil {
+			foundPath = p
+			break
+		}
+	}
+
+	if foundPath == "" {
+		writeError(w, 404, "chip-id-reader.ino not found on server")
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain")
+	w.Header().Set("Content-Disposition", "attachment; filename=chip-id-reader.ino")
+	http.ServeFile(w, r, foundPath)
 }

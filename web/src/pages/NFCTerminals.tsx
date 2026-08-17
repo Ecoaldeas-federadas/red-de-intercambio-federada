@@ -261,10 +261,27 @@ export default function NFCTerminals() {
       )}
 
       <div className="flex gap-2 flex-wrap">
-        {([['terminals', 'Terminales'], ['provision', 'Provisionar'], ['cards', 'Tarjetas'], ['transactions', 'Transacciones']] as const).map(([key, label]) => (
-          <button key={key} onClick={() => setTab(key)} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === key ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{label}</button>
-        ))}
+        {/* Terminales y Provisionar: solo admin */}
+        {canRegisterTerminal && (
+          <button onClick={() => setTab('terminals')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'terminals' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Terminales</button>
+        )}
+        {canRegisterTerminal && (
+          <button onClick={() => setTab('provision')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'provision' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Provisionar</button>
+        )}
+        {/* Tarjetas: todos pueden ver (su propia tarjeta) */}
+        <button onClick={() => setTab('cards')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'cards' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Tarjetas</button>
+        {/* Transacciones: solo admin */}
+        {canRegisterTerminal && (
+          <button onClick={() => setTab('transactions')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'transactions' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Transacciones</button>
+        )}
       </div>
+
+      {/* Si el usuario no es admin y esta en una pestaña admin, forzar a cards */}
+      {!canRegisterTerminal && tab !== 'cards' && (
+        <div className="card bg-amber-50 border-amber-200 text-sm text-amber-700">
+          No tienes permiso para ver esta seccion. Solo puedes gestionar tu tarjeta NFC.
+        </div>
+      )}
 
       {error && <div className="text-red-600 text-sm">{error}</div>}
 
@@ -273,9 +290,42 @@ export default function NFCTerminals() {
         <div className="space-y-4">
           <h2 className="font-semibold flex items-center gap-2"><Cpu size={18} /> Provisionar Terminal Nuevo</h2>
           <p className="text-sm text-gray-500">
-            Conecta el ESP32 por USB al computador. Primero flashea el sketch <code className="bg-gray-100 px-1 rounded">chip-id-reader.ino</code> para poder leer el chip ID.
+            Conecta el ESP32 por USB al computador. Primero descarga y flashea el sketch <code className="bg-gray-100 px-1 rounded">chip-id-reader.ino</code> para poder leer el chip ID.
             Luego escanea el ESP32 desde el navegador o entra el chip ID manualmente.
           </p>
+
+          {/* Descargar sketch chip-id-reader.ino */}
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+            <p className="text-sm font-medium text-amber-800">Paso 0: Descargar el sketch para leer el chip ID</p>
+            <p className="text-xs text-amber-700">
+              Descarga el archivo .ino, abrelo en Arduino IDE, conecta el ESP32 por USB y subelo.
+              Esto mostrara el chip ID en el monitor serie (115200 baud).
+            </p>
+            <button
+              onClick={async () => {
+                try {
+                  const token = localStorage.getItem('fmc_token')
+                  const res = await fetch('/api/nfc/chip-id-reader.ino', {
+                    headers: { Authorization: `Bearer ${token}` },
+                  })
+                  if (!res.ok) throw new Error('Error al descargar')
+                  const text = await res.text()
+                  const blob = new Blob([text], { type: 'text/plain' })
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = 'chip-id-reader.ino'
+                  a.click()
+                  URL.revokeObjectURL(url)
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : 'Error al descargar')
+                }
+              }}
+              className="btn-primary flex items-center gap-2"
+            >
+              <Download size={18} /> Descargar chip-id-reader.ino
+            </button>
+          </div>
 
           {/* Paso 1: Leer chip ID */}
           <div className="card space-y-3">
@@ -463,14 +513,43 @@ export default function NFCTerminals() {
             )}
           </div>
 
-          {/* Change PIN */}
+          {/* Emitir tarjeta - solo admin */}
+          {canIssueCard && (
+            <div className="card bg-blue-50 border-blue-200 text-sm text-blue-700">
+              <p>Como administrador, puedes emitir tarjetas NFC para los usuarios. La tarjeta se entrega al usuario con un PIN por defecto. El usuario debe cambiar su PIN la primera vez que la use.</p>
+            </div>
+          )}
+
+          {/* Cambiar PIN - usuario normal solo su tarjeta */}
           <div className="card space-y-3">
-            <h3 className="font-medium flex items-center gap-2"><KeyRound size={16} /> Cambiar PIN</h3>
-            <input className="input" placeholder="Card UID" value={pinChange.card_uid} onChange={(e) => setPinChange({ ...pinChange, card_uid: e.target.value })} />
-            <input className="input" type="password" placeholder="PIN actual" value={pinChange.old_pin} onChange={(e) => setPinChange({ ...pinChange, old_pin: e.target.value })} />
-            <input className="input" type="password" placeholder="PIN nuevo (4 digitos)" maxLength={4} value={pinChange.new_pin} onChange={(e) => setPinChange({ ...pinChange, new_pin: e.target.value })} />
+            <h3 className="font-medium flex items-center gap-2"><KeyRound size={16} /> Cambiar PIN de mi tarjeta</h3>
+            <p className="text-xs text-gray-500">Cambia el PIN de tu propia tarjeta NFC. Necesitas el PIN actual.</p>
+            <div>
+              <label className="label">UID de mi tarjeta</label>
+              <input className="input" placeholder="Ej: 04A3B2C1" value={pinChange.card_uid} onChange={(e) => setPinChange({ ...pinChange, card_uid: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">El UID de tu tarjeta NFC. Aparece en la parte posterior de la tarjeta.</p>
+            </div>
+            <div>
+              <label className="label">PIN actual</label>
+              <input className="input" type="password" placeholder="****" value={pinChange.old_pin} onChange={(e) => setPinChange({ ...pinChange, old_pin: e.target.value })} />
+            </div>
+            <div>
+              <label className="label">PIN nuevo (4 digitos)</label>
+              <input className="input" type="password" placeholder="****" maxLength={4} value={pinChange.new_pin} onChange={(e) => setPinChange({ ...pinChange, new_pin: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">Elige un PIN de 4 digitos que recuerdes facil.</p>
+            </div>
             <button onClick={changePIN} className="btn-primary">Cambiar PIN</button>
           </div>
+
+          {/* Reset PIN - solo admin, para resetear a PIN por defecto */}
+          {canResetPIN && (
+            <div className="card space-y-3 border-amber-200">
+              <h3 className="font-medium flex items-center gap-2"><Lock size={16} /> Resetear PIN de tarjeta (Admin)</h3>
+              <p className="text-xs text-amber-600">Solo usar si un usuario olvida su PIN. Esto resetea la tarjeta a un PIN por defecto. El usuario debera cambiarlo despues.</p>
+              <p className="text-xs text-gray-500">Lista de tarjetas para resetear:</p>
+              {/* TODO: cargar lista de tarjetas y permitir seleccionar */}
+            </div>
+          )}
         </div>
       )}
 
