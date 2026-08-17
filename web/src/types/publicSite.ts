@@ -211,7 +211,6 @@ export interface ContactLocationBlockData {
   transport_info?: string
 }
 
-// Blocks inspired by FAO / Mincyt / ACAV / BiodiversidadLA
 export interface ArticleItem {
   title: string
   date?: string
@@ -323,5 +322,34 @@ export interface PublicPageData {
   menu_order: number
   is_published: boolean
   show_in_menu: boolean
-  content: string // Can be stringified SiteBlock[] or plain markdown
+  content: string
+}
+
+// -------------------------------------------------------------
+// DYNAMIC ADMISSION FORM SCHEMA & FIELD DEFINITIONS
+// -------------------------------------------------------------
+export type FormFieldType =
+  | 'text'
+  | 'textarea'
+  | 'select'
+  | 'radio'
+  | 'checkbox'
+  | 'email'
+  | 'tel'
+  | 'number'
+
+export interface FormFieldSchema {
+  id: string
+  label: string
+  type: FormFieldType
+  placeholder?: string
+  help_text?: string
+  required?: boolean
+  options?: string[] // For select, radio, checkbox
+}
+
+export interface AdmissionFormConfig {
+  title: string
+  subtitle: string
+  schema: FormFieldSchema[]
 }

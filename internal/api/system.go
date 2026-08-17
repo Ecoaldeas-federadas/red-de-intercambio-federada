@@ -24,6 +24,7 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.Get("/api/public/settings", h.getPublicSettings)
 	r.Get("/api/public/pages", h.listPublicPages)
 	r.Get("/api/public/pages/{slug}", h.getPublicPage)
+	r.Get("/api/public/admission-form", h.getPublicAdmissionForm)
 	r.Post("/api/public/admission-request", h.submitAdmissionRequest)
 
 	// ===== ENDPOINTS PRIVADOS (requieren auth) =====
@@ -36,6 +37,7 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequirePermission("config.manage")).Delete("/api/site/pages/{id}", h.deleteSitePage)
 	r.With(am.RequireAuth).Get("/api/site/settings", h.getSiteSettings)
 	r.With(am.RequirePermission("config.manage")).Put("/api/site/settings", h.updateSiteSettings)
+	r.With(am.RequirePermission("config.manage")).Put("/api/site/admission-form", h.updateSiteAdmissionForm)
 
 	// Solicitudes de admision (admin)
 	r.With(am.RequireAuth).Get("/api/admission-requests", h.listAdmissionRequests)
@@ -1654,13 +1656,43 @@ func (h *SystemHandler) getPublicPage(w http.ResponseWriter, r *http.Request) {
 }
 
 type AdmissionRequestReq struct {
-	FullName string `json:"full_name"`
-	Email    string `json:"email"`
-	Phone    string `json:"phone"`
-	Location string `json:"location"`
-	Reason   string `json:"reason"`
-	Skills   string `json:"skills"`
-	HowHeard string `json:"how_heard"`
+	FullName     string          `json:"full_name"`
+	Email        string          `json:"email"`
+	Phone        string          `json:"phone"`
+	Location     string          `json:"location"`
+	Reason       string          `json:"reason"`
+	Skills       string          `json:"skills"`
+	HowHeard     string          `json:"how_heard"`
+	CustomFields json.RawMessage `json:"custom_fields"`
+}
+
+func (h *SystemHandler) getPublicAdmissionForm(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.URL.Query().Get("node")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	var schema json.RawMessage
+	var formTitle, formSubtitle *string
+
+	err := h.Pool.QueryRow(r.Context(), `
+		SELECT admission_form_schema, admission_form_title, admission_form_subtitle
+		FROM public_settings WHERE node_domain = $1`, nodeDomain).Scan(&schema, &formTitle, &formSubtitle)
+	if err != nil || len(schema) == 0 || string(schema) == "null" {
+		// Default rich form schema
+		writeJSON(w, 200, map[string]interface{}{
+			"title":    "Solicitud de Ingreso a la Red",
+			"subtitle": "Completa tus datos para postularte como productor conuquero, artesano o miembro.",
+			"schema":   nil,
+		})
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"title":    deref(formTitle),
+		"subtitle": deref(formSubtitle),
+		"schema":   schema,
+	})
 }
 
 func (h *SystemHandler) submitAdmissionRequest(w http.ResponseWriter, r *http.Request) {
@@ -1679,11 +1711,16 @@ func (h *SystemHandler) submitAdmissionRequest(w http.ResponseWriter, r *http.Re
 		nodeDomain = "localhost"
 	}
 
+	customJSON := string(req.CustomFields)
+	if customJSON == "" || customJSON == "null" {
+		customJSON = "{}"
+	}
+
 	var id uuid.UUID
 	err := h.Pool.QueryRow(r.Context(), `
-		INSERT INTO admission_requests (node_domain, full_name, email, phone, location, reason, skills, how_heard)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-		nodeDomain, req.FullName, req.Email, req.Phone, req.Location, req.Reason, req.Skills, req.HowHeard).Scan(&id)
+		INSERT INTO admission_requests (node_domain, full_name, email, phone, location, reason, skills, how_heard, custom_fields)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb) RETURNING id`,
+		nodeDomain, req.FullName, req.Email, req.Phone, req.Location, req.Reason, req.Skills, req.HowHeard, customJSON).Scan(&id)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -1922,7 +1959,7 @@ func (h *SystemHandler) listAdmissionRequests(w http.ResponseWriter, r *http.Req
 	}
 
 	status := r.URL.Query().Get("status")
-	query := `SELECT id::text, full_name, email, phone, location, reason, skills, how_heard, status, created_at
+	query := `SELECT id::text, full_name, email, phone, location, reason, skills, how_heard, status, created_at, COALESCE(custom_fields, '{}'::jsonb)
 		FROM admission_requests WHERE node_domain = $1`
 	args := []interface{}{nodeDomain}
 	if status != "" {
@@ -1943,26 +1980,67 @@ func (h *SystemHandler) listAdmissionRequests(w http.ResponseWriter, r *http.Req
 		var id, fullName, status string
 		var email, phone, location, reason, skills, howHeard *string
 		var createdAt time.Time
-		if err := rows.Scan(&id, &fullName, &email, &phone, &location, &reason, &skills, &howHeard, &status, &createdAt); err != nil {
+		var customFields json.RawMessage
+		if err := rows.Scan(&id, &fullName, &email, &phone, &location, &reason, &skills, &howHeard, &status, &createdAt, &customFields); err != nil {
 			continue
 		}
 		requests = append(requests, map[string]interface{}{
-			"id":         id,
-			"full_name":  fullName,
-			"email":      deref(email),
-			"phone":      deref(phone),
-			"location":   deref(location),
-			"reason":     deref(reason),
-			"skills":     deref(skills),
-			"how_heard":  deref(howHeard),
-			"status":     status,
-			"created_at": createdAt,
+			"id":            id,
+			"full_name":     fullName,
+			"email":         deref(email),
+			"phone":         deref(phone),
+			"location":      deref(location),
+			"reason":        deref(reason),
+			"skills":        deref(skills),
+			"how_heard":     deref(howHeard),
+			"status":        status,
+			"created_at":    createdAt,
+			"custom_fields": customFields,
 		})
 	}
 	if requests == nil {
 		requests = []map[string]interface{}{}
 	}
 	writeJSON(w, 200, requests)
+}
+
+type UpdateAdmissionFormReq struct {
+	Title    string          `json:"title"`
+	Subtitle string          `json:"subtitle"`
+	Schema   json.RawMessage `json:"schema"`
+}
+
+func (h *SystemHandler) updateSiteAdmissionForm(w http.ResponseWriter, r *http.Request) {
+	var req UpdateAdmissionFormReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	schemaJSON := string(req.Schema)
+	if schemaJSON == "" || schemaJSON == "null" {
+		schemaJSON = "[]"
+	}
+
+	_, err := h.Pool.Exec(r.Context(), `
+		UPDATE public_settings SET
+			admission_form_title = $1,
+			admission_form_subtitle = $2,
+			admission_form_schema = $3::jsonb,
+			updated_at = NOW()
+		WHERE node_domain = $4`,
+		req.Title, req.Subtitle, schemaJSON, nodeDomain)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{"message": "Formulario de admision actualizado con exito"})
 }
 
 func (h *SystemHandler) approveAdmissionRequest(w http.ResponseWriter, r *http.Request) {
