@@ -162,9 +162,6 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
   }, [])
 
   const headerStyle = settings?.header_style || 'modern_eco'
-  const primaryColor = headerBgColor || settings?.primary_color || '#162e16'
-  const secondaryColor = settings?.secondary_color || '#c2410c'
-  const headerTextColorResolved = headerTextColor || (settings as any)?.text_color || '#1a1a1a'
   const headerSticky = (settings as any)?.header_sticky ?? true
   const headerBannerImage = (settings as any)?.header_banner_image || ''
   const headerBannerHeight = (settings as any)?.header_banner_height || 120
@@ -173,6 +170,9 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
   const headerBlur = (settings as any)?.header_blur ?? 4
   const headerBgColor = (settings as any)?.header_bg_color || ''
   const headerTextColor = (settings as any)?.header_text_color || ''
+  const primaryColor = headerBgColor || settings?.primary_color || '#162e16'
+  const secondaryColor = settings?.secondary_color || '#c2410c'
+  const headerTextColorResolved = headerTextColor || (settings as any)?.text_color || '#1a1a1a'
   const stickyClass = headerSticky ? 'sticky top-0' : ''
   const showAnnouncement = settings?.show_announcement ?? true
   const announcementText =
@@ -1223,6 +1223,10 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* MOBILE / TABLET DRAWER — style-specific */}
+      {/* Overlay clickable para cerrar menús móviles sin overlay propio */}
+      {menuOpen && !['sidebar_left', 'hero_overlay', 'sticky_pill'].includes(headerStyle) && (
+        <div className="lg:hidden fixed inset-0 z-30 bg-black/30" onClick={() => setMenuOpen(false)} />
+      )}
       {menuOpen && (
 
         /* === MOBILE: MODERN ECO / AGRODIGITAL === */
