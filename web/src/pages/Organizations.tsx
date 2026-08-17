@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
-import { Users, Plus, HelpCircle, X } from 'lucide-react'
+import { Users, Plus, HelpCircle, X, Crown, Trash2 } from 'lucide-react'
 import { EntitySelector } from '../components/EntitySelector'
 import { useConfig } from '../hooks/useConfig'
 
@@ -65,6 +65,10 @@ export default function Organizations() {
   const [showForm, setShowForm] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [newType, setNewType] = useState('')
+  const [boardOrgId, setBoardOrgId] = useState<string | null>(null)
+  const [boardMembers, setBoardMembers] = useState<any[]>([])
+  const [allUsers, setAllUsers] = useState<any[]>([])
+  const [boardForm, setBoardForm] = useState({ user_id: '', position: 'presidente' })
   const [form, setForm] = useState({
     username: '',
     display_name: '',
@@ -353,7 +357,100 @@ export default function Organizations() {
                   Aprobar
                 </button>
               )}
+              {org.membership_status === 'active' && (
+                <button
+                  onClick={() => {
+                    if (boardOrgId === org.id) {
+                      setBoardOrgId(null)
+                    } else {
+                      setBoardOrgId(org.id)
+                      api.get(`/organizations/${org.id}/board`).then((d: any) => setBoardMembers(Array.isArray(d) ? d : [])).catch(() => setBoardMembers([]))
+                      api.get('/accounts/list').then((d: any) => setAllUsers(Array.isArray(d) ? d.filter((u: any) => u.account_type === 'individual') : [])).catch(() => setAllUsers([]))
+                    }
+                  }}
+                  className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                >
+                  <Crown size={14} />
+                  Junta Directiva
+                </button>
+              )}
             </div>
+
+            {boardOrgId === org.id && (
+              <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
+                <h4 className="font-medium text-sm flex items-center gap-1"><Crown size={14} />Junta Directiva de {org.display_name}</h4>
+
+                {boardMembers.length > 0 && (
+                  <div className="space-y-1">
+                    {boardMembers.map((m: any) => (
+                      <div key={m.id} className="flex items-center justify-between text-sm bg-gray-50 px-3 py-2 rounded">
+                        <div>
+                          <b>{m.position}</b>
+                          <span className="text-gray-500 ml-2">{m.username || m.display_name}</span>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            try {
+                              await api.delete(`/organizations/${org.id}/board/${m.id}`)
+                              api.get(`/organizations/${org.id}/board`).then((d: any) => setBoardMembers(Array.isArray(d) ? d : []))
+                            } catch (err) { /* ignore */ }
+                          }}
+                          className="text-red-500 hover:bg-red-50 p-1 rounded"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    <label className="label">Miembro</label>
+                    <select
+                      className="input"
+                      value={boardForm.user_id}
+                      onChange={(e) => setBoardForm({ ...boardForm, user_id: e.target.value })}
+                    >
+                      <option value="">Seleccionar...</option>
+                      {allUsers.map((u: any) => (
+                        <option key={u.id} value={u.id}>{u.display_name || u.username} ({u.username})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label">Cargo</label>
+                    <select
+                      className="input"
+                      value={boardForm.position}
+                      onChange={(e) => setBoardForm({ ...boardForm, position: e.target.value })}
+                    >
+                      <option value="presidente">Presidente</option>
+                      <option value="vicepresidente">Vicepresidente</option>
+                      <option value="secretario">Secretario</option>
+                      <option value="tesorero">Tesorero</option>
+                      <option value="vocal">Vocal</option>
+                      <option value="fiscal">Fiscal</option>
+                      <option value="coordinador">Coordinador</option>
+                    </select>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (!boardForm.user_id) return
+                      try {
+                        await api.post(`/organizations/${org.id}/board`, boardForm)
+                        setBoardForm({ user_id: '', position: 'presidente' })
+                        api.get(`/organizations/${org.id}/board`).then((d: any) => setBoardMembers(Array.isArray(d) ? d : []))
+                      } catch (err) { /* ignore */ }
+                    }}
+                    className="btn-primary text-sm"
+                  >
+                    Asignar
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400">Los cargos asignados aqui definen quienes pueden tomar decisiones en nombre de la organizacion. Si cambias el cargo de una persona, los permisos automaticamente siguen al cargo, no a la persona.</p>
+              </div>
+            )}
           </div>
         ))}
       </div>

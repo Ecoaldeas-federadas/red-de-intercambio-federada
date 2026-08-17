@@ -329,7 +329,7 @@ export default function Assembly() {
   const canManageBoard = hasPermission('assembly.manage_board')
   const canManageTax = hasPermission('tax.manage')
 
-  const [tab, setTab] = useState<'members' | 'board' | 'sessions' | 'proposals' | 'tax'>('proposals')
+  const [tab, setTab] = useState<'members' | 'board' | 'sessions' | 'proposals' | 'tax' | 'config'>('proposals')
   const [showHelp, setShowHelp] = useState(false)
   const [error, setError] = useState('')
 
@@ -341,6 +341,8 @@ export default function Assembly() {
   const [proposals, setProposals] = useState<any[]>([])
   const [taxConfig, setTaxConfig] = useState<any>(null)
   const [taxAccount, setTaxAccount] = useState<any>(null)
+  const [assemblyConfigs, setAssemblyConfigs] = useState<any[]>([])
+  const [editingConfig, setEditingConfig] = useState<any>(null)
 
   // Formularios
   const [showNewProposal, setShowNewProposal] = useState(false)
@@ -362,6 +364,7 @@ export default function Assembly() {
     api.get('/assembly/proposals').then((d: any) => setProposals(Array.isArray(d) ? d : [])).catch(() => {})
     api.get('/tax/config').then(setTaxConfig).catch(() => {})
     api.get('/tax/account').then(setTaxAccount).catch(() => {})
+    api.get('/assembly/config').then((d: any) => setAssemblyConfigs(Array.isArray(d) ? d : [])).catch(() => {})
   }
 
   useEffect(() => { load() }, [])
@@ -588,6 +591,7 @@ export default function Assembly() {
         <button onClick={() => setTab('board')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'board' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Junta Directiva</button>
         <button onClick={() => setTab('sessions')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'sessions' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Sesiones</button>
         <button onClick={() => setTab('tax')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'tax' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Impuestos</button>
+        <button onClick={() => setTab('config')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'config' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Configuracion</button>
       </div>
 
       {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</div>}
@@ -905,6 +909,142 @@ export default function Assembly() {
             <div className="card border-amber-200">
               <h3 className="font-medium mb-2">Configurar impuesto (admin)</h3>
               <p className="text-xs text-gray-500 mb-3">Solo la asamblea puede cambiar los impuestos. Crea una propuesta de "Cambio de impuestos" para que se vote.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'config' && (
+        <div className="space-y-4">
+          <h2 className="font-semibold flex items-center gap-2"><Shield size={18} />Configuracion de Aprobaciones</h2>
+
+          <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
+            <p><strong>Configuracion de Aprobaciones - Ayuda</strong></p>
+            <p>Aqui se define como se aprueba cada tipo de decision de la comunidad. Cada tipo de propuesta puede tener un metodo de aprobacion diferente:</p>
+            <ul className="list-disc list-inside space-y-1">
+              <li><b>Asamblea</b>: Los miembros votan. Se aprueba si el porcentaje de votos a favor supera el umbral configurado (ej: 50% = mayoria simple, 66.67% = 2/3).</li>
+              <li><b>Junta Directiva</b>: La junta directiva del nodo decide.</li>
+              <li><b>Consejo</b>: Un consejo especifico decide (selecciona cual).</li>
+              <li><b>Multi-firma</b>: Personas especificas deben firmar. Se aprueba cuando se alcanza el numero de firmas requeridas.</li>
+            </ul>
+            <p>El <b>quorum</b> es el numero minimo de miembros que deben votar para que la decision sea valida. Si es 0, no hay minimo.</p>
+          </div>
+
+          {assemblyConfigs.length === 0 ? (
+            <div className="card text-center text-gray-500 py-8">
+              <p>No hay configuracion cargada.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {assemblyConfigs.map((cfg: any) => (
+                <div key={cfg.id} className="card">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <b className="text-sm">{PROPOSAL_LABELS[cfg.proposal_type as ProposalType] || cfg.proposal_type}</b>
+                        <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">{cfg.approval_method}</span>
+                      </div>
+                      {cfg.description && <p className="text-xs text-gray-500 mt-1">{cfg.description}</p>}
+                      <div className="flex gap-4 mt-2 text-xs text-gray-600">
+                        <span>Porcentaje: <b>{cfg.required_percentage}%</b></span>
+                        <span>Quorum: <b>{cfg.required_quorum}</b></span>
+                        {cfg.approval_method === 'multisig' && <span>Firmas: <b>{cfg.required_signatures}</b></span>}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setEditingConfig(editingConfig?.id === cfg.id ? null : cfg)}
+                      className="text-blue-500 hover:bg-blue-50 p-2 rounded text-sm"
+                    >
+                      Editar
+                    </button>
+                  </div>
+                  {editingConfig?.id === cfg.id && (
+                    <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
+                      <div>
+                        <label className="label">Metodo de aprobacion</label>
+                        <select
+                          className="input"
+                          value={editingConfig.approval_method}
+                          onChange={(e) => setEditingConfig({ ...editingConfig, approval_method: e.target.value })}
+                        >
+                          <option value="assembly">Asamblea (votacion)</option>
+                          <option value="board">Junta Directiva</option>
+                          <option value="council">Consejo</option>
+                          <option value="multisig">Multi-firma</option>
+                        </select>
+                      </div>
+                      {editingConfig.approval_method === 'assembly' && (
+                        <>
+                          <div>
+                            <label className="label">Porcentaje requerido (%)</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="input"
+                              value={editingConfig.required_percentage}
+                              onChange={(e) => setEditingConfig({ ...editingConfig, required_percentage: parseFloat(e.target.value) || 0 })}
+                            />
+                            <p className="text-xs text-gray-400 mt-1">50 = mayoria simple. 66.67 = 2/3. 75 = 3/4. 100 = unanimidad.</p>
+                          </div>
+                          <div>
+                            <label className="label">Quorum minimo (numero de votantes)</label>
+                            <input
+                              type="number"
+                              className="input"
+                              value={editingConfig.required_quorum}
+                              onChange={(e) => setEditingConfig({ ...editingConfig, required_quorum: parseInt(e.target.value) || 0 })}
+                            />
+                            <p className="text-xs text-gray-400 mt-1">Minimo de miembros que deben votar. 0 = sin minimo.</p>
+                          </div>
+                        </>
+                      )}
+                      {editingConfig.approval_method === 'multisig' && (
+                        <div>
+                          <label className="label">Firmas requeridas</label>
+                          <input
+                            type="number"
+                            className="input"
+                            value={editingConfig.required_signatures}
+                            onChange={(e) => setEditingConfig({ ...editingConfig, required_signatures: parseInt(e.target.value) || 1 })}
+                          />
+                          <p className="text-xs text-gray-400 mt-1">Numero de personas que deben firmar para aprobar.</p>
+                        </div>
+                      )}
+                      <div>
+                        <label className="label">Descripcion</label>
+                        <input
+                          className="input"
+                          value={editingConfig.description || ''}
+                          onChange={(e) => setEditingConfig({ ...editingConfig, description: e.target.value })}
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={async () => {
+                            try {
+                              await api.put(`/assembly/config/${cfg.proposal_type}`, {
+                                approval_method: editingConfig.approval_method,
+                                required_percentage: editingConfig.required_percentage,
+                                required_quorum: editingConfig.required_quorum,
+                                required_signatures: editingConfig.required_signatures,
+                                description: editingConfig.description,
+                              })
+                              setEditingConfig(null)
+                              load()
+                            } catch (err) {
+                              setError(err instanceof Error ? err.message : 'Error')
+                            }
+                          }}
+                          className="btn-primary text-sm"
+                        >
+                          Guardar
+                        </button>
+                        <button onClick={() => setEditingConfig(null)} className="btn-secondary text-sm">Cancelar</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>

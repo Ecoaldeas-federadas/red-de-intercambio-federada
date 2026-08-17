@@ -35,6 +35,10 @@ func (h *AssemblyHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 
 	// Miembros con derecho a voto (viene de member_levels, no se registran aparte)
 	r.With(am.RequireAuth).Get("/api/assembly/voting-members", h.listVotingMembers)
+
+	// Configuracion de umbrales por tipo de propuesta
+	r.With(am.RequireAuth).Get("/api/assembly/config", h.listAssemblyConfig)
+	r.With(am.RequireAuth).Put("/api/assembly/config/{proposalType}", h.updateAssemblyConfig)
 }
 
 // ===== Sesiones =====
@@ -348,9 +352,10 @@ func (h *AssemblyHandler) executeProposal(w http.ResponseWriter, r *http.Request
 	var decisionType string
 	var newValue *[]byte
 	var targetAccount *uuid.UUID
+	var collectedSignatures []byte
 	err = h.Pool.QueryRow(r.Context(), `
-		SELECT status, decision_type, new_value, target_account FROM assembly_decisions WHERE id = $1`,
-		decisionID).Scan(&status, &decisionType, &newValue, &targetAccount)
+		SELECT status, decision_type, new_value, target_account, collected_signatures FROM assembly_decisions WHERE id = $1`,
+		decisionID).Scan(&status, &decisionType, &newValue, &targetAccount, &collectedSignatures)
 	if err != nil {
 		writeError(w, 404, "decision not found")
 		return
@@ -366,8 +371,66 @@ func (h *AssemblyHandler) executeProposal(w http.ResponseWriter, r *http.Request
 		SELECT COUNT(*) FILTER (WHERE vote = 'for'), COUNT(*) FILTER (WHERE vote = 'against')
 		FROM assembly_votes WHERE decision_id = $1`, decisionID).Scan(&votesFor, &votesAgainst)
 
-	// Aprobar si hay mas votos a favor que en contra
-	if votesFor > votesAgainst {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	// Determinar criterio de aprobacion segun assembly_config
+	var approvalMethod string
+	var requiredPercentage float64
+	var requiredQuorum int
+	var requiredSignatures int
+	cfgErr := h.Pool.QueryRow(r.Context(), `
+		SELECT approval_method, required_percentage, required_quorum, required_signatures
+		FROM assembly_config WHERE node_domain = $1 AND proposal_type = $2 AND is_active = true`,
+		nodeDomain, decisionType).Scan(&approvalMethod, &requiredPercentage, &requiredQuorum, &requiredSignatures)
+
+	approved := false
+	if cfgErr == nil {
+		// Hay configuracion para este tipo de propuesta
+		switch approvalMethod {
+		case "assembly":
+			// Total de miembros con derecho a voto que cuentan en el quorum
+			var totalVotingMembers int
+			h.Pool.QueryRow(r.Context(), `
+				SELECT COUNT(*) FROM users u
+				JOIN member_levels ml ON ml.id = u.member_level_id
+				WHERE u.node_domain = $1 AND u.membership_status = 'active'
+				AND ml.has_vote = true AND ml.counts_in_quorum = true`, nodeDomain).Scan(&totalVotingMembers)
+
+			totalVotes := votesFor + votesAgainst
+			// Verificar quorum si esta configurado
+			quorumMet := true
+			if requiredQuorum > 0 {
+				quorumMet = totalVotes >= requiredQuorum
+			}
+
+			// Calcular porcentaje de aprobacion
+			percentage := 0.0
+			if totalVotes > 0 {
+				percentage = (float64(votesFor) / float64(totalVotes)) * 100
+			}
+
+			approved = quorumMet && percentage >= requiredPercentage
+		case "multisig":
+			// Contar firmas en collected_signatures
+			var signatures []interface{}
+			if len(collectedSignatures) > 0 {
+				json.Unmarshal(collectedSignatures, &signatures)
+			}
+			sigCount := len(signatures)
+			approved = sigCount >= requiredSignatures
+		default:
+			// board, council u otros: criterio por defecto
+			approved = votesFor > votesAgainst
+		}
+	} else {
+		// No hay config para este tipo: criterio viejo
+		approved = votesFor > votesAgainst
+	}
+
+	if approved {
 		_, err = h.Pool.Exec(r.Context(), `
 			UPDATE assembly_decisions SET status = 'executed', executed_at = NOW() WHERE id = $1`,
 			decisionID)
@@ -666,6 +729,131 @@ func (h *AssemblyHandler) listVotingMembers(w http.ResponseWriter, r *http.Reque
 		members = []map[string]interface{}{}
 	}
 	writeJSON(w, 200, members)
+}
+
+// ===== Configuracion de umbrales =====
+
+func (h *AssemblyHandler) listAssemblyConfig(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT id, node_domain, proposal_type, approval_method, required_percentage,
+		       required_quorum, required_signatures, council_id, description, is_active, created_at, updated_at
+		FROM assembly_config WHERE node_domain = $1 ORDER BY proposal_type`, nodeDomain)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	var configs []map[string]interface{}
+	for rows.Next() {
+		var id uuid.UUID
+		var ndomain, proposalType, approvalMethod string
+		var requiredPercentage float64
+		var requiredQuorum, requiredSignatures int
+		var councilID *uuid.UUID
+		var description *string
+		var isActive bool
+		var createdAt, updatedAt time.Time
+		if err := rows.Scan(&id, &ndomain, &proposalType, &approvalMethod, &requiredPercentage,
+			&requiredQuorum, &requiredSignatures, &councilID, &description, &isActive, &createdAt, &updatedAt); err != nil {
+			continue
+		}
+		configs = append(configs, map[string]interface{}{
+			"id":                  id.String(),
+			"node_domain":         ndomain,
+			"proposal_type":       proposalType,
+			"approval_method":     approvalMethod,
+			"required_percentage": requiredPercentage,
+			"required_quorum":     requiredQuorum,
+			"required_signatures": requiredSignatures,
+			"council_id":          derefUUID(councilID),
+			"description":         deref(description),
+			"is_active":           isActive,
+			"created_at":          createdAt,
+			"updated_at":          updatedAt,
+		})
+	}
+	if configs == nil {
+		configs = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, configs)
+}
+
+type UpdateAssemblyConfigRequest struct {
+	ApprovalMethod     string  `json:"approval_method"`
+	RequiredPercentage float64 `json:"required_percentage"`
+	RequiredQuorum     int     `json:"required_quorum"`
+	RequiredSignatures int     `json:"required_signatures"`
+	CouncilID          string  `json:"council_id"`
+	Description        string  `json:"description"`
+}
+
+func (h *AssemblyHandler) updateAssemblyConfig(w http.ResponseWriter, r *http.Request) {
+	proposalType := chi.URLParam(r, "proposalType")
+	if proposalType == "" {
+		writeError(w, 400, "proposal_type is required")
+		return
+	}
+
+	var req UpdateAssemblyConfigRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.ApprovalMethod == "" {
+		req.ApprovalMethod = "assembly"
+	}
+
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	var councilID *uuid.UUID
+	if req.CouncilID != "" {
+		if id, err := uuid.Parse(req.CouncilID); err == nil {
+			councilID = &id
+		}
+	}
+
+	var description *string
+	if req.Description != "" {
+		description = &req.Description
+	}
+
+	var id uuid.UUID
+	err := h.Pool.QueryRow(r.Context(), `
+		INSERT INTO assembly_config (node_domain, proposal_type, approval_method, required_percentage,
+			required_quorum, required_signatures, council_id, description, is_active)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)
+		ON CONFLICT (node_domain, proposal_type) DO UPDATE SET
+			approval_method = $3, required_percentage = $4, required_quorum = $5,
+			required_signatures = $6, council_id = $7, description = $8, updated_at = NOW()
+		RETURNING id`,
+		nodeDomain, proposalType, req.ApprovalMethod, req.RequiredPercentage,
+		req.RequiredQuorum, req.RequiredSignatures, councilID, description).Scan(&id)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"id":                  id.String(),
+		"node_domain":         nodeDomain,
+		"proposal_type":       proposalType,
+		"approval_method":     req.ApprovalMethod,
+		"required_percentage": req.RequiredPercentage,
+		"required_quorum":     req.RequiredQuorum,
+		"required_signatures": req.RequiredSignatures,
+		"council_id":          derefUUID(councilID),
+		"description":         req.Description,
+		"is_active":           true,
+	})
 }
 
 // ===== Helpers =====

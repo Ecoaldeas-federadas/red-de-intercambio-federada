@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -32,6 +33,11 @@ func (oh *OrganizationHandler) RegisterRoutesWithAuth(r chi.Router, am *AuthMidd
 		r.Post("/api/organizations/{id}/approve", oh.approveOrganization)
 	}
 	r.Put("/api/organizations/{id}/multisig", oh.setMultiSig)
+
+	// Junta directiva de organizacion
+	r.Get("/api/organizations/{id}/board", oh.listOrganizationBoard)
+	r.Post("/api/organizations/{id}/board", oh.assignOrganizationBoardMember)
+	r.Delete("/api/organizations/{id}/board/{memberId}", oh.removeOrganizationBoardMember)
 
 	r.Post("/api/institutions", oh.createInstitution)
 	if am != nil {
@@ -268,4 +274,118 @@ func (oh *OrganizationHandler) executeMultiSigProposal(w http.ResponseWriter, r 
 		return
 	}
 	writeJSON(w, 200, map[string]string{"status": "executed"})
+}
+
+// ===== Junta directiva de organizacion =====
+
+func (oh *OrganizationHandler) listOrganizationBoard(w http.ResponseWriter, r *http.Request) {
+	orgID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid organization id")
+		return
+	}
+
+	rows, err := oh.Orgs.Pool.Query(r.Context(), `
+		SELECT b.id, b.user_id, u.username, u.display_name, b.position, b.term_start, b.term_end, b.is_active, b.created_at
+		FROM organization_board_members b
+		JOIN users u ON u.id = b.user_id
+		WHERE b.organization_id = $1 AND b.is_active = true
+		ORDER BY b.position`, orgID)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	var board []map[string]interface{}
+	for rows.Next() {
+		var id, userID uuid.UUID
+		var username, position string
+		var displayName *string
+		var termStart time.Time
+		var termEnd *time.Time
+		var isActive bool
+		var createdAt time.Time
+		if err := rows.Scan(&id, &userID, &username, &displayName, &position, &termStart, &termEnd, &isActive, &createdAt); err != nil {
+			continue
+		}
+		board = append(board, map[string]interface{}{
+			"id":           id.String(),
+			"user_id":      userID.String(),
+			"username":     username,
+			"display_name": deref(displayName),
+			"position":     position,
+			"term_start":   termStart,
+			"term_end":     derefTime(termEnd),
+			"is_active":    isActive,
+			"created_at":   createdAt,
+		})
+	}
+	if board == nil {
+		board = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, board)
+}
+
+type AssignOrgBoardRequest struct {
+	UserID   string `json:"user_id"`
+	Position string `json:"position"`
+}
+
+func (oh *OrganizationHandler) assignOrganizationBoardMember(w http.ResponseWriter, r *http.Request) {
+	orgID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid organization id")
+		return
+	}
+
+	var req AssignOrgBoardRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.UserID == "" || req.Position == "" {
+		writeError(w, 400, "user_id and position are required")
+		return
+	}
+
+	userID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		writeError(w, 400, "invalid user_id")
+		return
+	}
+
+	id := uuid.New()
+	_, err = oh.Orgs.Pool.Exec(r.Context(), `
+		INSERT INTO organization_board_members (id, organization_id, user_id, position)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (organization_id, user_id, position) DO UPDATE SET is_active = true, term_start = NOW()`,
+		id, orgID, userID, req.Position)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	writeJSON(w, 201, map[string]interface{}{
+		"id":              id.String(),
+		"organization_id": orgID.String(),
+		"user_id":         userID.String(),
+		"position":        req.Position,
+		"is_active":       true,
+	})
+}
+
+func (oh *OrganizationHandler) removeOrganizationBoardMember(w http.ResponseWriter, r *http.Request) {
+	memberID, err := uuid.Parse(chi.URLParam(r, "memberId"))
+	if err != nil {
+		writeError(w, 400, "invalid member id")
+		return
+	}
+
+	_, err = oh.Orgs.Pool.Exec(r.Context(), `UPDATE organization_board_members SET is_active = false WHERE id = $1`, memberID)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{"status": "removed"})
 }
