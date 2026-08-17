@@ -313,6 +313,13 @@ export type HeaderStyleType =
   | 'editorial_latam'
   | 'agrodigital_mincyt'
   | 'dropdown_categories'
+  | 'compact'
+  | 'banner'
+  | 'sidebar_left'
+  | 'split_center'
+  | 'minimal_underline'
+  | 'hero_overlay'
+  | 'sticky_pill'
 
 export interface PublicPageData {
   id?: string

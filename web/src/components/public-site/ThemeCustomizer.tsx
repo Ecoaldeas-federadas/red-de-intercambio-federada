@@ -5,6 +5,7 @@ import {
   Palette, Layout, Menu as MenuIcon, Image as ImageIcon,
   RotateCcw, Save, Sparkles,
 } from 'lucide-react'
+import { HEADER_STYLES } from './headerStyles'
 
 export interface ThemeDraft {
   site_title: string
@@ -42,15 +43,6 @@ export interface PageMenuItem {
   show_in_menu: boolean
   is_published: boolean
 }
-
-const HEADER_STYLES = [
-  { id: 'modern_eco', name: 'Eco Moderno', desc: 'Logo izquierda, menú horizontal con iconos' },
-  { id: 'fao_institutional', name: 'Portal Blanco', desc: 'Fondo blanco, logo+texto, menú formal' },
-  { id: 'editorial_latam', name: 'Editorial Doble', desc: 'Dos filas: marca arriba, menú oscuro abajo' },
-  { id: 'dropdown_categories', name: 'Mega Menú', desc: 'Menú agrupado por categorías con dropdowns' },
-  { id: 'compact', name: 'Logo Centrado', desc: 'Logo grande centrado, menú debajo horizontal' },
-  { id: 'banner', name: 'Banner Imagen', desc: 'Imagen de fondo, logo superpuesto, menú inferior' },
-]
 
 interface ColorPreset {
   name: string
@@ -440,7 +432,7 @@ export function ThemeCustomizer({
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs font-bold text-gray-900">{style.name}</p>
-                        <p className="text-[10px] text-gray-500">{style.desc}</p>
+                        <p className="text-[10px] text-gray-500">{style.description}</p>
                       </div>
                       {draft.header_style === style.id && (
                         <Check size={16} className="text-emerald-600" />

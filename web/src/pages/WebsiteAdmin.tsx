@@ -50,44 +50,7 @@ import { SiteBlock, BlockType, HeaderStyleType, FormFieldSchema, FormFieldType }
 import { FERIA_CONUQUERA_TEMPLATES } from '../components/public-site/defaultSiteData'
 import { DEFAULT_ADMISSION_FIELDS } from '../components/public-site/DynamicAdmissionForm'
 import { PageBlocksRenderer } from '../components/public-site/PublicBlocks'
-
-const HEADER_STYLES: {
-  id: HeaderStyleType
-  name: string
-  description: string
-  tag: string
-}[] = [
-  {
-    id: 'modern_eco',
-    name: 'Ecoaldea / Moderno (Ecovillage & Ecoaldeas)',
-    description: 'Cabecera verde bosque con badges, diseño fluido y menú receptivo.',
-    tag: 'Recomendado',
-  },
-  {
-    id: 'fao_institutional',
-    name: 'Institucional / Portal FAO (Fondo Blanco & Badges)',
-    description: 'Portal limpio fondo blanco con logotipo destacado, submenús y enlaces directos.',
-    tag: 'Portal Oficial',
-  },
-  {
-    id: 'editorial_latam',
-    name: 'Revista / Agroecología LATAM & Biodiversidad LA',
-    description: 'Doble barra: franja superior con título y redes + barra inferior oscura de navegación.',
-    tag: 'Editorial',
-  },
-  {
-    id: 'agrodigital_mincyt',
-    name: 'AgroDigital / Mincyt Tecnológico',
-    description: 'Cabecera tecnológica con badge de tasa energética en vivo (1 TQ = 1 kWh) y botones.',
-    tag: 'Tecnológico',
-  },
-  {
-    id: 'dropdown_categories',
-    name: 'Menú por Categorías Desplegables',
-    description: 'Menú agrupado en niveles: "Sobre la Red", "Economía & Cosecha", "Comunidad & Saberes".',
-    tag: 'Multi-Nivel',
-  },
-]
+import { HEADER_STYLES } from '../components/public-site/headerStyles'
 
 const BLOCK_DEFINITIONS: {
   type: BlockType

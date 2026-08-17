@@ -735,6 +735,294 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         </header>
       )}
 
+      {/* STYLE G: SIDEBAR LEFT — Menu vertical fijo a la izquierda */}
+      {headerStyle === 'sidebar_left' && (
+        <header className="fixed left-0 top-0 bottom-0 w-56 z-50 flex flex-col shadow-xl" style={{ backgroundColor: primaryColor }}>
+          {/* Logo top */}
+          <div className="p-4 border-b border-white/10 flex-shrink-0">
+            <Link to="/p/inicio" className="flex flex-col items-center gap-2 text-white text-center">
+              {settings?.logo_url ? (
+                <img src={settings.logo_url} alt="logo" className="w-12 h-12 rounded-xl object-cover border-2 border-white/40 shadow flex-shrink-0" />
+              ) : (
+                <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center text-white flex-shrink-0">
+                  <Leaf size={24} />
+                </div>
+              )}
+              <h1 className="text-xs font-black leading-tight">{settings?.site_title || 'Feria Conuquera'}</h1>
+              <p className="text-[9px] text-white/60 hidden sm:block">{settings?.site_subtitle}</p>
+            </Link>
+          </div>
+
+          {/* Vertical menu */}
+          <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5 hidden lg:block">
+            {menuPages.map((p) => {
+              const Icon = ICONS[p.icon || 'home'] || Home
+              const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
+              return (
+                <Link
+                  key={p.slug}
+                  to={`/p/${p.slug}`}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
+                    isActive ? 'bg-white/20 text-white font-bold' : 'text-white/75 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <Icon size={15} className="flex-shrink-0" />
+                  <span className="truncate">{p.title}</span>
+                </Link>
+              )
+            })}
+          </nav>
+
+          {/* Bottom actions */}
+          <div className="p-3 border-t border-white/10 space-y-2 flex-shrink-0 hidden lg:block">
+            {settings?.show_join_form && !isAuthenticated && (
+              <Link to="/p/unirse" className="block w-full text-center px-3 py-2 rounded-lg text-xs font-bold text-white shadow" style={{ backgroundColor: secondaryColor }}>
+                Unirse
+              </Link>
+            )}
+            {!isAuthenticated ? (
+              <Link to="/login" className="block w-full text-center px-3 py-1.5 rounded-lg text-xs text-white/80 hover:bg-white/10 border border-white/20">
+                Acceso
+              </Link>
+            ) : (
+              <Link to="/app/dashboard" className="block w-full text-center px-3 py-2 rounded-lg text-xs font-bold text-white shadow" style={{ backgroundColor: secondaryColor }}>
+                Escritorio
+              </Link>
+            )}
+          </div>
+
+          {/* Mobile button */}
+          <button className="lg:hidden text-white p-3 self-end" onClick={() => setMenuOpen(!menuOpen)}>
+            {menuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </header>
+      )}
+
+      {/* STYLE H: SPLIT CENTER — Logo centrado, menu dividido a lados */}
+      {headerStyle === 'split_center' && (
+        <header className="sticky top-0 z-50 shadow-md w-full" style={{ backgroundColor: primaryColor }}>
+          <div className="max-w-7xl mx-auto px-3 sm:px-6 flex items-center justify-between gap-2 py-2">
+            {/* Left menu */}
+            <nav className="hidden lg:flex items-center gap-1 text-xs font-bold text-white flex-1 justify-end">
+              {menuPages.slice(0, Math.ceil(menuPages.length / 2)).map((p) => {
+                const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
+                return (
+                  <Link key={p.slug} to={`/p/${p.slug}`} className={`px-3 py-1.5 rounded-md transition whitespace-nowrap ${isActive ? 'bg-white/25 font-black' : 'hover:bg-white/15'}`}>
+                    {getShortLabel(p)}
+                  </Link>
+                )
+              })}
+            </nav>
+
+            {/* Center logo */}
+            <Link to="/p/inicio" className="flex flex-col items-center gap-1 text-white flex-shrink-0 px-4">
+              {settings?.logo_url ? (
+                <img src={settings.logo_url} alt="logo" className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-white/50 shadow flex-shrink-0" />
+              ) : (
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0">
+                  <Leaf size={22} />
+                </div>
+              )}
+              <h1 className="text-[10px] sm:text-xs font-black leading-tight text-center max-w-[120px] truncate">{settings?.site_title || 'Feria Conuquera'}</h1>
+            </Link>
+
+            {/* Right menu */}
+            <nav className="hidden lg:flex items-center gap-1 text-xs font-bold text-white flex-1">
+              {menuPages.slice(Math.ceil(menuPages.length / 2)).map((p) => {
+                const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
+                return (
+                  <Link key={p.slug} to={`/p/${p.slug}`} className={`px-3 py-1.5 rounded-md transition whitespace-nowrap ${isActive ? 'bg-white/25 font-black' : 'hover:bg-white/15'}`}>
+                    {getShortLabel(p)}
+                  </Link>
+                )
+              })}
+              {settings?.show_join_form && !isAuthenticated && (
+                <Link to="/p/unirse" className="ml-2 px-3 py-1.5 rounded-md text-xs font-bold text-white shadow" style={{ backgroundColor: secondaryColor }}>
+                  Unirse
+                </Link>
+              )}
+            </nav>
+
+            <button className="lg:hidden text-white p-1.5" onClick={() => setMenuOpen(!menuOpen)}>
+              {menuOpen ? <X size={18} /> : <Menu size={18} />}
+            </button>
+          </div>
+        </header>
+      )}
+
+      {/* STYLE I: MINIMAL UNDERLINE — Sin fondo, solo texto con subrayado */}
+      {headerStyle === 'minimal_underline' && (
+        <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-md border-b border-gray-100">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-4 py-3">
+            <Link to="/p/inicio" className="flex items-center gap-2 flex-shrink-0">
+              {settings?.logo_url ? (
+                <img src={settings.logo_url} alt="logo" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+              ) : (
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-white flex-shrink-0" style={{ backgroundColor: primaryColor }}>
+                  <Leaf size={16} />
+                </div>
+              )}
+              <h1 className="text-sm font-bold tracking-tight hidden sm:block" style={{ color: (settings as any)?.text_color || '#1a1a1a' }}>
+                {settings?.site_title || 'Feria Conuquera'}
+              </h1>
+            </Link>
+
+            <nav className="hidden lg:flex items-center gap-5 text-sm font-medium" style={{ color: (settings as any)?.text_color || '#1a1a1a' }}>
+              {menuPages.map((p) => {
+                const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
+                return (
+                  <Link
+                    key={p.slug}
+                    to={`/p/${p.slug}`}
+                    className={`relative py-1 transition hover:opacity-80 group whitespace-nowrap ${isActive ? 'font-bold' : ''}`}
+                    style={isActive ? { color: primaryColor } : {}}
+                  >
+                    {getShortLabel(p)}
+                    <span
+                      className="absolute left-0 bottom-0 h-0.5 transition-all duration-300 group-hover:w-full"
+                      style={{ width: isActive ? '100%' : '0%', backgroundColor: primaryColor }}
+                    />
+                  </Link>
+                )
+              })}
+            </nav>
+
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {settings?.show_join_form && !isAuthenticated && (
+                <Link to="/p/unirse" className="hidden sm:inline-block px-4 py-1.5 rounded-full text-xs font-bold text-white transition hover:opacity-90" style={{ backgroundColor: primaryColor }}>
+                  Unirse
+                </Link>
+              )}
+              <button className="lg:hidden p-1.5" style={{ color: (settings as any)?.text_color || '#1a1a1a' }} onClick={() => setMenuOpen(!menuOpen)}>
+                {menuOpen ? <X size={18} /> : <Menu size={18} />}
+              </button>
+            </div>
+          </div>
+        </header>
+      )}
+
+      {/* STYLE J: HERO OVERLAY — Menu transparente superpuesto, se vuelve solido al scroll */}
+      {headerStyle === 'hero_overlay' && (
+        <header className="fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300" style={{ backgroundColor: 'rgba(0,0,0,0.25)', backdropFilter: 'blur(4px)' }}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-3 py-3">
+            <Link to="/p/inicio" className="flex items-center gap-2.5 text-white flex-shrink-0 max-w-xs truncate">
+              {settings?.logo_url ? (
+                <img src={settings.logo_url} alt="logo" className="w-10 h-10 rounded-lg object-cover border border-white/30 shadow flex-shrink-0" />
+              ) : (
+                <div className="w-10 h-10 rounded-lg bg-white/15 flex items-center justify-center text-white flex-shrink-0">
+                  <Leaf size={20} />
+                </div>
+              )}
+              <div className="truncate">
+                <h1 className="text-sm font-black tracking-tight truncate drop-shadow">{settings?.site_title || 'Feria Conuquera'}</h1>
+                <p className="text-[10px] text-white/70 hidden sm:block truncate">{settings?.site_subtitle}</p>
+              </div>
+            </Link>
+
+            <nav className="hidden lg:flex items-center gap-1 text-sm font-semibold text-white">
+              {visiblePages.map((p) => {
+                const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
+                return (
+                  <Link key={p.slug} to={`/p/${p.slug}`} className={`px-3 py-1.5 rounded-md transition whitespace-nowrap ${isActive ? 'bg-white/25 font-bold' : 'hover:bg-white/15'}`}>
+                    {getShortLabel(p)}
+                  </Link>
+                )
+              })}
+              {overflowPages.length > 0 && (
+                <div className="relative" ref={moreMenuRef}>
+                  <button onClick={() => setMoreMenuOpen(!moreMenuOpen)} className="px-3 py-1.5 rounded-md hover:bg-white/15 flex items-center gap-1 whitespace-nowrap">
+                    <span>Más</span><ChevronDown size={12} />
+                  </button>
+                  {moreMenuOpen && (
+                    <div className="absolute right-0 top-full mt-1 w-44 rounded-xl shadow-xl border border-white/20 p-1.5 space-y-0.5 z-50" style={{ backgroundColor: primaryColor }}>
+                      {overflowPages.map((p) => (
+                        <Link key={p.slug} to={`/p/${p.slug}`} onClick={() => setMoreMenuOpen(false)} className="block px-3 py-1.5 rounded-lg text-xs text-white/90 hover:bg-white/15">
+                          {p.title}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </nav>
+
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {settings?.show_join_form && !isAuthenticated && (
+                <Link to="/p/unirse" className="hidden sm:inline-flex px-4 py-1.5 rounded-full text-xs font-bold text-white shadow transition hover:opacity-90" style={{ backgroundColor: secondaryColor }}>
+                  Unirse
+                </Link>
+              )}
+              <button className="lg:hidden text-white p-1.5" onClick={() => setMenuOpen(!menuOpen)}>
+                {menuOpen ? <X size={18} /> : <Menu size={18} />}
+              </button>
+            </div>
+          </div>
+        </header>
+      )}
+
+      {/* STYLE K: STICKY PILL — Pildora flotante centrada */}
+      {headerStyle === 'sticky_pill' && (
+        <div className="sticky top-3 z-50 w-full px-4 flex justify-center">
+          <header className="bg-white rounded-full shadow-lg border border-gray-200/60 flex items-center gap-2 px-3 sm:px-4 py-2 max-w-5xl w-full">
+            <Link to="/p/inicio" className="flex items-center gap-2 flex-shrink-0">
+              {settings?.logo_url ? (
+                <img src={settings.logo_url} alt="logo" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+              ) : (
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-white flex-shrink-0" style={{ backgroundColor: primaryColor }}>
+                  <Leaf size={16} />
+                </div>
+              )}
+              <h1 className="text-xs font-bold hidden sm:block truncate max-w-[140px]" style={{ color: (settings as any)?.text_color || '#1a1a1a' }}>
+                {settings?.site_title || 'Feria Conuquera'}
+              </h1>
+            </Link>
+
+            <nav className="hidden lg:flex items-center gap-0.5 text-xs font-semibold mx-auto" style={{ color: (settings as any)?.text_color || '#1a1a1a' }}>
+              {visiblePages.map((p) => {
+                const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
+                return (
+                  <Link
+                    key={p.slug}
+                    to={`/p/${p.slug}`}
+                    className={`px-3 py-1.5 rounded-full transition whitespace-nowrap ${isActive ? 'text-white font-bold' : 'hover:bg-gray-100'}`}
+                    style={isActive ? { backgroundColor: primaryColor, color: '#fff' } : {}}
+                  >
+                    {getShortLabel(p)}
+                  </Link>
+                )
+              })}
+              {overflowPages.length > 0 && (
+                <div className="relative" ref={moreMenuRef}>
+                  <button onClick={() => setMoreMenuOpen(!moreMenuOpen)} className="px-3 py-1.5 rounded-full hover:bg-gray-100 flex items-center gap-1 whitespace-nowrap">
+                    <span>Más</span><ChevronDown size={12} />
+                  </button>
+                  {moreMenuOpen && (
+                    <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-2xl shadow-xl border border-gray-200 p-1.5 space-y-0.5 z-50">
+                      {overflowPages.map((p) => (
+                        <Link key={p.slug} to={`/p/${p.slug}`} onClick={() => setMoreMenuOpen(false)} className="block px-3 py-1.5 rounded-lg text-xs hover:bg-gray-100" style={{ color: (settings as any)?.text_color || '#1a1a1a' }}>
+                          {p.title}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </nav>
+
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {settings?.show_join_form && !isAuthenticated && (
+                <Link to="/p/unirse" className="hidden sm:inline-flex px-4 py-1.5 rounded-full text-xs font-bold text-white shadow transition hover:opacity-90" style={{ backgroundColor: secondaryColor }}>
+                  Unirse
+                </Link>
+              )}
+              <button className="lg:hidden p-1.5 rounded-full hover:bg-gray-100" style={{ color: (settings as any)?.text_color || '#1a1a1a' }} onClick={() => setMenuOpen(!menuOpen)}>
+                {menuOpen ? <X size={18} /> : <Menu size={18} />}
+              </button>
+            </div>
+          </header>
+        </div>
+      )}
+
       {/* STYLE D & DEFAULT: MODERN ECO / ECOVILLAGE */}
       {(headerStyle === 'modern_eco' || headerStyle === 'agrodigital_mincyt') && (
         <header className="shadow-md sticky top-0 z-50 backdrop-blur-md border-b border-white/10 w-full" style={{ backgroundColor: primaryColor }}>
@@ -1127,8 +1415,138 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
+      {menuOpen && headerStyle === 'sidebar_left' && (
+        /* === MOBILE: SIDEBAR LEFT — panel deslizable desde la izquierda === */
+        <div className="lg:hidden fixed inset-0 z-50 flex">
+          <div className="w-64 h-full text-white p-4 space-y-1 overflow-y-auto" style={{ backgroundColor: primaryColor }}>
+            <div className="flex items-center justify-between mb-3 pb-3 border-b border-white/10">
+              <span className="text-sm font-black">{settings?.site_title || 'Feria Conuquera'}</span>
+              <button onClick={() => setMenuOpen(false)} className="text-white/80 hover:text-white"><X size={18} /></button>
+            </div>
+            {menuPages.map((p) => {
+              const Icon = ICONS[p.icon || 'home'] || Home
+              const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
+              return (
+                <Link key={p.slug} to={`/p/${p.slug}`} onClick={() => setMenuOpen(false)} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold ${isActive ? 'bg-white/20 font-bold' : 'hover:bg-white/10'}`}>
+                  <Icon size={16} /><span className="truncate">{p.title}</span>
+                </Link>
+              )
+            })}
+            <div className="pt-3 border-t border-white/10 space-y-2">
+              {settings?.show_join_form && !isAuthenticated && (
+                <Link to="/p/unirse" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-2 rounded-lg text-xs font-bold text-white" style={{ backgroundColor: secondaryColor }}>Unirse</Link>
+              )}
+              {!isAuthenticated && (
+                <Link to="/login" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-1.5 rounded-lg text-xs text-white/80 border border-white/20">Acceso</Link>
+              )}
+            </div>
+          </div>
+          <div className="flex-1 bg-black/40" onClick={() => setMenuOpen(false)} />
+        </div>
+      )}
+
+      {menuOpen && headerStyle === 'split_center' && (
+        /* === MOBILE: SPLIT CENTER — lista simple sobre color primario === */
+        <div className="lg:hidden text-white p-4 space-y-1 z-40 w-full" style={{ backgroundColor: primaryColor }}>
+          {menuPages.map((p) => {
+            const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
+            return (
+              <Link key={p.slug} to={`/p/${p.slug}`} onClick={() => setMenuOpen(false)} className={`block px-4 py-2.5 rounded-lg text-sm font-bold text-center transition ${isActive ? 'bg-white/25' : 'hover:bg-white/15'}`}>
+                {p.title}
+              </Link>
+            )
+          })}
+          <div className="pt-2 border-t border-white/10 space-y-1.5">
+            {settings?.show_join_form && !isAuthenticated && (
+              <Link to="/p/unirse" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-2 rounded-lg text-xs font-bold text-white shadow" style={{ backgroundColor: secondaryColor }}>Unirse</Link>
+            )}
+            {!isAuthenticated && (
+              <Link to="/login" onClick={() => setMenuOpen(false)} className="block text-center px-3 py-1.5 rounded-lg text-xs text-white/90 hover:bg-white/10">Acceso Miembros</Link>
+            )}
+          </div>
+        </div>
+      )}
+
+      {menuOpen && headerStyle === 'minimal_underline' && (
+        /* === MOBILE: MINIMAL UNDERLINE — lista limpia sobre blanco === */
+        <div className="lg:hidden bg-white border-b border-gray-100 p-3 space-y-0.5 z-40 w-full shadow-md">
+          {menuPages.map((p) => {
+            const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
+            return (
+              <Link key={p.slug} to={`/p/${p.slug}`} onClick={() => setMenuOpen(false)} className={`block px-4 py-2.5 rounded-lg text-sm font-medium transition ${isActive ? 'font-bold' : 'hover:bg-gray-100'}`} style={isActive ? { color: primaryColor } : { color: (settings as any)?.text_color || '#1a1a1a' }}>
+                {p.title}
+              </Link>
+            )
+          })}
+          <div className="pt-2 border-t border-gray-100 space-y-1.5">
+            {settings?.show_join_form && !isAuthenticated && (
+              <Link to="/p/unirse" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-2 rounded-full text-xs font-bold text-white" style={{ backgroundColor: primaryColor }}>Unirse</Link>
+            )}
+            {!isAuthenticated && (
+              <Link to="/login" onClick={() => setMenuOpen(false)} className="block text-center px-3 py-1.5 rounded-full text-xs font-medium border" style={{ color: primaryColor, borderColor: primaryColor }}>Acceso</Link>
+            )}
+          </div>
+        </div>
+      )}
+
+      {menuOpen && headerStyle === 'hero_overlay' && (
+        /* === MOBILE: HERO OVERLAY — overlay oscuro translucido === */
+        <div className="lg:hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm p-4 flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-white font-black text-sm">{settings?.site_title || 'Feria Conuquera'}</span>
+            <button onClick={() => setMenuOpen(false)} className="text-white p-1.5 bg-white/10 rounded-lg"><X size={18} /></button>
+          </div>
+          <div className="space-y-1 flex-1">
+            {menuPages.map((p) => {
+              const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
+              return (
+                <Link key={p.slug} to={`/p/${p.slug}`} onClick={() => setMenuOpen(false)} className={`block px-4 py-3 rounded-xl text-base font-bold transition ${isActive ? 'bg-white/25 text-white' : 'text-white/80 hover:bg-white/10'}`}>
+                  {p.title}
+                </Link>
+              )
+            })}
+          </div>
+          <div className="pt-3 border-t border-white/10 space-y-2">
+            {settings?.show_join_form && !isAuthenticated && (
+              <Link to="/p/unirse" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-2.5 rounded-xl text-sm font-bold text-white" style={{ backgroundColor: secondaryColor }}>Unirse a la Red</Link>
+            )}
+            {!isAuthenticated && (
+              <Link to="/login" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-2 rounded-xl text-sm text-white/90 border border-white/30">Acceso Miembros</Link>
+            )}
+          </div>
+        </div>
+      )}
+
+      {menuOpen && headerStyle === 'sticky_pill' && (
+        /* === MOBILE: STICKY PILL — panel redondeado flotante === */
+        <div className="lg:hidden fixed inset-0 z-50 bg-black/30 p-4 flex items-start justify-center" onClick={() => setMenuOpen(false)}>
+          <div className="bg-white rounded-3xl shadow-2xl p-4 w-full max-w-sm mt-16 space-y-1" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3 pb-3 border-b border-gray-100">
+              <span className="text-sm font-bold" style={{ color: (settings as any)?.text_color || '#1a1a1a' }}>Menu</span>
+              <button onClick={() => setMenuOpen(false)} className="p-1.5 rounded-full hover:bg-gray-100"><X size={18} /></button>
+            </div>
+            {menuPages.map((p) => {
+              const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
+              return (
+                <Link key={p.slug} to={`/p/${p.slug}`} onClick={() => setMenuOpen(false)} className={`block px-4 py-2.5 rounded-full text-sm font-semibold transition ${isActive ? 'text-white font-bold' : 'hover:bg-gray-100'}`} style={isActive ? { backgroundColor: primaryColor, color: '#fff' } : { color: (settings as any)?.text_color || '#1a1a1a' }}>
+                  {p.title}
+                </Link>
+              )
+            })}
+            <div className="pt-3 border-t border-gray-100 space-y-2">
+              {settings?.show_join_form && !isAuthenticated && (
+                <Link to="/p/unirse" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-2 rounded-full text-xs font-bold text-white" style={{ backgroundColor: secondaryColor }}>Unirse</Link>
+              )}
+              {!isAuthenticated && (
+                <Link to="/login" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-1.5 rounded-full text-xs font-medium border" style={{ color: primaryColor, borderColor: primaryColor }}>Acceso</Link>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 3. MAIN PAGE CONTAINER (Guaranteed 100% fluid & responsive) */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 box-border overflow-hidden">
+      <main className={`flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 box-border overflow-hidden ${headerStyle === 'sidebar_left' ? 'lg:ml-56' : ''}`}>
         {children}
       </main>
 
