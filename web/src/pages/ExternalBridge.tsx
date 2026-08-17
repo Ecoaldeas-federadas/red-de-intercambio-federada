@@ -2,31 +2,54 @@ import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { Plus, Check, X, HelpCircle, Globe } from 'lucide-react'
+import { EntitySelector } from '../components/EntitySelector'
 
 export default function ExternalBridge() {
   const { currency } = useConfig()
   const [fc, setFc] = useState<any>(null)
   const [ops, setOps] = useState<any[]>([])
+  const [products, setProducts] = useState<any[]>([])
   const [showForm, setShowForm] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
-  const [form, setForm] = useState({ operation_type: 'import', product_name: '', quantity: 0, external_price_usd: 0, local_price_trueque: 0, logistics_pct: 0, external_tax_rate: 0 })
+  const [form, setForm] = useState({ operation_type: 'import', product_id: '', product_name: '', quantity: 0, external_price_usd: 0, local_price_trueque: 0, logistics_pct: 0, external_tax_rate: 0 })
 
   const load = () => {
     api.get('/external/fc').then(setFc).catch(() => {})
     api.get('/external/operations').then((d: any) => setOps(Array.isArray(d) ? d : [])).catch(() => {})
+    api.get('/products').then((d: any) => setProducts(Array.isArray(d) ? d : d?.products ?? [])).catch(() => {})
   }
 
   useEffect(() => { load() }, [])
 
   const create = async () => {
-    await api.post('/external/operations', form)
+    // El backend espera product_name; enviamos el nombre resuelto al seleccionar
+    await api.post('/external/operations', {
+      operation_type: form.operation_type,
+      product_name: form.product_name,
+      quantity: form.quantity,
+      external_price_usd: form.external_price_usd,
+      local_price_trueque: form.local_price_trueque,
+      logistics_pct: form.logistics_pct,
+      external_tax_rate: form.external_tax_rate,
+    })
     setShowForm(false)
-    setForm({ operation_type: 'import', product_name: '', quantity: 0, external_price_usd: 0, local_price_trueque: 0, logistics_pct: 0, external_tax_rate: 0 })
+    setForm({ operation_type: 'import', product_id: '', product_name: '', quantity: 0, external_price_usd: 0, local_price_trueque: 0, logistics_pct: 0, external_tax_rate: 0 })
     load()
   }
 
   const approve = async (id: string) => { await api.post(`/external/operations/${id}/approve`, {}); load() }
   const reject = async (id: string) => { await api.post(`/external/operations/${id}/reject`, {}); load() }
+
+  // Al seleccionar un producto, autocompletar el nombre y el precio local
+  const onProductSelect = (productId: string) => {
+    const product = products.find((p: any) => String(p.id) === String(productId))
+    setForm((prev) => ({
+      ...prev,
+      product_id: productId,
+      product_name: product?.name ?? '',
+      local_price_trueque: product?.price_trueque ?? prev.local_price_trueque,
+    }))
+  }
 
   return (
     <div className="space-y-4">
@@ -44,7 +67,7 @@ export default function ExternalBridge() {
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
           <p><strong>Comercio Externo (DEX) - Ayuda</strong></p>
           <p><strong>Que es:</strong> El DEX (Decentralized Exchange) permite comprar y vender productos con el exterior de la red federada, usando monedas externas (USD, etc).</p>
-          <p><strong>Factor de Conversion (FC):</strong> Relacion entre la moneda externa (USD) y el Trueque ({currency}). Se calcula comparando el costo de vida externo (CPI) con el costo energetico local.</p>
+          <p><strong>Factor de Conversion (FC):</strong> Relacion entre la moneda externa (USD) y el {currency}. Se calcula comparando el costo de vida externo (CPI) con el costo energetico local.</p>
           <p><strong>Importacion:</strong> Traer productos de fuera. Paga en {currency}, el sistema convierte al precio externo usando el FC.</p>
           <p><strong>Exportacion:</strong> Vender productos al exterior. Recibes {currency}, el externo paga en su moneda.</p>
           <p><strong>Logistica e impuestos:</strong> Se agregan al costo total como porcentajes. La logistica cubre transporte, los impuestos son aranceles externos.</p>
@@ -60,7 +83,7 @@ export default function ExternalBridge() {
             <div><span className="text-gray-500">CPI externo:</span> <b>{fc.external_cpi}</b></div>
             <div><span className="text-gray-500">Costo energia local:</span> <b>{fc.local_energy_cost} kWh</b></div>
           </div>
-          <p className="text-xs text-gray-500 mt-2">El FC indica cuantos Trueques equivale 1 dolar externo, basado en el costo de vida y la energia local.</p>
+          <p className="text-xs text-gray-500 mt-2">El FC indica cuantos {currency} equivale 1 dolar externo, basado en el costo de vida y la energia local.</p>
         </div>
       )}
 
@@ -74,38 +97,98 @@ export default function ExternalBridge() {
               <option value="import">Importacion (comprar de fuera)</option>
               <option value="export">Exportacion (vender afuera)</option>
             </select>
+            <p className="text-xs text-gray-400 mt-1">
+              Define el sentido de la operacion. Ej: Importacion para traer harina de otra red.
+            </p>
+            {form.operation_type === 'import' ? (
+              <p className="text-xs text-blue-600 mt-1">
+                <strong>Importacion:</strong> Comprar productos de fuera de la red. Pagas en moneda local ({currency}), el vendedor recibe en su moneda.
+              </p>
+            ) : (
+              <p className="text-xs text-blue-600 mt-1">
+                <strong>Exportacion:</strong> Vender productos al exterior. Recibes moneda local ({currency}), el comprador paga en su moneda.
+              </p>
+            )}
           </div>
 
-          <div>
-            <label className="label">Producto</label>
-            <input className="input" placeholder="Ej: Harina de trigo" value={form.product_name} onChange={(e) => setForm({ ...form, product_name: e.target.value })} />
-          </div>
+          <EntitySelector
+            label="Producto"
+            helpText="Selecciona un producto existente en el catalogo. Busca por nombre o descripcion. Ej: Harina de trigo, Energia solar."
+            placeholder="Ej: Harina de trigo, Energia solar..."
+            value={form.product_id}
+            onChange={onProductSelect}
+            endpoint="/products"
+            valueKey="id"
+            labelKey="name"
+            subLabelKey="description"
+            emptyMessage="No se encontraron productos"
+          />
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Cantidad</label>
-              <input type="number" className="input" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: parseInt(e.target.value) || 0 })} />
-              <p className="text-xs text-gray-400 mt-1">Unidades del producto.</p>
+              <input
+                type="number"
+                className="input"
+                placeholder="Ej: 100"
+                value={form.quantity}
+                onChange={(e) => setForm({ ...form, quantity: parseInt(e.target.value) || 0 })}
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Unidades del producto a comerciar. Ej: 100 (kg, litros, kWh, segun la unidad del producto).
+              </p>
             </div>
             <div>
               <label className="label">Precio externo (USD)</label>
-              <input type="number" className="input" value={form.external_price_usd} onChange={(e) => setForm({ ...form, external_price_usd: parseFloat(e.target.value) || 0 })} />
-              <p className="text-xs text-gray-400 mt-1">Precio en dolares por unidad.</p>
+              <input
+                type="number"
+                className="input"
+                placeholder="Ej: 2.50"
+                value={form.external_price_usd}
+                onChange={(e) => setForm({ ...form, external_price_usd: parseFloat(e.target.value) || 0 })}
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Precio en dolares por unidad del producto en el mercado externo. Ej: 2.50 USD por kg de harina.
+              </p>
             </div>
             <div>
               <label className="label">Precio local ({currency})</label>
-              <input type="number" className="input" value={form.local_price_trueque} onChange={(e) => setForm({ ...form, local_price_trueque: parseInt(e.target.value) || 0 })} />
-              <p className="text-xs text-gray-400 mt-1">Precio en Trueques por unidad.</p>
+              <input
+                type="number"
+                className="input"
+                placeholder="Ej: 150"
+                value={form.local_price_trueque}
+                onChange={(e) => setForm({ ...form, local_price_trueque: parseInt(e.target.value) || 0 })}
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Precio en moneda local ({currency}) por unidad. Se autocompleta al seleccionar un producto. Ej: 150 {currency} por kg.
+              </p>
             </div>
             <div>
               <label className="label">Logistica (%)</label>
-              <input type="number" className="input" value={form.logistics_pct} onChange={(e) => setForm({ ...form, logistics_pct: parseFloat(e.target.value) || 0 })} />
-              <p className="text-xs text-gray-400 mt-1">Porcentaje por transporte y aduana.</p>
+              <input
+                type="number"
+                className="input"
+                placeholder="Ej: 15"
+                value={form.logistics_pct}
+                onChange={(e) => setForm({ ...form, logistics_pct: parseFloat(e.target.value) || 0 })}
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Porcentaje adicional por transporte, aduana y tramites. Tipico: 10-30%. Ej: 15 (%).
+              </p>
             </div>
             <div>
               <label className="label">Impuesto externo (%)</label>
-              <input type="number" className="input" value={form.external_tax_rate} onChange={(e) => setForm({ ...form, external_tax_rate: parseFloat(e.target.value) || 0 })} />
-              <p className="text-xs text-gray-400 mt-1">Arancel o impuesto del pais externo.</p>
+              <input
+                type="number"
+                className="input"
+                placeholder="Ej: 5"
+                value={form.external_tax_rate}
+                onChange={(e) => setForm({ ...form, external_tax_rate: parseFloat(e.target.value) || 0 })}
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Arancel o impuesto del pais externo. Tipico: 0-20%. Ej: 5 (%).
+              </p>
             </div>
           </div>
 

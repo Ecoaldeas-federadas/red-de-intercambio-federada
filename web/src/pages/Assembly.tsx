@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useConfig } from '../hooks/useConfig'
+import { EntitySelector } from '../components/EntitySelector'
 import { Plus, Check, X, HelpCircle, Users, Calendar, Shield, Vote as VoteIcon, DollarSign, Crown, Trash2 } from 'lucide-react'
 
 type ProposalType =
   | 'limit_change' | 'admission' | 'expulsion' | 'budget_increase'
   | 'federation_config' | 'recovery_config' | 'tax_change' | 'member_level' | 'policy'
+  | 'create_account' | 'fund_distribution' | 'energy_rate_change' | 'product_modification' | 'free_proposal'
 
 const PROPOSAL_LABELS: Record<ProposalType, string> = {
   limit_change: 'Cambio de limites',
@@ -18,57 +20,297 @@ const PROPOSAL_LABELS: Record<ProposalType, string> = {
   tax_change: 'Cambio de impuestos',
   member_level: 'Nivel de miembro',
   policy: 'Politica general',
+  create_account: 'Crear cuenta',
+  fund_distribution: 'Distribucion de fondo',
+  energy_rate_change: 'Cambio de tarifa energetica',
+  product_modification: 'Modificacion de producto',
+  free_proposal: 'Propuesta libre',
 }
 
 const PROPOSAL_HELP: Record<ProposalType, string> = {
-  limit_change: 'Cambia los limites de credito/debito de un usuario o nodo. Ej: aumentar el limite de credito de un miembro.',
-  admission: 'Admite un nuevo miembro asignandole un nivel.',
-  expulsion: 'Expulsa a un miembro por mala conducta. Requiere alto quorum.',
-  budget_increase: 'Aumenta el presupuesto de una organizacion.',
-  federation_config: 'Cambia limites o configuracion de federacion con otro nodo.',
-  recovery_config: 'Cambia parametros de recuperacion de cuentas.',
-  tax_change: 'Cambia la tasa de impuesto sobre transacciones. El dinero va a la cuenta de impuestos.',
-  member_level: 'Crea o modifica un nivel de miembro con sus permisos y limites.',
-  policy: 'Cualquier decision de politica general de la comunidad.',
+  limit_change: 'Cambia los limites de credito/debito de un usuario o nodo. Ej: aumentar el limite de credito de un miembro de 100 a 300.',
+  admission: 'Admite un nuevo miembro asignandole un nivel. Ej: admitir a "juan" con nivel "pleno".',
+  expulsion: 'Expulsa a un miembro por mala conducta. Requiere alto quorum. Ej: expulsar a "pedro" por fraude.',
+  budget_increase: 'Aumenta el presupuesto de una organizacion. Ej: aumentar 500 al presupuesto de "coop_norte".',
+  federation_config: 'Cambia limites o configuracion de federacion con otro nodo. Ej: establecer limite de credito con "nodo-b.org" en 1000.',
+  recovery_config: 'Cambia parametros de recuperacion de cuentas. Ej: cambiar el modo de aprobacion a multi_sig con 3 aprobaciones.',
+  tax_change: 'Cambia la tasa de impuesto sobre transacciones. El dinero va a la cuenta de impuestos. Se puede aplicar a un nivel de miembro o de organizacion. Ej: 2% para nivel "pleno".',
+  member_level: 'Crea o modifica un nivel de miembro con sus permisos y limites. Ej: crear nivel "pleno" con limite 500.',
+  policy: 'Cualquier decision de politica general de la comunidad. Ej: aprobar el reglamento interno.',
+  create_account: 'Crea una nueva cuenta contable en la red. Ej: cuenta "fondo_social" de tipo "expense" con responsables.',
+  fund_distribution: 'Distribuye fondos de una cuenta/organizacion a otra. Ej: transferir 200 de "coop_norte" para pago de servicios.',
+  energy_rate_change: 'Cambia un parametro de la tarifa energetica. Ej: cambiar el precio por kWh a 0.15.',
+  product_modification: 'Modifica el precio o datos de un producto existente. Ej: cambiar el precio del "pan_integral" a 5.',
+  free_proposal: 'Propuesta libre sobre cualquier tema no cubierto por los otros tipos. Ej: crear un comite de bienvenida.',
 }
 
-const PROPOSAL_FIELDS = (currency: string): Record<ProposalType, { key: string; label: string; placeholder: string; type?: string }[]> => ({
+type FieldType = 'text' | 'number' | 'textarea' | 'select' | 'entity' | 'entity_toggle'
+
+interface EntityMode {
+  key: string
+  label: string
+  endpoint: string
+  valueKey: string
+  labelKey: string
+  subLabelKey?: string
+  filterFn?: (item: any) => boolean
+  emptyMessage?: string
+}
+
+interface ProposalField {
+  key: string
+  label: string
+  help: string
+  placeholder?: string
+  type: FieldType
+  options?: { value: string; label: string }[]
+  endpoint?: string
+  valueKey?: string
+  labelKey?: string
+  subLabelKey?: string
+  filterFn?: (item: any) => boolean
+  emptyMessage?: string
+  entityModes?: EntityMode[]
+}
+
+const APPROVAL_MODE_OPTIONS = [
+  { value: 'assembly', label: 'Asamblea - Decision por votacion de todos los miembros con voto' },
+  { value: 'council', label: 'Consejo - Decision por la junta directiva' },
+  { value: 'multi_sig', label: 'Multi-firma - Requiere N firmas de miembros autorizados' },
+]
+
+const ACCOUNT_TYPE_OPTIONS = [
+  { value: 'asset', label: 'Activo - Recursos/bienes disponibles' },
+  { value: 'liability', label: 'Pasivo - Obligaciones/deudas' },
+  { value: 'equity', label: 'Patrimonio - Fondos propios de la comunidad' },
+  { value: 'income', label: 'Ingreso - Entradas de dinero' },
+  { value: 'expense', label: 'Egreso - Salidas de dinero' },
+]
+
+const ENERGY_PARAM_OPTIONS = [
+  { value: 'kwh_price', label: 'Precio por kWh - Tarifa por unidad de energia consumida' },
+  { value: 'base_fee', label: 'Cargo fijo - Costo fijo mensual de conexion' },
+  { value: 'connection_fee', label: 'Costo de conexion - Tarifa por nueva conexion' },
+  { value: 'minimum_charge', label: 'Consumo minimo - Cargo minimo mensual' },
+]
+
+const FREE_CATEGORY_OPTIONS = [
+  { value: 'social', label: 'Social - Temas comunitarios y bienestar' },
+  { value: 'economic', label: 'Economico - Temas financieros y comerciales' },
+  { value: 'governance', label: 'Gobernanza - Reglas y organizacion interna' },
+  { value: 'technical', label: 'Tecnico - Infraestructura y sistemas' },
+  { value: 'other', label: 'Otro - Cualquier otro tema' },
+]
+
+const TAX_APPLIES_OPTIONS = [
+  { value: 'all', label: 'Todos los niveles - Aplica a todas las transacciones' },
+  { value: 'member_level', label: 'Nivel de miembro - Aplica a un nivel de miembro especifico' },
+  { value: 'org_level', label: 'Nivel de organizacion - Aplica a un nivel de organizacion especifico' },
+]
+
+const PROPOSAL_FIELDS = (currency: string): Record<ProposalType, ProposalField[]> => ({
   limit_change: [
-    { key: 'usuario_organizacion', label: 'Usuario u organizacion', placeholder: 'ej: maria' },
-    { key: 'nuevo_limite_credito', label: `Nuevo limite de credito (${currency})`, placeholder: '200', type: 'number' },
-    { key: 'nuevo_limite_debito', label: `Nuevo limite de debito (${currency})`, placeholder: '200', type: 'number' },
+    {
+      key: 'usuario_organizacion',
+      label: 'Usuario u organizacion',
+      help: 'Selecciona el usuario o la organizacion a la que se le cambiaran los limites. Ej: maria o coop_norte.',
+      placeholder: 'ej: maria',
+      type: 'entity_toggle',
+      entityModes: [
+        { key: 'user', label: 'Buscar Usuario', endpoint: '/accounts/search', valueKey: 'username', labelKey: 'username', subLabelKey: 'display_name', emptyMessage: 'No se encontraron usuarios' },
+        { key: 'org', label: 'Buscar Organizacion', endpoint: '/organizations', valueKey: 'name', labelKey: 'name', subLabelKey: 'description', emptyMessage: 'No se encontraron organizaciones' },
+      ],
+    },
+    { key: 'nuevo_limite_credito', label: `Nuevo limite de credito (${currency})`, help: `Monto maximo que la entidad puede deber a favor (credito). Ej: 200 ${currency}.`, placeholder: '200', type: 'number' },
+    { key: 'nuevo_limite_debito', label: `Nuevo limite de debito (${currency})`, help: `Monto maximo que la entidad puede deber en contra (debito). Ej: 200 ${currency}.`, placeholder: '200', type: 'number' },
   ],
   admission: [
-    { key: 'usuario', label: 'Usuario a admitir', placeholder: 'ej: nuevo_miembro' },
-    { key: 'nivel', label: 'Nivel', placeholder: 'ej: basic, full' },
+    {
+      key: 'usuario',
+      label: 'Usuario a admitir',
+      help: 'Selecciona el usuario que sera admitido como nuevo miembro. Ej: nuevo_miembro.',
+      placeholder: 'ej: nuevo_miembro',
+      type: 'entity',
+      endpoint: '/accounts/search',
+      valueKey: 'username',
+      labelKey: 'username',
+      subLabelKey: 'display_name',
+      emptyMessage: 'No se encontraron usuarios',
+    },
+    {
+      key: 'nivel',
+      label: 'Nivel',
+      help: 'Selecciona el nivel de miembro que se le asignara. Ej: basic, pleno, etc.',
+      placeholder: 'ej: pleno',
+      type: 'entity',
+      endpoint: '/member-levels',
+      valueKey: 'name',
+      labelKey: 'name',
+      subLabelKey: 'description',
+      emptyMessage: 'No hay niveles definidos',
+    },
   ],
   expulsion: [
-    { key: 'usuario', label: 'Usuario a expulsar', placeholder: 'ej: usuario' },
-    { key: 'razon', label: 'Razon de expulsion', placeholder: 'Motivo' },
+    {
+      key: 'usuario',
+      label: 'Usuario a expulsar',
+      help: 'Selecciona el miembro que sera expulsado. Requiere alto quorum.',
+      placeholder: 'ej: usuario',
+      type: 'entity',
+      endpoint: '/accounts/search',
+      valueKey: 'username',
+      labelKey: 'username',
+      subLabelKey: 'display_name',
+      emptyMessage: 'No se encontraron usuarios',
+    },
+    { key: 'razon', label: 'Razon de expulsion', help: 'Explica el motivo de la expulsion. Ej: fraude comprobado en transacciones.', placeholder: 'Motivo de expulsion', type: 'textarea' },
   ],
   budget_increase: [
-    { key: 'organizacion', label: 'Organizacion', placeholder: 'ej: coop_norte' },
-    { key: 'monto', label: `Monto (${currency})`, placeholder: '500', type: 'number' },
+    {
+      key: 'organizacion',
+      label: 'Organizacion',
+      help: 'Selecciona la organizacion cuyo presupuesto se aumentara. Ej: coop_norte.',
+      placeholder: 'ej: coop_norte',
+      type: 'entity',
+      endpoint: '/organizations',
+      valueKey: 'name',
+      labelKey: 'name',
+      subLabelKey: 'description',
+      emptyMessage: 'No se encontraron organizaciones',
+    },
+    { key: 'monto', label: `Monto (${currency})`, help: `Monto adicional a agregar al presupuesto. Ej: 500 ${currency}.`, placeholder: '500', type: 'number' },
   ],
   federation_config: [
-    { key: 'nodo', label: 'Nodo federado', placeholder: 'ej: nodo-b.org' },
-    { key: 'limite', label: `Nuevo limite (${currency})`, placeholder: '1000', type: 'number' },
+    {
+      key: 'nodo',
+      label: 'Nodo federado',
+      help: 'Selecciona el nodo federado con el que se cambiara la configuracion. Ej: nodo-b.org.',
+      placeholder: 'ej: nodo-b.org',
+      type: 'entity',
+      endpoint: '/federation/peers',
+      valueKey: 'domain',
+      labelKey: 'domain',
+      subLabelKey: 'node_name',
+      emptyMessage: 'No hay nodos federados',
+    },
+    { key: 'limite', label: `Nuevo limite (${currency})`, help: `Nuevo limite de credito/debito con el nodo federado. Ej: 1000 ${currency}.`, placeholder: '1000', type: 'number' },
   ],
   recovery_config: [
-    { key: 'modo', label: 'Modo de aprobacion', placeholder: 'assembly, council, multi_sig' },
-    { key: 'aprobaciones', label: 'Numero de aprobaciones', placeholder: '3', type: 'number' },
+    {
+      key: 'modo',
+      label: 'Modo de aprobacion',
+      help: 'Define como se aprueban las recuperaciones de cuenta. Asamblea = votacion de todos. Consejo = junta directiva. Multi-firma = N firmas autorizadas.',
+      type: 'select',
+      options: APPROVAL_MODE_OPTIONS,
+    },
+    { key: 'aprobaciones', label: 'Numero de aprobaciones', help: 'Cantidad de firmas/aprobaciones necesarias (solo para multi_sig). Ej: 3.', placeholder: '3', type: 'number' },
   ],
   tax_change: [
-    { key: 'tasa', label: 'Tasa de impuesto (%)', placeholder: '2', type: 'number' },
+    {
+      key: 'aplica_a',
+      label: 'Aplica a',
+      help: 'Selecciona a quien se le aplica el impuesto: todos, un nivel de miembro o un nivel de organizacion.',
+      type: 'select',
+      options: TAX_APPLIES_OPTIONS,
+    },
+    {
+      key: 'nivel',
+      label: 'Nivel de miembro/organizacion',
+      help: 'Selecciona el nivel especifico al que se aplica el impuesto (solo si elegiste un nivel arriba). Ej: pleno.',
+      placeholder: 'ej: pleno',
+      type: 'entity',
+      endpoint: '/member-levels',
+      valueKey: 'name',
+      labelKey: 'name',
+      subLabelKey: 'description',
+      emptyMessage: 'No hay niveles definidos',
+    },
+    { key: 'tasa', label: 'Tasa de impuesto (%)', help: 'Porcentaje que se cobrara sobre las transacciones. Ej: 2 (para 2%).', placeholder: '2', type: 'number' },
   ],
   member_level: [
-    { key: 'nombre_nivel', label: 'Nombre del nivel', placeholder: 'ej: pleno' },
-    { key: 'descripcion_nivel', label: 'Descripcion', placeholder: 'Permisos y alcances' },
-    { key: 'limite_credito', label: `Limite de credito (${currency})`, placeholder: '500', type: 'number' },
-    { key: 'limite_debito', label: `Limite de debito (${currency})`, placeholder: '500', type: 'number' },
+    {
+      key: 'nombre_nivel',
+      label: 'Nombre del nivel',
+      help: 'Selecciona el nivel a crear o modificar. Ej: pleno, basic, observador.',
+      placeholder: 'ej: pleno',
+      type: 'entity',
+      endpoint: '/member-levels',
+      valueKey: 'name',
+      labelKey: 'name',
+      subLabelKey: 'description',
+      emptyMessage: 'No hay niveles definidos (escribe uno nuevo)',
+    },
+    { key: 'descripcion_nivel', label: 'Descripcion', help: 'Describe los permisos y alcances del nivel. Ej: "Miembro pleno con voz, voto y quorum".', placeholder: 'Permisos y alcances', type: 'textarea' },
+    { key: 'limite_credito', label: `Limite de credito (${currency})`, help: `Monto maximo de credito permitido. Ej: 500 ${currency}.`, placeholder: '500', type: 'number' },
+    { key: 'limite_debito', label: `Limite de debito (${currency})`, help: `Monto maximo de debito permitido. Ej: 500 ${currency}.`, placeholder: '500', type: 'number' },
   ],
   policy: [
-    { key: 'detalle', label: 'Detalle de la politica', placeholder: 'Descripcion de la decision' },
+    { key: 'detalle', label: 'Detalle de la politica', help: 'Describe la decision de politica general. Ej: "Aprobar el reglamento interno version 2".', placeholder: 'Descripcion de la decision', type: 'textarea' },
+  ],
+  create_account: [
+    { key: 'nombre', label: 'Nombre de la cuenta', help: 'Nombre identificatorio de la cuenta. Ej: fondo_social.', placeholder: 'ej: fondo_social', type: 'text' },
+    {
+      key: 'tipo',
+      label: 'Tipo de cuenta',
+      help: 'Tipo contable de la cuenta. Activo = recursos, Pasivo = deudas, Patrimonio = fondos propios, Ingreso = entradas, Egreso = salidas.',
+      type: 'select',
+      options: ACCOUNT_TYPE_OPTIONS,
+    },
+    { key: 'descripcion', label: 'Descripcion', help: 'Describe el proposito de la cuenta. Ej: "Fondo para actividades sociales de la comunidad".', placeholder: 'Descripcion de la cuenta', type: 'textarea' },
+    {
+      key: 'responsables',
+      label: 'Responsables',
+      help: 'Selecciona el usuario o organizacion responsable de la cuenta. Ej: maria o coop_admin.',
+      placeholder: 'ej: maria',
+      type: 'entity_toggle',
+      entityModes: [
+        { key: 'user', label: 'Buscar Usuario', endpoint: '/accounts/search', valueKey: 'username', labelKey: 'username', subLabelKey: 'display_name', emptyMessage: 'No se encontraron usuarios' },
+        { key: 'org', label: 'Buscar Organizacion', endpoint: '/organizations', valueKey: 'name', labelKey: 'name', subLabelKey: 'description', emptyMessage: 'No se encontraron organizaciones' },
+      ],
+    },
+  ],
+  fund_distribution: [
+    {
+      key: 'cuenta_organizacion',
+      label: 'Cuenta u organizacion',
+      help: 'Selecciona la cuenta u organizacion que recibira los fondos. Ej: coop_norte.',
+      placeholder: 'ej: coop_norte',
+      type: 'entity',
+      endpoint: '/organizations',
+      valueKey: 'name',
+      labelKey: 'name',
+      subLabelKey: 'description',
+      emptyMessage: 'No se encontraron organizaciones',
+    },
+    { key: 'monto', label: `Monto (${currency})`, help: `Monto a distribuir. Ej: 200 ${currency}.`, placeholder: '200', type: 'number' },
+    { key: 'razon', label: 'Razon', help: 'Justifica el motivo de la distribucion. Ej: "Pago de servicios comunitarios del mes".', placeholder: 'Motivo de la distribucion', type: 'textarea' },
+  ],
+  energy_rate_change: [
+    {
+      key: 'parametro',
+      label: 'Parametro a cambiar',
+      help: 'Selecciona el parametro de la tarifa energetica que se modificara. Ej: precio por kWh.',
+      type: 'select',
+      options: ENERGY_PARAM_OPTIONS,
+    },
+    { key: 'nuevo_valor', label: 'Nuevo valor', help: 'Nuevo valor del parametro seleccionado. Ej: 0.15 para el precio por kWh.', placeholder: '0.15', type: 'number' },
+  ],
+  product_modification: [
+    { key: 'producto', label: 'Producto', help: 'Nombre o identificador del producto a modificar. Ej: pan_integral.', placeholder: 'ej: pan_integral', type: 'text' },
+    { key: 'nuevo_precio', label: `Nuevo precio (${currency})`, help: `Nuevo precio del producto. Ej: 5 ${currency}.`, placeholder: '5', type: 'number' },
+    { key: 'razon', label: 'Razon', help: 'Justifica el cambio de precio. Ej: "Aumento del costo de la harina".', placeholder: 'Motivo del cambio', type: 'textarea' },
+  ],
+  free_proposal: [
+    { key: 'titulo', label: 'Titulo', help: 'Titulo breve de la propuesta. Ej: "Crear comite de bienvenida".', placeholder: 'ej: Crear comite de bienvenida', type: 'text' },
+    { key: 'descripcion', label: 'Descripcion detallada', help: 'Explica la propuesta en detalle para que los miembros puedan votar informados.', placeholder: 'Descripcion completa de la propuesta', type: 'textarea' },
+    {
+      key: 'categoria',
+      label: 'Categoria',
+      help: 'Clasifica la propuesta en una categoria. Ej: Social, Economico, Gobernanza.',
+      type: 'select',
+      options: FREE_CATEGORY_OPTIONS,
+    },
+    { key: 'subcategoria', label: 'Subcategoria', help: 'Subcategoria opcional para mayor detalle. Ej: "bienestar_comunitario".', placeholder: 'ej: bienestar_comunitario', type: 'text' },
   ],
 })
 
@@ -107,6 +349,7 @@ export default function Assembly() {
   const [proposalType, setProposalType] = useState<ProposalType>('limit_change')
   const [proposalFields, setProposalFields] = useState<Record<string, string>>({})
   const [proposalDesc, setProposalDesc] = useState('')
+  const [entityModes, setEntityModes] = useState<Record<string, string>>({})
 
   const [newSession, setNewSession] = useState({ session_type: 'ordinaria', title: '', description: '' })
   const [newBoard, setNewBoard] = useState({ user_id: '', position: 'presidente' })
@@ -138,6 +381,7 @@ export default function Assembly() {
       setShowNewProposal(false)
       setProposalDesc('')
       setProposalFields({})
+      setEntityModes({})
       load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear propuesta')
@@ -203,6 +447,118 @@ export default function Assembly() {
     }
   }
 
+  const renderProposalField = (field: ProposalField) => {
+    const value = proposalFields[field.key] || ''
+
+    if (field.type === 'select') {
+      return (
+        <div key={field.key}>
+          <label className="label">{field.label}</label>
+          <select
+            className="input"
+            value={value}
+            onChange={(e) => setProposalFields({ ...proposalFields, [field.key]: e.target.value })}
+          >
+            <option value="">-- Selecciona una opcion --</option>
+            {field.options?.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+          <p className="text-xs text-gray-400 mt-1">{field.help}</p>
+        </div>
+      )
+    }
+
+    if (field.type === 'textarea') {
+      return (
+        <div key={field.key}>
+          <label className="label">{field.label}</label>
+          <textarea
+            className="input"
+            rows={3}
+            placeholder={field.placeholder}
+            value={value}
+            onChange={(e) => setProposalFields({ ...proposalFields, [field.key]: e.target.value })}
+          />
+          <p className="text-xs text-gray-400 mt-1">{field.help}</p>
+        </div>
+      )
+    }
+
+    if (field.type === 'entity' && field.endpoint) {
+      return (
+        <div key={field.key}>
+          <EntitySelector
+            label={field.label}
+            helpText={field.help}
+            placeholder={field.placeholder}
+            value={value}
+            onChange={(v) => setProposalFields({ ...proposalFields, [field.key]: v })}
+            endpoint={field.endpoint}
+            valueKey={field.valueKey || 'id'}
+            labelKey={field.labelKey || 'name'}
+            subLabelKey={field.subLabelKey}
+            filterFn={field.filterFn}
+            emptyMessage={field.emptyMessage}
+          />
+        </div>
+      )
+    }
+
+    if (field.type === 'entity_toggle' && field.entityModes) {
+      const activeModeKey = entityModes[field.key] || field.entityModes[0].key
+      const activeMode = field.entityModes.find((m) => m.key === activeModeKey) || field.entityModes[0]
+      return (
+        <div key={field.key} className="space-y-2">
+          <label className="label">{field.label}</label>
+          <div className="flex gap-2">
+            {field.entityModes.map((mode) => (
+              <button
+                key={mode.key}
+                type="button"
+                onClick={() => {
+                  setEntityModes({ ...entityModes, [field.key]: mode.key })
+                  setProposalFields({ ...proposalFields, [field.key]: '' })
+                }}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium ${activeModeKey === mode.key ? 'bg-trueque-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+          <EntitySelector
+            label=""
+            helpText={field.help}
+            placeholder={field.placeholder}
+            value={value}
+            onChange={(v) => setProposalFields({ ...proposalFields, [field.key]: v })}
+            endpoint={activeMode.endpoint}
+            valueKey={activeMode.valueKey}
+            labelKey={activeMode.labelKey}
+            subLabelKey={activeMode.subLabelKey}
+            filterFn={activeMode.filterFn}
+            emptyMessage={activeMode.emptyMessage}
+          />
+        </div>
+      )
+    }
+
+    // text / number
+    return (
+      <div key={field.key}>
+        <label className="label">{field.label}</label>
+        <input
+          type={field.type === 'number' ? 'number' : 'text'}
+          className="input"
+          placeholder={field.placeholder}
+          value={value}
+          onChange={(e) => setProposalFields({ ...proposalFields, [field.key]: e.target.value })}
+        />
+        <p className="text-xs text-gray-400 mt-1">{field.help}</p>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -250,7 +606,7 @@ export default function Assembly() {
 
               <div>
                 <label className="label">Tipo de propuesta</label>
-                <select className="input" value={proposalType} onChange={(e) => { setProposalType(e.target.value as ProposalType); setProposalFields({}) }}>
+                <select className="input" value={proposalType} onChange={(e) => { setProposalType(e.target.value as ProposalType); setProposalFields({}); setEntityModes({}) }}>
                   {Object.entries(PROPOSAL_LABELS).map(([k, v]) => (
                     <option key={k} value={k}>{v}</option>
                   ))}
@@ -258,22 +614,12 @@ export default function Assembly() {
                 <p className="text-xs text-gray-400 mt-1">{PROPOSAL_HELP[proposalType]}</p>
               </div>
 
-              {PROPOSAL_FIELDS(currency)[proposalType]?.map((field) => (
-                <div key={field.key}>
-                  <label className="label">{field.label}</label>
-                  <input
-                    type={field.type || 'text'}
-                    className="input"
-                    placeholder={field.placeholder}
-                    value={proposalFields[field.key] || ''}
-                    onChange={(e) => setProposalFields({ ...proposalFields, [field.key]: e.target.value })}
-                  />
-                </div>
-              ))}
+              {PROPOSAL_FIELDS(currency)[proposalType]?.map((field) => renderProposalField(field))}
 
               <div>
                 <label className="label">Descripcion de la propuesta</label>
                 <textarea className="input" rows={3} placeholder="Explica la propuesta para que los miembros puedan votar informados" value={proposalDesc} onChange={(e) => setProposalDesc(e.target.value)} />
+                <p className="text-xs text-gray-400 mt-1">Explica claramente la decision que se somete a votacion. Los miembros usaran este texto para decidir su voto.</p>
               </div>
 
               <button onClick={createProposal} className="btn-primary">Crear Propuesta</button>

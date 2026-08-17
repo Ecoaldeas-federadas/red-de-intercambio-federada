@@ -24,6 +24,7 @@ export default function NodeSettings() {
     credit_limit: -20000, debit_limit: 20000, can_create_organization: false,
     can_cross_node_trade: true, can_receive_nfc_card: true, can_view_audit: true,
     can_use_external_bridge: false, max_organizations: 0, can_request_limit_increase: false,
+    tax_rate: 0,
   })
 
   // Tarifa
@@ -92,6 +93,7 @@ export default function NodeSettings() {
       can_use_external_bridge: l.can_use_external_bridge,
       max_organizations: l.max_organizations,
       can_request_limit_increase: l.can_request_limit_increase,
+      tax_rate: l.tax_rate || 0,
     })
     setShowLevelForm(true)
   }
@@ -184,23 +186,31 @@ export default function NodeSettings() {
               </div>
               <div>
                 <label className="label">Numero de nivel (1=basico, 10=admin)</label>
-                <input type="number" className="input" value={levelForm.level} onChange={(e) => setLevelForm({ ...levelForm, level: parseInt(e.target.value) || 1 })} />
+                <input type="number" min="1" max="99" className="input" value={levelForm.level} onChange={(e) => setLevelForm({ ...levelForm, level: parseInt(e.target.value) || 1 })} />
+                <p className="text-xs text-gray-400 mt-1">Prioridad del nivel. 1 = miembro nuevo (sin derechos), 5 = miembro activo (voz y voto), 10 = administrador. No es el numero de permisos, es la jerarquia. Dos niveles pueden tener el mismo numero.</p>
+              </div>
+
+              <div>
+                <label className="label">Impuesto por transaccion (%)</label>
+                <input type="number" step="0.1" min="0" max="100" className="input" value={levelForm.tax_rate} onChange={(e) => setLevelForm({ ...levelForm, tax_rate: parseFloat(e.target.value) || 0 })} />
+                <p className="text-xs text-gray-400 mt-1">Porcentaje que se descuenta de cada transaccion y va al fondo comunitario. 0 = sin impuesto. 2 = 2% de cada transaccion. Las instituciones publicas suelen estar exentas (0%).</p>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
-                <label className="flex items-center gap-2">
+                <label className="flex items-center gap-2" title="Puede hablar y dar su opinion en asambleas">
                   <input type="checkbox" checked={levelForm.has_voice} onChange={(e) => setLevelForm({ ...levelForm, has_voice: e.target.checked })} />
                   <span className="text-sm">Tiene voz</span>
                 </label>
-                <label className="flex items-center gap-2">
+                <label className="flex items-center gap-2" title="Puede votar en asambleas. Los miembros con voto forman parte de la asamblea.">
                   <input type="checkbox" checked={levelForm.has_vote} onChange={(e) => setLevelForm({ ...levelForm, has_vote: e.target.checked })} />
                   <span className="text-sm">Tiene voto</span>
                 </label>
-                <label className="flex items-center gap-2">
+                <label className="flex items-center gap-2" title="Cuenta para el minimo de miembros necesarios para validar una votacion">
                   <input type="checkbox" checked={levelForm.counts_in_quorum} onChange={(e) => setLevelForm({ ...levelForm, counts_in_quorum: e.target.checked })} />
                   <span className="text-sm">Cuenta para quorum</span>
                 </label>
               </div>
+              <p className="text-xs text-gray-400 -mt-2">Voz = puede opinar en asamblea. Voto = puede votar (forma parte de la asamblea). Quorum = cuenta para el minimo de presentes necesario para validar votaciones.</p>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -291,58 +301,75 @@ export default function NodeSettings() {
         <div className="card space-y-4">
           <h2 className="font-semibold flex items-center gap-2"><Zap size={18} />Tarifa Energetica</h2>
 
-          <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
-            <p>La canasta vital diaria define cuanto cuesta mantener vivo a un miembro (comida, agua, servicios). Con esto se calcula la tarifa por hora de trabajo y los precios justos.</p>
+          <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
+            <p><strong>Que es la tarifa energetica:</strong> Es la base para calcular precios justos. La idea es que 1 {config.currency_name} = 1 kWh de energia. Con esto, todo producto o servicio tiene un precio objetivo: la energia total que costo producirlo.</p>
+            <p><strong>Como funciona:</strong> Primero se calcula cuanto cuesta mantener vivo a una persona por dia (canasta vital). Luego se divide entre las horas de trabajo de un dia para obtener la tarifa por hora. Los factores de esfuerzo ajustan el precio segun la dificultad del trabajo.</p>
+            <p><strong>Ejemplo:</strong> Si la canasta vital diaria es 1500 {config.currency_name} y se trabajan 6 horas por dia, la tarifa base por hora es 250 {config.currency_name}. Un trabajo agricola (factor 1.3) pagaria 325 {config.currency_name} por hora.</p>
+            <p><strong>Quien la configura:</strong> La asamblea. Cambiar estos valores afecta todos los calculos de precios.</p>
           </div>
 
           <h3 className="font-medium text-sm">Canasta vital diaria (en {config.currency_name})</h3>
+          <p className="text-xs text-gray-500 -mt-2">Cuanto cuesta lo minimo para que una persona viva un dia. La suma de estos valores es la base de todos los calculos.</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Alimentacion</label>
               <input type="number" className="input" value={tariff.vital_food} onChange={(e) => setTariff({ ...tariff, vital_food: parseFloat(e.target.value) || 0 })} disabled={!canManage} />
+              <p className="text-xs text-gray-400 mt-1">Costo diario de comida basica (granos, verduras, frutas). Ej: 800</p>
             </div>
             <div>
               <label className="label">Agua</label>
               <input type="number" className="input" value={tariff.vital_water} onChange={(e) => setTariff({ ...tariff, vital_water: parseFloat(e.target.value) || 0 })} disabled={!canManage} />
+              <p className="text-xs text-gray-400 mt-1">Costo diario de agua potable para consumo e higiene. Ej: 150</p>
             </div>
             <div>
               <label className="label">Vivienda/domestico</label>
               <input type="number" className="input" value={tariff.vital_domestic} onChange={(e) => setTariff({ ...tariff, vital_domestic: parseFloat(e.target.value) || 0 })} disabled={!canManage} />
+              <p className="text-xs text-gray-400 mt-1">Costo diario de vivienda (alquiler, mantenimiento, energia domestica). Ej: 350</p>
             </div>
             <div>
               <label className="label">Servicios</label>
               <input type="number" className="input" value={tariff.vital_services} onChange={(e) => setTariff({ ...tariff, vital_services: parseFloat(e.target.value) || 0 })} disabled={!canManage} />
+              <p className="text-xs text-gray-400 mt-1">Costo diario de servicios basicos (salud, transporte, comunicaciones). Ej: 200</p>
             </div>
           </div>
 
+          <div className="card bg-gray-50 text-sm">
+            <p><strong>Suma total diaria:</strong> {(tariff.vital_food + tariff.vital_water + tariff.vital_domestic + tariff.vital_services).toFixed(0)} {config.currency_name}</p>
+            <p className="text-xs text-gray-500 mt-1">Tarifa base por hora = {(tariff.vital_food + tariff.vital_water + tariff.vital_domestic + tariff.vital_services / (tariff.work_hours_per_day || 1)).toFixed(1)} {config.currency_name} (suma total / horas por dia)</p>
+          </div>
+
           <h3 className="font-medium text-sm">Factores de esfuerzo</h3>
+          <p className="text-xs text-gray-500 -mt-2">Multiplican el costo del trabajo segun su dificultad fisica o mental. 1.0 = esfuerzo base. Mas alto = mas dificil = mas pago.</p>
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="label">Administrativo</label>
               <input type="number" step="0.05" className="input" value={tariff.effort_admin} onChange={(e) => setTariff({ ...tariff, effort_admin: parseFloat(e.target.value) || 1 })} disabled={!canManage} />
-              <p className="text-xs text-gray-400">1.0 = base</p>
+              <p className="text-xs text-gray-400 mt-1">1.0 = base. Trabajo de oficina, gestion, administracion. Esfuerzo fisico minimo.</p>
             </div>
             <div>
               <label className="label">Tecnico</label>
               <input type="number" step="0.05" className="input" value={tariff.effort_technical} onChange={(e) => setTariff({ ...tariff, effort_technical: parseFloat(e.target.value) || 1 })} disabled={!canManage} />
-              <p className="text-xs text-gray-400">1.15 = mas esfuerzo</p>
+              <p className="text-xs text-gray-400 mt-1">1.15 = 15% mas. Trabajo tecnico especializado: electricidad, plomeria, mecanica. Requiere conocimiento y esfuerzo moderado.</p>
             </div>
             <div>
               <label className="label">Agricola</label>
               <input type="number" step="0.05" className="input" value={tariff.effort_agricultural} onChange={(e) => setTariff({ ...tariff, effort_agricultural: parseFloat(e.target.value) || 1 })} disabled={!canManage} />
-              <p className="text-xs text-gray-400">1.3 = mucho esfuerzo</p>
+              <p className="text-xs text-gray-400 mt-1">1.3 = 30% mas. Trabajo agricola, construccion, carga. Esfuerzo fisico intenso.</p>
             </div>
           </div>
 
           <h3 className="font-medium text-sm">Parametros laborales</h3>
+          <p className="text-xs text-gray-500 -mt-2">Definen el tiempo de trabajo estandar. Se usan para calcular la tarifa por hora.</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Horas por dia</label>
               <input type="number" className="input" value={tariff.work_hours_per_day} onChange={(e) => setTariff({ ...tariff, work_hours_per_day: parseInt(e.target.value) || 6 })} disabled={!canManage} />
+              <p className="text-xs text-gray-400 mt-1">Horas de trabajo estandar por dia. Tipico: 6-8. Menos horas = tarifa por hora mas alta.</p>
             </div>
             <div>
               <label className="label">Dias por mes</label>
               <input type="number" className="input" value={tariff.work_days_per_month} onChange={(e) => setTariff({ ...tariff, work_days_per_month: parseInt(e.target.value) || 24 })} disabled={!canManage} />
+              <p className="text-xs text-gray-400 mt-1">Dias de trabajo por mes. Tipico: 20-24. Se usa para calcular ingresos mensuales base.</p>
             </div>
           </div>
 
