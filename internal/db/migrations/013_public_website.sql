@@ -68,12 +68,13 @@ INSERT INTO public_settings (node_domain) VALUES ('localhost')
 ON CONFLICT (node_domain) DO NOTHING;
 
 -- 6. Paginas preconfiguradas con contenido de la Feria Conuquera
-INSERT INTO public_pages (node_domain, slug, title, subtitle, content, icon, menu_order, is_published, show_in_menu)
-SELECT 'localhost', slug, title, subtitle, content, icon, menu_order::int, true, show_in_menu::boolean
-FROM (VALUES
-  ('inicio', 'Inicio', 'Bienvenida a la Feria Conuquera Agroecologica',
-   'Cuando el conuco viene a la ciudad, la soberania alimenta el alma y la tierra florece en comunidad',
-   '# ¡Te damos la bienvenida a la fiesta de la cosecha sana!
+-- Usamos INSERTs individuales con ON CONFLICT DO NOTHING para evitar
+-- problemas de inferencia de tipos con VALUES en YugabyteDB.
+
+INSERT INTO public_pages (node_domain, slug, title, subtitle, content, icon, menu_order, is_published, show_in_menu) VALUES
+('localhost', 'inicio', 'Bienvenida a la Feria Conuquera Agroecologica',
+ 'Cuando el conuco viene a la ciudad, la soberania alimenta el alma y la tierra florece en comunidad',
+ '# ¡Te damos la bienvenida a la fiesta de la cosecha sana!
 
 El primer sábado de cada mes, las faldas del Parque Los Caobos en Caracas se transforman en un lienzo de verdor, fragancias y buenas vibras colectivas para celebrar el encuentro de la **Feria Conuquera Agroecológica**.
 
@@ -90,11 +91,12 @@ Este no es un mercado común regido por la especulación comercial. La Feria Con
 ## Compromiso Ecológico
 
 Está estrictamente prohibido el uso de bolsas plásticas desechables. Trae tu propia bolsa reutilizable, morral o envases de tela.',
-   'home', 1, true, true),
+ 'home', 1, true, true) ON CONFLICT (node_domain, slug) DO NOTHING;
 
-  ('filosofia', 'Nuestra Historia y Filosofía', 'Quiénes somos y de dónde venimos',
-   'Un movimiento nacido al calor de la semilla libre y el conuco como forma de vida',
-   '# El Origen: Un Movimiento Nacido al Calor de la Semilla Libre
+INSERT INTO public_pages (node_domain, slug, title, subtitle, content, icon, menu_order, is_published, show_in_menu) VALUES
+('localhost', 'filosofia', 'Nuestra Historia y Filosofía', 'Quiénes somos y de dónde venimos',
+ 'Un movimiento nacido al calor de la semilla libre y el conuco como forma de vida',
+ '# El Origen: Un Movimiento Nacido al Calor de la Semilla Libre
 
 Nuestra red comunitaria germinó formalmente el **29 de octubre de 2014**. Nacimos en un momento crucial de la historia agrícola nacional, al calor de los intensos debates populares organizados por el **Movimiento Semillas del Pueblo** para la construcción colectiva de la **Ley de Semillas** de Venezuela (promulgada en diciembre de 2015).
 
@@ -113,11 +115,12 @@ Heredamos los saberes de nuestros antepasados indígenas, campesinos y afrodesce
 - **Unidad Productiva Totobaca:** Conducida por Luz Pimienta, integrante clave del equipo organizador.
 - **Cooperativa Escuela Popular de Agricultura Urbana (EPAU):** Colectivo surgido en 2015 al calor del rescate del organopónico Bolívar 1 en Bellas Artes.
 - **Silio Sánchez:** Abogado, vegetariano y productor de gallinas criollas y cabras en el campo.',
-   'heart', 2, true, true),
+ 'heart', 2, true, true) ON CONFLICT (node_domain, slug) DO NOTHING;
 
-  ('productos', 'Nuestros Productos y Sabores', 'Catálogo de cosecha fresca y gastronomía artesanal',
-   'Cada rubro que llevas a tu mesa ha sido cultivado con amor y regado con agua limpia',
-   '# Cosecha Fresca de Temporada y Rubros Ancestrales
+INSERT INTO public_pages (node_domain, slug, title, subtitle, content, icon, menu_order, is_published, show_in_menu) VALUES
+('localhost', 'productos', 'Nuestros Productos y Sabores', 'Catálogo de cosecha fresca y gastronomía artesanal',
+ 'Cada rubro que llevas a tu mesa ha sido cultivado con amor y regado con agua limpia',
+ '# Cosecha Fresca de Temporada y Rubros Ancestrales
 
 Nos enfocamos en restaurar y dar a conocer sabores tradicionales que han sido desplazados por el mercado de consumo masivo:
 
@@ -137,11 +140,12 @@ Nos enfocamos en restaurar y dar a conocer sabores tradicionales que han sido de
 - **La Cafunga de Barlovento:** Dulce estrella de la feria, preparado por Estilita Ruiz, "La Reina de la Cafunga", a sus 75 años
 - **Economía de Sabores:** Harinas artesanales sin gluten, mermeladas, cacao puro, chocolates artesanales, café de montaña
 - **Almuerzos Comunitarios:** Gastronomía mexicana tradicional y cocina árabe preparada al momento',
-   'shopping-cart', 3, true, true),
+ 'shopping-cart', 3, true, true) ON CONFLICT (node_domain, slug) DO NOTHING;
 
-  ('comunidad', 'Comunidad, Saberes y Trueque', 'Más que un mercado: un territorio de intercambio espiritual, pedagógico y cultural',
-   'Talleres gratuitos, trueque de semillas, intercambio de libros y música en vivo',
-   '# Aula Conuquera Abierta: Intercambio de Saberes
+INSERT INTO public_pages (node_domain, slug, title, subtitle, content, icon, menu_order, is_published, show_in_menu) VALUES
+('localhost', 'comunidad', 'Comunidad, Saberes y Trueque', 'Más que un mercado: un territorio de intercambio espiritual, pedagógico y cultural',
+ 'Talleres gratuitos, trueque de semillas, intercambio de libros y música en vivo',
+ '# Aula Conuquera Abierta: Intercambio de Saberes
 
 No creemos en el conocimiento privatizado. Inspirados en el método "de campesino a campesino", nuestros productores dictan talleres gratuitos y abiertos:
 
@@ -161,11 +165,12 @@ Cada edición es animada por colectivos artísticos locales:
 - **The BigLandin:** Agrupación caraqueña de ritmos ska
 - **Sueños Repetidos:** Banda local de música tradicional y fusiones
 - **Gino González:** Cantautor popular que nos acompaña con su cuatro',
-   'users', 4, true, true),
+ 'users', 4, true, true) ON CONFLICT (node_domain, slug) DO NOTHING;
 
-  ('como-funciona', 'Cómo Funciona el Trueque', 'Sistema de crédito mutuo con saldo cero',
-   'No es una moneda: es un sistema de contabilidad de lo que das y lo que recibes',
-   '# ¿Qué es el Trueque?
+INSERT INTO public_pages (node_domain, slug, title, subtitle, content, icon, menu_order, is_published, show_in_menu) VALUES
+('localhost', 'como-funciona', 'Cómo Funciona el Trueque', 'Sistema de crédito mutuo con saldo cero',
+ 'No es una moneda: es un sistema de contabilidad de lo que das y lo que recibes',
+ '# ¿Qué es el Trueque?
 
 El trueque no es una moneda en el sentido tradicional. No es dinero que se compra o se vende. Es un **sistema de contabilidad comunitaria** que registra cuánto has dado a la comunidad y cuánto has recibido de ella.
 
@@ -217,11 +222,12 @@ El valor de un producto se calcula en base a la **energía** que costó producir
 ## ¿Qué pasa si me voy de la comunidad?
 
 Si tu saldo es cero, puedes irte sin problema. Si tu saldo es negativo, debes compensar produciendo o trabajando antes de irte. Si es positivo, debes gastar tu saldo antes de irte. Esto garantiza que nadie se aproveche del sistema.',
-   'help-circle', 5, true, true),
+ 'help-circle', 5, true, true) ON CONFLICT (node_domain, slug) DO NOTHING;
 
-  ('campo-soberano', 'Proyecto Campo Soberano', 'Comunidad Agroecológica Autónoma y Regenerativa',
-   'Una ecoaldea de ciclo cerrado con soberanía alimentaria, energética, digital y financiera',
-   '# Visión Fundacional
+INSERT INTO public_pages (node_domain, slug, title, subtitle, content, icon, menu_order, is_published, show_in_menu) VALUES
+('localhost', 'campo-soberano', 'Proyecto Campo Soberano', 'Comunidad Agroecológica Autónoma y Regenerativa',
+ 'Una ecoaldea de ciclo cerrado con soberanía alimentaria, energética, digital y financiera',
+ '# Visión Fundacional
 
 El **Campo Soberano** es un proyecto para fundar una comunidad intencional agroecológica en un predio rural colectivo, diseñada bajo los principios de la soberanía alimentaria, energética, digital y financiera.
 
@@ -262,11 +268,12 @@ El objetivo es estructurar un hábitat de **ciclo cerrado (residuo cero)** donde
 ## Gobernanza
 
 El predio permanece bajo **propiedad colectiva indivisible** mediante un Fideicomiso Comunitario. Las decisiones siguen principios de **Sociocracia 3.0** mediante círculos temáticos y consentimiento fundamentado.',
-   'leaf', 6, true, true),
+ 'leaf', 6, true, true) ON CONFLICT (node_domain, slug) DO NOTHING;
 
-  ('faq', 'Preguntas Frecuentes', 'Dudas frecuentes para nuevos visitantes y productores',
-   'Todo lo que necesitas saber antes de visitarnos o sumarte',
-   '# Preguntas Frecuentes
+INSERT INTO public_pages (node_domain, slug, title, subtitle, content, icon, menu_order, is_published, show_in_menu) VALUES
+('localhost', 'faq', 'Preguntas Frecuentes', 'Dudas frecuentes para nuevos visitantes y productores',
+ 'Todo lo que necesitas saber antes de visitarnos o sumarte',
+ '# Preguntas Frecuentes
 
 ## ¿Quiénes organizan la feria y cómo se financia?
 
@@ -287,11 +294,12 @@ La agroecología es un compromiso ético de cuidado hacia la vida. Las bolsas pl
 ## ¿Cómo funciona el trueque?
 
 El trueque es un sistema de contabilidad comunitaria. Empiezas en cero, cuando recibes tu saldo baja (negativo = debes a la comunidad), cuando das tu saldo sube (positivo = te deben). La suma de todos siempre da cero. No es dinero, es un registro de intercambios. Revisa la página "Cómo Funciona el Trueque" para más detalles.',
-   'help-circle', 7, true, true),
+ 'help-circle', 7, true, true) ON CONFLICT (node_domain, slug) DO NOTHING;
 
-  ('contacto', 'Contacto', 'Mantente en contacto con la red',
-   'Escríbenos, infórmate y comparte tus saberes',
-   '# Contacto
+INSERT INTO public_pages (node_domain, slug, title, subtitle, content, icon, menu_order, is_published, show_in_menu) VALUES
+('localhost', 'contacto', 'Contacto', 'Mantente en contacto con la red',
+ 'Escríbenos, infórmate y comparte tus saberes',
+ '# Contacto
 
 ## Redes Sociales
 
@@ -309,6 +317,4 @@ Primer sábado de cada mes, desde las 9:00 AM hasta pasado el mediodía.
 ## ¿Quieres unirte?
 
 Si quieres ser parte de nuestra comunidad, completa el formulario de solicitud de admisión y nos pondremos en contacto contigo.',
-   'mail', 8, true, true)
-) AS t(slug, title, subtitle, content, icon, menu_order, show_in_menu)
-WHERE NOT EXISTS (SELECT 1 FROM public_pages WHERE node_domain = 'localhost' LIMIT 1);
+ 'mail', 8, true, true) ON CONFLICT (node_domain, slug) DO NOTHING;
