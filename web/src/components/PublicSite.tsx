@@ -186,6 +186,12 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
     (p) => !['inicio', 'filosofia', 'filosofia-conuquera', 'campo-soberano', 'productos', 'como-funciona', 'comunidad', 'faq', 'contacto', 'semillas', 'saberes-ancestrales', 'ecoaldeas-mundo'].includes(p.slug)
   )
 
+  // Hierarchical menu: top-level pages and their children (for dropdown_categories)
+  const hasHierarchy = pages.some((p) => (p as any).parent_slug)
+  const hierarchicalTop = menuPages.filter((p) => !(p as any).parent_slug)
+  const hierarchicalChildren = (parentSlug: string) =>
+    pages.filter((p) => (p as any).parent_slug === parentSlug && p.show_in_menu !== false)
+
   return (
     <div className="min-h-screen flex flex-col font-sans selection:bg-amber-200 selection:text-amber-950 overflow-x-hidden w-full max-w-full" style={{ backgroundColor: (settings as any)?.page_bg_color || '#fdfbf7' }}>
       {/* 1. TOP ANNOUNCEMENT BAR */}
@@ -414,6 +420,41 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             </Link>
 
             <nav className="hidden lg:flex items-center gap-1 text-xs font-bold text-white">
+              {hasHierarchy ? (
+                // Hierarchical mode: use parent_slug from page settings
+                hierarchicalTop.map((parent) => {
+                  const children = hierarchicalChildren(parent.slug)
+                  if (children.length === 0) {
+                    // No children: show as direct link
+                    return (
+                      <Link key={parent.slug} to={`/p/${parent.slug}`} className="px-2.5 py-1.5 rounded-lg hover:bg-white/10">
+                        {getShortLabel(parent)}
+                      </Link>
+                    )
+                  }
+                  // Has children: show as dropdown
+                  return (
+                    <div key={parent.slug} className="relative group">
+                      <button className="px-2.5 py-1.5 rounded-lg hover:bg-white/10 flex items-center gap-1">
+                        {getShortLabel(parent)} <ChevronDown size={13} />
+                      </button>
+                      <div className="absolute left-0 top-full hidden group-hover:block bg-white text-gray-900 rounded-xl shadow-xl border border-gray-100 p-1.5 w-52 space-y-0.5 z-50">
+                        {children.map((child) => (
+                          <Link
+                            key={child.slug}
+                            to={`/p/${child.slug}`}
+                            className="block px-3 py-1.5 rounded-lg hover:bg-emerald-50 text-xs font-semibold text-gray-800 hover:text-emerald-900"
+                          >
+                            {child.title}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })
+              ) : (
+                // Fallback: hardcoded categories
+                <>
               <Link to="/p/inicio" className="px-2.5 py-1.5 rounded-lg hover:bg-white/10">
                 Inicio
               </Link>
@@ -477,6 +518,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                   {getShortLabel(p)}
                 </Link>
               ))}
+                </>
+              )}
             </nav>
 
             <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">

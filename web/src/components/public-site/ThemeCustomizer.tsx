@@ -47,6 +47,7 @@ export interface PageMenuItem {
   menu_order: number
   show_in_menu: boolean
   is_published: boolean
+  parent_slug?: string | null
 }
 
 interface ColorPreset {
@@ -158,6 +159,7 @@ export function ThemeCustomizer({
   const [draft, setDraft] = useState<ThemeDraft>(initialSettings)
   const [draftPages, setDraftPages] = useState<PageMenuItem[]>(initialPages)
   const [activeTab, setActiveTab] = useState<'cabecera' | 'menu' | 'colores' | 'footer'>('cabecera')
+  const [menuMode, setMenuMode] = useState<'plano' | 'jerarquico'>('plano')
   const [saving, setSaving] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -248,6 +250,67 @@ export function ThemeCustomizer({
     const newPages = [...draftPages]
     newPages[idx] = { ...newPages[idx], show_in_menu: !newPages[idx].show_in_menu }
     setDraftPages(newPages)
+  }
+
+  // === Hierarchical menu functions ===
+
+  // Top-level pages (no parent)
+  const topLevelPages = draftPages.filter((p) => !p.parent_slug)
+  // Children of a given parent slug
+  const childrenOf = (parentSlug: string) => draftPages.filter((p) => p.parent_slug === parentSlug)
+
+  // Move a page to be a top-level item (remove from any parent)
+  const makeTopLevel = (slug: string) => {
+    setDraftPages(draftPages.map((p) => p.slug === slug ? { ...p, parent_slug: null } : p))
+  }
+
+  // Move a page to be a child of a parent
+  const makeChild = (slug: string, parentSlug: string) => {
+    if (slug === parentSlug) return // can't be child of itself
+    // Check for circular reference
+    let parent = draftPages.find((p) => p.slug === parentSlug)
+    while (parent) {
+      if (parent.slug === slug) return // would create a cycle
+      parent = draftPages.find((p) => p.slug === parent?.parent_slug)
+    }
+    setDraftPages(draftPages.map((p) => p.slug === slug ? { ...p, parent_slug: parentSlug } : p))
+  }
+
+  // Move a top-level page up/down
+  const moveTopLevel = (slug: string, dir: 'up' | 'down') => {
+    const tops = topLevelPages
+    const idx = tops.findIndex((p) => p.slug === slug)
+    if (idx < 0) return
+    const target = dir === 'up' ? idx - 1 : idx + 1
+    if (target < 0 || target >= tops.length) return
+    // Swap menu_order between the two top-level items
+    const slugA = tops[idx].slug
+    const slugB = tops[target].slug
+    const orderA = tops[idx].menu_order
+    const orderB = tops[target].menu_order
+    setDraftPages(draftPages.map((p) => {
+      if (p.slug === slugA) return { ...p, menu_order: orderB }
+      if (p.slug === slugB) return { ...p, menu_order: orderA }
+      return p
+    }))
+  }
+
+  // Move a child page up/down within its parent
+  const moveChild = (slug: string, parentSlug: string, dir: 'up' | 'down') => {
+    const siblings = childrenOf(parentSlug)
+    const idx = siblings.findIndex((p) => p.slug === slug)
+    if (idx < 0) return
+    const target = dir === 'up' ? idx - 1 : idx + 1
+    if (target < 0 || target >= siblings.length) return
+    const slugA = siblings[idx].slug
+    const slugB = siblings[target].slug
+    const orderA = siblings[idx].menu_order
+    const orderB = siblings[target].menu_order
+    setDraftPages(draftPages.map((p) => {
+      if (p.slug === slugA) return { ...p, menu_order: orderB }
+      if (p.slug === slugB) return { ...p, menu_order: orderA }
+      return p
+    }))
   }
 
   const handleSave = async () => {
@@ -517,39 +580,168 @@ export function ThemeCustomizer({
         {/* TAB: MENU */}
         {activeTab === 'menu' && (
           <div className="space-y-3">
-            <p className="text-[11px] text-gray-500 bg-blue-50 p-2.5 rounded-xl border border-blue-100">
-              Reorganiza las páginas del menú. Los cambios se ven en vivo en la cabecera.
-            </p>
-            {draftPages.map((page, idx) => (
-              <div
-                key={page.slug}
-                className={`flex items-center gap-2 p-2.5 rounded-xl border transition ${
-                  page.show_in_menu ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-200 opacity-60'
+            {/* Sub-tabs: Plano vs Jerarquico */}
+            <div className="flex gap-2 p-1 bg-gray-100 rounded-xl">
+              <button
+                onClick={() => setMenuMode('plano')}
+                className={`flex-1 px-3 py-2 rounded-lg text-[11px] font-bold transition ${
+                  menuMode === 'plano' ? 'bg-white text-emerald-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                <div className="flex flex-col gap-0.5">
-                  <button onClick={() => movePage(idx, 'up')} disabled={idx === 0} className="text-gray-400 hover:text-emerald-600 disabled:opacity-30 transition">
-                    <ChevronUp size={14} />
-                  </button>
-                  <button onClick={() => movePage(idx, 'down')} disabled={idx === draftPages.length - 1} className="text-gray-400 hover:text-emerald-600 disabled:opacity-30 transition">
-                    <ChevronDown size={14} />
-                  </button>
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs font-bold text-gray-900">{page.title}</p>
-                  <p className="text-[10px] text-gray-400">/p/{page.slug}</p>
-                </div>
-                <button
-                  onClick={() => toggleMenuVisible(idx)}
-                  className={`p-1.5 rounded-lg transition ${
-                    page.show_in_menu ? 'text-emerald-600 hover:bg-emerald-100' : 'text-gray-400 hover:bg-gray-100'
-                  }`}
-                  title={page.show_in_menu ? 'Ocultar del menú' : 'Mostrar en menú'}
-                >
-                  {page.show_in_menu ? <Eye size={15} /> : <EyeOff size={15} />}
-                </button>
-              </div>
-            ))}
+                Menú Plano
+              </button>
+              <button
+                onClick={() => setMenuMode('jerarquico')}
+                className={`flex-1 px-3 py-2 rounded-lg text-[11px] font-bold transition ${
+                  menuMode === 'jerarquico' ? 'bg-white text-emerald-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Menú con Submenús
+              </button>
+            </div>
+
+            {menuMode === 'plano' ? (
+              <>
+                <p className="text-[11px] text-gray-500 bg-blue-50 p-2.5 rounded-xl border border-blue-100">
+                  Reorganiza las páginas del menú en una lista plana. Los cambios se ven en vivo en la cabecera.
+                </p>
+                {draftPages.map((page, idx) => (
+                  <div
+                    key={page.slug}
+                    className={`flex items-center gap-2 p-2.5 rounded-xl border transition ${
+                      page.show_in_menu ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-200 opacity-60'
+                    }`}
+                  >
+                    <div className="flex flex-col gap-0.5">
+                      <button onClick={() => movePage(idx, 'up')} disabled={idx === 0} className="text-gray-400 hover:text-emerald-600 disabled:opacity-30 transition">
+                        <ChevronUp size={14} />
+                      </button>
+                      <button onClick={() => movePage(idx, 'down')} disabled={idx === draftPages.length - 1} className="text-gray-400 hover:text-emerald-600 disabled:opacity-30 transition">
+                        <ChevronDown size={14} />
+                      </button>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-gray-900">{page.title}</p>
+                      <p className="text-[10px] text-gray-400">/p/{page.slug}</p>
+                    </div>
+                    <button
+                      onClick={() => toggleMenuVisible(idx)}
+                      className={`p-1.5 rounded-lg transition ${
+                        page.show_in_menu ? 'text-emerald-600 hover:bg-emerald-100' : 'text-gray-400 hover:bg-gray-100'
+                      }`}
+                      title={page.show_in_menu ? 'Ocultar del menú' : 'Mostrar en menú'}
+                    >
+                      {page.show_in_menu ? <Eye size={15} /> : <EyeOff size={15} />}
+                    </button>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <>
+                <p className="text-[11px] text-gray-500 bg-amber-50 p-2.5 rounded-xl border border-amber-100">
+                  Arrastra páginas dentro de otras para crear submenús. Las páginas de nivel superior aparecen en la cabecera; las hijas se despliegan al pasar el mouse. Ideal para el estilo <b>Mega Menú</b>.
+                </p>
+
+                {/* Top-level pages with their children */}
+                {topLevelPages.map((parent, pIdx) => {
+                  const children = childrenOf(parent.slug)
+                  return (
+                    <div key={parent.slug} className="rounded-xl border-2 border-emerald-200 overflow-hidden">
+                      {/* Parent header */}
+                      <div className={`flex items-center gap-2 p-2.5 bg-emerald-50 ${parent.show_in_menu ? '' : 'opacity-50'}`}>
+                        <div className="flex flex-col gap-0.5">
+                          <button onClick={() => moveTopLevel(parent.slug, 'up')} disabled={pIdx === 0} className="text-gray-400 hover:text-emerald-600 disabled:opacity-30">
+                            <ChevronUp size={14} />
+                          </button>
+                          <button onClick={() => moveTopLevel(parent.slug, 'down')} disabled={pIdx === topLevelPages.length - 1} className="text-gray-400 hover:text-emerald-600 disabled:opacity-30">
+                            <ChevronDown size={14} />
+                          </button>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs font-bold text-emerald-900">{parent.title}</p>
+                          <p className="text-[10px] text-emerald-600">/p/{parent.slug} · Menú principal</p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const fullIdx = draftPages.findIndex((p) => p.slug === parent.slug)
+                            toggleMenuVisible(fullIdx)
+                          }}
+                          className={`p-1.5 rounded-lg transition ${parent.show_in_menu ? 'text-emerald-600 hover:bg-emerald-100' : 'text-gray-400'}`}
+                        >
+                          {parent.show_in_menu ? <Eye size={15} /> : <EyeOff size={15} />}
+                        </button>
+                      </div>
+
+                      {/* Children */}
+                      {children.length > 0 && (
+                        <div className="p-2 space-y-1.5 bg-white">
+                          {children.map((child, cIdx) => (
+                            <div key={child.slug} className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 border border-gray-200 ml-4">
+                              <div className="flex flex-col gap-0.5">
+                                <button onClick={() => moveChild(child.slug, parent.slug, 'up')} disabled={cIdx === 0} className="text-gray-400 hover:text-emerald-600 disabled:opacity-30">
+                                  <ChevronUp size={12} />
+                                </button>
+                                <button onClick={() => moveChild(child.slug, parent.slug, 'down')} disabled={cIdx === children.length - 1} className="text-gray-400 hover:text-emerald-600 disabled:opacity-30">
+                                  <ChevronDown size={12} />
+                                </button>
+                              </div>
+                              <span className="text-gray-300 text-xs">↳</span>
+                              <div className="flex-1">
+                                <p className="text-xs font-semibold text-gray-700">{child.title}</p>
+                                <p className="text-[10px] text-gray-400">/p/{child.slug}</p>
+                              </div>
+                              <button
+                                onClick={() => makeTopLevel(child.slug)}
+                                className="text-[10px] text-emerald-600 hover:text-emerald-800 font-bold px-2 py-1 rounded hover:bg-emerald-50"
+                                title="Sacar del submenú"
+                              >
+                                ↑ Subir
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Drop zone: assign a page as child */}
+                      <div className="p-2 bg-gray-50 border-t border-gray-200">
+                        <select
+                          onChange={(e) => { if (e.target.value) { makeChild(e.target.value, parent.slug); e.target.value = '' } }}
+                          className="input text-[11px] py-1"
+                          defaultValue=""
+                        >
+                          <option value="">+ Añadir página como submenú...</option>
+                          {draftPages
+                            .filter((p) => !p.parent_slug && p.slug !== parent.slug && !childrenOf(parent.slug).some(c => c.slug === p.slug))
+                            .map((p) => (
+                              <option key={p.slug} value={p.slug}>{p.title}</option>
+                            ))}
+                        </select>
+                      </div>
+                    </div>
+                  )
+                })}
+
+                {/* Unassigned pages (no parent, not shown as top-level yet) */}
+                {(() => {
+                  const assignedSlugs = new Set(topLevelPages.map(p => p.slug))
+                  const unassigned = draftPages.filter((p) => !p.parent_slug && !assignedSlugs.has(p.slug))
+                  // Actually topLevelPages already includes all without parent, so this is for orphaned pages with parents that don't exist
+                  const orphans = draftPages.filter((p) => p.parent_slug && !draftPages.some(parent => parent.slug === p.parent_slug))
+                  if (orphans.length === 0) return null
+                  return (
+                    <div className="rounded-xl border border-dashed border-gray-300 p-3">
+                      <p className="text-[10px] text-gray-400 font-bold mb-2">Páginas huérfanas (sin padre válido):</p>
+                      {orphans.map((p) => (
+                        <div key={p.slug} className="flex items-center gap-2 p-2 rounded-lg bg-gray-50">
+                          <span className="text-xs text-gray-600 flex-1">{p.title}</span>
+                          <button onClick={() => makeTopLevel(p.slug)} className="text-[10px] text-emerald-600 font-bold">↑ Subir a menú principal</button>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()}
+              </>
+            )}
           </div>
         )}
 
