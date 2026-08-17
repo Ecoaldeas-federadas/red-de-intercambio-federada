@@ -69,7 +69,7 @@ ON CONFLICT (node_domain) DO NOTHING;
 
 -- 6. Paginas preconfiguradas con contenido de la Feria Conuquera
 INSERT INTO public_pages (node_domain, slug, title, subtitle, content, icon, menu_order, is_published, show_in_menu)
-SELECT 'localhost', slug, title, subtitle, content, icon, menu_order, true, show_in_menu
+SELECT 'localhost', slug, title, subtitle, content, icon, menu_order::int, true, show_in_menu::boolean
 FROM (VALUES
   ('inicio', 'Inicio', 'Bienvenida a la Feria Conuquera Agroecologica',
    'Cuando el conuco viene a la ciudad, la soberania alimenta el alma y la tierra florece en comunidad',
@@ -310,5 +310,5 @@ Primer sábado de cada mes, desde las 9:00 AM hasta pasado el mediodía.
 
 Si quieres ser parte de nuestra comunidad, completa el formulario de solicitud de admisión y nos pondremos en contacto contigo.',
    'mail', 8, true, true)
-) AS t(slug TEXT, title TEXT, subtitle TEXT, content TEXT, icon TEXT, menu_order INT, show_in_menu BOOLEAN)
+) AS t(slug, title, subtitle, content, icon, menu_order, show_in_menu)
 WHERE NOT EXISTS (SELECT 1 FROM public_pages WHERE node_domain = 'localhost' LIMIT 1);
