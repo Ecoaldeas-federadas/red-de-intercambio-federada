@@ -1573,9 +1573,9 @@ func (h *SystemHandler) getPublicSettings(w http.ResponseWriter, r *http.Request
 	var footerCol1Title, footerCol2Title, footerCol3Title, footerCol4Title, footerSlogan, footerAdmission *string
 	// Header customization fields
 	var headerSticky bool
-	var headerBannerImage string
-	var headerBannerHeight, headerTransparency, headerBlur int
-	var headerTransparencyColor, headerBgColor, headerTextColor, headerActiveColor, headerActiveBgColor, headerHoverColor string
+	var headerBannerImage, headerBannerImages string
+	var headerBannerDuration, headerBannerHeight, headerTransparency, headerBlur int
+	var headerBannerTransition, headerTransparencyColor, headerBgColor, headerTextColor, headerActiveColor, headerActiveBgColor, headerHoverColor string
 	var headerTopBgColor, headerTopTextColor, headerBottomBgColor, headerBottomTextColor string
 
 	err := h.Pool.QueryRow(r.Context(), `
@@ -1604,6 +1604,9 @@ func (h *SystemHandler) getPublicSettings(w http.ResponseWriter, r *http.Request
 		       COALESCE(footer_admission_text, 'Llenar Solicitud de Ingreso'),
 		       COALESCE(header_sticky, true),
 		       COALESCE(header_banner_image, ''),
+		       COALESCE(header_banner_images, ''),
+		       COALESCE(header_banner_duration, 5),
+		       COALESCE(header_banner_transition, 'fade'),
 		       COALESCE(header_banner_height, 120),
 		       COALESCE(header_transparency, 25),
 		       COALESCE(header_transparency_color, '#000000'),
@@ -1627,7 +1630,7 @@ func (h *SystemHandler) getPublicSettings(w http.ResponseWriter, r *http.Request
 		&footerBgColor, &linkColor, &linkVisitedColor,
 		&footerCol1Title, &footerCol2Title, &footerCol3Title, &footerCol4Title,
 		&footerSlogan, &footerAdmission,
-		&headerSticky, &headerBannerImage, &headerBannerHeight,
+		&headerSticky, &headerBannerImage, &headerBannerImages, &headerBannerDuration, &headerBannerTransition, &headerBannerHeight,
 		&headerTransparency, &headerTransparencyColor, &headerBlur,
 		&headerBgColor, &headerTextColor,
 		&headerActiveColor, &headerActiveBgColor, &headerHoverColor,
@@ -1708,6 +1711,9 @@ func (h *SystemHandler) getPublicSettings(w http.ResponseWriter, r *http.Request
 		// Header customization
 		"header_sticky":             headerSticky,
 		"header_banner_image":       headerBannerImage,
+		"header_banner_images":      headerBannerImages,
+		"header_banner_duration":    headerBannerDuration,
+		"header_banner_transition":  headerBannerTransition,
 		"header_banner_height":      headerBannerHeight,
 		"header_transparency":       headerTransparency,
 		"header_transparency_color": headerTransparencyColor,
@@ -2069,6 +2075,9 @@ type UpdateSiteSettingsReq struct {
 	// Header customization
 	HeaderSticky            bool   `json:"header_sticky"`
 	HeaderBannerImage       string `json:"header_banner_image"`
+	HeaderBannerImages      string `json:"header_banner_images"`
+	HeaderBannerDuration    int    `json:"header_banner_duration"`
+	HeaderBannerTransition  string `json:"header_banner_transition"`
 	HeaderBannerHeight      int    `json:"header_banner_height"`
 	HeaderTransparency      int    `json:"header_transparency"`
 	HeaderTransparencyColor string `json:"header_transparency_color"`
@@ -2105,6 +2114,12 @@ func (h *SystemHandler) updateSiteSettings(w http.ResponseWriter, r *http.Reques
 	if req.HeaderBannerHeight == 0 {
 		req.HeaderBannerHeight = 120
 	}
+	if req.HeaderBannerDuration == 0 {
+		req.HeaderBannerDuration = 5
+	}
+	if req.HeaderBannerTransition == "" {
+		req.HeaderBannerTransition = "fade"
+	}
 	if req.HeaderTransparency == 0 {
 		req.HeaderTransparency = 25
 	}
@@ -2132,6 +2147,7 @@ func (h *SystemHandler) updateSiteSettings(w http.ResponseWriter, r *http.Reques
 			header_active_color = $41, header_active_bg_color = $42, header_hover_color = $43,
 			header_top_bg_color = $44, header_top_text_color = $45,
 			header_bottom_bg_color = $46, header_bottom_text_color = $47,
+			header_banner_images = $48, header_banner_duration = $49, header_banner_transition = $50,
 			updated_at = NOW()
 		WHERE node_domain = $32`,
 		req.SiteTitle, req.SiteSubtitle, req.LogoURL, req.PrimaryColor, req.SecondaryColor,
@@ -2149,7 +2165,8 @@ func (h *SystemHandler) updateSiteSettings(w http.ResponseWriter, r *http.Reques
 		req.HeaderBgColor, req.HeaderTextColor,
 		req.HeaderActiveColor, req.HeaderActiveBgColor, req.HeaderHoverColor,
 		req.HeaderTopBgColor, req.HeaderTopTextColor,
-		req.HeaderBottomBgColor, req.HeaderBottomTextColor)
+		req.HeaderBottomBgColor, req.HeaderBottomTextColor,
+		req.HeaderBannerImages, req.HeaderBannerDuration, req.HeaderBannerTransition)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return

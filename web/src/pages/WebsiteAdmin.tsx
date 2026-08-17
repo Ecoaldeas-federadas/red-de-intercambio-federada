@@ -462,6 +462,9 @@ export default function WebsiteAdmin() {
     // Header customization (preserved from API)
     header_sticky: true,
     header_banner_image: '',
+    header_banner_images: '',
+    header_banner_duration: 5,
+    header_banner_transition: 'fade',
     header_banner_height: 120,
     header_transparency: 25,
     header_transparency_color: '#000000',
@@ -536,6 +539,9 @@ export default function WebsiteAdmin() {
         // Header customization
         header_sticky: settings.header_sticky ?? true,
         header_banner_image: settings.header_banner_image || '',
+        header_banner_images: settings.header_banner_images || '',
+        header_banner_duration: settings.header_banner_duration ?? 5,
+        header_banner_transition: settings.header_banner_transition || 'fade',
         header_banner_height: settings.header_banner_height ?? 120,
         header_transparency: settings.header_transparency ?? 25,
         header_transparency_color: settings.header_transparency_color || '#000000',

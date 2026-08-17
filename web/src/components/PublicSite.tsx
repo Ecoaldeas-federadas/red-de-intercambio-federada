@@ -106,6 +106,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
   const [pages, setPages] = useState<PublicPageData[]>([])
   const [menuOpen, setMenuOpen] = useState(false)
   const [moreMenuOpen, setMoreMenuOpen] = useState(false)
+  const [bannerSlide, setBannerSlide] = useState(0)
   const moreMenuRef = useRef<HTMLDivElement>(null)
   const [showCustomizer, setShowCustomizer] = useState(false)
   const [draftSettings, setDraftSettings] = useState<ThemeDraft | null>(null)
@@ -161,9 +162,27 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  // Banner carousel auto-rotation
+  const bannerImagesList = headerBannerImages
+    ? headerBannerImages.split(',').map((s: string) => s.trim()).filter(Boolean)
+    : headerBannerImage
+      ? [headerBannerImage]
+      : ['https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1600&q=80']
+
+  useEffect(() => {
+    if (bannerImagesList.length <= 1) return
+    const interval = setInterval(() => {
+      setBannerSlide((prev) => (prev + 1) % bannerImagesList.length)
+    }, headerBannerDuration * 1000)
+    return () => clearInterval(interval)
+  }, [bannerImagesList.length, headerBannerDuration])
+
   const headerStyle = settings?.header_style || 'modern_eco'
   const headerSticky = (settings as any)?.header_sticky ?? true
   const headerBannerImage = (settings as any)?.header_banner_image || ''
+  const headerBannerImages = (settings as any)?.header_banner_images || ''
+  const headerBannerDuration = (settings as any)?.header_banner_duration || 5
+  const headerBannerTransition = (settings as any)?.header_banner_transition || 'fade'
   const headerBannerHeight = (settings as any)?.header_banner_height || 120
   const headerTransparency = (settings as any)?.header_transparency ?? 25
   const headerTransparencyColor = (settings as any)?.header_transparency_color || '#000000'
@@ -681,17 +700,43 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
       {/* STYLE F: BANNER — Imagen de fondo, logo superpuesto, menú inferior translúcido */}
       {headerStyle === 'banner' && (
         <header className={`${stickyClass} z-50 w-full shadow-lg`}>
-          {/* Banner with background image */}
+          {/* Banner with carousel background */}
           <div
             className="relative w-full overflow-hidden"
-            style={{
-              backgroundImage: `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.55)), url(${headerBannerImage || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1600&q=80'})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundColor: primaryColor,
-              minHeight: `${headerBannerHeight}px`,
-            }}
+            style={{ backgroundColor: primaryColor, minHeight: `${headerBannerHeight}px` }}
           >
+            {/* Carousel slides */}
+            {bannerImagesList.map((img: string, idx: number) => (
+              <div
+                key={idx}
+                className="absolute inset-0 transition-all duration-1000"
+                style={{
+                  backgroundImage: `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.55)), url(${img})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  opacity: idx === bannerSlide ? 1 : 0,
+                  transform: idx === bannerSlide
+                    ? 'scale(1)'
+                    : headerBannerTransition === 'zoom'
+                      ? 'scale(1.1)'
+                      : headerBannerTransition === 'slide'
+                        ? `translateX(${idx < bannerSlide ? '-100%' : '100%'})`
+                        : 'scale(1)',
+                }}
+              />
+            ))}
+            {/* Carousel dots */}
+            {bannerImagesList.length > 1 && (
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
+                {bannerImagesList.map((_: string, idx: number) => (
+                  <button
+                    key={idx}
+                    onClick={() => setBannerSlide(idx)}
+                    className={`w-2 h-2 rounded-full transition-all ${idx === bannerSlide ? 'bg-white w-6' : 'bg-white/50 hover:bg-white/80'}`}
+                  />
+                ))}
+              </div>
+            )}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between gap-3 relative z-10">
               {/* Logo + brand overlaid on image */}
               <Link to="/p/inicio" className="flex items-center gap-3 text-white group flex-shrink-0 max-w-xs sm:max-w-md truncate" style={{ color: headerTextColorResolved }}>
@@ -1792,6 +1837,9 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                     footer_admission_text: (settings as any)?.footer_admission_text || 'Llenar Solicitud de Ingreso',
                     header_sticky: (settings as any)?.header_sticky ?? true,
                     header_banner_image: (settings as any)?.header_banner_image || '',
+                    header_banner_images: (settings as any)?.header_banner_images || '',
+                    header_banner_duration: (settings as any)?.header_banner_duration ?? 5,
+                    header_banner_transition: (settings as any)?.header_banner_transition || 'fade',
                     header_banner_height: (settings as any)?.header_banner_height || 120,
                     header_transparency: (settings as any)?.header_transparency ?? 25,
                     header_transparency_color: (settings as any)?.header_transparency_color || '#000000',
@@ -1867,6 +1915,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           footer_slogan: '100% Autogestión & Suelo Vivo',
           footer_admission_text: 'Llenar Solicitud de Ingreso',
           header_sticky: true, header_banner_image: '',
+          header_banner_images: '', header_banner_duration: 5, header_banner_transition: 'fade',
           header_banner_height: 120, header_transparency: 25,
           header_transparency_color: '#000000', header_blur: 4,
           header_bg_color: '', header_text_color: '',

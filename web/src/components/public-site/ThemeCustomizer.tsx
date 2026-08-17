@@ -39,6 +39,10 @@ export interface ThemeDraft {
   header_transparency: number
   header_transparency_color: string
   header_blur: number
+  // Banner carousel
+  header_banner_images: string   // comma-separated URLs for carousel
+  header_banner_duration: number // seconds per image
+  header_banner_transition: string // fade, slide, zoom
   // Header colors (empty = use theme palette)
   header_bg_color: string
   header_text_color: string
@@ -619,7 +623,7 @@ export function ThemeCustomizer({
 
               {/* Banner image (for banner style) */}
               {draft.header_style === 'banner' && (
-                <div className="space-y-2 pt-2 border-t border-gray-200">
+                <div className="space-y-3 pt-2 border-t border-gray-200">
                   <p className="text-[11px] font-bold text-gray-600">Imagen del banner</p>
                   <div className="flex items-center gap-2">
                     {draft.header_banner_image && (
@@ -644,6 +648,87 @@ export function ThemeCustomizer({
                     </div>
                   </div>
                   <p className="text-[10px] text-gray-400">Deja vacío para usar imagen por defecto</p>
+
+                  {/* Carousel: multiple images */}
+                  <div className="pt-2 border-t border-gray-100 space-y-2">
+                    <p className="text-[11px] font-bold text-gray-600">Carrusel (múltiples imágenes)</p>
+                    <p className="text-[10px] text-gray-400">Pega varias URLs separadas por comas para un carrusel automático.</p>
+                    <textarea
+                      value={draft.header_banner_images}
+                      onChange={(e) => setDraft({ ...draft, header_banner_images: e.target.value })}
+                      placeholder="https://imagen1.jpg, https://imagen2.jpg, https://imagen3.jpg"
+                      className="input text-[10px] min-h-[60px] resize-y"
+                    />
+                    {/* Preview thumbnails */}
+                    {draft.header_banner_images && (
+                      <div className="flex gap-1.5 flex-wrap">
+                        {draft.header_banner_images.split(',').map((s, i) => {
+                          const url = s.trim()
+                          if (!url) return null
+                          return (
+                            <div key={i} className="relative group">
+                              <img src={url} alt={`slide ${i+1}`} className="w-14 h-10 rounded object-cover border border-gray-200" />
+                              <button
+                                onClick={() => {
+                                  const imgs = draft.header_banner_images.split(',').filter((_, idx) => idx !== i).join(',')
+                                  setDraft({ ...draft, header_banner_images: imgs })
+                                }}
+                                className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[8px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                              >
+                                <X size={10} />
+                              </button>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                    {/* Add image by upload to carousel */}
+                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 text-[11px] font-bold hover:bg-emerald-200 transition cursor-pointer border border-emerald-300">
+                      <Upload size={14} />
+                      Subir imagen al carrusel
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                        const f = e.target.files?.[0]
+                        if (f) handleLogoUpload(f).then((url: string) => {
+                          const current = draft.header_banner_images ? draft.header_banner_images.split(',').map(s => s.trim()).filter(Boolean) : []
+                          setDraft({ ...draft, header_banner_images: [...current, url].join(', ') })
+                        })
+                      }} />
+                    </label>
+                  </div>
+
+                  {/* Carousel duration */}
+                  <div>
+                    <label className="label text-[11px] font-bold">Duración por imagen: {draft.header_banner_duration}s</label>
+                    <input
+                      type="range"
+                      min="2"
+                      max="15"
+                      step="1"
+                      value={draft.header_banner_duration}
+                      onChange={(e) => setDraft({ ...draft, header_banner_duration: parseInt(e.target.value) })}
+                      className="w-full accent-emerald-600"
+                    />
+                  </div>
+
+                  {/* Transition type */}
+                  <div>
+                    <label className="label text-[11px] font-bold">Tipo de transición</label>
+                    <div className="flex gap-1.5">
+                      {['fade', 'slide', 'zoom'].map((t) => (
+                        <button
+                          key={t}
+                          onClick={() => setDraft({ ...draft, header_banner_transition: t })}
+                          className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition ${
+                            draft.header_banner_transition === t
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          {t === 'fade' ? 'Desvanecer' : t === 'slide' ? 'Deslizar' : 'Zoom'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
 

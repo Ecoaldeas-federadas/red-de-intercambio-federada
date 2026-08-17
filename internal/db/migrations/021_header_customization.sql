@@ -12,6 +12,9 @@
 
 ALTER TABLE public_settings ADD COLUMN IF NOT EXISTS header_sticky BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE public_settings ADD COLUMN IF NOT EXISTS header_banner_image TEXT DEFAULT '';
+ALTER TABLE public_settings ADD COLUMN IF NOT EXISTS header_banner_images TEXT DEFAULT '';
+ALTER TABLE public_settings ADD COLUMN IF NOT EXISTS header_banner_duration INT NOT NULL DEFAULT 5;
+ALTER TABLE public_settings ADD COLUMN IF NOT EXISTS header_banner_transition VARCHAR(20) DEFAULT 'fade';
 ALTER TABLE public_settings ADD COLUMN IF NOT EXISTS header_banner_height INT NOT NULL DEFAULT 120;
 ALTER TABLE public_settings ADD COLUMN IF NOT EXISTS header_transparency INT NOT NULL DEFAULT 25;
 ALTER TABLE public_settings ADD COLUMN IF NOT EXISTS header_transparency_color VARCHAR(7) DEFAULT '#000000';
