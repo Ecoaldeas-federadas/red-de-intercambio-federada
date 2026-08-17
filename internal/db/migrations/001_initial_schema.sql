@@ -489,6 +489,16 @@ SELECT -1000000, 1000000, 500000
 WHERE NOT EXISTS (SELECT 1 FROM federation_global_config);
 
 -- Add FK that was deferred (assembly_decisions is created later in this file)
-ALTER TABLE approval_signatures
-  ADD CONSTRAINT approval_signatures_assembly_decision_id_fkey
-  FOREIGN KEY (assembly_decision_id) REFERENCES assembly_decisions(id);
+-- Usar DO block para evitar error si la constraint ya existe (idempotente)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'approval_signatures_assembly_decision_id_fkey'
+    AND table_name = 'approval_signatures'
+  ) THEN
+    ALTER TABLE approval_signatures
+      ADD CONSTRAINT approval_signatures_assembly_decision_id_fkey
+      FOREIGN KEY (assembly_decision_id) REFERENCES assembly_decisions(id);
+  END IF;
+END $$;

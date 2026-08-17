@@ -127,6 +127,17 @@ func (d *DB) Close() {
 }
 
 func (d *DB) RunMigrations(ctx context.Context, migrationsDir string) error {
+	// Crear tabla de tracking de migraciones si no existe
+	_, err := d.Pool.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS schema_migrations (
+			filename VARCHAR(255) PRIMARY KEY,
+			executed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("creating schema_migrations table: %w", err)
+	}
+
 	entries, err := os.ReadDir(migrationsDir)
 	if err != nil {
 		return fmt.Errorf("reading migrations dir: %w", err)
@@ -141,6 +152,16 @@ func (d *DB) RunMigrations(ctx context.Context, migrationsDir string) error {
 	sort.Strings(files)
 
 	for _, file := range files {
+		// Verificar si ya se ejecuto
+		var exists bool
+		err := d.Pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE filename = $1)`, file).Scan(&exists)
+		if err != nil {
+			return fmt.Errorf("checking migration %s: %w", file, err)
+		}
+		if exists {
+			continue // Ya ejecutada, saltar
+		}
+
 		path := filepath.Join(migrationsDir, file)
 		content, err := os.ReadFile(path)
 		if err != nil {
@@ -150,6 +171,12 @@ func (d *DB) RunMigrations(ctx context.Context, migrationsDir string) error {
 		_, err = d.Pool.Exec(ctx, string(content))
 		if err != nil {
 			return fmt.Errorf("executing migration %s: %w", file, err)
+		}
+
+		// Marcar como ejecutada
+		_, err = d.Pool.Exec(ctx, `INSERT INTO schema_migrations (filename) VALUES ($1) ON CONFLICT DO NOTHING`, file)
+		if err != nil {
+			return fmt.Errorf("marking migration %s as done: %w", file, err)
 		}
 	}
 
