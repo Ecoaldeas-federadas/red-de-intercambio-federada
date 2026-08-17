@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
-import { Shield, KeyRound, Check, X, Clock, Plus } from 'lucide-react'
+import { Shield, KeyRound, Check, X, Clock, Plus, HelpCircle } from 'lucide-react'
 
 export default function Recovery() {
   const [config, setConfig] = useState<any>(null)
@@ -9,6 +9,7 @@ export default function Recovery() {
   const [approvals, setApprovals] = useState<any[]>([])
   const [showConfig, setShowConfig] = useState(false)
   const [showNewReq, setShowNewReq] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
   const [error, setError] = useState('')
 
   const load = () => {
@@ -85,10 +86,31 @@ export default function Recovery() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold flex items-center gap-2"><Shield size={24} />Recuperacion de Cuenta</h1>
         <div className="flex gap-2">
+          <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
+            <HelpCircle size={20} />
+          </button>
           <button onClick={() => setShowConfig(!showConfig)} className="btn-secondary text-sm">Configuracion</button>
           <button onClick={() => setShowNewReq(!showNewReq)} className="btn-primary flex items-center gap-2 text-sm"><Plus size={16} />Nueva Solicitud</button>
         </div>
       </div>
+
+      {showHelp && (
+        <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
+          <p><strong>Recuperacion de Cuenta - Ayuda</strong></p>
+          <p><strong>Para que sirve:</strong> Cuando un usuario pierde acceso a su cuenta (olvido la contrasena, perdio el dispositivo con la passkey, etc), puede solicitar la recuperacion. Ninguna persona sola puede restaurar el acceso: se requiere la aprobacion de varias personas.</p>
+          <p><strong>Modos de aprobacion:</strong></p>
+          <ul className="list-disc list-inside ml-4">
+            <li><strong>Multi-firma:</strong> N firmas de cualquier miembro (configurable, minimo 2)</li>
+            <li><strong>Consejo:</strong> Aprobacion por un grupo designado</li>
+            <li><strong>Asamblea:</strong> Votacion en asamblea</li>
+            <li><strong>Departamento:</strong> Jefes de departamento</li>
+          </ul>
+          <p><strong>Nueva Solicitud:</strong> Crea una solicitud de recuperacion para un usuario que perdio acceso. Indica el usuario y la razon.</p>
+          <p><strong>Configuracion:</strong> Define el modo de aprobacion, cuantas aprobaciones se necesitan y cuanto tiempo tarda en expirar una solicitud sin respuesta.</p>
+          <p><strong>Verificacion de identidad:</strong> Se puede requerir que el solicitante verifique su identidad antes de aprobar.</p>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
+        </div>
+      )}
 
       {error && <div className="text-red-600 text-sm">{error}</div>}
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
-import { Globe, Plus, Trash2, Key, Copy, CheckCircle, AlertCircle, Link2 } from 'lucide-react'
+import { Globe, Plus, Trash2, Key, Copy, CheckCircle, AlertCircle, Link2, HelpCircle } from 'lucide-react'
 
 interface Peer {
   peer_domain: string
@@ -28,6 +28,7 @@ export default function FederationPeers() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [showAdd, setShowAdd] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
   const [copied, setCopied] = useState(false)
 
   const canManage = hasPermission('federation.change_config')
@@ -96,7 +97,24 @@ export default function FederationPeers() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold flex items-center gap-2"><Globe size={24} /> Federacion de Nodos</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold flex items-center gap-2"><Globe size={24} /> Federacion de Nodos</h1>
+        <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
+          <HelpCircle size={20} />
+        </button>
+      </div>
+
+      {showHelp && (
+        <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
+          <p><strong>Federacion de Nodos - Ayuda</strong></p>
+          <p><strong>Para que sirve:</strong> La federacion conecta tu nodo con nodos de otras comunidades. Esto permite que los usuarios de tu comunidad puedan intercambiar con usuarios de otras comunidades federadas.</p>
+          <p><strong>Tu nodo:</strong> Muestra el nombre, dominio y clave publica de tu nodo. Comparte tu clave publica con el administrador del otro nodo para que te registre.</p>
+          <p><strong>Nodos federados:</strong> Lista de los nodos que has registrado como pares. Cada uno tiene un estado (activo, pendiente) y muestra si la verificacion es mutua.</p>
+          <p><strong>Como federar:</strong> Sigue los pasos que aparecen abajo. Necesitas la clave publica del otro nodo y ellos necesitan la tuya. La federacion solo funciona cuando ambos se registran mutuamente.</p>
+          <p><strong>Clave publica:</strong> Es un identificador criptografico (Ed25519) que identifica univocamente a tu nodo. No es secreta, puedes compartirla libremente.</p>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
+        </div>
+      )}
 
       {error && <div className="text-red-600 text-sm flex items-center gap-2"><AlertCircle size={16} /> {error}</div>}
       {success && <div className="text-green-600 text-sm flex items-center gap-2"><CheckCircle size={16} /> {success}</div>}
@@ -190,11 +208,29 @@ export default function FederationPeers() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowAdd(false)}>
           <div className="bg-white rounded-xl p-6 w-96 space-y-3" onClick={(e) => e.stopPropagation()}>
             <h2 className="font-bold text-lg">Registrar Nodo Peer</h2>
-            <input className="input" placeholder="Dominio (ej: nodo-b.org)" value={newPeer.peer_domain} onChange={(e) => setNewPeer({ ...newPeer, peer_domain: e.target.value })} />
-            <input className="input" placeholder="Nombre (opcional)" value={newPeer.peer_name} onChange={(e) => setNewPeer({ ...newPeer, peer_name: e.target.value })} />
-            <textarea className="input font-mono text-xs" rows={3} placeholder="Clave publica (64 hex chars)" value={newPeer.peer_public_key} onChange={(e) => setNewPeer({ ...newPeer, peer_public_key: e.target.value })} />
-            <input className="input" placeholder="URL del nodo (opcional, ej: https://nodo-b.org)" value={newPeer.peer_endpoint} onChange={(e) => setNewPeer({ ...newPeer, peer_endpoint: e.target.value })} />
-            <input className="input" placeholder="Notas (opcional)" value={newPeer.notes} onChange={(e) => setNewPeer({ ...newPeer, notes: e.target.value })} />
+            <div>
+              <label className="label">Dominio del nodo remoto</label>
+              <input className="input" placeholder="Ej: nodo-b.org" value={newPeer.peer_domain} onChange={(e) => setNewPeer({ ...newPeer, peer_domain: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">Identificador unico del otro nodo.</p>
+            </div>
+            <div>
+              <label className="label">Nombre (opcional)</label>
+              <input className="input" placeholder="Ej: Banco Comunitario B" value={newPeer.peer_name} onChange={(e) => setNewPeer({ ...newPeer, peer_name: e.target.value })} />
+            </div>
+            <div>
+              <label className="label">Clave publica (64 hex chars)</label>
+              <textarea className="input font-mono text-xs" rows={3} placeholder="Ej: a1b2c3d4..." value={newPeer.peer_public_key} onChange={(e) => setNewPeer({ ...newPeer, peer_public_key: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">La clave publica Ed25519 del otro nodo. Te la debe dar su administrador.</p>
+            </div>
+            <div>
+              <label className="label">URL del nodo (opcional)</label>
+              <input className="input" placeholder="Ej: https://nodo-b.org" value={newPeer.peer_endpoint} onChange={(e) => setNewPeer({ ...newPeer, peer_endpoint: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">Direccion HTTPS para conectarse via federacion.</p>
+            </div>
+            <div>
+              <label className="label">Notas (opcional)</label>
+              <input className="input" placeholder="Ej: Nodo de la comunidad vecina" value={newPeer.notes} onChange={(e) => setNewPeer({ ...newPeer, notes: e.target.value })} />
+            </div>
             <button onClick={addPeer} className="btn-primary w-full">Registrar</button>
           </div>
         </div>

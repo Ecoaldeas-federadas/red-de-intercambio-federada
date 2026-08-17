@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
-import { Building2, Plus, Users, Shield, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
+import { Building2, Plus, Users, Shield, Trash2, ChevronDown, ChevronRight, HelpCircle } from 'lucide-react'
 
 interface Department {
   id: string
@@ -52,6 +52,7 @@ export default function Departments() {
   const [showRolePerms, setShowRolePerms] = useState<string | null>(null)
   const [rolePerms, setRolePerms] = useState<Permission[]>([])
   const [error, setError] = useState('')
+  const [showHelp, setShowHelp] = useState(false)
 
   const canManage = hasPermission('dept.manage')
   const canAssign = hasPermission('dept.assign_members')
@@ -190,12 +191,30 @@ export default function Departments() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Departamentos</h1>
-        {canManage && (
-          <button onClick={() => setShowCreateDept(true)} className="btn-primary flex items-center gap-2">
-            <Plus size={18} /> Nuevo Departamento
+        <div className="flex gap-2">
+          <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
+            <HelpCircle size={20} />
           </button>
-        )}
+          {canManage && (
+            <button onClick={() => setShowCreateDept(true)} className="btn-primary flex items-center gap-2">
+              <Plus size={18} /> Nuevo Departamento
+            </button>
+          )}
+        </div>
       </div>
+
+      {showHelp && (
+        <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
+          <p><strong>Departamentos - Ayuda</strong></p>
+          <p><strong>Para que sirve:</strong> Los departamentos son grupos internos de trabajo de la comunidad. Permiten organizar a los miembros por areas (ej: produccion, distribucion, administracion) y asignar roles y permisos especificos a cada grupo.</p>
+          <p><strong>Diferencia con Organizaciones:</strong> Las organizaciones son grupos que tienen cuenta propia y pueden transar. Los departamentos son areas funcionales internas para gestionar permisos y responsabilidades.</p>
+          <p><strong>Roles:</strong> Cada departamento tiene roles (ej: coordinador, miembro). Cada rol tiene permisos especificos que determinan que puede hacer.</p>
+          <p><strong>Permisos:</strong> Controlan que acciones puede realizar cada rol. Algunos permisos requieren multi-firma (varias aprobaciones).</p>
+          <p><strong>Miembros:</strong> Usuarios asignados a un departamento con un rol especifico.</p>
+          <p><strong>Tipos:</strong> Departamento (area de trabajo), Consejo (grupo decision), Comision (grupo temporal para una tarea).</p>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
+        </div>
+      )}
 
       {error && <div className="text-red-600 text-sm">{error}</div>}
 

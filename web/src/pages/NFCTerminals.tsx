@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { api, apiFetch } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useSerialChipId } from '../hooks/useSerialChipId'
-import { Nfc, Plus, Trash2, CreditCard, KeyRound, Activity, Cpu, Usb, Download, Lock } from 'lucide-react'
+import { Nfc, Plus, Trash2, CreditCard, KeyRound, Activity, Cpu, Usb, Download, Lock, HelpCircle } from 'lucide-react'
 
 interface Terminal {
   id: string
@@ -39,6 +39,7 @@ export default function NFCTerminals() {
   const [showRegister, setShowRegister] = useState(false)
   const [showIssueCard, setShowIssueCard] = useState(false)
   const [showResetPIN, setShowResetPIN] = useState<string | null>(null)
+  const [showHelp, setShowHelp] = useState(false)
 
   // Provisioning state
   const { chipId, scanning, error: serialError, supported: serialSupported, scan } = useSerialChipId()
@@ -240,7 +241,24 @@ export default function NFCTerminals() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold flex items-center gap-2"><Nfc size={24} /> Terminales NFC</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold flex items-center gap-2"><Nfc size={24} /> Terminales NFC</h1>
+        <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
+          <HelpCircle size={20} />
+        </button>
+      </div>
+
+      {showHelp && (
+        <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
+          <p><strong>Terminales NFC - Ayuda</strong></p>
+          <p><strong>Para que sirve:</strong> Los terminales NFC son dispositivos ESP32 que se instalan en comercios para aceptar pagos con tarjetas NFC. Cada usuario puede tener una tarjeta NFC con su identificador.</p>
+          <p><strong>Terminales:</strong> Lista de los terminales ESP32 registrados en el nodo. Muestra si estan activos y cuando se vieron por ultima vez.</p>
+          <p><strong>Provisionar:</strong> Proceso de configurar un terminal ESP32 nuevo. Necesitas conectarlo por USB, leer su chip ID, y descargar el firmware compilado.</p>
+          <p><strong>Tarjetas:</strong> Emitir tarjetas NFC para usuarios y cambiar PINs. La tarjeta solo contiene el ID del usuario, no la clave privada. Si se pierde, se desactiva y se emite otra.</p>
+          <p><strong>Transacciones:</strong> Historial de pagos realizados a traves de los terminales NFC.</p>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
+        </div>
+      )}
 
       <div className="flex gap-2 flex-wrap">
         {([['terminals', 'Terminales'], ['provision', 'Provisionar'], ['cards', 'Tarjetas'], ['transactions', 'Transacciones']] as const).map(([key, label]) => (
