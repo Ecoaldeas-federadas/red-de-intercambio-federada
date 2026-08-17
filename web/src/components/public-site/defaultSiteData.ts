@@ -713,16 +713,23 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
       },
       {
         type: 'features_grid',
-        title: 'Movimientos Hermanos en el Mundo',
-        subtitle: 'No estamos solos: la agroecología y el trueque son movimientos planetarios',
+        title: 'Otras Experiencias en el Mundo',
+        subtitle: 'Referentes y movimientos que inspiran prácticas similares a las nuestras. No son aliados ni socios: son experiencias que compartimos y de las cuales aprendemos.',
         columns: 3,
         items: [
           {
             icon: 'globe',
             title: 'Red Global de Ecoaldeas (GEN)',
             description:
-              'Fundada en 1995, conecta ecoaldeas en todos los continentes. Promueve el intercambio de conocimientos, soluciones y mejores prácticas entre comunidades regenerativas. Su lema: "El mundo necesita más ecoaldeas".',
+              'Fundada en 1995, conecta ecoaldeas en todos los continentes. Promueve el intercambio de conocimientos, soluciones y mejores prácticas entre comunidades regenerativas. Su lema: "El mundo necesita más ecoaldeas". Es la red más importante del movimiento global de ecoaldeas.',
             badge: 'GEN',
+          },
+          {
+            icon: 'globe',
+            title: 'CASA Latina',
+            description:
+              'El Consejo de Asentamientos Sustentables de América Latina es la rama de GEN para Latinoamérica. Agrupa redes nacionales de bioconstrucción, permacultura y ecoaldeas. Es el punto de partida para buscar proyectos hispanohablantes orientados al rescate de saberes indígenas y campesinos.',
+            badge: 'CASA Latina',
           },
           {
             icon: 'scale',
@@ -1513,6 +1520,179 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         subtitle: 'No solo vienes a comprar: vienes a aprender, a intercambiar, a compartir, a construir comunidad. Si deseas ingresar como productor o participar en las asambleas y trueques, postúlate ante la asamblea.',
         button_text: 'Completar Solicitud de Admisión',
         button_link: '/p/unirse',
+        theme: 'forest',
+      },
+    ],
+  },
+  {
+    slug: 'ecoaldeas-mundo',
+    title: 'Ecoaldeas en el Mundo',
+    subtitle: 'Comunidades Autosustentables que Inspiran: Referentes Globales',
+    icon: 'globe',
+    menu_order: 12,
+    blocks: [
+      {
+        type: 'hero',
+        badge: '🌍 Un Movimiento Planetario',
+        title: 'Ecoaldeas en el Mundo',
+        subtitle: 'Comunidades que viven en armonía con la naturaleza, libres de contaminación y químicos, recuperando saberes ancestrales.',
+        description:
+          'Estas son experiencias reales de comunidades en distintos continentes que han decidido vivir de otra manera: cultivando sus propios alimentos sin agrotóxicos, construyendo con materiales naturales, usando energías limpias y practicando la economía solidaria. No son nuestros aliados ni socios: son referentes que nos inspiran y de los cuales aprendemos. Cada una demuestra que otra forma de vida es posible.',
+        image_url:
+          'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1200&q=80',
+        style: 'standard',
+      },
+      {
+        type: 'features_grid',
+        title: 'Redes Globales',
+        subtitle: 'Plataformas que conectan comunidades autosustentables en todo el mundo',
+        columns: 2,
+        items: [
+          {
+            icon: 'globe',
+            title: 'Global Ecovillage Network (GEN)',
+            description:
+              'Es la organización mundial más importante del movimiento de ecoaldeas. Conecta a miles de comunidades en los cinco continentes. Su sitio web incluye un mapa interactivo mundial donde se pueden buscar proyectos activos, opciones de voluntariado y programas educativos sobre diseño sustentable. Fundada en 1995, su lema es "El mundo necesita más ecoaldeas".',
+            badge: 'GEN',
+          },
+          {
+            icon: 'globe',
+            title: 'CASA Latina',
+            description:
+              'El Consejo de Asentamientos Sustentables de América Latina es la rama de GEN para Latinoamérica. Agrupa redes nacionales de bioconstrucción, permacultura y ecoaldeas. Es el mejor punto de partida para buscar proyectos hispanohablantes orientados al rescate de saberes indígenas y campesinos. Su proceso de formación comenzó en el Llamado de la Montaña, Colombia, en enero de 2012.',
+            badge: 'CASA Latina',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'Ecoaldeas Emblemáticas',
+        subtitle: 'Comunidades referentes que llevan décadas demostrando que es posible vivir de otra manera',
+        columns: 2,
+        items: [
+          {
+            icon: 'home',
+            title: 'Findhorn (Escocia, 1962)',
+            description:
+              'Una de las comunidades ecológicas más antiguas del mundo. Fundada en 1962 en Moray, Escocia. Destaca por sus viviendas construidas con materiales locales, el uso de energías renovables (incluyendo una turbina eólica Vestas de 75 kW) y su sistema avanzado de tratamiento de aguas residuales llamado "Living Machine". Recibió la designación de UN-Habitat Best Practice en 1998 y 2018. Es un laboratorio viviente de sostenibilidad con más de 60 años de evolución.',
+            badge: 'Escocia',
+          },
+          {
+            icon: 'sparkles',
+            title: 'Damanhur (Italia, 1975)',
+            description:
+              'Federación de comunidades espirituales fundada en 1975 por Oberto Airudi en el Piamonte, norte de Italia. Sus 600 habitantes han creado una sociedad multilingüe con su propia constitución y su propia moneda, el Credito. Son reconocidos mundialmente por su alta autosuficiencia alimentaria y energética, sus Templos de la Humanidad subterráneos, y un profundo enfoque en el desarrollo espiritual y las artes. Es un laboratorio viviente del futuro.',
+            badge: 'Italia',
+          },
+          {
+            icon: 'droplet',
+            title: 'Tamera (Portugal, 1995)',
+            description:
+              'Centro de Investigación y Educación para la Paz en Alentejo, la región más árida de Portugal. Han transformado terrenos áridos en oasis mediante técnicas ancestrales de retención de agua de lluvia: crearon 29 lagos y espacios de retención entre 2006 y 2015, pasando de 0.62 ha a 8.32 ha de cuerpos de agua. Promueven la agricultura libre de pesticidas, la soberanía alimentaria regional y el Nuevo Paradigma del Agua. Un biotopo de paz que investiga cómo habitar la Tierra sin violencia.',
+            badge: 'Portugal',
+          },
+          {
+            icon: 'palette',
+            title: 'Huehuecoyotl (México, 1982)',
+            description:
+              'Primera ecoaldea de México, fundada en 1982 por un grupo de artistas y activistas de varias nacionalidades en las montañas de Morelos, cerca de Tepoztlán. Sus fundadores vivieron 14 años como tribu artística nómada ("Los Elefantes Iluminados") recorriendo el mundo en autobuses convertidos antes de establecerse. El nombre significa "El Muy Viejo Coyote", dios azteca de la música, la poesía y el teatro. Es referente latinoamericano de vida comunitaria, medicina natural, ecología profunda, permacultura y preservación cultural.',
+            badge: 'México',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'Los 4 Pilares de la Vida en una Ecoaldea',
+        subtitle: 'Los principios que guían a estas comunidades autosustentables',
+        columns: 2,
+        items: [
+          {
+            icon: 'sprout',
+            title: 'Permacultura y Agroecología',
+            description:
+              'Cultivan sus propios alimentos replicando los patrones de la naturaleza. No utilizan fertilizantes químicos, pesticidas ni semillas transgénicas. Usan abonos orgánicos (compost, humus de lombriz, biol) y asocian cultivos para proteger la tierra. Cada desecho se transforma en insumo: el estiércol en biogás, la basura orgánica en compost, el agua gris en riego.',
+            badge: 'Permacultura',
+          },
+          {
+            icon: 'home',
+            title: 'Bioconstrucción',
+            description:
+              'Construyen sus casas utilizando materiales naturales del entorno que no contaminan ni generan desechos tóxicos: adobe, bahareque, barro, paja, madera, piedra, bambú. Las casas se integran al paisaje, regulan la temperatura naturalmente y se construyen comunitariamente mediante cayapas. No dependen del cemento ni del ladrillo industrial.',
+            badge: 'Bioconstrucción',
+          },
+          {
+            icon: 'zap',
+            title: 'Energías limpias y gestión de residuos',
+            description:
+              'Usan paneles solares, energía eólica, microhidroeléctricas y biodigestores. Implementan baños secos (que no gastan agua y generan abono seguro). Reciclan el agua de lluvia para riego. Tratan aguas residuales con humedales construidos y "Living Machines". La meta es autonomía energética e hídrica descentralizada.',
+            badge: 'Energía limpia',
+          },
+          {
+            icon: 'heart',
+            title: 'Economía solidaria y saberes ancestrales',
+            description:
+              'Muchas comunidades practican el trueque, usan monedas locales (como el Credito de Damanhur) o comparten recursos. Rescatan el uso de plantas medicinales, la partería natural, la conservación tradicional de alimentos, las ollas de barro, la construcción con barro. Toman decisiones por consenso o sociocracia, no por jerarquía.',
+            badge: 'Economía solidaria',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'Otras Experiencias que nos Inspiran',
+        subtitle: 'Movimientos y prácticas relacionadas en distintas partes del mundo',
+        columns: 3,
+        items: [
+          {
+            icon: 'scale',
+            title: 'Sistemas LETS',
+            description:
+              'Local Exchange Trading Systems: nacieron en Canadá en 1983 y se expandieron por Europa y Oceanía. Sistemas de crédito mutuo sin dinero donde todas las cuentas empiezan en cero. Inspiraron nuestro sistema TQ.',
+            badge: 'LETS',
+          },
+          {
+            icon: 'users',
+            title: 'Club del Trueque (Argentina)',
+            description:
+              'Redes de trueque que surgieron en los años 90 como respuesta a la crisis. Llegaron a tener millones de participantes intercambiando con "créditos" sin dinero oficial. Demostraron la fuerza del crédito mutuo.',
+            badge: 'Argentina',
+          },
+          {
+            icon: 'leaf',
+            title: 'Vía Campesina',
+            description:
+              'Movimiento internacional de campesinos, pueblos indígenas y trabajadores agrícolas presente en más de 80 países. Defiende la agricultura campesina y la agroecología. Acuñó el concepto de soberanía alimentaria.',
+            badge: 'Vía Campesina',
+          },
+          {
+            icon: 'heart',
+            title: 'Slow Food',
+            description:
+              'Movimiento nacido en Italia en 1986 que promueve alimentos "buenos, limpios y justos". Defiende la biodiversidad alimentaria y las tradiciones culinarias locales frente a la comida rápida y homogeneizada.',
+            badge: 'Slow Food',
+          },
+          {
+            icon: 'sprout',
+            title: 'Red de Semillas Libres',
+            description:
+              'Movimientos que defienden las semillas nativas y criollas frente al avance corporativo. Promueven territorios libres de transgénicos y la soberanía alimentaria como derecho inalienable de los pueblos.',
+            badge: 'Semillas libres',
+          },
+          {
+            icon: 'book-open',
+            title: 'Permacultura',
+            description:
+              'Sistema de diseño creado por Bill Mollison y David Holmgren en Australia en los años 70. Diseña asentamientos humanos y sistemas agrícolas que imitan los patrones y relaciones de la naturaleza. Es la base teórica de muchas ecoaldeas.',
+            badge: 'Permacultura',
+          },
+        ],
+      },
+      {
+        type: 'cta_banner',
+        badge: '🌱 Nuestro Sueño',
+        title: 'Campo Soberano: nuestra ecoaldea',
+        subtitle: 'Nos inspiramos en estas experiencias para construir nuestra propia comunidad intencional agroecológica en Venezuela. Conoce el proyecto Campo Soberano: permacultura, energía solar, bahareque, crédito mutuo y gobernanza sociocrática.',
+        button_text: 'Conocer Campo Soberano',
+        button_link: '/p/campo-soberano',
         theme: 'forest',
       },
     ],

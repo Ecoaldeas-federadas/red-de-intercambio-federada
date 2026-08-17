@@ -1,47 +1,46 @@
-feat(content): 3 nuevas paginas + filosofia conuquera + saberes ancestrales
+feat(ecoaldeas): nueva pagina ecoaldeas del mundo + referentes reales
 
-3 nuevas paginas con contenido real basado en investigacion:
+Nueva pagina "Ecoaldeas en el Mundo" (/p/ecoaldeas-mundo):
 
-1. SEMILLAS & BANCO DE SEMILLAS (/p/semillas):
-   - Que es un banco comunitario de semillas (FAO, CATIE)
-   - Sistema de prestamo y devolucion
-   - Semillas criollas vs transgenicas
-   - Territorios libres de transgenicos (Colombia)
-   - Trueque de semillas en la feria
-   - Campana Semillas de Identidad
-   - Guardianes de semillas
-   - Redes de semillas libres
+Redes globales:
+- GEN (Global Ecovillage Network, 1995)
+- CASA Latina (Consejo de Asentamientos Sustentables de AL)
 
-2. SABERES ANCESTRALES (/p/saberes-ancestrales):
-   - Casas de bahareque: tecnica prehispanica, construccion
-     sostenible, cayapas comunitarias, patrimonio (UCV, LUZ)
-   - Ollas de barro: 4000 anos de tradicion, coccion lenta,
-     beneficios para la salud, soberania utensilios
-   - Casas de cultivo e invernaderos: agricultura urbana en
-     Caracas (El Junquito, La Limonera, Catia), produccion
-     agroecologica sin agrotoxicos
-   - Medicina natural y botica conuquera: etnobotanica
-     venezolana (Aragua, Merida, Anzoategui, Barinas)
-   - Cosmovision conuquera: el conuco, Pachamama, Cruz de Mayo,
-     convite, cayapa, dialogo intergeneracional
+Ecoaldeas emblematicas con informacion real:
+- Findhorn (Escocia, 1962): 60 anos, UN-Habitat Best Practice,
+  turbina Vestas 75kW, Living Machine
+- Damanhur (Italia, 1975): 600 habitantes, moneda propia Credito,
+  constitucion, Templos de la Humanidad
+- Tamera (Portugal, 1995): 29 lagos de retencion de agua, 0.62 a
+  8.32 ha de cuerpos de agua, Nuevo Paradigma del Agua
+- Huehuecoyotl (Mexico, 1982): primera ecoaldea de Mexico,
+  tribu artistica nomada Los Elefantes Iluminados, Tepoztlan Morelos
 
-3. FILOSOFIA CONUQUERA (/p/filosofia):
-   - Nuestra filosofia: agroecologia, soberania alimentaria,
-     economia solidaria, Pachamama, saberes ancestrales, red global
-   - Nuestra historia: 2014 nacimiento en crisis, 2015 primera
-     feria, crecimiento, 10 anos de resistencia
-   - Que consigues en la feria: cosecha fresca, medicina botanica,
-     gastronomia artesanal, semillas, artesania, miel
-   - Actividades: talleres, trueque de semillas, dona y adopta
-     un libro, musica popular, asambleas, cayapas
+4 pilares de la vida en ecoaldea:
+- Permacultura y agroecologia (sin quimicos, compost, biol)
+- Bioconstruccion (adobe, bahareque, barro, paja)
+- Energias limpias y gestion de residuos (solar, biodigestores,
+  banos secos, reciclaje agua lluvia)
+- Economia solidaria y saberes ancestrales (trueque, monedas
+  locales, plantas medicinales, consenso)
 
-Fuentes reales consultadas:
-- Feria Conuquera blogspot, Ultimas Noticias, Desde La Plaza
-- FAO (bancos comunitarios de semillas)
-- UCV/LUZ (bahareque, construccion sostenible)
-- Estudios etnobotanicos Venezuela (Aragua, Merida, Anzoategui)
-- Agricultura urbana Caracas (El Junquito, La Limonera, Catia)
-- GEN, Via Campesina, Slow Food, Red de Semillas Libres
+Otras experiencias que inspiran:
+- LETS, Club del Trueque Argentina, Via Campesina, Slow Food,
+  Red de Semillas Libres, Permacultura
+
+Correccion importante:
+- Cambiado "Movimientos Hermanos" por "Otras Experiencias en el Mundo"
+- Aclarado explicitamente: "No son aliados ni socios: son
+  referentes que nos inspiran y de los cuales aprendemos"
+- Ninguna comunidad o movimiento se presenta como aliado
+
+Fuentes reales:
+- ecovillage.org (GEN, CASA Latina)
+- ecovillagefindhorn.org, Wikipedia (Findhorn)
+- damanhur.org, Wikipedia (Damanhur)
+- tamera.org, Climate-ADAPT (Tamera)
+- huehuecoyotl.net, GEN, Truthout (Huehuecoyotl)
+- redcasalatina.org (CASA Latina)
 
 Generated with [Devin](https://devin.ai)
 
