@@ -13,6 +13,7 @@ export default function CommunityFund() {
   const [proposals, setProposals] = useState<any[]>([])
   const [showNewProposal, setShowNewProposal] = useState(false)
   const [newProposal, setNewProposal] = useState({ amount: 0, recipient: '', reason: '' })
+  const [recipients, setRecipients] = useState<any[]>([])
 
   const load = () => {
     api.get('/fund/balance').then(setFund).catch(() => {})
@@ -20,6 +21,12 @@ export default function CommunityFund() {
     api.get('/assembly/proposals').then((d: any) => {
       const all = Array.isArray(d) ? d : []
       setProposals(all.filter((p: any) => p.proposal_type === 'budget_increase' || p.proposal_type === 'fund_distribution'))
+    }).catch(() => {})
+    // Cargar lista de usuarios y organizaciones para el selector de destinatario
+    api.get('/accounts/list').then((d: any) => {
+      const list = Array.isArray(d) ? d : []
+      // Filtrar: incluir usuarios individuales y organizaciones, excluir fondos y la propia cuenta de impuestos
+      setRecipients(list.filter((u: any) => u.account_type !== 'fund' && u.username !== 'impuestos'))
     }).catch(() => {})
   }
 
@@ -122,8 +129,13 @@ export default function CommunityFund() {
             <h3 className="font-semibold">Proponer Distribucion del Fondo</h3>
             <div>
               <label className="label">Destinatario (organizacion o usuario)</label>
-              <input className="input" placeholder="Ej: coop_norte" value={newProposal.recipient} onChange={(e) => setNewProposal({ ...newProposal, recipient: e.target.value })} />
-              <p className="text-xs text-gray-400 mt-1">Nombre de la cuenta que recibira el dinero del fondo. Debe ser un usuario u organizacion valida del nodo. Ej: "coop_norte" o "asoc_sur".</p>
+              <select className="input" value={newProposal.recipient} onChange={(e) => setNewProposal({ ...newProposal, recipient: e.target.value })}>
+                <option value="">Selecciona un destinatario...</option>
+                {recipients.map((r: any) => (
+                  <option key={r.id} value={r.username}>{r.display_name || r.username} ({r.username}) - {r.account_type === 'organization' ? 'Organizacion' : 'Usuario'}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">Selecciona la cuenta que recibira el dinero del fondo. Solo aparecen usuarios y organizaciones validas del nodo.</p>
             </div>
             <div>
               <label className="label">Monto ({currency})</label>

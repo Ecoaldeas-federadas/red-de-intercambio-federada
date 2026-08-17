@@ -8,6 +8,7 @@ export default function Profile() {
   const [showHelp, setShowHelp] = useState(false)
   const [me, setMe] = useState<any>(null)
   const [myLevel, setMyLevel] = useState<any>(null)
+  const [levelLoading, setLevelLoading] = useState(true)
   const [passkeys, setPasskeys] = useState<any[]>([])
   const [nfcCards, setNfcCards] = useState<any[]>([])
   const [history, setHistory] = useState<any[]>([])
@@ -18,14 +19,19 @@ export default function Profile() {
     api.get('/accounts/me').then((d: any) => {
       setMe(d)
       // Cargar nivel del usuario
+      setLevelLoading(true)
       if (d?.member_level_id) {
         api.get('/member-levels').then((levels: any) => {
           const level = (Array.isArray(levels) ? levels : []).find((l: any) => l.id === d.member_level_id)
-          setMyLevel(level)
-        }).catch(() => {})
+          setMyLevel(level || null)
+          setLevelLoading(false)
+        }).catch(() => { setLevelLoading(false) })
       } else if (d?.level_name) {
-        // Algunos backends devuelven level_name directamente
         setMyLevel({ name: d.level_name, description: d.level_description, credit_limit: d.credit_limit, debit_limit: d.debit_limit })
+        setLevelLoading(false)
+      } else {
+        setMyLevel(null)
+        setLevelLoading(false)
       }
       // Cargar historial
       if (d?.id) {
@@ -76,7 +82,7 @@ export default function Profile() {
           <p><strong>Mi Perfil - Ayuda</strong></p>
           <p><strong>Que es esta pagina:</strong> Es tu panel personal dentro de la red de intercambio. Aqui ves quien eres dentro del sistema, que puedes hacer y que dispositivos de seguridad tienes asociados.</p>
           <p><strong>Para que sirve:</strong> Muestra tu informacion personal, tu nivel de miembro, tus dispositivos de seguridad (Passkeys), tus tarjetas NFC y tu historial de transacciones recientes. Tambien te permite verificar si puedes ascender de nivel automaticamente.</p>
-          <p><strong>Como se usa:</strong> Solo lectura. No hay formularios aqui. Para cambiar el PIN de una tarjeta NFC usa el boton "Cambiar PIN" junto a cada tarjeta. Para verificar si subiste de nivel, pulsa "Verificar auto-ascenso".</p>
+          <p><strong>Como se usa:</strong> Solo lectura. No hay formularios aqui. Para cambiar el PIN de una tarjeta NFC usa el boton "Cambiar PIN" junto a cada tarjeta. Para pedir que la asamblea revise tu ascenso de nivel, pulsa "Pedir ascenso".</p>
           <p><strong>Informacion que se muestra:</strong></p>
           <ul className="list-disc list-inside space-y-1 ml-2">
             <li><strong>Usuario:</strong> tu nombre de inicio de sesion.</li>
@@ -117,8 +123,10 @@ export default function Profile() {
       <div className="card">
         <h2 className="font-semibold flex items-center gap-2 mb-3"><Shield size={18} />Nivel de Miembro</h2>
         {upgradeMsg && <div className="text-sm bg-blue-50 text-blue-700 p-3 rounded-lg mb-3">{upgradeMsg}</div>}
-        <button onClick={tryUpgrade} className="btn-secondary flex items-center gap-2 mb-3 text-sm"><TrendingUp size={16} />Verificar auto-ascenso</button>
-        {myLevel ? (
+        <button onClick={tryUpgrade} className="btn-secondary flex items-center gap-2 mb-3 text-sm"><TrendingUp size={16} />Pedir ascenso</button>
+        {levelLoading ? (
+          <p className="text-gray-500 text-sm">Cargando nivel...</p>
+        ) : myLevel ? (
           <div className="space-y-2 text-sm">
             <div className="flex justify-between"><span className="text-gray-500">Nivel:</span> <b>{myLevel.name}</b></div>
             {myLevel.description && <p className="text-gray-600">{myLevel.description}</p>}
@@ -140,7 +148,7 @@ export default function Profile() {
             </div>
           </div>
         ) : (
-          <p className="text-gray-500 text-sm">Cargando nivel...</p>
+          <p className="text-gray-500 text-sm">Sin nivel asignado. Pide un ascenso para que la asamblea te asigne un nivel.</p>
         )}
       </div>
 

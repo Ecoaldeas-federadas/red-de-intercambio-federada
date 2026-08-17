@@ -404,6 +404,41 @@ func (ah *AuthHandlers) getMe(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, user)
 }
 
+func (ah *AuthHandlers) listAccounts(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+	rows, err := ah.Pool.Query(r.Context(), `
+		SELECT id, username, display_name, account_type, membership_status
+		FROM users WHERE node_domain = $1 AND membership_status = 'active'
+		ORDER BY username`, nodeDomain)
+	if err != nil {
+		writeError(w, 500, "error listing accounts")
+		return
+	}
+	defer rows.Close()
+	var accounts []map[string]interface{}
+	for rows.Next() {
+		var id string
+		var username, displayName, accountType, status string
+		if err := rows.Scan(&id, &username, &displayName, &accountType, &status); err != nil {
+			continue
+		}
+		accounts = append(accounts, map[string]interface{}{
+			"id":                id,
+			"username":          username,
+			"display_name":      displayName,
+			"account_type":      accountType,
+			"membership_status": status,
+		})
+	}
+	if accounts == nil {
+		accounts = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, accounts)
+}
+
 func (ah *AuthHandlers) listPasskeys(w http.ResponseWriter, r *http.Request) {
 	am := NewAuthMiddleware(ah.JWTSecret)
 	userID, err := am.GetUserID(r)

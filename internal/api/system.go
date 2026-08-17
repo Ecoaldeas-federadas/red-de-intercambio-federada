@@ -893,12 +893,20 @@ func (h *SystemHandler) autoUpgradeLevel(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Obtener nivel actual del usuario y cuando fue creado
-	var currentLevelID string
+	var currentLevelID *string
 	var createdAt time.Time
 	err = h.Pool.QueryRow(r.Context(), `
 		SELECT member_level_id, created_at FROM users WHERE id = $1`, userID).Scan(&currentLevelID, &createdAt)
 	if err != nil {
 		writeError(w, 404, "user not found")
+		return
+	}
+
+	if currentLevelID == nil || *currentLevelID == "" {
+		writeJSON(w, 200, map[string]interface{}{
+			"upgraded": false,
+			"message":  "No tienes un nivel asignado. Pide a la asamblea que te asigne un nivel.",
+		})
 		return
 	}
 
@@ -909,9 +917,12 @@ func (h *SystemHandler) autoUpgradeLevel(w http.ResponseWriter, r *http.Request)
 	err = h.Pool.QueryRow(r.Context(), `
 		SELECT auto_upgrade_after_days, upgrade_to, name
 		FROM member_levels WHERE id = $1 AND node_domain = $2`,
-		currentLevelID, nodeDomain).Scan(&autoUpgradeDays, &upgradeTo, &levelName)
+		*currentLevelID, nodeDomain).Scan(&autoUpgradeDays, &upgradeTo, &levelName)
 	if err != nil {
-		writeError(w, 500, "error getting current level")
+		writeJSON(w, 200, map[string]interface{}{
+			"upgraded": false,
+			"message":  "No se encontro tu nivel. Pide a la asamblea que te asigne un nivel.",
+		})
 		return
 	}
 
