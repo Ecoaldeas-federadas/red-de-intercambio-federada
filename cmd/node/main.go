@@ -95,7 +95,7 @@ func main() {
 	recoverySvc := accounts.NewRecovery(database.Pool)
 	recoveryHandler := api.NewRecoveryHandler(recoverySvc, cfg.Node.Domain, jwtSecret)
 	departmentsSvc := accounts.NewDepartments(database.Pool)
-	departmentsHandler := api.NewDepartmentsHandler(departmentsSvc, cfg.Node.Domain, authMiddleware)
+	departmentsHandler := api.NewDepartmentsHandler(departmentsSvc, cfg.Node.Domain, authMiddleware, database.Pool)
 	nfcTerminalsSvc := payments.NewNFCTerminals(database.Pool, cfg.Node.Domain)
 
 	// Firmware compiler (opcional — solo si Docker esta disponible)

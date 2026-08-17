@@ -116,6 +116,16 @@ func (am *AuthMiddleware) RequirePermission(permission string) func(http.Handler
 				return
 			}
 
+			// Super admin tiene acceso a todo
+			var isSuperAdmin, superAdminEnabled bool
+			_ = am.Pool.QueryRow(r.Context(), `
+				SELECT is_super_admin, super_admin_enabled FROM users WHERE id = $1`,
+				userID).Scan(&isSuperAdmin, &superAdminEnabled)
+			if isSuperAdmin && superAdminEnabled {
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			var has bool
 			err = am.Pool.QueryRow(r.Context(), `
 				SELECT EXISTS(

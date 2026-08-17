@@ -54,6 +54,10 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 
 	// Auto-ascenso de nivel
 	r.With(am.RequireAuth).Post("/api/member-levels/auto-upgrade", h.autoUpgradeLevel)
+
+	// Super admin: habilitar/deshabilitar (requiere permiso especial de junta)
+	r.With(am.RequireAuth).Get("/api/admin/super-admin-status", h.getSuperAdminStatus)
+	r.With(am.RequirePermission("admin.toggle_super_admin")).Put("/api/admin/super-admin/{id}", h.toggleSuperAdmin)
 }
 
 // ===== AUDITORIA =====
@@ -937,6 +941,83 @@ func (h *SystemHandler) autoUpgradeLevel(w http.ResponseWriter, r *http.Request)
 		"new_level":  newLevelName,
 		"new_credit": newCreditLimit,
 		"new_debit":  newDebitLimit,
+	})
+}
+
+// ===== SUPER ADMIN =====
+
+func (h *SystemHandler) getSuperAdminStatus(w http.ResponseWriter, r *http.Request) {
+	userID, err := h.Auth.GetUserID(r)
+	if err != nil {
+		writeError(w, 401, "authentication required")
+		return
+	}
+
+	var isSuperAdmin, superAdminEnabled bool
+	var username string
+	err = h.Pool.QueryRow(r.Context(), `
+		SELECT is_super_admin, super_admin_enabled, username FROM users WHERE id = $1`, userID).Scan(&isSuperAdmin, &superAdminEnabled, &username)
+	if err != nil {
+		writeError(w, 404, "user not found")
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"is_super_admin":      isSuperAdmin,
+		"super_admin_enabled": superAdminEnabled,
+		"username":            username,
+	})
+}
+
+type ToggleSuperAdminRequest struct {
+	Enabled bool `json:"enabled"`
+}
+
+func (h *SystemHandler) toggleSuperAdmin(w http.ResponseWriter, r *http.Request) {
+	targetID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid user id")
+		return
+	}
+
+	var req ToggleSuperAdminRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	// Verificar que el usuario objetivo es super admin
+	var isSuperAdmin bool
+	err = h.Pool.QueryRow(r.Context(), `SELECT is_super_admin FROM users WHERE id = $1`, targetID).Scan(&isSuperAdmin)
+	if err != nil {
+		writeError(w, 404, "user not found")
+		return
+	}
+	if !isSuperAdmin {
+		writeError(w, 400, "ese usuario no es super admin")
+		return
+	}
+
+	_, err = h.Pool.Exec(r.Context(), `UPDATE users SET super_admin_enabled = $1 WHERE id = $2`, req.Enabled, targetID)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	// Audit log
+	actorID, _ := h.Auth.GetUserID(r)
+	details, _ := json.Marshal(map[string]interface{}{"target_user": targetID.String(), "enabled": req.Enabled})
+	h.Pool.Exec(r.Context(), `INSERT INTO audit_log (actor_id, action, target_id, details) VALUES ($1, 'super_admin_toggle', $2, $3)`,
+		actorID, targetID, details)
+
+	msg := "Super admin deshabilitado"
+	if req.Enabled {
+		msg = "Super admin habilitado"
+	}
+	writeJSON(w, 200, map[string]interface{}{
+		"status":  "updated",
+		"enabled": req.Enabled,
+		"message": msg,
 	})
 }
 

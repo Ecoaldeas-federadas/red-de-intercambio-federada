@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"federated-credit-node/internal/accounts"
 )
@@ -14,10 +15,11 @@ type DepartmentsHandler struct {
 	Departments *accounts.Departments
 	NodeDomain  string
 	Auth        *AuthMiddleware
+	Pool        *pgxpool.Pool
 }
 
-func NewDepartmentsHandler(depts *accounts.Departments, nodeDomain string, am *AuthMiddleware) *DepartmentsHandler {
-	return &DepartmentsHandler{Departments: depts, NodeDomain: nodeDomain, Auth: am}
+func NewDepartmentsHandler(depts *accounts.Departments, nodeDomain string, am *AuthMiddleware, pool *pgxpool.Pool) *DepartmentsHandler {
+	return &DepartmentsHandler{Departments: depts, NodeDomain: nodeDomain, Auth: am, Pool: pool}
 }
 
 func (dh *DepartmentsHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
@@ -317,8 +319,15 @@ func (dh *DepartmentsHandler) listMyPermissions(w http.ResponseWriter, r *http.R
 		writeError(w, 500, err.Error())
 		return
 	}
+
+	// Verificar si es super admin
+	var isSuperAdmin, superAdminEnabled bool
+	_ = dh.Pool.QueryRow(r.Context(), `SELECT is_super_admin, super_admin_enabled FROM users WHERE id = $1`, userID).Scan(&isSuperAdmin, &superAdminEnabled)
+
 	writeJSON(w, 200, map[string]interface{}{
-		"user_id":     userID.String(),
-		"permissions": perms,
+		"user_id":             userID.String(),
+		"permissions":         perms,
+		"is_super_admin":      isSuperAdmin,
+		"super_admin_enabled": superAdminEnabled,
 	})
 }

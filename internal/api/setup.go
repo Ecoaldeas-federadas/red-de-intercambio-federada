@@ -203,6 +203,9 @@ func (sh *SetupHandler) initNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Marcar como super admin (tiene todos los permisos, puede ser deshabilitado despues)
+	_, _ = sh.Pool.Exec(ctx, `UPDATE users SET is_super_admin = true, super_admin_enabled = true WHERE id = $1`, adminUser.ID)
+
 	pinHash, err := bcrypt.GenerateFromPassword([]byte(req.AdminPassword), bcrypt.DefaultCost)
 	if err != nil {
 		writeError(w, 500, "failed to hash password")
