@@ -220,7 +220,11 @@ export default function Departments() {
 
       {departments.length === 0 && (
         <div className="card text-center text-gray-500 py-8">
-          No hay departamentos. {canManage && 'Crea el primero.'}
+          <p>No hay departamentos creados.</p>
+          <p className="text-xs mt-2">Los departamentos son areas de trabajo de la comunidad. Crea el primero con el boton de arriba.</p>
+          {!canManage && (
+            <p className="text-xs mt-2 text-amber-600">No tienes permiso para crear departamentos. Pide al administrador que lo haga.</p>
+          )}
         </div>
       )}
 
@@ -349,13 +353,25 @@ export default function Departments() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowCreateDept(false)}>
           <div className="bg-white rounded-xl p-6 w-96 space-y-3" onClick={(e) => e.stopPropagation()}>
             <h2 className="font-bold text-lg">Nuevo Departamento</h2>
-            <input className="input" placeholder="Nombre" value={newDept.name} onChange={(e) => setNewDept({ ...newDept, name: e.target.value })} />
-            <input className="input" placeholder="Descripcion" value={newDept.description} onChange={(e) => setNewDept({ ...newDept, description: e.target.value })} />
-            <select className="input" value={newDept.group_type} onChange={(e) => setNewDept({ ...newDept, group_type: e.target.value })}>
-              <option value="department">Departamento</option>
-              <option value="council">Consejo</option>
-              <option value="committee">Comision</option>
-            </select>
+            <div>
+              <label className="label">Nombre del departamento</label>
+              <input className="input" placeholder="Ej: Produccion" value={newDept.name} onChange={(e) => setNewDept({ ...newDept, name: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">Nombre del area de trabajo.</p>
+            </div>
+            <div>
+              <label className="label">Descripcion</label>
+              <input className="input" placeholder="Ej: Encargados de producir alimentos" value={newDept.description} onChange={(e) => setNewDept({ ...newDept, description: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">Para que sirve este departamento.</p>
+            </div>
+            <div>
+              <label className="label">Tipo de grupo</label>
+              <select className="input" value={newDept.group_type} onChange={(e) => setNewDept({ ...newDept, group_type: e.target.value })}>
+                <option value="department">Departamento (area de trabajo)</option>
+                <option value="council">Consejo (grupo de decision)</option>
+                <option value="committee">Comision (grupo temporal)</option>
+              </select>
+              <p className="text-xs text-gray-400 mt-1">Departamento = area permanente. Consejo = grupo de decision. Comision = grupo temporal para una tarea.</p>
+            </div>
             <button onClick={createDept} className="btn-primary w-full">Crear</button>
           </div>
         </div>
@@ -366,8 +382,15 @@ export default function Departments() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowCreateRole(null)}>
           <div className="bg-white rounded-xl p-6 w-96 space-y-3" onClick={(e) => e.stopPropagation()}>
             <h2 className="font-bold text-lg">Nuevo Rol</h2>
-            <input className="input" placeholder="Nombre" value={newRole.name} onChange={(e) => setNewRole({ ...newRole, name: e.target.value })} />
-            <input className="input" placeholder="Descripcion" value={newRole.description} onChange={(e) => setNewRole({ ...newRole, description: e.target.value })} />
+            <div>
+              <label className="label">Nombre del rol</label>
+              <input className="input" placeholder="Ej: Coordinador" value={newRole.name} onChange={(e) => setNewRole({ ...newRole, name: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">Nombre del rol dentro del departamento.</p>
+            </div>
+            <div>
+              <label className="label">Descripcion</label>
+              <input className="input" placeholder="Ej: Coordina las actividades del departamento" value={newRole.description} onChange={(e) => setNewRole({ ...newRole, description: e.target.value })} />
+            </div>
             <button onClick={() => createRole(showCreateRole)} className="btn-primary w-full">Crear</button>
           </div>
         </div>
@@ -378,11 +401,19 @@ export default function Departments() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowAssignMember(null)}>
           <div className="bg-white rounded-xl p-6 w-96 space-y-3" onClick={(e) => e.stopPropagation()}>
             <h2 className="font-bold text-lg">Asignar Miembro</h2>
-            <input className="input" placeholder="User ID (UUID)" value={newMember.user_id} onChange={(e) => setNewMember({ ...newMember, user_id: e.target.value })} />
-            <select className="input" value={newMember.role_id} onChange={(e) => setNewMember({ ...newMember, role_id: e.target.value })}>
-              <option value="">Seleccionar rol...</option>
-              {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-            </select>
+            <div>
+              <label className="label">Usuario</label>
+              <input className="input" placeholder="Nombre de usuario" value={newMember.user_id} onChange={(e) => setNewMember({ ...newMember, user_id: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">Nombre de usuario (username) de la persona a asignar.</p>
+            </div>
+            <div>
+              <label className="label">Rol</label>
+              <select className="input" value={newMember.role_id} onChange={(e) => setNewMember({ ...newMember, role_id: e.target.value })}>
+                <option value="">Seleccionar rol...</option>
+                {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">Que rol tendra esta persona en el departamento.</p>
+            </div>
             <button onClick={() => assignMember(showAssignMember)} className="btn-primary w-full">Asignar</button>
           </div>
         </div>
