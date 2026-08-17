@@ -533,7 +533,7 @@ func (h *SystemHandler) updateTariff(w http.ResponseWriter, r *http.Request) {
 
 func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.Pool.Query(r.Context(), `
-		SELECT id, name, description, category, unit, price_per_unit, is_approved, origin
+		SELECT id, name, description, category, unit, price_per_unit, is_approved, origin, badge, image_url, product_code, is_system
 		FROM products ORDER BY category, name LIMIT 200`)
 	if err != nil {
 		writeJSON(w, 200, []interface{}{})
@@ -544,22 +544,38 @@ func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 	var products []map[string]interface{}
 	for rows.Next() {
 		var id uuid.UUID
-		var name, description, category, unit string
+		var name, description, category, unit, origin string
 		var price float64
-		var isApproved bool
-		var origin string
-		if err := rows.Scan(&id, &name, &description, &category, &unit, &price, &isApproved, &origin); err != nil {
+		var isApproved, isSystem bool
+		var badge, imageURL, productCode *string
+		if err := rows.Scan(&id, &name, &description, &category, &unit, &price, &isApproved, &origin, &badge, &imageURL, &productCode, &isSystem); err != nil {
 			continue
 		}
+		bdg := ""
+		if badge != nil {
+			bdg = *badge
+		}
+		imgURL := ""
+		if imageURL != nil {
+			imgURL = *imageURL
+		}
+		pcode := ""
+		if productCode != nil {
+			pcode = *productCode
+		}
 		products = append(products, map[string]interface{}{
-			"id":          id.String(),
-			"name":        name,
-			"description": description,
-			"category":    category,
-			"unit":        unit,
-			"price":       price,
-			"is_approved": isApproved,
-			"origin":      origin,
+			"id":           id.String(),
+			"name":         name,
+			"description":  description,
+			"category":     category,
+			"unit":         unit,
+			"price":        price,
+			"is_approved":  isApproved,
+			"origin":       origin,
+			"badge":        bdg,
+			"image_url":    imgURL,
+			"product_code": pcode,
+			"is_system":    isSystem,
 		})
 	}
 	if products == nil {
@@ -575,27 +591,43 @@ func (h *SystemHandler) getProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var name, description, category, unit string
+	var name, description, category, unit, origin string
 	var price float64
 	var isApproved bool
-	var origin string
+	var badge, imageURL, productCode *string
 	err = h.Pool.QueryRow(r.Context(), `
-		SELECT name, description, category, unit, price_per_unit, is_approved, origin
-		FROM products WHERE id = $1`, id).Scan(&name, &description, &category, &unit, &price, &isApproved, &origin)
+		SELECT name, description, category, unit, price_per_unit, is_approved, origin, badge, image_url, product_code
+		FROM products WHERE id = $1`, id).Scan(&name, &description, &category, &unit, &price, &isApproved, &origin, &badge, &imageURL, &productCode)
 	if err != nil {
 		writeError(w, 404, "product not found")
 		return
 	}
 
+	bdg := ""
+	if badge != nil {
+		bdg = *badge
+	}
+	imgURL := ""
+	if imageURL != nil {
+		imgURL = *imageURL
+	}
+	pcode := ""
+	if productCode != nil {
+		pcode = *productCode
+	}
+
 	writeJSON(w, 200, map[string]interface{}{
-		"id":          id.String(),
-		"name":        name,
-		"description": description,
-		"category":    category,
-		"unit":        unit,
-		"price":       price,
-		"is_approved": isApproved,
-		"origin":      origin,
+		"id":           id.String(),
+		"name":         name,
+		"description":  description,
+		"category":     category,
+		"unit":         unit,
+		"price":        price,
+		"is_approved":  isApproved,
+		"origin":       origin,
+		"badge":        bdg,
+		"image_url":    imgURL,
+		"product_code": pcode,
 	})
 }
 
@@ -606,6 +638,9 @@ type CreateSystemProductRequest struct {
 	Unit        string  `json:"unit"`
 	Price       float64 `json:"price"`
 	Origin      string  `json:"origin"`
+	Badge       string  `json:"badge"`
+	ImageURL    string  `json:"image_url"`
+	ProductCode string  `json:"product_code"`
 }
 
 func (h *SystemHandler) createProduct(w http.ResponseWriter, r *http.Request) {
@@ -627,9 +662,9 @@ func (h *SystemHandler) createProduct(w http.ResponseWriter, r *http.Request) {
 
 	id := uuid.New()
 	_, err := h.Pool.Exec(r.Context(), `
-		INSERT INTO products (id, name, description, category, unit, price_per_unit, origin, is_approved)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, false)`,
-		id, req.Name, req.Description, req.Category, req.Unit, req.Price, req.Origin)
+		INSERT INTO products (id, name, description, category, unit, price_per_unit, origin, badge, image_url, product_code, is_approved)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false)`,
+		id, req.Name, req.Description, req.Category, req.Unit, req.Price, req.Origin, req.Badge, req.ImageURL, req.ProductCode)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -658,9 +693,9 @@ func (h *SystemHandler) updateProduct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = h.Pool.Exec(r.Context(), `
-		UPDATE products SET name = $1, description = $2, category = $3, unit = $4, price_per_unit = $5, origin = $6
-		WHERE id = $7`,
-		req.Name, req.Description, req.Category, req.Unit, req.Price, req.Origin, id)
+		UPDATE products SET name = $1, description = $2, category = $3, unit = $4, price_per_unit = $5, origin = $6, badge = $7, image_url = $8, product_code = $9, updated_at = NOW()
+		WHERE id = $10`,
+		req.Name, req.Description, req.Category, req.Unit, req.Price, req.Origin, req.Badge, req.ImageURL, req.ProductCode, id)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return

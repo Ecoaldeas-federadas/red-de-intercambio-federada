@@ -1,31 +1,21 @@
-feat(products): 8 productos de muestra de la Feria Conuquera en el backend
+feat(products): edicion completa de productos con foto, badge y subida de imagenes
 
-Migracion 018 inserta los 8 productos del catalogo conuquero como
-productos del sistema (is_system=true, is_approved=true), por lo que
-aparecen automaticamente en la pagina publica sin aprobacion de asamblea:
+Backend:
+- CreateSystemProductRequest incluye Badge, ImageURL, ProductCode
+- createProduct y updateProduct guardan badge, image_url, product_code
+- listProducts y getProduct devuelven badge, image_url, product_code, is_system
 
-Categorias (4):
-- Cosecha Fresca
-- Medicina Botanica & Cosmetica
-- Gastronomia Artesanal
-- Semillas & Plantulas
+Frontend (Products.tsx reescrito):
+- Edicion inline de productos existentes (icono lapiz en cada tarjeta)
+- Campos nuevos: etiqueta destacada (badge), foto del producto
+- Subida de imagen desde PC (usa endpoint /api/uploads/image)
+- Vista de tarjeta con foto, badge, estado (Aprobado/Pendiente/Sistema)
+- Productos de sistema marcados con etiqueta azul "Sistema"
+- Ayuda actualizada explicando que los productos de muestra son editables
 
-Productos (8):
-1. Hortalizas y Hojas Verdes de El Junquito (Fresco del Dia)
-2. Tuberculos Ancestrales y Platanos (Rubro Olvidado)
-3. Tinturas Madres y Botica Conuquera (100% Puro)
-4. Cosmetica Natural sin Quimicos (Residuo Cero)
-5. La Tradicional Cafunga de Barlovento (Plato Estrella)
-6. Quesos Artesanales de Bufala y Cabra (Pastoreo Libre)
-7. Cacao Puro, Chocolates y Cafe de Montana (Origen Venezolano)
-8. Plantulas Medicinales y Semillas Criollas (Para tu Huerto)
-
-Cambios:
-- Columna badge e image_url en tabla products
-- listPublicProducts devuelve badge e image_url
-- ProductsShowcaseBlock usa badge e image_url del backend
-- Cuando agregues un producto nuevo en el backend y lo apruebes,
-  aparecera automaticamente en la pagina publica junto a estos
+Los 8 productos de muestra de la Feria Conuquera ahora son totalmente
+editables: puedes cambiar nombre, foto, descripcion, badge, categoria,
+precio, etc. desde /app/products.
 
 Generated with [Devin](https://devin.ai)
 
