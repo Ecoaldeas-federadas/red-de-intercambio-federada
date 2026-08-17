@@ -1,12 +1,31 @@
-feat(products): catalogo de productos desde backend en pagina publica
+feat(products): 8 productos de muestra de la Feria Conuquera en el backend
 
-- Endpoint GET /api/public/products (sin auth) lista productos aprobados
-- ProductsShowcaseBlock soporta source: "backend" para cargar productos
-  reales desde el API en lugar de items manuales
-- Las categorias se generan automaticamente de los productos del backend
-- Nuevo template "Catalogo desde Backend (automatico)" en el editor
-- Cuando agregas un producto en el backend y lo apruebas, aparece
-  automaticamente en la pagina publica
+Migracion 018 inserta los 8 productos del catalogo conuquero como
+productos del sistema (is_system=true, is_approved=true), por lo que
+aparecen automaticamente en la pagina publica sin aprobacion de asamblea:
+
+Categorias (4):
+- Cosecha Fresca
+- Medicina Botanica & Cosmetica
+- Gastronomia Artesanal
+- Semillas & Plantulas
+
+Productos (8):
+1. Hortalizas y Hojas Verdes de El Junquito (Fresco del Dia)
+2. Tuberculos Ancestrales y Platanos (Rubro Olvidado)
+3. Tinturas Madres y Botica Conuquera (100% Puro)
+4. Cosmetica Natural sin Quimicos (Residuo Cero)
+5. La Tradicional Cafunga de Barlovento (Plato Estrella)
+6. Quesos Artesanales de Bufala y Cabra (Pastoreo Libre)
+7. Cacao Puro, Chocolates y Cafe de Montana (Origen Venezolano)
+8. Plantulas Medicinales y Semillas Criollas (Para tu Huerto)
+
+Cambios:
+- Columna badge e image_url en tabla products
+- listPublicProducts devuelve badge e image_url
+- ProductsShowcaseBlock usa badge e image_url del backend
+- Cuando agregues un producto nuevo en el backend y lo apruebes,
+  aparecera automaticamente en la pagina publica junto a estos
 
 Generated with [Devin](https://devin.ai)
 

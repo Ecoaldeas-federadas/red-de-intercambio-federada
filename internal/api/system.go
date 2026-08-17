@@ -2245,7 +2245,7 @@ func randomString(n int) string {
 
 func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.Pool.Query(r.Context(), `
-		SELECT id, name, description, category, unit, price_per_unit, product_code, is_approved, origin
+		SELECT id, name, description, category, unit, price_per_unit, product_code, is_approved, origin, badge, image_url
 		FROM products WHERE is_approved = true ORDER BY category, name LIMIT 200`)
 	if err != nil {
 		writeJSON(w, 200, []interface{}{})
@@ -2257,13 +2257,21 @@ func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Reques
 	for rows.Next() {
 		var id, name, description, category, unit, origin string
 		var price int64
-		var productCode *string
+		var productCode, badge, imageURL *string
 		var isApproved bool
-		_ = rows.Scan(&id, &name, &description, &category, &unit, &price, &productCode, &isApproved, &origin)
+		_ = rows.Scan(&id, &name, &description, &category, &unit, &price, &productCode, &isApproved, &origin, &badge, &imageURL)
 
 		code := ""
 		if productCode != nil {
 			code = *productCode
+		}
+		bdg := ""
+		if badge != nil {
+			bdg = *badge
+		}
+		imgURL := ""
+		if imageURL != nil {
+			imgURL = *imageURL
 		}
 
 		products = append(products, map[string]interface{}{
@@ -2276,6 +2284,8 @@ func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Reques
 			"product_code":  code,
 			"is_approved":   isApproved,
 			"origin":        origin,
+			"badge":         bdg,
+			"image_url":     imgURL,
 		})
 	}
 	writeJSON(w, 200, products)

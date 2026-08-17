@@ -655,8 +655,8 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
         name: p.name,
         category: p.category || 'General',
         description: p.description || '',
-        badge: p.is_approved ? 'Aprobado' : '',
-        image_url: '',
+        badge: p.badge || (p.is_approved ? 'Aprobado' : ''),
+        image_url: p.image_url || '',
         price_energy: p.price_trueque ? `${p.price_trueque} TQ` : '',
       }))
     : data.items || []
