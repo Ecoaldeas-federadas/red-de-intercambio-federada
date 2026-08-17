@@ -1,22 +1,43 @@
-fix(admin): integrar Editar en Vivo dentro del boton flotante consolidado
+fix(seed): 4 paginas nuevas en seed.go + merge frontend de plantillas
 
-El boton "Editar en Vivo Esta Página" estaba fuera del boton flotante
-consolidado, como un boton separado. Ahora esta integrado dentro del
-menu desplegable del boton flotante unico.
+Problema: las paginas nuevas (Semillas, Saberes Ancestrales, Filosofia
+Conuquera, Ecoaldeas del Mundo) solo existian en defaultSiteData.ts
+(fallback del frontend). Cuando la base de datos ya tenia paginas
+sembradas, las nuevas no aparecian porque el frontend cargaba las
+paginas de la BD y nunca llegaba al fallback.
 
-Cambios:
-- Eliminado el boton flotante separado de "Editar en Vivo" en
-  PublicPageView
-- Anadido listener de evento 'start-live-edit' en PublicPageView
-- Anadida opcion "Editar en Vivo Esta Página" como primera opcion
-  del menu desplegable del boton consolidado en PublicLayout
-- Al hacer clic despacha el evento que activa el modo edicion en
-  vivo de la pagina actual
+Solucion doble:
 
-Ahora el boton flotante unico despliega 3 opciones:
-1. Editar en Vivo Esta Página (nueva)
-2. Personalizar Tema
-3. Panel Web
+1. Backend (seed.go): Anadidas las 4 paginas nuevas con contenido
+   completo de la Feria Conuquera:
+   - semillas (menu_order 9): banco de semillas, trueque de semillas
+     en Parque Los Caobos, semillas criollas vs transgenicos
+   - saberes-ancestrales (menu_order 10): bahareque, ollas de barro,
+     casas de cultivo, medicina natural venezolana, cosmovision conuquera
+   - filosofia-conuquera (menu_order 11): filosofia, historia 2014-2024,
+     productos reales de la feria, actividades
+   - ecoaldeas-mundo (menu_order 12): GEN, CASA Latina, Findhorn,
+     Damanhur, Tamera, Huehuecoyotl, 4 pilares, otras experiencias
+
+   Tambien actualizado el contenido de como-funciona con las 7
+   secciones enriquecidas (que es trueque, limites, agroecologia,
+   semillas, ecoaldea, experiencias del mundo).
+
+   El seed usa ON CONFLICT DO UPDATE, asi que en el proximo reinicio
+   del nodo, las paginas existentes se actualizan y las nuevas se
+   insertan sin perder datos.
+
+2. Frontend (PublicSite.tsx): Logica de merge. Cuando se cargan las
+   paginas de la BD, se añaden automaticamente las plantillas cuyo
+   slug no existe en la BD. Asi, si alguien instala la app sin la
+   feria conuquera, las paginas genericas (ecoaldeas, agroecologia)
+   aparecen como plantilla por defecto.
+
+Arquitectura segun indicacion del usuario:
+- Contenido generico (ecoaldeas del mundo, conceptos de agroecologia):
+  puede estar en defaultSiteData.ts como plantilla por defecto
+- Contenido especifico de la Feria Conuquera (Parque Los Caobos,
+  productos reales, historia, actividades): en seed.go / base de datos
 
 Generated with [Devin](https://devin.ai)
 

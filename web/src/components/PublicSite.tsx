@@ -108,7 +108,23 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
     api.get('/public/settings').then((s: any) => setSettings(s)).catch(() => {})
     api.get('/public/pages').then((d: any) => {
       if (Array.isArray(d) && d.length > 0) {
-        setPages(d)
+        // Merge: keep DB pages, but add any template pages whose slug
+        // doesn't exist in the DB yet (so new template pages appear
+        // automatically without needing a re-seed or migration).
+        const dbSlugs = new Set(d.map((p: any) => p.slug))
+        const templateOnly = FERIA_CONUQUERA_TEMPLATES
+          .filter((t) => !dbSlugs.has(t.slug))
+          .map((t) => ({
+            slug: t.slug,
+            title: t.title,
+            subtitle: t.subtitle,
+            icon: t.icon,
+            menu_order: t.menu_order,
+            is_published: true,
+            show_in_menu: true,
+            content: JSON.stringify(t.blocks),
+          }))
+        setPages([...d, ...templateOnly])
       } else {
         setPages(
           FERIA_CONUQUERA_TEMPLATES.map((t) => ({
