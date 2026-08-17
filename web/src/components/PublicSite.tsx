@@ -162,15 +162,19 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
     '🗓️ Próximo Encuentro Conuquero: Primer sábado de cada mes en Parque Los Caobos, Caracas | 9:00 AM'
 
   // Primary visible navigation items (first 5) and extra items in "Más ▾"
-  const visiblePages = pages.slice(0, 5)
-  const overflowPages = pages.slice(5)
+  // Filter out pages hidden from menu, then sort by menu_order
+  const menuPages = pages
+    .filter((p) => p.show_in_menu !== false)
+    .sort((a, b) => (a.menu_order || 0) - (b.menu_order || 0))
+  const visiblePages = menuPages.slice(0, 5)
+  const overflowPages = menuPages.slice(5)
 
-  // Navigation categorization for dropdown style
-  const aboutPages = pages.filter((p) => ['inicio', 'filosofia', 'campo-soberano'].includes(p.slug))
-  const economyPages = pages.filter((p) => ['productos', 'como-funciona'].includes(p.slug))
-  const communityPages = pages.filter((p) => ['comunidad', 'faq', 'contacto'].includes(p.slug))
-  const otherPages = pages.filter(
-    (p) => !['inicio', 'filosofia', 'campo-soberano', 'productos', 'como-funciona', 'comunidad', 'faq', 'contacto'].includes(p.slug)
+  // Navigation categorization for dropdown style (use menu-visible pages only)
+  const aboutPages = menuPages.filter((p) => ['inicio', 'filosofia', 'filosofia-conuquera', 'campo-soberano'].includes(p.slug))
+  const economyPages = menuPages.filter((p) => ['productos', 'como-funciona'].includes(p.slug))
+  const communityPages = menuPages.filter((p) => ['comunidad', 'faq', 'contacto', 'semillas', 'saberes-ancestrales', 'ecoaldeas-mundo'].includes(p.slug))
+  const otherPages = menuPages.filter(
+    (p) => !['inicio', 'filosofia', 'filosofia-conuquera', 'campo-soberano', 'productos', 'como-funciona', 'comunidad', 'faq', 'contacto', 'semillas', 'saberes-ancestrales', 'ecoaldeas-mundo'].includes(p.slug)
   )
 
   return (
@@ -935,14 +939,21 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         }}
         initialPages={draftPages}
         onDraftChange={(newDraft, newPages) => {
-          // Apply draft to settings for live preview
+          // Apply draft to settings for live preview (colors, header style, etc.)
           setSettings((prev) => ({ ...prev, ...newDraft } as any))
-          // Apply draft page order for live menu preview
+          // Apply draft page order for live menu preview — but ONLY update
+          // menu_order and show_in_menu, preserving all other page data
+          // (content, id, subtitle, etc.) and preserving any pages that
+          // are not in the draft (e.g. merged template pages).
           setPages((prev) => {
-            return newPages.map((dp) => {
-              const existing = prev.find((p) => p.slug === dp.slug)
-              return existing ? { ...existing, menu_order: dp.menu_order, show_in_menu: dp.show_in_menu } : existing
-            }).filter(Boolean) as any
+            // Build a map of draft pages by slug for quick lookup
+            const draftMap = new Map(newPages.map((dp) => [dp.slug, dp]))
+            // For each existing page, apply draft changes if present
+            return prev.map((p) => {
+              const dp = draftMap.get(p.slug)
+              if (!dp) return p // keep pages not in draft unchanged
+              return { ...p, menu_order: dp.menu_order, show_in_menu: dp.show_in_menu }
+            })
           })
         }}
         onSave={async (newSettings, newPages) => {
