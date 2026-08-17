@@ -110,12 +110,16 @@ export default function Store() {
 
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
-          <p><strong>Tienda - Ayuda</strong></p>
-          <p><strong>Para que sirve:</strong> La tienda es personal. Cada usuario tiene su propia tienda donde ofrece los productos que tiene disponibles.</p>
-          <p><strong>Mi Tienda:</strong> Agrega productos del registro global e indica cuantas unidades tienes. Los precios ya estan fijados en el registro — no puedes cambiarlos.</p>
-          <p><strong>Buscar Productos:</strong> Busca que productos estan disponibles y en que tiendas. Puedes filtrar por categoria o buscar por nombre. Asi sabes quien tiene lo que buscas.</p>
-          <p><strong>Precios fijos:</strong> El mismo producto cuesta lo mismo en todas las tiendas. Es intercambio, no venta con ganancia. Lo que cambia es la disponibilidad (stock).</p>
-          <p><strong>Comprar:</strong> Cuando encuentras lo que buscas, le das comprar y se transfiere el monto al vendedor.</p>
+          <p><strong>Tienda Personal - Ayuda</strong></p>
+          <p><strong>Que es la tienda personal:</strong> Cada usuario tiene su propia tienda donde ofrece los productos que tiene disponibles para intercambiar. Es como tu vitrina personal: muestras que tienes y otros pueden verlo y comprarlo. Tu tienda es independiente de las demas.</p>
+          <p><strong>Para que sirve:</strong> Sirve para que cada miembro gestione su inventario personal. Indicas que productos del catalogo comunitario tienes disponibles y en que cantidad. Asi otros miembros saben a quien acudir para conseguir lo que buscan.</p>
+          <p><strong>Como se usa:</strong> 1) Ve a "Mi Tienda" y presiona "Agregar Producto". 2) Selecciona un producto del catalogo comunitario (registro global). 3) Indica cuantas unidades tienes (stock). 4) El producto aparece en tu tienda con su precio fijo. Para comprar, ve a "Buscar Productos" y encuentra lo que necesitas.</p>
+          <p><strong>Como agregar productos del catalogo a tu tienda:</strong> Solo puedes vender productos que ya existen en el registro global de productos. Si necesitas un producto que no esta en el registro, debe aprobarse en asamblea primero. Una vez agregado al catalogo, puedes incluirlo en tu tienda indicando tu stock.</p>
+          <p><strong>Que es el stock:</strong> Es la cantidad de unidades que tienes disponibles para vender. Cuando alguien compra, el stock disminuye automaticamente. Si el stock llega a 0, el producto aparece como "agotado". Puedes actualizar el stock cuando tengas mas unidades disponibles.</p>
+          <p><strong>Que es el precio:</strong> El precio es fijo y viene del registro global de productos. No puedes cambiarlo: el mismo producto cuesta lo mismo en todas las tiendas. Esto garantiza equidad: es intercambio, no venta con ganancia.</p>
+          <p><strong>Como funciona la venta:</strong> Cuando alguien encuentra tu producto en "Buscar Productos" y lo compra, se transfiere el monto en {currency} de su cuenta a la tuya, y el stock se reduce. La transaccion es automatica y transparente.</p>
+          <p><strong>Mi Tienda:</strong> Muestra los productos que tu ofreces y tu inventario personal.</p>
+          <p><strong>Buscar Productos:</strong> Busca que productos estan disponibles en todas las tiendas de la red. Puedes filtrar por categoria o buscar por nombre. Asi sabes quien tiene lo que buscas.</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
         </div>
       )}
@@ -145,11 +149,12 @@ export default function Store() {
                       <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
+                  <p className="text-xs text-gray-400 mt-1">Filtra la lista de productos del catalogo por categoria para encontrar mas rapido lo que quieres agregar. <strong>Ejemplo:</strong> Selecciona "Alimentos" para ver solo productos alimenticios.</p>
                 </div>
               )}
 
               <div>
-                <label className="label">Producto</label>
+                <label className="label">Producto del catalogo</label>
                 {products.length === 0 ? (
                   <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
                     No hay productos en el registro. La asamblea debe agregar productos primero.
@@ -162,13 +167,13 @@ export default function Store() {
                     ))}
                   </select>
                 )}
-                <p className="text-xs text-gray-400 mt-1">Solo puedes vender productos del registro global. El precio es fijo.</p>
+                <p className="text-xs text-gray-400 mt-1">Solo puedes vender productos del registro global. El precio es fijo y no se puede modificar. <strong>Ejemplo:</strong> Selecciona "Pan integral 500g" para ofrecer pan en tu tienda.</p>
               </div>
 
               <div>
                 <label className="label">Cantidad disponible (stock)</label>
-                <input type="number" className="input" value={form.stock} onChange={(e) => setForm({ ...form, stock: parseInt(e.target.value) || 0 })} />
-                <p className="text-xs text-gray-400 mt-1">Cuantas unidades tienes para vender. 0 = agotado.</p>
+                <input type="number" className="input" placeholder="Ej: 10" value={form.stock} onChange={(e) => setForm({ ...form, stock: parseInt(e.target.value) || 0 })} />
+                <p className="text-xs text-gray-400 mt-1">Cuantas unidades tienes disponibles para vender. 0 = agotado. Cuando alguien compra, el stock baja automaticamente. <strong>Ejemplo:</strong> Si tienes 10 panes, escribe 10.</p>
               </div>
 
               <button onClick={addItem} className="btn-primary" disabled={!form.product_id}>Agregar a Mi Tienda</button>
@@ -218,6 +223,7 @@ export default function Store() {
             <div>
               <label className="label">Buscar por nombre</label>
               <input className="input" placeholder="Ej: pan, harina, jabon..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+              <p className="text-xs text-gray-400 mt-1">Escribe el nombre del producto, tienda o persona que buscas. La busqueda es por coincidencia parcial. <strong>Ejemplo:</strong> "pan" encuentra "Pan integral", "Pan dulce", etc.</p>
             </div>
             <div>
               <label className="label">Filtrar por categoria</label>
@@ -227,6 +233,7 @@ export default function Store() {
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
+              <p className="text-xs text-gray-400 mt-1">Filtra los productos disponibles por categoria. <strong>Ejemplo:</strong> Selecciona "Alimentos" para ver solo productos alimenticios disponibles en todas las tiendas.</p>
             </div>
           </div>
 

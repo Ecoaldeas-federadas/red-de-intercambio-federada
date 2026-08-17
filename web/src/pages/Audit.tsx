@@ -34,22 +34,30 @@ export default function Audit() {
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
           <p><strong>Auditoria - Ayuda</strong></p>
-          <p><strong>Para que sirve:</strong> Registro de todas las acciones importantes que ocurren en el nodo. Cada transferencia, admision, cambio de limite, decision de asamblea, etc. queda registrado aqui.</p>
-          <p><strong>Para que es util:</strong> Permite verificar que paso, quien lo hizo y cuando. Es la base de la transparencia del sistema. Cualquier miembro puede revisar el historial.</p>
-          <p><strong>Filtros:</strong> Puedes filtrar por tipo de accion para ver solo lo que te interesa.</p>
-          <p><strong>Columnas:</strong></p>
+          <p><strong>Que es:</strong> El log de auditoria es un registro inmutable y chronological de todas las acciones importantes que ocurren en el nodo. Es la fuente de verdad para saber que paso en el sistema.</p>
+          <p><strong>Para que sirve:</strong> Permite verificar que paso, quien lo hizo y cuando. Es la base de la transparencia del sistema: cualquier miembro puede revisar el historial completo y auditar que no haya irregularidades.</p>
+          <p><strong>Que acciones se auditan:</strong></p>
           <ul className="list-disc list-inside ml-4">
-            <li><strong>Fecha:</strong> Cuando ocurrio la accion</li>
-            <li><strong>Actor:</strong> Quien realizo la accion (usuario o sistema)</li>
-            <li><strong>Accion:</strong> Que tipo de accion fue</li>
-            <li><strong>Detalles:</strong> Informacion adicional de la accion</li>
+            <li><strong>Transferencias:</strong> Envio y recepcion de unidades entre cuentas</li>
+            <li><strong>Admisiones:</strong> Ingreso de nuevos miembros al nodo</li>
+            <li><strong>Federacion:</strong> Conexiones y transacciones con otros nodos</li>
+            <li><strong>Asamblea:</strong> Decisiones colectivas, propuestas y votaciones</li>
           </ul>
+          <p><strong>Que significa cada columna:</strong></p>
+          <ul className="list-disc list-inside ml-4">
+            <li><strong>Fecha:</strong> Momento exacto en que ocurrio la accion (formato AAAA-MM-DD HH:MM:SS)</li>
+            <li><strong>Actor:</strong> Identificador de quien realizo la accion. Puede ser un usuario (ej: "maria") o el sistema (ej: "system")</li>
+            <li><strong>Accion:</strong> Tipo de accion realizada (transfer, admission, federation, assembly, etc.)</li>
+            <li><strong>Detalles:</strong> Informacion adicional especifica de la accion, como montos, cuentas origen/destino, parametros cambiados, etc.</li>
+          </ul>
+          <p><strong>Como se usa:</strong> Selecciona un filtro de tipo de accion para ver solo los registros que te interesan. Por ejemplo, pulsa "Transferencias" para ver solo movimientos de dinero. La tabla se actualiza automaticamente al cambiar el filtro.</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
         </div>
       )}
 
       <div>
-        <label className="label">Filtrar por tipo</label>
+        <label className="label">Filtrar por tipo de accion</label>
+        <p className="text-xs text-gray-400 mt-1 mb-2">Selecciona el tipo de accion que quieres ver. Ej: pulsa "Transferencias" para ver solo envios y recepciones de unidades.</p>
         <div className="flex gap-2 flex-wrap">
           {['', 'transfer', 'admission', 'federation', 'assembly'].map((a) => (
             <button key={a} onClick={() => setFilter(a)} className={`px-3 py-1 rounded-lg text-sm ${filter === a ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>

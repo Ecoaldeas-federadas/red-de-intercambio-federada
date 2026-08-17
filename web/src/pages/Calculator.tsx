@@ -237,10 +237,14 @@ export default function Calculator() {
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
           <p><strong>Calculadora de Precios - Ayuda</strong></p>
-          <p><strong>Para que sirve:</strong> Calcula el precio de un producto o servicio basado en su costo energetico real. El precio en Trueques ({currency}) equivale a la energia total invertida: 1 {currency} = 1 kWh.</p>
-          <p><strong>Modo facil:</strong> Responde un cuestionario. Selecciona el tipo de trabajo, cuantas horas, y que materiales usaste. El sistema calcula todo automaticamente.</p>
-          <p><strong>Modo avanzado:</strong> Para usuarios avanzados que conocen los valores exactos en kWh. Permite ingresar energia directa, humana, insumos y amortizacion manualmente.</p>
-          <p><strong>Como se calcula:</strong> Precio = (Energia del trabajo + Energia de los insumos) x factor de esfuerzo. El factor de esfuerzo aumenta el costo si el trabajo es especialmente dificil.</p>
+          <p><strong>Que es la calculadora:</strong> Es una herramienta que calcula el precio justo de un producto o servicio basandose en su costo energetico real. El precio en {currency} equivale a la energia total invertida en producirlo: 1 {currency} = 1 kWh. No hay ganancia ni especulacion: el precio refleja el trabajo y los materiales.</p>
+          <p><strong>Para que sirve:</strong> Sirve para determinar el precio energetico de cualquier producto o servicio antes de proponerlo a la asamblea. Asi todos los precios son justos, transparentes y comparables. El resultado lo llevas a la asamblea para que lo aprueben y lo agreguen al catalogo.</p>
+          <p><strong>Como funciona:</strong> Tienes dos modos. El <strong>Modo facil</strong> te guia con un cuestionario: seleccionas el tipo de trabajo, las horas, y los materiales usaste; el sistema calcula todo. El <strong>Modo avanzado</strong> permite ingresar los valores energeticos directamente en kWh si los conoces.</p>
+          <p><strong>Que es la energia directa:</strong> Es la energia consumida directamente en el proceso: electricidad, gas o combustible usado en la produccion. <strong>Ejemplo:</strong> 2 kWh de electricidad para hornear pan.</p>
+          <p><strong>Que es la energia humana:</strong> Es la energia del trabajo humano invertido. Se calcula multiplicando las horas trabajadas por el costo energetico del tipo de trabajo. <strong>Ejemplo:</strong> 3 horas de panaderia manual x 0.12 kWh/hora = 0.36 kWh.</p>
+          <p><strong>Que es la energia de insumos:</strong> Es la energia incorporada en los materiales y materias primas usadas. Cada insumo tiene un costo energetico por unidad. <strong>Ejemplo:</strong> 1 kg de harina = 1.8 kWh, 0.5 kg de sal = 0.35 kWh.</p>
+          <p><strong>Que es el factor de esfuerzo:</strong> Es un multiplicador que ajusta el costo si el trabajo es especialmente dificil o facil. 1.0 = normal, 1.5 = 50% mas esfuerzo, 0.8 = 20% menos. <strong>Ejemplo:</strong> Cavar tierra a 40°C tiene factor 1.5.</p>
+          <p><strong>Como se calcula el precio final:</strong> Precio = (Energia directa + Energia humana + Energia de insumos + Amortizacion) x Factor de esfuerzo x Tarifa. El resultado es el precio sugerido en {currency}.</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
         </div>
       )}

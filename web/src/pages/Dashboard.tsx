@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
-import { Wallet, AlertTriangle, Network, HelpCircle } from 'lucide-react'
+import { Wallet, AlertTriangle, Network, HelpCircle, Send, History as HistoryIcon, ShoppingBag, Calculator } from 'lucide-react'
 
 export default function Dashboard() {
   const { currency } = useConfig()
+  const navigate = useNavigate()
   const [balance, setBalance] = useState<number | null>(null)
   const [creditLimit, setCreditLimit] = useState<number | null>(null)
   const [debitLimit, setDebitLimit] = useState<number | null>(null)
@@ -40,13 +42,66 @@ export default function Dashboard() {
 
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
-          <p><strong>Panel Principal - Ayuda</strong></p>
-          <p>Esta es la pantalla principal de tu nodo. Aqui ves un resumen de tu cuenta y del estado de la federacion.</p>
-          <p><strong>Mi Balance:</strong> Tu saldo actual en Trueques ({currency}). Puede ser positivo (tienes credito) o negativo (debes). Un saldo de 0 significa que no has hecho transacciones todavia. El saldo negativo es normal: significa que compraste y despues pagaras vendiendo o trabajando.</p>
-          <p><strong>Nodos Federados:</strong> Cuantos nodos de otras comunidades estan conectados al tuyo. La federacion permite intercambiar entre comunidades distintas. Si dice 0, significa que tu nodo esta solo (no esta federado con nadie todavia).</p>
-          <p><strong>Avisos Activos:</strong> Alertas sobre limites de federacion. Aparecen cuando te acercas al limite de deuda o credito con otros nodos. Si dice 0, no hay problemas.</p>
-          <p><strong>Nodos Conectados:</strong> Lista de las comunidades federadas y el saldo con cada una. Saldo negativo = debes a esa comunidad. Saldo positivo = te deben.</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
+          <p><strong>¿Que es el Panel Principal?</strong></p>
+          <p>El Panel Principal (Dashboard) es la pantalla de inicio de tu nodo. Es la primera pagina que ves al entrar. Muestra un resumen rapido del estado de tu cuenta personal y de la red federada a la que perteneces. Sirve para saber de un vistazo cuanto tienes, cuanto debes y como esta tu comunidad.</p>
+
+          <p><strong>¿Para que sirve?</strong></p>
+          <p>Sirve para:</p>
+          <ul className="list-disc list-inside ml-4 space-y-1">
+            <li>Ver tu saldo (balance) actual en Trueques ({currency})</li>
+            <li>Saber si te acercas a los limites de credito o debito</li>
+            <li>Ver cuantas comunidades estan federadas con la tuya</li>
+            <li>Acceder rapidamente a las acciones mas comunes (transferir, ver historial, etc.)</li>
+          </ul>
+
+          <p><strong>¿Como se usa?</strong></p>
+          <p>Simplemente mira las tres tarjetas de arriba para ver tu balance, nodos federados y avisos. Si hay avisos (numero en naranja), revisa la seccion "Avisos de Limites" mas abajo. Usa los botones de "Acciones Rapidas" para ir directamente a las paginas mas usadas sin buscarlas en el menu.</p>
+
+          <p className="pt-2"><strong>Tarjeta "Mi Balance" - ¿Que muestra?</strong></p>
+          <p>Muestra tu saldo actual en Trueques ({currency}). Este numero puede ser:</p>
+          <ul className="list-disc list-inside ml-4 space-y-1">
+            <li><strong>Positivo (ej: +350):</strong> Tienes credito. Alguien te debe o recibiste pagos. Significa que la comunidad te debe bienes/servicios por ese monto.</li>
+            <li><strong>Negativo (ej: -120):</strong> Debes a la comunidad. Es completamente normal: significa que recibiste bienes/servicios y despues pagaras vendiendo o trabajando. No es una deuda "mala", es como un credito rotatorio.</li>
+            <li><strong>Cero (0):</strong> No has hecho transacciones todavia, o tus entradas y salidas se compensaron exactamente.</li>
+          </ul>
+          <p className="text-xs text-gray-500">Ejemplo: Si tu balance es -80 {currency}, significa que has recibido 80 {currency} en bienes/servicios que aun no has compensado.</p>
+
+          <p className="pt-2"><strong>¿Que es el Balance?</strong></p>
+          <p>El balance es la suma de todas tus transacciones. Cada vez que recibes Trueques, sube. Cada vez que envias, baja. El sistema funciona como una contabilidad de doble entrada: lo que uno entrega, otro recibe. La suma de todos los balances de todos los usuarios siempre da cero. Nadie "crea" dinero de la nada.</p>
+
+          <p className="pt-2"><strong>¿Que significan los limites de credito y debito?</strong></p>
+          <p>Debajo del balance veras dos numeros:</p>
+          <ul className="list-disc list-inside ml-4 space-y-1">
+            <li><strong>Limite credito (ej: +1000):</strong> Es el maximo que puedes tener a favor. Si tu balance llega a +1000, no puedes recibir mas hasta que gastes algo. Evita que una sola persona acumule demasiado credito sin aportar.</li>
+            <li><strong>Limite debito (ej: -1000):</strong> Es el maximo que puedes deber. Si tu balance llega a -1000, no puedes gastar mas hasta que recibas Trueques (vendiendo o trabajando). Evita que alguien compre sin limite.</li>
+          </ul>
+          <p className="text-xs text-gray-500">Ejemplo: Si tu limite de debito es -500 y tu balance es -480, solo puedes gastar 20 {currency} mas antes de llegar al tope.</p>
+          <p>Estos limites los define tu comunidad y se pueden ajustar en la configuracion del nodo.</p>
+
+          <p className="pt-2"><strong>Tarjeta "Nodos Federados" - ¿Que muestra?</strong></p>
+          <p>Muestra cuantas comunidades (nodos) estan conectadas a la tuya mediante la federacion. La federacion permite intercambiar Trueques entre comunidades distintas. Si dice 0, tu nodo esta solo y solo puedes transferir entre usuarios de tu misma comunidad.</p>
+
+          <p className="pt-2"><strong>Tarjeta "Avisos Activos" - ¿Que muestra?</strong></p>
+          <p>Muestra alertas cuando te acercas a los limites de federacion (deuda o credito con otros nodos). Si dice 0, no hay problemas. Si hay avisos, revisa la seccion "Avisos de Limites" para ver el detalle.</p>
+
+          <p className="pt-2"><strong>Seccion "Nodos Conectados"</strong></p>
+          <p>Lista cada comunidad federada y el saldo que tienes con ella:</p>
+          <ul className="list-disc list-inside ml-4 space-y-1">
+            <li><strong>Saldo negativo (rojo):</strong> Debes a esa comunidad. Compraste a alguien de alli y despues pagaras.</li>
+            <li><strong>Saldo positivo (verde):</strong> Te deben. Vendiste a alguien de alli y despues recibiras.</li>
+          </ul>
+
+          <p className="pt-2"><strong>Acciones Rapidas - ¿Como se usan?</strong></p>
+          <p>Debajo de las tarjetas hay botones grandes que te llevan directamente a las paginas mas usadas:</p>
+          <ul className="list-disc list-inside ml-4 space-y-1">
+            <li><strong>Transferir:</strong> Envia Trueques a otra persona</li>
+            <li><strong>Historial:</strong> Ver todas tus transacciones pasadas</li>
+            <li><strong>Comprar:</strong> Ver productos disponibles en la tienda</li>
+            <li><strong>Calcular:</strong> Usar la calculadora de equivalencias</li>
+          </ul>
+          <p className="text-xs text-gray-500">Solo haz clic en el boton y te llevara a esa pagina. Es un atajo para no buscar en el menu lateral.</p>
+
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline block pt-2">Cerrar ayuda</button>
         </div>
       )}
 
@@ -63,11 +118,11 @@ export default function Dashboard() {
           </p>
           {creditLimit !== null && debitLimit !== null && (
             <p className="text-xs text-gray-500 mt-2">
-              Limite credito: +{creditLimit.toLocaleString()} {currency} | Limite debito: -{debitLimit.toLocaleString()} {currency}
+              Limite credito: +{creditLimit.toLocaleString()} {currency} (maximo a tu favor) | Limite debito: -{debitLimit.toLocaleString()} {currency} (maximo que puedes deber)
             </p>
           )}
           <p className="text-xs text-gray-400 mt-1">
-            Saldo positivo = tienes credito. Saldo negativo = debes (normal).
+            Saldo positivo = tienes credito (te deben). Saldo negativo = debes (es normal, pagaras despues). Ej: -80 significa que recibiste 80 {currency} en bienes que compensaras despues.
           </p>
         </div>
 
@@ -78,7 +133,7 @@ export default function Dashboard() {
           </div>
           <p className="text-3xl font-bold text-blue-700">{nodes.length}</p>
           <p className="text-xs text-gray-400 mt-2">
-            Comunidades conectadas a la tuya para intercambiar.
+            Comunidades conectadas a la tuya para intercambiar. Ej: 3 significa que puedes transferir con usuarios de 3 comunidades distintas.
           </p>
         </div>
 
@@ -89,7 +144,7 @@ export default function Dashboard() {
           </div>
           <p className="text-3xl font-bold text-orange-600">{warnings.length}</p>
           <p className="text-xs text-gray-400 mt-2">
-            Alertas de limites de federacion cercanos al tope.
+            Alertas de limites de federacion cercanos al tope. Ej: 2 significa que te acercas al limite con 2 nodos.
           </p>
         </div>
       </div>
@@ -108,6 +163,33 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      <div className="card">
+        <h2 className="text-lg font-semibold mb-1">Acciones Rapidas</h2>
+        <p className="text-xs text-gray-500 mb-3">Atajos a las paginas mas usadas. Haz clic en cualquier boton para ir directamente.</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <button onClick={() => navigate('/transfer')} className="flex flex-col items-center gap-2 p-4 rounded-lg border border-gray-200 hover:border-trueque-400 hover:bg-trueque-50 transition">
+            <Send className="text-trueque-600" size={24} />
+            <span className="text-sm font-medium">Transferir</span>
+            <span className="text-xs text-gray-400">Enviar Trueques</span>
+          </button>
+          <button onClick={() => navigate('/history')} className="flex flex-col items-center gap-2 p-4 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition">
+            <HistoryIcon className="text-blue-600" size={24} />
+            <span className="text-sm font-medium">Historial</span>
+            <span className="text-xs text-gray-400">Ver transacciones</span>
+          </button>
+          <button onClick={() => navigate('/store')} className="flex flex-col items-center gap-2 p-4 rounded-lg border border-gray-200 hover:border-trueque-400 hover:bg-trueque-50 transition">
+            <ShoppingBag className="text-trueque-600" size={24} />
+            <span className="text-sm font-medium">Comprar</span>
+            <span className="text-xs text-gray-400">Ver tienda</span>
+          </button>
+          <button onClick={() => navigate('/calculator')} className="flex flex-col items-center gap-2 p-4 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition">
+            <Calculator className="text-blue-600" size={24} />
+            <span className="text-sm font-medium">Calcular</span>
+            <span className="text-xs text-gray-400">Equivalencias</span>
+          </button>
+        </div>
+      </div>
 
       <div className="card">
         <h2 className="text-lg font-semibold mb-1">Nodos Conectados</h2>

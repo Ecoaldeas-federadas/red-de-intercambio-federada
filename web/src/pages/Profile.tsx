@@ -74,10 +74,23 @@ export default function Profile() {
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
           <p><strong>Mi Perfil - Ayuda</strong></p>
-          <p><strong>Para que sirve:</strong> Muestra tu informacion personal, tu nivel de miembro, tus dispositivos de seguridad (Passkeys), tus tarjetas NFC y tu historial.</p>
-          <p><strong>Nivel de miembro:</strong> Define tus limites de credito/debito, tus derechos (voz, voto) y tus permisos.</p>
-          <p><strong>Passkeys:</strong> Dispositivos con los que puedes iniciar sesion (huella, FaceID, PIN).</p>
-          <p><strong>Tarjetas NFC:</strong> Tarjetas fisicas asociadas a tu cuenta para pagos en terminales.</p>
+          <p><strong>Que es esta pagina:</strong> Es tu panel personal dentro de la red de intercambio. Aqui ves quien eres dentro del sistema, que puedes hacer y que dispositivos de seguridad tienes asociados.</p>
+          <p><strong>Para que sirve:</strong> Muestra tu informacion personal, tu nivel de miembro, tus dispositivos de seguridad (Passkeys), tus tarjetas NFC y tu historial de transacciones recientes. Tambien te permite verificar si puedes ascender de nivel automaticamente.</p>
+          <p><strong>Como se usa:</strong> Solo lectura. No hay formularios aqui. Para cambiar el PIN de una tarjeta NFC usa el boton "Cambiar PIN" junto a cada tarjeta. Para verificar si subiste de nivel, pulsa "Verificar auto-ascenso".</p>
+          <p><strong>Informacion que se muestra:</strong></p>
+          <ul className="list-disc list-inside space-y-1 ml-2">
+            <li><strong>Usuario:</strong> tu nombre de inicio de sesion.</li>
+            <li><strong>Nombre:</strong> nombre para mostrar (puede estar vacio).</li>
+            <li><strong>Tipo:</strong> tipo de cuenta (persona u organizacion).</li>
+            <li><strong>Balance:</strong> cuanto tienes disponible en tu moneda local.</li>
+            <li><strong>Estado:</strong> estado de tu membresia (activa, suspendida, etc.).</li>
+          </ul>
+          <p><strong>Nivel de miembro:</strong> Es la categoria que define tus limites de credito/debito, tus derechos (voz, voto, quorum) y tus permisos (crear organizaciones, comerciar entre nodos, recibir tarjeta NFC, ver auditoria, usar puente externo). Cuanto mas participes, mas subiras de nivel.</p>
+          <p><strong>Limites de credito y debito:</strong> El limite de credito es el maximo que puedes deber (saldo negativo). El limite de debito es el maximo que puedes tener a favor (saldo positivo). Los define tu nivel de miembro.</p>
+          <p><strong>Passkeys:</strong> Son dispositivos con los que puedes iniciar sesion sin contrasena: huella, FaceID, PIN del movil, llaves de seguridad USB. Si pierdes uno, pide al admin que lo elimine.</p>
+          <p><strong>Tarjetas NFC:</strong> Tarjetas fisicas asociadas a tu cuenta para pagar en terminales NFC de los comercios. Cada tarjeta tiene un UID unico. Si la pierdes, avisa al admin para desactivarla.</p>
+          <p><strong>PIN de NFC:</strong> Es un codigo de 4 digitos que protege tu tarjeta NFC. Se pide al hacer pagos en terminales con teclado. Cambialo con el boton "Cambiar PIN" si crees que alguien lo sabe.</p>
+          <p><strong>Actividad reciente:</strong> Tus ultimas 10 transacciones (ingresos en verde, egresos en rojo).</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
         </div>
       )}

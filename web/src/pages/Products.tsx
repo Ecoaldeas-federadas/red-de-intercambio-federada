@@ -50,12 +50,17 @@ export default function Products() {
 
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
-          <p><strong>Productos - Ayuda</strong></p>
-          <p><strong>Para que sirve:</strong> Este es el registro global de productos y servicios de la comunidad. Define que productos existen y cuanto cuestan. Los precios son fijos para todos: el mismo producto cuesta lo mismo para todos los miembros.</p>
-          <p><strong>Precios fijos:</strong> Los precios se basan en el costo energetico real de producir el bien o servicio (E_total = energia directa + humana + insumos + amortizacion). No hay ganancia: es intercambio, no venta con lucro.</p>
-          <p><strong>Quien crea productos:</strong> La asamblea decide que productos se agregan al registro y a que precio. Un usuario individual no puede crear productos por su cuenta. Si alguien tiene un producto nuevo, debe proponerlo en la asamblea.</p>
-          <p><strong>NO es un inventario:</strong> Este registro no maneja cantidades. Cada usuario tiene su propia tienda donde maneja su inventario personal. Aqui solo se define el producto y su precio.</p>
-          <p><strong>Tu tienda:</strong> Para vender productos, ve a la seccion Tienda. Ahi puedes agregar productos de este registro a tu tienda personal y manejar tu inventario.</p>
+          <p><strong>Productos del Catalogo Comunitario - Ayuda</strong></p>
+          <p><strong>Que es esta pagina:</strong> Este es el registro global de productos y servicios disponibles en la red de intercambio. Aqui se define que productos existen, sus caracteristicas y su precio fijo en {currency}. Es el catalogo comununitario al que todos pueden acceder.</p>
+          <p><strong>Para que sirve:</strong> Sirve para mantener un catalogo unico de productos con precios justos y transparentes. Los precios son fijos para todos: el mismo producto cuesta lo mismo para todos los miembros, sin negociacion ni variaciones. Esto garantiza equidad en el intercambio.</p>
+          <p><strong>Como se usa:</strong> Navega por la lista de productos para ver que esta disponible. Si tienes permisos de gestion (asamblea o administrador de precios), puedes agregar nuevos productos con el boton "Nuevo". Cada producto necesita un nombre, descripcion, unidad de medida, categoria y precio en {currency}.</p>
+          <p><strong>Que son los productos:</strong> Son bienes o servicios que los miembros de la comunidad pueden intercambiar. Pueden ser alimentos (pan, harina, verduras), artesania (ceramica, tela), servicios (reparaciones, clases) o cualquier bien producido por miembros de la red.</p>
+          <p><strong>Quien los crea:</strong> La asamblea decide que productos se agregan al registro y a que precio. Un usuario individual no puede crear productos por su cuenta. Si alguien tiene un producto nuevo, debe proponerlo en la asamblea para su aprobacion.</p>
+          <p><strong>Que es el precio fijo:</strong> El precio se basa en el costo energetico real de producir el bien o servicio (E_total = energia directa + humana + insumos + amortizacion). No hay ganancia: es intercambio, no venta con lucro. Usa la Calculadora de Precios para determinar el costo energetico correcto.</p>
+          <p><strong>Que es la unidad de medida:</strong> Indica como se cuantifica el producto. Por ejemplo: kWh para electricidad, kilos para alimentos, horas para servicios, litros para liquidos. La unidad debe ser clara para que todos entiendan cuanto estan recibiendo.</p>
+          <p><strong>Que es la categoria:</strong> Agrupa productos similares para facilitar la busqueda. Ejemplos: Alimentos, Artesania, Servicios, Construccion. Las categorias ayudan a organizar el catalogo.</p>
+          <p><strong>Que es el codigo de producto:</strong> Es un identificador unico opcional que facilita el seguimiento del producto, especialmente util para codigos QR o etiquetas NFC. Ejemplo: PAN-001 para el primer pan registrado.</p>
+          <p><strong>NO es un inventario:</strong> Este registro no maneja cantidades disponibles. Cada usuario tiene su propia tienda (seccion Tienda) donde maneja su inventario personal. Aqui solo se define el producto y su precio.</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
         </div>
       )}
@@ -76,38 +81,38 @@ export default function Products() {
           <div>
             <label className="label">Nombre del producto</label>
             <input className="input" placeholder="Ej: Pan integral 500g" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            <p className="text-xs text-gray-400 mt-1">Nombre del producto o servicio.</p>
+            <p className="text-xs text-gray-400 mt-1">El nombre del producto o servicio tal como aparecera en el catalogo. Debe ser claro y descriptivo. <strong>Ejemplo:</strong> "Pan integral 500g", "Clase de guitarra", "Reparacion de tuberias".</p>
           </div>
 
           <div>
             <label className="label">Descripcion</label>
-            <textarea className="input" rows={2} placeholder="Ej: Pan integral hecho con harina organica" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-            <p className="text-xs text-gray-400 mt-1">Descripcion detallada del producto.</p>
+            <textarea className="input" rows={2} placeholder="Ej: Pan integral hecho con harina organica, horneado en horno a leña" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            <p className="text-xs text-gray-400 mt-1">Descripcion detallada del producto: ingredientes, proceso, caracteristicas especiales. <strong>Ejemplo:</strong> "Pan integral hecho con harina organica, horneado en horno a leña, sin conservantes".</p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Unidad de medida</label>
-              <input className="input" placeholder="Ej: kWh, horas, kilos" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
-              <p className="text-xs text-gray-400 mt-1">Como se mide el producto.</p>
+              <input className="input" placeholder="Ej: kWh, horas, kilos, litros" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">Como se mide o cuantifica el producto. <strong>Ejemplo:</strong> "kWh" para electricidad, "horas" para servicios, "kilos" para alimentos, "litros" para liquidos, "unidades" para objetos.</p>
             </div>
             <div>
               <label className="label">Categoria</label>
-              <input className="input" placeholder="Ej: Alimentos" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
-              <p className="text-xs text-gray-400 mt-1">Grupo del producto.</p>
+              <input className="input" placeholder="Ej: Alimentos, Artesania, Servicios" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">Grupo al que pertenece el producto para facilitar la busqueda. <strong>Ejemplo:</strong> "Alimentos", "Artesania", "Servicios", "Construccion", "Lacteos".</p>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Precio ({currency})</label>
-              <input type="number" className="input" value={form.price_trueque} onChange={(e) => setForm({ ...form, price_trueque: parseInt(e.target.value) || 0 })} />
-              <p className="text-xs text-gray-400 mt-1">Precio fijo en Trueques. 1 {currency} = 1 kWh. Use la Calculadora para calcular el costo energetico.</p>
+              <input type="number" className="input" placeholder="Ej: 15" value={form.price_trueque} onChange={(e) => setForm({ ...form, price_trueque: parseInt(e.target.value) || 0 })} />
+              <p className="text-xs text-gray-400 mt-1">Precio fijo en {currency}. 1 {currency} = 1 kWh. Use la Calculadora de Precios para determinar el costo energetico correcto. <strong>Ejemplo:</strong> Si la calculadora indica 15 kWh, el precio es 15 {currency}.</p>
             </div>
             <div>
               <label className="label">Codigo de producto (opcional)</label>
               <input className="input" placeholder="Ej: PAN-001" value={form.product_code} onChange={(e) => setForm({ ...form, product_code: e.target.value })} />
-              <p className="text-xs text-gray-400 mt-1">Codigo unico para identificar el producto en QR/NFC.</p>
+              <p className="text-xs text-gray-400 mt-1">Codigo unico opcional para identificar el producto, util para etiquetas QR/NFC. <strong>Ejemplo:</strong> "PAN-001" para el primer pan, "HAR-003" para la tercera harina.</p>
             </div>
           </div>
 

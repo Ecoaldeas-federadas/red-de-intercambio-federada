@@ -78,9 +78,12 @@ export default function CommunityFund() {
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
           <p><strong>Fondo Comunitario - Ayuda</strong></p>
-          <p><strong>Para que sirve:</strong> El fondo comunitario acumula los impuestos de las transacciones. Ese dinero se usa para infraestructura, servicios publicos, ayuda mutual y proyectos aprobados por la asamblea.</p>
-          <p><strong>Como se llena:</strong> Cada vez que alguien hace una transferencia, se aplica un porcentaje de impuesto que va automaticamente al fondo.</p>
-          <p><strong>Como se gasta:</strong> Cualquier gasto del fondo debe ser aprobado por votacion de la asamblea. Crea una propuesta indicando cuanto y para quien.</p>
+          <p><strong>Que es:</strong> El fondo comunitario es una cuenta especial que acumula dinero colectivo del nodo. Es el "tesoro" compartido que se usa para el bien comun.</p>
+          <p><strong>De donde viene el dinero:</strong> Cada vez que alguien hace una transferencia, el sistema aplica un porcentaje de impuesto automatico que va a parar al fondo. Por ejemplo, si el impuesto es 2% y se transfieren 100 unidades, 2 unidades van al fondo. Nadie necesita depositar manualmente: se acumula solo con el uso.</p>
+          <p><strong>Para que se usa:</strong> El dinero del fondo se destina a infraestructura del nodo, servicios publicos, ayuda mutua entre miembros, y proyectos aprobados por la asamblea. No puede gastarse libremente: cada gasto requiere aprobacion colectiva.</p>
+          <p><strong>Como se distribuye:</strong> Para gastar dinero del fondo hay que crear una propuesta de distribucion indicando el destinatario, el monto y la razon. Luego los miembros votan a favor o en contra. Si la propuesta se aprueba, se puede ejecutar y el dinero se transfiere al destinatario.</p>
+          <p><strong>Quien lo administra:</strong> Nadie individualmente. El balance es visible para todos, pero los gastos solo se realizan mediante votacion de la asamblea. Esto garantiza que el fondo no pueda ser mal utilizado por una sola persona.</p>
+          <p><strong>Como usar esta pagina:</strong> Revisa el balance disponible en la parte superior. Si quieres proponer un gasto, pulsa "Nueva Propuesta", completa los campos y espera los votos de los demas miembros.</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
         </div>
       )}
@@ -120,16 +123,17 @@ export default function CommunityFund() {
             <div>
               <label className="label">Destinatario (organizacion o usuario)</label>
               <input className="input" placeholder="Ej: coop_norte" value={newProposal.recipient} onChange={(e) => setNewProposal({ ...newProposal, recipient: e.target.value })} />
-              <p className="text-xs text-gray-400 mt-1">Quien recibira el dinero del fondo.</p>
+              <p className="text-xs text-gray-400 mt-1">Nombre de la cuenta que recibira el dinero del fondo. Debe ser un usuario u organizacion valida del nodo. Ej: "coop_norte" o "asoc_sur".</p>
             </div>
             <div>
               <label className="label">Monto ({currency})</label>
-              <input type="number" className="input" value={newProposal.amount} onChange={(e) => setNewProposal({ ...newProposal, amount: parseInt(e.target.value) || 0 })} />
-              <p className="text-xs text-gray-400 mt-1">Cuanto dinero del fondo se distribuira.</p>
+              <input type="number" className="input" placeholder="Ej: 500" value={newProposal.amount} onChange={(e) => setNewProposal({ ...newProposal, amount: parseInt(e.target.value) || 0 })} />
+              <p className="text-xs text-gray-400 mt-1">Cuanto dinero del fondo se distribuira al destinatario. Debe ser mayor que 0 y no superar el balance disponible. Ej: 500.</p>
             </div>
             <div>
               <label className="label">Razon</label>
-              <textarea className="input" rows={2} placeholder="Para que se usara el dinero" value={newProposal.reason} onChange={(e) => setNewProposal({ ...newProposal, reason: e.target.value })} />
+              <textarea className="input" rows={2} placeholder="Ej: Compra de materiales para taller comunitario" value={newProposal.reason} onChange={(e) => setNewProposal({ ...newProposal, reason: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">Explica para que se usara el dinero. Esta razon sera visible para todos los votantes. Ej: "Compra de materiales para taller comunitario".</p>
             </div>
             <button onClick={createProposal} className="btn-primary">Crear Propuesta</button>
           </div>

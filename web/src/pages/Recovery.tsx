@@ -97,17 +97,18 @@ export default function Recovery() {
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
           <p><strong>Recuperacion de Cuenta - Ayuda</strong></p>
-          <p><strong>Para que sirve:</strong> Cuando un usuario pierde acceso a su cuenta (olvido la contrasena, perdio el dispositivo con la passkey, etc), puede solicitar la recuperacion. Ninguna persona sola puede restaurar el acceso: se requiere la aprobacion de varias personas.</p>
-          <p><strong>Modos de aprobacion:</strong></p>
+          <p><strong>Que es:</strong> La recuperacion de cuenta es el proceso mediante el cual un usuario que perdio el acceso a su cuenta (olvido la contrasena, perdio el dispositivo con la passkey, etc.) puede recuperar el ingreso al sistema de forma segura.</p>
+          <p><strong>Como funciona:</strong> Nadie puede restaurar el acceso por su cuenta. Se crea una solicitud de recuperacion y varias personas deben aprobarla antes de que se complete. Esto evita que alguien malintencionado se haga pasar por otro usuario. Mientras mas aprobaciones se requieran, mas seguro (pero mas lento) sera el proceso.</p>
+          <p><strong>Que son los codigos de invitacion:</strong> Los codigos de invitacion son claves unicas que permiten a un usuario nuevo unirse al nodo. En el contexto de recuperacion, sirven como mecanismo de verificacion: solo alguien con un codigo valido puede demostrar que fue invitado legtimamente y por tanto tiene derecho a recuperar su cuenta.</p>
+          <p><strong>Que es la recuperacion multi-firma:</strong> Es el modo de aprobacion donde se requiere que N miembros distintos firmen (aprueben) la solicitud. Por ejemplo, si se configuran 3 aprobaciones, al menos 3 miembros diferentes deben pulsar "Aprobar" antes de que la cuenta se restaure. Ninguna persona sola tiene poder para restaurar cuentas.</p>
+          <p><strong>Modos de aprobacion disponibles:</strong></p>
           <ul className="list-disc list-inside ml-4">
             <li><strong>Multi-firma:</strong> N firmas de cualquier miembro (configurable, minimo 2)</li>
-            <li><strong>Consejo:</strong> Aprobacion por un grupo designado</li>
-            <li><strong>Asamblea:</strong> Votacion en asamblea</li>
-            <li><strong>Departamento:</strong> Jefes de departamento</li>
+            <li><strong>Consejo:</strong> Aprobacion por un grupo designado de personas de confianza</li>
+            <li><strong>Asamblea:</strong> Votacion en asamblea por mayoria</li>
+            <li><strong>Departamento:</strong> Aprobacion por los jefes de departamento</li>
           </ul>
-          <p><strong>Nueva Solicitud:</strong> Crea una solicitud de recuperacion para un usuario que perdio acceso. Indica el usuario y la razon.</p>
-          <p><strong>Configuracion:</strong> Define el modo de aprobacion, cuantas aprobaciones se necesitan y cuanto tiempo tarda en expirar una solicitud sin respuesta.</p>
-          <p><strong>Verificacion de identidad:</strong> Se puede requerir que el solicitante verifique su identidad antes de aprobar.</p>
+          <p><strong>Como usar esta pagina:</strong> Pulsa "Nueva Solicitud" para crear una recuperacion indicando el usuario y la razon. Las solicitudes pendientes aparecen en la lista: puedes aprobarlas, rechazarlas o ver el detalle de las firmas. Desde "Configuracion" puedes ajustar el modo de aprobacion y los parametros.</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
         </div>
       )}

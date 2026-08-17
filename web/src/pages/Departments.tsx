@@ -206,12 +206,16 @@ export default function Departments() {
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
           <p><strong>Departamentos - Ayuda</strong></p>
-          <p><strong>Para que sirve:</strong> Los departamentos son grupos internos de trabajo de la comunidad. Permiten organizar a los miembros por areas (ej: produccion, distribucion, administracion) y asignar roles y permisos especificos a cada grupo.</p>
-          <p><strong>Diferencia con Organizaciones:</strong> Las organizaciones son grupos que tienen cuenta propia y pueden transar. Los departamentos son areas funcionales internas para gestionar permisos y responsabilidades.</p>
-          <p><strong>Roles:</strong> Cada departamento tiene roles (ej: coordinador, miembro). Cada rol tiene permisos especificos que determinan que puede hacer.</p>
-          <p><strong>Permisos:</strong> Controlan que acciones puede realizar cada rol. Algunos permisos requieren multi-firma (varias aprobaciones).</p>
-          <p><strong>Miembros:</strong> Usuarios asignados a un departamento con un rol especifico.</p>
-          <p><strong>Tipos:</strong> Departamento (area de trabajo), Consejo (grupo decision), Comision (grupo temporal para una tarea).</p>
+          <p><strong>Que son:</strong> Los departamentos son grupos internos de trabajo de la comunidad. Permiten organizar a los miembros por areas (ej: produccion, distribucion, administracion) y asignar roles y permisos especificos a cada grupo.</p>
+          <p><strong>Para que sirven:</strong> Sirven para estructurar la comunidad en areas funcionales, delegar responsabilidades y controlar quien puede hacer que dentro de cada area. Sin departamentos, todos los miembros tendrian los mismos permisos.</p>
+          <p><strong>Como se usan:</strong> 1) Creas un departamento con nombre, descripcion y tipo. 2) Creas roles dentro del departamento (ej: coordinador, miembro). 3) Asignas permisos a cada rol. 4) Asignas miembros a los roles. Los miembros heredan los permisos del rol asignado.</p>
+          <p><strong>Diferencia con Organizaciones:</strong> Las organizaciones son grupos que tienen cuenta propia y pueden transar. Los departamentos son areas funcionales internas para gestionar permisos y responsabilidades; no tienen cuenta propia.</p>
+          <p><strong>Tipo de grupo:</strong> Define la naturaleza del grupo. <em>Departamento</em> = area permanente de trabajo (ej: Produccion). <em>Consejo</em> = grupo de decision (ej: Consejo de Administracion). <em>Comision</em> = grupo temporal para una tarea especifica (ej: Comision de Eventos).</p>
+          <p><strong>Jefe del departamento:</strong> Es el usuario responsable de coordinar el departamento. Aparece como referente y puede tener permisos adicionales de gestion.</p>
+          <p><strong>Roles:</strong> Cada departamento tiene roles (ej: coordinador, miembro, tesorero). Cada rol define un conjunto de permisos. Un usuario con rol "coordinador" puede tener mas permisos que uno con rol "miembro".</p>
+          <p><strong>Permisos:</strong> Controlan que acciones puede realizar cada rol. Algunos permisos requieren multi-firma (varias aprobaciones de distintos miembros antes de ejecutarse), lo que se indica con una etiqueta amarilla "multisig".</p>
+          <p><strong>Como se asignan permisos:</strong> Despliega un departamento, haz clic en "Permisos" junto a un rol, y marca o desmarca los permisos. Los cambios se guardan automaticamente.</p>
+          <p><strong>Miembros:</strong> Usuarios asignados a un departamento con un rol especifico. Para asignar un miembro necesitas su nombre de usuario (username) y elegir un rol existente en el departamento.</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
         </div>
       )}
@@ -356,12 +360,12 @@ export default function Departments() {
             <div>
               <label className="label">Nombre del departamento</label>
               <input className="input" placeholder="Ej: Produccion" value={newDept.name} onChange={(e) => setNewDept({ ...newDept, name: e.target.value })} />
-              <p className="text-xs text-gray-400 mt-1">Nombre del area de trabajo.</p>
+              <p className="text-xs text-gray-400 mt-1">Nombre del area de trabajo. Debe ser claro y descriptivo. Ejemplo: "Produccion", "Distribucion", "Administracion".</p>
             </div>
             <div>
               <label className="label">Descripcion</label>
               <input className="input" placeholder="Ej: Encargados de producir alimentos" value={newDept.description} onChange={(e) => setNewDept({ ...newDept, description: e.target.value })} />
-              <p className="text-xs text-gray-400 mt-1">Para que sirve este departamento.</p>
+              <p className="text-xs text-gray-400 mt-1">Explica brevemente para que sirve este departamento y que responsabilidades tiene. Ejemplo: "Encargados de producir alimentos para la comunidad".</p>
             </div>
             <div>
               <label className="label">Tipo de grupo</label>
@@ -370,7 +374,7 @@ export default function Departments() {
                 <option value="council">Consejo (grupo de decision)</option>
                 <option value="committee">Comision (grupo temporal)</option>
               </select>
-              <p className="text-xs text-gray-400 mt-1">Departamento = area permanente. Consejo = grupo de decision. Comision = grupo temporal para una tarea.</p>
+              <p className="text-xs text-gray-400 mt-1">Define la naturaleza del grupo. <em>Departamento</em> = area permanente de trabajo (ej: Produccion). <em>Consejo</em> = grupo de decision (ej: Consejo de Administracion). <em>Comision</em> = grupo temporal para una tarea (ej: Comision de Eventos).</p>
             </div>
             <button onClick={createDept} className="btn-primary w-full">Crear</button>
           </div>
@@ -385,11 +389,12 @@ export default function Departments() {
             <div>
               <label className="label">Nombre del rol</label>
               <input className="input" placeholder="Ej: Coordinador" value={newRole.name} onChange={(e) => setNewRole({ ...newRole, name: e.target.value })} />
-              <p className="text-xs text-gray-400 mt-1">Nombre del rol dentro del departamento.</p>
+              <p className="text-xs text-gray-400 mt-1">Nombre del rol dentro del departamento. Ejemplo: "Coordinador", "Miembro", "Tesorero".</p>
             </div>
             <div>
               <label className="label">Descripcion</label>
               <input className="input" placeholder="Ej: Coordina las actividades del departamento" value={newRole.description} onChange={(e) => setNewRole({ ...newRole, description: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">Describe que responsabilidades tiene este rol. Ejemplo: "Coordina las actividades del departamento y supervisa a los miembros".</p>
             </div>
             <button onClick={() => createRole(showCreateRole)} className="btn-primary w-full">Crear</button>
           </div>
@@ -403,8 +408,8 @@ export default function Departments() {
             <h2 className="font-bold text-lg">Asignar Miembro</h2>
             <div>
               <label className="label">Usuario</label>
-              <input className="input" placeholder="Nombre de usuario" value={newMember.user_id} onChange={(e) => setNewMember({ ...newMember, user_id: e.target.value })} />
-              <p className="text-xs text-gray-400 mt-1">Nombre de usuario (username) de la persona a asignar.</p>
+              <input className="input" placeholder="Ej: maria_gonzalez" value={newMember.user_id} onChange={(e) => setNewMember({ ...newMember, user_id: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">Nombre de usuario (username) de la persona a asignar. Debe ser un usuario registrado en el sistema. Ejemplo: "maria_gonzalez".</p>
             </div>
             <div>
               <label className="label">Rol</label>
@@ -412,7 +417,7 @@ export default function Departments() {
                 <option value="">Seleccionar rol...</option>
                 {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
-              <p className="text-xs text-gray-400 mt-1">Que rol tendra esta persona en el departamento.</p>
+              <p className="text-xs text-gray-400 mt-1">Que rol tendra esta persona en el departamento. El rol determina que permisos tendra. Ejemplo: "Coordinador", "Miembro".</p>
             </div>
             <button onClick={() => assignMember(showAssignMember)} className="btn-primary w-full">Asignar</button>
           </div>

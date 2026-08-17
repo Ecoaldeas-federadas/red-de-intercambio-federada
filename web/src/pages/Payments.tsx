@@ -269,10 +269,17 @@ export default function Payments() {
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
           <p><strong>Pagos - Ayuda</strong></p>
-          <p><strong>QR:</strong> Genera un codigo QR para que alguien te pague. La otra persona lo escanea con la camara de su movil o carga una foto del QR.</p>
-          <p><strong>NFC:</strong> Pago con tarjeta NFC fisica. El comercio lee la tarjeta del cliente con un lector NFC.</p>
-          <p><strong>Manual:</strong> Transferencia directa ingresando el ID del destinatario. Util cuando no hay QR ni NFC.</p>
-          <p>El monto puede ser fijo (lo defines al generar el QR) o libre (el que paga decide cuanto).</p>
+          <p><strong>Que es un pago:</strong> Una transferencia de saldo de tu cuenta a la cuenta de otra persona u organizacion dentro de la red de intercambio. El saldo se descuenta de tu cuenta y se suma a la del destinatario.</p>
+          <p><strong>Para que sirve:</strong> Para comerciar dentro de la red: comprar productos, pagar servicios, saldar deudas, etc. Todo queda registrado en el historial de ambas partes.</p>
+          <p><strong>Como funciona:</strong> Hay 3 formas de pagar:</p>
+          <ul className="list-disc list-inside space-y-1 ml-2">
+            <li><strong>QR:</strong> Genera un codigo QR para que alguien te pague, o escanea el QR de otra persona para pagarle. La otra persona lo escanea con la camara de su movil o carga una foto del QR.</li>
+            <li><strong>NFC:</strong> Pago con tarjeta NFC fisica. El comercio lee la tarjeta del cliente con un lector NFC conectado a un terminal ESP32.</li>
+            <li><strong>Manual:</strong> Transferencia directa ingresando el ID (UUID) del destinatario. Util cuando no hay QR ni NFC.</li>
+          </ul>
+          <p><strong>Que es el monto:</strong> Es la cantidad de saldo que se transfiere. Se mide en la moneda local del nodo. Puede ser fijo (lo defines al generar el QR) o libre (el que paga decide cuanto).</p>
+          <p><strong>Quien recibe:</strong> La cuenta del destinatario. En QR viene dentro del codigo. En NFC se obtiene del UID de la tarjeta. En manual debes ingresar su ID (UUID).</p>
+          <p><strong>Que es la nota / etiqueta / referencia:</strong> Un texto opcional que describe el motivo del pago (ej: "Compra de pan"). Aparece en el historial de ambos para que recuerden de que fue el pago.</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
         </div>
       )}
@@ -295,14 +302,17 @@ export default function Payments() {
               <div>
                 <label className="label">Nombre para mostrar (opcional)</label>
                 <input className="input" placeholder="Ej: Juan Perez" value={genDisplayName} onChange={(e) => setGenDisplayName(e.target.value)} />
+                <p className="text-xs text-gray-400 mt-1">Como quieres que te vea quien te paga. Aparece junto al QR. Ej: "Juan Perez" o "Ferreteria Don Jose".</p>
               </div>
               <div>
                 <label className="label">Monto (dejar vacio = monto libre)</label>
                 <input className="input" placeholder="Ej: 500" value={genAmount} onChange={(e) => setGenAmount(e.target.value)} type="number" />
+                <p className="text-xs text-gray-400 mt-1">Cuanto debe pagarte. Si lo dejas vacio, el que paga decide el monto al escanear. Ej: 500 para un pago fijo de 500.</p>
               </div>
               <div>
                 <label className="label">Etiqueta / descripcion (opcional)</label>
                 <input className="input" placeholder="Ej: Pago de productos" value={genLabel} onChange={(e) => setGenLabel(e.target.value)} />
+                <p className="text-xs text-gray-400 mt-1">Un texto corto que describe el motivo del pago. Aparece en el historial de ambos. Ej: "Pago de productos" o "Cuota enero".</p>
               </div>
               <button onClick={generateQR} className="btn-primary">Generar QR</button>
             </div>
@@ -378,7 +388,8 @@ export default function Payments() {
                 {scanResult.payment_req.amount === null && (
                   <div>
                     <label className="label">Ingrese monto a pagar</label>
-                    <input className="input" type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} />
+                    <input className="input" type="number" placeholder="Ej: 500" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} />
+                    <p className="text-xs text-gray-400 mt-1">Cuanto saldo quieres enviar al destinatario. Debe ser mayor que 0. Ej: 500 para pagar 500 unidades.</p>
                   </div>
                 )}
                 <button onClick={confirmPayment} className="btn-primary w-full">Confirmar Pago</button>
@@ -396,6 +407,7 @@ export default function Payments() {
           <div>
             <label className="label">UID de tarjeta NFC</label>
             <input className="input" placeholder="Ej: 04A3B2C1" value={nfcUID} onChange={(e) => setNfcUID(e.target.value)} />
+            <p className="text-xs text-gray-400 mt-1">El identificador unico de la tarjeta NFC del cliente. En produccion se lee automaticamente al acercar la tarjeta al lector. Ej: 04A3B2C1.</p>
           </div>
           <button onClick={lookupNFC} className="btn-primary" disabled={!nfcUID}>Buscar tarjeta</button>
           {nfcResult && (
@@ -418,14 +430,17 @@ export default function Payments() {
           <div>
             <label className="label">ID del destinatario (UUID)</label>
             <input className="input" placeholder="Ej: a14dd44f-8da1-4bf7-8ad6-762a9d10d562" value={manual.receiver_id} onChange={(e) => setManual({ ...manual, receiver_id: e.target.value })} />
+            <p className="text-xs text-gray-400 mt-1">El identificador unico (UUID) de la cuenta que recibira el pago. Puedes pedirselo al destinatario. Ej: a14dd44f-8da1-4bf7-8ad6-762a9d10d562.</p>
           </div>
           <div>
             <label className="label">Monto</label>
             <input type="number" className="input" placeholder="Ej: 500" value={manual.amount || ''} onChange={(e) => setManual({ ...manual, amount: parseInt(e.target.value) || 0 })} />
+            <p className="text-xs text-gray-400 mt-1">Cuanto saldo quieres enviar. Debe ser mayor que 0 y no superar tu limite de credito. Ej: 500 para enviar 500 unidades.</p>
           </div>
           <div>
             <label className="label">Referencia (opcional)</label>
             <input className="input" placeholder="Ej: Pago de productos" value={manual.reference} onChange={(e) => setManual({ ...manual, reference: e.target.value })} />
+            <p className="text-xs text-gray-400 mt-1">Una nota breve que describe el motivo del pago. Aparece en el historial de ambos. Ej: "Pago de productos" o "Deuda semana 3".</p>
           </div>
           <button onClick={sendManual} className="btn-primary">Enviar</button>
           {manualResult && <div className="bg-trueque-50 p-3 rounded-lg text-sm">{JSON.stringify(manualResult, null, 2)}</div>}
