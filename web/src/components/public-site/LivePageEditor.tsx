@@ -161,6 +161,19 @@ const BLOCK_TEMPLATES: {
     }),
   },
   {
+    type: 'products_showcase',
+    name: 'Catálogo desde Backend (automático)',
+    description: 'Carga automáticamente los productos aprobados del backend. Se actualiza solo cuando agregas productos.',
+    defaultData: () => ({
+      type: 'products_showcase',
+      title: 'Catálogo de Rubros en la Feria',
+      subtitle: 'Variedad de alimentos y productos artesanales disponibles en cada jornada.',
+      source: 'backend',
+      categories: [],
+      items: [],
+    }),
+  },
+  {
     type: 'news_feed',
     name: 'Noticias & Boletines',
     description: 'Cuadrícula de artículos y comunicados con fechas y fotos.',

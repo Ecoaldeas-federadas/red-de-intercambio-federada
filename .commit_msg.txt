@@ -1,36 +1,12 @@
-feat(editor): edicion inline completa + subida de imagenes + footer editable
+feat(products): catalogo de productos desde backend en pagina publica
 
-Edicion WYSIWYG mejorada:
-- EdButton: botones CTA editables inline (texto + enlace), no navegan en edicion
-- EdAddItem / EdRemoveItem: agregar y quitar items en todos los arrays
-  - Carrusel: añadir/quitar fotos
-  - Features grid: añadir/quitar tarjetas
-  - Testimonios: añadir/quitar voces
-  - Timeline: añadir/quitar hitos
-  - FAQ: añadir/quitar preguntas
-  - Trueque explainer: añadir/quitar pasos
-  - Event schedule: añadir/quitar normas
-  - News feed: añadir/quitar noticias
-  - Products showcase: añadir/quitar productos
-  - Stats: añadir/quitar estadísticas
-  - Split story: añadir/quitar highlights
-- Contact location: instagram, facebook, email editables inline
-- ImageEditorModal: subir imagen desde PC + URL + presets
-
-Backend:
-- Migracion 017: footer_about, footer_schedule + tabla uploaded_images
-- Endpoint POST /api/uploads/image (subir imagenes, max 10MB)
-- Endpoint GET /api/uploads/images (listar imagenes subidas)
-- Servir /uploads/* como archivos estaticos
-- getPublicSettings y updateSiteSettings incluyen footer_about, footer_schedule
-
-Docker:
-- Volumen uploads:/app/uploads para persistir imagenes subidas
-
-Footer:
-- Usa footer_about y footer_schedule desde la BD
-- WebsiteAdmin: nueva seccion "Pie de Pagina" con todos los campos editables
-  (footer_about, footer_schedule, instagram, facebook, direccion)
+- Endpoint GET /api/public/products (sin auth) lista productos aprobados
+- ProductsShowcaseBlock soporta source: "backend" para cargar productos
+  reales desde el API en lugar de items manuales
+- Las categorias se generan automaticamente de los productos del backend
+- Nuevo template "Catalogo desde Backend (automatico)" en el editor
+- Cuando agregas un producto en el backend y lo apruebas, aparece
+  automaticamente en la pagina publica
 
 Generated with [Devin](https://devin.ai)
 

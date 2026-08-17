@@ -634,8 +634,32 @@ export function EventScheduleBlock({ data }: { data: EventScheduleBlockData }) {
 // -------------------------------------------------------------
 export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockData }) {
   const [selectedCat, setSelectedCat] = useState<string>('all')
-  const categories = data.categories || []
-  const items = data.items || []
+  const [backendProducts, setBackendProducts] = useState<any[]>([])
+
+  // If source is "backend", load real products from the API
+  const useBackend = (data as any).source === 'backend'
+
+  useEffect(() => {
+    if (!useBackend) return
+    fetch('/api/public/products')
+      .then((res) => res.json())
+      .then((d) => setBackendProducts(Array.isArray(d) ? d : []))
+      .catch(() => setBackendProducts([]))
+  }, [useBackend])
+
+  const categories = useBackend
+    ? [...new Set(backendProducts.map((p: any) => p.category).filter(Boolean))] as string[]
+    : data.categories || []
+  const items = useBackend
+    ? backendProducts.map((p: any) => ({
+        name: p.name,
+        category: p.category || 'General',
+        description: p.description || '',
+        badge: p.is_approved ? 'Aprobado' : '',
+        image_url: '',
+        price_energy: p.price_trueque ? `${p.price_trueque} TQ` : '',
+      }))
+    : data.items || []
 
   const filtered =
     selectedCat === 'all'

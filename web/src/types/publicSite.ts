@@ -129,6 +129,7 @@ export interface ProductsShowcaseBlockData {
   subtitle?: string
   categories?: string[]
   items: ProductItem[]
+  source?: 'manual' | 'backend'
 }
 
 export interface TestimonialItem {

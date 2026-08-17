@@ -29,6 +29,7 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.Get("/api/public/pages/{slug}", h.getPublicPage)
 	r.Get("/api/public/admission-form", h.getPublicAdmissionForm)
 	r.Post("/api/public/admission-request", h.submitAdmissionRequest)
+	r.Get("/api/public/products", h.listPublicProducts)
 
 	// ===== ENDPOINTS PRIVADOS (requieren auth) =====
 
@@ -2236,4 +2237,46 @@ func randomString(n int) string {
 		time.Sleep(1 * time.Nanosecond)
 	}
 	return string(b)
+}
+
+// -------------------------------------------------------------
+// PUBLIC PRODUCTS - for the public site catalog
+// -------------------------------------------------------------
+
+func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Request) {
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT id, name, description, category, unit, price_per_unit, product_code, is_approved, origin
+		FROM products WHERE is_approved = true ORDER BY category, name LIMIT 200`)
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+
+	products := []map[string]interface{}{}
+	for rows.Next() {
+		var id, name, description, category, unit, origin string
+		var price int64
+		var productCode *string
+		var isApproved bool
+		_ = rows.Scan(&id, &name, &description, &category, &unit, &price, &productCode, &isApproved, &origin)
+
+		code := ""
+		if productCode != nil {
+			code = *productCode
+		}
+
+		products = append(products, map[string]interface{}{
+			"id":            id,
+			"name":          name,
+			"description":   description,
+			"category":      category,
+			"unit":          unit,
+			"price_trueque": price,
+			"product_code":  code,
+			"is_approved":   isApproved,
+			"origin":        origin,
+		})
+	}
+	writeJSON(w, 200, products)
 }
