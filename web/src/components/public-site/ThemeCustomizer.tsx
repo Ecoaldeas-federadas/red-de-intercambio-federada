@@ -118,6 +118,29 @@ function matchesPreset(d: ThemeDraft, p: ColorPreset): boolean {
     d.footer_bg_color === p.footer_bg_color
 }
 
+// --- Custom palette storage (localStorage) ---
+const CUSTOM_PALETTES_KEY = 'feria_custom_palettes'
+
+function loadCustomPalettes(): ColorPreset[] {
+  try {
+    const raw = localStorage.getItem(CUSTOM_PALETTES_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed)) return parsed
+    return []
+  } catch {
+    return []
+  }
+}
+
+function saveCustomPalettes(palettes: ColorPreset[]) {
+  try {
+    localStorage.setItem(CUSTOM_PALETTES_KEY, JSON.stringify(palettes))
+  } catch {
+    // ignore
+  }
+}
+
 export function ThemeCustomizer({
   open,
   onClose,
@@ -138,6 +161,15 @@ export function ThemeCustomizer({
   const [activeTab, setActiveTab] = useState<'cabecera' | 'menu' | 'colores' | 'footer'>('cabecera')
   const [saving, setSaving] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // Custom palettes (persisted in localStorage)
+  const [customPalettes, setCustomPalettes] = useState<ColorPreset[]>([])
+  const [newPaletteName, setNewPaletteName] = useState('')
+  const [showSavePalette, setShowSavePalette] = useState(false)
+
+  useEffect(() => {
+    setCustomPalettes(loadCustomPalettes())
+  }, [])
 
   // Panel position and minimization state
   const [minimized, setMinimized] = useState(false)
@@ -235,7 +267,38 @@ export function ThemeCustomizer({
     setDraftPages([...initialPages])
   }
 
-  const activePreset = COLOR_PRESETS.find((p) => matchesPreset(draft, p))
+  const allPresets = [...COLOR_PRESETS, ...customPalettes]
+  const activePreset = allPresets.find((p) => matchesPreset(draft, p))
+
+  const handleSavePalette = () => {
+    const name = newPaletteName.trim()
+    if (!name) return
+    const newPalette: ColorPreset = {
+      name,
+      primary_color: draft.primary_color,
+      secondary_color: draft.secondary_color,
+      text_color: draft.text_color,
+      button_hover_color: draft.button_hover_color,
+      module_bg_color: draft.module_bg_color,
+      page_bg_color: draft.page_bg_color,
+      footer_bg_color: draft.footer_bg_color,
+      link_color: draft.link_color,
+      link_visited_color: draft.link_visited_color,
+    }
+    // Replace if name already exists
+    const filtered = customPalettes.filter((p) => p.name !== name)
+    const updated = [...filtered, newPalette]
+    setCustomPalettes(updated)
+    saveCustomPalettes(updated)
+    setNewPaletteName('')
+    setShowSavePalette(false)
+  }
+
+  const handleDeletePalette = (name: string) => {
+    const updated = customPalettes.filter((p) => p.name !== name)
+    setCustomPalettes(updated)
+    saveCustomPalettes(updated)
+  }
 
   return (
     <div
@@ -436,38 +499,94 @@ export function ThemeCustomizer({
 
             {/* Color Presets */}
             <div>
-              <label className="label text-xs font-bold">Paletas predefinidas</label>
-              {activePreset && (
-                <p className="text-[10px] text-emerald-700 font-bold mb-2">
-                  Activa: {activePreset.name}
+              <label className="label text-xs font-bold">Paletas</label>
+              {/* Always show active palette indicator */}
+              <div className="mb-2 p-2 rounded-lg bg-emerald-50 border border-emerald-200">
+                <p className="text-[10px] text-emerald-800 font-bold">
+                  ✓ Activa: {activePreset ? activePreset.name : 'Personalizada (sin guardar)'}
                 </p>
-              )}
+              </div>
               <div className="grid grid-cols-2 gap-2">
-                {COLOR_PRESETS.map((preset) => {
+                {allPresets.map((preset) => {
                   const isActive = matchesPreset(draft, preset)
+                  const isCustom = customPalettes.some((cp) => cp.name === preset.name)
                   return (
-                    <button
+                    <div
                       key={preset.name}
-                      onClick={() => setDraft({ ...draft, ...preset })}
-                      className={`p-2 rounded-xl border-2 transition text-left ${
+                      className={`p-2 rounded-xl border-2 transition text-left relative ${
                         isActive ? 'border-emerald-600 bg-emerald-50' : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
-                      <div className="flex gap-1 mb-1 flex-wrap">
-                        <div className="w-4 h-4 rounded" style={{ backgroundColor: preset.primary_color }} />
-                        <div className="w-4 h-4 rounded" style={{ backgroundColor: preset.secondary_color }} />
-                        <div className="w-4 h-4 rounded" style={{ backgroundColor: preset.button_hover_color }} />
-                        <div className="w-4 h-4 rounded" style={{ backgroundColor: preset.module_bg_color }} />
-                        <div className="w-4 h-4 rounded" style={{ backgroundColor: preset.page_bg_color }} />
-                        <div className="w-4 h-4 rounded" style={{ backgroundColor: preset.footer_bg_color }} />
-                        <div className="w-4 h-4 rounded" style={{ backgroundColor: preset.link_color }} />
-                        <div className="w-4 h-4 rounded" style={{ backgroundColor: preset.text_color }} />
-                      </div>
-                      <p className="text-[10px] font-bold text-gray-700">{preset.name}</p>
-                      {isActive && <p className="text-[9px] text-emerald-600 font-bold">✓ Activa</p>}
-                    </button>
+                      <button
+                        onClick={() => setDraft({ ...draft, ...preset })}
+                        className="w-full text-left"
+                      >
+                        <div className="flex gap-1 mb-1 flex-wrap">
+                          <div className="w-4 h-4 rounded" style={{ backgroundColor: preset.primary_color }} />
+                          <div className="w-4 h-4 rounded" style={{ backgroundColor: preset.secondary_color }} />
+                          <div className="w-4 h-4 rounded" style={{ backgroundColor: preset.button_hover_color }} />
+                          <div className="w-4 h-4 rounded" style={{ backgroundColor: preset.module_bg_color }} />
+                          <div className="w-4 h-4 rounded" style={{ backgroundColor: preset.page_bg_color }} />
+                          <div className="w-4 h-4 rounded" style={{ backgroundColor: preset.footer_bg_color }} />
+                          <div className="w-4 h-4 rounded" style={{ backgroundColor: preset.link_color }} />
+                          <div className="w-4 h-4 rounded" style={{ backgroundColor: preset.text_color }} />
+                        </div>
+                        <p className="text-[10px] font-bold text-gray-700">{preset.name}</p>
+                        {isActive && <p className="text-[9px] text-emerald-600 font-bold">✓ Activa</p>}
+                      </button>
+                      {isCustom && (
+                        <button
+                          onClick={() => handleDeletePalette(preset.name)}
+                          className="absolute top-1 right-1 text-red-400 hover:text-red-600 transition"
+                          title="Eliminar paleta"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
                   )
                 })}
+              </div>
+
+              {/* Save current colors as named palette */}
+              <div className="mt-3">
+                {!showSavePalette ? (
+                  <button
+                    onClick={() => setShowSavePalette(true)}
+                    className="w-full px-3 py-2 rounded-lg border-2 border-dashed border-emerald-300 text-emerald-700 text-[11px] font-bold hover:bg-emerald-50 transition flex items-center justify-center gap-1.5"
+                  >
+                    <Save size={14} />
+                    Guardar colores actuales como paleta
+                  </button>
+                ) : (
+                  <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50 space-y-2">
+                    <p className="text-[10px] font-bold text-emerald-800">Nombre de la paleta:</p>
+                    <input
+                      type="text"
+                      value={newPaletteName}
+                      onChange={(e) => setNewPaletteName(e.target.value)}
+                      placeholder="Ej: Mi Paleta Verde"
+                      className="input text-xs"
+                      autoFocus
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleSavePalette() }}
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleSavePalette}
+                        disabled={!newPaletteName.trim()}
+                        className="btn-primary text-[11px] flex-1 justify-center"
+                      >
+                        Guardar
+                      </button>
+                      <button
+                        onClick={() => { setShowSavePalette(false); setNewPaletteName('') }}
+                        className="btn-secondary text-[11px] flex-1 justify-center"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

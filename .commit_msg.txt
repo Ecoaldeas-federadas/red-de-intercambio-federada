@@ -1,27 +1,31 @@
-fix(customizer): panel movible + minimizable + foto semillas + bug menu
+feat(customizer): paletas personalizadas guardables + indicador activa
 
-3 problemas corregidos:
+Mejoras en la pestana de paletas del personalizador de tema:
 
-1. Foto de la pagina de semillas no cargaba (404 en Unsplash)
-   - Cambiada URL de photo-1574943323817 (404) a
-     photo-1746474072546 (manos sosteniendo semillas, verificada)
-   - Actualizada en defaultSiteData.ts y seed.go
+1. Indicador de paleta activa siempre visible
+   - Caja verde en la parte superior que muestra:
+     "✓ Activa: [nombre de paleta]" si coincide con una predefinida
+     o personalizada guardada
+   - "✓ Activa: Personalizada (sin guardar)" si los colores actuales
+     no coinciden con ninguna paleta guardada
 
-2. Personalizador de tema ahora es movible y minimizable
-   - Se puede arrastrar desde la cabecera para moverlo a cualquier
-     posicion de la pantalla
-   - Boton de minimizar (chevron) que colapsa el panel a una vista
-     compacta para poder ver la pagina sin interferencia
-   - Boton de expandir para volver al modo completo
-   - Cursor grab/grabbing para indicar que se puede arrastrar
+2. Paletas personalizadas guardables
+   - Boton "Guardar colores actuales como paleta"
+   - Al hacer clic, pide un nombre para la paleta
+   - La paleta se guarda en localStorage del navegador
+   - Aparece en la lista junto con las predefinidas
+   - Se puede eliminar con boton X (solo las personalizadas)
+   - Si se guarda con un nombre que ya existe, se reemplaza
 
-3. Bug al reordenar menu de cabecera: algunas paginas se quedaban
-   en blanco
-   - Causa: movePage mutaba los objetos existentes en lugar de
-     crear nuevos, causando que React no detectara los cambios
-     correctamente
-   - Fix: movePage ahora crea nuevos objetos con spread operator
-     al reasignar menu_order, evitando mutacion directa
+3. Lista unificada de paletas
+   - Predefinidas y personalizadas aparecen juntas en la lista
+   - Cada paleta muestra sus 8 colores de muestra
+   - La paleta activa tiene borde verde y "✓ Activa"
+   - Las personalizadas tienen boton de eliminar
+
+Las paletas personalizadas persisten entre sesiones porque se guardan
+en localStorage. Cada usuario puede crear sus propias paletas y
+reutilizarlas.
 
 Generated with [Devin](https://devin.ai)
 
