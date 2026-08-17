@@ -20,7 +20,7 @@ export default function Store() {
 
   const load = () => {
     api.get('/store/items').then((d: any) => setItems(Array.isArray(d) ? d : [])).catch(() => {})
-    api.get('/pricing/products').then((d: any) => setProducts(Array.isArray(d) ? d : d?.products ?? [])).catch(() => {})
+    api.get('/products').then((d: any) => setProducts(Array.isArray(d) ? d : d?.products ?? [])).catch(() => {})
     api.get('/store/all').then((d: any) => setAllStores(Array.isArray(d) ? d : [])).catch(() => {})
   }
 

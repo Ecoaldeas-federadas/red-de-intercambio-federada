@@ -15,23 +15,26 @@ export default function Profile() {
   const [upgradeMsg, setUpgradeMsg] = useState('')
 
   const load = () => {
-    api.get('/auth/me').then((d: any) => {
+    api.get('/accounts/me').then((d: any) => {
       setMe(d)
+      // Cargar nivel del usuario
       if (d?.member_level_id) {
         api.get('/member-levels').then((levels: any) => {
           const level = (Array.isArray(levels) ? levels : []).find((l: any) => l.id === d.member_level_id)
           setMyLevel(level)
         }).catch(() => {})
+      } else if (d?.level_name) {
+        // Algunos backends devuelven level_name directamente
+        setMyLevel({ name: d.level_name, description: d.level_description, credit_limit: d.credit_limit, debit_limit: d.debit_limit })
+      }
+      // Cargar historial
+      if (d?.id) {
+        api.get(`/accounts/${d.id}/history`).then((h: any) => setHistory(Array.isArray(h) ? h : h?.transactions ?? [])).catch(() => {})
       }
     }).catch(() => {})
 
     api.get('/auth/passkey/list').then((d: any) => setPasskeys(Array.isArray(d) ? d : d?.passkeys ?? [])).catch(() => {})
-    api.get('/payments/nfc').then((d: any) => setNfcCards(Array.isArray(d) ? d : d?.cards ?? [])).catch(() => {})
-
-    // Historial de membresía
-    if (me?.id) {
-      api.get(`/accounts/${me.id}/history`).then((d: any) => setHistory(Array.isArray(d) ? d : d?.transactions ?? [])).catch(() => {})
-    }
+    api.get('/nfc/cards').then((d: any) => setNfcCards(Array.isArray(d) ? d : [])).catch(() => {})
   }
 
   useEffect(() => { load() }, [])

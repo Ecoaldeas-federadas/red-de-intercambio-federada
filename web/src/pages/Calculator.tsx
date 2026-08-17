@@ -133,7 +133,7 @@ export default function Calculator() {
   const [advForm, setAdvForm] = useState({ e_direct: 0, e_human: 0, e_inputs: 0, e_amortization: 0, effort_factor: 1.0, tariff: 1.0 })
 
   useEffect(() => {
-    api.get('/pricing/products').then((d: any) => setProducts(Array.isArray(d) ? d : d?.products ?? [])).catch(() => {})
+    api.get('/products').then((d: any) => setProducts(Array.isArray(d) ? d : d?.products ?? [])).catch(() => {})
     // Cargar parametros aprobados desde la BD
     api.get('/calculator/params?type=work&approved=true').then((d: any) => setWorkParams(Array.isArray(d) ? d : [])).catch(() => setWorkParams([]))
     api.get('/calculator/params?type=material&approved=true').then((d: any) => setMaterialParams(Array.isArray(d) ? d : [])).catch(() => setMaterialParams([]))

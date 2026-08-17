@@ -14,7 +14,7 @@ export default function Products() {
   const [error, setError] = useState('')
   const [form, setForm] = useState({ name: '', description: '', unit: 'kWh', category: '', price_trueque: 0, product_code: '' })
 
-  const load = () => api.get('/pricing/products').then((d: any) => setProducts(Array.isArray(d) ? d : d?.products ?? [])).catch(() => {})
+  const load = () => api.get('/products').then((d: any) => setProducts(Array.isArray(d) ? d : d?.products ?? [])).catch(() => {})
 
   useEffect(() => { load() }, [])
 
@@ -25,7 +25,7 @@ export default function Products() {
       return
     }
     try {
-      await api.post('/pricing/products', form)
+      await api.post('/products', form)
       setForm({ name: '', description: '', unit: 'kWh', category: '', price_trueque: 0, product_code: '' })
       setShowForm(false)
       load()
