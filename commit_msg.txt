@@ -1,0 +1,28 @@
+fix: raiz "/" muestra sitio publico, backend en "/app/*"
+
+PROBLEMA:
+- Al entrar a localhost:8080/ redirigia al login/backend
+- El sitio publico solo era accesible en /p/inicio manualmente
+- No habia forma de ver el sitio publico como visitante externo
+
+FIX:
+- La raiz "/" ahora redirige a "/p/inicio" (sitio publico) cuando
+  no estas autenticado
+- El backend (dashboard, transfer, etc.) ahora vive bajo "/app/*"
+  - /app/dashboard (antes /)
+  - /app/transfer (antes /transfer)
+  - /app/history, /app/payments, etc.
+- Login redirige a /app/dashboard despues de autenticar
+- Layout: todos los links del menu lateral apuntan a /app/*
+- Dashboard: botones de acciones rapidas apuntan a /app/*
+- Logout sigue yendo a /login
+
+FLUJO:
+1. Visitante externo entra a "/" -> ve sitio publico de la Feria
+2. Click "Iniciar sesion" -> va a /login
+3. Login exitoso -> redirige a /app/dashboard
+4. Logout -> vuelve a /login -> redirige a "/" -> sitio publico
+
+Generado con [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

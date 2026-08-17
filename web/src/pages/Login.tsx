@@ -51,7 +51,7 @@ export default function Login() {
         response: {},
       })
       login(result.token, result.username)
-      navigate('/')
+      navigate('/app/dashboard')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al iniciar sesion')
     } finally {

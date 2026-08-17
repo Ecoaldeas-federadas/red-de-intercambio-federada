@@ -59,57 +59,60 @@ export default function App() {
     )
   }
 
-  // Rutas publicas del sitio web (siempre accesibles sin login)
-  if (!isAuthenticated) {
+  // Rutas del backend (requieren auth) - prefijo /app
+  if (isAuthenticated) {
     return (
       <Routes>
-        <Route path="/p/inicio" element={<PublicLayout><PublicPageView /></PublicLayout>} />
-        <Route path="/p/filosofia" element={<PublicLayout><PublicPageView /></PublicLayout>} />
-        <Route path="/p/productos" element={<PublicLayout><PublicPageView /></PublicLayout>} />
-        <Route path="/p/comunidad" element={<PublicLayout><PublicPageView /></PublicLayout>} />
-        <Route path="/p/como-funciona" element={<PublicLayout><PublicPageView /></PublicLayout>} />
-        <Route path="/p/campo-soberano" element={<PublicLayout><PublicPageView /></PublicLayout>} />
-        <Route path="/p/faq" element={<PublicLayout><PublicPageView /></PublicLayout>} />
-        <Route path="/p/contacto" element={<PublicLayout><PublicPageView /></PublicLayout>} />
-        <Route path="/p/unirse" element={<PublicLayout><PublicJoinForm /></PublicLayout>} />
-        <Route path="/p/:slug" element={<PublicLayout><PublicPageView /></PublicLayout>} />
-        <Route path="/p" element={<Navigate to="/p/inicio" replace />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/setup" element={<Setup />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="/app" element={<Navigate to="/app/dashboard" replace />} />
+        <Route path="/app/dashboard" element={<Layout><Dashboard /></Layout>} />
+        <Route path="/app/transfer" element={<Layout><Transfer /></Layout>} />
+        <Route path="/app/history" element={<Layout><History /></Layout>} />
+        <Route path="/app/payments" element={<Layout><Payments /></Layout>} />
+        <Route path="/app/products" element={<Layout><Products /></Layout>} />
+        <Route path="/app/calculator" element={<Layout><Calculator /></Layout>} />
+        <Route path="/app/store" element={<Layout><Store /></Layout>} />
+        <Route path="/app/federation/limits" element={<Layout><FederationLimits /></Layout>} />
+        <Route path="/app/federation/parity" element={<Layout><Parity /></Layout>} />
+        <Route path="/app/organizations" element={<Layout><Organizations /></Layout>} />
+        <Route path="/app/assembly" element={<Layout><Assembly /></Layout>} />
+        <Route path="/app/audit" element={<Layout><Audit /></Layout>} />
+        <Route path="/app/external" element={<Layout><ExternalBridge /></Layout>} />
+        <Route path="/app/admission" element={<Layout><Admission /></Layout>} />
+        <Route path="/app/recovery" element={<Layout><Recovery /></Layout>} />
+        <Route path="/app/departments" element={<Layout><Departments /></Layout>} />
+        <Route path="/app/nfc-terminals" element={<Layout><NFCTerminals /></Layout>} />
+        <Route path="/app/federation/peers" element={<Layout><FederationPeers /></Layout>} />
+        <Route path="/app/settings" element={<Layout><NodeSettings /></Layout>} />
+        <Route path="/app/profile" element={<Layout><Profile /></Layout>} />
+        <Route path="/app/fund" element={<Layout><CommunityFund /></Layout>} />
+        <Route path="/app/calculator/params" element={<Layout><CalculatorParams /></Layout>} />
+        <Route path="/app/website" element={<Layout><WebsiteAdmin /></Layout>} />
+        <Route path="/login" element={<Navigate to="/app/dashboard" replace />} />
+        <Route path="/" element={<Navigate to="/app/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/app/dashboard" replace />} />
       </Routes>
     )
   }
 
+  // Rutas publicas del sitio web (sin login)
+  // La raiz "/" muestra el sitio publico, no el login
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/transfer" element={<Transfer />} />
-        <Route path="/history" element={<History />} />
-        <Route path="/payments" element={<Payments />} />
-        <Route path="/products" element={<Products />} />
-        <Route path="/calculator" element={<Calculator />} />
-        <Route path="/store" element={<Store />} />
-        <Route path="/federation/limits" element={<FederationLimits />} />
-        <Route path="/federation/parity" element={<Parity />} />
-        <Route path="/organizations" element={<Organizations />} />
-        <Route path="/assembly" element={<Assembly />} />
-        <Route path="/audit" element={<Audit />} />
-        <Route path="/external" element={<ExternalBridge />} />
-        <Route path="/admission" element={<Admission />} />
-        <Route path="/recovery" element={<Recovery />} />
-        <Route path="/departments" element={<Departments />} />
-        <Route path="/nfc-terminals" element={<NFCTerminals />} />
-        <Route path="/federation/peers" element={<FederationPeers />} />
-        <Route path="/settings" element={<NodeSettings />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/fund" element={<CommunityFund />} />
-        <Route path="/calculator/params" element={<CalculatorParams />} />
-        <Route path="/website" element={<WebsiteAdmin />} />
-        <Route path="/p/*" element={<PublicLayout><PublicPageView /></PublicLayout>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Layout>
+    <Routes>
+      <Route path="/" element={<Navigate to="/p/inicio" replace />} />
+      <Route path="/p/inicio" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+      <Route path="/p/filosofia" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+      <Route path="/p/productos" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+      <Route path="/p/comunidad" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+      <Route path="/p/como-funciona" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+      <Route path="/p/campo-soberano" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+      <Route path="/p/faq" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+      <Route path="/p/contacto" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+      <Route path="/p/unirse" element={<PublicLayout><PublicJoinForm /></PublicLayout>} />
+      <Route path="/p/:slug" element={<PublicLayout><PublicPageView /></PublicLayout>} />
+      <Route path="/p" element={<Navigate to="/p/inicio" replace />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/setup" element={<Setup />} />
+      <Route path="*" element={<Navigate to="/p/inicio" replace />} />
+    </Routes>
   )
 }

@@ -168,22 +168,22 @@ export default function Dashboard() {
         <h2 className="text-lg font-semibold mb-1">Acciones Rapidas</h2>
         <p className="text-xs text-gray-500 mb-3">Atajos a las paginas mas usadas. Haz clic en cualquier boton para ir directamente.</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <button onClick={() => navigate('/transfer')} className="flex flex-col items-center gap-2 p-4 rounded-lg border border-gray-200 hover:border-trueque-400 hover:bg-trueque-50 transition">
+          <button onClick={() => navigate('/app/transfer')} className="flex flex-col items-center gap-2 p-4 rounded-lg border border-gray-200 hover:border-trueque-400 hover:bg-trueque-50 transition">
             <Send className="text-trueque-600" size={24} />
             <span className="text-sm font-medium">Transferir</span>
             <span className="text-xs text-gray-400">Enviar Trueques</span>
           </button>
-          <button onClick={() => navigate('/history')} className="flex flex-col items-center gap-2 p-4 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition">
+          <button onClick={() => navigate('/app/history')} className="flex flex-col items-center gap-2 p-4 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition">
             <HistoryIcon className="text-blue-600" size={24} />
             <span className="text-sm font-medium">Historial</span>
             <span className="text-xs text-gray-400">Ver transacciones</span>
           </button>
-          <button onClick={() => navigate('/store')} className="flex flex-col items-center gap-2 p-4 rounded-lg border border-gray-200 hover:border-trueque-400 hover:bg-trueque-50 transition">
+          <button onClick={() => navigate('/app/store')} className="flex flex-col items-center gap-2 p-4 rounded-lg border border-gray-200 hover:border-trueque-400 hover:bg-trueque-50 transition">
             <ShoppingBag className="text-trueque-600" size={24} />
             <span className="text-sm font-medium">Comprar</span>
             <span className="text-xs text-gray-400">Ver tienda</span>
           </button>
-          <button onClick={() => navigate('/calculator')} className="flex flex-col items-center gap-2 p-4 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition">
+          <button onClick={() => navigate('/app/calculator')} className="flex flex-col items-center gap-2 p-4 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition">
             <Calculator className="text-blue-600" size={24} />
             <span className="text-sm font-medium">Calcular</span>
             <span className="text-xs text-gray-400">Equivalencias</span>
