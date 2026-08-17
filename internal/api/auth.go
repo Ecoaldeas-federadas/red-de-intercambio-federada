@@ -110,6 +110,28 @@ func (am *AuthMiddleware) RequirePermission(permission string) func(http.Handler
 				return
 			}
 
+			// Asegurar que el token JWT este presente y valido (autocontenido:
+			// no depende de que RequireAuth se haya aplicado antes).
+			authHeader := r.Header.Get("Authorization")
+			if authHeader == "" {
+				writeError(w, 401, "authentication required")
+				return
+			}
+			parts := strings.SplitN(authHeader, " ", 2)
+			if len(parts) != 2 || parts[0] != "Bearer" {
+				writeError(w, 401, "invalid authorization header format")
+				return
+			}
+			claims, err := am.ValidateToken(parts[1])
+			if err != nil {
+				writeError(w, 401, "invalid or expired token")
+				return
+			}
+			ctx := context.WithValue(r.Context(), "user_id", claims.UserID)
+			ctx = context.WithValue(ctx, "username", claims.Username)
+			ctx = context.WithValue(ctx, "node", claims.Node)
+			r = r.WithContext(ctx)
+
 			userID, err := am.GetUserID(r)
 			if err != nil {
 				writeError(w, 401, "authentication required")

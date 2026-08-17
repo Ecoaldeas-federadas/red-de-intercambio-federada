@@ -7,7 +7,7 @@ import { Plus, HelpCircle, Package } from 'lucide-react'
 export default function Products() {
   const { hasPermission } = usePermissions()
   const { currency } = useConfig()
-  const canManage = hasPermission('assembly.propose') || hasPermission('pricing.manage')
+  const canManage = hasPermission('products.manage')
   const [products, setProducts] = useState<any[]>([])
   const [showForm, setShowForm] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
