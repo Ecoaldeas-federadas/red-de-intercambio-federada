@@ -55,6 +55,11 @@ func main() {
 
 	log.Println("Database migrations completed")
 
+	// Seed: insertar paginas por defecto del sitio publico si no existen
+	if err := database.SeedPublicPages(ctx, "localhost"); err != nil {
+		log.Printf("Warning: failed to seed public pages: %v", err)
+	}
+
 	ledgerSvc := ledger.New(database.Pool)
 	accountsSvc := accounts.New(database.Pool)
 	pricingSvc := pricing.New(database.Pool)
