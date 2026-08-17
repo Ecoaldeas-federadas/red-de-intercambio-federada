@@ -62,7 +62,7 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 	taxH.RegisterRoutes(r, am)
 
 	// System: auditoria, config, niveles, tarifa, productos
-	sysH := &SystemHandler{Pool: pool, Auth: am}
+	sysH := &SystemHandler{Pool: pool, Auth: am, nodeDomain: h.nodeDomain}
 	sysH.RegisterRoutes(r, am)
 
 	// Servir el frontend compilado (React/Vite) desde /app/web/dist

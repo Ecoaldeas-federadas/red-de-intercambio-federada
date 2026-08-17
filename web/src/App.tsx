@@ -26,6 +26,7 @@ import FederationPeers from './pages/FederationPeers'
 import NodeSettings from './pages/NodeSettings'
 import Profile from './pages/Profile'
 import CommunityFund from './pages/CommunityFund'
+import CalculatorParams from './pages/CalculatorParams'
 
 export default function App() {
   const { isAuthenticated } = useAuth()
@@ -90,6 +91,7 @@ export default function App() {
         <Route path="/settings" element={<NodeSettings />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/fund" element={<CommunityFund />} />
+        <Route path="/calculator/params" element={<CalculatorParams />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth'
 import {
   Home, ArrowLeftRight, History, Package, Calculator, Store,
   Network, Scale, Users, Gavel, FileSearch, Globe, UserPlus, Wallet, Shield,
-  Building2, Nfc, Settings, User, PiggyBank,
+  Building2, Nfc, Settings, User, PiggyBank, Zap,
   LogOut, Menu, X,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -16,6 +16,7 @@ const navItems = [
   { to: '/nfc-terminals', label: 'Terminales NFC', icon: Nfc },
   { to: '/products', label: 'Productos', icon: Package },
   { to: '/calculator', label: 'Calculadora', icon: Calculator },
+  { to: '/calculator/params', label: 'Parametros Calc.', icon: Zap },
   { to: '/store', label: 'Tienda', icon: Store },
   { to: '/federation/limits', label: 'Limites Federacion', icon: Network },
   { to: '/federation/parity', label: 'Paridad', icon: Scale },

@@ -115,6 +115,10 @@ export default function Calculator() {
   const [products, setProducts] = useState<any[]>([])
   const [error, setError] = useState('')
 
+  // Parametros dinamicos desde la BD
+  const [workParams, setWorkParams] = useState<any[]>([])
+  const [materialParams, setMaterialParams] = useState<any[]>([])
+
   // Simple mode state
   const [workItems, setWorkItems] = useState<WorkItem[]>([])
   const [inputs, setInputs] = useState<InputItem[]>([])
@@ -130,17 +134,26 @@ export default function Calculator() {
 
   useEffect(() => {
     api.get('/pricing/products').then((d: any) => setProducts(Array.isArray(d) ? d : d?.products ?? [])).catch(() => {})
+    // Cargar parametros aprobados desde la BD
+    api.get('/calculator/params?type=work&approved=true').then((d: any) => setWorkParams(Array.isArray(d) ? d : [])).catch(() => setWorkParams([]))
+    api.get('/calculator/params?type=material&approved=true').then((d: any) => setMaterialParams(Array.isArray(d) ? d : [])).catch(() => setMaterialParams([]))
   }, [])
+
+  // Categorias dinamicas agrupadas desde workParams
+  const workCategories = workParams.reduce((acc: any, p: any) => {
+    if (!acc[p.category]) acc[p.category] = []
+    acc[p.category].push(p)
+    return acc
+  }, {})
 
   const addWork = () => {
     if (!selectedWorkType) return
-    const cat = WORK_TYPES.find((c) => c.category === selectedWorkCategory)
-    const type = cat?.types.find((t) => t.name === selectedWorkType)
-    if (!type) return
+    const param = workParams.find((p: any) => p.name === selectedWorkType && p.category === selectedWorkCategory)
+    if (!param) return
     setWorkItems([...workItems, {
       id: crypto.randomUUID(),
-      typeName: type.name,
-      kWhPerHour: type.kWhPerHour,
+      typeName: param.name,
+      kWhPerHour: param.kwh_per_unit * (param.effort_factor || 1.0),
       hours: workHours,
     }])
     setSelectedWorkType('')
@@ -151,14 +164,14 @@ export default function Calculator() {
 
   const addInput = () => {
     if (!selectedInput) return
-    const item = COMMON_INPUTS.find((i) => i.name === selectedInput)
+    const item = materialParams.find((i: any) => i.name === selectedInput)
     if (!item) return
     setInputs([...inputs, {
       id: crypto.randomUUID(),
       name: item.name,
-      unit: item.unit,
+      unit: item.unit || 'unidad',
       quantity: inputQty,
-      kWhPerUnit: item.kWhPerUnit,
+      kWhPerUnit: item.kwh_per_unit,
     }])
     setSelectedInput('')
     setInputQty(1)
@@ -246,10 +259,11 @@ export default function Calculator() {
               <label className="label">Categoria de trabajo</label>
               <select className="input" value={selectedWorkCategory} onChange={(e) => { setSelectedWorkCategory(e.target.value); setSelectedWorkType('') }}>
                 <option value="">Seleccionar categoria...</option>
-                {WORK_TYPES.map((cat) => (
-                  <option key={cat.category} value={cat.category}>{cat.category}</option>
+                {Object.keys(workCategories).map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>
+              <p className="text-xs text-gray-400 mt-1">Las categorias y tipos se gestionan en Parametros de Calculadora.</p>
             </div>
 
             {selectedWorkCategory && (
@@ -257,13 +271,14 @@ export default function Calculator() {
                 <label className="label">Tipo de trabajo</label>
                 <select className="input" value={selectedWorkType} onChange={(e) => setSelectedWorkType(e.target.value)}>
                   <option value="">Seleccionar tipo...</option>
-                  {WORK_TYPES.find((c) => c.category === selectedWorkCategory)?.types.map((t) => (
-                    <option key={t.name} value={t.name}>{t.name} — {t.description}</option>
+                  {workCategories[selectedWorkCategory]?.map((t: any) => (
+                    <option key={t.name} value={t.name}>{t.name} — {t.description || ''}</option>
                   ))}
                 </select>
                 {selectedWorkType && (
                   <p className="text-xs text-gray-400 mt-1">
-                    Costo energetico: {WORK_TYPES.find((c) => c.category === selectedWorkCategory)?.types.find((t) => t.name === selectedWorkType)?.kWhPerHour} kWh por hora
+                    Costo energetico: {workParams.find((p: any) => p.name === selectedWorkType)?.kwh_per_unit} kWh por hora
+                    {workParams.find((p: any) => p.name === selectedWorkType)?.effort_factor !== 1.0 && ` (x${workParams.find((p: any) => p.name === selectedWorkType)?.effort_factor} esfuerzo)`}
                   </p>
                 )}
               </div>
@@ -307,16 +322,17 @@ export default function Calculator() {
               <label className="label">Insumo comun</label>
               <select className="input" value={selectedInput} onChange={(e) => setSelectedInput(e.target.value)}>
                 <option value="">Seleccionar insumo...</option>
-                {COMMON_INPUTS.map((i) => (
-                  <option key={i.name} value={i.name}>{i.name} (por {i.unit})</option>
+                {materialParams.map((i: any) => (
+                  <option key={i.name} value={i.name}>{i.name} (por {i.unit}) — {i.kwh_per_unit} kWh</option>
                 ))}
               </select>
+              <p className="text-xs text-gray-400 mt-1">Los insumos se gestionan en Parametros de Calculadora.</p>
             </div>
 
             {selectedInput && (
               <div className="flex gap-2 items-end">
                 <div className="flex-1">
-                  <label className="label">Cantidad ({COMMON_INPUTS.find((i) => i.name === selectedInput)?.unit})</label>
+                  <label className="label">Cantidad ({materialParams.find((i: any) => i.name === selectedInput)?.unit})</label>
                   <input type="number" min="0.1" step="0.1" className="input" value={inputQty} onChange={(e) => setInputQty(parseFloat(e.target.value) || 1)} />
                 </div>
                 <button onClick={addInput} className="btn-secondary flex items-center gap-2"><Plus size={16} /> Agregar</button>

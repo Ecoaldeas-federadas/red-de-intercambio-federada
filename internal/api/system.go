@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -13,8 +14,9 @@ import (
 
 // SystemHandler maneja auditoria, configuracion del nodo, niveles de miembro y moneda
 type SystemHandler struct {
-	Pool *pgxpool.Pool
-	Auth *AuthMiddleware
+	Pool       *pgxpool.Pool
+	Auth       *AuthMiddleware
+	nodeDomain string
 }
 
 func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
@@ -58,6 +60,15 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	// Super admin: habilitar/deshabilitar (requiere permiso especial de junta)
 	r.With(am.RequireAuth).Get("/api/admin/super-admin-status", h.getSuperAdminStatus)
 	r.With(am.RequirePermission("admin.toggle_super_admin")).Put("/api/admin/super-admin/{id}", h.toggleSuperAdmin)
+
+	// Parametros de calculadora (tipos de trabajo e insumos)
+	r.With(am.RequireAuth).Get("/api/calculator/params", h.listCalcParams)
+	r.With(am.RequireAuth).Get("/api/calculator/categories", h.listCalcCategories)
+	r.With(am.RequirePermission("calculator.manage_params")).Post("/api/calculator/params", h.createCalcParam)
+	r.With(am.RequirePermission("calculator.manage_params")).Put("/api/calculator/params/{id}", h.updateCalcParam)
+	r.With(am.RequirePermission("calculator.manage_params")).Delete("/api/calculator/params/{id}", h.deleteCalcParam)
+	r.With(am.RequirePermission("calculator.manage_params")).Post("/api/calculator/params/{id}/approve", h.approveCalcParam)
+	r.With(am.RequirePermission("calculator.manage_params")).Post("/api/calculator/categories", h.createCalcCategory)
 }
 
 // ===== AUDITORIA =====
@@ -1018,6 +1029,302 @@ func (h *SystemHandler) toggleSuperAdmin(w http.ResponseWriter, r *http.Request)
 		"status":  "updated",
 		"enabled": req.Enabled,
 		"message": msg,
+	})
+}
+
+// ===== PARAMETROS DE CALCULADORA =====
+
+func (h *SystemHandler) listCalcParams(w http.ResponseWriter, r *http.Request) {
+	paramType := r.URL.Query().Get("type") // 'work' o 'material'
+	category := r.URL.Query().Get("category")
+	approvedOnly := r.URL.Query().Get("approved") == "true"
+
+	query := `SELECT id, parameter_type, category, subcategory, name, description, unit, kwh_per_unit, effort_factor, is_active, approved, created_at
+		FROM calculator_parameters WHERE node_domain = $1`
+	args := []interface{}{h.nodeDomain}
+	argIdx := 2
+
+	if paramType != "" {
+		query += fmt.Sprintf(" AND parameter_type = $%d", argIdx)
+		args = append(args, paramType)
+		argIdx++
+	}
+	if category != "" {
+		query += fmt.Sprintf(" AND category = $%d", argIdx)
+		args = append(args, category)
+		argIdx++
+	}
+	if approvedOnly {
+		query += " AND approved = true"
+	}
+	query += " ORDER BY category, name"
+
+	rows, err := h.Pool.Query(r.Context(), query, args...)
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+
+	var params []map[string]interface{}
+	for rows.Next() {
+		var id uuid.UUID
+		var pType, category2, name string
+		var subcategory, description, unit *string
+		var kwhPerUnit, effortFactor float64
+		var isActive, approved bool
+		var createdAt time.Time
+		if err := rows.Scan(&id, &pType, &category2, &subcategory, &name, &description, &unit, &kwhPerUnit, &effortFactor, &isActive, &approved, &createdAt); err != nil {
+			continue
+		}
+		params = append(params, map[string]interface{}{
+			"id":            id.String(),
+			"type":          pType,
+			"category":      category2,
+			"subcategory":   deref(subcategory),
+			"name":          name,
+			"description":   deref(description),
+			"unit":          deref(unit),
+			"kwh_per_unit":  kwhPerUnit,
+			"effort_factor": effortFactor,
+			"is_active":     isActive,
+			"approved":      approved,
+			"created_at":    createdAt,
+		})
+	}
+	if params == nil {
+		params = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, params)
+}
+
+func (h *SystemHandler) listCalcCategories(w http.ResponseWriter, r *http.Request) {
+	paramType := r.URL.Query().Get("type")
+
+	query := `SELECT id, parameter_type, name, description, is_active FROM calculator_categories WHERE node_domain = $1`
+	args := []interface{}{h.nodeDomain}
+	if paramType != "" {
+		query += " AND parameter_type = $2"
+		args = append(args, paramType)
+	}
+	query += " ORDER BY name"
+
+	rows, err := h.Pool.Query(r.Context(), query, args...)
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+
+	var cats []map[string]interface{}
+	for rows.Next() {
+		var id uuid.UUID
+		var pType, name string
+		var description *string
+		var isActive bool
+		if err := rows.Scan(&id, &pType, &name, &description, &isActive); err != nil {
+			continue
+		}
+		cats = append(cats, map[string]interface{}{
+			"id":          id.String(),
+			"type":        pType,
+			"name":        name,
+			"description": deref(description),
+			"is_active":   isActive,
+		})
+	}
+	if cats == nil {
+		cats = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, cats)
+}
+
+type CreateCalcParamRequest struct {
+	Type         string  `json:"type"` // 'work' o 'material'
+	Category     string  `json:"category"`
+	Subcategory  string  `json:"subcategory"`
+	Name         string  `json:"name"`
+	Description  string  `json:"description"`
+	Unit         string  `json:"unit"`
+	KwhPerUnit   float64 `json:"kwh_per_unit"`
+	EffortFactor float64 `json:"effort_factor"`
+}
+
+func (h *SystemHandler) createCalcParam(w http.ResponseWriter, r *http.Request) {
+	var req CreateCalcParamRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.Type != "work" && req.Type != "material" {
+		writeError(w, 400, "type must be 'work' or 'material'")
+		return
+	}
+	if req.Name == "" || req.Category == "" {
+		writeError(w, 400, "name and category are required")
+		return
+	}
+	if req.KwhPerUnit <= 0 {
+		writeError(w, 400, "kwh_per_unit must be positive")
+		return
+	}
+	if req.Unit == "" {
+		if req.Type == "work" {
+			req.Unit = "horas"
+		} else {
+			req.Unit = "unidad"
+		}
+	}
+	if req.EffortFactor <= 0 {
+		req.EffortFactor = 1.0
+	}
+
+	userID, _ := h.Auth.GetUserID(r)
+	id := uuid.New()
+
+	var subcategory, description *string
+	if req.Subcategory != "" {
+		subcategory = &req.Subcategory
+	}
+	if req.Description != "" {
+		description = &req.Description
+	}
+
+	_, err := h.Pool.Exec(r.Context(), `
+		INSERT INTO calculator_parameters (id, node_domain, parameter_type, category, subcategory, name, description, unit, kwh_per_unit, effort_factor, approved, created_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false, $11)`,
+		id, h.nodeDomain, req.Type, req.Category, subcategory, req.Name, description, req.Unit, req.KwhPerUnit, req.EffortFactor, userID)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	writeJSON(w, 201, map[string]interface{}{
+		"id":           id.String(),
+		"type":         req.Type,
+		"category":     req.Category,
+		"name":         req.Name,
+		"kwh_per_unit": req.KwhPerUnit,
+		"approved":     false,
+		"message":      "Parametro creado. Pendiente de aprobacion de asamblea.",
+	})
+}
+
+func (h *SystemHandler) updateCalcParam(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+
+	var req CreateCalcParamRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	var subcategory, description *string
+	if req.Subcategory != "" {
+		subcategory = &req.Subcategory
+	}
+	if req.Description != "" {
+		description = &req.Description
+	}
+
+	_, err = h.Pool.Exec(r.Context(), `
+		UPDATE calculator_parameters SET
+			category = $1, subcategory = $2, name = $3, description = $4,
+			unit = $5, kwh_per_unit = $6, effort_factor = $7,
+			approved = false, updated_at = NOW()
+		WHERE id = $8`,
+		req.Category, subcategory, req.Name, description, req.Unit, req.KwhPerUnit, req.EffortFactor, id)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{"message": "Parametro actualizado. Pendiente de reaprobacion."})
+}
+
+func (h *SystemHandler) deleteCalcParam(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+	_, err = h.Pool.Exec(r.Context(), `UPDATE calculator_parameters SET is_active = false WHERE id = $1`, id)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{"status": "deleted"})
+}
+
+func (h *SystemHandler) approveCalcParam(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+
+	userID, _ := h.Auth.GetUserID(r)
+	_, err = h.Pool.Exec(r.Context(), `
+		UPDATE calculator_parameters SET approved = true, approved_by = $1, approved_at = NOW() WHERE id = $2`,
+		userID, id)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	// Audit log
+	details, _ := json.Marshal(map[string]interface{}{"param_id": id.String()})
+	h.Pool.Exec(r.Context(), `INSERT INTO audit_log (actor_id, action, target_id, details) VALUES ($1, 'calc_param_approve', $2, $3)`,
+		userID, id, details)
+
+	writeJSON(w, 200, map[string]interface{}{"message": "Parametro aprobado"})
+}
+
+type CreateCalcCategoryRequest struct {
+	Type        string `json:"type"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+func (h *SystemHandler) createCalcCategory(w http.ResponseWriter, r *http.Request) {
+	var req CreateCalcCategoryRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.Type != "work" && req.Type != "material" {
+		writeError(w, 400, "type must be 'work' or 'material'")
+		return
+	}
+	if req.Name == "" {
+		writeError(w, 400, "name is required")
+		return
+	}
+
+	id := uuid.New()
+	var description *string
+	if req.Description != "" {
+		description = &req.Description
+	}
+
+	_, err := h.Pool.Exec(r.Context(), `
+		INSERT INTO calculator_categories (id, node_domain, parameter_type, name, description)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (node_domain, parameter_type, name) DO NOTHING`,
+		id, h.nodeDomain, req.Type, req.Name, description)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	writeJSON(w, 201, map[string]interface{}{
+		"id":   id.String(),
+		"type": req.Type,
+		"name": req.Name,
 	})
 }
 
