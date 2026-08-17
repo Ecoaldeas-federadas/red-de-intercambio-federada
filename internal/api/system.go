@@ -1571,6 +1571,12 @@ func (h *SystemHandler) getPublicSettings(w http.ResponseWriter, r *http.Request
 	var footerAbout, footerSchedule *string
 	var textColor, buttonHoverColor, moduleBgColor, pageBgColor, footerBgColor, linkColor, linkVisitedColor *string
 	var footerCol1Title, footerCol2Title, footerCol3Title, footerCol4Title, footerSlogan, footerAdmission *string
+	// Header customization fields
+	var headerSticky bool
+	var headerBannerImage string
+	var headerBannerHeight, headerTransparency, headerBlur int
+	var headerTransparencyColor, headerBgColor, headerTextColor, headerActiveColor, headerActiveBgColor, headerHoverColor string
+	var headerTopBgColor, headerTopTextColor, headerBottomBgColor, headerBottomTextColor string
 
 	err := h.Pool.QueryRow(r.Context(), `
 		SELECT site_title, site_subtitle, COALESCE(logo_url, ''), primary_color, secondary_color,
@@ -1595,7 +1601,22 @@ func (h *SystemHandler) getPublicSettings(w http.ResponseWriter, r *http.Request
 		       COALESCE(footer_col3_title, 'Lugar de Encuentro'),
 		       COALESCE(footer_col4_title, 'Comunidad & Redes'),
 		       COALESCE(footer_slogan, '100% Autogestión & Suelo Vivo'),
-		       COALESCE(footer_admission_text, 'Llenar Solicitud de Ingreso')
+		       COALESCE(footer_admission_text, 'Llenar Solicitud de Ingreso'),
+		       COALESCE(header_sticky, true),
+		       COALESCE(header_banner_image, ''),
+		       COALESCE(header_banner_height, 120),
+		       COALESCE(header_transparency, 25),
+		       COALESCE(header_transparency_color, '#000000'),
+		       COALESCE(header_blur, 4),
+		       COALESCE(header_bg_color, ''),
+		       COALESCE(header_text_color, ''),
+		       COALESCE(header_active_color, ''),
+		       COALESCE(header_active_bg_color, ''),
+		       COALESCE(header_hover_color, ''),
+		       COALESCE(header_top_bg_color, ''),
+		       COALESCE(header_top_text_color, ''),
+		       COALESCE(header_bottom_bg_color, ''),
+		       COALESCE(header_bottom_text_color, '')
 		FROM public_settings WHERE node_domain = $1`, nodeDomain).Scan(
 		&siteTitle, &siteSubtitle, &logoURL, &primaryColor, &secondaryColor,
 		&contactEmail, &contactPhone, &contactAddress,
@@ -1605,7 +1626,13 @@ func (h *SystemHandler) getPublicSettings(w http.ResponseWriter, r *http.Request
 		&textColor, &buttonHoverColor, &moduleBgColor, &pageBgColor,
 		&footerBgColor, &linkColor, &linkVisitedColor,
 		&footerCol1Title, &footerCol2Title, &footerCol3Title, &footerCol4Title,
-		&footerSlogan, &footerAdmission)
+		&footerSlogan, &footerAdmission,
+		&headerSticky, &headerBannerImage, &headerBannerHeight,
+		&headerTransparency, &headerTransparencyColor, &headerBlur,
+		&headerBgColor, &headerTextColor,
+		&headerActiveColor, &headerActiveBgColor, &headerHoverColor,
+		&headerTopBgColor, &headerTopTextColor,
+		&headerBottomBgColor, &headerBottomTextColor)
 	if err != nil {
 		writeJSON(w, 200, map[string]interface{}{
 			"site_title":        "Feria Conuquera Agroecologica",
@@ -1678,6 +1705,22 @@ func (h *SystemHandler) getPublicSettings(w http.ResponseWriter, r *http.Request
 		"footer_col4_title":     deref(footerCol4Title, "Comunidad & Redes"),
 		"footer_slogan":         deref(footerSlogan, "100% Autogestión & Suelo Vivo"),
 		"footer_admission_text": deref(footerAdmission, "Llenar Solicitud de Ingreso"),
+		// Header customization
+		"header_sticky":             headerSticky,
+		"header_banner_image":       headerBannerImage,
+		"header_banner_height":      headerBannerHeight,
+		"header_transparency":       headerTransparency,
+		"header_transparency_color": headerTransparencyColor,
+		"header_blur":               headerBlur,
+		"header_bg_color":           headerBgColor,
+		"header_text_color":         headerTextColor,
+		"header_active_color":       headerActiveColor,
+		"header_active_bg_color":    headerActiveBgColor,
+		"header_hover_color":        headerHoverColor,
+		"header_top_bg_color":       headerTopBgColor,
+		"header_top_text_color":     headerTopTextColor,
+		"header_bottom_bg_color":    headerBottomBgColor,
+		"header_bottom_text_color":  headerBottomTextColor,
 	})
 }
 
@@ -2023,6 +2066,22 @@ type UpdateSiteSettingsReq struct {
 	FooterCol4Title  string `json:"footer_col4_title"`
 	FooterSlogan     string `json:"footer_slogan"`
 	FooterAdmission  string `json:"footer_admission_text"`
+	// Header customization
+	HeaderSticky            bool   `json:"header_sticky"`
+	HeaderBannerImage       string `json:"header_banner_image"`
+	HeaderBannerHeight      int    `json:"header_banner_height"`
+	HeaderTransparency      int    `json:"header_transparency"`
+	HeaderTransparencyColor string `json:"header_transparency_color"`
+	HeaderBlur              int    `json:"header_blur"`
+	HeaderBgColor           string `json:"header_bg_color"`
+	HeaderTextColor         string `json:"header_text_color"`
+	HeaderActiveColor       string `json:"header_active_color"`
+	HeaderActiveBgColor     string `json:"header_active_bg_color"`
+	HeaderHoverColor        string `json:"header_hover_color"`
+	HeaderTopBgColor        string `json:"header_top_bg_color"`
+	HeaderTopTextColor      string `json:"header_top_text_color"`
+	HeaderBottomBgColor     string `json:"header_bottom_bg_color"`
+	HeaderBottomTextColor   string `json:"header_bottom_text_color"`
 }
 
 func (h *SystemHandler) updateSiteSettings(w http.ResponseWriter, r *http.Request) {
@@ -2043,6 +2102,18 @@ func (h *SystemHandler) updateSiteSettings(w http.ResponseWriter, r *http.Reques
 	if req.FooterStyle == "" {
 		req.FooterStyle = "columns"
 	}
+	if req.HeaderBannerHeight == 0 {
+		req.HeaderBannerHeight = 120
+	}
+	if req.HeaderTransparency == 0 {
+		req.HeaderTransparency = 25
+	}
+	if req.HeaderTransparencyColor == "" {
+		req.HeaderTransparencyColor = "#000000"
+	}
+	if req.HeaderBlur == 0 {
+		req.HeaderBlur = 4
+	}
 
 	_, err := h.Pool.Exec(r.Context(), `
 		UPDATE public_settings SET
@@ -2055,6 +2126,12 @@ func (h *SystemHandler) updateSiteSettings(w http.ResponseWriter, r *http.Reques
 			footer_bg_color = $23, link_color = $24, link_visited_color = $25,
 			footer_col1_title = $26, footer_col2_title = $27, footer_col3_title = $28, footer_col4_title = $29,
 			footer_slogan = $30, footer_admission_text = $31,
+			header_sticky = $33, header_banner_image = $34, header_banner_height = $35,
+			header_transparency = $36, header_transparency_color = $37, header_blur = $38,
+			header_bg_color = $39, header_text_color = $40,
+			header_active_color = $41, header_active_bg_color = $42, header_hover_color = $43,
+			header_top_bg_color = $44, header_top_text_color = $45,
+			header_bottom_bg_color = $46, header_bottom_text_color = $47,
 			updated_at = NOW()
 		WHERE node_domain = $32`,
 		req.SiteTitle, req.SiteSubtitle, req.LogoURL, req.PrimaryColor, req.SecondaryColor,
@@ -2066,7 +2143,13 @@ func (h *SystemHandler) updateSiteSettings(w http.ResponseWriter, r *http.Reques
 		req.FooterBgColor, req.LinkColor, req.LinkVisitedColor,
 		req.FooterCol1Title, req.FooterCol2Title, req.FooterCol3Title, req.FooterCol4Title,
 		req.FooterSlogan, req.FooterAdmission,
-		nodeDomain)
+		nodeDomain,
+		req.HeaderSticky, req.HeaderBannerImage, req.HeaderBannerHeight,
+		req.HeaderTransparency, req.HeaderTransparencyColor, req.HeaderBlur,
+		req.HeaderBgColor, req.HeaderTextColor,
+		req.HeaderActiveColor, req.HeaderActiveBgColor, req.HeaderHoverColor,
+		req.HeaderTopBgColor, req.HeaderTopTextColor,
+		req.HeaderBottomBgColor, req.HeaderBottomTextColor)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return

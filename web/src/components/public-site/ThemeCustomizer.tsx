@@ -560,42 +560,56 @@ export function ThemeCustomizer({
 
                 {/* Color picker helper component */}
                 {(() => {
-                  const ColorRow = ({ label, value, onChange, defaultColor }: { label: string; value: string; onChange: (v: string) => void; defaultColor: string }) => (
+                  // Calculate resolved colors based on the selected header style
+                  const coloredStyles = ['modern_eco', 'agrodigital_mincyt', 'dropdown_categories', 'compact', 'banner', 'sidebar_left', 'split_center', 'hero_overlay']
+                  const isColored = coloredStyles.includes(draft.header_style)
+                  const resolvedBg = draft.header_bg_color || draft.primary_color
+                  const resolvedText = draft.header_text_color || (isColored ? '#ffffff' : draft.text_color)
+                  const resolvedActive = draft.header_active_color || (isColored ? '#ffffff' : draft.primary_color)
+                  const resolvedActiveBg = draft.header_active_bg_color || draft.secondary_color
+                  const resolvedHover = draft.header_hover_color || draft.primary_color
+
+                  const ColorRow = ({ label, value, onChange, resolvedColor }: { label: string; value: string; onChange: (v: string) => void; resolvedColor: string }) => (
                     <div className="flex items-center gap-2">
                       <input
                         type="color"
-                        value={value || defaultColor}
+                        value={value || resolvedColor}
                         onChange={(e) => onChange(e.target.value)}
                         className="w-8 h-8 rounded-lg border border-gray-200 cursor-pointer flex-shrink-0"
                       />
                       <div className="flex-1">
                         <p className="text-[10px] font-bold text-gray-700">{label}</p>
-                        <input
-                          className="input text-[10px] font-mono py-0.5"
-                          value={value}
-                          onChange={(e) => onChange(e.target.value)}
-                          placeholder="Usar paleta general"
-                        />
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            className="input text-[10px] font-mono py-0.5 flex-1"
+                            value={value}
+                            onChange={(e) => onChange(e.target.value)}
+                            placeholder={resolvedColor}
+                          />
+                          {!value && (
+                            <span className="text-[9px] text-gray-400 font-bold whitespace-nowrap">tema</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )
                   return (
                     <>
-                      <ColorRow label="Color de fondo" value={draft.header_bg_color} onChange={(v) => setDraft({ ...draft, header_bg_color: v })} defaultColor={draft.primary_color} />
-                      <ColorRow label="Color de texto" value={draft.header_text_color} onChange={(v) => setDraft({ ...draft, header_text_color: v })} defaultColor={draft.text_color} />
-                      <ColorRow label="Color texto activo" value={draft.header_active_color} onChange={(v) => setDraft({ ...draft, header_active_color: v })} defaultColor="#ffffff" />
-                      <ColorRow label="Color fondo botón activo" value={draft.header_active_bg_color} onChange={(v) => setDraft({ ...draft, header_active_bg_color: v })} defaultColor={draft.secondary_color} />
-                      <ColorRow label="Color hover (pasar mouse)" value={draft.header_hover_color} onChange={(v) => setDraft({ ...draft, header_hover_color: v })} defaultColor={draft.primary_color} />
+                      <ColorRow label="Color de fondo" value={draft.header_bg_color} onChange={(v) => setDraft({ ...draft, header_bg_color: v })} resolvedColor={resolvedBg} />
+                      <ColorRow label="Color de texto" value={draft.header_text_color} onChange={(v) => setDraft({ ...draft, header_text_color: v })} resolvedColor={resolvedText} />
+                      <ColorRow label="Color texto activo" value={draft.header_active_color} onChange={(v) => setDraft({ ...draft, header_active_color: v })} resolvedColor={resolvedActive} />
+                      <ColorRow label="Color fondo botón activo" value={draft.header_active_bg_color} onChange={(v) => setDraft({ ...draft, header_active_bg_color: v })} resolvedColor={resolvedActiveBg} />
+                      <ColorRow label="Color hover (pasar mouse)" value={draft.header_hover_color} onChange={(v) => setDraft({ ...draft, header_hover_color: v })} resolvedColor={resolvedHover} />
 
                       {/* Dual-row colors for editorial_latam */}
                       {draft.header_style === 'editorial_latam' && (
                         <div className="pt-2 mt-2 border-t border-gray-200 space-y-2">
                           <p className="text-[10px] font-bold text-gray-600">Fila superior (marca)</p>
-                          <ColorRow label="Fondo fila superior" value={draft.header_top_bg_color} onChange={(v) => setDraft({ ...draft, header_top_bg_color: v })} defaultColor="#ffffff" />
-                          <ColorRow label="Texto fila superior" value={draft.header_top_text_color} onChange={(v) => setDraft({ ...draft, header_top_text_color: v })} defaultColor={draft.text_color} />
+                          <ColorRow label="Fondo fila superior" value={draft.header_top_bg_color} onChange={(v) => setDraft({ ...draft, header_top_bg_color: v })} resolvedColor={draft.header_top_bg_color || '#ffffff'} />
+                          <ColorRow label="Texto fila superior" value={draft.header_top_text_color} onChange={(v) => setDraft({ ...draft, header_top_text_color: v })} resolvedColor={draft.header_top_text_color || draft.text_color} />
                           <p className="text-[10px] font-bold text-gray-600 pt-1">Fila inferior (menú)</p>
-                          <ColorRow label="Fondo fila inferior" value={draft.header_bottom_bg_color} onChange={(v) => setDraft({ ...draft, header_bottom_bg_color: v })} defaultColor="#1f301d" />
-                          <ColorRow label="Texto fila inferior" value={draft.header_bottom_text_color} onChange={(v) => setDraft({ ...draft, header_bottom_text_color: v })} defaultColor="#ffffff" />
+                          <ColorRow label="Fondo fila inferior" value={draft.header_bottom_bg_color} onChange={(v) => setDraft({ ...draft, header_bottom_bg_color: v })} resolvedColor={draft.header_bottom_bg_color || '#1f301d'} />
+                          <ColorRow label="Texto fila inferior" value={draft.header_bottom_text_color} onChange={(v) => setDraft({ ...draft, header_bottom_text_color: v })} resolvedColor={draft.header_bottom_text_color || '#ffffff'} />
                         </div>
                       )}
                     </>
