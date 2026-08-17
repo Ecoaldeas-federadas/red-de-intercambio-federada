@@ -28,8 +28,9 @@ import {
   MoreHorizontal,
 } from 'lucide-react'
 import { PageBlocksRenderer } from './public-site/PublicBlocks'
+import { LivePageEditor } from './public-site/LivePageEditor'
 import { FERIA_CONUQUERA_TEMPLATES } from './public-site/defaultSiteData'
-import { PublicPageData, HeaderStyleType } from '../types/publicSite'
+import { PublicPageData, HeaderStyleType, SiteBlock } from '../types/publicSite'
 
 const ICONS: Record<string, any> = {
   home: Home,
@@ -803,19 +804,20 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 // PUBLIC PAGE VIEW (Handles modular blocks or rich template fallback)
 // -------------------------------------------------------------
 export function PublicPageView() {
+  const { isAuthenticated } = useAuth()
   const { slug } = useParams<{ slug?: string }>()
   const targetSlug = slug || 'inicio'
   const [page, setPage] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [isLiveEditing, setIsLiveEditing] = useState(false)
 
-  useEffect(() => {
+  const loadPageData = () => {
     setLoading(true)
     api
       .get(`/public/pages/${targetSlug}`)
       .then((d: any) => {
         let contentToUse = d.content
 
-        // Check if content is valid JSON blocks
         let isValidJson = false
         try {
           const parsed = JSON.parse(d.content)
@@ -826,7 +828,6 @@ export function PublicPageView() {
           isValidJson = false
         }
 
-        // If not JSON modular blocks, load rich template for this slug
         if (!isValidJson) {
           const tmpl = FERIA_CONUQUERA_TEMPLATES.find((t) => t.slug === targetSlug)
           if (tmpl) {
@@ -849,6 +850,11 @@ export function PublicPageView() {
         }
         setLoading(false)
       })
+  }
+
+  useEffect(() => {
+    loadPageData()
+    setIsLiveEditing(false)
   }, [targetSlug])
 
   if (loading) {
@@ -878,7 +884,55 @@ export function PublicPageView() {
     )
   }
 
-  return <PageBlocksRenderer content={page.content} />
+  // Parse blocks for the live editor
+  let currentBlocks: SiteBlock[] = []
+  try {
+    const parsed = JSON.parse(page.content)
+    if (Array.isArray(parsed)) currentBlocks = parsed
+  } catch {
+    currentBlocks = [{ type: 'richtext', title: page.title, content: page.content }]
+  }
+
+  return (
+    <div className="relative">
+      {/* Floating Live Edit Trigger for Logged In Admins */}
+      {isAuthenticated && !isLiveEditing && (
+        <div className="fixed bottom-6 right-6 z-40">
+          <button
+            onClick={() => setIsLiveEditing(true)}
+            className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-emerald-900 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-2xl border-2 border-amber-400 active:scale-95 transition-all group"
+          >
+            <div className="w-6 h-6 rounded-lg bg-amber-400 text-gray-950 flex items-center justify-center group-hover:rotate-12 transition">
+              <Sparkles size={14} />
+            </div>
+            <span>Editar en Vivo Esta Página</span>
+          </button>
+        </div>
+      )}
+
+      {/* When in Live Edit Mode, render the Interactive WYSIWYG Editor */}
+      {isLiveEditing ? (
+        <LivePageEditor
+          pageId={page.id}
+          slug={page.slug || targetSlug}
+          title={page.title}
+          subtitle={page.subtitle}
+          icon={page.icon}
+          menuOrder={page.menu_order}
+          isPublished={page.is_published}
+          showInMenu={page.show_in_menu}
+          initialBlocks={currentBlocks}
+          onExit={() => setIsLiveEditing(false)}
+          onSaved={() => {
+            loadPageData()
+          }}
+        />
+      ) : (
+        /* Normal Clean View */
+        <PageBlocksRenderer content={page.content} />
+      )}
+    </div>
+  )
 }
 
 // -------------------------------------------------------------

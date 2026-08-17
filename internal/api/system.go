@@ -32,6 +32,7 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequireAuth).Get("/api/site/pages", h.listSitePages)
 	r.With(am.RequirePermission("config.manage")).Post("/api/site/pages", h.createSitePage)
 	r.With(am.RequirePermission("config.manage")).Put("/api/site/pages/{id}", h.updateSitePage)
+	r.With(am.RequirePermission("config.manage")).Put("/api/site/pages/by-slug/{slug}", h.upsertSitePageBySlug)
 	r.With(am.RequirePermission("config.manage")).Delete("/api/site/pages/{id}", h.deleteSitePage)
 	r.With(am.RequireAuth).Get("/api/site/settings", h.getSiteSettings)
 	r.With(am.RequirePermission("config.manage")).Put("/api/site/settings", h.updateSiteSettings)
@@ -1624,22 +1625,31 @@ func (h *SystemHandler) getPublicPage(w http.ResponseWriter, r *http.Request) {
 	}
 	slug := chi.URLParam(r, "slug")
 
-	var title, content string
-	var subtitle *string
+	var id, title, content string
+	var subtitle, icon *string
+	var menuOrder int
+	var isPublished, showInMenu bool
+
 	err := h.Pool.QueryRow(r.Context(), `
-		SELECT title, subtitle, content FROM public_pages
+		SELECT id::text, title, subtitle, content, icon, menu_order, is_published, show_in_menu
+		FROM public_pages
 		WHERE node_domain = $1 AND slug = $2 AND is_published = true`,
-		nodeDomain, slug).Scan(&title, &subtitle, &content)
+		nodeDomain, slug).Scan(&id, &title, &subtitle, &content, &icon, &menuOrder, &isPublished, &showInMenu)
 	if err != nil {
 		writeError(w, 404, "pagina no encontrada")
 		return
 	}
 
 	writeJSON(w, 200, map[string]interface{}{
-		"slug":     slug,
-		"title":    title,
-		"subtitle": deref(subtitle),
-		"content":  content,
+		"id":           id,
+		"slug":         slug,
+		"title":        title,
+		"subtitle":     deref(subtitle),
+		"content":      content,
+		"icon":         deref(icon),
+		"menu_order":   menuOrder,
+		"is_published": isPublished,
+		"show_in_menu": showInMenu,
 	})
 }
 
@@ -1789,6 +1799,45 @@ func (h *SystemHandler) updateSitePage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, 200, map[string]interface{}{"message": "Pagina actualizada"})
+}
+
+func (h *SystemHandler) upsertSitePageBySlug(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	var req CreateSitePageReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	targetSlug := slug
+	if req.Slug != "" {
+		targetSlug = req.Slug
+	}
+
+	_, err := h.Pool.Exec(r.Context(), `
+		INSERT INTO public_pages (node_domain, slug, title, subtitle, content, icon, menu_order, is_published, show_in_menu)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		ON CONFLICT (node_domain, slug) DO UPDATE SET
+			title = EXCLUDED.title,
+			subtitle = EXCLUDED.subtitle,
+			content = EXCLUDED.content,
+			icon = EXCLUDED.icon,
+			menu_order = EXCLUDED.menu_order,
+			is_published = EXCLUDED.is_published,
+			show_in_menu = EXCLUDED.show_in_menu,
+			updated_at = NOW()`,
+		nodeDomain, targetSlug, req.Title, req.Subtitle, req.Content, req.Icon, req.MenuOrder, req.IsPublished, req.ShowInMenu)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{"message": "Pagina guardada con exito"})
 }
 
 func (h *SystemHandler) deleteSitePage(w http.ResponseWriter, r *http.Request) {
