@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
-import { Users, Plus, HelpCircle, X, Crown, Trash2 } from 'lucide-react'
+import { Users, Plus, HelpCircle, X, Crown, Trash2, Key } from 'lucide-react'
 import { EntitySelector } from '../components/EntitySelector'
 import { useConfig } from '../hooks/useConfig'
 
@@ -69,6 +69,8 @@ export default function Organizations() {
   const [boardMembers, setBoardMembers] = useState<any[]>([])
   const [allUsers, setAllUsers] = useState<any[]>([])
   const [boardForm, setBoardForm] = useState({ user_id: '', position: 'presidente' })
+  const [multisigOrgId, setMultisigOrgId] = useState<string | null>(null)
+  const [multisigForm, setMultisigForm] = useState({ required_signatures: 1, authorized_signers: [] as string[] })
   const [form, setForm] = useState({
     username: '',
     display_name: '',
@@ -358,21 +360,38 @@ export default function Organizations() {
                 </button>
               )}
               {org.membership_status === 'active' && (
-                <button
-                  onClick={() => {
-                    if (boardOrgId === org.id) {
-                      setBoardOrgId(null)
-                    } else {
-                      setBoardOrgId(org.id)
-                      api.get(`/organizations/${org.id}/board`).then((d: any) => setBoardMembers(Array.isArray(d) ? d : [])).catch(() => setBoardMembers([]))
-                      api.get('/accounts/list').then((d: any) => setAllUsers(Array.isArray(d) ? d.filter((u: any) => u.account_type === 'individual') : [])).catch(() => setAllUsers([]))
-                    }
-                  }}
-                  className="text-sm text-blue-600 hover:underline flex items-center gap-1"
-                >
-                  <Crown size={14} />
-                  Junta Directiva
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      if (boardOrgId === org.id) {
+                        setBoardOrgId(null)
+                      } else {
+                        setBoardOrgId(org.id)
+                        api.get(`/organizations/${org.id}/board`).then((d: any) => setBoardMembers(Array.isArray(d) ? d : [])).catch(() => setBoardMembers([]))
+                        api.get('/accounts/list').then((d: any) => setAllUsers(Array.isArray(d) ? d.filter((u: any) => u.account_type === 'individual') : [])).catch(() => setAllUsers([]))
+                      }
+                    }}
+                    className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                  >
+                    <Crown size={14} />
+                    Junta Directiva
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (multisigOrgId === org.id) {
+                        setMultisigOrgId(null)
+                      } else {
+                        setMultisigOrgId(org.id)
+                        setMultisigForm({ required_signatures: org.required_signatures || 1, authorized_signers: (org.authorized_signers || []) as string[] })
+                        api.get('/accounts/list').then((d: any) => setAllUsers(Array.isArray(d) ? d.filter((u: any) => u.account_type === 'individual') : [])).catch(() => setAllUsers([]))
+                      }
+                    }}
+                    className="text-sm text-purple-600 hover:underline flex items-center gap-1"
+                  >
+                    <Key size={14} />
+                    Multi-firma
+                  </button>
+                </div>
               )}
             </div>
 
@@ -449,6 +468,62 @@ export default function Organizations() {
                   </button>
                 </div>
                 <p className="text-xs text-gray-400">Los cargos asignados aqui definen quienes pueden tomar decisiones en nombre de la organizacion. Si cambias el cargo de una persona, los permisos automaticamente siguen al cargo, no a la persona.</p>
+              </div>
+            )}
+
+            {multisigOrgId === org.id && (
+              <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
+                <h4 className="font-medium text-sm flex items-center gap-1"><Key size={14} />Multi-firma de {org.display_name}</h4>
+                <p className="text-xs text-gray-500">Selecciona que personas deben firmar para aprobar transacciones de esta organizacion. Cuando se alcanza el numero de firmas requeridas, la transaccion se ejecuta automaticamente.</p>
+
+                <div>
+                  <label className="label">Firmas requeridas para aprobar</label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="input"
+                    value={multisigForm.required_signatures}
+                    onChange={(e) => setMultisigForm({ ...multisigForm, required_signatures: parseInt(e.target.value) || 1 })}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Cuantas de las personas autorizadas deben firmar para aprobar una transaccion. Ej: 2 de 3.</p>
+                </div>
+
+                <div>
+                  <label className="label">Personas autorizadas a firmar</label>
+                  <div className="space-y-1 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                    {allUsers.map((u: any) => (
+                      <label key={u.id} className="flex items-center gap-2 text-sm py-1">
+                        <input
+                          type="checkbox"
+                          checked={multisigForm.authorized_signers.includes(u.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setMultisigForm({ ...multisigForm, authorized_signers: [...multisigForm.authorized_signers, u.id] })
+                            } else {
+                              setMultisigForm({ ...multisigForm, authorized_signers: multisigForm.authorized_signers.filter((id) => id !== u.id) })
+                            }
+                          }}
+                        />
+                        <span>{u.display_name || u.username} ({u.username})</span>
+                      </label>
+                    ))}
+                    {allUsers.length === 0 && <p className="text-xs text-gray-400">No hay usuarios disponibles.</p>}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">Selecciona las personas que pueden firmar. El numero de firmas requeridas no puede ser mayor al numero de personas autorizadas.</p>
+                </div>
+
+                <button
+                  onClick={async () => {
+                    try {
+                      await api.put(`/organizations/${org.id}/multisig`, multisigForm)
+                      setMultisigOrgId(null)
+                      loadOrgs()
+                    } catch (err) { /* ignore */ }
+                  }}
+                  className="btn-primary text-sm"
+                >
+                  Guardar configuracion
+                </button>
               </div>
             )}
           </div>
