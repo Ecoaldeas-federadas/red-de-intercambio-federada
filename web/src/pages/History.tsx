@@ -28,16 +28,20 @@ export default function History() {
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
           <p><strong>Historial - Ayuda</strong></p>
-          <p><strong>Para que sirve:</strong> Muestra todas las transacciones (transferencias, pagos, compras) en las que has participado, ya sea como remitente o destinatario.</p>
-          <p><strong>Columnas:</strong></p>
+          <p><strong>Que muestra:</strong> El historial es el registro completo de todas las transacciones en las que has participado, ya sea como remitente (quien envia) o como destinatario (quien recibe). Incluye transferencias entre usuarios, pagos y cualquier otro movimiento de Trueques ({currency}) de tu cuenta.</p>
+          <p><strong>Para que sirve:</strong> Para llevar el control de tus movimientos, verificar quien te ha enviado o a quien le has enviado Trueques, revisar los motivos de cada transaccion y auditar que todo cuadre con tus expectativas. Es tu libro de cuentas personal dentro de la red.</p>
+          <p><strong>Como se usa:</strong> Al entrar a la pagina se carga automaticamente la lista de tus transacciones mas recientes. Cada fila es una transaccion. Si no aparece nada, significa que todavia no has realizado ni recibido transferencias.</p>
+          <p><strong>Que significa cada columna:</strong></p>
           <ul className="list-disc list-inside ml-4">
-            <li><strong>Fecha:</strong> Cuando se hizo la transaccion</li>
-            <li><strong>De:</strong> Quien envio el dinero</li>
-            <li><strong>A:</strong> Quien recibio el dinero</li>
-            <li><strong>Monto:</strong> Cuantos Trueques ({currency}) se transfirieron</li>
-            <li><strong>Ref:</strong> Referencia o nota dejada por quien envio</li>
+            <li><strong>Fecha:</strong> Dia en que se realizo la transaccion (formato AAAA-MM-DD). Ej: 2024-06-15.</li>
+            <li><strong>De:</strong> Identificador del usuario que envio los Trueques. Si eres tu, significa que enviaste dinero. Ej: @juan@localhost.</li>
+            <li><strong>A:</strong> Identificador del usuario que recibio los Trueques. Si eres tu, significa que recibiste dinero. Ej: @maria@localhost.</li>
+            <li><strong>Monto:</strong> Cantidad de Trueques ({currency}) que se transfirieron en esa operacion. 1 {currency} = 1 kWh de energia. Ej: 50 {currency}.</li>
+            <li><strong>Ref:</strong> Referencia o nota que el remitente dejo para explicar el motivo del pago. Puede estar vacia si no se dejo nota. Ej: "Pago por panaderia".</li>
           </ul>
-          <p><strong>Nota:</strong> El sistema suma cero. Si alguien envio 50 {currency}, su saldo bajo 50 y el del destinatario subio 50.</p>
+          <p><strong>Como filtrar:</strong> Actualmente el historial muestra todas tus transacciones ordenadas por fecha. Si necesitas buscar una en concreto, usa la funcion de busqueda del navegador (Ctrl+F) para encontrar por nombre de usuario, monto o referencia.</p>
+          <p><strong>Que es el hash de integridad:</strong> Cada transaccion tiene un identificador criptografico (hash) que la hace unica e inalterable. Esto significa que una vez registrada, nadie puede modificar sus datos (monto, remitente, destinatario) sin que se detecte. El hash garantiza que el historial es confiable y que las transacciones no han sido manipuladas.</p>
+          <p><strong>Nota importante:</strong> El sistema suma cero. Si alguien envio 50 {currency}, su saldo bajo 50 y el del destinatario subio 50 (menos el impuesto si aplica). El total de todos los saldos de la red siempre es cero: no se crea ni se destruye dinero.</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
         </div>
       )}

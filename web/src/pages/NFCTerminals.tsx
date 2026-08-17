@@ -251,11 +251,27 @@ export default function NFCTerminals() {
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
           <p><strong>Terminales NFC - Ayuda</strong></p>
-          <p><strong>Para que sirve:</strong> Los terminales NFC son dispositivos ESP32 que se instalan en comercios para aceptar pagos con tarjetas NFC. Cada usuario puede tener una tarjeta NFC con su identificador.</p>
-          <p><strong>Terminales:</strong> Lista de los terminales ESP32 registrados en el nodo. Muestra si estan activos y cuando se vieron por ultima vez.</p>
-          <p><strong>Provisionar:</strong> Proceso de configurar un terminal ESP32 nuevo. Necesitas conectarlo por USB, leer su chip ID, y descargar el firmware compilado.</p>
-          <p><strong>Tarjetas:</strong> Emitir tarjetas NFC para usuarios y cambiar PINs. La tarjeta solo contiene el ID del usuario, no la clave privada. Si se pierde, se desactiva y se emite otra.</p>
-          <p><strong>Transacciones:</strong> Historial de pagos realizados a traves de los terminales NFC.</p>
+          <p><strong>Que son:</strong> Los terminales NFC son dispositivos fisicos basados en ESP32 que se instalan en comercios para aceptar pagos con tarjetas NFC. Cada usuario puede tener una tarjeta NFC vinculada a su cuenta que contiene su identificador unico.</p>
+          <p><strong>Para que sirve:</strong> Permiten realizar transacciones de la red de intercambio de forma presencial, sin necesidad de un computador o telefono. El usuario acerca su tarjeta al terminal, ingresa el monto y su PIN, y el pago se procesa automaticamente.</p>
+          <p><strong>Tipos de terminal:</strong></p>
+          <ul className="list-disc list-inside space-y-1 ml-2">
+            <li><strong>Keypad (teclado):</strong> Terminal con encoder rotativo y display. El comercio ingresa el monto con el encoder y el usuario confirma con su PIN.</li>
+            <li><strong>Touch (pantalla tactil):</strong> Terminal con pantalla tactil ILI9341. El comercio ingresa el monto tocando la pantalla.</li>
+            <li><strong>Web:</strong> El monto se envia desde la app web o movil. El terminal solo confirma la tarjeta y el PIN.</li>
+            <li><strong>Community (comunitario):</strong> Terminal de doble tarjeta: el usuario acerca su tarjeta y la del comercio. No requiere PIN, ideal para mercados comunitarios.</li>
+            <li><strong>BLE Reader (Bluetooth):</strong> Lector NFC que se conecta via Bluetooth a un telefono o computador. Util cuando no hay WiFi disponible.</li>
+          </ul>
+          <p><strong>Como se usa esta pagina:</strong></p>
+          <ul className="list-disc list-inside space-y-1 ml-2">
+            <li><strong>Terminales:</strong> Lista de los terminales ESP32 registrados en el nodo. Muestra si estan activos y cuando se vieron por ultima vez.</li>
+            <li><strong>Provisionar:</strong> Proceso de configurar un terminal ESP32 nuevo. Necesitas conectarlo por USB, leer su chip ID, y descargar el firmware compilado.</li>
+            <li><strong>Tarjetas:</strong> Emitir tarjetas NFC para usuarios y cambiar PINs. La tarjeta solo contiene el ID del usuario, no la clave privada. Si se pierde, se desactiva y se emite otra.</li>
+            <li><strong>Transacciones:</strong> Historial de pagos realizados a traves de los terminales NFC.</li>
+          </ul>
+          <p><strong>Que es el chip ID:</strong> Es un identificador unico de 12 caracteres hexadecimales grabado en cada chip ESP32 de fabrica. No se puede modificar y sirve para identificar univocamente cada terminal fisico. Se lee con el sketch chip-id-reader.ino o escaneando via USB con Web Serial.</p>
+          <p><strong>Que es el token de registro:</strong> Es un codigo secreto que genera el servidor al registrar o provisionar un terminal. Se copia en el archivo config.h del firmware del ESP32 para que el terminal pueda autenticarse con el nodo al conectarse por primera vez.</p>
+          <p><strong>Como vincular tarjetas:</strong> El administrador emite una tarjeta NFC asignandola a un usuario (User ID) y registrando el UID de la tarjeta fisica. La tarjeta se entrega al usuario con un PIN inicial que debe cambiar la primera vez que la use.</p>
+          <p><strong>Que es el PIN:</strong> Es un codigo de 4 digitos que protege la tarjeta NFC. Se pide al usuario en cada transaccion (excepto en modo comunitario). Si se olvida, el administrador puede resetearlo a un valor por defecto.</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
         </div>
       )}
@@ -349,7 +365,7 @@ export default function NFCTerminals() {
             )}
 
             <div>
-              <label className="text-sm text-gray-600 block mb-1">O entra el chip ID manualmente (12 hex chars):</label>
+              <label className="label">Chip ID del ESP32 (12 caracteres hexadecimales)</label>
               <input
                 className="input font-mono"
                 placeholder="Ej: AABBCCDDEEFF"
@@ -357,21 +373,34 @@ export default function NFCTerminals() {
                 maxLength={12}
                 onChange={(e) => setProvisionChipId(e.target.value.toUpperCase())}
               />
+              <p className="text-xs text-gray-400 mt-1">Identificador unico del chip ESP32. Lo obtienes del monitor serie del sketch chip-id-reader.ino. Ejemplo: <code>AABBCCDDEEFF</code></p>
             </div>
           </div>
 
           {/* Paso 2: Configurar terminal */}
           <div className="card space-y-3">
             <h3 className="font-medium flex items-center gap-2"><Cpu size={16} /> Paso 2: Configurar Terminal</h3>
-            <select className="input" value={provisionType} onChange={(e) => setProvisionType(e.target.value)}>
-              <option value="keypad">Keypad (con encoder)</option>
-              <option value="touch">Touch (pantalla tactil)</option>
-              <option value="web">Web (monto desde app)</option>
-              <option value="community">Community (doble tarjeta)</option>
-              <option value="ble-reader">BLE Reader (lector Bluetooth)</option>
-            </select>
-            <input className="input" placeholder="Etiqueta (ej: Ferreteria Don Jose)" value={provisionLabel} onChange={(e) => setProvisionLabel(e.target.value)} />
-            <input className="input" placeholder="Ubicacion (ej: Local 5)" value={provisionLocation} onChange={(e) => setProvisionLocation(e.target.value)} />
+            <div>
+              <label className="label">Tipo de terminal</label>
+              <select className="input" value={provisionType} onChange={(e) => setProvisionType(e.target.value)}>
+                <option value="keypad">Keypad (con encoder)</option>
+                <option value="touch">Touch (pantalla tactil)</option>
+                <option value="web">Web (monto desde app)</option>
+                <option value="community">Community (doble tarjeta)</option>
+                <option value="ble-reader">BLE Reader (lector Bluetooth)</option>
+              </select>
+              <p className="text-xs text-gray-400 mt-1">Selecciona el tipo de hardware del terminal. Ejemplo: <strong>Keypad</strong> para terminal con encoder rotativo, <strong>Community</strong> para mercado de doble tarjeta.</p>
+            </div>
+            <div>
+              <label className="label">Etiqueta del terminal</label>
+              <input className="input" placeholder="Ej: Ferreteria Don Jose" value={provisionLabel} onChange={(e) => setProvisionLabel(e.target.value)} />
+              <p className="text-xs text-gray-400 mt-1">Nombre descriptivo para identificar el terminal en la lista. Ejemplo: <code>Ferreteria Don Jose</code></p>
+            </div>
+            <div>
+              <label className="label">Ubicacion del terminal</label>
+              <input className="input" placeholder="Ej: Local 5, Mercado Central" value={provisionLocation} onChange={(e) => setProvisionLocation(e.target.value)} />
+              <p className="text-xs text-gray-400 mt-1">Direccion o referencia del lugar donde se instala. Ejemplo: <code>Local 5, Mercado Central</code></p>
+            </div>
             <button
               onClick={provisionTerminal}
               disabled={!provisionChipId || provisionChipId.length !== 12 || provisioning}
@@ -531,12 +560,13 @@ export default function NFCTerminals() {
             </div>
             <div>
               <label className="label">PIN actual</label>
-              <input className="input" type="password" placeholder="****" value={pinChange.old_pin} onChange={(e) => setPinChange({ ...pinChange, old_pin: e.target.value })} />
+              <input className="input" type="password" placeholder="Ej: 1234" value={pinChange.old_pin} onChange={(e) => setPinChange({ ...pinChange, old_pin: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">El PIN de 4 digitos que tienes actualmente. Ejemplo: <code>1234</code></p>
             </div>
             <div>
               <label className="label">PIN nuevo (4 digitos)</label>
-              <input className="input" type="password" placeholder="****" maxLength={4} value={pinChange.new_pin} onChange={(e) => setPinChange({ ...pinChange, new_pin: e.target.value })} />
-              <p className="text-xs text-gray-400 mt-1">Elige un PIN de 4 digitos que recuerdes facil.</p>
+              <input className="input" type="password" placeholder="Ej: 5678" maxLength={4} value={pinChange.new_pin} onChange={(e) => setPinChange({ ...pinChange, new_pin: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">Elige un PIN de 4 digitos que recuerdes facil. Ejemplo: <code>5678</code></p>
             </div>
             <button onClick={changePIN} className="btn-primary">Cambiar PIN</button>
           </div>
@@ -587,13 +617,33 @@ export default function NFCTerminals() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowRegister(false)}>
           <div className="bg-white rounded-xl p-6 w-96 space-y-3" onClick={(e) => e.stopPropagation()}>
             <h2 className="font-bold text-lg">Registrar Terminal</h2>
-            <input className="input" placeholder="Terminal ID (ej: TERM-001)" value={newTerminal.terminal_id} onChange={(e) => setNewTerminal({ ...newTerminal, terminal_id: e.target.value })} />
-            <input className="input" placeholder="Etiqueta (ej: Ferreteria)" value={newTerminal.label} onChange={(e) => setNewTerminal({ ...newTerminal, label: e.target.value })} />
-            <select className="input" value={newTerminal.terminal_type} onChange={(e) => setNewTerminal({ ...newTerminal, terminal_type: e.target.value })}>
-              {terminalTypes.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <input className="input" placeholder="Ubicacion" value={newTerminal.location} onChange={(e) => setNewTerminal({ ...newTerminal, location: e.target.value })} />
-            <input className="input" placeholder="WiFi SSID" value={newTerminal.wifi_ssid} onChange={(e) => setNewTerminal({ ...newTerminal, wifi_ssid: e.target.value })} />
+            <div>
+              <label className="label">Terminal ID</label>
+              <input className="input" placeholder="Ej: TERM-001" value={newTerminal.terminal_id} onChange={(e) => setNewTerminal({ ...newTerminal, terminal_id: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">Identificador unico del terminal. Ejemplo: <code>TERM-001</code></p>
+            </div>
+            <div>
+              <label className="label">Etiqueta</label>
+              <input className="input" placeholder="Ej: Ferreteria Don Jose" value={newTerminal.label} onChange={(e) => setNewTerminal({ ...newTerminal, label: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">Nombre descriptivo del terminal. Ejemplo: <code>Ferreteria Don Jose</code></p>
+            </div>
+            <div>
+              <label className="label">Tipo de terminal</label>
+              <select className="input" value={newTerminal.terminal_type} onChange={(e) => setNewTerminal({ ...newTerminal, terminal_type: e.target.value })}>
+                {terminalTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">Tipo de hardware del terminal. Ejemplo: <code>keypad</code> para terminal con encoder.</p>
+            </div>
+            <div>
+              <label className="label">Ubicacion</label>
+              <input className="input" placeholder="Ej: Local 5, Mercado Central" value={newTerminal.location} onChange={(e) => setNewTerminal({ ...newTerminal, location: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">Direccion o referencia del lugar. Ejemplo: <code>Local 5, Mercado Central</code></p>
+            </div>
+            <div>
+              <label className="label">WiFi SSID</label>
+              <input className="input" placeholder="Ej: RedTrueque" value={newTerminal.wifi_ssid} onChange={(e) => setNewTerminal({ ...newTerminal, wifi_ssid: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">Nombre de la red WiFi donde se conectara el terminal. Ejemplo: <code>RedTrueque</code></p>
+            </div>
             <button onClick={registerTerminal} className="btn-primary w-full">Registrar</button>
           </div>
         </div>
@@ -604,14 +654,30 @@ export default function NFCTerminals() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowIssueCard(false)}>
           <div className="bg-white rounded-xl p-6 w-96 space-y-3" onClick={(e) => e.stopPropagation()}>
             <h2 className="font-bold text-lg">Emitir Tarjeta NFC</h2>
-            <input className="input" placeholder="User ID (UUID)" value={newCard.user_id} onChange={(e) => setNewCard({ ...newCard, user_id: e.target.value })} />
-            <input className="input" placeholder="Card UID (hex)" value={newCard.card_uid} onChange={(e) => setNewCard({ ...newCard, card_uid: e.target.value })} />
-            <select className="input" value={newCard.card_type} onChange={(e) => setNewCard({ ...newCard, card_type: e.target.value })}>
-              <option value="uid_only">UID Only</option>
-              <option value="ntag424">NTAG424 DNA</option>
-              <option value="desfire">MIFARE DESFire EV3</option>
-            </select>
-            <input className="input" type="password" placeholder="PIN inicial (4 digitos)" maxLength={4} value={newCard.initial_pin} onChange={(e) => setNewCard({ ...newCard, initial_pin: e.target.value })} />
+            <div>
+              <label className="label">User ID (UUID del usuario)</label>
+              <input className="input" placeholder="Ej: 550e8400-e29b-41d4-a716-446655440000" value={newCard.user_id} onChange={(e) => setNewCard({ ...newCard, user_id: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">Identificador unico del usuario al que se le asigna la tarjeta. Ejemplo: <code>550e8400-e29b-41d4-a716-446655440000</code></p>
+            </div>
+            <div>
+              <label className="label">Card UID (hexadecimal)</label>
+              <input className="input" placeholder="Ej: 04A3B2C1D2E3F4" value={newCard.card_uid} onChange={(e) => setNewCard({ ...newCard, card_uid: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">Identificador unico de la tarjeta NFC fisica, en hexadecimal. Se lee al acercar la tarjeta al lector. Ejemplo: <code>04A3B2C1D2E3F4</code></p>
+            </div>
+            <div>
+              <label className="label">Tipo de tarjeta</label>
+              <select className="input" value={newCard.card_type} onChange={(e) => setNewCard({ ...newCard, card_type: e.target.value })}>
+                <option value="uid_only">UID Only</option>
+                <option value="ntag424">NTAG424 DNA</option>
+                <option value="desfire">MIFARE DESFire EV3</option>
+              </select>
+              <p className="text-xs text-gray-400 mt-1">Tipo de tarjeta NFC. <strong>UID Only</strong> = tarjeta simple con solo UID, <strong>NTAG424 DNA</strong> = tarjeta con cifrado, <strong>DESFire EV3</strong> = tarjeta de alta seguridad.</p>
+            </div>
+            <div>
+              <label className="label">PIN inicial (4 digitos)</label>
+              <input className="input" type="password" placeholder="Ej: 1234" maxLength={4} value={newCard.initial_pin} onChange={(e) => setNewCard({ ...newCard, initial_pin: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">PIN temporal de 4 digitos. El usuario debera cambiarlo la primera vez que use la tarjeta. Ejemplo: <code>1234</code></p>
+            </div>
             <button onClick={issueCard} className="btn-primary w-full">Emitir</button>
           </div>
         </div>
@@ -623,7 +689,11 @@ export default function NFCTerminals() {
           <div className="bg-white rounded-xl p-6 w-80 space-y-3" onClick={(e) => e.stopPropagation()}>
             <h2 className="font-bold text-lg">Resetear PIN</h2>
             <p className="text-sm text-gray-500">Tarjeta: {showResetPIN}</p>
-            <input className="input" type="password" placeholder="Nuevo PIN (4 digitos)" maxLength={4} value={resetPINValue} onChange={(e) => setResetPINValue(e.target.value)} />
+            <div>
+              <label className="label">Nuevo PIN (4 digitos)</label>
+              <input className="input" type="password" placeholder="Ej: 0000" maxLength={4} value={resetPINValue} onChange={(e) => setResetPINValue(e.target.value)} />
+              <p className="text-xs text-gray-400 mt-1">PIN temporal de 4 digitos para resetear la tarjeta. El usuario debera cambiarlo despues. Ejemplo: <code>0000</code></p>
+            </div>
             <button onClick={() => resetPIN(showResetPIN)} className="btn-primary w-full">Resetear</button>
           </div>
         </div>

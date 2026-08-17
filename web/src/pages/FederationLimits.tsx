@@ -55,10 +55,17 @@ export default function FederationLimits() {
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
           <p><strong>Limites de Federacion - Ayuda</strong></p>
-          <p><strong>Limite Global:</strong> Deuda/saldo maximo total del nodo con toda la red. Aplica a todos los nodos al nivel base.</p>
-          <p><strong>Limite Bilateral:</strong> Limite personalizado entre dos nodos. Si dos nodos acuerdan un limite mayor, NO consume el limite global.</p>
-          <p><strong>Como funciona:</strong> El limite efectivo entre dos nodos = min(limite_A_hacia_B, limite_B_hacia_A). Ambos deben subirlo para que aplique.</p>
-          <p><strong>Base bilateral:</strong> Limite inicial igual para todos los pares (ej: 50% del global).</p>
+          <p><strong>Que son los limites entre nodos:</strong> Son los topes maximos de saldo (positivo o negativo) que tu nodo puede tener con cada nodo peer federado. Sirven para controlar el riesgo: si tu nodo le debe demasiado a otro nodo y este se desconecta, pierdes ese saldo. Los limites protegen a tu comunidad.</p>
+          <p><strong>Para que sirve:</strong> Permiten gestionar el riesgo de credito entre nodos federados. Sin limites, un nodo podria acumular una deuda ilimitada con otro. Con limites, se controla cuanto puede deber cada nodo y cuanto puede prestar.</p>
+          <p><strong>Que es el limite de credito:</strong> Es el saldo positivo maximo que tu nodo puede tener con otro nodo. Es decir, lo maximo que el otro nodo te puede deber a ti. Si tu nodo tiene un saldo de +500 {currency} con un peer y el limite de credito es 1000 {currency}, aun puedes aceptar 500 {currency} mas en transacciones a tu favor.</p>
+          <p><strong>Que es el limite de debito:</strong> Es el saldo negativo maximo (deuda) que tu nodo puede tener con otro nodo. Es decir, lo maximo que tu nodo le puede deber al otro. Si tu nodo tiene un saldo de -300 {currency} y el limite de debito es 500 {currency}, aun puedes gastar 200 {currency} mas en transacciones a tu contra.</p>
+          <p><strong>Como funciona el comercio entre nodos:</strong> Cuando un usuario de tu nodo compra algo a un usuario de otro nodo federado, el saldo bilateral cambia. Tu nodo le debe mas al otro nodo (debito) o el otro nodo te debe mas a ti (credito). El sistema verifica que los limites no se excedan antes de aprobar la transaccion.</p>
+          <p><strong>Limite Global:</strong> Deuda/saldo maximo total del nodo con toda la red federada. Aplica a todos los nodos al nivel base.</p>
+          <p><strong>Limite Bilateral:</strong> Limite personalizado entre dos nodos especificos. Si dos nodos acuerdan un limite mayor, NO consume el limite global.</p>
+          <p><strong>Como funciona el limite efectivo:</strong> El limite efectivo entre dos nodos = min(limite_A_hacia_B, limite_B_hacia_A). Ambos nodos deben subirlo para que aplique el nuevo valor.</p>
+          <p><strong>Base bilateral:</strong> Limite inicial igual para todos los pares (ej: 50% del global). Se puede personalizar despues nodo por nodo.</p>
+          <p><strong>Umbrales de aviso:</strong> Porcentajes del limite (ej: 50%/75%/90%) que disparan notificaciones cuando el saldo se acerca al limite.</p>
+          <p><strong>Como usar esta pagina:</strong> Revisa la configuracion global. Para personalizar el limite con un nodo especifico, haz clic en "Proponer Bilateral", selecciona el nodo e ingresa los nuevos limites. El otro nodo debe confirmar la propuesta para que aplique.</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
         </div>
       )}
@@ -113,19 +120,19 @@ export default function FederationLimits() {
                 </div>
               </div>
             )}
-            {nodes.length > 0 && <p className="text-xs text-gray-400 mt-1">Selecciona de la lista de nodos federados registrados.</p>}
+            {nodes.length > 0 && <p className="text-xs text-gray-400 mt-1">Selecciona de la lista de nodos federados registrados. Ejemplo: <code>nodo-b.org</code></p>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Limite de credito ({currency})</label>
-              <input type="number" className="input" value={form.credit_limit} onChange={(e) => setForm({ ...form, credit_limit: parseInt(e.target.value) || 0 })} />
-              <p className="text-xs text-gray-400 mt-1">Maximo saldo positivo con este nodo.</p>
+              <input type="number" className="input" placeholder="Ej: 1000" value={form.credit_limit} onChange={(e) => setForm({ ...form, credit_limit: parseInt(e.target.value) || 0 })} />
+              <p className="text-xs text-gray-400 mt-1">Maximo saldo positivo (a tu favor) con este nodo. Ejemplo: <code>1000</code> {currency}</p>
             </div>
             <div>
               <label className="label">Limite de debito ({currency})</label>
-              <input type="number" className="input" value={form.debit_limit} onChange={(e) => setForm({ ...form, debit_limit: parseInt(e.target.value) || 0 })} />
-              <p className="text-xs text-gray-400 mt-1">Maximo saldo negativo (deuda) con este nodo.</p>
+              <input type="number" className="input" placeholder="Ej: 500" value={form.debit_limit} onChange={(e) => setForm({ ...form, debit_limit: parseInt(e.target.value) || 0 })} />
+              <p className="text-xs text-gray-400 mt-1">Maximo saldo negativo (deuda) con este nodo. Ejemplo: <code>500</code> {currency}</p>
             </div>
           </div>
 

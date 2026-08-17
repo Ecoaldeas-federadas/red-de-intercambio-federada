@@ -139,12 +139,16 @@ export default function CalculatorParams() {
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
           <p><strong>Parametros de Calculadora - Ayuda</strong></p>
-          <p><strong>Para que sirve:</strong> Aqui se gestionan todos los tipos de trabajo e insumos que usa la calculadora de precios. Cada parametro tiene un costo en kWh (energia) que se usa para calcular precios justos.</p>
-          <p><strong>Tipos de trabajo:</strong> Definen cuanto energia gasta una hora de cada tipo de trabajo (ej: albañileria = 0.19 kWh/hora).</p>
-          <p><strong>Insumos/Materiales:</strong> Definen cuanto energia cuesta cada material (ej: harina = 1.8 kWh/kg).</p>
-          <p><strong>Categorias:</strong> Agrupan parametros similares para encontrarlos facil. Puedes crear nuevas categorias.</p>
-          <p><strong>Aprobacion:</strong> Todo parametro nuevo o modificado debe ser aprobado por asamblea. Los no aprobados no aparecen en la calculadora.</p>
-          <p><strong>Factor de esfuerzo:</strong> Para trabajos especialmente dificiles, multiplica el costo (1.0 = normal, 1.3 = 30% mas).</p>
+          <p><strong>Que son los parametros:</strong> Los parametros son los valores de referencia que usa la calculadora de precios para determinar el costo energetico (en kWh) de cualquier trabajo o insumo. Sin estos parametros, la calculadora no puede asignar un precio justo a los productos y servicios del nodo. Cada parametro define cuanto energia representa una unidad de trabajo o de material.</p>
+          <p><strong>Para que sirve esta pagina:</strong> Aqui se gestionan todos los tipos de trabajo e insumos que usa la calculadora de precios. Puedes crear, editar, aprobar y desactivar parametros, asi como organizarlos en categorias. Es el panel de control del sistema de precios del nodo.</p>
+          <p><strong>Como se usa:</strong> 1) Selecciona la pestana "Tipos de Trabajo" o "Insumos/Materiales" segun lo que quieras gestionar. 2) Usa el buscador y el filtro de categoria para encontrar parametros existentes. 3) Crea categorias nuevas si las necesitas. 4) Crea parametros nuevos con el boton "Nuevo Parametro". 5) Aprueba los parametros pendientes con el boton de check verde. 6) Edita o elimina parametros existentes segun sea necesario.</p>
+          <p><strong>Tipos de trabajo (administrativo, tecnico, agricola):</strong> Definen cuanto energia gasta una hora de cada tipo de trabajo. Por ejemplo: trabajo administrativo (ej: atencion al publico = 0.05 kWh/hora), trabajo tecnico (ej: albañileria = 0.19 kWh/hora, programacion = 0.12 kWh/hora), trabajo agricola (ej: cosecha manual = 0.15 kWh/hora, tractor = 0.30 kWh/hora). El costo energetico refleja el esfuerzo fisico/intelectual y las herramientas necesarias.</p>
+          <p><strong>Insumos/Materiales:</strong> Definen cuanto energia cuesta cada material que se usa en la produccion. Por ejemplo: harina de trigo = 1.8 kWh/kg, madera = 2.5 kWh/m3, electricidad = 1.0 kWh/kWh. Estos valores representan la energia total invertida en producir, transportar y almacenar cada insumo.</p>
+          <p><strong>Categorias:</strong> Agrupan parametros similares para encontrarlos facil. Por ejemplo: "Construccion" agrupa albañileria, plomeria, electricidad; "Alimentos" agrupa harina, azucar, verduras. Puedes crear nuevas categorias segun las necesidades de tu nodo.</p>
+          <p><strong>Factor de esfuerzo:</strong> Para trabajos especialmente dificiles o faciles, multiplica el costo energetico base. 1.0 = esfuerzo normal (sin cambio), 1.3 = 30% mas esfuerzo (trabajo pesado, condiciones adversas), 0.8 = 20% menos esfuerzo (trabajo ligero, con maquinaria que facilita la tarea). Solo aplica a tipos de trabajo, no a insumos.</p>
+          <p><strong>Como se aprueban los parametros:</strong> Todo parametro nuevo o modificado queda en estado "Pendiente" y debe ser aprobado por asamblea. Los parametros no aprobados no aparecen en la calculadora. Un usuario con permiso de gestion (calculator.manage_params) puede aprobarlos con el boton de check verde. Esto asegura que la comunidad valide cada cambio en el sistema de precios.</p>
+          <p><strong>Quien los puede cambiar:</strong> Solo los usuarios con el permiso "calculator.manage_params" pueden crear, editar, aprobar y eliminar parametros. El resto de usuarios puede verlos pero no modificarlos. La aprobacion final requiere decision asamblearia.</p>
+          <p><strong>Moneda local:</strong> Los costos se expresan en kWh (1 {currency} = 1 kWh). El simbolo de tu moneda local es "{currency}" y aparece en los textos de ayuda de los campos.</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
         </div>
       )}
@@ -157,17 +161,23 @@ export default function CalculatorParams() {
         <button onClick={() => setTab('material')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'material' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Insumos/Materiales</button>
       </div>
 
-      <div className="flex gap-2 flex-wrap items-center">
+      <div className="flex gap-2 flex-wrap items-end">
         <div className="flex-1 min-w-[200px]">
+          <label className="label">Buscar parametro</label>
           <div className="relative">
             <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
-            <input className="input pl-9" placeholder="Buscar..." value={search} onChange={(e) => setSearch(e.target.value)} />
+            <input className="input pl-9" placeholder="Ej: carpinteria, harina, albañileria..." value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
+          <p className="text-xs text-gray-400 mt-1">Escribe parte del nombre o descripcion del parametro que buscas. Ej: "carpinteria" para encontrar todos los parametros relacionados con carpinteria.</p>
         </div>
-        <select className="input" value={filterCat} onChange={(e) => setFilterCat(e.target.value)}>
-          <option value="">Todas las categorias</option>
-          {categories.map((c, i) => <option key={i} value={c.name}>{c.name}</option>)}
-        </select>
+        <div>
+          <label className="label">Filtrar por categoria</label>
+          <select className="input" value={filterCat} onChange={(e) => setFilterCat(e.target.value)}>
+            <option value="">Todas las categorias</option>
+            {categories.map((c, i) => <option key={i} value={c.name}>{c.name}</option>)}
+          </select>
+          <p className="text-xs text-gray-400 mt-1">Selecciona una categoria para ver solo sus parametros. Ej: "Construccion" para ver albañileria, plomeria, etc.</p>
+        </div>
         {canManage && (
           <>
             <button onClick={() => { setShowCatForm(!showCatForm); setCatForm({ type: tab, name: '', description: '' }) }} className="btn-secondary text-sm">Nueva Categoria</button>
@@ -180,12 +190,14 @@ export default function CalculatorParams() {
         <div className="card space-y-3">
           <h3 className="font-semibold">Nueva Categoria ({tab === 'work' ? 'Trabajo' : 'Material'})</h3>
           <div>
-            <label className="label">Nombre</label>
+            <label className="label">Nombre de la categoria</label>
             <input className="input" placeholder="Ej: Transporte" value={catForm.name} onChange={(e) => setCatForm({ ...catForm, name: e.target.value })} />
+            <p className="text-xs text-gray-400 mt-1">Nombre corto que agrupa parametros similares. Ej: "Transporte", "Construccion", "Alimentos", "Salud".</p>
           </div>
           <div>
-            <label className="label">Descripcion</label>
-            <input className="input" placeholder="Ej: Trabajos relacionados con transporte" value={catForm.description} onChange={(e) => setCatForm({ ...catForm, description: e.target.value })} />
+            <label className="label">Descripcion de la categoria</label>
+            <input className="input" placeholder="Ej: Trabajos relacionados con transporte de personas y mercancias" value={catForm.description} onChange={(e) => setCatForm({ ...catForm, description: e.target.value })} />
+            <p className="text-xs text-gray-400 mt-1">Breve explicacion de que tipos de parametros pertenecen a esta categoria. Ej: "Trabajos manuales relacionados con la construccion de edificios".</p>
           </div>
           <button onClick={saveCategory} className="btn-primary">Crear Categoria</button>
         </div>
@@ -197,40 +209,43 @@ export default function CalculatorParams() {
           <div>
             <label className="label">Categoria</label>
             <select className="input" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-              <option value="">Seleccionar...</option>
+              <option value="">Seleccionar categoria...</option>
               {categories.map((c, i) => <option key={i} value={c.name}>{c.name}</option>)}
             </select>
-            <p className="text-xs text-gray-400 mt-1">A que categoria pertenece. Si necesitas una nueva, creala primero.</p>
+            <p className="text-xs text-gray-400 mt-1">A que categoria pertenece este parametro. Ej: "Construccion" para albañileria, "Alimentos" para harina. Si necesitas una categoria nueva, creala primero con el boton "Nueva Categoria".</p>
           </div>
           <div>
             <label className="label">Subcategoria (opcional)</label>
-            <input className="input" placeholder="Ej: Manual, Electrica" value={form.subcategory} onChange={(e) => setForm({ ...form, subcategory: e.target.value })} />
+            <input className="input" placeholder="Ej: Manual, Electrica, Pesada" value={form.subcategory} onChange={(e) => setForm({ ...form, subcategory: e.target.value })} />
+            <p className="text-xs text-gray-400 mt-1">Subgrupo dentro de la categoria para mayor detalle. Ej: dentro de "Carpinteria" podrias tener "Manual" y "Electrica". Dejar vacio si no aplica.</p>
           </div>
           <div>
-            <label className="label">Nombre</label>
+            <label className="label">Nombre del parametro</label>
             <input className="input" placeholder={tab === 'work' ? 'Ej: Carpinteria manual' : 'Ej: Harina de trigo'} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            <p className="text-xs text-gray-400 mt-1">Nombre claro del trabajo o insumo. {tab === 'work' ? 'Ej: "Carpinteria manual", "Programacion web", "Atencion al publico".' : 'Ej: "Harina de trigo", "Madera de pino", "Electricidad".'}</p>
           </div>
           <div>
-            <label className="label">Descripcion</label>
-            <input className="input" placeholder="Breve descripcion" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            <label className="label">Descripcion del parametro</label>
+            <input className="input" placeholder={tab === 'work' ? 'Ej: Trabajo manual con herramientas basicas de carpinteria' : 'Ej: Harina de trigo refinada, paquete de 1 kg'} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            <p className="text-xs text-gray-400 mt-1">Breve descripcion que ayude a identificar el parametro. Ej: "Trabajo manual con herramientas basicas, sin maquinaria electrica".</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">Unidad</label>
-              <input className="input" placeholder={tab === 'work' ? 'horas' : 'kg, litros, metros...'} value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
-              <p className="text-xs text-gray-400 mt-1">{tab === 'work' ? 'Normalmente "horas"' : 'kg, litros, metros, unidades, etc'}</p>
+              <label className="label">Unidad de medida</label>
+              <input className="input" placeholder={tab === 'work' ? 'Ej: horas' : 'Ej: kg, litros, metros, unidades'} value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">{tab === 'work' ? 'Normalmente "horas" (costo por hora de trabajo). Ej: "horas", "jornada".' : 'Unidad en que se mide el material. Ej: "kg", "litros", "metros", "unidades", "m3".'}</p>
             </div>
             <div>
               <label className="label">Costo energetico (kWh por unidad)</label>
-              <input type="number" step="0.0001" className="input" value={form.kwh_per_unit} onChange={(e) => setForm({ ...form, kwh_per_unit: parseFloat(e.target.value) || 0 })} />
-              <p className="text-xs text-gray-400 mt-1">1 {currency} = 1 kWh</p>
+              <input type="number" step="0.0001" className="input" placeholder="Ej: 0.19" value={form.kwh_per_unit} onChange={(e) => setForm({ ...form, kwh_per_unit: parseFloat(e.target.value) || 0 })} />
+              <p className="text-xs text-gray-400 mt-1">Cuanta energia (kWh) representa una unidad. 1 {currency} = 1 kWh. {tab === 'work' ? 'Ej: albañileria = 0.19 kWh/hora, atencion al publico = 0.05 kWh/hora.' : 'Ej: harina = 1.8 kWh/kg, madera = 2.5 kWh/m3.'}</p>
             </div>
           </div>
           {tab === 'work' && (
             <div>
               <label className="label">Factor de esfuerzo</label>
-              <input type="number" step="0.05" className="input" value={form.effort_factor} onChange={(e) => setForm({ ...form, effort_factor: parseFloat(e.target.value) || 1.0 })} />
-              <p className="text-xs text-gray-400 mt-1">1.0 = normal, 1.3 = 30% mas esfuerzo, 0.8 = 20% menos. Para trabajos especialmente dificiles o faciles.</p>
+              <input type="number" step="0.05" className="input" placeholder="Ej: 1.0 (normal), 1.3 (30% mas), 0.8 (20% menos)" value={form.effort_factor} onChange={(e) => setForm({ ...form, effort_factor: parseFloat(e.target.value) || 1.0 })} />
+              <p className="text-xs text-gray-400 mt-1">Multiplica el costo energetico segun la dificultad del trabajo. 1.0 = normal (sin cambio), 1.3 = 30% mas esfuerzo (ej: trabajo pesado con condiciones adversas), 0.8 = 20% menos (ej: trabajo asistido por maquinaria).</p>
             </div>
           )}
           <button onClick={save} className="btn-primary">{editing ? 'Actualizar' : 'Crear'} (pendiente de aprobacion)</button>

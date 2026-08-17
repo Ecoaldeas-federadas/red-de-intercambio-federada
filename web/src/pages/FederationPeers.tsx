@@ -107,11 +107,20 @@ export default function FederationPeers() {
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
           <p><strong>Federacion de Nodos - Ayuda</strong></p>
-          <p><strong>Para que sirve:</strong> La federacion conecta tu nodo con nodos de otras comunidades. Esto permite que los usuarios de tu comunidad puedan intercambiar con usuarios de otras comunidades federadas.</p>
-          <p><strong>Tu nodo:</strong> Muestra el nombre, dominio y clave publica de tu nodo. Comparte tu clave publica con el administrador del otro nodo para que te registre.</p>
-          <p><strong>Nodos federados:</strong> Lista de los nodos que has registrado como pares. Cada uno tiene un estado (activo, pendiente) y muestra si la verificacion es mutua.</p>
-          <p><strong>Como federar:</strong> Sigue los pasos que aparecen abajo. Necesitas la clave publica del otro nodo y ellos necesitan la tuya. La federacion solo funciona cuando ambos se registran mutuamente.</p>
-          <p><strong>Clave publica:</strong> Es un identificador criptografico (Ed25519) que identifica univocamente a tu nodo. No es secreta, puedes compartirla libremente.</p>
+          <p><strong>Que es la federacion:</strong> La federacion es un mecanismo que conecta tu nodo local con nodos de otras comunidades, permitiendo que los usuarios de tu red de intercambio puedan comerciar con usuarios de otras redes federadas, sin necesidad de un banco o entidad central.</p>
+          <p><strong>Para que sirve:</strong> Permite extender el alcance de la red de intercambio mas alla de tu comunidad local. Por ejemplo, si tu nodo es de una comunidad en Madrid y te federas con un nodo en Barcelona, los usuarios de ambos nodos pueden intercambiar bienes y servicios entre si.</p>
+          <p><strong>Que es un nodo peer:</strong> Un nodo peer (par) es otro nodo de la red de intercambio que has registrado en tu sistema para establecer una conexion federada. Cada nodo peer tiene su propio dominio, clave publica y estado de verificacion.</p>
+          <p><strong>Como registrar un nodo:</strong> Haz clic en "Registrar Nodo Peer", completa el formulario con el dominio, nombre y clave publica del otro nodo, y guarda. El otro nodo debe hacer lo mismo con tus datos para que la federacion sea mutua.</p>
+          <p><strong>Que es el dominio:</strong> Es el identificador unico del nodo en la red federada, normalmente un nombre de dominio de internet. Ejemplo: <code>nodo-b.org</code>. Sirve para localizar y autenticar al nodo remoto.</p>
+          <p><strong>Que son las claves publicas:</strong> Son identificadores criptograficos basados en el algoritmo Ed25519 (64 caracteres hexadecimales) que identifican univocamente a cada nodo. No son secretas: puedes compartirlas libremente. Sirven para verificar que los mensajes entre nodos son autenticos y no han sido manipulados.</p>
+          <p><strong>Como funciona la comunicacion entre nodos:</strong> Cuando dos nodos se federan mutuamente, establecen un canal seguro usando sus claves publicas. Las transacciones entre usuarios de distintos nodos se envian via HTTPS, firmadas criptograficamente. Cada nodo mantiene un saldo bilateral con cada peer (ver pagina de Limites de Federacion).</p>
+          <p><strong>Estados de un nodo peer:</strong></p>
+          <ul className="list-disc list-inside space-y-1 ml-2">
+            <li><strong>active:</strong> El nodo esta registrado y la federacion es mutua (ambos se han registrado).</li>
+            <li><strong>pending:</strong> El nodo esta registrado de tu lado pero el otro nodo aun no te ha registrado.</li>
+            <li><strong>Mutuo:</strong> Indica que ambos nodos se han registrado mutuamente y la federacion esta activa.</li>
+          </ul>
+          <p><strong>Como usar esta pagina:</strong> Copia tu clave publica y enviasela al admin del otro nodo. Pide la clave publica del otro nodo. Registra el otro nodo aqui (dominio + clave publica). Pide al otro nodo que te registre a ti. Cuando ambos se han registrado, la federacion esta activa.</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
         </div>
       )}
@@ -211,25 +220,27 @@ export default function FederationPeers() {
             <div>
               <label className="label">Dominio del nodo remoto</label>
               <input className="input" placeholder="Ej: nodo-b.org" value={newPeer.peer_domain} onChange={(e) => setNewPeer({ ...newPeer, peer_domain: e.target.value })} />
-              <p className="text-xs text-gray-400 mt-1">Identificador unico del otro nodo.</p>
+              <p className="text-xs text-gray-400 mt-1">Identificador unico del otro nodo en la red federada. Ejemplo: <code>nodo-b.org</code></p>
             </div>
             <div>
               <label className="label">Nombre (opcional)</label>
               <input className="input" placeholder="Ej: Banco Comunitario B" value={newPeer.peer_name} onChange={(e) => setNewPeer({ ...newPeer, peer_name: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">Nombre descriptivo del nodo para identificarlo facilmente. Ejemplo: <code>Banco Comunitario B</code></p>
             </div>
             <div>
-              <label className="label">Clave publica (64 hex chars)</label>
-              <textarea className="input font-mono text-xs" rows={3} placeholder="Ej: a1b2c3d4..." value={newPeer.peer_public_key} onChange={(e) => setNewPeer({ ...newPeer, peer_public_key: e.target.value })} />
-              <p className="text-xs text-gray-400 mt-1">La clave publica Ed25519 del otro nodo. Te la debe dar su administrador.</p>
+              <label className="label">Clave publica (64 caracteres hexadecimales)</label>
+              <textarea className="input font-mono text-xs" rows={3} placeholder="Ej: a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef12345678" value={newPeer.peer_public_key} onChange={(e) => setNewPeer({ ...newPeer, peer_public_key: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">La clave publica Ed25519 del otro nodo (64 hex chars). Te la debe dar su administrador. Ejemplo: <code>a1b2c3d4e5f6...</code></p>
             </div>
             <div>
               <label className="label">URL del nodo (opcional)</label>
               <input className="input" placeholder="Ej: https://nodo-b.org" value={newPeer.peer_endpoint} onChange={(e) => setNewPeer({ ...newPeer, peer_endpoint: e.target.value })} />
-              <p className="text-xs text-gray-400 mt-1">Direccion HTTPS para conectarse via federacion.</p>
+              <p className="text-xs text-gray-400 mt-1">Direccion HTTPS para conectarse via federacion. Ejemplo: <code>https://nodo-b.org</code></p>
             </div>
             <div>
               <label className="label">Notas (opcional)</label>
-              <input className="input" placeholder="Ej: Nodo de la comunidad vecina" value={newPeer.notes} onChange={(e) => setNewPeer({ ...newPeer, notes: e.target.value })} />
+              <input className="input" placeholder="Ej: Nodo de la comunidad vecina del norte" value={newPeer.notes} onChange={(e) => setNewPeer({ ...newPeer, notes: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">Notas internas para recordar quien es este nodo. Ejemplo: <code>Nodo de la comunidad vecina del norte</code></p>
             </div>
             <button onClick={addPeer} className="btn-primary w-full">Registrar</button>
           </div>

@@ -50,11 +50,14 @@ export default function Transfer() {
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
           <p><strong>Transferir - Ayuda</strong></p>
-          <p><strong>Para que sirve:</strong> Envia Trueques ({currency}) de tu cuenta a la de otro usuario. Es una transferencia directa entre dos personas.</p>
-          <p><strong>Destinatario:</strong> El identificador de la persona que recibira el dinero. Formato: @usuario@nodo (ej: @maria@localhost). Si la persona esta en tu mismo nodo, solo escribe @usuario.</p>
-          <p><strong>Monto:</strong> Cuantos Trueques vas a enviar. Puede ser positivo o negativo tu saldo despues: si tu saldo queda negativo, significa que debes (es normal en este sistema).</p>
-          <p><strong>Referencia:</strong> Nota opcional para que el destinatario sepa por que le enviaste el dinero (ej: "Pago por panaderia").</p>
-          <p><strong>Importante:</strong> El sistema suma cero. Si tu envias 50 {currency}, tu saldo baja 50 y el del destinatario sube 50. No se crea dinero de la nada.</p>
+          <p><strong>Que es una transferencia:</strong> Es el envio directo de Trueques ({currency}) desde tu cuenta a la cuenta de otro usuario de la red federada. Es la operacion basica del sistema: una persona entrega valor a otra.</p>
+          <p><strong>Para que sirve:</strong> Para pagar a otra persona por un bien, servicio o favor, saldar una deuda, regalar Trueques, o realizar cualquier intercambio economico entre dos participantes de la red.</p>
+          <p><strong>Quien puede recibir:</strong> Cualquier usuario registrado en la red federada. Se identifica con el formato @usuario@nodo (ej: @maria@localhost). Si la persona esta en tu mismo nodo, basta con @usuario. No puedes transferirte a ti mismo.</p>
+          <p><strong>Que es el monto:</strong> Es la cantidad de Trueques que vas a enviar. 1 {currency} equivale a 1 kWh de energia. El monto siempre es un numero entero positivo (ej: 50, 100, 250).</p>
+          <p><strong>Que es la nota/mensaje (Referencia):</strong> Es un texto opcional que acompana la transferencia para que el destinatario sepa el motivo. Aparece en el historial de ambos. Ej: "Pago por panaderia" o "Devolucion del prestamo".</p>
+          <p><strong>Como funciona el impuesto:</strong> El sistema puede aplicar un pequeno impuesto (comision) sobre cada transferencia. Este impuesto se descuenta del monto que recibe el destinatario y se envia a la cuenta del nodo o comunidad. El remitente no paga extra: envia el monto indicado y el destinatario recibe ese monto menos el impuesto. El porcentaje lo define la configuracion del nodo.</p>
+          <p><strong>Que son los limites de credito y debito:</strong> El sistema permite que tu saldo sea negativo (credito) o positivo (debito). <strong>Credito</strong> significa que debes Trueques a la comunidad (saldo negativo, ej: -200 {currency}); es normal y permite que la economia funcione sin necesidad de tener saldo previo. <strong>Debito</strong> significa que la comunidad te debe a ti (saldo positivo, ej: +500 {currency}). Hay un limite maximo de credito (cuanto puedes deber) definido por el nodo para evitar abusos.</p>
+          <p><strong>Importante - El sistema suma cero:</strong> Por cada transferencia, lo que sale de una cuenta entra en otra. Si envias 50 {currency}, tu saldo baja 50 y el del destinatario sube 50 (menos el impuesto, si aplica). No se crea dinero de la nada ni desaparece: el total de todos los saldos de la red siempre es cero.</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
         </div>
       )}
@@ -65,18 +68,18 @@ export default function Transfer() {
       <div className="card space-y-4">
         <div>
           <label className="label">Destinatario</label>
-          <input className="input" value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="@usuario@nodo.org" />
-          <p className="text-xs text-gray-400 mt-1">Identificador de quien recibira el dinero. Formato: @usuario@nodo (ej: @maria@localhost)</p>
+          <input className="input" value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="@maria@localhost" />
+          <p className="text-xs text-gray-400 mt-1">Identificador de quien recibira el dinero. Formato @usuario@nodo. Ej: @maria@localhost o @carlos@nodo2.org. Si esta en tu mismo nodo, basta con @maria.</p>
         </div>
         <div>
           <label className="label">Monto ({currency})</label>
           <input className="input" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="100" />
-          <p className="text-xs text-gray-400 mt-1">Cantidad de Trueques a enviar. 1 {currency} = 1 kWh de energia.</p>
+          <p className="text-xs text-gray-400 mt-1">Cantidad de Trueques a enviar. Solo numeros enteros positivos. 1 {currency} = 1 kWh de energia. Ej: 50 para enviar cincuenta Trueques.</p>
         </div>
         <div>
           <label className="label">Referencia (opcional)</label>
-          <input className="input" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Pago por servicios" />
-          <p className="text-xs text-gray-400 mt-1">Nota para que el destinatario sepa el motivo del pago.</p>
+          <input className="input" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Pago por panaderia" />
+          <p className="text-xs text-gray-400 mt-1">Nota para que el destinatario sepa el motivo del pago. Aparece en el historial de ambos. Ej: "Pago por panaderia", "Devolucion del prestamo", "Regalo de cumpleanos".</p>
         </div>
         <button onClick={handleTransfer} disabled={loading} className="btn-primary w-full flex items-center justify-center gap-2">
           <Send size={18} />{loading ? 'Enviando...' : 'Transferir'}
