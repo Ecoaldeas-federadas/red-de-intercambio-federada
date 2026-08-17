@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { api } from '../api'
-import { QrCode, Nfc, Send, ScanLine, Copy, Check } from 'lucide-react'
+import { QrCode, Nfc, Send, ScanLine, Copy, Check, Camera, Upload, X, HelpCircle } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
+import { Html5Qrcode } from 'html5-qrcode'
 
 interface PaymentRequest {
   protocol: string
@@ -34,9 +36,12 @@ export default function Payments() {
   const [copied, setCopied] = useState(false)
 
   // QR Scan state
-  const [scanInput, setScanInput] = useState('')
   const [scanResult, setScanResult] = useState<ParseQRResponse | null>(null)
   const [payAmount, setPayAmount] = useState('')
+  const [scanning, setScanning] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
+  const scannerRef = useRef<Html5Qrcode | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // NFC state
   const [nfcUID, setNfcUID] = useState('')
@@ -68,18 +73,68 @@ export default function Payments() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const parseQR = async () => {
+  const startCamera = async () => {
     setError('')
     setScanResult(null)
     try {
-      const res = await api.post<ParseQRResponse>('/payments/qr/parse', { qr_data: scanInput })
+      const scanner = new Html5Qrcode('qr-reader')
+      scannerRef.current = scanner
+      await scanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+          handleScannedData(decodedText)
+        },
+        () => {}
+      )
+      setScanning(true)
+    } catch (err) {
+      setError('No se pudo acceder a la camara. Verifica los permisos o usa cargar imagen.')
+    }
+  }
+
+  const stopCamera = async () => {
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.stop()
+        scannerRef.current.clear()
+      } catch {}
+      scannerRef.current = null
+    }
+    setScanning(false)
+  }
+
+  const handleScannedData = async (data: string) => {
+    await stopCamera()
+    try {
+      const res = await api.post<ParseQRResponse>('/payments/qr/parse', { qr_data: data })
       setScanResult(res)
       if (res.payment_req.amount) {
         setPayAmount(String(res.payment_req.amount))
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error')
+      setError(err instanceof Error ? err.message : 'QR invalido')
     }
+  }
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = async (event) => {
+      const img = new Image()
+      img.onload = async () => {
+        try {
+          const scanner = new Html5Qrcode('qr-reader-file')
+          const text = await scanner.scanFile(img, false)
+          handleScannedData(text)
+        } catch {
+          setError('No se pudo leer el QR de la imagen')
+        }
+      }
+      img.src = event.target?.result as string
+    }
+    reader.readAsDataURL(file)
   }
 
   const confirmPayment = async () => {
@@ -97,7 +152,6 @@ export default function Payments() {
       })
       setScanResult(null)
       setPayAmount('')
-      setScanInput('')
       setManualResult({ status: 'approved', message: 'Pago enviado correctamente' })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error')
@@ -128,37 +182,63 @@ export default function Payments() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Pagos</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Pagos</h1>
+        <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
+          <HelpCircle size={20} />
+        </button>
+      </div>
+
+      {showHelp && (
+        <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
+          <p><strong>Pagos - Ayuda</strong></p>
+          <p><strong>QR:</strong> Genera un codigo QR para que alguien te pague. La otra persona lo escanea con la camara de su movil.</p>
+          <p><strong>NFC:</strong> Pago con tarjeta NFC fisica. El comercio lee la tarjeta del cliente con un lector NFC.</p>
+          <p><strong>Manual:</strong> Transferencia directa ingresando el ID del destinatario. Util cuando no hay QR ni NFC.</p>
+          <p>El monto puede ser fijo (lo defines al generar el QR) o libre (el que paga decide cuanto).</p>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
+        </div>
+      )}
+
       <div className="flex gap-2">
         {([['qr', 'QR'], ['nfc', 'NFC'], ['manual', 'Manual']] as const).map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === key ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{label}</button>
         ))}
       </div>
-      {error && <div className="text-red-600 text-sm">{error}</div>}
+      {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</div>}
 
       {tab === 'qr' && (
         <div className="space-y-4">
           {/* Generar QR */}
           <div className="card space-y-4">
-            <div className="flex items-center gap-2"><QrCode size={20} /><h2 className="font-semibold">Generar Codigo QR</h2></div>
+            <div className="flex items-center gap-2"><QrCode size={20} /><h2 className="font-semibold">Mi Codigo QR de Pago</h2></div>
+            <p className="text-xs text-gray-500">Genera un codigo QR para que alguien te pague. Si especificas un monto, el QR sera para pagar exactamente esa cantidad. Si lo dejas vacio, el que paga decide el monto.</p>
+
             <div className="space-y-3">
-              <input className="input" placeholder="Nombre para mostrar (opcional)" value={genDisplayName} onChange={(e) => setGenDisplayName(e.target.value)} />
-              <input className="input" placeholder="Monto (dejar vacio = libre)" value={genAmount} onChange={(e) => setGenAmount(e.target.value)} type="number" />
-              <input className="input" placeholder="Etiqueta / descripcion (opcional)" value={genLabel} onChange={(e) => setGenLabel(e.target.value)} />
+              <div>
+                <label className="label">Nombre para mostrar (opcional)</label>
+                <input className="input" placeholder="Ej: Juan Perez" value={genDisplayName} onChange={(e) => setGenDisplayName(e.target.value)} />
+              </div>
+              <div>
+                <label className="label">Monto (dejar vacio = monto libre)</label>
+                <input className="input" placeholder="Ej: 500" value={genAmount} onChange={(e) => setGenAmount(e.target.value)} type="number" />
+              </div>
+              <div>
+                <label className="label">Etiqueta / descripcion (opcional)</label>
+                <input className="input" placeholder="Ej: Pago de productos" value={genLabel} onChange={(e) => setGenLabel(e.target.value)} />
+              </div>
               <button onClick={generateQR} className="btn-primary">Generar QR</button>
             </div>
+
             {qrData && (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="bg-white border-2 border-gray-200 rounded-lg p-4 flex justify-center">
-                  <div className="w-48 h-48 bg-gray-50 flex items-center justify-center text-xs text-gray-400 border border-dashed border-gray-300 rounded">
-                    [QR Code]
-                  </div>
+                  <QRCodeSVG value={qrData} size={256} level="M" />
                 </div>
                 <div className="flex items-center gap-2">
-                  <textarea readOnly className="input h-16 text-xs flex-1" value={qrData} />
                   <button onClick={copyQR} className="btn-secondary flex items-center gap-1">
                     {copied ? <Check size={16} /> : <Copy size={16} />}
-                    {copied ? 'Copiado' : 'Copiar'}
+                    {copied ? 'Copiado' : 'Copiar datos'}
                   </button>
                 </div>
                 {qrPaymentReq && (
@@ -176,9 +256,31 @@ export default function Payments() {
 
           {/* Escanear QR */}
           <div className="card space-y-4">
-            <div className="flex items-center gap-2"><ScanLine size={20} /><h2 className="font-semibold">Escanear / Pagar QR</h2></div>
-            <textarea className="input h-20 text-xs" placeholder="Pegar datos QR (base64) aqui..." value={scanInput} onChange={(e) => setScanInput(e.target.value)} />
-            <button onClick={parseQR} className="btn-primary" disabled={!scanInput}>Validar QR</button>
+            <div className="flex items-center gap-2"><ScanLine size={20} /><h2 className="font-semibold">Escanear QR para Pagar</h2></div>
+            <p className="text-xs text-gray-500">Escanea el codigo QR de la persona que va a recibir el pago. Puedes usar la camara o cargar una imagen del QR.</p>
+
+            {!scanning && !scanResult && (
+              <div className="space-y-2">
+                <button onClick={startCamera} className="btn-primary w-full flex items-center justify-center gap-2">
+                  <Camera size={20} /> Abrir camara
+                </button>
+                <button onClick={() => fileInputRef.current?.click()} className="btn-secondary w-full flex items-center justify-center gap-2">
+                  <Upload size={20} /> Cargar imagen del QR
+                </button>
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+                <div id="qr-reader-file" className="hidden" />
+              </div>
+            )}
+
+            {scanning && (
+              <div className="space-y-2">
+                <div id="qr-reader" className="w-full" />
+                <button onClick={stopCamera} className="btn-secondary w-full flex items-center justify-center gap-2">
+                  <X size={20} /> Cancelar
+                </button>
+              </div>
+            )}
+
             {scanResult && (
               <div className="space-y-3">
                 <div className={`p-3 rounded-lg text-sm ${scanResult.is_local_node ? 'bg-green-50 text-green-800' : 'bg-amber-50 text-amber-800'}`}>
@@ -192,9 +294,13 @@ export default function Payments() {
                   {scanResult.payment_req.label && <p><strong>Etiqueta:</strong> {scanResult.payment_req.label}</p>}
                 </div>
                 {scanResult.payment_req.amount === null && (
-                  <input className="input" placeholder="Ingrese monto a pagar" type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} />
+                  <div>
+                    <label className="label">Ingrese monto a pagar</label>
+                    <input className="input" type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} />
+                  </div>
                 )}
-                <button onClick={confirmPayment} className="btn-primary">Confirmar Pago</button>
+                <button onClick={confirmPayment} className="btn-primary w-full">Confirmar Pago</button>
+                <button onClick={() => setScanResult(null)} className="btn-secondary w-full">Cancelar</button>
               </div>
             )}
           </div>
@@ -204,7 +310,11 @@ export default function Payments() {
       {tab === 'nfc' && (
         <div className="card space-y-4">
           <div className="flex items-center gap-2"><Nfc size={20} /><h2 className="font-semibold">Pago por NFC</h2></div>
-          <input className="input" placeholder="UID de tarjeta NFC (ej: nodocodigo:hexhexhex)" value={nfcUID} onChange={(e) => setNfcUID(e.target.value)} />
+          <p className="text-xs text-gray-500">Ingresa el UID de la tarjeta NFC del usuario. En produccion, este campo se llena automaticamente al acercar la tarjeta al lector NFC conectado al terminal ESP32.</p>
+          <div>
+            <label className="label">UID de tarjeta NFC</label>
+            <input className="input" placeholder="Ej: 04A3B2C1" value={nfcUID} onChange={(e) => setNfcUID(e.target.value)} />
+          </div>
           <button onClick={lookupNFC} className="btn-primary" disabled={!nfcUID}>Buscar tarjeta</button>
           {nfcResult && (
             <div className="bg-trueque-50 p-3 rounded-lg text-sm space-y-1">
@@ -222,9 +332,19 @@ export default function Payments() {
       {tab === 'manual' && (
         <div className="card space-y-3">
           <div className="flex items-center gap-2"><Send size={20} /><h2 className="font-semibold">Pago Manual</h2></div>
-          <input className="input" placeholder="ID destinatario (UUID)" value={manual.receiver_id} onChange={(e) => setManual({ ...manual, receiver_id: e.target.value })} />
-          <input type="number" className="input" placeholder="Monto" value={manual.amount} onChange={(e) => setManual({ ...manual, amount: parseInt(e.target.value) || 0 })} />
-          <input className="input" placeholder="Referencia" value={manual.reference} onChange={(e) => setManual({ ...manual, reference: e.target.value })} />
+          <p className="text-xs text-gray-500">Transferencia directa a otro usuario. Necesitas su ID (UUID). El remitente eres tu (se obtiene de tu sesion).</p>
+          <div>
+            <label className="label">ID del destinatario (UUID)</label>
+            <input className="input" placeholder="Ej: a14dd44f-8da1-4bf7-8ad6-762a9d10d562" value={manual.receiver_id} onChange={(e) => setManual({ ...manual, receiver_id: e.target.value })} />
+          </div>
+          <div>
+            <label className="label">Monto</label>
+            <input type="number" className="input" placeholder="Ej: 500" value={manual.amount || ''} onChange={(e) => setManual({ ...manual, amount: parseInt(e.target.value) || 0 })} />
+          </div>
+          <div>
+            <label className="label">Referencia (opcional)</label>
+            <input className="input" placeholder="Ej: Pago de productos" value={manual.reference} onChange={(e) => setManual({ ...manual, reference: e.target.value })} />
+          </div>
           <button onClick={sendManual} className="btn-primary">Enviar</button>
           {manualResult && <div className="bg-trueque-50 p-3 rounded-lg text-sm">{JSON.stringify(manualResult, null, 2)}</div>}
         </div>
