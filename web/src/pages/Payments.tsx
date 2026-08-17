@@ -1,8 +1,9 @@
 import { useState, useRef } from 'react'
 import { api } from '../api'
-import { QrCode, Nfc, Send, ScanLine, Copy, Check, Camera, Upload, X, HelpCircle } from 'lucide-react'
+import { QrCode, Nfc, Send, ScanLine, Copy, Check, Camera, Upload, X, HelpCircle, Download, Share2 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { Html5Qrcode } from 'html5-qrcode'
+import jsQR from 'jsqr'
 
 interface PaymentRequest {
   protocol: string
@@ -34,6 +35,7 @@ export default function Payments() {
   const [genLabel, setGenLabel] = useState('')
   const [genDisplayName, setGenDisplayName] = useState('')
   const [copied, setCopied] = useState(false)
+  const qrWrapperRef = useRef<HTMLDivElement>(null)
 
   // QR Scan state
   const [scanResult, setScanResult] = useState<ParseQRResponse | null>(null)
@@ -71,6 +73,67 @@ export default function Payments() {
     navigator.clipboard.writeText(qrData)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const downloadQR = () => {
+    const svg = qrWrapperRef.current?.querySelector('svg')
+    if (!svg) return
+    const svgData = new XMLSerializer().serializeToString(svg)
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const img = new Image()
+    img.onload = () => {
+      canvas.width = 512
+      canvas.height = 512
+      ctx.fillStyle = 'white'
+      ctx.fillRect(0, 0, 512, 512)
+      ctx.drawImage(img, 0, 0, 512, 512)
+      canvas.toBlob((blob) => {
+        if (!blob) return
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = 'qr-pago.png'
+        a.click()
+        URL.revokeObjectURL(url)
+      })
+    }
+    img.src = 'data:image/svg+xml;base64,' + btoa(svgData)
+  }
+
+  const shareQR = async () => {
+    const svg = qrWrapperRef.current?.querySelector('svg')
+    if (!svg) return
+    const svgData = new XMLSerializer().serializeToString(svg)
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const img = new Image()
+    img.onload = async () => {
+      canvas.width = 512
+      canvas.height = 512
+      ctx.fillStyle = 'white'
+      ctx.fillRect(0, 0, 512, 512)
+      ctx.drawImage(img, 0, 0, 512, 512)
+      canvas.toBlob(async (blob) => {
+        if (!blob) return
+        const file = new File([blob], 'qr-pago.png', { type: 'image/png' })
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: 'Codigo QR de Pago',
+              text: `Pago para ${qrPaymentReq?.user || ''}`,
+            })
+          } catch {}
+        } else {
+          // Fallback: descargar
+          downloadQR()
+        }
+      })
+    }
+    img.src = 'data:image/svg+xml;base64,' + btoa(svgData)
   }
 
   const startCamera = async () => {
@@ -113,28 +176,42 @@ export default function Payments() {
         setPayAmount(String(res.payment_req.amount))
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'QR invalido')
+      setError(err instanceof Error ? err.message : 'QR invalido o no se pudo leer')
     }
   }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    setError('')
     const reader = new FileReader()
-    reader.onload = async (event) => {
+    reader.onload = (event) => {
       const img = new Image()
-      img.onload = async () => {
-        try {
-          const scanner = new Html5Qrcode('qr-reader-file')
-          const text = await scanner.scanFile(img, false)
-          handleScannedData(text)
-        } catch {
-          setError('No se pudo leer el QR de la imagen')
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          setError('No se pudo procesar la imagen')
+          return
+        }
+        canvas.width = img.width
+        canvas.height = img.height
+        ctx.drawImage(img, 0, 0)
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        const code = jsQR(imageData.data, imageData.width, imageData.height)
+        if (code) {
+          handleScannedData(code.data)
+        } else {
+          setError('No se encontro ningun codigo QR en la imagen')
         }
       }
+      img.onerror = () => setError('No se pudo cargar la imagen')
       img.src = event.target?.result as string
     }
+    reader.onerror = () => setError('No se pudo leer el archivo')
     reader.readAsDataURL(file)
+    // Reset input para poder cargar el mismo archivo otra vez
+    e.target.value = ''
   }
 
   const confirmPayment = async () => {
@@ -192,7 +269,7 @@ export default function Payments() {
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
           <p><strong>Pagos - Ayuda</strong></p>
-          <p><strong>QR:</strong> Genera un codigo QR para que alguien te pague. La otra persona lo escanea con la camara de su movil.</p>
+          <p><strong>QR:</strong> Genera un codigo QR para que alguien te pague. La otra persona lo escanea con la camara de su movil o carga una foto del QR.</p>
           <p><strong>NFC:</strong> Pago con tarjeta NFC fisica. El comercio lee la tarjeta del cliente con un lector NFC.</p>
           <p><strong>Manual:</strong> Transferencia directa ingresando el ID del destinatario. Util cuando no hay QR ni NFC.</p>
           <p>El monto puede ser fijo (lo defines al generar el QR) o libre (el que paga decide cuanto).</p>
@@ -232,10 +309,16 @@ export default function Payments() {
 
             {qrData && (
               <div className="space-y-3">
-                <div className="bg-white border-2 border-gray-200 rounded-lg p-4 flex justify-center">
-                  <QRCodeSVG value={qrData} size={256} level="M" />
+                <div ref={qrWrapperRef} className="bg-white border-2 border-gray-200 rounded-lg p-4 flex justify-center">
+                  <QRCodeSVG value={qrData} size={256} level="M" includeID={false} />
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex gap-2 flex-wrap">
+                  <button onClick={downloadQR} className="btn-secondary flex items-center gap-1">
+                    <Download size={16} /> Descargar
+                  </button>
+                  <button onClick={shareQR} className="btn-secondary flex items-center gap-1">
+                    <Share2 size={16} /> Compartir
+                  </button>
                   <button onClick={copyQR} className="btn-secondary flex items-center gap-1">
                     {copied ? <Check size={16} /> : <Copy size={16} />}
                     {copied ? 'Copiado' : 'Copiar datos'}
@@ -268,7 +351,6 @@ export default function Payments() {
                   <Upload size={20} /> Cargar imagen del QR
                 </button>
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
-                <div id="qr-reader-file" className="hidden" />
               </div>
             )}
 
