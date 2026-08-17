@@ -28,8 +28,10 @@ CREATE INDEX IF NOT EXISTS idx_org_levels_node
 
 -- Migrar los niveles org_* existentes desde member_levels a organization_levels
 -- (solo si ya se habian insertado por la migracion 011 anterior)
-INSERT INTO organization_levels (id, node_domain, name, description, level, credit_limit, debit_limit, tax_rate, is_active)
-SELECT id, node_domain, name, description, level, credit_limit, debit_limit, COALESCE(tax_rate, 0), is_active
+-- Nota: member_levels.id es TEXT, organization_levels.id es UUID.
+-- Generamos un UUID nuevo en vez de copiar el id viejo.
+INSERT INTO organization_levels (node_domain, name, description, level, credit_limit, debit_limit, tax_rate, is_active)
+SELECT node_domain, name, description, level, credit_limit, debit_limit, COALESCE(tax_rate, 0), is_active
 FROM member_levels
 WHERE name LIKE 'org_%' AND node_domain = 'localhost'
 ON CONFLICT (node_domain, name) DO NOTHING;

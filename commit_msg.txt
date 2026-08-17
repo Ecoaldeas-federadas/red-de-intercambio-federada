@@ -1,0 +1,18 @@
+fix: migracion 012 - id de member_levels es TEXT, no UUID
+
+ERROR:
+  Failed to run migrations: executing migration 012_organization_levels.sql:
+  ERROR: column id is of type uuid but expression is of type text (SQLSTATE 42804)
+
+CAUSA:
+- member_levels.id es TEXT (definido en migracion 001)
+- organization_levels.id es UUID
+- El INSERT copiaba id directamente de member_levels a organization_levels
+
+FIX:
+- No copiar el id viejo. Dejar que organization_levels genere su propio UUID
+  con gen_random_uuid() (DEFAULT de la columna).
+
+Generado con [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>
