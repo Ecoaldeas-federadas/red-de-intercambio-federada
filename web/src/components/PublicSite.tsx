@@ -202,25 +202,26 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 <img
                   src={settings.logo_url}
                   alt="logo"
-                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg object-cover border border-emerald-200 shadow-xs flex-shrink-0"
+                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg object-cover border shadow-xs flex-shrink-0"
+                  style={{ borderColor: ((settings as any)?.module_bg_color || '#ffffff') }}
                 />
               ) : (
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-800 text-white flex items-center justify-center font-extrabold shadow-sm flex-shrink-0">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl text-white flex items-center justify-center font-extrabold shadow-sm flex-shrink-0" style={{ backgroundColor: primaryColor }}>
                   <Building2 size={20} />
                 </div>
               )}
               <div className="truncate">
-                <h1 className="text-xs sm:text-sm md:text-base font-black tracking-tight text-emerald-950 truncate leading-tight">
+                <h1 className="text-xs sm:text-sm md:text-base font-black tracking-tight truncate leading-tight" style={{ color: (settings as any)?.text_color || '#1a1a1a' }}>
                   {settings?.site_title || 'Feria Conuquera Agroecológica'}
                 </h1>
-                <p className="text-[10px] sm:text-[11px] text-emerald-700 font-semibold hidden md:block truncate">
+                <p className="text-[10px] sm:text-[11px] font-semibold hidden md:block truncate" style={{ color: (settings as any)?.link_color || '#15803d' }}>
                   {settings?.site_subtitle || 'Portal Oficial de Soberanía Alimentaria'}
                 </p>
               </div>
             </Link>
 
             {/* Desktop Navigation with Overflow Protection */}
-            <nav className="hidden lg:flex items-center gap-1 text-xs font-bold text-gray-700">
+            <nav className="hidden lg:flex items-center gap-1 text-xs font-bold" style={{ color: (settings as any)?.text_color || '#1a1a1a' }}>
               {visiblePages.map((p) => {
                 const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
                 return (
@@ -229,9 +230,10 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                     to={`/p/${p.slug}`}
                     className={`px-2.5 py-1.5 rounded-lg transition ${
                       isActive
-                        ? 'bg-emerald-50 text-emerald-900 font-black border-b-2 border-emerald-800'
-                        : 'hover:bg-gray-100 hover:text-emerald-800'
+                        ? 'font-black border-b-2'
+                        : 'hover:bg-gray-100'
                     }`}
+                    style={isActive ? { backgroundColor: ((settings as any)?.module_bg_color || '#f0fdf4'), color: primaryColor, borderBottomColor: primaryColor } : { color: (settings as any)?.text_color || '#1a1a1a' }}
                   >
                     {getShortLabel(p)}
                   </Link>
@@ -242,7 +244,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 <div className="relative" ref={moreMenuRef}>
                   <button
                     onClick={() => setMoreMenuOpen(!moreMenuOpen)}
-                    className="px-2.5 py-1.5 rounded-lg hover:bg-gray-100 hover:text-emerald-800 flex items-center gap-1 text-gray-700"
+                    className="px-2.5 py-1.5 rounded-lg hover:bg-gray-100 flex items-center gap-1"
+                    style={{ color: (settings as any)?.text_color || '#1a1a1a' }}
                   >
                     <span>Más</span>
                     <ChevronDown size={13} />
@@ -254,7 +257,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                           key={p.slug}
                           to={`/p/${p.slug}`}
                           onClick={() => setMoreMenuOpen(false)}
-                          className="block px-3 py-1.5 rounded-lg text-xs text-gray-700 hover:bg-emerald-50 hover:text-emerald-900"
+                          className="block px-3 py-1.5 rounded-lg text-xs hover:bg-gray-100"
+                          style={{ color: (settings as any)?.text_color || '#1a1a1a' }}
                         >
                           {p.title}
                         </Link>
@@ -506,6 +510,226 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               >
                 {menuOpen ? <X size={18} /> : <Menu size={18} />}
               </button>
+            </div>
+          </div>
+        </header>
+      )}
+
+      {/* STYLE E: COMPACT — Logo grande centrado, menú debajo horizontal */}
+      {headerStyle === 'compact' && (
+        <header className="sticky top-0 z-50 shadow-md w-full" style={{ backgroundColor: (settings as any)?.page_bg_color || '#f8faf5' }}>
+          {/* Top row: centered logo */}
+          <div className="border-b" style={{ borderColor: ((settings as any)?.module_bg_color || '#ffffff') }}>
+            <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col items-center justify-center gap-1">
+              <Link to="/p/inicio" className="flex flex-col items-center gap-1.5 text-center">
+                {settings?.logo_url ? (
+                  <img
+                    src={settings.logo_url}
+                    alt="logo"
+                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-cover shadow-md border-2 flex-shrink-0"
+                    style={{ borderColor: secondaryColor }}
+                  />
+                ) : (
+                  <div
+                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl flex items-center justify-center text-white shadow-md flex-shrink-0"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    <Leaf size={28} />
+                  </div>
+                )}
+                <div className="text-center">
+                  <h1
+                    className="text-sm sm:text-lg font-black tracking-tight leading-tight"
+                    style={{ color: (settings as any)?.text_color || '#1a1a1a' }}
+                  >
+                    {settings?.site_title || 'Feria Conuquera Agroecológica'}
+                  </h1>
+                  <p
+                    className="text-[10px] sm:text-[11px] font-medium hidden sm:block"
+                    style={{ color: (settings as any)?.link_color || '#15803d' }}
+                  >
+                    {settings?.site_subtitle || 'Parque Los Caobos, Caracas'}
+                  </p>
+                </div>
+              </Link>
+            </div>
+          </div>
+
+          {/* Bottom row: horizontal menu bar */}
+          <div style={{ backgroundColor: primaryColor }}>
+            <div className="max-w-7xl mx-auto px-3 sm:px-6 flex items-center justify-center gap-0.5 py-1.5">
+              <nav className="hidden lg:flex items-center gap-0.5 text-xs font-bold text-white">
+                {visiblePages.map((p) => {
+                  const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
+                  return (
+                    <Link
+                      key={p.slug}
+                      to={`/p/${p.slug}`}
+                      className={`px-3 py-1.5 rounded-md transition whitespace-nowrap ${
+                        isActive ? 'bg-white/25 font-black' : 'hover:bg-white/15'
+                      }`}
+                    >
+                      {getShortLabel(p)}
+                    </Link>
+                  )
+                })}
+                {overflowPages.length > 0 && (
+                  <div className="relative" ref={moreMenuRef}>
+                    <button
+                      onClick={() => setMoreMenuOpen(!moreMenuOpen)}
+                      className="px-3 py-1.5 rounded-md hover:bg-white/15 flex items-center gap-1 whitespace-nowrap"
+                    >
+                      <span>Más</span>
+                      <ChevronDown size={12} />
+                    </button>
+                    {moreMenuOpen && (
+                      <div className="absolute right-0 top-full mt-1 w-44 rounded-xl shadow-xl border p-1.5 space-y-0.5 z-50" style={{ backgroundColor: primaryColor, borderColor: 'rgba(255,255,255,0.2)' }}>
+                        {overflowPages.map((p) => (
+                          <Link
+                            key={p.slug}
+                            to={`/p/${p.slug}`}
+                            onClick={() => setMoreMenuOpen(false)}
+                            className="block px-3 py-1.5 rounded-lg text-xs text-white/90 hover:bg-white/15"
+                          >
+                            {p.title}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </nav>
+              <button
+                className="lg:hidden text-white p-1.5"
+                onClick={() => setMenuOpen(!menuOpen)}
+              >
+                {menuOpen ? <X size={18} /> : <Menu size={18} />}
+              </button>
+            </div>
+          </div>
+        </header>
+      )}
+
+      {/* STYLE F: BANNER — Imagen de fondo, logo superpuesto, menú inferior translúcido */}
+      {headerStyle === 'banner' && (
+        <header className="sticky top-0 z-50 w-full shadow-lg">
+          {/* Banner with background image */}
+          <div
+            className="relative w-full overflow-hidden"
+            style={{
+              backgroundImage: `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.55)), url(${settings?.logo_url ? '' : 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1600&q=80'})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundColor: primaryColor,
+              minHeight: '120px',
+            }}
+          >
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between gap-3 relative z-10">
+              {/* Logo + brand overlaid on image */}
+              <Link to="/p/inicio" className="flex items-center gap-3 text-white group flex-shrink-0 max-w-xs sm:max-w-md truncate">
+                {settings?.logo_url ? (
+                  <img
+                    src={settings.logo_url}
+                    alt="logo"
+                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover border-2 border-white/60 shadow-lg flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-white shadow-lg border border-white/30 flex-shrink-0">
+                    <Leaf size={26} />
+                  </div>
+                )}
+                <div className="truncate">
+                  <h1 className="text-sm sm:text-xl font-black tracking-tight leading-tight truncate drop-shadow-lg">
+                    {settings?.site_title || 'Feria Conuquera Agroecológica'}
+                  </h1>
+                  <p className="text-[11px] sm:text-xs text-white/80 font-medium hidden sm:block truncate drop-shadow">
+                    {settings?.site_subtitle || 'Parque Los Caobos, Caracas'}
+                  </p>
+                </div>
+              </Link>
+
+              {/* Actions */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {settings?.show_join_form && !isAuthenticated && (
+                  <Link
+                    to="/p/unirse"
+                    className="hidden sm:inline-flex px-4 py-2 rounded-lg text-xs font-bold text-white shadow-lg transition hover:brightness-110 items-center gap-1"
+                    style={{ backgroundColor: secondaryColor }}
+                  >
+                    <Sparkles size={12} />
+                    Unirse
+                  </Link>
+                )}
+                {isAuthenticated ? (
+                  <Link
+                    to="/app/dashboard"
+                    className="px-3 py-2 rounded-lg text-xs font-bold text-white shadow-lg"
+                    style={{ backgroundColor: secondaryColor }}
+                  >
+                    Escritorio
+                  </Link>
+                ) : (
+                  <Link
+                    to="/login"
+                    className="hidden sm:inline-block px-3 py-2 rounded-lg text-xs font-medium text-white border border-white/40 hover:bg-white/10 transition"
+                  >
+                    Acceso
+                  </Link>
+                )}
+                <button
+                  className="lg:hidden text-white p-1.5 bg-white/15 rounded-lg"
+                  onClick={() => setMenuOpen(!menuOpen)}
+                >
+                  {menuOpen ? <X size={18} /> : <Menu size={18} />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Menu bar at bottom of banner - translucent */}
+          <div className="w-full backdrop-blur-md" style={{ backgroundColor: primaryColor }}>
+            <div className="max-w-7xl mx-auto px-3 sm:px-6 flex items-center justify-center py-1.5">
+              <nav className="hidden lg:flex items-center gap-1 text-xs font-bold text-white">
+                {visiblePages.map((p) => {
+                  const isActive = location.pathname === `/p/${p.slug}` || (location.pathname === '/' && p.slug === 'inicio')
+                  return (
+                    <Link
+                      key={p.slug}
+                      to={`/p/${p.slug}`}
+                      className={`px-3 py-1.5 rounded-md transition whitespace-nowrap ${
+                        isActive ? 'bg-white/25 font-black' : 'hover:bg-white/15'
+                      }`}
+                    >
+                      {getShortLabel(p)}
+                    </Link>
+                  )
+                })}
+                {overflowPages.length > 0 && (
+                  <div className="relative" ref={moreMenuRef}>
+                    <button
+                      onClick={() => setMoreMenuOpen(!moreMenuOpen)}
+                      className="px-3 py-1.5 rounded-md hover:bg-white/15 flex items-center gap-1 whitespace-nowrap"
+                    >
+                      <span>Más</span>
+                      <ChevronDown size={12} />
+                    </button>
+                    {moreMenuOpen && (
+                      <div className="absolute right-0 top-full mt-1 w-44 rounded-xl shadow-xl border p-1.5 space-y-0.5 z-50" style={{ backgroundColor: primaryColor, borderColor: 'rgba(255,255,255,0.2)' }}>
+                        {overflowPages.map((p) => (
+                          <Link
+                            key={p.slug}
+                            to={`/p/${p.slug}`}
+                            onClick={() => setMoreMenuOpen(false)}
+                            className="block px-3 py-1.5 rounded-lg text-xs text-white/90 hover:bg-white/15"
+                          >
+                            {p.title}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </nav>
             </div>
           </div>
         </header>

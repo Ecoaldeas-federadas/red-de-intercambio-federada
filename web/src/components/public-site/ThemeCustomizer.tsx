@@ -44,10 +44,12 @@ export interface PageMenuItem {
 }
 
 const HEADER_STYLES = [
-  { id: 'modern_eco', name: 'Eco Moderno', desc: 'Verde con logo, menú horizontal' },
-  { id: 'fao_institutional', name: 'Institucional FAO', desc: 'Blanco, portal formal' },
-  { id: 'compact', name: 'Compacto', desc: 'Minimalista, poco espacio' },
-  { id: 'banner', name: 'Banner', desc: 'Con imagen de fondo' },
+  { id: 'modern_eco', name: 'Eco Moderno', desc: 'Logo izquierda, menú horizontal con iconos' },
+  { id: 'fao_institutional', name: 'Portal Blanco', desc: 'Fondo blanco, logo+texto, menú formal' },
+  { id: 'editorial_latam', name: 'Editorial Doble', desc: 'Dos filas: marca arriba, menú oscuro abajo' },
+  { id: 'dropdown_categories', name: 'Mega Menú', desc: 'Menú agrupado por categorías con dropdowns' },
+  { id: 'compact', name: 'Logo Centrado', desc: 'Logo grande centrado, menú debajo horizontal' },
+  { id: 'banner', name: 'Banner Imagen', desc: 'Imagen de fondo, logo superpuesto, menú inferior' },
 ]
 
 interface ColorPreset {
