@@ -32,6 +32,11 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequirePermission("config.manage")).Post("/api/member-levels", h.createMemberLevel)
 	r.With(am.RequirePermission("config.manage")).Put("/api/member-levels/{id}", h.updateMemberLevel)
 
+	// Niveles de organizacion (CRUD completo, separados de member_levels)
+	r.With(am.RequireAuth).Get("/api/organization-levels", h.listOrganizationLevels)
+	r.With(am.RequirePermission("config.manage")).Post("/api/organization-levels", h.createOrganizationLevel)
+	r.With(am.RequirePermission("config.manage")).Put("/api/organization-levels/{id}", h.updateOrganizationLevel)
+
 	// Tarifa energetica
 	r.With(am.RequireAuth).Get("/api/calculator/tariff", h.getTariff)
 	r.With(am.RequirePermission("config.manage")).Put("/api/calculator/tariff", h.updateTariff)
@@ -1326,6 +1331,134 @@ func (h *SystemHandler) createCalcCategory(w http.ResponseWriter, r *http.Reques
 		"type": req.Type,
 		"name": req.Name,
 	})
+}
+
+// ===== NIVELES DE ORGANIZACION =====
+
+func (h *SystemHandler) listOrganizationLevels(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT id::text, name, COALESCE(description, ''), level, credit_limit, debit_limit, tax_rate,
+		       can_cross_node_trade, can_use_external_bridge, can_view_audit, max_members, is_active
+		FROM organization_levels
+		WHERE node_domain = $1 AND is_active = true
+		ORDER BY level, name`, nodeDomain)
+	if err != nil {
+		writeError(w, 500, "error listing organization levels")
+		return
+	}
+	defer rows.Close()
+
+	var levels []map[string]interface{}
+	for rows.Next() {
+		var id, name, description string
+		var level int
+		var creditLimit, debitLimit int64
+		var taxRate float64
+		var canCrossNode, canBridge, canAudit bool
+		var maxMembers int
+		var isActive bool
+
+		if err := rows.Scan(&id, &name, &description, &level, &creditLimit, &debitLimit, &taxRate,
+			&canCrossNode, &canBridge, &canAudit, &maxMembers, &isActive); err != nil {
+			continue
+		}
+
+		levels = append(levels, map[string]interface{}{
+			"id":                      id,
+			"name":                    name,
+			"description":             description,
+			"level":                   level,
+			"credit_limit":            creditLimit,
+			"debit_limit":             debitLimit,
+			"tax_rate":                taxRate,
+			"can_cross_node_trade":    canCrossNode,
+			"can_use_external_bridge": canBridge,
+			"can_view_audit":          canAudit,
+			"max_members":             maxMembers,
+			"is_active":               isActive,
+		})
+	}
+	if levels == nil {
+		levels = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, levels)
+}
+
+type CreateOrganizationLevelRequest struct {
+	Name                 string  `json:"name"`
+	Description          string  `json:"description"`
+	Level                int     `json:"level"`
+	CreditLimit          int64   `json:"credit_limit"`
+	DebitLimit           int64   `json:"debit_limit"`
+	TaxRate              float64 `json:"tax_rate"`
+	CanCrossNodeTrade    bool    `json:"can_cross_node_trade"`
+	CanUseExternalBridge bool    `json:"can_use_external_bridge"`
+	CanViewAudit         bool    `json:"can_view_audit"`
+	MaxMembers           int     `json:"max_members"`
+}
+
+func (h *SystemHandler) createOrganizationLevel(w http.ResponseWriter, r *http.Request) {
+	var req CreateOrganizationLevelRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.Name == "" {
+		writeError(w, 400, "name is required")
+		return
+	}
+
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	var id uuid.UUID
+	err := h.Pool.QueryRow(r.Context(), `
+		INSERT INTO organization_levels (node_domain, name, description, level, credit_limit, debit_limit, tax_rate,
+			can_cross_node_trade, can_use_external_bridge, can_view_audit, max_members)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		RETURNING id`,
+		nodeDomain, req.Name, req.Description, req.Level, req.CreditLimit, req.DebitLimit, req.TaxRate,
+		req.CanCrossNodeTrade, req.CanUseExternalBridge, req.CanViewAudit, req.MaxMembers).Scan(&id)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	writeJSON(w, 201, map[string]interface{}{
+		"id":      id.String(),
+		"name":    req.Name,
+		"message": "Nivel de organizacion creado",
+	})
+}
+
+func (h *SystemHandler) updateOrganizationLevel(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var req CreateOrganizationLevelRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	_, err := h.Pool.Exec(r.Context(), `
+		UPDATE organization_levels SET
+			name = $1, description = $2, level = $3, credit_limit = $4, debit_limit = $5, tax_rate = $6,
+			can_cross_node_trade = $7, can_use_external_bridge = $8, can_view_audit = $9, max_members = $10
+		WHERE id = $11::uuid`,
+		req.Name, req.Description, req.Level, req.CreditLimit, req.DebitLimit, req.TaxRate,
+		req.CanCrossNodeTrade, req.CanUseExternalBridge, req.CanViewAudit, req.MaxMembers, id)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{"message": "Nivel de organizacion actualizado"})
 }
 
 // ===== HELPER =====

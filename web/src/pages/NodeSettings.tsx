@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
-import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit } from 'lucide-react'
+import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon } from 'lucide-react'
 
 export default function NodeSettings() {
   const { hasPermission } = usePermissions()
   const canManage = hasPermission('config.manage')
 
-  const [tab, setTab] = useState<'general' | 'levels' | 'tariff'>('general')
+  const [tab, setTab] = useState<'general' | 'levels' | 'org_levels' | 'tariff'>('general')
   const [showHelp, setShowHelp] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -15,7 +15,7 @@ export default function NodeSettings() {
   // Config general
   const [config, setConfig] = useState({ node_name: '', currency_name: 'TQ', app_name: 'Red de Intercambio' })
 
-  // Niveles
+  // Niveles de miembro (usuarios individuales)
   const [levels, setLevels] = useState<any[]>([])
   const [showLevelForm, setShowLevelForm] = useState(false)
   const [editingLevel, setEditingLevel] = useState<any>(null)
@@ -25,6 +25,16 @@ export default function NodeSettings() {
     can_cross_node_trade: true, can_receive_nfc_card: true, can_view_audit: true,
     can_use_external_bridge: false, max_organizations: 0, can_request_limit_increase: false,
     tax_rate: 0,
+  })
+
+  // Niveles de organizacion (empresas/cooperativas/instituciones)
+  const [orgLevels, setOrgLevels] = useState<any[]>([])
+  const [showOrgLevelForm, setShowOrgLevelForm] = useState(false)
+  const [editingOrgLevel, setEditingOrgLevel] = useState<any>(null)
+  const [orgLevelForm, setOrgLevelForm] = useState({
+    name: '', description: '', level: 1, credit_limit: -100000, debit_limit: 100000,
+    tax_rate: 0, can_cross_node_trade: true, can_use_external_bridge: false,
+    can_view_audit: true, max_members: 0,
   })
 
   // Tarifa
@@ -37,6 +47,7 @@ export default function NodeSettings() {
   const load = () => {
     api.get('/config').then(setConfig).catch(() => {})
     api.get('/member-levels').then((d: any) => setLevels(Array.isArray(d) ? d : [])).catch(() => {})
+    api.get('/organization-levels').then((d: any) => setOrgLevels(Array.isArray(d) ? d : [])).catch(() => {})
     api.get('/calculator/tariff').then(setTariff).catch(() => {})
   }
 
@@ -67,10 +78,10 @@ export default function NodeSettings() {
     try {
       if (editingLevel) {
         await api.put(`/member-levels/${editingLevel.id}`, levelForm)
-        setSuccess('Nivel actualizado')
+        setSuccess('Nivel de miembro actualizado')
       } else {
         await api.post('/member-levels', levelForm)
-        setSuccess('Nivel creado')
+        setSuccess('Nivel de miembro creado')
       }
       setShowLevelForm(false)
       setEditingLevel(null)
@@ -98,6 +109,38 @@ export default function NodeSettings() {
     setShowLevelForm(true)
   }
 
+  const saveOrgLevel = async () => {
+    setError(''); setSuccess('')
+    try {
+      if (editingOrgLevel) {
+        await api.put(`/organization-levels/${editingOrgLevel.id}`, orgLevelForm)
+        setSuccess('Nivel de organizacion actualizado')
+      } else {
+        await api.post('/organization-levels', orgLevelForm)
+        setSuccess('Nivel de organizacion creado')
+      }
+      setShowOrgLevelForm(false)
+      setEditingOrgLevel(null)
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error')
+    }
+  }
+
+  const editOrgLevel = (l: any) => {
+    setEditingOrgLevel(l)
+    setOrgLevelForm({
+      name: l.name, description: l.description || '', level: l.level,
+      credit_limit: l.credit_limit, debit_limit: l.debit_limit,
+      tax_rate: l.tax_rate || 0,
+      can_cross_node_trade: l.can_cross_node_trade,
+      can_use_external_bridge: l.can_use_external_bridge,
+      can_view_audit: l.can_view_audit,
+      max_members: l.max_members || 0,
+    })
+    setShowOrgLevelForm(true)
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -111,7 +154,8 @@ export default function NodeSettings() {
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
           <p><strong>Configuracion - Ayuda</strong></p>
           <p><strong>General:</strong> Nombre del nodo, nombre de la moneda (ej: TQ, Trueques, Horas, Puntos) y nombre de la aplicacion.</p>
-          <p><strong>Niveles de miembro:</strong> Define los tipos de miembro de la comunidad. Cada nivel tiene limites, derechos (voz, voto, quorum) y permisos. Los miembros con voto forman parte de la asamblea.</p>
+          <p><strong>Niveles de miembro:</strong> Define los tipos de <strong>usuario individual</strong> de la comunidad. Cada nivel tiene limites, derechos (voz, voto, quorum) y permisos. Los miembros con voto forman parte de la asamblea. Ej: nuevo, activo, honorario.</p>
+          <p><strong>Niveles de organizacion:</strong> Define los tipos de <strong>organizacion o empresa</strong> dentro de la comunidad. Cada nivel tiene sus propios limites, impuestos y permisos. Las organizaciones son entidades comerciales/colectivas, no personas. Ej: produccion, consumo, publica, cooperativa.</p>
           <p><strong>Tarifa energetica:</strong> Define la canasta vital diaria (alimentacion, agua, servicios) y los factores de esfuerzo. Esto se usa para calcular precios justos de productos y trabajo.</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
         </div>
@@ -119,7 +163,8 @@ export default function NodeSettings() {
 
       <div className="flex gap-2 flex-wrap">
         <button onClick={() => setTab('general')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'general' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>General</button>
-        <button onClick={() => setTab('levels')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'levels' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Niveles de Miembro</button>
+        <button onClick={() => setTab('levels')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'levels' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><UsersIcon size={14} className="inline mr-1" />Niveles de Miembro</button>
+        <button onClick={() => setTab('org_levels')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'org_levels' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Building2 size={14} className="inline mr-1" />Niveles de Organizacion</button>
         <button onClick={() => setTab('tariff')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'tariff' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Tarifa Energetica</button>
       </div>
 
@@ -158,31 +203,36 @@ export default function NodeSettings() {
         </div>
       )}
 
-      {/* ===== NIVELES ===== */}
+      {/* ===== NIVELES DE MIEMBRO ===== */}
       {tab === 'levels' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="font-semibold flex items-center gap-2"><Layers size={18} />Niveles de Miembro</h2>
+            <h2 className="font-semibold flex items-center gap-2"><UsersIcon size={18} />Niveles de Miembro</h2>
             {canManage && (
               <button onClick={() => { setShowLevelForm(!showLevelForm); setEditingLevel(null) }} className="btn-primary flex items-center gap-2"><Plus size={18} />Nuevo Nivel</button>
             )}
           </div>
 
-          <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
-            <p>Los niveles definen los tipos de miembro. Cada nivel tiene limites de credito/debito, derechos (voz, voto, quorum) y permisos. Los miembros con voto forman parte de la asamblea.</p>
+          <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
+            <p><strong>Niveles de Miembro = Usuarios individuales (personas).</strong></p>
+            <p>Los niveles de miembro definen los tipos de <strong>persona</strong> en la comunidad. Cada nivel tiene limites de credito/debito, derechos (voz, voto, quorum) y permisos. Los miembros con voto forman parte de la asamblea.</p>
+            <p className="text-xs text-gray-500">Ejemplos: nuevo (recien admitido, sin voto), activo (con voz y voto), honorario (con voz pero sin voto).</p>
+            <p className="text-xs text-amber-600"><strong>Importante:</strong> Estos niveles son para personas. Para empresas/organizaciones usa la pestana "Niveles de Organizacion".</p>
           </div>
 
           {showLevelForm && canManage && (
             <div className="card space-y-4">
-              <h3 className="font-semibold">{editingLevel ? 'Editar Nivel' : 'Nuevo Nivel'}</h3>
+              <h3 className="font-semibold">{editingLevel ? 'Editar Nivel de Miembro' : 'Nuevo Nivel de Miembro'}</h3>
 
               <div>
                 <label className="label">Nombre del nivel</label>
                 <input className="input" placeholder="Ej: pleno, honorario, nuevo" value={levelForm.name} onChange={(e) => setLevelForm({ ...levelForm, name: e.target.value })} />
+                <p className="text-xs text-gray-400 mt-1">Nombre del nivel de miembro. Ej: pleno, honorario, nuevo.</p>
               </div>
               <div>
                 <label className="label">Descripcion</label>
                 <input className="input" placeholder="Ej: Miembro pleno con todos los derechos" value={levelForm.description} onChange={(e) => setLevelForm({ ...levelForm, description: e.target.value })} />
+                <p className="text-xs text-gray-400 mt-1">Explica que significa este nivel. Ej: Miembro pleno con todos los derechos.</p>
               </div>
               <div>
                 <label className="label">Numero de nivel (1=basico, 10=admin)</label>
@@ -193,7 +243,7 @@ export default function NodeSettings() {
               <div>
                 <label className="label">Impuesto por transaccion (%)</label>
                 <input type="number" step="0.1" min="0" max="100" className="input" value={levelForm.tax_rate} onChange={(e) => setLevelForm({ ...levelForm, tax_rate: parseFloat(e.target.value) || 0 })} />
-                <p className="text-xs text-gray-400 mt-1">Porcentaje que se descuenta de cada transaccion y va al fondo comunitario. 0 = sin impuesto. 2 = 2% de cada transaccion. Las instituciones publicas suelen estar exentas (0%).</p>
+                <p className="text-xs text-gray-400 mt-1">Porcentaje que se descuenta de cada transaccion y va al fondo comunitario. 0 = sin impuesto. 2 = 2% de cada transaccion.</p>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
@@ -255,6 +305,7 @@ export default function NodeSettings() {
               <div>
                 <label className="label">Maximo de organizaciones</label>
                 <input type="number" className="input" value={levelForm.max_organizations} onChange={(e) => setLevelForm({ ...levelForm, max_organizations: parseInt(e.target.value) || 0 })} />
+                <p className="text-xs text-gray-400 mt-1">Cuantas organizaciones puede crear o pertenecer este miembro. 0 = sin limite.</p>
               </div>
 
               <button onClick={saveLevel} className="btn-primary">{editingLevel ? 'Actualizar' : 'Crear'}</button>
@@ -263,7 +314,7 @@ export default function NodeSettings() {
 
           {levels.length === 0 && !showLevelForm ? (
             <div className="card text-center text-gray-500 py-8">
-              <p>No hay niveles configurados.</p>
+              <p>No hay niveles de miembro configurados.</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -288,6 +339,121 @@ export default function NodeSettings() {
                   <p className="text-xs text-gray-400 mt-2">
                     Credito: {l.credit_limit} | Debito: {l.debit_limit}
                     {l.max_organizations > 0 && ` | Max org: ${l.max_organizations}`}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== NIVELES DE ORGANIZACION ===== */}
+      {tab === 'org_levels' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="font-semibold flex items-center gap-2"><Building2 size={18} />Niveles de Organizacion</h2>
+            {canManage && (
+              <button onClick={() => { setShowOrgLevelForm(!showOrgLevelForm); setEditingOrgLevel(null) }} className="btn-primary flex items-center gap-2"><Plus size={18} />Nuevo Nivel</button>
+            )}
+          </div>
+
+          <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
+            <p><strong>Niveles de Organizacion = Empresas, cooperativas, instituciones (no personas).</strong></p>
+            <p>Los niveles de organizacion definen los tipos de <strong>entidad colectiva</strong> dentro de la comunidad. Una organizacion es como una empresa: tiene miembros, sus propios impuestos, limites y reglas. Cada nivel tiene su propia tasa de impuesto y limites de credito/debito.</p>
+            <p className="text-xs text-gray-500">Ejemplos: org_produccion (fabrica bienes), org_consumo (distribuye bienes), org_publica (sin fines de lucro, exenta), org_cooperativa (propiedad compartida).</p>
+            <p className="text-xs text-amber-600"><strong>Importante:</strong> Estos niveles son para organizaciones/empresas. Para personas usa la pestana "Niveles de Miembro".</p>
+          </div>
+
+          {showOrgLevelForm && canManage && (
+            <div className="card space-y-4">
+              <h3 className="font-semibold">{editingOrgLevel ? 'Editar Nivel de Organizacion' : 'Nuevo Nivel de Organizacion'}</h3>
+
+              <div>
+                <label className="label">Nombre del nivel</label>
+                <input className="input" placeholder="Ej: org_produccion, org_consumo, org_publica" value={orgLevelForm.name} onChange={(e) => setOrgLevelForm({ ...orgLevelForm, name: e.target.value })} />
+                <p className="text-xs text-gray-400 mt-1">Nombre del nivel de organizacion. Ej: org_produccion, org_consumo, org_publica, org_cooperativa.</p>
+              </div>
+              <div>
+                <label className="label">Descripcion</label>
+                <input className="input" placeholder="Ej: Organizacion de produccion. Fabrica o produce bienes." value={orgLevelForm.description} onChange={(e) => setOrgLevelForm({ ...orgLevelForm, description: e.target.value })} />
+                <p className="text-xs text-gray-400 mt-1">Explica que tipo de organizaciones pertenecen a este nivel. Ej: Fabrica o produce bienes.</p>
+              </div>
+              <div>
+                <label className="label">Numero de nivel (jerarquia)</label>
+                <input type="number" min="1" max="99" className="input" value={orgLevelForm.level} onChange={(e) => setOrgLevelForm({ ...orgLevelForm, level: parseInt(e.target.value) || 1 })} />
+                <p className="text-xs text-gray-400 mt-1">Prioridad del nivel dentro de las organizaciones. 1 = nivel basico. No es cantidad de permisos, es jerarquia.</p>
+              </div>
+
+              <div>
+                <label className="label">Impuesto por transaccion (%)</label>
+                <input type="number" step="0.1" min="0" max="100" className="input" value={orgLevelForm.tax_rate} onChange={(e) => setOrgLevelForm({ ...orgLevelForm, tax_rate: parseFloat(e.target.value) || 0 })} />
+                <p className="text-xs text-gray-400 mt-1">Porcentaje de impuesto que aplica a las transacciones de esta organizacion. 0 = exenta (tipico de instituciones publicas). 2 = 2% de cada transaccion va al fondo comunitario.</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Limite de credito (negativo)</label>
+                  <input type="number" className="input" value={orgLevelForm.credit_limit} onChange={(e) => setOrgLevelForm({ ...orgLevelForm, credit_limit: parseInt(e.target.value) || 0 })} />
+                  <p className="text-xs text-gray-400 mt-1">Cuanto puede deber la organizacion (negativo). Ej: -100000.</p>
+                </div>
+                <div>
+                  <label className="label">Limite de debito (positivo)</label>
+                  <input type="number" className="input" value={orgLevelForm.debit_limit} onChange={(e) => setOrgLevelForm({ ...orgLevelForm, debit_limit: parseInt(e.target.value) || 0 })} />
+                  <p className="text-xs text-gray-400 mt-1">Cuanto puede acumular la organizacion (positivo). Ej: 100000.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={orgLevelForm.can_cross_node_trade} onChange={(e) => setOrgLevelForm({ ...orgLevelForm, can_cross_node_trade: e.target.checked })} />
+                  <span className="text-sm">Comercio entre nodos</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={orgLevelForm.can_use_external_bridge} onChange={(e) => setOrgLevelForm({ ...orgLevelForm, can_use_external_bridge: e.target.checked })} />
+                  <span className="text-sm">Puente externo</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={orgLevelForm.can_view_audit} onChange={(e) => setOrgLevelForm({ ...orgLevelForm, can_view_audit: e.target.checked })} />
+                  <span className="text-sm">Puede ver auditoria</span>
+                </label>
+              </div>
+
+              <div>
+                <label className="label">Maximo de miembros</label>
+                <input type="number" className="input" value={orgLevelForm.max_members} onChange={(e) => setOrgLevelForm({ ...orgLevelForm, max_members: parseInt(e.target.value) || 0 })} />
+                <p className="text-xs text-gray-400 mt-1">Cuantas personas pueden pertenecer a una organizacion de este nivel. 0 = sin limite.</p>
+              </div>
+
+              <button onClick={saveOrgLevel} className="btn-primary">{editingOrgLevel ? 'Actualizar' : 'Crear'}</button>
+            </div>
+          )}
+
+          {orgLevels.length === 0 && !showOrgLevelForm ? (
+            <div className="card text-center text-gray-500 py-8">
+              <p>No hay niveles de organizacion configurados.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {orgLevels.map((l, i) => (
+                <div key={i} className="card">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-medium">{l.name}</span>
+                      <span className="text-xs text-gray-500 ml-2">Nivel {l.level}</span>
+                    </div>
+                    {canManage && (
+                      <button onClick={() => editOrgLevel(l)} className="text-blue-500"><Edit size={16} /></button>
+                    )}
+                  </div>
+                  {l.description && <p className="text-xs text-gray-500 mt-1">{l.description}</p>}
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    {l.can_cross_node_trade && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Comercio nodos</span>}
+                    {l.can_use_external_bridge && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">Puente externo</span>}
+                    {l.can_view_audit && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Auditoria</span>}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Credito: {l.credit_limit} | Debito: {l.debit_limit} | Impuesto: {l.tax_rate}%
+                    {l.max_members > 0 && ` | Max miembros: ${l.max_members}`}
                   </p>
                 </div>
               ))}
@@ -335,7 +501,7 @@ export default function NodeSettings() {
 
           <div className="card bg-gray-50 text-sm">
             <p><strong>Suma total diaria:</strong> {(tariff.vital_food + tariff.vital_water + tariff.vital_domestic + tariff.vital_services).toFixed(0)} {config.currency_name}</p>
-            <p className="text-xs text-gray-500 mt-1">Tarifa base por hora = {(tariff.vital_food + tariff.vital_water + tariff.vital_domestic + tariff.vital_services / (tariff.work_hours_per_day || 1)).toFixed(1)} {config.currency_name} (suma total / horas por dia)</p>
+            <p className="text-xs text-gray-500 mt-1">Tarifa base por hora = {((tariff.vital_food + tariff.vital_water + tariff.vital_domestic + tariff.vital_services) / (tariff.work_hours_per_day || 1)).toFixed(1)} {config.currency_name} (suma total / horas por dia)</p>
           </div>
 
           <h3 className="font-medium text-sm">Factores de esfuerzo</h3>
