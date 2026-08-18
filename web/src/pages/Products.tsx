@@ -371,7 +371,7 @@ export default function Products() {
       {showFedPanel && (
         <div className="card space-y-3">
           <h2 className="font-semibold flex items-center gap-2"><Globe size={18} />Productos Federados Pendientes</h2>
-          <p className="text-xs text-gray-500">Productos creados en otros nodos federados que requieren aprobacion de este nodo para estar disponibles localmente.</p>
+          <p className="text-xs text-gray-500">Productos base aprobados por la asamblea de otros nodos federados. Para que esten disponibles en este nodo, la asamblea local debe aprobarlos individualmente. Si no se aprueban, no se pueden usar para producir, comprar ni como componente de productos compuestos.</p>
           {fedProposals.length === 0 ? (
             <p className="text-sm text-gray-400 py-4 text-center">No hay productos federados pendientes.</p>
           ) : (

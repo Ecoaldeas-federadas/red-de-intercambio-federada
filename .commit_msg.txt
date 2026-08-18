@@ -1,56 +1,58 @@
-feat: sistema de productos compuestos con precio automatico
+feat: federacion de productos entre nodos con aprobacion individual
 
-Nuevo sistema que permite a cualquier usuario crear productos compuestos
-en su tienda seleccionando materias primas y productos base del catalogo
-aprobado. El precio se calcula automaticamente, no se ingresa manualmente.
-No requiere aprobacion de asamblea porque usa componentes ya aprobados.
+Cuando un nodo crea un producto nuevo, lo comunica a los demas nodos
+federados. Cada nodo debe aprobarlo individualmente para que este
+disponible en su territorio. Si no se aprueba, no se puede usar para
+producir, comprar ni nada.
 
 CAMBIOS:
 
-1. MIGRACION 042: Tabla product_compositions
-   - Relaciona productos con sus componentes (materia prima, producto base,
-     trabajo, embalaje, envio)
-   - Campos: component_product_id, component_name, component_unit,
-     component_price, quantity, subtotal, component_category
-   - Categorias: materia_prima, producto_base, trabajo, embalaje, envio
-   - Campos nuevos en store_items: is_composite, composite_description
-   - Campo nuevo en products: is_composite
+1. MIGRACION 043: Tabla product_federation_proposals
+   - Registra productos propuestos por otros nodos
+   - Campos: source_node, source_product_id, name, category, unit,
+     price_per_unit, is_composite, composition, status
+   - status: pending, approved, rejected
+   - Campos nuevos en products: source_node, source_product_id
 
-2. MIGRACION 042: Productos base de embalaje y envio
-   - Envases: Vidrio 200ml/500ml/1L, Barro 500ml, Tela algodon, Papel kraft,
-     Hoja de platanero
-   - Envios: Local (1 TQ), Vecino (5 TQ), Lejano (15 TQ), Recogida (0 TQ)
+2. PROTOCOLO DE FEDERACION: Mensaje ProductProposal
+   - Nuevo tipo de mensaje en protocol.go
+   - ProductProposalPayload con todos los datos del producto
+   - Handler handleProductProposalMessage en server.go
+     * Recibe propuesta via /federation/inbox
+     * Guarda en product_federation_proposals como 'pending'
+     * ON CONFLICT evita duplicados
+   - Funcion BroadcastProductProposal
+     * Lista nodos federados conocidos
+     * Envia propuesta a cada uno
 
-3. BACKEND: Endpoints de productos compuestos
-   - POST /api/store/composite: crea producto compuesto con calculo automatico
-     * Verifica que cada componente este aprobado por asamblea
-     * Suma precio de todos los componentes
-     * Guarda composicion en product_compositions
-   - GET /api/store/composite/{id}/composition: ver composicion de un producto
-   - GET /api/products/components?category=: listar componentes disponibles
-     * Filtros: materia_prima, producto_base, trabajo, embalaje, envio
+3. API: Endpoints para gestionar propuestas federadas
+   - GET /api/federation/products/pending: listar pendientes
+   - GET /api/federation/products/all: listar todas (historico)
+   - POST /api/federation/products/{id}/approve: aprobar
+     * Inserta producto en catalogo local como aprobado
+     * Marca origen como 'federated' con source_node
+   - POST /api/federation/products/{id}/reject: rechazar
+     * Marca como rejected con notas
 
-4. FRONTEND: Store.tsx con formulario de producto compuesto
-   - Dos modos: Producto Compuesto (nuevo) y Producto del Catalogo (simple)
-   - Formulario compuesto:
-     * Nombre, descripcion, categoria, stock
-     * Selector de componentes con filtro por categoria
-     * Filtros: Todos, Materias Primas, Productos Base, Trabajo, Embalaje, Envio
-     * Agregar componente con cantidad
-     * Lista de componentes con subtotal cada uno
-     * Precio total automatico (no editable)
-     * Publicar en tienda
-   - Visualizacion de productos compuestos en tienda:
-     * Etiqueta "Compuesto"
-     * Muestra composicion desglosada
+4. FRONTEND: Products.tsx con panel de productos federados
+   - Boton "Federados" con contador de pendientes
+   - Panel que muestra productos propuestos por otros nodos
+   * Nombre, nodo origen, precio, categoria
+   * Descripcion y composicion si es compuesto
+   - Botones Aprobar / Rechazar (requiere permiso products.manage)
 
 MODELO:
 
-- Catalogo global (lista de productos): materias primas + compuestos aprobados
-  por asamblea. Los compuestos aprobados se vuelven "producto base" reutilizable.
-- Tienda: tipo Mercado Libre por nodo. Compuestos personales sin aprobacion.
-  Precio calculado automaticamente. Visibles en tienda del nodo.
-- Formula: precio = suma(componente_precio x cantidad) para cada componente
+- Nodo A crea producto nuevo -> BroadcastProductProposal
+- Nodo B, C, D reciben propuesta -> guardan como 'pending'
+- Nodo B aprueba -> producto disponible en Nodo B
+- Nodo C rechaza -> producto no disponible en Nodo C
+- Nodo D ignora -> producto sigue pendiente en Nodo D
+- Productos aprobados se pueden usar para:
+  * Comprar en tienda
+  * Como componente de productos compuestos
+  * Como materia prima
+- Productos no aprobados no se pueden usar para nada
 
 Generated with [Devin](https://devin.ai)
 

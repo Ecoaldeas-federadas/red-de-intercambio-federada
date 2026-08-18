@@ -3,6 +3,7 @@ package external
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -196,6 +197,32 @@ func (s *Store) Purchase(ctx context.Context, itemID, buyerID uuid.UUID, quantit
 
 	if stock < quantity {
 		return nil, fmt.Errorf("insufficient stock: have %d, want %d", stock, quantity)
+	}
+
+	// Verificar que todos los componentes del producto compuesto esten aprobados en este nodo
+	// Un producto compuesto solo se puede comprar si todos sus materiales estan aprobados localmente
+	rows, err := s.Pool.Query(ctx, `
+		SELECT pc.component_product_id, pc.component_name
+		FROM product_compositions pc
+		WHERE pc.product_id = $1 AND pc.product_type = 'store_item'
+		  AND pc.component_product_id IS NOT NULL`,
+		itemID)
+	if err == nil {
+		defer rows.Close()
+		var unapproved []string
+		for rows.Next() {
+			var componentID uuid.UUID
+			var componentName string
+			_ = rows.Scan(&componentID, &componentName)
+			var isApproved bool
+			err := s.Pool.QueryRow(ctx, `SELECT is_approved FROM products WHERE id = $1`, componentID).Scan(&isApproved)
+			if err != nil || !isApproved {
+				unapproved = append(unapproved, componentName)
+			}
+		}
+		if len(unapproved) > 0 {
+			return nil, fmt.Errorf("no se puede comprar: los siguientes componentes no estan aprobados en este nodo: %s", strings.Join(unapproved, ", "))
+		}
 	}
 
 	totalPrice := price * quantity
