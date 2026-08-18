@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
-import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon, Vote as VoteIcon } from 'lucide-react'
+import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon, Vote as VoteIcon, Database, Download, Upload, AlertTriangle } from 'lucide-react'
 
 // Opciones del 1 al 10 para el numero de nivel (seleccionable, no texto libre)
 const LEVEL_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1)
@@ -22,10 +22,16 @@ export default function NodeSettings() {
   const { hasPermission } = usePermissions()
   const canManage = hasPermission('config.manage')
 
-  const [tab, setTab] = useState<'general' | 'levels' | 'org_levels' | 'tariff'>('general')
+  const [tab, setTab] = useState<'general' | 'levels' | 'org_levels' | 'tariff' | 'backup'>('general')
   const [showHelp, setShowHelp] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+
+  // Backup
+  const [backupLoading, setBackupLoading] = useState(false)
+  const [restoreLoading, setRestoreLoading] = useState(false)
+  const [restoreFile, setRestoreFile] = useState<File | null>(null)
+  const [restoreResult, setRestoreResult] = useState<any>(null)
 
   // Config general
   const [config, setConfig] = useState({ node_name: '', currency_name: 'TQ', currency_full_name: 'Trueque', app_name: 'Red de Intercambio' })
@@ -228,6 +234,9 @@ export default function NodeSettings() {
         <button onClick={() => setTab('levels')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'levels' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><UsersIcon size={14} className="inline mr-1" />Niveles de Miembro</button>
         <button onClick={() => setTab('org_levels')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'org_levels' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Building2 size={14} className="inline mr-1" />Niveles de Organizacion</button>
         <button onClick={() => setTab('tariff')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'tariff' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Tarifa Energetica</button>
+        {canManage && (
+          <button onClick={() => setTab('backup')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'backup' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Database size={14} className="inline mr-1" />Copia de Seguridad</button>
+        )}
       </div>
 
       {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</div>}
@@ -626,6 +635,142 @@ export default function NodeSettings() {
           {canManage && (
             <button onClick={saveTariff} className="btn-primary flex items-center gap-2"><Save size={18} />Guardar Tarifa</button>
           )}
+        </div>
+      )}
+
+      {/* ===== COPIA DE SEGURIDAD ===== */}
+      {tab === 'backup' && canManage && (
+        <div className="card space-y-6">
+          <h2 className="font-semibold flex items-center gap-2"><Database size={18} />Copia de Seguridad</h2>
+
+          {/* Descargar backup */}
+          <div className="card bg-green-50 border-green-200 space-y-3">
+            <h3 className="font-medium text-sm flex items-center gap-2"><Download size={16} />Descargar Copia de Seguridad</h3>
+            <p className="text-xs text-gray-600">
+              Descarga un archivo JSON con todas las tablas y datos de la base de datos del nodo.
+              Esto incluye: usuarios, productos, intercambios, paginas publicas, configuracion, etc.
+              Guarda este archivo en un lugar seguro.
+            </p>
+            <button
+              onClick={async () => {
+                setBackupLoading(true)
+                setError(''); setSuccess('')
+                try {
+                  const token = localStorage.getItem('token')
+                  const res = await fetch('/api/backup', {
+                    headers: token ? { Authorization: `Bearer ${token}` } : {},
+                  })
+                  if (!res.ok) throw new Error('Error al descargar backup')
+                  const blob = await res.blob()
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = `backup-${new Date().toISOString().slice(0, 10)}.json`
+                  document.body.appendChild(a)
+                  a.click()
+                  document.body.removeChild(a)
+                  URL.revokeObjectURL(url)
+                  setSuccess('Copia de seguridad descargada')
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : 'Error al descargar')
+                } finally {
+                  setBackupLoading(false)
+                }
+              }}
+              disabled={backupLoading}
+              className="btn-primary flex items-center gap-2"
+            >
+              <Download size={18} />
+              {backupLoading ? 'Descargando...' : 'Descargar Backup'}
+            </button>
+          </div>
+
+          {/* Restaurar backup */}
+          <div className="card bg-amber-50 border-amber-200 space-y-3">
+            <h3 className="font-medium text-sm flex items-center gap-2"><Upload size={16} />Restaurar Copia de Seguridad</h3>
+            <div className="flex items-start gap-2 text-xs text-amber-800 bg-amber-100 p-3 rounded-lg">
+              <AlertTriangle size={16} className="flex-shrink-0 mt-0.5" />
+              <div>
+                <strong>Atencion:</strong> Restaurar agregara los registros del backup que no existan ya en la base de datos.
+                No se sobreescriben registros existentes (ON CONFLICT DO NOTHING).
+                Esto es seguro pero no reemplaza datos actuales. Para una restauracion completa,
+                contacta al administrador del sistema.
+              </div>
+            </div>
+            <div>
+              <label className="label">Seleccionar archivo de backup (.json)</label>
+              <input
+                type="file"
+                accept="application/json,.json"
+                onChange={(e) => {
+                  setRestoreFile(e.target.files?.[0] || null)
+                  setRestoreResult(null)
+                }}
+                className="input"
+              />
+            </div>
+            <button
+              onClick={async () => {
+                if (!restoreFile) return
+                setRestoreLoading(true)
+                setError(''); setSuccess(''); setRestoreResult(null)
+                try {
+                  const text = await restoreFile.text()
+                  const backup = JSON.parse(text)
+                  const token = localStorage.getItem('token')
+                  const res = await fetch('/api/backup/restore', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                    },
+                    body: JSON.stringify({ backup }),
+                  })
+                  const data = await res.json()
+                  if (!res.ok) throw new Error(data.error || 'Error al restaurar')
+                  setRestoreResult(data)
+                  setSuccess('Copia de seguridad restaurada')
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : 'Error al restaurar')
+                } finally {
+                  setRestoreLoading(false)
+                }
+              }}
+              disabled={!restoreFile || restoreLoading}
+              className="btn-primary flex items-center gap-2"
+            >
+              <Upload size={18} />
+              {restoreLoading ? 'Restaurando...' : 'Restaurar Backup'}
+            </button>
+
+            {restoreResult && (
+              <div className="card bg-white space-y-2">
+                <h4 className="font-medium text-sm">Resultado de la restauracion:</h4>
+                <div className="text-xs space-y-1 max-h-60 overflow-y-auto">
+                  {restoreResult.restored && Object.entries(restoreResult.restored).map(([table, count]: [string, any]) => (
+                    <div key={table} className="flex justify-between">
+                      <span className="font-mono">{table}</span>
+                      <span className="font-mono text-green-600">{count} registros</span>
+                    </div>
+                  ))}
+                  {restoreResult.errors && Object.entries(restoreResult.errors).map(([table, err]: [string, any]) => (
+                    <div key={table} className="flex justify-between">
+                      <span className="font-mono">{table}</span>
+                      <span className="font-mono text-red-600">{String(err)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Info adicional */}
+          <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
+            <h3 className="font-medium flex items-center gap-2"><HelpCircle size={16} />Como funciona</h3>
+            <p><strong>Descargar:</strong> Genera un archivo JSON con todas las tablas de la base de datos. Guardalo en un lugar seguro (USB, nube, etc).</p>
+            <p><strong>Restaurar:</strong> Sube un archivo JSON de backup. Los registros que ya existan no se duplican. Los que no existan se agregaran.</p>
+            <p><strong>Frecuencia recomendada:</strong> Descarga una copia al menos una vez por semana, o antes de hacer cambios importantes.</p>
+          </div>
         </div>
       )}
     </div>
