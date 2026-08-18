@@ -8,6 +8,11 @@ function getToken(): string | null {
 let lastLogoutTime = 0
 
 function handleUnauthorized() {
+  // Only redirect if the user HAD a token (was authenticated)
+  // Public site visitors don't have a token, so don't redirect them
+  const hadToken = !!localStorage.getItem('fmc_token')
+  if (!hadToken) return
+
   // Clear all auth data
   localStorage.removeItem('fmc_token')
   localStorage.removeItem('fmc_username')
