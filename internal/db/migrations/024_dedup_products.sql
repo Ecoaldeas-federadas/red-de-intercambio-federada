@@ -1,9 +1,8 @@
--- Migracion 024: Eliminar productos duplicados
+-- Migracion 024: Eliminar productos duplicados (solo DELETE, sin indice)
 --
--- La migracion 018 insertaba productos sin indice unico, causando
--- duplicados cada vez que las migraciones se ejecutaban.
--- Esta migracion elimina los duplicados dejando solo el mas reciente
--- de cada grupo (mismo nombre + node_domain).
+-- No creamos indice unico aqui para evitar errores de transaccion.
+-- Las queries del backend ya usan DISTINCT ON para evitar mostrar
+-- duplicados al usuario.
 
 -- Eliminar duplicados: mantener solo el de created_at mas reciente
 DELETE FROM products
@@ -14,7 +13,3 @@ WHERE id NOT IN (
     ORDER BY node_domain, name, created_at DESC
   ) AS keep_ids
 );
-
--- Anadir indice unico para prevenir futuros duplicados
-CREATE UNIQUE INDEX IF NOT EXISTS idx_products_node_name_unique
-ON products (node_domain, name);
