@@ -1,40 +1,46 @@
-fix: anadir secciones faltantes a pagina Como Funciona
+fix: categorias jerarquicas en producto compuesto (3 niveles)
 
-Se habia mencionado que se agregaron secciones a la pagina "Como Funciona"
-pero no estaban realmente en el codigo. Ahora se anaden realmente:
+El campo de texto libre para categoria en el formulario de producto
+compuesto era un problema: cada usuario escribia lo que queria y se
+convirtia en un desastre. Ahora se reemplaza por 3 selectores en
+cascada que solo permiten elegir categorias existentes del catalogo.
 
-1. "Estandares Internacionales de Contabilidad Energetica"
-   - ICE Database (University of Bath): factores MJ/kg por material
-   - Ecoinvent (Suiza): analisis de ciclo de vida
-   - Equivalencia 1 TQ = 1 kWh = 3.6 MJ
-   - Trabajo humano medido en kWh
-   - EROI: Retorno Energetico de la Inversion
-   - Emergia de Howard Odum
-   - Propuesta historica de Ford y Edison (dolar energetico)
-   - Agribalyse (Francia): datos agricolas
+CAMBIOS:
 
-2. "Como se Calcula el Precio de un Producto"
-   - Formula general: EE_total = E_directa + E_insumos + E_trabajo + E_transporte
-   - Tabla con ejemplo practico del pan artesanal (1 kg)
-   - Desglose: harina, agua, sal, lena, trabajo, amortizacion
-   - Total: 42.21 MJ = 12 TQ
-   - Explicacion de productos con energia similar
+1. Backend - nuevo endpoint GET /api/products/categories
+   - internal/api/system.go: handler listProductCategories
+   - Devuelve jerarquia de 3 niveles: parent_category -> category -> subcategory
+   - Solo categorias que tienen al menos un producto aprobado y no oculto
+   - Estructura JSON anidada lista para selects en cascada
 
-3. "Materias Primas y Productos Compuestos"
-   - Materias primas por kilogramo (ICE Database)
-   - Trabajo artesanal por hora
-   - Productos compuestos con precio automatico
-   - Productos terminados con peso definido
-   - Embalaje y envio como componentes
-   - Federacion de productos entre nodos
+2. Migracion 044_store_items_hierarchy.sql
+   - ALTER TABLE store_items ADD COLUMN parent_category TEXT
+   - ALTER TABLE store_items ADD COLUMN subcategory TEXT
+   - Indice para busqueda por jerarquia
 
-CAMBIOS TECNICOS:
+3. Backend - store_items con jerarquia
+   - internal/external/store.go: StoreItem y AddStoreItemParams con
+     ParentCategory y Subcategory
+   - AddItem, ListItems, GetItem actualizados para leer/escribir
+     los 3 niveles
+   - internal/api/external.go: AddStoreItemRequest y
+     AddCompositeItemRequest con parent_category y subcategory
+   - addStoreItem y addCompositeItem pasan los 3 niveles al Store
 
-- defaultSiteData.ts: 3 nuevos bloques anadidos a la pagina como-funciona
-  antes del calculator_preview
-- PublicBlocks.tsx: RichTextBlock ahora soporta HTML con
-  dangerouslySetInnerHTML cuando no esta en modo edicion
-- types/publicSite.ts: anadido campo subtitle a RichTextBlockData
+4. Frontend - Store.tsx formulario de producto compuesto
+   - Eliminado el campo de texto libre "Categoria"
+   - Reemplazado por 3 selects en cascada:
+     1. Categoria Padre (ej: Artesania, Alimentos, Textiles)
+     2. Categoria (ej: Ceramica, Bebidas, Confeccion)
+     3. Subcategoria (opcional, ej: Materia Prima, Vajilla, Macetas)
+   - Los selects se cargan desde GET /api/products/categories
+   - El select 2 se habilita solo despues de elegir el 1
+   - El select 3 se habilita solo despues de elegir el 2
+   - Muestra la ubicacion completa: Padre > Categoria > Subcategoria
+   - Mensaje: "Si necesitas una categoria nueva, pide a administracion
+     que la cree en el catalogo"
+   - Validacion: no se puede publicar sin seleccionar padre y categoria
+   - saveComposite envia parent_category, category y subcategory
 
 Generated with [Devin](https://devin.ai)
 

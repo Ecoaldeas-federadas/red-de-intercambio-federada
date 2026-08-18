@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -655,11 +656,13 @@ func (eh *ExternalHandler) listComponents(w http.ResponseWriter, r *http.Request
 	if category == "" {
 		category = "all"
 	}
+	search := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("search")))
 
 	query := `SELECT id, name, parent_category, category, subcategory, unit, price_per_unit, description, badge, image_url
 		FROM products
 		WHERE node_domain = $1 AND is_approved = true AND is_hidden = false`
 	args := []interface{}{eh.NodeDomain}
+	argIdx := 2
 
 	switch category {
 	case "materia_prima":
@@ -672,6 +675,13 @@ func (eh *ExternalHandler) listComponents(w http.ResponseWriter, r *http.Request
 		query += fmt.Sprintf(` AND parent_category = 'Embalaje'`)
 	case "envio":
 		query += fmt.Sprintf(` AND parent_category = 'Envio'`)
+	}
+
+	if search != "" {
+		query += fmt.Sprintf(` AND (LOWER(name) LIKE $%d OR LOWER(description) LIKE $%d OR LOWER(category) LIKE $%d OR LOWER(parent_category) LIKE $%d)`,
+			argIdx, argIdx, argIdx, argIdx)
+		args = append(args, "%"+search+"%")
+		argIdx++
 	}
 
 	query += ` ORDER BY parent_category, category, name`

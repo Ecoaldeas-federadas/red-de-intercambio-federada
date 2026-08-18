@@ -10,6 +10,9 @@ interface CompositeComponent {
   component_price: number
   quantity: number
   component_category: string
+  // Campos para display del calculo
+  quantity_purchased: number
+  yield_products: number
 }
 
 export default function Store() {
@@ -43,6 +46,17 @@ export default function Store() {
   const [selectedComponentId, setSelectedComponentId] = useState('')
   const [componentQty, setComponentQty] = useState(1)
 
+  // Modal de busqueda de componentes
+  const [showComponentModal, setShowComponentModal] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [modalFilter, setModalFilter] = useState('all')
+  const [modalResults, setModalResults] = useState<any[]>([])
+
+  // Componente seleccionado del modal (para configurar cantidades)
+  const [pendingComponent, setPendingComponent] = useState<any>(null)
+  const [qtyPurchased, setQtyPurchased] = useState(1)
+  const [yieldProducts, setYieldProducts] = useState(1)
+
   // Categorias jerarquicas del catalogo (3 niveles)
   const [hierarchy, setHierarchy] = useState<any[]>([])
   const [selectedParent, setSelectedParent] = useState('')
@@ -68,38 +82,66 @@ export default function Store() {
       .catch(() => setHierarchy([]))
   }, [])
 
-  // Cargar componentes disponibles del catalogo
+  // Cargar componentes disponibles del catalogo (para el modal)
   useEffect(() => {
-    api.get('/products/components' + (componentFilter !== 'all' ? `?category=${componentFilter}` : ''))
-      .then((d: any) => setAvailableComponents(Array.isArray(d) ? d : []))
-      .catch(() => setAvailableComponents([]))
-  }, [componentFilter])
+    if (!showComponentModal) return
+    const params = new URLSearchParams()
+    if (modalFilter !== 'all') params.set('category', modalFilter)
+    if (searchTerm.trim()) params.set('search', searchTerm.trim())
+    const qs = params.toString()
+    api.get('/products/components' + (qs ? `?${qs}` : ''))
+      .then((d: any) => setModalResults(Array.isArray(d) ? d : []))
+      .catch(() => setModalResults([]))
+  }, [showComponentModal, modalFilter, searchTerm])
 
   // Calcular precio total del compuesto
   const compositeTotalPrice = components.reduce((sum, c) => sum + Math.round(c.component_price * c.quantity), 0)
 
-  const addComponent = () => {
-    if (!selectedComponentId) return
-    const comp = availableComponents.find((c) => c.id === selectedComponentId)
-    if (!comp) return
+  const selectComponentFromModal = (comp: any) => {
+    setPendingComponent(comp)
+    setQtyPurchased(1)
+    setYieldProducts(1)
+    setShowComponentModal(false)
+    setSearchTerm('')
+    setModalResults([])
+  }
+
+  const confirmAddComponent = () => {
+    if (!pendingComponent) return
+    if (yieldProducts <= 0) {
+      setError('El numero de productos que salen debe ser mayor que cero')
+      return
+    }
     // Determinar categoria del componente
     let category = 'materia_prima'
-    if (comp.parent_category === 'Embalaje') category = 'embalaje'
-    else if (comp.parent_category === 'Envio') category = 'envio'
-    else if (comp.unit === 'hora') category = 'trabajo'
-    else if (comp.subcategory === 'Materia Prima') category = 'materia_prima'
+    if (pendingComponent.parent_category === 'Embalaje') category = 'embalaje'
+    else if (pendingComponent.parent_category === 'Envio') category = 'envio'
+    else if (pendingComponent.unit === 'hora') category = 'trabajo'
+    else if (pendingComponent.subcategory === 'Materia Prima') category = 'materia_prima'
     else category = 'producto_base'
 
+    // Calcular cantidad por producto: si compro 1 kg y salen 50 productos -> 0.02 kg por producto
+    const qtyPerProduct = qtyPurchased / yieldProducts
+
     setComponents([...components, {
-      component_product_id: comp.id,
-      component_name: comp.name,
-      component_unit: comp.unit || 'unidad',
-      component_price: comp.price_per_unit || 0,
-      quantity: componentQty,
+      component_product_id: pendingComponent.id,
+      component_name: pendingComponent.name,
+      component_unit: pendingComponent.unit || 'unidad',
+      component_price: pendingComponent.price_per_unit || 0,
+      quantity: qtyPerProduct,
       component_category: category,
+      quantity_purchased: qtyPurchased,
+      yield_products: yieldProducts,
     }])
-    setSelectedComponentId('')
-    setComponentQty(1)
+    setPendingComponent(null)
+    setQtyPurchased(1)
+    setYieldProducts(1)
+  }
+
+  const cancelAddComponent = () => {
+    setPendingComponent(null)
+    setQtyPurchased(1)
+    setYieldProducts(1)
   }
 
   const removeComponent = (idx: number) => {
@@ -390,48 +432,62 @@ export default function Store() {
                       <p className="text-xs text-gray-600 mt-1">Selecciona materias primas, productos base, horas de trabajo, embalaje o envio. El precio se calcula automaticamente.</p>
                     </div>
 
-                    {/* Filtro de categoria */}
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        { id: 'all', label: 'Todos' },
-                        { id: 'materia_prima', label: 'Materias Primas' },
-                        { id: 'producto_base', label: 'Productos Base' },
-                        { id: 'trabajo', label: 'Trabajo (h)' },
-                        { id: 'embalaje', label: 'Embalaje' },
-                        { id: 'envio', label: 'Envio' },
-                      ].map((cat) => (
-                        <button
-                          key={cat.id}
-                          onClick={() => setComponentFilter(cat.id)}
-                          className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition ${
-                            componentFilter === cat.id ? 'bg-emerald-700 text-white' : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-                          }`}
-                        >
-                          {cat.label}
-                        </button>
-                      ))}
-                    </div>
+                    {/* Boton para abrir modal de busqueda */}
+                    <button
+                      onClick={() => setShowComponentModal(true)}
+                      className="w-full border-2 border-dashed border-emerald-400 rounded-lg p-3 text-emerald-700 hover:bg-emerald-50 transition flex items-center justify-center gap-2 font-medium text-sm"
+                    >
+                      <Search size={18} /> Buscar y agregar componente
+                    </button>
 
-                    {/* Selector de componente y cantidad */}
-                    <div className="grid grid-cols-[1fr_auto_auto] gap-2">
-                      <select className="input" value={selectedComponentId} onChange={(e) => setSelectedComponentId(e.target.value)}>
-                        <option value="">Seleccionar componente...</option>
-                        {availableComponents.map((c) => (
-                          <option key={c.id} value={c.id}>{c.name} — {c.price_per_unit} {currency}/{c.unit}</option>
-                        ))}
-                      </select>
-                      <input
-                        type="number"
-                        step="0.1"
-                        className="input w-24"
-                        placeholder="Cant."
-                        value={componentQty}
-                        onChange={(e) => setComponentQty(parseFloat(e.target.value) || 1)}
-                      />
-                      <button onClick={addComponent} className="btn-primary flex items-center gap-1" disabled={!selectedComponentId}>
-                        <Plus size={16} /> Agregar
-                      </button>
-                    </div>
+                    {/* Configuracion del componente seleccionado */}
+                    {pendingComponent && (
+                      <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 space-y-3">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-semibold text-sm text-amber-900">{pendingComponent.name}</p>
+                            <p className="text-xs text-amber-700">{pendingComponent.price_per_unit} {currency} / {pendingComponent.unit || 'unidad'}</p>
+                            {pendingComponent.description && <p className="text-xs text-gray-500 mt-1">{pendingComponent.description}</p>}
+                          </div>
+                          <button onClick={cancelAddComponent} className="text-red-500 hover:text-red-700"><X size={18} /></button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="label text-xs">Cantidad que compraste</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="input"
+                              placeholder="Ej: 1"
+                              value={qtyPurchased}
+                              onChange={(e) => setQtyPurchased(parseFloat(e.target.value) || 0)}
+                            />
+                            <p className="text-xs text-gray-400 mt-1">Ej: 1 {pendingComponent.unit || 'kg'}</p>
+                          </div>
+                          <div>
+                            <label className="label text-xs">Cuantos productos salen?</label>
+                            <input
+                              type="number"
+                              step="1"
+                              className="input"
+                              placeholder="Ej: 50"
+                              value={yieldProducts}
+                              onChange={(e) => setYieldProducts(parseInt(e.target.value) || 0)}
+                            />
+                            <p className="text-xs text-gray-400 mt-1">Ej: 50 envases de 200ml</p>
+                          </div>
+                        </div>
+                        {yieldProducts > 0 && qtyPurchased > 0 && (
+                          <div className="bg-white rounded-lg p-2 text-xs text-gray-700">
+                            <p>Costo por producto: <strong>{(pendingComponent.price_per_unit * qtyPurchased / yieldProducts).toFixed(2)} {currency}</strong></p>
+                            <p className="text-gray-500">= {pendingComponent.price_per_unit} {currency} x {qtyPurchased} {pendingComponent.unit} / {yieldProducts} productos = {(qtyPurchased / yieldProducts).toFixed(4)} {pendingComponent.unit} por producto</p>
+                          </div>
+                        )}
+                        <button onClick={confirmAddComponent} className="btn-primary w-full" disabled={yieldProducts <= 0 || qtyPurchased <= 0}>
+                          Agregar este componente
+                        </button>
+                      </div>
+                    )}
 
                     {/* Lista de componentes agregados */}
                     {components.length > 0 && (
@@ -442,7 +498,10 @@ export default function Store() {
                             <div className="flex-1">
                               <span className="text-sm font-medium">{c.component_name}</span>
                               <span className="text-xs text-gray-500 ml-2">({c.component_category})</span>
-                              <span className="text-xs text-gray-500 block">{c.component_price} {currency}/{c.component_unit} x {c.quantity} = <strong>{Math.round(c.component_price * c.quantity)} {currency}</strong></span>
+                              <span className="text-xs text-gray-500 block">
+                                Compro {c.quantity_purchased} {c.component_unit} → {c.yield_products} productos →
+                                <strong> {Math.round(c.component_price * c.quantity)} {currency}</strong> por producto
+                              </span>
                             </div>
                             <button onClick={() => removeComponent(i)} className="text-red-500 hover:text-red-700">
                               <X size={16} />
@@ -685,6 +744,95 @@ export default function Store() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Modal de busqueda de componentes */}
+      {showComponentModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowComponentModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            {/* Header del modal */}
+            <div className="flex justify-between items-center p-4 border-b">
+              <h3 className="font-bold text-lg">Buscar Componente</h3>
+              <button onClick={() => setShowComponentModal(false)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+            </div>
+
+            {/* Buscador */}
+            <div className="p-4 border-b space-y-3">
+              <div className="relative">
+                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  className="input pl-10"
+                  placeholder="Escribe el nombre del componente... (ej: naranja, arcilla, tela, envase)"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              {/* Filtros por categoria */}
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: 'all', label: 'Todos' },
+                  { id: 'materia_prima', label: 'Materias Primas' },
+                  { id: 'producto_base', label: 'Productos Base' },
+                  { id: 'trabajo', label: 'Trabajo (h)' },
+                  { id: 'embalaje', label: 'Embalaje' },
+                  { id: 'envio', label: 'Envio' },
+                ].map((cat) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setModalFilter(cat.id)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition ${
+                      modalFilter === cat.id ? 'bg-emerald-700 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Resultados */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {modalResults.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <Search size={32} className="mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">
+                    {searchTerm ? `No se encontro "${searchTerm}" en esta categoria` : 'Escribe para buscar componentes'}
+                  </p>
+                  {searchTerm && (
+                    <p className="text-xs mt-2">Prueba con otra palabra o cambia de categoria. Si no existe el componente, pide a administracion que lo agregue al catalogo.</p>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-500 mb-2">{modalResults.length} resultado(s)</p>
+                  {modalResults.map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => selectComponentFromModal(c)}
+                      className="w-full text-left bg-white border border-gray-200 rounded-lg p-3 hover:border-emerald-400 hover:bg-emerald-50 transition"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <p className="font-medium text-sm text-gray-900">{c.name}</p>
+                          {c.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{c.description}</p>}
+                          <p className="text-xs text-gray-400 mt-1">
+                            {c.parent_category} › {c.category}{c.subcategory ? ` › ${c.subcategory}` : ''}
+                          </p>
+                        </div>
+                        <div className="text-right ml-2">
+                          <p className="font-bold text-emerald-700">{c.price_per_unit} {currency}</p>
+                          <p className="text-xs text-gray-400">/ {c.unit || 'unidad'}</p>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
