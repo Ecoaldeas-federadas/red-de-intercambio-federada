@@ -4,15 +4,21 @@
 --
 -- Problema: 2 TQ / 5 productos = 0.4 TQ, pero con enteros se redondea a 0.
 -- Solucion: usar NUMERIC(12,2) para todos los campos de precio.
+--
+-- IMPORTANTE: energy_total es GENERATED ALWAYS AS (...) STORED,
+-- por lo que hay que eliminarla ANTES de alterar las columnas que usa.
 
--- products: precio y energia
+-- products: PRIMERO eliminar energy_total (GENERATED) para poder alterar las columnas que usa
+ALTER TABLE products DROP COLUMN IF EXISTS energy_total;
+
+-- AHORA alterar las columnas de energia
 ALTER TABLE products ALTER COLUMN price_per_unit TYPE NUMERIC(12,2) USING price_per_unit::NUMERIC(12,2);
 ALTER TABLE products ALTER COLUMN energy_direct TYPE NUMERIC(12,2) USING energy_direct::NUMERIC(12,2);
 ALTER TABLE products ALTER COLUMN energy_human TYPE NUMERIC(12,2) USING energy_human::NUMERIC(12,2);
 ALTER TABLE products ALTER COLUMN energy_inputs TYPE NUMERIC(12,2) USING energy_inputs::NUMERIC(12,2);
 ALTER TABLE products ALTER COLUMN energy_amortization TYPE NUMERIC(12,2) USING energy_amortization::NUMERIC(12,2);
--- energy_total es GENERATED, hay que recrearlo
-ALTER TABLE products DROP COLUMN IF EXISTS energy_total;
+
+-- FINALMENTE recrear energy_total como GENERATED
 ALTER TABLE products ADD COLUMN energy_total NUMERIC(12,2) GENERATED ALWAYS AS (energy_direct + energy_human + energy_inputs + energy_amortization) STORED;
 
 -- store_items: precios
