@@ -1,87 +1,40 @@
-docs: actualizacion completa de documentacion
+fix: anadir secciones faltantes a pagina Como Funciona
 
-Actualiza toda la documentacion para reflejar los cambios recientes:
-catalogo energetico, productos compuestos, federacion de productos,
-tienda comunitaria con costos adicionales y paginacion.
+Se habia mencionado que se agregaron secciones a la pagina "Como Funciona"
+pero no estaban realmente en el codigo. Ahora se anaden realmente:
 
-ARCHIVOS ACTUALIZADOS:
+1. "Estandares Internacionales de Contabilidad Energetica"
+   - ICE Database (University of Bath): factores MJ/kg por material
+   - Ecoinvent (Suiza): analisis de ciclo de vida
+   - Equivalencia 1 TQ = 1 kWh = 3.6 MJ
+   - Trabajo humano medido en kWh
+   - EROI: Retorno Energetico de la Inversion
+   - Emergia de Howard Odum
+   - Propuesta historica de Ford y Edison (dolar energetico)
+   - Agribalyse (Francia): datos agricolas
 
-1. README.md
-   - Nuevas caracteristicas: TQ no es dinero, modelo energetico ICE,
-     productos compuestos, federacion de productos, tienda Mercado Libre
-   - Nuevos endpoints principales
-   - Enlaces a toda la documentacion
-   - Comando update.ps1
+2. "Como se Calcula el Precio de un Producto"
+   - Formula general: EE_total = E_directa + E_insumos + E_trabajo + E_transporte
+   - Tabla con ejemplo practico del pan artesanal (1 kg)
+   - Desglose: harina, agua, sal, lena, trabajo, amortizacion
+   - Total: 42.21 MJ = 12 TQ
+   - Explicacion de productos con energia similar
 
-2. docs/INDEX.md
-   - Nuevas secciones: composite_products.md
-   - Estado de implementacion actualizado (fases 11-13)
-   - Estructura del proyecto actualizada
-   - Tabla de migraciones recientes 038-043
+3. "Materias Primas y Productos Compuestos"
+   - Materias primas por kilogramo (ICE Database)
+   - Trabajo artesanal por hora
+   - Productos compuestos con precio automatico
+   - Productos terminados con peso definido
+   - Embalaje y envio como componentes
+   - Federacion de productos entre nodos
 
-3. docs/pricing.md
-   - Modelo energetico basado en ICE Database
-   - Tabla de factores MJ/kg por material
-   - Formula de precio por kg de material + trabajo
-   - Estructura jerarquica del catalogo
-   - Tipos de productos: materia prima, terminado, trabajo, embalaje, envio
-   - Campos nuevos de products: is_composite, source_node, is_hidden
+CAMBIOS TECNICOS:
 
-4. docs/composite_products.md (NUEVO)
-   - Concepto de producto compuesto
-   - Ejemplos: jugo de naranja, maceta de arcilla
-   - Modelo de 3 niveles: catalogo global, tienda, compuestos personales
-   - Categorias de componentes: materia_prima, producto_base, trabajo, embalaje, envio
-   - Tabla product_compositions
-   - Endpoints API
-   - Verificacion de compra (todos los componentes aprobados)
-   - Productos base de embalaje y envio
-   - Frontend Store.tsx
-
-5. docs/federation.md
-   - Nuevo tipo de mensaje ProductProposal
-   - Flujo de aprobacion de productos federados
-   - Tabla product_federation_proposals
-   - Reglas: producto no aprobado no se puede usar para nada
-   - Endpoints de productos federados
-   - Funcion broadcastProductToFederation
-   - Seccion de peers (registro mutuo)
-
-6. docs/external_bridge.md
-   - Tienda comunitaria tipo Mercado Libre por nodo
-   - Tienda federada
-   - Tabla store_items con campos nuevos
-   - Endpoints de tienda completos
-   - Productos compuestos en tienda
-   - Costos adicionales
-   - Paginacion
-
-7. docs/database.md
-   - Lista completa de migraciones 001-043
-   - Tabla product_compositions
-   - Tabla product_federation_proposals
-   - Campos nuevos de products: is_composite, source_node, source_product_id
-   - Campos nuevos de store_items: is_composite, composite_description
-   - Tabla store_purchases
-   - Tablas de asamblea: assembly_votes, assembly_config
-   - Tablas de sitio publico: public_pages, public_settings
-   - Relaciones clave actualizadas
-
-8. docs/api.md
-   - Endpoints de productos compuestos
-   - Endpoints de federacion de productos
-   - Endpoints de tienda completos
-   - Endpoints de componentes
-   - Paginacion en /api/products
-   - Sitio web publico
-
-9. docs/frontend.md
-   - Hook useConfig
-   - Componente public-site/PublicBlocks con infinite scroll
-   - Products.tsx con panel de productos federados
-   - Store.tsx con dos modos: compuesto y simple
-   - IntersectionObserver para infinite scroll
-   - Salida de build actualizada
+- defaultSiteData.ts: 3 nuevos bloques anadidos a la pagina como-funciona
+  antes del calculator_preview
+- PublicBlocks.tsx: RichTextBlock ahora soporta HTML con
+  dangerouslySetInnerHTML cuando no esta en modo edicion
+- types/publicSite.ts: anadido campo subtitle a RichTextBlockData
 
 Generated with [Devin](https://devin.ai)
 

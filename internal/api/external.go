@@ -255,7 +255,9 @@ type AddStoreItemRequest struct {
 	ProductID        string     `json:"product_id"`
 	ProductName      string     `json:"product_name"`
 	Description      string     `json:"description"`
+	ParentCategory   string     `json:"parent_category"`
 	Category         string     `json:"category"`
+	Subcategory      string     `json:"subcategory"`
 	Origin           string     `json:"origin"`
 	Unit             string     `json:"unit"`
 	QuantityPerUnit  float64    `json:"quantity_per_unit"`
@@ -353,7 +355,9 @@ func (eh *ExternalHandler) addStoreItem(w http.ResponseWriter, r *http.Request) 
 		ProductID:        productID,
 		ProductName:      productName,
 		Description:      description,
+		ParentCategory:   req.ParentCategory,
 		Category:         category,
+		Subcategory:      req.Subcategory,
 		Origin:           origin,
 		Unit:             unit,
 		QuantityPerUnit:  quantityPerUnit,
@@ -482,11 +486,13 @@ type CompositeComponent struct {
 }
 
 type AddCompositeItemRequest struct {
-	ProductName string               `json:"product_name"`
-	Description string               `json:"description"`
-	Category    string               `json:"category"`
-	Stock       int64                `json:"stock"`
-	Components  []CompositeComponent `json:"components"`
+	ProductName    string               `json:"product_name"`
+	Description    string               `json:"description"`
+	ParentCategory string               `json:"parent_category"`
+	Category       string               `json:"category"`
+	Subcategory    string               `json:"subcategory"`
+	Stock          int64                `json:"stock"`
+	Components     []CompositeComponent `json:"components"`
 }
 
 func (eh *ExternalHandler) addCompositeItem(w http.ResponseWriter, r *http.Request) {
@@ -549,7 +555,9 @@ func (eh *ExternalHandler) addCompositeItem(w http.ResponseWriter, r *http.Reque
 		OwnerID:          ownerID,
 		ProductName:      req.ProductName,
 		Description:      req.Description,
+		ParentCategory:   req.ParentCategory,
 		Category:         req.Category,
+		Subcategory:      req.Subcategory,
 		Origin:           "internal",
 		Unit:             "unidad",
 		QuantityPerUnit:  1,

@@ -34,12 +34,20 @@ export default function Store() {
   const [compositeName, setCompositeName] = useState('')
   const [compositeDesc, setCompositeDesc] = useState('')
   const [compositeCategory, setCompositeCategory] = useState('')
+  const [compositeParentCategory, setCompositeParentCategory] = useState('')
+  const [compositeSubcategory, setCompositeSubcategory] = useState('')
   const [compositeStock, setCompositeStock] = useState(1)
   const [components, setComponents] = useState<CompositeComponent[]>([])
   const [componentFilter, setComponentFilter] = useState('all')
   const [availableComponents, setAvailableComponents] = useState<any[]>([])
   const [selectedComponentId, setSelectedComponentId] = useState('')
   const [componentQty, setComponentQty] = useState(1)
+
+  // Categorias jerarquicas del catalogo (3 niveles)
+  const [hierarchy, setHierarchy] = useState<any[]>([])
+  const [selectedParent, setSelectedParent] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('')
+  const [selectedSubcategory, setSelectedSubcategory] = useState('')
 
   // Filtros para browse
   const [searchQuery, setSearchQuery] = useState('')
@@ -52,6 +60,13 @@ export default function Store() {
   }
 
   useEffect(() => { load() }, [])
+
+  // Cargar jerarquia de categorias (3 niveles)
+  useEffect(() => {
+    api.get('/products/categories')
+      .then((d: any) => setHierarchy(Array.isArray(d?.categories) ? d.categories : []))
+      .catch(() => setHierarchy([]))
+  }, [])
 
   // Cargar componentes disponibles del catalogo
   useEffect(() => {
@@ -97,6 +112,10 @@ export default function Store() {
       setError('Debes darle un nombre a tu producto')
       return
     }
+    if (!selectedParent || !selectedCategory) {
+      setError('Debes seleccionar la categoria padre y la categoria de tu producto')
+      return
+    }
     if (components.length === 0) {
       setError('Debes agregar al menos un componente')
       return
@@ -105,7 +124,9 @@ export default function Store() {
       await api.post('/store/composite', {
         product_name: compositeName,
         description: compositeDesc,
-        category: compositeCategory,
+        parent_category: selectedParent,
+        category: selectedCategory,
+        subcategory: selectedSubcategory,
         stock: compositeStock,
         components: components,
       })
@@ -113,6 +134,9 @@ export default function Store() {
       setCompositeName('')
       setCompositeDesc('')
       setCompositeCategory('')
+      setSelectedParent('')
+      setSelectedCategory('')
+      setSelectedSubcategory('')
       setCompositeStock(1)
       setComponents([])
       load()
@@ -280,15 +304,73 @@ export default function Store() {
                   <h3 className="font-semibold">Crear Producto Compuesto</h3>
                   <p className="text-xs text-gray-500">Crea un producto nuevo seleccionando materias primas, productos base, horas de trabajo, embalaje y envio del catalogo aprobado. El precio se calcula automaticamente. No necesita aprobacion de asamblea porque usa componentes ya aprobados.</p>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="label">Nombre de tu producto</label>
-                      <input className="input" placeholder="Ej: Jugo de naranja 200ml, Pan integral, Mi mermelada" value={compositeName} onChange={(e) => setCompositeName(e.target.value)} />
+                  <div>
+                    <label className="label">Nombre de tu producto</label>
+                    <input className="input" placeholder="Ej: Jugo de naranja 200ml, Pan integral, Mi mermelada" value={compositeName} onChange={(e) => setCompositeName(e.target.value)} />
+                  </div>
+
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-3">
+                    <p className="text-xs font-semibold text-emerald-800">Ubica tu producto en su categoria exacta (3 niveles)</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="label text-xs">1. Categoria Padre</label>
+                        <select
+                          className="input"
+                          value={selectedParent}
+                          onChange={(e) => {
+                            setSelectedParent(e.target.value)
+                            setSelectedCategory('')
+                            setSelectedSubcategory('')
+                          }}
+                        >
+                          <option value="">-- Selecciona --</option>
+                          {hierarchy.map((pc: any) => (
+                            <option key={pc.name} value={pc.name}>{pc.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="label text-xs">2. Categoria</label>
+                        <select
+                          className="input"
+                          value={selectedCategory}
+                          onChange={(e) => {
+                            setSelectedCategory(e.target.value)
+                            setSelectedSubcategory('')
+                          }}
+                          disabled={!selectedParent}
+                        >
+                          <option value="">-- Selecciona --</option>
+                          {selectedParent && hierarchy
+                            .find((pc: any) => pc.name === selectedParent)
+                            ?.categories?.map((c: any) => (
+                              <option key={c.name} value={c.name}>{c.name}</option>
+                            ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="label text-xs">3. Subcategoria (opcional)</label>
+                        <select
+                          className="input"
+                          value={selectedSubcategory}
+                          onChange={(e) => setSelectedSubcategory(e.target.value)}
+                          disabled={!selectedCategory}
+                        >
+                          <option value="">-- Sin subcategoria --</option>
+                          {selectedParent && selectedCategory && hierarchy
+                            .find((pc: any) => pc.name === selectedParent)
+                            ?.categories?.find((c: any) => c.name === selectedCategory)
+                            ?.subcategories?.map((sc: any) => (
+                              <option key={sc.name} value={sc.name}>{sc.name}</option>
+                            ))}
+                        </select>
+                      </div>
                     </div>
-                    <div>
-                      <label className="label">Categoria</label>
-                      <input className="input" placeholder="Ej: Bebidas, Alimentos, Artesania" value={compositeCategory} onChange={(e) => setCompositeCategory(e.target.value)} />
-                    </div>
+                    <p className="text-xs text-gray-500">
+                      {selectedParent && selectedCategory
+                        ? <>Ubicacion: <strong>{selectedParent} › {selectedCategory}{selectedSubcategory ? ` › ${selectedSubcategory}` : ''}</strong></>
+                        : <span className="text-amber-700">Debes seleccionar al menos categoria padre y categoria. Si necesitas una categoria nueva, pide a administracion que la cree en el catalogo.</span>}
+                    </p>
                   </div>
 
                   <div>
@@ -379,7 +461,7 @@ export default function Store() {
                     )}
                   </div>
 
-                  <button onClick={saveComposite} className="btn-primary" disabled={components.length === 0 || !compositeName}>
+                  <button onClick={saveComposite} className="btn-primary" disabled={components.length === 0 || !compositeName || !selectedParent || !selectedCategory}>
                     Publicar en Mi Tienda ({compositeTotalPrice} {currency})
                   </button>
                 </>

@@ -73,6 +73,7 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 
 	// Productos - editar y aprobar
 	r.With(am.RequireAuth).Get("/api/products", h.listProducts)
+	r.With(am.RequireAuth).Get("/api/products/categories", h.listProductCategories)
 	r.With(am.RequireAuth).Get("/api/products/{id}", h.getProduct)
 	r.With(am.RequirePermission("products.manage")).Post("/api/products", h.createProduct)
 	r.With(am.RequirePermission("products.manage")).Put("/api/products/{id}", h.updateProduct)
@@ -2607,4 +2608,86 @@ func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Reques
 		"offset":   offset,
 		"has_more": offset+len(products) < total,
 	})
+}
+
+// listProductCategories devuelve las categorias jerarquicas de 3 niveles
+// (parent_category -> category -> subcategory) existentes en el catalogo del nodo.
+// Solo categorias que tienen al menos un producto aprobado y no oculto.
+func (h *SystemHandler) listProductCategories(w http.ResponseWriter, r *http.Request) {
+	// Obtener todas las combinaciones distintas de (parent_category, category, subcategory)
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT DISTINCT parent_category, category, subcategory
+		FROM products
+		WHERE node_domain = $1
+		  AND is_approved = true
+		  AND is_hidden = false
+		  AND parent_category IS NOT NULL AND parent_category <> ''
+		  AND category IS NOT NULL AND category <> ''
+		ORDER BY parent_category, category, subcategory
+	`, h.nodeDomain)
+	if err != nil {
+		writeJSON(w, 200, map[string]interface{}{"categories": []interface{}{}})
+		return
+	}
+	defer rows.Close()
+
+	type subcat struct {
+		Name string `json:"name"`
+	}
+	type cat struct {
+		Name    string   `json:"name"`
+		Subcats []subcat `json:"subcategories"`
+	}
+	type parentCat struct {
+		Name       string `json:"name"`
+		Categories []cat  `json:"categories"`
+	}
+
+	parentMap := map[string]*parentCat{}
+	parentOrder := []string{}
+	catMap := map[string]*cat{}
+	catOrder := map[string][]string{}
+
+	for rows.Next() {
+		var pc, c, sc string
+		if err := rows.Scan(&pc, &c, &sc); err != nil {
+			continue
+		}
+
+		// parent category
+		p, ok := parentMap[pc]
+		if !ok {
+			p = &parentCat{Name: pc}
+			parentMap[pc] = p
+			parentOrder = append(parentOrder, pc)
+		}
+
+		// category
+		catKey := pc + "|" + c
+		ca, ok := catMap[catKey]
+		if !ok {
+			ca = &cat{Name: c}
+			catMap[catKey] = ca
+			p.Categories = append(p.Categories, *ca)
+			catOrder[pc] = append(catOrder[pc], c)
+		}
+
+		// subcategory
+		if sc != "" {
+			// Find the category in parent's list and append subcategory
+			for i := range p.Categories {
+				if p.Categories[i].Name == c {
+					p.Categories[i].Subcats = append(p.Categories[i].Subcats, subcat{Name: sc})
+					break
+				}
+			}
+		}
+	}
+
+	result := []parentCat{}
+	for _, pcName := range parentOrder {
+		result = append(result, *parentMap[pcName])
+	}
+
+	writeJSON(w, 200, map[string]interface{}{"categories": result})
 }

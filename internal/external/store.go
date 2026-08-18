@@ -27,7 +27,9 @@ type StoreItem struct {
 	ProductID        *uuid.UUID `json:"product_id"`
 	ProductName      string     `json:"product_name"`
 	Description      string     `json:"description"`
+	ParentCategory   string     `json:"parent_category"`
 	Category         string     `json:"category"`
+	Subcategory      string     `json:"subcategory"`
 	Origin           string     `json:"origin"`
 	Unit             string     `json:"unit"`
 	QuantityPerUnit  float64    `json:"quantity_per_unit"`
@@ -48,7 +50,9 @@ type AddStoreItemParams struct {
 	ProductID        *uuid.UUID
 	ProductName      string
 	Description      string
+	ParentCategory   string
 	Category         string
+	Subcategory      string
 	Origin           string
 	Unit             string
 	QuantityPerUnit  float64
@@ -64,18 +68,18 @@ type AddStoreItemParams struct {
 func (s *Store) AddItem(ctx context.Context, p AddStoreItemParams) (*StoreItem, error) {
 	var item StoreItem
 	err := s.Pool.QueryRow(ctx, `
-		INSERT INTO store_items (node_domain, owner_id, product_id, product_name, description, category, origin,
+		INSERT INTO store_items (node_domain, owner_id, product_id, product_name, description, parent_category, category, subcategory, origin,
 								 unit, quantity_per_unit, price_trueque, base_price, extra_costs, final_price, extra_description,
 								 stock, is_active, external_op_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, true, $16)
-		RETURNING id, node_domain, owner_id, product_id, product_name, description, category, origin,
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, true, $18)
+		RETURNING id, node_domain, owner_id, product_id, product_name, description, parent_category, category, subcategory, origin,
 				  unit, quantity_per_unit, price_trueque, base_price, extra_costs, final_price, extra_description,
 				  stock, is_active, external_op_id, created_at, updated_at`,
-		s.NodeDomain, p.OwnerID, p.ProductID, p.ProductName, p.Description, p.Category, p.Origin,
+		s.NodeDomain, p.OwnerID, p.ProductID, p.ProductName, p.Description, p.ParentCategory, p.Category, p.Subcategory, p.Origin,
 		p.Unit, p.QuantityPerUnit, p.PriceTrueque, p.BasePrice, p.ExtraCosts, p.FinalPrice, p.ExtraDescription,
 		p.Stock, p.ExternalOpID,
 	).Scan(&item.ID, &item.NodeDomain, &item.OwnerID, &item.ProductID, &item.ProductName, &item.Description,
-		&item.Category, &item.Origin, &item.Unit, &item.QuantityPerUnit, &item.PriceTrueque,
+		&item.ParentCategory, &item.Category, &item.Subcategory, &item.Origin, &item.Unit, &item.QuantityPerUnit, &item.PriceTrueque,
 		&item.BasePrice, &item.ExtraCosts, &item.FinalPrice, &item.ExtraDescription,
 		&item.Stock, &item.IsActive, &item.ExternalOpID, &item.CreatedAt, &item.UpdatedAt)
 	if err != nil {
@@ -85,7 +89,7 @@ func (s *Store) AddItem(ctx context.Context, p AddStoreItemParams) (*StoreItem, 
 }
 
 func (s *Store) ListItems(ctx context.Context, category string) ([]StoreItem, error) {
-	query := `SELECT si.id, si.node_domain, si.owner_id, si.product_id, si.product_name, si.description, si.category, si.origin,
+	query := `SELECT si.id, si.node_domain, si.owner_id, si.product_id, si.product_name, si.description, si.parent_category, si.category, si.subcategory, si.origin,
 			  si.unit, si.quantity_per_unit, si.price_trueque, si.base_price, si.extra_costs, si.final_price, si.extra_description,
 			  si.stock, si.is_active, si.external_op_id, si.created_at, si.updated_at,
 			  COALESCE(u.username, '') as owner_name
@@ -109,7 +113,7 @@ func (s *Store) ListItems(ctx context.Context, category string) ([]StoreItem, er
 	for rows.Next() {
 		var item StoreItem
 		err := rows.Scan(&item.ID, &item.NodeDomain, &item.OwnerID, &item.ProductID, &item.ProductName, &item.Description,
-			&item.Category, &item.Origin, &item.Unit, &item.QuantityPerUnit, &item.PriceTrueque,
+			&item.ParentCategory, &item.Category, &item.Subcategory, &item.Origin, &item.Unit, &item.QuantityPerUnit, &item.PriceTrueque,
 			&item.BasePrice, &item.ExtraCosts, &item.FinalPrice, &item.ExtraDescription,
 			&item.Stock, &item.IsActive, &item.ExternalOpID, &item.CreatedAt, &item.UpdatedAt, &item.OwnerName)
 		if err != nil {
@@ -123,13 +127,13 @@ func (s *Store) ListItems(ctx context.Context, category string) ([]StoreItem, er
 func (s *Store) GetItem(ctx context.Context, id uuid.UUID) (*StoreItem, error) {
 	var item StoreItem
 	err := s.Pool.QueryRow(ctx, `
-		SELECT id, node_domain, product_name, description, category, origin,
+		SELECT id, node_domain, product_name, description, parent_category, category, subcategory, origin,
 			  unit, quantity_per_unit, price_trueque, base_price, extra_costs, final_price, extra_description,
 			  stock, is_active, external_op_id, created_at, updated_at
 		FROM store_items WHERE id = $1`,
 		id,
 	).Scan(&item.ID, &item.NodeDomain, &item.ProductName, &item.Description,
-		&item.Category, &item.Origin, &item.Unit, &item.QuantityPerUnit,
+		&item.ParentCategory, &item.Category, &item.Subcategory, &item.Origin, &item.Unit, &item.QuantityPerUnit,
 		&item.PriceTrueque, &item.BasePrice, &item.ExtraCosts, &item.FinalPrice, &item.ExtraDescription,
 		&item.Stock, &item.IsActive, &item.ExternalOpID, &item.CreatedAt, &item.UpdatedAt)
 	if err != nil {
