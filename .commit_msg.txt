@@ -1,35 +1,40 @@
-feat: pagina como-funciona con historia y metodologias energeticas
+feat: infinite scroll, unidad de medida y costos adicionales en tienda
 
-Anadidas 3 nuevas secciones a la pagina "Como Funciona":
+Mejoras de optimizacion y usabilidad en el catalogo y la tienda:
 
-1. "Historia de la Moneda Energetica" (8 items):
-   - Ford y Edison: el Dolar de Energia (1921)
-   - Movimiento Tecnocratico (1930s)
-   - Howard T. Odum y la Emergia (1980s)
-   - Ecoaldeas y micro-redes (1990s-presente)
-   - Som Energia: Generation kWh (Espana)
-   - SolarCoin (SLR): criptomoneda solar
-   - Bases de datos cientificas abiertas
-   - Por que la energia y no el dinero
+1. PAGINACION / INFINITE SCROLL
+   - Backend: /api/public/products ahora soporta limit y offset
+     con metadata de paginacion (total, has_more)
+   - Frontend Products.tsx: carga 24 productos por pagina,
+     usa IntersectionObserver para cargar mas al desplazar
+   - Frontend PublicBlocks: mismo infinite scroll en pagina publica
+   - Solo se activa infinite scroll cuando no hay filtros activos
 
-2. "Metodologias Cientificas de Calculo" (6 items):
-   - Energia Incorporada (Embodied Energy / GER)
-   - Emergia (Emergy Synthesis)
-   - Analisis Insumo-Producto (EEIOA)
-   - Tasa de Retorno Energetico (EROI)
-   - Fronteras del sistema (cradle-to-X)
-   - Desafios y limitaciones
+2. UNIDAD DE MEDIDA JUNTO AL PRECIO
+   - Products.tsx: muestra "50 TQ / kg" en lugar de "50 TQ"
+   - PublicBlocks: muestra "2 TQ" con "por manojo" debajo
+   - Store.tsx: muestra unidad en tienda y busqueda
+   - El usuario sabe si el precio es por kg, litro, hora, jornada, etc.
 
-3. "Tabla de Equivalencias Energeticas de Referencia" (6 items):
-   - Cereales y granos con valores MJ/kg y TQ/kg
-   - Carnes y proteina animal
-   - Lacteos
-   - Materiales de construccion
-   - Electronica y electrodomesticos
-   - Trabajo humano y combustibles
+3. COSTOS ADICIONALES EN TIENDA
+   - Migracion 039: anade campos a store_items:
+     unit, quantity_per_unit, base_price, extra_costs,
+     final_price, extra_description
+   - Backend addStoreItem: guarda base_price, extra_costs,
+     final_price, extra_description, unit, quantity_per_unit
+   - Frontend Store.tsx: formulario mejorado con:
+     * Info del producto seleccionado (precio base + unidad)
+     * Campo de unidades por paquete (0.5 kg, 2 kg, etc.)
+     * Seccion de costos adicionales (envio, envase, traslado)
+     * Descripcion del costo adicional
+     * Resumen: precio base + extras = precio final
+   - Si el comprador recoge en parcela, extras = 0, precio = base
+   - Si hay envase de vidrio o entrega a domicilio, se suma al base
 
-Tambien actualizado el hero de la pagina para mencionar las
-fuentes de datos internacionales (ICE Database, Agribalyse, Ecoinvent).
+4. COMPATIBILIDAD
+   - price_trueque se mantiene para compatibilidad con datos existentes
+   - Migracion 039 migra datos existentes: base_price = price_trueque
+   - GetItem y ListItems actualizados para leer nuevos campos
 
 Generated with [Devin](https://devin.ai)
 
