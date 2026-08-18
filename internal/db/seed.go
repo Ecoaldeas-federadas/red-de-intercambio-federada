@@ -1486,17 +1486,23 @@ func getSeedPages() []seedPage {
 }
 
 // SeedPublicPages inserta las paginas del sitio publico con la plantilla
-// modular rica. Solo inserta si la pagina no existe (ON CONFLICT DO NOTHING)
-// para preservar los cambios que el administrador haya hecho.
+// modular rica. Si la pagina ya existe, actualiza el contenido pero
+// preserva el titulo que el admin haya puesto.
 func (d *DB) SeedPublicPages(ctx context.Context, nodeDomain string) error {
 	pages := getSeedPages()
 
 	for _, p := range pages {
-		// Solo insertar si la pagina no existe. No sobreescribir cambios del admin.
+		// Si la pagina existe, actualizar contenido pero preservar titulo.
+		// Si no existe, insertar con todos los valores por defecto.
 		_, err := d.Pool.Exec(ctx,
 			`INSERT INTO public_pages (node_domain, slug, title, subtitle, content, icon, menu_order, is_published, show_in_menu)
 			 VALUES ($1, $2, $3, $4, $5, $6, $7, true, true)
-			 ON CONFLICT (node_domain, slug) DO NOTHING`,
+			 ON CONFLICT (node_domain, slug) DO UPDATE SET
+			   content = EXCLUDED.content,
+			   subtitle = EXCLUDED.subtitle,
+			   icon = EXCLUDED.icon,
+			   is_published = true,
+			   show_in_menu = true`,
 			nodeDomain, p.Slug, p.Title, p.Subtitle, p.Content, p.Icon, p.MenuOrder)
 		if err != nil {
 			return fmt.Errorf("seeding page %s: %w", p.Slug, err)

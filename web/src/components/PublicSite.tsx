@@ -79,7 +79,7 @@ function getShortLabel(p: { slug: string; title: string }): string {
     case 'comunidad':
       return 'Comunidad'
     case 'como-funciona':
-      return 'Trueque'
+      return 'Cómo Funciona'
     case 'campo-soberano':
       return 'Ecoaldea'
     case 'faq':
