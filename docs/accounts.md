@@ -24,7 +24,44 @@ El sistema de moneda saldo cero (LETS / Credito Mutuo) usa dos limites fundament
 - **Limite inferior (piso negativo):** Maximo saldo negativo permitido. Funciona como linea de credito comunitaria. Al tocar este limite, la cuenta se bloquea para nuevas compras hasta que el miembro aporte valor (bienes o trabajo) para reducir su saldo negativo.
 - **Limite superior (techo positivo):** Maximo saldo positivo permitido. Evita acumulacion indefinida. Al tocar este limite, la cuenta no puede recibir mas abonos hasta que el miembro gaste o reinvierta sus creditos.
 
-Estos limites estan definidos por el nivel de miembro y pueden aumentarse por la asamblea segun la trayectoria y confiabilidad del miembro.
+### Limites Simetricos (positivo = negativo)
+
+Los limites **siempre son simetricos**: el limite negativo y el limite positivo tienen el mismo valor absoluto. Esto garantiza equidad: lo que puedes recibir de la comunidad equivale a lo que puedes aportar. Si los limites fueran dispares (ej: -50 negativo, +500 positivo), el sistema favoreceria recibir mas de lo que se da, rompiendo el principio de suma cero del credito mutuo.
+
+| Tipo de Miembro | Saldo Negativo (Piso) | Saldo Positivo (Techo) | Equivalente |
+|-----------------|----------------------|----------------------|-------------|
+| Persona natural nueva | -500 TQ | +500 TQ | 1 canasta basica mensual |
+| Persona natural activa | -1,000 TQ | +1,000 TQ | 2 canastas basicas |
+| Organizacion de produccion | -5,000 TQ | +5,000 TQ | 10 canastas |
+| Organizacion de consumo | -3,000 TQ | +3,000 TQ | 6 canastas |
+| Institucion publica | -10,000 TQ | +10,000 TQ | 20 canastas |
+
+### Calculo de la Canasta Basica Mensual (500 TQ)
+
+El limite minimo de 500 TQ se calculo del costo energetico real de alimentar a una familia de 4 personas durante un mes, usando los precios del catalogo:
+
+| Producto | Cantidad/mes | Precio TQ | Subtotal |
+|----------|-------------|-----------|----------|
+| Granos (caraota, frijol, maiz) | 8 kg | 10 TQ/kg | 80 |
+| Arroz | 4 kg | 11 TQ/kg | 44 |
+| Harina de maiz | 4 kg | 10 TQ/kg | 40 |
+| Tuberculos (yuca, name, platano) | 10 kg | 2 TQ/kg | 20 |
+| Verduras y hortalizas | 8 kg | 2 TQ/kg | 16 |
+| Frutas | 6 kg | 2 TQ/kg | 12 |
+| Hojas verdes | 2 kg | 2 TQ/kg | 4 |
+| Leche | 8 L | 2 TQ/L | 16 |
+| Huevos | 3 kg | 10 TQ/kg | 30 |
+| Pollo | 4 kg | 8 TQ/kg | 32 |
+| Pan | 4 kg | 5 TQ/kg | 20 |
+| Aceite | 1 L | 10 TQ/L | 10 |
+| Papelon/azucar | 2 kg | 15 TQ/kg | 30 |
+| Agua (30 dias x 1 TQ) | - | - | 30 |
+| Servicios basicos (30 dias x 2 TQ) | - | - | 60 |
+| **TOTAL** | | | **~444 TQ** |
+
+Redondeado a **500 TQ** = 1 canasta basica familiar mensual. Esto garantiza que cualquier miembro nuevo pueda recibir lo necesario para alimentar a su familia durante un mes sin haber aportado nada todavia.
+
+Estos limites estan definidos por el nivel de miembro y pueden aumentarse por la asamblea segun la trayectoria y confiabilidad del miembro, siempre manteniendo simetria.
 
 ### Niveles del Sistema (seed)
 - **`new`**: Nuevo miembro. Limites reducidos. Sin permisos avanzados.

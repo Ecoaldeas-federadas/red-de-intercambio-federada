@@ -104,3 +104,26 @@ red de intercambio federada/
 | 043 | Federacion de productos entre nodos (tabla product_federation_proposals) |
 | 044 | Jerarquia de 3 niveles en store_items (parent_category, subcategory) |
 | 045 | Separacion de productos agrupados en items individuales (group_id, is_group) |
+| 046 | Precios decimales en productos |
+| 047 | Limites simetricos (positivo = negativo) + canasta basica 500 TQ |
+
+## Cambios Recientes
+
+### Limites Simetricos y Canasta Basica (migracion 047)
+
+Los limites de saldo ahora son **simetricos**: el limite negativo y el limite positivo tienen el mismo valor absoluto. Esto garantiza equidad en el sistema de moneda saldo cero.
+
+El limite minimo de **500 TQ** para personas naturales nuevas se calculo del costo energetico real de una canasta basica familiar mensual (familia de 4 personas), usando los precios del catalogo basados en energia incorporada (kWh).
+
+Ver detalles en:
+- [accounts.md](accounts.md) - Tabla de limites simetricos y calculo de canasta basica
+- [currency_exchange.md](currency_exchange.md) - Los 5 pilares del sistema de moneda saldo cero
+
+### Sistema de Moneda Saldo Cero: 5 Pilares
+
+Documentado en [currency_exchange.md](currency_exchange.md):
+1. Punto de Partida - Saldo Inicial Cero
+2. Dinamica del Intercambio - Credito Mutuo
+3. Limite Inferior - Piso Negativo
+4. Limite Superior - Techo Positivo
+5. Respaldo y Unidad de Cuenta - Energia Fisica Real
