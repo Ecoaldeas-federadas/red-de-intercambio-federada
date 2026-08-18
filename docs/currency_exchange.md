@@ -107,6 +107,77 @@ Cuando aportas productos o trabajo a la comunidad, tu saldo sube. Por ejemplo, s
 
 En cualquier momento, la suma de todos los saldos de todos los miembros es exactamente cero. No hay emision de moneda, no hay inflacion, no hay devaluacion. El sistema es un registro contable puro de compromisos y aportes.
 
+---
+
+## Sistema de Moneda Saldo Cero: Los 5 Pilares
+
+El sistema de moneda con saldo cero, tambien conocido como **LETS** (Local Exchange Trading System) o **Credito Mutuo**, es la arquitectura economica solidaria y circular de nuestra ecoaldea. Se estructura en los siguientes pilares fundamentales:
+
+### Pilar 1: Punto de Partida - Saldo Inicial Cero
+
+**Sin necesidad de capital previo:** En este modelo, ningun miembro de la comunidad necesita aportar capital bancario externo, dinero fiduciario nacional ni ahorros para empezar a operar.
+
+**Creacion y saldo dinamico:** Todas las cuentas de los participantes inician exactamente en cero. La moneda no existe previamente de forma fisica o acumulada en bovedas; en su lugar, se genera y se salda dinamicamente en el momento exacto en el que se realiza un intercambio.
+
+- No hay emision de moneda
+- No hay banco central
+- No hay inflacion
+- El TQ se crea en el instante del intercambio y se destruye cuando se salda
+
+### Pilar 2: Dinamica del Intercambio - Credito Mutuo
+
+**Contabilidad equilibrada:** Cuando se realiza una transaccion, el intercambio se registra de manera contable y equilibrada dentro de la red o intranet de la comunidad.
+
+**Ejemplo de transaccion:** Si un productor de huevos te entrega su producto, la cuenta del productor se acredita (suma saldo positivo) y tu cuenta se debita (resta saldo y pasa a negativo) de forma equitativa. De esta manera, **la suma de todos los saldos existentes en la comunidad siempre es igual a cero**.
+
+No hay dinero circulando: hay un registro de quien aporto que y quien recibio que.
+
+### Pilar 3: Limite Inferior - Piso Negativo o Amortiguacion de Deuda
+
+**Flexibilidad para consumir:** El hecho de que no tengas dinero o saldo positivo en un momento dado no te impide adquirir lo que necesitas para vivir. Tu cuenta simplemente descendera a terreno negativo, funcionando como una linea de credito comunitaria.
+
+**Control contra el parasitismo:** Para evitar el endeudamiento irresponsable o que un miembro consuma de manera ilimitada a expensas del esfuerzo de los demas, se establece un limite inferior o piso negativo.
+
+**Bloqueo y aportacion:** Al tocar este limite negativo, la cuenta se bloquea temporalmente para realizar nuevas compras. Para poder reactivar su capacidad de intercambio, la persona se ve obligada a saldar su saldo negativo aportando valor de vuelta a la ecoaldea, ya sea:
+- Ofreciendo bienes de su propia parcela
+- Dedicando horas de trabajo comunitario
+- Aportando productos o servicios
+
+### Pilar 4: Limite Superior - Techo Positivo contra la Acumulacion
+
+**Circulacion forzada de riqueza:** Para evitar el acaparamiento y la acumulacion innecesaria de creditos, se implementa un limite superior o techo positivo.
+
+**Obligacion de reinversion:** Una vez que un miembro alcanza este tope maximo de creditos acumulados por sus ventas, su cuenta se bloquea y no puede recibir mas abonos. Esto lo obliga a:
+- Gastar o reinvertir sus creditos adquiriendo bienes de otros productores
+- Utilizar servicios de la aldea
+- Financiar proyectos comunales
+
+Esto asegura que la riqueza circule constantemente y no se estanque de forma ociosa. **Nadie puede acumular riqueza indefinidamente**: el sistema esta disenado para que la riqueza circule.
+
+### Pilar 5: Respaldo y Unidad de Cuenta - Energia Fisica Real
+
+**Valor real tangible:** Para que la moneda tenga credibilidad y estabilidad frente a la inflacion externa, su unidad de cuenta (el TQ - Trueque) esta anclada directamente a energia fisica real invertida en producir cada bien o servicio.
+
+**1 TQ = 1 kWh = 3.6 MJ (megajoules)**
+
+No esta respaldada por:
+- Oro
+- Dolares u otra moneda fiduciaria
+- La promesa de un gobierno
+- Criptomonedas ni minado
+
+Esta respaldada por la **energia que costo producir lo que intercambias**. Esto hace que el valor sea:
+- **Objetivo:** Basado en una constante fisica inmutable
+- **Medible:** Cualquier persona puede verificar cuanta energia se invirtio
+- **Auditable:** Transparente y verificable
+- **No especulativo:** La energia no se devalua, no se infla, no se manipula
+
+### Resumen del Modelo
+
+Este modelo asegura que la economia interna sea totalmente **autonoma, justa y resiliente** frente a las crisis del exterior, promoviendo una cultura de cooperacion sin el riesgo de la acumulacion desmedida de capital.
+
+---
+
 ### Limites y Confianza Progresiva
 
 El sistema tiene limites para evitar abusos y construir confianza gradualmente:

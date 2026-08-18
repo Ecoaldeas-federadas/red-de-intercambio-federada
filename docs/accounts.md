@@ -17,6 +17,15 @@
 
 Cada nivel define: limites de credito/debito, limites por transaccion/diario/mensual, tasa de impuesto, permisos (crear organizacion, comercio inter-nodos, tarjeta NFC, auditoria, puente externo), maximo de organizaciones, auto-upgrade.
 
+### Limites de Saldo (Pilar del Sistema de Moneda Cero)
+
+El sistema de moneda saldo cero (LETS / Credito Mutuo) usa dos limites fundamentales:
+
+- **Limite inferior (piso negativo):** Maximo saldo negativo permitido. Funciona como linea de credito comunitaria. Al tocar este limite, la cuenta se bloquea para nuevas compras hasta que el miembro aporte valor (bienes o trabajo) para reducir su saldo negativo.
+- **Limite superior (techo positivo):** Maximo saldo positivo permitido. Evita acumulacion indefinida. Al tocar este limite, la cuenta no puede recibir mas abonos hasta que el miembro gaste o reinvierta sus creditos.
+
+Estos limites estan definidos por el nivel de miembro y pueden aumentarse por la asamblea segun la trayectoria y confiabilidad del miembro.
+
 ### Niveles del Sistema (seed)
 - **`new`**: Nuevo miembro. Limites reducidos. Sin permisos avanzados.
 - **`full`**: Miembro pleno. Limites completos. Voz, voto, comercio externo.
