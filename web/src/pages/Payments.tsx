@@ -139,6 +139,10 @@ export default function Payments() {
   const startCamera = async () => {
     setError('')
     setScanResult(null)
+    // Set scanning=true FIRST so the qr-reader div gets rendered
+    setScanning(true)
+    // Wait for the DOM to render the qr-reader div
+    await new Promise((resolve) => setTimeout(resolve, 100))
     try {
       const scanner = new Html5Qrcode('qr-reader')
       scannerRef.current = scanner
@@ -150,9 +154,19 @@ export default function Payments() {
         },
         () => {}
       )
-      setScanning(true)
     } catch (err) {
-      setError('No se pudo acceder a la camara. Verifica los permisos o usa cargar imagen.')
+      console.error('Camera error:', err)
+      const errMsg = err instanceof Error ? err.message : String(err)
+      if (errMsg.includes('Permission') || errMsg.includes('NotAllowed') || errMsg.includes('denied')) {
+        setError('Permiso de cámara denegado. Ve a los ajustes del navegador, busca los permisos de esta página y permite el acceso a la cámara.')
+      } else if (errMsg.includes('NotFound') || errMsg.includes('NotReadable') || errMsg.includes('device')) {
+        setError('No se encontró una cámara en este dispositivo. Usa "Cargar imagen del QR" en su lugar.')
+      } else if (errMsg.includes('element') || errMsg.includes('qr-reader')) {
+        setError('Error al inicializar el escáner. Recarga la página e intenta de nuevo.')
+      } else {
+        setError('No se pudo acceder a la cámara: ' + errMsg + '. Verifica los permisos o usa cargar imagen.')
+      }
+      setScanning(false)
     }
   }
 
