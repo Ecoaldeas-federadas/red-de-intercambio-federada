@@ -180,15 +180,46 @@ Este modelo asegura que la economia interna sea totalmente **autonoma, justa y r
 
 ### Limites y Confianza Progresiva
 
-El sistema tiene limites para evitar abusos y construir confianza gradualmente:
+El sistema tiene limites **simetricos** (positivo = negativo) para garantizar equidad: lo que puedes recibir equivale a lo que puedes aportar. Esto evita que el sistema favorezca recibir mas de lo que se da.
 
-| Tipo de Miembro | Limite Inicial (Saldo Negativo) | Limite Positivo |
-|-----------------|--------------------------------|-----------------|
-| Persona natural | -50 TQ | +500 TQ |
-| Organizacion/colectivo | -200 TQ | +2,000 TQ |
-| Institucion publica | -500 TQ | +5,000 TQ |
+### Calculo de la Canasta Basica Mensual
 
-Los limites **suben con el tiempo** segun la trayectoria del miembro. Un miembro confiable con meses de participacion activa puede solicitar a la asamblea un limite mayor.
+Los limites minimos se calcularon en base al costo energetico de una canasta basica familiar (4 personas) usando los precios del catalogo:
+
+| Producto | Cantidad/mes | Precio TQ/kg | Subtotal |
+|----------|-------------|-------------|----------|
+| Granos (caraota, frijol, maiz) | 8 kg | 10 | 80 |
+| Arroz | 4 kg | 11 | 44 |
+| Harina de maiz | 4 kg | 10 | 40 |
+| Tuberculos (yuca, name, platano) | 10 kg | 2 | 20 |
+| Verduras y hortalizas | 8 kg | 2 | 16 |
+| Frutas | 6 kg | 2 | 12 |
+| Hojas verdes | 2 kg | 2 | 4 |
+| Leche | 8 L | 2 | 16 |
+| Huevos | 3 kg | 10 | 30 |
+| Pollo | 4 kg | 8 | 32 |
+| Pan | 4 kg | 5 | 20 |
+| Aceite | 1 L | 10 | 10 |
+| Papelon/azucar | 2 kg | 15 | 30 |
+| Agua (30 dias x 1 TQ) | - | - | 30 |
+| Servicios basicos (30 dias x 2 TQ) | - | - | 60 |
+| **TOTAL** | | | **~444 TQ** |
+
+Redondeado a **500 TQ** = 1 canasta basica familiar mensual.
+
+### Limites Simetricos por Tipo de Miembro
+
+| Tipo de Miembro | Saldo Negativo (Piso) | Saldo Positivo (Techo) | Equivalente |
+|-----------------|----------------------|----------------------|-------------|
+| Persona natural nueva | -500 TQ | +500 TQ | 1 canasta basica mensual |
+| Persona natural activa | -1,000 TQ | +1,000 TQ | 2 canastas basicas |
+| Organizacion de produccion | -5,000 TQ | +5,000 TQ | 10 canastas |
+| Organizacion de consumo | -3,000 TQ | +3,000 TQ | 6 canastas |
+| Institucion publica | -10,000 TQ | +10,000 TQ | 20 canastas |
+
+Los limites **siempre son simetricos**: el limite negativo y el limite positivo tienen el mismo valor absoluto. Esto garantiza que el sistema no favorezca ni recibir mas de lo que se da, ni dar mas de lo que se recibe.
+
+Los limites **suben con el tiempo** segun la trayectoria del miembro. Un miembro confiable con meses de participacion activa puede solicitar a la asamblea un limite mayor, siempre manteniendo simetria.
 
 ### Transacciones
 
