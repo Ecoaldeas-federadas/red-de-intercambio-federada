@@ -40,6 +40,8 @@ export default function Store() {
   const [compositeParentCategory, setCompositeParentCategory] = useState('')
   const [compositeSubcategory, setCompositeSubcategory] = useState('')
   const [compositeStock, setCompositeStock] = useState(1)
+  const [compositeUnit, setCompositeUnit] = useState('unidad')
+  const [compositeQtyPerUnit, setCompositeQtyPerUnit] = useState(1)
   const [components, setComponents] = useState<CompositeComponent[]>([])
   const [componentFilter, setComponentFilter] = useState('all')
   const [availableComponents, setAvailableComponents] = useState<any[]>([])
@@ -83,19 +85,30 @@ export default function Store() {
   }, [])
 
   // Cargar componentes disponibles del catalogo (para el modal)
+  const [modalLoading, setModalLoading] = useState(false)
+  const [modalError, setModalError] = useState('')
   useEffect(() => {
     if (!showComponentModal) return
+    setModalLoading(true)
+    setModalError('')
     const params = new URLSearchParams()
     if (modalFilter !== 'all') params.set('category', modalFilter)
     if (searchTerm.trim()) params.set('search', searchTerm.trim())
     const qs = params.toString()
     api.get('/products/components' + (qs ? `?${qs}` : ''))
-      .then((d: any) => setModalResults(Array.isArray(d) ? d : []))
-      .catch(() => setModalResults([]))
+      .then((d: any) => {
+        setModalResults(Array.isArray(d) ? d : [])
+        setModalLoading(false)
+      })
+      .catch((err) => {
+        setModalResults([])
+        setModalLoading(false)
+        setModalError(err?.message || 'Error al cargar componentes')
+      })
   }, [showComponentModal, modalFilter, searchTerm])
 
-  // Calcular precio total del compuesto
-  const compositeTotalPrice = components.reduce((sum, c) => sum + Math.round(c.component_price * c.quantity), 0)
+  // Calcular precio total del compuesto (con decimales, sin redondear)
+  const compositeTotalPrice = components.reduce((sum, c) => sum + (c.component_price * c.quantity), 0)
 
   const selectComponentFromModal = (comp: any) => {
     setPendingComponent(comp)
@@ -169,6 +182,8 @@ export default function Store() {
         parent_category: selectedParent,
         category: selectedCategory,
         subcategory: selectedSubcategory,
+        unit: compositeUnit,
+        quantity_per_unit: compositeQtyPerUnit,
         stock: compositeStock,
         components: components,
       })
@@ -351,6 +366,29 @@ export default function Store() {
                     <input className="input" placeholder="Ej: Jugo de naranja 200ml, Pan integral, Mi mermelada" value={compositeName} onChange={(e) => setCompositeName(e.target.value)} />
                   </div>
 
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="label">Unidad de medida del producto</label>
+                      <select className="input" value={compositeUnit} onChange={(e) => setCompositeUnit(e.target.value)}>
+                        <option value="unidad">Unidad</option>
+                        <option value="ml">Mililitro (ml)</option>
+                        <option value="L">Litro (L)</option>
+                        <option value="gr">Gramo (gr)</option>
+                        <option value="kg">Kilogramo (kg)</option>
+                        <option value="manojo">Manojo</option>
+                        <option value="hora">Hora</option>
+                        <option value="carga">Carga</option>
+                        <option value="m">Metro (m)</option>
+                        <option value="m2">Metro cuadrado (m2)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="label">Cantidad por unidad</label>
+                      <input type="number" step="any" className="input" placeholder="Ej: 200 (para 200ml), 500 (para 500gr), 1 (para 1 unidad)" value={compositeQtyPerUnit} onChange={(e) => setCompositeQtyPerUnit(parseFloat(e.target.value) || 1)} />
+                      <p className="text-xs text-gray-500 mt-1">Ej: 200 ml, 500 gr, 1 kg, 1 unidad</p>
+                    </div>
+                  </div>
+
                   <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-3">
                     <p className="text-xs font-semibold text-emerald-800">Ubica tu producto en su categoria exacta (3 niveles)</p>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -500,7 +538,7 @@ export default function Store() {
                               <span className="text-xs text-gray-500 ml-2">({c.component_category})</span>
                               <span className="text-xs text-gray-500 block">
                                 Compro {c.quantity_purchased} {c.component_unit} → {c.yield_products} productos →
-                                <strong> {Math.round(c.component_price * c.quantity)} {currency}</strong> por producto
+                                <strong> {(c.component_price * c.quantity).toFixed(2)} {currency}</strong> por producto
                               </span>
                             </div>
                             <button onClick={() => removeComponent(i)} className="text-red-500 hover:text-red-700">
@@ -515,13 +553,13 @@ export default function Store() {
                     {components.length > 0 && (
                       <div className="bg-trueque-100 border border-trueque-300 rounded-lg p-3 flex justify-between items-center">
                         <span className="font-semibold text-trueque-900">Precio total automatico:</span>
-                        <span className="text-xl font-bold text-trueque-700">{compositeTotalPrice} {currency}</span>
+                        <span className="text-xl font-bold text-trueque-700">{compositeTotalPrice.toFixed(2)} {currency}</span>
                       </div>
                     )}
                   </div>
 
                   <button onClick={saveComposite} className="btn-primary" disabled={components.length === 0 || !compositeName || !selectedParent || !selectedCategory}>
-                    Publicar en Mi Tienda ({compositeTotalPrice} {currency})
+                    Publicar en Mi Tienda ({compositeTotalPrice.toFixed(2)} {currency})
                   </button>
                 </>
               ) : (
@@ -795,11 +833,20 @@ export default function Store() {
 
             {/* Resultados */}
             <div className="flex-1 overflow-y-auto p-4">
-              {modalResults.length === 0 ? (
+              {modalLoading ? (
+                <div className="text-center py-8 text-gray-400">
+                  <p className="text-sm">Cargando componentes...</p>
+                </div>
+              ) : modalError ? (
+                <div className="text-center py-8 text-red-500">
+                  <p className="text-sm">{modalError}</p>
+                  <p className="text-xs mt-2">Si tu sesion expiro, guarda tu trabajo y vuelve a iniciar sesion.</p>
+                </div>
+              ) : modalResults.length === 0 ? (
                 <div className="text-center py-8 text-gray-400">
                   <Search size={32} className="mx-auto mb-2 opacity-30" />
                   <p className="text-sm">
-                    {searchTerm ? `No se encontro "${searchTerm}" en esta categoria` : 'Escribe para buscar componentes'}
+                    {searchTerm ? `No se encontro "${searchTerm}" en esta categoria` : 'No hay componentes disponibles en esta categoria'}
                   </p>
                   {searchTerm && (
                     <p className="text-xs mt-2">Prueba con otra palabra o cambia de categoria. Si no existe el componente, pide a administracion que lo agregue al catalogo.</p>

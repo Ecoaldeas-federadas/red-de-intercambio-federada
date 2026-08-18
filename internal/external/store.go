@@ -33,10 +33,10 @@ type StoreItem struct {
 	Origin           string     `json:"origin"`
 	Unit             string     `json:"unit"`
 	QuantityPerUnit  float64    `json:"quantity_per_unit"`
-	PriceTrueque     int64      `json:"price_trueque"`
-	BasePrice        int64      `json:"base_price"`
-	ExtraCosts       int64      `json:"extra_costs"`
-	FinalPrice       int64      `json:"final_price"`
+	PriceTrueque     float64    `json:"price_trueque"`
+	BasePrice        float64    `json:"base_price"`
+	ExtraCosts       float64    `json:"extra_costs"`
+	FinalPrice       float64    `json:"final_price"`
 	ExtraDescription string     `json:"extra_description"`
 	Stock            int64      `json:"stock"`
 	IsActive         bool       `json:"is_active"`
@@ -56,10 +56,10 @@ type AddStoreItemParams struct {
 	Origin           string
 	Unit             string
 	QuantityPerUnit  float64
-	PriceTrueque     int64
-	BasePrice        int64
-	ExtraCosts       int64
-	FinalPrice       int64
+	PriceTrueque     float64
+	BasePrice        float64
+	ExtraCosts       float64
+	FinalPrice       float64
 	ExtraDescription string
 	Stock            int64
 	ExternalOpID     *uuid.UUID

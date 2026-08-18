@@ -54,7 +54,7 @@ type ProductProposalPayload struct {
 	Description     string      `json:"description"`
 	Badge           string      `json:"badge"`
 	ImageURL        string      `json:"image_url"`
-	PricePerUnit    int64       `json:"price_per_unit"`
+	PricePerUnit    float64     `json:"price_per_unit"`
 	IsComposite     bool        `json:"is_composite"`
 	Composition     interface{} `json:"composition"`
 }

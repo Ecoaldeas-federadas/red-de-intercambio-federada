@@ -353,11 +353,11 @@ type CreateProductRequest struct {
 	Origin             string   `json:"origin"`
 	Unit               string   `json:"unit"`
 	QuantityPerBatch   int      `json:"quantity_per_batch"`
-	EnergyDirect       int64    `json:"energy_direct"`
-	EnergyHuman        int64    `json:"energy_human"`
-	EnergyInputs       int64    `json:"energy_inputs"`
-	EnergyAmortization int64    `json:"energy_amortization"`
-	PricePerUnit       int64    `json:"price_per_unit"`
+	EnergyDirect       float64  `json:"energy_direct"`
+	EnergyHuman        float64  `json:"energy_human"`
+	EnergyInputs       float64  `json:"energy_inputs"`
+	EnergyAmortization float64  `json:"energy_amortization"`
+	PricePerUnit       float64  `json:"price_per_unit"`
 	ExternalPriceUSD   *float64 `json:"external_price_usd"`
 	ExternalTaxRate    float64  `json:"external_tax_rate"`
 	Description        string   `json:"description"`
@@ -410,11 +410,11 @@ func (h *Handler) getTariff(w http.ResponseWriter, r *http.Request) {
 
 type CalcInternalRequest struct {
 	Quantity           int     `json:"quantity"`
-	EnergyDirect       int64   `json:"energy_direct"`
+	EnergyDirect       float64 `json:"energy_direct"`
 	HoursHuman         float64 `json:"hours_human"`
 	LaborType          string  `json:"labor_type"`
-	EnergyInputs       int64   `json:"energy_inputs"`
-	EnergyAmortization int64   `json:"energy_amortization"`
+	EnergyInputs       float64 `json:"energy_inputs"`
+	EnergyAmortization float64 `json:"energy_amortization"`
 }
 
 func (h *Handler) calcInternal(w http.ResponseWriter, r *http.Request) {

@@ -1,4 +1,4 @@
-package api
+﻿package api
 
 import (
 	"context"
@@ -756,7 +756,7 @@ func (h *SystemHandler) approveProduct(w http.ResponseWriter, r *http.Request) {
 func (h *SystemHandler) broadcastProductToFederation(ctx context.Context, productID uuid.UUID) {
 	// Obtener datos del producto aprobado
 	var name, parentCat, cat, subcat, unit, description, badge, imageURL string
-	var price int64
+	var price float64
 	var isComposite bool
 	err := h.Pool.QueryRow(ctx, `
 		SELECT name, parent_category, category, subcategory, unit, description, badge, image_url, price_per_unit, is_composite
@@ -2561,7 +2561,7 @@ func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Reques
 	seen := map[string]bool{} // deduplicate by name
 	for rows.Next() {
 		var id, name, description, parentCategory, category2, subcategory, unit, origin string
-		var price int64
+		var price float64
 		var productCode, badge, imageURL, groupID *string
 		var isApproved, isGroup bool
 		_ = rows.Scan(&id, &name, &description, &parentCategory, &category2, &subcategory, &unit, &price, &productCode, &isApproved, &origin, &badge, &imageURL, &isGroup, &groupID)

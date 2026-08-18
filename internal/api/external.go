@@ -139,7 +139,7 @@ type CreateOperationRequest struct {
 	ProductName       string  `json:"product_name"`
 	Quantity          int64   `json:"quantity"`
 	ExternalPriceUSD  float64 `json:"external_price_usd"`
-	LocalPriceTrueque int64   `json:"local_price_trueque"`
+	LocalPriceTrueque float64 `json:"local_price_trueque"`
 	LogisticsPct      float64 `json:"logistics_pct"`
 	ExternalTaxRate   float64 `json:"external_tax_rate"`
 }
@@ -262,10 +262,10 @@ type AddStoreItemRequest struct {
 	Origin           string     `json:"origin"`
 	Unit             string     `json:"unit"`
 	QuantityPerUnit  float64    `json:"quantity_per_unit"`
-	PriceTrueque     int64      `json:"price_trueque"`
-	BasePrice        int64      `json:"base_price"`
-	ExtraCosts       int64      `json:"extra_costs"`
-	FinalPrice       int64      `json:"final_price"`
+	PriceTrueque     float64    `json:"price_trueque"`
+	BasePrice        float64    `json:"base_price"`
+	ExtraCosts       float64    `json:"extra_costs"`
+	FinalPrice       float64    `json:"final_price"`
 	ExtraDescription string     `json:"extra_description"`
 	Stock            int64      `json:"stock"`
 	ExternalOpID     *uuid.UUID `json:"external_op_id"`
@@ -325,11 +325,11 @@ func (eh *ExternalHandler) addStoreItem(w http.ResponseWriter, r *http.Request) 
 				unit = punit
 			}
 			if priceTrueque == 0 {
-				priceTrueque = int64(pprice)
+				priceTrueque = pprice
 			}
 			// Si no se enviaron precios calculados, usar el del catalogo
 			if basePrice == 0 {
-				basePrice = int64(pprice)
+				basePrice = pprice
 			}
 		}
 	}
@@ -481,19 +481,21 @@ type CompositeComponent struct {
 	ComponentProductID string  `json:"component_product_id"`
 	ComponentName      string  `json:"component_name"`
 	ComponentUnit      string  `json:"component_unit"`
-	ComponentPrice     int64   `json:"component_price"`
+	ComponentPrice     float64 `json:"component_price"`
 	Quantity           float64 `json:"quantity"`
 	ComponentCategory  string  `json:"component_category"`
 }
 
 type AddCompositeItemRequest struct {
-	ProductName    string               `json:"product_name"`
-	Description    string               `json:"description"`
-	ParentCategory string               `json:"parent_category"`
-	Category       string               `json:"category"`
-	Subcategory    string               `json:"subcategory"`
-	Stock          int64                `json:"stock"`
-	Components     []CompositeComponent `json:"components"`
+	ProductName     string               `json:"product_name"`
+	Description     string               `json:"description"`
+	ParentCategory  string               `json:"parent_category"`
+	Category        string               `json:"category"`
+	Subcategory     string               `json:"subcategory"`
+	Unit            string               `json:"unit"`
+	QuantityPerUnit float64              `json:"quantity_per_unit"`
+	Stock           int64                `json:"stock"`
+	Components      []CompositeComponent `json:"components"`
 }
 
 func (eh *ExternalHandler) addCompositeItem(w http.ResponseWriter, r *http.Request) {
@@ -515,7 +517,7 @@ func (eh *ExternalHandler) addCompositeItem(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Calcular precio total sumando componentes
-	var totalPrice int64
+	var totalPrice float64
 	compositeDesc := ""
 	for _, c := range req.Components {
 		// Verificar que el componente existe y esta aprobado
@@ -538,17 +540,17 @@ func (eh *ExternalHandler) addCompositeItem(w http.ResponseWriter, r *http.Reque
 					return
 				}
 				// Usar precio del catalogo, no el enviado por el cliente
-				c.ComponentPrice = int64(pprice)
+				c.ComponentPrice = pprice
 				c.ComponentName = pname
 				c.ComponentUnit = punit
 			}
 		}
-		subtotal := int64(float64(c.ComponentPrice) * c.Quantity)
+		subtotal := c.ComponentPrice * c.Quantity
 		totalPrice += subtotal
 		if compositeDesc != "" {
 			compositeDesc += ", "
 		}
-		compositeDesc += fmt.Sprintf("%s x%.2f (%d TQ)", c.ComponentName, c.Quantity, subtotal)
+		compositeDesc += fmt.Sprintf("%s x%.4f (%.2f TQ)", c.ComponentName, c.Quantity, subtotal)
 	}
 
 	// Crear el store item con el precio calculado
@@ -560,8 +562,8 @@ func (eh *ExternalHandler) addCompositeItem(w http.ResponseWriter, r *http.Reque
 		Category:         req.Category,
 		Subcategory:      req.Subcategory,
 		Origin:           "internal",
-		Unit:             "unidad",
-		QuantityPerUnit:  1,
+		Unit:             req.Unit,
+		QuantityPerUnit:  req.QuantityPerUnit,
 		PriceTrueque:     totalPrice,
 		BasePrice:        totalPrice,
 		ExtraCosts:       0,
@@ -583,7 +585,7 @@ func (eh *ExternalHandler) addCompositeItem(w http.ResponseWriter, r *http.Reque
 				componentID = &pid
 			}
 		}
-		subtotal := int64(float64(c.ComponentPrice) * c.Quantity)
+		subtotal := c.ComponentPrice * c.Quantity
 		_, err := eh.Pool.Exec(r.Context(),
 			`INSERT INTO product_compositions (product_id, product_type, component_product_id, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
 			 VALUES ($1, 'store_item', $2, $3, $4, $5, $6, $7, $8, $9)`,
@@ -625,9 +627,9 @@ func (eh *ExternalHandler) getComposition(w http.ResponseWriter, r *http.Request
 		var id string
 		var componentProductID *uuid.UUID
 		var name, unit, category string
-		var price int64
+		var price float64
 		var quantity float64
-		var subtotal int64
+		var subtotal float64
 		var sortOrder int
 		_ = rows.Scan(&id, &componentProductID, &name, &unit, &price, &quantity, &subtotal, &category, &sortOrder)
 
@@ -698,7 +700,7 @@ func (eh *ExternalHandler) listComponents(w http.ResponseWriter, r *http.Request
 	components := []map[string]interface{}{}
 	for rows.Next() {
 		var id, name, parentCategory, cat, subcat, unit, description string
-		var price int64
+		var price float64
 		var badge, imageURL *string
 		var groupID *string
 		_ = rows.Scan(&id, &name, &parentCategory, &cat, &subcat, &unit, &price, &description, &badge, &imageURL, &groupID)

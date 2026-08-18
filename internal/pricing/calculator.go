@@ -18,34 +18,34 @@ func New(pool *pgxpool.Pool) *Pricing {
 }
 
 type Product struct {
-	ID                uuid.UUID  `json:"id"`
-	NodeDomain        string     `json:"node_domain"`
-	Name              string     `json:"name"`
-	Category          string     `json:"category"`
-	Origin            string     `json:"origin"`
-	Unit              string     `json:"unit"`
-	QuantityPerBatch  int        `json:"quantity_per_batch"`
-	EnergyDirect      int64      `json:"energy_direct"`
-	EnergyHuman       int64      `json:"energy_human"`
-	EnergyInputs      int64      `json:"energy_inputs"`
-	EnergyAmortization int64     `json:"energy_amortization"`
-	EnergyTotal       int64      `json:"energy_total"`
-	PricePerUnit      int64      `json:"price_per_unit"`
-	ExternalPriceUSD  *float64   `json:"external_price_usd"`
-	ExternalTaxRate   float64    `json:"external_tax_rate"`
-	IsApproved        bool       `json:"is_approved"`
-	Description       string     `json:"description"`
-	IsActive          bool       `json:"is_active"`
-	IsSystem          bool       `json:"is_system"`
-	CreatedAt         time.Time  `json:"created_at"`
-	UpdatedAt         time.Time  `json:"updated_at"`
+	ID                 uuid.UUID `json:"id"`
+	NodeDomain         string    `json:"node_domain"`
+	Name               string    `json:"name"`
+	Category           string    `json:"category"`
+	Origin             string    `json:"origin"`
+	Unit               string    `json:"unit"`
+	QuantityPerBatch   int       `json:"quantity_per_batch"`
+	EnergyDirect       float64   `json:"energy_direct"`
+	EnergyHuman        float64   `json:"energy_human"`
+	EnergyInputs       float64   `json:"energy_inputs"`
+	EnergyAmortization float64   `json:"energy_amortization"`
+	EnergyTotal        float64   `json:"energy_total"`
+	PricePerUnit       float64   `json:"price_per_unit"`
+	ExternalPriceUSD   *float64  `json:"external_price_usd"`
+	ExternalTaxRate    float64   `json:"external_tax_rate"`
+	IsApproved         bool      `json:"is_approved"`
+	Description        string    `json:"description"`
+	IsActive           bool      `json:"is_active"`
+	IsSystem           bool      `json:"is_system"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
 }
 
 type EnergyTariff struct {
-	VitalFood          int64   `json:"vital_food"`
-	VitalWater         int64   `json:"vital_water"`
-	VitalDomestic      int64   `json:"vital_domestic"`
-	VitalServices      int64   `json:"vital_services"`
+	VitalFood          float64 `json:"vital_food"`
+	VitalWater         float64 `json:"vital_water"`
+	VitalDomestic      float64 `json:"vital_domestic"`
+	VitalServices      float64 `json:"vital_services"`
 	WorkHoursPerDay    int     `json:"work_hours_per_day"`
 	WorkDaysPerMonth   int     `json:"work_days_per_month"`
 	EffortAdmin        float64 `json:"effort_admin"`
@@ -70,50 +70,50 @@ func (p *Pricing) GetTariff(ctx context.Context, nodeDomain string) (*EnergyTari
 	return &t, nil
 }
 
-func (t *EnergyTariff) BaseRatePerHour() int64 {
+func (t *EnergyTariff) BaseRatePerHour() float64 {
 	total := t.VitalFood + t.VitalWater + t.VitalDomestic + t.VitalServices
 	if t.WorkHoursPerDay == 0 {
 		return 0
 	}
-	return total / int64(t.WorkHoursPerDay)
+	return total / float64(t.WorkHoursPerDay)
 }
 
-func (t *EnergyTariff) RateForLaborType(laborType string) int64 {
+func (t *EnergyTariff) RateForLaborType(laborType string) float64 {
 	base := t.BaseRatePerHour()
 	switch laborType {
 	case "admin":
-		return int64(float64(base) * t.EffortAdmin)
+		return base * t.EffortAdmin
 	case "technical":
-		return int64(float64(base) * t.EffortTechnical)
+		return base * t.EffortTechnical
 	case "agricultural":
-		return int64(float64(base) * t.EffortAgricultural)
+		return base * t.EffortAgricultural
 	default:
 		return base
 	}
 }
 
-func (t *EnergyTariff) MonthlySalary(laborType string, hoursPerMonth int) int64 {
+func (t *EnergyTariff) MonthlySalary(laborType string, hoursPerMonth int) float64 {
 	rate := t.RateForLaborType(laborType)
-	return rate * int64(hoursPerMonth)
+	return rate * float64(hoursPerMonth)
 }
 
 type CalculateInternalParams struct {
-	Quantity       int     `json:"quantity"`
-	EnergyDirect   int64   `json:"energy_direct"`
-	HoursHuman     float64 `json:"hours_human"`
-	LaborType      string  `json:"labor_type"`
-	EnergyInputs   int64   `json:"energy_inputs"`
-	EnergyAmortization int64 `json:"energy_amortization"`
+	Quantity           int     `json:"quantity"`
+	EnergyDirect       float64 `json:"energy_direct"`
+	HoursHuman         float64 `json:"hours_human"`
+	LaborType          string  `json:"labor_type"`
+	EnergyInputs       float64 `json:"energy_inputs"`
+	EnergyAmortization float64 `json:"energy_amortization"`
 }
 
 type CalculationResult struct {
-	EnergyDirect      int64 `json:"energy_direct"`
-	EnergyHuman       int64 `json:"energy_human"`
-	EnergyInputs      int64 `json:"energy_inputs"`
-	EnergyAmortization int64 `json:"energy_amortization"`
-	EnergyTotal       int64 `json:"energy_total"`
-	PricePerUnit      int64 `json:"price_per_unit"`
-	Quantity          int   `json:"quantity"`
+	EnergyDirect       float64 `json:"energy_direct"`
+	EnergyHuman        float64 `json:"energy_human"`
+	EnergyInputs       float64 `json:"energy_inputs"`
+	EnergyAmortization float64 `json:"energy_amortization"`
+	EnergyTotal        float64 `json:"energy_total"`
+	PricePerUnit       float64 `json:"price_per_unit"`
+	Quantity           int     `json:"quantity"`
 }
 
 func (p *Pricing) CalculateInternal(ctx context.Context, nodeDomain string, params CalculateInternalParams) (*CalculationResult, error) {
@@ -122,37 +122,37 @@ func (p *Pricing) CalculateInternal(ctx context.Context, nodeDomain string, para
 		return nil, err
 	}
 
-	humanEnergy := int64(params.HoursHuman * float64(tariff.RateForLaborType(params.LaborType)))
+	humanEnergy := params.HoursHuman * tariff.RateForLaborType(params.LaborType)
 
 	total := params.EnergyDirect + humanEnergy + params.EnergyInputs + params.EnergyAmortization
 
-	var pricePerUnit int64
+	var pricePerUnit float64
 	if params.Quantity > 0 {
-		pricePerUnit = total / int64(params.Quantity)
+		pricePerUnit = total / float64(params.Quantity)
 	}
 
 	return &CalculationResult{
-		EnergyDirect:      params.EnergyDirect,
-		EnergyHuman:       humanEnergy,
-		EnergyInputs:      params.EnergyInputs,
+		EnergyDirect:       params.EnergyDirect,
+		EnergyHuman:        humanEnergy,
+		EnergyInputs:       params.EnergyInputs,
 		EnergyAmortization: params.EnergyAmortization,
-		EnergyTotal:       total,
-		PricePerUnit:      pricePerUnit,
-		Quantity:          params.Quantity,
+		EnergyTotal:        total,
+		PricePerUnit:       pricePerUnit,
+		Quantity:           params.Quantity,
 	}, nil
 }
 
 type CalculateExternalParams struct {
-	ExternalPriceUSD    float64 `json:"external_price_usd"`
-	LogisticsPct        float64 `json:"logistics_pct"`
-	ExternalTaxRate     float64 `json:"external_tax_rate"`
+	ExternalPriceUSD float64 `json:"external_price_usd"`
+	LogisticsPct     float64 `json:"logistics_pct"`
+	ExternalTaxRate  float64 `json:"external_tax_rate"`
 }
 
 type ExternalCalcResult struct {
 	ConversionFactor  float64 `json:"conversion_factor"`
-	BasePriceTrueques int64   `json:"base_price_trueques"`
-	TaxAmount         int64   `json:"tax_amount"`
-	FinalPrice        int64   `json:"final_price"`
+	BasePriceTrueques float64 `json:"base_price_trueques"`
+	TaxAmount         float64 `json:"tax_amount"`
+	FinalPrice        float64 `json:"final_price"`
 }
 
 func (p *Pricing) GetActiveConversionFactor(ctx context.Context, nodeDomain string) (float64, float64, error) {
@@ -180,8 +180,8 @@ func (p *Pricing) CalculateExternal(ctx context.Context, nodeDomain string, para
 	}
 
 	priceWithLogistics := params.ExternalPriceUSD * (1 + params.LogisticsPct/100)
-	basePrice := int64(priceWithLogistics * fc)
-	taxAmount := int64(float64(basePrice) * taxRate / 100)
+	basePrice := priceWithLogistics * fc
+	taxAmount := basePrice * taxRate / 100
 	finalPrice := basePrice + taxAmount
 
 	return &ExternalCalcResult{
@@ -256,21 +256,21 @@ func (p *Pricing) GetProduct(ctx context.Context, id uuid.UUID) (*Product, error
 }
 
 type CreateProductParams struct {
-	NodeDomain        string
-	Name              string
-	Category          string
-	Origin            string
-	Unit              string
-	QuantityPerBatch  int
-	EnergyDirect      int64
-	EnergyHuman       int64
-	EnergyInputs      int64
-	EnergyAmortization int64
-	PricePerUnit      int64
-	ExternalPriceUSD  *float64
-	ExternalTaxRate   float64
-	Description       string
-	CreatedBy         uuid.UUID
+	NodeDomain         string
+	Name               string
+	Category           string
+	Origin             string
+	Unit               string
+	QuantityPerBatch   int
+	EnergyDirect       float64
+	EnergyHuman        float64
+	EnergyInputs       float64
+	EnergyAmortization float64
+	PricePerUnit       float64
+	ExternalPriceUSD   *float64
+	ExternalTaxRate    float64
+	Description        string
+	CreatedBy          uuid.UUID
 }
 
 func (p *Pricing) CreateProduct(ctx context.Context, params CreateProductParams) (*Product, error) {

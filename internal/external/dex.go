@@ -19,12 +19,12 @@ func NewDEX(pool *pgxpool.Pool, nodeDomain string) *DEX {
 }
 
 type ConversionFactor struct {
-	ID              int64     `json:"id"`
-	NodeDomain      string    `json:"node_domain"`
-	Factor          float64   `json:"factor"`
-	ExternalCPI     float64   `json:"external_cpi"`
-	LocalEnergyCost float64   `json:"local_energy_cost"`
-	CalculatedAt    time.Time `json:"calculated_at"`
+	ID              int64       `json:"id"`
+	NodeDomain      string      `json:"node_domain"`
+	Factor          float64     `json:"factor"`
+	ExternalCPI     float64     `json:"external_cpi"`
+	LocalEnergyCost float64     `json:"local_energy_cost"`
+	CalculatedAt    time.Time   `json:"calculated_at"`
 	ApprovedBy      []uuid.UUID `json:"approved_by"`
 }
 
@@ -68,33 +68,33 @@ func (d *DEX) GetCurrentFC(ctx context.Context) (*ConversionFactor, error) {
 }
 
 type ExternalOperation struct {
-	ID             uuid.UUID  `json:"id"`
-	NodeDomain     string     `json:"node_domain"`
-	OperationType  string     `json:"operation_type"`
-	ProductName    string     `json:"product_name"`
-	Quantity       int64      `json:"quantity"`
-	ExternalPriceUSD float64  `json:"external_price_usd"`
-	LocalPriceTrueque int64   `json:"local_price_trueque"`
-	FCUsed         float64    `json:"fc_used"`
-	LogisticsPct   float64    `json:"logistics_pct"`
-	ExternalTaxRate float64   `json:"external_tax_rate"`
-	TotalTrueque   int64      `json:"total_trueque"`
-	Status         string     `json:"status"`
-	RequestedBy    uuid.UUID  `json:"requested_by"`
-	ApprovedBy     []uuid.UUID `json:"approved_by"`
-	CreatedAt      time.Time  `json:"created_at"`
-	ApprovedAt     *time.Time `json:"approved_at"`
+	ID                uuid.UUID   `json:"id"`
+	NodeDomain        string      `json:"node_domain"`
+	OperationType     string      `json:"operation_type"`
+	ProductName       string      `json:"product_name"`
+	Quantity          int64       `json:"quantity"`
+	ExternalPriceUSD  float64     `json:"external_price_usd"`
+	LocalPriceTrueque float64     `json:"local_price_trueque"`
+	FCUsed            float64     `json:"fc_used"`
+	LogisticsPct      float64     `json:"logistics_pct"`
+	ExternalTaxRate   float64     `json:"external_tax_rate"`
+	TotalTrueque      int64       `json:"total_trueque"`
+	Status            string      `json:"status"`
+	RequestedBy       uuid.UUID   `json:"requested_by"`
+	ApprovedBy        []uuid.UUID `json:"approved_by"`
+	CreatedAt         time.Time   `json:"created_at"`
+	ApprovedAt        *time.Time  `json:"approved_at"`
 }
 
 type CreateOperationParams struct {
-	OperationType   string
-	ProductName     string
-	Quantity        int64
-	ExternalPriceUSD float64
-	LocalPriceTrueque int64
-	LogisticsPct    float64
-	ExternalTaxRate float64
-	RequestedBy     uuid.UUID
+	OperationType     string
+	ProductName       string
+	Quantity          int64
+	ExternalPriceUSD  float64
+	LocalPriceTrueque float64
+	LogisticsPct      float64
+	ExternalTaxRate   float64
+	RequestedBy       uuid.UUID
 }
 
 func (d *DEX) CreateOperation(ctx context.Context, p CreateOperationParams) (*ExternalOperation, error) {

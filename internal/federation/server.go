@@ -515,7 +515,7 @@ func (s *Server) handleProductProposalMessage(w http.ResponseWriter, r *http.Req
 		INSERT INTO product_federation_proposals (source_node, source_product_id, name, parent_category, category, subcategory, unit, description, badge, image_url, price_per_unit, is_composite, composition, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pending')
 		ON CONFLICT (source_node, source_product_id) DO NOTHING`,
-		msg.FromNode, sourcePID, name, parentCategory, category, subcategory, unit, description, badge, imageURL, int64(pricePerUnit), isComposite, payload["composition"],
+		msg.FromNode, sourcePID, name, parentCategory, category, subcategory, unit, description, badge, imageURL, pricePerUnit, isComposite, payload["composition"],
 	)
 	if err != nil {
 		writeFederationJSON(w, 500, map[string]string{"error": "saving product proposal"})
@@ -530,7 +530,7 @@ func (s *Server) handleProductProposalMessage(w http.ResponseWriter, r *http.Req
 }
 
 // BroadcastProductProposal envia un producto nuevo a todos los nodos federados conocidos
-func (s *Server) BroadcastProductProposal(ctx context.Context, productID uuid.UUID, name, parentCategory, category, subcategory, unit, description, badge, imageURL string, pricePerUnit int64, isComposite bool, composition interface{}) error {
+func (s *Server) BroadcastProductProposal(ctx context.Context, productID uuid.UUID, name, parentCategory, category, subcategory, unit, description, badge, imageURL string, pricePerUnit float64, isComposite bool, composition interface{}) error {
 	// Obtener todos los nodos federados conocidos
 	rows, err := s.Pool.Query(ctx, `SELECT remote_node FROM node_balance`)
 	if err != nil {
