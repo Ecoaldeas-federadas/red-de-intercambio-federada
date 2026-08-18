@@ -3,6 +3,7 @@
 import (
 	"context"
 	"encoding/json"
+	"federated-credit-node/internal/db"
 	"fmt"
 	"io"
 	"net/http"
@@ -42,6 +43,7 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequirePermission("config.manage")).Put("/api/site/pages/{id}", h.updateSitePage)
 	r.With(am.RequirePermission("config.manage")).Put("/api/site/pages/by-slug/{slug}", h.upsertSitePageBySlug)
 	r.With(am.RequirePermission("config.manage")).Delete("/api/site/pages/{id}", h.deleteSitePage)
+	r.With(am.RequirePermission("config.manage")).Post("/api/site/pages/reset/{slug}", h.resetSitePage)
 	r.With(am.RequireAuth).Get("/api/site/settings", h.getSiteSettings)
 	r.With(am.RequirePermission("config.manage")).Put("/api/site/settings", h.updateSiteSettings)
 	r.With(am.RequirePermission("config.manage")).Put("/api/site/admission-form", h.updateSiteAdmissionForm)
@@ -2212,6 +2214,42 @@ func (h *SystemHandler) deleteSitePage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]interface{}{"message": "Pagina eliminada"})
+}
+
+// resetSitePage restablece una pagina al contenido por defecto del seed,
+// preservando el titulo que el admin haya puesto.
+func (h *SystemHandler) resetSitePage(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	// Obtener el contenido por defecto del seed
+	db := &db.DB{Pool: h.Pool}
+	defaultTitle, defaultSubtitle, defaultContent, defaultIcon, defaultMenuOrder, found := db.GetDefaultPageContent(slug)
+	if !found {
+		writeError(w, 404, "No hay contenido por defecto para esta pagina")
+		return
+	}
+
+	// Actualizar el contenido pero preservar el titulo actual del admin
+	_, err := h.Pool.Exec(r.Context(), `
+		UPDATE public_pages
+		SET subtitle = $1, content = $2, icon = $3, menu_order = $4
+		WHERE node_domain = $5 AND slug = $6`,
+		defaultSubtitle, defaultContent, defaultIcon, defaultMenuOrder, nodeDomain, slug)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"message":   "Pagina restablecida al contenido por defecto",
+		"title":     defaultTitle,
+		"subtitle":  defaultSubtitle,
+		"preserved": "El titulo actual se ha preservado",
+	})
 }
 
 func (h *SystemHandler) getSiteSettings(w http.ResponseWriter, r *http.Request) {

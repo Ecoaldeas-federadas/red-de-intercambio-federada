@@ -15,10 +15,22 @@ type seedPage struct {
 	MenuOrder int
 }
 
-// SeedPublicPages inserta o actualiza las paginas del sitio publico con
-// la plantilla modular rica y datos reales de la Feria Conuquera en Caracas.
-func (d *DB) SeedPublicPages(ctx context.Context, nodeDomain string) error {
-	pages := []seedPage{
+// GetDefaultPageContent devuelve el contenido por defecto de una pagina
+// del seed segun su slug. Se usa para restablecer paginas al contenido
+// original sin afectar el titulo que el admin haya puesto.
+func (d *DB) GetDefaultPageContent(slug string) (title, subtitle, content, icon string, menuOrder int, found bool) {
+	pages := getSeedPages()
+	for _, p := range pages {
+		if p.Slug == slug {
+			return p.Title, p.Subtitle, p.Content, p.Icon, p.MenuOrder, true
+		}
+	}
+	return "", "", "", "", 0, false
+}
+
+// getSeedPages devuelve la lista de paginas por defecto del seed.
+func getSeedPages() []seedPage {
+	return []seedPage{
 		{
 			Slug:     "inicio",
 			Title:    "Inicio",
@@ -1471,8 +1483,16 @@ func (d *DB) SeedPublicPages(ctx context.Context, nodeDomain string) error {
 			MenuOrder: 13,
 		},
 	}
+}
+
+// SeedPublicPages inserta las paginas del sitio publico con la plantilla
+// modular rica. Solo inserta si la pagina no existe (ON CONFLICT DO NOTHING)
+// para preservar los cambios que el administrador haya hecho.
+func (d *DB) SeedPublicPages(ctx context.Context, nodeDomain string) error {
+	pages := getSeedPages()
 
 	for _, p := range pages {
+		// Solo insertar si la pagina no existe. No sobreescribir cambios del admin.
 		_, err := d.Pool.Exec(ctx,
 			`INSERT INTO public_pages (node_domain, slug, title, subtitle, content, icon, menu_order, is_published, show_in_menu)
 			 VALUES ($1, $2, $3, $4, $5, $6, $7, true, true)
