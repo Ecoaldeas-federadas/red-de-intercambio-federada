@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -78,6 +79,39 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 		http.StripPrefix("/uploads/", fileServer).ServeHTTP(w, r)
 	})
 
+	// robots.txt: permitir que todos los crawlers indexen el sitio
+	r.Get("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Write([]byte("User-agent: *\nAllow: /\n\n# Sitemap\nSitemap: " + getScheme(r) + "://" + r.Host + "/sitemap.xml\n"))
+	})
+
+	// sitemap.xml: lista todas las paginas publicas
+	r.Get("/sitemap.xml", func(w http.ResponseWriter, r *http.Request) {
+		baseURL := getScheme(r) + "://" + r.Host
+		// Listar paginas publicas desde la BD
+		nodeDomain := "localhost"
+		rows, err := pool.Query(r.Context(), `SELECT slug FROM public_pages WHERE node_domain = $1 AND is_published = true ORDER BY menu_order`, nodeDomain)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/xml")
+			w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>`))
+			return
+		}
+		defer rows.Close()
+		var sb strings.Builder
+		sb.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n")
+		sb.WriteString(`<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">` + "\n")
+		// Pagina principal
+		sb.WriteString(fmt.Sprintf("  <url><loc>%s/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>\n", baseURL))
+		for rows.Next() {
+			var slug string
+			_ = rows.Scan(&slug)
+			sb.WriteString(fmt.Sprintf("  <url><loc>%s/p/%s</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>\n", baseURL, slug))
+		}
+		sb.WriteString("</urlset>\n")
+		w.Header().Set("Content-Type", "application/xml")
+		w.Write([]byte(sb.String()))
+	})
+
 	// Servir el frontend compilado (React/Vite) desde /app/web/dist
 	// En desarrollo, el frontend corre separado en npm run dev (puerto 3000)
 	// En produccion/Docker, el backend sirve los archivos estaticos
@@ -112,6 +146,16 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 	}
 
 	return r
+}
+
+func getScheme(r *http.Request) string {
+	if r.TLS != nil {
+		return "https"
+	}
+	if scheme := r.Header.Get("X-Forwarded-Proto"); scheme != "" {
+		return scheme
+	}
+	return "http"
 }
 
 func corsMiddleware(allowedOrigins []string) func(http.Handler) http.Handler {

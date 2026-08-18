@@ -29,6 +29,7 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.Get("/api/public/settings", h.getPublicSettings)
 	r.Get("/api/public/pages", h.listPublicPages)
 	r.Get("/api/public/pages/{slug}", h.getPublicPage)
+	r.Get("/api/public/page/{slug}/html", h.renderPublicPageHTML)
 	r.Get("/api/public/admission-form", h.getPublicAdmissionForm)
 	r.Post("/api/public/admission-request", h.submitAdmissionRequest)
 	r.Get("/api/public/products", h.listPublicProducts)
@@ -56,6 +57,10 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	// Configuracion del nodo (moneda, nombre, etc)
 	r.With(am.RequireAuth).Get("/api/config", h.getConfig)
 	r.With(am.RequirePermission("config.manage")).Put("/api/config", h.updateConfig)
+
+	// Backup y restauracion de la base de datos
+	r.With(am.RequirePermission("config.manage")).Get("/api/backup", h.downloadBackup)
+	r.With(am.RequirePermission("config.manage")).Post("/api/backup/restore", h.restoreBackup)
 
 	// Niveles de miembro (CRUD completo)
 	r.With(am.RequireAuth).Get("/api/member-levels", h.listMemberLevels)
@@ -1858,6 +1863,124 @@ func (h *SystemHandler) getPublicPage(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// renderPublicPageHTML sirve la pagina como HTML plano para que servicios
+// externos (Google, NotebookLM, etc.) puedan leer el contenido sin ejecutar
+// JavaScript. Esto es necesario porque el frontend es una SPA.
+func (h *SystemHandler) renderPublicPageHTML(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.URL.Query().Get("node")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+	slug := chi.URLParam(r, "slug")
+
+	var title, content string
+	var subtitle *string
+
+	err := h.Pool.QueryRow(r.Context(), `
+		SELECT title, subtitle, content
+		FROM public_pages
+		WHERE node_domain = $1 AND slug = $2 AND is_published = true`,
+		nodeDomain, slug).Scan(&title, &subtitle, &content)
+	if err != nil {
+		writeError(w, 404, "pagina no encontrada")
+		return
+	}
+
+	subtitleStr := ""
+	if subtitle != nil {
+		subtitleStr = *subtitle
+	}
+
+	// Convertir el contenido JSON en HTML simple
+	htmlContent := jsonContentToHTML(content)
+
+	// HTML completo con meta tags para SEO y servicios externos
+	html := fmt.Sprintf(`<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>%s - %s</title>
+<meta name="description" content="%s">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="%s">
+<meta property="og:description" content="%s">
+<meta property="og:type" content="website">
+</head>
+<body>
+<article>
+<h1>%s</h1>
+<p>%s</p>
+%s
+</article>
+</body>
+</html>`, title, subtitleStr, subtitleStr, title, subtitleStr, title, subtitleStr, htmlContent)
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=300")
+	w.Write([]byte(html))
+}
+
+// jsonContentToHTML convierte el contenido JSON de la pagina a HTML simple
+func jsonContentToHTML(jsonStr string) string {
+	var blocks []map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonStr), &blocks); err != nil {
+		return ""
+	}
+
+	var html strings.Builder
+	for _, block := range blocks {
+		blockType, _ := block["type"].(string)
+		switch blockType {
+		case "hero":
+			title, _ := block["title"].(string)
+			desc, _ := block["description"].(string)
+			html.WriteString(fmt.Sprintf("<h2>%s</h2>\n<p>%s</p>\n", title, desc))
+		case "features_grid":
+			title, _ := block["title"].(string)
+			subtitle, _ := block["subtitle"].(string)
+			html.WriteString(fmt.Sprintf("<h2>%s</h2>\n<p>%s</p>\n", title, subtitle))
+			if items, ok := block["items"].([]interface{}); ok {
+				for _, item := range items {
+					if m, ok := item.(map[string]interface{}); ok {
+						itemTitle, _ := m["title"].(string)
+						itemDesc, _ := m["description"].(string)
+						badge, _ := m["badge"].(string)
+						html.WriteString(fmt.Sprintf("<h3>%s</h3>\n<p>%s</p>\n", itemTitle, itemDesc))
+						if badge != "" {
+							html.WriteString(fmt.Sprintf("<p><em>%s</em></p>\n", badge))
+						}
+					}
+				}
+			}
+		case "cta_banner":
+			title, _ := block["title"].(string)
+			subtitle, _ := block["subtitle"].(string)
+			html.WriteString(fmt.Sprintf("<h2>%s</h2>\n<p>%s</p>\n", title, subtitle))
+		case "trueque_explainer":
+			title, _ := block["title"].(string)
+			subtitle, _ := block["subtitle"].(string)
+			html.WriteString(fmt.Sprintf("<h2>%s</h2>\n<p>%s</p>\n", title, subtitle))
+			if steps, ok := block["steps"].([]interface{}); ok {
+				html.WriteString("<ol>\n")
+				for _, step := range steps {
+					if m, ok := step.(map[string]interface{}); ok {
+						stepTitle, _ := m["title"].(string)
+						stepDesc, _ := m["description"].(string)
+						html.WriteString(fmt.Sprintf("<li><strong>%s</strong>: %s</li>\n", stepTitle, stepDesc))
+					}
+				}
+				html.WriteString("</ol>\n")
+			}
+		case "products_showcase":
+			title, _ := block["title"].(string)
+			subtitle, _ := block["subtitle"].(string)
+			html.WriteString(fmt.Sprintf("<h2>%s</h2>\n<p>%s</p>\n", title, subtitle))
+		}
+	}
+	return html.String()
+}
+
 type AdmissionRequestReq struct {
 	FullName     string          `json:"full_name"`
 	Email        string          `json:"email"`
@@ -2696,4 +2819,198 @@ func (h *SystemHandler) listProductCategories(w http.ResponseWriter, r *http.Req
 	}
 
 	writeJSON(w, 200, map[string]interface{}{"categories": result})
+}
+
+// ===== BACKUP Y RESTAURACION DE LA BASE DE DATOS =====
+
+func (h *SystemHandler) downloadBackup(w http.ResponseWriter, r *http.Request) {
+	// Obtener lista de tablas
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT tablename FROM pg_tables
+		WHERE schemaname = 'public'
+		ORDER BY tablename`)
+	if err != nil {
+		writeError(w, 500, fmt.Sprintf("error listing tables: %v", err))
+		return
+	}
+	defer rows.Close()
+
+	var tables []string
+	for rows.Next() {
+		var t string
+		_ = rows.Scan(&t)
+		tables = append(tables, t)
+	}
+
+	// Construir un JSON con todas las tablas y sus datos
+	backup := map[string]interface{}{
+		"timestamp": time.Now().Format(time.RFC3339),
+		"tables":    map[string]interface{}{},
+	}
+
+	tablesMap := backup["tables"].(map[string]interface{})
+	for _, table := range tables {
+		// Saltar tablas del sistema de migraciones
+		if table == "schema_migrations" {
+			continue
+		}
+		data, err := h.exportTable(r.Context(), table)
+		if err != nil {
+			// Si una tabla falla, continuar con las demas
+			tablesMap[table] = map[string]interface{}{"error": err.Error()}
+			continue
+		}
+		tablesMap[table] = data
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=backup-%s.json", time.Now().Format("2006-01-02-150405")))
+	json.NewEncoder(w).Encode(backup)
+}
+
+func (h *SystemHandler) exportTable(ctx context.Context, table string) ([]map[string]interface{}, error) {
+	// Sanitizar nombre de tabla (solo alfanumericos y underscore)
+	for _, c := range table {
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') {
+			return nil, fmt.Errorf("invalid table name")
+		}
+	}
+
+	rows, err := h.Pool.Query(ctx, fmt.Sprintf(`SELECT * FROM %s`, table))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	fields := rows.FieldDescriptions()
+	var result []map[string]interface{}
+	for rows.Next() {
+		values, err := rows.Values()
+		if err != nil {
+			continue
+		}
+		row := map[string]interface{}{}
+		for i, val := range values {
+			colName := fields[i].Name
+			// Convertir []byte a string para JSON
+			if b, ok := val.([]byte); ok {
+				row[colName] = string(b)
+			} else {
+				row[colName] = val
+			}
+		}
+		result = append(result, row)
+	}
+	return result, nil
+}
+
+type RestoreBackupReq struct {
+	Backup json.RawMessage `json:"backup"`
+}
+
+func (h *SystemHandler) restoreBackup(w http.ResponseWriter, r *http.Request) {
+	// Limitar el tamano del upload a 100MB
+	r.Body = http.MaxBytesReader(w, r.Body, 100<<20)
+
+	var req RestoreBackupReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, fmt.Sprintf("invalid request body: %v", err))
+		return
+	}
+
+	var backup map[string]interface{}
+	if err := json.Unmarshal(req.Backup, &backup); err != nil {
+		writeError(w, 400, fmt.Sprintf("invalid backup format: %v", err))
+		return
+	}
+
+	tablesRaw, ok := backup["tables"]
+	if !ok {
+		writeError(w, 400, "backup missing 'tables' field")
+		return
+	}
+
+	tables, ok := tablesRaw.(map[string]interface{})
+	if !ok {
+		writeError(w, 400, "backup 'tables' field is not an object")
+		return
+	}
+
+	// Restaurar cada tabla
+	restored := map[string]int{}
+	errors := map[string]string{}
+
+	for tableName, tableData := range tables {
+		// Sanitizar nombre de tabla
+		valid := true
+		for _, c := range tableName {
+			if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') {
+				valid = false
+				break
+			}
+		}
+		if !valid {
+			errors[tableName] = "invalid table name"
+			continue
+		}
+
+		rows, ok := tableData.([]interface{})
+		if !ok {
+			errors[tableName] = "table data is not an array"
+			continue
+		}
+
+		count := 0
+		for _, rowRaw := range rows {
+			row, ok := rowRaw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			// Construir INSERT dinamicamente
+			cols := []string{}
+			vals := []interface{}{}
+			placeholders := []string{}
+			i := 1
+			for col, val := range row {
+				// Sanitizar nombre de columna
+				colValid := true
+				for _, c := range col {
+					if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') {
+						colValid = false
+						break
+					}
+				}
+				if !colValid {
+					continue
+				}
+				cols = append(cols, col)
+				vals = append(vals, val)
+				placeholders = append(placeholders, fmt.Sprintf("$%d", i))
+				i++
+			}
+
+			if len(cols) == 0 {
+				continue
+			}
+
+			// Usar ON CONFLICT DO NOTHING para no duplicar
+			query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT DO NOTHING",
+				tableName, strings.Join(cols, ", "), strings.Join(placeholders, ", "))
+
+			_, err := h.Pool.Exec(r.Context(), query, vals...)
+			if err != nil {
+				// Si falla, continuar con el siguiente registro
+				continue
+			}
+			count++
+		}
+		restored[tableName] = count
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"message":  "Backup restaurado",
+		"restored": restored,
+		"errors":   errors,
+	})
 }
