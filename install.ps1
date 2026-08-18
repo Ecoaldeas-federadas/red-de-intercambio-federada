@@ -182,7 +182,6 @@ if ([string]::IsNullOrWhiteSpace($nodePublicKey) -and (Get-Command openssl -Erro
     # Usar -pubin para indicar que es una clave publica
     $pubDer = openssl pkey -pubin -in $pubFile -outform DER 2>$null
     if ($pubDer) {
-        $pubBytes = [System.IO.File]::ReadAllBytes($pubFile)
         # El formato PEM tiene la clave base64. Decodificar el DER.
         # Para Ed25519 SubjectPublicKeyInfo: 44 bytes DER, ultimos 32 son la key
         $derBytes = openssl pkey -pubin -in $pubFile -outform DER 2>$null
