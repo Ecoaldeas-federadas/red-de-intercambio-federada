@@ -300,6 +300,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
       },
       {
         type: 'products_showcase',
+        source: 'backend',
         title: 'Catálogo de Rubros en la Feria',
         subtitle: 'Variedad de alimentos y productos artesanales disponibles en cada jornada.',
         categories: [

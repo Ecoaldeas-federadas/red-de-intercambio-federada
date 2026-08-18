@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"federated-credit-node/internal/external"
 )
@@ -14,10 +15,12 @@ type ExternalHandler struct {
 	DEX        *external.DEX
 	Store      *external.Store
 	NodeDomain string
+	Auth       *AuthMiddleware
+	Pool       *pgxpool.Pool
 }
 
-func NewExternalHandler(dex *external.DEX, store *external.Store, nodeDomain string) *ExternalHandler {
-	return &ExternalHandler{DEX: dex, Store: store, NodeDomain: nodeDomain}
+func NewExternalHandler(dex *external.DEX, store *external.Store, nodeDomain string, am *AuthMiddleware, pool *pgxpool.Pool) *ExternalHandler {
+	return &ExternalHandler{DEX: dex, Store: store, NodeDomain: nodeDomain, Auth: am, Pool: pool}
 }
 
 func (eh *ExternalHandler) RegisterRoutes(r chi.Router) {
@@ -245,6 +248,7 @@ func (eh *ExternalHandler) listAllStores(w http.ResponseWriter, r *http.Request)
 }
 
 type AddStoreItemRequest struct {
+	ProductID    string     `json:"product_id"`
 	ProductName  string     `json:"product_name"`
 	Description  string     `json:"description"`
 	Category     string     `json:"category"`
@@ -261,12 +265,59 @@ func (eh *ExternalHandler) addStoreItem(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Get owner ID from auth context
+	ownerIDVal, _ := eh.Auth.GetUserID(r)
+	var ownerID *uuid.UUID
+	if ownerIDVal != uuid.Nil {
+		ownerID = &ownerIDVal
+	}
+
+	var productID *uuid.UUID
+	if req.ProductID != "" {
+		pid, err := uuid.Parse(req.ProductID)
+		if err == nil {
+			productID = &pid
+		}
+	}
+
+	// If product_id provided, look up product info from catalog
+	productName := req.ProductName
+	description := req.Description
+	category := req.Category
+	origin := req.Origin
+	priceTrueque := req.PriceTrueque
+
+	if productID != nil {
+		var pname, pdesc, pcat, punit, porigin string
+		var pprice float64
+		err := eh.Pool.QueryRow(r.Context(),
+			`SELECT name, COALESCE(description,''), category, unit, origin, price_per_unit
+			 FROM products WHERE id = $1`, *productID).Scan(
+			&pname, &pdesc, &pcat, &punit, &porigin, &pprice)
+		if err == nil {
+			productName = pname
+			description = pdesc
+			category = pcat
+			origin = porigin
+			if priceTrueque == 0 {
+				priceTrueque = int64(pprice)
+			}
+		}
+	}
+
+	if productName == "" {
+		writeError(w, 400, "product_name or product_id required")
+		return
+	}
+
 	item, err := eh.Store.AddItem(r.Context(), external.AddStoreItemParams{
-		ProductName:  req.ProductName,
-		Description:  req.Description,
-		Category:     req.Category,
-		Origin:       req.Origin,
-		PriceTrueque: req.PriceTrueque,
+		OwnerID:      ownerID,
+		ProductID:    productID,
+		ProductName:  productName,
+		Description:  description,
+		Category:     category,
+		Origin:       origin,
+		PriceTrueque: priceTrueque,
 		Stock:        req.Stock,
 		ExternalOpID: req.ExternalOpID,
 	})

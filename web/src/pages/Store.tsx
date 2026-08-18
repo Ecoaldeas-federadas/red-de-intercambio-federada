@@ -34,8 +34,22 @@ export default function Store() {
       setError('Selecciona un producto del registro')
       return
     }
+    // Find the selected product to send its info
+    const product = products.find((p) => p.id === form.product_id)
+    if (!product) {
+      setError('Producto no encontrado')
+      return
+    }
     try {
-      await api.post('/store/items', form)
+      await api.post('/store/items', {
+        product_id: form.product_id,
+        product_name: product.name,
+        description: product.description || '',
+        category: product.category || '',
+        origin: product.origin || 'internal',
+        price_trueque: product.price_trueque || product.price || 0,
+        stock: form.stock,
+      })
       setShowForm(false)
       setForm({ product_id: '', stock: 0 })
       load()

@@ -96,7 +96,7 @@ func main() {
 	paymentsHandler := api.NewPaymentsHandler(paymentsSvc, cfg.Node.Domain, authMiddleware, accountsSvc)
 	dexSvc := external.NewDEX(database.Pool, cfg.Node.Domain)
 	storeSvc := external.NewStore(database.Pool, cfg.Node.Domain)
-	externalHandler := api.NewExternalHandler(dexSvc, storeSvc, cfg.Node.Domain)
+	externalHandler := api.NewExternalHandler(dexSvc, storeSvc, cfg.Node.Domain, authMiddleware, database.Pool)
 	recoverySvc := accounts.NewRecovery(database.Pool)
 	recoveryHandler := api.NewRecoveryHandler(recoverySvc, cfg.Node.Domain, jwtSecret)
 	departmentsSvc := accounts.NewDepartments(database.Pool)
