@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -131,6 +132,23 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 				w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 				w.Header().Set("Pragma", "no-cache")
 				w.Header().Set("Expires", "0")
+
+				// Si es una ruta /p/{slug}, inyectar el contenido de la pagina
+				// en el HTML para que crawlers y servicios externos puedan leerlo
+				// sin ejecutar JavaScript
+				if len(r.URL.Path) > 3 && r.URL.Path[:3] == "/p/" {
+					slug := r.URL.Path[3:]
+					// Quitar query string si existe
+					if idx := strings.Index(slug, "?"); idx >= 0 {
+						slug = slug[:idx]
+					}
+					if html := renderPageWithContent(frontendDir, pool, slug); html != "" {
+						w.Header().Set("Content-Type", "text/html; charset=utf-8")
+						w.Write([]byte(html))
+						return
+					}
+				}
+
 				http.ServeFile(w, r, filepath.Join(frontendDir, "index.html"))
 				return
 			}
@@ -146,6 +164,63 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 	}
 
 	return r
+}
+
+// renderPageWithContent lee el index.html del frontend, busca el contenido
+// de la pagina en la BD y lo inyecta dentro del HTML para que crawlers
+// puedan leerlo sin ejecutar JavaScript.
+func renderPageWithContent(frontendDir string, pool *pgxpool.Pool, slug string) string {
+	// Leer el index.html base
+	indexBytes, err := os.ReadFile(filepath.Join(frontendDir, "index.html"))
+	if err != nil {
+		return ""
+	}
+	indexHTML := string(indexBytes)
+
+	// Buscar la pagina en la BD
+	var title, content string
+	var subtitle *string
+	err = pool.QueryRow(context.Background(), `
+		SELECT title, subtitle, content
+		FROM public_pages
+		WHERE node_domain = 'localhost' AND slug = $1 AND is_published = true`,
+		slug).Scan(&title, &subtitle, &content)
+	if err != nil {
+		return ""
+	}
+
+	subtitleStr := ""
+	if subtitle != nil {
+		subtitleStr = *subtitle
+	}
+
+	// Convertir el contenido JSON a HTML
+	htmlContent := jsonContentToHTML(content)
+
+	// Crear el bloque de contenido para inyectar
+	// Se inserta dentro de <div id="root"> para que React lo reemplace al cargar
+	noscriptBlock := fmt.Sprintf(`
+<noscript>
+  <article style="max-width: 800px; margin: 0 auto; padding: 20px; font-family: system-ui, sans-serif; line-height: 1.6;">
+    <h1>%s</h1>
+    <p style="font-size: 1.2em; color: #666;">%s</p>
+    %s
+  </article>
+</noscript>`, title, subtitleStr, htmlContent)
+
+	// Tambien actualizar el title y meta description del head
+	indexHTML = strings.Replace(indexHTML,
+		"<title>Trueque - Credito Mutuo Federado</title>",
+		fmt.Sprintf("<title>%s - %s</title>\n    <meta name=\"description\" content=\"%s\" />", title, subtitleStr, subtitleStr),
+		1)
+
+	// Inyectar el contenido dentro del div#root
+	indexHTML = strings.Replace(indexHTML,
+		`<div id="root"></div>`,
+		fmt.Sprintf(`<div id="root">%s</div>`, noscriptBlock),
+		1)
+
+	return indexHTML
 }
 
 func getScheme(r *http.Request) string {
