@@ -248,14 +248,20 @@ func (eh *ExternalHandler) listAllStores(w http.ResponseWriter, r *http.Request)
 }
 
 type AddStoreItemRequest struct {
-	ProductID    string     `json:"product_id"`
-	ProductName  string     `json:"product_name"`
-	Description  string     `json:"description"`
-	Category     string     `json:"category"`
-	Origin       string     `json:"origin"`
-	PriceTrueque int64      `json:"price_trueque"`
-	Stock        int64      `json:"stock"`
-	ExternalOpID *uuid.UUID `json:"external_op_id"`
+	ProductID        string     `json:"product_id"`
+	ProductName      string     `json:"product_name"`
+	Description      string     `json:"description"`
+	Category         string     `json:"category"`
+	Origin           string     `json:"origin"`
+	Unit             string     `json:"unit"`
+	QuantityPerUnit  float64    `json:"quantity_per_unit"`
+	PriceTrueque     int64      `json:"price_trueque"`
+	BasePrice        int64      `json:"base_price"`
+	ExtraCosts       int64      `json:"extra_costs"`
+	FinalPrice       int64      `json:"final_price"`
+	ExtraDescription string     `json:"extra_description"`
+	Stock            int64      `json:"stock"`
+	ExternalOpID     *uuid.UUID `json:"external_op_id"`
 }
 
 func (eh *ExternalHandler) addStoreItem(w http.ResponseWriter, r *http.Request) {
@@ -285,7 +291,16 @@ func (eh *ExternalHandler) addStoreItem(w http.ResponseWriter, r *http.Request) 
 	description := req.Description
 	category := req.Category
 	origin := req.Origin
+	unit := req.Unit
+	quantityPerUnit := req.QuantityPerUnit
+	if quantityPerUnit == 0 {
+		quantityPerUnit = 1
+	}
 	priceTrueque := req.PriceTrueque
+	basePrice := req.BasePrice
+	extraCosts := req.ExtraCosts
+	finalPrice := req.FinalPrice
+	extraDescription := req.ExtraDescription
 
 	if productID != nil {
 		var pname, pdesc, pcat, punit, porigin string
@@ -299,10 +314,29 @@ func (eh *ExternalHandler) addStoreItem(w http.ResponseWriter, r *http.Request) 
 			description = pdesc
 			category = pcat
 			origin = porigin
+			if unit == "" {
+				unit = punit
+			}
 			if priceTrueque == 0 {
 				priceTrueque = int64(pprice)
 			}
+			// Si no se enviaron precios calculados, usar el del catalogo
+			if basePrice == 0 {
+				basePrice = int64(pprice)
+			}
 		}
+	}
+
+	// Calcular precio final si no se envio: base + extras
+	if finalPrice == 0 {
+		if basePrice == 0 {
+			basePrice = priceTrueque
+		}
+		finalPrice = basePrice + extraCosts
+	}
+	// Asegurar que price_trueque (compat) = finalPrice
+	if priceTrueque == 0 {
+		priceTrueque = finalPrice
 	}
 
 	if productName == "" {
@@ -311,15 +345,21 @@ func (eh *ExternalHandler) addStoreItem(w http.ResponseWriter, r *http.Request) 
 	}
 
 	item, err := eh.Store.AddItem(r.Context(), external.AddStoreItemParams{
-		OwnerID:      ownerID,
-		ProductID:    productID,
-		ProductName:  productName,
-		Description:  description,
-		Category:     category,
-		Origin:       origin,
-		PriceTrueque: priceTrueque,
-		Stock:        req.Stock,
-		ExternalOpID: req.ExternalOpID,
+		OwnerID:          ownerID,
+		ProductID:        productID,
+		ProductName:      productName,
+		Description:      description,
+		Category:         category,
+		Origin:           origin,
+		Unit:             unit,
+		QuantityPerUnit:  quantityPerUnit,
+		PriceTrueque:     priceTrueque,
+		BasePrice:        basePrice,
+		ExtraCosts:       extraCosts,
+		FinalPrice:       finalPrice,
+		ExtraDescription: extraDescription,
+		Stock:            req.Stock,
+		ExternalOpID:     req.ExternalOpID,
 	})
 	if err != nil {
 		writeError(w, 400, err.Error())

@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -2454,13 +2456,54 @@ func randomString(n int) string {
 // -------------------------------------------------------------
 
 func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Request) {
-	rows, err := h.Pool.Query(r.Context(), `
-		SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit, product_code, is_approved, origin, badge, image_url
+	// Paginacion: limit y offset para infinite scroll
+	limit := 24
+	offset := 0
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if v, err := strconv.Atoi(l); err == nil && v > 0 && v <= 100 {
+			limit = v
+		}
+	}
+	if o := r.URL.Query().Get("offset"); o != "" {
+		if v, err := strconv.Atoi(o); err == nil && v >= 0 {
+			offset = v
+		}
+	}
+
+	// Filtro opcional por parent_category
+	parentCat := r.URL.Query().Get("parent_category")
+	category := r.URL.Query().Get("category")
+
+	query := `SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit, product_code, is_approved, origin, badge, image_url
 		FROM products
-		WHERE node_domain = $1 AND is_approved = true AND is_hidden = false
-		ORDER BY parent_category, category, subcategory, name LIMIT 200`, h.nodeDomain)
+		WHERE node_domain = $1 AND is_approved = true AND is_hidden = false`
+	args := []interface{}{h.nodeDomain}
+	argIdx := 2
+
+	if parentCat != "" {
+		query += fmt.Sprintf(` AND parent_category = $%d`, argIdx)
+		args = append(args, parentCat)
+		argIdx++
+	}
+	if category != "" {
+		query += fmt.Sprintf(` AND category = $%d`, argIdx)
+		args = append(args, category)
+		argIdx++
+	}
+
+	// Contar total para metadata de paginacion
+	countQuery := strings.Replace(query, "SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit, product_code, is_approved, origin, badge, image_url",
+		"SELECT COUNT(*)", 1)
+	countQuery = strings.Replace(countQuery, " ORDER BY", " -- ORDER BY", 1)
+	var total int
+	_ = h.Pool.QueryRow(r.Context(), countQuery, args...).Scan(&total)
+
+	query += fmt.Sprintf(` ORDER BY parent_category, category, subcategory, name LIMIT $%d OFFSET $%d`, argIdx, argIdx+1)
+	args = append(args, limit, offset)
+
+	rows, err := h.Pool.Query(r.Context(), query, args...)
 	if err != nil {
-		writeJSON(w, 200, []interface{}{})
+		writeJSON(w, 200, map[string]interface{}{"products": []interface{}{}, "total": 0, "limit": limit, "offset": offset})
 		return
 	}
 	defer rows.Close()
@@ -2468,11 +2511,11 @@ func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Reques
 	products := []map[string]interface{}{}
 	seen := map[string]bool{} // deduplicate by name
 	for rows.Next() {
-		var id, name, description, parentCategory, category, subcategory, unit, origin string
+		var id, name, description, parentCategory, category2, subcategory, unit, origin string
 		var price int64
 		var productCode, badge, imageURL *string
 		var isApproved bool
-		_ = rows.Scan(&id, &name, &description, &parentCategory, &category, &subcategory, &unit, &price, &productCode, &isApproved, &origin, &badge, &imageURL)
+		_ = rows.Scan(&id, &name, &description, &parentCategory, &category2, &subcategory, &unit, &price, &productCode, &isApproved, &origin, &badge, &imageURL)
 
 		// Skip duplicates by name
 		if seen[name] {
@@ -2498,7 +2541,7 @@ func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Reques
 			"name":            name,
 			"description":     description,
 			"parent_category": parentCategory,
-			"category":        category,
+			"category":        category2,
 			"subcategory":     subcategory,
 			"unit":            unit,
 			"price_trueque":   price,
@@ -2509,5 +2552,11 @@ func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Reques
 			"image_url":       imgURL,
 		})
 	}
-	writeJSON(w, 200, products)
+	writeJSON(w, 200, map[string]interface{}{
+		"products": products,
+		"total":    total,
+		"limit":    limit,
+		"offset":   offset,
+		"has_more": offset+len(products) < total,
+	})
 }

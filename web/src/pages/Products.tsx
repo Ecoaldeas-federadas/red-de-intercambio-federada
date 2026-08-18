@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useConfig } from '../hooks/useConfig'
-import { Plus, HelpCircle, Package, Pencil, Check, X, Upload, Eye, EyeOff } from 'lucide-react'
+import { Plus, HelpCircle, Package, Pencil, Check, X, Upload, Eye, EyeOff, Loader2 } from 'lucide-react'
 
 interface ProductForm {
   name: string
@@ -54,10 +54,46 @@ export default function Products() {
   const [filterParentCategory, setFilterParentCategory] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
   const [filterSubcategory, setFilterSubcategory] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
+  const sentinelRef = useRef<HTMLDivElement>(null)
 
-  const load = () => api.get('/products').then((d: any) => setProducts(Array.isArray(d) ? d : d?.products ?? [])).catch(() => {})
+  const PAGE_SIZE = 24
 
-  useEffect(() => { load() }, [])
+  const load = useCallback((reset = false) => {
+    setLoading(true)
+    const offset = reset ? 0 : products.length
+    api.get(`/products?limit=${PAGE_SIZE}&offset=${offset}`).then((d: any) => {
+      const newItems = Array.isArray(d) ? d : d?.products ?? []
+      if (reset) {
+        setProducts(newItems)
+        setHasMore(newItems.length >= PAGE_SIZE)
+      } else {
+        setProducts(prev => [...prev, ...newItems])
+        setHasMore(newItems.length >= PAGE_SIZE)
+      }
+    }).catch(() => {
+      if (reset) setProducts([])
+    }).finally(() => setLoading(false))
+  }, [products.length])
+
+  useEffect(() => { load(true) }, [])
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading && !filterParentCategory && !filterCategory && !filterSubcategory) {
+          load(false)
+        }
+      },
+      { rootMargin: '200px' }
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [hasMore, loading, load, filterParentCategory, filterCategory, filterSubcategory])
 
   // Categorias y subcategorias jerarquicas
   // Jerarquia: parent_category > category > subcategory
@@ -455,13 +491,14 @@ export default function Products() {
                         </div>
                       </div>
                       <div className="mt-3 space-y-1">
-                        <p className="text-lg font-bold text-trueque-700">{p.price} {currency}</p>
+                        <p className="text-lg font-bold text-trueque-700">
+                          {p.price} {currency}
+                          {p.unit && <span className="text-sm font-normal text-gray-500"> / {p.unit}</span>}
+                        </p>
                         <p className="text-xs text-gray-400">
                           {p.parent_category && <span className="text-gray-600 font-medium">{p.parent_category}</span>}
                           {p.category && <span> › <span className="text-gray-600 font-medium">{p.category}</span></span>}
                           {p.subcategory && <span> › <span className="text-gray-600 font-medium">{p.subcategory}</span></span>}
-                          {(p.parent_category || p.category) && ' | '}
-                          Unidad: {p.unit}
                         </p>
                         {p.product_code && <p className="text-xs text-gray-400">Código: {p.product_code}</p>}
                         <div className="flex items-center gap-2 pt-1">
@@ -483,6 +520,17 @@ export default function Products() {
                 </div>
               ))}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Sentinel para infinite scroll */}
+      {!filterParentCategory && !filterCategory && !filterSubcategory && hasMore && (
+        <div ref={sentinelRef} className="flex justify-center py-6">
+          {loading ? (
+            <Loader2 className="animate-spin text-emerald-600" size={24} />
+          ) : (
+            <span className="text-xs text-gray-400">Desliza para cargar más productos...</span>
           )}
         </div>
       )}

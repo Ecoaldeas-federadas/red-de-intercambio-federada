@@ -19,48 +19,64 @@ func NewStore(pool *pgxpool.Pool, nodeDomain string) *Store {
 }
 
 type StoreItem struct {
-	ID           uuid.UUID  `json:"id"`
-	NodeDomain   string     `json:"node_domain"`
-	OwnerID      *uuid.UUID `json:"owner_id"`
-	OwnerName    string     `json:"owner_name"`
-	ProductID    *uuid.UUID `json:"product_id"`
-	ProductName  string     `json:"product_name"`
-	Description  string     `json:"description"`
-	Category     string     `json:"category"`
-	Origin       string     `json:"origin"`
-	PriceTrueque int64      `json:"price_trueque"`
-	Stock        int64      `json:"stock"`
-	IsActive     bool       `json:"is_active"`
-	ExternalOpID *uuid.UUID `json:"external_op_id"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
+	ID               uuid.UUID  `json:"id"`
+	NodeDomain       string     `json:"node_domain"`
+	OwnerID          *uuid.UUID `json:"owner_id"`
+	OwnerName        string     `json:"owner_name"`
+	ProductID        *uuid.UUID `json:"product_id"`
+	ProductName      string     `json:"product_name"`
+	Description      string     `json:"description"`
+	Category         string     `json:"category"`
+	Origin           string     `json:"origin"`
+	Unit             string     `json:"unit"`
+	QuantityPerUnit  float64    `json:"quantity_per_unit"`
+	PriceTrueque     int64      `json:"price_trueque"`
+	BasePrice        int64      `json:"base_price"`
+	ExtraCosts       int64      `json:"extra_costs"`
+	FinalPrice       int64      `json:"final_price"`
+	ExtraDescription string     `json:"extra_description"`
+	Stock            int64      `json:"stock"`
+	IsActive         bool       `json:"is_active"`
+	ExternalOpID     *uuid.UUID `json:"external_op_id"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
 }
 
 type AddStoreItemParams struct {
-	OwnerID      *uuid.UUID
-	ProductID    *uuid.UUID
-	ProductName  string
-	Description  string
-	Category     string
-	Origin       string
-	PriceTrueque int64
-	Stock        int64
-	ExternalOpID *uuid.UUID
+	OwnerID          *uuid.UUID
+	ProductID        *uuid.UUID
+	ProductName      string
+	Description      string
+	Category         string
+	Origin           string
+	Unit             string
+	QuantityPerUnit  float64
+	PriceTrueque     int64
+	BasePrice        int64
+	ExtraCosts       int64
+	FinalPrice       int64
+	ExtraDescription string
+	Stock            int64
+	ExternalOpID     *uuid.UUID
 }
 
 func (s *Store) AddItem(ctx context.Context, p AddStoreItemParams) (*StoreItem, error) {
 	var item StoreItem
 	err := s.Pool.QueryRow(ctx, `
 		INSERT INTO store_items (node_domain, owner_id, product_id, product_name, description, category, origin,
-								 price_trueque, stock, is_active, external_op_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, $10)
+								 unit, quantity_per_unit, price_trueque, base_price, extra_costs, final_price, extra_description,
+								 stock, is_active, external_op_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, true, $16)
 		RETURNING id, node_domain, owner_id, product_id, product_name, description, category, origin,
-				  price_trueque, stock, is_active, external_op_id, created_at, updated_at`,
+				  unit, quantity_per_unit, price_trueque, base_price, extra_costs, final_price, extra_description,
+				  stock, is_active, external_op_id, created_at, updated_at`,
 		s.NodeDomain, p.OwnerID, p.ProductID, p.ProductName, p.Description, p.Category, p.Origin,
-		p.PriceTrueque, p.Stock, p.ExternalOpID,
+		p.Unit, p.QuantityPerUnit, p.PriceTrueque, p.BasePrice, p.ExtraCosts, p.FinalPrice, p.ExtraDescription,
+		p.Stock, p.ExternalOpID,
 	).Scan(&item.ID, &item.NodeDomain, &item.OwnerID, &item.ProductID, &item.ProductName, &item.Description,
-		&item.Category, &item.Origin, &item.PriceTrueque, &item.Stock, &item.IsActive, &item.ExternalOpID,
-		&item.CreatedAt, &item.UpdatedAt)
+		&item.Category, &item.Origin, &item.Unit, &item.QuantityPerUnit, &item.PriceTrueque,
+		&item.BasePrice, &item.ExtraCosts, &item.FinalPrice, &item.ExtraDescription,
+		&item.Stock, &item.IsActive, &item.ExternalOpID, &item.CreatedAt, &item.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("adding store item: %w", err)
 	}
@@ -69,7 +85,8 @@ func (s *Store) AddItem(ctx context.Context, p AddStoreItemParams) (*StoreItem, 
 
 func (s *Store) ListItems(ctx context.Context, category string) ([]StoreItem, error) {
 	query := `SELECT si.id, si.node_domain, si.owner_id, si.product_id, si.product_name, si.description, si.category, si.origin,
-			  si.price_trueque, si.stock, si.is_active, si.external_op_id, si.created_at, si.updated_at,
+			  si.unit, si.quantity_per_unit, si.price_trueque, si.base_price, si.extra_costs, si.final_price, si.extra_description,
+			  si.stock, si.is_active, si.external_op_id, si.created_at, si.updated_at,
 			  COALESCE(u.username, '') as owner_name
 			  FROM store_items si
 			  LEFT JOIN users u ON si.owner_id = u.id
@@ -91,8 +108,9 @@ func (s *Store) ListItems(ctx context.Context, category string) ([]StoreItem, er
 	for rows.Next() {
 		var item StoreItem
 		err := rows.Scan(&item.ID, &item.NodeDomain, &item.OwnerID, &item.ProductID, &item.ProductName, &item.Description,
-			&item.Category, &item.Origin, &item.PriceTrueque, &item.Stock, &item.IsActive,
-			&item.ExternalOpID, &item.CreatedAt, &item.UpdatedAt, &item.OwnerName)
+			&item.Category, &item.Origin, &item.Unit, &item.QuantityPerUnit, &item.PriceTrueque,
+			&item.BasePrice, &item.ExtraCosts, &item.FinalPrice, &item.ExtraDescription,
+			&item.Stock, &item.IsActive, &item.ExternalOpID, &item.CreatedAt, &item.UpdatedAt, &item.OwnerName)
 		if err != nil {
 			return nil, fmt.Errorf("scanning store item: %w", err)
 		}
@@ -105,12 +123,14 @@ func (s *Store) GetItem(ctx context.Context, id uuid.UUID) (*StoreItem, error) {
 	var item StoreItem
 	err := s.Pool.QueryRow(ctx, `
 		SELECT id, node_domain, product_name, description, category, origin,
-			  price_trueque, stock, is_active, external_op_id, created_at, updated_at
+			  unit, quantity_per_unit, price_trueque, base_price, extra_costs, final_price, extra_description,
+			  stock, is_active, external_op_id, created_at, updated_at
 		FROM store_items WHERE id = $1`,
 		id,
 	).Scan(&item.ID, &item.NodeDomain, &item.ProductName, &item.Description,
-		&item.Category, &item.Origin, &item.PriceTrueque, &item.Stock, &item.IsActive,
-		&item.ExternalOpID, &item.CreatedAt, &item.UpdatedAt)
+		&item.Category, &item.Origin, &item.Unit, &item.QuantityPerUnit,
+		&item.PriceTrueque, &item.BasePrice, &item.ExtraCosts, &item.FinalPrice, &item.ExtraDescription,
+		&item.Stock, &item.IsActive, &item.ExternalOpID, &item.CreatedAt, &item.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("getting store item: %w", err)
 	}

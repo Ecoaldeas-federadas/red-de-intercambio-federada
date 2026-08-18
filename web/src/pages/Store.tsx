@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
-import { ShoppingCart, Plus, HelpCircle, Trash2, Search, Store as StoreIcon } from 'lucide-react'
+import { ShoppingCart, Plus, HelpCircle, Trash2, Search, Store as StoreIcon, Package } from 'lucide-react'
 
 export default function Store() {
   const { currency } = useConfig()
@@ -12,7 +12,13 @@ export default function Store() {
   const [showForm, setShowForm] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [error, setError] = useState('')
-  const [form, setForm] = useState({ product_id: '', stock: 0 })
+  const [form, setForm] = useState({
+    product_id: '',
+    stock: 0,
+    quantity_per_unit: 1,
+    extra_costs: 0,
+    extra_description: '',
+  })
 
   // Filtros para browse
   const [searchQuery, setSearchQuery] = useState('')
@@ -40,6 +46,8 @@ export default function Store() {
       setError('Producto no encontrado')
       return
     }
+    const basePrice = product.price_trueque || product.price || 0
+    const finalPrice = basePrice + (form.extra_costs || 0)
     try {
       await api.post('/store/items', {
         product_id: form.product_id,
@@ -47,11 +55,17 @@ export default function Store() {
         description: product.description || '',
         category: product.category || '',
         origin: product.origin || 'internal',
-        price_trueque: product.price_trueque || product.price || 0,
+        unit: product.unit || 'unidad',
+        quantity_per_unit: form.quantity_per_unit || 1,
+        base_price: basePrice,
+        extra_costs: form.extra_costs || 0,
+        final_price: finalPrice,
+        extra_description: form.extra_description || '',
+        price_trueque: finalPrice,
         stock: form.stock,
       })
       setShowForm(false)
-      setForm({ product_id: '', stock: 0 })
+      setForm({ product_id: '', stock: 0, quantity_per_unit: 1, extra_costs: 0, extra_description: '' })
       load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al agregar producto')
@@ -77,6 +91,12 @@ export default function Store() {
       setError(err instanceof Error ? err.message : 'Error al comprar')
     }
   }
+
+  // Producto seleccionado para mostrar info
+  const selectedProduct = products.find((p) => p.id === form.product_id)
+  const basePrice = selectedProduct?.price_trueque || selectedProduct?.price || 0
+  const extraCosts = form.extra_costs || 0
+  const finalPrice = basePrice + extraCosts
 
   // Filtrar productos del registro por categoria para el formulario
   const filteredProducts = filterCategory
@@ -174,21 +194,86 @@ export default function Store() {
                     No hay productos en el registro. La asamblea debe agregar productos primero.
                   </p>
                 ) : (
-                  <select className="input" value={form.product_id} onChange={(e) => setForm({ ...form, product_id: e.target.value })}>
+                  <select className="input" value={form.product_id} onChange={(e) => setForm({ ...form, product_id: e.target.value, extra_costs: 0, extra_description: '' })}>
                     <option value="">Seleccionar producto...</option>
                     {filteredProducts.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name} — {p.price_trueque} {currency} ({p.category || 'sin categoria'})</option>
+                      <option key={p.id} value={p.id}>{p.name} — {p.price_trueque || p.price} {currency}/{p.unit || 'unidad'} ({p.category || 'sin categoria'})</option>
                     ))}
                   </select>
                 )}
-                <p className="text-xs text-gray-400 mt-1">Solo puedes vender productos del registro global. El precio es fijo y no se puede modificar. <strong>Ejemplo:</strong> Selecciona "Pan integral 500g" para ofrecer pan en tu tienda.</p>
+                <p className="text-xs text-gray-400 mt-1">Solo puedes vender productos del registro global. El precio base es fijo. <strong>Ejemplo:</strong> Selecciona "Pan integral" para ofrecer pan en tu tienda.</p>
               </div>
 
-              <div>
-                <label className="label">Cantidad disponible (stock)</label>
-                <input type="number" className="input" placeholder="Ej: 10" value={form.stock} onChange={(e) => setForm({ ...form, stock: parseInt(e.target.value) || 0 })} />
-                <p className="text-xs text-gray-400 mt-1">Cuantas unidades tienes disponibles para vender. 0 = agotado. Cuando alguien compra, el stock baja automaticamente. <strong>Ejemplo:</strong> Si tienes 10 panes, escribe 10.</p>
+              {/* Info del producto seleccionado */}
+              {selectedProduct && (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-1 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Package size={16} className="text-emerald-700" />
+                    <span className="font-semibold text-emerald-900">{selectedProduct.name}</span>
+                  </div>
+                  <p className="text-xs text-gray-600">{selectedProduct.description}</p>
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-xs text-gray-500">Precio base del catalogo:</span>
+                    <span className="font-bold text-emerald-700">{basePrice} {currency} / {selectedProduct.unit || 'unidad'}</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Cantidad disponible (stock)</label>
+                  <input type="number" className="input" placeholder="Ej: 10" value={form.stock} onChange={(e) => setForm({ ...form, stock: parseInt(e.target.value) || 0 })} />
+                  <p className="text-xs text-gray-400 mt-1">Cuantas unidades tienes. 0 = agotado.</p>
+                </div>
+                <div>
+                  <label className="label">Unidades por paquete</label>
+                  <input type="number" step="0.1" className="input" placeholder="Ej: 1, 0.5, 2" value={form.quantity_per_unit} onChange={(e) => setForm({ ...form, quantity_per_unit: parseFloat(e.target.value) || 1 })} />
+                  <p className="text-xs text-gray-400 mt-1">Cuantas unidades del catalogo contiene cada paquete que vendes. <strong>Ej:</strong> 0.5 = medio kg, 2 = paquete de 2 kg.</p>
+                </div>
               </div>
+
+              {/* Costos adicionales */}
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-3">
+                <div>
+                  <p className="text-sm font-semibold text-amber-900">Costos adicionales (opcionales)</p>
+                  <p className="text-xs text-gray-600 mt-1">Agrega costos por envio, traslado, envase especial, presentacion, etc. Si el comprador recoge en tu parcela, el precio debe ser el base sin extras.</p>
+                </div>
+                <div>
+                  <label className="label">Costo adicional en {currency}</label>
+                  <input type="number" className="input" placeholder="Ej: 5 (por envio, envase de vidrio, etc.)" value={form.extra_costs} onChange={(e) => setForm({ ...form, extra_costs: parseInt(e.target.value) || 0 })} />
+                  <p className="text-xs text-gray-400 mt-1"><strong>Ejemplos:</strong> Envase de vidrio (+3 TQ), traslado en moto (+5 TQ), entrega a domicilio (+8 TQ). Si vendes en el mismo punto, deja en 0.</p>
+                </div>
+                <div>
+                  <label className="label">Descripcion del costo adicional</label>
+                  <input className="input" placeholder="Ej: Envase de vidrio retornable, entrega a domicilio en moto" value={form.extra_description} onChange={(e) => setForm({ ...form, extra_description: e.target.value })} />
+                  <p className="text-xs text-gray-400 mt-1">Explica que incluye el costo adicional para que el comprador sepa por que paga mas.</p>
+                </div>
+              </div>
+
+              {/* Resumen del precio final */}
+              {selectedProduct && (
+                <div className="bg-trueque-50 border border-trueque-200 rounded-lg p-3 space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Precio base ({selectedProduct.unit || 'unidad'}):</span>
+                    <span className="font-medium">{basePrice} {currency}</span>
+                  </div>
+                  {extraCosts > 0 && (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Costos adicionales:</span>
+                        <span className="font-medium text-amber-700">+{extraCosts} {currency}</span>
+                      </div>
+                      {form.extra_description && (
+                        <p className="text-xs text-gray-500 italic">{form.extra_description}</p>
+                      )}
+                    </>
+                  )}
+                  <div className="flex justify-between text-base font-bold pt-1 border-t border-trueque-200">
+                    <span className="text-trueque-900">Precio final:</span>
+                    <span className="text-trueque-700">{finalPrice} {currency}</span>
+                  </div>
+                </div>
+              )}
 
               <button onClick={addItem} className="btn-primary" disabled={!form.product_id}>Agregar a Mi Tienda</button>
             </div>
@@ -203,13 +288,27 @@ export default function Store() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {items.map((item, i) => {
                 const product = products.find((p) => p.id === item.product_id)
+                const displayPrice = item.final_price || item.price_trueque || product?.price_trueque || 0
+                const baseP = item.base_price || item.price_trueque || product?.price_trueque || 0
+                const extras = item.extra_costs || 0
+                const unit = item.unit || product?.unit || 'unidad'
                 return (
                   <div key={i} className="card">
                     <h3 className="font-semibold">{item.product_name || product?.name || 'Producto'}</h3>
                     <p className="text-sm text-gray-600">{item.description || product?.description}</p>
                     {item.category && <span className="text-xs bg-gray-100 px-2 py-0.5 rounded mt-1 inline-block">{item.category}</span>}
-                    <div className="flex items-center justify-between mt-3">
-                      <span className="text-lg font-bold text-trueque-700">{item.price_trueque || product?.price_trueque} {currency}</span>
+                    <div className="mt-3 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-lg font-bold text-trueque-700">{displayPrice} {currency}</span>
+                        <span className="text-xs text-gray-500">por {unit}</span>
+                      </div>
+                      {extras > 0 && (
+                        <div className="text-xs text-gray-500 bg-amber-50 rounded px-2 py-1">
+                          <span className="text-gray-600">Base: {baseP} {currency}</span>
+                          <span className="text-amber-700"> +{extras} (extras)</span>
+                          {item.extra_description && <span className="block italic text-gray-500">{item.extra_description}</span>}
+                        </div>
+                      )}
                       <span className={`text-sm ${item.stock === 0 ? 'text-red-500' : 'text-gray-500'}`}>
                         Stock: {item.stock}{item.stock === 0 ? ' (agotado)' : ''}
                       </span>
@@ -269,9 +368,15 @@ export default function Store() {
                           <span className="font-medium text-sm">{s.store_name || s.owner_name || 'Tienda'}</span>
                           {s.stock === 0 && <span className="ml-2 text-xs text-red-500">Agotado</span>}
                           {s.stock > 0 && <span className="ml-2 text-xs text-gray-500">Stock: {s.stock}</span>}
+                          {s.extra_costs > 0 && s.extra_description && (
+                            <span className="block text-xs text-amber-600 italic">{s.extra_description} (+{s.extra_costs} {currency})</span>
+                          )}
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="font-bold text-trueque-700">{s.price_trueque} {currency}</span>
+                          <div className="text-right">
+                            <span className="font-bold text-trueque-700">{s.final_price || s.price_trueque} {currency}</span>
+                            {s.unit && <span className="block text-[10px] text-gray-400">por {s.unit}</span>}
+                          </div>
                           {s.stock > 0 && (
                             <button onClick={() => buy(s)} className="btn-primary text-sm flex items-center gap-1">
                               <ShoppingCart size={14} /> Comprar

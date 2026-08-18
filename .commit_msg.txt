@@ -1,29 +1,35 @@
-feat: catalogo alineado a estandares internacionales de energia
+feat: pagina como-funciona con historia y metodologias energeticas
 
-Reconstruccion completa del catalogo con precios energeticos reales
-basados en bases de datos cientificas internacionales:
+Anadidas 3 nuevas secciones a la pagina "Como Funciona":
 
-- 1 TQ = 1 kWh = 3.6 MJ (estandar fisico inmutable)
-- Trabajo manual agricola: 0.61 kWh/h (metabolico ~525 kcal/h)
-- Trabajo general/servicios: 1.0 kWh/h
-- Trabajo tecnico: 3.0 kWh/h (metabolico + herramientas electricas)
+1. "Historia de la Moneda Energetica" (8 items):
+   - Ford y Edison: el Dolar de Energia (1921)
+   - Movimiento Tecnocratico (1930s)
+   - Howard T. Odum y la Emergia (1980s)
+   - Ecoaldeas y micro-redes (1990s-presente)
+   - Som Energia: Generation kWh (Espana)
+   - SolarCoin (SLR): criptomoneda solar
+   - Bases de datos cientificas abiertas
+   - Por que la energia y no el dinero
 
-Fuentes de precios:
-- ICE Database (Univ. Bath): materiales de construccion, metales
-- Agribalyse (ADEME/INRAE): alimentos, granos, carnes, lacteos
-- Ecoinvent (Suiza): combustibles, transporte, manufactura
-- Pimentel/USDA: energia en produccion agricola
+2. "Metodologias Cientificas de Calculo" (6 items):
+   - Energia Incorporada (Embodied Energy / GER)
+   - Emergia (Emergy Synthesis)
+   - Analisis Insumo-Producto (EEIOA)
+   - Tasa de Retorno Energetico (EROI)
+   - Fronteras del sistema (cradle-to-X)
+   - Desafios y limitaciones
 
-Cambios principales:
-- Tarifa energetica actualizada a valores reales
-- 70+ productos con precios reales en kWh
-- Productos agrupados por equivalencia energetica
-- Nuevos: jornadas completas, canasta basica, metales, combustibles,
-  electrodomesticos, agua purificada, frutos secos
-- Pagina como-funciona actualizada con explicacion de estandares
-  internacionales y formula de calculo
+3. "Tabla de Equivalencias Energeticas de Referencia" (6 items):
+   - Cereales y granos con valores MJ/kg y TQ/kg
+   - Carnes y proteina animal
+   - Lacteos
+   - Materiales de construccion
+   - Electronica y electrodomesticos
+   - Trabajo humano y combustibles
 
-Migracion 038: actualiza tarifas + precios existentes + inserta nuevos
+Tambien actualizado el hero de la pagina para mencionar las
+fuentes de datos internacionales (ICE Database, Agribalyse, Ecoinvent).
 
 Generated with [Devin](https://devin.ai)
 

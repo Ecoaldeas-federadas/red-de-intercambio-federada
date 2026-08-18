@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import {
   EdText,
@@ -637,17 +637,56 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
   const [selectedParent, setSelectedParent] = useState<string>('all')
   const [selectedCat, setSelectedCat] = useState<string>('all')
   const [backendProducts, setBackendProducts] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
+  const sentinelRef = useRef<HTMLDivElement>(null)
 
   // If source is "backend", load real products from the API
   const useBackend = (data as any).source === 'backend'
 
+  const PAGE_SIZE = 24
+
+  const loadProducts = useCallback((reset = false) => {
+    if (!useBackend) return
+    setLoading(true)
+    const offset = reset ? 0 : backendProducts.length
+    let url = `/api/public/products?limit=${PAGE_SIZE}&offset=${offset}`
+    fetch(url)
+      .then((res) => res.json())
+      .then((d) => {
+        const newItems = Array.isArray(d) ? d : d?.products ?? []
+        if (reset) {
+          setBackendProducts(newItems)
+        } else {
+          setBackendProducts(prev => [...prev, ...newItems])
+        }
+        setHasMore(d?.has_more ?? (newItems.length >= PAGE_SIZE))
+      })
+      .catch(() => { if (reset) setBackendProducts([]) })
+      .finally(() => setLoading(false))
+  }, [useBackend, backendProducts.length])
+
   useEffect(() => {
     if (!useBackend) return
-    fetch('/api/public/products')
-      .then((res) => res.json())
-      .then((d) => setBackendProducts(Array.isArray(d) ? d : []))
-      .catch(() => setBackendProducts([]))
+    loadProducts(true)
   }, [useBackend])
+
+  // Infinite scroll observer
+  useEffect(() => {
+    if (!useBackend) return
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading) {
+          loadProducts(false)
+        }
+      },
+      { rootMargin: '200px' }
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [useBackend, hasMore, loading, loadProducts])
 
   const items = useBackend
     ? backendProducts.map((p: any) => ({
@@ -658,7 +697,9 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
         description: p.description || '',
         badge: p.badge || (p.is_approved ? 'Aprobado' : ''),
         image_url: p.image_url || '',
+        unit: p.unit || '',
         price_energy: p.price_trueque ? `${p.price_trueque} TQ` : '',
+        price_trueque: p.price_trueque || 0,
       }))
     : data.items || []
 
@@ -793,7 +834,10 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
               {prod.price_energy && (
                 <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
                   <span className="text-gray-500">Valor Energético</span>
-                  <EdArrayText arrayField="items" index={realIdx} itemField="price_energy" value={prod.price_energy} as="span" className="font-bold text-amber-600" />
+                  <div className="text-right">
+                    <EdArrayText arrayField="items" index={realIdx} itemField="price_energy" value={prod.price_energy} as="span" className="font-bold text-amber-600" />
+                    {prod.unit && <span className="block text-[10px] text-gray-400">por {prod.unit}</span>}
+                  </div>
                 </div>
               )}
             </div>
@@ -801,9 +845,23 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
           )
         })}
       </div>
-      <div className="text-center mt-4">
-        <EdAddItem arrayField="items" template={{ name: 'Nuevo Producto', category: 'Cosecha Fresca', description: 'Descripción del producto', badge: '', image_url: '', price_energy: '' }} label="+ Añadir producto" />
-      </div>
+
+      {/* Sentinel para infinite scroll (solo backend) */}
+      {useBackend && hasMore && (
+        <div ref={sentinelRef} className="flex justify-center py-6">
+          {loading ? (
+            <div className="animate-pulse text-emerald-700 text-sm">Cargando más productos...</div>
+          ) : (
+            <span className="text-xs text-gray-400">Desliza para ver más...</span>
+          )}
+        </div>
+      )}
+
+      {!useBackend && (
+        <div className="text-center mt-4">
+          <EdAddItem arrayField="items" template={{ name: 'Nuevo Producto', category: 'Cosecha Fresca', description: 'Descripción del producto', badge: '', image_url: '', price_energy: '' }} label="+ Añadir producto" />
+        </div>
+      )}
     </section>
   )
 }
