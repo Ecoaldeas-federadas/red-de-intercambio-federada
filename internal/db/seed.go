@@ -1476,14 +1476,7 @@ func (d *DB) SeedPublicPages(ctx context.Context, nodeDomain string) error {
 		_, err := d.Pool.Exec(ctx,
 			`INSERT INTO public_pages (node_domain, slug, title, subtitle, content, icon, menu_order, is_published, show_in_menu)
 			 VALUES ($1, $2, $3, $4, $5, $6, $7, true, true)
-			 ON CONFLICT (node_domain, slug) DO UPDATE SET
-			   title = EXCLUDED.title,
-			   subtitle = EXCLUDED.subtitle,
-			   content = EXCLUDED.content,
-			   icon = EXCLUDED.icon,
-			   menu_order = EXCLUDED.menu_order,
-			   is_published = true,
-			   show_in_menu = true`,
+			 ON CONFLICT (node_domain, slug) DO NOTHING`,
 			nodeDomain, p.Slug, p.Title, p.Subtitle, p.Content, p.Icon, p.MenuOrder)
 		if err != nil {
 			return fmt.Errorf("seeding page %s: %w", p.Slug, err)
