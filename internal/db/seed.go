@@ -1019,13 +1019,35 @@ func (d *DB) SeedPublicPages(ctx context.Context, nodeDomain string) error {
 	return nil
 }
 
-// SeedProductsToNode copia los productos seed de 'default' al dominio del nodo
-// si el nodo no tiene productos propios. Esto asegura que cualquier nodo nuevo
-// tenga el catalogo seed disponible sin depender de migraciones hardcoded.
+// SeedProductsToNode inserta los 8 productos Conuqueros directamente con el
+// dominio del nodo. No usa 'default' ni copia de otro dominio.
+// Si el nodo ya tiene productos, no hace nada.
+// Si el dominio cambia, los productos se actualizan al nuevo dominio.
 func (d *DB) SeedProductsToNode(ctx context.Context, nodeDomain string) error {
-	// Si el nodo ya tiene productos, no hacer nada
+	if nodeDomain == "" {
+		return fmt.Errorf("nodeDomain is empty")
+	}
+
+	// 1. Si el dominio cambio, actualizar todos los productos al nuevo dominio
+	// Buscar productos system que no pertenecen a este dominio ni a 'default'
+	var oldDomain string
+	err := d.Pool.QueryRow(ctx, `
+		SELECT node_domain FROM products
+		WHERE is_system = true AND node_domain != $1 AND node_domain != 'default'
+		LIMIT 1`, nodeDomain).Scan(&oldDomain)
+	if err == nil && oldDomain != "" {
+		// El dominio cambio: mover todos los productos al nuevo dominio
+		_, err = d.Pool.Exec(ctx,
+			`UPDATE products SET node_domain = $1 WHERE node_domain = $2`, nodeDomain, oldDomain)
+		if err != nil {
+			return fmt.Errorf("updating products to new domain: %w", err)
+		}
+		log.Printf("Updated products from domain '%s' to '%s'", oldDomain, nodeDomain)
+	}
+
+	// 2. Si el nodo ya tiene productos, no insertar mas
 	var count int
-	err := d.Pool.QueryRow(ctx,
+	err = d.Pool.QueryRow(ctx,
 		`SELECT COUNT(*) FROM products WHERE node_domain = $1`, nodeDomain).Scan(&count)
 	if err != nil {
 		return fmt.Errorf("checking existing products: %w", err)
@@ -1034,20 +1056,57 @@ func (d *DB) SeedProductsToNode(ctx context.Context, nodeDomain string) error {
 		return nil // Ya tiene productos
 	}
 
-	// Copiar productos seed de 'default' al dominio del nodo
-	ct, err := d.Pool.Exec(ctx, `
-		INSERT INTO products (node_domain, name, category, origin, unit, description, badge, image_url,
-		                      price_per_unit, is_approved, is_system, product_code, quantity_per_batch,
-		                      energy_direct, energy_human, energy_inputs, energy_amortization, created_by)
-		SELECT $1, name, category, origin, unit, description, badge, image_url,
-		       price_per_unit, is_approved, is_system, product_code, quantity_per_batch,
-		       energy_direct, energy_human, energy_inputs, energy_amortization, created_by
-		FROM products
-		WHERE node_domain = 'default' AND is_system = true`, nodeDomain)
-	if err != nil {
-		return fmt.Errorf("copying seed products: %w", err)
+	// 3. Insertar los 8 productos Conuqueros directamente con el dominio del nodo
+	products := []struct {
+		name, category, unit, description, badge, imageURL string
+		price                                              int64
+	}{
+		{"Hortalizas y Hojas Verdes de El Junquito", "Cosecha Fresca", "manojo",
+			"Col rizada (kale portuguesa), acelgas, lechugas variadas, cebollin, cilantro de monte y apio Espana cosechados en la manana.",
+			"Fresco del Dia",
+			"https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=600&q=80", 50},
+		{"Tuberculos Ancestrales y Platanos", "Cosecha Fresca", "kg",
+			"Name morado criollo, ocumo blanco y morado, yuca dulce de Carayaca, auyama madura y cambur morado.",
+			"Rubro Olvidado",
+			"https://images.unsplash.com/photo-1578269830911-6159f1aee3b4?auto=format&fit=crop&w=600&q=80", 70},
+		{"Tinturas Madres y Botica Conuquera", "Medicina Botanica & Cosmetica", "frasco",
+			"Extractos de propoleo puro, tinturas de moringa, curcuma, jengibre, pomadas desinflamatorias de arnica y jarabes naturales.",
+			"100% Puro",
+			"https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&w=600&q=80", 120},
+		{"Cosmetica Natural sin Quimicos", "Medicina Botanica & Cosmetica", "unidad",
+			"Desodorantes ecologicos de aceite de coco y bicarbonato, balsamos labiales de cera de abeja, jabones artesanales y toallas reutilizables.",
+			"Residuo Cero",
+			"https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80", 90},
+		{"La Tradicional Cafunga de Barlovento", "Gastronomia Artesanal", "porcion",
+			"Dulce patrimonial afrovenezolano elaborado a base de platano maduro, coco rallado, papelon y anis dulce, horneado en hoja de platano.",
+			"Plato Estrella",
+			"https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=600&q=80", 60},
+		{"Quesos Artesanales de Bufala y Cabra", "Gastronomia Artesanal", "kg",
+			"Quesos madurados y frescos, dulce de leche de cabra, yogurt natural y mantequilla de pequenos rebanos pastoreados.",
+			"Pastoreo Libre",
+			"https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?auto=format&fit=crop&w=600&q=80", 150},
+		{"Cacao Puro, Chocolates y Cafe de Montana", "Gastronomia Artesanal", "barra",
+			"Barras de chocolate bean-to-bar 70% cacao de Barlovento y Chuao, licor de cacao artesanal y cafe lavado tostado a lena.",
+			"Origen Venezolano",
+			"https://images.unsplash.com/photo-1578269830911-6159f1aee3b4?auto=format&fit=crop&w=600&q=80", 200},
+		{"Plantulas Medicinales y Semillas Criollas", "Semillas & Plantulas", "maceta",
+			"Plantas en maceta de poleo, estevia, malojillo, romero, ruda, oregano orejon y sobres de semillas adaptadas al clima caraqueno.",
+			"Para tu Huerto",
+			"https://images.unsplash.com/photo-1576045057995-568f588f82fb?auto=format&fit=crop&w=600&q=80", 40},
 	}
 
-	log.Printf("Seeded %d products to node_domain=%s", ct.RowsAffected(), nodeDomain)
+	for _, p := range products {
+		_, err := d.Pool.Exec(ctx, `
+			INSERT INTO products (node_domain, name, category, origin, unit, description, badge, image_url,
+			                      price_per_unit, is_approved, is_system, product_code)
+			VALUES ($1, $2, $3, 'internal', $4, $5, $6, $7, $8, true, true, '')
+			ON CONFLICT DO NOTHING`,
+			nodeDomain, p.name, p.category, p.unit, p.description, p.badge, p.imageURL, p.price)
+		if err != nil {
+			log.Printf("Warning: failed to seed product %s: %v", p.name, err)
+		}
+	}
+
+	log.Printf("Seeded %d products to node_domain=%s", len(products), nodeDomain)
 	return nil
 }
