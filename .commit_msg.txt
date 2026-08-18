@@ -1,31 +1,29 @@
-feat(customizer): paletas personalizadas guardables + indicador activa
+feat: catalogo alineado a estandares internacionales de energia
 
-Mejoras en la pestana de paletas del personalizador de tema:
+Reconstruccion completa del catalogo con precios energeticos reales
+basados en bases de datos cientificas internacionales:
 
-1. Indicador de paleta activa siempre visible
-   - Caja verde en la parte superior que muestra:
-     "✓ Activa: [nombre de paleta]" si coincide con una predefinida
-     o personalizada guardada
-   - "✓ Activa: Personalizada (sin guardar)" si los colores actuales
-     no coinciden con ninguna paleta guardada
+- 1 TQ = 1 kWh = 3.6 MJ (estandar fisico inmutable)
+- Trabajo manual agricola: 0.61 kWh/h (metabolico ~525 kcal/h)
+- Trabajo general/servicios: 1.0 kWh/h
+- Trabajo tecnico: 3.0 kWh/h (metabolico + herramientas electricas)
 
-2. Paletas personalizadas guardables
-   - Boton "Guardar colores actuales como paleta"
-   - Al hacer clic, pide un nombre para la paleta
-   - La paleta se guarda en localStorage del navegador
-   - Aparece en la lista junto con las predefinidas
-   - Se puede eliminar con boton X (solo las personalizadas)
-   - Si se guarda con un nombre que ya existe, se reemplaza
+Fuentes de precios:
+- ICE Database (Univ. Bath): materiales de construccion, metales
+- Agribalyse (ADEME/INRAE): alimentos, granos, carnes, lacteos
+- Ecoinvent (Suiza): combustibles, transporte, manufactura
+- Pimentel/USDA: energia en produccion agricola
 
-3. Lista unificada de paletas
-   - Predefinidas y personalizadas aparecen juntas en la lista
-   - Cada paleta muestra sus 8 colores de muestra
-   - La paleta activa tiene borde verde y "✓ Activa"
-   - Las personalizadas tienen boton de eliminar
+Cambios principales:
+- Tarifa energetica actualizada a valores reales
+- 70+ productos con precios reales en kWh
+- Productos agrupados por equivalencia energetica
+- Nuevos: jornadas completas, canasta basica, metales, combustibles,
+  electrodomesticos, agua purificada, frutos secos
+- Pagina como-funciona actualizada con explicacion de estandares
+  internacionales y formula de calculo
 
-Las paletas personalizadas persisten entre sesiones porque se guardan
-en localStorage. Cada usuario puede crear sus propias paletas y
-reutilizarlas.
+Migracion 038: actualiza tarifas + precios existentes + inserta nuevos
 
 Generated with [Devin](https://devin.ai)
 
