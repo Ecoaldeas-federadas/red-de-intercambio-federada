@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { useAuth } from './hooks/useAuth'
+import { useSessionTimeout } from './hooks/useSessionTimeout'
 import { api } from './api'
 import Layout from './components/Layout'
 import { PublicLayout, PublicPageView, PublicJoinForm } from './components/PublicSite'
@@ -32,6 +33,7 @@ import WebsiteAdmin from './pages/WebsiteAdmin'
 
 export default function App() {
   const { isAuthenticated } = useAuth()
+  useSessionTimeout()
   const [setupChecked, setSetupChecked] = useState(false)
   const [needsSetup, setNeedsSetup] = useState(false)
 

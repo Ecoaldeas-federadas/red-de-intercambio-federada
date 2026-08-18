@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useConfig } from '../hooks/useConfig'
 import { api } from '../api'
@@ -9,11 +9,19 @@ export default function Login() {
   const { login } = useAuth()
   const { currency } = useConfig()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [mode, setMode] = useState<'password' | 'passkey'>('password')
+  const [expiredMsg, setExpiredMsg] = useState(false)
+
+  useEffect(() => {
+    if (searchParams.get('expired') === '1') {
+      setExpiredMsg(true)
+    }
+  }, [searchParams])
 
   const handlePasswordLogin = async () => {
     setError('')
@@ -69,6 +77,13 @@ export default function Login() {
           <h1 className="text-2xl font-bold text-gray-900">Trueque</h1>
           <p className="text-gray-600 mt-1">Credito Mutuo Federado</p>
         </div>
+
+        {expiredMsg && !error && (
+          <div className="mb-4 flex items-center gap-2 text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
+            <AlertCircle size={18} />
+            Tu sesión ha expirado. Por favor inicia sesión nuevamente.
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 flex items-center gap-2 text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 text-sm">
