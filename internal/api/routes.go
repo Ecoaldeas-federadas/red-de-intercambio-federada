@@ -205,8 +205,13 @@ func renderPageWithContent(frontendDir string, pool *pgxpool.Pool, slug string) 
 	// Obtener lista de todas las paginas publicas para el indice de navegacion
 	navHTML := buildNavigationIndex(pool, slug)
 
+	// Escapar caracteres HTML en el contenido para no romper el HTML
+	title = htmlEscape(title)
+	subtitleStr = htmlEscape(subtitleStr)
+
 	// Crear el bloque de contenido para inyectar
-	// Se inserta dentro de <div id="root"> para que React lo reemplace al cargar
+	// IMPORTANTE: va FUERA del div#root, antes de el, para que React
+	// pueda montarse normalmente en el div vacio
 	noscriptBlock := fmt.Sprintf(`
 <noscript>
   <article style="max-width: 800px; margin: 0 auto; padding: 20px; font-family: system-ui, sans-serif; line-height: 1.6;">
@@ -220,7 +225,8 @@ func renderPageWithContent(frontendDir string, pool *pgxpool.Pool, slug string) 
       </ul>
     </nav>
   </article>
-</noscript>`, title, subtitleStr, htmlContent, navHTML)
+</noscript>
+`, title, subtitleStr, htmlContent, navHTML)
 
 	// Tambien actualizar el title y meta description del head
 	indexHTML = strings.Replace(indexHTML,
@@ -228,13 +234,24 @@ func renderPageWithContent(frontendDir string, pool *pgxpool.Pool, slug string) 
 		fmt.Sprintf("<title>%s - %s</title>\n    <meta name=\"description\" content=\"%s\" />", title, subtitleStr, subtitleStr),
 		1)
 
-	// Inyectar el contenido dentro del div#root
+	// Inyectar el contenido ANTES del div#root (no dentro)
+	// para que React pueda montarse en un div vacio
 	indexHTML = strings.Replace(indexHTML,
 		`<div id="root"></div>`,
-		fmt.Sprintf(`<div id="root">%s</div>`, noscriptBlock),
+		fmt.Sprintf(`%s<div id="root"></div>`, noscriptBlock),
 		1)
 
 	return indexHTML
+}
+
+// htmlEscape escapa caracteres especiales de HTML para evitar romper el documento
+func htmlEscape(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	s = strings.ReplaceAll(s, "\"", "&quot;")
+	s = strings.ReplaceAll(s, "'", "&#39;")
+	return s
 }
 
 // buildNavigationIndex genera una lista HTML <li> con enlaces a todas las
@@ -253,11 +270,12 @@ func buildNavigationIndex(pool *pgxpool.Pool, currentSlug string) string {
 	for rows.Next() {
 		var slug, title string
 		_ = rows.Scan(&slug, &title)
+		escTitle := htmlEscape(title)
 		// Marcar la pagina actual como activa
 		if slug == currentSlug {
-			sb.WriteString(fmt.Sprintf("        <li style="+"\""+"margin: 4px 0;"+"\""+"><strong>%s (pagina actual)</strong></li>\n", title))
+			sb.WriteString(fmt.Sprintf("        <li style=\"margin: 4px 0;\"><strong>%s (pagina actual)</strong></li>\n", escTitle))
 		} else {
-			sb.WriteString(fmt.Sprintf("        <li style="+"\""+"margin: 4px 0;"+"\""+"><a href="+"\""+"/p/%s"+"\""+">%s</a></li>\n", slug, title))
+			sb.WriteString(fmt.Sprintf("        <li style=\"margin: 4px 0;\"><a href=\"/p/%s\">%s</a></li>\n", slug, escTitle))
 		}
 	}
 	return sb.String()

@@ -1928,6 +1928,7 @@ func jsonContentToHTML(jsonStr string) string {
 		return ""
 	}
 
+	esc := htmlEscape
 	var html strings.Builder
 	for _, block := range blocks {
 		blockType, _ := block["type"].(string)
@@ -1935,20 +1936,20 @@ func jsonContentToHTML(jsonStr string) string {
 		case "hero":
 			title, _ := block["title"].(string)
 			desc, _ := block["description"].(string)
-			html.WriteString(fmt.Sprintf("<h2>%s</h2>\n<p>%s</p>\n", title, desc))
+			html.WriteString(fmt.Sprintf("<h2>%s</h2>\n<p>%s</p>\n", esc(title), esc(desc)))
 		case "features_grid":
 			title, _ := block["title"].(string)
 			subtitle, _ := block["subtitle"].(string)
-			html.WriteString(fmt.Sprintf("<h2>%s</h2>\n<p>%s</p>\n", title, subtitle))
+			html.WriteString(fmt.Sprintf("<h2>%s</h2>\n<p>%s</p>\n", esc(title), esc(subtitle)))
 			if items, ok := block["items"].([]interface{}); ok {
 				for _, item := range items {
 					if m, ok := item.(map[string]interface{}); ok {
 						itemTitle, _ := m["title"].(string)
 						itemDesc, _ := m["description"].(string)
 						badge, _ := m["badge"].(string)
-						html.WriteString(fmt.Sprintf("<h3>%s</h3>\n<p>%s</p>\n", itemTitle, itemDesc))
+						html.WriteString(fmt.Sprintf("<h3>%s</h3>\n<p>%s</p>\n", esc(itemTitle), esc(itemDesc)))
 						if badge != "" {
-							html.WriteString(fmt.Sprintf("<p><em>%s</em></p>\n", badge))
+							html.WriteString(fmt.Sprintf("<p><em>%s</em></p>\n", esc(badge)))
 						}
 					}
 				}
@@ -1956,18 +1957,18 @@ func jsonContentToHTML(jsonStr string) string {
 		case "cta_banner":
 			title, _ := block["title"].(string)
 			subtitle, _ := block["subtitle"].(string)
-			html.WriteString(fmt.Sprintf("<h2>%s</h2>\n<p>%s</p>\n", title, subtitle))
+			html.WriteString(fmt.Sprintf("<h2>%s</h2>\n<p>%s</p>\n", esc(title), esc(subtitle)))
 		case "trueque_explainer":
 			title, _ := block["title"].(string)
 			subtitle, _ := block["subtitle"].(string)
-			html.WriteString(fmt.Sprintf("<h2>%s</h2>\n<p>%s</p>\n", title, subtitle))
+			html.WriteString(fmt.Sprintf("<h2>%s</h2>\n<p>%s</p>\n", esc(title), esc(subtitle)))
 			if steps, ok := block["steps"].([]interface{}); ok {
 				html.WriteString("<ol>\n")
 				for _, step := range steps {
 					if m, ok := step.(map[string]interface{}); ok {
 						stepTitle, _ := m["title"].(string)
 						stepDesc, _ := m["description"].(string)
-						html.WriteString(fmt.Sprintf("<li><strong>%s</strong>: %s</li>\n", stepTitle, stepDesc))
+						html.WriteString(fmt.Sprintf("<li><strong>%s</strong>: %s</li>\n", esc(stepTitle), esc(stepDesc)))
 					}
 				}
 				html.WriteString("</ol>\n")
@@ -1975,7 +1976,7 @@ func jsonContentToHTML(jsonStr string) string {
 		case "products_showcase":
 			title, _ := block["title"].(string)
 			subtitle, _ := block["subtitle"].(string)
-			html.WriteString(fmt.Sprintf("<h2>%s</h2>\n<p>%s</p>\n", title, subtitle))
+			html.WriteString(fmt.Sprintf("<h2>%s</h2>\n<p>%s</p>\n", esc(title), esc(subtitle)))
 		}
 	}
 	return html.String()
