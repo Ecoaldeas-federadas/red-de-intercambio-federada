@@ -60,6 +60,9 @@ func main() {
 		log.Printf("Warning: failed to seed public pages: %v", err)
 	}
 
+	// Generar archivos HTML estaticos reales en disco para crawlers
+	api.GenerateStaticHTMLFiles(database.Pool)
+
 	// Seed: copiar productos seed de 'default' al dominio del nodo si no existen
 	seedDomain := cfg.Node.Domain
 	if seedDomain == "" {

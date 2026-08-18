@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -119,33 +120,43 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 		w.Write([]byte(sb.String()))
 	})
 
-	// ===== DIRECTORIO /html/ - Paginas publicas en HTML estatico =====
-	// Sirve todas las paginas publicas como HTML completo para que
-	// crawlers (Google, NotebookLM, etc.) puedan leer el contenido
-	// sin ejecutar JavaScript. Se genera dinamicamente desde la BD.
+	// ===== DIRECTORIO /html/ - Archivos HTML estaticos reales en disco =====
+	// Los archivos se generan fisicamente en /app/web/html/ (o ./html/)
+	// cada vez que se actualiza una pagina publica. Los crawlers pueden
+	// leerlos directamente porque son archivos estaticos reales.
+	htmlDir := "/app/web/html"
+	if _, err := os.Stat(htmlDir); err != nil {
+		htmlDir = "./html"
+	}
+	os.MkdirAll(htmlDir, 0755)
+
+	// Servir archivos estaticos HTML reales desde el directorio
+	htmlFileServer := http.FileServer(http.Dir(htmlDir))
 	r.Get("/html", func(w http.ResponseWriter, r *http.Request) {
-		html := buildHTMLIndex(pool)
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Header().Set("Cache-Control", "public, max-age=300")
-		w.Write([]byte(html))
-	})
-	r.Get("/html/", func(w http.ResponseWriter, r *http.Request) {
-		html := buildHTMLIndex(pool)
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Header().Set("Cache-Control", "public, max-age=300")
-		w.Write([]byte(html))
-	})
-	r.Get("/html/{slug}", func(w http.ResponseWriter, r *http.Request) {
-		slug := chi.URLParam(r, "slug")
-		html := buildHTMLPage(pool, slug)
-		if html == "" {
+		// Servir index.html del directorio html
+		indexPath := filepath.Join(htmlDir, "index.html")
+		if _, err := os.Stat(indexPath); err != nil {
 			w.WriteHeader(404)
-			w.Write([]byte("<html><body><h1>Pagina no encontrada</h1></body></html>"))
+			w.Write([]byte("<html><body><h1>No hay paginas HTML generadas</h1></body></html>"))
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Header().Set("Cache-Control", "public, max-age=300")
-		w.Write([]byte(html))
+		http.ServeFile(w, r, indexPath)
+	})
+	r.Get("/html/", func(w http.ResponseWriter, r *http.Request) {
+		indexPath := filepath.Join(htmlDir, "index.html")
+		if _, err := os.Stat(indexPath); err != nil {
+			w.WriteHeader(404)
+			w.Write([]byte("<html><body><h1>No hay paginas HTML generadas</h1></body></html>"))
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		http.ServeFile(w, r, indexPath)
+	})
+	r.Get("/html/*", func(w http.ResponseWriter, r *http.Request) {
+		// Servir archivo estatico real desde el directorio html
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		htmlFileServer.ServeHTTP(w, r)
 	})
 
 	// Servir el frontend compilado (React/Vite) desde /app/web/dist
@@ -295,19 +306,68 @@ func extractFirstText(jsonStr string) string {
 	return ""
 }
 
-// buildHTMLIndex genera una pagina HTML estatica con el indice de todas
-// las paginas publicas. Es la pagina principal del directorio /html/.
-func buildHTMLIndex(pool *pgxpool.Pool) string {
+// pageInfo holds the data needed to generate a static HTML page.
+type pageInfo struct {
+	slug, title, content string
+	subtitle, icon       *string
+}
+
+// GenerateStaticHTMLFiles genera archivos HTML estaticos reales en disco
+// para todas las paginas publicas. Se llama al iniciar el backend y
+// cada vez que se actualiza una pagina. Los crawlers pueden leer estos
+// archivos directamente porque existen fisicamente en disco.
+func GenerateStaticHTMLFiles(pool *pgxpool.Pool) {
+	htmlDir := "/app/web/html"
+	if _, err := os.Stat(htmlDir); err != nil {
+		htmlDir = "./html"
+	}
+	os.MkdirAll(htmlDir, 0755)
+
+	// Obtener todas las paginas publicas
 	rows, err := pool.Query(context.Background(), `
-		SELECT slug, title, subtitle, icon
+		SELECT slug, title, subtitle, content, icon, menu_order
 		FROM public_pages
-		WHERE node_domain = 'localhost' AND is_published = true AND show_in_menu = true
+		WHERE node_domain = 'localhost' AND is_published = true
 		ORDER BY menu_order`)
 	if err != nil {
-		return "<html><body><h1>Error</h1></html>"
+		log.Printf("GenerateStaticHTMLFiles: error querying pages: %v", err)
+		return
 	}
 	defer rows.Close()
 
+	var pages []pageInfo
+	for rows.Next() {
+		var p pageInfo
+		_ = rows.Scan(&p.slug, &p.title, &p.subtitle, &p.content, &p.icon, new(int))
+		pages = append(pages, p)
+	}
+
+	// 1. Generar index.html (indice de todas las paginas)
+	indexHTML := generateHTMLIndex(pages)
+	indexPath := filepath.Join(htmlDir, "index.html")
+	if err := os.WriteFile(indexPath, []byte(indexHTML), 0644); err != nil {
+		log.Printf("GenerateStaticHTMLFiles: error writing index: %v", err)
+	} else {
+		log.Printf("GenerateStaticHTMLFiles: index.html generado (%d paginas)", len(pages))
+	}
+
+	// 2. Generar cada pagina individual como {slug}.html
+	for _, p := range pages {
+		pageHTML := generateHTMLPage(pool, p.slug, p.title, p.subtitle, p.content, pages)
+		pagePath := filepath.Join(htmlDir, p.slug+".html")
+		if err := os.WriteFile(pagePath, []byte(pageHTML), 0644); err != nil {
+			log.Printf("GenerateStaticHTMLFiles: error writing %s: %v", p.slug, err)
+		}
+	}
+
+	// 3. Generar sitemap.html (mapa del sitio completo)
+	sitemapHTML := generateSitemapHTML(pages)
+	sitemapPath := filepath.Join(htmlDir, "sitemap.html")
+	os.WriteFile(sitemapPath, []byte(sitemapHTML), 0644)
+}
+
+// generateHTMLIndex genera el HTML del indice de paginas
+func generateHTMLIndex(pages []pageInfo) string {
 	var sb strings.Builder
 	sb.WriteString(`<!DOCTYPE html>
 <html lang="es">
@@ -333,47 +393,35 @@ li a:hover { text-decoration: underline; }
 <div class="note">Esta es la version HTML estatica del sitio para lectores externos y motores de busqueda. Cada pagina contiene el contenido completo en HTML.</div>
 <ul>
 `)
-
-	for rows.Next() {
-		var slug, title string
-		var subtitle, icon *string
-		_ = rows.Scan(&slug, &title, &subtitle, &icon)
+	for _, p := range pages {
 		subtitleStr := ""
-		if subtitle != nil {
-			subtitleStr = *subtitle
+		if p.subtitle != nil {
+			subtitleStr = *p.subtitle
 		}
-		iconStr := ""
-		if icon != nil {
-			iconStr = *icon + " "
-		}
-		sb.WriteString(fmt.Sprintf("  <li><a href=\"/html/%s\">%s%s</a><div class=\"subtitle\">%s</div></li>\n",
-			slug, iconStr, htmlEscape(title), htmlEscape(subtitleStr)))
+		sb.WriteString(fmt.Sprintf("  <li><a href=\"%s.html\">%s</a><div class=\"subtitle\">%s</div></li>\n",
+			p.slug, htmlEscape(p.title), htmlEscape(subtitleStr)))
 	}
 	sb.WriteString("</ul>\n</body>\n</html>\n")
 	return sb.String()
 }
 
-// buildHTMLPage genera una pagina HTML estatica completa para una pagina
-// publica especifica. Incluye el contenido completo y enlaces a las demas.
-func buildHTMLPage(pool *pgxpool.Pool, slug string) string {
-	var title, content string
-	var subtitle *string
-	err := pool.QueryRow(context.Background(), `
-		SELECT title, subtitle, content
-		FROM public_pages
-		WHERE node_domain = 'localhost' AND slug = $1 AND is_published = true`,
-		slug).Scan(&title, &subtitle, &content)
-	if err != nil {
-		return ""
-	}
-
+// generateHTMLPage genera el HTML completo de una pagina individual
+func generateHTMLPage(pool *pgxpool.Pool, slug, title string, subtitle *string, content string, allPages []pageInfo) string {
 	subtitleStr := ""
 	if subtitle != nil {
 		subtitleStr = *subtitle
 	}
 
 	htmlContent := jsonContentToHTML(content)
-	navHTML := buildHTMLNavigation(pool, slug)
+
+	// Generar navegacion a las demas paginas
+	var navSB strings.Builder
+	for _, p := range allPages {
+		if p.slug == slug {
+			continue
+		}
+		navSB.WriteString(fmt.Sprintf("  <li><a href=\"%s.html\">%s</a></li>\n", p.slug, htmlEscape(p.title)))
+	}
 
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html lang="es">
@@ -401,7 +449,7 @@ nav a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
-<div class="back"><a href="/html">&larr; Volver al indice</a></div>
+<div class="back"><a href="index.html">&larr; Volver al indice</a></div>
 <h1>%s</h1>
 <p class="subtitle">%s</p>
 %s
@@ -415,29 +463,37 @@ nav a:hover { text-decoration: underline; }
 </html>
 `, htmlEscape(title), htmlEscape(subtitleStr), htmlEscape(subtitleStr),
 		htmlEscape(title), htmlEscape(subtitleStr),
-		htmlContent, navHTML)
+		htmlContent, navSB.String())
 }
 
-// buildHTMLNavigation genera enlaces HTML a todas las paginas excepto la actual
-func buildHTMLNavigation(pool *pgxpool.Pool, currentSlug string) string {
-	rows, err := pool.Query(context.Background(), `
-		SELECT slug, title FROM public_pages
-		WHERE node_domain = 'localhost' AND is_published = true AND show_in_menu = true
-		ORDER BY menu_order`)
-	if err != nil {
-		return ""
-	}
-	defer rows.Close()
-
+// generateSitemapHTML genera un mapa del sitio en HTML
+func generateSitemapHTML(pages []pageInfo) string {
 	var sb strings.Builder
-	for rows.Next() {
-		var slug, title string
-		_ = rows.Scan(&slug, &title)
-		if slug == currentSlug {
-			continue
-		}
-		sb.WriteString(fmt.Sprintf("  <li><a href=\"/html/%s\">%s</a></li>\n", slug, htmlEscape(title)))
+	sb.WriteString(`<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mapa del Sitio</title>
+<meta name="robots" content="index, follow">
+<style>
+body { font-family: system-ui, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+h1 { color: #16a34a; }
+ul { list-style: none; padding: 0; }
+li { margin: 8px 0; }
+a { color: #16a34a; text-decoration: none; }
+a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<h1>Mapa del Sitio</h1>
+<ul>
+<li><a href="index.html">Indice</a></li>
+`)
+	for _, p := range pages {
+		sb.WriteString(fmt.Sprintf("<li><a href=\"%s.html\">%s</a></li>\n", p.slug, htmlEscape(p.title)))
 	}
+	sb.WriteString("</ul>\n</body>\n</html>\n")
 	return sb.String()
 }
 

@@ -2143,6 +2143,7 @@ func (h *SystemHandler) createSitePage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, 201, map[string]interface{}{"id": id.String(), "message": "Pagina creada"})
+	GenerateStaticHTMLFiles(h.Pool)
 }
 
 func (h *SystemHandler) updateSitePage(w http.ResponseWriter, r *http.Request) {
@@ -2165,6 +2166,7 @@ func (h *SystemHandler) updateSitePage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, 200, map[string]interface{}{"message": "Pagina actualizada"})
+	GenerateStaticHTMLFiles(h.Pool)
 }
 
 func (h *SystemHandler) upsertSitePageBySlug(w http.ResponseWriter, r *http.Request) {
@@ -2204,6 +2206,7 @@ func (h *SystemHandler) upsertSitePageBySlug(w http.ResponseWriter, r *http.Requ
 	}
 
 	writeJSON(w, 200, map[string]interface{}{"message": "Pagina guardada con exito"})
+	GenerateStaticHTMLFiles(h.Pool)
 }
 
 func (h *SystemHandler) deleteSitePage(w http.ResponseWriter, r *http.Request) {
@@ -2214,6 +2217,7 @@ func (h *SystemHandler) deleteSitePage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]interface{}{"message": "Pagina eliminada"})
+	GenerateStaticHTMLFiles(h.Pool)
 }
 
 // resetSitePage restablece una pagina al contenido por defecto del seed,
@@ -2250,6 +2254,7 @@ func (h *SystemHandler) resetSitePage(w http.ResponseWriter, r *http.Request) {
 		"subtitle":  defaultSubtitle,
 		"preserved": "El titulo actual se ha preservado",
 	})
+	GenerateStaticHTMLFiles(h.Pool)
 }
 
 func (h *SystemHandler) getSiteSettings(w http.ResponseWriter, r *http.Request) {
