@@ -1,47 +1,34 @@
-fix: precios decimales, unidad de medida, modal de busqueda, estabilidad
+fix: filtro de busqueda con debounce + sesion no se cierra mientras trabajas
 
 PROBLEMAS ARREGLADOS:
 
-1. PRECIOS DECIMALES (el problema principal)
-   - El sistema usaba int64 (enteros) para todos los precios
-   - 2 TQ / 5 productos = 0.4 TQ se redondeaba a 0 TQ
-   - Cambiado a float64 / NUMERIC(12,2) en todo el sistema
-   - Migracion 046_decimal_prices.sql cambia BIGINT a NUMERIC(12,2)
-   - Archivos cambiados:
-     * internal/pricing/calculator.go (todos los campos de energia y precio)
-     * internal/external/store.go (PriceTrueque, BasePrice, ExtraCosts, FinalPrice)
-     * internal/external/dex.go (LocalPriceTrueque)
-     * internal/api/external.go (CompositeComponent, StoreItem, listComponents)
-     * internal/api/handlers.go (CreateProductRequest, CalcInternalRequest)
-     * internal/api/system.go (var price float64 en todos los lugares)
-     * internal/federation/protocol.go (PricePerUnit)
-     * internal/federation/server.go (BroadcastProductProposal)
-   - Frontend: Math.round() eliminado, ahora usa toFixed(2) para mostrar decimales
+1. FILTRO DE BUSQUEDA NO FILTRABA CORRECTAMENTE
+   - Causa: race condition - al escribir "hielo", se hacian 5 peticiones
+     (h, hi, hie, hiel, hielo). Si la peticion de "h" (243 resultados)
+     llegaba despues de la de "hielo" (0 resultados), se mostraban los 243.
+   - Solucion:
+     * Debounce de 300ms: espera a que el usuario deje de escribir
+     * AbortController: cancela la peticion anterior antes de hacer la nueva
+     * Estado separado modalSearchTerm (con debounce) vs searchTerm (instantaneo)
+   - Ahora al buscar "hielo" y no encontrar nada, dice:
+     "No se encontro 'hielo' en esta categoria"
 
-2. UNIDAD DE MEDIDA DEL PRODUCTO COMPUESTO
-   - Antes: el producto compuesto siempre era "unidad" con cantidad 1
-   - Ahora: el usuario selecciona la unidad (ml, L, gr, kg, unidad, manojo, etc.)
-   - Ahora: el usuario especifica la cantidad por unidad (200ml, 500gr, etc.)
-   - Esto permite saber exactamente cuanto contiene cada producto
-   - Ejemplo: Jugo de naranja, unidad=ml, cantidad=200
-   - El backend recibe unit y quantity_per_unit en el request
-
-3. MODAL DE BUSQUEDA DE COMPONENTES
-   - Antes: mostraba "Escribe para buscar componentes" cuando no habia texto
-   - Ahora: carga la lista completa de componentes al abrir el modal
-   - Anadido estado de loading y error para diagnosticar problemas
-   - Si la sesion expira, muestra mensaje claro en vez de lista vacia
-   - Si el backend falla, muestra el error en vez de silenciosamente vaciar
-
-4. ESTABILIDAD DEL BACKEND
-   - Timeout del middleware aumentado de 30s a 60s
-   - middleware.Recoverer ya estaba presente (atra panics)
-   - Manejo de errores mas robusto en listComponents
-
-5. CALCULO DE PRECIOS EN FRONTEND
-   - compositeTotalPrice ahora usa decimales sin redondear
-   - Display de componentes usa toFixed(2) en vez de Math.round
-   - Display de precio total usa toFixed(2)
+2. SESION SE CERRABA MIENTRAS EL USUARIO TRABAJABA
+   - Causa 1: useSessionTimeout redirigia a /login?expired=1 despues de 30 min,
+     perdiendo todo el trabajo del usuario
+   - Causa 2: Cualquier error 401 del backend redirigia a /login
+   - Solucion:
+     * Tiempo de inactividad aumentado de 30 min a 2 horas
+     * Mas eventos de actividad detectados (click, input, wheel, etc.)
+     * Al expirar la sesion: NO redirige a /login
+     * En su lugar, muestra un MODAL DE RE-LOGIN sobre la pagina actual
+     * El usuario ingresa usuario y contraseña en el modal
+     * Al re-iniciar sesion, vuelve a la misma pagina donde estaba
+     * No pierde nada de lo que estaba haciendo
+   - JWT expiracion aumentada de 24 horas a 7 dias
+   - Nuevo componente: SessionExpiredModal.tsx
+   - api.ts: setSessionExpiredHandler() para registrar el handler del modal
+   - useSessionTimeout.ts: solo hace logout(), no redirige
 
 Generated with [Devin](https://devin.ai)
 

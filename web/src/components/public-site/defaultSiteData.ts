@@ -1902,4 +1902,378 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
       },
     ],
   },
+  {
+    slug: 'metodologia-energetica',
+    title: 'Metodología Energética',
+    subtitle: 'Cómo Calculamos los Precios: Energía Objetiva, no Dinero',
+    icon: 'zap',
+    menu_order: 13,
+    blocks: [
+      {
+        type: 'hero',
+        badge: '⚡ 1 TQ = 1 kWh = 3.6 MJ',
+        title: 'Precios Basados en Energía, no en Mercado',
+        subtitle: 'Nuestro sistema de precios no usa oro, dólares ni especulación. Usa la energía física real invertida en producir cada bien.',
+        description:
+          'El TQ no está anclado al oro ni a ninguna moneda. Está anclado al julio (J), la unidad universal de energía del Sistema Internacional. 1 TQ = 1 kWh = 3.6 megajulios (MJ). Esto hace que el valor sea objetivo, medible y auditable: cualquier persona puede verificar cuánta energía se invirtió en producir algo.',
+        image_url:
+          'https://images.unsplash.com/photo-1466611653911-95081537e5b7?auto=format&fit=crop&w=1200&q=80',
+        style: 'standard',
+      },
+      {
+        type: 'features_grid',
+        title: '¿Por qué Energía y no Dinero?',
+        subtitle: 'El dinero se devalúa, la energía no. El dinero se especula, la energía se mide.',
+        columns: 2,
+        items: [
+          {
+            icon: 'zap',
+            title: 'Universal e invariable',
+            description:
+              'El julio (J) es la unidad de energía del Sistema Internacional de Unidades (SI). Es la misma en Caracas, en Tokio y en la Luna. No depende de ningún gobierno, banco central ni mercado. 1 kWh siempre será 3.6 MJ, sin importar la inflación, la política ni la especulación.',
+            badge: 'Universal',
+          },
+          {
+            icon: 'scale',
+            title: 'Objetivo y auditable',
+            description:
+              'Cuando decimos que una olla de barro cuesta 8 TQ, cualquiera puede verificar el cálculo: 2 kg de arcilla × 2.5 MJ/kg + 18 MJ de cocción + 3 horas de trabajo × 3.6 MJ/hora = 33.8 MJ = 9.4 TQ. No hay precio "porque sí": hay una fórmula transparente.',
+            badge: 'Transparente',
+          },
+          {
+            icon: 'trending-down',
+            title: 'Sin inflación ni devaluación',
+            description:
+              'El dinero fiduciario se devalúa con la inflación. El oro sube y baja con la especulación. La energía incorporada en un producto no cambia: si hoy cuesta 5 kWh producir un kilo de pan, mañana costará lo mismo (a menos que mejore la tecnología, en cuyo caso baja, lo cual es bueno para todos).',
+            badge: 'Sin inflación',
+          },
+          {
+            icon: 'leaf',
+            title: 'Refleja el costo real del planeta',
+            description:
+              'El precio de mercado no incluye el daño ambiental: la contaminación, la deforestación, el agotamiento de suelos. La energía incorporada sí lo refleja: un producto transportado desde China tiene más energía incorporada (combustible del barco) que uno producido localmente. El sistema energetico premia lo local y lo sostenible.',
+            badge: 'Ecológico',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'La Fórmula Fundamental',
+        subtitle: 'Cómo se calcula el precio de cualquier producto',
+        columns: 1,
+        items: [
+          {
+            icon: 'calculator',
+            title: 'Energía Total Incorporada',
+            description:
+              'EE_total = E_directa + E_insumos + E_trabajo + E_transporte\n\n• E_directa: energía consumida en el proceso (electricidad, gas, leña)\n• E_insumos: energía incorporada en las materias primas usadas\n• E_trabajo: energía humana invertida (horas × tarifa energética)\n• E_transporte: energía del traslado de materiales y producto final\n\nEl resultado en MJ se divide entre 3.6 para obtener TQ.\n\nEjemplo: Olla de barro de 2 kg\n• Material: 2 kg × 2.5 MJ/kg = 5 MJ\n• Cocción: 18 MJ\n• Trabajo: 3 horas × 3.6 MJ/h = 10.8 MJ\n• Total: 33.8 MJ ÷ 3.6 = 9.4 TQ → precio: 8 TQ',
+            badge: 'Fórmula',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'Energía Incorporada por Material (ICE Database)',
+        subtitle: 'Usamos el estándar internacional ICE Database de la University of Bath (UK)',
+        columns: 3,
+        items: [
+          {
+            icon: 'layers',
+            title: 'Arcilla / Cerámica',
+            description: '2.5 MJ/kg = 0.7 TQ/kg. Fuente: ICE Database. Material fundamental para ollas, vasijas, construcción de bahareque.',
+            badge: '0.7 TQ/kg',
+          },
+          {
+            icon: 'package',
+            title: 'Madera blanda',
+            description: '0.3 MJ/kg = 0.08 TQ/kg. Madera secada al aire. Fuente: ICE Database. Usada en muebles, cercas, herramientas.',
+            badge: '0.08 TQ/kg',
+          },
+          {
+            icon: 'package',
+            title: 'Madera dura',
+            description: '2.0 MJ/kg = 0.56 TQ/kg. Madera secada en horno. Fuente: ICE Database. Usada en muebles finos, construcción.',
+            badge: '0.56 TQ/kg',
+          },
+          {
+            icon: 'shirt',
+            title: 'Algodón / Tela',
+            description: '143 MJ/kg = 39.7 TQ/kg. Fuente: ICE Database + Ecoinvent. La tela es uno de los materiales con mayor energía incorporada.',
+            badge: '39.7 TQ/kg',
+          },
+          {
+            icon: 'shirt',
+            title: 'Lana',
+            description: '67.5 MJ/kg = 18.75 TQ/kg. Fuente: ICE Database. Material natural para textiles, mantas, ropa de abrigo.',
+            badge: '18.75 TQ/kg',
+          },
+          {
+            icon: 'droplet',
+            title: 'Vidrio',
+            description: '12.7 MJ/kg = 3.5 TQ/kg. Fuente: ICE Database. Usado en envases retornables, ventanas, decoración.',
+            badge: '3.5 TQ/kg',
+          },
+          {
+            icon: 'file',
+            title: 'Papel kraft',
+            description: '25 MJ/kg = 6.9 TQ/kg. Fuente: ICE Database. Usado en bolsas, embalaje, etiquetas.',
+            badge: '6.9 TQ/kg',
+          },
+          {
+            icon: 'leaf',
+            title: 'Fibra vegetal',
+            description: '0.5 MJ/kg = 0.14 TQ/kg. Estimación comunitaria. Cestería, sogas, artesanías con materiales del conuco.',
+            badge: '0.14 TQ/kg',
+          },
+          {
+            icon: 'recycle',
+            title: 'HDPE (plástico)',
+            description: '52.5 MJ/kg = 14.6 TQ/kg. Fuente: ICE Database + Ecoinvent. Tanques de agua, tuberías, envases.',
+            badge: '14.6 TQ/kg',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'Trabajo Humano: Tarifa Energética',
+        subtitle: 'El trabajo humano se valora según la energía vital que sostiene al trabajador',
+        columns: 2,
+        items: [
+          {
+            icon: 'users',
+            title: 'Tarifa vital por hora',
+            description:
+              'El trabajo humano se calcula según la energía necesaria para sostener la vida del trabajador: alimentación, agua, vivienda y servicios básicos. La tarifa base es aproximadamente 1 TQ por hora de trabajo, ajustada por el tipo de esfuerzo.',
+            badge: '1 TQ/hora base',
+          },
+          {
+            icon: 'trending-up',
+            title: 'Factores de esfuerzo',
+            description:
+              'No todo el trabajo exige la misma energía:\n• Trabajo administrativo: × 1.0\n• Trabajo técnico/especializado: × 1.15\n• Trabajo agrícola/físico: × 1.3\n\nUn agricultor que trabaja 6 horas recibe 6 × 1.3 = 7.8 TQ. Un administrador que trabaja 6 horas recibe 6 × 1.0 = 6 TQ.',
+            badge: 'Por esfuerzo',
+          },
+          {
+            icon: 'clock',
+            title: 'Parámetros laborales',
+            description:
+              'Jornada estándar: 6 horas/día, 24 días/mes. Estos parámetros son configurables por cada nodo según las decisiones de su asamblea. Lo importante es que el trabajo se mide en horas reales, no en "productividad" subjetiva.',
+            badge: '6 h/día',
+          },
+          {
+            icon: 'heart',
+            title: 'Trabajo no remunerado',
+            description:
+              'El sistema puede reconocer el trabajo doméstico, de cuidados y comunitario que la economía convencional no valora. Cuidar a un anciano, cocinar para la comunidad, organizar una asamblea: todo es trabajo que consume energía humana y merece ser registrado.',
+            badge: 'Inclusivo',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'Ejemplo Práctico: Pan Artesanal (1 kg)',
+        subtitle: 'Cómo se calcula paso a paso el precio de un kilo de pan integral',
+        columns: 1,
+        items: [
+          {
+            icon: 'wheat',
+            title: 'Desglose energético del pan',
+            description:
+              'Harina de trigo integral: 0.6 kg × 10 TQ/kg = 6.0 TQ\nLevadura natural: 0.02 kg × 5 TQ/kg = 0.1 TQ\nSal marina: 0.01 kg × 3 TQ/kg = 0.03 TQ\nAgua: 0.35 L × 0.5 TQ/L = 0.18 TQ\nElectricidad (horno): 0.5 kWh × 1 TQ/kWh = 0.5 TQ\nLeña (horno mixto): 0.3 kg × 4.5 TQ/kg = 1.35 TQ\nTrabajo del panadero: 3 horas × 1 TQ/h = 3.0 TQ\nTransporte local: 2 km × 0.5 TQ/km = 1.0 TQ\n─────────────────────────\nTOTAL: 12.16 TQ por kg de pan\n\nPrecio redondeado: 12 TQ/kg',
+            badge: '12 TQ/kg',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'Productos Compuestos: Cálculo por Rendimiento',
+        subtitle: 'Cuando un productor transforma materias primas en productos terminados',
+        columns: 1,
+        items: [
+          {
+            icon: 'droplet',
+            title: 'Ejemplo: Jugo de naranja 200ml',
+            description:
+              'Un productor compra 1 kg de naranjas (2 TQ/kg) y produce 50 envases de 200ml.\n\nCantidad por envase = 1 kg ÷ 50 = 0.02 kg\nCosto de naranja por envase = 2 TQ × 0.02 = 0.04 TQ\n\nSe suman todos los componentes:\n• Naranjas: 0.04 TQ/envase\n• Azúcar/panela: 0.06 TQ/envase\n• Envase de vidrio: 0.50 TQ/envase\n• Trabajo (exprimido + envasado): 0.04 TQ/envase\n• Transporte: 0.05 TQ/envase\n─────────────────────────\nTOTAL: 0.69 TQ por envase → precio: 1 TQ\n\nEl productor especifica cuánto compró y cuántos productos obtuvo. El sistema calcula automáticamente el costo por unidad.',
+            badge: '1 TQ/envase',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'Fuentes de Datos Energéticos',
+        subtitle: 'Usamos estándares internacionales reconocidos, no inventamos los números',
+        columns: 2,
+        items: [
+          {
+            icon: 'book',
+            title: 'ICE Database',
+            description:
+              'Inventory of Carbon & Energy, University of Bath (Reino Unido). Base de datos de energía incorporada por kg de material. Es el estándar más usado en el mundo para cálculos de huella energética de materiales de construcción y manufactura.',
+            badge: 'University of Bath',
+          },
+          {
+            icon: 'book',
+            title: 'Ecoinvent',
+            description:
+              'Base de datos suiza de análisis de ciclo de vida (LCA). Contiene datos detallados de energía incorporada, emisiones y uso de recursos para miles de productos y procesos industriales.',
+            badge: 'Suiza',
+          },
+          {
+            icon: 'book',
+            title: 'Agribalyse',
+            description:
+              'Base de datos francesa del INRAE especializada en agricultura y alimentación. Proporciona datos de energía incorporada y huella ambiental de productos agrícolas y alimentos.',
+            badge: 'Francia',
+          },
+          {
+            icon: 'book',
+            title: 'FAO Statistics',
+            description:
+              'Organización de las Naciones Unidas para la Alimentación y Agricultura. Datos globales de producción agrícola, uso de energía en la agricultura y balances energéticos nacionales.',
+            badge: 'ONU',
+          },
+          {
+            icon: 'book',
+            title: 'USDA',
+            description:
+              'Departamento de Agricultura de Estados Unidos. Datos nutricionales, de producción y energía en sistemas alimentarios. Referencia para cálculos de eficiencia energética agrícola.',
+            badge: 'EE.UU.',
+          },
+          {
+            icon: 'book',
+            title: 'Pimentel (Cornell)',
+            description:
+              'David Pimentel, ecólogo de la Universidad de Cornell. Pionero en estudios de energía en agricultura. Sus datos sobre EROI (Energy Return on Investment) son referencia mundial.',
+            badge: 'Cornell',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'Equivalencias Energéticas',
+        subtitle: 'Para entender qué significa 1 TQ en la vida real',
+        columns: 3,
+        items: [
+          {
+            icon: 'zap',
+            title: '1 TQ = 1 kWh',
+            description: 'Un kilovatio-hora de electricidad. Lo que consume un bombillo LED de 10W encendido durante 100 horas, o un refrigerador durante medio día.',
+            badge: 'Electricidad',
+          },
+          {
+            icon: 'flame',
+            title: '1 TQ = 3.6 MJ',
+            description: '3.6 megajulios. La unidad del Sistema Internacional. Es la energía de 100 gramos de gasolina o 0.1 litros.',
+            badge: 'Julios',
+          },
+          {
+            icon: 'flame',
+            title: '1 TQ ≈ 0.08 L gasolina',
+            description: 'Unos 80 mililitros de gasolina. La energía que contiene un vaso pequeño de combustible.',
+            badge: 'Gasolina',
+          },
+          {
+            icon: 'flame',
+            title: '1 TQ ≈ 0.2 kg leña',
+            description: '200 gramos de leña seca. La energía de un puñado de ramas secas para cocinar.',
+            badge: 'Leña',
+          },
+          {
+            icon: 'sun',
+            title: '1 TQ ≈ 1 hora solar',
+            description: 'Aproximadamente la energía que un panel solar de 1 kW produce en 1 hora de sol pleno.',
+            badge: 'Solar',
+          },
+          {
+            icon: 'user',
+            title: '1 TQ ≈ 1 hora trabajo',
+            description: 'Una hora de trabajo humano base. El esfuerzo de una persona trabajando normalmente durante 60 minutos.',
+            badge: 'Trabajo',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'Historia: Energía como Moneda',
+        subtitle: 'La idea de usar energía como unidad de valor no es nueva',
+        columns: 2,
+        items: [
+          {
+            icon: 'history',
+            title: 'Ford y Edison (1921)',
+            description:
+              'Henry Ford y Thomas Edison propusieron una "moneda energética" basada en kWh, alternativa al patrón oro. Ford decía: "La energía es la única verdadera moneda". La idea no prosperó porque los bancos prefirieron mantener el sistema fiduciario que les beneficiaba.',
+            badge: '1921',
+          },
+          {
+            icon: 'history',
+            title: 'Howard Odum (1970s)',
+            description:
+              'Ecólogo estadounidense que desarrolló el concepto de "emergía" (energy memory): la energía total incorporada en un producto o servicio. Su libro "Energy Basis for Man and Nature" (1976) es fundacional para la economía ecológica.',
+            badge: 'Emergía',
+          },
+          {
+            icon: 'history',
+            title: 'LETS (1983)',
+            description:
+              'Local Exchange Trading System, creado por Michael Linton en Canadá. Sistema de crédito mutuo comunitario sin dinero. Inspiró miles de redes de trueque en el mundo, incluyendo los clubes de trueque argentinos.',
+            badge: 'Canadá',
+          },
+          {
+            icon: 'history',
+            title: 'Club del Trueque (1995)',
+            description:
+              'Argentina, años 90. Red de clubes de trueque que llegó a tener 500.000 participantes durante la crisis económica de 2001. Usaban "créditos" como unidad contable. Demostró que el crédito mutuo funciona a gran escala.',
+            badge: 'Argentina',
+          },
+        ],
+      },
+      {
+        type: 'features_grid',
+        title: 'Diferencia con el Dinero Convencional',
+        subtitle: 'Por qué el TQ no es dinero y nunca lo será',
+        columns: 2,
+        items: [
+          {
+            icon: 'x',
+            title: 'No es dinero',
+            description:
+              'El TQ no es una moneda legal, no se puede comprar ni vender en mercados financieros, no se puede depositar en un banco, no genera intereses, no se puede especular con él. Es una unidad contable interna de la red.',
+            badge: 'No es dinero',
+          },
+          {
+            icon: 'x',
+            title: 'No es criptomoneda',
+            description:
+              'El TQ no se mina, no tiene blockchain pública, no cotiza en exchanges, no tiene valor de mercado fluctuante. Su valor es fijo: 1 TQ siempre será 1 kWh de energía objetiva.',
+            badge: 'No es cripto',
+          },
+          {
+            icon: 'x',
+            title: 'No genera intereses',
+            description:
+              'Tener saldo positivo no genera más TQ. Tener saldo negativo no genera deuda creciente. El sistema está diseñado para que la riqueza circule, no para que se acumule ni se concentre.',
+            badge: 'Sin interés',
+          },
+          {
+            icon: 'check',
+            title: 'Es un registro contable',
+            description:
+              'El TQ es un registro transparente de quién aportó qué y quién recibió qué. La suma de todos los saldos siempre da cero. No hay emisión de moneda, no hay inflación, no hay devaluación. Solo hay registro honesto de intercambios.',
+            badge: 'Registro contable',
+          },
+        ],
+      },
+      {
+        type: 'cta_banner',
+        badge: '💡 Transparencia',
+        title: '¿Quieres ver cómo se calcula un producto específico?',
+        subtitle: 'Usa nuestra calculadora energética para ver el desglose de energía y precio de cualquier producto del catálogo. Puedes ver la energía directa, humana, de insumos y de amortización que hay en cada cosa que producimos.',
+        button_text: 'Ver Catálogo de Productos',
+        button_link: '/p/productos',
+        theme: 'emerald',
+      },
+    ],
+  },
 ]
