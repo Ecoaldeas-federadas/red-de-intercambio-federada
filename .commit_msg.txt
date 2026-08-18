@@ -1,90 +1,43 @@
-fix: dividir productos bundle en productos individuales con precios especificos
+fix: productos artesanales por kg de material + trabajo por hora
 
-Problema: varios productos agrupaban items distintos bajo un solo precio
-ambiguo. Ej: "Sistemas de Riego" = mangueras + aspersores + goteros +
-bombas + tanques todo a 50 TQ, sin especificar cantidades ni que cada
-componente tiene precios muy distintos.
+Estandar internacional ICE Database: energia incorporada por kg de material
+(no por unidad ambigua). Una maceta pequena no vale lo mismo que una grande.
 
-Solucion: cada producto bundle se divide en productos individuales con
-su propio precio basado en energia incorporada real.
+Eliminados 7 productos ambiguos por unidad:
+- Prendas de Vestir Artesanales (30 TQ/unidad)
+- Cobijas, Frazadas y Hamacas (40 TQ/unidad)
+- Vasijas y Vajilla de Barro (15 TQ/unidad)
+- Ceramica Decorativa (15 TQ/unidad)
+- Canastas y Cesteria (10 TQ/unidad)
+- Tallados y Utensilios de Madera (20 TQ/unidad)
+- Muebles Rusticos de Madera (80 TQ/unidad)
 
-Productos divididos:
+Nuevas materias primas por kg (estandar ICE Database):
+- Arcilla para Ceramica: 1 TQ/kg (2.5 MJ/kg)
+- Madera Blanda para Tallado: 1 TQ/kg (0.3 MJ/kg)
+- Madera Dura para Muebles: 1 TQ/kg (2.0 MJ/kg)
+- Fibra Vegetal para Cesteria: 1 TQ/kg (0.5 MJ/kg)
+- Tela de Algodon Cruda: 40 TQ/kg (143 MJ/kg)
+- Lana Cruda para Tejer: 19 TQ/kg (67.5 MJ/kg)
+- Hilo de Algodon (rollo 100g): 4 TQ
 
-1. SISTEMAS DE RIEGO (50 TQ/juego) -> 6 productos individuales:
-   - Manguera de Riego PVC 1m: 1 TQ/metro
-   - Aspersor de Riego: 1 TQ/unidad
-   - Gotero de Riego: 1 TQ/unidad
-   - Bomba Manual de Agua: 12 TQ/unidad
-   - Tanque de Agua 200L: 73 TQ/unidad
-   - Tanque de Agua 1000L: 365 TQ/unidad
+Nuevos productos especificos con peso definido:
+Ceramica: Taza 0.3kg=2TQ, Plato 0.5kg=3TQ, Olla 2kg=8TQ, Cantarola 5kg=15TQ
+Macetas: Pequena 0.5kg=3TQ, Mediana 2kg=8TQ, Grande 5kg=15TQ
+Madera: Cuchara 0.1kg=1TQ, Mortero 1kg=3TQ, Silla 8kg=11TQ, Mesa 20kg=23TQ
+         Banco 12kg=14TQ, Cama 35kg=35TQ
+Cesteria: Canasto 0.3kg=2TQ, Cesta 1kg=4TQ, Sombrero 0.2kg=5TQ
+Textiles: Camisa 0.3kg=16TQ, Pantalon 0.5kg=25TQ, Frazada 1.5kg=37TQ
+          Hamaca 1.2kg=30TQ
 
-2. BOTIQUIN Y PRIMEROS AUXILIOS (5 TQ/juego) -> 5 productos:
-   - Vendas y Gasas (Paquete): 3 TQ
-   - Alcohol Medicinal 1L: 1 TQ
-   - Yodo (Frasco 30ml): 1 TQ
-   - Tijeras de Primeros Auxilios: 2 TQ
-   - Apositos y Tiritas (Caja): 1 TQ
+Trabajo artesanal por hora:
+- Trabajo de Alfareria: 1 TQ/hora
+- Trabajo de Carpinteria: 1 TQ/hora
+- Trabajo de Cesteria: 1 TQ/hora
+- Trabajo de Costura: 1 TQ/hora
+- Coccion de Ceramica en Horno: 5 TQ/carga
 
-3. HERRAMIENTAS DE CAMPO (50 TQ/unidad) -> 5 productos:
-   - Machete: 4 TQ
-   - Pala: 9 TQ
-   - Pico: 12 TQ
-   - Rastrillo: 7 TQ
-   - Azadon: 6 TQ
-
-4. HERRAMIENTAS DE TALLER (50 TQ/unidad) -> 5 productos:
-   - Martillo: 2 TQ
-   - Serrucho: 3 TQ
-   - Lima: 2 TQ
-   - Destornillador: 1 TQ
-   - Alicates: 2 TQ
-
-5. EQUIPOS ELECTRICOS DE TALLER (200 TQ/unidad) -> 5 productos:
-   - Taladro Electrico: 100 TQ
-   - Sierra Circular: 120 TQ
-   - Amoladora: 80 TQ
-   - Lijadora Electrica: 60 TQ
-   - Soldadora Electrica: 200 TQ
-
-6. COMPONENTES ELECTRONICOS (10 TQ/lote) -> 7 productos:
-   - Cable Electrico (metro): 1 TQ
-   - Resistencias (Paquete 10): 1 TQ
-   - Capacitores (Paquete 10): 1 TQ
-   - Conectores (Paquete): 2 TQ
-   - Soldadura Electronica (Rollo): 3 TQ
-   - Plaquetas PCB (Unidad): 2 TQ
-   - Fusibles (Paquete 10): 1 TQ
-
-7. BICICLETAS Y REFACCIONES (100 TQ/unidad) -> 4 productos:
-   - Bicicleta Completa: 100 TQ
-   - Llanta de Bicicleta: 7 TQ
-   - Cadena de Bicicleta: 2 TQ
-   - Frenos de Bicicleta: 5 TQ
-
-8. ANIMALES DE CARGA Y MONTURA (18 TQ/kg) -> 3 productos:
-   - Caballo de Silla: 500 TQ (crianza 3 anos)
-   - Burro de Carga: 300 TQ (crianza 2 anos)
-   - Mula de Carga: 400 TQ (crianza 3 anos)
-
-9. INSTRUMENTOS MUSICALES ARTESANALES (100 TQ/unidad) -> 5 productos:
-   - Cuatro Venezolano: 25 TQ
-   - Guitarra Artesanal: 40 TQ
-   - Tambor (Caja): 30 TQ
-   - Maracas (Par): 8 TQ
-   - Flauta de Caña: 3 TQ
-
-10. CANASTA BASICA FAMILIAR SEMANAL:
-    - Descripcion actualizada con contenido EXACTO y cantidades
-    - Precio recalculado: 66 TQ (antes 50 TQ)
-    - Especifica: 3kg granos, 2kg verduras, 1kg frutas, 0.5kg pollo,
-      1L leche, 0.5L aceite, 0.5kg panela, 12 huevos, 100g especias
-
-Seguridad de datos:
-- Los productos bundle existentes se ocultan (is_hidden = true)
-- No se eliminan registros de la base de datos
-- Los productos individuales se insertan con INSERT WHERE NOT EXISTS
-- Las tiendas existentes que referencian productos bundle siguen funcionando
-- seed.go actualizado para que nuevos nodos reciban los productos individuales
+Formula: precio = (material x energia_por_kg) + (horas_trabajo x 1 TQ) + coccion
 
 Generated with [Devin](https://devin.ai)
 
