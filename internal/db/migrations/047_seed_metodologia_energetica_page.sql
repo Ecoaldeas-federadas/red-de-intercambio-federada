@@ -15,10 +15,11 @@
 DELETE FROM public_pages WHERE slug = 'metodologia-energetica';
 
 -- Paso 2: Insertar para 'localhost' (dominio por defecto usado por el sistema)
+-- Usamos dollar-quoting ($json$) para evitar problemas de escaping
 INSERT INTO public_pages (node_domain, slug, title, subtitle, content, icon, menu_order, is_published, show_in_menu)
 VALUES ('localhost', 'metodologia-energetica', 'Metodologia Energetica',
 'Como Calculamos los Precios: Energia Objetiva, no Dinero',
-'[
+$json$[
   {
     "type": "hero",
     "badge": "1 TQ = 1 kWh = 3.6 MJ",
@@ -449,7 +450,7 @@ VALUES ('localhost', 'metodologia-energetica', 'Metodologia Energetica',
     "button_link": "/p/productos",
     "theme": "emerald"
   }
-]',
+]$json$,
 'zap', 13, true, true;
 
 -- Paso 3: Copiar la pagina a cualquier otro node_domain que ya tenga paginas
