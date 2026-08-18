@@ -634,6 +634,7 @@ export function EventScheduleBlock({ data }: { data: EventScheduleBlockData }) {
 // 7. PRODUCTS SHOWCASE BLOCK
 // -------------------------------------------------------------
 export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockData }) {
+  const [selectedParent, setSelectedParent] = useState<string>('all')
   const [selectedCat, setSelectedCat] = useState<string>('all')
   const [backendProducts, setBackendProducts] = useState<any[]>([])
 
@@ -648,9 +649,6 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
       .catch(() => setBackendProducts([]))
   }, [useBackend])
 
-  const categories = useBackend
-    ? [...new Set(backendProducts.map((p: any) => p.parent_category || p.category).filter(Boolean))] as string[]
-    : data.categories || []
   const items = useBackend
     ? backendProducts.map((p: any) => ({
         name: p.name,
@@ -664,10 +662,21 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
       }))
     : data.items || []
 
-  const filtered =
-    selectedCat === 'all'
-      ? items
-      : items.filter((it) => (it.parent_category || it.category)?.toLowerCase() === selectedCat.toLowerCase())
+  // Nivel 1: categorias padre
+  const parentCategories = useBackend
+    ? [...new Set(items.map((it: any) => it.parent_category).filter(Boolean))] as string[]
+    : data.categories || []
+
+  // Nivel 2: categorias dentro del padre seleccionado
+  const categories = selectedParent !== 'all'
+    ? [...new Set(items.filter((it: any) => it.parent_category === selectedParent).map((it: any) => it.category).filter(Boolean))] as string[]
+    : []
+
+  const filtered = items.filter((it: any) => {
+    if (selectedParent !== 'all' && it.parent_category !== selectedParent) return false
+    if (selectedCat !== 'all' && it.category !== selectedCat) return false
+    return true
+  })
 
   return (
     <section className="my-8 sm:my-12 space-y-6">
@@ -680,32 +689,67 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
         </div>
       )}
 
-      {/* Category Pills */}
-      {categories.length > 0 && (
+      {/* Nivel 1: Categorias Padre */}
+      {parentCategories.length > 0 && (
         <div className="flex flex-wrap gap-2 justify-center pb-2">
           <button
-            onClick={() => setSelectedCat('all')}
+            onClick={() => { setSelectedParent('all'); setSelectedCat('all') }}
             className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition ${
-              selectedCat === 'all'
+              selectedParent === 'all'
                 ? 'bg-emerald-800 text-white shadow'
                 : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
             }`}
           >
-            Todos los Rubros ({items.length})
+            Todos ({items.length})
           </button>
-          {categories.map((cat, i) => (
-            <button
-              key={i}
-              onClick={() => setSelectedCat(cat)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition ${
-                selectedCat === cat
-                  ? 'bg-emerald-800 text-white shadow'
-                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
+          {parentCategories.map((pc, i) => {
+            const count = items.filter((it: any) => it.parent_category === pc).length
+            return (
+              <button
+                key={i}
+                onClick={() => { setSelectedParent(pc); setSelectedCat('all') }}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition ${
+                  selectedParent === pc
+                    ? 'bg-emerald-800 text-white shadow'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                }`}
+              >
+                {pc} ({count})
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Nivel 2: Categorias (solo si hay padre seleccionado) */}
+      {selectedParent !== 'all' && categories.length > 0 && (
+        <div className="flex flex-wrap gap-2 justify-center pb-2 pl-4 border-l-2 border-emerald-300 ml-4">
+          <button
+            onClick={() => setSelectedCat('all')}
+            className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition ${
+              selectedCat === 'all'
+                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
+            }`}
+          >
+            Todas ({items.filter((it: any) => it.parent_category === selectedParent).length})
+          </button>
+          {categories.map((cat, i) => {
+            const count = items.filter((it: any) => it.parent_category === selectedParent && it.category === cat).length
+            return (
+              <button
+                key={i}
+                onClick={() => setSelectedCat(cat)}
+                className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition ${
+                  selectedCat === cat
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
+                }`}
+              >
+                {cat} ({count})
+              </button>
+            )
+          })}
         </div>
       )}
 

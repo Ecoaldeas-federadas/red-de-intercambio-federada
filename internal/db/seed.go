@@ -1028,10 +1028,10 @@ func (d *DB) SeedProductsToNode(ctx context.Context, nodeDomain string) error {
 		// 7 productos basicos del sistema
 		{"Granos basicos (maiz, frijol) 1kg", "Alimentacion", "Granos y Cereales", "Granos", "kg",
 			"Granos basicos: maiz y frijol criollo, 1kg.", "Criollo",
-			"https://images.unsplash.com/photo-1551753021-1c0f4f6b1c5b?auto=format&fit=crop&w=600&q=80", 90, 10, 60, 15, 5},
+			"https://images.unsplash.com/photo-1551892374-ecf8754cf8b0?auto=format&fit=crop&w=600&q=80", 90, 10, 60, 15, 5},
 		{"Harina de maiz 50kg", "Alimentacion", "Granos y Cereales", "Harinas", "saco",
 			"Harina de maiz, saco de 50kg.", "Base Criolla",
-			"https://images.unsplash.com/photo-1568254183919-78a4f43a0a65?auto=format&fit=crop&w=600&q=80", 10000, 500, 5000, 2000, 2500},
+			"https://images.unsplash.com/photo-1551892374-ecf8754cf8b0?auto=format&fit=crop&w=600&q=80", 10000, 500, 5000, 2000, 2500},
 		{"Verduras frescas 1kg", "Alimentacion", "Cosecha Fresca", "Verduras", "kg",
 			"Verduras frescas variadas, 1kg.", "Del Conuco",
 			"https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=600&q=80", 50, 5, 30, 10, 5},
