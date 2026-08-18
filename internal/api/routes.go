@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -166,6 +167,22 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 				w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 				w.Header().Set("Pragma", "no-cache")
 				w.Header().Set("Expires", "0")
+
+				// Para rutas /p/{slug}: inyectar meta tags Open Graph en el head
+				// para que las redes sociales muestren titulo y descripcion correctos.
+				// Esto NO rompe React porque React no toca el <head>.
+				if len(r.URL.Path) > 3 && r.URL.Path[:3] == "/p/" {
+					slug := r.URL.Path[3:]
+					if idx := strings.Index(slug, "?"); idx >= 0 {
+						slug = slug[:idx]
+					}
+					if html := injectMetaTags(frontendDir, pool, slug); html != "" {
+						w.Header().Set("Content-Type", "text/html; charset=utf-8")
+						w.Write([]byte(html))
+						return
+					}
+				}
+
 				http.ServeFile(w, r, filepath.Join(frontendDir, "index.html"))
 				return
 			}
@@ -181,6 +198,100 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 	}
 
 	return r
+}
+
+// injectMetaTags lee el index.html, busca la pagina en la BD y reemplaza
+// los meta tags del head con el titulo y descripcion de esa pagina especifica.
+// Solo modifica el <head>, no toca el <body>, asi que React funciona normal.
+func injectMetaTags(frontendDir string, pool *pgxpool.Pool, slug string) string {
+	indexBytes, err := os.ReadFile(filepath.Join(frontendDir, "index.html"))
+	if err != nil {
+		return ""
+	}
+	indexHTML := string(indexBytes)
+
+	// Buscar la pagina en la BD
+	var title, content string
+	var subtitle *string
+	err = pool.QueryRow(context.Background(), `
+		SELECT title, subtitle, content
+		FROM public_pages
+		WHERE node_domain = 'localhost' AND slug = $1 AND is_published = true`,
+		slug).Scan(&title, &subtitle, &content)
+	if err != nil {
+		return ""
+	}
+
+	subtitleStr := ""
+	if subtitle != nil {
+		subtitleStr = *subtitle
+	}
+
+	// Extraer una descripcion del contenido (primer bloque de texto)
+	description := subtitleStr
+	if description == "" {
+		description = extractFirstText(content)
+	}
+	if len(description) > 160 {
+		description = description[:160] + "..."
+	}
+
+	// Escapar para HTML
+	title = htmlEscape(title)
+	subtitleStr = htmlEscape(subtitleStr)
+	description = htmlEscape(description)
+
+	// Reemplazar el title
+	indexHTML = strings.Replace(indexHTML,
+		"<title>Trueque - Credito Mutuo Federado</title>",
+		fmt.Sprintf("<title>%s</title>", title),
+		1)
+
+	// Reemplazar la meta description
+	indexHTML = strings.Replace(indexHTML,
+		`<meta name="description" content="Sistema de Credito Mutuo Federado - Trueque" />`,
+		fmt.Sprintf(`<meta name="description" content="%s" />`, description),
+		1)
+
+	// Añadir meta tags Open Graph justo despues de la meta description
+	ogTags := fmt.Sprintf(`
+    <meta property="og:title" content="%s" />
+    <meta property="og:description" content="%s" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="/p/%s" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="%s" />
+    <meta name="twitter:description" content="%s" />`,
+		title, description, slug, title, description)
+
+	indexHTML = strings.Replace(indexHTML,
+		`<meta name="description" content="`+description+`" />`,
+		`<meta name="description" content="`+description+`" />`+ogTags,
+		1)
+
+	return indexHTML
+}
+
+// extractFirstText extrae el primer texto del contenido JSON de la pagina
+// para usarlo como descripcion si no hay subtitulo.
+func extractFirstText(jsonStr string) string {
+	var blocks []map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonStr), &blocks); err != nil {
+		return ""
+	}
+	for _, block := range blocks {
+		// Buscar el primer campo de texto significativo
+		if desc, ok := block["description"].(string); ok && len(desc) > 20 {
+			return desc
+		}
+		if subtitle, ok := block["subtitle"].(string); ok && len(subtitle) > 20 {
+			return subtitle
+		}
+		if title, ok := block["title"].(string); ok && len(title) > 10 {
+			return title
+		}
+	}
+	return ""
 }
 
 // buildHTMLIndex genera una pagina HTML estatica con el indice de todas
