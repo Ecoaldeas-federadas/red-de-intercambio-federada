@@ -649,11 +649,12 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
   }, [useBackend])
 
   const categories = useBackend
-    ? [...new Set(backendProducts.map((p: any) => p.category).filter(Boolean))] as string[]
+    ? [...new Set(backendProducts.map((p: any) => p.parent_category || p.category).filter(Boolean))] as string[]
     : data.categories || []
   const items = useBackend
     ? backendProducts.map((p: any) => ({
         name: p.name,
+        parent_category: p.parent_category || '',
         category: p.category || 'General',
         subcategory: p.subcategory || '',
         description: p.description || '',
@@ -666,7 +667,7 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
   const filtered =
     selectedCat === 'all'
       ? items
-      : items.filter((it) => it.category?.toLowerCase() === selectedCat.toLowerCase())
+      : items.filter((it) => (it.parent_category || it.category)?.toLowerCase() === selectedCat.toLowerCase())
 
   return (
     <section className="my-8 sm:my-12 space-y-6">
@@ -735,8 +736,11 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
 
             <div className="p-4 flex-1 flex flex-col justify-between space-y-2">
               <div>
+                {prod.parent_category && (
+                  <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">{prod.parent_category}</span>
+                )}
                 {prod.category && (
-                  <EdArrayText arrayField="items" index={realIdx} itemField="category" value={prod.category} as="span" className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block" />
+                  <span className="text-[10px] text-gray-500 block">{prod.category}{prod.subcategory ? ` › ${prod.subcategory}` : ''}</span>
                 )}
                 <EdArrayText arrayField="items" index={realIdx} itemField="name" value={prod.name} as="h4" className="font-bold text-gray-900 text-sm group-hover:text-emerald-800 transition" />
                 <EdArrayText arrayField="items" index={realIdx} itemField="description" value={prod.description} as="p" className="text-xs text-gray-600 leading-relaxed line-clamp-3 mt-1" multiline />
