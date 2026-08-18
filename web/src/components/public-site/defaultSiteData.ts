@@ -770,6 +770,210 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         ],
       },
       {
+        type: 'features_grid',
+        title: 'Estándares Internacionales de Contabilidad Energética',
+        subtitle: 'Nuestro sistema se basa en metodologías científicas reconocidas internacionalmente para medir el valor real de las cosas',
+        columns: 2,
+        items: [
+          {
+            icon: 'scale',
+            title: 'ICE Database (University of Bath)',
+            description:
+              'El Inventory of Carbon and Energy (ICE) de la Universidad de Bath es la base de datos más usada mundialmente para calcular la energía incorporada (embodied energy) de los materiales. Proporciona factores en MJ/kg para cerámica, madera, textiles, vidrio, metales, plásticos y más. Nuestro catálogo usa estos factores directamente: arcilla 2.5 MJ/kg, madera blanda 0.3 MJ/kg, algodón 143 MJ/kg, vidrio 12.7 MJ/kg.',
+            badge: 'ICE Database',
+          },
+          {
+            icon: 'leaf',
+            title: 'Ecoinvent (Suiza)',
+            description:
+              'Ecoinvent es una de las bases de datos de análisis de ciclo de vida (LCA) más completas del mundo. Contiene miles de procesos documentados con sus flujos de energía y materiales. Usamos datos de Ecoinvent para complementar el ICE Database cuando se necesita información sobre cultivos específicos, procesos industriales y transporte.',
+            badge: 'Ecoinvent',
+          },
+          {
+            icon: 'zap',
+            title: 'Equivalencia: 1 TQ = 1 kWh = 3.6 MJ',
+            description:
+              'Un kilovatio-hora (kWh) equivale a 3.6 megajoules (MJ), la unidad estándar de energía del Sistema Internacional. Nuestra unidad TQ equivale a 1 kWh de energía. Así, un producto que requiere 36 MJ para fabricarse tiene un valor de 10 TQ. Esta equivalencia permite que cualquier producto tenga un valor objetivo, verificable y comparable.',
+            badge: '1 TQ = 1 kWh',
+          },
+          {
+            icon: 'users',
+            title: 'Trabajo humano medido en kWh',
+            description:
+              'El trabajo humano se mide en horas, y cada hora de trabajo se valora en aproximadamente 0.1 kWh de energía metabólica (100 kcal/h ≈ 0.116 kWh). Sin embargo, en nuestro sistema usamos una convención práctica: 1 hora de trabajo = 1 TQ, independientemente del tipo de trabajo. Esto reconoce que todo trabajo humano merece el mismo valor base, con factores de esfuerzo adicionales para trabajo físico exigente.',
+            badge: '1 h = 1 TQ',
+          },
+          {
+            icon: 'trending-up',
+            title: 'EROI: Retorno Energético de la Inversión',
+            description:
+              'El EROI (Energy Return on Investment) es un indicador que mide cuánta energía se obtiene por cada unidad de energía invertida. Un EROI alto significa que el proceso es eficiente energéticamente. La agricultura industrial tiene un EROI bajo (gasta mucha energía fósil por cada caloría producida), mientras que la agroecología tiene un EROI más alto. Nuestro sistema premia implícitamente los procesos energéticamente eficientes.',
+            badge: 'EROI',
+          },
+          {
+            icon: 'sparkles',
+            title: 'Emergía de Howard Odum',
+            description:
+              'Howard T. Odum, ecólogo estadounidense, desarrolló el concepto de "emergía": la energía total disponible que se consumió para producir un bien o servicio, expresada en una unidad común. Su trabajo demostró que el valor real de las cosas está determinado por la energía solar incorporada, no por el precio de mercado. Nuestro sistema se inspira en esta visión: el valor es energía, no dinero.',
+            badge: 'Emergía',
+          },
+          {
+            icon: 'shield',
+            title: 'Propuesta histórica de Ford y Edison',
+            description:
+              'En 1921, Henry Ford y Thomas Edison propusieron el "dólar energético": una moneda respaldada por energía en lugar de oro. Argumentaban que la energía es la base real de toda riqueza y que una moneda energética sería más estable y justa que el dinero fiat. Aunque nunca se implementó, la idea influyó en posteriores desarrollos de teoría económica energética. Nuestro sistema TQ recoge este espíritu.',
+            badge: 'Ford-Edison',
+          },
+          {
+            icon: 'globe',
+            title: 'Agribalyse (Francia)',
+            description:
+              'Agribalyse es la base de datos francesa de análisis de ciclo de vida de productos agrícolas y alimentarios. Proporciona datos detallados sobre la energía incorporada en cultivos específicos, sistemas de producción y cadenas alimentarias. Usamos estos datos para los productos agrícolas del catálogo donde el ICE Database no tiene suficiente granularidad.',
+            badge: 'Agribalyse',
+          },
+        ],
+      },
+      {
+        type: 'richtext',
+        title: 'Cómo se Calcula el Precio de un Producto',
+        subtitle: 'La fórmula que usamos para asignar valor objetivo a cualquier bien o servicio',
+        content: `
+<div style="background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 12px; padding: 20px; margin: 16px 0;">
+  <p style="font-size: 18px; font-weight: 700; color: #0f766e; margin-bottom: 12px;">Fórmula general:</p>
+  <p style="font-size: 16px; font-family: monospace; background: white; padding: 12px; border-radius: 8px; color: #134e4a;">
+    EE_total = E_directa + E_insumos + E_trabajo + E_transporte
+  </p>
+  <p style="font-size: 14px; color: #115e59; margin-top: 8px;">
+    <strong>EE_total</strong> = Energía incorporada total (en MJ)<br>
+    <strong>E_directa</strong> = Energía directa consumida (combustible, electricidad, cocción)<br>
+    <strong>E_insumos</strong> = Energía de los materiales y materias primas (kg × factor MJ/kg)<br>
+    <strong>E_trabajo</strong> = Energía humana (horas × 3.6 MJ/hora)<br>
+    <strong>E_transporte</strong> = Energía de transporte (distancia × factor)
+  </p>
+  <p style="font-size: 14px; color: #0d9488; margin-top: 12px;">
+    Precio en TQ = EE_total ÷ 3.6 (ya que 1 TQ = 1 kWh = 3.6 MJ)
+  </p>
+</div>
+
+<h3 style="color: #0f766e; margin-top: 24px;">Ejemplo práctico: Pan artesanal (1 kg)</h3>
+
+<table style="width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px;">
+  <thead>
+    <tr style="background: #ccfbf1; color: #134e4a;">
+      <th style="padding: 8px; text-align: left; border: 1px solid #99f6e4;">Componente</th>
+      <th style="padding: 8px; text-align: right; border: 1px solid #99f6e4;">Cantidad</th>
+      <th style="padding: 8px; text-align: right; border: 1px solid #99f6e4;">Factor</th>
+      <th style="padding: 8px; text-align: right; border: 1px solid #99f6e4;">Energía (MJ)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="padding: 8px; border: 1px solid #e2e8f0;">Harina de trigo (insumo)</td>
+      <td style="padding: 8px; text-align: right; border: 1px solid #e2e8f0;">0.6 kg</td>
+      <td style="padding: 8px; text-align: right; border: 1px solid #e2e8f0;">18.0 MJ/kg</td>
+      <td style="padding: 8px; text-align: right; border: 1px solid #e2e8f0;">10.80</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px; border: 1px solid #e2e8f0;">Agua (insumo)</td>
+      <td style="padding: 8px; text-align: right; border: 1px solid #e2e8f0;">0.35 L</td>
+      <td style="padding: 8px; text-align: right; border: 1px solid #e2e8f0;">0.01 MJ/L</td>
+      <td style="padding: 8px; text-align: right; border: 1px solid #e2e8f0;">0.00</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px; border: 1px solid #e2e8f0;">Sal (insumo)</td>
+      <td style="padding: 8px; text-align: right; border: 1px solid #e2e8f0;">0.01 kg</td>
+      <td style="padding: 8px; text-align: right; border: 1px solid #e2e8f0;">7.0 MJ/kg</td>
+      <td style="padding: 8px; text-align: right; border: 1px solid #e2e8f0;">0.07</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px; border: 1px solid #e2e8f0;">Leña para horno (directa)</td>
+      <td style="padding: 8px; text-align: right; border: 1px solid #e2e8f0;">1.5 kg</td>
+      <td style="padding: 8px; text-align: right; border: 1px solid #e2e8f0;">10.0 MJ/kg</td>
+      <td style="padding: 8px; text-align: right; border: 1px solid #e2e8f0;">15.00</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px; border: 1px solid #e2e8f0;">Trabajo del panadero</td>
+      <td style="padding: 8px; text-align: right; border: 1px solid #e2e8f0;">3 horas</td>
+      <td style="padding: 8px; text-align: right; border: 1px solid #e2e8f0;">3.6 MJ/h</td>
+      <td style="padding: 8px; text-align: right; border: 1px solid #e2e8f0;">10.80</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px; text-align: right; border: 1px solid #e2e8f0;">Amortización horno</td>
+      <td style="padding: 8px; text-align: right; border: 1px solid #e2e8f0;">—</td>
+      <td style="padding: 8px; text-align: right; border: 1px solid #e2e8f0;">—</td>
+      <td style="padding: 8px; text-align: right; border: 1px solid #e2e8f0;">5.54</td>
+    </tr>
+    <tr style="background: #f0fdfa; font-weight: bold;">
+      <td style="padding: 8px; border: 1px solid #99f6e4; color: #0f766e;">TOTAL</td>
+      <td style="padding: 8px; border: 1px solid #99f6e4;"></td>
+      <td style="padding: 8px; border: 1px solid #99f6e4;"></td>
+      <td style="padding: 8px; text-align: right; border: 1px solid #99f6e4; color: #0f766e;">42.21 MJ</td>
+    </tr>
+  </tbody>
+</table>
+
+<div style="background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 12px; padding: 16px; margin: 16px 0;">
+  <p style="font-size: 16px; color: #0f766e; margin: 0;">
+    <strong>Precio del pan de 1 kg:</strong> 42.21 MJ ÷ 3.6 = <strong>11.7 TQ</strong> → <strong>12 TQ</strong>
+  </p>
+</div>
+
+<p style="font-size: 14px; color: #475569; margin-top: 16px;">
+  <strong>Productos con energía similar:</strong> Cuando dos productos tienen valores de energía incorporada similares (por ejemplo, dentro de un rango de ±10%), pueden compartir un precio de referencia. Sin embargo, siguen siendo productos distintos en el catálogo: un pan integral y un pan blanco pueden tener precios cercanos, pero son productos separados con sus propias características.
+</p>
+`,
+      },
+      {
+        type: 'features_grid',
+        title: 'Materias Primas y Productos Compuestos',
+        subtitle: 'Cómo funciona el sistema de precios en la práctica: materias primas por kg, trabajo por hora, y productos compuestos',
+        columns: 2,
+        items: [
+          {
+            icon: 'scale',
+            title: 'Materias primas por kilogramo',
+            description:
+              'Las materias primas se venden por kg con un precio basado en su energía incorporada (ICE Database). Ejemplos: Arcilla para cerámica 1 TQ/kg (2.5 MJ/kg), Madera blanda 1 TQ/kg (0.3 MJ/kg), Tela de algodón 40 TQ/kg (143 MJ/kg), Lana 19 TQ/kg (67.5 MJ/kg). Una maceta pequeña de 0.5 kg y una grande de 5 kg tienen precios distintos porque consumen cantidades diferentes de material.',
+            badge: 'Por kg',
+          },
+          {
+            icon: 'clock',
+            title: 'Trabajo artesanal por hora',
+            description:
+              'El trabajo se vende por hora con un precio de 1 TQ/hora. Tipos: Alfarería (modelado, esmaltado, control de horno), Carpintería (tallado, ensamblaje), Costura (confección, bordado), Cestería (tejido de fibra vegetal). La cocción de cerámica en horno se cobra por carga (5 TQ/carga, incluye leña o gas).',
+            badge: 'Por hora',
+          },
+          {
+            icon: 'layers',
+            title: 'Productos compuestos: precio automático',
+            description:
+              'Cualquier miembro puede crear un producto compuesto en su tienda seleccionando materias primas, productos base y horas de trabajo del catálogo aprobado. El sistema calcula el precio automáticamente sumando todos los componentes. No necesita aprobación de asamblea porque usa materiales ya aprobados. Ejemplo: un jugo de naranja = naranja (0.3 kg) + envase de vidrio (1 unidad) + trabajo (0.5 h) = 4 TQ.',
+            badge: 'Automático',
+          },
+          {
+            icon: 'package',
+            title: 'Productos terminados con peso definido',
+            description:
+              'Los productos terminados del catálogo tienen peso y dimensiones explícitas. Ejemplos: Taza de barro 0.3 kg = 2 TQ, Olla de barro 2 kg = 8 TQ, Silla de madera 8 kg = 11 TQ, Mesa de madera 20 kg = 23 TQ, Cama de madera 35 kg = 35 TQ. Una silla no vale lo mismo que una cama porque consumen cantidades diferentes de madera y horas de trabajo.',
+            badge: 'Peso definido',
+          },
+          {
+            icon: 'truck',
+            title: 'Embalaje y envío como componentes',
+            description:
+              'Al crear un producto compuesto, puedes agregar embalaje (envase de vidrio 2 TQ, bolsa de tela 2 TQ, hoja de plátano 1 TQ) y envío (local 1 TQ, nodo vecino 5 TQ, nodo lejano 15 TQ, recogida en parcela 0 TQ). El precio final incluye todos estos costos de forma transparente.',
+            badge: 'Embalaje + envío',
+          },
+          {
+            icon: 'globe',
+            title: 'Federación de productos entre nodos',
+            description:
+              'Cuando un nodo aprueba un producto por asamblea, se distribuye a los demás nodos federados. Cada nodo debe aprobarlo individualmente. Un producto no aprobado en un nodo no se puede usar para producir, comprar ni como componente. Los productos compuestos solo se pueden comprar en un nodo si todos sus componentes están aprobados en ese nodo.',
+            badge: 'Federado',
+          },
+        ],
+      },
+      {
         type: 'calculator_preview',
         title: 'Simula el Valor Energético de tu Producción',
         subtitle: 'Prueba cómo se calcula el valor objetivo según horas de trabajo y factores de esfuerzo.',

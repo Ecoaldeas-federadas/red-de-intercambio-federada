@@ -196,6 +196,7 @@ export interface CtaBannerBlockData {
 export interface RichTextBlockData {
   type: 'richtext'
   title?: string
+  subtitle?: string
   content: string
 }
 

@@ -1391,12 +1391,23 @@ export function CtaBannerBlock({ data }: { data: CtaBannerBlockData }) {
 // 17. RICH TEXT / MARKDOWN FALLBACK BLOCK
 // -------------------------------------------------------------
 export function RichTextBlock({ data }: { data: RichTextBlockData }) {
+  const { editMode } = useInlineEdit()
   return (
     <section className="my-6 bg-white rounded-3xl p-5 sm:p-10 shadow-sm border border-gray-100">
       {data.title && (
         <EdText field="title" value={data.title} as="h2" className="text-xl sm:text-2xl font-extrabold text-gray-900 mb-3" />
       )}
-      <EdText field="content" value={data.content} as="div" className="prose prose-emerald max-w-none text-xs sm:text-sm text-gray-700 leading-relaxed whitespace-pre-wrap" multiline />
+      {data.subtitle && (
+        <p className="text-sm text-gray-500 mb-4">{data.subtitle}</p>
+      )}
+      {editMode ? (
+        <EdText field="content" value={data.content} as="div" className="prose prose-emerald max-w-none text-xs sm:text-sm text-gray-700 leading-relaxed whitespace-pre-wrap" multiline />
+      ) : (
+        <div
+          className="prose prose-emerald max-w-none text-xs sm:text-sm text-gray-700 leading-relaxed"
+          dangerouslySetInnerHTML={{ __html: data.content || '' }}
+        />
+      )}
     </section>
   )
 }

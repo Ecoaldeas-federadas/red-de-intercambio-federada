@@ -1,41 +1,87 @@
-fix: flujo correcto de federacion de productos
+docs: actualizacion completa de documentacion
 
-Corrige el flujo de aprobacion de productos federados:
+Actualiza toda la documentacion para reflejar los cambios recientes:
+catalogo energetico, productos compuestos, federacion de productos,
+tienda comunitaria con costos adicionales y paginacion.
 
-FLUJO CORRECTO:
-1. Nodo A crea producto base -> is_approved = false (pendiente)
-2. Asamblea de Nodo A aprueba -> is_approved = true
-3. Solo DESPUES de aprobacion local -> broadcast a nodos federados
-4. Nodo B recibe propuesta -> pendiente de aprobacion de su asamblea
-5. Asamblea de Nodo B aprueba -> disponible en Nodo B
-6. Si Nodo B no aprueba -> no se puede usar para nada en Nodo B
+ARCHIVOS ACTUALIZADOS:
 
-PRODUCTOS COMPUESTOS:
-- No necesitan aprobacion de asamblea (usan componentes ya aprobados)
-- PERO solo se pueden comprar en un nodo si TODOS sus componentes
-  estan aprobados en ese nodo
-- Si 1 componente no esta aprobado -> compra bloqueada
+1. README.md
+   - Nuevas caracteristicas: TQ no es dinero, modelo energetico ICE,
+     productos compuestos, federacion de productos, tienda Mercado Libre
+   - Nuevos endpoints principales
+   - Enlaces a toda la documentacion
+   - Comando update.ps1
 
-CAMBIOS:
+2. docs/INDEX.md
+   - Nuevas secciones: composite_products.md
+   - Estado de implementacion actualizado (fases 11-13)
+   - Estructura del proyecto actualizada
+   - Tabla de migraciones recientes 038-043
 
-1. system.go: approveProduct ahora hace broadcast despues de aprobar
-   - Solo productos aprobados por asamblea local se federan
-   - Funcion broadcastProductToFederation registra en audit_log
-   - Mensaje actualizado: "Producto aprobado por la asamblea.
-     Se ha notificado a los nodos federados."
+3. docs/pricing.md
+   - Modelo energetico basado en ICE Database
+   - Tabla de factores MJ/kg por material
+   - Formula de precio por kg de material + trabajo
+   - Estructura jerarquica del catalogo
+   - Tipos de productos: materia prima, terminado, trabajo, embalaje, envio
+   - Campos nuevos de products: is_composite, source_node, is_hidden
 
-2. store.go: Purchase verifica componentes aprobados
-   - Antes de completar la compra, verifica que todos los componentes
-     del producto compuesto esten aprobados en el nodo local
-   - Si algun componente no esta aprobado -> bloquea con mensaje:
-     "no se puede comprar: los siguientes componentes no estan
-     aprobados en este nodo: [lista]"
+4. docs/composite_products.md (NUEVO)
+   - Concepto de producto compuesto
+   - Ejemplos: jugo de naranja, maceta de arcilla
+   - Modelo de 3 niveles: catalogo global, tienda, compuestos personales
+   - Categorias de componentes: materia_prima, producto_base, trabajo, embalaje, envio
+   - Tabla product_compositions
+   - Endpoints API
+   - Verificacion de compra (todos los componentes aprobados)
+   - Productos base de embalaje y envio
+   - Frontend Store.tsx
 
-3. Products.tsx: texto explicativo actualizado
-   - Clarifica que son productos aprobados por asamblea de otros nodos
-   - La asamblea local debe aprobarlos individualmente
-   - Si no se aprueban, no se pueden usar para producir, comprar
-     ni como componente
+5. docs/federation.md
+   - Nuevo tipo de mensaje ProductProposal
+   - Flujo de aprobacion de productos federados
+   - Tabla product_federation_proposals
+   - Reglas: producto no aprobado no se puede usar para nada
+   - Endpoints de productos federados
+   - Funcion broadcastProductToFederation
+   - Seccion de peers (registro mutuo)
+
+6. docs/external_bridge.md
+   - Tienda comunitaria tipo Mercado Libre por nodo
+   - Tienda federada
+   - Tabla store_items con campos nuevos
+   - Endpoints de tienda completos
+   - Productos compuestos en tienda
+   - Costos adicionales
+   - Paginacion
+
+7. docs/database.md
+   - Lista completa de migraciones 001-043
+   - Tabla product_compositions
+   - Tabla product_federation_proposals
+   - Campos nuevos de products: is_composite, source_node, source_product_id
+   - Campos nuevos de store_items: is_composite, composite_description
+   - Tabla store_purchases
+   - Tablas de asamblea: assembly_votes, assembly_config
+   - Tablas de sitio publico: public_pages, public_settings
+   - Relaciones clave actualizadas
+
+8. docs/api.md
+   - Endpoints de productos compuestos
+   - Endpoints de federacion de productos
+   - Endpoints de tienda completos
+   - Endpoints de componentes
+   - Paginacion en /api/products
+   - Sitio web publico
+
+9. docs/frontend.md
+   - Hook useConfig
+   - Componente public-site/PublicBlocks con infinite scroll
+   - Products.tsx con panel de productos federados
+   - Store.tsx con dos modos: compuesto y simple
+   - IntersectionObserver para infinite scroll
+   - Salida de build actualizada
 
 Generated with [Devin](https://devin.ai)
 
