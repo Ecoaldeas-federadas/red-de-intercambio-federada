@@ -38,6 +38,7 @@ Ver `departments.md` para la lista completa de permisos.
 | GET | `/api/products` | Lista productos del catalogo (con paginacion limit/offset) |
 | POST | `/api/products` | Crea producto (requiere aprobacion de asamblea) |
 | POST | `/api/products/{id}/approve` | Aprueba producto (permiso products.manage) |
+| GET | `/api/products/categories` | Lista jerarquia de 3 niveles (parent_category, category, subcategory) |
 | GET | `/api/pricing/calculate` | Calcula precio energetico |
 
 ### Federacion (`internal/api/federation.go`)
@@ -108,7 +109,7 @@ Ver `departments.md` para la lista completa de permisos.
 | POST | `/api/store/purchase` | Compra item |
 | POST | `/api/store/composite` | Crea producto compuesto (precio automatico) |
 | GET | `/api/store/composite/{id}/composition` | Ver composicion de un compuesto |
-| GET | `/api/products/components` | Lista componentes disponibles (con filtro ?category=) |
+| GET | `/api/products/components` | Lista componentes disponibles (con filtros ?category= y ?search=) |
 
 ### Recuperacion de Cuenta (`internal/api/recovery.go`)
 

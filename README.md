@@ -11,6 +11,10 @@ Cada nodo opera de forma independiente y se federa con otros nodos via protocolo
 - **Federacion entre nodos**: transferencias cross-node con limites bilaterales y globales
 - **Federacion de productos**: productos aprobados por un nodo se distribuyen a otros para aprobacion individual
 - **Productos compuestos**: cualquier usuario crea productos combinando materias primas aprobadas, precio automatico
+- **Calculo por rendimiento**: especificas cuanto compraste y cuantos productos salen, el sistema calcula el costo por unidad
+- **Grupos de productos**: items del mismo precio se agrupan en un contenedor padre (ej: Frutas de Temporada contiene Mango, Naranja, etc.)
+- **Categorias jerarquicas**: 3 niveles controlados (padre > categoria > subcategoria), los vendedores no crean categorias
+- **Buscador de componentes**: modal con busqueda de texto y filtro por categoria
 - **Tienda comunitaria**: tipo Mercado Libre por nodo, cada usuario tiene su tienda personal
 - **Pagos QR**: generar y escanear codigos QR con monto fijo o libre (como pago movil)
 - **Terminales NFC ESP32**: pagos con tarjetas NFC, claves efimeras por transaccion (forward secrecy)
@@ -129,7 +133,45 @@ materias primas y productos base del catalogo aprobado. El precio se calcula
 automaticamente, no se ingresa manualmente. No requiere aprobacion de asamblea
 porque usa componentes ya aprobados.
 
+### Calculo por rendimiento
+
+El productor especifica:
+- **Cantidad que compro** (ej: 1 kg de naranjas)
+- **Cuantos productos salen** (ej: 50 envases de 200ml)
+
+El sistema calcula automaticamente el costo por producto:
+```
+Cantidad por producto = 1 kg / 50 = 0.02 kg
+Costo por producto = 2 TQ/kg x 0.02 kg = 0.04 TQ
+```
+
+### Categorias jerarquicas
+
+Los productos compuestos se ubican en una jerarquia de 3 niveles:
+1. Categoria padre (ej: Alimentacion)
+2. Categoria (ej: Bebidas)
+3. Subcategoria (opcional, ej: Jugos Naturales)
+
+Las categorias son controladas centralmente. Los vendedores no crean categorias.
+
+### Buscador de componentes
+
+Modal con campo de texto para buscar por nombre o descripcion, mas filtro
+por categoria (materia_prima, producto_base, trabajo, embalaje, envio).
+
 Ver [docs/composite_products.md](docs/composite_products.md) para detalles.
+
+## Grupos de Productos
+
+Los productos del mismo precio se agrupan en un contenedor padre. Por ejemplo,
+"Frutas de Temporada" contiene Mango, Naranja, Papaya, etc., todas a 2 TQ/kg.
+
+- El padre (`is_group = true`) es un contenedor visible
+- Cada item individual tiene su propio ID, nombre y descripcion
+- Si un item cambia de precio, se mueve a otro grupo cambiando su `group_id`
+- Los items individuales son buscables y auditables
+
+Ver [docs/pricing.md](docs/pricing.md) para detalles del modelo energetico.
 
 ## Federacion entre nodos
 
@@ -175,7 +217,7 @@ red-de-intercambio-federada/
 │   ├── api/               # Handlers HTTP (REST API)
 │   ├── accounts/          # Cuentas, usuarios, organizaciones
 │   ├── crypto/            # Criptografia (Ed25519, ECDH, AES-GCM)
-│   ├── db/migrations/     # Migraciones SQL (001-043)
+│   ├── db/migrations/     # Migraciones SQL (001-045)
 │   ├── external/          # DEX, tienda comunitaria, productos compuestos
 │   ├── federation/        # Protocolo de federacion (mTLS, gossip, productos)
 │   ├── ledger/            # Libro contable, transacciones, limites
@@ -202,7 +244,8 @@ Ver [docs/api.md](docs/api.md) para la lista completa de endpoints.
 | GET | `/api/products` | Lista productos (con paginacion) |
 | POST | `/api/products` | Crea producto (requiere aprobacion) |
 | POST | `/api/products/{id}/approve` | Aprueba producto |
-| GET | `/api/products/components` | Lista componentes para compuestos |
+| GET | `/api/products/categories` | Jerarquia de 3 niveles para selectores |
+| GET | `/api/products/components` | Lista componentes (con ?category= y ?search=) |
 | POST | `/api/store/composite` | Crea producto compuesto |
 | POST | `/api/store/purchase` | Compra en tienda |
 | GET | `/api/federation/products/pending` | Productos federados pendientes |
@@ -230,6 +273,8 @@ Los nodos se comunican via mTLS en el puerto `8443`:
 - [docs/api.md](docs/api.md) — API REST completa
 - [docs/pricing.md](docs/pricing.md) — Modelo de precios energeticos
 - [docs/composite_products.md](docs/composite_products.md) — Productos compuestos
+- [docs/currency_exchange.md](docs/currency_exchange.md) — Sistema de intercambio y moneda TQ
+- [docs/feria_conuquera.md](docs/feria_conuquera.md) — Feria Conuquera Agroecologica
 - [docs/federation.md](docs/federation.md) — Federacion entre nodos
 - [docs/database.md](docs/database.md) — Esquema de base de datos
 - [docs/security.md](docs/security.md) — Modelo de seguridad

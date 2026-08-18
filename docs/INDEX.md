@@ -21,6 +21,8 @@
 17. [Despliegue](deployment.md) - Docker, instalacion de nuevo nodo, setup wizard
 18. [Departamentos y Permisos](departments.md) - Departamentos, roles, permisos granulares, multi-firma
 19. [Hardware NFC](nfc_hardware.md) - Terminales ESP32, PN532, tipos de terminal, componentes
+20. [Sistema de Intercambio y Moneda TQ](currency_exchange.md) - TQ, credito mutuo, historia, calculo energetico, comercio externo
+21. [Feria Conuquera Agroecologica](feria_conuquera.md) - Historia, filosofia, organizacion, productos, actividades, ecoaldeas
 
 ## Estado de Implementacion
 
@@ -100,3 +102,5 @@ red de intercambio federada/
 | 041 | Productos artesanales por kg de material + trabajo por hora |
 | 042 | Sistema de productos compuestos (tabla product_compositions) |
 | 043 | Federacion de productos entre nodos (tabla product_federation_proposals) |
+| 044 | Jerarquia de 3 niveles en store_items (parent_category, subcategory) |
+| 045 | Separacion de productos agrupados en items individuales (group_id, is_group) |

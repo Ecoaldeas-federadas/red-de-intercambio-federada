@@ -4,33 +4,55 @@
 - `internal/api/external.go` - Handlers API para productos compuestos
 - `internal/external/store.go` - Logica de tienda y compra
 - `internal/db/migrations/042_composite_products_system.sql` - Esquema de composiciones
-- `web/src/pages/Store.tsx` - Formulario de producto compuesto
+- `internal/db/migrations/044_store_items_hierarchy.sql` - Jerarquia de 3 niveles en store_items
+- `web/src/pages/Store.tsx` - Formulario de producto compuesto con modal de busqueda
 
 ## Concepto
 
 Un **producto compuesto** es un producto creado por un usuario a partir de
 materias primas y productos base del catalogo aprobado. El precio se calcula
-**automaticamente** sumando el precio de cada componente por su cantidad.
-El usuario **no ingresa el precio manualmente**.
+**automaticamente** sumando el precio de cada componente. El usuario **no
+ingresa el precio manualmente**.
 
-### Ejemplo: Jugo de naranja 200ml
+## Modelo de Calculo por Rendimiento
 
-| Componente | Categoria | Cantidad | Subtotal |
-|------------|-----------|----------|----------|
-| Naranja (materia prima) | materia_prima | 0.3 kg | 1 TQ |
-| Agua (materia prima) | materia_prima | 0.15 L | 0 TQ |
-| Envase de Vidrio 200ml | embalaje | 1 unidad | 2 TQ |
-| Trabajo de Costura (hora) | trabajo | 0.5 h | 1 TQ |
-| **Total automatico** | | | **4 TQ** |
+### El Problema
+
+Si un productor hace jugo de naranja, necesita saber cuanto cuesta cada envase.
+No basta con saber que la naranja cuesta 2 TQ/kg — necesita saber cuanta
+naranja va en cada envase.
+
+### La Solucion: Cantidad Comprada + Rendimiento
+
+El sistema usa un modelo de **cantidad comprada + rendimiento**:
+
+1. El productor especifica **cuanto compro** (ej: 1 kg de naranjas)
+2. El productor especifica **cuantos productos salen** (ej: 50 envases de 200ml)
+3. El sistema calcula automaticamente:
+   - Cantidad por producto = 1 kg / 50 = 0.02 kg por envase
+   - Costo por producto = 2 TQ/kg x 0.02 kg = 0.04 TQ por envase
+
+### Ejemplo: Jugo de Naranja (envase 200ml)
+
+| Componente | Comprado | Rendimiento | Costo por envase |
+|-----------|----------|-------------|-----------------|
+| Naranjas | 1 kg (2 TQ/kg) | 50 envases | 0.04 TQ |
+| Azucar/panela | 0.2 kg (15 TQ/kg) | 50 envases | 0.06 TQ |
+| Envase de vidrio | 50 unidades (0.5 TQ/u) | 50 envases | 0.50 TQ |
+| Trabajo (exprimido + envasado) | 2 horas (1 TQ/h) | 50 envases | 0.04 TQ |
+| Transporte | 5 km (0.5 TQ/km) | 50 envases | 0.05 TQ |
+| **TOTAL por envase** | | | **0.69 TQ** |
+
+Precio redondeado: **1 TQ por envase de 200ml**
 
 ### Ejemplo: Maceta de arcilla
 
-| Componente | Categoria | Cantidad | Subtotal |
-|------------|-----------|----------|----------|
-| Arcilla para Ceramica | materia_prima | 2 kg | 2 TQ |
-| Coccion de Ceramica en Horno | trabajo | 1 carga | 5 TQ |
-| Trabajo de Alfareria | trabajo | 2 h | 2 TQ |
-| **Total automatico** | | | **9 TQ** |
+| Componente | Comprado | Rendimiento | Costo por unidad |
+|-----------|----------|-------------|-----------------|
+| Arcilla para Ceramica | 10 kg (1 TQ/kg) | 5 macetas | 2.0 TQ |
+| Coccion de Ceramica | 1 carga (5 TQ) | 5 macetas | 1.0 TQ |
+| Trabajo de Alfareria | 10 horas (1 TQ/h) | 5 macetas | 2.0 TQ |
+| **TOTAL por maceta** | | | **5 TQ** |
 
 ## Modelo de 3 niveles
 
@@ -39,6 +61,7 @@ El usuario **no ingresa el precio manualmente**.
 - **Productos compuestos aprobados** por asamblea -> se vuelven "producto base"
 - Los productos base pueden ser usados como componentes de otros compuestos
 - Solo productos aprobados aparecen en el catalogo global
+- Los productos pueden agruparse cuando tienen el mismo precio (ver [pricing.md](pricing.md))
 
 ### 2. Tienda (tipo Mercado Libre por nodo)
 - Cualquier usuario crea productos compuestos personales
@@ -52,18 +75,76 @@ El usuario **no ingresa el precio manualmente**.
 - Pueden comprarse por otros usuarios del nodo
 - Si el producto se mueve a otro nodo federado, requiere aprobacion de ese nodo
 
+## Categorias Jerarquicas (3 Niveles)
+
+Al crear un producto compuesto, el usuario debe seleccionar su ubicacion en
+la jerarquia de categorias:
+
+1. **Categoria padre** (ej: Alimentacion, Artesania, Textiles)
+2. **Categoria** (ej: Cosecha Fresca, Ceramica, Confeccion)
+3. **Subcategoria** (opcional, ej: Frutas, Vajilla, Macetas)
+
+### Reglas
+
+- Las categorias **no se crean** por el vendedor
+- El vendedor **navega** por la jerarquia existente
+- Si una categoria no existe, la **administracion** debe crearla
+- No hay campo de texto libre para categoria
+- Los 3 niveles se envian al backend: `parent_category`, `category`, `subcategory`
+
+### Endpoint de Categorias
+
+```
+GET /api/products/categories
+```
+
+Retorna la jerarquia de 3 niveles derivada de productos aprobados y visibles:
+
+```json
+{
+  "categories": [
+    {
+      "parent_category": "Alimentacion",
+      "categories": [
+        {
+          "category": "Cosecha Fresca",
+          "subcategories": ["Frutas", "Tuberculos", "Verduras", "Hojas Verdes"]
+        }
+      ]
+    }
+  ]
+}
+```
+
 ## Categorias de Componentes
 
-Al crear un producto compuesto, el usuario selecciona componentes del catalogo
-aprobado. Los componentes se filtran por categoria:
+Al agregar componentes, el usuario usa un **modal de busqueda** con campo de
+texto y filtro por categoria:
 
 | Categoria | Descripcion | Ejemplos |
 |-----------|-------------|----------|
-| `materia_prima` | Materias primas del catalogo | Arcilla, madera, tela, lana, fibra |
+| `materia_prima` | Materias primas del catalogo | Arcilla, madera, tela, lana, fibra, naranja |
 | `producto_base` | Compuestos aprobados por asamblea | Vaso de arcilla, envase de barro |
 | `trabajo` | Horas de trabajo | Alfareria, carpinteria, costura, cesteria |
 | `embalaje` | Tipos de envase/embalaje | Vidrio, barro, tela, papel, hoja de platanero |
 | `envio` | Costos de envio por distancia | Local, vecino, lejano, recogida |
+
+### Busqueda de Componentes
+
+El endpoint soporta busqueda de texto:
+
+```
+GET /api/products/components?search=naranja&category=materia_prima
+```
+
+La busqueda se realiza en:
+- `name` (nombre del producto)
+- `description` (descripcion del producto)
+- `category` (categoria)
+- `parent_category` (categoria padre)
+
+Esto permite encontrar "Naranja" buscando por "naranja", incluso si el
+producto esta dentro de un grupo como "Frutas de Temporada".
 
 ## Tabla `product_compositions`
 
@@ -76,12 +157,21 @@ CREATE TABLE product_compositions (
   component_name TEXT NOT NULL,       -- nombre del componente
   component_unit TEXT NOT NULL,       -- unidad del componente
   component_price BIGINT NOT NULL,    -- precio unitario al momento de crear
-  quantity NUMERIC NOT NULL,          -- cantidad usada
+  quantity NUMERIC NOT NULL,          -- cantidad usada por producto
   subtotal BIGINT NOT NULL,           -- component_price * quantity
   component_category TEXT NOT NULL,   -- materia_prima, producto_base, trabajo, embalaje, envio
   sort_order INT NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL
 );
+```
+
+## Tabla `store_items` (con jerarquia)
+
+```sql
+-- Migracion 044: anade jerarquia de 3 niveles
+ALTER TABLE store_items ADD COLUMN parent_category TEXT;
+ALTER TABLE store_items ADD COLUMN subcategory TEXT;
+-- category ya existia
 ```
 
 ## Endpoints API
@@ -95,24 +185,30 @@ Body:
 {
   "product_name": "Jugo de naranja 200ml",
   "description": "Jugo natural de naranja recien exprimido",
+  "parent_category": "Alimentacion",
   "category": "Bebidas",
+  "subcategory": "Jugos Naturales",
   "stock": 10,
   "components": [
     {
       "component_product_id": "uuid-de-naranja",
       "component_name": "Naranja",
       "component_unit": "kg",
-      "component_price": 3,
-      "quantity": 0.3,
-      "component_category": "materia_prima"
+      "component_price": 2,
+      "quantity": 0.02,
+      "component_category": "materia_prima",
+      "quantity_purchased": 1,
+      "yield_products": 50
     },
     {
       "component_product_id": "uuid-de-envase-vidrio",
       "component_name": "Envase de Vidrio 200ml",
       "component_unit": "unidad",
-      "component_price": 2,
+      "component_price": 0.5,
       "quantity": 1,
-      "component_category": "embalaje"
+      "component_category": "embalaje",
+      "quantity_purchased": 50,
+      "yield_products": 50
     }
   ]
 }
@@ -122,8 +218,8 @@ Respuesta:
 ```json
 {
   "item": { ... },
-  "total_price": 4,
-  "composition": "Naranja x0.30 (1 TQ), Envase de Vidrio 200ml x1.00 (2 TQ)",
+  "total_price": 1,
+  "composition": "Naranja x0.02 (0.04 TQ), Envase de Vidrio 200ml x1.00 (0.50 TQ)",
   "components": [ ... ]
 }
 ```
@@ -133,6 +229,7 @@ Respuesta:
 - Si un componente no esta aprobado -> error 400
 - El precio se toma del catalogo, no del cliente
 - El precio total es la suma de subtotales, no editable
+- Se requieren `parent_category` y `category` (subcategory es opcional)
 
 ### Ver composicion de un producto
 ```
@@ -142,15 +239,17 @@ Retorna la lista de componentes con sus cantidades y subtotales.
 
 ### Listar componentes disponibles
 ```
-GET /api/products/components?category=materia_prima
+GET /api/products/components?category=materia_prima&search=naranja
 ```
-Parametros de categoria:
-- `all` (default): todos los componentes aprobados
-- `materia_prima`: solo materias primas
-- `producto_base`: solo compuestos aprobados por asamblea
-- `trabajo`: solo horas de trabajo
-- `embalaje`: solo embalajes
-- `envio`: solo costos de envio
+Parametros:
+- `category` (opcional): `all`, `materia_prima`, `producto_base`, `trabajo`, `embalaje`, `envio`
+- `search` (opcional): texto a buscar en nombre, descripcion, categoria y categoria padre
+
+### Listar categorias jerarquicas
+```
+GET /api/products/categories
+```
+Retorna la jerarquia de 3 niveles para los selectores en cascada.
 
 ## Verificacion de Compra
 
@@ -195,16 +294,36 @@ El formulario tiene dos modos:
 2. **Producto del Catalogo** (simple): producto existente con stock y extras
 
 #### Flujo de creacion de compuesto
-1. Usuario ingresa nombre, descripcion, categoria, stock
-2. Filtra componentes por categoria (materia_prima, trabajo, embalaje, envio)
-3. Selecciona componente del dropdown
-4. Ingresa cantidad
-5. Click "Agregar" -> anade a la lista
-6. Repite para cada componente
-7. El sistema muestra precio total automatico (no editable)
-8. Click "Publicar en Mi Tienda" -> crea el producto
+
+1. Usuario ingresa nombre, descripcion, stock
+2. Selecciona categoria jerarquica (3 niveles en cascada):
+   - Categoria padre (dropdown)
+   - Categoria (dropdown, filtrado por padre)
+   - Subcategoria (dropdown opcional, filtrado por padre y categoria)
+3. Click "Buscar y agregar componente" -> abre modal de busqueda
+4. En el modal:
+   - Escribe parte del nombre (ej: "naranja")
+   - Filtra por categoria si quiere (materia_prima, trabajo, etc.)
+   - Ve resultados con nombre, descripcion, ubicacion jerarquica y precio
+   - Click en un resultado para seleccionarlo
+5. Configura el componente seleccionado:
+   - Cantidad que compro (ej: 1 kg)
+   - Cuantos productos salen (ej: 50 envases)
+   - El sistema muestra el calculo: costo por producto
+6. Click "Agregar este componente" -> anade a la lista
+7. Repite para cada componente
+8. El sistema muestra precio total automatico (no editable)
+9. Click "Publicar en Mi Tienda" -> crea el producto
+
+#### Modal de busqueda de componentes
+
+- Campo de texto para buscar por nombre o descripcion
+- Filtros por categoria: Todos, Materias Primas, Productos Base, Trabajo, Embalaje, Envio
+- Resultados muestran: nombre, descripcion, ubicacion jerarquica, precio por unidad
+- Busca en nombre Y descripcion (por eso "naranja" encuentra items del grupo "Frutas de Temporada")
 
 #### Visualizacion en tienda
 - Etiqueta "Compuesto" en productos compuestos
 - Muestra composicion desglosada (extra_description)
 - Precio total con unidad
+- Muestra jerarquia: Categoria padre > Categoria > Subcategoria

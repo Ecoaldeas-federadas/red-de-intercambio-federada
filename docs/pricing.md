@@ -5,13 +5,15 @@
 - `internal/db/seed.go` - Catalogo base de productos (materias primas, productos terminados)
 - `internal/db/migrations/038_energy_realigned_catalog.sql` - Catalogo realineado
 - `internal/db/migrations/041_artisanal_products_by_material_weight.sql` - Productos por kg
+- `internal/db/migrations/045_split_grouped_products.sql` - Separacion de grupos en items individuales
 
 ## Modelo Energetico
 
 ### Unidad de medida
-- **1 TQ = 1 kWh** (convencion de trabajo del proyecto)
+- **1 TQ = 1 kWh = 3.6 MJ** (energia objetiva, no dinero)
 - TQ **no es dinero**: registra energia, contribuciones y compromisos
 - No es bancario, no genera intereses, no es instrumento financiero
+- La suma de todos los saldos en la red siempre es cero (no hay inflacion)
 
 ### Componentes de Energia
 | Componente | Descripcion |
@@ -27,6 +29,17 @@ energy_total = energy_direct + energy_human + energy_inputs + energy_amortizatio
 ```
 
 El `energy_total` es un campo calculado (GENERATED ALWAYS AS) en la tabla `products`.
+
+### Fuentes de Datos Energeticos
+
+| Fuente | Pais | Que aporta |
+|--------|------|-----------|
+| ICE Database (University of Bath) | UK | Energia embebida de materiales |
+| Ecoinvent | Suiza | Ciclo de vida de productos |
+| Agribalyse | Francia | Agricultura y alimentos |
+| FAO Statistics | Global | Produccion agricola |
+| USDA | USA | Nutricion y agricultura |
+| Pimentel (Cornell) | USA | Energia en agricultura |
 
 ## Estandar Internacional: ICE Database
 
@@ -58,6 +71,20 @@ precio = (kg_material x energia_por_kg) + (horas_trabajo x 1 TQ) + coccion
 - Trabajo: 3 horas x 3.6 MJ = 10.8 MJ
 - Total: 33.8 MJ = 9.4 TQ -> precio: 8 TQ
 
+### Ejemplo: Pan artesanal (1 kg)
+
+| Componente | Cantidad | Energia | Subtotal |
+|-----------|----------|---------|----------|
+| Harina de trigo integral | 0.6 kg | 10 TQ/kg | 6.0 TQ |
+| Levadura natural | 0.02 kg | 5 TQ/kg | 0.1 TQ |
+| Sal marina | 0.01 kg | 3 TQ/kg | 0.03 TQ |
+| Agua | 0.35 L | 0.5 TQ/L | 0.18 TQ |
+| Electricidad (horno) | 0.5 kWh | 1 TQ/kWh | 0.5 TQ |
+| Leña (horno mixto) | 0.3 kg | 4.5 TQ/kg | 1.35 TQ |
+| Trabajo del panadero | 3 horas | 1 TQ/h | 3.0 TQ |
+| Transporte local | 2 km | 0.5 TQ/km | 1.0 TQ |
+| **TOTAL** | | | **12 TQ** |
+
 ## Tarifas Energeticas
 
 Tabla `energy_tariff` (configurable por nodo):
@@ -87,6 +114,24 @@ Tabla `energy_tariff` (configurable por nodo):
 2. **Categoria** (ej: Ceramica, Madera, Confeccion)
 3. **Subcategoria** (ej: Materia Prima, Vajilla, Macetas, Trabajo)
 
+### Grupos e Items Individuales
+
+Los productos pueden agruparse cuando tienen el mismo precio:
+
+```
+Frutas de Temporada (is_group = true, 2 TQ/kg)
+├── Mango        (group_id = padre)  2 TQ/kg
+├── Naranja      (group_id = padre)  2 TQ/kg
+├── Papaya       (group_id = padre)  2 TQ/kg
+├── ...12 frutas individuales
+```
+
+- El producto padre (`is_group = true`) es un contenedor visible
+- Cada item individual tiene su propio ID, nombre y descripcion
+- El padre agrupa items del mismo precio
+- Si un item cambia de precio, se mueve a otro grupo cambiando su `group_id`
+- Los items individuales son buscables y auditables
+
 ### Tipos de productos en el catalogo
 | Tipo | Descripcion | Ejemplo |
 |------|-------------|---------|
@@ -95,6 +140,8 @@ Tabla `energy_tariff` (configurable por nodo):
 | Trabajo artesanal | Vendido por hora | Alfareria 1 TQ/hora |
 | Embalaje | Envases reutilizables | Vidrio 200ml = 2 TQ |
 | Envio | Costos de entrega | Local 1 TQ, Lejano 15 TQ |
+| Grupo | Contenedor de items del mismo precio | Frutas de Temporada |
+| Item individual | Producto dentro de un grupo | Naranja (group_id = padre) |
 
 ### Tabla `products`
 - name, parent_category, category, subcategory
@@ -107,6 +154,8 @@ Tabla `energy_tariff` (configurable por nodo):
 - is_approved, approved_by
 - is_composite (marcar productos compuestos)
 - is_hidden (ocultar del catalogo publico)
+- is_group (marcar como contenedor de items)
+- group_id (referencia al padre, si pertenece a un grupo)
 - source_node, source_product_id (para productos federados)
 
 ### Productores
@@ -133,3 +182,6 @@ La pagina publica explica:
 - Los factores de energia incorporada por material
 - Las limitaciones de los datos
 - Las fuentes consultadas
+- Estandares internacionales (ICE, Ecoinvent, Agribalyse)
+- Formula de calculo y ejemplo del pan
+- Productos compuestos y materias primas por kg

@@ -40,6 +40,8 @@
 | `041_artisanal_products_by_material_weight.sql` | Productos artesanales por kg de material + trabajo por hora |
 | `042_composite_products_system.sql` | Sistema de productos compuestos (product_compositions) |
 | `043_product_federation.sql` | Federacion de productos entre nodos (product_federation_proposals) |
+| `044_store_items_hierarchy.sql` | Jerarquia de 3 niveles en store_items (parent_category, subcategory) |
+| `045_split_grouped_products.sql` | Separacion de productos agrupados en items individuales (group_id, is_group) |
 
 ## Tablas Principales
 
@@ -82,6 +84,7 @@
   - Campos: name, parent_category, category, subcategory, unit, origin, price_per_unit
   - Campos energeticos: energy_direct, energy_human, energy_inputs, energy_amortization
   - Campos de estado: is_approved, is_hidden, is_system, is_composite
+  - Campos de agrupacion: is_group (contenedor de items), group_id (referencia al padre)
   - Campos de federacion: source_node, source_product_id
   - Campos de tienda: badge, image_url, product_code, quantity_per_unit
 - **`product_compositions`**: Composicion de productos compuestos (componentes y cantidades)
@@ -92,7 +95,8 @@
 
 ### Tienda Comunitaria
 - **`store_items`**: Items en tienda personal de cada usuario
-  - Campos: product_id, product_name, description, category, origin
+  - Campos: product_id, product_name, description, origin
+  - Campos de jerarquia: parent_category, category, subcategory (3 niveles)
   - Campos de precio: price_trueque, base_price, extra_costs, final_price
   - Campos de stock: stock, is_active
   - Campos de unidad: unit, quantity_per_unit

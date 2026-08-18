@@ -1,46 +1,73 @@
-fix: modal de busqueda de componentes + calculo por rendimiento
+feat: separar items agrupados en productos individuales identificables
 
-Rediseña completamente la seleccion de componentes para producto compuesto.
-Antes era un dropdown simple sin buscador. Ahora es un modal con busqueda
-de texto + filtro por categoria, y el calculo de precio se hace especificando
-cuanto se compro y cuantos productos salen de esa cantidad.
+Los productos agrupados (Frutas, Tuberculos, Verduras, etc.) tenian los
+items individuales metidos en la descripcion. Eso no era auditable ni
+buscable. Ahora cada item es un producto individual con su propio ID,
+pero sigue agrupado dentro del producto padre.
 
-CAMBIOS:
+MODELO:
 
-1. Backend - listComponents con busqueda de texto
-   - internal/api/external.go: parametro ?search= en GET /api/products/components
-   - Busca en name, description, category y parent_category (ILIKE)
-   - Ejemplo: ?search=naranja encuentra "Frutas de Temporada" porque
-     la descripcion contiene "naranja"
+- El producto padre (ej: "Frutas de Temporada") sigue existiendo
+  como CONTENEDOR/GRUPO. No se oculta.
+- Dentro del padre, cada item (Mango, Naranja, etc.) es un producto
+  individual con su propio ID, nombre y descripcion.
+- El padre agrupa items que valen lo mismo (mismo precio).
+- Si un item cambia de precio, se mueve a otro grupo cambiando
+  su group_id.
+- Los items individuales son buscables y auditables.
+- El padre se marca con is_group = true.
 
-2. Frontend - Modal de busqueda de componentes
-   - Boton "Buscar y agregar componente" que abre un modal
-   - Campo de texto para escribir parte del nombre (ej: "naranja")
-   - Filtros por categoria: Todos, Materias Primas, Productos Base,
-     Trabajo, Embalaje, Envio
-   - Resultados muestran: nombre, descripcion, ubicacion jerarquica,
-     precio por unidad
-   - Click en un resultado lo selecciona
-   - Busca en nombre Y descripcion (por eso "naranja" encuentra
-     "Frutas de Temporada" que la incluye)
+MIGRACION 045:
 
-3. Frontend - Nuevo modelo de calculo por rendimiento
-   Antes: cantidad x precio = subtotal (confuso, no sabias cuanta
-   materia prima va en un producto)
+Crea items individuales para 14 productos agrupados:
 
-   Ahora: el usuario especifica:
-   - Cantidad que compro (ej: 1 kg de naranjas)
-   - Cuantos productos salen (ej: 50 envases de 200ml)
-   - El sistema calcula:
-     - Cantidad por producto = 1 kg / 50 = 0.02 kg
-     - Costo por producto = 3 TQ/kg x 0.02 kg = 0.06 TQ
+- Frutas de Temporada: Mango, Papaya, Guayaba, Patilla, Melon, Pina,
+  Lechosa, Cambur, Limon, Naranja, Mandarina, Aguacate (12 items)
+- Tuberculos Ancestrales: Name Morado, Ocumo, Yuca, Auyama,
+  Cambur Morado, Platano (6 items)
+- Verduras y Hortalizas: Tomate, Pimenton, Pepino, Berenjena,
+  Zanahoria, Remolacha, Ajo, Cebolla, Ahuyama, Calabacin (10 items)
+- Hojas Verdes y Aromaticas: Lechuga, Repollo, Espinaca, Acelga,
+  Cilantro, Perejil, Cebollin, Apio, Hierbabuena, Toronjil (10 items)
+- Raices y Bulbos: Apio Raiz, Name Topi, Mapuey, Batata, Borugo,
+  Rabano (6 items)
+- Frutos Secos y Mani: Nueces, Almendras, Mani, Cacahuates,
+  Avellanas (5 items)
+- Granos Basicos Criollos: Maiz Blanco, Maiz Amarillo, Cebada,
+  Avena, Centeno (5 items)
+- Arroz y Legumbres: Arroz, Sorgo, Caraota, Frijol, Quinchoncho,
+  Lentejas, Garbanzos, Habas (8 items)
+- Harinas Integrales: Maiz, Trigo, Yuca (Casabe), Platano, Quinoa
+  (5 items)
+- Semillas Criollas: Maiz, Frijol, Caraota, Ahuyama, Tomate,
+  Pimenton, Lechuga, Cilantro (8 items)
+- Plantulas Medicinales: Poleo, Estevia, Malojillo, Romero, Ruda,
+  Oregano, Sabila, Llanten, Calendula (9 items)
+- Estacas y Esquejes: Yuca, Platano, Mango, Aguacate, Citricos,
+  Mora, Parchita (7 items)
+- Abonos Organicos: Compost, Humus, Estiercol, Bokashi, Gallinaza
+  (5 items)
+- Bioinsumos: Biofertilizantes, Biopreparados, Te de Compost,
+  Purines, Microorganismos (5 items)
 
-   Muestra el calculo paso a paso:
-   "Compro 1 kg -> 50 productos -> 0.06 TQ por producto"
+Total: ~101 productos individuales nuevos
 
-4. Frontend - Lista de componentes agregados
-   Muestra: "Compro 1 kg -> 50 productos -> X TQ por producto"
-   en lugar del confuso "3 TQ/kg x 0.02 = 0.06 TQ"
+CAMBIOS TECNICOS:
+
+- internal/db/migrations/045_split_grouped_products.sql:
+  - ALTER TABLE products ADD COLUMN group_id UUID
+  - ALTER TABLE products ADD COLUMN is_group BOOLEAN DEFAULT false
+  - Tabla temporal _split_items mapea grupo -> items individuales
+  - INSERT crea cada item individual con group_id = id del padre
+  - UPDATE marca los padres con is_group = true
+  - Los padres NO se ocultan (siguen visibles como grupos)
+
+- internal/api/external.go: listComponents ahora devuelve
+  is_group = false (solo items individuales, no grupos)
+  y incluye group_id en la respuesta
+
+- internal/api/system.go: listProducts ahora devuelve is_group
+  y group_id en cada producto
 
 Generated with [Devin](https://devin.ai)
 
