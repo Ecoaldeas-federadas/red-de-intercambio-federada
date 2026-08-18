@@ -1,21 +1,12 @@
 -- 047_seed_metodologia_energetica_page.sql
--- Inserta la pagina "Metodologia Energetica" directamente en la base de datos
--- para todos los nodos que ya tienen paginas publicas.
+-- Inserta la pagina "Metodologia Energetica" directamente en la base de datos.
+-- Usa ON CONFLICT DO UPDATE (soportado por YugabyteDB) y dollar-quoting ($json$)
+-- para el contenido JSON.
 --
 -- Esta pagina explica como se calculan los precios usando energia objetiva
--- (kWh/MJ) en vez de dinero, oro o mercado. Incluye:
--- - Historia: Ford y Edison (1921), Movimiento Tecnocratico (1930s), Howard Odum
--- - Como funciona: la formula fundamental, energia incorporada
--- - Quienes la usan: SolarCoin, Som Energia, ecoaldeas
--- - Catalogo de energia incorporada por material (ICE Database)
--- - Ejemplos practicos: pan artesanal, olla de barro
--- - Fuentes: ICE, Ecoinvent, Agribalyse, FAO, USDA, Pimentel
+-- (kWh/MJ) en vez de dinero, oro o mercado.
 
--- Paso 1: Eliminar la pagina si ya existe (para permitir re-ejecucion)
-DELETE FROM public_pages WHERE slug = 'metodologia-energetica';
-
--- Paso 2: Insertar para 'localhost' (dominio por defecto usado por el sistema)
--- Usamos dollar-quoting ($json$) para evitar problemas de escaping
+-- Una sola sentencia INSERT ... ON CONFLICT DO UPDATE para localhost
 INSERT INTO public_pages (node_domain, slug, title, subtitle, content, icon, menu_order, is_published, show_in_menu)
 VALUES ('localhost', 'metodologia-energetica', 'Metodologia Energetica',
 'Como Calculamos los Precios: Energia Objetiva, no Dinero',
@@ -451,19 +442,13 @@ $json$[
     "theme": "emerald"
   }
 ]$json$,
-'zap', 13, true, true;
-
--- Paso 3: Copiar la pagina a cualquier otro node_domain que ya tenga paginas
--- (excluyendo localhost que ya se inserto arriba)
--- Usamos INSERT ... SELECT con NOT EXISTS (sin ON CONFLICT, que YugabyteDB
--- no soporta bien con INSERT ... SELECT)
-INSERT INTO public_pages (node_domain, slug, title, subtitle, content, icon, menu_order, is_published, show_in_menu)
-SELECT DISTINCT p.node_domain, 'metodologia-energetica', p2.title, p2.subtitle, p2.content, p2.icon, p2.menu_order, true, true
-FROM public_pages p
-CROSS JOIN public_pages p2
-WHERE p2.node_domain = 'localhost' AND p2.slug = 'metodologia-energetica'
-  AND p.node_domain != 'localhost'
-  AND NOT EXISTS (
-    SELECT 1 FROM public_pages p3
-    WHERE p3.node_domain = p.node_domain AND p3.slug = 'metodologia-energetica'
-  );
+'zap', 13, true, true
+ON CONFLICT (node_domain, slug) DO UPDATE SET
+  title = EXCLUDED.title,
+  subtitle = EXCLUDED.subtitle,
+  content = EXCLUDED.content,
+  icon = EXCLUDED.icon,
+  menu_order = EXCLUDED.menu_order,
+  is_published = true,
+  show_in_menu = true,
+  updated_at = NOW()
