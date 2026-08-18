@@ -286,72 +286,11 @@ func (d *DB) SeedPublicPages(ctx context.Context, nodeDomain string) error {
   },
   {
     "type": "products_showcase",
+    "source": "backend",
     "title": "Catálogo de Rubros en la Feria",
     "subtitle": "Variedad de alimentos y productos artesanales disponibles en cada jornada.",
-    "categories": [
-      "Cosecha Fresca",
-      "Medicina Botánica & Cosmética",
-      "Gastronomía Artesanal",
-      "Semillas & Plántulas"
-    ],
-    "items": [
-      {
-        "name": "Hortalizas y Hojas Verdes de El Junquito",
-        "category": "Cosecha Fresca",
-        "description": "Col rizada (kale portuguesa), acelgas, lechugas variadas, cebollín, cilantro de monte y apio España cosechados en la mañana.",
-        "badge": "Fresco del Día",
-        "image_url": "https://images.unsplash.com/photo-1576045057995-568f588f82fb?auto=format&fit=crop&w=600&q=80"
-      },
-      {
-        "name": "Tubérculos Ancestrales y Plátanos",
-        "category": "Cosecha Fresca",
-        "description": "Ñame morado criollo, ocumo blanco y morado, yuca dulce de Carayaca, auyama madura y cambur morado.",
-        "badge": "Rubro Olvidado",
-        "image_url": "https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=600&q=80"
-      },
-      {
-        "name": "Tinturas Madres y Botica Conuquera",
-        "category": "Medicina Botánica & Cosmética",
-        "description": "Extractos de propóleo puro, tinturas de moringa, cúrcuma, jengibre, pomadas desinflamatorias de árnica y jarabes naturales.",
-        "badge": "100% Puro",
-        "image_url": "https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&w=600&q=80"
-      },
-      {
-        "name": "Cosmética Natural sin Químicos",
-        "category": "Medicina Botánica & Cosmética",
-        "description": "Desodorantes ecológicos de aceite de coco y bicarbonato, bálsamos labiales de cera de abeja, jabones artesanales y toallas reutilizables.",
-        "badge": "Residuo Cero",
-        "image_url": "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80"
-      },
-      {
-        "name": "La Tradicional Cafunga de Barlovento",
-        "category": "Gastronomía Artesanal",
-        "description": "Dulce patrimonial afrovenezolano elaborado a base de plátano maduro, coco rallado, papelón y anís dulce, horneado en hoja de plátano.",
-        "badge": "Plato Estrella",
-        "image_url": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=600&q=80"
-      },
-      {
-        "name": "Quesos Artesanales de Búfala y Cabra",
-        "category": "Gastronomía Artesanal",
-        "description": "Quesos madurados y frescos, dulce de leche de cabra, yogurt natural y mantequilla de pequeños rebaños pastoreados.",
-        "badge": "Pastoreo Libre",
-        "image_url": "https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?auto=format&fit=crop&w=600&q=80"
-      },
-      {
-        "name": "Cacao Puro, Chocolates y Café de Montaña",
-        "category": "Gastronomía Artesanal",
-        "description": "Barras de chocolate bean-to-bar 70% cacao de Barlovento y Chuao, licor de cacao artesanal y café lavado tostado a leña.",
-        "badge": "Origen Venezolano",
-        "image_url": "https://images.unsplash.com/photo-1549007994-cb92caebd54b?auto=format&fit=crop&w=600&q=80"
-      },
-      {
-        "name": "Plántulas Medicinales y Semillas Criollas",
-        "category": "Semillas & Plántulas",
-        "description": "Plantas en maceta de poleo, estevia, malojillo, romero, ruda, orégano orejón y sobres de semillas adaptadas al clima caraqueño.",
-        "badge": "Para tu Huerto",
-        "image_url": "https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?auto=format&fit=crop&w=600&q=80"
-      }
-    ]
+    "categories": [],
+    "items": []
   }
 ]`,
 			Icon:      "shopping-cart",
