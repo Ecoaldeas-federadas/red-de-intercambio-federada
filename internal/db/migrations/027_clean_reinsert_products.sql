@@ -51,16 +51,5 @@ VALUES
    'https://images.unsplash.com/photo-1576045057995-568f588f82fb?auto=format&fit=crop&w=600&q=80',
    40, true, true, '');
 
--- 3. Insertar productos basicos del sistema (7)
-INSERT INTO products (node_domain, name, category, origin, unit, quantity_per_batch, energy_direct, energy_human, energy_inputs, energy_amortization, price_per_unit, is_approved, is_system, product_code)
-VALUES
-  ('default', 'Granos basicos (maiz, frijol) 1kg', 'alimentos', 'internal', 'kg', 1, 10, 60, 15, 5, 90, true, true, ''),
-  ('default', 'Harina de maiz 50kg', 'alimentos', 'internal', 'saco', 1, 500, 5000, 2000, 2500, 10000, true, true, ''),
-  ('default', 'Verduras frescas 1kg', 'alimentos', 'internal', 'kg', 1, 5, 30, 10, 5, 50, true, true, ''),
-  ('default', 'Miel 1L', 'alimentos', 'internal', 'litro', 1, 50, 2000, 800, 650, 3500, true, true, ''),
-  ('default', 'Prenda artesanal (lana/algodon)', 'textiles', 'internal', 'unidad', 1, 100, 3000, 800, 300, 4200, true, true, ''),
-  ('default', 'Tela de algodon 1m', 'textiles', 'internal', 'm', 1, 50, 800, 500, 150, 1500, true, true, ''),
-  ('default', 'Hora de labor agricola', 'servicios', 'internal', 'hora', 1, 0, 325, 0, 0, 325, true, true, '');
-
 -- 4. No insertar para localhost - el backend hace fallback a 'default'
 -- si no encuentra productos para su node_domain especifico.
