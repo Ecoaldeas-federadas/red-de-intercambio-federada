@@ -162,21 +162,6 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Banner carousel auto-rotation
-  const bannerImagesList = headerBannerImages
-    ? headerBannerImages.split(',').map((s: string) => s.trim()).filter(Boolean)
-    : headerBannerImage
-      ? [headerBannerImage]
-      : ['https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1600&q=80']
-
-  useEffect(() => {
-    if (bannerImagesList.length <= 1) return
-    const interval = setInterval(() => {
-      setBannerSlide((prev) => (prev + 1) % bannerImagesList.length)
-    }, headerBannerDuration * 1000)
-    return () => clearInterval(interval)
-  }, [bannerImagesList.length, headerBannerDuration])
-
   const headerStyle = settings?.header_style || 'modern_eco'
   const headerSticky = (settings as any)?.header_sticky ?? true
   const headerBannerImage = (settings as any)?.header_banner_image || ''
@@ -204,6 +189,22 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
   const headerActiveColorResolved = headerActiveColor || (coloredHeaderStyles.includes(headerStyle) ? '#ffffff' : primaryColor)
   const headerActiveBgResolved = headerActiveBgColor || `${primaryColor}40` // semi-transparent primary
   const headerHoverResolved = headerHoverColor || `${primaryColor}25`
+
+  // Banner carousel auto-rotation
+  const bannerImagesList = headerBannerImages
+    ? headerBannerImages.split(',').map((s: string) => s.trim()).filter(Boolean)
+    : headerBannerImage
+      ? [headerBannerImage]
+      : ['https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1600&q=80']
+
+  useEffect(() => {
+    if (bannerImagesList.length <= 1) return
+    const interval = setInterval(() => {
+      setBannerSlide((prev) => (prev + 1) % bannerImagesList.length)
+    }, headerBannerDuration * 1000)
+    return () => clearInterval(interval)
+  }, [bannerImagesList.length, headerBannerDuration])
+
   const stickyClass = headerSticky ? 'sticky top-0' : ''
   const showAnnouncement = settings?.show_announcement ?? true
   const announcementText =
