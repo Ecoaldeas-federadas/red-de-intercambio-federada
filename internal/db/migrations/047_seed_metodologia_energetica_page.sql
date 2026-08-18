@@ -460,6 +460,8 @@ ON CONFLICT (node_domain, slug) DO UPDATE SET
 
 -- Paso 2: Copiar la pagina a cualquier otro node_domain que ya tenga paginas
 -- (excluyendo localhost que ya se inserto arriba)
+-- Usamos INSERT ... SELECT con NOT EXISTS (sin ON CONFLICT, que YugabyteDB
+-- no soporta bien con INSERT ... SELECT)
 INSERT INTO public_pages (node_domain, slug, title, subtitle, content, icon, menu_order, is_published, show_in_menu)
 SELECT DISTINCT p.node_domain, 'metodologia-energetica', p2.title, p2.subtitle, p2.content, p2.icon, p2.menu_order, true, true
 FROM public_pages p
@@ -469,5 +471,4 @@ WHERE p2.node_domain = 'localhost' AND p2.slug = 'metodologia-energetica'
   AND NOT EXISTS (
     SELECT 1 FROM public_pages p3
     WHERE p3.node_domain = p.node_domain AND p3.slug = 'metodologia-energetica'
-  )
-ON CONFLICT (node_domain, slug) DO NOTHING;
+  );
