@@ -454,6 +454,22 @@ func getSeedPages() []seedPage {
   },
   {
     "type": "features_grid",
+    "title": "Por Que 500 TQ: Calculo de la Canasta Basica",
+    "subtitle": "El limite minimo de 500 TQ no es arbitrario: se calcula del costo energetico real de alimentar a una familia de 4 personas durante un mes",
+    "columns": 1,
+    "items": [
+      {"icon":"calculator","title":"Como se calcula la canasta basica","description":"Usamos los precios reales del catalogo de productos de la feria, calculados en base a la energia incorporada (kWh) de cada alimento. Sumamos las cantidades mensuales necesarias para una familia de 4 personas y multiplicamos por el precio en TQ de cada producto. El resultado es el costo energetico total de la canasta basica mensual.","badge":"Metodo"},
+      {"icon":"wheat","title":"Granos y cereales: 164 TQ","description":"Granos basicos (caraota, frijol, maiz criollo): 8 kg/mes x 10 TQ/kg = 80 TQ. Arroz: 4 kg/mes x 11 TQ/kg = 44 TQ. Harina de maiz: 4 kg/mes x 10 TQ/kg = 40 TQ. Total granos: 164 TQ/mes. Los granos son la base calorica de la alimentacion y tienen mayor energia incorporada por el ciclo completo de siembra, cosecha y secado.","badge":"164 TQ"},
+      {"icon":"carrot","title":"Verduras, hortalizas y frutas: 52 TQ","description":"Tuberculos (yuca, name, platano): 10 kg/mes x 2 TQ/kg = 20 TQ. Verduras y hortalizas: 8 kg/mes x 2 TQ/kg = 16 TQ. Frutas de temporada: 6 kg/mes x 2 TQ/kg = 12 TQ. Hojas verdes: 2 kg/mes x 2 TQ/kg = 4 TQ. Total frescos: 52 TQ/mes. Los productos frescos de conuco tienen baja energia incorporada porque se cultivan localmente con trabajo manual.","badge":"52 TQ"},
+      {"icon":"milk","title":"Proteina animal: 78 TQ","description":"Leche fresca: 8 L/mes x 2 TQ/L = 16 TQ. Huevos: 3 kg/mes x 10 TQ/kg = 30 TQ. Pollo de patio: 4 kg/mes x 8 TQ/kg = 32 TQ. Total proteina animal: 78 TQ/mes. La proteina animal tiene mayor energia incorporada por la conversion alimenticia (ej: 4.2 kg de pienso por kg de pollo).","badge":"78 TQ"},
+      {"icon":"bread","title":"Transformados y otros: 60 TQ","description":"Panaderia casera: 4 kg/mes x 5 TQ/kg = 20 TQ. Aceite vegetal: 1 L/mes x 10 TQ/L = 10 TQ. Papelon/panela: 2 kg/mes x 15 TQ/kg = 30 TQ. Total transformados: 60 TQ/mes. Los productos transformados incluyen molienda, amasado, horneado o refinacion.","badge":"60 TQ"},
+      {"icon":"droplets","title":"Agua y servicios basicos: 90 TQ","description":"Agua: 30 dias x 1 TQ/dia = 30 TQ. Servicios basicos (electricidad, gas, mantenimiento): 30 dias x 2 TQ/dia = 60 TQ. Total servicios: 90 TQ/mes. El agua y los servicios basicos tienen un costo energetico minimo pero necesario.","badge":"90 TQ"},
+      {"icon":"scale","title":"TOTAL: 444 TQ -> Redondeado a 500 TQ","description":"Sumando todos los rubros: 164 (granos) + 52 (frescos) + 78 (proteina) + 60 (transformados) + 90 (servicios) = 444 TQ. Redondeamos a 500 TQ para dar un margen pequeño de seguridad. Por eso el limite minimo para una persona natural nueva es -500 TQ / +500 TQ: cubre exactamente una canasta basica familiar mensual. Esto garantiza que cualquier miembro nuevo pueda recibir lo necesario para alimentar a su familia durante un mes sin haber aportado nada todavia.","badge":"500 TQ"},
+      {"icon":"users","title":"Por que los limites son simetricos","description":"El limite negativo y el limite positivo tienen el mismo valor absoluto. Si el negativo es -500, el positivo tambien es +500. Esto garantiza equidad: lo que puedes recibir de la comunidad equivale exactamente a lo que puedes aportar. Si los limites fueran dispares (ej: -50 negativo, +500 positivo), el sistema favoreceria recibir mas de lo que se da, rompiendo el principio de suma cero del credito mutuo. La simetria es fundamental para que el sistema sea justo.","badge":"Simetria"}
+    ]
+  },
+  {
+    "type": "features_grid",
     "title": "Filosofía Agroecológica",
     "subtitle": "Más que una técnica de cultivo, una forma de habitar la Tierra",
     "columns": 2,

@@ -564,21 +564,21 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
             icon: 'users',
             title: 'Personas Naturales',
             description:
-              'Cada persona natural que ingresa recibe un límite inicial de saldo negativo (por ejemplo, -50 TQ) y un límite positivo equivalente. Esto significa que puedes recibir hasta 50 TQ en bienes y servicios sin haber aportado nada todavía. Es la confianza inicial que la comunidad te otorga para que empieces a participar.',
-            badge: 'Límite inicial',
+              'Cada persona natural que ingresa recibe un limite simetrico de -500 TQ (saldo negativo) y +500 TQ (saldo positivo). Esto significa que puedes recibir hasta 500 TQ en bienes y servicios sin haber aportado nada todavia, lo que cubre aproximadamente una canasta basica familiar mensual. Los limites positivo y negativo son iguales para garantizar equidad: lo que puedes recibir equivale a lo que puedes aportar.',
+            badge: 'Limite 500 TQ',
           },
           {
             icon: 'building',
             title: 'Organizaciones y Colectivos',
             description:
-              'Las organizaciones, cooperativas y colectivos registrados tienen límites más amplios porque su volumen de intercambio es mayor. Una organización puede tener un límite de -200 TQ o más, según su tamaño y trayectoria. Esto permite que las organizaciones puedan recibir insumos y herramientas a crédito y retribuir con su producción colectiva.',
-            badge: 'Límite ampliado',
+              'Las organizaciones, cooperativas y colectivos registrados tienen limites simetricos mas amplios porque su volumen de intercambio es mayor. Una organizacion de produccion tiene -5000/+5000 TQ; una de consumo -3000/+3000 TQ. Los limites siempre son simetricos: lo que puedes recibir equivale a lo que puedes aportar.',
+            badge: 'Limite 3000-5000 TQ',
           },
           {
             icon: 'trending-up',
-            title: 'Tu límite sube con el tiempo',
+            title: 'Tu limite sube con el tiempo',
             description:
-              'A medida que participas activamente, aportas regularmente y cumples tus compromisos, la asamblea puede aumentar tu límite. La confianza se construye con hechos, no con dinero. Un miembro con un año de participación activa y buen cumplimiento puede tener un límite 3 o 4 veces mayor que al ingresar.',
+              'A medida que participas activamente, aportas regularmente y cumples tus compromisos, la asamblea puede aumentar tu limite. Un miembro activo pasa de -500/+500 a -1000/+1000 TQ. La confianza se construye con hechos, no con dinero. Los limites siempre se mantienen simetricos.',
             badge: 'Crece contigo',
           },
           {
