@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -61,6 +62,9 @@ func (eh *ExternalHandler) RegisterRoutesWithAuth(r chi.Router, am *AuthMiddlewa
 		r.Delete("/api/store/items/{id}", eh.deactivateStoreItem)
 	}
 	r.Post("/api/store/purchase", eh.purchase)
+	r.Post("/api/store/composite", eh.addCompositeItem)
+	r.Get("/api/store/composite/{id}/composition", eh.getComposition)
+	r.Get("/api/products/components", eh.listComponents)
 }
 
 func (eh *ExternalHandler) getCurrentFC(w http.ResponseWriter, r *http.Request) {
@@ -464,4 +468,241 @@ func (eh *ExternalHandler) purchase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 201, purchase)
+}
+
+// ============ PRODUCTOS COMPUESTOS ============
+
+type CompositeComponent struct {
+	ComponentProductID string  `json:"component_product_id"`
+	ComponentName      string  `json:"component_name"`
+	ComponentUnit      string  `json:"component_unit"`
+	ComponentPrice     int64   `json:"component_price"`
+	Quantity           float64 `json:"quantity"`
+	ComponentCategory  string  `json:"component_category"`
+}
+
+type AddCompositeItemRequest struct {
+	ProductName string               `json:"product_name"`
+	Description string               `json:"description"`
+	Category    string               `json:"category"`
+	Stock       int64                `json:"stock"`
+	Components  []CompositeComponent `json:"components"`
+}
+
+func (eh *ExternalHandler) addCompositeItem(w http.ResponseWriter, r *http.Request) {
+	var req AddCompositeItemRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	if len(req.Components) == 0 {
+		writeError(w, 400, "debe agregar al menos un componente")
+		return
+	}
+
+	ownerIDVal, _ := eh.Auth.GetUserID(r)
+	var ownerID *uuid.UUID
+	if ownerIDVal != uuid.Nil {
+		ownerID = &ownerIDVal
+	}
+
+	// Calcular precio total sumando componentes
+	var totalPrice int64
+	compositeDesc := ""
+	for _, c := range req.Components {
+		// Verificar que el componente existe y esta aprobado
+		if c.ComponentProductID != "" {
+			pid, err := uuid.Parse(c.ComponentProductID)
+			if err == nil {
+				var pname, punit string
+				var pprice float64
+				var pApproved bool
+				err := eh.Pool.QueryRow(r.Context(),
+					`SELECT name, unit, price_per_unit, is_approved
+					 FROM products WHERE id = $1 AND node_domain = $2`,
+					pid, eh.NodeDomain).Scan(&pname, &punit, &pprice, &pApproved)
+				if err != nil {
+					writeError(w, 400, "componente no encontrado: "+c.ComponentName)
+					return
+				}
+				if !pApproved {
+					writeError(w, 400, "componente no aprobado por asamblea: "+pname)
+					return
+				}
+				// Usar precio del catalogo, no el enviado por el cliente
+				c.ComponentPrice = int64(pprice)
+				c.ComponentName = pname
+				c.ComponentUnit = punit
+			}
+		}
+		subtotal := int64(float64(c.ComponentPrice) * c.Quantity)
+		totalPrice += subtotal
+		if compositeDesc != "" {
+			compositeDesc += ", "
+		}
+		compositeDesc += fmt.Sprintf("%s x%.2f (%d TQ)", c.ComponentName, c.Quantity, subtotal)
+	}
+
+	// Crear el store item con el precio calculado
+	item, err := eh.Store.AddItem(r.Context(), external.AddStoreItemParams{
+		OwnerID:          ownerID,
+		ProductName:      req.ProductName,
+		Description:      req.Description,
+		Category:         req.Category,
+		Origin:           "internal",
+		Unit:             "unidad",
+		QuantityPerUnit:  1,
+		PriceTrueque:     totalPrice,
+		BasePrice:        totalPrice,
+		ExtraCosts:       0,
+		FinalPrice:       totalPrice,
+		ExtraDescription: compositeDesc,
+		Stock:            req.Stock,
+	})
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+
+	// Guardar la composicion
+	for i, c := range req.Components {
+		var componentID *uuid.UUID
+		if c.ComponentProductID != "" {
+			pid, err := uuid.Parse(c.ComponentProductID)
+			if err == nil {
+				componentID = &pid
+			}
+		}
+		subtotal := int64(float64(c.ComponentPrice) * c.Quantity)
+		_, err := eh.Pool.Exec(r.Context(),
+			`INSERT INTO product_compositions (product_id, product_type, component_product_id, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
+			 VALUES ($1, 'store_item', $2, $3, $4, $5, $6, $7, $8, $9)`,
+			item.ID, componentID, c.ComponentName, c.ComponentUnit, c.ComponentPrice, c.Quantity, subtotal, c.ComponentCategory, i)
+		if err != nil {
+			// No fallar si no se puede guardar la composicion, pero loguear
+			continue
+		}
+	}
+
+	writeJSON(w, 201, map[string]interface{}{
+		"item":        item,
+		"total_price": totalPrice,
+		"composition": compositeDesc,
+		"components":  req.Components,
+	})
+}
+
+func (eh *ExternalHandler) getComposition(w http.ResponseWriter, r *http.Request) {
+	productID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid product id")
+		return
+	}
+
+	rows, err := eh.Pool.Query(r.Context(),
+		`SELECT id, component_product_id, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order
+		 FROM product_compositions
+		 WHERE product_id = $1
+		 ORDER BY sort_order`, productID)
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+
+	components := []map[string]interface{}{}
+	for rows.Next() {
+		var id string
+		var componentProductID *uuid.UUID
+		var name, unit, category string
+		var price int64
+		var quantity float64
+		var subtotal int64
+		var sortOrder int
+		_ = rows.Scan(&id, &componentProductID, &name, &unit, &price, &quantity, &subtotal, &category, &sortOrder)
+
+		cpID := ""
+		if componentProductID != nil {
+			cpID = componentProductID.String()
+		}
+		components = append(components, map[string]interface{}{
+			"id":                   id,
+			"component_product_id": cpID,
+			"component_name":       name,
+			"component_unit":       unit,
+			"component_price":      price,
+			"quantity":             quantity,
+			"subtotal":             subtotal,
+			"component_category":   category,
+		})
+	}
+	writeJSON(w, 200, components)
+}
+
+func (eh *ExternalHandler) listComponents(w http.ResponseWriter, r *http.Request) {
+	// Listar productos que pueden ser usados como componentes
+	// materias primas, productos base aprobados, trabajo, embalaje, envio
+	category := r.URL.Query().Get("category")
+	if category == "" {
+		category = "all"
+	}
+
+	query := `SELECT id, name, parent_category, category, subcategory, unit, price_per_unit, description, badge, image_url
+		FROM products
+		WHERE node_domain = $1 AND is_approved = true AND is_hidden = false`
+	args := []interface{}{eh.NodeDomain}
+
+	switch category {
+	case "materia_prima":
+		query += fmt.Sprintf(` AND subcategory = 'Materia Prima'`)
+	case "producto_base":
+		query += fmt.Sprintf(` AND is_composite = true`)
+	case "trabajo":
+		query += fmt.Sprintf(` AND unit = 'hora'`)
+	case "embalaje":
+		query += fmt.Sprintf(` AND parent_category = 'Embalaje'`)
+	case "envio":
+		query += fmt.Sprintf(` AND parent_category = 'Envio'`)
+	}
+
+	query += ` ORDER BY parent_category, category, name`
+
+	rows, err := eh.Pool.Query(r.Context(), query, args...)
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+
+	components := []map[string]interface{}{}
+	for rows.Next() {
+		var id, name, parentCategory, cat, subcat, unit, description string
+		var price int64
+		var badge, imageURL *string
+		_ = rows.Scan(&id, &name, &parentCategory, &cat, &subcat, &unit, &price, &description, &badge, &imageURL)
+
+		bdg := ""
+		if badge != nil {
+			bdg = *badge
+		}
+		imgURL := ""
+		if imageURL != nil {
+			imgURL = *imageURL
+		}
+
+		components = append(components, map[string]interface{}{
+			"id":              id,
+			"name":            name,
+			"parent_category": parentCategory,
+			"category":        cat,
+			"subcategory":     subcat,
+			"unit":            unit,
+			"price_per_unit":  price,
+			"description":     description,
+			"badge":           bdg,
+			"image_url":       imgURL,
+		})
+	}
+	writeJSON(w, 200, components)
 }

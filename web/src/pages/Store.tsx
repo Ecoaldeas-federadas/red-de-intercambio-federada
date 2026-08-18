@@ -1,7 +1,16 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
-import { ShoppingCart, Plus, HelpCircle, Trash2, Search, Store as StoreIcon, Package } from 'lucide-react'
+import { ShoppingCart, Plus, HelpCircle, Trash2, Search, Store as StoreIcon, Package, Layers, X } from 'lucide-react'
+
+interface CompositeComponent {
+  component_product_id: string
+  component_name: string
+  component_unit: string
+  component_price: number
+  quantity: number
+  component_category: string
+}
 
 export default function Store() {
   const { currency } = useConfig()
@@ -12,6 +21,7 @@ export default function Store() {
   const [showForm, setShowForm] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [error, setError] = useState('')
+  const [formMode, setFormMode] = useState<'simple' | 'composite'>('composite')
   const [form, setForm] = useState({
     product_id: '',
     stock: 0,
@@ -19,6 +29,17 @@ export default function Store() {
     extra_costs: 0,
     extra_description: '',
   })
+
+  // Estado para producto compuesto
+  const [compositeName, setCompositeName] = useState('')
+  const [compositeDesc, setCompositeDesc] = useState('')
+  const [compositeCategory, setCompositeCategory] = useState('')
+  const [compositeStock, setCompositeStock] = useState(1)
+  const [components, setComponents] = useState<CompositeComponent[]>([])
+  const [componentFilter, setComponentFilter] = useState('all')
+  const [availableComponents, setAvailableComponents] = useState<any[]>([])
+  const [selectedComponentId, setSelectedComponentId] = useState('')
+  const [componentQty, setComponentQty] = useState(1)
 
   // Filtros para browse
   const [searchQuery, setSearchQuery] = useState('')
@@ -31,6 +52,74 @@ export default function Store() {
   }
 
   useEffect(() => { load() }, [])
+
+  // Cargar componentes disponibles del catalogo
+  useEffect(() => {
+    api.get('/products/components' + (componentFilter !== 'all' ? `?category=${componentFilter}` : ''))
+      .then((d: any) => setAvailableComponents(Array.isArray(d) ? d : []))
+      .catch(() => setAvailableComponents([]))
+  }, [componentFilter])
+
+  // Calcular precio total del compuesto
+  const compositeTotalPrice = components.reduce((sum, c) => sum + Math.round(c.component_price * c.quantity), 0)
+
+  const addComponent = () => {
+    if (!selectedComponentId) return
+    const comp = availableComponents.find((c) => c.id === selectedComponentId)
+    if (!comp) return
+    // Determinar categoria del componente
+    let category = 'materia_prima'
+    if (comp.parent_category === 'Embalaje') category = 'embalaje'
+    else if (comp.parent_category === 'Envio') category = 'envio'
+    else if (comp.unit === 'hora') category = 'trabajo'
+    else if (comp.subcategory === 'Materia Prima') category = 'materia_prima'
+    else category = 'producto_base'
+
+    setComponents([...components, {
+      component_product_id: comp.id,
+      component_name: comp.name,
+      component_unit: comp.unit || 'unidad',
+      component_price: comp.price_per_unit || 0,
+      quantity: componentQty,
+      component_category: category,
+    }])
+    setSelectedComponentId('')
+    setComponentQty(1)
+  }
+
+  const removeComponent = (idx: number) => {
+    setComponents(components.filter((_, i) => i !== idx))
+  }
+
+  const saveComposite = async () => {
+    setError('')
+    if (!compositeName) {
+      setError('Debes darle un nombre a tu producto')
+      return
+    }
+    if (components.length === 0) {
+      setError('Debes agregar al menos un componente')
+      return
+    }
+    try {
+      await api.post('/store/composite', {
+        product_name: compositeName,
+        description: compositeDesc,
+        category: compositeCategory,
+        stock: compositeStock,
+        components: components,
+      })
+      setShowForm(false)
+      setCompositeName('')
+      setCompositeDesc('')
+      setCompositeCategory('')
+      setCompositeStock(1)
+      setComponents([])
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al crear producto compuesto')
+    }
+  }
 
   const categories = [...new Set(products.map((p) => p.category).filter(Boolean))]
 
@@ -165,117 +254,234 @@ export default function Store() {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="font-semibold flex items-center gap-2"><StoreIcon size={18} />Mi Tienda Personal</h2>
-            <button onClick={() => setShowForm(!showForm)} className="btn-primary flex items-center gap-2"><Plus size={18} />Agregar Producto</button>
+            <button onClick={() => { setShowForm(!showForm); setFormMode('composite') }} className="btn-primary flex items-center gap-2"><Plus size={18} />Crear Producto Compuesto</button>
           </div>
 
           {showForm && (
             <div className="card space-y-4">
-              <h3 className="font-semibold">Agregar Producto a Mi Tienda</h3>
-              <p className="text-xs text-gray-500">Selecciona un producto del registro global e indica cuantas unidades tienes disponibles.</p>
-
-              {/* Filtro por categoria */}
-              {categories.length > 0 && (
-                <div>
-                  <label className="label">Filtrar por categoria</label>
-                  <select className="input" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
-                    <option value="">Todas las categorias</option>
-                    {categories.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-400 mt-1">Filtra la lista de productos del catalogo por categoria para encontrar mas rapido lo que quieres agregar. <strong>Ejemplo:</strong> Selecciona "Alimentos" para ver solo productos alimenticios.</p>
-                </div>
-              )}
-
-              <div>
-                <label className="label">Producto del catalogo</label>
-                {products.length === 0 ? (
-                  <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
-                    No hay productos en el registro. La asamblea debe agregar productos primero.
-                  </p>
-                ) : (
-                  <select className="input" value={form.product_id} onChange={(e) => setForm({ ...form, product_id: e.target.value, extra_costs: 0, extra_description: '' })}>
-                    <option value="">Seleccionar producto...</option>
-                    {filteredProducts.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name} — {p.price_trueque || p.price} {currency}/{p.unit || 'unidad'} ({p.category || 'sin categoria'})</option>
-                    ))}
-                  </select>
-                )}
-                <p className="text-xs text-gray-400 mt-1">Solo puedes vender productos del registro global. El precio base es fijo. <strong>Ejemplo:</strong> Selecciona "Pan integral" para ofrecer pan en tu tienda.</p>
+              {/* Selector de modo */}
+              <div className="flex gap-2 border-b pb-3">
+                <button
+                  onClick={() => setFormMode('composite')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium ${formMode === 'composite' ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-600'}`}
+                >
+                  <Layers size={14} className="inline mr-1" />Producto Compuesto
+                </button>
+                <button
+                  onClick={() => setFormMode('simple')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium ${formMode === 'simple' ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-600'}`}
+                >
+                  <Package size={14} className="inline mr-1" />Producto del Catalogo
+                </button>
               </div>
 
-              {/* Info del producto seleccionado */}
-              {selectedProduct && (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-1 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Package size={16} className="text-emerald-700" />
-                    <span className="font-semibold text-emerald-900">{selectedProduct.name}</span>
-                  </div>
-                  <p className="text-xs text-gray-600">{selectedProduct.description}</p>
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="text-xs text-gray-500">Precio base del catalogo:</span>
-                    <span className="font-bold text-emerald-700">{basePrice} {currency} / {selectedProduct.unit || 'unidad'}</span>
-                  </div>
-                </div>
-              )}
+              {formMode === 'composite' ? (
+                <>
+                  <h3 className="font-semibold">Crear Producto Compuesto</h3>
+                  <p className="text-xs text-gray-500">Crea un producto nuevo seleccionando materias primas, productos base, horas de trabajo, embalaje y envio del catalogo aprobado. El precio se calcula automaticamente. No necesita aprobacion de asamblea porque usa componentes ya aprobados.</p>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">Cantidad disponible (stock)</label>
-                  <input type="number" className="input" placeholder="Ej: 10" value={form.stock} onChange={(e) => setForm({ ...form, stock: parseInt(e.target.value) || 0 })} />
-                  <p className="text-xs text-gray-400 mt-1">Cuantas unidades tienes. 0 = agotado.</p>
-                </div>
-                <div>
-                  <label className="label">Unidades por paquete</label>
-                  <input type="number" step="0.1" className="input" placeholder="Ej: 1, 0.5, 2" value={form.quantity_per_unit} onChange={(e) => setForm({ ...form, quantity_per_unit: parseFloat(e.target.value) || 1 })} />
-                  <p className="text-xs text-gray-400 mt-1">Cuantas unidades del catalogo contiene cada paquete que vendes. <strong>Ej:</strong> 0.5 = medio kg, 2 = paquete de 2 kg.</p>
-                </div>
-              </div>
-
-              {/* Costos adicionales */}
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-3">
-                <div>
-                  <p className="text-sm font-semibold text-amber-900">Costos adicionales (opcionales)</p>
-                  <p className="text-xs text-gray-600 mt-1">Agrega costos por envio, traslado, envase especial, presentacion, etc. Si el comprador recoge en tu parcela, el precio debe ser el base sin extras.</p>
-                </div>
-                <div>
-                  <label className="label">Costo adicional en {currency}</label>
-                  <input type="number" className="input" placeholder="Ej: 5 (por envio, envase de vidrio, etc.)" value={form.extra_costs} onChange={(e) => setForm({ ...form, extra_costs: parseInt(e.target.value) || 0 })} />
-                  <p className="text-xs text-gray-400 mt-1"><strong>Ejemplos:</strong> Envase de vidrio (+3 TQ), traslado en moto (+5 TQ), entrega a domicilio (+8 TQ). Si vendes en el mismo punto, deja en 0.</p>
-                </div>
-                <div>
-                  <label className="label">Descripcion del costo adicional</label>
-                  <input className="input" placeholder="Ej: Envase de vidrio retornable, entrega a domicilio en moto" value={form.extra_description} onChange={(e) => setForm({ ...form, extra_description: e.target.value })} />
-                  <p className="text-xs text-gray-400 mt-1">Explica que incluye el costo adicional para que el comprador sepa por que paga mas.</p>
-                </div>
-              </div>
-
-              {/* Resumen del precio final */}
-              {selectedProduct && (
-                <div className="bg-trueque-50 border border-trueque-200 rounded-lg p-3 space-y-1">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Precio base ({selectedProduct.unit || 'unidad'}):</span>
-                    <span className="font-medium">{basePrice} {currency}</span>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="label">Nombre de tu producto</label>
+                      <input className="input" placeholder="Ej: Jugo de naranja 200ml, Pan integral, Mi mermelada" value={compositeName} onChange={(e) => setCompositeName(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="label">Categoria</label>
+                      <input className="input" placeholder="Ej: Bebidas, Alimentos, Artesania" value={compositeCategory} onChange={(e) => setCompositeCategory(e.target.value)} />
+                    </div>
                   </div>
-                  {extraCosts > 0 && (
-                    <>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Costos adicionales:</span>
-                        <span className="font-medium text-amber-700">+{extraCosts} {currency}</span>
+
+                  <div>
+                    <label className="label">Descripcion</label>
+                    <textarea className="input" rows={2} placeholder="Describe tu producto: como lo haces, que lo hace especial..." value={compositeDesc} onChange={(e) => setCompositeDesc(e.target.value)} />
+                  </div>
+
+                  <div>
+                    <label className="label">Cantidad disponible (stock)</label>
+                    <input type="number" className="input" placeholder="Ej: 10" value={compositeStock} onChange={(e) => setCompositeStock(parseInt(e.target.value) || 1)} />
+                  </div>
+
+                  {/* Selector de componentes */}
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 space-y-3">
+                    <div>
+                      <p className="text-sm font-semibold text-emerald-900">Agregar componentes</p>
+                      <p className="text-xs text-gray-600 mt-1">Selecciona materias primas, productos base, horas de trabajo, embalaje o envio. El precio se calcula automaticamente.</p>
+                    </div>
+
+                    {/* Filtro de categoria */}
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { id: 'all', label: 'Todos' },
+                        { id: 'materia_prima', label: 'Materias Primas' },
+                        { id: 'producto_base', label: 'Productos Base' },
+                        { id: 'trabajo', label: 'Trabajo (h)' },
+                        { id: 'embalaje', label: 'Embalaje' },
+                        { id: 'envio', label: 'Envio' },
+                      ].map((cat) => (
+                        <button
+                          key={cat.id}
+                          onClick={() => setComponentFilter(cat.id)}
+                          className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition ${
+                            componentFilter === cat.id ? 'bg-emerald-700 text-white' : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                          }`}
+                        >
+                          {cat.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Selector de componente y cantidad */}
+                    <div className="grid grid-cols-[1fr_auto_auto] gap-2">
+                      <select className="input" value={selectedComponentId} onChange={(e) => setSelectedComponentId(e.target.value)}>
+                        <option value="">Seleccionar componente...</option>
+                        {availableComponents.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name} — {c.price_per_unit} {currency}/{c.unit}</option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        step="0.1"
+                        className="input w-24"
+                        placeholder="Cant."
+                        value={componentQty}
+                        onChange={(e) => setComponentQty(parseFloat(e.target.value) || 1)}
+                      />
+                      <button onClick={addComponent} className="btn-primary flex items-center gap-1" disabled={!selectedComponentId}>
+                        <Plus size={16} /> Agregar
+                      </button>
+                    </div>
+
+                    {/* Lista de componentes agregados */}
+                    {components.length > 0 && (
+                      <div className="space-y-2 mt-3">
+                        <p className="text-xs font-semibold text-gray-700">Componentes de tu producto:</p>
+                        {components.map((c, i) => (
+                          <div key={i} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-gray-200">
+                            <div className="flex-1">
+                              <span className="text-sm font-medium">{c.component_name}</span>
+                              <span className="text-xs text-gray-500 ml-2">({c.component_category})</span>
+                              <span className="text-xs text-gray-500 block">{c.component_price} {currency}/{c.component_unit} x {c.quantity} = <strong>{Math.round(c.component_price * c.quantity)} {currency}</strong></span>
+                            </div>
+                            <button onClick={() => removeComponent(i)} className="text-red-500 hover:text-red-700">
+                              <X size={16} />
+                            </button>
+                          </div>
+                        ))}
                       </div>
-                      {form.extra_description && (
-                        <p className="text-xs text-gray-500 italic">{form.extra_description}</p>
-                      )}
-                    </>
-                  )}
-                  <div className="flex justify-between text-base font-bold pt-1 border-t border-trueque-200">
-                    <span className="text-trueque-900">Precio final:</span>
-                    <span className="text-trueque-700">{finalPrice} {currency}</span>
-                  </div>
-                </div>
-              )}
+                    )}
 
-              <button onClick={addItem} className="btn-primary" disabled={!form.product_id}>Agregar a Mi Tienda</button>
+                    {/* Precio total calculado */}
+                    {components.length > 0 && (
+                      <div className="bg-trueque-100 border border-trueque-300 rounded-lg p-3 flex justify-between items-center">
+                        <span className="font-semibold text-trueque-900">Precio total automatico:</span>
+                        <span className="text-xl font-bold text-trueque-700">{compositeTotalPrice} {currency}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <button onClick={saveComposite} className="btn-primary" disabled={components.length === 0 || !compositeName}>
+                    Publicar en Mi Tienda ({compositeTotalPrice} {currency})
+                  </button>
+                </>
+              ) : (
+                <>
+                  <h3 className="font-semibold">Agregar Producto del Catalogo</h3>
+                  <p className="text-xs text-gray-500">Selecciona un producto del registro global e indica cuantas unidades tienes disponibles.</p>
+
+                  {/* Filtro por categoria */}
+                  {categories.length > 0 && (
+                    <div>
+                      <label className="label">Filtrar por categoria</label>
+                      <select className="input" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+                        <option value="">Todas las categorias</option>
+                        {categories.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="label">Producto del catalogo</label>
+                    {products.length === 0 ? (
+                      <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
+                        No hay productos en el registro. La asamblea debe agregar productos primero.
+                      </p>
+                    ) : (
+                      <select className="input" value={form.product_id} onChange={(e) => setForm({ ...form, product_id: e.target.value, extra_costs: 0, extra_description: '' })}>
+                        <option value="">Seleccionar producto...</option>
+                        {filteredProducts.map((p) => (
+                          <option key={p.id} value={p.id}>{p.name} — {p.price_trueque || p.price} {currency}/{p.unit || 'unidad'} ({p.category || 'sin categoria'})</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  {/* Info del producto seleccionado */}
+                  {selectedProduct && (
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-1 text-sm">
+                      <div className="flex items-center gap-2">
+                        <Package size={16} className="text-emerald-700" />
+                        <span className="font-semibold text-emerald-900">{selectedProduct.name}</span>
+                      </div>
+                      <p className="text-xs text-gray-600">{selectedProduct.description}</p>
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-xs text-gray-500">Precio base del catalogo:</span>
+                        <span className="font-bold text-emerald-700">{basePrice} {currency} / {selectedProduct.unit || 'unidad'}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="label">Cantidad disponible (stock)</label>
+                      <input type="number" className="input" placeholder="Ej: 10" value={form.stock} onChange={(e) => setForm({ ...form, stock: parseInt(e.target.value) || 0 })} />
+                    </div>
+                    <div>
+                      <label className="label">Unidades por paquete</label>
+                      <input type="number" step="0.1" className="input" placeholder="Ej: 1, 0.5, 2" value={form.quantity_per_unit} onChange={(e) => setForm({ ...form, quantity_per_unit: parseFloat(e.target.value) || 1 })} />
+                    </div>
+                  </div>
+
+                  {/* Costos adicionales */}
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-3">
+                    <div>
+                      <p className="text-sm font-semibold text-amber-900">Costos adicionales (opcionales)</p>
+                      <p className="text-xs text-gray-600 mt-1">Para envio o presentacion especial. Si el comprador recoge en tu parcela, deja en 0.</p>
+                    </div>
+                    <div>
+                      <label className="label">Costo adicional en {currency}</label>
+                      <input type="number" className="input" placeholder="Ej: 5 (por envio, envase de vidrio, etc.)" value={form.extra_costs} onChange={(e) => setForm({ ...form, extra_costs: parseInt(e.target.value) || 0 })} />
+                    </div>
+                    <div>
+                      <label className="label">Descripcion del costo adicional</label>
+                      <input className="input" placeholder="Ej: Envase de vidrio retornable, entrega a domicilio" value={form.extra_description} onChange={(e) => setForm({ ...form, extra_description: e.target.value })} />
+                    </div>
+                  </div>
+
+                  {/* Resumen del precio final */}
+                  {selectedProduct && (
+                    <div className="bg-trueque-50 border border-trueque-200 rounded-lg p-3 space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Precio base:</span>
+                        <span className="font-medium">{basePrice} {currency}</span>
+                      </div>
+                      {extraCosts > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Costos adicionales:</span>
+                          <span className="font-medium text-amber-700">+{extraCosts} {currency}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-base font-bold pt-1 border-t border-trueque-200">
+                        <span className="text-trueque-900">Precio final:</span>
+                        <span className="text-trueque-700">{finalPrice} {currency}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <button onClick={addItem} className="btn-primary" disabled={!form.product_id}>Agregar a Mi Tienda</button>
+                </>
+              )}
             </div>
           )}
 
@@ -292,17 +498,24 @@ export default function Store() {
                 const baseP = item.base_price || item.price_trueque || product?.price_trueque || 0
                 const extras = item.extra_costs || 0
                 const unit = item.unit || product?.unit || 'unidad'
+                const isComposite = !item.product_id && item.extra_description
                 return (
                   <div key={i} className="card">
                     <h3 className="font-semibold">{item.product_name || product?.name || 'Producto'}</h3>
                     <p className="text-sm text-gray-600">{item.description || product?.description}</p>
                     {item.category && <span className="text-xs bg-gray-100 px-2 py-0.5 rounded mt-1 inline-block">{item.category}</span>}
+                    {isComposite && (
+                      <div className="mt-2 bg-emerald-50 border border-emerald-200 rounded p-2">
+                        <p className="text-[10px] font-bold text-emerald-800 uppercase">Compuesto</p>
+                        <p className="text-xs text-gray-600 mt-1">{item.extra_description}</p>
+                      </div>
+                    )}
                     <div className="mt-3 space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="text-lg font-bold text-trueque-700">{displayPrice} {currency}</span>
                         <span className="text-xs text-gray-500">por {unit}</span>
                       </div>
-                      {extras > 0 && (
+                      {extras > 0 && !isComposite && (
                         <div className="text-xs text-gray-500 bg-amber-50 rounded px-2 py-1">
                           <span className="text-gray-600">Base: {baseP} {currency}</span>
                           <span className="text-amber-700"> +{extras} (extras)</span>
