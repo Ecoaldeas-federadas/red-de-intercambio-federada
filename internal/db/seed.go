@@ -1035,7 +1035,7 @@ func (d *DB) SeedProductsToNode(ctx context.Context, nodeDomain string) error {
 	}
 
 	// Copiar productos seed de 'default' al dominio del nodo
-	_, err = d.Pool.Exec(ctx, `
+	ct, err := d.Pool.Exec(ctx, `
 		INSERT INTO products (node_domain, name, category, origin, unit, description, badge, image_url,
 		                      price_per_unit, is_approved, is_system, product_code, quantity_per_batch,
 		                      energy_direct, energy_human, energy_inputs, energy_amortization, created_by)
@@ -1048,6 +1048,6 @@ func (d *DB) SeedProductsToNode(ctx context.Context, nodeDomain string) error {
 		return fmt.Errorf("copying seed products: %w", err)
 	}
 
-	log.Printf("Seeded %d products to node_domain=%s", count, nodeDomain)
+	log.Printf("Seeded %d products to node_domain=%s", ct.RowsAffected(), nodeDomain)
 	return nil
 }
