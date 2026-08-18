@@ -532,12 +532,9 @@ func (h *SystemHandler) updateTariff(w http.ResponseWriter, r *http.Request) {
 // ===== PRODUCTOS =====
 
 func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
-	// Query products from node_domain and 'default', deduplicate by name in Go
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id, name, description, category, subcategory, unit, price_per_unit, is_approved, origin, badge, image_url, product_code, is_system, is_hidden
-		FROM products
-		WHERE node_domain IN ($1, 'default')
-		ORDER BY category, name LIMIT 200`, h.nodeDomain)
+		FROM products WHERE node_domain = $1 ORDER BY category, name LIMIT 200`, h.nodeDomain)
 	if err != nil {
 		writeJSON(w, 200, []interface{}{})
 		return
@@ -545,7 +542,6 @@ func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 
 	var products []map[string]interface{}
-	seen := map[string]bool{} // deduplicate by name
 	for rows.Next() {
 		var id uuid.UUID
 		var name, description, category, subcategory, unit, origin string
@@ -555,11 +551,6 @@ func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 		if err := rows.Scan(&id, &name, &description, &category, &subcategory, &unit, &price, &isApproved, &origin, &badge, &imageURL, &productCode, &isSystem, &isHidden); err != nil {
 			continue
 		}
-		// Skip duplicates by name
-		if seen[name] {
-			continue
-		}
-		seen[name] = true
 		bdg := ""
 		if badge != nil {
 			bdg = *badge
@@ -2463,8 +2454,7 @@ func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Reques
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id, name, description, category, subcategory, unit, price_per_unit, product_code, is_approved, origin, badge, image_url
 		FROM products
-		WHERE node_domain IN ($1, 'default')
-		AND is_approved = true AND is_hidden = false
+		WHERE node_domain = $1 AND is_approved = true AND is_hidden = false
 		ORDER BY category, name LIMIT 200`, h.nodeDomain)
 	if err != nil {
 		writeJSON(w, 200, []interface{}{})

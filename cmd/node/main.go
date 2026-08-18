@@ -60,6 +60,15 @@ func main() {
 		log.Printf("Warning: failed to seed public pages: %v", err)
 	}
 
+	// Seed: copiar productos seed de 'default' al dominio del nodo si no existen
+	seedDomain := cfg.Node.Domain
+	if seedDomain == "" {
+		seedDomain = "localhost"
+	}
+	if err := database.SeedProductsToNode(ctx, seedDomain); err != nil {
+		log.Printf("Warning: failed to seed products to node: %v", err)
+	}
+
 	ledgerSvc := ledger.New(database.Pool)
 	accountsSvc := accounts.New(database.Pool)
 	pricingSvc := pricing.New(database.Pool)

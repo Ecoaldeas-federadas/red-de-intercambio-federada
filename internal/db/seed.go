@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"log"
 )
 
 type seedPage struct {
@@ -1015,5 +1016,38 @@ func (d *DB) SeedPublicPages(ctx context.Context, nodeDomain string) error {
 		}
 	}
 
+	return nil
+}
+
+// SeedProductsToNode copia los productos seed de 'default' al dominio del nodo
+// si el nodo no tiene productos propios. Esto asegura que cualquier nodo nuevo
+// tenga el catalogo seed disponible sin depender de migraciones hardcoded.
+func (d *DB) SeedProductsToNode(ctx context.Context, nodeDomain string) error {
+	// Si el nodo ya tiene productos, no hacer nada
+	var count int
+	err := d.Pool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM products WHERE node_domain = $1`, nodeDomain).Scan(&count)
+	if err != nil {
+		return fmt.Errorf("checking existing products: %w", err)
+	}
+	if count > 0 {
+		return nil // Ya tiene productos
+	}
+
+	// Copiar productos seed de 'default' al dominio del nodo
+	_, err = d.Pool.Exec(ctx, `
+		INSERT INTO products (node_domain, name, category, origin, unit, description, badge, image_url,
+		                      price_per_unit, is_approved, is_system, product_code, quantity_per_batch,
+		                      energy_direct, energy_human, energy_inputs, energy_amortization, created_by)
+		SELECT $1, name, category, origin, unit, description, badge, image_url,
+		       price_per_unit, is_approved, is_system, product_code, quantity_per_batch,
+		       energy_direct, energy_human, energy_inputs, energy_amortization, created_by
+		FROM products
+		WHERE node_domain = 'default' AND is_system = true`, nodeDomain)
+	if err != nil {
+		return fmt.Errorf("copying seed products: %w", err)
+	}
+
+	log.Printf("Seeded %d products to node_domain=%s", count, nodeDomain)
 	return nil
 }
