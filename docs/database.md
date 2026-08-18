@@ -12,6 +12,34 @@
 | `002_seed_data.sql` | Datos iniciales: niveles de miembro, tarifas energeticas |
 | `003_account_recovery.sql` | Recuperacion de cuenta, codigos de invitacion, registro de dispositivos |
 | `004_nfc_terminals.sql` | Terminales NFC, tarjetas, sesiones, transacciones, departamentos, roles, permisos, credenciales de usuario |
+| `005_terminal_chip_binding.sql` | Binding de chip ID de terminal |
+| `006_node_config_and_federation_keys.sql` | Configuracion del nodo, claves de federacion |
+| `007_tax_board_votes.sql` | Votos de junta de impuestos |
+| `008_currency_app_config.sql` | Configuracion de moneda y app |
+| `009_super_admin.sql` | Super admin |
+| `010_calculator_parameters.sql` | Parametros de calculadora energetica |
+| `011_default_levels_and_fund.sql` | Niveles por defecto y fondo comunitario |
+| `012_organization_levels.sql` | Niveles de organizacion |
+| `013_public_website.sql` | Sitio web publico |
+| `014_governance.sql` | Gobernanza (asamblea, juntas) |
+| `015_menu_styles.sql` | Estilos de menu |
+| `016_dynamic_admission_form.sql` | Formulario dinamico de admision |
+| `017_footer_uploads.sql` | Subidas de footer |
+| `018_feria_seed_products.sql` | Productos seed (feria) + badge, image_url |
+| `019_product_subcategory.sql` | Subcategoria de productos + is_hidden |
+| `020_theme_colors.sql` | Colores del tema |
+| `021_header_customization.sql` | Personalizacion del header |
+| `022_product_code.sql` | Codigo de producto |
+| `023_store_items_and_fixes.sql` | Items de tienda comunitaria |
+| `024-027` | Dedup y reinsert de productos |
+| `028-036` | Fixes de imagenes y productos basicos |
+| `037_full_community_catalog.sql` | Catalogo comunitario completo |
+| `038_energy_realigned_catalog.sql` | Catalogo realineado con valores energeticos internacionales |
+| `039_store_extras_and_pagination.sql` | Tienda: unidad, cantidad por paquete, costos adicionales, paginacion |
+| `040_split_bundles_into_individual_products.sql` | Division de bundles en productos individuales |
+| `041_artisanal_products_by_material_weight.sql` | Productos artesanales por kg de material + trabajo por hora |
+| `042_composite_products_system.sql` | Sistema de productos compuestos (product_compositions) |
+| `043_product_federation.sql` | Federacion de productos entre nodos (product_federation_proposals) |
 
 ## Tablas Principales
 
@@ -46,13 +74,31 @@
 - **`node_balance`**: Balance multilateral con cada nodo
 - **`processed_messages`**: Idempotencia de mensajes federados
 - **`certificates`**: Certificados mTLS
+- **`node_federation_keys`**: Claves publicas de nodos pares (peers)
+- **`product_federation_proposals`**: Productos propuestos por otros nodos (pending/approved/rejected)
 
 ### Productos y Precios
 - **`products`**: Catalogo con energia directa, humana, insumos, amortizacion
+  - Campos: name, parent_category, category, subcategory, unit, origin, price_per_unit
+  - Campos energeticos: energy_direct, energy_human, energy_inputs, energy_amortization
+  - Campos de estado: is_approved, is_hidden, is_system, is_composite
+  - Campos de federacion: source_node, source_product_id
+  - Campos de tienda: badge, image_url, product_code, quantity_per_unit
+- **`product_compositions`**: Composicion de productos compuestos (componentes y cantidades)
 - **`product_price_history`**: Historial de cambios de precio
 - **`product_producers`**: Productores asociados a productos
 - **`energy_tariff`**: Tarifas energeticas por categoria
 - **`conversion_factor`**: Factor de conversion (FC) interno/externo
+
+### Tienda Comunitaria
+- **`store_items`**: Items en tienda personal de cada usuario
+  - Campos: product_id, product_name, description, category, origin
+  - Campos de precio: price_trueque, base_price, extra_costs, final_price
+  - Campos de stock: stock, is_active
+  - Campos de unidad: unit, quantity_per_unit
+  - Campos de compuesto: is_composite, composite_description, extra_description
+  - Campos de auditoria: owner_id, node_domain, created_at, updated_at
+- **`store_purchases`**: Compras realizadas en tienda
 
 ### Comercio Externo
 - **`external_bridge_operations`**: Operaciones de import/export
@@ -64,6 +110,8 @@
 ### Asamblea y Auditoria
 - **`assembly_sessions`**: Sesiones de asamblea
 - **`assembly_decisions`**: Decisiones con multi-firma
+- **`assembly_votes`**: Votos de miembros en decisiones
+- **`assembly_config`**: Configuracion de aprobacion por tipo de propuesta
 - **`audit_log`**: Registro de auditoria
 
 ### Recuperacion
@@ -76,6 +124,10 @@
 ### Aprobaciones
 - **`approval_rules`**: Reglas de aprobacion configurables
 - **`approval_signatures`**: Firmas de aprobacion
+
+### Sitio Web Publico
+- **`public_pages`**: Paginas del sitio web publico del nodo
+- **`public_settings`**: Configuracion del sitio publico
 
 ## Relaciones Clave
 
@@ -90,11 +142,16 @@ users 1--* recovery_requests (target/requester)
 users 1--* recovery_approvals (approver)
 users 1--* device_registrations
 users 1--* organizations (as signer)
+users 1--* store_items (as owner)
 transactions 1--* ledger_entries
 transactions 1--* multi_sig_approvals
 assembly_sessions 1--* assembly_decisions
+assembly_decisions 1--* assembly_votes
 recovery_requests 1--* recovery_approvals
 member_groups 1--* member_group_members
 products 1--* product_producers
 products 1--* product_price_history
+products 1--* product_compositions (as component_product_id)
+store_items 1--* product_compositions (as product_id)
+product_federation_proposals --> products (on approval)
 ```

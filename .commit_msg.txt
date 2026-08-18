@@ -1,58 +1,41 @@
-feat: federacion de productos entre nodos con aprobacion individual
+fix: flujo correcto de federacion de productos
 
-Cuando un nodo crea un producto nuevo, lo comunica a los demas nodos
-federados. Cada nodo debe aprobarlo individualmente para que este
-disponible en su territorio. Si no se aprueba, no se puede usar para
-producir, comprar ni nada.
+Corrige el flujo de aprobacion de productos federados:
+
+FLUJO CORRECTO:
+1. Nodo A crea producto base -> is_approved = false (pendiente)
+2. Asamblea de Nodo A aprueba -> is_approved = true
+3. Solo DESPUES de aprobacion local -> broadcast a nodos federados
+4. Nodo B recibe propuesta -> pendiente de aprobacion de su asamblea
+5. Asamblea de Nodo B aprueba -> disponible en Nodo B
+6. Si Nodo B no aprueba -> no se puede usar para nada en Nodo B
+
+PRODUCTOS COMPUESTOS:
+- No necesitan aprobacion de asamblea (usan componentes ya aprobados)
+- PERO solo se pueden comprar en un nodo si TODOS sus componentes
+  estan aprobados en ese nodo
+- Si 1 componente no esta aprobado -> compra bloqueada
 
 CAMBIOS:
 
-1. MIGRACION 043: Tabla product_federation_proposals
-   - Registra productos propuestos por otros nodos
-   - Campos: source_node, source_product_id, name, category, unit,
-     price_per_unit, is_composite, composition, status
-   - status: pending, approved, rejected
-   - Campos nuevos en products: source_node, source_product_id
+1. system.go: approveProduct ahora hace broadcast despues de aprobar
+   - Solo productos aprobados por asamblea local se federan
+   - Funcion broadcastProductToFederation registra en audit_log
+   - Mensaje actualizado: "Producto aprobado por la asamblea.
+     Se ha notificado a los nodos federados."
 
-2. PROTOCOLO DE FEDERACION: Mensaje ProductProposal
-   - Nuevo tipo de mensaje en protocol.go
-   - ProductProposalPayload con todos los datos del producto
-   - Handler handleProductProposalMessage en server.go
-     * Recibe propuesta via /federation/inbox
-     * Guarda en product_federation_proposals como 'pending'
-     * ON CONFLICT evita duplicados
-   - Funcion BroadcastProductProposal
-     * Lista nodos federados conocidos
-     * Envia propuesta a cada uno
+2. store.go: Purchase verifica componentes aprobados
+   - Antes de completar la compra, verifica que todos los componentes
+     del producto compuesto esten aprobados en el nodo local
+   - Si algun componente no esta aprobado -> bloquea con mensaje:
+     "no se puede comprar: los siguientes componentes no estan
+     aprobados en este nodo: [lista]"
 
-3. API: Endpoints para gestionar propuestas federadas
-   - GET /api/federation/products/pending: listar pendientes
-   - GET /api/federation/products/all: listar todas (historico)
-   - POST /api/federation/products/{id}/approve: aprobar
-     * Inserta producto en catalogo local como aprobado
-     * Marca origen como 'federated' con source_node
-   - POST /api/federation/products/{id}/reject: rechazar
-     * Marca como rejected con notas
-
-4. FRONTEND: Products.tsx con panel de productos federados
-   - Boton "Federados" con contador de pendientes
-   - Panel que muestra productos propuestos por otros nodos
-   * Nombre, nodo origen, precio, categoria
-   * Descripcion y composicion si es compuesto
-   - Botones Aprobar / Rechazar (requiere permiso products.manage)
-
-MODELO:
-
-- Nodo A crea producto nuevo -> BroadcastProductProposal
-- Nodo B, C, D reciben propuesta -> guardan como 'pending'
-- Nodo B aprueba -> producto disponible en Nodo B
-- Nodo C rechaza -> producto no disponible en Nodo C
-- Nodo D ignora -> producto sigue pendiente en Nodo D
-- Productos aprobados se pueden usar para:
-  * Comprar en tienda
-  * Como componente de productos compuestos
-  * Como materia prima
-- Productos no aprobados no se pueden usar para nada
+3. Products.tsx: texto explicativo actualizado
+   - Clarifica que son productos aprobados por asamblea de otros nodos
+   - La asamblea local debe aprobarlos individualmente
+   - Si no se aprueban, no se pueden usar para producir, comprar
+     ni como componente
 
 Generated with [Devin](https://devin.ai)
 

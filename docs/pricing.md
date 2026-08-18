@@ -2,8 +2,16 @@
 
 ## Archivos
 - `internal/pricing/` - Calculadora energetica, catalogo de productos, tarifas
+- `internal/db/seed.go` - Catalogo base de productos (materias primas, productos terminados)
+- `internal/db/migrations/038_energy_realigned_catalog.sql` - Catalogo realineado
+- `internal/db/migrations/041_artisanal_products_by_material_weight.sql` - Productos por kg
 
-## Calculo Energetico
+## Modelo Energetico
+
+### Unidad de medida
+- **1 TQ = 1 kWh** (convencion de trabajo del proyecto)
+- TQ **no es dinero**: registra energia, contribuciones y compromisos
+- No es bancario, no genera intereses, no es instrumento financiero
 
 ### Componentes de Energia
 | Componente | Descripcion |
@@ -19,6 +27,36 @@ energy_total = energy_direct + energy_human + energy_inputs + energy_amortizatio
 ```
 
 El `energy_total` es un campo calculado (GENERATED ALWAYS AS) en la tabla `products`.
+
+## Estandar Internacional: ICE Database
+
+El catalogo usa el estandar **ICE Database (University of Bath / SERT)** para
+energia incorporada por kg de material. La energia se calcula por **mas de material**,
+no por "unidad" ambigua.
+
+### Factores de energia incorporada (MJ/kg)
+
+| Material | MJ/kg | TQ/kg | Fuente |
+|----------|-------|-------|--------|
+| Arcilla/ceramica | 2.5 | 0.7 | ICE Database |
+| Madera blanda (secado aire) | 0.3 | 0.08 | ICE Database |
+| Madera dura (secado horno) | 2.0 | 0.56 | ICE Database |
+| Fibra vegetal | 0.5 | 0.14 | Estimacion comunitaria |
+| Algodon/tela | 143 | 39.7 | ICE Database, Ecoinvent |
+| Lana | 67.5 | 18.75 | ICE Database |
+| Vidrio | 12.7 | 3.5 | ICE Database |
+| Papel kraft | 25 | 6.9 | ICE Database |
+
+### Formula de precio para productos terminados
+```
+precio = (kg_material x energia_por_kg) + (horas_trabajo x 1 TQ) + coccion
+```
+
+**Ejemplo: Olla de barro de 2 kg**
+- Material: 2 kg x 2.5 MJ/kg = 5 MJ
+- Coccion: 18 MJ
+- Trabajo: 3 horas x 3.6 MJ = 10.8 MJ
+- Total: 33.8 MJ = 9.4 TQ -> precio: 8 TQ
 
 ## Tarifas Energeticas
 
@@ -44,14 +82,32 @@ Tabla `energy_tariff` (configurable por nodo):
 
 ## Catalogo de Productos
 
+### Estructura jerarquica
+1. **Categoria padre** (ej: Artesania, Textiles, Construccion)
+2. **Categoria** (ej: Ceramica, Madera, Confeccion)
+3. **Subcategoria** (ej: Materia Prima, Vajilla, Macetas, Trabajo)
+
+### Tipos de productos en el catalogo
+| Tipo | Descripcion | Ejemplo |
+|------|-------------|---------|
+| Materia prima | Vendida por kg, m, L | Arcilla 1 TQ/kg, Tela 40 TQ/kg |
+| Producto terminado | Peso y dimensiones definidas | Taza 0.3 kg = 2 TQ |
+| Trabajo artesanal | Vendido por hora | Alfareria 1 TQ/hora |
+| Embalaje | Envases reutilizables | Vidrio 200ml = 2 TQ |
+| Envio | Costos de entrega | Local 1 TQ, Lejano 15 TQ |
+
 ### Tabla `products`
-- name, category, origin (internal/external)
-- unit, quantity_per_batch
+- name, parent_category, category, subcategory
+- origin (internal/external/federated)
+- unit (kg, m, unidad, hora, rollo, carga, entrega)
+- quantity_per_batch, quantity_per_unit
 - Componentes de energia por unidad
-- price_per_unit (en moneda interna)
+- price_per_unit (en TQ)
 - external_price_usd (precio de referencia externo)
-- external_logistics_pct, external_tax_rate
 - is_approved, approved_by
+- is_composite (marcar productos compuestos)
+- is_hidden (ocultar del catalogo publico)
+- source_node, source_product_id (para productos federados)
 
 ### Productores
 - `product_producers`: asocia productos con productores
@@ -67,3 +123,13 @@ Tabla `energy_tariff` (configurable por nodo):
 - `GET /api/pricing/calculate`: calcula precio energetico
 - Parametros: producto, cantidad, productor (opcional)
 - Retorna: desglose de energia, precio total, equivalencia externa
+
+## Pagina Publica de Metodologia
+
+La pagina publica explica:
+- Que TQ no es dinero
+- Que registra energia, contribuciones y compromisos
+- La metodologia basada en ICE Database
+- Los factores de energia incorporada por material
+- Las limitaciones de los datos
+- Las fuentes consultadas

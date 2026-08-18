@@ -35,21 +35,35 @@ Ver `departments.md` para la lista completa de permisos.
 | POST | `/api/transactions` | Crea transaccion (transferencia interna) |
 | GET | `/api/transactions` | Lista transacciones (con filtros) |
 | GET | `/api/transactions/{id}` | Detalle de transaccion |
-| GET | `/api/products` | Lista productos del catalogo |
-| POST | `/api/products` | Crea producto (requiere aprobacion) |
+| GET | `/api/products` | Lista productos del catalogo (con paginacion limit/offset) |
+| POST | `/api/products` | Crea producto (requiere aprobacion de asamblea) |
+| POST | `/api/products/{id}/approve` | Aprueba producto (permiso products.manage) |
 | GET | `/api/pricing/calculate` | Calcula precio energetico |
 
 ### Federacion (`internal/api/federation.go`)
 
-| Metodo | Ruta | Descripcion |
-|--------|------|-------------|
-| GET | `/api/federation/config` | Configuracion global de federacion |
-| PUT | `/api/federation/config` | Actualiza config (requiere asamblea) |
-| GET | `/api/federation/limits` | Lista limites bilaterales |
-| POST | `/api/federation/limits` | Crea/modifica limite bilateral |
-| GET | `/api/federation/parity` | Reportes de paridad |
-| GET | `/api/federation/warnings` | Advertencias de limites |
-| GET | `/api/federation/nodes` | Nodos conocidos |
+| Metodo | Ruta | Permiso | Descripcion |
+|--------|------|---------|-------------|
+| GET | `/api/federation/config` | - | Configuracion global de federacion |
+| PUT | `/api/federation/config` | `federation.change_config` | Actualiza config |
+| GET | `/api/federation/bilateral` | - | Lista limites bilaterales |
+| GET | `/api/federation/bilateral/{remoteNode}` | - | Detalle de limite bilateral |
+| POST | `/api/federation/bilateral/propose` | `federation.set_limits` | Propone limite bilateral |
+| POST | `/api/federation/bilateral/{remoteNode}/confirm` | `federation.set_limits` | Confirma limite bilateral |
+| GET | `/api/federation/bilateral/{remoteNode}/history` | - | Historial de cambios |
+| GET | `/api/federation/parity/{remoteNode}` | - | Reporte de paridad con nodo |
+| GET | `/api/federation/parity` | - | Lista reportes de paridad |
+| GET | `/api/federation/warnings` | - | Advertencias de limites |
+| GET | `/api/federation/nodes` | - | Nodos conocidos |
+| GET | `/api/federation/balance/{remoteNode}` | - | Balance con nodo remoto |
+| GET | `/api/federation/volume` | - | Reporte de volumen |
+| GET | `/api/federation/peers` | - | Lista peers registrados |
+| POST | `/api/federation/peers` | `federation.change_config` | Registra peer |
+| DELETE | `/api/federation/peers/{peerDomain}` | `federation.change_config` | Elimina peer |
+| GET | `/api/federation/products/pending` | - | Productos federados pendientes de aprobacion |
+| GET | `/api/federation/products/all` | - | Historial completo de propuestas federadas |
+| POST | `/api/federation/products/{id}/approve` | `products.manage` | Aprueba producto federado |
+| POST | `/api/federation/products/{id}/reject` | `products.manage` | Rechaza producto federado |
 
 ### Organizaciones (`internal/api/organization.go`)
 
@@ -72,19 +86,29 @@ Ver `departments.md` para la lista completa de permisos.
 | POST | `/api/payments/nfc/assign` | Asigna tarjeta NFC a usuario |
 | POST | `/api/payments/manual` | Pago manual entre usuarios |
 
-### Comercio Externo (`internal/api/external.go`)
+### Comercio Externo y Tienda (`internal/api/external.go`)
 
 | Metodo | Ruta | Descripcion |
 |--------|------|-------------|
 | GET | `/api/external/fc` | Factor de conversion actual |
-| POST | `/api/external/fc/recalculate` | Recalcula FC |
+| POST | `/api/external/fc/calculate` | Calcula FC |
+| POST | `/api/external/fc/store` | Almacena FC (permiso external.store_fc) |
 | GET | `/api/external/operations` | Lista operaciones externas |
 | POST | `/api/external/operations` | Crea operacion (import/export) |
+| GET | `/api/external/operations/{id}` | Detalle de operacion |
 | POST | `/api/external/operations/{id}/approve` | Aprueba operacion |
 | POST | `/api/external/operations/{id}/reject` | Rechaza operacion |
-| GET | `/api/store/items` | Items de tienda comunitaria |
-| POST | `/api/store/items` | Crea item en tienda |
-| POST | `/api/store/buy/{id}` | Compra item de tienda |
+| GET | `/api/store/items` | Items de la tienda personal |
+| POST | `/api/store/items` | Crea item del catalogo (simple) |
+| GET | `/api/store/items/{id}` | Detalle de item |
+| GET | `/api/store/all` | Todos los items de todas las tiendas del nodo |
+| PUT | `/api/store/items/{id}/stock` | Actualiza stock (permiso store.update_stock) |
+| PUT | `/api/store/items/{id}/price` | Actualiza precio (permiso store.update_price) |
+| DELETE | `/api/store/items/{id}` | Desactiva item (permiso store.deactivate_item) |
+| POST | `/api/store/purchase` | Compra item |
+| POST | `/api/store/composite` | Crea producto compuesto (precio automatico) |
+| GET | `/api/store/composite/{id}/composition` | Ver composicion de un compuesto |
+| GET | `/api/products/components` | Lista componentes disponibles (con filtro ?category=) |
 
 ### Recuperacion de Cuenta (`internal/api/recovery.go`)
 
@@ -161,6 +185,13 @@ Ver `departments.md` para la lista completa de permisos.
 | GET | `/api/accounts/pending` | Lista solicitudes de admision pendientes |
 | POST | `/api/accounts/admission/{id}/approve` | Aprueba admision |
 | POST | `/api/accounts/admission/{id}/reject` | Rechaza admision |
+
+### Sitio Web Publico (`internal/api/system.go`)
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| GET | `/api/public/settings` | Configuracion publica del nodo |
+| GET | `/api/public/pages` | Paginas del sitio publico |
 
 ## Formato de Respuesta
 

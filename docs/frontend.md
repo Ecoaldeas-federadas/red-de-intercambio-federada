@@ -1,12 +1,13 @@
 # Frontend PWA
 
 ## Stack
-- **React 18** con hooks (useState, useEffect)
+- **React 18** con hooks (useState, useEffect, useRef, useCallback)
 - **TypeScript** para tipado estatico
 - **TailwindCSS** para estilos
 - **Vite 5** como build tool y dev server
 - **lucide-react** para iconos
 - **react-router-dom** para enrutamiento
+- **IntersectionObserver** para infinite scroll
 
 ## Estructura
 
@@ -29,18 +30,21 @@ web/
     ├── index.css            # Tailwind + estilos base
     ├── hooks/
     │   ├── useAuth.ts         # Hook de autenticacion
-    │   └── usePermissions.ts  # Hook de permisos del usuario
+    │   ├── usePermissions.ts  # Hook de permisos del usuario
+    │   └── useConfig.ts       # Hook de configuracion del nodo
     ├── components/
-    │   └── Layout.tsx       # Sidebar + header responsive
+    │   ├── Layout.tsx         # Sidebar + header responsive
+    │   └── public-site/
+    │       └── PublicBlocks.tsx  # Bloques del sitio publico con infinite scroll
     └── pages/
         ├── Setup.tsx         # Wizard de configuracion inicial (4 pasos)
         ├── Login.tsx         # Login con contrasena o Passkey WebAuthn
         ├── Dashboard.tsx     # Panel principal (balance, advertencias, nodos)
         ├── Transfer.tsx      # Transferencia interna
         ├── History.tsx       # Historial de transacciones
-        ├── Products.tsx      # Catalogo de productos
+        ├── Products.tsx      # Catalogo de productos + productos federados
         ├── Calculator.tsx    # Calculadora energetica
-        ├── Store.tsx         # Tienda comunitaria
+        ├── Store.tsx         # Tienda comunitaria con productos compuestos
         ├── FederationLimits.tsx  # Limites bilaterales
         ├── Parity.tsx        # Reportes de paridad
         ├── Assembly.tsx      # Propuestas de asamblea
@@ -85,6 +89,10 @@ web/
 - `hasAllPermissions(names)`: verifica si tiene todos
 - Carga automatica via `GET /api/users/me/permissions`
 
+### Hook `useConfig`
+- `currency`: nombre de la moneda del nodo (ej: TQ)
+- Carga automatica via `GET /api/public/settings`
+
 ### Auth Guard
 - `App.tsx`: verifica estado del nodo via `GET /api/setup/status`
 - Si nodo no inicializado: redirige a `/setup`
@@ -109,6 +117,44 @@ web/
 - Headers: `Content-Type: application/json`, `Authorization: Bearer <token>`
 - Metodos: `get<T>`, `post<T>`, `put<T>`, `delete<T>`
 - Errores: parsea JSON de error, lanza Error con mensaje
+
+## Paginas Principales
+
+### Products.tsx - Catalogo de productos
+- Lista productos con infinite scroll (IntersectionObserver)
+- Filtros por categoria padre, categoria y subcategoria
+- Crear/editar productos (requiere permiso `products.manage`)
+- Aprobar productos pendientes
+- **Panel de productos federados** (boton con contador de pendientes)
+  - Lista productos propuestos por otros nodos
+  - Aprobar/rechazar productos federados
+  - Muestra nodo origen, precio, categoria
+- Mostrar/ocultar productos (is_hidden)
+
+### Store.tsx - Tienda comunitaria
+- Dos vistas: "Mi Tienda" (personal) y "Explorar" (todas las tiendas del nodo)
+- **Dos modos de creacion de producto:**
+  1. **Producto Compuesto** (nuevo):
+     - Nombre, descripcion, categoria, stock
+     - Selector de componentes con filtro por categoria
+     - Filtros: Todos, Materias Primas, Productos Base, Trabajo, Embalaje, Envio
+     - Agregar componente con cantidad
+     - Lista de componentes con subtotal cada uno
+     - Precio total automatico (no editable)
+     - Publicar en tienda
+  2. **Producto del Catalogo** (simple):
+     - Seleccionar producto del catalogo
+     - Stock, unidades por paquete
+     - Costos adicionales (envio, envase)
+     - Precio final = base + extras
+- Visualizacion de productos compuestos con etiqueta "Compuesto"
+- Comprar productos de otros usuarios
+- Busqueda y filtro por categoria en vista explorar
+
+### Calculator.tsx - Calculadora energetica
+- Calcula precio energetico de productos
+- Parametros: producto, cantidad, productor
+- Muestra desglose de energia por componente
 
 ## Tema Tailwind
 
@@ -140,5 +186,8 @@ npx vite dev      # dev server en :5173
 
 ### Salida
 - `dist/index.html`: 0.7 KB
-- `dist/assets/index.css`: 16 KB (gzip: 3.5 KB)
-- `dist/assets/index.js`: 216 KB (gzip: 64 KB)
+- `dist/assets/index.css`: 63 KB (gzip: 10 KB)
+- `dist/assets/index.js`: ~1356 KB (gzip: 367 KB)
+
+> Nota: El bundle de JS supera 500 KB. Para optimizar, considerar code-splitting
+> con `React.lazy()` y `manualChunks` en la configuracion de Vite.
