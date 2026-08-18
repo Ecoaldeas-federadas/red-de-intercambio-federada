@@ -403,6 +403,31 @@ func (d *DB) SeedPublicPages(ctx context.Context, nodeDomain string) error {
   },
   {
     "type": "features_grid",
+    "title": "Sistema de Moneda Saldo Cero: Los 5 Pilares",
+    "subtitle": "Conocido como LETS (Local Exchange Trading System) o Credito Mutuo. No es dinero, no es criptomoneda, no es banco. Es un registro contable comunitario.",
+    "columns": 1,
+    "items": [
+      {"icon":"circle-dot","title":"Pilar 1: Punto de Partida - Saldo Inicial Cero","description":"Ningun miembro necesita aportar capital bancario externo, dinero fiduciario nacional ni ahorros para empezar a operar. Todas las cuentas de los participantes inician exactamente en cero. La moneda no existe previamente de forma fisica o acumulada en bovedas; en su lugar, se genera y se salda dinamicamente en el momento exacto en el que se realiza un intercambio. No hay emision de moneda, no hay banco central, no hay inflacion. El TQ se crea en el instante del intercambio y se destruye cuando se salda.","badge":"Saldo cero"},
+      {"icon":"arrow-right-left","title":"Pilar 2: Dinamica del Intercambio - Credito Mutuo","description":"Cuando se realiza una transaccion, el intercambio se registra de manera contable y equilibrada dentro de la red. Ejemplo: si un productor de huevos te entrega su producto, la cuenta del productor se acredita (suma saldo positivo) y tu cuenta se debita (resta saldo y pasa a negativo) de forma equitativa. La suma de todos los saldos existentes en la comunidad siempre es igual a cero. No hay dinero circulando: hay un registro de quien aporto que y quien recibio que.","badge":"Credito mutuo"},
+      {"icon":"trending-down","title":"Pilar 3: Limite Inferior - Piso Negativo","description":"El hecho de que no tengas dinero o saldo positivo en un momento dado no te impide adquirir lo que necesitas para vivir. Tu cuenta simplemente descendera a terreno negativo, funcionando como una linea de credito comunitaria. Para evitar el endeudamiento irresponsable o que un miembro consuma de manera ilimitada a expensas del esfuerzo de los demas, se establece un limite inferior o piso negativo. Al tocar este limite, la cuenta se bloquea temporalmente para nuevas compras. Para reactivar su capacidad de intercambio, la persona debe saldar su saldo negativo aportando valor de vuelta a la ecoaldea: ofreciendo bienes de su propia parcela o dedicando horas de trabajo comunitario.","badge":"Piso negativo"},
+      {"icon":"trending-up","title":"Pilar 4: Limite Superior - Techo Positivo","description":"Para evitar el acaparamiento y la acumulacion innecesaria de creditos, se implementa un limite superior o techo positivo. Una vez que un miembro alcanza este tope maximo de creditos acumulados por sus ventas, su cuenta se bloquea y no puede recibir mas abonos. Esto lo obliga a gastar o reinvertir sus creditos adquiriendo bienes de otros productores, utilizando servicios de la aldea o financiando proyectos comunales. Esto asegura que la riqueza circule constantemente y no se estanque de forma ociosa. Nadie puede acumular riqueza indefinidamente: el sistema esta disenado para que la riqueza circule.","badge":"Techo positivo"},
+      {"icon":"zap","title":"Pilar 5: Respaldo y Unidad de Cuenta - Energia Fisica Real","description":"Para que la moneda tenga credibilidad y estabilidad frente a la inflacion externa, su unidad de cuenta (el TQ - Trueque) esta anclada directamente a energia fisica real invertida en producir cada bien o servicio. 1 TQ = 1 kWh = 3.6 megajulios (MJ). No esta respaldada por oro ni por dolares ni por la promesa de un gobierno. Esta respaldada por la energia que costo producir lo que intercambias. Esto hace que el valor sea objetivo, medible y auditable: cualquier persona puede verificar cuanta energia se invirtio en producir algo. No hay especulacion posible: la energia no se devalua, no se infla, no se manipula.","badge":"Energia objetiva"}
+    ]
+  },
+  {
+    "type": "features_grid",
+    "title": "Por Que el TQ No es Dinero",
+    "subtitle": "Es importante entender la diferencia entre el TQ y el dinero convencional",
+    "columns": 2,
+    "items": [
+      {"icon":"x","title":"No es dinero fiduciario","description":"El dinero fiduciario (dolares, bolivares, euros) es emitido por un banco central, su valor depende de la confianza en el gobierno, se devalua con la inflacion y puede ser manipulado por la politica economica. El TQ no es emitido por ningun banco, no se devalua, no tiene inflacion y no depende de ningun gobierno. Su valor es fijo: 1 TQ siempre sera 1 kWh de energia.","badge":"No es fiduciario"},
+      {"icon":"x","title":"No es criptomoneda","description":"Las criptomonedas (Bitcoin, Ethereum) se minan con gasto computacional, cotizan en exchanges, tienen valor de mercado fluctuante y pueden ser objeto de especulacion financiera. El TQ no se mina, no cotiza en ningun exchange, no tiene valor de mercado fluctuante y no se puede especular con el. Su valor es fijo y objetivo: energia fisica real.","badge":"No es cripto"},
+      {"icon":"x","title":"No es dinero bancario","description":"El dinero bancario se deposita en bancos, genera intereses, puede ser prestado a terceros y multiplicarse mediante el sistema de reserva fraccionaria. El TQ no se deposita en ningun banco, no genera intereses, no se puede prestar a terceros y no se multiplica. Es un registro contable de intercambios reales, no un instrumento financiero.","badge":"No es bancario"},
+      {"icon":"check","title":"Es un registro contable comunitario","description":"El TQ es un registro transparente de quien aporto que y quien recibio que. La suma de todos los saldos siempre da cero. No hay emision de moneda, no hay inflacion, no hay devaluacion. Solo hay registro honesto de intercambios. Es una herramienta de contabilidad social, no un instrumento financiero. Permite el trueque diferido y multilateral sin necesidad de dinero.","badge":"Registro contable"}
+    ]
+  },
+  {
+    "type": "features_grid",
     "title": "Límites y Confianza Progresiva",
     "subtitle": "El sistema crece contigo: entre más participas, más confianza acumulas",
     "columns": 3,
