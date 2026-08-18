@@ -1047,74 +1047,74 @@ func (d *DB) SeedProductsToNode(ctx context.Context, nodeDomain string) error {
 
 	// 2. Insertar los 15 productos directamente con el dominio del nodo
 	// Cada producto se inserta solo si no existe ya (verifica por nombre + dominio)
-	// 8 productos Conuqueros + 7 productos basicos del sistema
+	// Estructura jerarquica: parent_category > category > subcategory
 	products := []struct {
-		name, category, subcategory, unit, description, badge, imageURL string
-		price                                                           int64
-		energyDirect, energyHuman, energyInputs, energyAmort            int64
+		name, parentCategory, category, subcategory, unit, description, badge, imageURL string
+		price                                                                           int64
+		energyDirect, energyHuman, energyInputs, energyAmort                            int64
 	}{
 		// 8 productos Conuqueros
-		{"Hortalizas y Hojas Verdes de El Junquito", "Cosecha Fresca", "Hojas Verdes", "manojo",
+		{"Hortalizas y Hojas Verdes de El Junquito", "Alimentacion", "Cosecha Fresca", "Hojas Verdes", "manojo",
 			"Col rizada (kale portuguesa), acelgas, lechugas variadas, cebollin, cilantro de monte y apio Espana cosechados en la manana.",
 			"Fresco del Dia",
 			"https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=600&q=80", 50, 0, 0, 0, 0},
-		{"Tuberculos Ancestrales y Platanos", "Cosecha Fresca", "Tuberculos", "kg",
+		{"Tuberculos Ancestrales y Platanos", "Alimentacion", "Cosecha Fresca", "Tuberculos", "kg",
 			"Name morado criollo, ocumo blanco y morado, yuca dulce de Carayaca, auyama madura y cambur morado.",
 			"Rubro Olvidado",
 			"https://images.unsplash.com/photo-1578269830911-6159f1aee3b4?auto=format&fit=crop&w=600&q=80", 70, 0, 0, 0, 0},
-		{"Tinturas Madres y Botica Conuquera", "Medicina Botanica & Cosmetica", "Tinturas", "frasco",
+		{"Tinturas Madres y Botica Conuquera", "Salud y Medicina", "Medicina Botanica", "Tinturas", "frasco",
 			"Extractos de propoleo puro, tinturas de moringa, curcuma, jengibre, pomadas desinflamatorias de arnica y jarabes naturales.",
 			"100% Puro",
 			"https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&w=600&q=80", 120, 0, 0, 0, 0},
-		{"Cosmetica Natural sin Quimicos", "Medicina Botanica & Cosmetica", "Cosmetica", "unidad",
+		{"Cosmetica Natural sin Quimicos", "Salud y Medicina", "Medicina Botanica", "Cosmetica", "unidad",
 			"Desodorantes ecologicos de aceite de coco y bicarbonato, balsamos labiales de cera de abeja, jabones artesanales y toallas reutilizables.",
 			"Residuo Cero",
 			"https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80", 90, 0, 0, 0, 0},
-		{"La Tradicional Cafunga de Barlovento", "Gastronomia Artesanal", "Dulces Tradicionales", "porcion",
+		{"La Tradicional Cafunga de Barlovento", "Alimentacion", "Gastronomia Artesanal", "Dulces Tradicionales", "porcion",
 			"Dulce patrimonial afrovenezolano elaborado a base de platano maduro, coco rallado, papelon y anis dulce, horneado en hoja de platano.",
 			"Plato Estrella",
 			"https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=600&q=80", 60, 0, 0, 0, 0},
-		{"Quesos Artesanales de Bufala y Cabra", "Gastronomia Artesanal", "Lacteos", "kg",
+		{"Quesos Artesanales de Bufala y Cabra", "Alimentacion", "Gastronomia Artesanal", "Lacteos", "kg",
 			"Quesos madurados y frescos, dulce de leche de cabra, yogurt natural y mantequilla de pequenos rebanos pastoreados.",
 			"Pastoreo Libre",
 			"https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?auto=format&fit=crop&w=600&q=80", 150, 0, 0, 0, 0},
-		{"Cacao Puro, Chocolates y Cafe de Montana", "Gastronomia Artesanal", "Cacao y Cafe", "barra",
+		{"Cacao Puro, Chocolates y Cafe de Montana", "Alimentacion", "Gastronomia Artesanal", "Cacao y Cafe", "barra",
 			"Barras de chocolate bean-to-bar 70% cacao de Barlovento y Chuao, licor de cacao artesanal y cafe lavado tostado a lena.",
 			"Origen Venezolano",
 			"https://images.unsplash.com/photo-1578269830911-6159f1aee3b4?auto=format&fit=crop&w=600&q=80", 200, 0, 0, 0, 0},
-		{"Plantulas Medicinales y Semillas Criollas", "Semillas & Plantulas", "Plantulas Medicinales", "maceta",
+		{"Plantulas Medicinales y Semillas Criollas", "Agricultura", "Semillas y Plantulas", "Plantulas Medicinales", "maceta",
 			"Plantas en maceta de poleo, estevia, malojillo, romero, ruda, oregano orejon y sobres de semillas adaptadas al clima caraqueno.",
 			"Para tu Huerto",
 			"https://images.unsplash.com/photo-1576045057995-568f588f82fb?auto=format&fit=crop&w=600&q=80", 40, 0, 0, 0, 0},
 		// 7 productos basicos del sistema
-		{"Granos basicos (maiz, frijol) 1kg", "Alimentos", "Granos", "kg",
+		{"Granos basicos (maiz, frijol) 1kg", "Alimentacion", "Granos y Cereales", "Granos", "kg",
 			"Granos basicos: maiz y frijol criollo, 1kg.", "", "", 90, 10, 60, 15, 5},
-		{"Harina de maiz 50kg", "Alimentos", "Harinas", "saco",
+		{"Harina de maiz 50kg", "Alimentacion", "Granos y Cereales", "Harinas", "saco",
 			"Harina de maiz, saco de 50kg.", "", "", 10000, 500, 5000, 2000, 2500},
-		{"Verduras frescas 1kg", "Alimentos", "Verduras", "kg",
+		{"Verduras frescas 1kg", "Alimentacion", "Cosecha Fresca", "Verduras", "kg",
 			"Verduras frescas variadas, 1kg.", "", "", 50, 5, 30, 10, 5},
-		{"Miel 1L", "Alimentos", "Endulzantes", "litro",
+		{"Miel 1L", "Alimentacion", "Endulzantes", "Miel", "litro",
 			"Miel pura de abejas, 1 litro.", "", "", 3500, 50, 2000, 800, 650},
-		{"Prenda artesanal (lana/algodon)", "Textiles", "Prendas", "unidad",
+		{"Prenda artesanal (lana/algodon)", "Textiles", "Confeccion", "Prendas", "unidad",
 			"Prenda artesanal de lana o algodon.", "", "", 4200, 100, 3000, 800, 300},
-		{"Tela de algodon 1m", "Textiles", "Telas", "m",
+		{"Tela de algodon 1m", "Textiles", "Tejidos", "Telas", "m",
 			"Tela de algodon, 1 metro.", "", "", 1500, 50, 800, 500, 150},
-		{"Hora de labor agricola", "Servicios", "Trabajo Agricola", "hora",
+		{"Hora de labor agricola", "Servicios", "Trabajo Agricola", "Jornales", "hora",
 			"Hora de trabajo agricola.", "", "", 325, 0, 325, 0, 0},
 	}
 
 	for _, p := range products {
 		// Solo insertar si no existe ya para este dominio
 		_, err := d.Pool.Exec(ctx, `
-			INSERT INTO products (node_domain, name, category, subcategory, origin, unit, description, badge, image_url,
+			INSERT INTO products (node_domain, name, parent_category, category, subcategory, origin, unit, description, badge, image_url,
 			                      price_per_unit, is_approved, is_system, product_code,
 			                      energy_direct, energy_human, energy_inputs, energy_amortization)
-			SELECT $1, $2, $3, $4, 'internal', $5, $6, $7, $8, $9, true, true, '',
-			       $10, $11, $12, $13
+			SELECT $1, $2, $3, $4, $5, 'internal', $6, $7, $8, $9, $10, true, true, '',
+			       $11, $12, $13, $14
 			WHERE NOT EXISTS (
 				SELECT 1 FROM products WHERE node_domain = $1 AND name = $2
 			)`,
-			nodeDomain, p.name, p.category, p.subcategory, p.unit, p.description, p.badge, p.imageURL, p.price,
+			nodeDomain, p.name, p.parentCategory, p.category, p.subcategory, p.unit, p.description, p.badge, p.imageURL, p.price,
 			p.energyDirect, p.energyHuman, p.energyInputs, p.energyAmort)
 		if err != nil {
 			log.Printf("Warning: failed to seed product %s: %v", p.name, err)

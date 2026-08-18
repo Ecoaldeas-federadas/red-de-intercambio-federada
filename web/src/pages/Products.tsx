@@ -8,6 +8,7 @@ interface ProductForm {
   name: string
   description: string
   unit: string
+  parent_category: string
   category: string
   subcategory: string
   price: number
@@ -19,8 +20,25 @@ interface ProductForm {
 }
 
 const emptyForm: ProductForm = {
-  name: '', description: '', unit: 'unidad', category: '', subcategory: '', price: 0,
+  name: '', description: '', unit: 'unidad', parent_category: '', category: '', subcategory: '', price: 0,
   product_code: '', badge: '', image_url: '', origin: 'internal', is_hidden: false
+}
+
+// Categorias padre predefinidas con sus categorias hijas
+const PARENT_CATEGORIES: Record<string, string[]> = {
+  'Alimentacion': ['Cosecha Fresca', 'Gastronomia Artesanal', 'Granos y Cereales', 'Endulzantes', 'Carnes y Pescados', 'Bebidas', 'Condimentos'],
+  'Agricultura': ['Semillas y Plantulas', 'Insumos Agricolas', 'Tierra y Compost', 'Riego'],
+  'Salud y Medicina': ['Medicina Botanica', 'Terapias', 'Higiene', 'Primeros Auxilios'],
+  'Textiles': ['Confeccion', 'Tejidos', 'Hilos y Materiales'],
+  'Artesania': ['Ceramica', 'Madera', 'Cuero', 'Vidrio', 'Metal Decorativo', 'Joyeria'],
+  'Servicios': ['Trabajo Agricola', 'Construccion', 'Reparaciones', 'Transporte', 'Educacion', 'Limpieza', 'Salud'],
+  'Construccion': ['Materiales', 'Herramientas', 'Acabados'],
+  'Energia': ['Solar', 'Eolica', 'Biogas', 'Lena y Carbon'],
+  'Herramientas': ['Manuales', 'Electricas', 'Agricolas'],
+  'Tecnologia': ['Computacion', 'Electrodomesticos', 'Telefonos', 'Componentes'],
+  'Transporte': ['Vehiculos', 'Repuestos', 'Bicicletas'],
+  'Cultura': ['Libros', 'Musica', 'Arte', 'Eventos'],
+  'Educacion': ['Talleres', 'Cursos', 'Tutorias', 'Materiales Educativos'],
 }
 
 export default function Products() {
@@ -33,6 +51,7 @@ export default function Products() {
   const [error, setError] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<ProductForm>(emptyForm)
+  const [filterParentCategory, setFilterParentCategory] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
   const [filterSubcategory, setFilterSubcategory] = useState('')
 
@@ -41,22 +60,40 @@ export default function Products() {
   useEffect(() => { load() }, [])
 
   // Categorias y subcategorias jerarquicas
-  const categoryMap = products.reduce((acc, p) => {
-    const cat = p.category || 'Sin categoría'
+  // Jerarquia: parent_category > category > subcategory
+  const parentCategoryMap = products.reduce((acc, p) => {
+    const pc = p.parent_category || 'Sin categoría'
+    const cat = p.category || ''
+    if (!acc[pc]) acc[pc] = new Set<string>()
+    if (cat) acc[pc].add(cat)
+    return acc
+  }, {} as Record<string, Set<string>>)
+
+  const parentCategories = Object.keys(parentCategoryMap).sort()
+  const categories = filterParentCategory ? Array.from(parentCategoryMap[filterParentCategory] || []).sort() as string[] : []
+
+  const categorySubMap = products.reduce((acc, p) => {
+    const cat = p.category || ''
     const sub = p.subcategory || ''
     if (!acc[cat]) acc[cat] = new Set<string>()
     if (sub) acc[cat].add(sub)
     return acc
   }, {} as Record<string, Set<string>>)
 
-  const categories = Object.keys(categoryMap).sort()
-  const subcategories = filterCategory ? Array.from(categoryMap[filterCategory] || []).sort() : []
+  const subcategories = filterCategory ? Array.from(categorySubMap[filterCategory] || []).sort() as string[] : []
 
   const filteredProducts = products.filter((p) => {
+    if (filterParentCategory && p.parent_category !== filterParentCategory) return false
     if (filterCategory && p.category !== filterCategory) return false
     if (filterSubcategory && p.subcategory !== filterSubcategory) return false
     return true
   })
+
+  const selectParentCategory = (pc: string) => {
+    setFilterParentCategory(pc)
+    setFilterCategory('')
+    setFilterSubcategory('')
+  }
 
   const selectCategory = (cat: string) => {
     setFilterCategory(cat)
@@ -69,6 +106,7 @@ export default function Products() {
       name: p.name || '',
       description: p.description || '',
       unit: p.unit || 'unidad',
+      parent_category: p.parent_category || '',
       category: p.category || '',
       subcategory: p.subcategory || '',
       price: p.price || 0,
@@ -163,15 +201,41 @@ export default function Products() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <div>
-          <label className="label">Categoría</label>
-          <input className="input" placeholder="Ej: Cosecha Fresca, Gastronomía" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+          <label className="label">Categoría Padre</label>
+          <select
+            className="input"
+            value={form.parent_category}
+            onChange={(e) => setForm({ ...form, parent_category: e.target.value, category: '' })}
+          >
+            <option value="">Seleccionar...</option>
+            {Object.keys(PARENT_CATEGORIES).map((pc) => (
+              <option key={pc} value={pc}>{pc}</option>
+            ))}
+          </select>
         </div>
         <div>
-          <label className="label">Subcategoría (opcional)</label>
-          <input className="input" placeholder="Ej: Hojas verdes, Tubérculos" value={form.subcategory} onChange={(e) => setForm({ ...form, subcategory: e.target.value })} />
-          <p className="text-xs text-gray-400 mt-1">Organiza los productos dentro de una categoría.</p>
+          <label className="label">Categoría</label>
+          <select
+            className="input"
+            value={form.category}
+            onChange={(e) => setForm({ ...form, category: e.target.value })}
+            disabled={!form.parent_category}
+          >
+            <option value="">Seleccionar...</option>
+            {form.parent_category && PARENT_CATEGORIES[form.parent_category]?.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+            {/* Permitir categorias existentes que no estan en la lista */}
+            {form.parent_category && !PARENT_CATEGORIES[form.parent_category]?.includes(form.category) && form.category && (
+              <option value={form.category}>{form.category}</option>
+            )}
+          </select>
+        </div>
+        <div>
+          <label className="label">Subcategoría</label>
+          <input className="input" placeholder="Ej: Hojas verdes" value={form.subcategory} onChange={(e) => setForm({ ...form, subcategory: e.target.value })} />
         </div>
       </div>
 
@@ -257,53 +321,80 @@ export default function Products() {
         </div>
       ) : (
         <div className="space-y-4">
-          {/* Filtro jerarquico: Categoria > Subcategoria */}
-          {categories.length > 0 && (
+          {/* Filtro jerarquico de 3 niveles: Padre > Categoria > Subcategoria */}
+          {parentCategories.length > 0 && (
             <div className="space-y-2">
-              {/* Nivel 1: Categorias */}
+              {/* Nivel 1: Categorias Padre */}
               <div className="flex flex-wrap gap-2">
                 <button
-                  onClick={() => { setFilterCategory(''); setFilterSubcategory('') }}
+                  onClick={() => { setFilterParentCategory(''); setFilterCategory(''); setFilterSubcategory('') }}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${
-                    filterCategory === '' ? 'bg-emerald-700 text-white shadow' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                    filterParentCategory === '' ? 'bg-emerald-700 text-white shadow' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
                   }`}
                 >
                   Todas ({products.length})
                 </button>
-                {categories.map((cat) => {
-                  const count = products.filter((p) => p.category === cat).length
+                {parentCategories.map((pc) => {
+                  const count = products.filter((p) => (p.parent_category || 'Sin categoría') === pc).length
                   return (
                     <button
-                      key={cat}
-                      onClick={() => selectCategory(cat)}
+                      key={pc}
+                      onClick={() => selectParentCategory(pc)}
                       className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${
-                        filterCategory === cat ? 'bg-emerald-700 text-white shadow' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                        filterParentCategory === pc ? 'bg-emerald-700 text-white shadow' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
                       }`}
                     >
-                      {cat} ({count})
+                      {pc} ({count})
                     </button>
                   )
                 })}
               </div>
-              {/* Nivel 2: Subcategorias (solo si hay categoria seleccionada) */}
+              {/* Nivel 2: Categorias (solo si hay padre seleccionado) */}
+              {filterParentCategory && categories.length > 0 && (
+                <div className="flex flex-wrap gap-2 pl-4 border-l-2 border-emerald-300">
+                  <button
+                    onClick={() => { setFilterCategory(''); setFilterSubcategory('') }}
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition ${
+                      filterCategory === '' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
+                    }`}
+                  >
+                    Todas ({products.filter((p) => (p.parent_category || 'Sin categoría') === filterParentCategory).length})
+                  </button>
+                  {categories.map((cat) => {
+                    const count = products.filter((p) => p.parent_category === filterParentCategory && p.category === cat).length
+                    return (
+                      <button
+                        key={cat}
+                        onClick={() => selectCategory(cat)}
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition ${
+                          filterCategory === cat ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
+                        }`}
+                      >
+                        {cat} ({count})
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              {/* Nivel 3: Subcategorias (solo si hay categoria seleccionada) */}
               {filterCategory && subcategories.length > 0 && (
-                <div className="flex flex-wrap gap-2 pl-4 border-l-2 border-emerald-200">
+                <div className="flex flex-wrap gap-2 pl-8 border-l-2 border-emerald-200">
                   <button
                     onClick={() => setFilterSubcategory('')}
                     className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition ${
-                      filterSubcategory === '' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
+                      filterSubcategory === '' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-50 text-gray-500 hover:bg-gray-100 border border-gray-200'
                     }`}
                   >
-                    Todas ({products.filter((p) => p.category === filterCategory).length})
+                    Todas ({products.filter((p) => p.parent_category === filterParentCategory && p.category === filterCategory).length})
                   </button>
                   {subcategories.map((sub) => {
-                    const count = products.filter((p) => p.category === filterCategory && p.subcategory === sub).length
+                    const count = products.filter((p) => p.parent_category === filterParentCategory && p.category === filterCategory && p.subcategory === sub).length
                     return (
                       <button
                         key={sub}
                         onClick={() => setFilterSubcategory(sub)}
                         className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition ${
-                          filterSubcategory === sub ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
+                          filterSubcategory === sub ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-50 text-gray-500 hover:bg-gray-100 border border-gray-200'
                         }`}
                       >
                         {sub} ({count})
@@ -366,9 +457,10 @@ export default function Products() {
                       <div className="mt-3 space-y-1">
                         <p className="text-lg font-bold text-trueque-700">{p.price} {currency}</p>
                         <p className="text-xs text-gray-400">
-                          {p.category && <span className="text-gray-600 font-medium">{p.category}</span>}
+                          {p.parent_category && <span className="text-gray-600 font-medium">{p.parent_category}</span>}
+                          {p.category && <span> › <span className="text-gray-600 font-medium">{p.category}</span></span>}
                           {p.subcategory && <span> › <span className="text-gray-600 font-medium">{p.subcategory}</span></span>}
-                          {p.category && ' | '}
+                          {(p.parent_category || p.category) && ' | '}
                           Unidad: {p.unit}
                         </p>
                         {p.product_code && <p className="text-xs text-gray-400">Código: {p.product_code}</p>}
