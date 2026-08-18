@@ -19,11 +19,12 @@ func New(pool *pgxpool.Pool, nodeDomain string) *Protocol {
 type MessageType string
 
 const (
-	MsgTypeTransfer      MessageType = "Transfer"
-	MsgTypeLimitQuery    MessageType = "LimitQuery"
-	MsgTypeBalanceSync   MessageType = "BalanceSync"
-	MsgTypeBilateralSync MessageType = "BilateralSync"
-	MsgTypeCardLookup    MessageType = "CardLookup"
+	MsgTypeTransfer        MessageType = "Transfer"
+	MsgTypeLimitQuery      MessageType = "LimitQuery"
+	MsgTypeBalanceSync     MessageType = "BalanceSync"
+	MsgTypeBilateralSync   MessageType = "BilateralSync"
+	MsgTypeCardLookup      MessageType = "CardLookup"
+	MsgTypeProductProposal MessageType = "ProductProposal"
 )
 
 type Message struct {
@@ -41,6 +42,21 @@ type TransferPayload struct {
 	ReceiverID    string `json:"receiver_id"`
 	Amount        int64  `json:"amount"`
 	TaxAmount     int64  `json:"tax_amount"`
+}
+
+type ProductProposalPayload struct {
+	SourceProductID string      `json:"source_product_id"`
+	Name            string      `json:"name"`
+	ParentCategory  string      `json:"parent_category"`
+	Category        string      `json:"category"`
+	Subcategory     string      `json:"subcategory"`
+	Unit            string      `json:"unit"`
+	Description     string      `json:"description"`
+	Badge           string      `json:"badge"`
+	ImageURL        string      `json:"image_url"`
+	PricePerUnit    int64       `json:"price_per_unit"`
+	IsComposite     bool        `json:"is_composite"`
+	Composition     interface{} `json:"composition"`
 }
 
 type LimitQueryPayload struct {

@@ -1,43 +1,56 @@
-fix: productos artesanales por kg de material + trabajo por hora
+feat: sistema de productos compuestos con precio automatico
 
-Estandar internacional ICE Database: energia incorporada por kg de material
-(no por unidad ambigua). Una maceta pequena no vale lo mismo que una grande.
+Nuevo sistema que permite a cualquier usuario crear productos compuestos
+en su tienda seleccionando materias primas y productos base del catalogo
+aprobado. El precio se calcula automaticamente, no se ingresa manualmente.
+No requiere aprobacion de asamblea porque usa componentes ya aprobados.
 
-Eliminados 7 productos ambiguos por unidad:
-- Prendas de Vestir Artesanales (30 TQ/unidad)
-- Cobijas, Frazadas y Hamacas (40 TQ/unidad)
-- Vasijas y Vajilla de Barro (15 TQ/unidad)
-- Ceramica Decorativa (15 TQ/unidad)
-- Canastas y Cesteria (10 TQ/unidad)
-- Tallados y Utensilios de Madera (20 TQ/unidad)
-- Muebles Rusticos de Madera (80 TQ/unidad)
+CAMBIOS:
 
-Nuevas materias primas por kg (estandar ICE Database):
-- Arcilla para Ceramica: 1 TQ/kg (2.5 MJ/kg)
-- Madera Blanda para Tallado: 1 TQ/kg (0.3 MJ/kg)
-- Madera Dura para Muebles: 1 TQ/kg (2.0 MJ/kg)
-- Fibra Vegetal para Cesteria: 1 TQ/kg (0.5 MJ/kg)
-- Tela de Algodon Cruda: 40 TQ/kg (143 MJ/kg)
-- Lana Cruda para Tejer: 19 TQ/kg (67.5 MJ/kg)
-- Hilo de Algodon (rollo 100g): 4 TQ
+1. MIGRACION 042: Tabla product_compositions
+   - Relaciona productos con sus componentes (materia prima, producto base,
+     trabajo, embalaje, envio)
+   - Campos: component_product_id, component_name, component_unit,
+     component_price, quantity, subtotal, component_category
+   - Categorias: materia_prima, producto_base, trabajo, embalaje, envio
+   - Campos nuevos en store_items: is_composite, composite_description
+   - Campo nuevo en products: is_composite
 
-Nuevos productos especificos con peso definido:
-Ceramica: Taza 0.3kg=2TQ, Plato 0.5kg=3TQ, Olla 2kg=8TQ, Cantarola 5kg=15TQ
-Macetas: Pequena 0.5kg=3TQ, Mediana 2kg=8TQ, Grande 5kg=15TQ
-Madera: Cuchara 0.1kg=1TQ, Mortero 1kg=3TQ, Silla 8kg=11TQ, Mesa 20kg=23TQ
-         Banco 12kg=14TQ, Cama 35kg=35TQ
-Cesteria: Canasto 0.3kg=2TQ, Cesta 1kg=4TQ, Sombrero 0.2kg=5TQ
-Textiles: Camisa 0.3kg=16TQ, Pantalon 0.5kg=25TQ, Frazada 1.5kg=37TQ
-          Hamaca 1.2kg=30TQ
+2. MIGRACION 042: Productos base de embalaje y envio
+   - Envases: Vidrio 200ml/500ml/1L, Barro 500ml, Tela algodon, Papel kraft,
+     Hoja de platanero
+   - Envios: Local (1 TQ), Vecino (5 TQ), Lejano (15 TQ), Recogida (0 TQ)
 
-Trabajo artesanal por hora:
-- Trabajo de Alfareria: 1 TQ/hora
-- Trabajo de Carpinteria: 1 TQ/hora
-- Trabajo de Cesteria: 1 TQ/hora
-- Trabajo de Costura: 1 TQ/hora
-- Coccion de Ceramica en Horno: 5 TQ/carga
+3. BACKEND: Endpoints de productos compuestos
+   - POST /api/store/composite: crea producto compuesto con calculo automatico
+     * Verifica que cada componente este aprobado por asamblea
+     * Suma precio de todos los componentes
+     * Guarda composicion en product_compositions
+   - GET /api/store/composite/{id}/composition: ver composicion de un producto
+   - GET /api/products/components?category=: listar componentes disponibles
+     * Filtros: materia_prima, producto_base, trabajo, embalaje, envio
 
-Formula: precio = (material x energia_por_kg) + (horas_trabajo x 1 TQ) + coccion
+4. FRONTEND: Store.tsx con formulario de producto compuesto
+   - Dos modos: Producto Compuesto (nuevo) y Producto del Catalogo (simple)
+   - Formulario compuesto:
+     * Nombre, descripcion, categoria, stock
+     * Selector de componentes con filtro por categoria
+     * Filtros: Todos, Materias Primas, Productos Base, Trabajo, Embalaje, Envio
+     * Agregar componente con cantidad
+     * Lista de componentes con subtotal cada uno
+     * Precio total automatico (no editable)
+     * Publicar en tienda
+   - Visualizacion de productos compuestos en tienda:
+     * Etiqueta "Compuesto"
+     * Muestra composicion desglosada
+
+MODELO:
+
+- Catalogo global (lista de productos): materias primas + compuestos aprobados
+  por asamblea. Los compuestos aprobados se vuelven "producto base" reutilizable.
+- Tienda: tipo Mercado Libre por nodo. Compuestos personales sin aprobacion.
+  Precio calculado automaticamente. Visibles en tienda del nodo.
+- Formula: precio = suma(componente_precio x cantidad) para cada componente
 
 Generated with [Devin](https://devin.ai)
 

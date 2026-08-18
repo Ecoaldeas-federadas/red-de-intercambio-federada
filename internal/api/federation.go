@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -72,6 +73,17 @@ func (fh *FederationHandler) RegisterRoutesWithAuth(r chi.Router, am *AuthMiddle
 	} else {
 		r.Post("/api/federation/peers", fh.registerPeer)
 		r.Delete("/api/federation/peers/{peerDomain}", fh.removePeer)
+	}
+
+	// Propuestas de productos federados
+	r.Get("/api/federation/products/pending", fh.listPendingProductProposals)
+	r.Get("/api/federation/products/all", fh.listAllProductProposals)
+	if am != nil {
+		r.With(am.RequirePermission("products.manage")).Post("/api/federation/products/{id}/approve", fh.approveProductProposal)
+		r.With(am.RequirePermission("products.manage")).Post("/api/federation/products/{id}/reject", fh.rejectProductProposal)
+	} else {
+		r.Post("/api/federation/products/{id}/approve", fh.approveProductProposal)
+		r.Post("/api/federation/products/{id}/reject", fh.rejectProductProposal)
 	}
 }
 
@@ -558,4 +570,202 @@ func (fh *FederationHandler) removePeer(w http.ResponseWriter, r *http.Request) 
 	}
 
 	writeJSON(w, 200, map[string]string{"status": "removed"})
+}
+
+// ============ PRODUCT FEDERATION ============
+
+func (fh *FederationHandler) listPendingProductProposals(w http.ResponseWriter, r *http.Request) {
+	rows, err := fh.Pool.Query(r.Context(), `
+		SELECT id, source_node, source_product_id, name, parent_category, category, subcategory, unit, description, badge, image_url, price_per_unit, is_composite, status, created_at
+		FROM product_federation_proposals
+		WHERE status = 'pending'
+		ORDER BY created_at DESC`)
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+
+	proposals := []map[string]interface{}{}
+	for rows.Next() {
+		var id, sourceNode, name, parentCat, cat, subcat, unit, description, status string
+		var sourcePID uuid.UUID
+		var price int64
+		var badge, imageURL *string
+		var isComposite bool
+		var createdAt time.Time
+		_ = rows.Scan(&id, &sourceNode, &sourcePID, &name, &parentCat, &cat, &subcat, &unit, &description, &badge, &imageURL, &price, &isComposite, &status, &createdAt)
+
+		bdg := ""
+		if badge != nil {
+			bdg = *badge
+		}
+		imgURL := ""
+		if imageURL != nil {
+			imgURL = *imageURL
+		}
+
+		proposals = append(proposals, map[string]interface{}{
+			"id":                id,
+			"source_node":       sourceNode,
+			"source_product_id": sourcePID.String(),
+			"name":              name,
+			"parent_category":   parentCat,
+			"category":          cat,
+			"subcategory":       subcat,
+			"unit":              unit,
+			"description":       description,
+			"badge":             bdg,
+			"image_url":         imgURL,
+			"price_per_unit":    price,
+			"is_composite":      isComposite,
+			"status":            status,
+			"created_at":        createdAt,
+		})
+	}
+	writeJSON(w, 200, proposals)
+}
+
+func (fh *FederationHandler) listAllProductProposals(w http.ResponseWriter, r *http.Request) {
+	rows, err := fh.Pool.Query(r.Context(), `
+		SELECT id, source_node, source_product_id, name, parent_category, category, subcategory, unit, description, badge, image_url, price_per_unit, is_composite, status, review_notes, created_at, reviewed_at
+		FROM product_federation_proposals
+		ORDER BY created_at DESC`)
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+
+	proposals := []map[string]interface{}{}
+	for rows.Next() {
+		var id, sourceNode, name, parentCat, cat, subcat, unit, description, status string
+		var sourcePID uuid.UUID
+		var price int64
+		var badge, imageURL, reviewNotes *string
+		var isComposite bool
+		var createdAt time.Time
+		var reviewedAt *time.Time
+		_ = rows.Scan(&id, &sourceNode, &sourcePID, &name, &parentCat, &cat, &subcat, &unit, &description, &badge, &imageURL, &price, &isComposite, &status, &reviewNotes, &createdAt, &reviewedAt)
+
+		bdg := ""
+		if badge != nil {
+			bdg = *badge
+		}
+		imgURL := ""
+		if imageURL != nil {
+			imgURL = *imageURL
+		}
+		rn := ""
+		if reviewNotes != nil {
+			rn = *reviewNotes
+		}
+		ra := ""
+		if reviewedAt != nil {
+			ra = reviewedAt.String()
+		}
+
+		proposals = append(proposals, map[string]interface{}{
+			"id":                id,
+			"source_node":       sourceNode,
+			"source_product_id": sourcePID.String(),
+			"name":              name,
+			"parent_category":   parentCat,
+			"category":          cat,
+			"subcategory":       subcat,
+			"unit":              unit,
+			"description":       description,
+			"badge":             bdg,
+			"image_url":         imgURL,
+			"price_per_unit":    price,
+			"is_composite":      isComposite,
+			"status":            status,
+			"review_notes":      rn,
+			"created_at":        createdAt,
+			"reviewed_at":       ra,
+		})
+	}
+	writeJSON(w, 200, proposals)
+}
+
+func (fh *FederationHandler) approveProductProposal(w http.ResponseWriter, r *http.Request) {
+	proposalID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid proposal id")
+		return
+	}
+
+	// Obtener datos de la propuesta
+	var sourceNode, name, parentCat, cat, subcat, unit, description, badge, imageURL string
+	var sourcePID uuid.UUID
+	var price int64
+	var isComposite bool
+	err = fh.Pool.QueryRow(r.Context(), `
+		SELECT source_node, source_product_id, name, parent_category, category, subcategory, unit, description, badge, image_url, price_per_unit, is_composite
+		FROM product_federation_proposals WHERE id = $1 AND status = 'pending'`,
+		proposalID).Scan(&sourceNode, &sourcePID, &name, &parentCat, &cat, &subcat, &unit, &description, &badge, &imageURL, &price, &isComposite)
+	if err != nil {
+		writeError(w, 404, "propuesta no encontrada o ya revisada")
+		return
+	}
+
+	// Obtener userID del contexto
+	var reviewedBy *uuid.UUID
+	if userID, ok := r.Context().Value("user_id").(uuid.UUID); ok {
+		reviewedBy = &userID
+	}
+
+	// Insertar el producto en el catalogo local como aprobado
+	_, err = fh.Pool.Exec(r.Context(), `
+		INSERT INTO products (node_domain, name, parent_category, category, subcategory, origin, unit, description, badge, image_url, price_per_unit, is_approved, is_system, is_composite, source_node, source_product_id)
+		VALUES ($1, $2, $3, $4, $5, 'federated', $6, $7, $8, $9, $10, true, false, $11, $12, $13)
+		ON CONFLICT DO NOTHING`,
+		fh.NodeDomain, name, parentCat, cat, subcat, unit, description, badge, imageURL, price, isComposite, sourceNode, sourcePID)
+	if err != nil {
+		writeError(w, 500, "error al insertar producto federado")
+		return
+	}
+
+	// Marcar propuesta como aprobada
+	_, err = fh.Pool.Exec(r.Context(), `
+		UPDATE product_federation_proposals SET status = 'approved', reviewed_by = $2, reviewed_at = NOW() WHERE id = $1`,
+		proposalID, reviewedBy)
+	if err != nil {
+		writeError(w, 500, "error al actualizar propuesta")
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"status":  "approved",
+		"product": name,
+		"message": "Producto federado aprobado y agregado al catalogo local",
+	})
+}
+
+func (fh *FederationHandler) rejectProductProposal(w http.ResponseWriter, r *http.Request) {
+	proposalID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid proposal id")
+		return
+	}
+
+	var req struct {
+		Notes string `json:"notes"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
+	var reviewedBy *uuid.UUID
+	if userID, ok := r.Context().Value("user_id").(uuid.UUID); ok {
+		reviewedBy = &userID
+	}
+
+	_, err = fh.Pool.Exec(r.Context(), `
+		UPDATE product_federation_proposals SET status = 'rejected', reviewed_by = $2, reviewed_at = NOW(), review_notes = $3 WHERE id = $1 AND status = 'pending'`,
+		proposalID, reviewedBy, req.Notes)
+	if err != nil {
+		writeError(w, 500, "error al rechazar propuesta")
+		return
+	}
+
+	writeJSON(w, 200, map[string]string{"status": "rejected"})
 }

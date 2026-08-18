@@ -12,6 +12,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -139,6 +140,8 @@ func (s *Server) handleInbox(w http.ResponseWriter, r *http.Request) {
 		s.handleBalanceSyncMessage(w, r, &msg)
 	case MsgTypeBilateralSync:
 		s.handleBilateralSyncMessage(w, r, &msg)
+	case MsgTypeProductProposal:
+		s.handleProductProposalMessage(w, r, &msg)
 	default:
 		writeFederationJSON(w, 400, map[string]string{"error": "unknown message type"})
 	}
@@ -473,4 +476,84 @@ func (c *Client) QueryRemoteCard(ctx context.Context, remoteNodeURL, cardUID str
 		return nil, fmt.Errorf("decoding card lookup response: %w", err)
 	}
 	return &result, nil
+}
+
+// ============ PRODUCT FEDERATION ============
+
+func (s *Server) handleProductProposalMessage(w http.ResponseWriter, r *http.Request, msg *Message) {
+	payload, ok := msg.Payload.(map[string]interface{})
+	if !ok {
+		writeFederationJSON(w, 400, map[string]string{"error": "invalid payload"})
+		return
+	}
+
+	sourceProductID, _ := payload["source_product_id"].(string)
+	name, _ := payload["name"].(string)
+	parentCategory, _ := payload["parent_category"].(string)
+	category, _ := payload["category"].(string)
+	subcategory, _ := payload["subcategory"].(string)
+	unit, _ := payload["unit"].(string)
+	description, _ := payload["description"].(string)
+	badge, _ := payload["badge"].(string)
+	imageURL, _ := payload["image_url"].(string)
+	pricePerUnit, _ := payload["price_per_unit"].(float64)
+	isComposite, _ := payload["is_composite"].(bool)
+
+	if sourceProductID == "" || name == "" {
+		writeFederationJSON(w, 400, map[string]string{"error": "source_product_id and name required"})
+		return
+	}
+
+	sourcePID, err := uuid.Parse(sourceProductID)
+	if err != nil {
+		writeFederationJSON(w, 400, map[string]string{"error": "invalid source_product_id"})
+		return
+	}
+
+	// Guardar propuesta (si ya existe, no duplicar)
+	_, err = s.Pool.Exec(r.Context(), `
+		INSERT INTO product_federation_proposals (source_node, source_product_id, name, parent_category, category, subcategory, unit, description, badge, image_url, price_per_unit, is_composite, composition, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pending')
+		ON CONFLICT (source_node, source_product_id) DO NOTHING`,
+		msg.FromNode, sourcePID, name, parentCategory, category, subcategory, unit, description, badge, imageURL, int64(pricePerUnit), isComposite, payload["composition"],
+	)
+	if err != nil {
+		writeFederationJSON(w, 500, map[string]string{"error": "saving product proposal"})
+		return
+	}
+
+	writeFederationJSON(w, 200, map[string]interface{}{
+		"status":      "accepted",
+		"product":     name,
+		"source_node": msg.FromNode,
+	})
+}
+
+// BroadcastProductProposal envia un producto nuevo a todos los nodos federados conocidos
+func (s *Server) BroadcastProductProposal(ctx context.Context, productID uuid.UUID, name, parentCategory, category, subcategory, unit, description, badge, imageURL string, pricePerUnit int64, isComposite bool, composition interface{}) error {
+	// Obtener todos los nodos federados conocidos
+	rows, err := s.Pool.Query(ctx, `SELECT remote_node FROM node_balance`)
+	if err != nil {
+		return fmt.Errorf("listing federated nodes: %w", err)
+	}
+	defer rows.Close()
+
+	var nodes []string
+	for rows.Next() {
+		var node string
+		_ = rows.Scan(&node)
+		if node != "" && node != s.NodeDomain {
+			nodes = append(nodes, node)
+		}
+	}
+
+	// Por cada nodo, enviar propuesta
+	// Nota: el envio real requiere URL del nodo remoto y cliente TLS
+	// Por ahora registramos el intento en el log
+	for _, node := range nodes {
+		log.Printf("Product proposal: %s -> %s (product: %s, price: %d)", s.NodeDomain, node, name, pricePerUnit)
+		// El envio real se hace via el cliente federado cuando las URLs esten configuradas
+	}
+
+	return nil
 }
