@@ -532,9 +532,15 @@ func (h *SystemHandler) updateTariff(w http.ResponseWriter, r *http.Request) {
 // ===== PRODUCTOS =====
 
 func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
+	// Use node_domain if it has products, otherwise fall back to 'default'
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id, name, description, category, subcategory, unit, price_per_unit, is_approved, origin, badge, image_url, product_code, is_system, is_hidden
-		FROM products ORDER BY category, name LIMIT 200`)
+		FROM products
+		WHERE node_domain = CASE
+			WHEN EXISTS (SELECT 1 FROM products WHERE node_domain = $1) THEN $1
+			ELSE 'default'
+		END
+		ORDER BY category, name LIMIT 200`, h.nodeDomain)
 	if err != nil {
 		writeJSON(w, 200, []interface{}{})
 		return
@@ -2453,7 +2459,13 @@ func randomString(n int) string {
 func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id, name, description, category, subcategory, unit, price_per_unit, product_code, is_approved, origin, badge, image_url
-		FROM products WHERE is_approved = true AND is_hidden = false ORDER BY category, name LIMIT 200`)
+		FROM products
+		WHERE node_domain = CASE
+			WHEN EXISTS (SELECT 1 FROM products WHERE node_domain = $1) THEN $1
+			ELSE 'default'
+		END
+		AND is_approved = true AND is_hidden = false
+		ORDER BY category, name LIMIT 200`, h.nodeDomain)
 	if err != nil {
 		writeJSON(w, 200, []interface{}{})
 		return

@@ -62,8 +62,5 @@ VALUES
   ('default', 'Tela de algodon 1m', 'textiles', 'internal', 'm', 1, 50, 800, 500, 150, 1500, true, true, ''),
   ('default', 'Hora de labor agricola', 'servicios', 'internal', 'hora', 1, 0, 325, 0, 0, 325, true, true, '');
 
--- 4. Copiar a localhost
-INSERT INTO products (node_domain, name, category, origin, unit, description, badge, image_url, price_per_unit, is_approved, is_system, product_code, quantity_per_batch, energy_direct, energy_human, energy_inputs, energy_amortization)
-SELECT 'localhost', name, category, origin, unit, description, badge, image_url, price_per_unit, is_approved, is_system, product_code, quantity_per_batch, energy_direct, energy_human, energy_inputs, energy_amortization
-FROM products
-WHERE node_domain = 'default' AND is_system = true;
+-- 4. No insertar para localhost - el backend hace fallback a 'default'
+-- si no encuentra productos para su node_domain especifico.
