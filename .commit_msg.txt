@@ -1,92 +1,47 @@
-docs: actualizacion completa de documentacion + 2 documentos nuevos
+fix: precios decimales, unidad de medida, modal de busqueda, estabilidad
 
-Actualiza toda la documentacion del proyecto para reflejar los cambios
-recientes (categorias jerarquicas, modal de busqueda, calculo por
-rendimiento, grupos e items individuales) y anade 2 documentos nuevos
-extensos sobre el sistema de moneda TQ y la Feria Conuquera.
+PROBLEMAS ARREGLADOS:
 
-DOCUMENTOS NUEVOS:
+1. PRECIOS DECIMALES (el problema principal)
+   - El sistema usaba int64 (enteros) para todos los precios
+   - 2 TQ / 5 productos = 0.4 TQ se redondeaba a 0 TQ
+   - Cambiado a float64 / NUMERIC(12,2) en todo el sistema
+   - Migracion 046_decimal_prices.sql cambia BIGINT a NUMERIC(12,2)
+   - Archivos cambiados:
+     * internal/pricing/calculator.go (todos los campos de energia y precio)
+     * internal/external/store.go (PriceTrueque, BasePrice, ExtraCosts, FinalPrice)
+     * internal/external/dex.go (LocalPriceTrueque)
+     * internal/api/external.go (CompositeComponent, StoreItem, listComponents)
+     * internal/api/handlers.go (CreateProductRequest, CalcInternalRequest)
+     * internal/api/system.go (var price float64 en todos los lugares)
+     * internal/federation/protocol.go (PricePerUnit)
+     * internal/federation/server.go (BroadcastProductProposal)
+   - Frontend: Math.round() eliminado, ahora usa toFixed(2) para mostrar decimales
 
-1. docs/currency_exchange.md (377 lineas)
-   - Que es el TQ y que NO es (no es dinero, no es cripto, no genera interes)
-   - Historia: LETS (Canada 1983), Club del Trueque (Argentina 1990s)
-   - Propuesta de Ford y Edison (1921) - dinero energetico
-   - Emergia de Howard Odum
-   - EROI (Energy Return on Investment)
-   - Los 4 pasos del credito mutuo
-   - Limites y confianza progresiva
-   - Transacciones internas y federadas
-   - Ledger de doble entrada con hash chain
-   - Impuestos y fondo comunitario
-   - Formula fundamental: EE_total = E_directa + E_insumos + E_trabajo + E_transporte
-   - Equivalencias (kWh, MJ, gasolina, lena)
-   - Ejemplo practico: pan artesanal (1 kg) = 12 TQ
-   - Fuentes de datos energeticos (ICE, Ecoinvent, Agribalyse, FAO, USDA)
-   - Productos compuestos y calculo por rendimiento
-   - Grupos de productos e items individuales
-   - Comercio externo y Factor de Conversion (FC)
-   - DEX y tienda comunitaria
-   - Filosofia: energia objetiva vs precio de mercado
+2. UNIDAD DE MEDIDA DEL PRODUCTO COMPUESTO
+   - Antes: el producto compuesto siempre era "unidad" con cantidad 1
+   - Ahora: el usuario selecciona la unidad (ml, L, gr, kg, unidad, manojo, etc.)
+   - Ahora: el usuario especifica la cantidad por unidad (200ml, 500gr, etc.)
+   - Esto permite saber exactamente cuanto contiene cada producto
+   - Ejemplo: Jugo de naranja, unidad=ml, cantidad=200
+   - El backend recibe unit y quantity_per_unit en el request
 
-2. docs/feria_conuquera.md (429 lineas)
-   - Historia completa (2014-2024)
-   - Filosofia conuquera (6 principios)
-   - Agroecologia como ciencia, practica y movimiento
-   - Soberania alimentaria
-   - Economia solidaria
-   - Pachamama y Cruz de Mayo
-   - Saberes ancestrales (bahareque, ollas de barro, medicina natural)
-   - Organizacion: asambleas trimestrales, comisiones, cayapas
-   - Mercado mensual (ubicacion, horario, pautas)
-   - Catalogo completo de productos con precios TQ
-   - Actividades permanentes (trueque de semillas, talleres, musica)
-   - Banco comunitario de semillas
-   - Semillas criollas vs transgenicas
-   - Campo Soberano (proyecto de ecoaldea)
-   - Ecoaldeas en el mundo (Findhorn, Damanhur, Tamera, Huehuecoyotl)
-   - Otras experiencias (LETS, Club del Trueque, Via Campesina, Slow Food)
-   - Implementacion en la plataforma (12 paginas publicas)
+3. MODAL DE BUSQUEDA DE COMPONENTES
+   - Antes: mostraba "Escribe para buscar componentes" cuando no habia texto
+   - Ahora: carga la lista completa de componentes al abrir el modal
+   - Anadido estado de loading y error para diagnosticar problemas
+   - Si la sesion expira, muestra mensaje claro en vez de lista vacia
+   - Si el backend falla, muestra el error en vez de silenciosamente vaciar
 
-DOCUMENTOS ACTUALIZADOS:
+4. ESTABILIDAD DEL BACKEND
+   - Timeout del middleware aumentado de 30s a 60s
+   - middleware.Recoverer ya estaba presente (atra panics)
+   - Manejo de errores mas robusto en listComponents
 
-3. docs/pricing.md
-   - Anadidas fuentes de datos energeticos (ICE, Ecoinvent, Agribalyse, FAO)
-   - Anadido ejemplo del pan artesanal con tabla detallada
-   - Anadida seccion de grupos e items individuales
-   - Anadidos campos is_group y group_id a la tabla products
-   - Anadidos tipos de producto: Grupo e Item individual
-
-4. docs/composite_products.md (reescrito completo)
-   - Modelo de calculo por rendimiento (cantidad comprada + rendimiento)
-   - Ejemplos: jugo de naranja y maceta de arcilla
-   - Categorias jerarquicas de 3 niveles
-   - Endpoint de categorias GET /api/products/categories
-   - Modal de busqueda con ?search= en nombre y descripcion
-   - Campos quantity_purchased y yield_products
-   - Tabla store_items con jerarquia (migracion 044)
-   - Flujo completo del frontend con modal
-
-5. docs/database.md
-   - Migraciones 044 y 045 anadidas a la tabla
-   - Campos is_group y group_id en tabla products
-   - Campos parent_category y subcategory en store_items
-
-6. docs/api.md
-   - Endpoint GET /api/products/categories anadido
-   - Parametro ?search= anadido a /api/products/components
-
-7. docs/INDEX.md
-   - Documentos 20 y 21 anadidos (currency_exchange, feria_conuquera)
-   - Migraciones 044 y 045 anadidas
-
-8. README.md
-   - Seccion de grupos de productos anadida
-   - Seccion de calculo por rendimiento anadida
-   - Seccion de categorias jerarquicas anadida
-   - Seccion de buscador de componentes anadida
-   - Endpoints nuevos en la tabla de API
-   - Enlaces a documentos nuevos
-   - Migraciones actualizadas a 045
+5. CALCULO DE PRECIOS EN FRONTEND
+   - compositeTotalPrice ahora usa decimales sin redondear
+   - Display de componentes usa toFixed(2) en vez de Math.round
+   - Display de precio total usa toFixed(2)
 
 Generated with [Devin](https://devin.ai)
 

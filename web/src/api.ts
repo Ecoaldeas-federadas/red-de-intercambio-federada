@@ -4,25 +4,30 @@ function getToken(): string | null {
   return localStorage.getItem('fmc_token')
 }
 
-// Track last logout to avoid redirect loops
-let lastLogoutTime = 0
+// Session expiration handling: show a re-login modal instead of redirecting
+let onSessionExpired: (() => void) | null = null
+
+export function setSessionExpiredHandler(handler: (() => void) | null) {
+  onSessionExpired = handler
+}
 
 function handleUnauthorized() {
-  // Only redirect if the user HAD a token (was authenticated)
+  // Only act if the user HAD a token (was authenticated)
   // Public site visitors don't have a token, so don't redirect them
   const hadToken = !!localStorage.getItem('fmc_token')
   if (!hadToken) return
 
-  // Clear all auth data
+  // Clear token but DON'T redirect - let the modal handle re-login
   localStorage.removeItem('fmc_token')
   localStorage.removeItem('fmc_username')
   // Dispatch event so useAuth hook updates
   window.dispatchEvent(new Event('storage'))
-  // Avoid redirect loop: only redirect once per 3 seconds
-  const now = Date.now()
-  if (now - lastLogoutTime > 3000) {
-    lastLogoutTime = now
-    // Only redirect if not already on login page
+
+  // If a session-expired handler is registered, call it (shows modal)
+  if (onSessionExpired) {
+    onSessionExpired()
+  } else {
+    // Fallback: redirect to login if no handler registered
     if (!window.location.pathname.includes('/login')) {
       window.location.href = '/login?expired=1'
     }

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from './hooks/useAuth'
 import { useSessionTimeout } from './hooks/useSessionTimeout'
 import { api } from './api'
+import { SessionExpiredProvider } from './components/SessionExpiredModal'
 import Layout from './components/Layout'
 import { PublicLayout, PublicPageView, PublicJoinForm } from './components/PublicSite'
 import Login from './pages/Login'
@@ -32,6 +33,14 @@ import CalculatorParams from './pages/CalculatorParams'
 import WebsiteAdmin from './pages/WebsiteAdmin'
 
 export default function App() {
+  return (
+    <SessionExpiredProvider>
+      <AppInner />
+    </SessionExpiredProvider>
+  )
+}
+
+function AppInner() {
   const { isAuthenticated } = useAuth()
   useSessionTimeout()
   const [setupChecked, setSetupChecked] = useState(false)

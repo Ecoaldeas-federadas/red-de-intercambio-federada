@@ -87,25 +87,36 @@ export default function Store() {
   // Cargar componentes disponibles del catalogo (para el modal)
   const [modalLoading, setModalLoading] = useState(false)
   const [modalError, setModalError] = useState('')
+  const [modalSearchTerm, setModalSearchTerm] = useState('')
   useEffect(() => {
     if (!showComponentModal) return
     setModalLoading(true)
     setModalError('')
     const params = new URLSearchParams()
     if (modalFilter !== 'all') params.set('category', modalFilter)
-    if (searchTerm.trim()) params.set('search', searchTerm.trim())
+    if (modalSearchTerm.trim()) params.set('search', modalSearchTerm.trim())
     const qs = params.toString()
+    const controller = new AbortController()
     api.get('/products/components' + (qs ? `?${qs}` : ''))
       .then((d: any) => {
+        if (controller.signal.aborted) return
         setModalResults(Array.isArray(d) ? d : [])
         setModalLoading(false)
       })
       .catch((err) => {
+        if (controller.signal.aborted) return
         setModalResults([])
         setModalLoading(false)
         setModalError(err?.message || 'Error al cargar componentes')
       })
-  }, [showComponentModal, modalFilter, searchTerm])
+    return () => controller.abort()
+  }, [showComponentModal, modalFilter, modalSearchTerm])
+
+  // Debounce: copiar searchTerm a modalSearchTerm despues de 300ms sin escribir
+  useEffect(() => {
+    const t = setTimeout(() => setModalSearchTerm(searchTerm), 300)
+    return () => clearTimeout(t)
+  }, [searchTerm])
 
   // Calcular precio total del compuesto (con decimales, sin redondear)
   const compositeTotalPrice = components.reduce((sum, c) => sum + (c.component_price * c.quantity), 0)
@@ -846,9 +857,9 @@ export default function Store() {
                 <div className="text-center py-8 text-gray-400">
                   <Search size={32} className="mx-auto mb-2 opacity-30" />
                   <p className="text-sm">
-                    {searchTerm ? `No se encontro "${searchTerm}" en esta categoria` : 'No hay componentes disponibles en esta categoria'}
+                    {modalSearchTerm ? `No se encontro "${modalSearchTerm}" en esta categoria` : 'No hay componentes disponibles en esta categoria'}
                   </p>
-                  {searchTerm && (
+                  {modalSearchTerm && (
                     <p className="text-xs mt-2">Prueba con otra palabra o cambia de categoria. Si no existe el componente, pide a administracion que lo agregue al catalogo.</p>
                   )}
                 </div>
