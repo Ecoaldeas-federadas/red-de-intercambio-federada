@@ -241,33 +241,34 @@ func injectMetaTags(frontendDir string, pool *pgxpool.Pool, slug string) string 
 	subtitleStr = htmlEscape(subtitleStr)
 	description = htmlEscape(description)
 
-	// Reemplazar el title
-	indexHTML = strings.Replace(indexHTML,
-		"<title>Trueque - Credito Mutuo Federado</title>",
-		fmt.Sprintf("<title>%s</title>", title),
-		1)
+	// 1. Reemplazar el contenido entre <title> y </title>
+	// Buscar <title> y </title> y reemplazar lo que hay entre ellos
+	if startIdx := strings.Index(indexHTML, "<title>"); startIdx >= 0 {
+		endTag := "</title>"
+		if endIdx := strings.Index(indexHTML[startIdx:], endTag); endIdx >= 0 {
+			// startIdx es donde empieza <title>
+			// endIdx es donde empieza </title> relativo a startIdx
+			// Reemplazar el contenido entre <title> y </title>
+			before := indexHTML[:startIdx+len("<title>")]
+			after := indexHTML[startIdx+endIdx:]
+			indexHTML = before + title + " - " + subtitleStr + after
+		}
+	}
 
-	// Reemplazar la meta description
-	indexHTML = strings.Replace(indexHTML,
-		`<meta name="description" content="Sistema de Credito Mutuo Federado - Trueque" />`,
-		fmt.Sprintf(`<meta name="description" content="%s" />`, description),
-		1)
-
-	// Añadir meta tags Open Graph justo despues de la meta description
+	// 2. Insertar meta tags Open Graph justo antes de </head>
+	// Esto es seguro porque no depende del formato exacto del HTML existente
 	ogTags := fmt.Sprintf(`
+    <meta name="description" content="%s" />
     <meta property="og:title" content="%s" />
     <meta property="og:description" content="%s" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="/p/%s" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="%s" />
-    <meta name="twitter:description" content="%s" />`,
-		title, description, slug, title, description)
+    <meta name="twitter:description" content="%s" />
+  `, description, title, description, slug, title, description)
 
-	indexHTML = strings.Replace(indexHTML,
-		`<meta name="description" content="`+description+`" />`,
-		`<meta name="description" content="`+description+`" />`+ogTags,
-		1)
+	indexHTML = strings.Replace(indexHTML, "</head>", ogTags+"</head>", 1)
 
 	return indexHTML
 }
