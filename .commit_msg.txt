@@ -1,46 +1,46 @@
-fix: categorias jerarquicas en producto compuesto (3 niveles)
+fix: modal de busqueda de componentes + calculo por rendimiento
 
-El campo de texto libre para categoria en el formulario de producto
-compuesto era un problema: cada usuario escribia lo que queria y se
-convirtia en un desastre. Ahora se reemplaza por 3 selectores en
-cascada que solo permiten elegir categorias existentes del catalogo.
+Rediseña completamente la seleccion de componentes para producto compuesto.
+Antes era un dropdown simple sin buscador. Ahora es un modal con busqueda
+de texto + filtro por categoria, y el calculo de precio se hace especificando
+cuanto se compro y cuantos productos salen de esa cantidad.
 
 CAMBIOS:
 
-1. Backend - nuevo endpoint GET /api/products/categories
-   - internal/api/system.go: handler listProductCategories
-   - Devuelve jerarquia de 3 niveles: parent_category -> category -> subcategory
-   - Solo categorias que tienen al menos un producto aprobado y no oculto
-   - Estructura JSON anidada lista para selects en cascada
+1. Backend - listComponents con busqueda de texto
+   - internal/api/external.go: parametro ?search= en GET /api/products/components
+   - Busca en name, description, category y parent_category (ILIKE)
+   - Ejemplo: ?search=naranja encuentra "Frutas de Temporada" porque
+     la descripcion contiene "naranja"
 
-2. Migracion 044_store_items_hierarchy.sql
-   - ALTER TABLE store_items ADD COLUMN parent_category TEXT
-   - ALTER TABLE store_items ADD COLUMN subcategory TEXT
-   - Indice para busqueda por jerarquia
+2. Frontend - Modal de busqueda de componentes
+   - Boton "Buscar y agregar componente" que abre un modal
+   - Campo de texto para escribir parte del nombre (ej: "naranja")
+   - Filtros por categoria: Todos, Materias Primas, Productos Base,
+     Trabajo, Embalaje, Envio
+   - Resultados muestran: nombre, descripcion, ubicacion jerarquica,
+     precio por unidad
+   - Click en un resultado lo selecciona
+   - Busca en nombre Y descripcion (por eso "naranja" encuentra
+     "Frutas de Temporada" que la incluye)
 
-3. Backend - store_items con jerarquia
-   - internal/external/store.go: StoreItem y AddStoreItemParams con
-     ParentCategory y Subcategory
-   - AddItem, ListItems, GetItem actualizados para leer/escribir
-     los 3 niveles
-   - internal/api/external.go: AddStoreItemRequest y
-     AddCompositeItemRequest con parent_category y subcategory
-   - addStoreItem y addCompositeItem pasan los 3 niveles al Store
+3. Frontend - Nuevo modelo de calculo por rendimiento
+   Antes: cantidad x precio = subtotal (confuso, no sabias cuanta
+   materia prima va en un producto)
 
-4. Frontend - Store.tsx formulario de producto compuesto
-   - Eliminado el campo de texto libre "Categoria"
-   - Reemplazado por 3 selects en cascada:
-     1. Categoria Padre (ej: Artesania, Alimentos, Textiles)
-     2. Categoria (ej: Ceramica, Bebidas, Confeccion)
-     3. Subcategoria (opcional, ej: Materia Prima, Vajilla, Macetas)
-   - Los selects se cargan desde GET /api/products/categories
-   - El select 2 se habilita solo despues de elegir el 1
-   - El select 3 se habilita solo despues de elegir el 2
-   - Muestra la ubicacion completa: Padre > Categoria > Subcategoria
-   - Mensaje: "Si necesitas una categoria nueva, pide a administracion
-     que la cree en el catalogo"
-   - Validacion: no se puede publicar sin seleccionar padre y categoria
-   - saveComposite envia parent_category, category y subcategory
+   Ahora: el usuario especifica:
+   - Cantidad que compro (ej: 1 kg de naranjas)
+   - Cuantos productos salen (ej: 50 envases de 200ml)
+   - El sistema calcula:
+     - Cantidad por producto = 1 kg / 50 = 0.02 kg
+     - Costo por producto = 3 TQ/kg x 0.02 kg = 0.06 TQ
+
+   Muestra el calculo paso a paso:
+   "Compro 1 kg -> 50 productos -> 0.06 TQ por producto"
+
+4. Frontend - Lista de componentes agregados
+   Muestra: "Compro 1 kg -> 50 productos -> X TQ por producto"
+   en lugar del confuso "3 TQ/kg x 0.02 = 0.06 TQ"
 
 Generated with [Devin](https://devin.ai)
 

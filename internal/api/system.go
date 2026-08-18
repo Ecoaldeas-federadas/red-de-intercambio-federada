@@ -2523,7 +2523,7 @@ func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Reques
 	parentCat := r.URL.Query().Get("parent_category")
 	category := r.URL.Query().Get("category")
 
-	query := `SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit, product_code, is_approved, origin, badge, image_url
+	query := `SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit, product_code, is_approved, origin, badge, image_url, is_group, group_id
 		FROM products
 		WHERE node_domain = $1 AND is_approved = true AND is_hidden = false`
 	args := []interface{}{h.nodeDomain}
@@ -2541,7 +2541,7 @@ func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Contar total para metadata de paginacion
-	countQuery := strings.Replace(query, "SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit, product_code, is_approved, origin, badge, image_url",
+	countQuery := strings.Replace(query, "SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit, product_code, is_approved, origin, badge, image_url, is_group, group_id",
 		"SELECT COUNT(*)", 1)
 	countQuery = strings.Replace(countQuery, " ORDER BY", " -- ORDER BY", 1)
 	var total int
@@ -2562,9 +2562,9 @@ func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Reques
 	for rows.Next() {
 		var id, name, description, parentCategory, category2, subcategory, unit, origin string
 		var price int64
-		var productCode, badge, imageURL *string
-		var isApproved bool
-		_ = rows.Scan(&id, &name, &description, &parentCategory, &category2, &subcategory, &unit, &price, &productCode, &isApproved, &origin, &badge, &imageURL)
+		var productCode, badge, imageURL, groupID *string
+		var isApproved, isGroup bool
+		_ = rows.Scan(&id, &name, &description, &parentCategory, &category2, &subcategory, &unit, &price, &productCode, &isApproved, &origin, &badge, &imageURL, &isGroup, &groupID)
 
 		// Skip duplicates by name
 		if seen[name] {
@@ -2584,6 +2584,10 @@ func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Reques
 		if imageURL != nil {
 			imgURL = *imageURL
 		}
+		gid := ""
+		if groupID != nil {
+			gid = *groupID
+		}
 
 		products = append(products, map[string]interface{}{
 			"id":              id,
@@ -2599,6 +2603,8 @@ func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Reques
 			"origin":          origin,
 			"badge":           bdg,
 			"image_url":       imgURL,
+			"is_group":        isGroup,
+			"group_id":        gid,
 		})
 	}
 	writeJSON(w, 200, map[string]interface{}{

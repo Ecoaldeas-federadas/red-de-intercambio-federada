@@ -652,15 +652,17 @@ func (eh *ExternalHandler) getComposition(w http.ResponseWriter, r *http.Request
 func (eh *ExternalHandler) listComponents(w http.ResponseWriter, r *http.Request) {
 	// Listar productos que pueden ser usados como componentes
 	// materias primas, productos base aprobados, trabajo, embalaje, envio
+	// Incluye items individuales dentro de grupos (group_id no nulo)
+	// y productos que no son grupos ni pertenecen a un grupo
 	category := r.URL.Query().Get("category")
 	if category == "" {
 		category = "all"
 	}
 	search := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("search")))
 
-	query := `SELECT id, name, parent_category, category, subcategory, unit, price_per_unit, description, badge, image_url
+	query := `SELECT id, name, parent_category, category, subcategory, unit, price_per_unit, description, badge, image_url, group_id
 		FROM products
-		WHERE node_domain = $1 AND is_approved = true AND is_hidden = false`
+		WHERE node_domain = $1 AND is_approved = true AND is_hidden = false AND is_group = false`
 	args := []interface{}{eh.NodeDomain}
 	argIdx := 2
 
@@ -698,7 +700,8 @@ func (eh *ExternalHandler) listComponents(w http.ResponseWriter, r *http.Request
 		var id, name, parentCategory, cat, subcat, unit, description string
 		var price int64
 		var badge, imageURL *string
-		_ = rows.Scan(&id, &name, &parentCategory, &cat, &subcat, &unit, &price, &description, &badge, &imageURL)
+		var groupID *string
+		_ = rows.Scan(&id, &name, &parentCategory, &cat, &subcat, &unit, &price, &description, &badge, &imageURL, &groupID)
 
 		bdg := ""
 		if badge != nil {
@@ -707,6 +710,10 @@ func (eh *ExternalHandler) listComponents(w http.ResponseWriter, r *http.Request
 		imgURL := ""
 		if imageURL != nil {
 			imgURL = *imageURL
+		}
+		gid := ""
+		if groupID != nil {
+			gid = *groupID
 		}
 
 		components = append(components, map[string]interface{}{
@@ -720,6 +727,7 @@ func (eh *ExternalHandler) listComponents(w http.ResponseWriter, r *http.Request
 			"description":     description,
 			"badge":           bdg,
 			"image_url":       imgURL,
+			"group_id":        gid,
 		})
 	}
 	writeJSON(w, 200, components)
