@@ -533,8 +533,8 @@ func (h *SystemHandler) updateTariff(w http.ResponseWriter, r *http.Request) {
 
 func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.Pool.Query(r.Context(), `
-		SELECT id, name, description, category, subcategory, unit, price_per_unit, is_approved, origin, badge, image_url, product_code, is_system, is_hidden
-		FROM products ORDER BY category, subcategory, name LIMIT 200`)
+		SELECT DISTINCT ON (name, category) id, name, description, category, subcategory, unit, price_per_unit, is_approved, origin, badge, image_url, product_code, is_system, is_hidden
+		FROM products ORDER BY name, category, id DESC LIMIT 200`)
 	if err != nil {
 		writeJSON(w, 200, []interface{}{})
 		return
@@ -2452,8 +2452,8 @@ func randomString(n int) string {
 
 func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.Pool.Query(r.Context(), `
-		SELECT id, name, description, category, subcategory, unit, price_per_unit, product_code, is_approved, origin, badge, image_url
-		FROM products WHERE is_approved = true AND is_hidden = false ORDER BY category, subcategory, name LIMIT 200`)
+		SELECT DISTINCT ON (name, category) id, name, description, category, subcategory, unit, price_per_unit, product_code, is_approved, origin, badge, image_url
+		FROM products WHERE is_approved = true AND is_hidden = false ORDER BY name, category, id DESC LIMIT 200`)
 	if err != nil {
 		writeJSON(w, 200, []interface{}{})
 		return

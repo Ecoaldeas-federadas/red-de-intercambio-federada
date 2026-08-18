@@ -8,6 +8,7 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS badge TEXT DEFAULT '';
 ALTER TABLE products ADD COLUMN IF NOT EXISTS image_url TEXT DEFAULT '';
 
 -- Insertar los 8 productos de muestra del catalogo Conuquero
+-- ON CONFLICT evita duplicados si la migracion se ejecuta multiples veces
 INSERT INTO products (node_domain, name, category, origin, unit, description, badge, image_url, price_per_unit, is_approved, is_system)
 VALUES
   ('default', 'Hortalizas y Hojas Verdes de El Junquito', 'Cosecha Fresca', 'internal', 'manojo',
