@@ -1,11 +1,11 @@
 -- Migracion 040: Dividir productos bundle/kit en productos individuales
 -- Problema: varios productos agrupaban items distintos bajo un solo precio ambiguo
 -- Solucion: cada producto individual tiene su propio precio basado en energia incorporada
--- Los productos que eran bundles se ocultan (is_hidden = true) y se insertan los individuales
+-- Los productos que eran bundles se ELIMINAN y se insertan los individuales
+-- (proyecto en fase de desarrollo, no hay produccion que preservar)
 
 -- ============ 1. SISTEMAS DE RIEGO -> dividir en componentes individuales ============
-UPDATE products SET is_hidden = true, description = 'OBSOLETO: dividido en componentes individuales. Ver: Manguera de Riego PVC, Aspersor, Gotero, Bomba Manual de Agua, Tanque de Agua 200L.'
-WHERE name = 'Sistemas de Riego';
+DELETE FROM products WHERE name = 'Sistemas de Riego';
 
 INSERT INTO products (node_domain, name, parent_category, category, subcategory, origin, unit, description, badge, image_url, price_per_unit, is_approved, is_system, product_code, energy_direct, energy_human, energy_inputs, energy_amortization)
 SELECT nd.node_domain, p.name, p.parent, p.cat, p.subcat, 'internal', p.unit, p.desc, p.badge, p.img, p.price, true, true, '', 0, 0, p.price, 0
@@ -21,8 +21,7 @@ CROSS JOIN (VALUES
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = p.name AND node_domain = nd.node_domain);
 
 -- ============ 2. BOTIQUIN -> dividir en componentes individuales ============
-UPDATE products SET is_hidden = true, description = 'OBSOLETO: dividido en componentes individuales. Ver: Vendas y Gasas, Alcohol Medicinal, Yodo, Tijeras, Apositos.'
-WHERE name = 'Botiquin y Primeros Auxilios';
+DELETE FROM products WHERE name = 'Botiquin y Primeros Auxilios';
 
 INSERT INTO products (node_domain, name, parent_category, category, subcategory, origin, unit, description, badge, image_url, price_per_unit, is_approved, is_system, product_code, energy_direct, energy_human, energy_inputs, energy_amortization)
 SELECT nd.node_domain, p.name, p.parent, p.cat, p.subcat, 'internal', p.unit, p.desc, p.badge, p.img, p.price, true, true, '', 0, 0, p.price, 0
@@ -37,8 +36,7 @@ CROSS JOIN (VALUES
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = p.name AND node_domain = nd.node_domain);
 
 -- ============ 3. HERRAMIENTAS DE CAMPO -> dividir en herramientas individuales ============
-UPDATE products SET is_hidden = true, description = 'OBSOLETO: dividido en herramientas individuales. Ver: Machete, Pala, Pico, Rastrillo, Azadon.'
-WHERE name = 'Herramientas de Campo';
+DELETE FROM products WHERE name = 'Herramientas de Campo';
 
 INSERT INTO products (node_domain, name, parent_category, category, subcategory, origin, unit, description, badge, image_url, price_per_unit, is_approved, is_system, product_code, energy_direct, energy_human, energy_inputs, energy_amortization)
 SELECT nd.node_domain, p.name, p.parent, p.cat, p.subcat, 'internal', p.unit, p.desc, p.badge, p.img, p.price, true, true, '', 0, 0, p.price, 0
@@ -53,8 +51,7 @@ CROSS JOIN (VALUES
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = p.name AND node_domain = nd.node_domain);
 
 -- ============ 4. HERRAMIENTAS DE TALLER -> dividir en herramientas individuales ============
-UPDATE products SET is_hidden = true, description = 'OBSOLETO: dividido en herramientas individuales. Ver: Martillo, Serrucho, Lima, Destornillador, Alicates.'
-WHERE name = 'Herramientas de Taller';
+DELETE FROM products WHERE name = 'Herramientas de Taller';
 
 INSERT INTO products (node_domain, name, parent_category, category, subcategory, origin, unit, description, badge, image_url, price_per_unit, is_approved, is_system, product_code, energy_direct, energy_human, energy_inputs, energy_amortization)
 SELECT nd.node_domain, p.name, p.parent, p.cat, p.subcat, 'internal', p.unit, p.desc, p.badge, p.img, p.price, true, true, '', 0, 0, p.price, 0
@@ -69,8 +66,7 @@ CROSS JOIN (VALUES
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = p.name AND node_domain = nd.node_domain);
 
 -- ============ 5. EQUIPOS ELECTRICOS DE TALLER -> dividir en equipos individuales ============
-UPDATE products SET is_hidden = true, description = 'OBSOLETO: dividido en equipos individuales. Ver: Taladro Electrico, Sierra Circular, Amoladora, Lijadora, Soldadora Electrica.'
-WHERE name = 'Equipos Electricos de Taller';
+DELETE FROM products WHERE name = 'Equipos Electricos de Taller';
 
 INSERT INTO products (node_domain, name, parent_category, category, subcategory, origin, unit, description, badge, image_url, price_per_unit, is_approved, is_system, product_code, energy_direct, energy_human, energy_inputs, energy_amortization)
 SELECT nd.node_domain, p.name, p.parent, p.cat, p.subcat, 'internal', p.unit, p.desc, p.badge, p.img, p.price, true, true, '', 0, 0, p.price, 0
@@ -85,8 +81,7 @@ CROSS JOIN (VALUES
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = p.name AND node_domain = nd.node_domain);
 
 -- ============ 6. COMPONENTES ELECTRONICOS -> dividir en componentes individuales ============
-UPDATE products SET is_hidden = true, description = 'OBSOLETO: dividido en componentes individuales. Ver: Cable Electrico, Resistencias, Capacitores, Conectores, Soldadura, Plaquetas, Fusibles.'
-WHERE name = 'Componentes Electronicos';
+DELETE FROM products WHERE name = 'Componentes Electronicos';
 
 INSERT INTO products (node_domain, name, parent_category, category, subcategory, origin, unit, description, badge, image_url, price_per_unit, is_approved, is_system, product_code, energy_direct, energy_human, energy_inputs, energy_amortization)
 SELECT nd.node_domain, p.name, p.parent, p.cat, p.subcat, 'internal', p.unit, p.desc, p.badge, p.img, p.price, true, true, '', 0, 0, p.price, 0
@@ -103,8 +98,7 @@ CROSS JOIN (VALUES
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = p.name AND node_domain = nd.node_domain);
 
 -- ============ 7. BICICLETAS Y REFACCIONES -> dividir ============
-UPDATE products SET is_hidden = true, description = 'OBSOLETO: dividido en componentes individuales. Ver: Bicicleta Completa, Llanta de Bicicleta, Cadena de Bicicleta, Frenos de Bicicleta.'
-WHERE name = 'Bicicletas y Refacciones';
+DELETE FROM products WHERE name = 'Bicicletas y Refacciones';
 
 INSERT INTO products (node_domain, name, parent_category, category, subcategory, origin, unit, description, badge, image_url, price_per_unit, is_approved, is_system, product_code, energy_direct, energy_human, energy_inputs, energy_amortization)
 SELECT nd.node_domain, p.name, p.parent, p.cat, p.subcat, 'internal', p.unit, p.desc, p.badge, p.img, p.price, true, true, '', 0, 0, p.price, 0
@@ -118,8 +112,7 @@ CROSS JOIN (VALUES
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = p.name AND node_domain = nd.node_domain);
 
 -- ============ 8. ANIMALES DE CARGA -> dividir en animales individuales ============
-UPDATE products SET is_hidden = true, description = 'OBSOLETO: dividido en animales individuales. Ver: Caballo, Burro, Mula.'
-WHERE name = 'Animales de Carga y Montura';
+DELETE FROM products WHERE name = 'Animales de Carga y Montura';
 
 INSERT INTO products (node_domain, name, parent_category, category, subcategory, origin, unit, description, badge, image_url, price_per_unit, is_approved, is_system, product_code, energy_direct, energy_human, energy_inputs, energy_amortization)
 SELECT nd.node_domain, p.name, p.parent, p.cat, p.subcat, 'internal', p.unit, p.desc, p.badge, p.img, p.price, true, true, '', 0, 0, p.price, 0
@@ -132,8 +125,7 @@ CROSS JOIN (VALUES
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = p.name AND node_domain = nd.node_domain);
 
 -- ============ 9. INSTRUMENTOS MUSICALES -> dividir en instrumentos individuales ============
-UPDATE products SET is_hidden = true, description = 'OBSOLETO: dividido en instrumentos individuales. Ver: Cuatro, Guitarra, Tambor, Maracas, Flauta de Caña.'
-WHERE name = 'Instrumentos Musicales Artesanales';
+DELETE FROM products WHERE name = 'Instrumentos Musicales Artesanales';
 
 INSERT INTO products (node_domain, name, parent_category, category, subcategory, origin, unit, description, badge, image_url, price_per_unit, is_approved, is_system, product_code, energy_direct, energy_human, energy_inputs, energy_amortization)
 SELECT nd.node_domain, p.name, p.parent, p.cat, p.subcat, 'internal', p.unit, p.desc, p.badge, p.img, p.price, true, true, '', 0, 0, p.price, 0

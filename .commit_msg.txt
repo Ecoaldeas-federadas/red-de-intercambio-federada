@@ -1,40 +1,90 @@
-feat: infinite scroll, unidad de medida y costos adicionales en tienda
+fix: dividir productos bundle en productos individuales con precios especificos
 
-Mejoras de optimizacion y usabilidad en el catalogo y la tienda:
+Problema: varios productos agrupaban items distintos bajo un solo precio
+ambiguo. Ej: "Sistemas de Riego" = mangueras + aspersores + goteros +
+bombas + tanques todo a 50 TQ, sin especificar cantidades ni que cada
+componente tiene precios muy distintos.
 
-1. PAGINACION / INFINITE SCROLL
-   - Backend: /api/public/products ahora soporta limit y offset
-     con metadata de paginacion (total, has_more)
-   - Frontend Products.tsx: carga 24 productos por pagina,
-     usa IntersectionObserver para cargar mas al desplazar
-   - Frontend PublicBlocks: mismo infinite scroll en pagina publica
-   - Solo se activa infinite scroll cuando no hay filtros activos
+Solucion: cada producto bundle se divide en productos individuales con
+su propio precio basado en energia incorporada real.
 
-2. UNIDAD DE MEDIDA JUNTO AL PRECIO
-   - Products.tsx: muestra "50 TQ / kg" en lugar de "50 TQ"
-   - PublicBlocks: muestra "2 TQ" con "por manojo" debajo
-   - Store.tsx: muestra unidad en tienda y busqueda
-   - El usuario sabe si el precio es por kg, litro, hora, jornada, etc.
+Productos divididos:
 
-3. COSTOS ADICIONALES EN TIENDA
-   - Migracion 039: anade campos a store_items:
-     unit, quantity_per_unit, base_price, extra_costs,
-     final_price, extra_description
-   - Backend addStoreItem: guarda base_price, extra_costs,
-     final_price, extra_description, unit, quantity_per_unit
-   - Frontend Store.tsx: formulario mejorado con:
-     * Info del producto seleccionado (precio base + unidad)
-     * Campo de unidades por paquete (0.5 kg, 2 kg, etc.)
-     * Seccion de costos adicionales (envio, envase, traslado)
-     * Descripcion del costo adicional
-     * Resumen: precio base + extras = precio final
-   - Si el comprador recoge en parcela, extras = 0, precio = base
-   - Si hay envase de vidrio o entrega a domicilio, se suma al base
+1. SISTEMAS DE RIEGO (50 TQ/juego) -> 6 productos individuales:
+   - Manguera de Riego PVC 1m: 1 TQ/metro
+   - Aspersor de Riego: 1 TQ/unidad
+   - Gotero de Riego: 1 TQ/unidad
+   - Bomba Manual de Agua: 12 TQ/unidad
+   - Tanque de Agua 200L: 73 TQ/unidad
+   - Tanque de Agua 1000L: 365 TQ/unidad
 
-4. COMPATIBILIDAD
-   - price_trueque se mantiene para compatibilidad con datos existentes
-   - Migracion 039 migra datos existentes: base_price = price_trueque
-   - GetItem y ListItems actualizados para leer nuevos campos
+2. BOTIQUIN Y PRIMEROS AUXILIOS (5 TQ/juego) -> 5 productos:
+   - Vendas y Gasas (Paquete): 3 TQ
+   - Alcohol Medicinal 1L: 1 TQ
+   - Yodo (Frasco 30ml): 1 TQ
+   - Tijeras de Primeros Auxilios: 2 TQ
+   - Apositos y Tiritas (Caja): 1 TQ
+
+3. HERRAMIENTAS DE CAMPO (50 TQ/unidad) -> 5 productos:
+   - Machete: 4 TQ
+   - Pala: 9 TQ
+   - Pico: 12 TQ
+   - Rastrillo: 7 TQ
+   - Azadon: 6 TQ
+
+4. HERRAMIENTAS DE TALLER (50 TQ/unidad) -> 5 productos:
+   - Martillo: 2 TQ
+   - Serrucho: 3 TQ
+   - Lima: 2 TQ
+   - Destornillador: 1 TQ
+   - Alicates: 2 TQ
+
+5. EQUIPOS ELECTRICOS DE TALLER (200 TQ/unidad) -> 5 productos:
+   - Taladro Electrico: 100 TQ
+   - Sierra Circular: 120 TQ
+   - Amoladora: 80 TQ
+   - Lijadora Electrica: 60 TQ
+   - Soldadora Electrica: 200 TQ
+
+6. COMPONENTES ELECTRONICOS (10 TQ/lote) -> 7 productos:
+   - Cable Electrico (metro): 1 TQ
+   - Resistencias (Paquete 10): 1 TQ
+   - Capacitores (Paquete 10): 1 TQ
+   - Conectores (Paquete): 2 TQ
+   - Soldadura Electronica (Rollo): 3 TQ
+   - Plaquetas PCB (Unidad): 2 TQ
+   - Fusibles (Paquete 10): 1 TQ
+
+7. BICICLETAS Y REFACCIONES (100 TQ/unidad) -> 4 productos:
+   - Bicicleta Completa: 100 TQ
+   - Llanta de Bicicleta: 7 TQ
+   - Cadena de Bicicleta: 2 TQ
+   - Frenos de Bicicleta: 5 TQ
+
+8. ANIMALES DE CARGA Y MONTURA (18 TQ/kg) -> 3 productos:
+   - Caballo de Silla: 500 TQ (crianza 3 anos)
+   - Burro de Carga: 300 TQ (crianza 2 anos)
+   - Mula de Carga: 400 TQ (crianza 3 anos)
+
+9. INSTRUMENTOS MUSICALES ARTESANALES (100 TQ/unidad) -> 5 productos:
+   - Cuatro Venezolano: 25 TQ
+   - Guitarra Artesanal: 40 TQ
+   - Tambor (Caja): 30 TQ
+   - Maracas (Par): 8 TQ
+   - Flauta de Caña: 3 TQ
+
+10. CANASTA BASICA FAMILIAR SEMANAL:
+    - Descripcion actualizada con contenido EXACTO y cantidades
+    - Precio recalculado: 66 TQ (antes 50 TQ)
+    - Especifica: 3kg granos, 2kg verduras, 1kg frutas, 0.5kg pollo,
+      1L leche, 0.5L aceite, 0.5kg panela, 12 huevos, 100g especias
+
+Seguridad de datos:
+- Los productos bundle existentes se ocultan (is_hidden = true)
+- No se eliminan registros de la base de datos
+- Los productos individuales se insertan con INSERT WHERE NOT EXISTS
+- Las tiendas existentes que referencian productos bundle siguen funcionando
+- seed.go actualizado para que nuevos nodos reciban los productos individuales
 
 Generated with [Devin](https://devin.ai)
 
