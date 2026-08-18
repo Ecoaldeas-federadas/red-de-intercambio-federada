@@ -1984,6 +1984,105 @@ func jsonContentToHTML(jsonStr string) string {
 	return html.String()
 }
 
+// jsonContentToText convierte el contenido JSON de la pagina a texto plano
+// (sin etiquetas HTML) para uso en archivos de texto descargables.
+func jsonContentToText(jsonStr string) string {
+	var blocks []map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonStr), &blocks); err != nil {
+		return ""
+	}
+
+	var sb strings.Builder
+	for _, block := range blocks {
+		blockType, _ := block["type"].(string)
+		switch blockType {
+		case "hero":
+			title, _ := block["title"].(string)
+			desc, _ := block["description"].(string)
+			sb.WriteString(fmt.Sprintf("## %s\n\n%s\n\n", title, desc))
+		case "features_grid":
+			title, _ := block["title"].(string)
+			subtitle, _ := block["subtitle"].(string)
+			sb.WriteString(fmt.Sprintf("## %s\n\n%s\n\n", title, subtitle))
+			if items, ok := block["items"].([]interface{}); ok {
+				for _, item := range items {
+					if m, ok := item.(map[string]interface{}); ok {
+						itemTitle, _ := m["title"].(string)
+						itemDesc, _ := m["description"].(string)
+						badge, _ := m["badge"].(string)
+						sb.WriteString(fmt.Sprintf("### %s\n%s\n", itemTitle, itemDesc))
+						if badge != "" {
+							sb.WriteString(fmt.Sprintf("Etiqueta: %s\n", badge))
+						}
+						sb.WriteString("\n")
+					}
+				}
+			}
+		case "cta_banner":
+			title, _ := block["title"].(string)
+			subtitle, _ := block["subtitle"].(string)
+			sb.WriteString(fmt.Sprintf("## %s\n\n%s\n\n", title, subtitle))
+		case "trueque_explainer":
+			title, _ := block["title"].(string)
+			subtitle, _ := block["subtitle"].(string)
+			sb.WriteString(fmt.Sprintf("## %s\n\n%s\n\n", title, subtitle))
+			if steps, ok := block["steps"].([]interface{}); ok {
+				for _, step := range steps {
+					if m, ok := step.(map[string]interface{}); ok {
+						stepTitle, _ := m["title"].(string)
+						stepDesc, _ := m["description"].(string)
+						sb.WriteString(fmt.Sprintf("- %s: %s\n", stepTitle, stepDesc))
+					}
+				}
+				sb.WriteString("\n")
+			}
+			if kp, ok := block["key_points"].(map[string]interface{}); ok {
+				sb.WriteString("Puntos clave:\n")
+				for k, v := range kp {
+					if s, ok := v.(string); ok {
+						sb.WriteString(fmt.Sprintf("- %s: %s\n", k, s))
+					}
+				}
+				sb.WriteString("\n")
+			}
+		case "products_showcase":
+			title, _ := block["title"].(string)
+			subtitle, _ := block["subtitle"].(string)
+			sb.WriteString(fmt.Sprintf("## %s\n\n%s\n\n", title, subtitle))
+		case "faq":
+			title, _ := block["title"].(string)
+			sb.WriteString(fmt.Sprintf("## %s\n\n", title))
+			if items, ok := block["items"].([]interface{}); ok {
+				for _, item := range items {
+					if m, ok := item.(map[string]interface{}); ok {
+						q, _ := m["question"].(string)
+						a, _ := m["answer"].(string)
+						sb.WriteString(fmt.Sprintf("P: %s\nR: %s\n\n", q, a))
+					}
+				}
+			}
+		case "testimonials":
+			title, _ := block["title"].(string)
+			sb.WriteString(fmt.Sprintf("## %s\n\n", title))
+			if items, ok := block["items"].([]interface{}); ok {
+				for _, item := range items {
+					if m, ok := item.(map[string]interface{}); ok {
+						name, _ := m["name"].(string)
+						quote, _ := m["quote"].(string)
+						sb.WriteString(fmt.Sprintf("- %s: \"%s\"\n", name, quote))
+					}
+				}
+				sb.WriteString("\n")
+			}
+		case "calculator_preview":
+			title, _ := block["title"].(string)
+			subtitle, _ := block["subtitle"].(string)
+			sb.WriteString(fmt.Sprintf("## %s\n\n%s\n\n", title, subtitle))
+		}
+	}
+	return sb.String()
+}
+
 type AdmissionRequestReq struct {
 	FullName     string          `json:"full_name"`
 	Email        string          `json:"email"`

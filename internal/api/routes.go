@@ -1,6 +1,8 @@
 package api
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -157,6 +159,98 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 		// Servir archivo estatico real desde el directorio html
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		htmlFileServer.ServeHTTP(w, r)
+	})
+
+	// Descargar todos los archivos HTML como ZIP
+	// Publico: cualquiera puede descargar el contenido del sitio
+	r.Get("/html.zip", func(w http.ResponseWriter, r *http.Request) {
+		// Asegurar que los archivos esten actualizados antes de comprimir
+		GenerateStaticHTMLFiles(pool)
+
+		// Crear ZIP en memoria
+		var buf bytes.Buffer
+		zipWriter := zip.NewWriter(&buf)
+
+		// Recorrer todos los archivos del directorio html
+		entries, err := os.ReadDir(htmlDir)
+		if err != nil {
+			w.WriteHeader(500)
+			w.Write([]byte("Error leyendo archivos HTML"))
+			return
+		}
+
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			filePath := filepath.Join(htmlDir, entry.Name())
+			data, err := os.ReadFile(filePath)
+			if err != nil {
+				continue
+			}
+			writer, err := zipWriter.Create(entry.Name())
+			if err != nil {
+				continue
+			}
+			writer.Write(data)
+		}
+		zipWriter.Close()
+
+		// Servir el ZIP
+		w.Header().Set("Content-Type", "application/zip")
+		w.Header().Set("Content-Disposition", "attachment; filename=sitio-html.zip")
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", buf.Len()))
+		w.Write(buf.Bytes())
+	})
+
+	// Descargar todo el contenido del sitio como un solo archivo de texto
+	// Util para alimentar sistemas de IA (NotebookLM, ChatGPT, etc.)
+	r.Get("/html.txt", func(w http.ResponseWriter, r *http.Request) {
+		// Asegurar que los archivos esten actualizados
+		GenerateStaticHTMLFiles(pool)
+
+		// Obtener todas las paginas de la BD
+		rows, err := pool.Query(context.Background(), `
+			SELECT slug, title, subtitle, content
+			FROM public_pages
+			WHERE node_domain = 'localhost' AND is_published = true
+			ORDER BY menu_order`)
+		if err != nil {
+			w.WriteHeader(500)
+			w.Write([]byte("Error leyendo paginas"))
+			return
+		}
+		defer rows.Close()
+
+		var sb strings.Builder
+		sb.WriteString("=== SITIO PUBLICO COMPLETO ===\n\n")
+
+		for rows.Next() {
+			var slug, title, content string
+			var subtitle *string
+			_ = rows.Scan(&slug, &title, &subtitle, &content)
+
+			subtitleStr := ""
+			if subtitle != nil {
+				subtitleStr = *subtitle
+			}
+
+			sb.WriteString(fmt.Sprintf("========================================\n"))
+			sb.WriteString(fmt.Sprintf("PAGINA: %s\n", title))
+			if subtitleStr != "" {
+				sb.WriteString(fmt.Sprintf("SUBTITULO: %s\n", subtitleStr))
+			}
+			sb.WriteString(fmt.Sprintf("URL: /html/%s.html\n", slug))
+			sb.WriteString(fmt.Sprintf("========================================\n\n"))
+
+			// Convertir contenido JSON a texto plano
+			sb.WriteString(jsonContentToText(content))
+			sb.WriteString("\n\n")
+		}
+
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("Content-Disposition", "attachment; filename=sitio-completo.txt")
+		w.Write([]byte(sb.String()))
 	})
 
 	// Servir el frontend compilado (React/Vite) desde /app/web/dist
