@@ -532,14 +532,11 @@ func (h *SystemHandler) updateTariff(w http.ResponseWriter, r *http.Request) {
 // ===== PRODUCTOS =====
 
 func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
-	// Use node_domain if it has products, otherwise fall back to 'default'
+	// Query products from node_domain and 'default', deduplicate by name in Go
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id, name, description, category, subcategory, unit, price_per_unit, is_approved, origin, badge, image_url, product_code, is_system, is_hidden
 		FROM products
-		WHERE node_domain = CASE
-			WHEN EXISTS (SELECT 1 FROM products WHERE node_domain = $1) THEN $1
-			ELSE 'default'
-		END
+		WHERE node_domain IN ($1, 'default')
 		ORDER BY category, name LIMIT 200`, h.nodeDomain)
 	if err != nil {
 		writeJSON(w, 200, []interface{}{})
@@ -548,6 +545,7 @@ func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 
 	var products []map[string]interface{}
+	seen := map[string]bool{} // deduplicate by name
 	for rows.Next() {
 		var id uuid.UUID
 		var name, description, category, subcategory, unit, origin string
@@ -557,6 +555,11 @@ func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 		if err := rows.Scan(&id, &name, &description, &category, &subcategory, &unit, &price, &isApproved, &origin, &badge, &imageURL, &productCode, &isSystem, &isHidden); err != nil {
 			continue
 		}
+		// Skip duplicates by name
+		if seen[name] {
+			continue
+		}
+		seen[name] = true
 		bdg := ""
 		if badge != nil {
 			bdg = *badge
@@ -2460,10 +2463,7 @@ func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Reques
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id, name, description, category, subcategory, unit, price_per_unit, product_code, is_approved, origin, badge, image_url
 		FROM products
-		WHERE node_domain = CASE
-			WHEN EXISTS (SELECT 1 FROM products WHERE node_domain = $1) THEN $1
-			ELSE 'default'
-		END
+		WHERE node_domain IN ($1, 'default')
 		AND is_approved = true AND is_hidden = false
 		ORDER BY category, name LIMIT 200`, h.nodeDomain)
 	if err != nil {
@@ -2473,12 +2473,19 @@ func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Reques
 	defer rows.Close()
 
 	products := []map[string]interface{}{}
+	seen := map[string]bool{} // deduplicate by name
 	for rows.Next() {
 		var id, name, description, category, subcategory, unit, origin string
 		var price int64
 		var productCode, badge, imageURL *string
 		var isApproved bool
 		_ = rows.Scan(&id, &name, &description, &category, &subcategory, &unit, &price, &productCode, &isApproved, &origin, &badge, &imageURL)
+
+		// Skip duplicates by name
+		if seen[name] {
+			continue
+		}
+		seen[name] = true
 
 		code := ""
 		if productCode != nil {
