@@ -33,10 +33,35 @@ export default function Products() {
   const [error, setError] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<ProductForm>(emptyForm)
+  const [filterCategory, setFilterCategory] = useState('')
+  const [filterSubcategory, setFilterSubcategory] = useState('')
 
   const load = () => api.get('/products').then((d: any) => setProducts(Array.isArray(d) ? d : d?.products ?? [])).catch(() => {})
 
   useEffect(() => { load() }, [])
+
+  // Categorias y subcategorias jerarquicas
+  const categoryMap = products.reduce((acc, p) => {
+    const cat = p.category || 'Sin categoría'
+    const sub = p.subcategory || ''
+    if (!acc[cat]) acc[cat] = new Set<string>()
+    if (sub) acc[cat].add(sub)
+    return acc
+  }, {} as Record<string, Set<string>>)
+
+  const categories = Object.keys(categoryMap).sort()
+  const subcategories = filterCategory ? Array.from(categoryMap[filterCategory] || []).sort() : []
+
+  const filteredProducts = products.filter((p) => {
+    if (filterCategory && p.category !== filterCategory) return false
+    if (filterSubcategory && p.subcategory !== filterSubcategory) return false
+    return true
+  })
+
+  const selectCategory = (cat: string) => {
+    setFilterCategory(cat)
+    setFilterSubcategory('')
+  }
 
   const startEdit = (p: any) => {
     setEditingId(p.id)
@@ -231,89 +256,142 @@ export default function Products() {
           <p>No hay productos registrados.</p>
         </div>
       ) : (
-        <div className="space-y-6">
-          {/* Agrupar productos por categoria */}
-          {Object.entries(
-            products.reduce((acc, p) => {
-              const cat = p.category || 'Sin categoría'
-              if (!acc[cat]) acc[cat] = []
-              acc[cat].push(p)
-              return acc
-            }, {} as Record<string, any[]>)
-          ).sort(([a], [b]) => a.localeCompare(b)).map(([category, catProducts]) => (
-            <div key={category}>
-              <h2 className="text-lg font-bold text-gray-800 mb-3 pb-1 border-b border-gray-200">
-                {category} <span className="text-sm font-normal text-gray-500">({catProducts.length})</span>
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {catProducts.map((p, i) => (
-                  <div key={i} className="card overflow-hidden">
-                    {editingId === p.id ? (
-                      <ProductFormFields />
-                    ) : (
-                      <>
-                        {p.image_url && (
-                          <div className="relative -mx-4 -mt-4 mb-3 h-32 overflow-hidden">
-                            <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
-                            {p.badge && (
-                              <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-amber-950 shadow">
-                                {p.badge}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1">
-                            <h3 className="font-semibold">{p.name}</h3>
-                            <p className="text-sm text-gray-600 mt-1">{p.description}</p>
-                          </div>
-                          <div className="flex gap-1 flex-shrink-0">
-                            {canManage && (
-                              <>
-                                <button
-                                  onClick={async () => {
-                                    await api.put(`/products/${p.id}`, { ...p, is_hidden: !p.is_hidden })
-                                    load()
-                                  }}
-                                  className={`transition ${p.is_hidden ? 'text-amber-500 hover:text-amber-700' : 'text-gray-400 hover:text-emerald-600'}`}
-                                  title={p.is_hidden ? 'Mostrar en página pública' : 'Ocultar de página pública'}
-                                >
-                                  {p.is_hidden ? <EyeOff size={16} /> : <Eye size={16} />}
-                                </button>
-                                <button onClick={() => startEdit(p)} className="text-gray-400 hover:text-emerald-600 transition">
-                                  <Pencil size={16} />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        <div className="mt-3 space-y-1">
-                          <p className="text-lg font-bold text-trueque-700">{p.price} {currency}</p>
-                          <p className="text-xs text-gray-400">
-                            {p.subcategory ? `${p.subcategory} | ` : ''}Unidad: {p.unit}
-                          </p>
-                          {p.product_code && <p className="text-xs text-gray-400">Código: {p.product_code}</p>}
-                          <div className="flex items-center gap-2 pt-1">
-                            {p.is_approved ? (
-                              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">Aprobado</span>
-                            ) : (
-                              <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">Pendiente</span>
-                            )}
-                            {p.is_system && (
-                              <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">Sistema</span>
-                            )}
-                            {p.is_hidden && (
-                              <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">Oculto</span>
-                            )}
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))}
+        <div className="space-y-4">
+          {/* Filtro jerarquico: Categoria > Subcategoria */}
+          {categories.length > 0 && (
+            <div className="space-y-2">
+              {/* Nivel 1: Categorias */}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => { setFilterCategory(''); setFilterSubcategory('') }}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${
+                    filterCategory === '' ? 'bg-emerald-700 text-white shadow' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                  }`}
+                >
+                  Todas ({products.length})
+                </button>
+                {categories.map((cat) => {
+                  const count = products.filter((p) => p.category === cat).length
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => selectCategory(cat)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${
+                        filterCategory === cat ? 'bg-emerald-700 text-white shadow' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                      }`}
+                    >
+                      {cat} ({count})
+                    </button>
+                  )
+                })}
               </div>
+              {/* Nivel 2: Subcategorias (solo si hay categoria seleccionada) */}
+              {filterCategory && subcategories.length > 0 && (
+                <div className="flex flex-wrap gap-2 pl-4 border-l-2 border-emerald-200">
+                  <button
+                    onClick={() => setFilterSubcategory('')}
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition ${
+                      filterSubcategory === '' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
+                    }`}
+                  >
+                    Todas ({products.filter((p) => p.category === filterCategory).length})
+                  </button>
+                  {subcategories.map((sub) => {
+                    const count = products.filter((p) => p.category === filterCategory && p.subcategory === sub).length
+                    return (
+                      <button
+                        key={sub}
+                        onClick={() => setFilterSubcategory(sub)}
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition ${
+                          filterSubcategory === sub ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
+                        }`}
+                      >
+                        {sub} ({count})
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </div>
-          ))}
+          )}
+
+          {/* Productos filtrados */}
+          {filteredProducts.length === 0 ? (
+            <div className="card text-center text-gray-500 py-8">
+              <p>No hay productos en esta categoría.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredProducts.map((p, i) => (
+                <div key={i} className="card overflow-hidden">
+                  {editingId === p.id ? (
+                    <ProductFormFields />
+                  ) : (
+                    <>
+                      {p.image_url && (
+                        <div className="relative -mx-4 -mt-4 mb-3 h-32 overflow-hidden">
+                          <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+                          {p.badge && (
+                            <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-amber-950 shadow">
+                              {p.badge}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <h3 className="font-semibold">{p.name}</h3>
+                          <p className="text-sm text-gray-600 mt-1">{p.description}</p>
+                        </div>
+                        <div className="flex gap-1 flex-shrink-0">
+                          {canManage && (
+                            <>
+                              <button
+                                onClick={async () => {
+                                  await api.put(`/products/${p.id}`, { ...p, is_hidden: !p.is_hidden })
+                                  load()
+                                }}
+                                className={`transition ${p.is_hidden ? 'text-amber-500 hover:text-amber-700' : 'text-gray-400 hover:text-emerald-600'}`}
+                                title={p.is_hidden ? 'Mostrar en página pública' : 'Ocultar de página pública'}
+                              >
+                                {p.is_hidden ? <EyeOff size={16} /> : <Eye size={16} />}
+                              </button>
+                              <button onClick={() => startEdit(p)} className="text-gray-400 hover:text-emerald-600 transition">
+                                <Pencil size={16} />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="mt-3 space-y-1">
+                        <p className="text-lg font-bold text-trueque-700">{p.price} {currency}</p>
+                        <p className="text-xs text-gray-400">
+                          {p.category && <span className="text-gray-600 font-medium">{p.category}</span>}
+                          {p.subcategory && <span> › <span className="text-gray-600 font-medium">{p.subcategory}</span></span>}
+                          {p.category && ' | '}
+                          Unidad: {p.unit}
+                        </p>
+                        {p.product_code && <p className="text-xs text-gray-400">Código: {p.product_code}</p>}
+                        <div className="flex items-center gap-2 pt-1">
+                          {p.is_approved ? (
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">Aprobado</span>
+                          ) : (
+                            <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">Pendiente</span>
+                          )}
+                          {p.is_system && (
+                            <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">Sistema</span>
+                          )}
+                          {p.is_hidden && (
+                            <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">Oculto</span>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
