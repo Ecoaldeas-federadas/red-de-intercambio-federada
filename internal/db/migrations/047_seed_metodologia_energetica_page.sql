@@ -11,7 +11,10 @@
 -- - Ejemplos practicos: pan artesanal, olla de barro
 -- - Fuentes: ICE, Ecoinvent, Agribalyse, FAO, USDA, Pimentel
 
--- Paso 1: Insertar para 'localhost' (dominio por defecto usado por el sistema)
+-- Paso 1: Eliminar la pagina si ya existe (para permitir re-ejecucion)
+DELETE FROM public_pages WHERE slug = 'metodologia-energetica';
+
+-- Paso 2: Insertar para 'localhost' (dominio por defecto usado por el sistema)
 INSERT INTO public_pages (node_domain, slug, title, subtitle, content, icon, menu_order, is_published, show_in_menu)
 VALUES ('localhost', 'metodologia-energetica', 'Metodologia Energetica',
 'Como Calculamos los Precios: Energia Objetiva, no Dinero',
@@ -447,18 +450,9 @@ VALUES ('localhost', 'metodologia-energetica', 'Metodologia Energetica',
     "theme": "emerald"
   }
 ]',
-'zap', 13, true, true
-ON CONFLICT (node_domain, slug) DO UPDATE SET
-  title = EXCLUDED.title,
-  subtitle = EXCLUDED.subtitle,
-  content = EXCLUDED.content,
-  icon = EXCLUDED.icon,
-  menu_order = EXCLUDED.menu_order,
-  is_published = true,
-  show_in_menu = true,
-  updated_at = NOW();
+'zap', 13, true, true;
 
--- Paso 2: Copiar la pagina a cualquier otro node_domain que ya tenga paginas
+-- Paso 3: Copiar la pagina a cualquier otro node_domain que ya tenga paginas
 -- (excluyendo localhost que ya se inserto arriba)
 -- Usamos INSERT ... SELECT con NOT EXISTS (sin ON CONFLICT, que YugabyteDB
 -- no soporta bien con INSERT ... SELECT)
