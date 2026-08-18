@@ -133,15 +133,19 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 				w.Header().Set("Pragma", "no-cache")
 				w.Header().Set("Expires", "0")
 
-				// Si es una ruta /p/{slug}, inyectar el contenido de la pagina
-				// en el HTML para que crawlers y servicios externos puedan leerlo
-				// sin ejecutar JavaScript
-				if len(r.URL.Path) > 3 && r.URL.Path[:3] == "/p/" {
-					slug := r.URL.Path[3:]
-					// Quitar query string si existe
+				// Inyectar contenido para crawlers:
+				// - Raiz /: pagina de inicio + indice de todas las paginas
+				// - /p/{slug}: contenido de la pagina + enlaces a las demas
+				var slug string
+				if r.URL.Path == "/" || r.URL.Path == "" {
+					slug = "inicio"
+				} else if len(r.URL.Path) > 3 && r.URL.Path[:3] == "/p/" {
+					slug = r.URL.Path[3:]
 					if idx := strings.Index(slug, "?"); idx >= 0 {
 						slug = slug[:idx]
 					}
+				}
+				if slug != "" {
 					if html := renderPageWithContent(frontendDir, pool, slug); html != "" {
 						w.Header().Set("Content-Type", "text/html; charset=utf-8")
 						w.Write([]byte(html))
@@ -168,7 +172,8 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 
 // renderPageWithContent lee el index.html del frontend, busca el contenido
 // de la pagina en la BD y lo inyecta dentro del HTML para que crawlers
-// puedan leerlo sin ejecutar JavaScript.
+// puedan leerlo sin ejecutar JavaScript. Tambien incluye un indice con
+// enlaces a todas las paginas publicas para que los crawlers puedan navegar.
 func renderPageWithContent(frontendDir string, pool *pgxpool.Pool, slug string) string {
 	// Leer el index.html base
 	indexBytes, err := os.ReadFile(filepath.Join(frontendDir, "index.html"))
@@ -197,6 +202,9 @@ func renderPageWithContent(frontendDir string, pool *pgxpool.Pool, slug string) 
 	// Convertir el contenido JSON a HTML
 	htmlContent := jsonContentToHTML(content)
 
+	// Obtener lista de todas las paginas publicas para el indice de navegacion
+	navHTML := buildNavigationIndex(pool, slug)
+
 	// Crear el bloque de contenido para inyectar
 	// Se inserta dentro de <div id="root"> para que React lo reemplace al cargar
 	noscriptBlock := fmt.Sprintf(`
@@ -205,8 +213,14 @@ func renderPageWithContent(frontendDir string, pool *pgxpool.Pool, slug string) 
     <h1>%s</h1>
     <p style="font-size: 1.2em; color: #666;">%s</p>
     %s
+    <nav style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd;">
+      <h2 style="font-size: 1.1em;">Paginas del sitio</h2>
+      <ul style="list-style: none; padding: 0;">
+%s
+      </ul>
+    </nav>
   </article>
-</noscript>`, title, subtitleStr, htmlContent)
+</noscript>`, title, subtitleStr, htmlContent, navHTML)
 
 	// Tambien actualizar el title y meta description del head
 	indexHTML = strings.Replace(indexHTML,
@@ -221,6 +235,32 @@ func renderPageWithContent(frontendDir string, pool *pgxpool.Pool, slug string) 
 		1)
 
 	return indexHTML
+}
+
+// buildNavigationIndex genera una lista HTML <li> con enlaces a todas las
+// paginas publicas, para que los crawlers puedan navegar el sitio completo.
+func buildNavigationIndex(pool *pgxpool.Pool, currentSlug string) string {
+	rows, err := pool.Query(context.Background(), `
+		SELECT slug, title FROM public_pages
+		WHERE node_domain = 'localhost' AND is_published = true AND show_in_menu = true
+		ORDER BY menu_order`)
+	if err != nil {
+		return ""
+	}
+	defer rows.Close()
+
+	var sb strings.Builder
+	for rows.Next() {
+		var slug, title string
+		_ = rows.Scan(&slug, &title)
+		// Marcar la pagina actual como activa
+		if slug == currentSlug {
+			sb.WriteString(fmt.Sprintf("        <li style="+"\""+"margin: 4px 0;"+"\""+"><strong>%s (pagina actual)</strong></li>\n", title))
+		} else {
+			sb.WriteString(fmt.Sprintf("        <li style="+"\""+"margin: 4px 0;"+"\""+"><a href="+"\""+"/p/%s"+"\""+">%s</a></li>\n", slug, title))
+		}
+	}
+	return sb.String()
 }
 
 func getScheme(r *http.Request) string {
