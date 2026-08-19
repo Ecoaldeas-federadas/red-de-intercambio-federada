@@ -5,6 +5,29 @@ import { useConfig } from '../hooks/useConfig'
 import { api } from '../api'
 import { Fingerprint, AlertCircle, Lock, User } from 'lucide-react'
 
+// === Utilidades WebAuthn ===
+
+function bufToBase64Url(buf: ArrayBuffer | Uint8Array): string {
+  const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf)
+  let str = ''
+  for (let i = 0; i < bytes.byteLength; i++) {
+    str += String.fromCharCode(bytes[i])
+  }
+  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+function base64UrlToBuf(b64url: string): ArrayBuffer {
+  const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/')
+  const padLen = (4 - (b64.length % 4)) % 4
+  const padded = b64 + '='.repeat(padLen)
+  const binStr = atob(padded)
+  const bytes = new Uint8Array(binStr.length)
+  for (let i = 0; i < binStr.length; i++) {
+    bytes[i] = binStr.charCodeAt(i)
+  }
+  return bytes.buffer
+}
+
 export default function Login() {
   const { login } = useAuth()
   const { currency } = useConfig()
@@ -50,18 +73,63 @@ export default function Login() {
       setError('Ingresa tu nombre de usuario')
       return
     }
+
+    if (!window.PublicKeyCredential) {
+      setError('Tu navegador no soporta Passkeys/WebAuthn.')
+      return
+    }
+
     setLoading(true)
     try {
-      await api.post('/auth/login/begin', { username })
+      // 1. Pedir opciones al backend
+      const beginRes: any = await api.post('/auth/login/begin', { username })
+      const options = beginRes.options
+
+      // Preparar las opciones para navigator.credentials.get
+      const publicKey: PublicKeyCredentialRequestOptions = {
+        challenge: base64UrlToBuf(options.challenge),
+        rpId: options.rpId,
+        timeout: options.timeout || 60000,
+        userVerification: options.userVerification || 'preferred',
+        allowCredentials: (options.allowCredentials || []).map((c: any) => ({
+          type: c.type,
+          id: base64UrlToBuf(c.id),
+        })),
+      }
+
+      // 2. Invocar WebAuthn del navegador
+      const credential = await navigator.credentials.get({ publicKey }) as PublicKeyCredential
+      if (!credential) {
+        throw new Error('No se pudo autenticar')
+      }
+
+      const response = credential.response as AuthenticatorAssertionResponse
+
+      // 3. Enviar respuesta al backend para verificar
       const result = await api.post<{ token: string; username: string }>('/auth/login/finish', {
-        session_key: 'temp',
+        session_key: beginRes.session_key,
         username,
-        response: {},
+        response: {
+          id: credential.id,
+          rawId: bufToBase64Url(credential.rawId),
+          type: credential.type,
+          response: {
+            authenticatorData: bufToBase64Url(response.authenticatorData),
+            clientDataJSON: bufToBase64Url(response.clientDataJSON),
+            signature: bufToBase64Url(response.signature),
+            userHandle: response.userHandle ? bufToBase64Url(response.userHandle) : undefined,
+          },
+        },
       })
+
       login(result.token, result.username)
-      navigate('/app/dashboard')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al iniciar sesion')
+      window.location.href = '/'
+    } catch (err: any) {
+      if (err.name === 'NotAllowedError') {
+        setError('Autenticacion cancelada o no autorizada.')
+      } else {
+        setError(err instanceof Error ? err.message : 'Error al iniciar sesion')
+      }
     } finally {
       setLoading(false)
     }

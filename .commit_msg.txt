@@ -1,31 +1,42 @@
-fix: passkey no se guardaba + prompt nativo reemplazado por modal
+fix: login con passkey no funcionaba - backend y frontend eran stubs
 
-PROBLEMA 1: Windows confirma el registro pero el passkey no aparece
+El login con passkey era completamente no funcional. Tanto el backend
+como el frontend eran stubs que no implementaban WebAuthn real.
 
-Causa raiz: el passkeyAdapter.VerifyRegistration en cmd/node/main.go
-hacia un type assertion directo:
-  resp, ok := response.(crypto.RegistrationResponse)
-Pero cuando el JSON del frontend se deserializa en interface{},
-se convierte en map[string]interface{}, NO en crypto.RegistrationResponse.
-El type assertion SIEMPRE fallaba con "invalid registration response
-type", asi que el passkey nunca se guardaba en la base de datos.
+PROBLEMA 1: Backend beginLogin (500 Internal Server Error)
+- Pasaba nil como credential IDs (no buscaba los passkeys del usuario)
+- Type assertion options.(map[string]interface{})["challenge"] fallaba
+  porque BeginLogin retorna *crypto.LoginChallenge, no map
+- Almacenaba uuid.Nil como user_id en el challenge store
 
-Fix: el adapter ahora maneja ambos casos:
-- crypto.RegistrationResponse: lo usa directo
-- map[string]interface{}: re-marshall a JSON y re-unmarshal al tipo
-  correcto antes de llamar a VerifyRegistration
-Lo mismo se aplico a VerifyLogin para el flujo de login con passkey.
+Fix beginLogin:
+- Busca el usuario por username + node_domain en la BD
+- Obtiene los credential_id de user_passkeys del usuario
+- Pasa los credential IDs reales a BeginLogin
+- Extrae el challenge con type assertion correcto (*LoginChallenge)
+- Almacena el user_id real en el challenge store
 
-PROBLEMA 2: prompt() abre alerta nativa de Windows
+PROBLEMA 2: Backend finishLogin era un stub peligroso
+- No verificaba la firma criptografica
+- Generaba un token con uuid.New() (usuario aleatorio!)
+- Aceptaba cualquier response vacio
 
-El navegador usa prompt() de JavaScript que abre un dialogo nativo
-del SO en vez de un modal dentro de la app.
+Fix finishLogin:
+- Recupera el user_id del challenge store
+- Busca el passkey del usuario por credential_id en la BD
+- Verifica la firma con PasskeyManager.VerifyLogin
+- Actualiza sign_count y last_used_at
+- Genera el token con el user_id y username correctos
 
-Fix: reemplazado prompt() por un modal interno en Profile.tsx:
-- Estado showPasskeyModal y passkeyLabel
-- Modal con input de texto, boton Cancelar y Continuar
-- Enter en el input registra el passkey
-- Click fuera del modal lo cierra
+PROBLEMA 3: Frontend handlePasskeyLogin no usaba WebAuthn
+- Enviaba session_key: 'temp' y response: {}
+- No llamaba navigator.credentials.get()
+
+Fix frontend:
+- Llama a /auth/login/begin para obtener opciones
+- Usa navigator.credentials.get() con las opciones reales
+- Envia la respuesta WebAuthn real (authenticatorData, signature,
+  clientDataJSON) al backend para verificacion
 
 Generated with Devin
 

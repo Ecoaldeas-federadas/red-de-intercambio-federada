@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"federated-credit-node/internal/crypto"
 	"fmt"
@@ -15,6 +16,15 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 )
+
+// base64UrlDecode decodifica un string base64url a bytes
+func base64UrlDecode(s string) ([]byte, error) {
+	b64 := strings.ReplaceAll(s, "-", "+")
+	b64 = strings.ReplaceAll(b64, "_", "/")
+	padLen := (4 - len(b64)%4) % 4
+	b64 += strings.Repeat("=", padLen)
+	return base64.StdEncoding.DecodeString(b64)
+}
 
 type AuthMiddleware struct {
 	JWTSecret []byte
@@ -368,15 +378,63 @@ func (ah *AuthHandlers) beginLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	options, err := ah.PasskeyManager.BeginLogin(nil)
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = ah.NodeDomain
+	}
+
+	// Buscar el usuario por username y node_domain
+	var userID uuid.UUID
+	var userDisplayName string
+	err := ah.Pool.QueryRow(r.Context(), `
+		SELECT id, COALESCE(display_name, username) FROM users
+		WHERE username = $1 AND node_domain = $2 AND membership_status = 'active'`,
+		req.Username, nodeDomain).Scan(&userID, &userDisplayName)
+	if err != nil {
+		writeError(w, 404, "usuario no encontrado")
+		return
+	}
+
+	// Obtener los credential IDs de los passkeys del usuario
+	var credentialIDs [][]byte
+	rows, err := ah.Pool.Query(r.Context(), `
+		SELECT credential_id FROM user_passkeys WHERE user_id = $1`, userID)
+	if err != nil {
+		writeError(w, 500, "error querying passkeys")
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var credID []byte
+		rows.Scan(&credID)
+		credentialIDs = append(credentialIDs, credID)
+	}
+
+	if len(credentialIDs) == 0 {
+		writeError(w, 400, "no tienes passkeys registrados. Usa contrasena para iniciar sesion y registra un dispositivo en tu perfil.")
+		return
+	}
+
+	options, err := ah.PasskeyManager.BeginLogin(credentialIDs)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
 	}
 
+	// Extraer el challenge del *LoginChallenge
+	var challengeStr string
+	switch opts := options.(type) {
+	case *crypto.LoginChallenge:
+		challengeStr = opts.Challenge
+	case map[string]interface{}:
+		challengeStr, _ = opts["challenge"].(string)
+	default:
+		writeError(w, 500, "unexpected options type from passkey manager")
+		return
+	}
+
 	sessionKey := uuid.New().String()
-	challenge := options.(map[string]interface{})["challenge"].(string)
-	ah.ChallengeStore.Store(sessionKey, challenge, uuid.Nil)
+	ah.ChallengeStore.Store(sessionKey, challengeStr, userID)
 
 	writeJSON(w, 200, map[string]interface{}{
 		"options":     options,
@@ -398,7 +456,7 @@ func (ah *AuthHandlers) finishLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, _, ok := ah.ChallengeStore.Get(req.SessionKey)
+	challenge, userID, ok := ah.ChallengeStore.Get(req.SessionKey)
 	if !ok {
 		writeError(w, 400, "no pending login challenge")
 		return
@@ -406,8 +464,73 @@ func (ah *AuthHandlers) finishLogin(w http.ResponseWriter, r *http.Request) {
 
 	ah.ChallengeStore.Delete(req.SessionKey)
 
+	if ah.Pool == nil {
+		writeError(w, 500, "database not available")
+		return
+	}
+
+	// Obtener el passkey del usuario para verificar la firma
+	// El credential ID viene en la respuesta del navegador
+	var storedPubKey []byte
+	var storedSignCount int64
+	var passkeyID uuid.UUID
+
+	// Extraer el credential ID de la respuesta para buscar el passkey correcto
+	credIDStr := ""
+	if respMap, ok := req.Response.(map[string]interface{}); ok {
+		if id, ok := respMap["id"].(string); ok {
+			credIDStr = id
+		}
+	}
+
+	if credIDStr != "" {
+		// Decodificar el credential ID de base64url
+		credIDBytes, err := base64UrlDecode(credIDStr)
+		if err == nil {
+			err = ah.Pool.QueryRow(r.Context(), `
+				SELECT id, public_key, sign_count FROM user_passkeys
+				WHERE user_id = $1 AND credential_id = $2`,
+				userID, credIDBytes).Scan(&passkeyID, &storedPubKey, &storedSignCount)
+			if err != nil {
+				writeError(w, 401, "passkey no encontrado")
+				return
+			}
+		}
+	}
+
+	if storedPubKey == nil {
+		// Fallback: usar el primer passkey del usuario
+		err := ah.Pool.QueryRow(r.Context(), `
+			SELECT id, public_key, sign_count FROM user_passkeys
+			WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`,
+			userID).Scan(&passkeyID, &storedPubKey, &storedSignCount)
+		if err != nil {
+			writeError(w, 401, "no tienes passkeys registrados")
+			return
+		}
+	}
+
+	// Verificar la firma del login
+	newSignCount, err := ah.PasskeyManager.VerifyLogin(req.Response, challenge, storedPubKey, storedSignCount)
+	if err != nil {
+		writeError(w, 401, fmt.Sprintf("verificacion fallida: %v", err))
+		return
+	}
+
+	// Actualizar el sign count y last_used_at
+	_, _ = ah.Pool.Exec(r.Context(), `
+		UPDATE user_passkeys SET sign_count = $1, last_used_at = NOW() WHERE id = $2`,
+		newSignCount, passkeyID)
+
+	// Obtener el username real del usuario
+	var username, nodeDomain string
+	_ = ah.Pool.QueryRow(r.Context(), `SELECT username, node_domain FROM users WHERE id = $1`, userID).Scan(&username, &nodeDomain)
+	if nodeDomain == "" {
+		nodeDomain = ah.NodeDomain
+	}
+
 	am := NewAuthMiddleware(ah.JWTSecret)
-	token, err := am.GenerateToken(uuid.New(), req.Username, ah.NodeDomain)
+	token, err := am.GenerateToken(userID, username, nodeDomain)
 	if err != nil {
 		writeError(w, 500, "failed to generate token")
 		return
@@ -415,8 +538,8 @@ func (ah *AuthHandlers) finishLogin(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, 200, map[string]interface{}{
 		"token":    token,
-		"username": req.Username,
-		"node":     ah.NodeDomain,
+		"username": username,
+		"node":     nodeDomain,
 	})
 }
 
