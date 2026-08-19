@@ -1,23 +1,34 @@
-feat: revision completa de categorias - 30 productos nuevos en 3er nivel
+feat: envases ecologicos para servir y llevar - 22 productos nuevos
 
-Revision exhaustiva de todas las categorias del catalogo seed. Se anaden
-30 productos nuevos para completar subcategorias faltantes:
+Categoria nueva: Embalaje con 5 categorias y 16 subcategorias:
 
-Agricultura: Fertilizantes, Plaguicidas, Hongos
-Alimentacion: Res, Cereales, Sales, Mantequilla/Queso
-Artesania: Cuero (Calzado, Materia Prima), Metal (Forja), Vidrio (Soplado)
-Construccion: Impermeabilizantes, Revestimientos, Carpinteria
-Cultura: Teatro, Danza, Literatura, Audiovisual
-Educacion: Numeracion, Tecnologia, Idiomas
-Energia: Eolica (Aerogeneradores), Hidraulica (Microturbinas)
-Herramientas: Medicion, Corte
-Salud: Apiterapia, Homeopatia
-Servicios: Peluqueria/Barberia, Costura
-Tecnologia: Redes, Software
-Textiles: Calzado Textil, Sombrerería
-Transporte: Carga Animal, Combustibles
+Vasos para liquidos:
+- Hoja de Platano: biodegradable, 45-60 dias descomposicion
+- Bagazo de Caña: compostable, resiste 100°C, para calientes y frios
+- PLA (Maiz): transparente, compostable 90-180 dias, para frios
+- Totuma/Calabaza: 100% natural, reutilizable
+- Coco: cascara pulida con cera natural, reutilizable
+- Ceramica: barro cocido artesanal, reutilizable
 
-Total: 13 categorias padre, ~50 categorias, ~150 subcategorias.
+Platos y bandejas:
+- Hoja de Platano, Bagazo, Fibra de Bambu, Hoja de Palma
+
+Contenedores para llevar:
+- Bagazo con tapa, Fibra de Bambu, Hoja de Platano
+
+Bolsas y envolturas:
+- Tela de Algodon (reutilizable), Yute, Papel Reciclado
+- Almidon de papa/maiz (bioplastico compostable)
+- Cera de Abejas (sustituye film plastico)
+- Hoja de Platano fresca, Papel Encerado
+
+Cubiertos:
+- Madera, Bambu, Pajitas de Caña Natural, Pajitas de Papel
+
+Precios basados en investigacion web de mercado actual 2024:
+- Bagajo: $0.04-$0.12/unidad FOB
+- PLA: $0.06-$0.18/unidad
+- Bolsas tela: reutilizables, mayor costo inicial pero duran años
 
 Generated with Devin
 
