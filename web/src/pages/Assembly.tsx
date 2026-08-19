@@ -3,7 +3,7 @@ import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useConfig } from '../hooks/useConfig'
 import { EntitySelector } from '../components/EntitySelector'
-import { Plus, Check, X, HelpCircle, Users, Calendar, Shield, Vote as VoteIcon, DollarSign, Crown, Trash2 } from 'lucide-react'
+import { Plus, Check, X, HelpCircle, Users, Calendar, Shield, Vote as VoteIcon, DollarSign, Crown, Trash2, FileText } from 'lucide-react'
 
 type ProposalType =
   | 'limit_change' | 'admission' | 'expulsion' | 'budget_increase'
@@ -329,7 +329,7 @@ export default function Assembly() {
   const canManageBoard = hasPermission('assembly.manage_board')
   const canManageTax = hasPermission('tax.manage')
 
-  const [tab, setTab] = useState<'members' | 'board' | 'sessions' | 'proposals' | 'tax' | 'config'>('proposals')
+  const [tab, setTab] = useState<'members' | 'board' | 'sessions' | 'proposals' | 'reports' | 'tax' | 'config'>('proposals')
   const [showHelp, setShowHelp] = useState(false)
   const [error, setError] = useState('')
 
@@ -353,6 +353,9 @@ export default function Assembly() {
   const [proposalDesc, setProposalDesc] = useState('')
   const [votingDuration, setVotingDuration] = useState(1440) // 24h por defecto
   const [entityModes, setEntityModes] = useState<Record<string, string>>({})
+  const [reports, setReports] = useState<any[]>([])
+  const [reportsStats, setReportsStats] = useState<any>(null)
+  const [selectedReport, setSelectedReport] = useState<any>(null)
 
   const [newSession, setNewSession] = useState({ session_type: 'ordinaria', title: '', description: '' })
   const [newBoard, setNewBoard] = useState({ user_id: '', position: 'presidente' })
@@ -408,6 +411,33 @@ export default function Assembly() {
       load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al ejecutar')
+    }
+  }
+
+  const loadReports = async () => {
+    try {
+      const data: any = await api.get('/assembly/reports')
+      setReports(data.reports || [])
+      setReportsStats({
+        total_proposals: data.total_proposals,
+        approved: data.approved,
+        rejected: data.rejected,
+        expired: data.expired,
+        pending: data.pending,
+        avg_participation: data.avg_participation,
+        total_voting_members: data.total_voting_members,
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cargar informes')
+    }
+  }
+
+  const loadReportDetail = async (id: string) => {
+    try {
+      const data: any = await api.get(`/assembly/proposals/${id}/report`)
+      setSelectedReport(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cargar informe')
     }
   }
 
@@ -589,6 +619,7 @@ export default function Assembly() {
       {/* Tabs */}
       <div className="flex gap-2 flex-wrap">
         <button onClick={() => setTab('proposals')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'proposals' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Propuestas</button>
+        <button onClick={() => setTab('reports')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'reports' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Informes de Votacion</button>
         <button onClick={() => setTab('members')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'members' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Miembros con voto</button>
         <button onClick={() => setTab('board')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'board' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Junta Directiva</button>
         <button onClick={() => setTab('sessions')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'sessions' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Sesiones</button>
@@ -719,7 +750,175 @@ export default function Assembly() {
         </div>
       )}
 
-      {/* ===== MIEMBROS CON VOTO ===== */}
+      {/* ===== INFORMES DE VOTACION ===== */}
+      {tab === 'reports' && (
+        <div className="space-y-4">
+          <h2 className="font-semibold flex items-center gap-2"><FileText size={18} />Informes de Votacion</h2>
+
+          {/* Estadisticas generales */}
+          {reportsStats && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="card text-center">
+                <div className="text-2xl font-bold text-trueque-600">{reportsStats.total_proposals}</div>
+                <div className="text-xs text-gray-500">Total propuestas</div>
+              </div>
+              <div className="card text-center">
+                <div className="text-2xl font-bold text-green-600">{reportsStats.approved}</div>
+                <div className="text-xs text-gray-500">Aprobadas</div>
+              </div>
+              <div className="card text-center">
+                <div className="text-2xl font-bold text-red-600">{reportsStats.rejected}</div>
+                <div className="text-xs text-gray-500">Rechazadas</div>
+              </div>
+              <div className="card text-center">
+                <div className="text-2xl font-bold text-orange-600">{reportsStats.expired}</div>
+                <div className="text-xs text-gray-500">Vencidas</div>
+              </div>
+            </div>
+          )}
+
+          {reportsStats && (
+            <div className="card text-sm space-y-1">
+              <div className="flex justify-between"><span className="text-gray-500">Participacion promedio:</span><span className="font-medium">{reportsStats.avg_participation}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Miembros con derecho a voto:</span><span className="font-medium">{reportsStats.total_voting_members}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Propuestas pendientes:</span><span className="font-medium">{reportsStats.pending}</span></div>
+            </div>
+          )}
+
+          {/* Boton cargar */}
+          {reports.length === 0 && (
+            <button onClick={loadReports} className="btn-primary">Cargar informes</button>
+          )}
+
+          {/* Lista de informes */}
+          {reports.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-500">{reports.length} votaciones registradas</span>
+                <button onClick={loadReports} className="text-xs text-blue-600 underline">Actualizar</button>
+              </div>
+              {reports.map((rp: any, i: number) => (
+                <div key={i} className="card">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium text-sm">{PROPOSAL_LABELS[rp.proposal_type as ProposalType] || rp.proposal_type}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded ${
+                          rp.status === 'executed' ? 'bg-green-100 text-green-700' :
+                          rp.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                          rp.status === 'expired' ? 'bg-orange-100 text-orange-700' :
+                          'bg-yellow-100 text-yellow-700'
+                        }`}>{rp.result}</span>
+                      </div>
+                      <p className="text-xs text-gray-600 mb-2">{rp.description}</p>
+                      <div className="flex flex-wrap gap-3 text-xs">
+                        <span className="text-green-600">A favor: {rp.votes_for}</span>
+                        <span className="text-red-600">En contra: {rp.votes_against}</span>
+                        <span className="text-gray-500">Abstencion: {rp.votes_abstain}</span>
+                        <span className="text-gray-400">No emitidos: {rp.votes_not_cast}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-3 text-xs text-gray-400 mt-1">
+                        <span>Participacion: {rp.participation_pct.toFixed(1)}%</span>
+                        <span>Aprobacion: {rp.approval_pct.toFixed(1)}%</span>
+                        <span>{rp.created_at?.slice(0, 16).replace('T', ' ')}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => loadReportDetail(rp.id)}
+                      className="text-xs text-blue-600 underline ml-2"
+                    >
+                      Ver detalle
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Modal de detalle del informe */}
+          {selectedReport && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedReport(null)}>
+              <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between p-4 border-b">
+                  <h3 className="font-bold">Informe de Votacion</h3>
+                  <button onClick={() => setSelectedReport(null)} className="text-gray-400 hover:text-gray-600 text-xl">x</button>
+                </div>
+                <div className="p-4 space-y-4 text-sm">
+                  {/* Datos generales */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between"><span className="text-gray-500">Tipo de propuesta:</span><span className="font-medium">{PROPOSAL_LABELS[selectedReport.proposal_type as ProposalType] || selectedReport.proposal_type}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Estado:</span><span className="font-medium">{selectedReport.result}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Fecha de creacion:</span><span className="font-medium">{selectedReport.created_at?.replace('T', ' ').slice(0, 19)}</span></div>
+                    {selectedReport.executed_at && <div className="flex justify-between"><span className="text-gray-500">Fecha de ejecucion:</span><span className="font-medium">{selectedReport.executed_at?.replace('T', ' ').slice(0, 19)}</span></div>}
+                    <div className="flex justify-between"><span className="text-gray-500">Tiempo configurado:</span><span className="font-medium">{selectedReport.configured_duration}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Duracion real de votacion:</span><span className="font-medium">{selectedReport.actual_voting_duration || 'sin votos'}</span></div>
+                    {selectedReport.first_vote_at && <div className="flex justify-between"><span className="text-gray-500">Primer voto:</span><span className="font-medium">{selectedReport.first_vote_at?.replace('T', ' ').slice(0, 19)}</span></div>}
+                    {selectedReport.last_vote_at && <div className="flex justify-between"><span className="text-gray-500">Ultimo voto:</span><span className="font-medium">{selectedReport.last_vote_at?.replace('T', ' ').slice(0, 19)}</span></div>}
+                  </div>
+
+                  {/* Descripcion */}
+                  <div className="card bg-gray-50">
+                    <div className="text-xs text-gray-500 mb-1">Descripcion</div>
+                    <p className="text-sm">{selectedReport.description}</p>
+                  </div>
+
+                  {/* Conteo de votos */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="card text-center bg-green-50">
+                      <div className="text-2xl font-bold text-green-600">{selectedReport.votes_for}</div>
+                      <div className="text-xs text-gray-500">A favor</div>
+                    </div>
+                    <div className="card text-center bg-red-50">
+                      <div className="text-2xl font-bold text-red-600">{selectedReport.votes_against}</div>
+                      <div className="text-xs text-gray-500">En contra</div>
+                    </div>
+                    <div className="card text-center bg-gray-50">
+                      <div className="text-2xl font-bold text-gray-600">{selectedReport.votes_abstain}</div>
+                      <div className="text-xs text-gray-500">Abstencion</div>
+                    </div>
+                    <div className="card text-center bg-gray-50">
+                      <div className="text-2xl font-bold text-gray-400">{selectedReport.votes_not_cast}</div>
+                      <div className="text-xs text-gray-500">No emitidos</div>
+                    </div>
+                  </div>
+
+                  {/* Porcentajes */}
+                  <div className="card space-y-1">
+                    <div className="flex justify-between"><span className="text-gray-500">Total votos emitidos:</span><span className="font-medium">{selectedReport.total_votes_cast} de {selectedReport.total_voting_members}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Participacion:</span><span className="font-medium">{selectedReport.participation_pct}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Aprobacion (sobre emitidos):</span><span className="font-medium">{selectedReport.approval_pct}</span></div>
+                  </div>
+
+                  {/* Timeline de votos (secreto: sin nombres) */}
+                  {selectedReport.vote_timeline && selectedReport.vote_timeline.length > 0 && (
+                    <div>
+                      <h4 className="font-medium mb-2">Timeline de votos (orden de emision, voto secreto)</h4>
+                      <div className="max-h-48 overflow-y-auto space-y-1 border rounded-lg p-2">
+                        {selectedReport.vote_timeline.map((v: any, i: number) => (
+                          <div key={i} className="flex justify-between text-xs">
+                            <span className={
+                              v.vote === 'a favor' ? 'text-green-600' :
+                              v.vote === 'en contra' ? 'text-red-600' :
+                              'text-gray-500'
+                            }>{v.vote}</span>
+                            <span className="text-gray-400">{v.timestamp?.replace('T', ' ').slice(0, 19)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="text-xs text-gray-400 text-center pt-2">
+                    El voto es secreto. Este informe muestra cantidades y tiempos, no quien voto.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+
       {tab === 'members' && (
         <div className="space-y-4">
           <h2 className="font-semibold flex items-center gap-2"><Users size={18} />Miembros con Derecho a Voto</h2>

@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -27,6 +28,10 @@ func (h *AssemblyHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequireAuth).Post("/api/assembly/proposals", h.createProposal)
 	r.With(am.RequireAuth).Post("/api/assembly/proposals/{id}/vote", h.voteProposal)
 	r.With(am.RequireAuth).Post("/api/assembly/proposals/{id}/execute", h.executeProposal)
+
+	// Informes de votacion
+	r.With(am.RequireAuth).Get("/api/assembly/proposals/{id}/report", h.getProposalReport)
+	r.With(am.RequireAuth).Get("/api/assembly/reports", h.listVotingReports)
 
 	// Junta directiva
 	r.With(am.RequireAuth).Get("/api/assembly/board", h.listBoard)
@@ -1046,4 +1051,322 @@ func derefInt(i *int) int {
 		return 0
 	}
 	return *i
+}
+
+// ===== Informes de votacion =====
+
+// getProposalReport devuelve un informe detallado de una propuesta
+// incluye: fechas, duracion, conteo de votos, resultado, participacion
+func (h *AssemblyHandler) getProposalReport(w http.ResponseWriter, r *http.Request) {
+	decisionID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	// Datos de la propuesta
+	var assemblyID uuid.UUID
+	var decisionType, description, status string
+	var createdAt time.Time
+	var executedAt *time.Time
+	var votingDeadline *time.Time
+	var votingDurationMinutes *int
+	err = h.Pool.QueryRow(r.Context(), `
+		SELECT assembly_id, decision_type, description, status, created_at, executed_at, voting_deadline, voting_duration_minutes
+		FROM assembly_decisions WHERE id = $1`, decisionID).
+		Scan(&assemblyID, &decisionType, &description, &status, &createdAt, &executedAt, &votingDeadline, &votingDurationMinutes)
+	if err != nil {
+		writeError(w, 404, "propuesta no encontrada")
+		return
+	}
+
+	// Conteo de votos
+	var votesFor, votesAgainst, votesAbstain int
+	h.Pool.QueryRow(r.Context(), `
+		SELECT
+			COUNT(*) FILTER (WHERE vote = 'for'),
+			COUNT(*) FILTER (WHERE vote = 'against'),
+			COUNT(*) FILTER (WHERE vote = 'abstain')
+		FROM assembly_votes WHERE decision_id = $1`, decisionID).Scan(&votesFor, &votesAgainst, &votesAbstain)
+
+	// Total de miembros con derecho a voto
+	var totalVotingMembers int
+	h.Pool.QueryRow(r.Context(), `
+		SELECT COUNT(*) FROM users u
+		JOIN member_levels ml ON ml.id = u.member_level_id
+		WHERE u.node_domain = $1 AND u.membership_status = 'active'
+		AND ml.has_vote = true AND ml.counts_in_quorum = true`, nodeDomain).Scan(&totalVotingMembers)
+
+	totalVotes := votesFor + votesAgainst + votesAbstain
+	notVoted := totalVotingMembers - totalVotes
+	if notVoted < 0 {
+		notVoted = 0
+	}
+
+	// Tiempo de primer y ultimo voto
+	var firstVoteAt, lastVoteAt *time.Time
+	h.Pool.QueryRow(r.Context(), `
+		SELECT MIN(created_at), MAX(created_at) FROM assembly_votes WHERE decision_id = $1`, decisionID).Scan(&firstVoteAt, &lastVoteAt)
+
+	// Duracion real de la votacion
+	var votingDurationStr string
+	if firstVoteAt != nil && lastVoteAt != nil {
+		dur := lastVoteAt.Sub(*firstVoteAt)
+		if dur.Hours() >= 1 {
+			votingDurationStr = fmt.Sprintf("%dh %dm", int(dur.Hours()), int(dur.Minutes())%60)
+		} else {
+			votingDurationStr = fmt.Sprintf("%dm %ds", int(dur.Minutes()), int(dur.Seconds())%60)
+		}
+	}
+
+	// Tiempo configurado
+	configuredDurationStr := ""
+	if votingDurationMinutes != nil {
+		mins := *votingDurationMinutes
+		if mins >= 1440 {
+			configuredDurationStr = fmt.Sprintf("%d dias", mins/1440)
+		} else if mins >= 60 {
+			configuredDurationStr = fmt.Sprintf("%d horas", mins/60)
+		} else {
+			configuredDurationStr = fmt.Sprintf("%d minutos", mins)
+		}
+	}
+
+	// Porcentaje de participacion
+	participationPct := 0.0
+	if totalVotingMembers > 0 {
+		participationPct = (float64(totalVotes) / float64(totalVotingMembers)) * 100
+	}
+
+	// Porcentaje de aprobacion
+	approvalPct := 0.0
+	if totalVotes > 0 {
+		approvalPct = (float64(votesFor) / float64(totalVotes)) * 100
+	}
+
+	// Resultado
+	result := "pendiente"
+	if status == "executed" {
+		result = "aprobada"
+	} else if status == "rejected" {
+		result = "rechazada"
+	} else if status == "expired" {
+		result = "vencida (sin decision)"
+	}
+
+	// Timeline de votos (cuando se emitieron, sin revelar quien)
+	type VoteEntry struct {
+		Vote      string `json:"vote"`
+		Timestamp string `json:"timestamp"`
+	}
+	rows, _ := h.Pool.Query(r.Context(), `
+		SELECT vote, created_at FROM assembly_votes WHERE decision_id = $1 ORDER BY created_at`, decisionID)
+	var voteTimeline []VoteEntry
+	if rows != nil {
+		defer rows.Close()
+		for rows.Next() {
+			var voteStr string
+			var ts time.Time
+			rows.Scan(&voteStr, &ts)
+			label := voteStr
+			if voteStr == "for" {
+				label = "a favor"
+			} else if voteStr == "against" {
+				label = "en contra"
+			} else if voteStr == "abstain" {
+				label = "abstencion"
+			}
+			voteTimeline = append(voteTimeline, VoteEntry{
+				Vote:      label,
+				Timestamp: ts.Format(time.RFC3339),
+			})
+		}
+	}
+	if voteTimeline == nil {
+		voteTimeline = []VoteEntry{}
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"proposal_id":            decisionID.String(),
+		"proposal_type":          decisionType,
+		"description":            description,
+		"status":                 status,
+		"result":                 result,
+		"created_at":             createdAt.Format(time.RFC3339),
+		"executed_at":            derefTime(executedAt),
+		"voting_deadline":        derefTime(votingDeadline),
+		"configured_duration":    configuredDurationStr,
+		"actual_voting_duration": votingDurationStr,
+		"first_vote_at":          derefTime(firstVoteAt),
+		"last_vote_at":           derefTime(lastVoteAt),
+		"votes_for":              votesFor,
+		"votes_against":          votesAgainst,
+		"votes_abstain":          votesAbstain,
+		"votes_not_cast":         notVoted,
+		"total_voting_members":   totalVotingMembers,
+		"total_votes_cast":       totalVotes,
+		"participation_pct":      fmt.Sprintf("%.1f%%", participationPct),
+		"approval_pct":           fmt.Sprintf("%.1f%%", approvalPct),
+		"vote_timeline":          voteTimeline,
+	})
+}
+
+// listVotingReports devuelve un resumen de todas las votaciones
+func (h *AssemblyHandler) listVotingReports(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	// Total de miembros con derecho a voto
+	var totalVotingMembers int
+	h.Pool.QueryRow(r.Context(), `
+		SELECT COUNT(*) FROM users u
+		JOIN member_levels ml ON ml.id = u.member_level_id
+		WHERE u.node_domain = $1 AND u.membership_status = 'active'
+		AND ml.has_vote = true AND ml.counts_in_quorum = true`, nodeDomain).Scan(&totalVotingMembers)
+
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT d.id, d.decision_type, d.description, d.status, d.created_at, d.executed_at,
+		       d.voting_deadline, d.voting_duration_minutes,
+		       COALESCE(sv.votes_for, 0), COALESCE(sv.votes_against, 0), COALESCE(sv.votes_abstain, 0),
+		       COALESCE(sv.total_votes, 0)
+		FROM assembly_decisions d
+		LEFT JOIN (
+			SELECT decision_id,
+				COUNT(*) FILTER (WHERE vote = 'for') as votes_for,
+				COUNT(*) FILTER (WHERE vote = 'against') as votes_against,
+				COUNT(*) FILTER (WHERE vote = 'abstain') as votes_abstain,
+				COUNT(*) as total_votes
+			FROM assembly_votes GROUP BY decision_id
+		) sv ON sv.decision_id = d.id
+		ORDER BY d.created_at DESC LIMIT 200`)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	type Report struct {
+		ID                 string  `json:"id"`
+		ProposalType       string  `json:"proposal_type"`
+		Description        string  `json:"description"`
+		Status             string  `json:"status"`
+		Result             string  `json:"result"`
+		CreatedAt          string  `json:"created_at"`
+		ExecutedAt         string  `json:"executed_at"`
+		VotingDeadline     string  `json:"voting_deadline"`
+		VotesFor           int     `json:"votes_for"`
+		VotesAgainst       int     `json:"votes_against"`
+		VotesAbstain       int     `json:"votes_abstain"`
+		VotesNotCast       int     `json:"votes_not_cast"`
+		TotalVotesCast     int     `json:"total_votes_cast"`
+		TotalVotingMembers int     `json:"total_voting_members"`
+		ParticipationPct   float64 `json:"participation_pct"`
+		ApprovalPct        float64 `json:"approval_pct"`
+	}
+
+	var reports []Report
+	for rows.Next() {
+		var id uuid.UUID
+		var decisionType, description, status string
+		var createdAt time.Time
+		var executedAt *time.Time
+		var votingDeadline *time.Time
+		var votingDurationMinutes *int
+		var votesFor, votesAgainst, votesAbstain, totalVotes int
+
+		rows.Scan(&id, &decisionType, &description, &status, &createdAt, &executedAt,
+			&votingDeadline, &votingDurationMinutes,
+			&votesFor, &votesAgainst, &votesAbstain, &totalVotes)
+
+		notVoted := totalVotingMembers - totalVotes
+		if notVoted < 0 {
+			notVoted = 0
+		}
+
+		participationPct := 0.0
+		if totalVotingMembers > 0 {
+			participationPct = (float64(totalVotes) / float64(totalVotingMembers)) * 100
+		}
+
+		approvalPct := 0.0
+		if totalVotes > 0 {
+			approvalPct = (float64(votesFor) / float64(totalVotes)) * 100
+		}
+
+		result := "pendiente"
+		if status == "executed" {
+			result = "aprobada"
+		} else if status == "rejected" {
+			result = "rechazada"
+		} else if status == "expired" {
+			result = "vencida"
+		}
+
+		reports = append(reports, Report{
+			ID:                 id.String(),
+			ProposalType:       decisionType,
+			Description:        description,
+			Status:             status,
+			Result:             result,
+			CreatedAt:          createdAt.Format(time.RFC3339),
+			ExecutedAt:         derefTime(executedAt),
+			VotingDeadline:     derefTime(votingDeadline),
+			VotesFor:           votesFor,
+			VotesAgainst:       votesAgainst,
+			VotesAbstain:       votesAbstain,
+			VotesNotCast:       notVoted,
+			TotalVotesCast:     totalVotes,
+			TotalVotingMembers: totalVotingMembers,
+			ParticipationPct:   participationPct,
+			ApprovalPct:        approvalPct,
+		})
+	}
+	if reports == nil {
+		reports = []Report{}
+	}
+
+	// Estadisticas generales
+	totalProposals := len(reports)
+	approvedCount := 0
+	rejectedCount := 0
+	expiredCount := 0
+	pendingCount := 0
+	totalParticipation := 0.0
+
+	for _, rp := range reports {
+		switch rp.Status {
+		case "executed":
+			approvedCount++
+		case "rejected":
+			rejectedCount++
+		case "expired":
+			expiredCount++
+		case "pending":
+			pendingCount++
+		}
+		totalParticipation += rp.ParticipationPct
+	}
+
+	avgParticipation := 0.0
+	if totalProposals > 0 {
+		avgParticipation = totalParticipation / float64(totalProposals)
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"reports":              reports,
+		"total_proposals":      totalProposals,
+		"approved":             approvedCount,
+		"rejected":             rejectedCount,
+		"expired":              expiredCount,
+		"pending":              pendingCount,
+		"avg_participation":    fmt.Sprintf("%.1f%%", avgParticipation),
+		"total_voting_members": totalVotingMembers,
+	})
 }
