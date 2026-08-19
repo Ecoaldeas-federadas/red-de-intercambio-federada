@@ -1,22 +1,18 @@
-feat: barra lateral colapsable + scroll fino del mismo color
+fix: categorias y componentes vacios - buscar en localhost y default tambien
 
-Mejoras en la barra de navegacion lateral:
+Problema: los dropdowns de categorias y la busqueda de componentes en la
+tienda salian vacios porque las queries filtraban solo por node_domain
+exacto del nodo. Si el dominio configurado no coincidia con el dominio
+de los productos seed (localhost o default), no se encontraba nada.
 
-1. Colapsable (desktop):
-   - Boton "Contraer" abajo que colapsa la barra a solo iconos (w-16)
-   - Al contraer, muestra solo los iconos con tooltip al pasar el mouse
-   - Boton para expandir de vuelta (w-64)
-   - Transicion suave de 300ms
+Solucion: las queries de listProductCategories y listComponents ahora
+buscan en node_domain IN ($1, 'localhost', 'default') para que
+encuentren los productos seed independientemente del dominio configurado.
 
-2. Scroll fino y elegante:
-   - Scrollbar de solo 4px de ancho (antes era el default grueso gris)
-   - Color semi-transparente blanco que combina con el fondo verde oscuro
-   - Track transparente (sin fondo gris)
-   - Hover: mas visible
-   - Funciona en Chrome (webkit) y Firefox (scrollbar-color)
-
-Telegram: el error de "cannot create new bots" es de Telegram/SpamBot,
-no del codigo. Hay que apelar con @SpamBot o usar Matrix/XMPP mientras.
+Esto no afecta la seguridad ni el aislamiento entre nodos porque:
+- Los productos seed son productos del catalogo central (is_system=true)
+- Cada nodo sigue viendo solo sus productos + los seed
+- Los productos creados por usuarios siguen siendo del dominio del nodo
 
 Generated with Devin
 

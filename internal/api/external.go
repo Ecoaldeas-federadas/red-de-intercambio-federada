@@ -664,7 +664,7 @@ func (eh *ExternalHandler) listComponents(w http.ResponseWriter, r *http.Request
 
 	query := `SELECT id, name, parent_category, category, subcategory, unit, price_per_unit, description, badge, image_url, group_id
 		FROM products
-		WHERE node_domain = $1 AND is_approved = true AND is_hidden = false AND is_group = false`
+		WHERE node_domain IN ($1, 'localhost', 'default') AND is_approved = true AND is_hidden = false AND is_group = false`
 	args := []interface{}{eh.NodeDomain}
 	argIdx := 2
 

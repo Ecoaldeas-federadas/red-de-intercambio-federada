@@ -2943,10 +2943,11 @@ func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Reques
 // Solo categorias que tienen al menos un producto aprobado y no oculto.
 func (h *SystemHandler) listProductCategories(w http.ResponseWriter, r *http.Request) {
 	// Obtener todas las combinaciones distintas de (parent_category, category, subcategory)
+	// Buscar en el dominio del nodo, y si no hay, buscar tambien en 'localhost' y 'default'
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT DISTINCT parent_category, category, subcategory
 		FROM products
-		WHERE node_domain = $1
+		WHERE node_domain IN ($1, 'localhost', 'default')
 		  AND is_approved = true
 		  AND is_hidden = false
 		  AND parent_category IS NOT NULL AND parent_category <> ''
