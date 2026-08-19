@@ -339,15 +339,6 @@ export default function Assembly() {
   const canManageBoard = hasPermission('assembly.manage_board')
   const canManageTax = hasPermission('tax.manage')
 
-  // Helper: ¿ya se puede registrar asistencia? (dentro de la ventana configurada)
-  const attendanceWindowHours = freqConfig.attendance_window_hours || 1
-  const canStartAttendance = (s: any) => {
-    if (!s.start_time) return false
-    const start = new Date(s.start_time).getTime()
-    const windowStart = start - attendanceWindowHours * 60 * 60 * 1000
-    return Date.now() >= windowStart
-  }
-
   const [tab, setTab] = useState<'members' | 'board' | 'sessions' | 'proposals' | 'reports' | 'tax' | 'config'>('proposals')
   const [showHelp, setShowHelp] = useState(false)
   const [error, setError] = useState('')
@@ -393,6 +384,15 @@ export default function Assembly() {
   const [freqEditing, setFreqEditing] = useState(false)
   const [freqSaving, setFreqSaving] = useState(false)
   const [sessionFilter, setSessionFilter] = useState<'upcoming' | 'past'>('upcoming')
+
+  // Helper: ¿ya se puede registrar asistencia? (dentro de la ventana configurada)
+  const attendanceWindowHours = freqConfig.attendance_window_hours || 1
+  const canStartAttendance = (s: any) => {
+    if (!s.start_time) return false
+    const start = new Date(s.start_time).getTime()
+    const windowStart = start - attendanceWindowHours * 60 * 60 * 1000
+    return Date.now() >= windowStart
+  }
 
   const [newSession, setNewSession] = useState({ session_type: 'ordinaria', title: '', description: '', is_presential: false, start_time: '' })
   const [sessionDate, setSessionDate] = useState('')
