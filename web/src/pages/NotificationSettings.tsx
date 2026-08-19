@@ -156,7 +156,7 @@ export default function NotificationSettings() {
       api.get<any>('/notifications/gateways').then((d: any) => setGateways(Array.isArray(d) ? d : [])).catch(() => {})
     }
     // Cargar contactos del perfil
-    api.get<any>('/accounts/me').then((d: any) => {
+    api.get<any>('/auth/me').then((d: any) => {
       if (d) {
         setContacts({
           email: d.email || '',
@@ -243,7 +243,7 @@ export default function NotificationSettings() {
       quiet_hours_end: contacts.quiet_hours_end !== '' ? parseInt(contacts.quiet_hours_end) : null,
       digest_mode: contacts.digest_mode || 'instant',
     }
-    api.put('/accounts/me/contacts', payload).then(() => {
+    api.put('/auth/me/contacts', payload).then(() => {
       setSuccess('Datos de contacto guardados')
       setTimeout(() => setSuccess(''), 3000)
     }).catch(() => setError('Error al guardar contactos'))

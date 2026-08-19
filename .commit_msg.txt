@@ -1,19 +1,19 @@
-fix: errores y warnings del IDE
+fix: conflicto de rutas /accounts/me vs /accounts/{id} en chi
 
-Error TypeScript (NotificationSettings.tsx:101):
-- Uint8Array no asignable a BufferSource en pushManager.subscribe
-- Fix: usar .buffer as ArrayBuffer para obtener el ArrayBuffer correctamente
+Problema: GET /api/accounts/me retornaba 404 porque chi tenia conflicto
+entre la ruta estatica /api/accounts/me y la parametrizada /api/accounts/{id}
+registradas en grupos diferentes.
 
-Warnings corregidos:
-- notifications.go:302: redundant or (auth_token duplicado en condicion)
-- external.go:673-681: fmt.Sprintf innecesario en strings sin formato
-- routes.go:247,253: fmt.Sprintf innecesario en strings literales
+Solucion: mover las rutas /me al handler de auth donde ya existe /api/auth/me:
+- GET /api/auth/me (ya existia)
+- PUT /api/auth/me/contacts (nueva, movida desde /api/accounts/me/contacts)
 
-Tambien incluye cambios pendientes del commit anterior:
-- WebPush auto-config (VAPID keys auto-generadas)
-- VAPID JWT signing completo (ES256 + aes128gcm RFC 8291)
-- Digest emails (resumen diario)
-- Fix TypeScript PublicSettings (footer properties)
+Frontend actualizado en 4 archivos:
+- NotificationSettings.tsx: GET /auth/me, PUT /auth/me/contacts
+- Profile.tsx: GET /auth/me
+- Dashboard.tsx: GET /auth/me
+
+Las rutas /api/accounts/{id} siguen funcionando para obtener cuentas por ID.
 
 Generated with Devin
 

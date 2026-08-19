@@ -18,7 +18,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     Promise.all([
-      api.get<any>('/accounts/me').catch(() => null),
+      api.get<any>('/auth/me').catch(() => null),
       api.get<any>('/federation/warnings').catch(() => ({ warnings: [] })),
       api.get<any[]>('/federation/nodes').catch(() => []),
       api.get<any[]>('/assembly/sessions?filter=upcoming').catch(() => []),

@@ -367,6 +367,7 @@ func (ah *AuthHandlers) RegisterRoutes(r chi.Router) {
 	r.Group(func(r chi.Router) {
 		r.Use(am.RequireAuth)
 		r.Get("/api/auth/me", ah.getMe)
+		r.Put("/api/auth/me/contacts", ah.updateMyContacts)
 		r.Get("/api/auth/passkey/list", ah.listPasskeys)
 		r.Post("/api/auth/passkey/add/begin", ah.beginAddPasskey)
 		r.Post("/api/auth/passkey/add/finish", ah.finishAddPasskey)

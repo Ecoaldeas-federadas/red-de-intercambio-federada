@@ -67,7 +67,7 @@ export default function Profile() {
   const [passkeyLabel, setPasskeyLabel] = useState('')
 
   const load = () => {
-    api.get('/accounts/me').then((d: any) => {
+    api.get('/auth/me').then((d: any) => {
       setMe(d)
       // Cargar nivel del usuario
       setLevelLoading(true)
