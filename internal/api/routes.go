@@ -68,6 +68,10 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 	taxH := &TaxHandler{Pool: pool, Auth: am}
 	taxH.RegisterRoutes(r, am)
 
+	// Asambleas de organizaciones y departamentos
+	scopedAsmbH := NewScopedAssemblyHandler(pool, am)
+	scopedAsmbH.RegisterRoutes(r, am)
+
 	// System: auditoria, config, niveles, tarifa, productos
 	sysH := &SystemHandler{Pool: pool, Auth: am, nodeDomain: h.nodeDomain}
 	sysH.RegisterRoutes(r, am)

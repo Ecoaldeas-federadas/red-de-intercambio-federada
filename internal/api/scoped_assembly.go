@@ -1,0 +1,798 @@
+package api
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+// ScopedAssemblyHandler maneja asambleas de organizaciones y departamentos
+type ScopedAssemblyHandler struct {
+	Pool *pgxpool.Pool
+	Auth *AuthMiddleware
+}
+
+func NewScopedAssemblyHandler(pool *pgxpool.Pool, auth *AuthMiddleware) *ScopedAssemblyHandler {
+	return &ScopedAssemblyHandler{Pool: pool, Auth: auth}
+}
+
+func (h *ScopedAssemblyHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
+	// Asambleas de organizacion
+	r.With(am.RequireAuth).Get("/api/organization/{orgId}/assembly/sessions", h.listSessions)
+	r.With(am.RequireAuth).Post("/api/organization/{orgId}/assembly/sessions", h.createSession)
+	r.With(am.RequireAuth).Put("/api/organization/{orgId}/assembly/sessions/{id}/minutes", h.updateMinutes)
+	r.With(am.RequireAuth).Get("/api/organization/{orgId}/assembly/sessions/{id}/attendance", h.listAttendance)
+	r.With(am.RequireAuth).Post("/api/organization/{orgId}/assembly/sessions/{id}/attendance", h.registerAttendance)
+	r.With(am.RequireAuth).Get("/api/organization/{orgId}/assembly/proposals", h.listProposals)
+	r.With(am.RequireAuth).Post("/api/organization/{orgId}/assembly/proposals", h.createProposal)
+	r.With(am.RequireAuth).Post("/api/organization/{orgId}/assembly/proposals/{id}/open-voting", h.openVoting)
+	r.With(am.RequireAuth).Post("/api/organization/{orgId}/assembly/proposals/{id}/vote", h.voteProposal)
+	r.With(am.RequireAuth).Post("/api/organization/{orgId}/assembly/proposals/{id}/execute", h.executeProposal)
+	r.With(am.RequireAuth).Get("/api/organization/{orgId}/assembly/reports", h.listReports)
+
+	// Asambleas de departamento
+	r.With(am.RequireAuth).Get("/api/department/{deptId}/assembly/sessions", h.listSessions)
+	r.With(am.RequireAuth).Post("/api/department/{deptId}/assembly/sessions", h.createSession)
+	r.With(am.RequireAuth).Put("/api/department/{deptId}/assembly/sessions/{id}/minutes", h.updateMinutes)
+	r.With(am.RequireAuth).Get("/api/department/{deptId}/assembly/sessions/{id}/attendance", h.listAttendance)
+	r.With(am.RequireAuth).Post("/api/department/{deptId}/assembly/sessions/{id}/attendance", h.registerAttendance)
+	r.With(am.RequireAuth).Get("/api/department/{deptId}/assembly/proposals", h.listProposals)
+	r.With(am.RequireAuth).Post("/api/department/{deptId}/assembly/proposals", h.createProposal)
+	r.With(am.RequireAuth).Post("/api/department/{deptId}/assembly/proposals/{id}/open-voting", h.openVoting)
+	r.With(am.RequireAuth).Post("/api/department/{deptId}/assembly/proposals/{id}/vote", h.voteProposal)
+	r.With(am.RequireAuth).Post("/api/department/{deptId}/assembly/proposals/{id}/execute", h.executeProposal)
+	r.With(am.RequireAuth).Get("/api/department/{deptId}/assembly/reports", h.listReports)
+}
+
+// getScope extrae el scope y scope_id de la URL
+func (h *ScopedAssemblyHandler) getScope(r *http.Request) (string, *uuid.UUID, error) {
+	orgID := chi.URLParam(r, "orgId")
+	deptID := chi.URLParam(r, "deptId")
+	if orgID != "" {
+		id, err := uuid.Parse(orgID)
+		if err != nil {
+			return "", nil, fmt.Errorf("invalid org id")
+		}
+		return "organization", &id, nil
+	}
+	if deptID != "" {
+		id, err := uuid.Parse(deptID)
+		if err != nil {
+			return "", nil, fmt.Errorf("invalid dept id")
+		}
+		return "department", &id, nil
+	}
+	return "", nil, fmt.Errorf("no scope found")
+}
+
+// getEligibleVoters obtiene los miembros con derecho a voto segun el scope
+func (h *ScopedAssemblyHandler) getEligibleVoters(ctx context.Context, scope string, scopeID uuid.UUID) ([]uuid.UUID, error) {
+	if scope == "organization" {
+		// Miembros de la junta directiva de la organizacion
+		rows, err := h.Pool.Query(ctx, `
+			SELECT user_id FROM organization_board_members
+			WHERE organization_id = $1 AND is_active = true`, scopeID)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		var voters []uuid.UUID
+		for rows.Next() {
+			var id uuid.UUID
+			rows.Scan(&id)
+			voters = append(voters, id)
+		}
+		return voters, nil
+	}
+	// department
+	rows, err := h.Pool.Query(ctx, `
+		SELECT user_id FROM department_members
+		WHERE department_id = $1`, scopeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var voters []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		rows.Scan(&id)
+		voters = append(voters, id)
+	}
+	return voters, nil
+}
+
+func (h *ScopedAssemblyHandler) listSessions(w http.ResponseWriter, r *http.Request) {
+	scope, scopeID, err := h.getScope(r)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT id, session_type, title, description, start_time, end_time, status, created_at,
+		       is_presential, minutes, recall_number, quorum_verified
+		FROM assembly_sessions_scoped
+		WHERE node_domain = $1 AND scope = $2 AND scope_id = $3
+		ORDER BY created_at DESC LIMIT 50`, nodeDomain, scope, scopeID)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	var sessions []map[string]interface{}
+	for rows.Next() {
+		var id uuid.UUID
+		var sessionType, title, status string
+		var description *string
+		var startTime time.Time
+		var endTime *time.Time
+		var createdAt time.Time
+		var isPresential bool
+		var minutes *string
+		var recallNumber int
+		var quorumVerified bool
+		rows.Scan(&id, &sessionType, &title, &description, &startTime, &endTime, &status, &createdAt,
+			&isPresential, &minutes, &recallNumber, &quorumVerified)
+		sessions = append(sessions, map[string]interface{}{
+			"id":              id.String(),
+			"session_type":    sessionType,
+			"title":           title,
+			"description":     deref(description),
+			"start_time":      startTime,
+			"end_time":        derefTime(endTime),
+			"status":          status,
+			"created_at":      createdAt,
+			"is_presential":   isPresential,
+			"minutes":         deref(minutes),
+			"recall_number":   recallNumber,
+			"quorum_verified": quorumVerified,
+		})
+	}
+	if sessions == nil {
+		sessions = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, sessions)
+}
+
+func (h *ScopedAssemblyHandler) createSession(w http.ResponseWriter, r *http.Request) {
+	scope, scopeID, err := h.getScope(r)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	var req struct {
+		SessionType  string `json:"session_type"`
+		Title        string `json:"title"`
+		Description  string `json:"description"`
+		StartTimeStr string `json:"start_time"`
+		IsPresential bool   `json:"is_presential"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.Title == "" {
+		writeError(w, 400, "title is required")
+		return
+	}
+	if req.SessionType == "" {
+		req.SessionType = "ordinaria"
+	}
+
+	startTime := time.Now()
+	if req.StartTimeStr != "" {
+		if t, err := time.Parse(time.RFC3339, req.StartTimeStr); err == nil {
+			startTime = t
+		}
+	}
+
+	id := uuid.New()
+	_, err = h.Pool.Exec(r.Context(), `
+		INSERT INTO assembly_sessions_scoped (id, node_domain, scope, scope_id, session_type, title, description, start_time, status, is_presential)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'scheduled', $9)`,
+		id, nodeDomain, scope, scopeID, req.SessionType, req.Title, req.Description, startTime, req.IsPresential)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	writeJSON(w, 201, map[string]interface{}{
+		"id":            id.String(),
+		"title":         req.Title,
+		"status":        "scheduled",
+		"is_presential": req.IsPresential,
+		"message":       "Sesion creada",
+	})
+}
+
+func (h *ScopedAssemblyHandler) updateMinutes(w http.ResponseWriter, r *http.Request) {
+	sessionID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+	var req struct {
+		Minutes string `json:"minutes"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	userID, _ := h.Auth.GetUserID(r)
+	h.Pool.Exec(r.Context(), `
+		UPDATE assembly_sessions_scoped SET minutes = $1, minutes_updated_by = $2, minutes_updated_at = NOW()
+		WHERE id = $3`, req.Minutes, userID, sessionID)
+
+	writeJSON(w, 200, map[string]interface{}{"message": "Minuta guardada"})
+}
+
+func (h *ScopedAssemblyHandler) listAttendance(w http.ResponseWriter, r *http.Request) {
+	sessionID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT a.user_id, u.username, u.display_name, a.registered_at, a.secretary_confirmed, a.member_confirmed
+		FROM assembly_attendance_scoped a
+		JOIN users u ON u.id = a.user_id
+		WHERE a.session_id = $1
+		ORDER BY a.registered_at`, sessionID)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	var attendance []map[string]interface{}
+	for rows.Next() {
+		var userID uuid.UUID
+		var username, displayName string
+		var registeredAt time.Time
+		var secConfirmed, memConfirmed bool
+		rows.Scan(&userID, &username, &displayName, &registeredAt, &secConfirmed, &memConfirmed)
+		attendance = append(attendance, map[string]interface{}{
+			"user_id":             userID.String(),
+			"username":            username,
+			"display_name":        displayName,
+			"registered_at":       registeredAt.Format(time.RFC3339),
+			"secretary_confirmed": secConfirmed,
+			"member_confirmed":    memConfirmed,
+		})
+	}
+	if attendance == nil {
+		attendance = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, attendance)
+}
+
+func (h *ScopedAssemblyHandler) registerAttendance(w http.ResponseWriter, r *http.Request) {
+	sessionID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+	var req struct {
+		UserIDs []string `json:"user_ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	userID, _ := h.Auth.GetUserID(r)
+	count := 0
+	for _, uidStr := range req.UserIDs {
+		uid, err := uuid.Parse(uidStr)
+		if err != nil {
+			continue
+		}
+		_, err = h.Pool.Exec(r.Context(), `
+			INSERT INTO assembly_attendance_scoped (session_id, user_id, registered_by)
+			VALUES ($1, $2, $3)
+			ON CONFLICT (session_id, user_id) DO NOTHING`,
+			sessionID, uid, userID)
+		if err == nil {
+			count++
+		}
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"message":    "Asistencia registrada",
+		"registered": count,
+	})
+}
+
+func (h *ScopedAssemblyHandler) listProposals(w http.ResponseWriter, r *http.Request) {
+	scope, scopeID, err := h.getScope(r)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	// Obtener sesiones del scope
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT d.id, d.session_id, d.decision_type, d.description, d.status, d.created_at,
+		       d.voting_deadline, d.voting_duration_minutes, d.executed_at,
+		       COALESCE(sv.votes_for, 0), COALESCE(sv.votes_against, 0), COALESCE(sv.votes_abstain, 0),
+		       COALESCE(sv.total_votes, 0)
+		FROM assembly_decisions_scoped d
+		JOIN assembly_sessions_scoped s ON s.id = d.session_id
+		LEFT JOIN (
+			SELECT decision_id,
+				COUNT(*) FILTER (WHERE vote = 'for') as votes_for,
+				COUNT(*) FILTER (WHERE vote = 'against') as votes_against,
+				COUNT(*) FILTER (WHERE vote = 'abstain') as votes_abstain,
+				COUNT(*) as total_votes
+			FROM assembly_votes_scoped GROUP BY decision_id
+		) sv ON sv.decision_id = d.id
+		WHERE s.node_domain = $1 AND s.scope = $2 AND s.scope_id = $3
+		ORDER BY d.created_at DESC`, nodeDomain, scope, scopeID)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	// Obtener total de votantes
+	voters, _ := h.getEligibleVoters(r.Context(), scope, *scopeID)
+	totalVotingMembers := len(voters)
+
+	var proposals []map[string]interface{}
+	for rows.Next() {
+		var id, sessionID uuid.UUID
+		var decisionType, description, status string
+		var createdAt time.Time
+		var votingDeadline *time.Time
+		var votingDurationMinutes *int
+		var executedAt *time.Time
+		var votesFor, votesAgainst, votesAbstain, totalVotes int
+		rows.Scan(&id, &sessionID, &decisionType, &description, &status, &createdAt,
+			&votingDeadline, &votingDurationMinutes, &executedAt,
+			&votesFor, &votesAgainst, &votesAbstain, &totalVotes)
+
+		notVoted := totalVotingMembers - totalVotes
+		if notVoted < 0 {
+			notVoted = 0
+		}
+
+		proposals = append(proposals, map[string]interface{}{
+			"id":                      id.String(),
+			"session_id":              sessionID.String(),
+			"proposal_type":           decisionType,
+			"description":             description,
+			"status":                  status,
+			"created_at":              createdAt,
+			"voting_deadline":         derefTime(votingDeadline),
+			"voting_duration_minutes": derefInt(votingDurationMinutes),
+			"executed_at":             derefTime(executedAt),
+			"votes_for":               votesFor,
+			"votes_against":           votesAgainst,
+			"votes_abstain":           votesAbstain,
+			"votes_not_cast":          notVoted,
+			"total_voting_members":    totalVotingMembers,
+		})
+	}
+	if proposals == nil {
+		proposals = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, proposals)
+}
+
+func (h *ScopedAssemblyHandler) createProposal(w http.ResponseWriter, r *http.Request) {
+	scope, scopeID, err := h.getScope(r)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	var req struct {
+		SessionID             string                 `json:"session_id"`
+		ProposalType          string                 `json:"proposal_type"`
+		Description           string                 `json:"description"`
+		Parameters            map[string]interface{} `json:"parameters"`
+		VotingDurationMinutes int                    `json:"voting_duration_minutes"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.Description == "" {
+		writeError(w, 400, "description is required")
+		return
+	}
+	if req.ProposalType == "" {
+		req.ProposalType = "free_proposal"
+	}
+	if req.VotingDurationMinutes == 0 {
+		req.VotingDurationMinutes = 1440
+	}
+
+	// Buscar o crear sesion activa
+	var sessionID uuid.UUID
+	if req.SessionID != "" {
+		sessionID, err = uuid.Parse(req.SessionID)
+		if err != nil {
+			writeError(w, 400, "invalid session_id")
+			return
+		}
+	} else {
+		// Buscar sesion activa o scheduled
+		err = h.Pool.QueryRow(r.Context(), `
+			SELECT id FROM assembly_sessions_scoped
+			WHERE node_domain = $1 AND scope = $2 AND scope_id = $3
+			AND status IN ('scheduled', 'active', 'waiting_quorum')
+			ORDER BY created_at DESC LIMIT 1`, nodeDomain, scope, scopeID).Scan(&sessionID)
+		if err != nil {
+			// Crear sesion automatica
+			sessionID = uuid.New()
+			h.Pool.Exec(r.Context(), `
+				INSERT INTO assembly_sessions_scoped (id, node_domain, scope, scope_id, session_type, title, start_time, status)
+				VALUES ($1, $2, $3, $4, 'ordinaria', 'Sesion automatica', NOW(), 'active')`,
+				sessionID, nodeDomain, scope, scopeID)
+		}
+	}
+
+	newValue, _ := json.Marshal(req.Parameters)
+
+	id := uuid.New()
+	_, err = h.Pool.Exec(r.Context(), `
+		INSERT INTO assembly_decisions_scoped (id, session_id, decision_type, description, new_value, required_signatures, status, voting_duration_minutes)
+		VALUES ($1, $2, $3, $4, $5, 1, 'proposed', $6)`,
+		id, sessionID, req.ProposalType, req.Description, newValue, req.VotingDurationMinutes)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	// Auto-agregar a la minuta
+	appendScopedMinutes(h.Pool, sessionID, fmt.Sprintf("- [Propuesta] %s: %s", req.ProposalType, req.Description))
+
+	writeJSON(w, 201, map[string]interface{}{
+		"id":                      id.String(),
+		"status":                  "proposed",
+		"voting_duration_minutes": req.VotingDurationMinutes,
+		"message":                 "Propuesta creada. La asamblea debe revisarla y abrir la votacion.",
+	})
+}
+
+func (h *ScopedAssemblyHandler) openVoting(w http.ResponseWriter, r *http.Request) {
+	decisionID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+
+	var status, decisionType, description string
+	var votingDurationMinutes int
+	var sessionID uuid.UUID
+	h.Pool.QueryRow(r.Context(), `
+		SELECT status, decision_type, description, voting_duration_minutes, session_id
+		FROM assembly_decisions_scoped WHERE id = $1`, decisionID).
+		Scan(&status, &decisionType, &description, &votingDurationMinutes, &sessionID)
+	if status == "" {
+		writeError(w, 404, "propuesta no encontrada")
+		return
+	}
+	if status != "proposed" {
+		writeError(w, 400, "esta propuesta no esta pendiente de revision")
+		return
+	}
+	if votingDurationMinutes == 0 {
+		votingDurationMinutes = 1440
+	}
+
+	userID, _ := h.Auth.GetUserID(r)
+	_, err = h.Pool.Exec(r.Context(), `
+		UPDATE assembly_decisions_scoped
+		SET status = 'pending',
+		    voting_deadline = NOW() + ($1 || ' minutes')::INTERVAL,
+		    approved_for_voting_by = $2,
+		    approved_for_voting_at = NOW()
+		WHERE id = $3`,
+		votingDurationMinutes, userID, decisionID)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	appendScopedMinutes(h.Pool, sessionID, fmt.Sprintf("- [Votacion abierta] %s: %s (duracion: %d min)", decisionType, description, votingDurationMinutes))
+
+	writeJSON(w, 200, map[string]interface{}{
+		"id":      decisionID.String(),
+		"status":  "pending",
+		"message": "Votacion abierta",
+	})
+}
+
+func (h *ScopedAssemblyHandler) voteProposal(w http.ResponseWriter, r *http.Request) {
+	decisionID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+	var req struct {
+		Vote   string `json:"vote"`
+		Reason string `json:"reason"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.Vote != "for" && req.Vote != "against" && req.Vote != "abstain" {
+		writeError(w, 400, "vote must be 'for', 'against' or 'abstain'")
+		return
+	}
+
+	userID, err := h.Auth.GetUserID(r)
+	if err != nil {
+		writeError(w, 401, "authentication required")
+		return
+	}
+
+	// Verificar estado y deadline
+	var status string
+	var votingDeadline *time.Time
+	var sessionID uuid.UUID
+	h.Pool.QueryRow(r.Context(), `SELECT status, voting_deadline, session_id FROM assembly_decisions_scoped WHERE id = $1`, decisionID).Scan(&status, &votingDeadline, &sessionID)
+	if status != "pending" {
+		writeError(w, 400, "esta propuesta ya no acepta votos (estado: "+status+")")
+		return
+	}
+	if votingDeadline != nil && votingDeadline.Before(time.Now()) {
+		h.Pool.Exec(r.Context(), `UPDATE assembly_decisions_scoped SET status = 'expired' WHERE id = $1`, decisionID)
+		writeError(w, 400, "el tiempo de votacion ha expirado")
+		return
+	}
+
+	// Verificar que el votante es miembro elegible
+	scope, scopeID, err := h.getScope(r)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	voters, _ := h.getEligibleVoters(r.Context(), scope, *scopeID)
+	isEligible := false
+	for _, v := range voters {
+		if v == userID {
+			isEligible = true
+			break
+		}
+	}
+
+	// En asamblea presencial, verificar asistencia
+	var isPresential bool
+	h.Pool.QueryRow(r.Context(), `SELECT is_presential FROM assembly_sessions_scoped WHERE id = $1`, sessionID).Scan(&isPresential)
+	if isPresential {
+		var isPresent int
+		h.Pool.QueryRow(r.Context(), `SELECT COUNT(*) FROM assembly_attendance_scoped WHERE session_id = $1 AND user_id = $2 AND secretary_confirmed = true AND member_confirmed = true`, sessionID, userID).Scan(&isPresent)
+		if isPresent == 0 {
+			writeError(w, 403, "esta votacion es presencial. Solo pueden votar los miembros presentes con doble confirmacion.")
+			return
+		}
+	} else if !isEligible {
+		writeError(w, 403, "no eres miembro de esta organizacion/departamento con derecho a voto")
+		return
+	}
+
+	_, err = h.Pool.Exec(r.Context(), `
+		INSERT INTO assembly_votes_scoped (decision_id, voter_id, vote, reason)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (decision_id, voter_id) DO UPDATE SET vote = $3, reason = $4`,
+		decisionID, userID, req.Vote, req.Reason)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{"message": "Voto registrado"})
+}
+
+func (h *ScopedAssemblyHandler) executeProposal(w http.ResponseWriter, r *http.Request) {
+	decisionID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+
+	var status, decisionType, description string
+	var votingDeadline *time.Time
+	var sessionID uuid.UUID
+	h.Pool.QueryRow(r.Context(), `SELECT status, decision_type, description, voting_deadline, session_id FROM assembly_decisions_scoped WHERE id = $1`, decisionID).
+		Scan(&status, &decisionType, &description, &votingDeadline, &sessionID)
+	if status == "" {
+		writeError(w, 404, "propuesta no encontrada")
+		return
+	}
+	if status == "pending" && votingDeadline != nil && votingDeadline.Before(time.Now()) {
+		h.Pool.Exec(r.Context(), `UPDATE assembly_decisions_scoped SET status = 'expired' WHERE id = $1`, decisionID)
+		writeError(w, 400, "el tiempo de votacion ha expirado")
+		return
+	}
+	if status != "pending" && status != "approved" {
+		writeError(w, 400, "la propuesta no esta en votacion")
+		return
+	}
+
+	// Contar votos
+	var votesFor, votesAgainst, votesAbstain int
+	h.Pool.QueryRow(r.Context(), `
+		SELECT
+			COUNT(*) FILTER (WHERE vote = 'for'),
+			COUNT(*) FILTER (WHERE vote = 'against'),
+			COUNT(*) FILTER (WHERE vote = 'abstain')
+		FROM assembly_votes_scoped WHERE decision_id = $1`, decisionID).Scan(&votesFor, &votesAgainst, &votesAbstain)
+
+	// Miembros elegibles
+	scope, scopeID, err := h.getScope(r)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	voters, _ := h.getEligibleVoters(r.Context(), scope, *scopeID)
+	totalVotingMembers := len(voters)
+	totalVotes := votesFor + votesAgainst + votesAbstain
+	notVoted := totalVotingMembers - totalVotes
+	if notVoted < 0 {
+		notVoted = 0
+	}
+
+	// Aprobacion: mayoria simple (mas a favor que en contra)
+	approved := votesFor > votesAgainst
+
+	if approved {
+		h.Pool.Exec(r.Context(), `UPDATE assembly_decisions_scoped SET status = 'executed', executed_at = NOW() WHERE id = $1`, decisionID)
+		appendScopedMinutes(h.Pool, sessionID, fmt.Sprintf("- [APROBADA] %s: %s (a favor: %d, en contra: %d, abstencion: %d)", decisionType, description, votesFor, votesAgainst, votesAbstain))
+	} else {
+		h.Pool.Exec(r.Context(), `UPDATE assembly_decisions_scoped SET status = 'rejected' WHERE id = $1`, decisionID)
+		appendScopedMinutes(h.Pool, sessionID, fmt.Sprintf("- [RECHAZADA] %s: %s (a favor: %d, en contra: %d, abstencion: %d)", decisionType, description, votesFor, votesAgainst, votesAbstain))
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"id":                   decisionID.String(),
+		"status":               map[bool]string{true: "executed", false: "rejected"}[approved],
+		"votes_for":            votesFor,
+		"votes_against":        votesAgainst,
+		"votes_abstain":        votesAbstain,
+		"votes_not_cast":       notVoted,
+		"total_voting_members": totalVotingMembers,
+	})
+}
+
+func (h *ScopedAssemblyHandler) listReports(w http.ResponseWriter, r *http.Request) {
+	scope, scopeID, err := h.getScope(r)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	voters, _ := h.getEligibleVoters(r.Context(), scope, *scopeID)
+	totalVotingMembers := len(voters)
+
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT d.id, d.decision_type, d.description, d.status, d.created_at, d.executed_at,
+		       d.voting_deadline, d.voting_duration_minutes,
+		       COALESCE(sv.votes_for, 0), COALESCE(sv.votes_against, 0), COALESCE(sv.votes_abstain, 0),
+		       COALESCE(sv.total_votes, 0)
+		FROM assembly_decisions_scoped d
+		JOIN assembly_sessions_scoped s ON s.id = d.session_id
+		LEFT JOIN (
+			SELECT decision_id,
+				COUNT(*) FILTER (WHERE vote = 'for') as votes_for,
+				COUNT(*) FILTER (WHERE vote = 'against') as votes_against,
+				COUNT(*) FILTER (WHERE vote = 'abstain') as votes_abstain,
+				COUNT(*) as total_votes
+			FROM assembly_votes_scoped GROUP BY decision_id
+		) sv ON sv.decision_id = d.id
+		WHERE s.node_domain = $1 AND s.scope = $2 AND s.scope_id = $3
+		ORDER BY d.created_at DESC LIMIT 200`, nodeDomain, scope, scopeID)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	type Report struct {
+		ID                 string  `json:"id"`
+		ProposalType       string  `json:"proposal_type"`
+		Description        string  `json:"description"`
+		Status             string  `json:"status"`
+		CreatedAt          string  `json:"created_at"`
+		ExecutedAt         string  `json:"executed_at"`
+		VotesFor           int     `json:"votes_for"`
+		VotesAgainst       int     `json:"votes_against"`
+		VotesAbstain       int     `json:"votes_abstain"`
+		VotesNotCast       int     `json:"votes_not_cast"`
+		TotalVotesCast     int     `json:"total_votes_cast"`
+		TotalVotingMembers int     `json:"total_voting_members"`
+		ParticipationPct   float64 `json:"participation_pct"`
+	}
+
+	var reports []Report
+	for rows.Next() {
+		var id uuid.UUID
+		var decisionType, description, status string
+		var createdAt time.Time
+		var executedAt *time.Time
+		var votingDeadline *time.Time
+		var votingDurationMinutes *int
+		var votesFor, votesAgainst, votesAbstain, totalVotes int
+		rows.Scan(&id, &decisionType, &description, &status, &createdAt, &executedAt,
+			&votingDeadline, &votingDurationMinutes,
+			&votesFor, &votesAgainst, &votesAbstain, &totalVotes)
+
+		notVoted := totalVotingMembers - totalVotes
+		if notVoted < 0 {
+			notVoted = 0
+		}
+		participationPct := 0.0
+		if totalVotingMembers > 0 {
+			participationPct = (float64(totalVotes) / float64(totalVotingMembers)) * 100
+		}
+
+		reports = append(reports, Report{
+			ID:                 id.String(),
+			ProposalType:       decisionType,
+			Description:        description,
+			Status:             status,
+			CreatedAt:          createdAt.Format(time.RFC3339),
+			ExecutedAt:         derefTime(executedAt),
+			VotesFor:           votesFor,
+			VotesAgainst:       votesAgainst,
+			VotesAbstain:       votesAbstain,
+			VotesNotCast:       notVoted,
+			TotalVotesCast:     totalVotes,
+			TotalVotingMembers: totalVotingMembers,
+			ParticipationPct:   participationPct,
+		})
+	}
+	if reports == nil {
+		reports = []Report{}
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"reports":              reports,
+		"total_voting_members": totalVotingMembers,
+	})
+}
+
+// appendScopedMinutes agrega una linea a la minuta de una sesion scoped
+func appendScopedMinutes(pool *pgxpool.Pool, sessionID uuid.UUID, entry string) {
+	timestamp := time.Now().Format("15:04")
+	line := fmt.Sprintf("[%s] %s\n", timestamp, entry)
+	pool.Exec(context.Background(), `
+		UPDATE assembly_sessions_scoped
+		SET minutes = COALESCE(minutes, '') || $1,
+		    minutes_updated_at = NOW()
+		WHERE id = $2`, line, sessionID)
+}

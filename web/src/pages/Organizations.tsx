@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
-import { Users, Plus, HelpCircle, X, Crown, Trash2, Key } from 'lucide-react'
+import { Users, Plus, HelpCircle, X, Crown, Trash2, Key, Vote as VoteIcon } from 'lucide-react'
 import { EntitySelector } from '../components/EntitySelector'
 import { useConfig } from '../hooks/useConfig'
+import ScopedAssembly from '../components/ScopedAssembly'
 
 const ORG_TYPE_OPTIONS = [
   {
@@ -70,6 +71,7 @@ export default function Organizations() {
   const [allUsers, setAllUsers] = useState<any[]>([])
   const [boardForm, setBoardForm] = useState({ user_id: '', position: 'presidente' })
   const [multisigOrgId, setMultisigOrgId] = useState<string | null>(null)
+  const [assemblyOrgId, setAssemblyOrgId] = useState<string | null>(null)
   const [multisigForm, setMultisigForm] = useState({ required_signatures: 1, authorized_signers: [] as string[] })
   const [form, setForm] = useState({
     username: '',
@@ -391,6 +393,13 @@ export default function Organizations() {
                     <Key size={14} />
                     Multi-firma
                   </button>
+                  <button
+                    onClick={() => setAssemblyOrgId(assemblyOrgId === org.id ? null : org.id)}
+                    className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                  >
+                    <VoteIcon size={14} />
+                    Asamblea
+                  </button>
                 </div>
               )}
             </div>
@@ -524,6 +533,12 @@ export default function Organizations() {
                 >
                   Guardar configuracion
                 </button>
+              </div>
+            )}
+
+            {assemblyOrgId === org.id && (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <ScopedAssembly scope="organization" scopeId={org.id} scopeName={org.display_name || org.username} />
               </div>
             )}
           </div>
