@@ -26,6 +26,8 @@ type MergeConflict struct {
 	NodeADomain        string     `json:"node_a_domain"`
 	NodeBDomain        string     `json:"node_b_domain"`
 	NationalID         string     `json:"national_id"`
+	PassportNumber     string     `json:"passport_number"`
+	MatchType          string     `json:"match_type"`
 	UserAID            *uuid.UUID `json:"user_a_id"`
 	UserBID            *uuid.UUID `json:"user_b_id"`
 	UserAName          string     `json:"user_a_name"`
@@ -65,24 +67,40 @@ func (h *MergeConflictHandler) scanConflicts(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Buscar usuarios con mismo national_id en ambos nodos
+	// Buscar usuarios duplicados por national_id OR passport_number en ambos nodos
+	// Un usuario puede coincidir por cedula, por pasaporte, o por ambos
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT
-			u1.national_id,
+			COALESCE(u1.national_id, '') AS nat_id,
+			COALESCE(u1.passport_number, '') AS passport,
+			CASE
+				WHEN u1.national_id <> '' AND u1.passport_number <> '' AND u1.national_id = u2.national_id AND u1.passport_number = u2.passport_number THEN 'both'
+				WHEN u1.national_id <> '' AND u1.national_id = u2.national_id THEN 'national_id'
+				WHEN u1.passport_number <> '' AND u1.passport_number = u2.passport_number THEN 'passport'
+				ELSE 'national_id'
+			END AS match_type,
 			u1.id, u1.node_domain, COALESCE(u1.display_name, u1.username),
 			u2.id, u2.node_domain, COALESCE(u2.display_name, u2.username),
 			COALESCE(u1.credit_limit, 0) - COALESCE(u1.debit_limit, 0),
 			COALESCE(u2.credit_limit, 0) - COALESCE(u2.debit_limit, 0)
 		FROM users u1
-		INNER JOIN users u2 ON u1.national_id = u2.national_id AND u1.national_id <> ''
-		WHERE u1.node_domain = $1 AND u2.node_domain = $2
-		  AND u1.id < u2.id
+		INNER JOIN users u2 ON
+			(u1.node_domain = $1 AND u2.node_domain = $2)
+			AND (
+				(u1.national_id <> '' AND u1.national_id = u2.national_id)
+				OR
+				(u1.passport_number <> '' AND u1.passport_number = u2.passport_number)
+			)
+		WHERE u1.id < u2.id
 		  AND NOT EXISTS (
 		    SELECT 1 FROM node_merge_conflicts c
-		    WHERE c.national_id = u1.national_id
-		      AND ((c.node_a_domain = $1 AND c.node_b_domain = $2)
+		    WHERE ((c.node_a_domain = $1 AND c.node_b_domain = $2)
 		           OR (c.node_a_domain = $2 AND c.node_b_domain = $1))
-		      AND c.status NOT IN ('resolved', 'blocked')
+		      AND c.status NOT IN ('resolved', 'blocked', 'executed')
+		      AND (
+		        (c.national_id <> '' AND c.national_id = u1.national_id)
+		        OR (c.passport_number <> '' AND c.passport_number = u1.passport_number)
+		      )
 		  )`,
 		h.nodeDomain, req.OtherNodeDomain)
 	if err != nil {
@@ -93,36 +111,38 @@ func (h *MergeConflictHandler) scanConflicts(w http.ResponseWriter, r *http.Requ
 
 	var conflicts []MergeConflict
 	for rows.Next() {
-		var natID string
+		var natID, passportNum, matchType string
 		var userAID, userBID uuid.UUID
 		var nodeA, nodeB, nameA, nameB string
 		var balA, balB int64
-		if err := rows.Scan(&natID, &userAID, &nodeA, &nameA, &userBID, &nodeB, &nameB, &balA, &balB); err != nil {
+		if err := rows.Scan(&natID, &passportNum, &matchType, &userAID, &nodeA, &nameA, &userBID, &nodeB, &nameB, &balA, &balB); err != nil {
 			continue
 		}
 		// Crear el conflicto en la BD
 		var conflictID uuid.UUID
 		err := h.Pool.QueryRow(r.Context(), `
-			INSERT INTO node_merge_conflicts (node_a_domain, node_b_domain, national_id, user_a_id, user_b_id, user_a_name, user_b_name, balance_a, balance_b, status)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending')
+			INSERT INTO node_merge_conflicts (node_a_domain, node_b_domain, national_id, passport_number, match_type, user_a_id, user_b_id, user_a_name, user_b_name, balance_a, balance_b, status)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending')
 			ON CONFLICT DO NOTHING
 			RETURNING id`,
-			nodeA, nodeB, natID, userAID, userBID, nameA, nameB, balA, balB).Scan(&conflictID)
+			nodeA, nodeB, natID, passportNum, matchType, userAID, userBID, nameA, nameB, balA, balB).Scan(&conflictID)
 		if err != nil {
 			continue
 		}
 		conflicts = append(conflicts, MergeConflict{
-			ID:          conflictID,
-			NodeADomain: nodeA,
-			NodeBDomain: nodeB,
-			NationalID:  natID,
-			UserAID:     &userAID,
-			UserBID:     &userBID,
-			UserAName:   nameA,
-			UserBName:   nameB,
-			BalanceA:    balA,
-			BalanceB:    balB,
-			Status:      "pending",
+			ID:             conflictID,
+			NodeADomain:    nodeA,
+			NodeBDomain:    nodeB,
+			NationalID:     natID,
+			PassportNumber: passportNum,
+			MatchType:      matchType,
+			UserAID:        &userAID,
+			UserBID:        &userBID,
+			UserAName:      nameA,
+			UserBName:      nameB,
+			BalanceA:       balA,
+			BalanceB:       balB,
+			Status:         "pending",
 		})
 	}
 
@@ -139,9 +159,10 @@ func (h *MergeConflictHandler) scanConflicts(w http.ResponseWriter, r *http.Requ
 // listConflicts lista los conflictos de fusion pendientes
 func (h *MergeConflictHandler) listConflicts(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
-	query := `SELECT id, node_a_domain, node_b_domain, national_id, user_a_id, user_b_id,
-	          user_a_name, user_b_name, status, proposed_resolution, balance_a, balance_b,
-	          balance_action, vote_a_status, vote_b_status, resolved_at, resolution_notes, created_at
+	query := `SELECT id, node_a_domain, node_b_domain, national_id, passport_number, match_type,
+	          user_a_id, user_b_id, user_a_name, user_b_name, status, proposed_resolution,
+	          balance_a, balance_b, balance_action, vote_a_status, vote_b_status,
+	          resolved_at, resolution_notes, created_at
 	          FROM node_merge_conflicts WHERE $1 IN (node_a_domain, node_b_domain)`
 	args := []interface{}{h.nodeDomain}
 	if status != "" {
@@ -160,7 +181,7 @@ func (h *MergeConflictHandler) listConflicts(w http.ResponseWriter, r *http.Requ
 	var conflicts []MergeConflict
 	for rows.Next() {
 		var c MergeConflict
-		if err := rows.Scan(&c.ID, &c.NodeADomain, &c.NodeBDomain, &c.NationalID,
+		if err := rows.Scan(&c.ID, &c.NodeADomain, &c.NodeBDomain, &c.NationalID, &c.PassportNumber, &c.MatchType,
 			&c.UserAID, &c.UserBID, &c.UserAName, &c.UserBName,
 			&c.Status, &c.ProposedResolution, &c.BalanceA, &c.BalanceB,
 			&c.BalanceAction, &c.VoteAStatus, &c.VoteBStatus,
@@ -184,11 +205,12 @@ func (h *MergeConflictHandler) getConflict(w http.ResponseWriter, r *http.Reques
 	}
 	var c MergeConflict
 	err = h.Pool.QueryRow(r.Context(), `
-		SELECT id, node_a_domain, node_b_domain, national_id, user_a_id, user_b_id,
-		       user_a_name, user_b_name, status, proposed_resolution, balance_a, balance_b,
-		       balance_action, vote_a_status, vote_b_status, resolved_at, resolution_notes, created_at
+		SELECT id, node_a_domain, node_b_domain, national_id, passport_number, match_type,
+		       user_a_id, user_b_id, user_a_name, user_b_name, status, proposed_resolution,
+		       balance_a, balance_b, balance_action, vote_a_status, vote_b_status,
+		       resolved_at, resolution_notes, created_at
 		FROM node_merge_conflicts WHERE id = $1 AND $2 IN (node_a_domain, node_b_domain)`,
-		id, h.nodeDomain).Scan(&c.ID, &c.NodeADomain, &c.NodeBDomain, &c.NationalID,
+		id, h.nodeDomain).Scan(&c.ID, &c.NodeADomain, &c.NodeBDomain, &c.NationalID, &c.PassportNumber, &c.MatchType,
 		&c.UserAID, &c.UserBID, &c.UserAName, &c.UserBName,
 		&c.Status, &c.ProposedResolution, &c.BalanceA, &c.BalanceB,
 		&c.BalanceAction, &c.VoteAStatus, &c.VoteBStatus,
@@ -208,20 +230,20 @@ func (h *MergeConflictHandler) proposeResolution(w http.ResponseWriter, r *http.
 		return
 	}
 	var req struct {
-		ProposedResolution string `json:"proposed_resolution"` // 'a', 'b', 'both'
-		BalanceAction      string `json:"balance_action"`      // transfer, forgive_debt, remove_balance, keep_both
+		ProposedResolution string `json:"proposed_resolution"` // 'a' o 'b' (no 'both')
+		BalanceAction      string `json:"balance_action"`      // combine (suma algebraica), forgive_debt, remove_balance
 		Notes              string `json:"notes"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")
 		return
 	}
-	if req.ProposedResolution != "a" && req.ProposedResolution != "b" && req.ProposedResolution != "both" {
-		writeError(w, 400, "proposed_resolution must be 'a', 'b', or 'both'")
+	if req.ProposedResolution != "a" && req.ProposedResolution != "b" {
+		writeError(w, 400, "proposed_resolution must be 'a' or 'b' (no membresia dual)")
 		return
 	}
-	if req.BalanceAction != "transfer" && req.BalanceAction != "forgive_debt" && req.BalanceAction != "remove_balance" && req.BalanceAction != "keep_both" {
-		writeError(w, 400, "balance_action must be transfer, forgive_debt, remove_balance, or keep_both")
+	if req.BalanceAction != "combine" && req.BalanceAction != "forgive_debt" && req.BalanceAction != "remove_balance" {
+		writeError(w, 400, "balance_action must be combine, forgive_debt, or remove_balance")
 		return
 	}
 
@@ -389,30 +411,23 @@ func (h *MergeConflictHandler) executeResolution(w http.ResponseWriter, r *http.
 
 	var keepUserID, removeUserID *uuid.UUID
 	var keepNode, removeNode string
-	var removeBalance int64
+	var keepBalance, removeBalance int64
 
 	if c.ProposedResolution == "a" {
 		keepUserID = c.UserAID
 		removeUserID = c.UserBID
 		keepNode = c.NodeADomain
 		removeNode = c.NodeBDomain
+		keepBalance = c.BalanceA
 		removeBalance = c.BalanceB
-	} else if c.ProposedResolution == "b" {
+	} else {
+		// 'b'
 		keepUserID = c.UserBID
 		removeUserID = c.UserAID
 		keepNode = c.NodeBDomain
 		removeNode = c.NodeADomain
+		keepBalance = c.BalanceB
 		removeBalance = c.BalanceA
-	} else {
-		// 'both' - se permite al usuario estar en ambos nodos (dual membership)
-		// No se elimina ningun usuario, solo se registra
-		tx.Exec(r.Context(), `UPDATE node_merge_conflicts SET status = 'executed', resolved_at = NOW() WHERE id = $1`, id)
-		tx.Commit(r.Context())
-		writeJSON(w, 200, map[string]interface{}{
-			"status":  "executed",
-			"message": "Membresia dual permitida. El usuario puede estar en ambos nodos.",
-		})
-		return
 	}
 
 	if keepUserID == nil || removeUserID == nil {
@@ -420,24 +435,29 @@ func (h *MergeConflictHandler) executeResolution(w http.ResponseWriter, r *http.
 		return
 	}
 
-	// Transferir saldo si es positivo y la accion es 'transfer'
-	if c.BalanceAction == "transfer" && removeBalance > 0 {
-		// Transferir el saldo positivo del nodo removido al nodo que se queda
-		tx.Exec(r.Context(), `
-			UPDATE users SET credit_limit = credit_limit + $2 WHERE id = $1`,
-			keepUserID, removeBalance)
-	}
+	// Combinar saldos: suma algebraica de ambos balances
+	// Ej: +10 y -20 = -10 (el usuario queda con deuda neta)
+	// Ej: +10 y +5 = +15 (el usuario queda con mas saldo)
+	// Ej: -10 y -20 = -30 (mas deuda)
+	combinedBalance := keepBalance + removeBalance
 
-	// Si el saldo es deuda (negativo) y la accion es 'forgive_debt', no se transfiere
-	// Si es 'transfer', se transfiere la deuda
-	if c.BalanceAction == "transfer" && removeBalance < 0 {
-		tx.Exec(r.Context(), `
-			UPDATE users SET debit_limit = debit_limit + abs($2) WHERE id = $1`,
-			keepUserID, removeBalance)
+	if c.BalanceAction == "combine" {
+		// Sumar algebraicamente: ajustar credit_limit y debit_limit
+		if combinedBalance >= 0 {
+			// Saldo positivo neto: aumentar credit_limit
+			tx.Exec(r.Context(), `
+				UPDATE users SET credit_limit = credit_limit + $2 WHERE id = $1`,
+				keepUserID, combinedBalance)
+		} else {
+			// Deuda neta: aumentar debit_limit
+			tx.Exec(r.Context(), `
+				UPDATE users SET debit_limit = debit_limit + abs($2) WHERE id = $1`,
+				keepUserID, combinedBalance)
+		}
 	}
-
-	// 'remove_balance' simplemente descarta el saldo (positivo o negativo)
-	// 'keep_both' no hace nada con el saldo
+	// 'forgive_debt': si el nodo removido tenia deuda, se condona (no se transfiere)
+	//   Si tenia saldo positivo, se pierde (no se transfiere)
+	// 'remove_balance': se descarta el saldo del nodo removido (positivo o negativo)
 
 	// Marcar al usuario del nodo removido como 'migrated'
 	tx.Exec(r.Context(), `
@@ -453,11 +473,14 @@ func (h *MergeConflictHandler) executeResolution(w http.ResponseWriter, r *http.
 	}
 
 	writeJSON(w, 200, map[string]interface{}{
-		"status":         "executed",
-		"message":        fmt.Sprintf("Usuario migrado al nodo %s. Saldo procesado: %d TQ (%s)", keepNode, removeBalance, c.BalanceAction),
-		"keep_node":      keepNode,
-		"remove_node":    removeNode,
-		"balance_action": c.BalanceAction,
+		"status":           "executed",
+		"message":          fmt.Sprintf("Usuario migrado al nodo %s. Saldo combinado: %d TQ (%s). Nodo removido: %s", keepNode, combinedBalance, c.BalanceAction, removeNode),
+		"keep_node":        keepNode,
+		"remove_node":      removeNode,
+		"combined_balance": combinedBalance,
+		"balance_a":        c.BalanceA,
+		"balance_b":        c.BalanceB,
+		"balance_action":   c.BalanceAction,
 	})
 }
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
-import { HelpCircle, User, Key, CreditCard, History, Shield, TrendingUp, Plus, Trash2 } from 'lucide-react'
+import { HelpCircle, User, Key, CreditCard, History, Shield, TrendingUp, Plus, Trash2, Globe } from 'lucide-react'
 
 // === Utilidades WebAuthn ===
 
@@ -68,6 +68,8 @@ export default function Profile() {
   const [nationalID, setNationalID] = useState('')
   const [nationalIDType, setNationalIDType] = useState('')
   const [nationalIDCountry, setNationalIDCountry] = useState('')
+  const [passportNumber, setPassportNumber] = useState('')
+  const [passportCountry, setPassportCountry] = useState('')
   const [savingID, setSavingID] = useState(false)
   const [idMsg, setIdMsg] = useState('')
 
@@ -77,6 +79,8 @@ export default function Profile() {
       setNationalID(d?.national_id || '')
       setNationalIDType(d?.national_id_type || '')
       setNationalIDCountry(d?.national_id_country || '')
+      setPassportNumber(d?.passport_number || '')
+      setPassportCountry(d?.passport_country || '')
       // Cargar nivel del usuario
       setLevelLoading(true)
       if (d?.member_level_id) {
@@ -129,6 +133,8 @@ export default function Profile() {
         national_id: nationalID,
         national_id_type: nationalIDType,
         national_id_country: nationalIDCountry,
+        passport_number: passportNumber,
+        passport_country: passportCountry,
       })
       setIdMsg('Identificacion guardada correctamente')
     } catch (e: any) {
@@ -320,6 +326,41 @@ export default function Profile() {
             className="btn-primary text-sm flex items-center gap-2"
           >
             {savingID ? 'Guardando...' : 'Guardar identificacion'}
+          </button>
+        </div>
+      </div>
+
+      {/* Pasaporte (documento internacional) */}
+      <div className="card">
+        <h2 className="font-semibold flex items-center gap-2 mb-3"><Globe size={18} />Pasaporte (opcional)</h2>
+        <p className="text-xs text-gray-500 mb-3">El pasaporte es un documento de identidad internacional unico a nivel mundial. No todos tienen pasaporte, pero si lo tienes, ayuda a validar tu identidad entre nodos federados. Puedes registrarte con ID nacional, pasaporte, o ambos.</p>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Numero de pasaporte</label>
+            <input
+              type="text"
+              value={passportNumber}
+              onChange={(e) => setPassportNumber(e.target.value)}
+              placeholder="Ej: ABC123456"
+              className="input text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Pais emisor del pasaporte</label>
+            <input
+              type="text"
+              value={passportCountry}
+              onChange={(e) => setPassportCountry(e.target.value)}
+              placeholder="Ej: Venezuela, Colombia..."
+              className="input text-sm"
+            />
+          </div>
+          <button
+            onClick={saveNationalID}
+            disabled={savingID}
+            className="btn-primary text-sm flex items-center gap-2"
+          >
+            {savingID ? 'Guardando...' : 'Guardar pasaporte'}
           </button>
         </div>
       </div>

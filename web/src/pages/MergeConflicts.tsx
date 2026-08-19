@@ -13,7 +13,7 @@ export default function MergeConflicts() {
   const [scanning, setScanning] = useState(false)
   const [scanResult, setScanResult] = useState<any>(null)
   const [selectedConflict, setSelectedConflict] = useState<any>(null)
-  const [resolution, setResolution] = useState({ proposed_resolution: 'a', balance_action: 'transfer', notes: '' })
+  const [resolution, setResolution] = useState({ proposed_resolution: 'a', balance_action: 'combine', notes: '' })
   const [vote, setVote] = useState('')
 
   const load = () => {
@@ -170,7 +170,11 @@ export default function MergeConflicts() {
                   <span className={`text-xs px-2 py-0.5 rounded ${statusColor(c.status)}`}>
                     {statusLabel(c.status)}
                   </span>
-                  <span className="text-xs text-gray-500">ID: {c.national_id}</span>
+                  <span className="text-xs text-gray-500">
+                    {c.match_type === 'passport' ? 'Coincidencia: Pasaporte' : c.match_type === 'both' ? 'Coincidencia: ID + Pasaporte' : 'Coincidencia: ID Nacional'}
+                  </span>
+                  {c.national_id && <span className="text-xs text-gray-400">ID: {c.national_id}</span>}
+                  {c.passport_number && <span className="text-xs text-gray-400">Pass: {c.passport_number}</span>}
                 </div>
               </div>
 
@@ -203,8 +207,8 @@ export default function MergeConflicts() {
               {/* Resolucion propuesta */}
               {c.proposed_resolution && (
                 <div className="text-sm bg-gray-50 p-2 rounded mb-3">
-                  <b>Propuesta:</b> Quedarse en nodo {c.proposed_resolution === 'a' ? c.node_a_domain : c.proposed_resolution === 'b' ? c.node_b_domain : 'ambos'} |
-                  <b> Saldo:</b> {c.balance_action === 'transfer' ? 'Transferir' : c.balance_action === 'forgive_debt' ? 'Condonar deuda' : c.balance_action === 'remove_balance' ? 'Descartar saldo' : 'Mantener ambos'}
+                  <b>Propuesta:</b> Quedarse en nodo {c.proposed_resolution === 'a' ? c.node_a_domain : c.node_b_domain} |
+                  <b> Saldo:</b> {c.balance_action === 'combine' ? 'Combinar (suma algebraica)' : c.balance_action === 'forgive_debt' ? 'Condonar deuda' : 'Descartar saldo'}
                 </div>
               )}
 
@@ -255,22 +259,24 @@ export default function MergeConflicts() {
               >
                 <option value="a">Nodo A ({selectedConflict.node_a_domain})</option>
                 <option value="b">Nodo B ({selectedConflict.node_b_domain})</option>
-                <option value="both">Ambos nodos (membresia dual)</option>
               </select>
+              <p className="text-xs text-gray-400 mt-1">No se permite membresia dual. El usuario se queda en un solo nodo.</p>
             </div>
 
             <div>
-              <label className="label">Que hacer con el saldo?</label>
+              <label className="label">Que hacer con los saldos?</label>
               <select
                 className="input"
                 value={resolution.balance_action}
                 onChange={(e) => setResolution({ ...resolution, balance_action: e.target.value })}
               >
-                <option value="transfer">Transferir saldo al nodo que se queda</option>
+                <option value="combine">Combinar (suma algebraica: +10 y -20 = -10)</option>
                 <option value="forgive_debt">Condonar deuda del nodo removido</option>
                 <option value="remove_balance">Descartar saldo del nodo removido</option>
-                <option value="keep_both">Mantener saldos separados (solo dual)</option>
               </select>
+              <p className="text-xs text-gray-400 mt-1">
+                Combinar: suma ambos saldos (positivo+positivo=mas positivo, negativo+negativo=mas negativo, positivo+negativo=se compensan).
+              </p>
             </div>
 
             <div>

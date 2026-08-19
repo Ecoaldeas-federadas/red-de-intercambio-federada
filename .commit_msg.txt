@@ -1,59 +1,30 @@
-feat: ID nacional + sistema de conflictos de fusion entre nodos
+fix: pasaporte como documento separado + sin membresia dual, combinar saldos
 
-Sistema completo para evitar usuarios duplicados en nodos federados y
-resolver conflictos cuando dos aldeas se confederan.
+Cambios solicitados por el usuario:
 
-## Backend
+1. Pasaporte es documento SEPARADO del ID nacional:
+   - users.passport_number, passport_country (nueva migracion 063)
+   - admission_requests.passport_number, passport_country
+   - User struct, CreateUser, ApproveAdmissionRequest, updateMyContacts
+   - Frontend: seccion separada en Profile y Admission
+   - Validacion: puede registrarse con ID nacional, pasaporte, o ambos
+   - No todos tienen pasaporte, pero los que si pueden validarse por el
 
-Migracion 062:
-- users.national_id, national_id_type, national_id_country
-- admission_requests.national_id, national_id_type, national_id_country
-- Tabla node_merge_conflicts para tracking de conflictos
+2. No membresia dual - eliminar opcion "both":
+   - Solo 'a' o 'b' (el usuario se queda en UN nodo)
+   - No se puede estar en dos nodos a la vez
 
-User struct actualizado con national_id en:
-- GetUser (lectura)
-- CreateUserParams (escritura)
-- CreateAdmissionRequest (guarda ID durante solicitud)
-- ApproveAdmissionRequest (transfiere ID al crear usuario)
-- updateMyContacts (editar ID desde perfil)
+3. Combinar saldos (suma algebraica) en vez de "transfer":
+   - combine: +10 y -20 = -10 (se compensan)
+   - combine: +10 y +5 = +15 (mas positivo)
+   - combine: -10 y -20 = -30 (mas negativo)
+   - forgive_debt: condona deuda del nodo removido
+   - remove_balance: descarta saldo del nodo removido
 
-Nuevo MergeConflictHandler (merge_conflicts.go):
-- POST /api/federation/scan-conflicts: detecta duplicados por national_id
-- GET /api/federation/merge-conflicts: lista conflictos pendientes
-- GET /api/federation/merge-conflicts/{id}: detalle de conflicto
-- POST /api/federation/merge-conflicts/{id}/propose: proponer resolucion
-  (que nodo se queda: a, b, o both; que hacer con saldo: transfer,
-   forgive_debt, remove_balance, keep_both)
-- POST /api/federation/merge-conflicts/{id}/vote: votar (approved/rejected)
-- POST /api/federation/merge-conflicts/{id}/execute: ejecutar migracion
-- HasPendingConflicts: verifica si hay conflictos bloqueando federacion
-
-Flujo de resolucion:
-1. Escanear conflictos con otro nodo
-2. Proponer resolucion (que nodo, que hacer con saldo)
-3. Ambas asambleas votan (approved/rejected)
-4. Si ambas aprueban -> ejecutar migracion
-5. Si alguna rechaza -> bloqueado, no se puede federar
-6. Migracion: transfiere saldo, marca usuario como 'migrated'
-
-## Frontend
-
-Profile.tsx:
-- Seccion "Identificacion Nacional" con tipo, numero, pais
-- Guarda via PUT /auth/me/contacts
-
-Admission.tsx:
-- Campos national_id, national_id_type, national_id_country en formulario
-- Explicacion de para que sirve
-
-MergeConflicts.tsx (nueva pagina):
-- Escanear conflictos con otro nodo
-- Lista conflictos con estado, usuarios, saldos, votos
-- Proponer resolucion (modal)
-- Votar (aprobar/rechazar)
-- Ejecutar migracion
-- Ruta: /app/federation/conflicts
-- Link en sidebar: "Conflictos Fusion"
+4. Deteccion de conflictos por national_id OR passport:
+   - scan-conflicts busca coincidencias por cedula O pasaporte
+   - match_type: 'national_id', 'passport', o 'both'
+   - Frontend muestra que tipo de coincidencia se detecto
 
 Generated with Devin
 

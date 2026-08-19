@@ -691,6 +691,8 @@ func (ah *AuthHandlers) updateMyContacts(w http.ResponseWriter, r *http.Request)
 		NationalID        *string `json:"national_id"`
 		NationalIDType    *string `json:"national_id_type"`
 		NationalIDCountry *string `json:"national_id_country"`
+		PassportNumber    *string `json:"passport_number"`
+		PassportCountry   *string `json:"passport_country"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -715,11 +717,14 @@ func (ah *AuthHandlers) updateMyContacts(w http.ResponseWriter, r *http.Request)
 			quiet_hours_end = $8,
 			national_id = COALESCE($9, national_id),
 			national_id_type = COALESCE($10, national_id_type),
-			national_id_country = COALESCE($11, national_id_country)
+			national_id_country = COALESCE($11, national_id_country),
+			passport_number = COALESCE($12, passport_number),
+			passport_country = COALESCE($13, passport_country)
 		WHERE id = $1`,
 		userID, req.Email, req.Phone, req.TelegramChatID, req.MatrixUserID, req.XmppJID,
 		req.QuietHoursStart, req.QuietHoursEnd,
-		req.NationalID, req.NationalIDType, req.NationalIDCountry)
+		req.NationalID, req.NationalIDType, req.NationalIDCountry,
+		req.PassportNumber, req.PassportCountry)
 	if err != nil {
 		writeError(w, 500, "error updating contacts")
 		return

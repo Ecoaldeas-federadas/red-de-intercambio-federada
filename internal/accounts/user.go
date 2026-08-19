@@ -46,6 +46,8 @@ type User struct {
 	NationalID        string     `json:"national_id"`
 	NationalIDType    string     `json:"national_id_type"`
 	NationalIDCountry string     `json:"national_id_country"`
+	PassportNumber    string     `json:"passport_number"`
+	PassportCountry   string     `json:"passport_country"`
 }
 
 func (a *Accounts) GetUser(ctx context.Context, id uuid.UUID) (*User, error) {
@@ -58,6 +60,7 @@ func (a *Accounts) GetUser(ctx context.Context, id uuid.UUID) (*User, error) {
 			   email, phone, telegram_chat_id, matrix_user_id, xmpp_jid,
 			   quiet_hours_start, quiet_hours_end,
 			   COALESCE(national_id, ''), COALESCE(national_id_type, ''), COALESCE(national_id_country, ''),
+			   COALESCE(passport_number, ''), COALESCE(passport_country, ''),
 			   COALESCE(metadata, '{}'::jsonb)
 		FROM users WHERE id = $1`,
 		id,
@@ -67,6 +70,7 @@ func (a *Accounts) GetUser(ctx context.Context, id uuid.UUID) (*User, error) {
 		&u.Email, &u.Phone, &u.TelegramChatID, &u.MatrixUserID, &u.XmppJID,
 		&u.QuietHoursStart, &u.QuietHoursEnd,
 		&u.NationalID, &u.NationalIDType, &u.NationalIDCountry,
+		&u.PassportNumber, &u.PassportCountry,
 		&metadata)
 	if err != nil {
 		return nil, fmt.Errorf("getting user: %w", err)
@@ -137,6 +141,8 @@ type CreateUserParams struct {
 	NationalID        string
 	NationalIDType    string
 	NationalIDCountry string
+	PassportNumber    string
+	PassportCountry   string
 }
 
 func (a *Accounts) CreateUser(ctx context.Context, p CreateUserParams) (*User, error) {
@@ -145,14 +151,16 @@ func (a *Accounts) CreateUser(ctx context.Context, p CreateUserParams) (*User, e
 		INSERT INTO users (node_domain, username, display_name, account_type, member_level_id,
 						  membership_status, credit_limit, debit_limit, public_key,
 						  encrypted_private_key, encryption_key_salt, admitted_at,
-						  national_id, national_id_type, national_id_country)
-		VALUES ($1, $2, $3, $4, $5, 'active', $6, $7, $8, $9, $10, NOW(), $11, $12, $13)
+						  national_id, national_id_type, national_id_country,
+						  passport_number, passport_country)
+		VALUES ($1, $2, $3, $4, $5, 'active', $6, $7, $8, $9, $10, NOW(), $11, $12, $13, $14, $15)
 		RETURNING id, node_domain, username, display_name, account_type, member_level_id,
 				  has_voice, has_vote, counts_in_quorum, membership_status, admitted_at,
 				  credit_limit, debit_limit, public_key, created_at`,
 		p.NodeDomain, p.Username, p.DisplayName, p.AccountType, p.MemberLevelID,
 		p.CreditLimit, p.DebitLimit, p.PublicKey, p.EncryptedPrivKey, p.KeySalt,
 		p.NationalID, p.NationalIDType, p.NationalIDCountry,
+		p.PassportNumber, p.PassportCountry,
 	).Scan(&u.ID, &u.NodeDomain, &u.Username, &u.DisplayName, &u.AccountType, &u.MemberLevelID,
 		&u.HasVoice, &u.HasVote, &u.CountsInQuorum, &u.MembershipStatus, &u.AdmittedAt,
 		&u.CreditLimit, &u.DebitLimit, &u.PublicKey, &u.CreatedAt)
@@ -235,13 +243,13 @@ type AdmissionRequest struct {
 	RejectionReason  string                 `json:"rejection_reason"`
 }
 
-func (a *Accounts) CreateAdmissionRequest(ctx context.Context, nodeDomain, username, displayName, proposedLevel string, contactInfo map[string]interface{}, nationalID, nationalIDType, nationalIDCountry string) (*AdmissionRequest, error) {
+func (a *Accounts) CreateAdmissionRequest(ctx context.Context, nodeDomain, username, displayName, proposedLevel string, contactInfo map[string]interface{}, nationalID, nationalIDType, nationalIDCountry, passportNumber, passportCountry string) (*AdmissionRequest, error) {
 	var req AdmissionRequest
 	err := a.Pool.QueryRow(ctx, `
-		INSERT INTO admission_requests (node_domain, proposed_username, display_name, proposed_level, contact_info, status, national_id, national_id_type, national_id_country)
-		VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8)
+		INSERT INTO admission_requests (node_domain, proposed_username, display_name, proposed_level, contact_info, status, national_id, national_id_type, national_id_country, passport_number, passport_country)
+		VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, $10)
 		RETURNING id, node_domain, proposed_username, display_name, proposed_level, contact_info, status, submitted_at`,
-		nodeDomain, username, displayName, proposedLevel, contactInfo, nationalID, nationalIDType, nationalIDCountry,
+		nodeDomain, username, displayName, proposedLevel, contactInfo, nationalID, nationalIDType, nationalIDCountry, passportNumber, passportCountry,
 	).Scan(&req.ID, &req.NodeDomain, &req.ProposedUsername, &req.DisplayName, &req.ProposedLevel, &req.ContactInfo, &req.Status, &req.SubmittedAt)
 	if err != nil {
 		return nil, fmt.Errorf("creating admission request: %w", err)
@@ -279,13 +287,15 @@ func (a *Accounts) ListAdmissionRequests(ctx context.Context, nodeDomain, status
 func (a *Accounts) ApproveAdmissionRequest(ctx context.Context, reqID uuid.UUID, reviewerID uuid.UUID) (*User, error) {
 	var req AdmissionRequest
 	var nationalID, nationalIDType, nationalIDCountry string
+	var passportNumber, passportCountry string
 	err := a.Pool.QueryRow(ctx, `
 		UPDATE admission_requests SET status = 'approved', approved_at = NOW(), reviewed_at = NOW(), reviewed_by = $2
 		WHERE id = $1 AND status IN ('pending', 'under_review')
 		RETURNING node_domain, proposed_username, display_name, proposed_level,
-		          COALESCE(national_id, ''), COALESCE(national_id_type, ''), COALESCE(national_id_country, '')`,
+		          COALESCE(national_id, ''), COALESCE(national_id_type, ''), COALESCE(national_id_country, ''),
+		          COALESCE(passport_number, ''), COALESCE(passport_country, '')`,
 		reqID, reviewerID,
-	).Scan(&req.NodeDomain, &req.ProposedUsername, &req.DisplayName, &req.ProposedLevel, &nationalID, &nationalIDType, &nationalIDCountry)
+	).Scan(&req.NodeDomain, &req.ProposedUsername, &req.DisplayName, &req.ProposedLevel, &nationalID, &nationalIDType, &nationalIDCountry, &passportNumber, &passportCountry)
 	if err != nil {
 		return nil, fmt.Errorf("approving admission request: %w", err)
 	}
@@ -308,6 +318,8 @@ func (a *Accounts) ApproveAdmissionRequest(ctx context.Context, reqID uuid.UUID,
 		NationalID:        nationalID,
 		NationalIDType:    nationalIDType,
 		NationalIDCountry: nationalIDCountry,
+		PassportNumber:    passportNumber,
+		PassportCountry:   passportCountry,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("creating user from approved request: %w", err)
