@@ -716,6 +716,15 @@ func (h *ScopedAssemblyHandler) executeProposal(w http.ResponseWriter, r *http.R
 	if approved {
 		h.Pool.Exec(r.Context(), `UPDATE assembly_decisions_scoped SET status = 'executed', executed_at = NOW() WHERE id = $1`, decisionID)
 		appendScopedMinutes(h.Pool, sessionID, fmt.Sprintf("- [APROBADA] %s: %s (a favor: %d, en contra: %d, abstencion: %d)", decisionType, description, votesFor, votesAgainst, votesAbstain))
+
+		// Ejecutar la decision segun el tipo
+		var newValue *[]byte
+		h.Pool.QueryRow(r.Context(), `SELECT new_value FROM assembly_decisions_scoped WHERE id = $1`, decisionID).Scan(&newValue)
+		var params map[string]interface{}
+		if newValue != nil {
+			json.Unmarshal(*newValue, &params)
+		}
+		h.executeScopedDecision(r, scope, *scopeID, decisionType, params)
 	} else {
 		h.Pool.Exec(r.Context(), `UPDATE assembly_decisions_scoped SET status = 'rejected' WHERE id = $1`, decisionID)
 		appendScopedMinutes(h.Pool, sessionID, fmt.Sprintf("- [RECHAZADA] %s: %s (a favor: %d, en contra: %d, abstencion: %d)", decisionType, description, votesFor, votesAgainst, votesAbstain))
@@ -1060,4 +1069,129 @@ func (h *ScopedAssemblyHandler) getProposalTypes(w http.ResponseWriter, r *http.
 		types = []map[string]interface{}{}
 	}
 	writeJSON(w, 200, types)
+}
+
+// executeScopedDecision ejecuta la decision segun su tipo para org/depto
+// Reglas de transferencia:
+// - Organizacion: puede transferir a organizaciones, departamentos y personas
+// - Departamento: puede transferir a organizaciones, departamentos y personas
+// - Asamblea del nodo: SOLO organizaciones y departamentos, NUNCA personas
+func (h *ScopedAssemblyHandler) executeScopedDecision(r *http.Request, scope string, scopeID uuid.UUID, decisionType string, params map[string]interface{}) error {
+	switch decisionType {
+	case "fund_distribution":
+		toAccountStr, _ := params["cuenta_destino"].(string)
+		amount, _ := params["monto"].(float64)
+		reason, _ := params["razon"].(string)
+
+		if toAccountStr == "" || amount <= 0 {
+			return fmt.Errorf("cuenta destino y monto son obligatorios")
+		}
+
+		toAccountID, err := uuid.Parse(toAccountStr)
+		if err != nil {
+			return fmt.Errorf("cuenta destino invalida")
+		}
+
+		// Organizaciones y departamentos PUEDEN transferir a personas
+		// (a diferencia de la asamblea del nodo que no puede)
+		// No hay validacion de tipo de cuenta aqui
+
+		// Realizar la transferencia desde la cuenta de la org/depto
+		_, err = h.Pool.Exec(r.Context(), `
+			UPDATE users SET balance = balance - $1 WHERE id = $2`,
+			int64(amount), scopeID)
+		if err != nil {
+			return fmt.Errorf("error al debitar: %w", err)
+		}
+		_, err = h.Pool.Exec(r.Context(), `
+			UPDATE users SET balance = balance + $1 WHERE id = $2`,
+			int64(amount), toAccountID)
+		if err != nil {
+			return fmt.Errorf("error al acreditar: %w", err)
+		}
+
+		// Registrar la transferencia
+		scopeLabel := "organizacion"
+		if scope == "department" {
+			scopeLabel = "departamento"
+		}
+		h.Pool.Exec(r.Context(), `
+			INSERT INTO transactions (from_account, to_account, amount, description, transaction_type)
+			VALUES ($1, $2, $3, $4, $5)`,
+			scopeID, toAccountID, int64(amount), reason, scopeLabel+"_distribution")
+
+	case "admission":
+		// Admitir miembro a la organizacion o departamento
+		userIDStr, _ := params["user_id"].(string)
+		if userIDStr == "" {
+			return fmt.Errorf("user_id es obligatorio")
+		}
+		userID, err := uuid.Parse(userIDStr)
+		if err != nil {
+			return fmt.Errorf("user_id invalido")
+		}
+
+		if scope == "organization" {
+			// Anadir a la junta directiva como miembro
+			position, _ := params["cargo"].(string)
+			if position == "" {
+				position = "miembro"
+			}
+			h.Pool.Exec(r.Context(), `
+				INSERT INTO organization_board_members (organization_id, user_id, position, is_active)
+				VALUES ($1, $2, $3, true)
+				ON CONFLICT (organization_id, user_id, position) DO NOTHING`,
+				scopeID, userID, position)
+		} else if scope == "department" {
+			// Anadir al departamento como miembro
+			// Buscar un rol por defecto
+			var roleID uuid.UUID
+			h.Pool.QueryRow(r.Context(), `SELECT id FROM department_roles WHERE department_id = $1 LIMIT 1`, scopeID).Scan(&roleID)
+			if roleID != uuid.Nil {
+				h.Pool.Exec(r.Context(), `
+					INSERT INTO department_members (department_id, user_id, role_id)
+					VALUES ($1, $2, $3)
+					ON CONFLICT DO NOTHING`,
+					scopeID, userID, roleID)
+			}
+		}
+
+	case "expulsion":
+		// Expulsar miembro de la organizacion
+		userIDStr, _ := params["user_id"].(string)
+		if userIDStr == "" {
+			return fmt.Errorf("user_id es obligatorio")
+		}
+		userID, err := uuid.Parse(userIDStr)
+		if err != nil {
+			return fmt.Errorf("user_id invalido")
+		}
+
+		if scope == "organization" {
+			h.Pool.Exec(r.Context(), `UPDATE organization_board_members SET is_active = false WHERE organization_id = $1 AND user_id = $2`, scopeID, userID)
+		}
+
+	case "policy":
+		// Politica interna - no requiere accion automatica, queda registrada en la minuta
+		// La politica se documenta y se puede consultar en los informes
+
+	case "create_account":
+		// Crear cuenta contable para la org/depto
+		accountName, _ := params["nombre_cuenta"].(string)
+		if accountName == "" {
+			accountName = "Nueva cuenta"
+		}
+		nodeDomain := r.Header.Get("X-Node-Domain")
+		if nodeDomain == "" {
+			nodeDomain = "localhost"
+		}
+		h.Pool.Exec(r.Context(), `
+			INSERT INTO users (node_domain, username, display_name, account_type, membership_status, is_approved, credit_limit, debit_limit)
+			VALUES ($1, $2, $3, 'assembly_account', 'active', true, 0, 0)`,
+			nodeDomain, accountName, accountName)
+
+	case "free_proposal":
+		// Propuesta libre - no requiere accion automatica, queda registrada en la minuta
+	}
+	return nil
 }

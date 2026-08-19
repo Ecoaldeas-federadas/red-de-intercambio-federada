@@ -931,11 +931,82 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 			ruleID, _ := params["rule_id"].(string)
 			h.Pool.Exec(r.Context(), `DELETE FROM governance_rules WHERE id = $1`, ruleID)
 		}
+	case "fund_distribution":
+		// Distribuir fondos desde la cuenta de la asamblea a otra cuenta
+		// La asamblea del nodo SOLO puede transferir a organizaciones o departamentos
+		// NUNCA a personas directamente
+		toAccountStr, _ := params["cuenta_destino"].(string)
+		amount, _ := params["monto"].(float64)
+		reason, _ := params["razon"].(string)
+
+		if toAccountStr == "" || amount <= 0 {
+			return fmt.Errorf("cuenta destino y monto son obligatorios")
+		}
+
+		toAccountID, err := uuid.Parse(toAccountStr)
+		if err != nil {
+			return fmt.Errorf("cuenta destino invalida")
+		}
+
+		// Validar que la cuenta destino NO sea una persona
+		var accountType string
+		h.Pool.QueryRow(r.Context(), `SELECT account_type FROM users WHERE id = $1`, toAccountID).Scan(&accountType)
+		if accountType == "individual" {
+			return fmt.Errorf("la asamblea del nodo no puede transferir dinero directamente a personas. Transfiere a un departamento u organizacion, y ellos deciden como distribuirlo")
+		}
+
+		// Obtener la cuenta de la asamblea (cuenta de impuestos)
+		nodeDomain := r.Header.Get("X-Node-Domain")
+		if nodeDomain == "" {
+			nodeDomain = "localhost"
+		}
+		var fromAccountID uuid.UUID
+		h.Pool.QueryRow(r.Context(), `SELECT tax_account_id FROM tax_config WHERE node_domain = $1`, nodeDomain).Scan(&fromAccountID)
+		if fromAccountID == uuid.Nil {
+			return fmt.Errorf("no hay cuenta de asamblea configurada")
+		}
+
+		// Realizar la transferencia
+		_, err = h.Pool.Exec(r.Context(), `
+			UPDATE users SET balance = balance - $1 WHERE id = $2`,
+			int64(amount), fromAccountID)
+		if err != nil {
+			return fmt.Errorf("error al debitar: %w", err)
+		}
+		_, err = h.Pool.Exec(r.Context(), `
+			UPDATE users SET balance = balance + $1 WHERE id = $2`,
+			int64(amount), toAccountID)
+		if err != nil {
+			return fmt.Errorf("error al acreditar: %w", err)
+		}
+
+		// Registrar la transferencia
+		h.Pool.Exec(r.Context(), `
+			INSERT INTO transactions (from_account, to_account, amount, description, transaction_type)
+			VALUES ($1, $2, $3, $4, 'assembly_distribution')`,
+			fromAccountID, toAccountID, int64(amount), reason)
+
+	case "create_account":
+		// Crear cuenta contable (para la asamblea o para propositos especificos)
+		accountName, _ := params["nombre_cuenta"].(string)
+		accountType, _ := params["tipo_cuenta"].(string)
+		if accountName == "" {
+			accountName = "Nueva cuenta"
+		}
+		if accountType == "" {
+			accountType = "assembly_account"
+		}
+		nodeDomain := r.Header.Get("X-Node-Domain")
+		if nodeDomain == "" {
+			nodeDomain = "localhost"
+		}
+		h.Pool.Exec(r.Context(), `
+			INSERT INTO users (node_domain, username, display_name, account_type, membership_status, is_approved, credit_limit, debit_limit)
+			VALUES ($1, $2, $3, $4, 'active', true, 0, 0)`,
+			nodeDomain, accountName, accountName, accountType)
 	}
 	return nil
 }
-
-// ===== Junta Directiva =====
 
 func (h *AssemblyHandler) listBoard(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")

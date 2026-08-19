@@ -19,7 +19,8 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
   const [showNewSession, setShowNewSession] = useState(false)
   const [showNewProposal, setShowNewProposal] = useState(false)
   const [newSession, setNewSession] = useState({ session_type: 'ordinaria', title: '', description: '', is_presential: false, start_time: '' })
-  const [newProposal, setNewProposal] = useState({ proposal_type: 'free_proposal', description: '', voting_duration_minutes: 1440, titulo: '', descripcion_detallada: '' })
+  const [newProposal, setNewProposal] = useState<any>({ proposal_type: 'free_proposal', description: '', voting_duration_minutes: 1440, titulo: '', descripcion_detallada: '', cuenta_destino: '', monto: 0, razon: '', user_id: '', cargo: '' })
+  const [accounts, setAccounts] = useState<any[]>([])
   const [selectedSessionForMinutes, setSelectedSessionForMinutes] = useState<string | null>(null)
   const [minutesText, setMinutesText] = useState('')
 
@@ -76,10 +77,23 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
       setError('La descripcion es obligatoria')
       return
     }
+    if (newProposal.proposal_type === 'fund_distribution' && (!newProposal.cuenta_destino || !newProposal.monto)) {
+      setError('Cuenta destino y monto son obligatorios para distribucion de fondos')
+      return
+    }
     try {
       const description = newProposal.descripcion_detallada || newProposal.description
       const params: any = {}
       if (newProposal.titulo) params.titulo = newProposal.titulo
+      if (newProposal.proposal_type === 'fund_distribution') {
+        params.cuenta_destino = newProposal.cuenta_destino
+        params.monto = newProposal.monto
+        params.razon = newProposal.razon
+      }
+      if (newProposal.proposal_type === 'admission') {
+        params.user_id = newProposal.user_id
+        if (newProposal.cargo) params.cargo = newProposal.cargo
+      }
       await api.post(`${basePath}/proposals`, {
         proposal_type: newProposal.proposal_type,
         description: newProposal.titulo ? `${newProposal.titulo}: ${description}` : description,
@@ -87,7 +101,7 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
         voting_duration_minutes: newProposal.voting_duration_minutes,
       })
       setShowNewProposal(false)
-      setNewProposal({ proposal_type: 'free_proposal', description: '', voting_duration_minutes: 1440, titulo: '', descripcion_detallada: '' })
+      setNewProposal({ proposal_type: 'free_proposal', description: '', voting_duration_minutes: 1440, titulo: '', descripcion_detallada: '', cuenta_destino: '', monto: 0, razon: '', user_id: '', cargo: '' })
       load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear propuesta')
@@ -189,7 +203,17 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
               <h4 className="font-medium">Nueva Propuesta</h4>
               <div>
                 <label className="label">Tipo de propuesta</label>
-                <select className="input" value={newProposal.proposal_type} onChange={e => setNewProposal({ ...newProposal, proposal_type: e.target.value })}>
+                <select className="input" value={newProposal.proposal_type} onChange={e => {
+                  setNewProposal({ ...newProposal, proposal_type: e.target.value })
+                  if (e.target.value === 'fund_distribution') {
+                    // Cargar lista de cuentas (organizaciones, departamentos y personas)
+                    api.get('/accounts/list').then((d: any) => {
+                      const all = Array.isArray(d) ? d : []
+                      // Organizaciones y departamentos pueden transferir a cualquiera
+                      setAccounts(all.filter((a: any) => a.id !== scopeId))
+                    }).catch(() => setAccounts([]))
+                  }
+                }}>
                   {proposalTypes.map((t: any) => (
                     <option key={t.proposal_type} value={t.proposal_type}>{t.label}</option>
                   ))}
@@ -198,6 +222,64 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
                   <p className="text-xs text-gray-400 mt-1">{proposalTypes.find((t: any) => t.proposal_type === newProposal.proposal_type)?.description}</p>
                 )}
               </div>
+
+              {/* Campos especificos para fund_distribution */}
+              {newProposal.proposal_type === 'fund_distribution' && (
+                <>
+                  <div>
+                    <label className="label">Cuenta destino</label>
+                    <select className="input" value={newProposal.cuenta_destino} onChange={e => setNewProposal({ ...newProposal, cuenta_destino: e.target.value })}>
+                      <option value="">Seleccionar...</option>
+                      {accounts.map((a: any) => (
+                        <option key={a.id} value={a.id}>
+                          {a.display_name || a.username || a.name}
+                          {a.account_type === 'individual' ? ' (persona)' : a.account_type === 'organization' ? ' (organizacion)' : a.account_type === 'department' ? ' (departamento)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {scope === 'organization' || scope === 'department'
+                        ? 'Puedes transferir a organizaciones, departamentos y personas.'
+                        : 'La asamblea del nodo solo puede transferir a organizaciones y departamentos.'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="label">Monto</label>
+                    <input type="number" className="input" placeholder="200" value={newProposal.monto || ''} onChange={e => setNewProposal({ ...newProposal, monto: parseFloat(e.target.value) || 0 })} />
+                  </div>
+                  <div>
+                    <label className="label">Razon</label>
+                    <textarea className="input" rows={2} placeholder="Motivo de la distribucion" value={newProposal.razon} onChange={e => setNewProposal({ ...newProposal, razon: e.target.value })} />
+                  </div>
+                </>
+              )}
+
+              {/* Campos especificos para admission */}
+              {newProposal.proposal_type === 'admission' && (
+                <>
+                  <div>
+                    <label className="label">Miembro a admitir</label>
+                    <select className="input" value={newProposal.user_id} onChange={e => setNewProposal({ ...newProposal, user_id: e.target.value })}>
+                      <option value="">Seleccionar...</option>
+                      {accounts.length === 0 && <option value="" disabled>Cargando...</option>}
+                    </select>
+                    <p className="text-xs text-gray-400 mt-1">Admision a {scope === 'organization' ? 'esta organizacion' : 'este departamento'}, no al nodo.</p>
+                  </div>
+                  {scope === 'organization' && (
+                    <div>
+                      <label className="label">Cargo</label>
+                      <select className="input" value={newProposal.cargo} onChange={e => setNewProposal({ ...newProposal, cargo: e.target.value })}>
+                        <option value="miembro">Miembro</option>
+                        <option value="presidente">Presidente</option>
+                        <option value="vicepresidente">Vicepresidente</option>
+                        <option value="secretario">Secretario</option>
+                        <option value="tesorero">Tesorero</option>
+                        <option value="coordinador">Coordinador</option>
+                      </select>
+                    </div>
+                  )}
+                </>
+              )}
               <div>
                 <label className="label">Titulo</label>
                 <input className="input" placeholder="Ej: Aprobar presupuesto para materiales" value={newProposal.titulo} onChange={e => setNewProposal({ ...newProposal, titulo: e.target.value })} />
