@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { api } from '../api'
-import { Plus, Vote as VoteIcon, Calendar, FileText, Clock, Check, X } from 'lucide-react'
+import { Plus, Vote as VoteIcon, Calendar, FileText, Clock, Check, X, Settings, Bell } from 'lucide-react'
 
 interface ScopedAssemblyProps {
   scope: 'organization' | 'department'
@@ -9,11 +9,13 @@ interface ScopedAssemblyProps {
 }
 
 export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAssemblyProps) {
-  const [tab, setTab] = useState<'sessions' | 'proposals' | 'reports'>('proposals')
+  const [tab, setTab] = useState<'config' | 'proposals' | 'sessions' | 'reports'>('proposals')
   const [error, setError] = useState('')
   const [sessions, setSessions] = useState<any[]>([])
   const [proposals, setProposals] = useState<any[]>([])
   const [reports, setReports] = useState<any[]>([])
+  const [proposalTypes, setProposalTypes] = useState<any[]>([])
+  const [config, setConfig] = useState<any>({ has_assembly: false, ordinary_frequency_months: 3, preferred_day_of_month: 15, preferred_hour: 15, notification_days_before: 7, assemblies_enabled: true })
   const [showNewSession, setShowNewSession] = useState(false)
   const [showNewProposal, setShowNewProposal] = useState(false)
   const [newSession, setNewSession] = useState({ session_type: 'ordinaria', title: '', description: '', is_presential: false })
@@ -27,6 +29,20 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
     api.get(`${basePath}/sessions`).then((d: any) => setSessions(Array.isArray(d) ? d : [])).catch(() => {})
     api.get(`${basePath}/proposals`).then((d: any) => setProposals(Array.isArray(d) ? d : [])).catch(() => {})
   }
+
+  const loadConfig = () => {
+    api.get(`${basePath}/config`).then((d: any) => setConfig(d)).catch(() => {})
+  }
+
+  const loadProposalTypes = () => {
+    api.get(`${basePath}/proposal-types`).then((d: any) => setProposalTypes(Array.isArray(d) ? d : [])).catch(() => {})
+  }
+
+  useEffect(() => {
+    loadConfig()
+    loadProposalTypes()
+    load()
+  }, [])
 
   const loadReports = () => {
     api.get(`${basePath}/reports`).then((d: any) => {
@@ -111,6 +127,30 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
     }
   }
 
+  const closeSession = async (sessionId: string) => {
+    if (!confirm('Cerrar esta asamblea? Se convocara automaticamente la siguiente asamblea ordinaria si esta configurado.')) return
+    try {
+      await api.post(`${basePath}/sessions/${sessionId}/close`, {})
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cerrar sesion')
+    }
+  }
+
+  const saveConfig = async () => {
+    try {
+      await api.put(`${basePath}/config`, config)
+      setError('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al guardar configuracion')
+    }
+  }
+
+  const proposalLabel = (ptype: string) => {
+    const t = proposalTypes.find((t: any) => t.proposal_type === ptype)
+    return t ? t.label : ptype
+  }
+
   const label = scope === 'organization' ? 'Organizacion' : 'Departamento'
 
   return (
@@ -127,6 +167,7 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
         <button onClick={() => setTab('proposals')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'proposals' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Propuestas</button>
         <button onClick={() => setTab('sessions')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'sessions' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Sesiones y Minutas</button>
         <button onClick={() => { setTab('reports'); loadReports() }} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'reports' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Informes</button>
+        <button onClick={() => setTab('config')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'config' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Settings size={14} className="inline mr-1" />Configuracion</button>
       </div>
 
       {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</div>}
@@ -145,12 +186,13 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
               <div>
                 <label className="label">Tipo de propuesta</label>
                 <select className="input" value={newProposal.proposal_type} onChange={e => setNewProposal({ ...newProposal, proposal_type: e.target.value })}>
-                  <option value="free_proposal">Propuesta libre</option>
-                  <option value="budget_increase">Aumento de presupuesto</option>
-                  <option value="fund_distribution">Distribucion de fondos</option>
-                  <option value="policy">Politica interna</option>
-                  <option value="create_account">Creacion de cuenta</option>
+                  {proposalTypes.map((t: any) => (
+                    <option key={t.proposal_type} value={t.proposal_type}>{t.label}</option>
+                  ))}
                 </select>
+                {proposalTypes.find((t: any) => t.proposal_type === newProposal.proposal_type)?.description && (
+                  <p className="text-xs text-gray-400 mt-1">{proposalTypes.find((t: any) => t.proposal_type === newProposal.proposal_type)?.description}</p>
+                )}
               </div>
               <div>
                 <label className="label">Titulo</label>
@@ -181,7 +223,7 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
               {proposals.filter((p: any) => p.status === 'proposed').map((p: any, i: number) => (
                 <div key={i} className="card border-purple-200">
                   <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm">{p.proposal_type === 'free_proposal' ? 'Propuesta libre' : p.proposal_type}</span>
+                    <span className="font-medium text-sm">{proposalLabel(p.proposal_type)}</span>
                     <span className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700">pendiente</span>
                   </div>
                   <p className="text-sm text-gray-600 mt-1">{p.description}</p>
@@ -198,7 +240,7 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
               {proposals.filter((p: any) => p.status !== 'proposed').map((p: any, i: number) => (
                 <div key={i} className="card">
                   <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm">{p.proposal_type === 'free_proposal' ? 'Propuesta libre' : p.proposal_type}</span>
+                    <span className="font-medium text-sm">{proposalLabel(p.proposal_type)}</span>
                     <span className={`text-xs px-2 py-0.5 rounded ${
                       p.status === 'executed' ? 'bg-green-100 text-green-700' :
                       p.status === 'rejected' ? 'bg-red-100 text-red-700' :
@@ -313,6 +355,14 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
                   >
                     {s.minutes ? 'Editar minuta' : 'Escribir minuta'}
                   </button>
+                  {(s.status === 'active' || s.status === 'waiting_quorum') && (
+                    <button
+                      onClick={() => closeSession(s.id)}
+                      className="text-xs px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 mt-2 ml-2"
+                    >
+                      Cerrar asamblea
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -356,7 +406,7 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
               {reports.map((rp: any, i: number) => (
                 <div key={i} className="card">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-sm">{rp.proposal_type === 'free_proposal' ? 'Propuesta libre' : rp.proposal_type}</span>
+                    <span className="font-medium text-sm">{proposalLabel(rp.proposal_type)}</span>
                     <span className={`text-xs px-2 py-0.5 rounded ${
                       rp.status === 'executed' ? 'bg-green-100 text-green-700' :
                       rp.status === 'rejected' ? 'bg-red-100 text-red-700' :
@@ -377,6 +427,91 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ===== CONFIGURACION ===== */}
+      {tab === 'config' && (
+        <div className="space-y-4">
+          <h3 className="font-medium flex items-center gap-2"><Settings size={18} />Configuracion de Asamblea</h3>
+
+          <div className="card space-y-4">
+            <div>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={config.has_assembly}
+                  onChange={e => setConfig({ ...config, has_assembly: e.target.checked })}
+                  className="accent-trueque-600"
+                />
+                <span className="text-sm font-medium">Esta {label} tiene asambleas</span>
+              </label>
+              <p className="text-xs text-gray-400 mt-1">Si la {label.toLowerCase()} es de una sola persona, no necesita asambleas. Desmarca esta opcion para deshabilitar.</p>
+            </div>
+
+            {config.has_assembly && (
+              <>
+                <div>
+                  <label className="label">Frecuencia de asambleas ordinarias (meses)</label>
+                  <select className="input" value={config.ordinary_frequency_months} onChange={e => setConfig({ ...config, ordinary_frequency_months: parseInt(e.target.value) })}>
+                    <option value={0}>No auto-convocar</option>
+                    <option value={1}>Cada mes</option>
+                    <option value={2}>Cada 2 meses</option>
+                    <option value={3}>Cada 3 meses (trimestral)</option>
+                    <option value={6}>Cada 6 meses (semestral)</option>
+                    <option value={12}>Cada 12 meses (anual)</option>
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1">Al cerrar una asamblea ordinaria, se convoca automaticamente la siguiente.</p>
+                </div>
+
+                {config.ordinary_frequency_months > 0 && (
+                  <>
+                    <div>
+                      <label className="label">Dia preferido del mes</label>
+                      <select className="input" value={config.preferred_day_of_month} onChange={e => setConfig({ ...config, preferred_day_of_month: parseInt(e.target.value) })}>
+                        <option value={0}>Cualquier dia</option>
+                        {Array.from({ length: 28 }, (_, i) => i + 1).map(d => (
+                          <option key={d} value={d}>Dia {d}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="label">Hora preferida</label>
+                      <select className="input" value={config.preferred_hour} onChange={e => setConfig({ ...config, preferred_hour: parseInt(e.target.value) })}>
+                        {Array.from({ length: 24 }, (_, i) => i).map(h => (
+                          <option key={h} value={h}>{h.toString().padStart(2, '0')}:00</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="label">Notificar con anticipacion (dias)</label>
+                      <select className="input" value={config.notification_days_before} onChange={e => setConfig({ ...config, notification_days_before: parseInt(e.target.value) })}>
+                        <option value={1}>1 dia antes</option>
+                        <option value={3}>3 dias antes</option>
+                        <option value={7}>7 dias antes</option>
+                        <option value={14}>14 dias antes</option>
+                        <option value={30}>30 dias antes</option>
+                      </select>
+                      <p className="text-xs text-gray-400 mt-1">Los miembros recibiran una notificacion con esta anticipacion.</p>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+
+            <button onClick={saveConfig} className="btn-primary">Guardar configuracion</button>
+          </div>
+
+          <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
+            <p><strong>Como funciona la convocatoria automatica:</strong></p>
+            <ul className="list-disc list-inside mt-2 space-y-1 text-xs">
+              <li>Al cerrar una asamblea ordinaria, se agenda la siguiente automaticamente</li>
+              <li>Si se modifica la fecha de una asamblea ordinaria, sigue siendo ordinaria</li>
+              <li>Si se crea una asamblea nueva ademas de la ordinaria, esa es extraordinaria</li>
+              <li>Los miembros reciben notificacion con la anticipacion configurada</li>
+              <li>Las asambleas extraordinarias no se auto-convocan</li>
+            </ul>
+          </div>
         </div>
       )}
     </div>

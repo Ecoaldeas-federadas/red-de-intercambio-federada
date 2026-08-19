@@ -368,6 +368,7 @@ export default function Assembly() {
   const [quorumResult, setQuorumResult] = useState<any>(null)
   const [rescheduleSession, setRescheduleSession] = useState<any>(null)
   const [rescheduleTime, setRescheduleTime] = useState('')
+  const [freqConfig, setFreqConfig] = useState<any>({ ordinary_frequency_months: 3, preferred_day_of_month: 15, preferred_hour: 15, notification_days_before: 7, assemblies_enabled: true })
 
   const [newSession, setNewSession] = useState({ session_type: 'ordinaria', title: '', description: '', is_presential: false })
   const [newBoard, setNewBoard] = useState({ user_id: '', position: 'presidente' })
@@ -508,6 +509,31 @@ export default function Assembly() {
       setQuorumConfigs(Array.isArray(data) ? data : [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar config de quorum')
+    }
+  }
+
+  const loadFreqConfig = async () => {
+    try {
+      const data: any = await api.get('/assembly/frequency-config')
+      setFreqConfig(data)
+    } catch (err) { /* ignore */ }
+  }
+
+  const saveFreqConfig = async () => {
+    try {
+      await api.put('/assembly/frequency-config', freqConfig)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al guardar frecuencia')
+    }
+  }
+
+  const closeAssemblySession = async (sessionId: string) => {
+    if (!confirm('Cerrar esta asamblea? Se convocara automaticamente la siguiente asamblea ordinaria si esta configurado.')) return
+    try {
+      await api.post(`/assembly/sessions/${sessionId}/close`, {})
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cerrar asamblea')
     }
   }
 
@@ -1401,6 +1427,14 @@ export default function Assembly() {
                     >
                       {s.minutes ? 'Editar minuta' : 'Escribir minuta'}
                     </button>
+                    {(s.status === 'active' || s.status === 'waiting_quorum') && (
+                      <button
+                        onClick={() => closeAssemblySession(s.id)}
+                        className="text-xs px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 ml-2"
+                      >
+                        Cerrar asamblea
+                      </button>
+                    )}
                   </div>
 
                   {/* Resultado de verificacion de quorum */}
@@ -1623,6 +1657,66 @@ export default function Assembly() {
               ))}
             </div>
           )}
+
+          {/* ===== Convocatoria automatica ===== */}
+          <h3 className="font-semibold flex items-center gap-2 mt-6"><Calendar size={18} />Convocatoria Automatica</h3>
+          <div className="card space-y-4">
+            <p className="text-sm text-gray-600">Configura cada cuanto se convoca la asamblea ordinaria. Al cerrar una asamblea, se agenda la siguiente automaticamente.</p>
+            <button onClick={loadFreqConfig} className="text-sm text-blue-600 underline">Cargar configuracion</button>
+            <div>
+              <label className="label">Frecuencia de asambleas ordinarias</label>
+              <select className="input" value={freqConfig.ordinary_frequency_months} onChange={e => setFreqConfig({ ...freqConfig, ordinary_frequency_months: parseInt(e.target.value) })}>
+                <option value={0}>No auto-convocar</option>
+                <option value={1}>Cada mes</option>
+                <option value={2}>Cada 2 meses</option>
+                <option value={3}>Cada 3 meses (trimestral)</option>
+                <option value={6}>Cada 6 meses (semestral)</option>
+                <option value={12}>Cada 12 meses (anual)</option>
+              </select>
+            </div>
+            {freqConfig.ordinary_frequency_months > 0 && (
+              <>
+                <div>
+                  <label className="label">Dia preferido del mes</label>
+                  <select className="input" value={freqConfig.preferred_day_of_month} onChange={e => setFreqConfig({ ...freqConfig, preferred_day_of_month: parseInt(e.target.value) })}>
+                    <option value={0}>Cualquier dia</option>
+                    {Array.from({ length: 28 }, (_, i) => i + 1).map(d => (
+                      <option key={d} value={d}>Dia {d}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Hora preferida</label>
+                  <select className="input" value={freqConfig.preferred_hour} onChange={e => setFreqConfig({ ...freqConfig, preferred_hour: parseInt(e.target.value) })}>
+                    {Array.from({ length: 24 }, (_, i) => i).map(h => (
+                      <option key={h} value={h}>{h.toString().padStart(2, '0')}:00</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Notificar con anticipacion</label>
+                  <select className="input" value={freqConfig.notification_days_before} onChange={e => setFreqConfig({ ...freqConfig, notification_days_before: parseInt(e.target.value) })}>
+                    <option value={1}>1 dia antes</option>
+                    <option value={3}>3 dias antes</option>
+                    <option value={7}>7 dias antes</option>
+                    <option value={14}>14 dias antes</option>
+                    <option value={30}>30 dias antes</option>
+                  </select>
+                </div>
+              </>
+            )}
+            <button onClick={saveFreqConfig} className="btn-primary">Guardar frecuencia</button>
+          </div>
+          <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
+            <p><strong>Reglas de convocatoria:</strong></p>
+            <ul className="list-disc list-inside mt-2 space-y-1 text-xs">
+              <li>Al cerrar una asamblea ordinaria, se agenda la siguiente automaticamente</li>
+              <li>Si se modifica la fecha de una asamblea ordinaria, sigue siendo ordinaria</li>
+              <li>Si se crea una asamblea nueva ademas de la ordinaria, esa es extraordinaria</li>
+              <li>Los miembros reciben notificacion con la anticipacion configurada</li>
+              <li>Las asambleas extraordinarias no se auto-convocan</li>
+            </ul>
+          </div>
 
           {/* ===== Configuracion de aprobaciones ===== */}
           <h3 className="font-semibold flex items-center gap-2 mt-6"><Shield size={18} />Configuracion de Aprobaciones</h3>

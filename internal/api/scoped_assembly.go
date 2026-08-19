@@ -35,6 +35,10 @@ func (h *ScopedAssemblyHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware)
 	r.With(am.RequireAuth).Post("/api/organization/{orgId}/assembly/proposals/{id}/vote", h.voteProposal)
 	r.With(am.RequireAuth).Post("/api/organization/{orgId}/assembly/proposals/{id}/execute", h.executeProposal)
 	r.With(am.RequireAuth).Get("/api/organization/{orgId}/assembly/reports", h.listReports)
+	r.With(am.RequireAuth).Get("/api/organization/{orgId}/assembly/config", h.getConfig)
+	r.With(am.RequireAuth).Put("/api/organization/{orgId}/assembly/config", h.updateConfig)
+	r.With(am.RequireAuth).Post("/api/organization/{orgId}/assembly/sessions/{id}/close", h.closeSession)
+	r.With(am.RequireAuth).Get("/api/organization/{orgId}/assembly/proposal-types", h.getProposalTypes)
 
 	// Asambleas de departamento
 	r.With(am.RequireAuth).Get("/api/department/{deptId}/assembly/sessions", h.listSessions)
@@ -48,6 +52,10 @@ func (h *ScopedAssemblyHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware)
 	r.With(am.RequireAuth).Post("/api/department/{deptId}/assembly/proposals/{id}/vote", h.voteProposal)
 	r.With(am.RequireAuth).Post("/api/department/{deptId}/assembly/proposals/{id}/execute", h.executeProposal)
 	r.With(am.RequireAuth).Get("/api/department/{deptId}/assembly/reports", h.listReports)
+	r.With(am.RequireAuth).Get("/api/department/{deptId}/assembly/config", h.getConfig)
+	r.With(am.RequireAuth).Put("/api/department/{deptId}/assembly/config", h.updateConfig)
+	r.With(am.RequireAuth).Post("/api/department/{deptId}/assembly/sessions/{id}/close", h.closeSession)
+	r.With(am.RequireAuth).Get("/api/department/{deptId}/assembly/proposal-types", h.getProposalTypes)
 }
 
 // getScope extrae el scope y scope_id de la URL
@@ -434,6 +442,14 @@ func (h *ScopedAssemblyHandler) createProposal(w http.ResponseWriter, r *http.Re
 		req.VotingDurationMinutes = 1440
 	}
 
+	// Validar que el tipo de propuesta este permitido para este scope
+	var allowed int
+	h.Pool.QueryRow(r.Context(), `SELECT COUNT(*) FROM assembly_proposal_types WHERE scope = $1 AND proposal_type = $2 AND is_active = true`, scope, req.ProposalType).Scan(&allowed)
+	if allowed == 0 {
+		writeError(w, 400, fmt.Sprintf("el tipo de propuesta '%s' no esta permitido para %s. Los departamentos y organizaciones no pueden tomar decisiones de la asamblea del nodo.", req.ProposalType, scope))
+		return
+	}
+
 	// Buscar o crear sesion activa
 	var sessionID uuid.UUID
 	if req.SessionID != "" {
@@ -795,4 +811,222 @@ func appendScopedMinutes(pool *pgxpool.Pool, sessionID uuid.UUID, entry string) 
 		SET minutes = COALESCE(minutes, '') || $1,
 		    minutes_updated_at = NOW()
 		WHERE id = $2`, line, sessionID)
+}
+
+// ===== Config de asamblea de org/depto =====
+
+func (h *ScopedAssemblyHandler) getConfig(w http.ResponseWriter, r *http.Request) {
+	scope, scopeID, err := h.getScope(r)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	// Verificar si tiene asambleas habilitadas
+	hasAssembly := false
+	if scope == "organization" {
+		h.Pool.QueryRow(r.Context(), `SELECT COALESCE(has_assembly, false) FROM users WHERE id = $1`, scopeID).Scan(&hasAssembly)
+	} else {
+		h.Pool.QueryRow(r.Context(), `SELECT COALESCE(has_assembly, false) FROM departments WHERE id = $1`, scopeID).Scan(&hasAssembly)
+	}
+
+	// Frecuencia
+	var freqMonths, preferredDay, preferredHour, notifDays int
+	var enabled bool
+	err = h.Pool.QueryRow(r.Context(), `
+		SELECT ordinary_frequency_months, preferred_day_of_month, preferred_hour, notification_days_before, assemblies_enabled
+		FROM assembly_frequency_config
+		WHERE node_domain = $1 AND scope = $2 AND scope_id = $3`,
+		nodeDomain, scope, scopeID).Scan(&freqMonths, &preferredDay, &preferredHour, &notifDays, &enabled)
+	if err != nil {
+		freqMonths = 3
+		preferredDay = 15
+		preferredHour = 15
+		notifDays = 7
+		enabled = hasAssembly
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"has_assembly":              hasAssembly,
+		"ordinary_frequency_months": freqMonths,
+		"preferred_day_of_month":    preferredDay,
+		"preferred_hour":            preferredHour,
+		"notification_days_before":  notifDays,
+		"assemblies_enabled":        enabled,
+	})
+}
+
+func (h *ScopedAssemblyHandler) updateConfig(w http.ResponseWriter, r *http.Request) {
+	scope, scopeID, err := h.getScope(r)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	var req struct {
+		HasAssembly             bool `json:"has_assembly"`
+		OrdinaryFrequencyMonths int  `json:"ordinary_frequency_months"`
+		PreferredDayOfMonth     int  `json:"preferred_day_of_month"`
+		PreferredHour           int  `json:"preferred_hour"`
+		NotificationDaysBefore  int  `json:"notification_days_before"`
+		AssembliesEnabled       bool `json:"assemblies_enabled"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	// Actualizar has_assembly en la tabla correspondiente
+	if scope == "organization" {
+		h.Pool.Exec(r.Context(), `UPDATE users SET has_assembly = $1 WHERE id = $2`, req.HasAssembly, scopeID)
+	} else {
+		h.Pool.Exec(r.Context(), `UPDATE departments SET has_assembly = $1 WHERE id = $2`, req.HasAssembly, scopeID)
+	}
+
+	// Actualizar frecuencia
+	_, err = h.Pool.Exec(r.Context(), `
+		INSERT INTO assembly_frequency_config (node_domain, scope, scope_id, ordinary_frequency_months, preferred_day_of_month, preferred_hour, notification_days_before, assemblies_enabled, is_active)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)
+		ON CONFLICT (node_domain, scope, scope_id) DO UPDATE SET
+			ordinary_frequency_months = $4,
+			preferred_day_of_month = $5,
+			preferred_hour = $6,
+			notification_days_before = $7,
+			assemblies_enabled = $8,
+			updated_at = NOW()`,
+		nodeDomain, scope, scopeID, req.OrdinaryFrequencyMonths, req.PreferredDayOfMonth, req.PreferredHour, req.NotificationDaysBefore, req.AssembliesEnabled)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{"message": "Configuracion guardada"})
+}
+
+// closeSession cierra una asamblea scoped y auto-convoca la siguiente
+func (h *ScopedAssemblyHandler) closeSession(w http.ResponseWriter, r *http.Request) {
+	sessionID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+	scope, scopeID, err := h.getScope(r)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	_, err = h.Pool.Exec(r.Context(), `UPDATE assembly_sessions_scoped SET status = 'completed', end_time = NOW() WHERE id = $1`, sessionID)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	// Auto-convocar siguiente
+	var freqMonths, preferredDay, preferredHour, notifDays int
+	var enabled bool
+	err = h.Pool.QueryRow(r.Context(), `
+		SELECT ordinary_frequency_months, preferred_day_of_month, preferred_hour, notification_days_before, assemblies_enabled
+		FROM assembly_frequency_config
+		WHERE node_domain = $1 AND scope = $2 AND scope_id = $3 AND is_active = true`,
+		nodeDomain, scope, scopeID).Scan(&freqMonths, &preferredDay, &preferredHour, &notifDays, &enabled)
+	if err != nil || !enabled || freqMonths == 0 {
+		writeJSON(w, 200, map[string]interface{}{
+			"message":                "Asamblea cerrada",
+			"next_session_scheduled": false,
+		})
+		return
+	}
+
+	now := time.Now()
+	nextDate := now.AddDate(0, freqMonths, 0)
+	if preferredDay > 0 {
+		year, month, _ := nextDate.Date()
+		nextDate = time.Date(year, month, preferredDay, preferredHour, 0, 0, 0, nextDate.Location())
+	} else {
+		year, month, day := nextDate.Date()
+		nextDate = time.Date(year, month, day, preferredHour, 0, 0, 0, nextDate.Location())
+	}
+
+	nextID := uuid.New()
+	label := "Organizacion"
+	if scope == "department" {
+		label = "Departamento"
+	}
+	_, err = h.Pool.Exec(r.Context(), `
+		INSERT INTO assembly_sessions_scoped (id, node_domain, scope, scope_id, session_type, title, start_time, status, is_auto_scheduled)
+		VALUES ($1, $2, $3, $4, 'ordinaria', $5, $6, 'scheduled', true)`,
+		nextID, nodeDomain, scope, scopeID, fmt.Sprintf("Asamblea Ordinaria %s %s", label, nextDate.Format("January 2006")), nextDate)
+	if err != nil {
+		writeJSON(w, 200, map[string]interface{}{
+			"message":                "Asamblea cerrada. Error al auto-convocar siguiente.",
+			"next_session_scheduled": false,
+		})
+		return
+	}
+
+	h.Pool.Exec(r.Context(), `UPDATE assembly_sessions_scoped SET next_session_id = $1 WHERE id = $2`, nextID, sessionID)
+
+	// Notificar a miembros
+	notifyMembers(h.Pool, nodeDomain, scope, scopeID, &nextID,
+		"Convocatoria a Asamblea Ordinaria",
+		fmt.Sprintf("Se ha convocado la siguiente asamblea ordinaria para el %s.", nextDate.Format("02/01/2006 a las 15:04")),
+		"convocation")
+
+	writeJSON(w, 200, map[string]interface{}{
+		"message":                "Asamblea cerrada. Siguiente asamblea ordinaria convocada automaticamente.",
+		"next_session_scheduled": true,
+		"next_session_id":        nextID.String(),
+		"next_session_date":      nextDate.Format(time.RFC3339),
+	})
+}
+
+// getProposalTypes devuelve los tipos de propuestas permitidos para el scope
+func (h *ScopedAssemblyHandler) getProposalTypes(w http.ResponseWriter, r *http.Request) {
+	scope, _, err := h.getScope(r)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT proposal_type, label, description, sort_order
+		FROM assembly_proposal_types
+		WHERE scope = $1 AND is_active = true
+		ORDER BY sort_order`, scope)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	var types []map[string]interface{}
+	for rows.Next() {
+		var ptype, label string
+		var desc *string
+		var sortOrder int
+		rows.Scan(&ptype, &label, &desc, &sortOrder)
+		types = append(types, map[string]interface{}{
+			"proposal_type": ptype,
+			"label":         label,
+			"description":   deref(desc),
+			"sort_order":    sortOrder,
+		})
+	}
+	if types == nil {
+		types = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, types)
 }

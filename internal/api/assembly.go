@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -41,6 +42,16 @@ func (h *AssemblyHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	// Configuracion de quorum
 	r.With(am.RequireAuth).Get("/api/assembly/quorum-config", h.getQuorumConfig)
 	r.With(am.RequireAuth).Put("/api/assembly/quorum-config/{sessionType}", h.updateQuorumConfig)
+
+	// Convocatoria y frecuencia
+	r.With(am.RequireAuth).Get("/api/assembly/frequency-config", h.getFrequencyConfig)
+	r.With(am.RequireAuth).Put("/api/assembly/frequency-config", h.updateFrequencyConfig)
+	r.With(am.RequireAuth).Post("/api/assembly/sessions/{id}/close", h.closeSession)
+	r.With(am.RequireAuth).Get("/api/assembly/notifications", h.getNotifications)
+	r.With(am.RequireAuth).Put("/api/assembly/notifications/{id}/read", h.markNotificationRead)
+
+	// Tipos de propuestas por scope
+	r.With(am.RequireAuth).Get("/api/assembly/proposal-types", h.getProposalTypes)
 
 	// Propuestas / decisiones
 	r.With(am.RequireAuth).Get("/api/assembly/proposals", h.listProposals)
@@ -2273,4 +2284,298 @@ func (h *AssemblyHandler) confirmAttendance(w http.ResponseWriter, r *http.Reque
 		"session_id": sessionID.String(),
 		"confirmed":  true,
 	})
+}
+
+// ===== Convocatoria automatica y frecuencia =====
+
+func (h *AssemblyHandler) getFrequencyConfig(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	var freqMonths, preferredDay, preferredHour, notifDays int
+	var enabled, isActive bool
+	err := h.Pool.QueryRow(r.Context(), `
+		SELECT ordinary_frequency_months, preferred_day_of_month, preferred_hour, notification_days_before, assemblies_enabled, is_active
+		FROM assembly_frequency_config
+		WHERE node_domain = $1 AND scope = 'node' AND scope_id IS NULL`,
+		nodeDomain).Scan(&freqMonths, &preferredDay, &preferredHour, &notifDays, &enabled, &isActive)
+	if err != nil {
+		// Defaults
+		writeJSON(w, 200, map[string]interface{}{
+			"ordinary_frequency_months": 3,
+			"preferred_day_of_month":    15,
+			"preferred_hour":            15,
+			"notification_days_before":  7,
+			"assemblies_enabled":        true,
+		})
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{
+		"ordinary_frequency_months": freqMonths,
+		"preferred_day_of_month":    preferredDay,
+		"preferred_hour":            preferredHour,
+		"notification_days_before":  notifDays,
+		"assemblies_enabled":        enabled,
+	})
+}
+
+func (h *AssemblyHandler) updateFrequencyConfig(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	var req struct {
+		OrdinaryFrequencyMonths int  `json:"ordinary_frequency_months"`
+		PreferredDayOfMonth     int  `json:"preferred_day_of_month"`
+		PreferredHour           int  `json:"preferred_hour"`
+		NotificationDaysBefore  int  `json:"notification_days_before"`
+		AssembliesEnabled       bool `json:"assemblies_enabled"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.OrdinaryFrequencyMonths < 0 || req.OrdinaryFrequencyMonths > 12 {
+		writeError(w, 400, "frecuencia debe estar entre 0 y 12 meses (0 = no auto-convocar)")
+		return
+	}
+	if req.PreferredDayOfMonth < 0 || req.PreferredDayOfMonth > 28 {
+		writeError(w, 400, "dia del mes debe estar entre 0 y 28 (0 = cualquier dia)")
+		return
+	}
+	if req.PreferredHour < 0 || req.PreferredHour > 23 {
+		writeError(w, 400, "hora debe estar entre 0 y 23")
+		return
+	}
+	if req.NotificationDaysBefore < 0 || req.NotificationDaysBefore > 60 {
+		writeError(w, 400, "dias de notificacion entre 0 y 60")
+		return
+	}
+
+	_, err := h.Pool.Exec(r.Context(), `
+		INSERT INTO assembly_frequency_config (node_domain, scope, scope_id, ordinary_frequency_months, preferred_day_of_month, preferred_hour, notification_days_before, assemblies_enabled, is_active)
+		VALUES ($1, 'node', NULL, $2, $3, $4, $5, $6, true)
+		ON CONFLICT (node_domain, scope, scope_id) DO UPDATE SET
+			ordinary_frequency_months = $2,
+			preferred_day_of_month = $3,
+			preferred_hour = $4,
+			notification_days_before = $5,
+			assemblies_enabled = $6,
+			updated_at = NOW()`,
+		nodeDomain, req.OrdinaryFrequencyMonths, req.PreferredDayOfMonth, req.PreferredHour, req.NotificationDaysBefore, req.AssembliesEnabled)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{"message": "Configuracion guardada"})
+}
+
+// closeSession cierra una asamblea y auto-convoca la siguiente si esta configurado
+func (h *AssemblyHandler) closeSession(w http.ResponseWriter, r *http.Request) {
+	sessionID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+
+	// Marcar como cerrada
+	_, err = h.Pool.Exec(r.Context(), `UPDATE assembly_sessions SET status = 'completed', end_time = NOW() WHERE id = $1`, sessionID)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	// Auto-convocar siguiente asamblea ordinaria
+	var freqMonths, preferredDay, preferredHour, notifDays int
+	var enabled bool
+	err = h.Pool.QueryRow(r.Context(), `
+		SELECT ordinary_frequency_months, preferred_day_of_month, preferred_hour, notification_days_before, assemblies_enabled
+		FROM assembly_frequency_config
+		WHERE node_domain = $1 AND scope = 'node' AND scope_id IS NULL AND is_active = true`,
+		nodeDomain).Scan(&freqMonths, &preferredDay, &preferredHour, &notifDays, &enabled)
+	if err != nil || !enabled || freqMonths == 0 {
+		writeJSON(w, 200, map[string]interface{}{
+			"message":                "Asamblea cerrada",
+			"next_session_scheduled": false,
+		})
+		return
+	}
+
+	// Calcular fecha de la siguiente asamblea
+	now := time.Now()
+	nextDate := now.AddDate(0, freqMonths, 0)
+	if preferredDay > 0 {
+		// Ajustar al dia preferido del mes
+		year, month, _ := nextDate.Date()
+		nextDate = time.Date(year, month, preferredDay, preferredHour, 0, 0, 0, nextDate.Location())
+	} else {
+		// Usar el mismo dia del mes
+		year, month, day := nextDate.Date()
+		nextDate = time.Date(year, month, day, preferredHour, 0, 0, 0, nextDate.Location())
+	}
+
+	// Crear siguiente sesion
+	nextID := uuid.New()
+	_, err = h.Pool.Exec(r.Context(), `
+		INSERT INTO assembly_sessions (id, node_domain, session_type, title, start_time, status, is_auto_scheduled)
+		VALUES ($1, $2, 'ordinaria', $3, $4, 'scheduled', true)`,
+		nextID, nodeDomain, fmt.Sprintf("Asamblea Ordinaria %s", nextDate.Format("January 2006")), nextDate)
+	if err != nil {
+		writeJSON(w, 200, map[string]interface{}{
+			"message":                "Asamblea cerrada. Error al auto-convocar siguiente.",
+			"next_session_scheduled": false,
+		})
+		return
+	}
+
+	// Enlazar sesion actual con la siguiente
+	h.Pool.Exec(r.Context(), `UPDATE assembly_sessions SET next_session_id = $1 WHERE id = $2`, nextID, sessionID)
+
+	// Notificar a todos los miembros
+	notifyMembers(h.Pool, nodeDomain, "node", nil, &nextID,
+		"Convocatoria a Asamblea Ordinaria",
+		fmt.Sprintf("Se ha convocado la siguiente asamblea ordinaria para el %s. Marca tu calendario.", nextDate.Format("02/01/2006 a las 15:04")),
+		"convocation")
+
+	writeJSON(w, 200, map[string]interface{}{
+		"message":                "Asamblea cerrada. Siguiente asamblea ordinaria convocada automaticamente.",
+		"next_session_scheduled": true,
+		"next_session_id":        nextID.String(),
+		"next_session_date":      nextDate.Format(time.RFC3339),
+	})
+}
+
+func (h *AssemblyHandler) getNotifications(w http.ResponseWriter, r *http.Request) {
+	userID, err := h.Auth.GetUserID(r)
+	if err != nil {
+		writeError(w, 401, "authentication required")
+		return
+	}
+
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT id, notification_type, title, message, is_read, created_at
+		FROM assembly_notifications
+		WHERE user_id = $1
+		ORDER BY created_at DESC LIMIT 50`, userID)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	var notifs []map[string]interface{}
+	for rows.Next() {
+		var id uuid.UUID
+		var notifType, title string
+		var message *string
+		var isRead bool
+		var createdAt time.Time
+		rows.Scan(&id, &notifType, &title, &message, &isRead, &createdAt)
+		notifs = append(notifs, map[string]interface{}{
+			"id":                id.String(),
+			"notification_type": notifType,
+			"title":             title,
+			"message":           deref(message),
+			"is_read":           isRead,
+			"created_at":        createdAt.Format(time.RFC3339),
+		})
+	}
+	if notifs == nil {
+		notifs = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, notifs)
+}
+
+func (h *AssemblyHandler) markNotificationRead(w http.ResponseWriter, r *http.Request) {
+	notifID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+	h.Pool.Exec(r.Context(), `UPDATE assembly_notifications SET is_read = true, read_at = NOW() WHERE id = $1`, notifID)
+	writeJSON(w, 200, map[string]interface{}{"message": "notificacion marcada como leida"})
+}
+
+func (h *AssemblyHandler) getProposalTypes(w http.ResponseWriter, r *http.Request) {
+	scope := r.URL.Query().Get("scope")
+	if scope == "" {
+		scope = "node"
+	}
+
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT proposal_type, label, description, sort_order
+		FROM assembly_proposal_types
+		WHERE scope = $1 AND is_active = true
+		ORDER BY sort_order`, scope)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	var types []map[string]interface{}
+	for rows.Next() {
+		var ptype, label string
+		var desc *string
+		var sortOrder int
+		rows.Scan(&ptype, &label, &desc, &sortOrder)
+		types = append(types, map[string]interface{}{
+			"proposal_type": ptype,
+			"label":         label,
+			"description":   deref(desc),
+			"sort_order":    sortOrder,
+		})
+	}
+	if types == nil {
+		types = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, types)
+}
+
+// notifyMembers envia notificaciones a todos los miembros elegibles
+func notifyMembers(pool *pgxpool.Pool, nodeDomain, scope string, scopeID *uuid.UUID, sessionID *uuid.UUID, title, message, notifType string) {
+	var rows pgx.Rows
+	var err error
+
+	if scope == "node" {
+		rows, err = pool.Query(context.Background(), `
+			SELECT id FROM users WHERE node_domain = $1 AND account_type = 'individual' AND membership_status = 'active'`,
+			nodeDomain)
+	} else if scope == "organization" && scopeID != nil {
+		rows, err = pool.Query(context.Background(), `
+			SELECT user_id FROM organization_board_members WHERE organization_id = $1 AND is_active = true`,
+			*scopeID)
+	} else if scope == "department" && scopeID != nil {
+		rows, err = pool.Query(context.Background(), `
+			SELECT user_id FROM department_members WHERE department_id = $1`,
+			*scopeID)
+	} else {
+		return
+	}
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var userID uuid.UUID
+		rows.Scan(&userID)
+		var sessionIDVal interface{}
+		if sessionID != nil {
+			sessionIDVal = *sessionID
+		}
+		pool.Exec(context.Background(), `
+			INSERT INTO assembly_notifications (node_domain, scope, scope_id, session_id, user_id, notification_type, title, message)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+			nodeDomain, scope, scopeID, sessionIDVal, userID, notifType, title, message)
+	}
 }
