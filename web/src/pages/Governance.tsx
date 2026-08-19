@@ -62,10 +62,10 @@ export default function Governance() {
 
   const loadRules = async () => {
     try {
-      const res = await api.get('/api/governance/rules')
-      setRules(res.data || [])
+      const data = await api.get<any>('/governance/rules')
+      setRules(Array.isArray(data) ? data : [])
     } catch (e: any) {
-      setError(e.response?.data?.error || 'Error al cargar reglas')
+      setError(e instanceof Error ? e.message : 'Error al cargar reglas')
     }
   }
 
@@ -73,11 +73,11 @@ export default function Governance() {
     e.preventDefault()
     try {
       if (editingRule) {
-        const res = await api.put(`/api/governance/rules/${editingRule.id}`, formData)
-        setSuccessMsg(res.data?.message || 'Propuesta enviada a la asamblea')
+        const res: any = await api.put(`/governance/rules/${editingRule.id}`, formData)
+        setSuccessMsg(res?.message || 'Propuesta enviada a la asamblea')
       } else {
-        const res = await api.post('/api/governance/rules', formData)
-        setSuccessMsg(res.data?.message || 'Propuesta enviada a la asamblea')
+        const res: any = await api.post('/governance/rules', formData)
+        setSuccessMsg(res?.message || 'Propuesta enviada a la asamblea')
       }
       setShowCreate(false)
       setEditingRule(null)
@@ -85,7 +85,7 @@ export default function Governance() {
       loadRules()
       setTimeout(() => setSuccessMsg(''), 5000)
     } catch (e: any) {
-      setError(e.response?.data?.error || 'Error al guardar')
+      setError(e instanceof Error ? e.message : 'Error al guardar')
     }
   }
 
@@ -106,12 +106,12 @@ export default function Governance() {
   const handleDelete = async (id: string) => {
     if (!confirm('Eliminar esta regla? Se creara una propuesta para que la asamblea lo apruebe.')) return
     try {
-      const res = await api.delete(`/api/governance/rules/${id}`)
-      setSuccessMsg(res.data?.message || 'Propuesta de eliminacion enviada a la asamblea')
+      const res: any = await api.delete(`/governance/rules/${id}`)
+      setSuccessMsg(res?.message || 'Propuesta de eliminacion enviada a la asamblea')
       loadRules()
       setTimeout(() => setSuccessMsg(''), 5000)
     } catch (e: any) {
-      setError(e.response?.data?.error || 'Error al eliminar')
+      setError(e instanceof Error ? e.message : 'Error al eliminar')
     }
   }
 
