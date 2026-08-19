@@ -1,18 +1,24 @@
-fix: categorias y componentes vacios - buscar en localhost y default tambien
+fix: usar X-Node-Domain del header en queries de productos (no del config)
 
-Problema: los dropdowns de categorias y la busqueda de componentes en la
-tienda salian vacios porque las queries filtraban solo por node_domain
-exacto del nodo. Si el dominio configurado no coincidia con el dominio
-de los productos seed (localhost o default), no se encontraba nada.
+Problema: listProducts, listProductCategories y listComponents usaban
+h.nodeDomain del config.yaml (que estaba vacio o "localhost"). Los
+productos seed estaban con otro dominio y no se encontraban.
 
-Solucion: las queries de listProductCategories y listComponents ahora
-buscan en node_domain IN ($1, 'localhost', 'default') para que
-encuentren los productos seed independientemente del dominio configurado.
+Solucion: usar r.Header.Get("X-Node-Domain") como prioridad (igual que
+ya hacen notifications, gateways, etc). El frontend ya envia este header
+correctamente. Si el header viene vacio, fallback a h.nodeDomain y luego
+a "localhost".
 
-Esto no afecta la seguridad ni el aislamiento entre nodos porque:
-- Los productos seed son productos del catalogo central (is_system=true)
-- Cada nodo sigue viendo solo sus productos + los seed
-- Los productos creados por usuarios siguen siendo del dominio del nodo
+Ademas, las queries ahora buscan en IN ($1, 'localhost', 'default')
+para encontrar productos seed independientemente del dominio.
+
+Endpoints arreglados:
+- GET /api/products (listProducts)
+- GET /api/products/categories (listProductCategories)
+- GET /api/products/components (listComponents)
+
+No borré la base de datos - los productos siguen ahi, solo no se
+encontraban por el filtro de dominio.
 
 Generated with Devin
 

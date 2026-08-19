@@ -577,9 +577,16 @@ func (h *SystemHandler) updateTariff(w http.ResponseWriter, r *http.Request) {
 // ===== PRODUCTOS =====
 
 func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = h.nodeDomain
+	}
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit, is_approved, origin, badge, image_url, product_code, is_system, is_hidden
-		FROM products WHERE node_domain = $1 ORDER BY parent_category, category, subcategory, name LIMIT 200`, h.nodeDomain)
+		FROM products WHERE node_domain IN ($1, 'localhost', 'default') ORDER BY parent_category, category, subcategory, name LIMIT 200`, nodeDomain)
 	if err != nil {
 		writeJSON(w, 200, []interface{}{})
 		return
@@ -2942,8 +2949,15 @@ func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Reques
 // (parent_category -> category -> subcategory) existentes en el catalogo del nodo.
 // Solo categorias que tienen al menos un producto aprobado y no oculto.
 func (h *SystemHandler) listProductCategories(w http.ResponseWriter, r *http.Request) {
+	// Usar el dominio del header (enviado por el frontend) como prioridad
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = h.nodeDomain
+	}
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
 	// Obtener todas las combinaciones distintas de (parent_category, category, subcategory)
-	// Buscar en el dominio del nodo, y si no hay, buscar tambien en 'localhost' y 'default'
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT DISTINCT parent_category, category, subcategory
 		FROM products
@@ -2953,7 +2967,7 @@ func (h *SystemHandler) listProductCategories(w http.ResponseWriter, r *http.Req
 		  AND parent_category IS NOT NULL AND parent_category <> ''
 		  AND category IS NOT NULL AND category <> ''
 		ORDER BY parent_category, category, subcategory
-	`, h.nodeDomain)
+	`, nodeDomain)
 	if err != nil {
 		writeJSON(w, 200, map[string]interface{}{"categories": []interface{}{}})
 		return

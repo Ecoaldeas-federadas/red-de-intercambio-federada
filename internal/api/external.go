@@ -652,6 +652,14 @@ func (eh *ExternalHandler) getComposition(w http.ResponseWriter, r *http.Request
 }
 
 func (eh *ExternalHandler) listComponents(w http.ResponseWriter, r *http.Request) {
+	// Usar el dominio del header (enviado por el frontend) como prioridad
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = eh.NodeDomain
+	}
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
 	// Listar productos que pueden ser usados como componentes
 	// materias primas, productos base aprobados, trabajo, embalaje, envio
 	// Incluye items individuales dentro de grupos (group_id no nulo)
@@ -665,7 +673,7 @@ func (eh *ExternalHandler) listComponents(w http.ResponseWriter, r *http.Request
 	query := `SELECT id, name, parent_category, category, subcategory, unit, price_per_unit, description, badge, image_url, group_id
 		FROM products
 		WHERE node_domain IN ($1, 'localhost', 'default') AND is_approved = true AND is_hidden = false AND is_group = false`
-	args := []interface{}{eh.NodeDomain}
+	args := []interface{}{nodeDomain}
 	argIdx := 2
 
 	switch category {
