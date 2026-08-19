@@ -6,7 +6,7 @@ import {
   Home, ArrowLeftRight, History, Package, Calculator, Store,
   Network, Scale, Users, Gavel, FileSearch, Globe, UserPlus, Wallet, Shield,
   Building2, Nfc, Settings, User, PiggyBank, Zap,
-  LogOut, Menu, X, ExternalLink, Bell,
+  LogOut, Menu, X, ExternalLink, Bell, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -41,6 +41,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const { username, logout } = useAuth()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [showNotif, setShowNotif] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [notifications, setNotifications] = useState<any[]>([])
@@ -90,40 +91,53 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex">
       {/* Sidebar desktop */}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-trueque-800 text-white transform transition-transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+      <aside className={`fixed lg:static inset-y-0 left-0 z-50 bg-trueque-800 text-white transform transition-all duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
         <div className="p-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold">Trueque</h1>
+          {!sidebarCollapsed && <h1 className="text-xl font-bold">Trueque</h1>}
+          {sidebarCollapsed && <h1 className="text-xl font-bold mx-auto">T</h1>}
           <button className="lg:hidden" onClick={() => setSidebarOpen(false)}>
             <X size={20} />
           </button>
         </div>
-        <nav className="px-2 py-4 space-y-1 overflow-y-auto h-[calc(100vh-64px)]">
+        <nav className="sidebar-scroll px-2 py-4 space-y-1 overflow-y-auto h-[calc(100vh-120px)]">
           {navItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
               end={to === '/app/dashboard'}
               onClick={() => setSidebarOpen(false)}
+              title={sidebarCollapsed ? label : undefined}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                   isActive ? 'bg-trueque-600 text-white' : 'text-trueque-100 hover:bg-trueque-700'
-                }`
+                } ${sidebarCollapsed ? 'justify-center' : ''}`
               }
             >
-              <Icon size={18} />
-              {label}
+              <Icon size={18} className="flex-shrink-0" />
+              {!sidebarCollapsed && label}
             </NavLink>
           ))}
           <a
             href="/"
             target="_blank"
             rel="noopener"
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-trueque-100 hover:bg-trueque-700 mt-4 border-t border-trueque-700 pt-4"
+            title={sidebarCollapsed ? 'Ver sitio publico' : undefined}
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-trueque-100 hover:bg-trueque-700 mt-4 border-t border-trueque-700 pt-4 ${sidebarCollapsed ? 'justify-center' : ''}`}
           >
-            <ExternalLink size={18} />
-            Ver sitio publico
+            <ExternalLink size={18} className="flex-shrink-0" />
+            {!sidebarCollapsed && 'Ver sitio publico'}
           </a>
         </nav>
+        {/* Boton contraer/expander */}
+        <div className="absolute bottom-0 left-0 right-0 border-t border-trueque-700 p-2 hidden lg:flex justify-center">
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="flex items-center gap-1 text-xs text-trueque-100 hover:text-white px-2 py-1 rounded hover:bg-trueque-700 transition"
+            title={sidebarCollapsed ? 'Expandir barra' : 'Contraer barra'}
+          >
+            {sidebarCollapsed ? <ChevronRight size={16} /> : <><ChevronLeft size={16} /> Contraer</>}
+          </button>
+        </div>
       </aside>
 
       {/* Overlay mobile */}

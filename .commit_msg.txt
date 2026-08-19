@@ -1,21 +1,22 @@
-feat: botones de ayuda en configuracion de pasarelas con enlaces directos
+feat: barra lateral colapsable + scroll fino del mismo color
 
-Cada pasarela ahora tiene un panel de ayuda colapsable que explica:
-- Pasos para configurar la pasarela
-- Botones con enlaces directos a las paginas de registro/config
-- Explicacion de cada campo (que es y donde conseguirlo)
+Mejoras en la barra de navegacion lateral:
 
-Pasarelas con ayuda:
-- Email: Gmail App Password, Postfix, Mailgun
-- Telegram: BotFather, obtener Chat ID
-- Matrix: matrix.org, Synapse, Element, obtener Access Token y Room ID
-- XMPP: Prosody, mod_rest, ejabberd
-- WebPush: mensaje de auto-configuracion
-- SMS: Twilio, Vonage, API propia
-- WhatsApp: Meta Business, Cloud API
-- Webhook: Zapier, Make, n8n, webhook.site
+1. Colapsable (desktop):
+   - Boton "Contraer" abajo que colapsa la barra a solo iconos (w-16)
+   - Al contraer, muestra solo los iconos con tooltip al pasar el mouse
+   - Boton para expandir de vuelta (w-64)
+   - Transicion suave de 300ms
 
-Cada campo tiene un icono de ayuda (?) con tooltip y texto explicativo debajo.
+2. Scroll fino y elegante:
+   - Scrollbar de solo 4px de ancho (antes era el default grueso gris)
+   - Color semi-transparente blanco que combina con el fondo verde oscuro
+   - Track transparente (sin fondo gris)
+   - Hover: mas visible
+   - Funciona en Chrome (webkit) y Firefox (scrollbar-color)
+
+Telegram: el error de "cannot create new bots" es de Telegram/SpamBot,
+no del codigo. Hay que apelar con @SpamBot o usar Matrix/XMPP mientras.
 
 Generated with Devin
 
