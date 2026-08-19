@@ -1,14 +1,21 @@
-fix: mostrar error real en test de pasarelas + verificar suscripcion WebPush
+feat: botones de ayuda en configuracion de pasarelas con enlaces directos
 
-1. El mensaje de test ahora muestra el error completo:
-   - Antes: "test enviado con error" sin detalles
-   - Ahora: muestra el error real del backend (ej: "usuario sin suscripcion webpush")
+Cada pasarela ahora tiene un panel de ayuda colapsable que explica:
+- Pasos para configurar la pasarela
+- Botones con enlaces directos a las paginas de registro/config
+- Explicacion de cada campo (que es y donde conseguirlo)
 
-2. Verificacion antes de test WebPush:
-   - Si el admin no tiene suscripcion push activada, retorna error claro:
-     "no tienes notificaciones push activadas. Ve a 'Mis contactos' y activa
-     las notificaciones push del navegador primero"
-   - El admin debe suscribirse PRIMERO en Mis contactos, despues probar
+Pasarelas con ayuda:
+- Email: Gmail App Password, Postfix, Mailgun
+- Telegram: BotFather, obtener Chat ID
+- Matrix: matrix.org, Synapse, Element, obtener Access Token y Room ID
+- XMPP: Prosody, mod_rest, ejabberd
+- WebPush: mensaje de auto-configuracion
+- SMS: Twilio, Vonage, API propia
+- WhatsApp: Meta Business, Cloud API
+- Webhook: Zapier, Make, n8n, webhook.site
+
+Cada campo tiene un icono de ayuda (?) con tooltip y texto explicativo debajo.
 
 Generated with Devin
 

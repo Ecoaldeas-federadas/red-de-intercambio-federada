@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
-import { Bell, Mail, Send, MessageSquare, Globe, Webhook, Save, TestTube, Check, X, Smartphone, BellRing } from 'lucide-react'
+import { Bell, Mail, Send, MessageSquare, Globe, Webhook, Save, TestTube, Check, X, Smartphone, BellRing, HelpCircle, ExternalLink } from 'lucide-react'
 
 const CHANNEL_INFO: Record<string, { label: string; icon: any; color: string; description: string }> = {
   email: { label: 'Email (SMTP)', icon: Mail, color: 'text-blue-600', description: 'Envia notificaciones por correo electronico via SMTP' },
@@ -12,6 +12,159 @@ const CHANNEL_INFO: Record<string, { label: string; icon: any; color: string; de
   sms: { label: 'SMS', icon: Smartphone, color: 'text-pink-600', description: 'SMS via Twilio, Vonage, o API propia' },
   whatsapp: { label: 'WhatsApp (opcional)', icon: MessageSquare, color: 'text-green-500', description: 'Meta Cloud API o API propia - propietario' },
   webhook: { label: 'Webhook generico', icon: Webhook, color: 'text-purple-600', description: 'POST HTTP a una URL configurable' },
+}
+
+// Ayuda para cada pasarela: pasos + enlaces + explicacion de campos
+const GATEWAY_HELP: Record<string, {
+  steps: string[]
+  links: { label: string; url: string }[]
+  fields: { key: string; label: string; howto: string }[]
+}> = {
+  email: {
+    steps: [
+      '1. Necesitas un servidor SMTP (puede ser Gmail, Outlook, o tu propio servidor).',
+      '2. Si usas Gmail, crea una "App Password" en tu cuenta de Google (no tu contrasena normal).',
+      '3. Si usas tu propio dominio, configura un servidor SMTP (Postfix, Mailgun, etc.).',
+    ],
+    links: [
+      { label: 'Crear App Password en Gmail', url: 'https://myaccount.google.com/apppasswords' },
+      { label: 'Configurar Postfix (Linux)', url: 'https://www.postfix.org/docs.html' },
+      { label: 'Mailgun (SMTP gratis)', url: 'https://www.mailgun.com/' },
+    ],
+    fields: [
+      { key: 'host', label: 'Servidor SMTP', howto: 'La direccion del servidor. Gmail: smtp.gmail.com. Outlook: smtp-mail.outlook.com. Tu dominio: smtp.tudominio.com' },
+      { key: 'port', label: 'Puerto', howto: 'Gmail: 587 (TLS) o 465 (SSL). La mayoria usan 587.' },
+      { key: 'username', label: 'Usuario SMTP', howto: 'Tu email completo. Ej: noreply@tudominio.org' },
+      { key: 'password', label: 'Contrasena', howto: 'Tu contrasena o App Password (en Gmail usa App Password, no tu contrasena normal).' },
+      { key: 'from_email', label: 'Email remitente', howto: 'El email que aparece como remitente. Debe coincidir con tu usuario SMTP.' },
+      { key: 'from_name', label: 'Nombre remitente', howto: 'El nombre que veran los usuarios. Ej: Red Federada' },
+    ],
+  },
+  telegram: {
+    steps: [
+      '1. Abre Telegram y busca el bot @BotFather.',
+      '2. Envia /newbot y sigue las instrucciones.',
+      '3. BotFather te dara un Token (algo como 123456:ABC-DEF...).',
+      '4. Copia ese Token y pegalo aqui.',
+      '5. Cada usuario debe iniciar una conversacion con tu bot y copiar su Chat ID.',
+    ],
+    links: [
+      { label: 'Crear bot con BotFather', url: 'https://t.me/botfather' },
+      { label: 'Documentacion Telegram Bot API', url: 'https://core.telegram.org/bots/api' },
+      { label: 'Obtener Chat ID', url: 'https://t.me/userinfobot' },
+    ],
+    fields: [
+      { key: 'bot_token', label: 'Bot Token', howto: 'El token que te dio BotFather al crear el bot. Formato: 123456789:ABCdefGHIjklMNOpqrSTUvwxYZ' },
+    ],
+  },
+  matrix: {
+    steps: [
+      '1. Matrix es una red federada libre (recomendada). Puedes usar matrix.org o tu propio servidor.',
+      '2. Crea una cuenta para el bot en tu servidor Matrix.',
+      '3. Obtener el Access Token: entra a tu cuenta, ve a Settings > Help & About > Advanced.',
+      '4. Crea o unete a una sala (room) para las notificaciones.',
+      '5. El Room ID lo encuentras en Settings de la sala (formato: !abc123:matrix.org).',
+    ],
+    links: [
+      { label: 'Matrix.org (registrarse gratis)', url: 'https://matrix.org/' },
+      { label: 'Instalar tu propio servidor (Synapse)', url: 'https://github.com/element-hq/synapse' },
+      { label: 'Clientes Matrix (Element)', url: 'https://element.io/' },
+    ],
+    fields: [
+      { key: 'homeserver_url', label: 'Homeserver URL', howto: 'La URL de tu servidor Matrix. Si usas matrix.org: https://matrix.org. Si es propio: https://matrix.tudominio.org' },
+      { key: 'access_token', label: 'Access Token', howto: 'Entra a tu cuenta Matrix > Settings > Help & About > Advanced > Access Token. Es una cadena larga.' },
+      { key: 'default_room_id', label: 'Room ID', howto: 'Entra a la sala > Settings > Advanced > Room ID. Formato: !abc123:matrix.org (NO es el nombre de la sala).' },
+    ],
+  },
+  xmpp: {
+    steps: [
+      '1. XMPP (Jabber) es una red federada libre. Necesitas un servidor XMPP con API HTTP.',
+      '2. Prosody con mod_rest permite enviar mensajes via HTTP API.',
+      '3. Ejabberd tambien soporta API HTTP.',
+      '4. Crea una cuenta bot en tu servidor XMPP.',
+      '5. Configura la URL del API REST y el token de autenticacion.',
+    ],
+    links: [
+      { label: 'Prosody (servidor XMPP)', url: 'https://prosody.im/' },
+      { label: 'mod_rest para Prosody', url: 'https://modules.prosody.im/mod_rest' },
+      { label: 'ejabberd (alternativa)', url: 'https://www.ejabberd.im/' },
+      { label: 'Registrarse en XMPP publico', url: 'https://xmpp.org/getting-started/' },
+    ],
+    fields: [
+      { key: 'endpoint_url', label: 'URL API XMPP', howto: 'La URL del API REST de tu servidor. Prosody con mod_rest: https://xmpp.tudominio.org/rest' },
+      { key: 'auth_token', label: 'Token auth', howto: 'Token de autenticacion configurado en tu servidor XMPP para el API REST.' },
+      { key: 'from_jid', label: 'JID remitente', howto: 'El JID (Jabber ID) del bot. Ej: bot@tudominio.org' },
+    ],
+  },
+  webpush: {
+    steps: [
+      'Web Push se configura automaticamente. No necesitas hacer nada aqui.',
+      'Las claves VAPID se generan solas cuando el primer usuario activa las notificaciones.',
+      'Solo activa la pasarela y los usuarios se suscriben desde "Mis contactos".',
+    ],
+    links: [],
+    fields: [],
+  },
+  sms: {
+    steps: [
+      '1. SMS requiere un proveedor. Recomendados: Twilio (internacional) o Vonage/Nexmo.',
+      '2. Registrate en el proveedor, crea una cuenta y obtén un numero de telefono.',
+      '3. Copia tus credenciales (Account SID, Auth Token para Twilio).',
+      '4. Si tienes tu propio gateway SMS, usa "custom" con tu URL API.',
+    ],
+    links: [
+      { label: 'Registrarse en Twilio', url: 'https://www.twilio.com/try-twilio' },
+      { label: 'Twilio Console (credenciales)', url: 'https://console.twilio.com/' },
+      { label: 'Registrarse en Vonage', url: 'https://dashboard.nexmo.com/sign-up' },
+      { label: 'Documentacion Twilio SMS', url: 'https://www.twilio.com/docs/sms' },
+    ],
+    fields: [
+      { key: 'provider', label: 'Proveedor', howto: 'Escribe: twilio, vonage, o custom segun el proveedor que uses.' },
+      { key: 'account_sid', label: 'Account SID (Twilio)', howto: 'En Twilio Console > Dashboard > Account SID. Empieza con AC...' },
+      { key: 'auth_token', label: 'Auth Token (Twilio)', howto: 'En Twilio Console > Dashboard > Auth Token. Es tu clave secreta.' },
+      { key: 'from_number', label: 'Numero remitente (Twilio)', howto: 'El numero que compraste en Twilio. Formato internacional: +1234567890' },
+      { key: 'api_key', label: 'API Key (Vonage)', howto: 'En Vonage Dashboard > Settings > API Key. Solo si usas Vonage.' },
+      { key: 'api_secret', label: 'API Secret (Vonage)', howto: 'En Vonage Dashboard > Settings > API Secret. Solo si usas Vonage.' },
+      { key: 'endpoint_url', label: 'URL API propia (custom)', howto: 'La URL de tu gateway SMS propio. Debe aceptar POST con phone y message.' },
+    ],
+  },
+  whatsapp: {
+    steps: [
+      '1. WhatsApp Cloud API es de Meta (Facebook). Necesitas una cuenta de Meta Business.',
+      '2. Registra tu numero de telefono en Meta Business Suite.',
+      '3. Obtén el Phone Number ID y el Access Token.',
+      '4. Alternativa: si tienes un gateway propio de WhatsApp, usa URL API propia.',
+    ],
+    links: [
+      { label: 'Meta Business Suite', url: 'https://business.facebook.com/' },
+      { label: 'WhatsApp Cloud API docs', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api' },
+      { label: 'Meta for Developers', url: 'https://developers.facebook.com/' },
+    ],
+    fields: [
+      { key: 'phone_number_id', label: 'Phone Number ID (Meta)', howto: 'En Meta Business > WhatsApp Manager > Phone Numbers > ID. Es un numero largo.' },
+      { key: 'access_token', label: 'Access Token (Meta)', howto: 'En Meta for Developers > tu app > WhatsApp > API Setup > Access Token. Empieza con EAA...' },
+      { key: 'endpoint_url', label: 'URL API propia', howto: 'Si usas un gateway propio (no Meta), la URL de tu API. Acepta POST con phone y message.' },
+      { key: 'auth_token', label: 'Token API propia', howto: 'Token de autenticacion de tu gateway propio de WhatsApp.' },
+    ],
+  },
+  webhook: {
+    steps: [
+      '1. Un webhook envia un POST HTTP a una URL que tu configures.',
+      '2. Puedes usar servicios como Zapier, Make, n8n, o tu propio endpoint.',
+      '3. El body del POST contiene: title, message, link en formato JSON.',
+      '4. Si tu endpoint requiere autenticacion, configura un Bearer Token.',
+    ],
+    links: [
+      { label: 'Zapier (webhooks gratis)', url: 'https://zapier.com/apps/webhook' },
+      { label: 'Make (Integromat)', url: 'https://www.make.com/' },
+      { label: 'n8n (self-hosted)', url: 'https://n8n.io/' },
+      { label: 'webhook.site (probar)', url: 'https://webhook.site/' },
+    ],
+    fields: [
+      { key: 'endpoint_url', label: 'URL del webhook', howto: 'La URL que recibira el POST. Ej: https://hook.zapier.com/hooks/catch/123456/abc/' },
+      { key: 'auth_token', label: 'Token (Bearer)', howto: 'Si tu endpoint requiere auth, pon el token aqui. Se envia como: Authorization: Bearer <token>' },
+    ],
+  },
 }
 
 const NOTIF_TYPES = [
@@ -348,8 +501,38 @@ export default function NotificationSettings() {
     }
 
     const fields = fieldDefs[channel] || []
+    const help = GATEWAY_HELP[channel]
     return (
       <div className="space-y-3">
+        {/* Panel de ayuda */}
+        {help && (
+          <details className="bg-blue-50 border border-blue-200 rounded p-3 text-sm">
+            <summary className="cursor-pointer font-medium text-blue-700 flex items-center gap-1">
+              <HelpCircle size={14} /> Como configurar {CHANNEL_INFO[channel]?.label || channel}
+            </summary>
+            <div className="mt-3 space-y-2">
+              {help.steps.map((s, i) => (
+                <p key={i} className="text-xs text-gray-700">{s}</p>
+              ))}
+              {help.links.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {help.links.map((l, i) => (
+                    <a
+                      key={i}
+                      href={l.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs bg-white border border-blue-300 text-blue-700 px-2 py-1 rounded hover:bg-blue-100 transition"
+                    >
+                      <ExternalLink size={12} /> {l.label}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          </details>
+        )}
+
         {channel === 'webpush' && fields.length === 0 && (
           <div className="bg-indigo-50 border border-indigo-200 rounded p-3 text-sm text-indigo-700">
             <p className="font-medium mb-1">Web Push se configura automaticamente</p>
@@ -368,18 +551,31 @@ export default function NotificationSettings() {
           />
           Activar pasarela
         </label>
-        {fields.map(f => (
-          <div key={f.key}>
-            <label className="block text-xs text-gray-600 mb-1">{f.label}</label>
-            <input
-              type={f.type || 'text'}
-              value={form[f.key] ?? currentConfig[f.key] ?? ''}
-              onChange={e => updateGatewayField(channel, f.key, e.target.value)}
-              placeholder={f.placeholder}
-              className="input text-sm"
-            />
-          </div>
-        ))}
+        {fields.map(f => {
+          const fieldHelp = help?.fields.find(fh => fh.key === f.key)
+          return (
+            <div key={f.key}>
+              <label className="block text-xs text-gray-600 mb-1 flex items-center gap-1">
+                {f.label}
+                {fieldHelp && (
+                  <span title={fieldHelp.howto} className="cursor-help text-gray-400 hover:text-blue-600">
+                    <HelpCircle size={12} />
+                  </span>
+                )}
+              </label>
+              <input
+                type={f.type || 'text'}
+                value={form[f.key] ?? currentConfig[f.key] ?? ''}
+                onChange={e => updateGatewayField(channel, f.key, e.target.value)}
+                placeholder={f.placeholder}
+                className="input text-sm"
+              />
+              {fieldHelp && (
+                <p className="text-xs text-gray-400 mt-1">{fieldHelp.howto}</p>
+              )}
+            </div>
+          )
+        })}
         <div className="flex gap-2 pt-2">
           <button onClick={() => saveGateway(channel)} className="btn-primary text-sm flex items-center gap-1">
             <Save size={14} /> Guardar
