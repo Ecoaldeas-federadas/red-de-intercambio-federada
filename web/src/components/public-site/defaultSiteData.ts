@@ -144,7 +144,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
             icon: 'users',
             title: 'Asambleas Trimestrales',
             description:
-              'Encuentros de gobernanza cada 3 meses donde los colectivos y productores deciden acuerdos, normas y planificación.',
+              'Encuentros de gobernanza cada 3 meses donde los miembros deciden sobre admisiones, impuestos, distribución de fondos y políticas. Convocatoria automática con notificaciones a todos los miembros.',
             badge: 'Gobernanza',
           },
           {
@@ -206,15 +206,17 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         type: 'split_story',
         badge: '�️ Estructura y Organización',
         title: 'Vida Organizativa Más Allá del Mercado',
-        subtitle: 'Asambleas trimestrales, comisiones y trabajo colectivo',
+        subtitle: 'Asambleas trimestrales, organizaciones, departamentos y trabajo colectivo',
         content:
-          'La Feria Conuquera no es solo el evento de venta del primer sábado de cada mes. Contamos con una estructura organizativa sólida y horizontal:\n\n• **Asambleas Trimestrales:** Cada 3 meses, todos los colectivos y familias productoras se reúnen en asamblea formal para evaluar el funcionamiento, admitir nuevos proyectos y debatir políticas colectivas.\n• **Comisiones de Trabajo:** Se conforman comisiones periódicas para la logística, comunicación, bioinsumos, cultura y articulación comunitaria.\n• **Actividades y Cayapas de Campo:** Organizamos jornadas de trabajo voluntario y formativo en los conucos y unidades productivas en El Junquito, La Pastora, Baruta y Valles del Tuy.',
+          'La Feria Conuquera no es solo el evento de venta del primer sábado de cada mes. Contamos con una estructura organizativa sólida y horizontal:\n\n• **Asamblea General Trimestral:** Cada 3 meses, todos los miembros plenos se reúnen en asamblea formal para evaluar el funcionamiento, admitir nuevos miembros, decidir sobre impuestos, tarifas y políticas colectivas. La asamblea se convoca automáticamente con 7 días de anticipación mínima.\n• **Organizaciones:** Los miembros pueden crear organizaciones (cooperativas, colectivos, proyectos). Cada organización puede tener su propia junta directiva y asamblea interna para decidir sobre sus fondos y políticas.\n• **Departamentos:** Las organizaciones y la asamblea pueden crear departamentos (áreas de trabajo como Producción, Distribución, Pagos). Cada departamento puede tener su propia asamblea o funcionar con un responsable único.\n• **Comisiones de Trabajo:** Se conforman comisiones periódicas para la logística, comunicación, bioinsumos, cultura y articulación comunitaria.\n• **Cayapas de Campo:** Organizamos jornadas de trabajo voluntario y formativo en los conucos y unidades productivas en El Junquito, La Pastora, Baruta y Valles del Tuy.',
         image_url:
           'https://images.unsplash.com/photo-1592417817098-8f3d69102a5e?auto=format&fit=crop&w=900&q=80',
         image_position: 'left',
         highlights: [
           'Mercado mensual a cielo abierto con venta al público en moneda local.',
-          'Asamblea general cada 3 meses para toma de decisiones democráticas.',
+          'Asamblea general cada 3 meses con convocatoria automática y notificaciones.',
+          'Organizaciones con junta directiva y asambleas internas opcionales.',
+          'Departamentos pertenecen a organizaciones o a la asamblea, nunca aislados.',
           'Talleres y actividades pedagógicas permanentes de campesino a campesino.',
           'Comisiones de trabajo voluntario para el cuidado colectivo.',
         ],

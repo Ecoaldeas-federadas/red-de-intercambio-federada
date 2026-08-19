@@ -74,20 +74,63 @@ El formulario de admision publica (`DynamicAdmissionForm`) carga las reglas de g
 
 ## Estructura de Gobernanza
 
-### Asamblea General
-Organo maximo de decision. Se reune mensualmente. Todos los miembros plenos tienen voz y voto. Las decisiones se toman por consentimiento sociocratico.
+### Jerarquia
 
-### Circulos Operativos
-- Circulo de Agua y Tierra
-- Circulo de Habitabilidad
-- Circulo de Agroecologia
-- Circulo de Economia Solidaria
-- Circulo de Convivencia y Admisiones
+```
+Nodo / Asamblea General (organo maximo)
+  ├── Organizaciones (pertenecen a personas, las personas pertenecen a la asamblea)
+  │     └── Departamentos (pertenecen a una organizacion)
+  └── Departamentos (pueden pertenecer al nodo directamente)
+```
+
+- **El nodo** es la unidad federada independiente.
+- **La Asamblea General** es el organo maximo de decision del nodo.
+- **Las organizaciones** pertenecen a las personas, y las personas pertenecen a la asamblea.
+- **Los departamentos** deben pertenecer a una organizacion o al nodo/asamblea. No pueden existir aislados ni pertenecer a una persona.
+
+### Asamblea General
+
+Organo maximo de decision del nodo. Sus decisiones afectan a todo el nodo:
+- Admision y expulsion de miembros del nodo
+- Cambios de impuestos y tarifas energeticas
+- Configuracion de la federacion
+- Distribucion de fondos de la cuenta de la asamblea
+- Reglas de gobernanza
+- Niveles de miembros
+- Politicas generales del nodo
+
+**La asamblea del nodo NO puede transferir dinero directamente a personas.** Solo puede transferir a organizaciones y departamentos. Estos, a su vez, deciden como distribuir el dinero (incluyendo pagos a personas).
+
+### Asambleas de Organizaciones
+
+Las organizaciones pueden tener su propia asamblea interna. **No es obligatorio**: una organizacion con un solo miembro o que no necesite asambleas puede desactivarlas.
+
+Las decisiones de la asamblea de organizacion **son diferentes** a las de la asamblea del nodo:
+- **NO pueden decidir** sobre admision/expulsion del nodo, impuestos del nodo, federacion, etc.
+- **SI pueden decidir** sobre: presupuesto de la org, distribucion de fondos de la org, politicas internas, creacion de cuentas, admision a la org, expulsion de la org.
+
+**Las organizaciones pueden transferir dinero a organizaciones, departamentos y personas.**
+
+### Asambleas de Departamentos
+
+Los departamentos pueden tener su propia asamblea interna. **No es obligatorio**: un departamento con un solo miembro puede desactivar las asambleas y operar solo con el responsable.
+
+Las decisiones de la asamblea de departamento **son diferentes** a las de la asamblea del nodo:
+- **NO pueden decidir** sobre asuntos del nodo.
+- **SI pueden decidir** sobre: distribucion de fondos del depto, politicas del depto, admision al depto.
+
+**Los departamentos pueden transferir dinero a organizaciones, departamentos y personas.**
 
 ### Junta Directiva del Nodo
+
 Organo ejecutivo: Coordinador General, Tesorero, Secretario y Coordinadores de cada circulo. Cargos de 1 ano, revocables.
 
+### Junta Directiva de Organizaciones
+
+Cada organizacion puede tener su propia junta directiva. Puede consistir de una sola persona. Los cargos son configurables (presidente, vicepresidente, secretario, tesorero, coordinador, miembro).
+
 ### Doble Enlace Sociocratico
+
 Cada circulo elige dos personas que lo conectan con la Asamblea: un Coordinador y un Delegado.
 
 ## Proceso de Admision (3 Fases)
@@ -116,17 +159,31 @@ Pago diferido en cuotas mensuales (12-24 meses) para no desestabilizar la econom
 - **Derecho de Usufructo**: Se otorga mientras la membresia este activa
 - **Prohibicion de Venta**: No se puede vender a terceros en el mercado abierto
 
-## Migracion
+## Migraciones
 
 - `048_governance_rules.sql` - Crea la tabla y inserta el seed inicial con ~40 reglas
-- Permiso `governance.manage` para gestionar las reglas
+- `049_governance_assembly.sql` - Estructuras de asamblea, decisiones y votos
+- `050_voting_deadline.sql` - Plazos de votacion
+- `051_assembly_attendance.sql` - Asistencia y doble validacion
+- `052_quorum_config.sql` - Quorum configurable, gracia, reprogramacion
+- `053_proposal_review_flow.sql` - Flujo de revision antes de votacion
+- `054_scoped_assemblies.sql` - Asambleas de organizacion y departamento
+- `055_assembly_convocation.sql` - Convocatoria automatica, frecuencia, notificaciones, tipos por scope
+- `056_assembly_advance_tax.sql` - Tiempos minimos de anticipacion, cuenta predefinida de impuestos
+- `057_department_parent.sql` - Departamentos con organizacion padre
+
+Permiso `governance.manage` para gestionar las reglas.
 
 ## Archivos Relevantes
 
 - `internal/db/migrations/048_governance_rules.sql` - Migracion y seed
 - `internal/api/system.go` - Endpoints API CRUD
+- `internal/api/assembly.go` - Asamblea del nodo
+- `internal/api/scoped_assembly.go` - Asambleas de org/depto
 - `internal/db/seed.go` - Pagina publica "gobernanza"
 - `web/src/pages/Governance.tsx` - Interfaz admin
+- `web/src/pages/Assembly.tsx` - UI de asamblea del nodo
+- `web/src/components/ScopedAssembly.tsx` - UI de asambleas de org/depto
 - `web/src/components/public-site/DynamicAdmissionForm.tsx` - Aceptacion en admision
 - `web/src/App.tsx` - Ruta `/app/governance`
 - `web/src/components/Layout.tsx` - Enlace en sidebar

@@ -4,20 +4,58 @@
 
 El sistema de departamentos permite organizar a los miembros del nodo en estructuras jerarquicas con roles y permisos granulares. Cada departamento puede tener multiples roles, y cada rol puede tener multiples permisos. Los usuarios pueden pertenecer a multiples departamentos con diferentes roles.
 
+## Jerarquia
+
+```
+Nodo / Asamblea (top)
+  ├── Organizaciones
+  │     └── Departamentos (pertenecen a una organizacion)
+  └── Departamentos (pueden pertenecer al nodo directamente)
+```
+
+**Todo departamento debe pertenecer a una organizacion o al nodo/asamblea.** No puede existir aislado ni pertenecer a una persona.
+
+- Si `parent_organization_id` es NULL, el departamento pertenece al nodo/asamblea directamente.
+- Si `parent_organization_id` apunta a una organizacion, el departamento pertenece a esa org.
+- El backend rechaza crear un departamento con parent de tipo `individual` (persona).
+
 ## Estructura
 
 ```
-Departamento
-  ├── Rol 1
-  │   ├── Permiso A
-  │   ├── Permiso B
-  │   └── Permiso C
-  ├── Rol 2
-  │   └── Permiso D
-  └── Miembros
-      ├── Usuario X (Rol 1)
-      └── Usuario Y (Rol 2)
+Organizacion padre (o nodo/asamblea)
+  └── Departamento
+        ├── Rol 1
+        │   ├── Permiso A
+        │   ├── Permiso B
+        │   └── Permiso C
+        ├── Rol 2
+        │   └── Permiso D
+        └── Miembros
+            ├── Usuario X (Rol 1)
+            └── Usuario Y (Rol 2)
 ```
+
+## Asambleas de Departamento
+
+Los departamentos pueden tener su propia asamblea interna. **No es obligatorio**:
+- Un departamento con un solo miembro puede desactivar las asambleas.
+- Si no tiene asambleas, las decisiones las toma el responsable o la junta directiva.
+- La configuracion `has_assembly` en la tabla `departments` controla esto.
+
+Las decisiones de la asamblea de departamento son diferentes a las de la asamblea del nodo:
+- **NO pueden decidir** sobre asuntos del nodo (impuestos, federacion, admision al nodo, etc.)
+- **SI pueden decidir** sobre: distribucion de fondos del depto, politicas del depto, admision al depto.
+
+Ver `docs/assembly.md` para mas detalles.
+
+## Reglas de Transferencia
+
+Los departamentos pueden transferir dinero a:
+- Organizaciones
+- Departamentos
+- Personas
+
+(La asamblea del nodo, en cambio, solo puede transferir a organizaciones y departamentos, nunca a personas directamente.)
 
 ## Tipos de grupo
 
@@ -129,12 +167,17 @@ La configuracion de multisig se establece en la tabla `permissions` con `require
 
 Tablas creadas en migracion `004_nfc_terminals.sql`:
 
-- `departments` — Departamentos del nodo
+- `departments` — Departamentos del nodo (con `parent_organization_id` desde migracion 057)
 - `roles` — Roles dentro de cada departamento
 - `permissions` — Permisos disponibles (con categoria y multisig)
 - `role_permissions` — Asociacion rol <-> permiso
 - `user_permissions` — Permisos directos a usuario
 - `department_members` — Miembros de cada departamento con su rol
+
+Migracion `057_department_parent.sql`:
+- Anade `parent_organization_id` a `departments` (FK a `users.id`)
+- NULL = pertenece al nodo/asamblea directamente
+- Indice para busqueda por organizacion padre
 
 ## Seed data
 

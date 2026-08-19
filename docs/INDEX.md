@@ -9,9 +9,9 @@
 5. [Seguridad y Criptografia](security.md) - Passkeys, claves Ed25519, hash chain, JWT
 6. [Cuentas y Miembros](accounts.md) - Tipos de cuenta, niveles de miembro, admision
 7. [Recuperacion de Cuenta](recovery.md) - Aprobacion configurable, multi-firma, codigos de invitacion
-8. [Impuestos y Fondo Comunitario](taxes.md) - Tasas, fondo multi-sig, instituciones publicas
+8. [Impuestos y Cuenta de la Asamblea](taxes.md) - Cuenta predefinida, distribucion por asamblea, reglas de transferencia
 9. [Pagos](payments.md) - QR, NFC, manual, terminales ESP32
-10. [Asambleas](assembly.md) - Sesiones, decisiones, multi-firma
+10. [Asambleas](assembly.md) - Sesiones, propuestas, votacion, convocatoria automatica, tipos por scope, reglas de transferencia
 11. [Auditoria](audit.md) - Transparencia, verificacion hash chain
 12. [Puente de Comercio Externo](external_bridge.md) - FC, DEX, tienda comunitaria, productos compuestos
 13. [Modulo de Precios](pricing.md) - Calculadora energetica, catalogo, tarifas, energia por kg
@@ -19,11 +19,11 @@
 15. [Limites Federados](federation_limits.md) - Limites globales, bilaterales, piscinas separadas
 16. [Frontend PWA](frontend.md) - React, TypeScript, TailwindCSS, Vite, service worker
 17. [Despliegue](deployment.md) - Docker, instalacion de nuevo nodo, setup wizard
-18. [Departamentos y Permisos](departments.md) - Departamentos, roles, permisos granulares, multi-firma
+18. [Departamentos y Permisos](departments.md) - Departamentos con jerarquia (org padre), roles, permisos, asambleas opcionales
 19. [Hardware NFC](nfc_hardware.md) - Terminales ESP32, PN532, tipos de terminal, componentes
 20. [Sistema de Intercambio y Moneda TQ](currency_exchange.md) - TQ, credito mutuo, historia, calculo energetico, comercio externo
 21. [Feria Conuquera Agroecologica](feria_conuquera.md) - Historia, filosofia, organizacion, productos, actividades, ecoaldeas
-22. [Gobernanza - Ley de la Aldea](governance.md) - Reglas de convivencia, estructura sociocratica, admision, FRNE, tenencia de tierra
+22. [Gobernanza - Ley de la Aldea](governance.md) - Reglas, jerarquia nodo/org/depto, asambleas por scope, admision, FRNE, tenencia de tierra
 
 ## Estado de Implementacion
 
@@ -50,6 +50,14 @@
 | 12.1 | Productos compuestos con precio automatico | Completado |
 | 12.2 | Federacion de productos entre nodos con aprobacion individual | Completado |
 | 13 | Documentacion actualizada | Completado |
+| 14 | Gobernanza con asamblea: quorum, votacion, revision, minutas | Completado |
+| 14.1 | Asambleas de organizacion y departamento (scoped) | Completado |
+| 14.2 | Convocatoria automatica, frecuencia, notificaciones | Completado |
+| 14.3 | Tipos de propuesta por scope (no mezclar decisiones) | Completado |
+| 14.4 | Tiempos minimos de anticipacion, fecha obligatoria | Completado |
+| 14.5 | Reglas de transferencia por scope | Completado |
+| 14.6 | Departamentos con organizacion padre (jerarquia) | Completado |
+| 14.7 | Documentacion actualizada de asambleas y gobernanza | Completado |
 
 ## Estructura del Proyecto
 
@@ -108,18 +116,51 @@ red de intercambio federada/
 | 046 | Precios decimales en productos |
 | 047 | Limites simetricos (positivo = negativo) + canasta basica 500 TQ |
 | 048 | Tabla governance_rules + seed inicial (Ley de la Aldea) |
+| 049 | Estructuras de asamblea: sesiones, decisiones, votos |
+| 050 | Plazos de votacion y deadlines |
+| 051 | Asistencia y doble validacion presencial |
+| 052 | Quorum configurable, gracia, reprogramacion |
+| 053 | Flujo de revision: proposed -> pending -> executed |
+| 054 | Asambleas de organizacion y departamento (scoped) |
+| 055 | Convocatoria automatica, frecuencia, notificaciones, tipos por scope |
+| 056 | Tiempos minimos de anticipacion, cuenta predefinida de impuestos |
+| 057 | Departamentos con organizacion padre (jerarquia) |
 
 ## Cambios Recientes
 
-### Limites Simetricos y Canasta Basica (migracion 047)
+### Sistema de Asambleas Completo (migraciones 049-057)
 
-Los limites de saldo ahora son **simetricos**: el limite negativo y el limite positivo tienen el mismo valor absoluto. Esto garantiza equidad en el sistema de moneda saldo cero.
+El sistema de asambleas ahora soporta tres niveles de decision:
 
-El limite minimo de **500 TQ** para personas naturales nuevas se calculo del costo energetico real de una canasta basica familiar mensual (familia de 4 personas), usando los precios del catalogo basados en energia incorporada (kWh).
+1. **Asamblea del nodo** - decisiones del nodo completo (15 tipos de propuesta)
+2. **Asamblea de organizacion** - decisiones internas (9 tipos, opcional)
+3. **Asamblea de departamento** - decisiones internas (4 tipos, opcional)
+
+**Principales caracteristicas:**
+- Convocatoria automatica con frecuencia configurable (ej: cada 3 meses)
+- Tiempos minimos de anticipacion: ordinaria 7 dias, extraordinaria 24h, urgente 1h
+- Fecha obligatoria al crear sesiones (no se puede crear para "ahora mismo")
+- Notificaciones automaticas a miembros elegibles
+- Flujo de revision: propuesta -> revision -> votacion -> ejecucion
+- Voto secreto con informes publicos agregados
+- Quorum configurable por tipo de propuesta y tipo de asamblea
+- Doble validacion de asistencia presencial
+- Minutas automaticas con eventos editables
+- Pestañas separadas: proximas asambleas vs asambleas pasadas
+
+**Reglas de transferencia:**
+- La asamblea del nodo NO puede transferir a personas directamente (solo orgs y deptos)
+- Las organizaciones y departamentos SI pueden transferir a personas
+
+**Jerarquia de departamentos:**
+- Todo departamento debe pertenecer a una organizacion o al nodo/asamblea
+- No puede existir aislado ni pertenecer a una persona
 
 Ver detalles en:
-- [accounts.md](accounts.md) - Tabla de limites simetricos y calculo de canasta basica
-- [currency_exchange.md](currency_exchange.md) - Los 5 pilares del sistema de moneda saldo cero
+- [assembly.md](assembly.md) - Documentacion completa del sistema de asambleas
+- [governance.md](governance.md) - Estructura de gobernanza y jerarquia
+- [departments.md](departments.md) - Departamentos con organizacion padre
+- [taxes.md](taxes.md) - Cuenta predefinida de la asamblea y reglas de distribucion
 
 ### Sistema de Moneda Saldo Cero: 5 Pilares
 
