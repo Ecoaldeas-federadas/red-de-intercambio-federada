@@ -48,11 +48,14 @@ WHERE ml.node_domain = 'localhost'
   AND NOT EXISTS (SELECT 1 FROM member_levels WHERE node_domain = 'default');
 
 -- Paso 2: Para usuarios cuyo member_level_id apunta a un nivel de otro dominio,
--- actualizar al nivel equivalente (mismo name) en su propio dominio
+-- actualizar al nivel equivalente (mismo name) en su propio dominio.
+-- Nota: en UPDATE...FROM no se puede referenciar el alias de la tabla destino (u)
+-- dentro del JOIN del FROM; solo en el WHERE. Por eso movemos la condicion
+-- local_ml.node_domain = u.node_domain al WHERE.
 UPDATE users u
 SET member_level_id = local_ml.id
 FROM member_levels foreign_ml
-JOIN member_levels local_ml ON local_ml.name = foreign_ml.name AND local_ml.node_domain = u.node_domain
+JOIN member_levels local_ml ON local_ml.name = foreign_ml.name
 WHERE u.member_level_id = foreign_ml.id
   AND foreign_ml.node_domain != u.node_domain
   AND local_ml.node_domain = u.node_domain;
