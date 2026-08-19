@@ -47,6 +47,7 @@ export default function NotificationSettings() {
   const [editingGateway, setEditingGateway] = useState<string | null>(null)
   const [gatewayForms, setGatewayForms] = useState<Record<string, any>>({})
   const [testingChannel, setTestingChannel] = useState<string | null>(null)
+  const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string } | null>>({})
 
   // Contactos del usuario
   const [contacts, setContacts] = useState({ email: '', phone: '', telegram_chat_id: '', matrix_user_id: '', xmpp_jid: '', quiet_hours_start: '', quiet_hours_end: '', digest_mode: 'instant' })
@@ -286,10 +287,13 @@ export default function NotificationSettings() {
 
   const testGateway = (channel: string) => {
     setTestingChannel(channel)
-    api.post(`/notifications/gateways/${channel}/test`, {}).then(() => {
-      setSuccess(`Test de ${channel} enviado`)
-      setTimeout(() => setSuccess(''), 3000)
-    }).catch(() => setError(`Error en test de ${channel}`)).finally(() => setTestingChannel(null))
+    setTestResults(prev => ({ ...prev, [channel]: null }))
+    api.post(`/notifications/gateways/${channel}/test`, {}).then((d: any) => {
+      setTestResults(prev => ({ ...prev, [channel]: { success: true, message: d?.message || `Test de ${channel} enviado` } }))
+    }).catch((e: any) => {
+      const msg = e?.message || `Error en test de ${channel}`
+      setTestResults(prev => ({ ...prev, [channel]: { success: false, message: msg } }))
+    }).finally(() => setTestingChannel(null))
   }
 
   const renderGatewayFields = (channel: string): React.ReactNode => {
@@ -383,6 +387,12 @@ export default function NotificationSettings() {
           </button>
           <button onClick={() => setEditingGateway(null)} className="btn-secondary text-sm">Cancelar</button>
         </div>
+        {testResults[channel] && (
+          <div className={`text-sm p-2 rounded mt-2 ${testResults[channel]!.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+            {testResults[channel]!.success ? <Check size={14} className="inline mr-1" /> : <X size={14} className="inline mr-1" />}
+            {testResults[channel]!.message}
+          </div>
+        )}
       </div>
     )
   }

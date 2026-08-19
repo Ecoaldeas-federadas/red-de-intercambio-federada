@@ -330,6 +330,18 @@ func (h *NotificationHandler) updateGateway(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// Para webpush: no sobrescribir la config existente (VAPID keys se auto-generan)
+	// Si la config viene vacia, preservar la existente
+	if channel == "webpush" && len(req.Config) == 0 {
+		var existingConfig []byte
+		h.Pool.QueryRow(r.Context(), `
+			SELECT config FROM notification_gateway_config
+			WHERE node_domain = $1 AND channel_code = $2`, nodeDomain, channel).Scan(&existingConfig)
+		if len(existingConfig) > 0 {
+			json.Unmarshal(existingConfig, &req.Config)
+		}
+	}
+
 	configJSON, _ := json.Marshal(req.Config)
 	_, err := h.Pool.Exec(r.Context(), `
 		INSERT INTO notification_gateway_config (node_domain, channel_code, config, is_active)
@@ -345,13 +357,99 @@ func (h *NotificationHandler) updateGateway(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *NotificationHandler) testGateway(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
 	channel := chi.URLParam(r, "channel")
-	// Por ahora solo devolvemos ok. El envio real se implementa en Fase 3.
+
+	// Obtener la config del gateway
+	var configBytes []byte
+	var isActive bool
+	err := h.Pool.QueryRow(r.Context(), `
+		SELECT config, is_active FROM notification_gateway_config
+		WHERE node_domain = $1 AND channel_code = $2`, nodeDomain, channel).Scan(&configBytes, &isActive)
+	if err != nil {
+		writeError(w, 404, "pasarela no configurada")
+		return
+	}
+	if !isActive {
+		writeError(w, 400, "pasarela inactiva, activela primero")
+		return
+	}
+
+	var config map[string]interface{}
+	json.Unmarshal(configBytes, &config)
+
+	// Obtener datos del usuario admin que hace el test
+	userID, _ := h.Auth.GetUserID(r)
+	var email, phone, telegramChatID, matrixUserID, xmppJID string
+	h.Pool.QueryRow(r.Context(), `
+		SELECT COALESCE(email, ''), COALESCE(phone, ''), COALESCE(telegram_chat_id, ''),
+		       COALESCE(matrix_user_id, ''), COALESCE(xmpp_jid, '')
+		FROM users WHERE id = $1`, userID).Scan(&email, &phone, &telegramChatID, &matrixUserID, &xmppJID)
+
+	// Enviar notificacion de test real
+	gw := NewGatewayService(h.Pool)
+	title := "Test de pasarela"
+	message := fmt.Sprintf("Esta es una notificacion de prueba desde %s. Si la recibes, la pasarela %s funciona correctamente.", nodeDomain, channel)
+
+	var sendErr error
+	switch channel {
+	case "email":
+		if email == "" {
+			writeError(w, 400, "no tienes email configurado en tus contactos")
+			return
+		}
+		sendErr = gw.sendEmail(config, email, title, message, "")
+	case "telegram":
+		if telegramChatID == "" {
+			writeError(w, 400, "no tienes Telegram Chat ID configurado")
+			return
+		}
+		sendErr = gw.sendTelegram(config, telegramChatID, title, message, "")
+	case "matrix":
+		sendErr = gw.sendMatrix(config, userID.String(), title, message, "")
+	case "xmpp":
+		if xmppJID == "" {
+			writeError(w, 400, "no tienes XMPP JID configurado")
+			return
+		}
+		sendErr = gw.sendXMPP(config, xmppJID, title, message, "")
+	case "webpush":
+		sendErr = gw.sendWebPush(r.Context(), config, userID, title, message, "/app/notifications")
+	case "sms":
+		if phone == "" {
+			writeError(w, 400, "no tienes telefono configurado")
+			return
+		}
+		sendErr = gw.sendSMS(config, phone, title, message, "")
+	case "whatsapp":
+		if phone == "" {
+			writeError(w, 400, "no tienes telefono configurado")
+			return
+		}
+		sendErr = gw.sendWhatsApp(config, phone, title, message, "")
+	case "webhook":
+		sendErr = gw.sendWebhook(config, title, message, "", userID)
+	default:
+		writeError(w, 400, "canal no soportado: "+channel)
+		return
+	}
+
+	if sendErr != nil {
+		writeJSON(w, 200, map[string]interface{}{
+			"message": "test enviado con error",
+			"channel": channel,
+			"success": false,
+			"error":   sendErr.Error(),
+		})
+		return
+	}
 	writeJSON(w, 200, map[string]interface{}{
-		"message": "test enviado (canal: " + channel + ")",
+		"message": "test enviado correctamente",
 		"channel": channel,
 		"success": true,
-		"note":    "El envio real por pasarelas se implementa en Fase 3",
 	})
 }
 

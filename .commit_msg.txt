@@ -1,15 +1,22 @@
-fix: WebPush - registrar Service Worker en lugar de desregistrarlo
+fix: test de pasarelas real + guardar activacion WebPush + mensaje junto al boton
 
-Problema: main.tsx DESREGISTRABA todos los service workers en cada carga
-de pagina. Esto hacia que navigator.serviceWorker.ready se quedara colgado
-indefinidamente al intentar suscribirse a WebPush, y el boton se quedaba
-en "Suscribiendo..." para siempre sin mostrar el dialogo de permiso.
+1. Test de pasarelas ahora envia de verdad:
+   - Antes: testGateway solo devolvia un mensaje falso
+   - Ahora: envia una notificacion real usando el gateway correspondiente
+   - Usa los datos de contacto del admin que hace el test
+   - Retorna error real si falla (ej: "no tienes email configurado")
 
-Solucion:
-- main.tsx: registrar /sw.js en lugar de desregistrarlo
-- NotificationSettings.tsx: registrar el SW explicitamente antes de
-  intentar suscribirse, con verificacion de soporte del navegador
-  y mejor manejo de errores con logs en consola
+2. Guardar activacion de WebPush:
+   - Problema: al guardar WebPush con config vacia, se sobrescribian
+     las VAPID keys auto-generadas con {}
+   - Fix: si channel=webpush y config viene vacia, preservar config existente
+   - Ahora activar/desactivar WebPush persiste al recargar la pagina
+
+3. Mensaje de test junto al boton:
+   - Antes: el mensaje aparecia arriba de la pagina (fuera de vista)
+   - Ahora: el resultado aparece justo debajo de los botones Guardar/Probar/Cancelar
+   - Verde si exito, rojo si error
+   - Estado por canal (testResults)
 
 Generated with Devin
 
