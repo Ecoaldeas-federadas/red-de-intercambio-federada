@@ -1,17 +1,23 @@
-fix: validar que dominio y nombre del nodo no queden vacios al crear
+fix: app no conecta a BD en Docker - DB_HOST=yugabytedb
 
-El config.yaml ahora tiene domain y name vacios (plantilla), pero al
-crear el nodo el setup debe garantizar que se guarden valores reales.
+El config.yaml tiene host: "localhost" pero dentro de Docker,
+localhost se refiere al contenedor de la app, no a la base de
+datos que esta en el contenedor "yugabytedb".
 
-Fix en setup.go (initNode):
-- Agregada validacion: si nodeDomain queda vacio despues del fallback
-  (req.NodeDomain -> sh.NodeDomain), retorna 400 con mensaje claro
-- Agregada validacion: si nodeName queda vacio, retorna 400
-- Mensajes explican que el dominio es obligatorio (localhost para
-  desarrollo o dominio real para produccion)
+Antes funcionaba porque el config.yaml local del usuario tenia
+host: "yugabytedb", pero al hacer git checkout -- config.yaml
+se perdio ese cambio y se uso el del repo con "localhost".
 
-El frontend (Setup.tsx) ya validaba estos campos antes de enviar,
-pero el backend no tenia la validacion. Ahora ambos la tienen.
+Fix:
+1. docker-compose.yml: agregada env var DB_HOST=yugabytedb
+2. config.go: las env vars (DB_HOST, DB_PORT, DB_NAME, DB_USER,
+   DB_PASSWORD) ahora sobreescriben al config.yaml despues de
+   cargarlo. Esto es necesario para Docker donde el host de la BD
+   es el nombre del contenedor, no "localhost".
+
+El config.yaml puede seguir teniendo "localhost" como template
+(para desarrollo sin Docker) y las env vars del docker-compose
+lo sobreescriben correctamente.
 
 Generated with Devin
 

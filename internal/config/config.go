@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -226,6 +227,30 @@ func Load(path string) (*Config, error) {
 	}
 	if len(cfg.API.CORSOrigins) == 0 {
 		cfg.API.CORSOrigins = []string{"http://localhost:3000", "http://localhost:8080"}
+	}
+
+	// Las variables de entorno sobreescriben al config.yaml.
+	// Esto es necesario para Docker donde el host de la BD es el nombre
+	// del contenedor (ej: "yugabytedb"), no "localhost".
+	if v := os.Getenv("DB_HOST"); v != "" {
+		cfg.Database.Host = v
+	}
+	if v := os.Getenv("DB_PORT"); v != "" {
+		if port, err := strconv.Atoi(v); err == nil {
+			cfg.Database.Port = port
+		}
+	}
+	if v := os.Getenv("DB_NAME"); v != "" {
+		cfg.Database.Name = v
+	}
+	if v := os.Getenv("DB_USER"); v != "" {
+		cfg.Database.User = v
+	}
+	if v := os.Getenv("DB_PASSWORD"); v != "" {
+		cfg.Database.Password = v
+	}
+	if v := os.Getenv("JWT_SECRET"); v != "" {
+		// JWT_SECRET se maneja en main.go directamente del env
 	}
 
 	// Defaults de limits si estan en cero

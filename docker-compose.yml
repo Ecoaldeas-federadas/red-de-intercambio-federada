@@ -16,6 +16,7 @@ services:
     depends_on:
       - yugabytedb
     environment:
+      - DB_HOST=yugabytedb
       - DB_PASSWORD=${DB_PASSWORD:-fmcpassword}
       - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - CONFIG_PATH=/app/config.yaml
