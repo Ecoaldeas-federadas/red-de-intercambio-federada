@@ -45,6 +45,7 @@ func (h *AssemblyHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	// Propuestas / decisiones
 	r.With(am.RequireAuth).Get("/api/assembly/proposals", h.listProposals)
 	r.With(am.RequireAuth).Post("/api/assembly/proposals", h.createProposal)
+	r.With(am.RequirePermission("assembly.open_voting")).Post("/api/assembly/proposals/{id}/open-voting", h.openVoting)
 	r.With(am.RequireAuth).Post("/api/assembly/proposals/{id}/vote", h.voteProposal)
 	r.With(am.RequireAuth).Post("/api/assembly/proposals/{id}/execute", h.executeProposal)
 
@@ -333,8 +334,8 @@ func (h *AssemblyHandler) createProposal(w http.ResponseWriter, r *http.Request)
 
 	id := uuid.New()
 	_, err = h.Pool.Exec(r.Context(), `
-		INSERT INTO assembly_decisions (id, assembly_id, decision_type, target_account, description, new_value, required_signatures, status, voting_deadline, voting_duration_minutes)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', NOW() + ($8 || ' minutes')::INTERVAL, $8)`,
+		INSERT INTO assembly_decisions (id, assembly_id, decision_type, target_account, description, new_value, required_signatures, status, voting_duration_minutes)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, 'proposed', $8)`,
 		id, sessionID, req.ProposalType, targetAccount, req.Description, newValue, req.RequiredSignatures, req.VotingDurationMinutes)
 	if err != nil {
 		writeError(w, 500, err.Error())
@@ -347,13 +348,85 @@ func (h *AssemblyHandler) createProposal(w http.ResponseWriter, r *http.Request)
 	h.Pool.Exec(r.Context(), `INSERT INTO audit_log (actor_id, action, target_id, details) VALUES ($1, 'assembly_decision', $2, $3)`,
 		userID, id, auditDetails)
 
+	// Auto-agregar a la minuta
+	appendToMinutes(h.Pool, sessionID, fmt.Sprintf("- [Propuesta] %s: %s", req.ProposalType, req.Description))
+
 	writeJSON(w, 201, map[string]interface{}{
 		"id":                      id.String(),
 		"proposal_type":           req.ProposalType,
 		"description":             req.Description,
 		"required_signatures":     req.RequiredSignatures,
-		"status":                  "pending",
+		"status":                  "proposed",
 		"voting_duration_minutes": req.VotingDurationMinutes,
+		"message":                 "Propuesta creada. La asamblea debe aprobarla para abrir la votacion.",
+	})
+}
+
+// appendToMinutes agrega una linea a la minuta de la sesion automaticamente
+func appendToMinutes(pool *pgxpool.Pool, sessionID uuid.UUID, entry string) {
+	timestamp := time.Now().Format("15:04")
+	line := fmt.Sprintf("[%s] %s\n", timestamp, entry)
+	pool.Exec(context.Background(), `
+		UPDATE assembly_sessions
+		SET minutes = COALESCE(minutes, '') || $1,
+		    minutes_updated_at = NOW()
+		WHERE id = $2`, line, sessionID)
+}
+
+// openVoting: la asamblea aprueba una propuesta para que se abra la votacion
+func (h *AssemblyHandler) openVoting(w http.ResponseWriter, r *http.Request) {
+	decisionID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+
+	// Obtener estado actual y datos
+	var status, decisionType, description string
+	var votingDurationMinutes int
+	var assemblyID uuid.UUID
+	h.Pool.QueryRow(r.Context(), `
+		SELECT status, decision_type, description, voting_duration_minutes, assembly_id
+		FROM assembly_decisions WHERE id = $1`, decisionID).
+		Scan(&status, &decisionType, &description, &votingDurationMinutes, &assemblyID)
+	if status == "" {
+		writeError(w, 404, "propuesta no encontrada")
+		return
+	}
+
+	if status != "proposed" {
+		writeError(w, 400, "esta propuesta no esta pendiente de revision (estado: "+status+")")
+		return
+	}
+
+	if votingDurationMinutes == 0 {
+		votingDurationMinutes = 1440 // default 24h
+	}
+
+	userID, _ := h.Auth.GetUserID(r)
+
+	// Abrir votacion: status = pending, calcular deadline
+	_, err = h.Pool.Exec(r.Context(), `
+		UPDATE assembly_decisions
+		SET status = 'pending',
+		    voting_deadline = NOW() + ($1 || ' minutes')::INTERVAL,
+		    approved_for_voting_by = $2,
+		    approved_for_voting_at = NOW()
+		WHERE id = $3`,
+		votingDurationMinutes, userID, decisionID)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	// Auto-agregar a la minuta
+	appendToMinutes(h.Pool, assemblyID, fmt.Sprintf("- [Votacion abierta] %s: %s (duracion: %d min)", decisionType, description, votingDurationMinutes))
+
+	writeJSON(w, 200, map[string]interface{}{
+		"id":                      decisionID.String(),
+		"status":                  "pending",
+		"message":                 "Votacion abierta. Los miembros pueden votar ahora.",
+		"voting_duration_minutes": votingDurationMinutes,
 	})
 }
 
@@ -470,13 +543,15 @@ func (h *AssemblyHandler) executeProposal(w http.ResponseWriter, r *http.Request
 	// Verificar que este aprobada
 	var status string
 	var decisionType string
+	var description string
 	var newValue *[]byte
 	var targetAccount *uuid.UUID
 	var collectedSignatures []byte
 	var votingDeadline *time.Time
+	var assemblyID uuid.UUID
 	err = h.Pool.QueryRow(r.Context(), `
-		SELECT status, decision_type, new_value, target_account, collected_signatures, voting_deadline FROM assembly_decisions WHERE id = $1`,
-		decisionID).Scan(&status, &decisionType, &newValue, &targetAccount, &collectedSignatures, &votingDeadline)
+		SELECT status, decision_type, description, new_value, target_account, collected_signatures, voting_deadline, assembly_id FROM assembly_decisions WHERE id = $1`,
+		decisionID).Scan(&status, &decisionType, &description, &newValue, &targetAccount, &collectedSignatures, &votingDeadline, &assemblyID)
 	if err != nil {
 		writeError(w, 404, "decision not found")
 		return
@@ -577,6 +652,9 @@ func (h *AssemblyHandler) executeProposal(w http.ResponseWriter, r *http.Request
 			return
 		}
 
+		// Auto-agregar a la minuta
+		appendToMinutes(h.Pool, assemblyID, fmt.Sprintf("- [APROBADA] %s: %s (a favor: %d, en contra: %d, abstencion: %d)", decisionType, description, votesFor, votesAgainst, votesAbstain))
+
 		// Ejecutar segun el tipo de decision
 		var params map[string]interface{}
 		if newValue != nil {
@@ -614,6 +692,10 @@ func (h *AssemblyHandler) executeProposal(w http.ResponseWriter, r *http.Request
 		})
 	} else {
 		_, _ = h.Pool.Exec(r.Context(), `UPDATE assembly_decisions SET status = 'rejected' WHERE id = $1`, decisionID)
+
+		// Auto-agregar a la minuta
+		appendToMinutes(h.Pool, assemblyID, fmt.Sprintf("- [RECHAZADA] %s: %s (a favor: %d, en contra: %d, abstencion: %d)", decisionType, description, votesFor, votesAgainst, votesAbstain))
+
 		totalVotes := votesFor + votesAgainst + votesAbstain
 		notVoted := totalVotingMembers - totalVotes
 		if notVoted < 0 {

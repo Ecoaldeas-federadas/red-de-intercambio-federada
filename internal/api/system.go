@@ -3269,7 +3269,7 @@ func (h *SystemHandler) createGovernanceRule(w http.ResponseWriter, r *http.Requ
 	proposalID := uuid.New()
 	_, err = h.Pool.Exec(r.Context(), `
 		INSERT INTO assembly_decisions (id, assembly_id, decision_type, description, new_value, required_signatures, status, voting_deadline, voting_duration_minutes)
-		VALUES ($1, $2, 'governance_rule', $3, $4, 1, 'pending', NOW() + ($5 || ' minutes')::INTERVAL, $5)`,
+		VALUES ($1, $2, 'governance_rule', $3, $4, 1, 'proposed', $5)`,
 		proposalID, sessionID, "Crear regla de gobernanza: "+req.Title, newValue, votingMinutes)
 	if err != nil {
 		writeError(w, 500, err.Error())
@@ -3283,7 +3283,7 @@ func (h *SystemHandler) createGovernanceRule(w http.ResponseWriter, r *http.Requ
 
 	writeJSON(w, 201, map[string]interface{}{
 		"id":                      proposalID.String(),
-		"message":                 "Propuesta creada. La regla se activara cuando la asamblea la apruebe.",
+		"message":                 "Propuesta creada. La asamblea debe revisarla y abrir la votacion.",
 		"status":                  "pending",
 		"voting_duration_minutes": votingMinutes,
 		"proposal":                "/app/assembly",
@@ -3346,7 +3346,7 @@ func (h *SystemHandler) updateGovernanceRule(w http.ResponseWriter, r *http.Requ
 	proposalID := uuid.New()
 	_, err = h.Pool.Exec(r.Context(), `
 		INSERT INTO assembly_decisions (id, assembly_id, decision_type, description, new_value, required_signatures, status, voting_deadline, voting_duration_minutes)
-		VALUES ($1, $2, 'governance_rule', $3, $4, 1, 'pending', NOW() + ($5 || ' minutes')::INTERVAL, $5)`,
+		VALUES ($1, $2, 'governance_rule', $3, $4, 1, 'proposed', $5)`,
 		proposalID, sessionID, "Modificar regla de gobernanza: "+req.Title, newValue, votingMinutes)
 	if err != nil {
 		writeError(w, 500, err.Error())
@@ -3401,7 +3401,7 @@ func (h *SystemHandler) deleteGovernanceRule(w http.ResponseWriter, r *http.Requ
 	proposalID := uuid.New()
 	_, err = h.Pool.Exec(r.Context(), `
 		INSERT INTO assembly_decisions (id, assembly_id, decision_type, description, new_value, required_signatures, status, voting_deadline, voting_duration_minutes)
-		VALUES ($1, $2, 'governance_rule', $3, $4, 1, 'pending', NOW() + ($5 || ' minutes')::INTERVAL, $5)`,
+		VALUES ($1, $2, 'governance_rule', $3, $4, 1, 'proposed', $5)`,
 		proposalID, sessionID, "Eliminar regla de gobernanza: "+ruleTitle, newValue, votingMinutes)
 	if err != nil {
 		writeError(w, 500, err.Error())
@@ -3420,3 +3420,4 @@ func (h *SystemHandler) deleteGovernanceRule(w http.ResponseWriter, r *http.Requ
 		"proposal":                "/app/assembly",
 	})
 }
+

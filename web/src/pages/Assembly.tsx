@@ -3,7 +3,7 @@ import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useConfig } from '../hooks/useConfig'
 import { EntitySelector } from '../components/EntitySelector'
-import { Plus, Check, X, HelpCircle, Users, Calendar, Shield, Vote as VoteIcon, DollarSign, Crown, Trash2, FileText } from 'lucide-react'
+import { Plus, Check, X, HelpCircle, Users, Calendar, Shield, Vote as VoteIcon, DollarSign, Crown, Trash2, FileText, Clock } from 'lucide-react'
 
 type ProposalType =
   | 'limit_change' | 'admission' | 'expulsion' | 'budget_increase'
@@ -426,6 +426,15 @@ export default function Assembly() {
     }
   }
 
+  const openVoting = async (id: string) => {
+    try {
+      await api.post(`/assembly/proposals/${id}/open-voting`, {})
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al abrir votacion')
+    }
+  }
+
   const loadReports = async () => {
     try {
       const params = new URLSearchParams()
@@ -780,13 +789,50 @@ export default function Assembly() {
           {proposals.length === 0 && !showNewProposal ? (
             <div className="card text-center text-gray-500 py-8">
               <p>No hay propuestas.</p>
-              <p className="text-xs mt-2">Crea una propuesta para que los miembros voten.</p>
+              <p className="text-xs mt-2">Crea una propuesta para que la asamblea la revise.</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {proposals.map((p, i) => (
-                <div key={i} className="card">
-                  <div className="flex items-center justify-between">
+            <div className="space-y-4">
+              {/* Propuestas pendientes de revision (proposed) */}
+              {proposals.filter((p: any) => p.status === 'proposed').length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-medium text-sm text-purple-700 flex items-center gap-2">
+                    <Clock size={16} />Pendientes de revision por la asamblea ({proposals.filter((p: any) => p.status === 'proposed').length})
+                  </h3>
+                  <p className="text-xs text-gray-500">Estas propuestas fueron creadas pero la asamblea todavia no las ha aprobado para votacion.</p>
+                  {proposals.filter((p: any) => p.status === 'proposed').map((p: any, i: number) => (
+                    <div key={i} className="card border-purple-200">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="font-medium">{PROPOSAL_LABELS[p.proposal_type as ProposalType] || p.proposal_type}</span>
+                          <span className="ml-2 text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700">pendiente de revision</span>
+                        </div>
+                        <span className="text-xs text-gray-400">{p.created_at?.slice(0, 10)}</span>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">{p.description}</p>
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={() => openVoting(p.id)}
+                          className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                        >
+                          Abrir votacion
+                        </button>
+                        <span className="text-xs text-gray-400 self-center">Duracion: {p.voting_duration_minutes || 1440} min</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Propuestas en votacion y resultados */}
+              {proposals.filter((p: any) => p.status !== 'proposed').length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-medium text-sm text-gray-700 flex items-center gap-2">
+                    <VoteIcon size={16} />En votacion y resultados ({proposals.filter((p: any) => p.status !== 'proposed').length})
+                  </h3>
+                  {proposals.filter((p: any) => p.status !== 'proposed').map((p: any, i: number) => (
+                    <div key={i} className="card">
+                    <div className="flex items-center justify-between">
                     <div>
                       <span className="font-medium">{PROPOSAL_LABELS[p.proposal_type as ProposalType] || p.proposal_type}</span>
                       <span className={`ml-2 text-xs px-2 py-0.5 rounded ${
@@ -795,7 +841,7 @@ export default function Assembly() {
                         p.status === 'expired' ? 'bg-orange-100 text-orange-700' :
                         p.status === 'approved' ? 'bg-blue-100 text-blue-700' :
                         'bg-yellow-100 text-yellow-700'
-                      }`}>{p.status === 'expired' ? 'vencida' : p.status}</span>
+                      }`}>{p.status === 'expired' ? 'vencida' : p.status === 'pending' ? 'en votacion' : p.status}</span>
                     </div>
                     <span className="text-xs text-gray-400">{p.created_at?.slice(0, 10)}</span>
                   </div>
@@ -845,7 +891,9 @@ export default function Assembly() {
                     </div>
                   )}
                 </div>
-              ))}
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
