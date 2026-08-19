@@ -22,6 +22,14 @@ func (h *AssemblyHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	// Sesiones
 	r.With(am.RequireAuth).Get("/api/assembly/sessions", h.listSessions)
 	r.With(am.RequireAuth).Post("/api/assembly/sessions", h.createSession)
+	r.With(am.RequireAuth).Put("/api/assembly/sessions/{id}", h.updateSession)
+	r.With(am.RequireAuth).Put("/api/assembly/sessions/{id}/minutes", h.updateMinutes)
+
+	// Asistencia
+	r.With(am.RequireAuth).Get("/api/assembly/sessions/{id}/attendance", h.listAttendance)
+	r.With(am.RequirePermission("assembly.take_attendance")).Post("/api/assembly/sessions/{id}/attendance", h.registerAttendance)
+	r.With(am.RequirePermission("assembly.take_attendance")).Delete("/api/assembly/sessions/{id}/attendance/{userId}", h.removeAttendance)
+	r.With(am.RequireAuth).Get("/api/assembly/attendance/history", h.getAttendanceHistory)
 
 	// Propuestas / decisiones
 	r.With(am.RequireAuth).Get("/api/assembly/proposals", h.listProposals)
@@ -50,7 +58,8 @@ func (h *AssemblyHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 
 func (h *AssemblyHandler) listSessions(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.Pool.Query(r.Context(), `
-		SELECT id, node_domain, session_type, title, description, start_time, end_time, status, created_at
+		SELECT id, node_domain, session_type, title, description, start_time, end_time, status, created_at,
+		       is_presential, minutes
 		FROM assembly_sessions ORDER BY created_at DESC LIMIT 50`)
 	if err != nil {
 		writeError(w, 500, err.Error())
@@ -66,18 +75,22 @@ func (h *AssemblyHandler) listSessions(w http.ResponseWriter, r *http.Request) {
 		var startTime time.Time
 		var endTime *time.Time
 		var createdAt time.Time
-		if err := rows.Scan(&id, &nodeDomain, &sessionType, &title, &description, &startTime, &endTime, &status, &createdAt); err != nil {
+		var isPresential bool
+		var minutes *string
+		if err := rows.Scan(&id, &nodeDomain, &sessionType, &title, &description, &startTime, &endTime, &status, &createdAt, &isPresential, &minutes); err != nil {
 			continue
 		}
 		sessions = append(sessions, map[string]interface{}{
-			"id":           id.String(),
-			"session_type": sessionType,
-			"title":        title,
-			"description":  deref(description),
-			"start_time":   startTime,
-			"end_time":     derefTime(endTime),
-			"status":       status,
-			"created_at":   createdAt,
+			"id":            id.String(),
+			"session_type":  sessionType,
+			"title":         title,
+			"description":   deref(description),
+			"start_time":    startTime,
+			"end_time":      derefTime(endTime),
+			"status":        status,
+			"created_at":    createdAt,
+			"is_presential": isPresential,
+			"minutes":       deref(minutes),
 		})
 	}
 	if sessions == nil {
@@ -91,6 +104,7 @@ type CreateAssemblySessionRequest struct {
 	Title        string `json:"title"`
 	Description  string `json:"description"`
 	StartTimeStr string `json:"start_time"`
+	IsPresential bool   `json:"is_presential"`
 }
 
 func (h *AssemblyHandler) createSession(w http.ResponseWriter, r *http.Request) {
@@ -121,9 +135,9 @@ func (h *AssemblyHandler) createSession(w http.ResponseWriter, r *http.Request) 
 
 	id := uuid.New()
 	_, err := h.Pool.Exec(r.Context(), `
-		INSERT INTO assembly_sessions (id, node_domain, session_type, title, description, start_time, status)
-		VALUES ($1, $2, $3, $4, $5, $6, 'scheduled')`,
-		id, nodeDomain, req.SessionType, req.Title, req.Description, startTime)
+		INSERT INTO assembly_sessions (id, node_domain, session_type, title, description, start_time, status, is_presential)
+		VALUES ($1, $2, $3, $4, $5, $6, 'scheduled', $7)`,
+		id, nodeDomain, req.SessionType, req.Title, req.Description, startTime, req.IsPresential)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -355,7 +369,8 @@ func (h *AssemblyHandler) voteProposal(w http.ResponseWriter, r *http.Request) {
 	// Verificar que la propuesta este activa y no vencida
 	var status string
 	var votingDeadline *time.Time
-	h.Pool.QueryRow(r.Context(), `SELECT status, voting_deadline FROM assembly_decisions WHERE id = $1`, decisionID).Scan(&status, &votingDeadline)
+	var assemblyID uuid.UUID
+	h.Pool.QueryRow(r.Context(), `SELECT status, voting_deadline, assembly_id FROM assembly_decisions WHERE id = $1`, decisionID).Scan(&status, &votingDeadline, &assemblyID)
 	if status != "pending" {
 		writeError(w, 400, "esta propuesta ya no acepta votos (estado: "+status+")")
 		return
@@ -365,6 +380,19 @@ func (h *AssemblyHandler) voteProposal(w http.ResponseWriter, r *http.Request) {
 		h.Pool.Exec(r.Context(), `UPDATE assembly_decisions SET status = 'expired' WHERE id = $1`, decisionID)
 		writeError(w, 400, "el tiempo de votacion ha expirado")
 		return
+	}
+
+	// Verificar si la sesion es presencial
+	var isPresential bool
+	h.Pool.QueryRow(r.Context(), `SELECT is_presential FROM assembly_sessions WHERE id = $1`, assemblyID).Scan(&isPresential)
+	if isPresential {
+		// En asamblea presencial, solo pueden votar los que estan en la lista de asistencia
+		var isPresent int
+		h.Pool.QueryRow(r.Context(), `SELECT COUNT(*) FROM assembly_attendance WHERE session_id = $1 AND user_id = $2`, assemblyID, userID).Scan(&isPresent)
+		if isPresent == 0 {
+			writeError(w, 403, "esta votacion es presencial. Solo pueden votar los miembros presentes en la asamblea. No estas en la lista de asistencia.")
+			return
+		}
 	}
 
 	_, err = h.Pool.Exec(r.Context(), `
@@ -1402,5 +1430,297 @@ func (h *AssemblyHandler) listVotingReports(w http.ResponseWriter, r *http.Reque
 		"pending":              pendingCount,
 		"avg_participation":    fmt.Sprintf("%.1f%%", avgParticipation),
 		"total_voting_members": totalVotingMembers,
+	})
+}
+
+// ===== Minuta y actualizacion de sesion =====
+
+func (h *AssemblyHandler) updateSession(w http.ResponseWriter, r *http.Request) {
+	sessionID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+	var req struct {
+		Title        string `json:"title"`
+		Description  string `json:"description"`
+		Status       string `json:"status"`
+		IsPresential *bool  `json:"is_presential"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	if req.Title != "" {
+		h.Pool.Exec(r.Context(), `UPDATE assembly_sessions SET title = $1 WHERE id = $2`, req.Title, sessionID)
+	}
+	if req.Description != "" {
+		h.Pool.Exec(r.Context(), `UPDATE assembly_sessions SET description = $1 WHERE id = $2`, req.Description, sessionID)
+	}
+	if req.Status != "" {
+		h.Pool.Exec(r.Context(), `UPDATE assembly_sessions SET status = $1 WHERE id = $2`, req.Status, sessionID)
+	}
+	if req.IsPresential != nil {
+		h.Pool.Exec(r.Context(), `UPDATE assembly_sessions SET is_presential = $1 WHERE id = $2`, *req.IsPresential, sessionID)
+	}
+
+	writeJSON(w, 200, map[string]interface{}{"message": "Sesion actualizada"})
+}
+
+func (h *AssemblyHandler) updateMinutes(w http.ResponseWriter, r *http.Request) {
+	sessionID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+	var req struct {
+		Minutes string `json:"minutes"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	userID, _ := h.Auth.GetUserID(r)
+	h.Pool.Exec(r.Context(), `
+		UPDATE assembly_sessions SET minutes = $1, minutes_updated_by = $2, minutes_updated_at = NOW()
+		WHERE id = $3`, req.Minutes, userID, sessionID)
+
+	writeJSON(w, 200, map[string]interface{}{"message": "Minuta guardada"})
+}
+
+// ===== Asistencia =====
+
+func (h *AssemblyHandler) listAttendance(w http.ResponseWriter, r *http.Request) {
+	sessionID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT a.user_id, u.username, u.display_name, a.registered_at, a.registered_by
+		FROM assembly_attendance a
+		JOIN users u ON u.id = a.user_id
+		WHERE a.session_id = $1
+		ORDER BY a.registered_at`, sessionID)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	var attendance []map[string]interface{}
+	for rows.Next() {
+		var userID uuid.UUID
+		var username, displayName string
+		var registeredAt time.Time
+		var registeredBy *uuid.UUID
+		rows.Scan(&userID, &username, &displayName, &registeredAt, &registeredBy)
+		attendance = append(attendance, map[string]interface{}{
+			"user_id":       userID.String(),
+			"username":      username,
+			"display_name":  displayName,
+			"registered_at": registeredAt.Format(time.RFC3339),
+			"registered_by": derefUUID(registeredBy),
+		})
+	}
+	if attendance == nil {
+		attendance = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, attendance)
+}
+
+func (h *AssemblyHandler) registerAttendance(w http.ResponseWriter, r *http.Request) {
+	sessionID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+	var req struct {
+		UserIDs []string `json:"user_ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	userID, _ := h.Auth.GetUserID(r)
+	count := 0
+	for _, uidStr := range req.UserIDs {
+		uid, err := uuid.Parse(uidStr)
+		if err != nil {
+			continue
+		}
+		_, err = h.Pool.Exec(r.Context(), `
+			INSERT INTO assembly_attendance (session_id, user_id, registered_by)
+			VALUES ($1, $2, $3)
+			ON CONFLICT (session_id, user_id) DO NOTHING`,
+			sessionID, uid, userID)
+		if err == nil {
+			count++
+		}
+	}
+
+	// Marcar quien tomo la asistencia
+	h.Pool.Exec(r.Context(), `UPDATE assembly_sessions SET attendance_taken_by = $1 WHERE id = $2`, userID, sessionID)
+
+	writeJSON(w, 200, map[string]interface{}{
+		"message":    "Asistencia registrada",
+		"registered": count,
+		"session_id": sessionID.String(),
+	})
+}
+
+func (h *AssemblyHandler) removeAttendance(w http.ResponseWriter, r *http.Request) {
+	sessionID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+	userIDToRemove, err := uuid.Parse(chi.URLParam(r, "userId"))
+	if err != nil {
+		writeError(w, 400, "invalid user id")
+		return
+	}
+
+	_, err = h.Pool.Exec(r.Context(), `DELETE FROM assembly_attendance WHERE session_id = $1 AND user_id = $2`, sessionID, userIDToRemove)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{"message": "Asistente removido"})
+}
+
+// getAttendanceHistory devuelve el historial de asistencia
+func (h *AssemblyHandler) getAttendanceHistory(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	userIDFilter := r.URL.Query().Get("user_id")
+
+	if userIDFilter != "" {
+		// Historial de un miembro especifico
+		uid, err := uuid.Parse(userIDFilter)
+		if err != nil {
+			writeError(w, 400, "invalid user_id")
+			return
+		}
+
+		var totalSessions, attended int
+		h.Pool.QueryRow(r.Context(), `
+			SELECT COUNT(*) FROM assembly_sessions WHERE node_domain = $1`, nodeDomain).Scan(&totalSessions)
+		h.Pool.QueryRow(r.Context(), `
+			SELECT COUNT(*) FROM assembly_attendance a
+			JOIN assembly_sessions s ON s.id = a.session_id
+			WHERE s.node_domain = $1 AND a.user_id = $2`, nodeDomain, uid).Scan(&attended)
+
+		rows, err := h.Pool.Query(r.Context(), `
+			SELECT s.id, s.title, s.start_time, s.is_presential,
+			       CASE WHEN a.user_id IS NOT NULL THEN true ELSE false END as attended
+			FROM assembly_sessions s
+			LEFT JOIN assembly_attendance a ON a.session_id = s.id AND a.user_id = $1
+			WHERE s.node_domain = $2
+			ORDER BY s.start_time DESC`, uid, nodeDomain)
+		if err != nil {
+			writeError(w, 500, err.Error())
+			return
+		}
+		defer rows.Close()
+
+		type SessionAttendance struct {
+			SessionID    string `json:"session_id"`
+			Title        string `json:"title"`
+			StartTime    string `json:"start_time"`
+			IsPresential bool   `json:"is_presential"`
+			Attended     bool   `json:"attended"`
+		}
+		var history []SessionAttendance
+		for rows.Next() {
+			var id uuid.UUID
+			var title string
+			var startTime time.Time
+			var isPresential, attended bool
+			rows.Scan(&id, &title, &startTime, &isPresential, &attended)
+			history = append(history, SessionAttendance{
+				SessionID:    id.String(),
+				Title:        title,
+				StartTime:    startTime.Format(time.RFC3339),
+				IsPresential: isPresential,
+				Attended:     attended,
+			})
+		}
+		if history == nil {
+			history = []SessionAttendance{}
+		}
+
+		missed := totalSessions - attended
+		attendancePct := 0.0
+		if totalSessions > 0 {
+			attendancePct = (float64(attended) / float64(totalSessions)) * 100
+		}
+
+		writeJSON(w, 200, map[string]interface{}{
+			"total_sessions": totalSessions,
+			"attended":       attended,
+			"missed":         missed,
+			"attendance_pct": fmt.Sprintf("%.1f%%", attendancePct),
+			"history":        history,
+		})
+		return
+	}
+
+	// Historial general: asistencia por miembro
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT u.id, u.username, u.display_name,
+		       COUNT(DISTINCT s.id) as total_sessions,
+		       COUNT(DISTINCT a.session_id) as attended,
+		       COUNT(DISTINCT s.id) - COUNT(DISTINCT a.session_id) as missed
+		FROM users u
+		JOIN member_levels ml ON ml.id = u.member_level_id
+		LEFT JOIN assembly_sessions s ON s.node_domain = u.node_domain
+		LEFT JOIN assembly_attendance a ON a.session_id = s.id AND a.user_id = u.id
+		WHERE u.node_domain = $1 AND u.membership_status = 'active'
+		AND (ml.has_voice = true OR ml.has_vote = true)
+		GROUP BY u.id, u.username, u.display_name
+		ORDER BY attended DESC`, nodeDomain)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	type MemberAttendance struct {
+		UserID        string `json:"user_id"`
+		Username      string `json:"username"`
+		DisplayName   string `json:"display_name"`
+		TotalSessions int    `json:"total_sessions"`
+		Attended      int    `json:"attended"`
+		Missed        int    `json:"missed"`
+	}
+	var members []MemberAttendance
+	for rows.Next() {
+		var id uuid.UUID
+		var username, displayName string
+		var total, attended, missed int
+		rows.Scan(&id, &username, &displayName, &total, &attended, &missed)
+		members = append(members, MemberAttendance{
+			UserID:        id.String(),
+			Username:      username,
+			DisplayName:   displayName,
+			TotalSessions: total,
+			Attended:      attended,
+			Missed:        missed,
+		})
+	}
+	if members == nil {
+		members = []MemberAttendance{}
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"members": members,
 	})
 }

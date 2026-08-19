@@ -360,8 +360,12 @@ export default function Assembly() {
   const [filterFrom, setFilterFrom] = useState('')
   const [filterTo, setFilterTo] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
+  const [selectedSessionForAttendance, setSelectedSessionForAttendance] = useState<string | null>(null)
+  const [selectedSessionForMinutes, setSelectedSessionForMinutes] = useState<string | null>(null)
+  const [attendanceList, setAttendanceList] = useState<any[]>([])
+  const [minutesText, setMinutesText] = useState('')
 
-  const [newSession, setNewSession] = useState({ session_type: 'ordinaria', title: '', description: '' })
+  const [newSession, setNewSession] = useState({ session_type: 'ordinaria', title: '', description: '', is_presential: false })
   const [newBoard, setNewBoard] = useState({ user_id: '', position: 'presidente' })
 
   const load = () => {
@@ -451,6 +455,40 @@ export default function Assembly() {
     }
   }
 
+  const loadAttendance = async (sessionId: string) => {
+    try {
+      const data: any = await api.get(`/assembly/sessions/${sessionId}/attendance`)
+      setAttendanceList(Array.isArray(data) ? data : [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cargar asistencia')
+    }
+  }
+
+  const toggleAttendance = async (userId: string) => {
+    if (!selectedSessionForAttendance) return
+    const isPresent = attendanceList.some((a: any) => a.user_id === userId)
+    try {
+      if (isPresent) {
+        await api.delete(`/assembly/sessions/${selectedSessionForAttendance}/attendance/${userId}`)
+      } else {
+        await api.post(`/assembly/sessions/${selectedSessionForAttendance}/attendance`, { user_ids: [userId] })
+      }
+      loadAttendance(selectedSessionForAttendance)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al actualizar asistencia')
+    }
+  }
+
+  const saveMinutes = async (sessionId: string) => {
+    try {
+      await api.put(`/assembly/sessions/${sessionId}/minutes`, { minutes: minutesText })
+      setSelectedSessionForMinutes(null)
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al guardar minuta')
+    }
+  }
+
   const createSession = async () => {
     setError('')
     if (!newSession.title) {
@@ -460,7 +498,7 @@ export default function Assembly() {
     try {
       await api.post('/assembly/sessions', newSession)
       setShowNewSession(false)
-      setNewSession({ session_type: 'ordinaria', title: '', description: '' })
+      setNewSession({ session_type: 'ordinaria', title: '', description: '', is_presential: false })
       load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear sesion')
@@ -1154,6 +1192,22 @@ export default function Assembly() {
                 <label className="label">Descripcion (opcional)</label>
                 <textarea className="input" rows={2} placeholder="Temas a tratar" value={newSession.description} onChange={(e) => setNewSession({ ...newSession, description: e.target.value })} />
               </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="is_presential"
+                  checked={newSession.is_presential}
+                  onChange={(e) => setNewSession({ ...newSession, is_presential: e.target.checked })}
+                  className="accent-trueque-600"
+                />
+                <label htmlFor="is_presential" className="text-sm">
+                  <strong>Asamblea presencial</strong> - Solo pueden votar los miembros presentes en la lista de asistencia
+                </label>
+              </div>
+              <p className="text-xs text-gray-400">
+                Si es presencial, despues de crear la sesion debes pasar la lista de asistencia.
+                Los miembros que no esten en la lista no podran votar en esta asamblea.
+              </p>
               <button onClick={createSession} className="btn-primary">Crear Sesion</button>
             </div>
           )}
@@ -1168,7 +1222,15 @@ export default function Assembly() {
               {sessions.map((s, i) => (
                 <div key={i} className="card">
                   <div className="flex items-center justify-between">
-                    <span className="font-medium">{s.title}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{s.title}</span>
+                      {s.is_presential && (
+                        <span className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700">Presencial</span>
+                      )}
+                      {!s.is_presential && (
+                        <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700">Remota</span>
+                      )}
+                    </div>
                     <span className={`text-xs px-2 py-0.5 rounded ${
                       s.status === 'active' ? 'bg-green-100 text-green-700' :
                       s.status === 'scheduled' ? 'bg-yellow-100 text-yellow-700' :
@@ -1176,9 +1238,108 @@ export default function Assembly() {
                     }`}>{s.status}</span>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">{s.description}</p>
-                  <p className="text-xs text-gray-400 mt-1">Tipo: {s.session_type}</p>
+                  <p className="text-xs text-gray-400 mt-1">Tipo: {s.session_type} | {s.start_time?.slice(0, 16).replace('T', ' ')}</p>
+
+                  {/* Minuta */}
+                  {s.minutes && (
+                    <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
+                      <strong>Minuta:</strong>
+                      <p className="whitespace-pre-wrap mt-1 max-h-32 overflow-y-auto">{s.minutes}</p>
+                    </div>
+                  )}
+
+                  {/* Botones de gestion */}
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    {s.is_presential && (
+                      <button
+                        onClick={() => { setSelectedSessionForAttendance(s.id); loadAttendance(s.id) }}
+                        className="text-xs px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700"
+                      >
+                        Pasar lista de asistencia
+                      </button>
+                    )}
+                    <button
+                      onClick={() => { setSelectedSessionForMinutes(s.id); setMinutesText(s.minutes || '') }}
+                      className="text-xs px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
+                    >
+                      {s.minutes ? 'Editar minuta' : 'Escribir minuta'}
+                    </button>
+                  </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Modal de asistencia */}
+          {selectedSessionForAttendance && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedSessionForAttendance(null)}>
+              <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between p-4 border-b">
+                  <h3 className="font-bold">Lista de Asistencia</h3>
+                  <button onClick={() => setSelectedSessionForAttendance(null)} className="text-gray-400 hover:text-gray-600 text-xl">x</button>
+                </div>
+                <div className="p-4 space-y-4">
+                  <p className="text-sm text-gray-600">
+                    Marca los miembros presentes en la asamblea. Solo los miembros marcados podran votar en esta sesion presencial.
+                  </p>
+
+                  {/* Lista de miembros con checkbox */}
+                  <div className="space-y-1 max-h-64 overflow-y-auto">
+                    {votingMembers.map((m: any) => {
+                      const isPresent = attendanceList.some((a: any) => a.user_id === m.id)
+                      return (
+                        <label key={m.id} className={`flex items-center gap-2 p-2 rounded border cursor-pointer ${isPresent ? 'bg-green-50 border-green-300' : 'border-gray-200'}`}>
+                          <input
+                            type="checkbox"
+                            checked={isPresent}
+                            onChange={() => toggleAttendance(m.id)}
+                            className="accent-trueque-600"
+                          />
+                          <span className="text-sm">{m.display_name || m.username}</span>
+                          {isPresent && <span className="text-xs text-green-600">Presente</span>}
+                        </label>
+                      )
+                    })}
+                  </div>
+
+                  {attendanceList.length > 0 && (
+                    <div className="text-sm text-gray-600">
+                      {attendanceList.length} miembros presentes
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => setSelectedSessionForAttendance(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cerrar</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal de minuta */}
+          {selectedSessionForMinutes && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedSessionForMinutes(null)}>
+              <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between p-4 border-b">
+                  <h3 className="font-bold">Minuta de la Asamblea</h3>
+                  <button onClick={() => setSelectedSessionForMinutes(null)} className="text-gray-400 hover:text-gray-600 text-xl">x</button>
+                </div>
+                <div className="p-4 space-y-3">
+                  <p className="text-sm text-gray-600">
+                    Escribe aqui todas las decisiones tomadas en la asamblea. Esta minuta queda registrada permanentemente como documento oficial.
+                  </p>
+                  <textarea
+                    className="input min-h-[300px]"
+                    placeholder="Ej:&#10;&#10;Asamblea del 15 de marzo de 2024&#10;&#10;1. Se aprobo por mayoria cambiar el limite de credito a 1000 TQ&#10;2. Se rechazo la propuesta de aumentar el impuesto al 3%&#10;3. Se admitio a Maria Rodriguez como miembro nuevo&#10;4. Pendiente: revisar el presupuesto del fondo comunitario"
+                    value={minutesText}
+                    onChange={e => setMinutesText(e.target.value)}
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => setSelectedSessionForMinutes(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
+                    <button onClick={() => saveMinutes(selectedSessionForMinutes)} className="px-4 py-2 bg-trueque-600 text-white rounded-lg hover:bg-trueque-700">Guardar minuta</button>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
