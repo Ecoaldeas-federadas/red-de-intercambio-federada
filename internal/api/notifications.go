@@ -417,6 +417,13 @@ func (h *NotificationHandler) testGateway(w http.ResponseWriter, r *http.Request
 		}
 		sendErr = gw.sendXMPP(config, xmppJID, title, message, "")
 	case "webpush":
+		// Verificar que el admin tenga suscripcion webpush activa
+		var hasSub bool
+		h.Pool.QueryRow(r.Context(), `SELECT webpush_subscription IS NOT NULL FROM users WHERE id = $1`, userID).Scan(&hasSub)
+		if !hasSub {
+			writeError(w, 400, "no tienes notificaciones push activadas. Ve a 'Mis contactos' y activa las notificaciones push del navegador primero")
+			return
+		}
 		sendErr = gw.sendWebPush(r.Context(), config, userID, title, message, "/app/notifications")
 	case "sms":
 		if phone == "" {

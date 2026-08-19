@@ -1,22 +1,14 @@
-fix: test de pasarelas real + guardar activacion WebPush + mensaje junto al boton
+fix: mostrar error real en test de pasarelas + verificar suscripcion WebPush
 
-1. Test de pasarelas ahora envia de verdad:
-   - Antes: testGateway solo devolvia un mensaje falso
-   - Ahora: envia una notificacion real usando el gateway correspondiente
-   - Usa los datos de contacto del admin que hace el test
-   - Retorna error real si falla (ej: "no tienes email configurado")
+1. El mensaje de test ahora muestra el error completo:
+   - Antes: "test enviado con error" sin detalles
+   - Ahora: muestra el error real del backend (ej: "usuario sin suscripcion webpush")
 
-2. Guardar activacion de WebPush:
-   - Problema: al guardar WebPush con config vacia, se sobrescribian
-     las VAPID keys auto-generadas con {}
-   - Fix: si channel=webpush y config viene vacia, preservar config existente
-   - Ahora activar/desactivar WebPush persiste al recargar la pagina
-
-3. Mensaje de test junto al boton:
-   - Antes: el mensaje aparecia arriba de la pagina (fuera de vista)
-   - Ahora: el resultado aparece justo debajo de los botones Guardar/Probar/Cancelar
-   - Verde si exito, rojo si error
-   - Estado por canal (testResults)
+2. Verificacion antes de test WebPush:
+   - Si el admin no tiene suscripcion push activada, retorna error claro:
+     "no tienes notificaciones push activadas. Ve a 'Mis contactos' y activa
+     las notificaciones push del navegador primero"
+   - El admin debe suscribirse PRIMERO en Mis contactos, despues probar
 
 Generated with Devin
 

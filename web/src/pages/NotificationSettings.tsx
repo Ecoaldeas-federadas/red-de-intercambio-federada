@@ -289,7 +289,9 @@ export default function NotificationSettings() {
     setTestingChannel(channel)
     setTestResults(prev => ({ ...prev, [channel]: null }))
     api.post(`/notifications/gateways/${channel}/test`, {}).then((d: any) => {
-      setTestResults(prev => ({ ...prev, [channel]: { success: true, message: d?.message || `Test de ${channel} enviado` } }))
+      const success = d?.success !== false
+      const message = d?.error ? `${d.message}: ${d.error}` : (d?.message || `Test de ${channel} enviado`)
+      setTestResults(prev => ({ ...prev, [channel]: { success, message } }))
     }).catch((e: any) => {
       const msg = e?.message || `Error en test de ${channel}`
       setTestResults(prev => ({ ...prev, [channel]: { success: false, message: msg } }))
