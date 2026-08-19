@@ -3241,6 +3241,10 @@ func (h *SystemHandler) listGovernanceRules(w http.ResponseWriter, r *http.Reque
 	if nodeDomain == "" {
 		nodeDomain = "localhost"
 	}
+
+	// Cargar valores dinamicos de la configuracion real del nodo
+	dynValues := h.loadGovernanceDynamicValues(r.Context(), nodeDomain)
+
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id, category, title, description, severity, icon, sort_order, is_active
 		FROM governance_rules
@@ -3272,6 +3276,8 @@ func (h *SystemHandler) listGovernanceRules(w http.ResponseWriter, r *http.Reque
 		if category != "" && rule.Category != category {
 			continue
 		}
+		// Reemplazar placeholders {key} con valores dinamicos
+		rule.Description = replaceGovernancePlaceholders(rule.Description, dynValues)
 		rules = append(rules, rule)
 	}
 
@@ -3279,6 +3285,107 @@ func (h *SystemHandler) listGovernanceRules(w http.ResponseWriter, r *http.Reque
 		rules = []Rule{}
 	}
 	writeJSON(w, 200, rules)
+}
+
+// loadGovernanceDynamicValues carga los valores reales de configuracion
+// del nodo para reemplazar en las reglas de gobernanza.
+func (h *SystemHandler) loadGovernanceDynamicValues(ctx context.Context, nodeDomain string) map[string]string {
+	vals := map[string]string{
+		"assembly_frequency":      "3",
+		"quorum_ordinaria_first":  "50",
+		"quorum_ordinaria_second": "30",
+		"quorum_extraordinaria":   "66.67",
+		"limit_new_negative":      "-100",
+		"limit_new_positive":      "100",
+		"limit_active_negative":   "-500",
+		"limit_active_positive":   "500",
+		"tax_individual_rate":     "0%",
+		"tax_org_default_rate":    "5%",
+	}
+
+	// Frecuencia de asamblea ordinaria
+	var freqMonths int
+	_ = h.Pool.QueryRow(ctx, `
+		SELECT COALESCE(ordinary_frequency_months, 3) FROM assembly_frequency_config
+		WHERE node_domain IN ($1, 'localhost') AND scope = 'node' AND scope_id IS NULL
+		LIMIT 1`, nodeDomain).Scan(&freqMonths)
+	if freqMonths > 0 {
+		vals["assembly_frequency"] = fmt.Sprintf("%d", freqMonths)
+	}
+
+	// Quorum de asamblea ordinaria
+	var qFirst, qSecond float64
+	_ = h.Pool.QueryRow(ctx, `
+		SELECT quorum_first_call, quorum_second_call FROM assembly_quorum_config
+		WHERE node_domain IN ($1, 'localhost') AND session_type = 'ordinaria'
+		LIMIT 1`, nodeDomain).Scan(&qFirst, &qSecond)
+	if qFirst > 0 {
+		vals["quorum_ordinaria_first"] = fmt.Sprintf("%.0f", qFirst)
+	}
+	if qSecond > 0 {
+		vals["quorum_ordinaria_second"] = fmt.Sprintf("%.0f", qSecond)
+	}
+
+	// Quorum de asamblea extraordinaria
+	var qExtra float64
+	_ = h.Pool.QueryRow(ctx, `
+		SELECT quorum_first_call FROM assembly_quorum_config
+		WHERE node_domain IN ($1, 'localhost') AND session_type = 'extraordinaria'
+		LIMIT 1`, nodeDomain).Scan(&qExtra)
+	if qExtra > 0 {
+		vals["quorum_extraordinaria"] = fmt.Sprintf("%.0f", qExtra)
+	}
+
+	// Limites de niveles de miembro
+	var newNeg, newPos, actNeg, actPos int
+	_ = h.Pool.QueryRow(ctx, `
+		SELECT credit_limit, debit_limit FROM member_levels
+		WHERE node_domain IN ($1, 'localhost') AND name = 'nuevo' AND is_active = true
+		LIMIT 1`, nodeDomain).Scan(&newNeg, &newPos)
+	vals["limit_new_negative"] = fmt.Sprintf("%d", newNeg)
+	vals["limit_new_positive"] = fmt.Sprintf("%d", newPos)
+
+	_ = h.Pool.QueryRow(ctx, `
+		SELECT credit_limit, debit_limit FROM member_levels
+		WHERE node_domain IN ($1, 'localhost') AND name = 'activo' AND is_active = true
+		LIMIT 1`, nodeDomain).Scan(&actNeg, &actPos)
+	if actNeg != 0 || actPos != 0 {
+		vals["limit_active_negative"] = fmt.Sprintf("%d", actNeg)
+		vals["limit_active_positive"] = fmt.Sprintf("%d", actPos)
+	}
+
+	// Tasas de impuesto
+	var indRate float64
+	var indEnabled bool
+	_ = h.Pool.QueryRow(ctx, `
+		SELECT rate, enabled FROM tax_config
+		WHERE node_domain IN ($1, 'localhost') AND scope = 'individual'
+		LIMIT 1`, nodeDomain).Scan(&indRate, &indEnabled)
+	if indEnabled {
+		vals["tax_individual_rate"] = fmt.Sprintf("%.0f%%", indRate*100)
+	} else {
+		vals["tax_individual_rate"] = "0% (deshabilitado)"
+	}
+
+	var orgRate float64
+	_ = h.Pool.QueryRow(ctx, `
+		SELECT default_rate FROM tax_config
+		WHERE node_domain IN ($1, 'localhost') AND scope = 'organization'
+		LIMIT 1`, nodeDomain).Scan(&orgRate)
+	if orgRate > 0 {
+		vals["tax_org_default_rate"] = fmt.Sprintf("%.0f%%", orgRate*100)
+	}
+
+	return vals
+}
+
+// replaceGovernancePlaceholders reemplaza {key} con valores dinamicos
+func replaceGovernancePlaceholders(text string, vals map[string]string) string {
+	for key, val := range vals {
+		placeholder := "{" + key + "}"
+		text = strings.ReplaceAll(text, placeholder, val)
+	}
+	return text
 }
 
 func (h *SystemHandler) createGovernanceRule(w http.ResponseWriter, r *http.Request) {

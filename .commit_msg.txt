@@ -1,38 +1,41 @@
-feat: pagina publica de gobernanza /p/gobernanza - Ley de la Aldea
+fix: reglas de gobernanza con terminologia real y valores dinamicos
 
-El sistema de gobernanza ya existia en el backend (migracion 048 con
-reglas pre-aprobadas, endpoints /api/public/governance, integracion
-con asamblea) y en el panel admin (Governance.tsx), pero faltaba
-mostrarlo en la pagina publica.
+Las reglas de gobernanza tenian dos problemas:
 
-Nuevo componente PublicGovernancePage.tsx:
-- Carga reglas desde /api/public/governance (endpoint publico)
-- Agrupa por categoria con iconos y colores
-- Navegacion por categorias con scroll suave
-- Muestra severidad (info, leve, grave, muy grave)
-- Diseno responsive con tarjetas
-- Footer con instruccion de como proponer modificaciones
+1. TERMINOLOGIA INCORRECTA
+- Mencionaban "circulos" pero el sistema tiene "departamentos"
+- "Doble enlace sociocratico" con coordinador/delegado no existe
+  (los departamentos tienen jefe y miembros)
+- Decia "asamblea mensual" pero la frecuencia es configurable
 
-Integracion en PublicSite.tsx:
-- PublicPageView: cuando slug === 'gobernanza', renderiza
-  PublicGovernancePage en vez de bloques editables
-- Agregada pagina virtual 'gobernanza' al menu publico (menu_order 90)
-- Agregada a communityPages en la navegacion
+2. VALORES HARDCODED
+- Limites -500/+500 fijos cuando son configurables por nivel
+- Frecuencia de asamblea fija cuando es configurable
+- Quorum fijo cuando es configurable
+- Tasas de impuesto fijas cuando son configurables
 
-Fix en system.go (listGovernanceRules):
-- Antes filtraba por node_domain = 'localhost' hardcoded
-- Ahora usa el dominio del header o del nodo, con fallback a localhost
-- Busca en node_domain IN (dominio, 'localhost', 'default') para
-  incluir reglas seed
+FIX:
 
-Las reglas se muestran:
-1. Pagina publica /p/gobernanza (cualquier visitante)
-2. Formulario de admision (aceptacion obligatoria)
-3. Panel admin /app/governance (gestion)
+Migracion 062: actualiza las reglas existentes:
+- "Circulos Operativos" -> "Departamentos Operativos"
+- Elimina "Doble Enlace Sociocratico" (no existe en el sistema)
+- "Asamblea General" usa placeholder {assembly_frequency}
+- "Comercio con TQ" usa {limit_new_negative}, {limit_active_negative}, etc.
+- "Impuesto de Transaccion" usa {tax_individual_rate}, {tax_org_default_rate}
+- "Aprobacion de Gastos" usa {quorum_ordinaria_first}, {quorum_extraordinaria}
+- "Asistencia a Asambleas" usa {assembly_frequency}
 
-Cuando la asamblea aprueba un cambio (crear, modificar, eliminar
-regla), se refleja automaticamente en la pagina publica porque lee
-directamente de la tabla governance_rules.
+Backend (system.go):
+- Nueva funcion loadGovernanceDynamicValues(): consulta la config real
+  del nodo (assembly_frequency_config, assembly_quorum_config,
+  member_levels, tax_config) y devuelve un map de valores
+- Nueva funcion replaceGovernancePlaceholders(): reemplaza {key} en
+  el texto de la regla con el valor real
+- listGovernanceRules ahora aplica los placeholders antes de enviar
+
+Asi cuando la asamblea cambia la frecuencia (de 3 a 1 mes, por ejemplo),
+el texto de la regla se actualiza automaticamente sin necesidad de
+editar la regla manualmente.
 
 Generated with Devin
 
