@@ -126,12 +126,20 @@ func (h *ScopedAssemblyHandler) listSessions(w http.ResponseWriter, r *http.Requ
 		nodeDomain = "localhost"
 	}
 
-	rows, err := h.Pool.Query(r.Context(), `
-		SELECT id, session_type, title, description, start_time, end_time, status, created_at,
+	filter := r.URL.Query().Get("filter")
+	query := `SELECT id, session_type, title, description, start_time, end_time, status, created_at,
 		       is_presential, minutes, recall_number, quorum_verified
 		FROM assembly_sessions_scoped
-		WHERE node_domain = $1 AND scope = $2 AND scope_id = $3
-		ORDER BY created_at DESC LIMIT 50`, nodeDomain, scope, scopeID)
+		WHERE node_domain = $1 AND scope = $2 AND scope_id = $3`
+	args := []interface{}{nodeDomain, scope, scopeID}
+	if filter == "upcoming" {
+		query += ` AND status IN ('scheduled', 'waiting_quorum', 'active') ORDER BY start_time ASC LIMIT 50`
+	} else if filter == "past" {
+		query += ` AND status IN ('completed', 'cancelled', 'expired') ORDER BY start_time DESC LIMIT 50`
+	} else {
+		query += ` ORDER BY created_at DESC LIMIT 50`
+	}
+	rows, err := h.Pool.Query(r.Context(), query, args...)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -202,12 +210,35 @@ func (h *ScopedAssemblyHandler) createSession(w http.ResponseWriter, r *http.Req
 	if req.SessionType == "" {
 		req.SessionType = "ordinaria"
 	}
+	if req.StartTimeStr == "" {
+		writeError(w, 400, "debes especificar la fecha y hora de la asamblea")
+		return
+	}
 
-	startTime := time.Now()
-	if req.StartTimeStr != "" {
-		if t, err := time.Parse(time.RFC3339, req.StartTimeStr); err == nil {
-			startTime = t
-		}
+	startTime, err := time.Parse(time.RFC3339, req.StartTimeStr)
+	if err != nil {
+		writeError(w, 400, "formato de fecha invalido")
+		return
+	}
+
+	// Validar tiempo minimo de anticipacion
+	var minAdvanceHours int
+	switch req.SessionType {
+	case "ordinaria":
+		minAdvanceHours = 168
+	case "extraordinaria":
+		minAdvanceHours = 24
+	case "urgente":
+		minAdvanceHours = 1
+	default:
+		minAdvanceHours = 24
+	}
+	minStartTime := time.Now().Add(time.Duration(minAdvanceHours) * time.Hour)
+	if startTime.Before(minStartTime) {
+		writeError(w, 400, fmt.Sprintf(
+			"Una asamblea %s debe crearse con al menos %d horas de anticipacion.",
+			req.SessionType, minAdvanceHours))
+		return
 	}
 
 	id := uuid.New()

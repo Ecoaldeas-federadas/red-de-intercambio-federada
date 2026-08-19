@@ -100,8 +100,9 @@ INSERT INTO assembly_proposal_types (scope, proposal_type, label, description, s
   ('node', 'free_proposal', 'Propuesta libre', 'Propuesta sobre cualquier tema', 15)
 ON CONFLICT (scope, proposal_type) DO NOTHING;
 
--- Tipos para organizacion (NO incluye admission, expulsion, tax_change,
--- federation_config, recovery_config, member_level, governance_rule, energy_rate_change)
+-- Tipos para organizacion (relacionados con la org, NO con el nodo)
+-- admission = admision a la organizacion (no al nodo)
+-- expulsion = expulsion de la organizacion (no del nodo)
 INSERT INTO assembly_proposal_types (scope, proposal_type, label, description, sort_order) VALUES
   ('organization', 'budget_increase', 'Aumento de presupuesto', 'Aumentar presupuesto de la organizacion', 1),
   ('organization', 'fund_distribution', 'Distribucion de fondos', 'Distribuir fondos de la organizacion', 2),
@@ -109,12 +110,16 @@ INSERT INTO assembly_proposal_types (scope, proposal_type, label, description, s
   ('organization', 'create_account', 'Creacion de cuenta', 'Crear cuenta contable de la organizacion', 4),
   ('organization', 'product_modification', 'Modificacion de producto', 'Modificar producto de la organizacion', 5),
   ('organization', 'limit_change', 'Cambio de limites', 'Cambiar limites de credito/debito de la organizacion', 6),
-  ('organization', 'free_proposal', 'Propuesta libre', 'Propuesta sobre cualquier tema interno', 7)
+  ('organization', 'admission', 'Admision a la organizacion', 'Admitir nuevo miembro a esta organizacion', 7),
+  ('organization', 'expulsion', 'Expulsion de la organizacion', 'Expulsar miembro de esta organizacion', 8),
+  ('organization', 'free_proposal', 'Propuesta libre', 'Propuesta sobre cualquier tema interno', 9)
 ON CONFLICT (scope, proposal_type) DO NOTHING;
 
 -- Tipos para departamento (mas restringido)
+-- admission = admision al departamento
 INSERT INTO assembly_proposal_types (scope, proposal_type, label, description, sort_order) VALUES
   ('department', 'fund_distribution', 'Distribucion de fondos', 'Distribuir fondos del departamento', 1),
   ('department', 'policy', 'Politica del departamento', 'Politica interna del departamento', 2),
-  ('department', 'free_proposal', 'Propuesta libre', 'Propuesta sobre cualquier tema del departamento', 3)
+  ('department', 'admission', 'Admision al departamento', 'Admitir miembro a este departamento', 3),
+  ('department', 'free_proposal', 'Propuesta libre', 'Propuesta sobre cualquier tema del departamento', 4)
 ON CONFLICT (scope, proposal_type) DO NOTHING;

@@ -369,20 +369,29 @@ export default function Assembly() {
   const [rescheduleSession, setRescheduleSession] = useState<any>(null)
   const [rescheduleTime, setRescheduleTime] = useState('')
   const [freqConfig, setFreqConfig] = useState<any>({ ordinary_frequency_months: 3, preferred_day_of_month: 15, preferred_hour: 15, notification_days_before: 7, assemblies_enabled: true })
+  const [sessionFilter, setSessionFilter] = useState<'upcoming' | 'past'>('upcoming')
 
-  const [newSession, setNewSession] = useState({ session_type: 'ordinaria', title: '', description: '', is_presential: false })
+  const [newSession, setNewSession] = useState({ session_type: 'ordinaria', title: '', description: '', is_presential: false, start_time: '' })
   const [newBoard, setNewBoard] = useState({ user_id: '', position: 'presidente' })
 
   const load = () => {
     api.get('/assembly/voting-members').then((d: any) => setVotingMembers(Array.isArray(d) ? d : [])).catch(() => {})
     api.get('/member-levels').then((d: any) => setMemberLevels(Array.isArray(d) ? d : [])).catch(() => {})
     api.get('/assembly/board').then((d: any) => setBoard(Array.isArray(d) ? d : [])).catch(() => {})
-    api.get('/assembly/sessions').then((d: any) => setSessions(Array.isArray(d) ? d : [])).catch(() => {})
+    api.get(`/assembly/sessions?filter=${sessionFilter}`).then((d: any) => setSessions(Array.isArray(d) ? d : [])).catch(() => {})
     api.get('/assembly/proposals').then((d: any) => setProposals(Array.isArray(d) ? d : [])).catch(() => {})
     api.get('/tax/config').then(setTaxConfig).catch(() => {})
     api.get('/tax/account').then(setTaxAccount).catch(() => {})
     api.get('/assembly/config').then((d: any) => setAssemblyConfigs(Array.isArray(d) ? d : [])).catch(() => {})
   }
+
+  const loadSessions = () => {
+    api.get(`/assembly/sessions?filter=${sessionFilter}`).then((d: any) => setSessions(Array.isArray(d) ? d : [])).catch(() => {})
+  }
+
+  useEffect(() => {
+    if (tab === 'sessions') loadSessions()
+  }, [sessionFilter, tab])
 
   useEffect(() => { load() }, [])
 
@@ -583,10 +592,14 @@ export default function Assembly() {
       setError('El titulo es obligatorio')
       return
     }
+    if (!newSession.start_time) {
+      setError('Debes especificar la fecha y hora de la asamblea')
+      return
+    }
     try {
       await api.post('/assembly/sessions', newSession)
       setShowNewSession(false)
-      setNewSession({ session_type: 'ordinaria', title: '', description: '', is_presential: false })
+      setNewSession({ session_type: 'ordinaria', title: '', description: '', is_presential: false, start_time: '' })
       load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear sesion')
@@ -1299,17 +1312,60 @@ export default function Assembly() {
             <button onClick={() => setShowNewSession(!showNewSession)} className="btn-primary flex items-center gap-2"><Plus size={18} />Nueva Sesion</button>
           </div>
 
+          {/* Filtro: pendientes vs pasadas */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSessionFilter('upcoming')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium ${sessionFilter === 'upcoming' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}
+            >
+              Proximas asambleas
+            </button>
+            <button
+              onClick={() => setSessionFilter('past')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium ${sessionFilter === 'past' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}
+            >
+              Asambleas pasadas
+            </button>
+          </div>
+
           {showNewSession && (
             <div className="card space-y-4">
               <h3 className="font-semibold">Nueva Sesion</h3>
               <div>
                 <label className="label">Tipo de sesion</label>
-                <select className="input" value={newSession.session_type} onChange={(e) => setNewSession({ ...newSession, session_type: e.target.value })}>
+                <select className="input" value={newSession.session_type} onChange={(e) => setNewSession({ ...newSession, session_type: e.target.value, start_time: '' })}>
                   <option value="ordinaria">Ordinaria</option>
                   <option value="extraordinaria">Extraordinaria</option>
                   <option value="urgente">Urgente</option>
                 </select>
-                <p className="text-xs text-gray-400 mt-1">Ordinaria = planificada. Extraordinaria = fuera de plan. Urgente = decision rapida.</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {newSession.session_type === 'ordinaria' && 'Ordinaria = planificada. Minimo 7 dias de anticipacion.'}
+                  {newSession.session_type === 'extraordinaria' && 'Extraordinaria = fuera de plan. Minimo 24 horas de anticipacion.'}
+                  {newSession.session_type === 'urgente' && 'Urgente = decision rapida. Minimo 1 hora de anticipacion.'}
+                </p>
+              </div>
+              <div>
+                <label className="label">Fecha y hora</label>
+                <input
+                  type="datetime-local"
+                  className="input"
+                  value={newSession.start_time}
+                  onChange={(e) => {
+                    // Convertir a ISO 8601
+                    const val = e.target.value
+                    if (val) {
+                      const iso = new Date(val).toISOString()
+                      setNewSession({ ...newSession, start_time: iso })
+                    } else {
+                      setNewSession({ ...newSession, start_time: '' })
+                    }
+                  }}
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  {newSession.session_type === 'ordinaria' && 'La fecha debe ser al menos 7 dias desde ahora.'}
+                  {newSession.session_type === 'extraordinaria' && 'La fecha debe ser al menos 24 horas desde ahora.'}
+                  {newSession.session_type === 'urgente' && 'La fecha debe ser al menos 1 hora desde ahora.'}
+                </p>
               </div>
               <div>
                 <label className="label">Titulo</label>
@@ -1579,9 +1635,10 @@ export default function Assembly() {
           <h2 className="font-semibold flex items-center gap-2"><DollarSign size={18} />Configuracion de Impuestos</h2>
 
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
-            <p><strong>Impuestos - Ayuda</strong></p>
-            <p>La asamblea decide la tasa de impuesto sobre las transacciones. El dinero recaudado va a una cuenta de impuestos manejada por la comunidad.</p>
-            <p>Para cambiar la tasa, crea una propuesta de tipo "Cambio de impuestos" en la pestana Propuestas. La asamblea debe aprobarla.</p>
+            <p><strong>Impuestos - Como funciona</strong></p>
+            <p>Los impuestos sobre las transacciones llegan automaticamente a la <strong>cuenta de la asamblea</strong>. Esta cuenta ya existe, no hay que configurarla.</p>
+            <p>Lo que se decide en asamblea es <strong>a donde distribuir</strong> ese dinero: transferir a una organizacion, departamento, responsable o proyecto.</p>
+            <p>Para cambiar la tasa de impuesto, crea una propuesta de tipo "Cambio de impuestos" en la pestana Propuestas.</p>
           </div>
 
           {taxConfig && (
@@ -1610,22 +1667,24 @@ export default function Assembly() {
 
           {taxAccount && (
             <div className="card">
-              <h3 className="font-medium mb-3">Cuenta de Impuestos</h3>
+              <h3 className="font-medium mb-3">Cuenta de la Asamblea (Impuestos)</h3>
               {taxAccount.tax_account ? (
                 <div className="text-sm">
                   <p><span className="text-gray-500">Cuenta:</span> <b>{taxAccount.tax_account}</b></p>
                   <p className="mt-1"><span className="text-gray-500">Balance recaudado:</span> <b className="text-trueque-700">{taxAccount.balance} {currency}</b></p>
+                  <p className="mt-2 text-xs text-gray-500">Los impuestos llegan automaticamente a esta cuenta. Para gastar este dinero, crea una propuesta de "Distribucion de fondos" en asamblea.</p>
                 </div>
               ) : (
-                <p className="text-sm text-amber-600">No hay cuenta de impuestos configurada. La asamblea debe asignar una cuenta para recibir los impuestos recaudados.</p>
+                <p className="text-sm text-amber-600">La cuenta de la asamblea se crea automaticamente al instalar el nodo. Si no aparece, contacta al administrador.</p>
               )}
             </div>
           )}
 
           {canManageTax && (
             <div className="card border-amber-200">
-              <h3 className="font-medium mb-2">Configurar impuesto (admin)</h3>
-              <p className="text-xs text-gray-500 mb-3">Solo la asamblea puede cambiar los impuestos. Crea una propuesta de "Cambio de impuestos" para que se vote.</p>
+              <h3 className="font-medium mb-2">Administracion de Impuestos</h3>
+              <p className="text-xs text-gray-500 mb-3">El administrador puede cambiar la tasa de impuesto directamente durante la configuracion inicial del sistema. Una vez que la asamblea este funcionando, los cambios se hacen por votacion.</p>
+              <p className="text-xs text-gray-500">Para distribuir los fondos recaudados, crea una propuesta de "Distribucion de fondos" indicando la cuenta destino y el monto.</p>
             </div>
           )}
         </div>

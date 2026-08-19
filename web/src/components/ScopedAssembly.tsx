@@ -18,7 +18,7 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
   const [config, setConfig] = useState<any>({ has_assembly: false, ordinary_frequency_months: 3, preferred_day_of_month: 15, preferred_hour: 15, notification_days_before: 7, assemblies_enabled: true })
   const [showNewSession, setShowNewSession] = useState(false)
   const [showNewProposal, setShowNewProposal] = useState(false)
-  const [newSession, setNewSession] = useState({ session_type: 'ordinaria', title: '', description: '', is_presential: false })
+  const [newSession, setNewSession] = useState({ session_type: 'ordinaria', title: '', description: '', is_presential: false, start_time: '' })
   const [newProposal, setNewProposal] = useState({ proposal_type: 'free_proposal', description: '', voting_duration_minutes: 1440, titulo: '', descripcion_detallada: '' })
   const [selectedSessionForMinutes, setSelectedSessionForMinutes] = useState<string | null>(null)
   const [minutesText, setMinutesText] = useState('')
@@ -56,10 +56,14 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
       setError('El titulo es obligatorio')
       return
     }
+    if (!newSession.start_time) {
+      setError('Debes especificar la fecha y hora')
+      return
+    }
     try {
       await api.post(`${basePath}/sessions`, newSession)
       setShowNewSession(false)
-      setNewSession({ session_type: 'ordinaria', title: '', description: '', is_presential: false })
+      setNewSession({ session_type: 'ordinaria', title: '', description: '', is_presential: false, start_time: '' })
       load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear sesion')
@@ -301,11 +305,32 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
             <div className="card space-y-4">
               <div>
                 <label className="label">Tipo de sesion</label>
-                <select className="input" value={newSession.session_type} onChange={e => setNewSession({ ...newSession, session_type: e.target.value })}>
+                <select className="input" value={newSession.session_type} onChange={e => setNewSession({ ...newSession, session_type: e.target.value, start_time: '' })}>
                   <option value="ordinaria">Ordinaria</option>
                   <option value="extraordinaria">Extraordinaria</option>
                   <option value="urgente">Urgente</option>
                 </select>
+                <p className="text-xs text-gray-400 mt-1">
+                  {newSession.session_type === 'ordinaria' && 'Minimo 7 dias de anticipacion.'}
+                  {newSession.session_type === 'extraordinaria' && 'Minimo 24 horas de anticipacion.'}
+                  {newSession.session_type === 'urgente' && 'Minimo 1 hora de anticipacion.'}
+                </p>
+              </div>
+              <div>
+                <label className="label">Fecha y hora</label>
+                <input
+                  type="datetime-local"
+                  className="input"
+                  value={newSession.start_time ? new Date(newSession.start_time).toISOString().slice(0, 16) : ''}
+                  onChange={e => {
+                    const val = e.target.value
+                    if (val) {
+                      setNewSession({ ...newSession, start_time: new Date(val).toISOString() })
+                    } else {
+                      setNewSession({ ...newSession, start_time: '' })
+                    }
+                  }}
+                />
               </div>
               <div>
                 <label className="label">Titulo</label>

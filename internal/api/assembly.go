@@ -80,10 +80,18 @@ func (h *AssemblyHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 // ===== Sesiones =====
 
 func (h *AssemblyHandler) listSessions(w http.ResponseWriter, r *http.Request) {
-	rows, err := h.Pool.Query(r.Context(), `
-		SELECT id, node_domain, session_type, title, description, start_time, end_time, status, created_at,
+	filter := r.URL.Query().Get("filter")
+	query := `SELECT id, node_domain, session_type, title, description, start_time, end_time, status, created_at,
 		       is_presential, minutes, recall_number, original_scheduled_time, quorum_verified, quorum_checked_at
-		FROM assembly_sessions ORDER BY created_at DESC LIMIT 50`)
+		FROM assembly_sessions`
+	if filter == "upcoming" {
+		query += ` WHERE status IN ('scheduled', 'waiting_quorum', 'active') ORDER BY start_time ASC LIMIT 50`
+	} else if filter == "past" {
+		query += ` WHERE status IN ('completed', 'cancelled', 'expired') ORDER BY start_time DESC LIMIT 50`
+	} else {
+		query += ` ORDER BY created_at DESC LIMIT 50`
+	}
+	rows, err := h.Pool.Query(r.Context(), query)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -152,11 +160,16 @@ func (h *AssemblyHandler) createSession(w http.ResponseWriter, r *http.Request) 
 		req.SessionType = "ordinaria"
 	}
 
-	startTime := time.Now()
-	if req.StartTimeStr != "" {
-		if t, err := time.Parse(time.RFC3339, req.StartTimeStr); err == nil {
-			startTime = t
-		}
+	// La fecha es obligatoria - no se puede crear una asamblea para "ahora mismo"
+	if req.StartTimeStr == "" {
+		writeError(w, 400, "debes especificar la fecha y hora de la asamblea. No se puede crear una asamblea para 'ahora mismo'.")
+		return
+	}
+
+	startTime, err := time.Parse(time.RFC3339, req.StartTimeStr)
+	if err != nil {
+		writeError(w, 400, "formato de fecha invalido. Usa ISO 8601 (ej: 2024-03-15T15:00:00Z)")
+		return
 	}
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
@@ -164,8 +177,44 @@ func (h *AssemblyHandler) createSession(w http.ResponseWriter, r *http.Request) 
 		nodeDomain = "localhost"
 	}
 
+	// Validar tiempo minimo de anticipacion segun tipo
+	var minAdvanceHours int
+	switch req.SessionType {
+	case "ordinaria":
+		minAdvanceHours = 168 // 7 dias
+	case "extraordinaria":
+		minAdvanceHours = 24
+	case "urgente":
+		minAdvanceHours = 1
+	default:
+		minAdvanceHours = 24
+	}
+
+	// Leer config personalizada si existe
+	var customMinHours int
+	h.Pool.QueryRow(r.Context(), `
+		SELECT CASE WHEN $1 = 'ordinaria' THEN min_advance_ordinary_hours
+		            WHEN $1 = 'extraordinaria' THEN min_advance_extraordinary_hours
+		            WHEN $1 = 'urgente' THEN min_advance_urgent_hours
+		            ELSE 24 END
+		FROM assembly_frequency_config
+		WHERE node_domain = $2 AND scope = 'node' AND scope_id IS NULL`,
+		req.SessionType, nodeDomain).Scan(&customMinHours)
+	if customMinHours > 0 {
+		minAdvanceHours = customMinHours
+	}
+
+	now := time.Now()
+	minStartTime := now.Add(time.Duration(minAdvanceHours) * time.Hour)
+	if startTime.Before(minStartTime) {
+		writeError(w, 400, fmt.Sprintf(
+			"Una asamblea %s debe crearse con al menos %d horas de anticipacion. La fecha mas cercana posible es %s.",
+			req.SessionType, minAdvanceHours, minStartTime.Format("02/01/2006 a las 15:04")))
+		return
+	}
+
 	id := uuid.New()
-	_, err := h.Pool.Exec(r.Context(), `
+	_, err = h.Pool.Exec(r.Context(), `
 		INSERT INTO assembly_sessions (id, node_domain, session_type, title, description, start_time, status, is_presential)
 		VALUES ($1, $2, $3, $4, $5, $6, 'scheduled', $7)`,
 		id, nodeDomain, req.SessionType, req.Title, req.Description, startTime, req.IsPresential)
@@ -174,6 +223,12 @@ func (h *AssemblyHandler) createSession(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Notificar a los miembros de la convocatoria
+	notifyMembers(h.Pool, nodeDomain, "node", nil, &id,
+		fmt.Sprintf("Convocatoria a Asamblea %s", req.SessionType),
+		fmt.Sprintf("Se ha convocado una asamblea %s para el %s. Tema: %s", req.SessionType, startTime.Format("02/01/2006 a las 15:04"), req.Title),
+		"convocation")
+
 	writeJSON(w, 201, map[string]interface{}{
 		"id":           id.String(),
 		"session_type": req.SessionType,
@@ -181,6 +236,7 @@ func (h *AssemblyHandler) createSession(w http.ResponseWriter, r *http.Request) 
 		"description":  req.Description,
 		"start_time":   startTime,
 		"status":       "scheduled",
+		"message":      "Asamblea creada. Los miembros han sido notificados.",
 	})
 }
 
