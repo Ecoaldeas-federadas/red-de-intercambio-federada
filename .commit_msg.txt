@@ -1,16 +1,21 @@
-fix: login con clave invalido - passwordLogin usaba NodeDomain vacio
+fix: login deriva node_domain de node_config, no de config.yaml
 
-El passwordLogin buscaba al usuario con WHERE u.node_domain = $2
-pasando ah.NodeDomain, pero como el config.yaml ahora tiene el
-dominio vacio, ah.NodeDomain es "" y la query no encontraba al
-usuario (su dominio real es "localhost").
+El fix anterior (buscar sin filtrar por dominio) rompia la federacion:
+si hay dos nodos cada uno con su admin, el login encontraria el
+primero que encuentre.
 
-Fix: el passwordLogin ahora busca al usuario solo por username
-(sin filtrar por node_domain) y obtiene el node_domain real del
-usuario desde la BD para usarlo en el token JWT.
+Fix correcto: el node_domain se determina en este orden:
+1. Header X-Node-Domain (enviado por el frontend, viene de /api/config)
+2. Tabla node_config (dominio real guardado al crear el nodo)
+3. ah.NodeDomain (del config.yaml, puede estar vacio)
 
-Esto es consistente con como funciona el login por passkey, que
-tambien obtiene el node_domain del usuario desde la BD.
+Asi el login SIEMPRE filtra por node_domain, pero obtiene el dominio
+correcto desde la BD (node_config) si el config.yaml esta vacio o si
+el frontend no envia el header.
+
+Aplicado a:
+- passwordLogin: busca usuario por username + node_domain
+- beginLogin (passkey): busca usuario por username + node_domain
 
 Generated with Devin
 

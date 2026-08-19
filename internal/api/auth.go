@@ -446,6 +446,12 @@ func (ah *AuthHandlers) beginLogin(w http.ResponseWriter, r *http.Request) {
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	if nodeDomain == "" {
+		// Consultar node_config para obtener el dominio real del nodo
+		_ = ah.Pool.QueryRow(r.Context(), `
+			SELECT node_domain FROM node_config WHERE initialized = true LIMIT 1`,
+		).Scan(&nodeDomain)
+	}
+	if nodeDomain == "" {
 		nodeDomain = ah.NodeDomain
 	}
 
@@ -923,9 +929,18 @@ func (ah *AuthHandlers) passwordLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Determinar el node_domain: usar el del header, o buscar el del usuario
-	// sin filtrar por dominio (para no romper si el config esta vacio)
+	// Determinar el node_domain del nodo al que se esta accediendo.
+	// Orden de prioridad:
+	//   1. Header X-Node-Domain (enviado por el frontend, viene de /api/config)
+	//   2. Tabla node_config (dominio real guardado al crear el nodo)
+	//   3. ah.NodeDomain (del config.yaml, puede estar vacio)
 	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		// Consultar node_config para obtener el dominio real del nodo
+		_ = ah.Pool.QueryRow(r.Context(), `
+			SELECT node_domain FROM node_config WHERE initialized = true LIMIT 1`,
+		).Scan(&nodeDomain)
+	}
 	if nodeDomain == "" {
 		nodeDomain = ah.NodeDomain
 	}
@@ -937,9 +952,8 @@ func (ah *AuthHandlers) passwordLogin(w http.ResponseWriter, r *http.Request) {
 		SELECT u.id, uc.password_hash, u.node_domain
 		FROM users u
 		JOIN user_credentials uc ON uc.user_id = u.id
-		WHERE u.username = $1 AND u.membership_status = 'active'
-		LIMIT 1
-	`, req.Username).Scan(&userID, &passwordHash, &userNodeDomain)
+		WHERE u.username = $1 AND u.node_domain = $2 AND u.membership_status = 'active'
+	`, req.Username, nodeDomain).Scan(&userID, &passwordHash, &userNodeDomain)
 	if err != nil {
 		writeError(w, 401, "invalid credentials")
 		return
