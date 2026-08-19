@@ -15,18 +15,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   </React.StrictMode>,
 )
 
-// Limpiar service workers viejos y caches que causan problemas de cache
+// Registrar el Service Worker (necesario para Web Push notifications)
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    // Desregistrar todos los service workers
-    navigator.serviceWorker.getRegistrations().then((registrations) => {
-      registrations.forEach((reg) => reg.unregister())
+    navigator.serviceWorker.register('/sw.js').then((reg) => {
+      console.log('Service Worker registrado:', reg.scope)
+    }).catch((err) => {
+      console.warn('Error registrando Service Worker:', err)
     })
-    // Limpiar CacheStorage
-    if ('caches' in window) {
-      caches.keys().then((names) => {
-        names.forEach((name) => caches.delete(name))
-      })
-    }
   })
 }

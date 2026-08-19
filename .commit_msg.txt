@@ -1,15 +1,15 @@
-fix: migracion 061 - columna metadata en users (causaba 404 en /auth/me)
+fix: WebPush - registrar Service Worker en lugar de desregistrarlo
 
-Problema: GetUser consulta COALESCE(metadata, '{}'::jsonb) pero la columna
-metadata no existia en la tabla users. Esto hacia que la query fallara y
-getMe retornaba 404 "user not found" para TODOS los usuarios.
+Problema: main.tsx DESREGISTRABA todos los service workers en cada carga
+de pagina. Esto hacia que navigator.serviceWorker.ready se quedara colgado
+indefinidamente al intentar suscribirse a WebPush, y el boton se quedaba
+en "Suscribiendo..." para siempre sin mostrar el dialogo de permiso.
 
-Solucion: migracion 061_user_metadata.sql anade la columna metadata JSONB
-con default '{}' a la tabla users.
-
-Tambien afectaba:
-- updateMyContacts (guardar digest_mode en metadata)
-- notification_scheduler (leer digest_mode y last_digest_sent)
+Solucion:
+- main.tsx: registrar /sw.js en lugar de desregistrarlo
+- NotificationSettings.tsx: registrar el SW explicitamente antes de
+  intentar suscribirse, con verificacion de soporte del navegador
+  y mejor manejo de errores con logs en consola
 
 Generated with Devin
 

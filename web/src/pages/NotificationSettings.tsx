@@ -70,8 +70,20 @@ export default function NotificationSettings() {
 
   const subscribeWebPush = async () => {
     setWebpushLoading(true)
+    setError('')
     try {
-      // 1. Obtener la VAPID public key del backend (se auto-genera si no existe)
+      // 0. Verificar que el navegador soporta Service Worker y Push
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        setError('Tu navegador no soporta notificaciones push')
+        setWebpushLoading(false)
+        return
+      }
+
+      // 1. Asegurar que el Service Worker esté registrado
+      const reg = await navigator.serviceWorker.register('/sw.js')
+      console.log('SW registrado:', reg.scope)
+
+      // 2. Obtener la VAPID public key del backend (se auto-genera si no existe)
       const vapidRes = await api.get<any>('/notifications/webpush/vapid-key')
       const vapidKey = vapidRes?.vapid_public_key
 
@@ -81,10 +93,7 @@ export default function NotificationSettings() {
         return
       }
 
-      // 2. Registrar el service worker
-      const reg = await navigator.serviceWorker.ready
-
-      // 3. Solicitar permiso de notificaciones
+      // 3. Solicitar permiso de notificaciones al usuario
       const permission = await Notification.requestPermission()
       if (permission !== 'granted') {
         setError('Permiso de notificaciones denegado por el navegador')
@@ -107,6 +116,7 @@ export default function NotificationSettings() {
       setSuccess('Suscrito a notificaciones push del navegador')
       setTimeout(() => setSuccess(''), 3000)
     } catch (e: any) {
+      console.error('Error WebPush:', e)
       setError('Error al suscribirse: ' + (e?.message || 'desconocido'))
     }
     setWebpushLoading(false)
