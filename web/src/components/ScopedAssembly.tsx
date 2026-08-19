@@ -21,6 +21,8 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
   const [showNewSession, setShowNewSession] = useState(false)
   const [showNewProposal, setShowNewProposal] = useState(false)
   const [newSession, setNewSession] = useState({ session_type: 'ordinaria', title: '', description: '', is_presential: false, start_time: '' })
+  const [sessionDate, setSessionDate] = useState('')
+  const [sessionTime, setSessionTime] = useState('15:00')
   const [newProposal, setNewProposal] = useState<any>({ proposal_type: 'free_proposal', description: '', voting_duration_minutes: 1440, titulo: '', descripcion_detallada: '', cuenta_destino: '', monto: 0, razon: '', user_id: '', cargo: '' })
   const [accounts, setAccounts] = useState<any[]>([])
   const [selectedSessionForMinutes, setSelectedSessionForMinutes] = useState<string | null>(null)
@@ -59,14 +61,21 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
       setError('El titulo es obligatorio')
       return
     }
-    if (!newSession.start_time) {
-      setError('Debes especificar la fecha y hora')
+    if (!sessionDate) {
+      setError('Debes seleccionar la fecha')
       return
     }
+    if (!sessionTime) {
+      setError('Debes seleccionar la hora')
+      return
+    }
+    const start_time = new Date(`${sessionDate}T${sessionTime}:00`).toISOString()
     try {
-      await api.post(`${basePath}/sessions`, newSession)
+      await api.post(`${basePath}/sessions`, { ...newSession, start_time })
       setShowNewSession(false)
       setNewSession({ session_type: 'ordinaria', title: '', description: '', is_presential: false, start_time: '' })
+      setSessionDate('')
+      setSessionTime('15:00')
       load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear sesion')
@@ -410,21 +419,25 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
                   {newSession.session_type === 'urgente' && 'Minimo 1 hora de anticipacion.'}
                 </p>
               </div>
-              <div>
-                <label className="label">Fecha y hora</label>
-                <input
-                  type="datetime-local"
-                  className="input"
-                  value={newSession.start_time ? new Date(newSession.start_time).toISOString().slice(0, 16) : ''}
-                  onChange={e => {
-                    const val = e.target.value
-                    if (val) {
-                      setNewSession({ ...newSession, start_time: new Date(val).toISOString() })
-                    } else {
-                      setNewSession({ ...newSession, start_time: '' })
-                    }
-                  }}
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Fecha</label>
+                  <input
+                    type="date"
+                    className="input"
+                    value={sessionDate}
+                    onChange={e => setSessionDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="label">Hora</label>
+                  <input
+                    type="time"
+                    className="input"
+                    value={sessionTime}
+                    onChange={e => setSessionTime(e.target.value)}
+                  />
+                </div>
               </div>
               <div>
                 <label className="label">Titulo</label>

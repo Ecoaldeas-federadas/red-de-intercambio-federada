@@ -378,6 +378,7 @@ export default function Assembly() {
   const [quorumResult, setQuorumResult] = useState<any>(null)
   const [rescheduleSession, setRescheduleSession] = useState<any>(null)
   const [rescheduleTime, setRescheduleTime] = useState('')
+  const [rescheduleDate, setRescheduleDate] = useState('')
   const [freqConfig, setFreqConfig] = useState<any>({ ordinary_frequency_months: 3, preferred_day_of_month: 15, preferred_hour: 15, notification_days_before: 7, assemblies_enabled: true })
   const [freqLoaded, setFreqLoaded] = useState(false)
   const [freqEditing, setFreqEditing] = useState(false)
@@ -385,6 +386,8 @@ export default function Assembly() {
   const [sessionFilter, setSessionFilter] = useState<'upcoming' | 'past'>('upcoming')
 
   const [newSession, setNewSession] = useState({ session_type: 'ordinaria', title: '', description: '', is_presential: false, start_time: '' })
+  const [sessionDate, setSessionDate] = useState('')
+  const [sessionTime, setSessionTime] = useState('15:00')
   const [newBoard, setNewBoard] = useState({ user_id: '', position: 'presidente' })
 
   const load = () => {
@@ -590,9 +593,15 @@ export default function Assembly() {
   }
 
   const doReschedule = async (sessionId: string) => {
+    if (!rescheduleDate || !rescheduleTime) {
+      setError('Debes seleccionar fecha y hora')
+      return
+    }
     try {
-      await api.post(`/assembly/sessions/${sessionId}/reschedule`, { new_start_time: rescheduleTime })
+      const iso = new Date(`${rescheduleDate}T${rescheduleTime}:00`).toISOString()
+      await api.post(`/assembly/sessions/${sessionId}/reschedule`, { new_start_time: iso })
       setRescheduleSession(null)
+      setRescheduleDate('')
       setRescheduleTime('')
       load()
     } catch (err) {
@@ -616,14 +625,22 @@ export default function Assembly() {
       setError('El titulo es obligatorio')
       return
     }
-    if (!newSession.start_time) {
-      setError('Debes especificar la fecha y hora de la asamblea')
+    if (!sessionDate) {
+      setError('Debes seleccionar la fecha de la asamblea')
       return
     }
+    if (!sessionTime) {
+      setError('Debes seleccionar la hora de la asamblea')
+      return
+    }
+    // Combinar fecha y hora en ISO 8601
+    const start_time = new Date(`${sessionDate}T${sessionTime}:00`).toISOString()
     try {
-      await api.post('/assembly/sessions', newSession)
+      await api.post('/assembly/sessions', { ...newSession, start_time })
       setShowNewSession(false)
       setNewSession({ session_type: 'ordinaria', title: '', description: '', is_presential: false, start_time: '' })
+      setSessionDate('')
+      setSessionTime('15:00')
       load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear sesion')
@@ -1375,29 +1392,31 @@ export default function Assembly() {
                   {newSession.session_type === 'urgente' && 'Urgente = decision rapida. Minimo 1 hora de anticipacion.'}
                 </p>
               </div>
-              <div>
-                <label className="label">Fecha y hora</label>
-                <input
-                  type="datetime-local"
-                  className="input"
-                  value={newSession.start_time}
-                  onChange={(e) => {
-                    // Convertir a ISO 8601
-                    const val = e.target.value
-                    if (val) {
-                      const iso = new Date(val).toISOString()
-                      setNewSession({ ...newSession, start_time: iso })
-                    } else {
-                      setNewSession({ ...newSession, start_time: '' })
-                    }
-                  }}
-                />
-                <p className="text-xs text-gray-400 mt-1">
-                  {newSession.session_type === 'ordinaria' && 'La fecha debe ser al menos 7 dias desde ahora.'}
-                  {newSession.session_type === 'extraordinaria' && 'La fecha debe ser al menos 24 horas desde ahora.'}
-                  {newSession.session_type === 'urgente' && 'La fecha debe ser al menos 1 hora desde ahora.'}
-                </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Fecha</label>
+                  <input
+                    type="date"
+                    className="input"
+                    value={sessionDate}
+                    onChange={(e) => setSessionDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="label">Hora</label>
+                  <input
+                    type="time"
+                    className="input"
+                    value={sessionTime}
+                    onChange={(e) => setSessionTime(e.target.value)}
+                  />
+                </div>
               </div>
+              <p className="text-xs text-gray-400 mt-1">
+                {newSession.session_type === 'ordinaria' && 'La fecha debe ser al menos 7 dias desde ahora.'}
+                {newSession.session_type === 'extraordinaria' && 'La fecha debe ser al menos 24 horas desde ahora.'}
+                {newSession.session_type === 'urgente' && 'La fecha debe ser al menos 1 hora desde ahora.'}
+              </p>
               <div>
                 <label className="label">Titulo</label>
                 <input className="input" placeholder="Ej: Asamblea mensual marzo" value={newSession.title} onChange={(e) => setNewSession({ ...newSession, title: e.target.value })} />
@@ -1634,14 +1653,25 @@ export default function Assembly() {
                     Al reprogramar, se crea el llamado #{(rescheduleSession.recall_number || 0) + 2} con un quorum mas bajo.
                     La lista de asistencia se reinicia: los miembros deben volver a confirmar su presencia.
                   </p>
-                  <div>
-                    <label className="label">Nueva fecha y hora</label>
-                    <input
-                      type="datetime-local"
-                      className="input"
-                      value={rescheduleTime}
-                      onChange={e => setRescheduleTime(new Date(e.target.value).toISOString())}
-                    />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="label">Fecha</label>
+                      <input
+                        type="date"
+                        className="input"
+                        value={rescheduleDate}
+                        onChange={e => setRescheduleDate(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="label">Hora</label>
+                      <input
+                        type="time"
+                        className="input"
+                        value={rescheduleTime}
+                        onChange={e => setRescheduleTime(e.target.value)}
+                      />
+                    </div>
                   </div>
                   <div className="flex gap-2 justify-end">
                     <button onClick={() => setRescheduleSession(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
