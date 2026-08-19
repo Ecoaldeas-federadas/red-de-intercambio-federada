@@ -356,6 +356,10 @@ export default function Assembly() {
   const [reports, setReports] = useState<any[]>([])
   const [reportsStats, setReportsStats] = useState<any>(null)
   const [selectedReport, setSelectedReport] = useState<any>(null)
+  const [filterType, setFilterType] = useState('')
+  const [filterFrom, setFilterFrom] = useState('')
+  const [filterTo, setFilterTo] = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
 
   const [newSession, setNewSession] = useState({ session_type: 'ordinaria', title: '', description: '' })
   const [newBoard, setNewBoard] = useState({ user_id: '', position: 'presidente' })
@@ -416,7 +420,13 @@ export default function Assembly() {
 
   const loadReports = async () => {
     try {
-      const data: any = await api.get('/assembly/reports')
+      const params = new URLSearchParams()
+      if (filterType) params.set('type', filterType)
+      if (filterFrom) params.set('from', filterFrom)
+      if (filterTo) params.set('to', filterTo)
+      if (filterStatus) params.set('status', filterStatus)
+      const query = params.toString() ? `?${params.toString()}` : ''
+      const data: any = await api.get(`/assembly/reports${query}`)
       setReports(data.reports || [])
       setReportsStats({
         total_proposals: data.total_proposals,
@@ -786,8 +796,84 @@ export default function Assembly() {
           )}
 
           {/* Boton cargar */}
-          {reports.length === 0 && (
+          {reports.length === 0 && !filterType && !filterFrom && !filterTo && !filterStatus && (
             <button onClick={loadReports} className="btn-primary">Cargar informes</button>
+          )}
+
+          {/* Filtros de busqueda */}
+          {(reports.length > 0 || filterType || filterFrom || filterTo || filterStatus) && (
+            <div className="card space-y-3">
+              <h3 className="font-medium text-sm">Buscar votaciones por fecha, tipo o resultado</h3>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Tipo de votacion</label>
+                  <select
+                    value={filterType}
+                    onChange={e => setFilterType(e.target.value)}
+                    className="input text-sm"
+                  >
+                    <option value="">Todos los tipos</option>
+                    <option value="limit_change">Cambio de limites</option>
+                    <option value="tax_change">Cambio de impuesto</option>
+                    <option value="member_level">Nivel de miembro</option>
+                    <option value="org_level">Nivel de organizacion</option>
+                    <option value="admission">Admision</option>
+                    <option value="expulsion">Expulsion</option>
+                    <option value="budget_increase">Aumento de presupuesto</option>
+                    <option value="fund_distribution">Distribucion de fondos</option>
+                    <option value="energy_rate_change">Cambio tarifa energetica</option>
+                    <option value="federation_config">Configuracion federacion</option>
+                    <option value="recovery_config">Configuracion recuperacion</option>
+                    <option value="policy">Politica general</option>
+                    <option value="create_account">Creacion de cuenta</option>
+                    <option value="product_modification">Modificacion de producto</option>
+                    <option value="governance_rule">Regla de gobernanza</option>
+                    <option value="free_proposal">Propuesta libre</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Desde</label>
+                  <input
+                    type="date"
+                    value={filterFrom}
+                    onChange={e => setFilterFrom(e.target.value)}
+                    className="input text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Hasta</label>
+                  <input
+                    type="date"
+                    value={filterTo}
+                    onChange={e => setFilterTo(e.target.value)}
+                    className="input text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Resultado</label>
+                  <select
+                    value={filterStatus}
+                    onChange={e => setFilterStatus(e.target.value)}
+                    className="input text-sm"
+                  >
+                    <option value="">Todos</option>
+                    <option value="pending">Pendientes</option>
+                    <option value="executed">Aprobadas</option>
+                    <option value="rejected">Rechazadas</option>
+                    <option value="expired">Vencidas</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={loadReports} className="btn-primary text-sm">Buscar</button>
+                <button
+                  onClick={() => { setFilterType(''); setFilterFrom(''); setFilterTo(''); setFilterStatus(''); loadReports() }}
+                  className="btn-secondary text-sm"
+                >
+                  Limpiar filtros
+                </button>
+              </div>
+            </div>
           )}
 
           {/* Lista de informes */}

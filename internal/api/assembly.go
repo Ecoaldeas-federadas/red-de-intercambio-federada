@@ -1217,21 +1217,21 @@ func (h *AssemblyHandler) getProposalReport(w http.ResponseWriter, r *http.Reque
 }
 
 // listVotingReports devuelve un resumen de todas las votaciones
+// Filtros disponibles: ?type=limit_change&from=2024-01-01&to=2024-12-31&status=executed
 func (h *AssemblyHandler) listVotingReports(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	if nodeDomain == "" {
 		nodeDomain = "localhost"
 	}
 
-	// Total de miembros con derecho a voto
-	var totalVotingMembers int
-	h.Pool.QueryRow(r.Context(), `
-		SELECT COUNT(*) FROM users u
-		JOIN member_levels ml ON ml.id = u.member_level_id
-		WHERE u.node_domain = $1 AND u.membership_status = 'active'
-		AND ml.has_vote = true AND ml.counts_in_quorum = true`, nodeDomain).Scan(&totalVotingMembers)
+	// Filtros
+	filterType := r.URL.Query().Get("type")
+	filterFrom := r.URL.Query().Get("from")
+	filterTo := r.URL.Query().Get("to")
+	filterStatus := r.URL.Query().Get("status")
 
-	rows, err := h.Pool.Query(r.Context(), `
+	// Construir query con filtros dinamicos
+	query := `
 		SELECT d.id, d.decision_type, d.description, d.status, d.created_at, d.executed_at,
 		       d.voting_deadline, d.voting_duration_minutes,
 		       COALESCE(sv.votes_for, 0), COALESCE(sv.votes_against, 0), COALESCE(sv.votes_abstain, 0),
@@ -1245,7 +1245,41 @@ func (h *AssemblyHandler) listVotingReports(w http.ResponseWriter, r *http.Reque
 				COUNT(*) as total_votes
 			FROM assembly_votes GROUP BY decision_id
 		) sv ON sv.decision_id = d.id
-		ORDER BY d.created_at DESC LIMIT 200`)
+		WHERE 1=1`
+	args := []interface{}{}
+	argIdx := 1
+
+	if filterType != "" {
+		query += fmt.Sprintf(" AND d.decision_type = $%d", argIdx)
+		args = append(args, filterType)
+		argIdx++
+	}
+	if filterFrom != "" {
+		query += fmt.Sprintf(" AND d.created_at >= $%d", argIdx)
+		args = append(args, filterFrom+" 00:00:00")
+		argIdx++
+	}
+	if filterTo != "" {
+		query += fmt.Sprintf(" AND d.created_at <= $%d", argIdx)
+		args = append(args, filterTo+" 23:59:59")
+		argIdx++
+	}
+	if filterStatus != "" {
+		query += fmt.Sprintf(" AND d.status = $%d", argIdx)
+		args = append(args, filterStatus)
+		argIdx++
+	}
+	query += " ORDER BY d.created_at DESC LIMIT 500"
+
+	// Total de miembros con derecho a voto
+	var totalVotingMembers int
+	h.Pool.QueryRow(r.Context(), `
+		SELECT COUNT(*) FROM users u
+		JOIN member_levels ml ON ml.id = u.member_level_id
+		WHERE u.node_domain = $1 AND u.membership_status = 'active'
+		AND ml.has_vote = true AND ml.counts_in_quorum = true`, nodeDomain).Scan(&totalVotingMembers)
+
+	rows, err := h.Pool.Query(r.Context(), query, args...)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
