@@ -178,8 +178,8 @@ type passkeyAdapter struct {
 	pm *crypto.PasskeyManager
 }
 
-func (a *passkeyAdapter) BeginRegistration(userID uuid.UUID, username, displayName string, existingCreds [][]byte) (interface{}, error) {
-	return a.pm.BeginRegistration(userID, username, displayName, existingCreds)
+func (a *passkeyAdapter) BeginRegistration(userID uuid.UUID, username, displayName string, existingCreds [][]byte, rpID, rpName string) (interface{}, error) {
+	return a.pm.BeginRegistration(userID, username, displayName, existingCreds, rpID, rpName)
 }
 
 func (a *passkeyAdapter) VerifyRegistration(response interface{}, expectedChallenge, expectedOrigin string) (interface{}, error) {
@@ -203,8 +203,8 @@ func (a *passkeyAdapter) VerifyRegistration(response interface{}, expectedChalle
 	return a.pm.VerifyRegistration(resp, expectedChallenge, expectedOrigin)
 }
 
-func (a *passkeyAdapter) BeginLogin(credentialIDs [][]byte) (interface{}, error) {
-	return a.pm.BeginLogin(credentialIDs)
+func (a *passkeyAdapter) BeginLogin(credentialIDs [][]byte, rpID string) (interface{}, error) {
+	return a.pm.BeginLogin(credentialIDs, rpID)
 }
 
 func (a *passkeyAdapter) VerifyLogin(response interface{}, expectedChallenge string, storedPubKey []byte, storedSignCount int64) (int64, error) {

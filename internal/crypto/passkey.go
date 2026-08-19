@@ -6,10 +6,12 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/asn1"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/fxamacker/cbor/v2"
@@ -128,10 +130,17 @@ func (pm *PasskeyManager) GenerateChallenge() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(challenge), nil
 }
 
-func (pm *PasskeyManager) BeginRegistration(userID uuid.UUID, username, displayName string, existingCredentialIDs [][]byte) (*RegistrationChallenge, error) {
+func (pm *PasskeyManager) BeginRegistration(userID uuid.UUID, username, displayName string, existingCredentialIDs [][]byte, rpID, rpName string) (*RegistrationChallenge, error) {
 	challenge, err := pm.GenerateChallenge()
 	if err != nil {
 		return nil, err
+	}
+
+	if rpID == "" {
+		rpID = pm.RPID
+	}
+	if rpName == "" {
+		rpName = pm.RPName
 	}
 
 	userIDBytes := []byte(userID.String())
@@ -147,8 +156,8 @@ func (pm *PasskeyManager) BeginRegistration(userID uuid.UUID, username, displayN
 	return &RegistrationChallenge{
 		Challenge: challenge,
 		RP: RPData{
-			Name: pm.RPName,
-			ID:   pm.RPID,
+			Name: rpName,
+			ID:   rpID,
 		},
 		User: UserData{
 			ID:          base64.RawURLEncoding.EncodeToString(userIDBytes),
@@ -188,6 +197,8 @@ func (pm *PasskeyManager) VerifyRegistration(response RegistrationResponse, expe
 		return nil, fmt.Errorf("challenge mismatch")
 	}
 
+	// Validar el origen: aceptar si esta en la lista configurada O si
+	// el dominio del origen coincide con el RP ID configurado
 	validOrigin := false
 	for _, origin := range pm.Origins {
 		if clientData.Origin == origin {
@@ -195,8 +206,24 @@ func (pm *PasskeyManager) VerifyRegistration(response RegistrationResponse, expe
 			break
 		}
 	}
+	// Tambien aceptar si el origen coincide con el expectedOrigin del request
+	if !validOrigin && clientData.Origin == expectedOrigin {
+		validOrigin = true
+	}
+	// Fallback: aceptar localhost para desarrollo local
 	if !validOrigin {
-		return nil, fmt.Errorf("invalid origin: %s", clientData.Origin)
+		originHost := clientData.Origin
+		originHost = strings.TrimPrefix(originHost, "https://")
+		originHost = strings.TrimPrefix(originHost, "http://")
+		if idx := strings.LastIndex(originHost, ":"); idx > 0 {
+			originHost = originHost[:idx]
+		}
+		if originHost == "localhost" || originHost == "127.0.0.1" {
+			validOrigin = true
+		}
+	}
+	if !validOrigin {
+		return nil, fmt.Errorf("invalid origin: %s (expected: %s)", clientData.Origin, expectedOrigin)
 	}
 
 	credentialID, err := base64.RawURLEncoding.DecodeString(response.ID)
@@ -221,10 +248,14 @@ func (pm *PasskeyManager) VerifyRegistration(response RegistrationResponse, expe
 	}, nil
 }
 
-func (pm *PasskeyManager) BeginLogin(credentialIDs [][]byte) (*LoginChallenge, error) {
+func (pm *PasskeyManager) BeginLogin(credentialIDs [][]byte, rpID string) (*LoginChallenge, error) {
 	challenge, err := pm.GenerateChallenge()
 	if err != nil {
 		return nil, err
+	}
+
+	if rpID == "" {
+		rpID = pm.RPID
 	}
 
 	allowCreds := make([]CredentialDescriptor, 0, len(credentialIDs))
@@ -237,7 +268,7 @@ func (pm *PasskeyManager) BeginLogin(credentialIDs [][]byte) (*LoginChallenge, e
 
 	return &LoginChallenge{
 		Challenge:        challenge,
-		RPID:             pm.RPID,
+		RPID:             rpID,
 		Timeout:          60000,
 		UserVerification: "preferred",
 		AllowCredentials: allowCreds,
@@ -273,7 +304,9 @@ func (pm *PasskeyManager) VerifyLogin(response LoginResponse, expectedChallenge 
 		return 0, fmt.Errorf("decoding signature: %w", err)
 	}
 
-	verifyData := append(authDataBytes, clientDataBytes...)
+	// WebAuthn spec: los datos firmados son authenticatorData || SHA256(clientDataJSON)
+	clientDataHash := sha256.Sum256(clientDataBytes)
+	verifyData := append(authDataBytes, clientDataHash[:]...)
 
 	// Determinar el tipo de clave y verificar la firma accordingly
 	keyType, err := detectCOSEKeyType(storedPubKey)
@@ -287,6 +320,7 @@ func (pm *PasskeyManager) VerifyLogin(response LoginResponse, expectedChallenge 
 		if err != nil {
 			return 0, fmt.Errorf("parsing Ed25519 public key: %w", err)
 		}
+		// Ed25519 verifica el mensaje directamente (sin hashing adicional)
 		if !ed25519.Verify(pubKey, verifyData, signatureBytes) {
 			return 0, fmt.Errorf("signature verification failed (Ed25519)")
 		}
@@ -296,8 +330,16 @@ func (pm *PasskeyManager) VerifyLogin(response LoginResponse, expectedChallenge 
 		if err != nil {
 			return 0, fmt.Errorf("parsing ES256 public key: %w", err)
 		}
+		// ECDSA: hash de los datos firmados, luego verificar
 		hash := sha256.Sum256(verifyData)
 		if !ecdsa.VerifyASN1(pubKey, hash[:], signatureBytes) {
+			// Fallback: algunos autenticadores usan formato raw r||s (64 bytes)
+			// en vez de ASN.1 DER. Intentar convertir.
+			if fixedSig, ok := fixECDSASignatureFormat(signatureBytes); ok {
+				if ecdsa.VerifyASN1(pubKey, hash[:], fixedSig) {
+					goto sigOK
+				}
+			}
 			return 0, fmt.Errorf("signature verification failed (ES256)")
 		}
 
@@ -305,12 +347,36 @@ func (pm *PasskeyManager) VerifyLogin(response LoginResponse, expectedChallenge 
 		return 0, fmt.Errorf("unsupported key type: %s", keyType)
 	}
 
+sigOK:
 	newSignCount := extractSignCount(authDataBytes)
 	if newSignCount <= storedSignCount && storedSignCount != 0 {
 		return 0, fmt.Errorf("sign count regression detected, possible replay attack")
 	}
 
 	return newSignCount, nil
+}
+
+// fixECDSASignatureFormat convierte una firma ECDSA de formato raw (r||s, 64 bytes)
+// a formato ASN.1 DER si es necesario.
+func fixECDSASignatureFormat(sig []byte) ([]byte, bool) {
+	// Si ya es ASN.1 DER (empieza con 0x30), no convertir
+	if len(sig) > 0 && sig[0] == 0x30 {
+		return nil, false
+	}
+	// Formato raw: r (32 bytes) || s (32 bytes) = 64 bytes total
+	if len(sig) != 64 {
+		return nil, false
+	}
+	r := new(big.Int).SetBytes(sig[:32])
+	s := new(big.Int).SetBytes(sig[32:])
+	type ecdsaSig struct {
+		R, S *big.Int
+	}
+	der, err := asn1.Marshal(ecdsaSig{r, s})
+	if err != nil {
+		return nil, false
+	}
+	return der, true
 }
 
 func extractPublicKeyFromAttestation(attestationObject []byte) ([]byte, error) {

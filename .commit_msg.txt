@@ -1,31 +1,36 @@
-fix: login passkey 500 - panic y solo soportaba Ed25519, no ES256
+fix: signature verification failed + RP ID dinamico para WebAuthn
 
-El login con passkey daba 500 Internal Server Error por dos causas:
+PROBLEMA 1: "signature verification failed (ES256)"
+El codigo usaba clientDataJSON raw en verifyData, pero el spec WebAuthn
+requiere SHA256(clientDataJSON). Los datos firmados son:
+  authenticatorData || SHA256(clientDataJSON)
+no:
+  authenticatorData || clientDataJSON
 
-PROBLEMA 1: Panic en parseCOSEPublicKey (causa del 500)
-La linea kty.(int) hacia un type assertion directo que puede panic
-si CBOR decodifica el valor como uint64 en vez de int. El middleware
-Recoverer captura el panic y devuelve 500.
+Fix: calcular sha256.Sum256(clientDataBytes) y concatenar ese hash
+con authDataBytes. Esto aplica tanto a Ed25519 como a ES256.
 
-Fix: nueva funcion toInt() que usa type switch para convertir
-de forma segura int, int64, uint64, uint, float64 a int.
+Tambien se anade fixECDSASignatureFormat() como fallback: algunos
+autenticadores producen firmas ES256 en formato raw (r||s, 64 bytes)
+en vez de ASN.1 DER. Si VerifyASN1 falla, se intenta convertir.
 
-PROBLEMA 2: Solo soportaba Ed25519, pero Windows usa ES256
-PubKeyCredParams ofrece algoritmos -7 (ES256) y -257 (RS256).
-Windows Hello crea llaves ES256 (ECDSA P-256, kty=2), pero
-parseCOSEPublicKey solo soportaba Ed25519 (kty=8) y ed25519.Verify
-no puede verificar firmas ECDSA.
+PROBLEMA 2: No se puede registrar passkey desde el dominio
+El PasskeyManager se inicializaba con cfg.Node.Domain ("nodo-a.org")
+como RP ID fijo y cors_origins: ["http://localhost:3000"]. Pero
+WebAuthn requiere que el RP ID coincida con el dominio desde el que
+se accede (localhost, feria.loanstly.com, etc.).
 
-Fix: reescrito el soporte criptografico para manejar ambos:
-- detectCOSEKeyType: detecta si la clave es Ed25519 (kty=8) o ES256 (kty=2)
-- parseEd25519PublicKey: parsea claves Ed25519 desde COSE
-- parseES256PublicKey: parsea claves ECDSA P-256 desde COSE
-  (extrae coordenadas x, y y reconstruye ecdsa.PublicKey)
-- VerifyLogin: usa ed25519.Verify para Ed25519 o ecdsa.VerifyASN1
-  con SHA-256 para ES256
+Fix: RP ID y origin ahora son dinamicos, derivados del request:
+- deriveRPID(r): extrae el dominio del header Origin o Host
+- deriveOrigin(r): construye la URL de origen del request
+- BeginRegistration y BeginLogin ahora aceptan rpID como parametro
+- VerifyRegistration acepta cualquier origen que:
+  1. Este en la lista configurada, O
+  2. Coincida con el origin del request, O
+  3. Sea localhost/127.0.0.1 (desarrollo)
 
-Esto permite que Windows Hello, FaceID, TouchID y la mayoria de
-autenticadores funcionen (todos usan ES256 por defecto).
+Esto permite que WebAuthn funcione correctamente desde cualquier
+dominio (localhost, feria.loanstly.com, etc.) sin cambiar la config.
 
 Generated with Devin
 

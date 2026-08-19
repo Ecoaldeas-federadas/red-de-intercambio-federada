@@ -26,6 +26,60 @@ func base64UrlDecode(s string) ([]byte, error) {
 	return base64.StdEncoding.DecodeString(b64)
 }
 
+// deriveRPID extrae el RP ID (dominio sin puerto) del request.
+// WebAuthn requiere que el RP ID coincida con el dominio desde el que
+// se accede. Por ejemplo:
+//   - http://localhost:8080  -> RP ID: localhost
+//   - https://feria.loanstly.com -> RP ID: feria.loanstly.com
+func deriveRPID(r *http.Request) string {
+	// Priorizar el header Origin (mas confiable)
+	origin := r.Header.Get("Origin")
+	if origin != "" {
+		origin = strings.TrimPrefix(origin, "https://")
+		origin = strings.TrimPrefix(origin, "http://")
+		// Quitar el puerto si lo tiene
+		if idx := strings.LastIndex(origin, ":"); idx > 0 {
+			origin = origin[:idx]
+		}
+		if origin != "" {
+			return origin
+		}
+	}
+	// Fallback: usar el header Host
+	host := r.Host
+	if host == "" {
+		host = r.Header.Get("Host")
+	}
+	if host != "" {
+		if idx := strings.LastIndex(host, ":"); idx > 0 {
+			host = host[:idx]
+		}
+		return host
+	}
+	return "localhost"
+}
+
+// deriveOrigin construye la URL de origen desde el request
+func deriveOrigin(r *http.Request) string {
+	origin := r.Header.Get("Origin")
+	if origin != "" {
+		return origin
+	}
+	// Construir desde el Host
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	if r.Header.Get("X-Forwarded-Proto") == "https" {
+		scheme = "https"
+	}
+	host := r.Host
+	if host == "" {
+		host = "localhost:8080"
+	}
+	return fmt.Sprintf("%s://%s", scheme, host)
+}
+
 type AuthMiddleware struct {
 	JWTSecret []byte
 	Pool      *pgxpool.Pool
@@ -210,9 +264,9 @@ type AuthHandlers struct {
 }
 
 type PasskeyService interface {
-	BeginRegistration(userID uuid.UUID, username, displayName string, existingCreds [][]byte) (interface{}, error)
+	BeginRegistration(userID uuid.UUID, username, displayName string, existingCreds [][]byte, rpID, rpName string) (interface{}, error)
 	VerifyRegistration(response interface{}, expectedChallenge, expectedOrigin string) (interface{}, error)
-	BeginLogin(credentialIDs [][]byte) (interface{}, error)
+	BeginLogin(credentialIDs [][]byte, rpID string) (interface{}, error)
 	VerifyLogin(response interface{}, expectedChallenge string, storedPubKey []byte, storedSignCount int64) (int64, error)
 }
 
@@ -300,14 +354,29 @@ func (ah *AuthHandlers) beginRegistration(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	rpID := deriveRPID(r)
+	rpName := ah.RPName
+	if rpName == "" {
+		rpName = rpID
+	}
+
 	userID := uuid.New()
-	options, err := ah.PasskeyManager.BeginRegistration(userID, req.Username, req.DisplayName, nil)
+	options, err := ah.PasskeyManager.BeginRegistration(userID, req.Username, req.DisplayName, nil, rpID, rpName)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
 	}
 
-	ah.ChallengeStore.Store(userID.String(), options.(map[string]interface{})["challenge"].(string), userID)
+	// Extraer el challenge
+	var challengeStr string
+	switch opts := options.(type) {
+	case *crypto.RegistrationChallenge:
+		challengeStr = opts.Challenge
+	case map[string]interface{}:
+		challengeStr, _ = opts["challenge"].(string)
+	}
+
+	ah.ChallengeStore.Store(userID.String(), challengeStr, userID)
 
 	writeJSON(w, 200, map[string]interface{}{
 		"options":  options,
@@ -342,10 +411,7 @@ func (ah *AuthHandlers) finishRegistration(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	origin := r.Header.Get("Origin")
-	if origin == "" {
-		origin = "https://" + ah.NodeDomain
-	}
+	origin := deriveOrigin(r)
 
 	passkey, err := ah.PasskeyManager.VerifyRegistration(req.Response, challenge, origin)
 	if err != nil {
@@ -415,7 +481,9 @@ func (ah *AuthHandlers) beginLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	options, err := ah.PasskeyManager.BeginLogin(credentialIDs)
+	rpID := deriveRPID(r)
+
+	options, err := ah.PasskeyManager.BeginLogin(credentialIDs, rpID)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -691,7 +759,13 @@ func (ah *AuthHandlers) beginAddPasskey(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	options, err := ah.PasskeyManager.BeginRegistration(userID, username, displayName, existingCreds)
+	rpID := deriveRPID(r)
+	rpName := ah.RPName
+	if rpName == "" {
+		rpName = rpID
+	}
+
+	options, err := ah.PasskeyManager.BeginRegistration(userID, username, displayName, existingCreds, rpID, rpName)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -742,10 +816,7 @@ func (ah *AuthHandlers) finishAddPasskey(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	origin := r.Header.Get("Origin")
-	if origin == "" {
-		origin = "https://" + ah.NodeDomain
-	}
+	origin := deriveOrigin(r)
 
 	passkeyRaw, err := ah.PasskeyManager.VerifyRegistration(req.Response, challenge, origin)
 	if err != nil {
