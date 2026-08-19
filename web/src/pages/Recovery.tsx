@@ -11,10 +11,12 @@ export default function Recovery() {
   const [showNewReq, setShowNewReq] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [error, setError] = useState('')
+  const [allUsers, setAllUsers] = useState<any[]>([])
 
   const load = () => {
     api.get<any>('/recovery/config').then(setConfig).catch(() => {})
-    api.get<{ requests: any[] }>('/recovery/requests').then((d) => setRequests(d.requests ?? [])).catch(() => {})
+    api.get<{ requests: any[] }>('/recovery/requests').then((d) => setRequests(d.requests ?? d ?? [])).catch(() => {})
+    api.get<any[]>('/accounts/list').then((d: any) => setAllUsers(Array.isArray(d) ? d : [])).catch(() => {})
   }
 
   useEffect(() => { load() }, [])
@@ -152,7 +154,15 @@ export default function Recovery() {
       {showNewReq && (
         <div className="card space-y-3">
           <h2 className="font-semibold flex items-center gap-2"><KeyRound size={18} />Solicitar Recuperacion</h2>
-          <input className="input" placeholder="Usuario que perdio acceso" value={newReq.target_username} onChange={(e) => setNewReq({ ...newReq, target_username: e.target.value })} />
+          <div>
+            <label className="label">Usuario que perdio acceso</label>
+            <select className="input" value={newReq.target_username} onChange={(e) => setNewReq({ ...newReq, target_username: e.target.value })}>
+              <option value="">Seleccionar usuario...</option>
+              {allUsers.map((u: any) => (
+                <option key={u.id} value={u.username}>{u.display_name || u.username} ({u.username})</option>
+              ))}
+            </select>
+          </div>
           <textarea className="input" rows={3} placeholder="Razon de la solicitud" value={newReq.reason} onChange={(e) => setNewReq({ ...newReq, reason: e.target.value })} />
           <button onClick={createReq} className="btn-primary">Crear Solicitud</button>
         </div>

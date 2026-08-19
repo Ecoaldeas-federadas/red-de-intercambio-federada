@@ -44,6 +44,7 @@ export default function Departments() {
   const { hasPermission } = usePermissions()
   const [departments, setDepartments] = useState<Department[]>([])
   const [allPermissions, setAllPermissions] = useState<Permission[]>([])
+  const [allUsers, setAllUsers] = useState<any[]>([])
   const [selectedDept, setSelectedDept] = useState<Department | null>(null)
   const [roles, setRoles] = useState<Role[]>([])
   const [members, setMembers] = useState<Member[]>([])
@@ -63,6 +64,7 @@ export default function Departments() {
     loadDepartments()
     loadPermissions()
     loadOrganizations()
+    loadUsers()
   }, [])
 
   const loadDepartments = async () => {
@@ -80,6 +82,15 @@ export default function Departments() {
       setAllPermissions(res || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error')
+    }
+  }
+
+  const loadUsers = async () => {
+    try {
+      const res = await api.get<any[]>('/accounts/list')
+      setAllUsers(res || [])
+    } catch {
+      setAllUsers([])
     }
   }
 
@@ -443,8 +454,13 @@ export default function Departments() {
             <h2 className="font-bold text-lg">Asignar Miembro</h2>
             <div>
               <label className="label">Usuario</label>
-              <input className="input" placeholder="Ej: maria_gonzalez" value={newMember.user_id} onChange={(e) => setNewMember({ ...newMember, user_id: e.target.value })} />
-              <p className="text-xs text-gray-400 mt-1">Nombre de usuario (username) de la persona a asignar. Debe ser un usuario registrado en el sistema. Ejemplo: "maria_gonzalez".</p>
+              <select className="input" value={newMember.user_id} onChange={(e) => setNewMember({ ...newMember, user_id: e.target.value })}>
+                <option value="">Seleccionar miembro...</option>
+                {allUsers.map((u: any) => (
+                  <option key={u.id} value={u.id}>{u.display_name || u.username} ({u.username})</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">Solo puedes asignar miembros registrados del nodo.</p>
             </div>
             <div>
               <label className="label">Rol</label>

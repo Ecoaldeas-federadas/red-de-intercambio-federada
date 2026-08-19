@@ -295,7 +295,18 @@ const PROPOSAL_FIELDS = (currency: string): Record<ProposalType, ProposalField[]
     { key: 'nuevo_valor', label: 'Nuevo valor', help: 'Nuevo valor del parametro seleccionado. Ej: 0.15 para el precio por kWh.', placeholder: '0.15', type: 'number' },
   ],
   product_modification: [
-    { key: 'producto', label: 'Producto', help: 'Nombre o identificador del producto a modificar. Ej: pan_integral.', placeholder: 'ej: pan_integral', type: 'text' },
+    {
+      key: 'producto',
+      label: 'Producto',
+      help: 'Selecciona el producto a modificar del catalogo existente.',
+      placeholder: 'buscar producto...',
+      type: 'entity',
+      endpoint: '/products',
+      valueKey: 'id',
+      labelKey: 'name',
+      subLabelKey: 'category',
+      emptyMessage: 'No se encontraron productos',
+    },
     { key: 'nuevo_precio', label: `Nuevo precio (${currency})`, help: `Nuevo precio del producto. Ej: 5 ${currency}.`, placeholder: '5', type: 'number' },
     { key: 'razon', label: 'Razon', help: 'Justifica el cambio de precio. Ej: "Aumento del costo de la harina".', placeholder: 'Motivo del cambio', type: 'textarea' },
   ],
@@ -1262,8 +1273,15 @@ export default function Assembly() {
               <h3 className="font-semibold">Asignar Miembro de Junta</h3>
               <div>
                 <label className="label">Usuario</label>
-                <input className="input" placeholder="Nombre de usuario (username)" value={newBoard.user_id} onChange={(e) => setNewBoard({ ...newBoard, user_id: e.target.value })} />
-                <p className="text-xs text-gray-400 mt-1">Username de la persona a asignar.</p>
+                <select className="input" value={newBoard.user_id} onChange={(e) => setNewBoard({ ...newBoard, user_id: e.target.value })}>
+                  <option value="">Seleccionar miembro...</option>
+                  {votingMembers.map((m: any) => (
+                    <option key={m.user_id || m.id} value={m.user_id || m.id}>
+                      {m.display_name || m.username} {m.level_name ? `(${m.level_name})` : ''}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-400 mt-1">Solo puedes asignar miembros existentes del nodo.</p>
               </div>
               <div>
                 <label className="label">Cargo</label>

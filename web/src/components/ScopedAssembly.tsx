@@ -205,11 +205,10 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
                 <label className="label">Tipo de propuesta</label>
                 <select className="input" value={newProposal.proposal_type} onChange={e => {
                   setNewProposal({ ...newProposal, proposal_type: e.target.value })
-                  if (e.target.value === 'fund_distribution') {
-                    // Cargar lista de cuentas (organizaciones, departamentos y personas)
+                  if (e.target.value === 'fund_distribution' || e.target.value === 'admission') {
+                    // Cargar lista de cuentas
                     api.get('/accounts/list').then((d: any) => {
                       const all = Array.isArray(d) ? d : []
-                      // Organizaciones y departamentos pueden transferir a cualquiera
                       setAccounts(all.filter((a: any) => a.id !== scopeId))
                     }).catch(() => setAccounts([]))
                   }
@@ -260,8 +259,12 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
                   <div>
                     <label className="label">Miembro a admitir</label>
                     <select className="input" value={newProposal.user_id} onChange={e => setNewProposal({ ...newProposal, user_id: e.target.value })}>
-                      <option value="">Seleccionar...</option>
-                      {accounts.length === 0 && <option value="" disabled>Cargando...</option>}
+                      <option value="">Seleccionar miembro...</option>
+                      {accounts.map((a: any) => (
+                        <option key={a.id} value={a.id}>
+                          {a.display_name || a.username} ({a.username})
+                        </option>
+                      ))}
                     </select>
                     <p className="text-xs text-gray-400 mt-1">Admision a {scope === 'organization' ? 'esta organizacion' : 'este departamento'}, no al nodo.</p>
                   </div>
