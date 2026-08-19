@@ -9,6 +9,8 @@ interface Department {
   description: string
   group_type: string
   head_user_id: string | null
+  parent_organization_id: string | null
+  parent_organization_name?: string | null
   is_active: boolean
 }
 
@@ -60,6 +62,7 @@ export default function Departments() {
   useEffect(() => {
     loadDepartments()
     loadPermissions()
+    loadOrganizations()
   }, [])
 
   const loadDepartments = async () => {
@@ -119,13 +122,29 @@ export default function Departments() {
     }
   }
 
-  const [newDept, setNewDept] = useState({ name: '', description: '', group_type: 'department' })
+  const [newDept, setNewDept] = useState({ name: '', description: '', group_type: 'department', parent_organization_id: '' })
+  const [organizations, setOrganizations] = useState<any[]>([])
+
+  const loadOrganizations = async () => {
+    try {
+      const res = await api.get<any[]>('/organizations')
+      setOrganizations(res || [])
+    } catch { setOrganizations([]) }
+  }
+
   const createDept = async () => {
     setError('')
+    if (!newDept.name) {
+      setError('El nombre es obligatorio')
+      return
+    }
     try {
-      await api.post('/departments', newDept)
+      await api.post('/departments', {
+        ...newDept,
+        parent_organization_id: newDept.parent_organization_id || null,
+      })
       setShowCreateDept(false)
-      setNewDept({ name: '', description: '', group_type: 'department' })
+      setNewDept({ name: '', description: '', group_type: 'department', parent_organization_id: '' })
       loadDepartments()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error')
@@ -244,6 +263,9 @@ export default function Departments() {
               <div>
                 <h2 className="font-semibold">{dept.name}</h2>
                 <p className="text-sm text-gray-500">{dept.description}</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Pertenece a: <b>{dept.parent_organization_name || 'La Asamblea (nodo)'}</b>
+                </p>
               </div>
             </div>
             <span className={`text-xs px-2 py-1 rounded ${dept.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
@@ -375,6 +397,19 @@ export default function Departments() {
                 <option value="committee">Comision (grupo temporal)</option>
               </select>
               <p className="text-xs text-gray-400 mt-1">Define la naturaleza del grupo. <em>Departamento</em> = area permanente de trabajo (ej: Produccion). <em>Consejo</em> = grupo de decision (ej: Consejo de Administracion). <em>Comision</em> = grupo temporal para una tarea (ej: Comision de Eventos).</p>
+            </div>
+            <div>
+              <label className="label">Pertenece a</label>
+              <select className="input" value={newDept.parent_organization_id} onChange={(e) => setNewDept({ ...newDept, parent_organization_id: e.target.value })}>
+                <option value="">La Asamblea ( nodo)</option>
+                {organizations.map((org: any) => (
+                  <option key={org.id} value={org.id}>{org.display_name || org.username || org.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">
+                Todo departamento debe pertenecer a una organizacion o a la Asamblea del nodo.
+                No puede existir aislado ni pertenecer a una persona.
+              </p>
             </div>
             <button onClick={createDept} className="btn-primary w-full">Crear</button>
           </div>

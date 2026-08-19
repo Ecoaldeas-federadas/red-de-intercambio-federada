@@ -51,10 +51,11 @@ func (dh *DepartmentsHandler) listDepartments(w http.ResponseWriter, r *http.Req
 }
 
 type CreateDepartmentRequest struct {
-	Name        string     `json:"name"`
-	Description string     `json:"description"`
-	GroupType   string     `json:"group_type"`
-	HeadUserID  *uuid.UUID `json:"head_user_id"`
+	Name                 string     `json:"name"`
+	Description          string     `json:"description"`
+	GroupType            string     `json:"group_type"`
+	HeadUserID           *uuid.UUID `json:"head_user_id"`
+	ParentOrganizationID *uuid.UUID `json:"parent_organization_id"`
 }
 
 func (dh *DepartmentsHandler) createDepartment(w http.ResponseWriter, r *http.Request) {
@@ -71,7 +72,22 @@ func (dh *DepartmentsHandler) createDepartment(w http.ResponseWriter, r *http.Re
 		req.GroupType = "department"
 	}
 
-	dept, err := dh.Departments.CreateDepartment(r.Context(), dh.NodeDomain, req.Name, req.Description, req.GroupType, req.HeadUserID)
+	// Validar parent_organization_id si se especifica
+	if req.ParentOrganizationID != nil {
+		var accountType string
+		err := dh.Pool.QueryRow(r.Context(), `SELECT account_type FROM users WHERE id = $1`, req.ParentOrganizationID).Scan(&accountType)
+		if err != nil {
+			writeError(w, 400, "la organizacion padre no existe")
+			return
+		}
+		if accountType != "organization" && accountType != "public_institution" {
+			writeError(w, 400, "el departamento solo puede pertenecer a una organizacion o al nodo/asamblea. No puede pertenecer a una persona.")
+			return
+		}
+	}
+	// Si parent_organization_id es NULL, el departamento pertenece al nodo/asamblea directamente
+
+	dept, err := dh.Departments.CreateDepartment(r.Context(), dh.NodeDomain, req.Name, req.Description, req.GroupType, req.HeadUserID, req.ParentOrganizationID)
 	if err != nil {
 		writeError(w, 400, err.Error())
 		return

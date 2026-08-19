@@ -18,15 +18,17 @@ func NewDepartments(pool *pgxpool.Pool) *Departments {
 }
 
 type Department struct {
-	ID          uuid.UUID  `json:"id"`
-	NodeDomain  string     `json:"node_domain"`
-	Name        string     `json:"name"`
-	Description string     `json:"description"`
-	GroupType   string     `json:"group_type"`
-	HeadUserID  *uuid.UUID `json:"head_user_id"`
-	IsActive    bool       `json:"is_active"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID                     uuid.UUID  `json:"id"`
+	NodeDomain             string     `json:"node_domain"`
+	Name                   string     `json:"name"`
+	Description            string     `json:"description"`
+	GroupType              string     `json:"group_type"`
+	HeadUserID             *uuid.UUID `json:"head_user_id"`
+	ParentOrganizationID   *uuid.UUID `json:"parent_organization_id"`
+	ParentOrganizationName *string    `json:"parent_organization_name,omitempty"`
+	IsActive               bool       `json:"is_active"`
+	CreatedAt              time.Time  `json:"created_at"`
+	UpdatedAt              time.Time  `json:"updated_at"`
 }
 
 type DepartmentRole struct {
@@ -58,15 +60,15 @@ type Permission struct {
 	RequiredApprovals int       `json:"required_approvals"`
 }
 
-func (d *Departments) CreateDepartment(ctx context.Context, nodeDomain, name, description, groupType string, headUserID *uuid.UUID) (*Department, error) {
+func (d *Departments) CreateDepartment(ctx context.Context, nodeDomain, name, description, groupType string, headUserID *uuid.UUID, parentOrgID *uuid.UUID) (*Department, error) {
 	var dept Department
 	err := d.Pool.QueryRow(ctx, `
-		INSERT INTO departments (node_domain, name, description, group_type, head_user_id)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, node_domain, name, description, group_type, head_user_id, is_active, created_at, updated_at`,
-		nodeDomain, name, description, groupType, headUserID,
+		INSERT INTO departments (node_domain, name, description, group_type, head_user_id, parent_organization_id)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, node_domain, name, description, group_type, head_user_id, parent_organization_id, is_active, created_at, updated_at`,
+		nodeDomain, name, description, groupType, headUserID, parentOrgID,
 	).Scan(&dept.ID, &dept.NodeDomain, &dept.Name, &dept.Description, &dept.GroupType,
-		&dept.HeadUserID, &dept.IsActive, &dept.CreatedAt, &dept.UpdatedAt)
+		&dept.HeadUserID, &dept.ParentOrganizationID, &dept.IsActive, &dept.CreatedAt, &dept.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("creating department: %w", err)
 	}
@@ -75,8 +77,12 @@ func (d *Departments) CreateDepartment(ctx context.Context, nodeDomain, name, de
 
 func (d *Departments) ListDepartments(ctx context.Context, nodeDomain string) ([]Department, error) {
 	rows, err := d.Pool.Query(ctx, `
-		SELECT id, node_domain, name, description, group_type, head_user_id, is_active, created_at, updated_at
-		FROM departments WHERE node_domain = $1 ORDER BY name`,
+		SELECT d.id, d.node_domain, d.name, d.description, d.group_type, d.head_user_id,
+		       d.parent_organization_id, COALESCE(u.display_name, u.username, ''),
+		       d.is_active, d.created_at, d.updated_at
+		FROM departments d
+		LEFT JOIN users u ON u.id = d.parent_organization_id
+		WHERE d.node_domain = $1 ORDER BY d.name`,
 		nodeDomain,
 	)
 	if err != nil {
@@ -87,9 +93,14 @@ func (d *Departments) ListDepartments(ctx context.Context, nodeDomain string) ([
 	var depts []Department
 	for rows.Next() {
 		var dept Department
+		var parentName string
 		if err := rows.Scan(&dept.ID, &dept.NodeDomain, &dept.Name, &dept.Description,
-			&dept.GroupType, &dept.HeadUserID, &dept.IsActive, &dept.CreatedAt, &dept.UpdatedAt); err != nil {
+			&dept.GroupType, &dept.HeadUserID, &dept.ParentOrganizationID, &parentName,
+			&dept.IsActive, &dept.CreatedAt, &dept.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scanning department: %w", err)
+		}
+		if parentName != "" {
+			dept.ParentOrganizationName = &parentName
 		}
 		depts = append(depts, dept)
 	}
@@ -98,14 +109,23 @@ func (d *Departments) ListDepartments(ctx context.Context, nodeDomain string) ([
 
 func (d *Departments) GetDepartment(ctx context.Context, id uuid.UUID) (*Department, error) {
 	var dept Department
+	var parentName string
 	err := d.Pool.QueryRow(ctx, `
-		SELECT id, node_domain, name, description, group_type, head_user_id, is_active, created_at, updated_at
-		FROM departments WHERE id = $1`,
+		SELECT d.id, d.node_domain, d.name, d.description, d.group_type, d.head_user_id,
+		       d.parent_organization_id, COALESCE(u.display_name, u.username, ''),
+		       d.is_active, d.created_at, d.updated_at
+		FROM departments d
+		LEFT JOIN users u ON u.id = d.parent_organization_id
+		WHERE d.id = $1`,
 		id,
 	).Scan(&dept.ID, &dept.NodeDomain, &dept.Name, &dept.Description,
-		&dept.GroupType, &dept.HeadUserID, &dept.IsActive, &dept.CreatedAt, &dept.UpdatedAt)
+		&dept.GroupType, &dept.HeadUserID, &dept.ParentOrganizationID, &parentName,
+		&dept.IsActive, &dept.CreatedAt, &dept.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("department not found: %w", err)
+	}
+	if parentName != "" {
+		dept.ParentOrganizationName = &parentName
 	}
 	return &dept, nil
 }
