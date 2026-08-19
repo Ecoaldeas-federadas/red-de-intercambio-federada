@@ -3246,7 +3246,7 @@ func (h *SystemHandler) listGovernanceRules(w http.ResponseWriter, r *http.Reque
 	dynValues := h.loadGovernanceDynamicValues(r.Context(), nodeDomain)
 
 	rows, err := h.Pool.Query(r.Context(), `
-		SELECT id, category, title, description, severity, icon, sort_order, is_active
+		SELECT id, category, title, description, severity, icon, sort_order, is_active, rule_type
 		FROM governance_rules
 		WHERE node_domain IN ($1, 'localhost', 'default') AND is_active = true
 		ORDER BY category, sort_order`,
@@ -3267,12 +3267,13 @@ func (h *SystemHandler) listGovernanceRules(w http.ResponseWriter, r *http.Reque
 		Icon        string `json:"icon"`
 		SortOrder   int    `json:"sort_order"`
 		IsActive    bool   `json:"is_active"`
+		RuleType    string `json:"rule_type"`
 	}
 
 	var rules []Rule
 	for rows.Next() {
 		var rule Rule
-		_ = rows.Scan(&rule.ID, &rule.Category, &rule.Title, &rule.Description, &rule.Severity, &rule.Icon, &rule.SortOrder, &rule.IsActive)
+		_ = rows.Scan(&rule.ID, &rule.Category, &rule.Title, &rule.Description, &rule.Severity, &rule.Icon, &rule.SortOrder, &rule.IsActive, &rule.RuleType)
 		if category != "" && rule.Category != category {
 			continue
 		}
@@ -3396,6 +3397,7 @@ func (h *SystemHandler) createGovernanceRule(w http.ResponseWriter, r *http.Requ
 		Severity              string `json:"severity"`
 		Icon                  string `json:"icon"`
 		SortOrder             int    `json:"sort_order"`
+		RuleType              string `json:"rule_type"`
 		VotingDurationMinutes int    `json:"voting_duration_minutes"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -3411,6 +3413,9 @@ func (h *SystemHandler) createGovernanceRule(w http.ResponseWriter, r *http.Requ
 	}
 	if req.Icon == "" {
 		req.Icon = "info"
+	}
+	if req.RuleType == "" {
+		req.RuleType = "informativo"
 	}
 
 	// Crear propuesta de asamblea en lugar de aplicar directamente
@@ -3437,6 +3442,7 @@ func (h *SystemHandler) createGovernanceRule(w http.ResponseWriter, r *http.Requ
 		"severity":    req.Severity,
 		"icon":        req.Icon,
 		"sort_order":  req.SortOrder,
+		"rule_type":   req.RuleType,
 	}
 	newValue, _ := json.Marshal(params)
 
@@ -3479,6 +3485,7 @@ func (h *SystemHandler) updateGovernanceRule(w http.ResponseWriter, r *http.Requ
 		Severity              string `json:"severity"`
 		Icon                  string `json:"icon"`
 		SortOrder             int    `json:"sort_order"`
+		RuleType              string `json:"rule_type"`
 		IsActive              *bool  `json:"is_active"`
 		VotingDurationMinutes int    `json:"voting_duration_minutes"`
 	}
@@ -3514,6 +3521,7 @@ func (h *SystemHandler) updateGovernanceRule(w http.ResponseWriter, r *http.Requ
 		"severity":    req.Severity,
 		"icon":        req.Icon,
 		"sort_order":  req.SortOrder,
+		"rule_type":   req.RuleType,
 		"is_active":   active,
 	}
 	newValue, _ := json.Marshal(params)

@@ -942,11 +942,15 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 			severity, _ := params["severity"].(string)
 			icon, _ := params["icon"].(string)
 			sortOrder, _ := params["sort_order"].(float64)
+			ruleType, _ := params["rule_type"].(string)
+			if ruleType == "" {
+				ruleType = "informativo"
+			}
 
 			h.Pool.Exec(r.Context(), `
-				INSERT INTO governance_rules (node_domain, category, title, description, severity, icon, sort_order)
-				VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-				nodeDomain, category, title, description, severity, icon, int(sortOrder))
+				INSERT INTO governance_rules (node_domain, category, title, description, severity, icon, sort_order, rule_type)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+				nodeDomain, category, title, description, severity, icon, int(sortOrder), ruleType)
 
 		case "update":
 			ruleID, _ := params["rule_id"].(string)
@@ -956,14 +960,18 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 			severity, _ := params["severity"].(string)
 			icon, _ := params["icon"].(string)
 			sortOrder, _ := params["sort_order"].(float64)
+			ruleType, _ := params["rule_type"].(string)
 			isActive, _ := params["is_active"].(bool)
+			if ruleType == "" {
+				ruleType = "informativo"
+			}
 
 			h.Pool.Exec(r.Context(), `
 				UPDATE governance_rules SET
 					category = $1, title = $2, description = $3, severity = $4,
-					icon = $5, sort_order = $6, is_active = $7, updated_at = NOW()
-				WHERE id = $8`,
-				category, title, description, severity, icon, int(sortOrder), isActive, ruleID)
+					icon = $5, sort_order = $6, rule_type = $7, is_active = $8, updated_at = NOW()
+				WHERE id = $9`,
+				category, title, description, severity, icon, int(sortOrder), ruleType, isActive, ruleID)
 
 		case "delete":
 			ruleID, _ := params["rule_id"].(string)

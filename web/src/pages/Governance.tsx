@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
-import { Scale, Plus, Edit2, Trash2, HelpCircle, X } from 'lucide-react'
+import { Scale, Plus, Edit2, Trash2, HelpCircle, X, CheckCircle, XCircle, AlertTriangle, Info, FileText, Shield } from 'lucide-react'
 
 interface GovernanceRule {
   id: string
@@ -12,6 +12,7 @@ interface GovernanceRule {
   icon: string
   sort_order: number
   is_active: boolean
+  rule_type: string
 }
 
 const CATEGORIES = [
@@ -26,6 +27,15 @@ const CATEGORIES = [
   { value: 'salida', label: 'Proceso de Salida' },
   { value: 'impuestos', label: 'Impuestos' },
   { value: 'tierra', label: 'Tenencia de la Tierra' },
+]
+
+const RULE_TYPES = [
+  { value: 'permiso', label: 'Permiso', desc: 'Cosas que SE PUEDEN hacer', color: 'text-green-700 bg-green-100', icon: CheckCircle },
+  { value: 'prohibicion', label: 'Prohibicion', desc: 'Cosas que NO SE PUEDEN hacer', color: 'text-red-700 bg-red-100', icon: XCircle },
+  { value: 'deber', label: 'Deber', desc: 'Obligaciones de los miembros', color: 'text-blue-700 bg-blue-100', icon: Shield },
+  { value: 'informativo', label: 'Informativo', desc: 'Informacion general o estructura', color: 'text-gray-700 bg-gray-100', icon: Info },
+  { value: 'falta', label: 'Falta / Sancion', desc: 'Infracciones y sus consecuencias', color: 'text-orange-700 bg-orange-100', icon: AlertTriangle },
+  { value: 'proceso', label: 'Proceso', desc: 'Procedimientos (admision, salida, votacion)', color: 'text-purple-700 bg-purple-100', icon: FileText },
 ]
 
 const SEVERITIES = [
@@ -46,6 +56,7 @@ export default function Governance() {
   const [successMsg, setSuccessMsg] = useState('')
   const [formData, setFormData] = useState({
     category: 'estructura',
+    rule_type: 'informativo',
     title: '',
     description: '',
     severity: 'info',
@@ -81,7 +92,7 @@ export default function Governance() {
       }
       setShowCreate(false)
       setEditingRule(null)
-      setFormData({ category: 'estructura', title: '', description: '', severity: 'info', icon: 'info', sort_order: 0, voting_duration_minutes: 1440 })
+      setFormData({ category: 'estructura', rule_type: 'informativo', title: '', description: '', severity: 'info', icon: 'info', sort_order: 0, voting_duration_minutes: 1440 })
       loadRules()
       setTimeout(() => setSuccessMsg(''), 5000)
     } catch (e: any) {
@@ -93,6 +104,7 @@ export default function Governance() {
     setEditingRule(rule)
     setFormData({
       category: rule.category,
+      rule_type: rule.rule_type || 'informativo',
       title: rule.title,
       description: rule.description,
       severity: rule.severity,
@@ -138,7 +150,7 @@ export default function Governance() {
           </button>
           {canManage && (
             <button
-              onClick={() => { setEditingRule(null); setFormData({ category: 'estructura', title: '', description: '', severity: 'info', icon: 'info', sort_order: 0, voting_duration_minutes: 1440 }); setShowCreate(true) }}
+              onClick={() => { setEditingRule(null); setFormData({ category: 'estructura', rule_type: 'informativo', title: '', description: '', severity: 'info', icon: 'info', sort_order: 0, voting_duration_minutes: 1440 }); setShowCreate(true) }}
               className="flex items-center gap-2 px-4 py-2 bg-trueque-600 text-white rounded-lg hover:bg-trueque-700"
             >
               <Plus size={18} /> Nueva Regla
@@ -219,10 +231,16 @@ export default function Governance() {
             <div className="space-y-2">
               {group.rules.map(rule => {
                 const severity = SEVERITIES.find(s => s.value === rule.severity) || SEVERITIES[0]
+                const ruleType = RULE_TYPES.find(rt => rt.value === rule.rule_type) || RULE_TYPES[3]
+                const TypeIcon = ruleType.icon
                 return (
                   <div key={rule.id} className="flex items-start justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
+                        <span className={`text-xs px-2 py-0.5 rounded flex items-center gap-1 ${ruleType.color}`}>
+                          <TypeIcon size={12} />
+                          {ruleType.label}
+                        </span>
                         <span className={`text-xs px-2 py-0.5 rounded ${severity.color}`}>{severity.label}</span>
                         <span className="font-medium">{rule.title}</span>
                         <span className="text-xs text-gray-400">#{rule.sort_order}</span>
@@ -258,6 +276,30 @@ export default function Governance() {
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-4 space-y-4">
+              {/* Tipo de regla - campo principal */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Tipo de regla</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {RULE_TYPES.map(rt => {
+                    const Icon = rt.icon
+                    const selected = formData.rule_type === rt.value
+                    return (
+                      <button
+                        key={rt.value}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, rule_type: rt.value })}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 text-xs font-medium transition ${selected ? `${rt.color} border-current` : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}
+                      >
+                        <Icon size={16} />
+                        <div className="text-left">
+                          <div>{rt.label}</div>
+                          <div className="text-[10px] opacity-70">{rt.desc}</div>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Categoria</label>
                 <select
