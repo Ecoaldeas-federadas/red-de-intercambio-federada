@@ -35,7 +35,7 @@ export default function MergeConflicts() {
     setError('')
     setScanResult(null)
     try {
-      const res = await api.post('/federation/scan-conflicts', { other_node_domain: scanDomain })
+      const res: any = await api.post('/federation/scan-conflicts', { other_node_domain: scanDomain })
       setScanResult(res)
       if (res.count > 0) {
         setSuccess(`${res.count} conflictos detectados. Revisa y propón resoluciones.`)
@@ -54,7 +54,7 @@ export default function MergeConflicts() {
     setError('')
     setSuccess('')
     try {
-      const res = await api.post(`/federation/merge-conflicts/${id}/propose`, resolution)
+      const res: any = await api.post(`/federation/merge-conflicts/${id}/propose`, resolution)
       setSuccess(res.message || 'Propuesta enviada')
       setSelectedConflict(null)
       load()
@@ -67,7 +67,7 @@ export default function MergeConflicts() {
     setError('')
     setSuccess('')
     try {
-      const res = await api.post(`/federation/merge-conflicts/${id}/vote`, { vote: voteValue })
+      const res: any = await api.post(`/federation/merge-conflicts/${id}/vote`, { vote: voteValue })
       setSuccess(res.message || 'Voto registrado')
       load()
     } catch (e: any) {
@@ -80,7 +80,7 @@ export default function MergeConflicts() {
     setError('')
     setSuccess('')
     try {
-      const res = await api.post(`/federation/merge-conflicts/${id}/execute`, {})
+      const res: any = await api.post(`/federation/merge-conflicts/${id}/execute`, {})
       setSuccess(res.message || 'Resolucion ejecutada')
       load()
     } catch (e: any) {
