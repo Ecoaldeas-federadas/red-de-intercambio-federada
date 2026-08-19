@@ -663,6 +663,44 @@ func (ah *AuthHandlers) getMe(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, user)
 }
 
+// updateMyContacts permite al usuario actualizar sus datos de contacto para notificaciones
+func (ah *AuthHandlers) updateMyContacts(w http.ResponseWriter, r *http.Request) {
+	am := NewAuthMiddleware(ah.JWTSecret)
+	userID, err := am.GetUserID(r)
+	if err != nil {
+		writeError(w, 401, "authentication required")
+		return
+	}
+
+	var req struct {
+		Email          *string `json:"email"`
+		Phone          *string `json:"phone"`
+		TelegramChatID *string `json:"telegram_chat_id"`
+		MatrixUserID   *string `json:"matrix_user_id"`
+		XmppJID        *string `json:"xmpp_jid"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	_, err = ah.Pool.Exec(r.Context(), `
+		UPDATE users SET
+			email = COALESCE($2, email),
+			phone = COALESCE($3, phone),
+			telegram_chat_id = COALESCE($4, telegram_chat_id),
+			matrix_user_id = COALESCE($5, matrix_user_id),
+			xmpp_jid = COALESCE($6, xmpp_jid)
+		WHERE id = $1`,
+		userID, req.Email, req.Phone, req.TelegramChatID, req.MatrixUserID, req.XmppJID)
+	if err != nil {
+		writeError(w, 500, "error updating contacts")
+		return
+	}
+
+	writeJSON(w, 200, map[string]string{"status": "updated"})
+}
+
 func (ah *AuthHandlers) listAccounts(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	if nodeDomain == "" {

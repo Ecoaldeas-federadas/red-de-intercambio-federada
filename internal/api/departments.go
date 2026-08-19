@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -192,6 +193,17 @@ func (dh *DepartmentsHandler) assignMember(w http.ResponseWriter, r *http.Reques
 		writeError(w, 400, err.Error())
 		return
 	}
+
+	// Notificar al miembro asignado
+	notify := NewNotifyService(dh.Pool)
+	var deptName string
+	dh.Pool.QueryRow(r.Context(), `SELECT name FROM departments WHERE id = $1`, deptID).Scan(&deptName)
+	notify.Notify(r.Context(), dh.NodeDomain, req.UserID, "department_assigned",
+		"Asignado a departamento",
+		fmt.Sprintf("Has sido asignado/a al departamento %s.", deptName),
+		"/app/departments",
+		map[string]interface{}{"department_id": deptID.String(), "department_name": deptName})
+
 	writeJSON(w, 201, member)
 }
 

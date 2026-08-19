@@ -18,22 +18,27 @@ func New(pool *pgxpool.Pool) *Accounts {
 }
 
 type User struct {
-	ID              uuid.UUID  `json:"id"`
-	NodeDomain      string     `json:"node_domain"`
-	Username        string     `json:"username"`
-	DisplayName     string     `json:"display_name"`
-	AccountType     string     `json:"account_type"`
-	MemberLevelID   *string    `json:"member_level_id"`
-	HasVoice        bool       `json:"has_voice"`
-	HasVote         bool       `json:"has_vote"`
-	CountsInQuorum  bool       `json:"counts_in_quorum"`
-	MembershipStatus string    `json:"membership_status"`
-	AdmittedAt      *time.Time `json:"admitted_at"`
-	Balance         int64      `json:"balance"`
-	CreditLimit     int64      `json:"credit_limit"`
-	DebitLimit      int64      `json:"debit_limit"`
-	PublicKey       *string    `json:"public_key"`
-	CreatedAt       time.Time  `json:"created_at"`
+	ID               uuid.UUID  `json:"id"`
+	NodeDomain       string     `json:"node_domain"`
+	Username         string     `json:"username"`
+	DisplayName      string     `json:"display_name"`
+	AccountType      string     `json:"account_type"`
+	MemberLevelID    *string    `json:"member_level_id"`
+	HasVoice         bool       `json:"has_voice"`
+	HasVote          bool       `json:"has_vote"`
+	CountsInQuorum   bool       `json:"counts_in_quorum"`
+	MembershipStatus string     `json:"membership_status"`
+	AdmittedAt       *time.Time `json:"admitted_at"`
+	Balance          int64      `json:"balance"`
+	CreditLimit      int64      `json:"credit_limit"`
+	DebitLimit       int64      `json:"debit_limit"`
+	PublicKey        *string    `json:"public_key"`
+	CreatedAt        time.Time  `json:"created_at"`
+	Email            *string    `json:"email"`
+	Phone            *string    `json:"phone"`
+	TelegramChatID   *string    `json:"telegram_chat_id"`
+	MatrixUserID     *string    `json:"matrix_user_id"`
+	XmppJID          *string    `json:"xmpp_jid"`
 }
 
 func (a *Accounts) GetUser(ctx context.Context, id uuid.UUID) (*User, error) {
@@ -41,12 +46,14 @@ func (a *Accounts) GetUser(ctx context.Context, id uuid.UUID) (*User, error) {
 	err := a.Pool.QueryRow(ctx, `
 		SELECT id, node_domain, username, display_name, account_type, member_level_id,
 			   has_voice, has_vote, counts_in_quorum, membership_status, admitted_at,
-			   credit_limit, debit_limit, public_key, created_at
+			   credit_limit, debit_limit, public_key, created_at,
+			   email, phone, telegram_chat_id, matrix_user_id, xmpp_jid
 		FROM users WHERE id = $1`,
 		id,
 	).Scan(&u.ID, &u.NodeDomain, &u.Username, &u.DisplayName, &u.AccountType, &u.MemberLevelID,
 		&u.HasVoice, &u.HasVote, &u.CountsInQuorum, &u.MembershipStatus, &u.AdmittedAt,
-		&u.CreditLimit, &u.DebitLimit, &u.PublicKey, &u.CreatedAt)
+		&u.CreditLimit, &u.DebitLimit, &u.PublicKey, &u.CreatedAt,
+		&u.Email, &u.Phone, &u.TelegramChatID, &u.MatrixUserID, &u.XmppJID)
 	if err != nil {
 		return nil, fmt.Errorf("getting user: %w", err)
 	}
@@ -90,16 +97,16 @@ func (a *Accounts) FindUserByUsername(ctx context.Context, nodeDomain, username 
 }
 
 type CreateUserParams struct {
-	NodeDomain    string
-	Username      string
-	DisplayName   string
-	AccountType   string
-	MemberLevelID string
-	CreditLimit   int64
-	DebitLimit    int64
-	PublicKey     string
+	NodeDomain       string
+	Username         string
+	DisplayName      string
+	AccountType      string
+	MemberLevelID    string
+	CreditLimit      int64
+	DebitLimit       int64
+	PublicKey        string
 	EncryptedPrivKey []byte
-	KeySalt       []byte
+	KeySalt          []byte
 }
 
 func (a *Accounts) CreateUser(ctx context.Context, p CreateUserParams) (*User, error) {
@@ -124,29 +131,29 @@ func (a *Accounts) CreateUser(ctx context.Context, p CreateUserParams) (*User, e
 }
 
 type MemberLevel struct {
-	ID                    string  `json:"id"`
-	Name                  string  `json:"name"`
-	Description           string  `json:"description"`
-	Level                 int     `json:"level"`
-	HasVoice              bool    `json:"has_voice"`
-	HasVote               bool    `json:"has_vote"`
-	CountsInQuorum        bool    `json:"counts_in_quorum"`
-	CreditLimit           int64   `json:"credit_limit"`
-	DebitLimit            int64   `json:"debit_limit"`
-	PerTransactionLimit   *int64  `json:"per_transaction_limit"`
-	DailyLimit            *int64  `json:"daily_limit"`
-	MonthlyLimit          *int64  `json:"monthly_limit"`
-	TaxRate               *float64 `json:"tax_rate"`
-	AutoUpgradeAfterDays  *int    `json:"auto_upgrade_after_days"`
-	UpgradeTo             *string `json:"upgrade_to"`
-	CanCreateOrganization bool    `json:"can_create_organization"`
-	CanCrossNodeTrade     bool    `json:"can_cross_node_trade"`
-	CanReceiveNFCCard     bool    `json:"can_receive_nfc_card"`
-	CanViewAudit          bool    `json:"can_view_audit"`
-	CanUseExternalBridge  bool    `json:"can_use_external_bridge"`
-	MaxOrganizations      int     `json:"max_organizations"`
-	CanRequestLimitIncrease bool  `json:"can_request_limit_increase"`
-	IsSystem              bool    `json:"is_system"`
+	ID                      string   `json:"id"`
+	Name                    string   `json:"name"`
+	Description             string   `json:"description"`
+	Level                   int      `json:"level"`
+	HasVoice                bool     `json:"has_voice"`
+	HasVote                 bool     `json:"has_vote"`
+	CountsInQuorum          bool     `json:"counts_in_quorum"`
+	CreditLimit             int64    `json:"credit_limit"`
+	DebitLimit              int64    `json:"debit_limit"`
+	PerTransactionLimit     *int64   `json:"per_transaction_limit"`
+	DailyLimit              *int64   `json:"daily_limit"`
+	MonthlyLimit            *int64   `json:"monthly_limit"`
+	TaxRate                 *float64 `json:"tax_rate"`
+	AutoUpgradeAfterDays    *int     `json:"auto_upgrade_after_days"`
+	UpgradeTo               *string  `json:"upgrade_to"`
+	CanCreateOrganization   bool     `json:"can_create_organization"`
+	CanCrossNodeTrade       bool     `json:"can_cross_node_trade"`
+	CanReceiveNFCCard       bool     `json:"can_receive_nfc_card"`
+	CanViewAudit            bool     `json:"can_view_audit"`
+	CanUseExternalBridge    bool     `json:"can_use_external_bridge"`
+	MaxOrganizations        int      `json:"max_organizations"`
+	CanRequestLimitIncrease bool     `json:"can_request_limit_increase"`
+	IsSystem                bool     `json:"is_system"`
 }
 
 func (a *Accounts) ListMemberLevels(ctx context.Context, nodeDomain string) ([]MemberLevel, error) {
@@ -182,18 +189,18 @@ func (a *Accounts) ListMemberLevels(ctx context.Context, nodeDomain string) ([]M
 }
 
 type AdmissionRequest struct {
-	ID              uuid.UUID  `json:"id"`
-	NodeDomain      string     `json:"node_domain"`
-	ProposedUsername string    `json:"proposed_username"`
-	DisplayName     string     `json:"display_name"`
-	ContactInfo     map[string]interface{} `json:"contact_info"`
-	ProposedLevel   string     `json:"proposed_level"`
-	Status          string     `json:"status"`
-	SubmittedAt     time.Time  `json:"submitted_at"`
-	ReviewedAt      *time.Time `json:"reviewed_at"`
-	ApprovedAt      *time.Time `json:"approved_at"`
-	RejectedAt      *time.Time `json:"rejected_at"`
-	RejectionReason string     `json:"rejection_reason"`
+	ID               uuid.UUID              `json:"id"`
+	NodeDomain       string                 `json:"node_domain"`
+	ProposedUsername string                 `json:"proposed_username"`
+	DisplayName      string                 `json:"display_name"`
+	ContactInfo      map[string]interface{} `json:"contact_info"`
+	ProposedLevel    string                 `json:"proposed_level"`
+	Status           string                 `json:"status"`
+	SubmittedAt      time.Time              `json:"submitted_at"`
+	ReviewedAt       *time.Time             `json:"reviewed_at"`
+	ApprovedAt       *time.Time             `json:"approved_at"`
+	RejectedAt       *time.Time             `json:"rejected_at"`
+	RejectionReason  string                 `json:"rejection_reason"`
 }
 
 func (a *Accounts) CreateAdmissionRequest(ctx context.Context, nodeDomain, username, displayName, proposedLevel string, contactInfo map[string]interface{}) (*AdmissionRequest, error) {

@@ -297,6 +297,14 @@ func (h *Handler) approveAdmission(w http.ResponseWriter, r *http.Request) {
 		details, _ := json.Marshal(map[string]interface{}{"admission_request_id": id.String(), "new_user": user.Username})
 		h.Pool.Exec(r.Context(), `INSERT INTO audit_log (actor_id, action, target_id, details) VALUES ($1, 'admission_approve', $2, $3)`,
 			reviewerID, user.ID, details)
+
+		// Notificar al nuevo miembro
+		notify := NewNotifyService(h.Pool)
+		notify.Notify(r.Context(), h.nodeDomain, user.ID, "admission_approved",
+			"Solicitud de admision aprobada",
+			fmt.Sprintf("Tu solicitud de admision ha sido aprobada. Bienvenido/a %s!", user.Username),
+			"/app/dashboard",
+			map[string]interface{}{"admission_request_id": id.String()})
 	}
 	writeJSON(w, 201, user)
 }
@@ -329,6 +337,18 @@ func (h *Handler) rejectAdmission(w http.ResponseWriter, r *http.Request) {
 		details, _ := json.Marshal(map[string]interface{}{"admission_request_id": id.String(), "reason": req.Reason})
 		h.Pool.Exec(r.Context(), `INSERT INTO audit_log (actor_id, action, details) VALUES ($1, 'admission_reject', $2)`,
 			reviewerID, details)
+
+		// Notificar al solicitante (si tenemos su user_id)
+		var applicantID *uuid.UUID
+		h.Pool.QueryRow(r.Context(), `SELECT user_id FROM admission_requests WHERE id = $1`, id).Scan(&applicantID)
+		if applicantID != nil {
+			notify := NewNotifyService(h.Pool)
+			notify.Notify(r.Context(), h.nodeDomain, *applicantID, "admission_rejected",
+				"Solicitud de admision rechazada",
+				fmt.Sprintf("Tu solicitud de admision ha sido rechazada. Razon: %s", req.Reason),
+				"",
+				map[string]interface{}{"admission_request_id": id.String(), "reason": req.Reason})
+		}
 	}
 	writeJSON(w, 200, map[string]string{"status": "rejected"})
 }

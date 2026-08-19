@@ -31,6 +31,7 @@ const navItems = [
   { to: '/app/recovery', label: 'Recuperacion', icon: Shield },
   { to: '/app/fund', label: 'Fondo Comunitario', icon: PiggyBank },
   { to: '/app/profile', label: 'Mi Perfil', icon: User },
+  { to: '/app/notifications/settings', label: 'Notificaciones', icon: Bell },
   { to: '/app/settings', label: 'Configuracion', icon: Settings },
   { to: '/app/website', label: 'Sitio Web Publico', icon: Globe },
 ]

@@ -24,6 +24,7 @@
 20. [Sistema de Intercambio y Moneda TQ](currency_exchange.md) - TQ, credito mutuo, historia, calculo energetico, comercio externo
 21. [Feria Conuquera Agroecologica](feria_conuquera.md) - Historia, filosofia, organizacion, productos, actividades, ecoaldeas
 22. [Gobernanza - Ley de la Aldea](governance.md) - Reglas, jerarquia nodo/org/depto, asambleas por scope, admision, FRNE, tenencia de tierra
+23. [Notificaciones](notifications.md) - Sistema unificado, pasarelas federadas (Matrix, Telegram, XMPP), preferencias, scope por usuario
 
 ## Estado de Implementacion
 
@@ -125,6 +126,8 @@ red de intercambio federada/
 | 055 | Convocatoria automatica, frecuencia, notificaciones, tipos por scope |
 | 056 | Tiempos minimos de anticipacion, cuenta predefinida de impuestos |
 | 057 | Departamentos con organizacion padre (jerarquia) |
+| 058 | Ventana de asistencia configurable |
+| 059 | Modulo de notificaciones: notifications, channels, gateways, preferences |
 
 ## Cambios Recientes
 

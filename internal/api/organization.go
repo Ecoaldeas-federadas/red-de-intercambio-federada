@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -116,6 +117,17 @@ func (oh *OrganizationHandler) approveOrganization(w http.ResponseWriter, r *htt
 		writeError(w, 400, err.Error())
 		return
 	}
+
+	// Notificar a los miembros de la junta directiva del nodo
+	notify := NewNotifyService(oh.Orgs.Pool)
+	var orgName string
+	oh.Orgs.Pool.QueryRow(r.Context(), `SELECT name FROM organizations WHERE id = $1`, orgID).Scan(&orgName)
+	notify.NotifyBoard(r.Context(), oh.NodeDomain, "org_approved",
+		"Organizacion aprobada",
+		fmt.Sprintf("La organizacion %s ha sido aprobada.", orgName),
+		"/app/organizations",
+		map[string]interface{}{"organization_id": orgID.String(), "organization_name": orgName})
+
 	writeJSON(w, 200, map[string]string{"status": "approved"})
 }
 
@@ -365,6 +377,16 @@ func (oh *OrganizationHandler) assignOrganizationBoardMember(w http.ResponseWrit
 		writeError(w, 500, err.Error())
 		return
 	}
+
+	// Notificar al miembro asignado
+	notify := NewNotifyService(oh.Orgs.Pool)
+	var orgName string
+	oh.Orgs.Pool.QueryRow(r.Context(), `SELECT name FROM organizations WHERE id = $1`, orgID).Scan(&orgName)
+	notify.Notify(r.Context(), oh.NodeDomain, userID, "org_board_assigned",
+		"Asignado a junta de organizacion",
+		fmt.Sprintf("Has sido asignado/a como %s de la organizacion %s.", req.Position, orgName),
+		"/app/organizations",
+		map[string]interface{}{"organization_id": orgID.String(), "position": req.Position})
 
 	writeJSON(w, 201, map[string]interface{}{
 		"id":              id.String(),

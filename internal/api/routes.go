@@ -49,6 +49,7 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 	r.Group(func(r chi.Router) {
 		r.Use(am.RequireAuth)
 		r.Get("/api/accounts/me", ah.getMe)
+		r.Put("/api/accounts/me/contacts", ah.updateMyContacts)
 		r.Get("/api/accounts/list", ah.listAccounts)
 	})
 

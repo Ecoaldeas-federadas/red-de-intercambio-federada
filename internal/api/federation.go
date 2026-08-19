@@ -546,6 +546,16 @@ func (fh *FederationHandler) registerPeer(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	// Notificar a los administradores del nodo
+	if addedBy != nil {
+		notify := NewNotifyService(fh.Pool)
+		notify.NotifyBoard(r.Context(), fh.NodeDomain, "federation_peer_registered",
+			"Nuevo nodo par registrado",
+			fmt.Sprintf("Se ha registrado el nodo par %s (%s). Estado: pendiente de confirmacion mutua.", req.PeerName, req.PeerDomain),
+			"/app/federation",
+			map[string]interface{}{"peer_domain": req.PeerDomain, "peer_name": req.PeerName})
+	}
+
 	writeJSON(w, 201, map[string]interface{}{
 		"status":      "registered",
 		"peer_domain": req.PeerDomain,
@@ -734,6 +744,14 @@ func (fh *FederationHandler) approveProductProposal(w http.ResponseWriter, r *ht
 		writeError(w, 500, "error al actualizar propuesta")
 		return
 	}
+
+	// Notificar a la junta directiva
+	notify := NewNotifyService(fh.Pool)
+	notify.NotifyBoard(r.Context(), fh.NodeDomain, "federation_product_approved",
+		"Producto federado aprobado",
+		fmt.Sprintf("El producto %s del nodo %s ha sido aprobado y agregado al catalogo local.", name, sourceNode),
+		"/app/federation",
+		map[string]interface{}{"proposal_id": proposalID.String(), "product_name": name, "source_node": sourceNode})
 
 	writeJSON(w, 200, map[string]interface{}{
 		"status":  "approved",

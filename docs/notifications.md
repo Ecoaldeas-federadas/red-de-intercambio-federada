@@ -345,3 +345,84 @@ El servicio de notificaciones es una funcion Go que se llama desde cualquier han
 ## Migraciones
 
 - `059_notifications.sql` — Tablas del modulo de notificaciones
+
+---
+
+## Estado de implementacion
+
+### Fase 1: Infraestructura base - COMPLETA
+- [x] Migracion 059: tablas notifications, notification_channels, notification_gateway_config, notification_preferences
+- [x] Campos en users: email, phone, telegram_chat_id, matrix_user_id, xmpp_jid
+- [x] NotificationHandler con endpoints REST
+- [x] NotifyService: Notify, NotifyMany, NotifyVotingMembers, NotifyBoard
+- [x] Campana de notificaciones en Layout.tsx
+- [x] Panel desplegable con lista y badge de no leidas
+- [x] Polling cada 30 segundos
+- [x] Tarjeta de Asambleas Pendientes en Dashboard
+
+### Fase 2: Notificaciones por evento - COMPLETA
+- [x] Pago recibido (transfer)
+- [x] Asamblea programada (createSession)
+- [x] Votacion abierta (openVoting)
+- [x] Admision aprobada (approveAdmission)
+- [x] Admision rechazada (rejectAdmission)
+- [x] Solicitud de recuperacion creada (createRequest)
+- [x] Miembro asignado a departamento (assignMember)
+- [x] Miembro asignado a junta de organizacion (assignOrganizationBoardMember)
+- [x] Organizacion aprobada (approveOrganization)
+- [x] Nodo par registrado (registerPeer)
+- [x] Producto federado aprobado (approveProductProposal)
+
+### Fase 3: Servicio de envio por pasarelas - COMPLETA
+- [x] GatewayService con entrega en background (goroutine)
+- [x] Email via SMTP (sendEmail)
+- [x] Telegram Bot API (sendTelegram)
+- [x] Matrix Client-Server API (sendMatrix)
+- [x] Webhook generico (sendWebhook)
+- [x] WhatsApp Meta Cloud API (sendWhatsAppMeta)
+- [x] WhatsApp API propia (sendWhatsAppCustom)
+- [x] Respeto de preferencias del usuario por canal
+- [x] Registro de canales entregados y errores de entrega
+- [x] Integracion automatica en NotifyService.Notify
+
+### Fase 4: Frontend de preferencias - COMPLETA
+- [x] Pagina NotificationSettings.tsx
+- [x] Tab "Mis preferencias": matriz evento x canal
+- [x] Tab "Mis contactos": email, phone, telegram, matrix, xmpp
+- [x] Tab "Pasarelas (admin)": config de cada pasarela
+- [x] Endpoint PUT /api/accounts/me/contacts
+- [x] Campos de contacto en User struct y GetUser
+- [x] Boton de test de pasarela
+- [x] Item en menu lateral
+
+### Fase 5: Scope y autorizacion - COMPLETA
+- [x] listNotifications filtra por user_id
+- [x] unreadCount filtra por user_id
+- [x] markRead filtra por user_id (no se pueden marcar notificaciones ajenas)
+- [x] markAllRead filtra por user_id
+- [x] deleteNotification filtra por user_id
+- [x] NotifyBoard solo notifica a miembros de assembly_board_members
+- [x] NotifyVotingMembers solo notifica a usuarios con has_vote = true
+- [x] Notify dirige a usuario especifico
+- [x] Gateways solo configurables por admin (config.manage)
+- [x] Preferencias solo editables por el propio usuario
+
+### Canales soportados (prioridad: redes federadas/libres)
+1. in_app (siempre activo)
+2. matrix (federada, soberana) - RECOMENDADA
+3. telegram (bot API)
+4. email (SMTP)
+5. webhook (generico)
+6. whatsapp (opcional, propietario)
+
+### Pendiente para futuras iteraciones
+- [ ] XMPP: implementar envio via XMPP client (schema y config listos, envio pendiente)
+- [ ] WebPush: implementar via Service Worker (schema listo, envio pendiente)
+- [ ] SMS: integrar con proveedor (Twilio, etc.)
+- [ ] Fecha relativa en panel ("hace 2 horas")
+- [ ] Iconos por tipo de notificacion en panel
+- [ ] Pagina dedicada de historial completo de notificaciones
+- [ ] Notificaciones de proposal closing deadline approaching
+- [ ] Notificaciones de quorum status
+- [ ] Notificaciones de minutes published
+- [ ] Rate limiting / quiet hours

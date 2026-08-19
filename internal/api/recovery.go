@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -141,6 +142,15 @@ func (h *RecoveryHandler) createRequest(w http.ResponseWriter, r *http.Request) 
 		writeError(w, 500, err.Error())
 		return
 	}
+
+	// Notificar a la junta directiva del nodo sobre la nueva solicitud
+	notify := NewNotifyService(h.Recovery.Pool)
+	notify.NotifyBoard(r.Context(), h.NodeDomain, "recovery_request_created",
+		"Nueva solicitud de recuperacion",
+		fmt.Sprintf("Se ha creado una solicitud de recuperacion para %s. Razon: %s", req.TargetUsername, req.Reason),
+		"/app/recovery",
+		map[string]interface{}{"request_id": recoveryReq.ID, "target_username": req.TargetUsername})
+
 	writeJSON(w, 201, recoveryReq)
 }
 

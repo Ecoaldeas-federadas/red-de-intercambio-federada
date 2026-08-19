@@ -42,23 +42,31 @@ func (h *NotificationHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 
 // NotifyService es el servicio para crear notificaciones desde cualquier handler
 type NotifyService struct {
-	Pool *pgxpool.Pool
+	Pool    *pgxpool.Pool
+	gateway *GatewayService
 }
 
 // NewNotifyService crea un nuevo servicio de notificaciones
 func NewNotifyService(pool *pgxpool.Pool) *NotifyService {
-	return &NotifyService{Pool: pool}
+	return &NotifyService{Pool: pool, gateway: NewGatewayService(pool)}
 }
 
-// Notify crea una notificacion para un usuario
+// Notify crea una notificacion para un usuario y dispara la entrega por pasarelas
 func (s *NotifyService) Notify(ctx context.Context, nodeDomain string, userID uuid.UUID, notifType, title, message, link string, metadata map[string]interface{}) {
-	_, err := s.Pool.Exec(ctx, `
+	var notifID uuid.UUID
+	err := s.Pool.QueryRow(ctx, `
 		INSERT INTO notifications (node_domain, user_id, notification_type, title, message, link, metadata, channels_delivered)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, ARRAY['in_app'])`,
-		nodeDomain, userID, notifType, title, message, link, metadata)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, ARRAY['in_app'])
+		RETURNING id`,
+		nodeDomain, userID, notifType, title, message, link, metadata).Scan(&notifID)
 	if err != nil {
 		// Log pero no fallar la operacion principal
 		fmt.Printf("Error creando notificacion: %v\n", err)
+		return
+	}
+	// Entregar en background por los canales configurados (email, telegram, matrix, etc.)
+	if s.gateway != nil {
+		s.gateway.DeliverInBackground(nodeDomain, userID, notifID, notifType, title, message, link)
 	}
 }
 
@@ -322,10 +330,10 @@ func (h *NotificationHandler) testGateway(w http.ResponseWriter, r *http.Request
 	channel := chi.URLParam(r, "channel")
 	// Por ahora solo devolvemos ok. El envio real se implementa en Fase 3.
 	writeJSON(w, 200, map[string]interface{}{
-		"message":  "test enviado (canal: " + channel + ")",
-		"channel":  channel,
-		"success":  true,
-		"note":     "El envio real por pasarelas se implementa en Fase 3",
+		"message": "test enviado (canal: " + channel + ")",
+		"channel": channel,
+		"success": true,
+		"note":    "El envio real por pasarelas se implementa en Fase 3",
 	})
 }
 
