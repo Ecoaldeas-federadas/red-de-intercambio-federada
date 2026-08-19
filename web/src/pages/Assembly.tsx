@@ -364,6 +364,10 @@ export default function Assembly() {
   const [selectedSessionForMinutes, setSelectedSessionForMinutes] = useState<string | null>(null)
   const [attendanceList, setAttendanceList] = useState<any[]>([])
   const [minutesText, setMinutesText] = useState('')
+  const [quorumConfigs, setQuorumConfigs] = useState<any[]>([])
+  const [quorumResult, setQuorumResult] = useState<any>(null)
+  const [rescheduleSession, setRescheduleSession] = useState<any>(null)
+  const [rescheduleTime, setRescheduleTime] = useState('')
 
   const [newSession, setNewSession] = useState({ session_type: 'ordinaria', title: '', description: '', is_presential: false })
   const [newBoard, setNewBoard] = useState({ user_id: '', position: 'presidente' })
@@ -486,6 +490,55 @@ export default function Assembly() {
       load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar minuta')
+    }
+  }
+
+  const loadQuorumConfigs = async () => {
+    try {
+      const data: any = await api.get('/assembly/quorum-config')
+      setQuorumConfigs(Array.isArray(data) ? data : [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cargar config de quorum')
+    }
+  }
+
+  const updateQuorumConfig = async (sessionType: string, data: any) => {
+    try {
+      await api.put(`/assembly/quorum-config/${sessionType}`, data)
+      loadQuorumConfigs()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al actualizar quorum')
+    }
+  }
+
+  const verifyQuorum = async (sessionId: string) => {
+    try {
+      const data: any = await api.post(`/assembly/sessions/${sessionId}/verify-quorum`, {})
+      setQuorumResult(data)
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al verificar quorum')
+    }
+  }
+
+  const doReschedule = async (sessionId: string) => {
+    try {
+      await api.post(`/assembly/sessions/${sessionId}/reschedule`, { new_start_time: rescheduleTime })
+      setRescheduleSession(null)
+      setRescheduleTime('')
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al reprogramar')
+    }
+  }
+
+  const selfCheckIn = async (sessionId: string) => {
+    try {
+      await api.post(`/assembly/sessions/${sessionId}/self-checkin`, {})
+      setError('')
+      alert('Presencia confirmada. Gracias por validar tu asistencia.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al confirmar presencia')
     }
   }
 
@@ -1234,11 +1287,23 @@ export default function Assembly() {
                     <span className={`text-xs px-2 py-0.5 rounded ${
                       s.status === 'active' ? 'bg-green-100 text-green-700' :
                       s.status === 'scheduled' ? 'bg-yellow-100 text-yellow-700' :
+                      s.status === 'waiting_quorum' ? 'bg-orange-100 text-orange-700' :
+                      s.status === 'rescheduled' ? 'bg-blue-100 text-blue-700' :
+                      s.status === 'cancelled' ? 'bg-red-100 text-red-700' :
                       'bg-gray-100 text-gray-600'
-                    }`}>{s.status}</span>
+                    }`}>{
+                      s.status === 'waiting_quorum' ? 'esperando quorum' :
+                      s.status === 'rescheduled' ? 'reprogramada' :
+                      s.status === 'cancelled' ? 'cancelada' :
+                      s.status
+                    }</span>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">{s.description}</p>
-                  <p className="text-xs text-gray-400 mt-1">Tipo: {s.session_type} | {s.start_time?.slice(0, 16).replace('T', ' ')}</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Tipo: {s.session_type} | {s.start_time?.slice(0, 16).replace('T', ' ')}
+                    {s.recall_number > 0 && <span className="text-orange-600"> | Llamado #{s.recall_number + 1}</span>}
+                    {s.quorum_verified && <span className="text-green-600"> | Quorum verificado</span>}
+                  </p>
 
                   {/* Minuta */}
                   {s.minutes && (
@@ -1258,6 +1323,30 @@ export default function Assembly() {
                         Pasar lista de asistencia
                       </button>
                     )}
+                    {s.is_presential && (s.status === 'scheduled' || s.status === 'waiting_quorum') && (
+                      <button
+                        onClick={() => verifyQuorum(s.id)}
+                        className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                      >
+                        Verificar quorum
+                      </button>
+                    )}
+                    {s.is_presential && s.status === 'waiting_quorum' && (
+                      <button
+                        onClick={() => selfCheckIn(s.id)}
+                        className="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                      >
+                        Confirmar mi presencia
+                      </button>
+                    )}
+                    {s.is_presential && (s.status === 'rescheduled' || s.status === 'waiting_quorum') && (
+                      <button
+                        onClick={() => { setRescheduleSession(s); setRescheduleTime('') }}
+                        className="text-xs px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700"
+                      >
+                        Reprogramar (segundo llamado)
+                      </button>
+                    )}
                     <button
                       onClick={() => { setSelectedSessionForMinutes(s.id); setMinutesText(s.minutes || '') }}
                       className="text-xs px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
@@ -1265,6 +1354,25 @@ export default function Assembly() {
                       {s.minutes ? 'Editar minuta' : 'Escribir minuta'}
                     </button>
                   </div>
+
+                  {/* Resultado de verificacion de quorum */}
+                  {quorumResult && quorumResult.session_id === s.id && (
+                    <div className={`mt-2 p-3 rounded text-sm ${
+                      quorumResult.has_quorum ? 'bg-green-50 text-green-700' :
+                      quorumResult.status === 'cancelled' ? 'bg-red-50 text-red-700' :
+                      'bg-orange-50 text-orange-700'
+                    }`}>
+                      <p className="font-medium">{quorumResult.message}</p>
+                      <div className="flex gap-4 mt-1 text-xs">
+                        <span>Presentes: {quorumResult.present_count} de {quorumResult.total_voting_members}</span>
+                        <span>Asistencia: {quorumResult.attendance_pct}</span>
+                        <span>Quorum requerido: {quorumResult.applied_quorum_pct}%</span>
+                        {quorumResult.pending_confirmation > 0 && (
+                          <span className="text-blue-600">Pendientes por confirmar: {quorumResult.pending_confirmation}</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -1342,6 +1450,44 @@ export default function Assembly() {
               </div>
             </div>
           )}
+
+          {/* Modal de reprogramacion */}
+          {rescheduleSession && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setRescheduleSession(null)}>
+              <div className="bg-white rounded-xl shadow-xl max-w-md w-full" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between p-4 border-b">
+                  <h3 className="font-bold">Reprogramar Asamblea</h3>
+                  <button onClick={() => setRescheduleSession(null)} className="text-gray-400 hover:text-gray-600 text-xl">x</button>
+                </div>
+                <div className="p-4 space-y-3">
+                  <p className="text-sm text-gray-600">
+                    La asamblea no alcanzo el quorum en el llamado #{(rescheduleSession.recall_number || 0) + 1}.
+                    Al reprogramar, se crea el llamado #{(rescheduleSession.recall_number || 0) + 2} con un quorum mas bajo.
+                    La lista de asistencia se reinicia: los miembros deben volver a confirmar su presencia.
+                  </p>
+                  <div>
+                    <label className="label">Nueva fecha y hora</label>
+                    <input
+                      type="datetime-local"
+                      className="input"
+                      value={rescheduleTime}
+                      onChange={e => setRescheduleTime(new Date(e.target.value).toISOString())}
+                    />
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => setRescheduleSession(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
+                    <button
+                      onClick={() => doReschedule(rescheduleSession.id)}
+                      className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+                      disabled={!rescheduleTime}
+                    >
+                      Reprogramar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1405,7 +1551,33 @@ export default function Assembly() {
 
       {tab === 'config' && (
         <div className="space-y-4">
-          <h2 className="font-semibold flex items-center gap-2"><Shield size={18} />Configuracion de Aprobaciones</h2>
+          <h2 className="font-semibold flex items-center gap-2"><Shield size={18} />Configuracion de Asamblea</h2>
+
+          {/* ===== Configuracion de quorum ===== */}
+          <div className="card bg-purple-50 border-purple-200 text-sm text-gray-700 space-y-2">
+            <p><strong>Quorum de Asamblea - Ayuda</strong></p>
+            <p>El quorum es el porcentaje minimo de miembros con derecho a voto que deben estar presentes para que la asamblea sea valida.</p>
+            <ul className="list-disc list-inside space-y-1">
+              <li><b>Primer llamado</b>: porcentaje requerido en la fecha original.</li>
+              <li><b>Segundo llamado</b>: porcentaje reducido si se reprograma (ej: 50% primer llamado, 30% segundo llamado).</li>
+              <li><b>Periodo de gracia</b>: horas que se esperan despues de la hora de inicio antes de declarar la asamblea invalida.</li>
+              <li><b>Maximo rellamados</b>: cuantas veces se puede reprogramar la misma asamblea.</li>
+            </ul>
+            <p>Si no se alcanza el quorum despues del periodo de gracia, la asamblea se puede reprogramar (si esta permitido) o se cancela.</p>
+          </div>
+
+          {quorumConfigs.length === 0 ? (
+            <button onClick={loadQuorumConfigs} className="btn-primary">Cargar configuracion de quorum</button>
+          ) : (
+            <div className="space-y-3">
+              {quorumConfigs.map((qc: any) => (
+                <QuorumConfigCard key={qc.id} config={qc} onSave={updateQuorumConfig} />
+              ))}
+            </div>
+          )}
+
+          {/* ===== Configuracion de aprobaciones ===== */}
+          <h3 className="font-semibold flex items-center gap-2 mt-6"><Shield size={18} />Configuracion de Aprobaciones</h3>
 
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
             <p><strong>Configuracion de Aprobaciones - Ayuda</strong></p>
@@ -1536,6 +1708,88 @@ export default function Assembly() {
               ))}
             </div>
           )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Componente para editar configuracion de quorum por tipo de asamblea
+function QuorumConfigCard({ config, onSave }: { config: any; onSave: (sessionType: string, data: any) => void }) {
+  const [editing, setEditing] = useState(false)
+  const [firstCall, setFirstCall] = useState(config.quorum_first_call)
+  const [secondCall, setSecondCall] = useState(config.quorum_second_call)
+  const [graceHours, setGraceHours] = useState(config.grace_period_hours)
+  const [maxRecall, setMaxRecall] = useState(config.max_recall_count)
+  const [allowReschedule, setAllowReschedule] = useState(config.allow_reschedule)
+
+  const sessionTypeLabel: Record<string, string> = {
+    ordinaria: 'Asamblea Ordinaria',
+    extraordinaria: 'Asamblea Extraordinaria',
+    urgente: 'Asamblea Urgente',
+  }
+
+  return (
+    <div className="card">
+      <div className="flex items-center justify-between">
+        <div>
+          <b className="text-sm">{sessionTypeLabel[config.session_type] || config.session_type}</b>
+          <div className="flex gap-4 mt-1 text-xs text-gray-600">
+            <span>1er llamado: <b>{config.quorum_first_call}%</b></span>
+            <span>2do llamado: <b>{config.quorum_second_call}%</b></span>
+            <span>Gracia: <b>{config.grace_period_hours}h</b></span>
+            <span>Max. reprogramaciones: <b>{config.max_recall_count}</b></span>
+          </div>
+        </div>
+        <button onClick={() => setEditing(!editing)} className="text-blue-500 hover:bg-blue-50 p-2 rounded text-sm">
+          {editing ? 'Cerrar' : 'Editar'}
+        </button>
+      </div>
+      {editing && (
+        <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Quorum 1er llamado (%)</label>
+              <input type="number" step="0.01" min="0" max="100" className="input" value={firstCall} onChange={e => setFirstCall(parseFloat(e.target.value))} />
+              <p className="text-xs text-gray-400">Porcentaje para la fecha original</p>
+            </div>
+            <div>
+              <label className="label">Quorum 2do llamado (%)</label>
+              <input type="number" step="0.01" min="0" max="100" className="input" value={secondCall} onChange={e => setSecondCall(parseFloat(e.target.value))} />
+              <p className="text-xs text-gray-400">Porcentaje reducido si se reprograma</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Periodo de gracia (horas)</label>
+              <input type="number" min="0" max="24" className="input" value={graceHours} onChange={e => setGraceHours(parseInt(e.target.value))} />
+              <p className="text-xs text-gray-400">Horas que se espera antes de cancelar</p>
+            </div>
+            <div>
+              <label className="label">Max. reprogramaciones</label>
+              <input type="number" min="0" max="5" className="input" value={maxRecall} onChange={e => setMaxRecall(parseInt(e.target.value))} />
+              <p className="text-xs text-gray-400">Cuantas veces se puede reprogramar</p>
+            </div>
+          </div>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={allowReschedule} onChange={e => setAllowReschedule(e.target.checked)} className="accent-trueque-600" />
+            <span className="text-sm">Permitir reprogramar si no hay quorum</span>
+          </label>
+          <button
+            onClick={() => {
+              onSave(config.session_type, {
+                quorum_first_call: firstCall,
+                quorum_second_call: secondCall,
+                grace_period_hours: graceHours,
+                max_recall_count: maxRecall,
+                allow_reschedule: allowReschedule,
+              })
+              setEditing(false)
+            }}
+            className="btn-primary text-sm"
+          >
+            Guardar
+          </button>
         </div>
       )}
     </div>

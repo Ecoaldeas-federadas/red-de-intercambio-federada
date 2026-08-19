@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -24,12 +25,22 @@ func (h *AssemblyHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequireAuth).Post("/api/assembly/sessions", h.createSession)
 	r.With(am.RequireAuth).Put("/api/assembly/sessions/{id}", h.updateSession)
 	r.With(am.RequireAuth).Put("/api/assembly/sessions/{id}/minutes", h.updateMinutes)
+	r.With(am.RequireAuth).Post("/api/assembly/sessions/{id}/reschedule", h.rescheduleSession)
+	r.With(am.RequirePermission("assembly.verify_quorum")).Post("/api/assembly/sessions/{id}/verify-quorum", h.verifyQuorum)
 
 	// Asistencia
 	r.With(am.RequireAuth).Get("/api/assembly/sessions/{id}/attendance", h.listAttendance)
 	r.With(am.RequirePermission("assembly.take_attendance")).Post("/api/assembly/sessions/{id}/attendance", h.registerAttendance)
 	r.With(am.RequirePermission("assembly.take_attendance")).Delete("/api/assembly/sessions/{id}/attendance/{userId}", h.removeAttendance)
 	r.With(am.RequireAuth).Get("/api/assembly/attendance/history", h.getAttendanceHistory)
+
+	// Auto-confirmacion de asistencia (el miembro confirma su presencia)
+	r.With(am.RequireAuth).Post("/api/assembly/attendance/confirm/{token}", h.confirmAttendance)
+	r.With(am.RequireAuth).Post("/api/assembly/sessions/{id}/self-checkin", h.selfCheckIn)
+
+	// Configuracion de quorum
+	r.With(am.RequireAuth).Get("/api/assembly/quorum-config", h.getQuorumConfig)
+	r.With(am.RequireAuth).Put("/api/assembly/quorum-config/{sessionType}", h.updateQuorumConfig)
 
 	// Propuestas / decisiones
 	r.With(am.RequireAuth).Get("/api/assembly/proposals", h.listProposals)
@@ -59,7 +70,7 @@ func (h *AssemblyHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 func (h *AssemblyHandler) listSessions(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id, node_domain, session_type, title, description, start_time, end_time, status, created_at,
-		       is_presential, minutes
+		       is_presential, minutes, recall_number, original_scheduled_time, quorum_verified, quorum_checked_at
 		FROM assembly_sessions ORDER BY created_at DESC LIMIT 50`)
 	if err != nil {
 		writeError(w, 500, err.Error())
@@ -77,20 +88,28 @@ func (h *AssemblyHandler) listSessions(w http.ResponseWriter, r *http.Request) {
 		var createdAt time.Time
 		var isPresential bool
 		var minutes *string
-		if err := rows.Scan(&id, &nodeDomain, &sessionType, &title, &description, &startTime, &endTime, &status, &createdAt, &isPresential, &minutes); err != nil {
+		var recallNumber int
+		var originalScheduledTime *time.Time
+		var quorumVerified bool
+		var quorumCheckedAt *time.Time
+		if err := rows.Scan(&id, &nodeDomain, &sessionType, &title, &description, &startTime, &endTime, &status, &createdAt, &isPresential, &minutes, &recallNumber, &originalScheduledTime, &quorumVerified, &quorumCheckedAt); err != nil {
 			continue
 		}
 		sessions = append(sessions, map[string]interface{}{
-			"id":            id.String(),
-			"session_type":  sessionType,
-			"title":         title,
-			"description":   deref(description),
-			"start_time":    startTime,
-			"end_time":      derefTime(endTime),
-			"status":        status,
-			"created_at":    createdAt,
-			"is_presential": isPresential,
-			"minutes":       deref(minutes),
+			"id":                      id.String(),
+			"session_type":            sessionType,
+			"title":                   title,
+			"description":             deref(description),
+			"start_time":              startTime,
+			"end_time":                derefTime(endTime),
+			"status":                  status,
+			"created_at":              createdAt,
+			"is_presential":           isPresential,
+			"minutes":                 deref(minutes),
+			"recall_number":           recallNumber,
+			"original_scheduled_time": derefTime(originalScheduledTime),
+			"quorum_verified":         quorumVerified,
+			"quorum_checked_at":       derefTime(quorumCheckedAt),
 		})
 	}
 	if sessions == nil {
@@ -1722,5 +1741,454 @@ func (h *AssemblyHandler) getAttendanceHistory(w http.ResponseWriter, r *http.Re
 
 	writeJSON(w, 200, map[string]interface{}{
 		"members": members,
+	})
+}
+
+// ===== Configuracion de quorum =====
+
+func (h *AssemblyHandler) getQuorumConfig(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT id, session_type, quorum_first_call, quorum_second_call,
+		       grace_period_hours, allow_reschedule, max_recall_count, is_active
+		FROM assembly_quorum_config
+		WHERE node_domain = $1 AND is_active = true
+		ORDER BY session_type`, nodeDomain)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	var configs []map[string]interface{}
+	for rows.Next() {
+		var id uuid.UUID
+		var sessionType string
+		var quorumFirst, quorumSecond float64
+		var gracePeriod, maxRecall int
+		var allowReschedule, isActive bool
+		rows.Scan(&id, &sessionType, &quorumFirst, &quorumSecond, &gracePeriod, &allowReschedule, &maxRecall, &isActive)
+		configs = append(configs, map[string]interface{}{
+			"id":                 id.String(),
+			"session_type":       sessionType,
+			"quorum_first_call":  quorumFirst,
+			"quorum_second_call": quorumSecond,
+			"grace_period_hours": gracePeriod,
+			"allow_reschedule":   allowReschedule,
+			"max_recall_count":   maxRecall,
+			"is_active":          isActive,
+		})
+	}
+	if configs == nil {
+		configs = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, configs)
+}
+
+func (h *AssemblyHandler) updateQuorumConfig(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+	sessionType := chi.URLParam(r, "sessionType")
+	if sessionType == "" {
+		writeError(w, 400, "session type is required")
+		return
+	}
+
+	var req struct {
+		QuorumFirstCall  *float64 `json:"quorum_first_call"`
+		QuorumSecondCall *float64 `json:"quorum_second_call"`
+		GracePeriodHours *int     `json:"grace_period_hours"`
+		AllowReschedule  *bool    `json:"allow_reschedule"`
+		MaxRecallCount   *int     `json:"max_recall_count"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	// Validar porcentajes
+	if req.QuorumFirstCall != nil && (*req.QuorumFirstCall < 0 || *req.QuorumFirstCall > 100) {
+		writeError(w, 400, "quorum_first_call debe estar entre 0 y 100")
+		return
+	}
+	if req.QuorumSecondCall != nil && (*req.QuorumSecondCall < 0 || *req.QuorumSecondCall > 100) {
+		writeError(w, 400, "quorum_second_call debe estar entre 0 y 100")
+		return
+	}
+
+	// Upsert
+	_, err := h.Pool.Exec(r.Context(), `
+		INSERT INTO assembly_quorum_config (node_domain, session_type, quorum_first_call, quorum_second_call, grace_period_hours, allow_reschedule, max_recall_count, updated_at)
+		VALUES ($1, $2,
+			COALESCE($3, 50.00),
+			COALESCE($4, 30.00),
+			COALESCE($5, 1),
+			COALESCE($6, true),
+			COALESCE($7, 1),
+			NOW())
+		ON CONFLICT (node_domain, session_type) DO UPDATE SET
+			quorum_first_call = COALESCE($3, assembly_quorum_config.quorum_first_call),
+			quorum_second_call = COALESCE($4, assembly_quorum_config.quorum_second_call),
+			grace_period_hours = COALESCE($5, assembly_quorum_config.grace_period_hours),
+			allow_reschedule = COALESCE($6, assembly_quorum_config.allow_reschedule),
+			max_recall_count = COALESCE($7, assembly_quorum_config.max_recall_count),
+			updated_at = NOW()`,
+		nodeDomain, sessionType, req.QuorumFirstCall, req.QuorumSecondCall,
+		req.GracePeriodHours, req.AllowReschedule, req.MaxRecallCount)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{"message": "Configuracion de quorum actualizada"})
+}
+
+// ===== Verificacion de quorum =====
+
+func (h *AssemblyHandler) verifyQuorum(w http.ResponseWriter, r *http.Request) {
+	sessionID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	// Obtener datos de la sesion
+	var sessionType, status string
+	var recallNumber int
+	var startTime time.Time
+	h.Pool.QueryRow(r.Context(), `
+		SELECT session_type, status, recall_number, start_time
+		FROM assembly_sessions WHERE id = $1`, sessionID).
+		Scan(&sessionType, &status, &recallNumber, &startTime)
+	if status == "" {
+		writeError(w, 404, "sesion no encontrada")
+		return
+	}
+
+	// Obtener config de quorum
+	var quorumFirst, quorumSecond float64
+	var gracePeriod int
+	var allowReschedule bool
+	var maxRecall int
+	h.Pool.QueryRow(r.Context(), `
+		SELECT quorum_first_call, quorum_second_call, grace_period_hours, allow_reschedule, max_recall_count
+		FROM assembly_quorum_config WHERE node_domain = $1 AND session_type = $2`,
+		nodeDomain, sessionType).Scan(&quorumFirst, &quorumSecond, &gracePeriod, &allowReschedule, &maxRecall)
+	if quorumFirst == 0 {
+		// Defaults
+		quorumFirst = 50
+		quorumSecond = 30
+		gracePeriod = 1
+		allowReschedule = true
+		maxRecall = 1
+	}
+
+	// Quorum aplicable segun el llamado
+	appliedQuorum := quorumFirst
+	if recallNumber > 0 {
+		appliedQuorum = quorumSecond
+	}
+
+	// Total de miembros con derecho a voto
+	var totalVotingMembers int
+	h.Pool.QueryRow(r.Context(), `
+		SELECT COUNT(*) FROM users u
+		JOIN member_levels ml ON ml.id = u.member_level_id
+		WHERE u.node_domain = $1 AND u.membership_status = 'active'
+		AND ml.has_vote = true AND ml.counts_in_quorum = true`, nodeDomain).Scan(&totalVotingMembers)
+
+	// Asistentes con doble confirmacion
+	var presentCount int
+	h.Pool.QueryRow(r.Context(), `
+		SELECT COUNT(*) FROM assembly_attendance
+		WHERE session_id = $1 AND secretary_confirmed = true AND member_confirmed = true`,
+		sessionID).Scan(&presentCount)
+
+	// Tambien contar los que solo tienen confirmacion del secretario
+	// (para mostrar cuantos faltan por auto-confirmarse)
+	var secretaryOnlyCount int
+	h.Pool.QueryRow(r.Context(), `
+		SELECT COUNT(*) FROM assembly_attendance
+		WHERE session_id = $1 AND secretary_confirmed = true AND member_confirmed = false`,
+		sessionID).Scan(&secretaryOnlyCount)
+
+	// Calcular porcentaje de asistencia
+	attendancePct := 0.0
+	if totalVotingMembers > 0 {
+		attendancePct = (float64(presentCount) / float64(totalVotingMembers)) * 100
+	}
+
+	// Verificar periodo de gracia
+	now := time.Now()
+	graceDeadline := startTime.Add(time.Duration(gracePeriod) * time.Hour)
+	canWaitMore := now.Before(graceDeadline)
+
+	// Determinar si hay quorum
+	hasQuorum := attendancePct >= appliedQuorum
+
+	result := map[string]interface{}{
+		"session_id":           sessionID.String(),
+		"session_type":         sessionType,
+		"recall_number":        recallNumber,
+		"applied_quorum_pct":   appliedQuorum,
+		"total_voting_members": totalVotingMembers,
+		"present_count":        presentCount,
+		"pending_confirmation": secretaryOnlyCount,
+		"attendance_pct":       fmt.Sprintf("%.1f%%", attendancePct),
+		"has_quorum":           hasQuorum,
+		"grace_period_hours":   gracePeriod,
+		"grace_deadline":       graceDeadline.Format(time.RFC3339),
+		"can_wait_more":        canWaitMore,
+		"allow_reschedule":     allowReschedule,
+		"max_recall_count":     maxRecall,
+		"can_reschedule":       allowReschedule && !hasQuorum && recallNumber < maxRecall,
+	}
+
+	if hasQuorum {
+		// Marcar quorum verificado y cambiar a active
+		h.Pool.Exec(r.Context(), `
+			UPDATE assembly_sessions SET quorum_verified = true, quorum_checked_at = NOW(), status = 'active'
+			WHERE id = $1`, sessionID)
+		result["message"] = "Quorum alcanzado. La asamblea puede comenzar."
+		result["status"] = "active"
+	} else if canWaitMore {
+		// Cambiar a waiting_quorum
+		h.Pool.Exec(r.Context(), `UPDATE assembly_sessions SET status = 'waiting_quorum' WHERE id = $1`, sessionID)
+		result["message"] = fmt.Sprintf("Quorum no alcanzado (%.1f%% de %.1f%% requerido). Periodo de gracia hasta %s. Faltan %d miembros por confirmar su presencia.",
+			attendancePct, appliedQuorum, graceDeadline.Format("15:04"), secretaryOnlyCount)
+		result["status"] = "waiting_quorum"
+	} else {
+		// Periodo de gracia expirado
+		if allowReschedule && recallNumber < maxRecall {
+			h.Pool.Exec(r.Context(), `UPDATE assembly_sessions SET status = 'rescheduled' WHERE id = $1`, sessionID)
+			result["message"] = fmt.Sprintf("Quorum no alcanzado y periodo de gracia expirado. La asamblea puede reprogramarse (llamado #%d).", recallNumber+1)
+			result["status"] = "rescheduled"
+		} else {
+			h.Pool.Exec(r.Context(), `UPDATE assembly_sessions SET status = 'cancelled' WHERE id = $1`, sessionID)
+			result["message"] = "Quorum no alcanzado y no se permite mas reprogramaciones. Asamblea cancelada."
+			result["status"] = "cancelled"
+		}
+	}
+
+	writeJSON(w, 200, result)
+}
+
+// ===== Reprogramar asamblea (segundo llamado) =====
+
+func (h *AssemblyHandler) rescheduleSession(w http.ResponseWriter, r *http.Request) {
+	sessionID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+
+	var req struct {
+		NewStartTimeStr string `json:"new_start_time"`
+		Title           string `json:"title"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.NewStartTimeStr == "" {
+		writeError(w, 400, "new_start_time is required")
+		return
+	}
+
+	newStartTime, err := time.Parse(time.RFC3339, req.NewStartTimeStr)
+	if err != nil {
+		writeError(w, 400, "invalid start_time format, use RFC3339")
+		return
+	}
+
+	// Obtener sesion actual
+	var sessionType, status string
+	var recallNumber int
+	var startTime time.Time
+	var originalScheduledTime *time.Time
+	h.Pool.QueryRow(r.Context(), `
+		SELECT session_type, status, recall_number, start_time, original_scheduled_time
+		FROM assembly_sessions WHERE id = $1`, sessionID).
+		Scan(&sessionType, &status, &recallNumber, &startTime, &originalScheduledTime)
+	if status == "" {
+		writeError(w, 404, "sesion no encontrada")
+		return
+	}
+
+	// Verificar que se pueda reprogramar
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+	var allowReschedule bool
+	var maxRecall int
+	h.Pool.QueryRow(r.Context(), `
+		SELECT allow_reschedule, max_recall_count FROM assembly_quorum_config
+		WHERE node_domain = $1 AND session_type = $2`, nodeDomain, sessionType).
+		Scan(&allowReschedule, &maxRecall)
+	if !allowReschedule {
+		writeError(w, 400, "no se permite reprogramar este tipo de asamblea")
+		return
+	}
+	if recallNumber >= maxRecall {
+		writeError(w, 400, fmt.Sprintf("maximo de reprogramaciones alcanzado (%d). No se puede reprogramar mas.", maxRecall))
+		return
+	}
+
+	// Guardar hora original si es el primer llamado
+	if originalScheduledTime == nil {
+		h.Pool.Exec(r.Context(), `UPDATE assembly_sessions SET original_scheduled_time = $1 WHERE id = $2`, startTime, sessionID)
+	}
+
+	// Actualizar sesion: incrementar recall, nueva hora, status scheduled
+	newTitle := req.Title
+	if newTitle == "" {
+		newTitle = fmt.Sprintf("%s (llamado #%d)", sessionType, recallNumber+2)
+	}
+
+	_, err = h.Pool.Exec(r.Context(), `
+		UPDATE assembly_sessions
+		SET start_time = $1, recall_number = recall_number + 1, status = 'scheduled',
+		    quorum_verified = false, quorum_checked_at = NULL, title = $2
+		WHERE id = $3`,
+		newStartTime, newTitle, sessionID)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	// Limpiar asistencia anterior (los miembros deben volver a confirmar)
+	h.Pool.Exec(r.Context(), `DELETE FROM assembly_attendance WHERE session_id = $1`, sessionID)
+
+	writeJSON(w, 200, map[string]interface{}{
+		"message":           fmt.Sprintf("Asamblea reprogramada para %s. Es el llamado #%d. El quorum requerido baja a %.1f%%.", newStartTime.Format("02/01/2006 15:04"), recallNumber+2, getQuorumSecondCall(h, nodeDomain, sessionType)),
+		"session_id":        sessionID.String(),
+		"new_start_time":    newStartTime.Format(time.RFC3339),
+		"new_recall_number": recallNumber + 1,
+	})
+}
+
+func getQuorumSecondCall(h *AssemblyHandler, nodeDomain, sessionType string) float64 {
+	var q float64
+	h.Pool.QueryRow(context.Background(), `
+		SELECT quorum_second_call FROM assembly_quorum_config
+		WHERE node_domain = $1 AND session_type = $2`, nodeDomain, sessionType).Scan(&q)
+	if q == 0 {
+		return 30.0
+	}
+	return q
+}
+
+// ===== Doble validacion: auto-confirmacion del miembro =====
+
+// selfCheckIn: el miembro confirma su propia presencia en la asamblea
+// Requiere que el secretario ya lo haya marcado como presente
+func (h *AssemblyHandler) selfCheckIn(w http.ResponseWriter, r *http.Request) {
+	sessionID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+
+	userID, err := h.Auth.GetUserID(r)
+	if err != nil {
+		writeError(w, 401, "authentication required")
+		return
+	}
+
+	// Verificar que el secretario lo marco como presente
+	var secretaryConfirmed bool
+	h.Pool.QueryRow(r.Context(), `
+		SELECT secretary_confirmed FROM assembly_attendance
+		WHERE session_id = $1 AND user_id = $2`, sessionID, userID).Scan(&secretaryConfirmed)
+	if !secretaryConfirmed {
+		writeError(w, 403, "el secretario no te ha marcado como presente. Pidele que pase la lista primero.")
+		return
+	}
+
+	// Confirmar presencia del miembro
+	_, err = h.Pool.Exec(r.Context(), `
+		UPDATE assembly_attendance
+		SET member_confirmed = true, member_confirmed_at = NOW()
+		WHERE session_id = $1 AND user_id = $2`,
+		sessionID, userID)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"message":    "Presencia confirmada. Gracias por validar tu asistencia.",
+		"session_id": sessionID.String(),
+		"confirmed":  true,
+	})
+}
+
+// confirmAttendance: confirmar via token (para QR o tarjeta)
+func (h *AssemblyHandler) confirmAttendance(w http.ResponseWriter, r *http.Request) {
+	token := chi.URLParam(r, "token")
+	if token == "" {
+		writeError(w, 400, "token is required")
+		return
+	}
+
+	userID, err := h.Auth.GetUserID(r)
+	if err != nil {
+		writeError(w, 401, "authentication required")
+		return
+	}
+
+	// Buscar el registro de asistencia por token
+	var sessionID uuid.UUID
+	var storedUserID uuid.UUID
+	var secretaryConfirmed bool
+	var tokenExpiresAt *time.Time
+	err = h.Pool.QueryRow(r.Context(), `
+		SELECT session_id, user_id, secretary_confirmed, token_expires_at
+		FROM assembly_attendance WHERE confirmation_token = $1`, token).
+		Scan(&sessionID, &storedUserID, &secretaryConfirmed, &tokenExpiresAt)
+	if err != nil {
+		writeError(w, 404, "token invalido o expirado")
+		return
+	}
+
+	// Verificar que el token no haya expirado
+	if tokenExpiresAt != nil && tokenExpiresAt.Before(time.Now()) {
+		writeError(w, 400, "token expirado")
+		return
+	}
+
+	// Verificar que el usuario que confirma es el mismo que fue marcado
+	if storedUserID != userID {
+		writeError(w, 403, "este token no corresponde a tu usuario")
+		return
+	}
+
+	if !secretaryConfirmed {
+		writeError(w, 403, "el secretario no te ha marcado como presente")
+		return
+	}
+
+	// Confirmar
+	h.Pool.Exec(r.Context(), `
+		UPDATE assembly_attendance
+		SET member_confirmed = true, member_confirmed_at = NOW(), confirmation_token = NULL
+		WHERE confirmation_token = $1`, token)
+
+	writeJSON(w, 200, map[string]interface{}{
+		"message":    "Asistencia confirmada via token.",
+		"session_id": sessionID.String(),
+		"confirmed":  true,
 	})
 }
