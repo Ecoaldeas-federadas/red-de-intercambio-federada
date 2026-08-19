@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/ed25519"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -182,9 +183,22 @@ func (a *passkeyAdapter) BeginRegistration(userID uuid.UUID, username, displayNa
 }
 
 func (a *passkeyAdapter) VerifyRegistration(response interface{}, expectedChallenge, expectedOrigin string) (interface{}, error) {
-	resp, ok := response.(crypto.RegistrationResponse)
-	if !ok {
-		return nil, fmt.Errorf("invalid registration response type")
+	var resp crypto.RegistrationResponse
+	switch v := response.(type) {
+	case crypto.RegistrationResponse:
+		resp = v
+	case map[string]interface{}:
+		// JSON deserializado como interface{} produce map[string]interface{}.
+		// Re-marshall y re-unmarshal al tipo correcto.
+		data, err := json.Marshal(v)
+		if err != nil {
+			return nil, fmt.Errorf("marshaling registration response: %w", err)
+		}
+		if err := json.Unmarshal(data, &resp); err != nil {
+			return nil, fmt.Errorf("unmarshaling registration response: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("invalid registration response type: %T", response)
 	}
 	return a.pm.VerifyRegistration(resp, expectedChallenge, expectedOrigin)
 }
@@ -194,9 +208,20 @@ func (a *passkeyAdapter) BeginLogin(credentialIDs [][]byte) (interface{}, error)
 }
 
 func (a *passkeyAdapter) VerifyLogin(response interface{}, expectedChallenge string, storedPubKey []byte, storedSignCount int64) (int64, error) {
-	resp, ok := response.(crypto.LoginResponse)
-	if !ok {
-		return 0, fmt.Errorf("invalid login response type")
+	var resp crypto.LoginResponse
+	switch v := response.(type) {
+	case crypto.LoginResponse:
+		resp = v
+	case map[string]interface{}:
+		data, err := json.Marshal(v)
+		if err != nil {
+			return 0, fmt.Errorf("marshaling login response: %w", err)
+		}
+		if err := json.Unmarshal(data, &resp); err != nil {
+			return 0, fmt.Errorf("unmarshaling login response: %w", err)
+		}
+	default:
+		return 0, fmt.Errorf("invalid login response type: %T", response)
 	}
 	return a.pm.VerifyLogin(resp, expectedChallenge, storedPubKey, storedSignCount)
 }

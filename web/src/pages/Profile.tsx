@@ -63,6 +63,8 @@ export default function Profile() {
   const [upgradeMsg, setUpgradeMsg] = useState('')
   const [passkeyMsg, setPasskeyMsg] = useState('')
   const [passkeyLoading, setPasskeyLoading] = useState(false)
+  const [showPasskeyModal, setShowPasskeyModal] = useState(false)
+  const [passkeyLabel, setPasskeyLabel] = useState('')
 
   const load = () => {
     api.get('/accounts/me').then((d: any) => {
@@ -132,8 +134,8 @@ export default function Profile() {
       return
     }
 
-    const label = prompt('Nombre para este dispositivo (ej: "Mi celular", "Huella laptop", "Llave USB"):', 'Mi dispositivo')
-    if (label === null) return
+    const label = passkeyLabel.trim() || 'Mi dispositivo'
+    setShowPasskeyModal(false)
 
     setPasskeyLoading(true)
     try {
@@ -151,7 +153,7 @@ export default function Profile() {
 
       // 3. Enviar respuesta al backend para verificar y guardar
       const finishRes: any = await api.post('/auth/passkey/add/finish', {
-        label: label || 'Dispositivo',
+        label,
         response: {
           id: credential.id,
           rawId: bufToBase64Url(credential.rawId),
@@ -164,6 +166,7 @@ export default function Profile() {
       })
 
       setPasskeyMsg(finishRes.message || 'Dispositivo registrado correctamente.')
+      setPasskeyLabel('')
       load()
     } catch (err: any) {
       if (err.name === 'NotAllowedError') {
@@ -174,6 +177,11 @@ export default function Profile() {
     } finally {
       setPasskeyLoading(false)
     }
+  }
+
+  const openPasskeyModal = () => {
+    setPasskeyLabel('')
+    setShowPasskeyModal(true)
   }
 
   const deletePasskey = async (passkeyId: string) => {
@@ -276,7 +284,7 @@ export default function Profile() {
         <h2 className="font-semibold flex items-center gap-2 mb-3"><Key size={18} />Dispositivos (Passkeys)</h2>
         {passkeyMsg && <div className="text-sm bg-green-50 text-green-700 p-3 rounded-lg mb-3">{passkeyMsg}</div>}
         <button
-          onClick={registerPasskey}
+          onClick={openPasskeyModal}
           disabled={passkeyLoading}
           className="btn-secondary flex items-center gap-2 mb-3 text-sm"
         >
@@ -315,6 +323,38 @@ export default function Profile() {
           </div>
         )}
       </div>
+
+      {/* Modal: Registrar nuevo passkey */}
+      {showPasskeyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={() => setShowPasskeyModal(false)}>
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold mb-2 flex items-center gap-2"><Key size={20} />Registrar nuevo dispositivo</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Dale un nombre a este dispositivo para identificarlo (ej: "Mi celular", "Huella laptop", "Llave USB").
+              Luego tu navegador te pedira confirmar con huella, PIN, FaceID o la llave de seguridad.
+            </p>
+            <input
+              type="text"
+              className="input w-full mb-4"
+              value={passkeyLabel}
+              onChange={(e) => setPasskeyLabel(e.target.value)}
+              placeholder="Nombre del dispositivo"
+              autoFocus
+              onKeyDown={(e) => e.key === 'Enter' && registerPasskey()}
+            />
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setShowPasskeyModal(false)} className="btn-secondary text-sm">Cancelar</button>
+              <button
+                onClick={registerPasskey}
+                className="btn-primary text-sm flex items-center gap-2"
+              >
+                <Plus size={16} />
+                Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tarjetas NFC */}
       <div className="card">

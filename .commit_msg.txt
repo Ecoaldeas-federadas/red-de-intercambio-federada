@@ -1,24 +1,31 @@
-fix: logout al entrar a Perfil - rutas passkey sin middleware de auth
+fix: passkey no se guardaba + prompt nativo reemplazado por modal
 
-Causa raiz: las rutas /api/auth/passkey/list, /api/auth/passkey/add/*
-y /api/auth/passkey/{id} se registraban sin RequireAuth middleware.
-Los handlers llamaban GetUserID(r) pero como no habia middleware que
-validara el JWT y pusiera user_id en el contexto, siempre retornaban 401.
+PROBLEMA 1: Windows confirma el registro pero el passkey no aparece
 
-Antes de este fix, la ruta passkey/list era POST y el frontend llamaba
-GET, asi que daba 405 (silencioso). Al cambiarla a GET, llegaba al
-handler que retornaba 401, lo que disparaba handleUnauthorized() en
-api.ts y cerraba la sesion del usuario.
+Causa raiz: el passkeyAdapter.VerifyRegistration en cmd/node/main.go
+hacia un type assertion directo:
+  resp, ok := response.(crypto.RegistrationResponse)
+Pero cuando el JSON del frontend se deserializa en interface{},
+se convierte en map[string]interface{}, NO en crypto.RegistrationResponse.
+El type assertion SIEMPRE fallaba con "invalid registration response
+type", asi que el passkey nunca se guardaba en la base de datos.
 
-Fix:
-- RegisterRoutes (auth.go): las rutas autenticadas (getMe, passkey/list,
-  passkey/add/begin, passkey/add/finish, passkey/{id}) ahora se registran
-  dentro de r.Group con am.RequireAuth middleware
-- Las rutas publicas (register, login, etc.) quedan fuera del grupo
+Fix: el adapter ahora maneja ambos casos:
+- crypto.RegistrationResponse: lo usa directo
+- map[string]interface{}: re-marshall a JSON y re-unmarshal al tipo
+  correcto antes de llamar a VerifyRegistration
+Lo mismo se aplico a VerifyLogin para el flujo de login con passkey.
 
-Fix adicional: /api/nfc/cards requiere user_id como query param pero
-el frontend no lo enviaba (400 Bad Request). Ahora Profile.tsx envia
-el user_id obtenido de /accounts/me.
+PROBLEMA 2: prompt() abre alerta nativa de Windows
+
+El navegador usa prompt() de JavaScript que abre un dialogo nativo
+del SO en vez de un modal dentro de la app.
+
+Fix: reemplazado prompt() por un modal interno en Profile.tsx:
+- Estado showPasskeyModal y passkeyLabel
+- Modal con input de texto, boton Cancelar y Continuar
+- Enter en el input registra el passkey
+- Click fuera del modal lo cierra
 
 Generated with Devin
 
