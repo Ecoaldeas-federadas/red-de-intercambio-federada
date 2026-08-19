@@ -229,6 +229,14 @@ func (h *AssemblyHandler) createSession(w http.ResponseWriter, r *http.Request) 
 		fmt.Sprintf("Se ha convocado una asamblea %s para el %s. Tema: %s", req.SessionType, startTime.Format("02/01/2006 a las 15:04"), req.Title),
 		"convocation")
 
+	// Tambien notificar via el sistema unificado de notificaciones
+	notify := NewNotifyService(h.Pool)
+	notify.NotifyVotingMembers(r.Context(), nodeDomain, "assembly_scheduled",
+		fmt.Sprintf("Asamblea %s programada", req.SessionType),
+		fmt.Sprintf("Se ha convocado una asamblea %s para el %s. Tema: %s", req.SessionType, startTime.Format("02/01/2006 a las 15:04"), req.Title),
+		"/app/assembly",
+		map[string]interface{}{"session_id": id.String(), "session_type": req.SessionType, "start_time": startTime.Format(time.RFC3339)})
+
 	writeJSON(w, 201, map[string]interface{}{
 		"id":           id.String(),
 		"session_type": req.SessionType,
@@ -488,6 +496,18 @@ func (h *AssemblyHandler) openVoting(w http.ResponseWriter, r *http.Request) {
 
 	// Auto-agregar a la minuta
 	appendToMinutes(h.Pool, assemblyID, fmt.Sprintf("- [Votacion abierta] %s: %s (duracion: %d min)", decisionType, description, votingDurationMinutes))
+
+	// Notificar a los miembros con voto
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+	notify := NewNotifyService(h.Pool)
+	notify.NotifyVotingMembers(r.Context(), nodeDomain, "voting_opened",
+		"Votacion abierta",
+		fmt.Sprintf("Se ha abierto la votacion para: %s", description),
+		"/app/assembly",
+		map[string]interface{}{"decision_id": decisionID.String(), "decision_type": decisionType})
 
 	writeJSON(w, 200, map[string]interface{}{
 		"id":                      decisionID.String(),

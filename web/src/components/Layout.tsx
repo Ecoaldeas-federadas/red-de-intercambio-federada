@@ -1,12 +1,13 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { api } from '../api'
 import {
   Home, ArrowLeftRight, History, Package, Calculator, Store,
   Network, Scale, Users, Gavel, FileSearch, Globe, UserPlus, Wallet, Shield,
   Building2, Nfc, Settings, User, PiggyBank, Zap,
-  LogOut, Menu, X, ExternalLink,
+  LogOut, Menu, X, ExternalLink, Bell,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 const navItems = [
   { to: '/app/dashboard', label: 'Inicio', icon: Home },
@@ -38,6 +39,46 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const { username, logout } = useAuth()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showNotif, setShowNotif] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [notifications, setNotifications] = useState<any[]>([])
+
+  // Cargar contador de notificaciones no leidas (polling cada 30s)
+  useEffect(() => {
+    const loadUnread = () => {
+      api.get<any>('/notifications/unread-count').then((d: any) => {
+        setUnreadCount(d?.total_unread ?? 0)
+      }).catch(() => {})
+    }
+    loadUnread()
+    const interval = setInterval(loadUnread, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const loadNotifications = () => {
+    api.get<any[]>('/notifications').then((d: any) => {
+      setNotifications(Array.isArray(d) ? d : [])
+    }).catch(() => setNotifications([]))
+  }
+
+  const handleBellClick = () => {
+    setShowNotif(!showNotif)
+    if (!showNotif) loadNotifications()
+  }
+
+  const handleNotifClick = (n: any) => {
+    api.put(`/notifications/${n.id}/read`).catch(() => {})
+    setUnreadCount(Math.max(0, unreadCount - 1))
+    setShowNotif(false)
+    if (n.link) navigate(n.link)
+  }
+
+  const markAllRead = () => {
+    api.put('/notifications/read-all').then(() => {
+      setUnreadCount(0)
+      setNotifications(notifications.map(n => ({ ...n, is_read: true })))
+    }).catch(() => {})
+  }
 
   const handleLogout = () => {
     logout()
@@ -95,6 +136,55 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <Menu size={24} />
           </button>
           <div className="flex items-center gap-3 ml-auto">
+            {/* Campana de notificaciones */}
+            <div className="relative">
+              <button onClick={handleBellClick} className="relative text-gray-600 hover:text-trueque-600">
+                <Bell size={20} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </button>
+              {showNotif && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowNotif(false)} />
+                  <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-96 overflow-y-auto">
+                    <div className="flex items-center justify-between p-3 border-b border-gray-100">
+                      <span className="font-semibold text-sm">Notificaciones</span>
+                      {unreadCount > 0 && (
+                        <button onClick={markAllRead} className="text-xs text-blue-600 hover:text-blue-800">Marcar todas leidas</button>
+                      )}
+                    </div>
+                    {notifications.length === 0 ? (
+                      <div className="p-6 text-center text-gray-400 text-sm">
+                        <Bell size={24} className="mx-auto mb-2 opacity-30" />
+                        No hay notificaciones
+                      </div>
+                    ) : (
+                      notifications.slice(0, 20).map((n: any) => (
+                        <button
+                          key={n.id}
+                          onClick={() => handleNotifClick(n)}
+                          className={`w-full text-left p-3 border-b border-gray-50 hover:bg-gray-50 transition ${!n.is_read ? 'bg-blue-50' : ''}`}
+                        >
+                          <div className="flex items-start gap-2">
+                            {!n.is_read && <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5 flex-shrink-0" />}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-800 truncate">{n.title}</p>
+                              <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</p>
+                              <p className="text-xs text-gray-400 mt-1">
+                                {new Date(n.created_at).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
             <a href="/" target="_blank" rel="noopener" className="text-sm text-trueque-600 hover:text-trueque-800 flex items-center gap-1">
               <ExternalLink size={16} />
               <span className="hidden sm:inline">Sitio publico</span>

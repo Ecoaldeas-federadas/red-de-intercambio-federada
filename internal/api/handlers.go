@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -209,6 +210,17 @@ func (h *Handler) transfer(w http.ResponseWriter, r *http.Request) {
 		})
 		h.Pool.Exec(r.Context(), `INSERT INTO audit_log (actor_id, action, target_id, details) VALUES ($1, 'transfer', $2, $3)`,
 			senderID, receiverID, details)
+
+		// Notificar al receptor
+		notify := NewNotifyService(h.Pool)
+		// Obtener nombre del remitente
+		var senderName string
+		h.Pool.QueryRow(r.Context(), `SELECT COALESCE(display_name, username) FROM users WHERE id = $1`, senderID).Scan(&senderName)
+		notify.Notify(r.Context(), h.nodeDomain, receiverID, "payment_received",
+			"Pago recibido",
+			fmt.Sprintf("Recibiste %d %s de %s", req.Amount, "TQ", senderName),
+			"/app/history",
+			map[string]interface{}{"amount": req.Amount, "sender_id": senderID.String(), "sender_name": senderName})
 	}
 
 	writeJSON(w, 201, tx)

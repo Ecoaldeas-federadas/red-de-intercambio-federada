@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
-import { Wallet, AlertTriangle, Network, HelpCircle, Send, History as HistoryIcon, ShoppingBag, Calculator } from 'lucide-react'
+import { Wallet, AlertTriangle, Network, HelpCircle, Send, History as HistoryIcon, ShoppingBag, Calculator, Calendar, ChevronRight } from 'lucide-react'
 
 export default function Dashboard() {
   const { currency } = useConfig()
@@ -12,6 +12,7 @@ export default function Dashboard() {
   const [debitLimit, setDebitLimit] = useState<number | null>(null)
   const [warnings, setWarnings] = useState<any[]>([])
   const [nodes, setNodes] = useState<any[]>([])
+  const [upcomingAssemblies, setUpcomingAssemblies] = useState<any[]>([])
   const [error, setError] = useState('')
   const [showHelp, setShowHelp] = useState(false)
 
@@ -20,7 +21,8 @@ export default function Dashboard() {
       api.get<any>('/accounts/me').catch(() => null),
       api.get<any>('/federation/warnings').catch(() => ({ warnings: [] })),
       api.get<any[]>('/federation/nodes').catch(() => []),
-    ]).then(([user, warn, n]) => {
+      api.get<any[]>('/assembly/sessions?filter=upcoming').catch(() => []),
+    ]).then(([user, warn, n, sessions]) => {
       if (user) {
         setBalance(user.balance ?? 0)
         setCreditLimit(user.credit_limit ?? null)
@@ -28,6 +30,7 @@ export default function Dashboard() {
       }
       setWarnings(warn?.warnings ?? [])
       setNodes(Array.isArray(n) ? n : [])
+      setUpcomingAssemblies(Array.isArray(sessions) ? sessions.slice(0, 3) : [])
     }).catch(() => setError('Error al cargar datos'))
   }, [])
 
@@ -190,6 +193,47 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
+
+      {/* Asambleas pendientes */}
+      {upcomingAssemblies.length > 0 && (
+        <div className="card">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Calendar className="text-purple-600" size={20} />
+              Asambleas Pendientes
+            </h2>
+            <button onClick={() => navigate('/app/assembly')} className="text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1">
+              Ver todas <ChevronRight size={14} />
+            </button>
+          </div>
+          <div className="space-y-2">
+            {upcomingAssemblies.map((s, i) => (
+              <button
+                key={i}
+                onClick={() => navigate('/app/assembly')}
+                className="w-full text-left flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-purple-300 hover:bg-purple-50 transition"
+              >
+                <div>
+                  <p className="text-sm font-medium">{s.title}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {s.is_presential && <span className="text-purple-600">Presencial | </span>}
+                    {s.session_type} | {s.start_time?.slice(0, 16).replace('T', ' ')}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs px-2 py-0.5 rounded ${
+                    s.status === 'scheduled' ? 'bg-yellow-100 text-yellow-700' :
+                    s.status === 'waiting_quorum' ? 'bg-orange-100 text-orange-700' :
+                    s.status === 'active' ? 'bg-green-100 text-green-700' :
+                    'bg-gray-100 text-gray-600'
+                  }`}>{s.status}</span>
+                  <ChevronRight size={16} className="text-gray-400" />
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="card">
         <h2 className="text-lg font-semibold mb-1">Nodos Conectados</h2>
