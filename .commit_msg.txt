@@ -1,11 +1,15 @@
-fix: limpia warnings del linter y elimina buildVapidJWT placeholder
+fix: migracion 061 - columna metadata en users (causaba 404 en /auth/me)
 
-- assembly.go: if/else cambiados a switch (filter, status, voteStr)
-- gateways.go: eliminada buildVapidJWT placeholder (reemplazada por buildVapidJWTReal)
-- gateways.go: marcado userID como _ en sendMatrix (no se usa)
-- routes.go: marcado pool como _ en generateHTMLPage (no se usa en esa funcion)
-- vapid_crypto.go: marcado vapidPrivateKeyB64 como _ en encryptWebPushPayload
-  (RFC 8291 usa clave efimera, no VAPID key para encriptar)
+Problema: GetUser consulta COALESCE(metadata, '{}'::jsonb) pero la columna
+metadata no existia en la tabla users. Esto hacia que la query fallara y
+getMe retornaba 404 "user not found" para TODOS los usuarios.
+
+Solucion: migracion 061_user_metadata.sql anade la columna metadata JSONB
+con default '{}' a la tabla users.
+
+Tambien afectaba:
+- updateMyContacts (guardar digest_mode en metadata)
+- notification_scheduler (leer digest_mode y last_digest_sent)
 
 Generated with Devin
 
