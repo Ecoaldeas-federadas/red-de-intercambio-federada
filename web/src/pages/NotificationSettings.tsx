@@ -148,6 +148,44 @@ export default function NotificationSettings() {
     }))
   }
 
+  // Activar/desactivar todos los canales para un evento (fila)
+  const toggleAllForEvent = (notifType: string, enabled: boolean) => {
+    setPreferences(prev => {
+      const updated = { ...prev }
+      const row: Record<string, boolean> = {}
+      activeChannels.forEach(c => { row[c.channel_code] = enabled })
+      updated[notifType] = row
+      return updated
+    })
+  }
+
+  // Activar/desactivar todos los eventos para un canal (columna)
+  const toggleAllForChannel = (channel: string, enabled: boolean) => {
+    setPreferences(prev => {
+      const updated = { ...prev }
+      NOTIF_TYPES.forEach(nt => {
+        updated[nt.code] = { ...(updated[nt.code] || {}), [channel]: enabled }
+      })
+      return updated
+    })
+  }
+
+  // Activar/desactivar absolutamente todo
+  const enableAll = (enabled: boolean) => {
+    setPreferences(prev => {
+      const updated: Record<string, Record<string, boolean>> = {}
+      NOTIF_TYPES.forEach(nt => {
+        const row: Record<string, boolean> = {}
+        activeChannels.forEach(c => { row[c.channel_code] = enabled })
+        updated[nt.code] = row
+      })
+      return updated
+    })
+  }
+
+  // Canales activos: solo los que tienen gateway configurado (excluyendo in_app que siempre esta activo)
+  const activeChannels = channels.filter(c => c.channel_code !== 'in_app' && c.gateway_active === true)
+
   const savePreferences = () => {
     setError(''); setSuccess('')
     const payload = []
@@ -343,48 +381,99 @@ export default function NotificationSettings() {
           <p className="text-sm text-gray-600 mb-4">
             Selecciona por que canal quieres recibir cada tipo de notificacion.
             El canal <strong>in_app</strong> (campana) siempre esta activo.
+            Solo se muestran los canales que el administrador ha configurado.
           </p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-2 px-2">Evento</th>
-                  {channels.filter(c => c.channel_code !== 'in_app').map(c => {
-                    const info = CHANNEL_INFO[c.channel_code]
-                    const Icon = info?.icon || Bell
+          {activeChannels.length === 0 ? (
+            <div className="p-6 text-center text-gray-400 text-sm">
+              <Bell size={24} className="mx-auto mb-2 opacity-30" />
+              No hay pasarelas configuradas. El administrador debe activar al menos una pasarela
+              (Email, Telegram, Matrix, etc.) para que puedas elegir canales de envio.
+              Mientras tanto, recibiras notificaciones en la campana de la aplicacion.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-2 px-2">
+                      <div className="flex items-center gap-2">
+                        <span>Evento</span>
+                      </div>
+                    </th>
+                    {activeChannels.map(c => {
+                      const info = CHANNEL_INFO[c.channel_code]
+                      const Icon = info?.icon || Bell
+                      // Checkbox cabecera columna: activar todos los eventos para este canal
+                      const allOn = activeChannels.length > 0 && NOTIF_TYPES.every(nt => preferences[nt.code]?.[c.channel_code] === true)
+                      const someOn = NOTIF_TYPES.some(nt => preferences[nt.code]?.[c.channel_code] === true)
+                      return (
+                        <th key={c.channel_code} className="text-center py-2 px-2">
+                          <div className="flex flex-col items-center gap-1">
+                            <Icon size={16} className={info?.color} />
+                            <span className="text-xs">{info?.label || c.channel_code}</span>
+                            <label className="flex items-center gap-1 text-xs text-gray-500 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={allOn}
+                                ref={el => { if (el) el.indeterminate = !allOn && someOn }}
+                                onChange={e => toggleAllForChannel(c.channel_code, e.target.checked)}
+                              />
+                              Todos
+                            </label>
+                          </div>
+                        </th>
+                      )
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {NOTIF_TYPES.map(nt => {
+                    // Checkbox cabecera fila: activar todos los canales para este evento
+                    const allChannelsOn = activeChannels.length > 0 && activeChannels.every(c => preferences[nt.code]?.[c.channel_code] === true)
+                    const someChannelsOn = activeChannels.some(c => preferences[nt.code]?.[c.channel_code] === true)
                     return (
-                      <th key={c.channel_code} className="text-center py-2 px-2">
-                        <div className="flex flex-col items-center gap-1">
-                          <Icon size={16} className={info?.color} />
-                          <span className="text-xs">{info?.label || c.channel_code}</span>
-                        </div>
-                      </th>
+                      <tr key={nt.code} className="border-b border-gray-50">
+                        <td className="py-2 px-2">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={allChannelsOn}
+                              ref={el => { if (el) el.indeterminate = !allChannelsOn && someChannelsOn }}
+                              onChange={e => toggleAllForEvent(nt.code, e.target.checked)}
+                            />
+                            <span>{nt.label}</span>
+                          </div>
+                        </td>
+                        {activeChannels.map(c => (
+                          <td key={c.channel_code} className="text-center py-2 px-2">
+                            <input
+                              type="checkbox"
+                              checked={preferences[nt.code]?.[c.channel_code] ?? false}
+                              onChange={e => togglePreference(nt.code, c.channel_code, e.target.checked)}
+                            />
+                          </td>
+                        ))}
+                      </tr>
                     )
                   })}
-                </tr>
-              </thead>
-              <tbody>
-                {NOTIF_TYPES.map(nt => (
-                  <tr key={nt.code} className="border-b border-gray-50">
-                    <td className="py-2 px-2">{nt.label}</td>
-                    {channels.filter(c => c.channel_code !== 'in_app').map(c => (
-                      <td key={c.channel_code} className="text-center py-2 px-2">
-                        <input
-                          type="checkbox"
-                          checked={preferences[nt.code]?.[c.channel_code] ?? false}
-                          onChange={e => togglePreference(nt.code, c.channel_code, e.target.checked)}
-                        />
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="mt-4">
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div className="mt-4 flex items-center gap-3">
             <button onClick={savePreferences} className="btn-primary flex items-center gap-2">
               <Save size={16} /> Guardar preferencias
             </button>
+            {activeChannels.length > 0 && (
+              <>
+                <button onClick={() => enableAll(true)} className="btn-secondary text-sm">
+                  Activar todo
+                </button>
+                <button onClick={() => enableAll(false)} className="btn-secondary text-sm">
+                  Desactivar todo
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

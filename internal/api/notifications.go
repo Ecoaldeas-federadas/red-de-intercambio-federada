@@ -234,7 +234,19 @@ func (h *NotificationHandler) deleteNotification(w http.ResponseWriter, r *http.
 }
 
 func (h *NotificationHandler) listChannels(w http.ResponseWriter, r *http.Request) {
-	rows, err := h.Pool.Query(r.Context(), `SELECT channel_code, name, description, is_enabled, requires_config, sort_order FROM notification_channels ORDER BY sort_order`)
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT nc.channel_code, nc.name, nc.description, nc.is_enabled, nc.requires_config, nc.sort_order,
+		       EXISTS(
+		           SELECT 1 FROM notification_gateway_config gc
+		           WHERE gc.node_domain = $1 AND gc.channel_code = nc.channel_code AND gc.is_active = true
+		       ) AS gateway_active
+		FROM notification_channels nc
+		ORDER BY nc.sort_order`, nodeDomain)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -243,9 +255,9 @@ func (h *NotificationHandler) listChannels(w http.ResponseWriter, r *http.Reques
 	channels := []map[string]interface{}{}
 	for rows.Next() {
 		var code, name, desc string
-		var enabled, requiresConfig bool
+		var enabled, requiresConfig, gatewayActive bool
 		var sortOrder int
-		rows.Scan(&code, &name, &desc, &enabled, &requiresConfig, &sortOrder)
+		rows.Scan(&code, &name, &desc, &enabled, &requiresConfig, &sortOrder, &gatewayActive)
 		channels = append(channels, map[string]interface{}{
 			"channel_code":    code,
 			"name":            name,
@@ -253,6 +265,7 @@ func (h *NotificationHandler) listChannels(w http.ResponseWriter, r *http.Reques
 			"is_enabled":      enabled,
 			"requires_config": requiresConfig,
 			"sort_order":      sortOrder,
+			"gateway_active":  gatewayActive,
 		})
 	}
 	writeJSON(w, 200, channels)

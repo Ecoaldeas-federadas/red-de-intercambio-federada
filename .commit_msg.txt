@@ -1,34 +1,23 @@
-feat: notificaciones - WebPush, SMS, cron job, quiet hours, rate limiting
+fix: preferencias de notificaciones - solo canales configurados + select all
 
-WebPush (W3C Push API):
-- sendWebPush en gateways.go con VAPID support
-- Service Worker (sw.js) con push event handler y notificationclick
-- Endpoints POST/DELETE /api/notifications/webpush/subscribe
-- UI: boton Activar/Cancelar notificaciones push en tab Contactos
-- Campos de config: vapid_public_key, vapid_private_key, vapid_subject
+Mejoras de UX en la pagina de preferencias de notificaciones:
 
-SMS:
-- sendSMS con 3 proveedores: Twilio, Vonage, API propia
-- sendSMSTwilio: Twilio REST API
-- sendSMSVonage: Nexmo REST API
-- sendSMSCustom: HTTP generico
-- Campos de config en frontend
+1. Solo mostrar canales configurados:
+   - El backend ahora devuelve gateway_active en /notifications/channels
+   - El frontend filtra y solo muestra canales con gateway_active = true
+   - Si no hay ninguna pasarela configurada, muestra mensaje informativo
+   - Los usuarios ya no ven opciones de canales no configurados
 
-Cron job (notification_scheduler.go):
-- NotificationScheduler ejecuta cada hora
-- checkVotingDeadlines: notifica a no-votantes cuando quedan < 6h
-- checkUpcomingAssemblies: recordatorio 24-48h antes de asambleas
-- Integrado en cmd/node/main.go al arrancar el servidor
+2. Select all masivo:
+   - Checkbox "Todos" en cada columna (activar todos los eventos para un canal)
+   - Checkbox en cada fila (activar todos los canales para un evento)
+   - Estado indeterminate cuando algunos estan activados
+   - Botones "Activar todo" y "Desactivar todo" globales
+   - Ya no hay que tildar uno por uno
 
-Quiet hours y rate limiting:
-- Migracion 060: quiet_hours_start, quiet_hours_end en users
-- isInQuietHours: soporta rangos que cruzan medianoche (ej: 22-7)
-- Rate limiting: max 10 notificaciones por hora por usuario
-- UI: selectores de hora en tab Contactos
-- Campos en User struct, GetUser, updateMyContacts
-
-Docs: notifications.md actualizado con estado final completo
-INDEX.md: migracion 060
+3. Verificacion de permisos:
+   - La pestana "Pasarelas (admin)" solo es visible con permiso config.manage
+   - Los usuarios sin permiso no ven la configuracion de pasarelas
 
 Generated with Devin
 
