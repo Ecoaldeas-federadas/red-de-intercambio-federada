@@ -51,6 +51,7 @@ export default function Governance() {
     severity: 'info',
     icon: 'info',
     sort_order: 0,
+    voting_duration_minutes: 1440,
   })
 
   const canManage = hasPermission('governance.manage') || hasPermission('config.manage')
@@ -80,7 +81,7 @@ export default function Governance() {
       }
       setShowCreate(false)
       setEditingRule(null)
-      setFormData({ category: 'estructura', title: '', description: '', severity: 'info', icon: 'info', sort_order: 0 })
+      setFormData({ category: 'estructura', title: '', description: '', severity: 'info', icon: 'info', sort_order: 0, voting_duration_minutes: 1440 })
       loadRules()
       setTimeout(() => setSuccessMsg(''), 5000)
     } catch (e: any) {
@@ -97,6 +98,7 @@ export default function Governance() {
       severity: rule.severity,
       icon: rule.icon,
       sort_order: rule.sort_order,
+      voting_duration_minutes: 1440,
     })
     setShowCreate(true)
   }
@@ -136,7 +138,7 @@ export default function Governance() {
           </button>
           {canManage && (
             <button
-              onClick={() => { setEditingRule(null); setFormData({ category: 'estructura', title: '', description: '', severity: 'info', icon: 'info', sort_order: 0 }); setShowCreate(true) }}
+              onClick={() => { setEditingRule(null); setFormData({ category: 'estructura', title: '', description: '', severity: 'info', icon: 'info', sort_order: 0, voting_duration_minutes: 1440 }); setShowCreate(true) }}
               className="flex items-center gap-2 px-4 py-2 bg-trueque-600 text-white rounded-lg hover:bg-trueque-700"
             >
               <Plus size={18} /> Nueva Regla
@@ -319,6 +321,22 @@ export default function Governance() {
                     className="w-full px-3 py-2 border rounded-lg"
                   />
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Tiempo limite para votacion en asamblea</label>
+                <select
+                  value={formData.voting_duration_minutes}
+                  onChange={e => setFormData({ ...formData, voting_duration_minutes: parseInt(e.target.value) })}
+                  className="w-full px-3 py-2 border rounded-lg"
+                >
+                  <option value={5}>5 minutos (asamblea presencial)</option>
+                  <option value={10}>10 minutos (asamblea presencial)</option>
+                  <option value={30}>30 minutos (discusion extendida)</option>
+                  <option value={60}>1 hora</option>
+                  <option value={1440}>24 horas (votacion remota)</option>
+                  <option value={10080}>7 dias (consulta prolongada)</option>
+                </select>
+                <p className="text-xs text-gray-400 mt-1">Cuando se venza el tiempo, la propuesta se rechaza. Para revotar hay que crear una nueva.</p>
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <button type="button" onClick={() => { setShowCreate(false); setEditingRule(null) }} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">

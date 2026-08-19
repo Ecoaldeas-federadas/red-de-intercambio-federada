@@ -153,6 +153,7 @@ func (h *AssemblyHandler) listProposals(w http.ResponseWriter, r *http.Request) 
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT d.id, d.assembly_id, d.decision_type, d.description, d.target_account,
 		       d.old_value, d.new_value, d.required_signatures, d.status, d.executed_at, d.created_at,
+		       d.voting_deadline, d.voting_duration_minutes,
 		       COALESCE(sv.votes_for, 0) as votes_for,
 		       COALESCE(sv.votes_against, 0) as votes_against,
 		       COALESCE(sv.votes_abstain, 0) as votes_abstain
@@ -180,10 +181,13 @@ func (h *AssemblyHandler) listProposals(w http.ResponseWriter, r *http.Request) 
 		var requiredSignatures int
 		var executedAt *time.Time
 		var createdAt time.Time
+		var votingDeadline *time.Time
+		var votingDurationMinutes *int
 		var votesFor, votesAgainst, votesAbstain int
 
 		if err := rows.Scan(&id, &assemblyID, &decisionType, &description, &targetAccount,
 			&oldValue, &newValue, &requiredSignatures, &status, &executedAt, &createdAt,
+			&votingDeadline, &votingDurationMinutes,
 			&votesFor, &votesAgainst, &votesAbstain); err != nil {
 			continue
 		}
@@ -203,21 +207,23 @@ func (h *AssemblyHandler) listProposals(w http.ResponseWriter, r *http.Request) 
 		}
 
 		proposals = append(proposals, map[string]interface{}{
-			"id":                   id.String(),
-			"proposal_type":        decisionType,
-			"description":          description,
-			"target":               derefUUID(targetAccount),
-			"old_value":            oldVal,
-			"new_value":            newVal,
-			"required_signatures":  requiredSignatures,
-			"status":               status,
-			"executed_at":          derefTime(executedAt),
-			"created_at":           createdAt,
-			"votes_for":            votesFor,
-			"votes_against":        votesAgainst,
-			"votes_abstain":        votesAbstain,
-			"votes_not_cast":       notVoted,
-			"total_voting_members": totalVotingMembers,
+			"id":                      id.String(),
+			"proposal_type":           decisionType,
+			"description":             description,
+			"target":                  derefUUID(targetAccount),
+			"old_value":               oldVal,
+			"new_value":               newVal,
+			"required_signatures":     requiredSignatures,
+			"status":                  status,
+			"executed_at":             derefTime(executedAt),
+			"created_at":              createdAt,
+			"voting_deadline":         derefTime(votingDeadline),
+			"voting_duration_minutes": derefInt(votingDurationMinutes),
+			"votes_for":               votesFor,
+			"votes_against":           votesAgainst,
+			"votes_abstain":           votesAbstain,
+			"votes_not_cast":          notVoted,
+			"total_voting_members":    totalVotingMembers,
 		})
 	}
 	if proposals == nil {
@@ -227,12 +233,13 @@ func (h *AssemblyHandler) listProposals(w http.ResponseWriter, r *http.Request) 
 }
 
 type CreateProposalRequest struct {
-	ProposalType       string                 `json:"proposal_type"`
-	Title              string                 `json:"title"`
-	Description        string                 `json:"description"`
-	Parameters         map[string]interface{} `json:"parameters"`
-	TargetAccountID    string                 `json:"target_account_id"`
-	RequiredSignatures int                    `json:"required_signatures"`
+	ProposalType          string                 `json:"proposal_type"`
+	Title                 string                 `json:"title"`
+	Description           string                 `json:"description"`
+	Parameters            map[string]interface{} `json:"parameters"`
+	TargetAccountID       string                 `json:"target_account_id"`
+	RequiredSignatures    int                    `json:"required_signatures"`
+	VotingDurationMinutes int                    `json:"voting_duration_minutes"`
 }
 
 func (h *AssemblyHandler) createProposal(w http.ResponseWriter, r *http.Request) {
@@ -247,6 +254,10 @@ func (h *AssemblyHandler) createProposal(w http.ResponseWriter, r *http.Request)
 	}
 	if req.RequiredSignatures == 0 {
 		req.RequiredSignatures = 1
+	}
+	// Duracion de votacion por defecto: 24 horas
+	if req.VotingDurationMinutes == 0 {
+		req.VotingDurationMinutes = 1440
 	}
 
 	// Crear sesion si no existe una activa
@@ -284,9 +295,9 @@ func (h *AssemblyHandler) createProposal(w http.ResponseWriter, r *http.Request)
 
 	id := uuid.New()
 	_, err = h.Pool.Exec(r.Context(), `
-		INSERT INTO assembly_decisions (id, assembly_id, decision_type, target_account, description, new_value, required_signatures, status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')`,
-		id, sessionID, req.ProposalType, targetAccount, req.Description, newValue, req.RequiredSignatures)
+		INSERT INTO assembly_decisions (id, assembly_id, decision_type, target_account, description, new_value, required_signatures, status, voting_deadline, voting_duration_minutes)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', NOW() + ($8 || ' minutes')::INTERVAL, $8)`,
+		id, sessionID, req.ProposalType, targetAccount, req.Description, newValue, req.RequiredSignatures, req.VotingDurationMinutes)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -299,11 +310,12 @@ func (h *AssemblyHandler) createProposal(w http.ResponseWriter, r *http.Request)
 		userID, id, auditDetails)
 
 	writeJSON(w, 201, map[string]interface{}{
-		"id":                  id.String(),
-		"proposal_type":       req.ProposalType,
-		"description":         req.Description,
-		"required_signatures": req.RequiredSignatures,
-		"status":              "pending",
+		"id":                      id.String(),
+		"proposal_type":           req.ProposalType,
+		"description":             req.Description,
+		"required_signatures":     req.RequiredSignatures,
+		"status":                  "pending",
+		"voting_duration_minutes": req.VotingDurationMinutes,
 	})
 }
 
@@ -332,6 +344,21 @@ func (h *AssemblyHandler) voteProposal(w http.ResponseWriter, r *http.Request) {
 	userID, err := h.Auth.GetUserID(r)
 	if err != nil {
 		writeError(w, 401, "authentication required")
+		return
+	}
+
+	// Verificar que la propuesta este activa y no vencida
+	var status string
+	var votingDeadline *time.Time
+	h.Pool.QueryRow(r.Context(), `SELECT status, voting_deadline FROM assembly_decisions WHERE id = $1`, decisionID).Scan(&status, &votingDeadline)
+	if status != "pending" {
+		writeError(w, 400, "esta propuesta ya no acepta votos (estado: "+status+")")
+		return
+	}
+	if votingDeadline != nil && votingDeadline.Before(time.Now()) {
+		// Marcar como expirada
+		h.Pool.Exec(r.Context(), `UPDATE assembly_decisions SET status = 'expired' WHERE id = $1`, decisionID)
+		writeError(w, 400, "el tiempo de votacion ha expirado")
 		return
 	}
 
@@ -394,11 +421,18 @@ func (h *AssemblyHandler) executeProposal(w http.ResponseWriter, r *http.Request
 	var newValue *[]byte
 	var targetAccount *uuid.UUID
 	var collectedSignatures []byte
+	var votingDeadline *time.Time
 	err = h.Pool.QueryRow(r.Context(), `
-		SELECT status, decision_type, new_value, target_account, collected_signatures FROM assembly_decisions WHERE id = $1`,
-		decisionID).Scan(&status, &decisionType, &newValue, &targetAccount, &collectedSignatures)
+		SELECT status, decision_type, new_value, target_account, collected_signatures, voting_deadline FROM assembly_decisions WHERE id = $1`,
+		decisionID).Scan(&status, &decisionType, &newValue, &targetAccount, &collectedSignatures, &votingDeadline)
 	if err != nil {
 		writeError(w, 404, "decision not found")
+		return
+	}
+	// Auto-expirar si el deadline ya paso
+	if status == "pending" && votingDeadline != nil && votingDeadline.Before(time.Now()) {
+		h.Pool.Exec(r.Context(), `UPDATE assembly_decisions SET status = 'expired' WHERE id = $1`, decisionID)
+		writeError(w, 400, "el tiempo de votacion ha expirado. Para revotar, crea una nueva propuesta.")
 		return
 	}
 	if status != "approved" && status != "pending" {
@@ -1005,4 +1039,11 @@ func derefUUID(u *uuid.UUID) string {
 		return ""
 	}
 	return u.String()
+}
+
+func derefInt(i *int) int {
+	if i == nil {
+		return 0
+	}
+	return *i
 }

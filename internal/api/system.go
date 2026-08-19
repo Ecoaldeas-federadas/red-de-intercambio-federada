@@ -3210,12 +3210,13 @@ func (h *SystemHandler) listGovernanceRules(w http.ResponseWriter, r *http.Reque
 
 func (h *SystemHandler) createGovernanceRule(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Category    string `json:"category"`
-		Title       string `json:"title"`
-		Description string `json:"description"`
-		Severity    string `json:"severity"`
-		Icon        string `json:"icon"`
-		SortOrder   int    `json:"sort_order"`
+		Category              string `json:"category"`
+		Title                 string `json:"title"`
+		Description           string `json:"description"`
+		Severity              string `json:"severity"`
+		Icon                  string `json:"icon"`
+		SortOrder             int    `json:"sort_order"`
+		VotingDurationMinutes int    `json:"voting_duration_minutes"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -3259,11 +3260,17 @@ func (h *SystemHandler) createGovernanceRule(w http.ResponseWriter, r *http.Requ
 	}
 	newValue, _ := json.Marshal(params)
 
+	// Duracion por defecto: 24 horas
+	votingMinutes := req.VotingDurationMinutes
+	if votingMinutes == 0 {
+		votingMinutes = 1440
+	}
+
 	proposalID := uuid.New()
 	_, err = h.Pool.Exec(r.Context(), `
-		INSERT INTO assembly_decisions (id, assembly_id, decision_type, description, new_value, required_signatures, status)
-		VALUES ($1, $2, 'governance_rule', $3, $4, 1, 'pending')`,
-		proposalID, sessionID, "Crear regla de gobernanza: "+req.Title, newValue)
+		INSERT INTO assembly_decisions (id, assembly_id, decision_type, description, new_value, required_signatures, status, voting_deadline, voting_duration_minutes)
+		VALUES ($1, $2, 'governance_rule', $3, $4, 1, 'pending', NOW() + ($5 || ' minutes')::INTERVAL, $5)`,
+		proposalID, sessionID, "Crear regla de gobernanza: "+req.Title, newValue, votingMinutes)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -3275,23 +3282,25 @@ func (h *SystemHandler) createGovernanceRule(w http.ResponseWriter, r *http.Requ
 		userID, proposalID, auditDetails)
 
 	writeJSON(w, 201, map[string]interface{}{
-		"id":       proposalID.String(),
-		"message":  "Propuesta creada. La regla se activara cuando la asamblea la apruebe.",
-		"status":   "pending",
-		"proposal": "/app/assembly",
+		"id":                      proposalID.String(),
+		"message":                 "Propuesta creada. La regla se activara cuando la asamblea la apruebe.",
+		"status":                  "pending",
+		"voting_duration_minutes": votingMinutes,
+		"proposal":                "/app/assembly",
 	})
 }
 
 func (h *SystemHandler) updateGovernanceRule(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	var req struct {
-		Category    string `json:"category"`
-		Title       string `json:"title"`
-		Description string `json:"description"`
-		Severity    string `json:"severity"`
-		Icon        string `json:"icon"`
-		SortOrder   int    `json:"sort_order"`
-		IsActive    *bool  `json:"is_active"`
+		Category              string `json:"category"`
+		Title                 string `json:"title"`
+		Description           string `json:"description"`
+		Severity              string `json:"severity"`
+		Icon                  string `json:"icon"`
+		SortOrder             int    `json:"sort_order"`
+		IsActive              *bool  `json:"is_active"`
+		VotingDurationMinutes int    `json:"voting_duration_minutes"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -3329,11 +3338,16 @@ func (h *SystemHandler) updateGovernanceRule(w http.ResponseWriter, r *http.Requ
 	}
 	newValue, _ := json.Marshal(params)
 
+	votingMinutes := req.VotingDurationMinutes
+	if votingMinutes == 0 {
+		votingMinutes = 1440
+	}
+
 	proposalID := uuid.New()
 	_, err = h.Pool.Exec(r.Context(), `
-		INSERT INTO assembly_decisions (id, assembly_id, decision_type, description, new_value, required_signatures, status)
-		VALUES ($1, $2, 'governance_rule', $3, $4, 1, 'pending')`,
-		proposalID, sessionID, "Modificar regla de gobernanza: "+req.Title, newValue)
+		INSERT INTO assembly_decisions (id, assembly_id, decision_type, description, new_value, required_signatures, status, voting_deadline, voting_duration_minutes)
+		VALUES ($1, $2, 'governance_rule', $3, $4, 1, 'pending', NOW() + ($5 || ' minutes')::INTERVAL, $5)`,
+		proposalID, sessionID, "Modificar regla de gobernanza: "+req.Title, newValue, votingMinutes)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -3344,10 +3358,11 @@ func (h *SystemHandler) updateGovernanceRule(w http.ResponseWriter, r *http.Requ
 		userID, proposalID, auditDetails)
 
 	writeJSON(w, 200, map[string]interface{}{
-		"id":       proposalID.String(),
-		"message":  "Propuesta creada. La modificacion se aplicara cuando la asamblea la apruebe.",
-		"status":   "pending",
-		"proposal": "/app/assembly",
+		"id":                      proposalID.String(),
+		"message":                 "Propuesta creada. La modificacion se aplicara cuando la asamblea la apruebe.",
+		"status":                  "pending",
+		"voting_duration_minutes": votingMinutes,
+		"proposal":                "/app/assembly",
 	})
 }
 
@@ -3380,11 +3395,14 @@ func (h *SystemHandler) deleteGovernanceRule(w http.ResponseWriter, r *http.Requ
 	}
 	newValue, _ := json.Marshal(params)
 
+	// Duracion por defecto: 24 horas
+	votingMinutes := 1440
+
 	proposalID := uuid.New()
 	_, err = h.Pool.Exec(r.Context(), `
-		INSERT INTO assembly_decisions (id, assembly_id, decision_type, description, new_value, required_signatures, status)
-		VALUES ($1, $2, 'governance_rule', $3, $4, 1, 'pending')`,
-		proposalID, sessionID, "Eliminar regla de gobernanza: "+ruleTitle, newValue)
+		INSERT INTO assembly_decisions (id, assembly_id, decision_type, description, new_value, required_signatures, status, voting_deadline, voting_duration_minutes)
+		VALUES ($1, $2, 'governance_rule', $3, $4, 1, 'pending', NOW() + ($5 || ' minutes')::INTERVAL, $5)`,
+		proposalID, sessionID, "Eliminar regla de gobernanza: "+ruleTitle, newValue, votingMinutes)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -3395,9 +3413,10 @@ func (h *SystemHandler) deleteGovernanceRule(w http.ResponseWriter, r *http.Requ
 		userID, proposalID, auditDetails)
 
 	writeJSON(w, 200, map[string]interface{}{
-		"id":       proposalID.String(),
-		"message":  "Propuesta creada. La regla se eliminara cuando la asamblea lo apruebe.",
-		"status":   "pending",
-		"proposal": "/app/assembly",
+		"id":                      proposalID.String(),
+		"message":                 "Propuesta creada. La regla se eliminara cuando la asamblea lo apruebe.",
+		"status":                  "pending",
+		"voting_duration_minutes": votingMinutes,
+		"proposal":                "/app/assembly",
 	})
 }

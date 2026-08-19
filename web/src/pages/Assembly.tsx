@@ -351,6 +351,7 @@ export default function Assembly() {
   const [proposalType, setProposalType] = useState<ProposalType>('limit_change')
   const [proposalFields, setProposalFields] = useState<Record<string, string>>({})
   const [proposalDesc, setProposalDesc] = useState('')
+  const [votingDuration, setVotingDuration] = useState(1440) // 24h por defecto
   const [entityModes, setEntityModes] = useState<Record<string, string>>({})
 
   const [newSession, setNewSession] = useState({ session_type: 'ordinaria', title: '', description: '' })
@@ -380,6 +381,7 @@ export default function Assembly() {
         proposal_type: proposalType,
         description: proposalDesc,
         parameters: proposalFields,
+        voting_duration_minutes: votingDuration,
       })
       setShowNewProposal(false)
       setProposalDesc('')
@@ -626,6 +628,19 @@ export default function Assembly() {
                 <p className="text-xs text-gray-400 mt-1">Explica claramente la decision que se somete a votacion. Los miembros usaran este texto para decidir su voto.</p>
               </div>
 
+              <div>
+                <label className="label">Tiempo limite para votar</label>
+                <select className="input" value={votingDuration} onChange={(e) => setVotingDuration(parseInt(e.target.value))}>
+                  <option value={5}>5 minutos (votacion en asamblea presencial)</option>
+                  <option value={10}>10 minutos (asamblea presencial, discusion breve)</option>
+                  <option value={30}>30 minutos (asamblea presencial, discusion extendida)</option>
+                  <option value={60}>1 hora (discusion prolongada)</option>
+                  <option value={1440}>24 horas (votacion remota, gente vota desde casa)</option>
+                  <option value={10080}>7 dias (consulta prolongada)</option>
+                </select>
+                <p className="text-xs text-gray-400 mt-1">Cuando se venza el tiempo, la propuesta se rechaza automaticamente. Para revotar hay que crear una propuesta nueva.</p>
+              </div>
+
               <button onClick={createProposal} className="btn-primary">Crear Propuesta</button>
             </div>
           )}
@@ -645,9 +660,10 @@ export default function Assembly() {
                       <span className={`ml-2 text-xs px-2 py-0.5 rounded ${
                         p.status === 'executed' ? 'bg-green-100 text-green-700' :
                         p.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                        p.status === 'expired' ? 'bg-orange-100 text-orange-700' :
                         p.status === 'approved' ? 'bg-blue-100 text-blue-700' :
                         'bg-yellow-100 text-yellow-700'
-                      }`}>{p.status}</span>
+                      }`}>{p.status === 'expired' ? 'vencida' : p.status}</span>
                     </div>
                     <span className="text-xs text-gray-400">{p.created_at?.slice(0, 10)}</span>
                   </div>
@@ -663,6 +679,29 @@ export default function Assembly() {
                       <span className="text-gray-400 text-xs">de {p.total_voting_members} con derecho a voto</span>
                     )}
                   </div>
+
+                  {/* Tiempo limite / countdown */}
+                  {p.status === 'pending' && p.voting_deadline && (
+                    <div className="mt-2 text-xs text-orange-600 font-medium">
+                      {(() => {
+                        const deadline = new Date(p.voting_deadline).getTime()
+                        const now = Date.now()
+                        const remaining = deadline - now
+                        if (remaining <= 0) return 'Tiempo agotado'
+                        const mins = Math.floor(remaining / 60000)
+                        const hrs = Math.floor(mins / 60)
+                        const days = Math.floor(hrs / 24)
+                        if (days > 0) return `Quedan ${days}d ${hrs % 24}h para votar`
+                        if (hrs > 0) return `Quedan ${hrs}h ${mins % 60}m para votar`
+                        return `Quedan ${mins} minutos para votar`
+                      })()}
+                    </div>
+                  )}
+                  {p.status === 'expired' && (
+                    <div className="mt-2 text-xs text-orange-600">
+                      El tiempo de votacion expiro. Crea una propuesta nueva para revotar.
+                    </div>
+                  )}
 
                   {/* Botones de voto */}
                   {p.status === 'pending' && (
