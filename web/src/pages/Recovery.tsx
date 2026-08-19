@@ -15,8 +15,13 @@ export default function Recovery() {
 
   const load = () => {
     api.get<any>('/recovery/config').then(setConfig).catch(() => {})
-    api.get<{ requests: any[] }>('/recovery/requests').then((d) => setRequests(d.requests ?? d ?? [])).catch(() => {})
-    api.get<any[]>('/accounts/list').then((d: any) => setAllUsers(Array.isArray(d) ? d : [])).catch(() => {})
+    api.get<any>('/recovery/requests').then((d: any) => {
+      const reqs = Array.isArray(d) ? d : (d?.requests && Array.isArray(d.requests) ? d.requests : [])
+      setRequests(reqs)
+    }).catch(() => setRequests([]))
+    api.get<any>('/accounts/list').then((d: any) => {
+      setAllUsers(Array.isArray(d) ? d : [])
+    }).catch(() => setAllUsers([]))
   }
 
   useEffect(() => { load() }, [])
