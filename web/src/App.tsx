@@ -33,6 +33,7 @@ import CommunityFund from './pages/CommunityFund'
 import CalculatorParams from './pages/CalculatorParams'
 import WebsiteAdmin from './pages/WebsiteAdmin'
 import NotificationSettings from './pages/NotificationSettings'
+import Notifications from './pages/Notifications'
 
 export default function App() {
   return (
@@ -98,6 +99,7 @@ function AppInner() {
         <Route path="/app/federation/peers" element={<Layout><FederationPeers /></Layout>} />
         <Route path="/app/settings" element={<Layout><NodeSettings /></Layout>} />
         <Route path="/app/notifications/settings" element={<Layout><NotificationSettings /></Layout>} />
+        <Route path="/app/notifications" element={<Layout><Notifications /></Layout>} />
         <Route path="/app/profile" element={<Layout><Profile /></Layout>} />
         <Route path="/app/fund" element={<Layout><CommunityFund /></Layout>} />
         <Route path="/app/calculator/params" element={<Layout><CalculatorParams /></Layout>} />

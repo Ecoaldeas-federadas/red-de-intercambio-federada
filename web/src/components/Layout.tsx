@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { api } from '../api'
+import { getNotifIcon, relativeTime } from '../lib/notifications'
 import {
   Home, ArrowLeftRight, History, Package, Calculator, Store,
   Network, Scale, Users, Gavel, FileSearch, Globe, UserPlus, Wallet, Shield,
@@ -163,24 +164,34 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         No hay notificaciones
                       </div>
                     ) : (
-                      notifications.slice(0, 20).map((n: any) => (
-                        <button
-                          key={n.id}
-                          onClick={() => handleNotifClick(n)}
-                          className={`w-full text-left p-3 border-b border-gray-50 hover:bg-gray-50 transition ${!n.is_read ? 'bg-blue-50' : ''}`}
-                        >
-                          <div className="flex items-start gap-2">
-                            {!n.is_read && <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5 flex-shrink-0" />}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-800 truncate">{n.title}</p>
-                              <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</p>
-                              <p className="text-xs text-gray-400 mt-1">
-                                {new Date(n.created_at).toLocaleString()}
-                              </p>
+                      notifications.slice(0, 20).map((n: any) => {
+                        const { icon: NotifIcon, color: iconColor } = getNotifIcon(n.notification_type)
+                        return (
+                          <button
+                            key={n.id}
+                            onClick={() => handleNotifClick(n)}
+                            className={`w-full text-left p-3 border-b border-gray-50 hover:bg-gray-50 transition ${!n.is_read ? 'bg-blue-50' : ''}`}
+                          >
+                            <div className="flex items-start gap-2">
+                              {!n.is_read && <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5 flex-shrink-0" />}
+                              <NotifIcon size={16} className={`${iconColor} mt-0.5 flex-shrink-0 ${n.is_read ? 'ml-2.5' : ''}`} />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-800 truncate">{n.title}</p>
+                                <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</p>
+                                <p className="text-xs text-gray-400 mt-1">{relativeTime(n.created_at)}</p>
+                              </div>
                             </div>
-                          </div>
-                        </button>
-                      ))
+                          </button>
+                        )
+                      })
+                    )}
+                    {notifications.length > 0 && (
+                      <button
+                        onClick={() => { setShowNotif(false); navigate('/app/notifications') }}
+                        className="w-full text-center p-2 text-xs text-blue-600 hover:bg-blue-50 border-t border-gray-100"
+                      >
+                        Ver historial completo
+                      </button>
                     )}
                   </div>
                 </>

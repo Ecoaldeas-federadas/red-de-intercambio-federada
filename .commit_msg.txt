@@ -1,34 +1,32 @@
-feat: login con nombre completo usuario@dominio + dominio prellenado
+feat: notificaciones - XMPP, mas eventos, historial completo, UX
 
-El login ahora usa el formato usuario@dominio para identificar a que
-nodo pertenece el usuario, independientemente desde que dominio se
-acceda.
+XMPP (Jabber federado):
+- sendXMPP via HTTP API / bridge (Prosody mod_rest, ejabberd, o bridge propio)
+- Campos de config: endpoint_url, auth_token, from_jid
+- Anadido al CHANNEL_INFO y fieldDefs del frontend
 
-Frontend (Login.tsx):
-- Obtiene el dominio del nodo desde /api/setup/status (endpoint publico)
-- Muestra @dominio al lado del input de usuario (visualmente prellenado)
-- El usuario escribe solo "admin" y se envia "admin@localhost"
-- Si el usuario escribe "admin@otro-dominio.com", se usa ese dominio
-- Texto de ayuda explica como funciona
+Mas eventos notificados:
+- Resultado de propuesta aprobada (executeProposal)
+- Resultado de propuesta rechazada (executeProposal)
+- Quorum alcanzado / no alcanzado (verifyQuorum)
+- Minuta publicada / asamblea cerrada (closeSession)
 
-Backend (auth.go):
-- Nueva funcion parseUsernameDomain(): separa "usuario@dominio"
-- Nueva funcion resolveNodeDomain(): determina el dominio efectivo en
-  este orden:
-  1. Dominio del username (usuario@dominio)
-  2. Header X-Node-Domain
-  3. Tabla node_config (dominio real guardado al crear el nodo)
-  4. config.yaml (fallback)
-- passwordLogin y beginLogin ahora separan username y dominio antes
-  de buscar al usuario
+Frontend:
+- Pagina Notifications.tsx: historial completo con filtros
+  - Filtros: todas / no leidas / leidas
+  - Eliminar notificacion individual
+  - Marcar todas leidas
+  - Link a configuracion
+- Helper lib/notifications.tsx:
+  - Iconos por tipo de notificacion (15 tipos)
+  - relativeTime en espanol
+- Panel desplegable mejorado:
+  - Icono por tipo + color
+  - Fecha relativa
+  - Link al historial completo
+- NotificationSettings.tsx: 3 nuevos tipos en matriz de preferencias
 
-Setup (setup.go):
-- getSetupStatus ahora consulta node_config para obtener el dominio
-  real, en vez de usar sh.NodeDomain que puede estar vacio
-
-Asi el login funciona desde cualquier dominio porque el nombre
-completo viaja al backend. El passkey tambien funciona porque el
-usuario se busca por username + node_domain correctos.
+Docs: notifications.md actualizado con estado final
 
 Generated with Devin
 

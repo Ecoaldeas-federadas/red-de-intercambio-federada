@@ -100,6 +100,11 @@ func (g *GatewayService) deliver(nodeDomain string, userID uuid.UUID, notifID uu
 			err = g.sendMatrix(gw.config, matrixUserID, title, message, link)
 		case "webhook":
 			err = g.sendWebhook(gw.config, title, message, link, userID)
+		case "xmpp":
+			if xmppJID == "" {
+				continue
+			}
+			err = g.sendXMPP(gw.config, xmppJID, title, message, link)
 		case "whatsapp":
 			if phone == "" {
 				continue
@@ -390,6 +395,56 @@ func (g *GatewayService) sendWhatsAppCustom(config map[string]interface{}, phone
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("whatsapp custom API error: %d", resp.StatusCode)
+	}
+	return nil
+}
+
+// ===== XMPP (federado, Jabber) =====
+//
+// XMPP soporta varios modos de integracion:
+//  1. HTTP API del servidor (Prosody mod_rest, ejabberd XMLRPC, etc.)
+//  2. Bridge externo que recibe HTTP y reenvia por XMPP
+//  3. Cliente XMPP nativo (requiere libreria pesada, no incluida aqui)
+//
+// Implementamos el modo HTTP API / bridge por ser el mas ligero y compatible
+// con cualquier servidor XMPP que exponga una API REST (Prosody mod_rest,
+// ejabberd, o un bridge propio). El admin configura la URL del endpoint.
+func (g *GatewayService) sendXMPP(config map[string]interface{}, toJID, title, message, link string) error {
+	endpointURL, _ := config["endpoint_url"].(string)
+	authToken, _ := config["auth_token"].(string)
+	fromJID, _ := config["from_jid"].(string)
+
+	if endpointURL == "" {
+		return fmt.Errorf("config de xmpp incompleta: endpoint_url requerido")
+	}
+
+	text := fmt.Sprintf("%s\n\n%s", title, message)
+	if link != "" {
+		text += "\n\n" + link
+	}
+
+	payload := map[string]interface{}{
+		"to":   toJID,
+		"body": text,
+	}
+	if fromJID != "" {
+		payload["from"] = fromJID
+	}
+	body, _ := json.Marshal(payload)
+
+	req, _ := http.NewRequest("POST", endpointURL, bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	if authToken != "" {
+		req.Header.Set("Authorization", "Bearer "+authToken)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("xmpp API error: %d", resp.StatusCode)
 	}
 	return nil
 }

@@ -7,6 +7,7 @@ const CHANNEL_INFO: Record<string, { label: string; icon: any; color: string; de
   email: { label: 'Email (SMTP)', icon: Mail, color: 'text-blue-600', description: 'Envia notificaciones por correo electronico via SMTP' },
   telegram: { label: 'Telegram', icon: Send, color: 'text-cyan-600', description: 'Bot de Telegram para mensajes directos' },
   matrix: { label: 'Matrix (federada)', icon: MessageSquare, color: 'text-green-600', description: 'Red federada soberana - recomendada' },
+  xmpp: { label: 'XMPP (Jabber federado)', icon: MessageSquare, color: 'text-orange-600', description: 'Red federada libre - via API HTTP del servidor' },
   whatsapp: { label: 'WhatsApp (opcional)', icon: MessageSquare, color: 'text-green-500', description: 'Meta Cloud API o API propia - propietario' },
   webhook: { label: 'Webhook generico', icon: Webhook, color: 'text-purple-600', description: 'POST HTTP a una URL configurable' },
 }
@@ -15,6 +16,9 @@ const NOTIF_TYPES = [
   { code: 'payment_received', label: 'Pago recibido' },
   { code: 'assembly_scheduled', label: 'Asamblea programada' },
   { code: 'voting_opened', label: 'Votacion abierta' },
+  { code: 'proposal_result', label: 'Resultado de propuesta' },
+  { code: 'quorum_status', label: 'Estado de quorum' },
+  { code: 'minutes_published', label: 'Minuta publicada' },
   { code: 'admission_approved', label: 'Admision aprobada' },
   { code: 'admission_rejected', label: 'Admision rechazada' },
   { code: 'recovery_request_created', label: 'Solicitud de recuperacion' },
@@ -161,6 +165,11 @@ export default function NotificationSettings() {
         { key: 'homeserver_url', label: 'Homeserver URL', placeholder: 'https://matrix.org' },
         { key: 'access_token', label: 'Access Token', type: 'password' },
         { key: 'default_room_id', label: 'Room ID por defecto', placeholder: '!room:matrix.org' },
+      ],
+      xmpp: [
+        { key: 'endpoint_url', label: 'URL API XMPP (Prosody/ejabberd/bridge)', placeholder: 'https://xmpp.midominio.org/rest' },
+        { key: 'auth_token', label: 'Token auth', type: 'password' },
+        { key: 'from_jid', label: 'JID remitente', placeholder: 'bot@midominio.org' },
       ],
       whatsapp: [
         { key: 'phone_number_id', label: 'Phone Number ID (Meta)', placeholder: 'Solo para Meta Cloud API' },

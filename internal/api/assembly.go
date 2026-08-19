@@ -769,6 +769,14 @@ func (h *AssemblyHandler) executeProposal(w http.ResponseWriter, r *http.Request
 		h.Pool.Exec(r.Context(), `INSERT INTO audit_log (actor_id, action, target_id, details) VALUES ($1, 'assembly_execute', $2, $3)`,
 			userID, decisionID, execDetails)
 
+		// Notificar a los miembros con voto del resultado
+		notify := NewNotifyService(h.Pool)
+		notify.NotifyVotingMembers(r.Context(), nodeDomain, "proposal_result",
+			"Propuesta aprobada",
+			fmt.Sprintf("La propuesta \"%s\" ha sido APROBADA (a favor: %d, en contra: %d, abstencion: %d).", description, votesFor, votesAgainst, votesAbstain),
+			"/app/assembly",
+			map[string]interface{}{"decision_id": decisionID.String(), "result": "approved", "votes_for": votesFor, "votes_against": votesAgainst})
+
 		writeJSON(w, 200, map[string]interface{}{
 			"status":               "executed",
 			"votes_for":            votesFor,
@@ -788,6 +796,15 @@ func (h *AssemblyHandler) executeProposal(w http.ResponseWriter, r *http.Request
 		if notVoted < 0 {
 			notVoted = 0
 		}
+
+		// Notificar a los miembros con voto del resultado
+		notify := NewNotifyService(h.Pool)
+		notify.NotifyVotingMembers(r.Context(), nodeDomain, "proposal_result",
+			"Propuesta rechazada",
+			fmt.Sprintf("La propuesta \"%s\" ha sido RECHAZADA (a favor: %d, en contra: %d, abstencion: %d).", description, votesFor, votesAgainst, votesAbstain),
+			"/app/assembly",
+			map[string]interface{}{"decision_id": decisionID.String(), "result": "rejected", "votes_for": votesFor, "votes_against": votesAgainst})
+
 		writeJSON(w, 200, map[string]interface{}{
 			"status":               "rejected",
 			"votes_for":            votesFor,
@@ -2216,6 +2233,14 @@ func (h *AssemblyHandler) verifyQuorum(w http.ResponseWriter, r *http.Request) {
 			WHERE id = $1`, sessionID)
 		result["message"] = "Quorum alcanzado. La asamblea puede comenzar."
 		result["status"] = "active"
+
+		// Notificar a la junta
+		notify := NewNotifyService(h.Pool)
+		notify.NotifyBoard(r.Context(), nodeDomain, "quorum_status",
+			"Quorum alcanzado",
+			fmt.Sprintf("La asamblea ha alcanzado quorum (%.1f%%). La sesion esta activa.", attendancePct),
+			"/app/assembly",
+			map[string]interface{}{"session_id": sessionID.String(), "attendance_pct": attendancePct})
 	} else if canWaitMore {
 		// Cambiar a waiting_quorum
 		h.Pool.Exec(r.Context(), `UPDATE assembly_sessions SET status = 'waiting_quorum' WHERE id = $1`, sessionID)
@@ -2233,6 +2258,14 @@ func (h *AssemblyHandler) verifyQuorum(w http.ResponseWriter, r *http.Request) {
 			result["message"] = "Quorum no alcanzado y no se permite mas reprogramaciones. Asamblea cancelada."
 			result["status"] = "cancelled"
 		}
+
+		// Notificar a la junta sobre el quorum no alcanzado
+		notify := NewNotifyService(h.Pool)
+		notify.NotifyBoard(r.Context(), nodeDomain, "quorum_status",
+			"Quorum no alcanzado",
+			fmt.Sprintf("Quorum no alcanzado (%.1f%% de %.1f%%). %s", attendancePct, appliedQuorum, result["message"]),
+			"/app/assembly",
+			map[string]interface{}{"session_id": sessionID.String(), "attendance_pct": attendancePct, "status": result["status"]})
 	}
 
 	writeJSON(w, 200, result)
@@ -2567,6 +2600,16 @@ func (h *AssemblyHandler) closeSession(w http.ResponseWriter, r *http.Request) {
 	if nodeDomain == "" {
 		nodeDomain = "localhost"
 	}
+
+	// Notificar a los miembros con voto que la asamblea ha cerrado y la minuta esta disponible
+	var sessionTitle string
+	h.Pool.QueryRow(r.Context(), `SELECT title FROM assembly_sessions WHERE id = $1`, sessionID).Scan(&sessionTitle)
+	notify := NewNotifyService(h.Pool)
+	notify.NotifyVotingMembers(r.Context(), nodeDomain, "minutes_published",
+		"Asamblea cerrada - minuta disponible",
+		fmt.Sprintf("La asamblea \"%s\" ha finalizado. La minuta esta disponible para consulta.", sessionTitle),
+		"/app/assembly",
+		map[string]interface{}{"session_id": sessionID.String(), "session_title": sessionTitle})
 
 	// Auto-convocar siguiente asamblea ordinaria
 	var freqMonths, preferredDay, preferredHour, notifDays int

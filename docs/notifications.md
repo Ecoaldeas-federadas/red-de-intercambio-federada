@@ -364,6 +364,10 @@ El servicio de notificaciones es una funcion Go que se llama desde cualquier han
 - [x] Pago recibido (transfer)
 - [x] Asamblea programada (createSession)
 - [x] Votacion abierta (openVoting)
+- [x] Resultado de propuesta aprobada (executeProposal)
+- [x] Resultado de propuesta rechazada (executeProposal)
+- [x] Quorum alcanzado / no alcanzado (verifyQuorum)
+- [x] Minuta publicada / asamblea cerrada (closeSession)
 - [x] Admision aprobada (approveAdmission)
 - [x] Admision rechazada (rejectAdmission)
 - [x] Solicitud de recuperacion creada (createRequest)
@@ -378,6 +382,7 @@ El servicio de notificaciones es una funcion Go que se llama desde cualquier han
 - [x] Email via SMTP (sendEmail)
 - [x] Telegram Bot API (sendTelegram)
 - [x] Matrix Client-Server API (sendMatrix)
+- [x] XMPP via HTTP API / bridge (sendXMPP)
 - [x] Webhook generico (sendWebhook)
 - [x] WhatsApp Meta Cloud API (sendWhatsAppMeta)
 - [x] WhatsApp API propia (sendWhatsAppCustom)
@@ -389,11 +394,17 @@ El servicio de notificaciones es una funcion Go que se llama desde cualquier han
 - [x] Pagina NotificationSettings.tsx
 - [x] Tab "Mis preferencias": matriz evento x canal
 - [x] Tab "Mis contactos": email, phone, telegram, matrix, xmpp
-- [x] Tab "Pasarelas (admin)": config de cada pasarela
+- [x] Tab "Pasarelas (admin)": config de cada pasarela (incluido XMPP)
 - [x] Endpoint PUT /api/accounts/me/contacts
 - [x] Campos de contacto en User struct y GetUser
 - [x] Boton de test de pasarela
 - [x] Item en menu lateral
+- [x] Pagina de historial completo Notifications.tsx
+- [x] Filtros: todas / no leidas / leidas
+- [x] Eliminar notificacion individual
+- [x] Iconos por tipo de notificacion (lib/notifications.tsx)
+- [x] Fecha relativa en espanol ("hace 2 horas")
+- [x] Link "Ver historial completo" en panel desplegable
 
 ### Fase 5: Scope y autorizacion - COMPLETA
 - [x] listNotifications filtra por user_id
@@ -410,19 +421,15 @@ El servicio de notificaciones es una funcion Go que se llama desde cualquier han
 ### Canales soportados (prioridad: redes federadas/libres)
 1. in_app (siempre activo)
 2. matrix (federada, soberana) - RECOMENDADA
-3. telegram (bot API)
-4. email (SMTP)
-5. webhook (generico)
-6. whatsapp (opcional, propietario)
+3. xmpp (Jabber federado) - via HTTP API / bridge
+4. telegram (bot API)
+5. email (SMTP)
+6. webhook (generico)
+7. whatsapp (opcional, propietario)
 
 ### Pendiente para futuras iteraciones
-- [ ] XMPP: implementar envio via XMPP client (schema y config listos, envio pendiente)
 - [ ] WebPush: implementar via Service Worker (schema listo, envio pendiente)
 - [ ] SMS: integrar con proveedor (Twilio, etc.)
-- [ ] Fecha relativa en panel ("hace 2 horas")
-- [ ] Iconos por tipo de notificacion en panel
-- [ ] Pagina dedicada de historial completo de notificaciones
-- [ ] Notificaciones de proposal closing deadline approaching
-- [ ] Notificaciones de quorum status
-- [ ] Notificaciones de minutes published
+- [ ] Notificaciones de proposal closing deadline approaching (cron job)
 - [ ] Rate limiting / quiet hours
+- [ ] Notificaciones push a app movil nativa
