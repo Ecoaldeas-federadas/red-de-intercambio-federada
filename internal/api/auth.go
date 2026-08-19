@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"federated-credit-node/internal/crypto"
 	"fmt"
 	"net/http"
 	"strings"
@@ -259,7 +260,9 @@ func (ah *AuthHandlers) RegisterRoutes(r chi.Router) {
 	r.Post("/api/auth/login/finish", ah.finishLogin)
 	r.Post("/api/auth/login/password", ah.passwordLogin)
 	r.Get("/api/auth/me", ah.getMe)
-	r.Post("/api/auth/passkey/list", ah.listPasskeys)
+	r.Get("/api/auth/passkey/list", ah.listPasskeys)
+	r.Post("/api/auth/passkey/add/begin", ah.beginAddPasskey)
+	r.Post("/api/auth/passkey/add/finish", ah.finishAddPasskey)
 	r.Delete("/api/auth/passkey/{id}", ah.deletePasskey)
 }
 
@@ -469,15 +472,202 @@ func (ah *AuthHandlers) listPasskeys(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if ah.Pool == nil {
+		writeJSON(w, 200, map[string]interface{}{
+			"user_id":  userID.String(),
+			"passkeys": []interface{}{},
+		})
+		return
+	}
+
+	rows, err := ah.Pool.Query(r.Context(), `
+		SELECT id, credential_id, device_type, label, created_at, last_used_at
+		FROM user_passkeys WHERE user_id = $1 ORDER BY created_at DESC`,
+		userID)
+	if err != nil {
+		writeJSON(w, 200, map[string]interface{}{
+			"user_id":  userID.String(),
+			"passkeys": []interface{}{},
+		})
+		return
+	}
+	defer rows.Close()
+
+	type passkeyInfo struct {
+		ID           string  `json:"id"`
+		CredentialID []byte  `json:"credential_id"`
+		DeviceType   *string `json:"device_type"`
+		Label        *string `json:"name"`
+		CreatedAt    string  `json:"created_at"`
+		LastUsedAt   *string `json:"last_used_at"`
+	}
+
+	var passkeys []passkeyInfo
+	for rows.Next() {
+		var p passkeyInfo
+		var createdAt time.Time
+		var lastUsedAt *time.Time
+		if err := rows.Scan(&p.ID, &p.CredentialID, &p.DeviceType, &p.Label, &createdAt, &lastUsedAt); err != nil {
+			continue
+		}
+		p.CreatedAt = createdAt.Format(time.RFC3339)
+		if lastUsedAt != nil {
+			s := lastUsedAt.Format(time.RFC3339)
+			p.LastUsedAt = &s
+		}
+		passkeys = append(passkeys, p)
+	}
+
+	if passkeys == nil {
+		passkeys = []passkeyInfo{}
+	}
+
 	writeJSON(w, 200, map[string]interface{}{
 		"user_id":  userID.String(),
-		"passkeys": []interface{}{},
+		"passkeys": passkeys,
+	})
+}
+
+// ===== AGREGAR PASSKEY A USUARIO EXISTENTE =====
+
+type BeginAddPasskeyRequest struct {
+	Label string `json:"label"`
+}
+
+func (ah *AuthHandlers) beginAddPasskey(w http.ResponseWriter, r *http.Request) {
+	am := NewAuthMiddleware(ah.JWTSecret)
+	userID, err := am.GetUserID(r)
+	if err != nil {
+		writeError(w, 401, "authentication required")
+		return
+	}
+
+	// Obtener username y display_name del usuario
+	var username, displayName string
+	_ = ah.Pool.QueryRow(r.Context(), `SELECT username, COALESCE(display_name, username) FROM users WHERE id = $1`, userID).Scan(&username, &displayName)
+
+	// Obtener credential IDs existentes para excluirlas
+	var existingCreds [][]byte
+	if ah.Pool != nil {
+		rows, _ := ah.Pool.Query(r.Context(), `SELECT credential_id FROM user_passkeys WHERE user_id = $1`, userID)
+		if rows != nil {
+			defer rows.Close()
+			for rows.Next() {
+				var credID []byte
+				rows.Scan(&credID)
+				existingCreds = append(existingCreds, credID)
+			}
+		}
+	}
+
+	options, err := ah.PasskeyManager.BeginRegistration(userID, username, displayName, existingCreds)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	// Extraer el challenge del *RegistrationChallenge
+	var challengeStr string
+	switch opts := options.(type) {
+	case *crypto.RegistrationChallenge:
+		challengeStr = opts.Challenge
+	case map[string]interface{}:
+		challengeStr, _ = opts["challenge"].(string)
+	default:
+		writeError(w, 500, "unexpected options type from passkey manager")
+		return
+	}
+
+	// Guardar el challenge para verificar despues
+	ah.ChallengeStore.Store("add_"+userID.String(), challengeStr, userID)
+
+	writeJSON(w, 200, map[string]interface{}{
+		"options": options,
+	})
+}
+
+type FinishAddPasskeyRequest struct {
+	Label    string      `json:"label"`
+	Response interface{} `json:"response"`
+}
+
+func (ah *AuthHandlers) finishAddPasskey(w http.ResponseWriter, r *http.Request) {
+	am := NewAuthMiddleware(ah.JWTSecret)
+	userID, err := am.GetUserID(r)
+	if err != nil {
+		writeError(w, 401, "authentication required")
+		return
+	}
+
+	var req FinishAddPasskeyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	challenge, storedUserID, ok := ah.ChallengeStore.Get("add_" + userID.String())
+	if !ok || storedUserID != userID {
+		writeError(w, 400, "no pending passkey registration challenge")
+		return
+	}
+
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		origin = "https://" + ah.NodeDomain
+	}
+
+	passkeyRaw, err := ah.PasskeyManager.VerifyRegistration(req.Response, challenge, origin)
+	if err != nil {
+		writeError(w, 400, fmt.Sprintf("registration verification failed: %v", err))
+		return
+	}
+
+	ah.ChallengeStore.Delete("add_" + userID.String())
+
+	if ah.Pool == nil {
+		writeError(w, 500, "database not available")
+		return
+	}
+
+	// Type-assert a *crypto.StoredPasskey para acceder a CredentialID y PublicKey
+	var credentialID, publicKey []byte
+	switch pk := passkeyRaw.(type) {
+	case *crypto.StoredPasskey:
+		credentialID = pk.CredentialID
+		publicKey = pk.PublicKey
+	default:
+		writeError(w, 500, "unexpected passkey type from manager")
+		return
+	}
+
+	// Determinar device_type desde la respuesta WebAuthn si es posible
+	deviceType := ""
+	label := req.Label
+	if label == "" {
+		label = "Dispositivo"
+	}
+
+	// Guardar el passkey en la base de datos
+	var passkeyID string
+	err = ah.Pool.QueryRow(r.Context(), `
+		INSERT INTO user_passkeys (user_id, credential_id, public_key, sign_count, device_type, label)
+		VALUES ($1, $2, $3, 0, $4, $5)
+		RETURNING id::text`,
+		userID, credentialID, publicKey, deviceType, label).Scan(&passkeyID)
+	if err != nil {
+		writeError(w, 500, fmt.Sprintf("failed to save passkey: %v", err))
+		return
+	}
+
+	writeJSON(w, 201, map[string]interface{}{
+		"passkey_id": passkeyID,
+		"message":    "Passkey registrado correctamente.",
 	})
 }
 
 func (ah *AuthHandlers) deletePasskey(w http.ResponseWriter, r *http.Request) {
 	am := NewAuthMiddleware(ah.JWTSecret)
-	_, err := am.GetUserID(r)
+	userID, err := am.GetUserID(r)
 	if err != nil {
 		writeError(w, 401, "authentication required")
 		return
@@ -486,6 +676,24 @@ func (ah *AuthHandlers) deletePasskey(w http.ResponseWriter, r *http.Request) {
 	passkeyID := chi.URLParam(r, "id")
 	if passkeyID == "" {
 		writeError(w, 400, "passkey id is required")
+		return
+	}
+
+	if ah.Pool == nil {
+		writeError(w, 500, "database not available")
+		return
+	}
+
+	// Verificar que el passkey pertenece al usuario antes de borrar
+	tag, err := ah.Pool.Exec(r.Context(), `
+		DELETE FROM user_passkeys WHERE id = $1 AND user_id = $2`,
+		passkeyID, userID)
+	if err != nil {
+		writeError(w, 500, "error deleting passkey")
+		return
+	}
+	if tag.RowsAffected() == 0 {
+		writeError(w, 404, "passkey not found or does not belong to you")
 		return
 	}
 

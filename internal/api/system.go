@@ -294,14 +294,42 @@ func (h *SystemHandler) listMemberLevels(w http.ResponseWriter, r *http.Request)
 		nodeDomain = "localhost"
 	}
 
-	rows, err := h.Pool.Query(r.Context(), `
+	// Intentar usar el node_domain real del usuario autenticado
+	userID, err := h.Auth.GetUserID(r)
+	var userMemberLevelID *string
+	if err == nil {
+		var userNodeDomain string
+		err = h.Pool.QueryRow(r.Context(), `SELECT node_domain, member_level_id FROM users WHERE id = $1`, userID).Scan(&userNodeDomain, &userMemberLevelID)
+		if err == nil && userNodeDomain != "" {
+			nodeDomain = userNodeDomain
+		}
+	}
+
+	// Query base: niveles del dominio del usuario.
+	// Si el usuario tiene un member_level_id que no pertenece a este dominio,
+	// tambien lo incluimos (puede pasar si el nivel se asigno antes de configurar el dominio).
+	query := `
 		SELECT id, name, description, level, has_voice, has_vote, counts_in_quorum,
 			   credit_limit, debit_limit, per_transaction_limit, daily_limit, monthly_limit,
 			   tax_rate, auto_upgrade_after_days, upgrade_to,
 			   can_create_organization, can_cross_node_trade, can_receive_nfc_card,
 			   can_view_audit, can_use_external_bridge, max_organizations, can_request_limit_increase, is_system
-		FROM member_levels WHERE node_domain = $1 AND is_active = true ORDER BY level`,
-		nodeDomain)
+		FROM member_levels WHERE node_domain = $1 AND is_active = true`
+	args := []interface{}{nodeDomain}
+	if userMemberLevelID != nil && *userMemberLevelID != "" {
+		query += `
+		UNION ALL
+		SELECT id, name, description, level, has_voice, has_vote, counts_in_quorum,
+			   credit_limit, debit_limit, per_transaction_limit, daily_limit, monthly_limit,
+			   tax_rate, auto_upgrade_after_days, upgrade_to,
+			   can_create_organization, can_cross_node_trade, can_receive_nfc_card,
+			   can_view_audit, can_use_external_bridge, max_organizations, can_request_limit_increase, is_system
+		FROM member_levels WHERE id = $2 AND NOT (node_domain = $1 AND is_active = true)`
+		args = append(args, *userMemberLevelID)
+	}
+	query += ` ORDER BY level`
+
+	rows, err := h.Pool.Query(r.Context(), query, args...)
 	if err != nil {
 		writeError(w, 500, "error listing member levels")
 		return
@@ -1017,14 +1045,21 @@ func (h *SystemHandler) autoUpgradeLevel(w http.ResponseWriter, r *http.Request)
 		nodeDomain = "localhost"
 	}
 
-	// Obtener nivel actual del usuario y cuando fue creado
+	// Obtener nivel actual del usuario, su node_domain y cuando fue creado
 	var currentLevelID *string
+	var userNodeDomain string
 	var createdAt time.Time
 	err = h.Pool.QueryRow(r.Context(), `
-		SELECT member_level_id, created_at FROM users WHERE id = $1`, userID).Scan(&currentLevelID, &createdAt)
+		SELECT member_level_id, node_domain, created_at FROM users WHERE id = $1`, userID).Scan(&currentLevelID, &userNodeDomain, &createdAt)
 	if err != nil {
 		writeError(w, 404, "user not found")
 		return
+	}
+
+	// Usar el node_domain real del usuario, no el del header
+	effectiveDomain := userNodeDomain
+	if effectiveDomain == "" {
+		effectiveDomain = nodeDomain
 	}
 
 	if currentLevelID == nil || *currentLevelID == "" {
@@ -1036,13 +1071,21 @@ func (h *SystemHandler) autoUpgradeLevel(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Obtener configuracion del nivel actual
+	// Buscar primero por node_domain del usuario; si no se encuentra, buscar por id sin filtro de dominio
 	var autoUpgradeDays *int
 	var upgradeTo *string
 	var levelName string
 	err = h.Pool.QueryRow(r.Context(), `
 		SELECT auto_upgrade_after_days, upgrade_to, name
 		FROM member_levels WHERE id = $1 AND node_domain = $2`,
-		*currentLevelID, nodeDomain).Scan(&autoUpgradeDays, &upgradeTo, &levelName)
+		*currentLevelID, effectiveDomain).Scan(&autoUpgradeDays, &upgradeTo, &levelName)
+	if err != nil {
+		// Fallback: buscar el nivel por id sin filtrar por node_domain
+		err = h.Pool.QueryRow(r.Context(), `
+			SELECT auto_upgrade_after_days, upgrade_to, name
+			FROM member_levels WHERE id = $1`,
+			*currentLevelID).Scan(&autoUpgradeDays, &upgradeTo, &levelName)
+	}
 	if err != nil {
 		writeJSON(w, 200, map[string]interface{}{
 			"upgraded": false,
@@ -1079,7 +1122,13 @@ func (h *SystemHandler) autoUpgradeLevel(w http.ResponseWriter, r *http.Request)
 	var newLevelName string
 	err = h.Pool.QueryRow(r.Context(), `
 		SELECT id, name FROM member_levels WHERE id = $1 AND node_domain = $2 AND is_active = true`,
-		*upgradeTo, nodeDomain).Scan(&newLevelID, &newLevelName)
+		*upgradeTo, effectiveDomain).Scan(&newLevelID, &newLevelName)
+	if err != nil {
+		// Fallback: buscar sin filtrar por node_domain
+		err = h.Pool.QueryRow(r.Context(), `
+			SELECT id, name FROM member_levels WHERE id = $1 AND is_active = true`,
+			*upgradeTo).Scan(&newLevelID, &newLevelName)
+	}
 	if err != nil {
 		writeJSON(w, 200, map[string]interface{}{
 			"upgraded": false,
@@ -3420,4 +3469,3 @@ func (h *SystemHandler) deleteGovernanceRule(w http.ResponseWriter, r *http.Requ
 		"proposal":                "/app/assembly",
 	})
 }
-

@@ -166,21 +166,52 @@ func (sh *SetupHandler) initNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var memberLevelID string
-	err = sh.Pool.QueryRow(ctx, `SELECT id FROM member_levels WHERE level = (SELECT MAX(level) FROM member_levels) LIMIT 1`).Scan(&memberLevelID)
-	if err != nil {
-		rows, _ := sh.Pool.Query(ctx, `SELECT id FROM member_levels ORDER BY level DESC LIMIT 1`)
-		defer rows.Close()
-		for rows.Next() {
-			rows.Scan(&memberLevelID)
+	// Asegurar que existen niveles de miembro para este node_domain.
+	// Si no existen, copiarlos desde 'default' o 'localhost'.
+	var levelCount int
+	_ = sh.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM member_levels WHERE node_domain = $1`, nodeDomain).Scan(&levelCount)
+	if levelCount == 0 {
+		// Copiar niveles desde otro node_domain existente (preferir 'default', luego 'localhost')
+		sourceDomain := ""
+		for _, candidate := range []string{"default", "localhost"} {
+			var c int
+			_ = sh.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM member_levels WHERE node_domain = $1`, candidate).Scan(&c)
+			if c > 0 {
+				sourceDomain = candidate
+				break
+			}
 		}
-		if memberLevelID == "" {
-			memberLevelID = uuid.New().String()
+		if sourceDomain != "" {
 			_, _ = sh.Pool.Exec(ctx, `
-				INSERT INTO member_levels (id, name, description, level, has_voice, has_vote, counts_in_quorum, credit_limit, debit_limit)
-				VALUES ($1, 'Admin', 'Administrator', 99, true, true, true, 1000000, 1000000)`,
-				memberLevelID)
+				INSERT INTO member_levels (id, node_domain, name, description, level, has_voice, has_vote, counts_in_quorum,
+					credit_limit, debit_limit, per_transaction_limit, daily_limit, monthly_limit, tax_rate,
+					auto_upgrade_after_days, upgrade_to, can_create_organization, can_cross_node_trade,
+					can_receive_nfc_card, can_view_audit, can_use_external_bridge, max_organizations,
+					can_request_limit_increase, is_system, is_active)
+				SELECT gen_random_uuid(), $1, name, description, level, has_voice, has_vote, counts_in_quorum,
+					credit_limit, debit_limit, per_transaction_limit, daily_limit, monthly_limit, tax_rate,
+					auto_upgrade_after_days, upgrade_to, can_create_organization, can_cross_node_trade,
+					can_receive_nfc_card, can_view_audit, can_use_external_bridge, max_organizations,
+					can_request_limit_increase, is_system, is_active
+				FROM member_levels WHERE node_domain = $2`,
+				nodeDomain, sourceDomain)
 		}
+	}
+
+	// Seleccionar el nivel mas alto para el admin, filtrando por el node_domain del nodo
+	var memberLevelID string
+	err = sh.Pool.QueryRow(ctx, `SELECT id FROM member_levels WHERE node_domain = $1 ORDER BY level DESC LIMIT 1`, nodeDomain).Scan(&memberLevelID)
+	if err != nil {
+		// Fallback: buscar el nivel mas alto de cualquier node_domain
+		err = sh.Pool.QueryRow(ctx, `SELECT id FROM member_levels WHERE level = (SELECT MAX(level) FROM member_levels) LIMIT 1`).Scan(&memberLevelID)
+	}
+	if err != nil || memberLevelID == "" {
+		// Ultimo recurso: crear un nivel Admin para este node_domain
+		memberLevelID = uuid.New().String()
+		_, _ = sh.Pool.Exec(ctx, `
+			INSERT INTO member_levels (id, node_domain, name, description, level, has_voice, has_vote, counts_in_quorum, credit_limit, debit_limit)
+			VALUES ($1, $2, 'Admin', 'Administrator', 99, true, true, true, 1000000, 1000000)`,
+			memberLevelID, nodeDomain)
 	}
 
 	// Admin tiene limites pequenos para pruebas (100 Trueques)

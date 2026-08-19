@@ -1,35 +1,50 @@
-fix: filtro de busqueda con debounce + sesion no se cierra mientras trabajas
+fix: nivel de miembro no encontrado + registro de passkeys en perfil
 
-PROBLEMAS ARREGLADOS:
+PROBLEMA 1: "No se encontro tu nivel" al pedir ascenso
 
-1. FILTRO DE BUSQUEDA NO FILTRABA CORRECTAMENTE
-   - Causa: race condition - al escribir "hielo", se hacian 5 peticiones
-     (h, hi, hie, hiel, hielo). Si la peticion de "h" (243 resultados)
-     llegaba despues de la de "hielo" (0 resultados), se mostraban los 243.
-   - Solucion:
-     * Debounce de 300ms: espera a que el usuario deje de escribir
-     * AbortController: cancela la peticion anterior antes de hacer la nueva
-     * Estado separado modalSearchTerm (con debounce) vs searchTerm (instantaneo)
-   - Ahora al buscar "hielo" y no encontrar nada, dice:
-     "No se encontro 'hielo' en esta categoria"
+Causa raiz: El frontend nunca enviaba el header X-Node-Domain, asi que el
+backend siempre usaba 'localhost'. Pero el usuario admin fue creado con
+su node_domain real, y el member_level_id se seleccionaba sin filtrar por
+dominio, apuntando a un nivel de 'default' o 'localhost' que no coincidia
+con el dominio del usuario.
 
-2. SESION SE CERRABA MIENTRAS EL USUARIO TRABAJABA
-   - Causa 1: useSessionTimeout redirigia a /login?expired=1 despues de 30 min,
-     perdiendo todo el trabajo del usuario
-   - Causa 2: Cualquier error 401 del backend redirigia a /login
-   - Solucion:
-     * Tiempo de inactividad aumentado de 30 min a 2 horas
-     * Mas eventos de actividad detectados (click, input, wheel, etc.)
-     * Al expirar la sesion: NO redirige a /login
-     * En su lugar, muestra un MODAL DE RE-LOGIN sobre la pagina actual
-     * El usuario ingresa usuario y contraseña en el modal
-     * Al re-iniciar sesion, vuelve a la misma pagina donde estaba
-     * No pierde nada de lo que estaba haciendo
-   - JWT expiracion aumentada de 24 horas a 7 dias
-   - Nuevo componente: SessionExpiredModal.tsx
-   - api.ts: setSessionExpiredHandler() para registrar el handler del modal
-   - useSessionTimeout.ts: solo hace logout(), no redirige
+Fixes:
+- Frontend (api.ts): todas las requests envian header X-Node-Domain con
+  el dominio real del nodo (desde cache de configuracion)
+- Backend listMemberLevels (system.go): usa node_domain real del usuario
+  autenticado; incluye el nivel especifico del usuario via UNION aunque
+  sea de otro dominio
+- Backend autoUpgradeLevel (system.go): usa node_domain del usuario con
+  fallback que busca el nivel por ID sin filtrar por dominio
+- Backend setup.go: al crear admin, copia niveles desde default/localhost
+  al dominio del nodo si no existen; selecciona el nivel filtrando por
+  el dominio correcto
+- Migracion 060: arregla datos existentes - copia niveles a dominios sin
+  niveles propios y actualiza member_level_id de usuarios que apuntaban
+  a niveles de otro dominio
 
-Generated with [Devin](https://devin.ai)
+PROBLEMA 2: No habia opcion para registrar passkeys
+
+Causa raiz: listPasskeys era un stub que siempre devolvia array vacio
+(nunca consultaba la BD). No existia ningun endpoint para agregar
+passkeys a usuarios existentes. La tabla user_passkeys existia pero
+nunca se usaba.
+
+Fixes:
+- listPasskeys (auth.go): ahora consulta tabla user_passkeys y devuelve
+  los dispositivos reales del usuario
+- Nuevos endpoints:
+  POST /api/auth/passkey/add/begin - inicia registro WebAuthn
+  POST /api/auth/passkey/add/finish - verifica y guarda el passkey
+- deletePasskey (auth.go): ahora borra de user_passkeys verificando
+  pertenencia al usuario
+- Frontend Profile.tsx:
+  - Boton "Registrar dispositivo" usando WebAuthn browser API
+  - Pide nombre para el dispositivo (ej: "Mi celular", "Huella laptop")
+  - El navegador activa biometria/pin/llave de seguridad
+  - Boton eliminar (papelera) por cada passkey
+  - Soporta multiples dispositivos: huella, FaceID, PIN movil, llave USB
+
+Generated with Devin
 
 Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

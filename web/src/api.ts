@@ -34,10 +34,23 @@ function handleUnauthorized() {
   }
 }
 
+function getNodeDomain(): string {
+  // Intentar obtener el node_domain del cache de configuracion
+  try {
+    const cached = localStorage.getItem('node_config')
+    if (cached) {
+      const cfg = JSON.parse(cached)
+      if (cfg.node_domain) return cfg.node_domain
+    }
+  } catch {}
+  return 'localhost'
+}
+
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken()
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'X-Node-Domain': getNodeDomain(),
     ...(options.headers as Record<string, string>),
   }
   if (token) {

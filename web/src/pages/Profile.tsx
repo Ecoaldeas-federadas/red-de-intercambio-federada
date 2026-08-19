@@ -1,7 +1,54 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
-import { HelpCircle, User, Key, CreditCard, History, Shield, TrendingUp } from 'lucide-react'
+import { HelpCircle, User, Key, CreditCard, History, Shield, TrendingUp, Plus, Trash2 } from 'lucide-react'
+
+// === Utilidades WebAuthn ===
+
+function bufToBase64Url(buf: ArrayBuffer | Uint8Array): string {
+  const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf)
+  let str = ''
+  for (let i = 0; i < bytes.byteLength; i++) {
+    str += String.fromCharCode(bytes[i])
+  }
+  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+function base64UrlToBuf(b64url: string): ArrayBuffer {
+  const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/')
+  const padLen = (4 - (b64.length % 4)) % 4
+  const padded = b64 + '='.repeat(padLen)
+  const binStr = atob(padded)
+  const bytes = new Uint8Array(binStr.length)
+  for (let i = 0; i < binStr.length; i++) {
+    bytes[i] = binStr.charCodeAt(i)
+  }
+  return bytes.buffer
+}
+
+// Convierte las opciones del backend al formato que espera navigator.credentials.create
+function prepareCreationOptions(opts: any): PublicKeyCredentialCreationOptions {
+  return {
+    challenge: base64UrlToBuf(opts.challenge),
+    rp: opts.rp,
+    user: {
+      id: base64UrlToBuf(opts.user.id),
+      name: opts.user.name,
+      displayName: opts.user.displayName,
+    },
+    pubKeyCredParams: opts.pubKeyCredParams || [],
+    timeout: opts.timeout || 60000,
+    attestation: opts.attestation || 'none',
+    authenticatorSelection: opts.authenticatorSelection || {
+      userVerification: 'preferred',
+      requireResidentKey: false,
+    },
+    excludeCredentials: (opts.excludeCredentials || []).map((c: any) => ({
+      type: c.type,
+      id: base64UrlToBuf(c.id),
+    })),
+  } as PublicKeyCredentialCreationOptions
+}
 
 export default function Profile() {
   const { currency } = useConfig()
@@ -14,6 +61,8 @@ export default function Profile() {
   const [history, setHistory] = useState<any[]>([])
   const [error, setError] = useState('')
   const [upgradeMsg, setUpgradeMsg] = useState('')
+  const [passkeyMsg, setPasskeyMsg] = useState('')
+  const [passkeyLoading, setPasskeyLoading] = useState(false)
 
   const load = () => {
     api.get('/accounts/me').then((d: any) => {
@@ -68,6 +117,71 @@ export default function Profile() {
     }
   }
 
+  const registerPasskey = async () => {
+    setPasskeyMsg('')
+    setError('')
+
+    // Verificar soporte WebAuthn
+    if (!window.PublicKeyCredential) {
+      setError('Tu navegador no soporta Passkeys/WebAuthn. Usa un navegador moderno (Chrome, Firefox, Safari, Edge).')
+      return
+    }
+
+    const label = prompt('Nombre para este dispositivo (ej: "Mi celular", "Huella laptop", "Llave USB"):', 'Mi dispositivo')
+    if (label === null) return
+
+    setPasskeyLoading(true)
+    try {
+      // 1. Pedir opciones al backend
+      const beginRes: any = await api.post('/auth/passkey/add/begin', { label })
+      const options = prepareCreationOptions(beginRes.options)
+
+      // 2. Invocar WebAuthn del navegador
+      const credential = await navigator.credentials.create({ publicKey: options }) as PublicKeyCredential
+      if (!credential) {
+        throw new Error('No se pudo crear el passkey')
+      }
+
+      const response = credential.response as AuthenticatorAttestationResponse
+
+      // 3. Enviar respuesta al backend para verificar y guardar
+      const finishRes: any = await api.post('/auth/passkey/add/finish', {
+        label: label || 'Dispositivo',
+        response: {
+          id: credential.id,
+          rawId: bufToBase64Url(credential.rawId),
+          type: credential.type,
+          response: {
+            attestationObject: bufToBase64Url(response.attestationObject),
+            clientDataJSON: bufToBase64Url(response.clientDataJSON),
+          },
+        },
+      })
+
+      setPasskeyMsg(finishRes.message || 'Dispositivo registrado correctamente.')
+      load()
+    } catch (err: any) {
+      if (err.name === 'NotAllowedError') {
+        setError('Registro cancelado o no autorizado. Intenta de nuevo.')
+      } else {
+        setError(err instanceof Error ? err.message : 'Error al registrar passkey')
+      }
+    } finally {
+      setPasskeyLoading(false)
+    }
+  }
+
+  const deletePasskey = async (passkeyId: string) => {
+    if (!confirm('Seguro que quieres eliminar este dispositivo? No podras iniciar sesion con el.')) return
+    try {
+      await api.delete(`/auth/passkey/${passkeyId}`)
+      setPasskeyMsg('Dispositivo eliminado.')
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al eliminar passkey')
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -93,7 +207,7 @@ export default function Profile() {
           </ul>
           <p><strong>Nivel de miembro:</strong> Es la categoria que define tus limites de credito/debito, tus derechos (voz, voto, quorum) y tus permisos (crear organizaciones, comerciar entre nodos, recibir tarjeta NFC, ver auditoria, usar puente externo). Cuanto mas participes, mas subiras de nivel.</p>
           <p><strong>Limites de credito y debito:</strong> El limite de credito es el maximo que puedes deber (saldo negativo). El limite de debito es el maximo que puedes tener a favor (saldo positivo). Los define tu nivel de miembro.</p>
-          <p><strong>Passkeys:</strong> Son dispositivos con los que puedes iniciar sesion sin contrasena: huella, FaceID, PIN del movil, llaves de seguridad USB. Si pierdes uno, pide al admin que lo elimine.</p>
+          <p><strong>Passkeys:</strong> Son dispositivos con los que puedes iniciar sesion sin contrasena: huella, FaceID, PIN del movil, llaves de seguridad USB. Usa el boton "Registrar dispositivo" para anadir uno nuevo. Si pierdes uno, puedes eliminarlo aqui o pedir al admin que lo elimine.</p>
           <p><strong>Tarjetas NFC:</strong> Tarjetas fisicas asociadas a tu cuenta para pagar en terminales NFC de los comercios. Cada tarjeta tiene un UID unico. Si la pierdes, avisa al admin para desactivarla.</p>
           <p><strong>PIN de NFC:</strong> Es un codigo de 4 digitos que protege tu tarjeta NFC. Se pide al hacer pagos en terminales con teclado. Cambialo con el boton "Cambiar PIN" si crees que alguien lo sabe.</p>
           <p><strong>Actividad reciente:</strong> Tus ultimas 10 transacciones (ingresos en verde, egresos en rojo).</p>
@@ -155,6 +269,19 @@ export default function Profile() {
       {/* Passkeys */}
       <div className="card">
         <h2 className="font-semibold flex items-center gap-2 mb-3"><Key size={18} />Dispositivos (Passkeys)</h2>
+        {passkeyMsg && <div className="text-sm bg-green-50 text-green-700 p-3 rounded-lg mb-3">{passkeyMsg}</div>}
+        <button
+          onClick={registerPasskey}
+          disabled={passkeyLoading}
+          className="btn-secondary flex items-center gap-2 mb-3 text-sm"
+        >
+          <Plus size={16} />
+          {passkeyLoading ? 'Registrando...' : 'Registrar dispositivo'}
+        </button>
+        <p className="text-xs text-gray-500 mb-3">
+          Puedes registrar multiples dispositivos: huella, FaceID, PIN del movil, llave de seguridad USB, etc.
+          Cada uno te permitira iniciar sesion sin contrasena.
+        </p>
         {passkeys.length === 0 ? (
           <p className="text-gray-500 text-sm">No tienes passkeys registrados.</p>
         ) : (
@@ -163,9 +290,21 @@ export default function Profile() {
               <div key={i} className="flex items-center justify-between text-sm border-b border-gray-100 py-2 last:border-0">
                 <div>
                   <b>{p.name || `Dispositivo ${i + 1}`}</b>
-                  <p className="text-xs text-gray-400">ID: {p.credential_id?.slice(0, 16)}...</p>
+                  <p className="text-xs text-gray-400">
+                    {p.created_at && `Registrado: ${p.created_at?.slice(0, 10)}`}
+                    {p.last_used_at && ` | Ultimo uso: ${p.last_used_at?.slice(0, 10)}`}
+                  </p>
                 </div>
-                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Activo</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Activo</span>
+                  <button
+                    onClick={() => deletePasskey(p.id)}
+                    className="text-red-500 hover:text-red-700"
+                    title="Eliminar dispositivo"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
