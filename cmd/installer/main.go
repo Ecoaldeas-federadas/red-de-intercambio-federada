@@ -313,7 +313,7 @@ input:focus { outline: none; border-color: #4299e1; }
     </div>
     <div class="form-group">
       <label>Dominio del nodo</label>
-      <input type="text" id="node_domain" placeholder="nodo-a.org" />
+      <input type="text" id="node_domain" placeholder="tu-dominio.com" />
       <p class="hint">Dominio unico para federacion (no se puede cambiar despues)</p>
     </div>
     <button class="btn" id="installBtn" onclick="doInstall()">Instalar Nodo</button>

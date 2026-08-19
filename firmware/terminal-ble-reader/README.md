@@ -1,4 +1,4 @@
-# Terminal BLE Reader (Lector tonto)
+﻿# Terminal BLE Reader (Lector tonto)
 
 Terminal NFC minimalista que se conecta por Bluetooth al celular.
 No tiene WiFi, no tiene pantalla, no procesa transacciones.
@@ -71,7 +71,7 @@ UUID: 6e400001-b5a3-f393-e0a9-e50e24dcca9e
 ```json
 {
   "terminal_id": "TERM-BLE-001",
-  "server_url": "https://nodo-a.org",
+  "server_url": "https://mi-nodo.com",
   "chip_id": "AABBCCDDEEFF",
   "connected": true
 }

@@ -1,6 +1,6 @@
 node:
-  domain: "nodo-a.org"
-  name: "Banco Comunitario A"
+  domain: ""
+  name: ""
   private_key_path: "/secrets/node_private_key.ed25519"
   certificate_path: "/secrets/node_certificate.pem"
   ca_certificate_path: "/secrets/ca_root.pem"

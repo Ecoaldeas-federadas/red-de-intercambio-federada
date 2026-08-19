@@ -76,7 +76,7 @@ while true; do
 done
 
 while true; do
-    read -p "Dominio del nodo (ej: nodo-a.org o localhost para desarrollo): " NODE_DOMAIN
+    read -p "Dominio del nodo (ej: mi-nodo.com o localhost para desarrollo): " NODE_DOMAIN
     [ -n "$NODE_DOMAIN" ] && break
     echo "El dominio es obligatorio"
 done

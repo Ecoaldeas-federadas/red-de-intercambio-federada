@@ -114,7 +114,7 @@ do {
 } while ([string]::IsNullOrWhiteSpace($nodeName))
 
 do {
-    $nodeDomain = Read-Host "Dominio del nodo (ej: nodo-a.org o localhost para desarrollo)"
+    $nodeDomain = Read-Host "Dominio del nodo (ej: mi-nodo.com o localhost para desarrollo)"
 } while ([string]::IsNullOrWhiteSpace($nodeDomain))
 
 # Validar dominio (sin http://, sin https://, sin barras)

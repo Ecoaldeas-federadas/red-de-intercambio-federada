@@ -1,36 +1,20 @@
-fix: signature verification failed + RP ID dinamico para WebAuthn
+fix: eliminar dominio hardcoded nodo-a.org de config.yaml
 
-PROBLEMA 1: "signature verification failed (ES256)"
-El codigo usaba clientDataJSON raw en verifyData, pero el spec WebAuthn
-requiere SHA256(clientDataJSON). Los datos firmados son:
-  authenticatorData || SHA256(clientDataJSON)
-no:
-  authenticatorData || clientDataJSON
+nodo-a.org era un dominio de ejemplo que se habia colado en config.yaml
+como valor real. Esto causaba que el PasskeyManager se inicializara con
+un RP ID que no coincidia con ningun dominio real, rompiendo WebAuthn.
 
-Fix: calcular sha256.Sum256(clientDataBytes) y concatenar ese hash
-con authDataBytes. Esto aplica tanto a Ed25519 como a ES256.
+Cambios:
+- config.yaml: domain y name ahora vacios (se configuran en el setup)
+- Placeholders en installers (install.ps1, install.sh, cmd/install,
+  cmd/installer, Setup.tsx) cambiados a "mi-nodo.com" como ejemplo
+- docs/deployment.md: todos los ejemplos cambiados de nodo-a.org a
+  mi-nodo.com
+- firmware/terminal-ble-reader/README.md: actualizado
+- README.md: actualizado
 
-Tambien se anade fixECDSASignatureFormat() como fallback: algunos
-autenticadores producen firmas ES256 en formato raw (r||s, 64 bytes)
-en vez de ASN.1 DER. Si VerifyASN1 falla, se intenta convertir.
-
-PROBLEMA 2: No se puede registrar passkey desde el dominio
-El PasskeyManager se inicializaba con cfg.Node.Domain ("nodo-a.org")
-como RP ID fijo y cors_origins: ["http://localhost:3000"]. Pero
-WebAuthn requiere que el RP ID coincida con el dominio desde el que
-se accede (localhost, feria.loanstly.com, etc.).
-
-Fix: RP ID y origin ahora son dinamicos, derivados del request:
-- deriveRPID(r): extrae el dominio del header Origin o Host
-- deriveOrigin(r): construye la URL de origen del request
-- BeginRegistration y BeginLogin ahora aceptan rpID como parametro
-- VerifyRegistration acepta cualquier origen que:
-  1. Este en la lista configurada, O
-  2. Coincida con el origin del request, O
-  3. Sea localhost/127.0.0.1 (desarrollo)
-
-Esto permite que WebAuthn funcione correctamente desde cualquier
-dominio (localhost, feria.loanstly.com, etc.) sin cambiar la config.
+El dominio del nodo NO debe estar hardcoded - cada instalacion tiene
+su propio dominio configurado durante el setup wizard.
 
 Generated with Devin
 

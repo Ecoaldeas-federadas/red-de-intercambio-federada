@@ -5,7 +5,7 @@
 //
 // Uso:
 //   ./install              # interactivo
-//   ./install --name "Banco A" --domain nodo-a.org  # no interactivo
+//   ./install --name "Banco A" --domain mi-nodo.com  # no interactivo
 //
 // El instalador:
 //   1. Verifica Docker
@@ -100,7 +100,7 @@ func main() {
 
 	if nodeDomain == "" {
 		for {
-			fmt.Printf("Dominio del nodo (ej: nodo-a.org): ")
+			fmt.Printf("Dominio del nodo (ej: mi-nodo.com): ")
 			nodeDomain, _ = reader.ReadString('\n')
 			nodeDomain = strings.TrimSpace(nodeDomain)
 			if nodeDomain != "" {

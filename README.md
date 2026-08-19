@@ -52,7 +52,7 @@ chmod +x install.sh
 
 El script te pregunta solo 2 cosas:
 1. **Nombre del nodo** (ej: "Banco Comunitario A")
-2. **Dominio del nodo** (ej: "nodo-a.org")
+2. **Dominio del nodo** (ej: "mi-nodo.com")
 
 Todo lo demas se genera automaticamente:
 - Password seguro de la base de datos (aleatorio)
@@ -70,7 +70,7 @@ para crear el usuario administrador.
 go build -o install ./cmd/install
 ./install
 # o no-interactivo:
-./install --name "Banco Comunitario A" --domain nodo-a.org
+./install --name "Banco Comunitario A" --domain mi-nodo.com
 ```
 
 ### Opcion C — Instalador web (Docker)

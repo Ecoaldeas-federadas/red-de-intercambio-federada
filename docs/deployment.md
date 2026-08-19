@@ -1,4 +1,4 @@
-# Despliegue
+﻿# Despliegue
 
 ## Requisitos
 - Go 1.21+
@@ -173,8 +173,8 @@ navegadores de los clientes lo reconocen automaticamente porque Let's Encrypt
 ```
 [Servidor con internet, una vez]  Obtener certificado de Let's Encrypt
 [Servidor sin internet despues]   Sirve HTTPS a clientes de la intranet
-[Cliente sin internet nunca]      Browser accede a https://nodo-a.org
-                                  -> DNS local resuelve nodo-a.org -> 192.168.1.10
+[Cliente sin internet nunca]      Browser accede a https://mi-nodo.com
+                                  -> DNS local resuelve mi-nodo.com -> 192.168.1.10
                                   -> Recibe certificado firmado por Let's Encrypt
                                   -> Verifica firma localmente contra ISRG Root X1
                                   -> CONFIAR — sin internet, sin instalar nada en clientes
@@ -182,9 +182,9 @@ navegadores de los clientes lo reconocen automaticamente porque Let's Encrypt
 
 #### Paso 1: Registrar dominio y configurar DNS
 
-- Comprar un dominio real (ej. `nodo-a.org`, ~$10/ano)
+- Comprar un dominio real (ej. `mi-nodo.com`, ~$10/ano)
 - Configurar DNS en Cloudflare (gratis) u otro proveedor
-- Crear registro A: `nodo-a.org -> 192.168.1.10` (IP de la intranet)
+- Crear registro A: `mi-nodo.com -> 192.168.1.10` (IP de la intranet)
 
 #### Paso 2: Obtener certificado (con internet temporal)
 
@@ -200,11 +200,11 @@ chmod 600 ~/.secrets/cloudflare.ini
 
 # Obtener certificado via DNS-01 (no abre puertos, no necesita servidor online)
 certbot certonly --dns-cloudflare --dns-cloudflare-credentials ~/.secrets/cloudflare.ini \
-  -d nodo-a.org
+  -d mi-nodo.com
 
 # Certificados en:
-# /etc/letsencrypt/live/nodo-a.org/fullchain.pem
-# /etc/letsencrypt/live/nodo-a.org/privkey.pem
+# /etc/letsencrypt/live/mi-nodo.com/fullchain.pem
+# /etc/letsencrypt/live/mi-nodo.com/privkey.pem
 ```
 
 #### Paso 3: Configurar DNS local en la intranet
@@ -217,7 +217,7 @@ Para que los dispositivos de la intranet resuelvan el dominio sin internet:
 sudo apt install dnsmasq
 
 # Configurar /etc/dnsmasq.conf
-echo "address=/nodo-a.org/192.168.1.10" | sudo tee -a /etc/dnsmasq.conf
+echo "address=/mi-nodo.com/192.168.1.10" | sudo tee -a /etc/dnsmasq.conf
 echo "listen-address=192.168.1.10" | sudo tee -a /etc/dnsmasq.conf
 
 sudo systemctl restart dnsmasq
@@ -229,7 +229,7 @@ sudo systemctl restart dnsmasq
 ```
 # Windows: C:\Windows\System32\drivers\etc\hosts
 # Linux:   /etc/hosts
-192.168.1.10  nodo-a.org
+192.168.1.10  mi-nodo.com
 ```
 
 #### Paso 4: Instalar certificados en Nginx
@@ -237,10 +237,10 @@ sudo systemctl restart dnsmasq
 ```nginx
 server {
     listen 443 ssl http2;
-    server_name nodo-a.org;
+    server_name mi-nodo.com;
 
-    ssl_certificate     /etc/letsencrypt/live/nodo-a.org/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/nodo-a.org/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/mi-nodo.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/mi-nodo.com/privkey.pem;
     ssl_protocols       TLSv1.2 TLSv1.3;
 
     location / {
@@ -303,13 +303,13 @@ openssl req -x509 -new -key federation-ca.key -out federation-ca.crt \
 #### Paso 2: Firmar certificado de cada nodo
 
 ```bash
-openssl genrsa -out nodo-a.key 2048
-openssl req -new -key nodo-a.key -out nodo-a.csr \
-  -subj "/CN=nodo-a.local" \
-  -addext "subjectAltName=DNS:nodo-a.local,DNS:nodo-a,IP:192.168.1.10"
-openssl x509 -req -in nodo-a.csr -CA federation-ca.crt -CAkey federation-ca.key \
-  -CAcreateserial -out nodo-a.crt -days 365 \
-  -extfile <(printf "subjectAltName=DNS:nodo-a.local,DNS:nodo-a,IP:192.168.1.10")
+openssl genrsa -out mi-nodo.key 2048
+openssl req -new -key mi-nodo.key -out mi-nodo.csr \
+  -subj "/CN=mi-nodo.local" \
+  -addext "subjectAltName=DNS:mi-nodo.local,DNS:mi-nodo,IP:192.168.1.10"
+openssl x509 -req -in mi-nodo.csr -CA federation-ca.crt -CAkey federation-ca.key \
+  -CAcreateserial -out mi-nodo.crt -days 365 \
+  -extfile <(printf "subjectAltName=DNS:mi-nodo.local,DNS:mi-nodo,IP:192.168.1.10")
 ```
 
 #### Paso 3: Instalar CA root en los clientes (una vez por dispositivo)
@@ -347,9 +347,9 @@ sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keyc
 ```nginx
 server {
     listen 443 ssl http2;
-    server_name nodo-a.local;
-    ssl_certificate     /etc/ssl/nodo-a.crt;
-    ssl_certificate_key /etc/ssl/nodo-a.key;
+    server_name mi-nodo.local;
+    ssl_certificate     /etc/ssl/mi-nodo.crt;
+    ssl_certificate_key /etc/ssl/mi-nodo.key;
     location / {
         proxy_pass http://localhost:8080;
         proxy_set_header Host $host;
@@ -366,7 +366,7 @@ la LAN. HTTPS no es estrictamente necesario.
 [Cliente] --HTTP:8080--> [Nodo Go en la misma LAN]
 ```
 
-Acceder via `http://nodo-a.local:8080` o `http://192.168.1.10:8080`.
+Acceder via `http://mi-nodo.local:8080` o `http://192.168.1.10:8080`.
 
 Aceptable si: red local aislada, switch administrado, sin WiFi abierto.
 No aceptable si: WiFi compartido o la red tiene salida a internet.
@@ -399,7 +399,7 @@ mutuo. Esto es independiente del TLS del navegador:
 
 ```
 [Nodo A] --mTLS--> [Nodo B]
-  presenta: nodo-a.crt    verifica: federation-ca.crt
+  presenta: mi-nodo.crt    verifica: federation-ca.crt
   verifica: nodo-b.crt    presenta: nodo-b.crt
 ```
 

@@ -261,7 +261,7 @@ export default function Setup() {
                 className="input"
                 value={form.node_domain}
                 onChange={(e) => handleChange('node_domain', e.target.value)}
-                placeholder="nodo-a.org"
+                placeholder="tu-dominio.com o localhost"
               />
               <p className="text-xs text-gray-500 mt-1">
                 Dominio unico para federacion (no se puede cambiar despues)
