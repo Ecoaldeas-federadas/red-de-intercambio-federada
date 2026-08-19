@@ -137,6 +137,19 @@ func (h *AssemblyHandler) createSession(w http.ResponseWriter, r *http.Request) 
 // ===== Propuestas / Decisiones =====
 
 func (h *AssemblyHandler) listProposals(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	// Total de miembros con derecho a voto para calcular no-votantes
+	var totalVotingMembers int
+	h.Pool.QueryRow(r.Context(), `
+		SELECT COUNT(*) FROM users u
+		JOIN member_levels ml ON ml.id = u.member_level_id
+		WHERE u.node_domain = $1 AND u.membership_status = 'active'
+		AND ml.has_vote = true AND ml.counts_in_quorum = true`, nodeDomain).Scan(&totalVotingMembers)
+
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT d.id, d.assembly_id, d.decision_type, d.description, d.target_account,
 		       d.old_value, d.new_value, d.required_signatures, d.status, d.executed_at, d.created_at,
@@ -183,20 +196,28 @@ func (h *AssemblyHandler) listProposals(w http.ResponseWriter, r *http.Request) 
 			json.Unmarshal(*newValue, &newVal)
 		}
 
+		totalVotes := votesFor + votesAgainst + votesAbstain
+		notVoted := totalVotingMembers - totalVotes
+		if notVoted < 0 {
+			notVoted = 0
+		}
+
 		proposals = append(proposals, map[string]interface{}{
-			"id":                  id.String(),
-			"proposal_type":       decisionType,
-			"description":         description,
-			"target":              derefUUID(targetAccount),
-			"old_value":           oldVal,
-			"new_value":           newVal,
-			"required_signatures": requiredSignatures,
-			"status":              status,
-			"executed_at":         derefTime(executedAt),
-			"created_at":          createdAt,
-			"votes_for":           votesFor,
-			"votes_against":       votesAgainst,
-			"votes_abstain":       votesAbstain,
+			"id":                   id.String(),
+			"proposal_type":        decisionType,
+			"description":          description,
+			"target":               derefUUID(targetAccount),
+			"old_value":            oldVal,
+			"new_value":            newVal,
+			"required_signatures":  requiredSignatures,
+			"status":               status,
+			"executed_at":          derefTime(executedAt),
+			"created_at":           createdAt,
+			"votes_for":            votesFor,
+			"votes_against":        votesAgainst,
+			"votes_abstain":        votesAbstain,
+			"votes_not_cast":       notVoted,
+			"total_voting_members": totalVotingMembers,
 		})
 	}
 	if proposals == nil {
@@ -333,10 +354,30 @@ func (h *AssemblyHandler) voteProposal(w http.ResponseWriter, r *http.Request) {
 			COUNT(*) FILTER (WHERE vote = 'abstain')
 		FROM assembly_votes WHERE decision_id = $1`, decisionID).Scan(&votesFor, &votesAgainst, &votesAbstain)
 
+	// Total de miembros con derecho a voto
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+	var totalVotingMembers int
+	h.Pool.QueryRow(r.Context(), `
+		SELECT COUNT(*) FROM users u
+		JOIN member_levels ml ON ml.id = u.member_level_id
+		WHERE u.node_domain = $1 AND u.membership_status = 'active'
+		AND ml.has_vote = true AND ml.counts_in_quorum = true`, nodeDomain).Scan(&totalVotingMembers)
+
+	totalVotes := votesFor + votesAgainst + votesAbstain
+	notVoted := totalVotingMembers - totalVotes
+	if notVoted < 0 {
+		notVoted = 0
+	}
+
 	writeJSON(w, 200, map[string]interface{}{
-		"votes_for":     votesFor,
-		"votes_against": votesAgainst,
-		"votes_abstain": votesAbstain,
+		"votes_for":            votesFor,
+		"votes_against":        votesAgainst,
+		"votes_abstain":        votesAbstain,
+		"votes_not_cast":       notVoted,
+		"total_voting_members": totalVotingMembers,
 	})
 }
 
@@ -365,11 +406,13 @@ func (h *AssemblyHandler) executeProposal(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Contar votos
-	var votesFor, votesAgainst int
+	// Contar votos (incluyendo abstenciones)
+	var votesFor, votesAgainst, votesAbstain int
 	h.Pool.QueryRow(r.Context(), `
-		SELECT COUNT(*) FILTER (WHERE vote = 'for'), COUNT(*) FILTER (WHERE vote = 'against')
-		FROM assembly_votes WHERE decision_id = $1`, decisionID).Scan(&votesFor, &votesAgainst)
+		SELECT COUNT(*) FILTER (WHERE vote = 'for'),
+		       COUNT(*) FILTER (WHERE vote = 'against'),
+		       COUNT(*) FILTER (WHERE vote = 'abstain')
+		FROM assembly_votes WHERE decision_id = $1`, decisionID).Scan(&votesFor, &votesAgainst, &votesAbstain)
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	if nodeDomain == "" {
@@ -381,6 +424,7 @@ func (h *AssemblyHandler) executeProposal(w http.ResponseWriter, r *http.Request
 	var requiredPercentage float64
 	var requiredQuorum int
 	var requiredSignatures int
+	var totalVotingMembers int
 	cfgErr := h.Pool.QueryRow(r.Context(), `
 		SELECT approval_method, required_percentage, required_quorum, required_signatures
 		FROM assembly_config WHERE node_domain = $1 AND proposal_type = $2 AND is_active = true`,
@@ -392,7 +436,6 @@ func (h *AssemblyHandler) executeProposal(w http.ResponseWriter, r *http.Request
 		switch approvalMethod {
 		case "assembly":
 			// Total de miembros con derecho a voto que cuentan en el quorum
-			var totalVotingMembers int
 			h.Pool.QueryRow(r.Context(), `
 				SELECT COUNT(*) FROM users u
 				JOIN member_levels ml ON ml.id = u.member_level_id
@@ -430,6 +473,15 @@ func (h *AssemblyHandler) executeProposal(w http.ResponseWriter, r *http.Request
 		approved = votesFor > votesAgainst
 	}
 
+	// Asegurar que totalVotingMembers este calculado para metodos no-assembly
+	if totalVotingMembers == 0 {
+		h.Pool.QueryRow(r.Context(), `
+			SELECT COUNT(*) FROM users u
+			JOIN member_levels ml ON ml.id = u.member_level_id
+			WHERE u.node_domain = $1 AND u.membership_status = 'active'
+			AND ml.has_vote = true AND ml.counts_in_quorum = true`, nodeDomain).Scan(&totalVotingMembers)
+	}
+
 	if approved {
 		_, err = h.Pool.Exec(r.Context(), `
 			UPDATE assembly_decisions SET status = 'executed', executed_at = NOW() WHERE id = $1`,
@@ -446,16 +498,49 @@ func (h *AssemblyHandler) executeProposal(w http.ResponseWriter, r *http.Request
 		}
 		_ = h.executeDecision(r, decisionType, targetAccount, params)
 
-		// Audit log
+		// Calcular no-votantes
+		totalVotes := votesFor + votesAgainst + votesAbstain
+		notVoted := totalVotingMembers - totalVotes
+		if notVoted < 0 {
+			notVoted = 0
+		}
+
+		// Audit log (voto secreto: solo cantidades, no quien voto)
 		userID, _ := h.Auth.GetUserID(r)
-		execDetails, _ := json.Marshal(map[string]interface{}{"decision_type": decisionType, "votes_for": votesFor, "votes_against": votesAgainst})
+		execDetails, _ := json.Marshal(map[string]interface{}{
+			"decision_type":        decisionType,
+			"votes_for":            votesFor,
+			"votes_against":        votesAgainst,
+			"votes_abstain":        votesAbstain,
+			"votes_not_cast":       notVoted,
+			"total_voting_members": totalVotingMembers,
+		})
 		h.Pool.Exec(r.Context(), `INSERT INTO audit_log (actor_id, action, target_id, details) VALUES ($1, 'assembly_execute', $2, $3)`,
 			userID, decisionID, execDetails)
 
-		writeJSON(w, 200, map[string]interface{}{"status": "executed", "votes_for": votesFor, "votes_against": votesAgainst})
+		writeJSON(w, 200, map[string]interface{}{
+			"status":               "executed",
+			"votes_for":            votesFor,
+			"votes_against":        votesAgainst,
+			"votes_abstain":        votesAbstain,
+			"votes_not_cast":       notVoted,
+			"total_voting_members": totalVotingMembers,
+		})
 	} else {
 		_, _ = h.Pool.Exec(r.Context(), `UPDATE assembly_decisions SET status = 'rejected' WHERE id = $1`, decisionID)
-		writeJSON(w, 200, map[string]interface{}{"status": "rejected", "votes_for": votesFor, "votes_against": votesAgainst})
+		totalVotes := votesFor + votesAgainst + votesAbstain
+		notVoted := totalVotingMembers - totalVotes
+		if notVoted < 0 {
+			notVoted = 0
+		}
+		writeJSON(w, 200, map[string]interface{}{
+			"status":               "rejected",
+			"votes_for":            votesFor,
+			"votes_against":        votesAgainst,
+			"votes_abstain":        votesAbstain,
+			"votes_not_cast":       notVoted,
+			"total_voting_members": totalVotingMembers,
+		})
 	}
 }
 

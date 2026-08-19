@@ -653,11 +653,15 @@ export default function Assembly() {
                   </div>
                   <p className="text-sm text-gray-600 mt-2">{p.description}</p>
 
-                  {/* Votos */}
-                  <div className="flex items-center gap-4 mt-3 text-sm">
-                    <span className="text-green-600">A favor: {p.votes_for || 0}</span>
-                    <span className="text-red-600">En contra: {p.votes_against || 0}</span>
-                    <span className="text-gray-500">Abstencion: {p.votes_abstain || 0}</span>
+                  {/* Votos (secreto: solo cantidades, no quien voto) */}
+                  <div className="flex items-center gap-4 mt-3 text-sm flex-wrap">
+                    <span className="text-green-600 font-medium">A favor: {p.votes_for || 0}</span>
+                    <span className="text-red-600 font-medium">En contra: {p.votes_against || 0}</span>
+                    <span className="text-gray-500 font-medium">Abstencion: {p.votes_abstain || 0}</span>
+                    <span className="text-gray-400 font-medium">No emitidos: {p.votes_not_cast ?? 0}</span>
+                    {p.total_voting_members > 0 && (
+                      <span className="text-gray-400 text-xs">de {p.total_voting_members} con derecho a voto</span>
+                    )}
                   </div>
 
                   {/* Botones de voto */}
