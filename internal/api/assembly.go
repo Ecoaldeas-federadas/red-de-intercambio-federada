@@ -568,6 +568,49 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 				nodeDomain, name, description, int(levelNum), int64(creditLimit), int64(debitLimit), taxRate,
 				canCrossNode, canBridge, canAudit, int(maxMembers))
 		}
+	case "governance_rule":
+		// Crear, modificar o eliminar regla de gobernanza (aprobado por asamblea)
+		action, _ := params["action"].(string)
+		nodeDomain := r.Header.Get("X-Node-Domain")
+		if nodeDomain == "" {
+			nodeDomain = "localhost"
+		}
+
+		switch action {
+		case "create":
+			category, _ := params["category"].(string)
+			title, _ := params["title"].(string)
+			description, _ := params["description"].(string)
+			severity, _ := params["severity"].(string)
+			icon, _ := params["icon"].(string)
+			sortOrder, _ := params["sort_order"].(float64)
+
+			h.Pool.Exec(r.Context(), `
+				INSERT INTO governance_rules (node_domain, category, title, description, severity, icon, sort_order)
+				VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+				nodeDomain, category, title, description, severity, icon, int(sortOrder))
+
+		case "update":
+			ruleID, _ := params["rule_id"].(string)
+			category, _ := params["category"].(string)
+			title, _ := params["title"].(string)
+			description, _ := params["description"].(string)
+			severity, _ := params["severity"].(string)
+			icon, _ := params["icon"].(string)
+			sortOrder, _ := params["sort_order"].(float64)
+			isActive, _ := params["is_active"].(bool)
+
+			h.Pool.Exec(r.Context(), `
+				UPDATE governance_rules SET
+					category = $1, title = $2, description = $3, severity = $4,
+					icon = $5, sort_order = $6, is_active = $7, updated_at = NOW()
+				WHERE id = $8`,
+				category, title, description, severity, icon, int(sortOrder), isActive, ruleID)
+
+		case "delete":
+			ruleID, _ := params["rule_id"].(string)
+			h.Pool.Exec(r.Context(), `DELETE FROM governance_rules WHERE id = $1`, ruleID)
+		}
 	}
 	return nil
 }

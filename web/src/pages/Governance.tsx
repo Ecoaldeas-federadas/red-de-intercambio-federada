@@ -43,6 +43,7 @@ export default function Governance() {
   const [editingRule, setEditingRule] = useState<GovernanceRule | null>(null)
   const [error, setError] = useState('')
   const [showHelp, setShowHelp] = useState(false)
+  const [successMsg, setSuccessMsg] = useState('')
   const [formData, setFormData] = useState({
     category: 'estructura',
     title: '',
@@ -71,14 +72,17 @@ export default function Governance() {
     e.preventDefault()
     try {
       if (editingRule) {
-        await api.put(`/api/governance/rules/${editingRule.id}`, formData)
+        const res = await api.put(`/api/governance/rules/${editingRule.id}`, formData)
+        setSuccessMsg(res.data?.message || 'Propuesta enviada a la asamblea')
       } else {
-        await api.post('/api/governance/rules', formData)
+        const res = await api.post('/api/governance/rules', formData)
+        setSuccessMsg(res.data?.message || 'Propuesta enviada a la asamblea')
       }
       setShowCreate(false)
       setEditingRule(null)
       setFormData({ category: 'estructura', title: '', description: '', severity: 'info', icon: 'info', sort_order: 0 })
       loadRules()
+      setTimeout(() => setSuccessMsg(''), 5000)
     } catch (e: any) {
       setError(e.response?.data?.error || 'Error al guardar')
     }
@@ -98,10 +102,12 @@ export default function Governance() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Eliminar esta regla?')) return
+    if (!confirm('Eliminar esta regla? Se creara una propuesta para que la asamblea lo apruebe.')) return
     try {
-      await api.delete(`/api/governance/rules/${id}`)
+      const res = await api.delete(`/api/governance/rules/${id}`)
+      setSuccessMsg(res.data?.message || 'Propuesta de eliminacion enviada a la asamblea')
       loadRules()
+      setTimeout(() => setSuccessMsg(''), 5000)
     } catch (e: any) {
       setError(e.response?.data?.error || 'Error al eliminar')
     }
@@ -165,6 +171,20 @@ export default function Governance() {
       )}
 
       {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4">{error}</div>}
+      {successMsg && (
+        <div className="bg-emerald-50 text-emerald-700 p-3 rounded-lg mb-4 border border-emerald-200">
+          <strong>{successMsg}</strong>
+          <p className="text-xs mt-1">Ve a <a href="/app/assembly" className="underline">Asamblea</a> para ver la propuesta y votar.</p>
+        </div>
+      )}
+
+      {/* Aviso: cambios requieren aprobacion de asamblea */}
+      {canManage && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-800 p-3 rounded-lg mb-4 text-sm">
+          <strong>Importante:</strong> Cualquier cambio a las reglas de gobernanza (crear, modificar o eliminar) requiere aprobacion de la Asamblea General.
+          Al hacer un cambio, se crea una propuesta que debe ser votada y aprobada. La regla no se activara hasta que la asamblea la apruebe.
+        </div>
+      )}
 
       {/* Filtro por categoria */}
       <div className="flex gap-2 mb-6 flex-wrap">

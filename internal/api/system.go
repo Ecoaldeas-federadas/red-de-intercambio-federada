@@ -3232,17 +3232,54 @@ func (h *SystemHandler) createGovernanceRule(w http.ResponseWriter, r *http.Requ
 		req.Icon = "info"
 	}
 
-	var id uuid.UUID
-	err := h.Pool.QueryRow(context.Background(), `
-		INSERT INTO governance_rules (node_domain, category, title, description, severity, icon, sort_order)
-		VALUES ('localhost', $1, $2, $3, $4, $5, $6)
-		RETURNING id`,
-		req.Category, req.Title, req.Description, req.Severity, req.Icon, req.SortOrder).Scan(&id)
+	// Crear propuesta de asamblea en lugar de aplicar directamente
+	// La regla se creara cuando la asamblea apruebe la propuesta
+	userID, _ := h.Auth.GetUserID(r)
+
+	// Crear sesion si no existe una activa
+	var sessionID uuid.UUID
+	err := h.Pool.QueryRow(r.Context(), `
+		SELECT id FROM assembly_sessions WHERE status IN ('scheduled', 'active') ORDER BY created_at DESC LIMIT 1`).Scan(&sessionID)
+	if err != nil {
+		sessionID = uuid.New()
+		h.Pool.Exec(r.Context(), `
+			INSERT INTO assembly_sessions (id, node_domain, session_type, title, start_time, status)
+			VALUES ($1, 'localhost', 'ordinaria', 'Sesion automatica', NOW(), 'active')`, sessionID)
+	}
+
+	// Serializar parametros
+	params := map[string]interface{}{
+		"action":      "create",
+		"category":    req.Category,
+		"title":       req.Title,
+		"description": req.Description,
+		"severity":    req.Severity,
+		"icon":        req.Icon,
+		"sort_order":  req.SortOrder,
+	}
+	newValue, _ := json.Marshal(params)
+
+	proposalID := uuid.New()
+	_, err = h.Pool.Exec(r.Context(), `
+		INSERT INTO assembly_decisions (id, assembly_id, decision_type, description, new_value, required_signatures, status)
+		VALUES ($1, $2, 'governance_rule', $3, $4, 1, 'pending')`,
+		proposalID, sessionID, "Crear regla de gobernanza: "+req.Title, newValue)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
 	}
-	writeJSON(w, 201, map[string]interface{}{"id": id.String(), "message": "Regla creada"})
+
+	// Audit log
+	auditDetails, _ := json.Marshal(map[string]interface{}{"action": "create_governance_rule", "title": req.Title})
+	h.Pool.Exec(r.Context(), `INSERT INTO audit_log (actor_id, action, target_id, details) VALUES ($1, 'governance_proposal', $2, $3)`,
+		userID, proposalID, auditDetails)
+
+	writeJSON(w, 201, map[string]interface{}{
+		"id":       proposalID.String(),
+		"message":  "Propuesta creada. La regla se activara cuando la asamblea la apruebe.",
+		"status":   "pending",
+		"proposal": "/app/assembly",
+	})
 }
 
 func (h *SystemHandler) updateGovernanceRule(w http.ResponseWriter, r *http.Request) {
@@ -3261,31 +3298,106 @@ func (h *SystemHandler) updateGovernanceRule(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// Crear propuesta de asamblea para modificar la regla
+	userID, _ := h.Auth.GetUserID(r)
+
+	var sessionID uuid.UUID
+	err := h.Pool.QueryRow(r.Context(), `
+		SELECT id FROM assembly_sessions WHERE status IN ('scheduled', 'active') ORDER BY created_at DESC LIMIT 1`).Scan(&sessionID)
+	if err != nil {
+		sessionID = uuid.New()
+		h.Pool.Exec(r.Context(), `
+			INSERT INTO assembly_sessions (id, node_domain, session_type, title, start_time, status)
+			VALUES ($1, 'localhost', 'ordinaria', 'Sesion automatica', NOW(), 'active')`, sessionID)
+	}
+
 	active := true
 	if req.IsActive != nil {
 		active = *req.IsActive
 	}
 
-	_, err := h.Pool.Exec(context.Background(), `
-		UPDATE governance_rules SET
-		  category = $1, title = $2, description = $3, severity = $4,
-		  icon = $5, sort_order = $6, is_active = $7, updated_at = NOW()
-		WHERE id = $8 AND node_domain = 'localhost'`,
-		req.Category, req.Title, req.Description, req.Severity, req.Icon, req.SortOrder, active, id)
+	params := map[string]interface{}{
+		"action":      "update",
+		"rule_id":     id,
+		"category":    req.Category,
+		"title":       req.Title,
+		"description": req.Description,
+		"severity":    req.Severity,
+		"icon":        req.Icon,
+		"sort_order":  req.SortOrder,
+		"is_active":   active,
+	}
+	newValue, _ := json.Marshal(params)
+
+	proposalID := uuid.New()
+	_, err = h.Pool.Exec(r.Context(), `
+		INSERT INTO assembly_decisions (id, assembly_id, decision_type, description, new_value, required_signatures, status)
+		VALUES ($1, $2, 'governance_rule', $3, $4, 1, 'pending')`,
+		proposalID, sessionID, "Modificar regla de gobernanza: "+req.Title, newValue)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
 	}
-	writeJSON(w, 200, map[string]interface{}{"message": "Regla actualizada"})
+
+	auditDetails, _ := json.Marshal(map[string]interface{}{"action": "update_governance_rule", "rule_id": id})
+	h.Pool.Exec(r.Context(), `INSERT INTO audit_log (actor_id, action, target_id, details) VALUES ($1, 'governance_proposal', $2, $3)`,
+		userID, proposalID, auditDetails)
+
+	writeJSON(w, 200, map[string]interface{}{
+		"id":       proposalID.String(),
+		"message":  "Propuesta creada. La modificacion se aplicara cuando la asamblea la apruebe.",
+		"status":   "pending",
+		"proposal": "/app/assembly",
+	})
 }
 
 func (h *SystemHandler) deleteGovernanceRule(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	_, err := h.Pool.Exec(context.Background(), `
-		DELETE FROM governance_rules WHERE id = $1 AND node_domain = 'localhost'`, id)
+
+	// Crear propuesta de asamblea para eliminar la regla
+	userID, _ := h.Auth.GetUserID(r)
+
+	// Obtener el titulo de la regla para la descripcion
+	var ruleTitle string
+	h.Pool.QueryRow(r.Context(), `SELECT title FROM governance_rules WHERE id = $1`, id).Scan(&ruleTitle)
+	if ruleTitle == "" {
+		ruleTitle = "regla " + id
+	}
+
+	var sessionID uuid.UUID
+	err := h.Pool.QueryRow(r.Context(), `
+		SELECT id FROM assembly_sessions WHERE status IN ('scheduled', 'active') ORDER BY created_at DESC LIMIT 1`).Scan(&sessionID)
+	if err != nil {
+		sessionID = uuid.New()
+		h.Pool.Exec(r.Context(), `
+			INSERT INTO assembly_sessions (id, node_domain, session_type, title, start_time, status)
+			VALUES ($1, 'localhost', 'ordinaria', 'Sesion automatica', NOW(), 'active')`, sessionID)
+	}
+
+	params := map[string]interface{}{
+		"action":  "delete",
+		"rule_id": id,
+	}
+	newValue, _ := json.Marshal(params)
+
+	proposalID := uuid.New()
+	_, err = h.Pool.Exec(r.Context(), `
+		INSERT INTO assembly_decisions (id, assembly_id, decision_type, description, new_value, required_signatures, status)
+		VALUES ($1, $2, 'governance_rule', $3, $4, 1, 'pending')`,
+		proposalID, sessionID, "Eliminar regla de gobernanza: "+ruleTitle, newValue)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
 	}
-	writeJSON(w, 200, map[string]interface{}{"message": "Regla eliminada"})
+
+	auditDetails, _ := json.Marshal(map[string]interface{}{"action": "delete_governance_rule", "rule_id": id})
+	h.Pool.Exec(r.Context(), `INSERT INTO audit_log (actor_id, action, target_id, details) VALUES ($1, 'governance_proposal', $2, $3)`,
+		userID, proposalID, auditDetails)
+
+	writeJSON(w, 200, map[string]interface{}{
+		"id":       proposalID.String(),
+		"message":  "Propuesta creada. La regla se eliminara cuando la asamblea lo apruebe.",
+		"status":   "pending",
+		"proposal": "/app/assembly",
+	})
 }
