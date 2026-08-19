@@ -276,6 +276,7 @@ func (g *GatewayService) sendTelegram(config map[string]interface{}, chatID, tit
 // ===== Matrix (Client-Server API) =====
 
 func (g *GatewayService) sendMatrix(config map[string]interface{}, userID, title, message, link string) error {
+	_ = userID // Matrix usa room ID directo, no userID
 	homeserverURL, _ := config["homeserver_url"].(string)
 	accessToken, _ := config["access_token"].(string)
 	defaultRoomID, _ := config["default_room_id"].(string)
@@ -533,19 +534,6 @@ func (g *GatewayService) sendWebPush(ctx context.Context, config map[string]inte
 		return fmt.Errorf("webpush error: %d", resp.StatusCode)
 	}
 	return nil
-}
-
-// buildVapidJWT construye un JWT minimal para VAPID
-// Nota: esto es una implementacion simplificada. Para produccion se recomienda
-// usar github.com/golang-jwt/jwt o una libreria webpush dedicada.
-func buildVapidJWT(privateKeyPEM, subject, endpoint string) (string, error) {
-	// Por ahora retornamos un placeholder - en produccion esto requiere
-	// firmar un JWT ES256 con la clave privada VAPID
-	// El payload contiene: aud (origin del endpoint), exp (24h), sub (subject)
-	_ = privateKeyPEM
-	_ = subject
-	_ = endpoint
-	return "placeholder.vapid.jwt", nil
 }
 
 // ===== SMS (generico) =====

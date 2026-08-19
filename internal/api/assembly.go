@@ -84,11 +84,12 @@ func (h *AssemblyHandler) listSessions(w http.ResponseWriter, r *http.Request) {
 	query := `SELECT id, node_domain, session_type, title, description, start_time, end_time, status, created_at,
 		       is_presential, minutes, recall_number, original_scheduled_time, quorum_verified, quorum_checked_at
 		FROM assembly_sessions`
-	if filter == "upcoming" {
+	switch filter {
+	case "upcoming":
 		query += ` WHERE status IN ('scheduled', 'waiting_quorum', 'active') ORDER BY start_time ASC LIMIT 50`
-	} else if filter == "past" {
+	case "past":
 		query += ` WHERE status IN ('completed', 'cancelled', 'expired') ORDER BY start_time DESC LIMIT 50`
-	} else {
+	default:
 		query += ` ORDER BY created_at DESC LIMIT 50`
 	}
 	rows, err := h.Pool.Query(r.Context(), query)
@@ -1455,11 +1456,12 @@ func (h *AssemblyHandler) getProposalReport(w http.ResponseWriter, r *http.Reque
 
 	// Resultado
 	result := "pendiente"
-	if status == "executed" {
+	switch status {
+	case "executed":
 		result = "aprobada"
-	} else if status == "rejected" {
+	case "rejected":
 		result = "rechazada"
-	} else if status == "expired" {
+	case "expired":
 		result = "vencida (sin decision)"
 	}
 

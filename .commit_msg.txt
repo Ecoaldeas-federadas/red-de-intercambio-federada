@@ -1,19 +1,11 @@
-fix: conflicto de rutas /accounts/me vs /accounts/{id} en chi
+fix: limpia warnings del linter y elimina buildVapidJWT placeholder
 
-Problema: GET /api/accounts/me retornaba 404 porque chi tenia conflicto
-entre la ruta estatica /api/accounts/me y la parametrizada /api/accounts/{id}
-registradas en grupos diferentes.
-
-Solucion: mover las rutas /me al handler de auth donde ya existe /api/auth/me:
-- GET /api/auth/me (ya existia)
-- PUT /api/auth/me/contacts (nueva, movida desde /api/accounts/me/contacts)
-
-Frontend actualizado en 4 archivos:
-- NotificationSettings.tsx: GET /auth/me, PUT /auth/me/contacts
-- Profile.tsx: GET /auth/me
-- Dashboard.tsx: GET /auth/me
-
-Las rutas /api/accounts/{id} siguen funcionando para obtener cuentas por ID.
+- assembly.go: if/else cambiados a switch (filter, status, voteStr)
+- gateways.go: eliminada buildVapidJWT placeholder (reemplazada por buildVapidJWTReal)
+- gateways.go: marcado userID como _ en sendMatrix (no se usa)
+- routes.go: marcado pool como _ en generateHTMLPage (no se usa en esa funcion)
+- vapid_crypto.go: marcado vapidPrivateKeyB64 como _ en encryptWebPushPayload
+  (RFC 8291 usa clave efimera, no VAPID key para encriptar)
 
 Generated with Devin
 

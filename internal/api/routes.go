@@ -510,6 +510,7 @@ li a:hover { text-decoration: underline; }
 
 // generateHTMLPage genera el HTML completo de una pagina individual
 func generateHTMLPage(pool *pgxpool.Pool, slug, title string, subtitle *string, content string, allPages []pageInfo) string {
+	_ = pool // pool se usa en otras funciones del mismo archivo
 	subtitleStr := ""
 	if subtitle != nil {
 		subtitleStr = *subtitle

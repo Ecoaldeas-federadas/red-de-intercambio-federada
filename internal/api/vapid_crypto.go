@@ -110,6 +110,7 @@ func buildVapidJWTReal(privateKeyB64, subject, endpoint string) (string, error) 
 
 // encryptWebPushPayload encripta el payload segun RFC 8291 (aes128gcm)
 func encryptWebPushPayload(payload string, subscriptionP256dh, subscriptionAuth string, vapidPrivateKeyB64 string) ([]byte, error) {
+	_ = vapidPrivateKeyB64 // VAPID key se usa para JWT, no para encriptar payload (RFC 8291 usa clave efimera)
 	// Decodificar las claves del subscription (Base64URL)
 	userPublicKeyBytes, err := base64.RawURLEncoding.DecodeString(subscriptionP256dh)
 	if err != nil {
