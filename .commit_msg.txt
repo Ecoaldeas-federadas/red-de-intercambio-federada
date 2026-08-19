@@ -1,20 +1,17 @@
-fix: eliminar dominio hardcoded nodo-a.org de config.yaml
+fix: validar que dominio y nombre del nodo no queden vacios al crear
 
-nodo-a.org era un dominio de ejemplo que se habia colado en config.yaml
-como valor real. Esto causaba que el PasskeyManager se inicializara con
-un RP ID que no coincidia con ningun dominio real, rompiendo WebAuthn.
+El config.yaml ahora tiene domain y name vacios (plantilla), pero al
+crear el nodo el setup debe garantizar que se guarden valores reales.
 
-Cambios:
-- config.yaml: domain y name ahora vacios (se configuran en el setup)
-- Placeholders en installers (install.ps1, install.sh, cmd/install,
-  cmd/installer, Setup.tsx) cambiados a "mi-nodo.com" como ejemplo
-- docs/deployment.md: todos los ejemplos cambiados de nodo-a.org a
-  mi-nodo.com
-- firmware/terminal-ble-reader/README.md: actualizado
-- README.md: actualizado
+Fix en setup.go (initNode):
+- Agregada validacion: si nodeDomain queda vacio despues del fallback
+  (req.NodeDomain -> sh.NodeDomain), retorna 400 con mensaje claro
+- Agregada validacion: si nodeName queda vacio, retorna 400
+- Mensajes explican que el dominio es obligatorio (localhost para
+  desarrollo o dominio real para produccion)
 
-El dominio del nodo NO debe estar hardcoded - cada instalacion tiene
-su propio dominio configurado durante el setup wizard.
+El frontend (Setup.tsx) ya validaba estos campos antes de enviar,
+pero el backend no tenia la validacion. Ahora ambos la tienen.
 
 Generated with Devin
 

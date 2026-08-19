@@ -143,6 +143,18 @@ func (sh *SetupHandler) initNode(w http.ResponseWriter, r *http.Request) {
 		nodeName = sh.NodeName
 	}
 
+	// Validar que el dominio y el nombre no queden vacios.
+	// El dominio es obligatorio: cada nodo debe tener uno (ej: "localhost"
+	// para desarrollo, o un dominio real para produccion).
+	if nodeDomain == "" {
+		writeError(w, 400, "node_domain is required (ej: localhost para desarrollo, o tu dominio real)")
+		return
+	}
+	if nodeName == "" {
+		writeError(w, 400, "node_name is required (ej: Banco Comunitario A)")
+		return
+	}
+
 	pubKey, privKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		writeError(w, 500, "failed to generate keypair")
