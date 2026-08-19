@@ -1,42 +1,31 @@
-fix: login con passkey no funcionaba - backend y frontend eran stubs
+fix: login passkey 500 - panic y solo soportaba Ed25519, no ES256
 
-El login con passkey era completamente no funcional. Tanto el backend
-como el frontend eran stubs que no implementaban WebAuthn real.
+El login con passkey daba 500 Internal Server Error por dos causas:
 
-PROBLEMA 1: Backend beginLogin (500 Internal Server Error)
-- Pasaba nil como credential IDs (no buscaba los passkeys del usuario)
-- Type assertion options.(map[string]interface{})["challenge"] fallaba
-  porque BeginLogin retorna *crypto.LoginChallenge, no map
-- Almacenaba uuid.Nil como user_id en el challenge store
+PROBLEMA 1: Panic en parseCOSEPublicKey (causa del 500)
+La linea kty.(int) hacia un type assertion directo que puede panic
+si CBOR decodifica el valor como uint64 en vez de int. El middleware
+Recoverer captura el panic y devuelve 500.
 
-Fix beginLogin:
-- Busca el usuario por username + node_domain en la BD
-- Obtiene los credential_id de user_passkeys del usuario
-- Pasa los credential IDs reales a BeginLogin
-- Extrae el challenge con type assertion correcto (*LoginChallenge)
-- Almacena el user_id real en el challenge store
+Fix: nueva funcion toInt() que usa type switch para convertir
+de forma segura int, int64, uint64, uint, float64 a int.
 
-PROBLEMA 2: Backend finishLogin era un stub peligroso
-- No verificaba la firma criptografica
-- Generaba un token con uuid.New() (usuario aleatorio!)
-- Aceptaba cualquier response vacio
+PROBLEMA 2: Solo soportaba Ed25519, pero Windows usa ES256
+PubKeyCredParams ofrece algoritmos -7 (ES256) y -257 (RS256).
+Windows Hello crea llaves ES256 (ECDSA P-256, kty=2), pero
+parseCOSEPublicKey solo soportaba Ed25519 (kty=8) y ed25519.Verify
+no puede verificar firmas ECDSA.
 
-Fix finishLogin:
-- Recupera el user_id del challenge store
-- Busca el passkey del usuario por credential_id en la BD
-- Verifica la firma con PasskeyManager.VerifyLogin
-- Actualiza sign_count y last_used_at
-- Genera el token con el user_id y username correctos
+Fix: reescrito el soporte criptografico para manejar ambos:
+- detectCOSEKeyType: detecta si la clave es Ed25519 (kty=8) o ES256 (kty=2)
+- parseEd25519PublicKey: parsea claves Ed25519 desde COSE
+- parseES256PublicKey: parsea claves ECDSA P-256 desde COSE
+  (extrae coordenadas x, y y reconstruye ecdsa.PublicKey)
+- VerifyLogin: usa ed25519.Verify para Ed25519 o ecdsa.VerifyASN1
+  con SHA-256 para ES256
 
-PROBLEMA 3: Frontend handlePasskeyLogin no usaba WebAuthn
-- Enviaba session_key: 'temp' y response: {}
-- No llamaba navigator.credentials.get()
-
-Fix frontend:
-- Llama a /auth/login/begin para obtener opciones
-- Usa navigator.credentials.get() con las opciones reales
-- Envia la respuesta WebAuthn real (authenticatorData, signature,
-  clientDataJSON) al backend para verificacion
+Esto permite que Windows Hello, FaceID, TouchID y la mayoria de
+autenticadores funcionen (todos usan ES256 por defecto).
 
 Generated with Devin
 

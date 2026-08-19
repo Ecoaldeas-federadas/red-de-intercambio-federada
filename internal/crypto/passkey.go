@@ -1,11 +1,15 @@
 package crypto
 
 import (
+	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/fxamacker/cbor/v2"
@@ -271,13 +275,34 @@ func (pm *PasskeyManager) VerifyLogin(response LoginResponse, expectedChallenge 
 
 	verifyData := append(authDataBytes, clientDataBytes...)
 
-	pubKey, err := parseCOSEPublicKey(storedPubKey)
+	// Determinar el tipo de clave y verificar la firma accordingly
+	keyType, err := detectCOSEKeyType(storedPubKey)
 	if err != nil {
-		return 0, fmt.Errorf("parsing stored public key: %w", err)
+		return 0, fmt.Errorf("detecting key type: %w", err)
 	}
 
-	if !ed25519.Verify(pubKey, verifyData, signatureBytes) {
-		return 0, fmt.Errorf("signature verification failed")
+	switch keyType {
+	case "ed25519":
+		pubKey, err := parseEd25519PublicKey(storedPubKey)
+		if err != nil {
+			return 0, fmt.Errorf("parsing Ed25519 public key: %w", err)
+		}
+		if !ed25519.Verify(pubKey, verifyData, signatureBytes) {
+			return 0, fmt.Errorf("signature verification failed (Ed25519)")
+		}
+
+	case "es256":
+		pubKey, err := parseES256PublicKey(storedPubKey)
+		if err != nil {
+			return 0, fmt.Errorf("parsing ES256 public key: %w", err)
+		}
+		hash := sha256.Sum256(verifyData)
+		if !ecdsa.VerifyASN1(pubKey, hash[:], signatureBytes) {
+			return 0, fmt.Errorf("signature verification failed (ES256)")
+		}
+
+	default:
+		return 0, fmt.Errorf("unsupported key type: %s", keyType)
 	}
 
 	newSignCount := extractSignCount(authDataBytes)
@@ -331,7 +356,54 @@ func extractPublicKeyFromAttestation(attestationObject []byte) ([]byte, error) {
 	return credPublicKey, nil
 }
 
-func parseCOSEPublicKey(keyBytes []byte) (ed25519.PublicKey, error) {
+// detectCOSEKeyType determina el tipo de clave COSE almacenada
+func detectCOSEKeyType(keyBytes []byte) (string, error) {
+	if len(keyBytes) == ed25519.PublicKeySize {
+		return "ed25519", nil
+	}
+
+	var coseKey map[int]interface{}
+	if err := cborUnmarshal(keyBytes, &coseKey); err != nil {
+		return "", fmt.Errorf("parsing COSE key: %w", err)
+	}
+
+	kty, ok := coseKey[1]
+	if !ok {
+		return "", fmt.Errorf("missing key type in COSE key")
+	}
+
+	// CBOR puede decodificar enteros como int, int64, uint64, etc.
+	ktyInt := toInt(kty)
+	switch ktyInt {
+	case 8: // OKP (Ed25519)
+		return "ed25519", nil
+	case 2: // EC2 (ECDSA)
+		return "es256", nil
+	default:
+		return "", fmt.Errorf("unsupported key type: %v", kty)
+	}
+}
+
+// toInt converte un valor CBOR decodificado a int de forma segura (sin panic)
+func toInt(v interface{}) int {
+	switch n := v.(type) {
+	case int:
+		return n
+	case int64:
+		return int(n)
+	case uint64:
+		return int(n)
+	case uint:
+		return int(n)
+	case float64:
+		return int(n)
+	default:
+		return -1
+	}
+}
+
+// parseEd25519PublicKey parsea una clave publica Ed25519 desde COSE
+func parseEd25519PublicKey(keyBytes []byte) (ed25519.PublicKey, error) {
 	if len(keyBytes) == ed25519.PublicKeySize {
 		return ed25519.PublicKey(keyBytes), nil
 	}
@@ -339,15 +411,6 @@ func parseCOSEPublicKey(keyBytes []byte) (ed25519.PublicKey, error) {
 	var coseKey map[int]interface{}
 	if err := cborUnmarshal(keyBytes, &coseKey); err != nil {
 		return nil, fmt.Errorf("parsing COSE key: %w", err)
-	}
-
-	kty, ok := coseKey[1]
-	if !ok {
-		return nil, fmt.Errorf("missing key type in COSE key")
-	}
-
-	if kty.(int) != 8 {
-		return nil, fmt.Errorf("unsupported key type: %v", kty)
 	}
 
 	x, ok := coseKey[-2]
@@ -365,6 +428,61 @@ func parseCOSEPublicKey(keyBytes []byte) (ed25519.PublicKey, error) {
 	}
 
 	return ed25519.PublicKey(xBytes), nil
+}
+
+// parseES256PublicKey parsea una clave publica ECDSA P-256 desde COSE
+// COSE key para EC2 P-256:
+//
+//	 1 (kty): 2 (EC2)
+//	-1 (crv): 1 (P-256)
+//	-2 (x):   32 bytes (coordenada x)
+//	-3 (y):   32 bytes (coordenada y)
+func parseES256PublicKey(keyBytes []byte) (*ecdsa.PublicKey, error) {
+	var coseKey map[int]interface{}
+	if err := cborUnmarshal(keyBytes, &coseKey); err != nil {
+		return nil, fmt.Errorf("parsing COSE key: %w", err)
+	}
+
+	// Verificar que es EC2 (kty=2)
+	kty := toInt(coseKey[1])
+	if kty != 2 {
+		return nil, fmt.Errorf("not an EC2 key (kty=%d)", kty)
+	}
+
+	// Verificar que es P-256 (crv=1)
+	crv := toInt(coseKey[-1])
+	if crv != 1 {
+		return nil, fmt.Errorf("not P-256 curve (crv=%d)", crv)
+	}
+
+	// Obtener coordenada x
+	xVal, ok := coseKey[-2]
+	if !ok {
+		return nil, fmt.Errorf("missing x coordinate")
+	}
+	xBytes, ok := xVal.([]byte)
+	if !ok {
+		return nil, fmt.Errorf("invalid x coordinate type")
+	}
+
+	// Obtener coordenada y
+	yVal, ok := coseKey[-3]
+	if !ok {
+		return nil, fmt.Errorf("missing y coordinate")
+	}
+	yBytes, ok := yVal.([]byte)
+	if !ok {
+		return nil, fmt.Errorf("invalid y coordinate type")
+	}
+
+	// Reconstruir la clave ECDSA
+	pubKey := &ecdsa.PublicKey{
+		Curve: elliptic.P256(),
+		X:     new(big.Int).SetBytes(xBytes),
+		Y:     new(big.Int).SetBytes(yBytes),
+	}
+
+	return pubKey, nil
 }
 
 func extractSignCount(authData []byte) int64 {
