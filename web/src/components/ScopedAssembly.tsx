@@ -16,6 +16,8 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
   const [reports, setReports] = useState<any[]>([])
   const [proposalTypes, setProposalTypes] = useState<any[]>([])
   const [config, setConfig] = useState<any>({ has_assembly: false, ordinary_frequency_months: 3, preferred_day_of_month: 15, preferred_hour: 15, notification_days_before: 7, assemblies_enabled: true })
+  const [configEditing, setConfigEditing] = useState(false)
+  const [configSaving, setConfigSaving] = useState(false)
   const [showNewSession, setShowNewSession] = useState(false)
   const [showNewProposal, setShowNewProposal] = useState(false)
   const [newSession, setNewSession] = useState({ session_type: 'ordinaria', title: '', description: '', is_presential: false, start_time: '' })
@@ -156,11 +158,18 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
   }
 
   const saveConfig = async () => {
+    setConfigSaving(true)
+    setError('')
     try {
       await api.put(`${basePath}/config`, config)
-      setError('')
+      // Recargar
+      const d: any = await api.get(`${basePath}/config`)
+      if (d) setConfig(d)
+      setConfigEditing(false)
+      setConfigSaving(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar configuracion')
+      setConfigSaving(false)
     }
   }
 
@@ -544,72 +553,123 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
       {tab === 'config' && (
         <div className="space-y-4">
           <h3 className="font-medium flex items-center gap-2"><Settings size={18} />Configuracion de Asamblea</h3>
+          <p className="text-xs text-blue-600 bg-blue-50 rounded p-2">Estos son ajustes basicos. No requieren aprobacion de asamblea. Puede editarlos el administrador, director o secretario.</p>
 
           <div className="card space-y-4">
-            <div>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={config.has_assembly}
-                  onChange={e => setConfig({ ...config, has_assembly: e.target.checked })}
-                  className="accent-trueque-600"
-                />
-                <span className="text-sm font-medium">Esta {label} tiene asambleas</span>
-              </label>
-              <p className="text-xs text-gray-400 mt-1">Si la {label.toLowerCase()} es de una sola persona, no necesita asambleas. Desmarca esta opcion para deshabilitar.</p>
-            </div>
-
-            {config.has_assembly && (
-              <>
+            {/* Modo lectura */}
+            {!configEditing ? (
+              <div className="space-y-3">
+                <div className="text-sm">
+                  <label className="label">Tiene asambleas</label>
+                  <b>{config.has_assembly ? 'Si' : 'No'}</b>
+                </div>
+                {config.has_assembly && (
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <label className="label">Frecuencia</label>
+                      <b>
+                        {config.ordinary_frequency_months === 0 && 'No auto-convocar'}
+                        {config.ordinary_frequency_months === 1 && 'Cada mes'}
+                        {config.ordinary_frequency_months === 2 && 'Cada 2 meses'}
+                        {config.ordinary_frequency_months === 3 && 'Cada 3 meses (trimestral)'}
+                        {config.ordinary_frequency_months === 6 && 'Cada 6 meses (semestral)'}
+                        {config.ordinary_frequency_months === 12 && 'Cada 12 meses (anual)'}
+                      </b>
+                    </div>
+                    {config.ordinary_frequency_months > 0 && (
+                      <>
+                        <div>
+                          <label className="label">Dia preferido</label>
+                          <b>{config.preferred_day_of_month === 0 ? 'Cualquier dia' : `Dia ${config.preferred_day_of_month}`}</b>
+                        </div>
+                        <div>
+                          <label className="label">Hora preferida</label>
+                          <b>{config.preferred_hour.toString().padStart(2, '0')}:00</b>
+                        </div>
+                        <div>
+                          <label className="label">Notificar con anticipacion</label>
+                          <b>{config.notification_days_before} dias antes</b>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+                <button onClick={() => setConfigEditing(true)} className="btn-primary">Editar</button>
+              </div>
+            ) : (
+              /* Modo edicion */
+              <div className="space-y-4">
                 <div>
-                  <label className="label">Frecuencia de asambleas ordinarias (meses)</label>
-                  <select className="input" value={config.ordinary_frequency_months} onChange={e => setConfig({ ...config, ordinary_frequency_months: parseInt(e.target.value) })}>
-                    <option value={0}>No auto-convocar</option>
-                    <option value={1}>Cada mes</option>
-                    <option value={2}>Cada 2 meses</option>
-                    <option value={3}>Cada 3 meses (trimestral)</option>
-                    <option value={6}>Cada 6 meses (semestral)</option>
-                    <option value={12}>Cada 12 meses (anual)</option>
-                  </select>
-                  <p className="text-xs text-gray-400 mt-1">Al cerrar una asamblea ordinaria, se convoca automaticamente la siguiente.</p>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={config.has_assembly}
+                      onChange={e => setConfig({ ...config, has_assembly: e.target.checked })}
+                      className="accent-trueque-600"
+                    />
+                    <span className="text-sm font-medium">Esta {label} tiene asambleas</span>
+                  </label>
+                  <p className="text-xs text-gray-400 mt-1">Si la {label.toLowerCase()} es de una sola persona, no necesita asambleas. Desmarca esta opcion para deshabilitar.</p>
                 </div>
 
-                {config.ordinary_frequency_months > 0 && (
+                {config.has_assembly && (
                   <>
                     <div>
-                      <label className="label">Dia preferido del mes</label>
-                      <select className="input" value={config.preferred_day_of_month} onChange={e => setConfig({ ...config, preferred_day_of_month: parseInt(e.target.value) })}>
-                        <option value={0}>Cualquier dia</option>
-                        {Array.from({ length: 28 }, (_, i) => i + 1).map(d => (
-                          <option key={d} value={d}>Dia {d}</option>
-                        ))}
+                      <label className="label">Frecuencia de asambleas ordinarias (meses)</label>
+                      <select className="input" value={config.ordinary_frequency_months} onChange={e => setConfig({ ...config, ordinary_frequency_months: parseInt(e.target.value) })}>
+                        <option value={0}>No auto-convocar</option>
+                        <option value={1}>Cada mes</option>
+                        <option value={2}>Cada 2 meses</option>
+                        <option value={3}>Cada 3 meses (trimestral)</option>
+                        <option value={6}>Cada 6 meses (semestral)</option>
+                        <option value={12}>Cada 12 meses (anual)</option>
                       </select>
+                      <p className="text-xs text-gray-400 mt-1">Al cerrar una asamblea ordinaria, se convoca automaticamente la siguiente.</p>
                     </div>
-                    <div>
-                      <label className="label">Hora preferida</label>
-                      <select className="input" value={config.preferred_hour} onChange={e => setConfig({ ...config, preferred_hour: parseInt(e.target.value) })}>
-                        {Array.from({ length: 24 }, (_, i) => i).map(h => (
-                          <option key={h} value={h}>{h.toString().padStart(2, '0')}:00</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="label">Notificar con anticipacion (dias)</label>
-                      <select className="input" value={config.notification_days_before} onChange={e => setConfig({ ...config, notification_days_before: parseInt(e.target.value) })}>
-                        <option value={1}>1 dia antes</option>
-                        <option value={3}>3 dias antes</option>
-                        <option value={7}>7 dias antes</option>
-                        <option value={14}>14 dias antes</option>
-                        <option value={30}>30 dias antes</option>
-                      </select>
-                      <p className="text-xs text-gray-400 mt-1">Los miembros recibiran una notificacion con esta anticipacion.</p>
-                    </div>
+
+                    {config.ordinary_frequency_months > 0 && (
+                      <>
+                        <div>
+                          <label className="label">Dia preferido del mes</label>
+                          <select className="input" value={config.preferred_day_of_month} onChange={e => setConfig({ ...config, preferred_day_of_month: parseInt(e.target.value) })}>
+                            <option value={0}>Cualquier dia</option>
+                            {Array.from({ length: 28 }, (_, i) => i + 1).map(d => (
+                              <option key={d} value={d}>Dia {d}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="label">Hora preferida</label>
+                          <select className="input" value={config.preferred_hour} onChange={e => setConfig({ ...config, preferred_hour: parseInt(e.target.value) })}>
+                            {Array.from({ length: 24 }, (_, i) => i).map(h => (
+                              <option key={h} value={h}>{h.toString().padStart(2, '0')}:00</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="label">Notificar con anticipacion (dias)</label>
+                          <select className="input" value={config.notification_days_before} onChange={e => setConfig({ ...config, notification_days_before: parseInt(e.target.value) })}>
+                            <option value={1}>1 dia antes</option>
+                            <option value={3}>3 dias antes</option>
+                            <option value={7}>7 dias antes</option>
+                            <option value={14}>14 dias antes</option>
+                            <option value={30}>30 dias antes</option>
+                          </select>
+                          <p className="text-xs text-gray-400 mt-1">Los miembros recibiran una notificacion con esta anticipacion.</p>
+                        </div>
+                      </>
+                    )}
                   </>
                 )}
-              </>
-            )}
 
-            <button onClick={saveConfig} className="btn-primary">Guardar configuracion</button>
+                <div className="flex gap-2">
+                  <button onClick={saveConfig} disabled={configSaving} className="btn-primary">
+                    {configSaving ? 'Guardando...' : 'Guardar'}
+                  </button>
+                  <button onClick={() => { setConfigEditing(false); loadConfig() }} className="btn-secondary">Cancelar</button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">

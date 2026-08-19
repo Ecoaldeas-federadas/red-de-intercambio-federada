@@ -379,6 +379,9 @@ export default function Assembly() {
   const [rescheduleSession, setRescheduleSession] = useState<any>(null)
   const [rescheduleTime, setRescheduleTime] = useState('')
   const [freqConfig, setFreqConfig] = useState<any>({ ordinary_frequency_months: 3, preferred_day_of_month: 15, preferred_hour: 15, notification_days_before: 7, assemblies_enabled: true })
+  const [freqLoaded, setFreqLoaded] = useState(false)
+  const [freqEditing, setFreqEditing] = useState(false)
+  const [freqSaving, setFreqSaving] = useState(false)
   const [sessionFilter, setSessionFilter] = useState<'upcoming' | 'past'>('upcoming')
 
   const [newSession, setNewSession] = useState({ session_type: 'ordinaria', title: '', description: '', is_presential: false, start_time: '' })
@@ -403,7 +406,7 @@ export default function Assembly() {
     if (tab === 'sessions') loadSessions()
   }, [sessionFilter, tab])
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(); loadFreqConfig() }, [])
 
   const createProposal = async () => {
     setError('')
@@ -534,15 +537,26 @@ export default function Assembly() {
   const loadFreqConfig = async () => {
     try {
       const data: any = await api.get('/assembly/frequency-config')
-      setFreqConfig(data)
+      if (data) {
+        setFreqConfig(data)
+        setFreqLoaded(true)
+      }
     } catch (err) { /* ignore */ }
   }
 
   const saveFreqConfig = async () => {
+    setFreqSaving(true)
+    setError('')
     try {
       await api.put('/assembly/frequency-config', freqConfig)
+      // Recargar para confirmar
+      const data: any = await api.get('/assembly/frequency-config')
+      if (data) setFreqConfig(data)
+      setFreqEditing(false)
+      setFreqSaving(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar frecuencia')
+      setFreqSaving(false)
     }
   }
 
@@ -1738,50 +1752,95 @@ export default function Assembly() {
           <h3 className="font-semibold flex items-center gap-2 mt-6"><Calendar size={18} />Convocatoria Automatica</h3>
           <div className="card space-y-4">
             <p className="text-sm text-gray-600">Configura cada cuanto se convoca la asamblea ordinaria. Al cerrar una asamblea, se agenda la siguiente automaticamente.</p>
-            <button onClick={loadFreqConfig} className="text-sm text-blue-600 underline">Cargar configuracion</button>
-            <div>
-              <label className="label">Frecuencia de asambleas ordinarias</label>
-              <select className="input" value={freqConfig.ordinary_frequency_months} onChange={e => setFreqConfig({ ...freqConfig, ordinary_frequency_months: parseInt(e.target.value) })}>
-                <option value={0}>No auto-convocar</option>
-                <option value={1}>Cada mes</option>
-                <option value={2}>Cada 2 meses</option>
-                <option value={3}>Cada 3 meses (trimestral)</option>
-                <option value={6}>Cada 6 meses (semestral)</option>
-                <option value={12}>Cada 12 meses (anual)</option>
-              </select>
-            </div>
-            {freqConfig.ordinary_frequency_months > 0 && (
-              <>
+            <p className="text-xs text-blue-600 bg-blue-50 rounded p-2">Estos son ajustes basicos. No requieren aprobacion de asamblea. Pueden editarlos: administrador, junta directiva, director o secretario.</p>
+
+            {/* Modo lectura */}
+            {!freqEditing ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <label className="label">Frecuencia</label>
+                    <b>
+                      {freqConfig.ordinary_frequency_months === 0 && 'No auto-convocar'}
+                      {freqConfig.ordinary_frequency_months === 1 && 'Cada mes'}
+                      {freqConfig.ordinary_frequency_months === 2 && 'Cada 2 meses'}
+                      {freqConfig.ordinary_frequency_months === 3 && 'Cada 3 meses (trimestral)'}
+                      {freqConfig.ordinary_frequency_months === 6 && 'Cada 6 meses (semestral)'}
+                      {freqConfig.ordinary_frequency_months === 12 && 'Cada 12 meses (anual)'}
+                    </b>
+                  </div>
+                  {freqConfig.ordinary_frequency_months > 0 && (
+                    <>
+                      <div>
+                        <label className="label">Dia preferido</label>
+                        <b>{freqConfig.preferred_day_of_month === 0 ? 'Cualquier dia' : `Dia ${freqConfig.preferred_day_of_month}`}</b>
+                      </div>
+                      <div>
+                        <label className="label">Hora preferida</label>
+                        <b>{freqConfig.preferred_hour.toString().padStart(2, '0')}:00</b>
+                      </div>
+                      <div>
+                        <label className="label">Notificar con anticipacion</label>
+                        <b>{freqConfig.notification_days_before} dias antes</b>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <button onClick={() => setFreqEditing(true)} className="btn-primary">Editar</button>
+              </div>
+            ) : (
+              /* Modo edicion */
+              <div className="space-y-3">
                 <div>
-                  <label className="label">Dia preferido del mes</label>
-                  <select className="input" value={freqConfig.preferred_day_of_month} onChange={e => setFreqConfig({ ...freqConfig, preferred_day_of_month: parseInt(e.target.value) })}>
-                    <option value={0}>Cualquier dia</option>
-                    {Array.from({ length: 28 }, (_, i) => i + 1).map(d => (
-                      <option key={d} value={d}>Dia {d}</option>
-                    ))}
+                  <label className="label">Frecuencia de asambleas ordinarias</label>
+                  <select className="input" value={freqConfig.ordinary_frequency_months} onChange={e => setFreqConfig({ ...freqConfig, ordinary_frequency_months: parseInt(e.target.value) })}>
+                    <option value={0}>No auto-convocar</option>
+                    <option value={1}>Cada mes</option>
+                    <option value={2}>Cada 2 meses</option>
+                    <option value={3}>Cada 3 meses (trimestral)</option>
+                    <option value={6}>Cada 6 meses (semestral)</option>
+                    <option value={12}>Cada 12 meses (anual)</option>
                   </select>
                 </div>
-                <div>
-                  <label className="label">Hora preferida</label>
-                  <select className="input" value={freqConfig.preferred_hour} onChange={e => setFreqConfig({ ...freqConfig, preferred_hour: parseInt(e.target.value) })}>
-                    {Array.from({ length: 24 }, (_, i) => i).map(h => (
-                      <option key={h} value={h}>{h.toString().padStart(2, '0')}:00</option>
-                    ))}
-                  </select>
+                {freqConfig.ordinary_frequency_months > 0 && (
+                  <>
+                    <div>
+                      <label className="label">Dia preferido del mes</label>
+                      <select className="input" value={freqConfig.preferred_day_of_month} onChange={e => setFreqConfig({ ...freqConfig, preferred_day_of_month: parseInt(e.target.value) })}>
+                        <option value={0}>Cualquier dia</option>
+                        {Array.from({ length: 28 }, (_, i) => i + 1).map(d => (
+                          <option key={d} value={d}>Dia {d}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="label">Hora preferida</label>
+                      <select className="input" value={freqConfig.preferred_hour} onChange={e => setFreqConfig({ ...freqConfig, preferred_hour: parseInt(e.target.value) })}>
+                        {Array.from({ length: 24 }, (_, i) => i).map(h => (
+                          <option key={h} value={h}>{h.toString().padStart(2, '0')}:00</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="label">Notificar con anticipacion</label>
+                      <select className="input" value={freqConfig.notification_days_before} onChange={e => setFreqConfig({ ...freqConfig, notification_days_before: parseInt(e.target.value) })}>
+                        <option value={1}>1 dia antes</option>
+                        <option value={3}>3 dias antes</option>
+                        <option value={7}>7 dias antes</option>
+                        <option value={14}>14 dias antes</option>
+                        <option value={30}>30 dias antes</option>
+                      </select>
+                    </div>
+                  </>
+                )}
+                <div className="flex gap-2">
+                  <button onClick={saveFreqConfig} disabled={freqSaving} className="btn-primary">
+                    {freqSaving ? 'Guardando...' : 'Guardar'}
+                  </button>
+                  <button onClick={() => { setFreqEditing(false); loadFreqConfig() }} className="btn-secondary">Cancelar</button>
                 </div>
-                <div>
-                  <label className="label">Notificar con anticipacion</label>
-                  <select className="input" value={freqConfig.notification_days_before} onChange={e => setFreqConfig({ ...freqConfig, notification_days_before: parseInt(e.target.value) })}>
-                    <option value={1}>1 dia antes</option>
-                    <option value={3}>3 dias antes</option>
-                    <option value={7}>7 dias antes</option>
-                    <option value={14}>14 dias antes</option>
-                    <option value={30}>30 dias antes</option>
-                  </select>
-                </div>
-              </>
+              </div>
             )}
-            <button onClick={saveFreqConfig} className="btn-primary">Guardar frecuencia</button>
           </div>
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
             <p><strong>Reglas de convocatoria:</strong></p>
