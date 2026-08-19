@@ -1,24 +1,15 @@
-fix: usar X-Node-Domain del header en queries de productos (no del config)
+feat: mas subcategorias de Bebidas en catalogo seed
 
-Problema: listProducts, listProductCategories y listComponents usaban
-h.nodeDomain del config.yaml (que estaba vacio o "localhost"). Los
-productos seed estaban con otro dominio y no se encontraban.
+Antes solo habia: Fermentadas, Infusiones
 
-Solucion: usar r.Header.Get("X-Node-Domain") como prioridad (igual que
-ya hacen notifications, gateways, etc). El frontend ya envia este header
-correctamente. Si el header viene vacio, fallback a h.nodeDomain y luego
-a "localhost".
+Ahora tambien:
+- Zumos: jugos naturales exprimidos (naranja, limon, mango, parchita)
+- Refrescos: efervescentes artesanales (ginger beer, limonada con gas)
+- Licores: destilados artesanales (aguardiente, ron, cocuy, guaro)
+- Lacteas: leche fresca, suero, yogurt liquido, kefir
+- Aguas: agua de coco, cebada, horchata, panela, isotonicas naturales
 
-Ademas, las queries ahora buscan en IN ($1, 'localhost', 'default')
-para encontrar productos seed independientemente del dominio.
-
-Endpoints arreglados:
-- GET /api/products (listProducts)
-- GET /api/products/categories (listProductCategories)
-- GET /api/products/components (listComponents)
-
-No borré la base de datos - los productos siguen ahi, solo no se
-encontraban por el filtro de dominio.
+Cada uno con su valor energetico estimado (kWh/L) y badge.
 
 Generated with Devin
 
