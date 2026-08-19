@@ -1,30 +1,33 @@
-fix: pasaporte como documento separado + sin membresia dual, combinar saldos
+feat: documentos multiples + paises del mundo en dropdown
 
 Cambios solicitados por el usuario:
 
-1. Pasaporte es documento SEPARADO del ID nacional:
-   - users.passport_number, passport_country (nueva migracion 063)
-   - admission_requests.passport_number, passport_country
-   - User struct, CreateUser, ApproveAdmissionRequest, updateMyContacts
-   - Frontend: seccion separada en Profile y Admission
-   - Validacion: puede registrarse con ID nacional, pasaporte, o ambos
-   - No todos tienen pasaporte, pero los que si pueden validarse por el
+1. Documentos multiples (no solo uno):
+   - Nueva tabla user_documents (un usuario puede tener varios documentos)
+   - Tipos: cedula, DNI, pasaporte, RUT, CURP, carnet de conducir, etc.
+   - Cada documento tiene: tipo, numero, pais emisor
+   - Comparacion entre nodos se hace por tipo + numero (mismo tipo)
+   - CRUD completo: GET/POST/DELETE /api/auth/me/documents
 
-2. No membresia dual - eliminar opcion "both":
-   - Solo 'a' o 'b' (el usuario se queda en UN nodo)
-   - No se puede estar en dos nodos a la vez
+2. Paises del mundo en dropdown (no texto libre):
+   - Nueva tabla countries con ~195 paises (ISO 3166-1)
+   - Endpoint GET /api/countries devuelve todos los paises
+   - Frontend usa dropdown con todos los paises
+   - Admin puede agregar pais nuevo: POST /api/countries
 
-3. Combinar saldos (suma algebraica) en vez de "transfer":
-   - combine: +10 y -20 = -10 (se compensan)
-   - combine: +10 y +5 = +15 (mas positivo)
-   - combine: -10 y -20 = -30 (mas negativo)
-   - forgive_debt: condona deuda del nodo removido
-   - remove_balance: descarta saldo del nodo removido
+3. Tipos de documento en dropdown:
+   - Nueva tabla document_types
+   - Endpoint GET /api/document-types
+   - Frontend usa dropdown con tipos disponibles
 
-4. Deteccion de conflictos por national_id OR passport:
-   - scan-conflicts busca coincidencias por cedula O pasaporte
-   - match_type: 'national_id', 'passport', o 'both'
-   - Frontend muestra que tipo de coincidencia se detecto
+4. Admission con documentos multiples:
+   - El solicitante agrega varios documentos antes de enviar
+   - Al aprobar, los documentos se transfieren a user_documents
+   - Tabla admission_documents para documentos pendientes
+
+5. Deteccion de conflictos usa user_documents:
+   - scan-conflicts busca por tipo + numero en user_documents
+   - Compara cedula con cedula, pasaporte con pasaporte, etc.
 
 Generated with Devin
 

@@ -245,6 +245,13 @@ type ApplyAdmissionRequest struct {
 	NationalIDCountry string                 `json:"national_id_country"`
 	PassportNumber    string                 `json:"passport_number"`
 	PassportCountry   string                 `json:"passport_country"`
+	Documents         []AdmissionDocument    `json:"documents"`
+}
+
+type AdmissionDocument struct {
+	DocumentType   string `json:"document_type"`
+	DocumentNumber string `json:"document_number"`
+	CountryISO2    string `json:"country_iso2"`
 }
 
 func (h *Handler) applyAdmission(w http.ResponseWriter, r *http.Request) {
@@ -265,6 +272,18 @@ func (h *Handler) applyAdmission(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeError(w, 400, err.Error())
 		return
+	}
+	// Guardar documentos adicionales en admission_documents
+	for _, doc := range req.Documents {
+		var countryName string
+		if doc.CountryISO2 != "" {
+			h.Pool.QueryRow(r.Context(), `SELECT spanish_name FROM countries WHERE iso2 = $1`, doc.CountryISO2).Scan(&countryName)
+		}
+		h.Pool.Exec(r.Context(), `
+			INSERT INTO admission_documents (admission_request_id, document_type_code, document_number, country_iso2, country_name)
+			VALUES ($1, $2, $3, NULLIF($4, ''), NULLIF($5, ''))
+			ON CONFLICT DO NOTHING`,
+			admissionReq.ID, doc.DocumentType, doc.DocumentNumber, doc.CountryISO2, countryName)
 	}
 	writeJSON(w, 201, admissionReq)
 }

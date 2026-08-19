@@ -72,6 +72,12 @@ export default function Profile() {
   const [passportCountry, setPassportCountry] = useState('')
   const [savingID, setSavingID] = useState(false)
   const [idMsg, setIdMsg] = useState('')
+  const [documents, setDocuments] = useState<any[]>([])
+  const [countries, setCountries] = useState<any[]>([])
+  const [docTypes, setDocTypes] = useState<any[]>([])
+  const [newDoc, setNewDoc] = useState({ document_type: '', document_number: '', country_iso2: '' })
+  const [savingDoc, setSavingDoc] = useState(false)
+  const [docMsg, setDocMsg] = useState('')
 
   const load = () => {
     api.get('/auth/me').then((d: any) => {
@@ -113,6 +119,13 @@ export default function Profile() {
 
   useEffect(() => { load() }, [])
 
+  // Cargar documentos, paises y tipos de documento
+  useEffect(() => {
+    api.get('/countries').then((d: any) => setCountries(Array.isArray(d) ? d : [])).catch(() => {})
+    api.get('/document-types').then((d: any) => setDocTypes(Array.isArray(d) ? d : [])).catch(() => {})
+    api.get('/auth/me/documents').then((d: any) => setDocuments(Array.isArray(d) ? d : [])).catch(() => {})
+  }, [])
+
   const changePin = async (cardUid: string) => {
     const newPin = prompt('Nuevo PIN (4 digitos):')
     if (!newPin || newPin.length !== 4) return
@@ -141,6 +154,37 @@ export default function Profile() {
       setIdMsg(e?.message || 'Error al guardar')
     } finally {
       setSavingID(false)
+    }
+  }
+
+  const addDocument = async () => {
+    if (!newDoc.document_type || !newDoc.document_number) {
+      setDocMsg('Tipo y numero de documento son obligatorios')
+      return
+    }
+    setSavingDoc(true)
+    setDocMsg('')
+    try {
+      await api.post('/auth/me/documents', newDoc)
+      setDocMsg('Documento agregado')
+      setNewDoc({ document_type: '', document_number: '', country_iso2: '' })
+      // Recargar documentos
+      api.get('/auth/me/documents').then((d: any) => setDocuments(Array.isArray(d) ? d : []))
+    } catch (e: any) {
+      setDocMsg(e?.message || 'Error al agregar documento')
+    } finally {
+      setSavingDoc(false)
+    }
+  }
+
+  const deleteDocument = async (id: string) => {
+    if (!confirm('Eliminar este documento?')) return
+    try {
+      await api.delete(`/auth/me/documents/${id}`)
+      setDocuments(documents.filter((d: any) => d.id !== id))
+      setDocMsg('Documento eliminado')
+    } catch (e: any) {
+      setDocMsg(e?.message || 'Error al eliminar')
     }
   }
 
@@ -277,92 +321,78 @@ export default function Profile() {
         )}
       </div>
 
-      {/* Identificacion nacional */}
+      {/* Documentos de identidad (multiples) */}
       <div className="card">
-        <h2 className="font-semibold flex items-center gap-2 mb-3"><Shield size={18} />Identificacion Nacional</h2>
-        <p className="text-xs text-gray-500 mb-3">Tu documento de identidad evita que te registres en multiples nodos. Al federar dos nodos, si hay usuarios duplicados, ambas asambleas deben consensuar en cual nodo se queda cada persona.</p>
-        {idMsg && <div className="text-sm bg-blue-50 text-blue-700 p-2 rounded-lg mb-3">{idMsg}</div>}
-        <div className="space-y-3">
+        <h2 className="font-semibold flex items-center gap-2 mb-3"><Shield size={18} />Documentos de Identidad</h2>
+        <p className="text-xs text-gray-500 mb-3">Agrega todos tus documentos de identidad: cedula, pasaporte, carnet de conducir, etc. La comparacion entre nodos se hace por tipo + numero. Al federar dos nodos, si hay duplicados, ambas asambleas deciden donde te quedas.</p>
+
+        {/* Lista de documentos existentes */}
+        {documents.length > 0 && (
+          <div className="space-y-2 mb-4">
+            {documents.map((doc: any, i: number) => (
+              <div key={i} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg">
+                <div className="text-sm">
+                  <span className="font-medium">{doc.document_type_name || doc.document_type}</span>
+                  <span className="text-gray-500 ml-2">{doc.document_number}</span>
+                  {doc.country_name && <span className="text-gray-400 ml-2">({doc.country_name})</span>}
+                  {doc.is_verified && <span className="text-xs text-green-600 ml-2">Verificado</span>}
+                </div>
+                <button onClick={() => deleteDocument(doc.id)} className="text-red-500 hover:text-red-700">
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {docMsg && <div className="text-sm bg-blue-50 text-blue-700 p-2 rounded-lg mb-3">{docMsg}</div>}
+
+        {/* Formulario para agregar nuevo documento */}
+        <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="block text-xs text-gray-500 mb-1">Tipo de documento</label>
             <select
-              value={nationalIDType}
-              onChange={(e) => setNationalIDType(e.target.value)}
+              value={newDoc.document_type}
+              onChange={(e) => setNewDoc({ ...newDoc, document_type: e.target.value })}
               className="input text-sm"
             >
               <option value="">Seleccionar...</option>
-              <option value="cedula">Cedula de identidad</option>
-              <option value="pasaporte">Pasaporte</option>
-              <option value="dni">DNI</option>
-              <option value="rut">RUT</option>
-              <option value="curp">CURP</option>
-              <option value="cedula_juridica">Cedula juridica</option>
-              <option value="otro">Otro</option>
+              {docTypes.map((t: any) => (
+                <option key={t.code} value={t.code}>{t.name}</option>
+              ))}
             </select>
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Numero de documento</label>
+            <label className="block text-xs text-gray-500 mb-1">Numero</label>
             <input
               type="text"
-              value={nationalID}
-              onChange={(e) => setNationalID(e.target.value)}
+              value={newDoc.document_number}
+              onChange={(e) => setNewDoc({ ...newDoc, document_number: e.target.value })}
               placeholder="Ej: V-12345678"
               className="input text-sm"
             />
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">Pais emisor</label>
-            <input
-              type="text"
-              value={nationalIDCountry}
-              onChange={(e) => setNationalIDCountry(e.target.value)}
-              placeholder="Ej: Venezuela, Colombia, Argentina..."
+            <select
+              value={newDoc.country_iso2}
+              onChange={(e) => setNewDoc({ ...newDoc, country_iso2: e.target.value })}
               className="input text-sm"
-            />
+            >
+              <option value="">Seleccionar pais...</option>
+              {countries.map((c: any) => (
+                <option key={c.iso2} value={c.iso2}>{c.name}</option>
+              ))}
+            </select>
           </div>
-          <button
-            onClick={saveNationalID}
-            disabled={savingID}
-            className="btn-primary text-sm flex items-center gap-2"
-          >
-            {savingID ? 'Guardando...' : 'Guardar identificacion'}
-          </button>
         </div>
-      </div>
-
-      {/* Pasaporte (documento internacional) */}
-      <div className="card">
-        <h2 className="font-semibold flex items-center gap-2 mb-3"><Globe size={18} />Pasaporte (opcional)</h2>
-        <p className="text-xs text-gray-500 mb-3">El pasaporte es un documento de identidad internacional unico a nivel mundial. No todos tienen pasaporte, pero si lo tienes, ayuda a validar tu identidad entre nodos federados. Puedes registrarte con ID nacional, pasaporte, o ambos.</p>
-        <div className="space-y-3">
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Numero de pasaporte</label>
-            <input
-              type="text"
-              value={passportNumber}
-              onChange={(e) => setPassportNumber(e.target.value)}
-              placeholder="Ej: ABC123456"
-              className="input text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Pais emisor del pasaporte</label>
-            <input
-              type="text"
-              value={passportCountry}
-              onChange={(e) => setPassportCountry(e.target.value)}
-              placeholder="Ej: Venezuela, Colombia..."
-              className="input text-sm"
-            />
-          </div>
-          <button
-            onClick={saveNationalID}
-            disabled={savingID}
-            className="btn-primary text-sm flex items-center gap-2"
-          >
-            {savingID ? 'Guardando...' : 'Guardar pasaporte'}
-          </button>
-        </div>
+        <button
+          onClick={addDocument}
+          disabled={savingDoc}
+          className="btn-primary text-sm flex items-center gap-2 mt-3"
+        >
+          {savingDoc ? 'Agregando...' : 'Agregar documento'}
+        </button>
       </div>
 
       {/* Nivel de miembro */}

@@ -17,16 +17,19 @@ export default function Admission() {
     requested_debit_limit: 100,
     reason: '',
     invited_by: '',
-    national_id: '',
-    national_id_type: '',
-    national_id_country: '',
-    passport_number: '',
-    passport_country: '',
   })
+  const [countries, setCountries] = useState<any[]>([])
+  const [docTypes, setDocTypes] = useState<any[]>([])
+  const [documents, setDocuments] = useState<any[]>([])
+  const [newDoc, setNewDoc] = useState({ document_type: '', document_number: '', country_iso2: '' })
 
   const load = () =>
     api.get('/accounts/pending').then((d: any) => setPending(Array.isArray(d) ? d : d?.users ?? [])).catch(() => {})
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    api.get('/countries').then((d: any) => setCountries(Array.isArray(d) ? d : [])).catch(() => {})
+    api.get('/document-types').then((d: any) => setDocTypes(Array.isArray(d) ? d : [])).catch(() => {})
+  }, [])
 
   const approve = async (id: string) => {
     setError('')
@@ -61,15 +64,34 @@ export default function Admission() {
       setError('Usuario y nombre son obligatorios')
       return
     }
+    if (documents.length === 0) {
+      setError('Debes agregar al menos un documento de identidad')
+      return
+    }
     try {
-      await api.post('/accounts/request', form)
+      await api.post('/accounts/request', { ...form, documents })
       setSuccess('Solicitud de admision creada. Un administrador o la asamblea debe aprobarla.')
       setShowForm(false)
-      setForm({ username: '', display_name: '', requested_credit_limit: 100, requested_debit_limit: 100, reason: '', invited_by: '', national_id: '', national_id_type: '', national_id_country: '', passport_number: '', passport_country: '' })
+      setForm({ username: '', display_name: '', requested_credit_limit: 100, requested_debit_limit: 100, reason: '', invited_by: '' })
+      setDocuments([])
       load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear solicitud')
     }
+  }
+
+  const addDocument = () => {
+    if (!newDoc.document_type || !newDoc.document_number) {
+      setError('Tipo y numero de documento son obligatorios')
+      return
+    }
+    setDocuments([...documents, newDoc])
+    setNewDoc({ document_type: '', document_number: '', country_iso2: '' })
+    setError('')
+  }
+
+  const removeDocument = (i: number) => {
+    setDocuments(documents.filter((_, idx) => idx !== i))
   }
 
   return (
@@ -142,43 +164,51 @@ export default function Admission() {
           </div>
 
           <div className="border-t pt-3 mt-3">
-            <h3 className="font-medium text-sm mb-2">Identificacion (al menos una obligatoria)</h3>
-            <p className="text-xs text-gray-500 mb-3">Tu documento evita que te registres en multiples nodos. Puedes usar ID nacional, pasaporte, o ambos. Al federar dos nodos, si hay duplicados, ambas asambleas deciden donde te quedas.</p>
+            <h3 className="font-medium text-sm mb-2">Documentos de Identidad (al menos uno obligatorio)</h3>
+            <p className="text-xs text-gray-500 mb-3">Agrega todos los documentos que tengas: cedula, pasaporte, carnet de conducir, etc. La comparacion entre nodos se hace por tipo + numero. Al federar dos nodos, si hay duplicados, ambas asambleas deciden donde te quedas.</p>
 
-            {/* ID Nacional */}
-            <div className="grid grid-cols-3 gap-3 mb-3">
+            {/* Lista de documentos agregados */}
+            {documents.length > 0 && (
+              <div className="space-y-2 mb-3">
+                {documents.map((doc, i) => (
+                  <div key={i} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg">
+                    <div className="text-sm">
+                      <span className="font-medium">{docTypes.find((t: any) => t.code === doc.document_type)?.name || doc.document_type}</span>
+                      <span className="text-gray-500 ml-2">{doc.document_number}</span>
+                      {doc.country_iso2 && <span className="text-gray-400 ml-2">({countries.find((c: any) => c.iso2 === doc.country_iso2)?.name || doc.country_iso2})</span>}
+                    </div>
+                    <button type="button" onClick={() => removeDocument(i)} className="text-red-500 hover:text-red-700 text-xs">Eliminar</button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Formulario para agregar documento */}
+            <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="label">Tipo doc. nacional</label>
-                <select className="input" value={form.national_id_type} onChange={(e) => setForm({ ...form, national_id_type: e.target.value })}>
+                <label className="label">Tipo de documento</label>
+                <select className="input" value={newDoc.document_type} onChange={(e) => setNewDoc({ ...newDoc, document_type: e.target.value })}>
                   <option value="">Seleccionar...</option>
-                  <option value="cedula">Cedula</option>
-                  <option value="dni">DNI</option>
-                  <option value="rut">RUT</option>
-                  <option value="curp">CURP</option>
-                  <option value="otro">Otro</option>
+                  {docTypes.map((t: any) => (
+                    <option key={t.code} value={t.code}>{t.name}</option>
+                  ))}
                 </select>
               </div>
               <div>
                 <label className="label">Numero</label>
-                <input className="input" placeholder="V-12345678" value={form.national_id} onChange={(e) => setForm({ ...form, national_id: e.target.value })} />
+                <input className="input" placeholder="Ej: V-12345678" value={newDoc.document_number} onChange={(e) => setNewDoc({ ...newDoc, document_number: e.target.value })} />
               </div>
               <div>
-                <label className="label">Pais</label>
-                <input className="input" placeholder="Venezuela" value={form.national_id_country} onChange={(e) => setForm({ ...form, national_id_country: e.target.value })} />
+                <label className="label">Pais emisor</label>
+                <select className="input" value={newDoc.country_iso2} onChange={(e) => setNewDoc({ ...newDoc, country_iso2: e.target.value })}>
+                  <option value="">Seleccionar pais...</option>
+                  {countries.map((c: any) => (
+                    <option key={c.iso2} value={c.iso2}>{c.name}</option>
+                  ))}
+                </select>
               </div>
             </div>
-
-            {/* Pasaporte */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Pasaporte (opcional)</label>
-                <input className="input" placeholder="ABC123456" value={form.passport_number} onChange={(e) => setForm({ ...form, passport_number: e.target.value })} />
-              </div>
-              <div>
-                <label className="label">Pais del pasaporte</label>
-                <input className="input" placeholder="Venezuela" value={form.passport_country} onChange={(e) => setForm({ ...form, passport_country: e.target.value })} />
-              </div>
-            </div>
+            <button type="button" onClick={addDocument} className="btn-secondary text-sm mt-2">Agregar documento</button>
           </div>
 
           <button onClick={submitRequest} className="btn-primary">Enviar Solicitud</button>

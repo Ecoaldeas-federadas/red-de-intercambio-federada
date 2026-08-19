@@ -330,6 +330,17 @@ func (a *Accounts) ApproveAdmissionRequest(ctx context.Context, reqID uuid.UUID,
 		return nil, fmt.Errorf("linking user to admission request: %w", err)
 	}
 
+	// Transferir documentos de admission_documents a user_documents
+	_, err = a.Pool.Exec(ctx, `
+		INSERT INTO user_documents (user_id, document_type_code, document_number, country_iso2, country_name)
+		SELECT $2, document_type_code, document_number, country_iso2, country_name
+		FROM admission_documents WHERE admission_request_id = $1
+		ON CONFLICT DO NOTHING`,
+		reqID, user.ID)
+	if err != nil {
+		// No es fatal, continuamos
+	}
+
 	_, err = a.Pool.Exec(ctx, `
 		INSERT INTO membership_history (user_id, new_level, new_status, reason, approved_by)
 		VALUES ($1, $2, 'active', 'Admitted via admission process', ARRAY[$3]::uuid[])`,

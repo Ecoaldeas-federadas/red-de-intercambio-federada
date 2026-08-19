@@ -67,40 +67,32 @@ func (h *MergeConflictHandler) scanConflicts(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Buscar usuarios duplicados por national_id OR passport_number en ambos nodos
-	// Un usuario puede coincidir por cedula, por pasaporte, o por ambos
+	// Buscar usuarios duplicados por documentos (mismo tipo + mismo numero) en ambos nodos
+	// Compara cedula con cedula, pasaporte con pasaporte, etc.
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT
-			COALESCE(u1.national_id, '') AS nat_id,
-			COALESCE(u1.passport_number, '') AS passport,
-			CASE
-				WHEN u1.national_id <> '' AND u1.passport_number <> '' AND u1.national_id = u2.national_id AND u1.passport_number = u2.passport_number THEN 'both'
-				WHEN u1.national_id <> '' AND u1.national_id = u2.national_id THEN 'national_id'
-				WHEN u1.passport_number <> '' AND u1.passport_number = u2.passport_number THEN 'passport'
-				ELSE 'national_id'
-			END AS match_type,
+			d1.document_type_code,
+			d1.document_number,
+			d1.country_iso2,
 			u1.id, u1.node_domain, COALESCE(u1.display_name, u1.username),
 			u2.id, u2.node_domain, COALESCE(u2.display_name, u2.username),
 			COALESCE(u1.credit_limit, 0) - COALESCE(u1.debit_limit, 0),
 			COALESCE(u2.credit_limit, 0) - COALESCE(u2.debit_limit, 0)
-		FROM users u1
-		INNER JOIN users u2 ON
-			(u1.node_domain = $1 AND u2.node_domain = $2)
-			AND (
-				(u1.national_id <> '' AND u1.national_id = u2.national_id)
-				OR
-				(u1.passport_number <> '' AND u1.passport_number = u2.passport_number)
-			)
-		WHERE u1.id < u2.id
+		FROM user_documents d1
+		INNER JOIN users u1 ON u1.id = d1.user_id
+		INNER JOIN user_documents d2 ON d2.document_type_code = d1.document_type_code
+		                            AND d2.document_number = d1.document_number
+		INNER JOIN users u2 ON u2.id = d2.user_id
+		WHERE u1.node_domain = $1 AND u2.node_domain = $2
+		  AND u1.id < u2.id
+		  AND d1.document_number <> ''
 		  AND NOT EXISTS (
 		    SELECT 1 FROM node_merge_conflicts c
 		    WHERE ((c.node_a_domain = $1 AND c.node_b_domain = $2)
 		           OR (c.node_a_domain = $2 AND c.node_b_domain = $1))
 		      AND c.status NOT IN ('resolved', 'blocked', 'executed')
-		      AND (
-		        (c.national_id <> '' AND c.national_id = u1.national_id)
-		        OR (c.passport_number <> '' AND c.passport_number = u1.passport_number)
-		      )
+		      AND c.national_id = d1.document_number
+		      AND c.match_type = d1.document_type_code
 		  )`,
 		h.nodeDomain, req.OtherNodeDomain)
 	if err != nil {
@@ -111,11 +103,11 @@ func (h *MergeConflictHandler) scanConflicts(w http.ResponseWriter, r *http.Requ
 
 	var conflicts []MergeConflict
 	for rows.Next() {
-		var natID, passportNum, matchType string
+		var docType, docNumber, countryISO2 string
 		var userAID, userBID uuid.UUID
 		var nodeA, nodeB, nameA, nameB string
 		var balA, balB int64
-		if err := rows.Scan(&natID, &passportNum, &matchType, &userAID, &nodeA, &nameA, &userBID, &nodeB, &nameB, &balA, &balB); err != nil {
+		if err := rows.Scan(&docType, &docNumber, &countryISO2, &userAID, &nodeA, &nameA, &userBID, &nodeB, &nameB, &balA, &balB); err != nil {
 			continue
 		}
 		// Crear el conflicto en la BD
@@ -125,7 +117,7 @@ func (h *MergeConflictHandler) scanConflicts(w http.ResponseWriter, r *http.Requ
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending')
 			ON CONFLICT DO NOTHING
 			RETURNING id`,
-			nodeA, nodeB, natID, passportNum, matchType, userAID, userBID, nameA, nameB, balA, balB).Scan(&conflictID)
+			nodeA, nodeB, docNumber, countryISO2, docType, userAID, userBID, nameA, nameB, balA, balB).Scan(&conflictID)
 		if err != nil {
 			continue
 		}
@@ -133,9 +125,9 @@ func (h *MergeConflictHandler) scanConflicts(w http.ResponseWriter, r *http.Requ
 			ID:             conflictID,
 			NodeADomain:    nodeA,
 			NodeBDomain:    nodeB,
-			NationalID:     natID,
-			PassportNumber: passportNum,
-			MatchType:      matchType,
+			NationalID:     docNumber,
+			PassportNumber: countryISO2,
+			MatchType:      docType,
 			UserAID:        &userAID,
 			UserBID:        &userBID,
 			UserAName:      nameA,
