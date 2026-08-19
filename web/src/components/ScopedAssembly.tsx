@@ -189,6 +189,15 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
 
   const label = scope === 'organization' ? 'Organizacion' : 'Departamento'
 
+  // Helper: ¿ya se puede registrar asistencia? (1 hora antes por defecto)
+  const attendanceWindowHours = config.attendance_window_hours || 1
+  const canStartAttendance = (s: any) => {
+    if (!s.start_time) return false
+    const start = new Date(s.start_time).getTime()
+    const windowStart = start - attendanceWindowHours * 60 * 60 * 1000
+    return Date.now() >= windowStart
+  }
+
   return (
     <div className="space-y-4">
       <h2 className="font-semibold flex items-center gap-2"><VoteIcon size={18} />Asamblea de {label}: {scopeName}</h2>
@@ -481,19 +490,27 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
                       <p className="whitespace-pre-wrap mt-1 max-h-32 overflow-y-auto">{s.minutes}</p>
                     </div>
                   )}
-                  <button
-                    onClick={() => { setSelectedSessionForMinutes(s.id); setMinutesText(s.minutes || '') }}
-                    className="text-xs px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 mt-2"
-                  >
-                    {s.minutes ? 'Editar minuta' : 'Escribir minuta'}
-                  </button>
-                  {(s.status === 'active' || s.status === 'waiting_quorum') && (
-                    <button
-                      onClick={() => closeSession(s.id)}
-                      className="text-xs px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 mt-2 ml-2"
-                    >
-                      Cerrar asamblea
-                    </button>
+                  {canStartAttendance(s) ? (
+                    <>
+                      <button
+                        onClick={() => { setSelectedSessionForMinutes(s.id); setMinutesText(s.minutes || '') }}
+                        className="text-xs px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 mt-2"
+                      >
+                        {s.minutes ? 'Editar minuta' : 'Escribir minuta'}
+                      </button>
+                      {(s.status === 'active' || s.status === 'waiting_quorum') && (
+                        <button
+                          onClick={() => closeSession(s.id)}
+                          className="text-xs px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 mt-2 ml-2"
+                        >
+                          Cerrar asamblea
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+                      <strong>Programada</strong> — El registro de asistencia se abrira {attendanceWindowHours} {attendanceWindowHours === 1 ? 'hora' : 'horas'} antes de la hora programada.
+                    </div>
                   )}
                 </div>
               ))}

@@ -2096,6 +2096,20 @@ func (h *AssemblyHandler) verifyQuorum(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validar que la hora de la asamblea ya llego (con ventana de anticipacion)
+	var attendanceWindow int
+	h.Pool.QueryRow(r.Context(), `
+		SELECT attendance_window_hours FROM assembly_frequency_config
+		WHERE node_domain = $1 AND scope = 'node' AND scope_id IS NULL`, nodeDomain).Scan(&attendanceWindow)
+	if attendanceWindow == 0 {
+		attendanceWindow = 1
+	}
+	windowStart := startTime.Add(-time.Duration(attendanceWindow) * time.Hour)
+	if time.Now().Before(windowStart) {
+		writeError(w, 400, fmt.Sprintf("la asamblea aun no ha comenzado. Se puede registrar asistencia %d horas antes de la hora programada (%s)", attendanceWindow, startTime.Format("2006-01-02 15:04")))
+		return
+	}
+
 	// Obtener config de quorum
 	var quorumFirst, quorumSecond float64
 	var gracePeriod int
@@ -2421,13 +2435,13 @@ func (h *AssemblyHandler) getFrequencyConfig(w http.ResponseWriter, r *http.Requ
 		nodeDomain = "localhost"
 	}
 
-	var freqMonths, preferredDay, preferredHour, notifDays int
+	var freqMonths, preferredDay, preferredHour, notifDays, attendanceWindow int
 	var enabled, isActive bool
 	err := h.Pool.QueryRow(r.Context(), `
-		SELECT ordinary_frequency_months, preferred_day_of_month, preferred_hour, notification_days_before, assemblies_enabled, is_active
+		SELECT ordinary_frequency_months, preferred_day_of_month, preferred_hour, notification_days_before, assemblies_enabled, is_active, attendance_window_hours
 		FROM assembly_frequency_config
 		WHERE node_domain = $1 AND scope = 'node' AND scope_id IS NULL`,
-		nodeDomain).Scan(&freqMonths, &preferredDay, &preferredHour, &notifDays, &enabled, &isActive)
+		nodeDomain).Scan(&freqMonths, &preferredDay, &preferredHour, &notifDays, &enabled, &isActive, &attendanceWindow)
 	if err != nil {
 		// Defaults
 		writeJSON(w, 200, map[string]interface{}{
@@ -2436,8 +2450,12 @@ func (h *AssemblyHandler) getFrequencyConfig(w http.ResponseWriter, r *http.Requ
 			"preferred_hour":            15,
 			"notification_days_before":  7,
 			"assemblies_enabled":        true,
+			"attendance_window_hours":   1,
 		})
 		return
+	}
+	if attendanceWindow == 0 {
+		attendanceWindow = 1
 	}
 	writeJSON(w, 200, map[string]interface{}{
 		"ordinary_frequency_months": freqMonths,
@@ -2445,6 +2463,7 @@ func (h *AssemblyHandler) getFrequencyConfig(w http.ResponseWriter, r *http.Requ
 		"preferred_hour":            preferredHour,
 		"notification_days_before":  notifDays,
 		"assemblies_enabled":        enabled,
+		"attendance_window_hours":   attendanceWindow,
 	})
 }
 
@@ -2460,6 +2479,7 @@ func (h *AssemblyHandler) updateFrequencyConfig(w http.ResponseWriter, r *http.R
 		PreferredHour           int  `json:"preferred_hour"`
 		NotificationDaysBefore  int  `json:"notification_days_before"`
 		AssembliesEnabled       bool `json:"assemblies_enabled"`
+		AttendanceWindowHours   int  `json:"attendance_window_hours"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -2481,18 +2501,25 @@ func (h *AssemblyHandler) updateFrequencyConfig(w http.ResponseWriter, r *http.R
 		writeError(w, 400, "dias de notificacion entre 0 y 60")
 		return
 	}
+	if req.AttendanceWindowHours < 0 || req.AttendanceWindowHours > 24 {
+		req.AttendanceWindowHours = 1
+	}
+	if req.AttendanceWindowHours == 0 {
+		req.AttendanceWindowHours = 1
+	}
 
 	_, err := h.Pool.Exec(r.Context(), `
-		INSERT INTO assembly_frequency_config (node_domain, scope, scope_id, ordinary_frequency_months, preferred_day_of_month, preferred_hour, notification_days_before, assemblies_enabled, is_active)
-		VALUES ($1, 'node', NULL, $2, $3, $4, $5, $6, true)
+		INSERT INTO assembly_frequency_config (node_domain, scope, scope_id, ordinary_frequency_months, preferred_day_of_month, preferred_hour, notification_days_before, assemblies_enabled, is_active, attendance_window_hours)
+		VALUES ($1, 'node', NULL, $2, $3, $4, $5, $6, true, $7)
 		ON CONFLICT (node_domain, scope, scope_id) DO UPDATE SET
 			ordinary_frequency_months = $2,
 			preferred_day_of_month = $3,
 			preferred_hour = $4,
 			notification_days_before = $5,
 			assemblies_enabled = $6,
+			attendance_window_hours = $7,
 			updated_at = NOW()`,
-		nodeDomain, req.OrdinaryFrequencyMonths, req.PreferredDayOfMonth, req.PreferredHour, req.NotificationDaysBefore, req.AssembliesEnabled)
+		nodeDomain, req.OrdinaryFrequencyMonths, req.PreferredDayOfMonth, req.PreferredHour, req.NotificationDaysBefore, req.AssembliesEnabled, req.AttendanceWindowHours)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return

@@ -339,6 +339,15 @@ export default function Assembly() {
   const canManageBoard = hasPermission('assembly.manage_board')
   const canManageTax = hasPermission('tax.manage')
 
+  // Helper: ¿ya se puede registrar asistencia? (dentro de la ventana configurada)
+  const attendanceWindowHours = freqConfig.attendance_window_hours || 1
+  const canStartAttendance = (s: any) => {
+    if (!s.start_time) return false
+    const start = new Date(s.start_time).getTime()
+    const windowStart = start - attendanceWindowHours * 60 * 60 * 1000
+    return Date.now() >= windowStart
+  }
+
   const [tab, setTab] = useState<'members' | 'board' | 'sessions' | 'proposals' | 'reports' | 'tax' | 'config'>('proposals')
   const [showHelp, setShowHelp] = useState(false)
   const [error, setError] = useState('')
@@ -379,7 +388,7 @@ export default function Assembly() {
   const [rescheduleSession, setRescheduleSession] = useState<any>(null)
   const [rescheduleTime, setRescheduleTime] = useState('')
   const [rescheduleDate, setRescheduleDate] = useState('')
-  const [freqConfig, setFreqConfig] = useState<any>({ ordinary_frequency_months: 3, preferred_day_of_month: 15, preferred_hour: 15, notification_days_before: 7, assemblies_enabled: true })
+  const [freqConfig, setFreqConfig] = useState<any>({ ordinary_frequency_months: 3, preferred_day_of_month: 15, preferred_hour: 15, notification_days_before: 7, assemblies_enabled: true, attendance_window_hours: 1 })
   const [freqLoaded, setFreqLoaded] = useState(false)
   const [freqEditing, setFreqEditing] = useState(false)
   const [freqSaving, setFreqSaving] = useState(false)
@@ -1494,54 +1503,60 @@ export default function Assembly() {
                   )}
 
                   {/* Botones de gestion */}
-                  <div className="flex gap-2 mt-2 flex-wrap">
-                    {s.is_presential && (
+                  {canStartAttendance(s) ? (
+                    <div className="flex gap-2 mt-2 flex-wrap">
+                      {s.is_presential && (
+                        <button
+                          onClick={() => { setSelectedSessionForAttendance(s.id); loadAttendance(s.id) }}
+                          className="text-xs px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700"
+                        >
+                          Pasar lista de asistencia
+                        </button>
+                      )}
+                      {s.is_presential && (s.status === 'scheduled' || s.status === 'waiting_quorum') && (
+                        <button
+                          onClick={() => verifyQuorum(s.id)}
+                          className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                        >
+                          Verificar quorum
+                        </button>
+                      )}
+                      {s.is_presential && s.status === 'waiting_quorum' && (
+                        <button
+                          onClick={() => selfCheckIn(s.id)}
+                          className="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                          Confirmar mi presencia
+                        </button>
+                      )}
+                      {s.is_presential && (s.status === 'rescheduled' || s.status === 'waiting_quorum') && (
+                        <button
+                          onClick={() => { setRescheduleSession(s); setRescheduleDate(''); setRescheduleTime('') }}
+                          className="text-xs px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700"
+                        >
+                          Reprogramar (segundo llamado)
+                        </button>
+                      )}
                       <button
-                        onClick={() => { setSelectedSessionForAttendance(s.id); loadAttendance(s.id) }}
-                        className="text-xs px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700"
+                        onClick={() => { setSelectedSessionForMinutes(s.id); setMinutesText(s.minutes || '') }}
+                        className="text-xs px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
                       >
-                        Pasar lista de asistencia
+                        {s.minutes ? 'Editar minuta' : 'Escribir minuta'}
                       </button>
-                    )}
-                    {s.is_presential && (s.status === 'scheduled' || s.status === 'waiting_quorum') && (
-                      <button
-                        onClick={() => verifyQuorum(s.id)}
-                        className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
-                      >
-                        Verificar quorum
-                      </button>
-                    )}
-                    {s.is_presential && s.status === 'waiting_quorum' && (
-                      <button
-                        onClick={() => selfCheckIn(s.id)}
-                        className="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-                      >
-                        Confirmar mi presencia
-                      </button>
-                    )}
-                    {s.is_presential && (s.status === 'rescheduled' || s.status === 'waiting_quorum') && (
-                      <button
-                        onClick={() => { setRescheduleSession(s); setRescheduleTime('') }}
-                        className="text-xs px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700"
-                      >
-                        Reprogramar (segundo llamado)
-                      </button>
-                    )}
-                    <button
-                      onClick={() => { setSelectedSessionForMinutes(s.id); setMinutesText(s.minutes || '') }}
-                      className="text-xs px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
-                    >
-                      {s.minutes ? 'Editar minuta' : 'Escribir minuta'}
-                    </button>
-                    {(s.status === 'active' || s.status === 'waiting_quorum') && (
-                      <button
-                        onClick={() => closeAssemblySession(s.id)}
-                        className="text-xs px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 ml-2"
-                      >
-                        Cerrar asamblea
-                      </button>
-                    )}
-                  </div>
+                      {(s.status === 'active' || s.status === 'waiting_quorum') && (
+                        <button
+                          onClick={() => closeAssemblySession(s.id)}
+                          className="text-xs px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 ml-2"
+                        >
+                          Cerrar asamblea
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+                      <strong>Programada</strong> — Esta asamblea aun no ha llegado. El registro de asistencia se abrira {attendanceWindowHours} {attendanceWindowHours === 1 ? 'hora' : 'horas'} antes de la hora programada.
+                    </div>
+                  )}
 
                   {/* Resultado de verificacion de quorum */}
                   {quorumResult && quorumResult.session_id === s.id && (
@@ -1813,6 +1828,10 @@ export default function Assembly() {
                         <label className="label">Notificar con anticipacion</label>
                         <b>{freqConfig.notification_days_before} dias antes</b>
                       </div>
+                      <div>
+                        <label className="label">Registrar asistencia</label>
+                        <b>{freqConfig.attendance_window_hours || 1} {freqConfig.attendance_window_hours === 1 ? 'hora' : 'horas'} antes</b>
+                      </div>
                     </>
                   )}
                 </div>
@@ -1860,6 +1879,18 @@ export default function Assembly() {
                         <option value={14}>14 dias antes</option>
                         <option value={30}>30 dias antes</option>
                       </select>
+                    </div>
+                    <div>
+                      <label className="label">Registrar asistencia (horas antes)</label>
+                      <select className="input" value={freqConfig.attendance_window_hours || 1} onChange={e => setFreqConfig({ ...freqConfig, attendance_window_hours: parseInt(e.target.value) })}>
+                        <option value={1}>1 hora antes</option>
+                        <option value={2}>2 horas antes</option>
+                        <option value={3}>3 horas antes</option>
+                        <option value={6}>6 horas antes</option>
+                        <option value={12}>12 horas antes</option>
+                        <option value={24}>24 horas antes (todo el dia)</option>
+                      </select>
+                      <p className="text-xs text-gray-400 mt-1">Desde cuando se puede empezar a registrar asistencia antes de la hora programada.</p>
                     </div>
                   </>
                 )}
