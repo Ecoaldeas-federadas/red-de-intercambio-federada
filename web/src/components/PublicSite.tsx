@@ -65,6 +65,13 @@ interface PublicSettings {
   footer_style?: string
   footer_about?: string
   footer_schedule?: string
+  footer_bg_color?: string
+  footer_col1_title?: string
+  footer_slogan?: string
+  footer_col2_title?: string
+  footer_col3_title?: string
+  footer_col4_title?: string
+  footer_admission_text?: string
 }
 
 // Helper to provide concise, clean labels in navigation bars so menus never overflow

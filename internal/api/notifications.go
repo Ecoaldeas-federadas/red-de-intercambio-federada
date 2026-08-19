@@ -39,6 +39,7 @@ func (h *NotificationHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	// WebPush subscription
 	r.With(am.RequireAuth).Post("/api/notifications/webpush/subscribe", h.subscribeWebPush)
 	r.With(am.RequireAuth).Delete("/api/notifications/webpush/subscribe", h.unsubscribeWebPush)
+	r.With(am.RequireAuth).Get("/api/notifications/webpush/vapid-key", h.getVapidPublicKey)
 
 	// Canales disponibles (publico para usuarios autenticados)
 	r.With(am.RequireAuth).Get("/api/notifications/channels", h.listChannels)
@@ -298,7 +299,7 @@ func (h *NotificationHandler) listGateways(w http.ResponseWriter, r *http.Reques
 		// No devolver secretos
 		if m, ok := cfg.(map[string]interface{}); ok {
 			for k := range m {
-				if k == "password" || k == "auth_token" || k == "access_token" || k == "bot_token" || k == "auth_token" {
+				if k == "password" || k == "auth_token" || k == "access_token" || k == "bot_token" {
 					m[k] = "***"
 				}
 			}
@@ -458,4 +459,54 @@ func (h *NotificationHandler) unsubscribeWebPush(w http.ResponseWriter, r *http.
 	}
 	h.Pool.Exec(r.Context(), `UPDATE users SET webpush_subscription = NULL WHERE id = $1`, userID)
 	writeJSON(w, 200, map[string]interface{}{"message": "subscription removed"})
+}
+
+// getVapidPublicKey devuelve la VAPID public key para que el navegador pueda suscribirse
+// Si no hay VAPID keys configuradas, las auto-genera y guarda en la config del gateway webpush
+func (h *NotificationHandler) getVapidPublicKey(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	// Buscar config existente de webpush
+	var configBytes []byte
+	var isActive bool
+	h.Pool.QueryRow(r.Context(), `
+		SELECT config, is_active FROM notification_gateway_config
+		WHERE node_domain = $1 AND channel_code = 'webpush'`, nodeDomain).Scan(&configBytes, &isActive)
+
+	var config map[string]interface{}
+	if len(configBytes) > 0 {
+		json.Unmarshal(configBytes, &config)
+	}
+
+	vapidPublicKey, _ := config["vapid_public_key"].(string)
+
+	// Si no hay public key, auto-generar
+	if vapidPublicKey == "" {
+		pubKey, privKey, err := generateVapidKeys()
+		if err != nil {
+			writeError(w, 500, "error generating VAPID keys")
+			return
+		}
+		config["vapid_public_key"] = pubKey
+		config["vapid_private_key"] = privKey
+		config["vapid_subject"] = "mailto:notificaciones@" + nodeDomain
+
+		configBytes, _ = json.Marshal(config)
+		// Guardar o actualizar la config del gateway
+		h.Pool.Exec(r.Context(), `
+			INSERT INTO notification_gateway_config (node_domain, channel_code, is_active, config)
+			VALUES ($1, 'webpush', true, $2)
+			ON CONFLICT (node_domain, channel_code) DO UPDATE SET config = $2`,
+			nodeDomain, configBytes)
+		vapidPublicKey = pubKey
+		isActive = true
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"vapid_public_key": vapidPublicKey,
+		"active":           isActive,
+	})
 }

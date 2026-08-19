@@ -8,7 +8,7 @@ const CHANNEL_INFO: Record<string, { label: string; icon: any; color: string; de
   telegram: { label: 'Telegram', icon: Send, color: 'text-cyan-600', description: 'Bot de Telegram para mensajes directos' },
   matrix: { label: 'Matrix (federada)', icon: MessageSquare, color: 'text-green-600', description: 'Red federada soberana - recomendada' },
   xmpp: { label: 'XMPP (Jabber federado)', icon: MessageSquare, color: 'text-orange-600', description: 'Red federada libre - via API HTTP del servidor' },
-  webpush: { label: 'Web Push (navegador)', icon: BellRing, color: 'text-indigo-600', description: 'Notificaciones push del navegador - sin terceros, W3C' },
+  webpush: { label: 'Web Push (navegador)', icon: BellRing, color: 'text-indigo-600', description: 'Notificaciones push del navegador - se auto-configura, no requiere datos manuales' },
   sms: { label: 'SMS', icon: Smartphone, color: 'text-pink-600', description: 'SMS via Twilio, Vonage, o API propia' },
   whatsapp: { label: 'WhatsApp (opcional)', icon: MessageSquare, color: 'text-green-500', description: 'Meta Cloud API o API propia - propietario' },
   webhook: { label: 'Webhook generico', icon: Webhook, color: 'text-purple-600', description: 'POST HTTP a una URL configurable' },
@@ -49,7 +49,7 @@ export default function NotificationSettings() {
   const [testingChannel, setTestingChannel] = useState<string | null>(null)
 
   // Contactos del usuario
-  const [contacts, setContacts] = useState({ email: '', phone: '', telegram_chat_id: '', matrix_user_id: '', xmpp_jid: '', quiet_hours_start: '', quiet_hours_end: '' })
+  const [contacts, setContacts] = useState({ email: '', phone: '', telegram_chat_id: '', matrix_user_id: '', xmpp_jid: '', quiet_hours_start: '', quiet_hours_end: '', digest_mode: 'instant' })
   const [webpushSupported, setWebpushSupported] = useState(false)
   const [webpushSubscribed, setWebpushSubscribed] = useState(false)
   const [webpushLoading, setWebpushLoading] = useState(false)
@@ -71,27 +71,57 @@ export default function NotificationSettings() {
   const subscribeWebPush = async () => {
     setWebpushLoading(true)
     try {
-      const reg = await navigator.serviceWorker.ready
-      // Solicitar permiso
-      const permission = await Notification.requestPermission()
-      if (permission !== 'granted') {
-        setError('Permiso de notificaciones denegado')
+      // 1. Obtener la VAPID public key del backend (se auto-genera si no existe)
+      const vapidRes = await api.get<any>('/notifications/webpush/vapid-key')
+      const vapidKey = vapidRes?.vapid_public_key
+
+      if (!vapidKey) {
+        setError('No se pudo obtener la clave VAPID del servidor')
         setWebpushLoading(false)
         return
       }
-      // Suscribirse (sin VAPID key por ahora - el admin debe configurarlo)
+
+      // 2. Registrar el service worker
+      const reg = await navigator.serviceWorker.ready
+
+      // 3. Solicitar permiso de notificaciones
+      const permission = await Notification.requestPermission()
+      if (permission !== 'granted') {
+        setError('Permiso de notificaciones denegado por el navegador')
+        setWebpushLoading(false)
+        return
+      }
+
+      // 4. Convertir la VAPID key de Base64URL a ArrayBuffer (requerido por PushManager)
+      const applicationServerKey = urlBase64ToUint8Array(vapidKey).buffer as ArrayBuffer
+
+      // 5. Suscribirse al push manager
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
+        applicationServerKey,
       })
-      // Enviar subscription al backend
+
+      // 6. Enviar subscription al backend
       await api.post('/notifications/webpush/subscribe', sub.toJSON())
       setWebpushSubscribed(true)
       setSuccess('Suscrito a notificaciones push del navegador')
       setTimeout(() => setSuccess(''), 3000)
     } catch (e: any) {
-      setError('Error al suscribirse: ' + (e.message || 'desconocido'))
+      setError('Error al suscribirse: ' + (e?.message || 'desconocido'))
     }
     setWebpushLoading(false)
+  }
+
+  // Convierte una clave Base64URL a Uint8Array (requerido por PushManager)
+  const urlBase64ToUint8Array = (base64String: string): Uint8Array => {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4)
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+    const rawData = atob(base64)
+    const outputArray = new Uint8Array(rawData.length)
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i)
+    }
+    return outputArray
   }
 
   const unsubscribeWebPush = async () => {
@@ -136,6 +166,7 @@ export default function NotificationSettings() {
           xmpp_jid: d.xmpp_jid || '',
           quiet_hours_start: d.quiet_hours_start != null ? String(d.quiet_hours_start) : '',
           quiet_hours_end: d.quiet_hours_end != null ? String(d.quiet_hours_end) : '',
+          digest_mode: d.digest_mode || 'instant',
         })
       }
     }).catch(() => {})
@@ -210,6 +241,7 @@ export default function NotificationSettings() {
       xmpp_jid: contacts.xmpp_jid || null,
       quiet_hours_start: contacts.quiet_hours_start !== '' ? parseInt(contacts.quiet_hours_start) : null,
       quiet_hours_end: contacts.quiet_hours_end !== '' ? parseInt(contacts.quiet_hours_end) : null,
+      digest_mode: contacts.digest_mode || 'instant',
     }
     api.put('/accounts/me/contacts', payload).then(() => {
       setSuccess('Datos de contacto guardados')
@@ -277,11 +309,7 @@ export default function NotificationSettings() {
         { key: 'auth_token', label: 'Token auth', type: 'password' },
         { key: 'from_jid', label: 'JID remitente', placeholder: 'bot@midominio.org' },
       ],
-      webpush: [
-        { key: 'vapid_public_key', label: 'VAPID Public Key (Base64URL)', placeholder: 'BEl62iUYgN...' },
-        { key: 'vapid_private_key', label: 'VAPID Private Key', type: 'password' },
-        { key: 'vapid_subject', label: 'Subject (mailto: o https:)', placeholder: 'mailto:notif@midominio.org' },
-      ],
+      webpush: [], // VAPID keys se auto-generan, no requiere config manual
       sms: [
         { key: 'provider', label: 'Proveedor', placeholder: 'twilio | vonage | custom' },
         { key: 'account_sid', label: 'Account SID (Twilio)', placeholder: 'AC...' },
@@ -306,6 +334,16 @@ export default function NotificationSettings() {
     const fields = fieldDefs[channel] || []
     return (
       <div className="space-y-3">
+        {channel === 'webpush' && fields.length === 0 && (
+          <div className="bg-indigo-50 border border-indigo-200 rounded p-3 text-sm text-indigo-700">
+            <p className="font-medium mb-1">Web Push se configura automaticamente</p>
+            <p className="text-xs">
+              Las claves VAPID se generan solas cuando un usuario activa las notificaciones push
+              desde su pagina de contactos. No necesitas configurar nada aqui.
+              Solo activa la pasarela y los usuarios podran suscribirse desde sus ajustes.
+            </p>
+          </div>
+        )}
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
@@ -544,6 +582,24 @@ export default function NotificationSettings() {
                 </select>
               </div>
             </div>
+          </div>
+
+          {/* Modo digest de email */}
+          <div className="border-t border-gray-200 pt-4 mt-2">
+            <h3 className="font-medium text-sm mb-1">Modo de envio por email</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              Elige como recibir las notificaciones por email.
+              "Instantaneo" envia cada notificacion por separado.
+              "Resumen diario" agrupa todas las notificaciones del dia en un solo email (a las 8:00 AM).
+            </p>
+            <select
+              value={contacts.digest_mode}
+              onChange={e => setContacts({ ...contacts, digest_mode: e.target.value })}
+              className="input text-sm max-w-xs"
+            >
+              <option value="instant">Instantaneo (cada notificacion por separado)</option>
+              <option value="daily">Resumen diario (un email por la manana)</option>
+            </select>
           </div>
           <div>
             <button onClick={saveContacts} className="btn-primary flex items-center gap-2">

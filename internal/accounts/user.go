@@ -2,6 +2,7 @@ package accounts
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -41,23 +42,39 @@ type User struct {
 	XmppJID          *string    `json:"xmpp_jid"`
 	QuietHoursStart  *int       `json:"quiet_hours_start"`
 	QuietHoursEnd    *int       `json:"quiet_hours_end"`
+	DigestMode       string     `json:"digest_mode"`
 }
 
 func (a *Accounts) GetUser(ctx context.Context, id uuid.UUID) (*User, error) {
 	var u User
+	var metadata []byte
 	err := a.Pool.QueryRow(ctx, `
 		SELECT id, node_domain, username, display_name, account_type, member_level_id,
 			   has_voice, has_vote, counts_in_quorum, membership_status, admitted_at,
 			   credit_limit, debit_limit, public_key, created_at,
 			   email, phone, telegram_chat_id, matrix_user_id, xmpp_jid,
-			   quiet_hours_start, quiet_hours_end
+			   quiet_hours_start, quiet_hours_end,
+			   COALESCE(metadata, '{}'::jsonb)
 		FROM users WHERE id = $1`,
 		id,
 	).Scan(&u.ID, &u.NodeDomain, &u.Username, &u.DisplayName, &u.AccountType, &u.MemberLevelID,
 		&u.HasVoice, &u.HasVote, &u.CountsInQuorum, &u.MembershipStatus, &u.AdmittedAt,
 		&u.CreditLimit, &u.DebitLimit, &u.PublicKey, &u.CreatedAt,
 		&u.Email, &u.Phone, &u.TelegramChatID, &u.MatrixUserID, &u.XmppJID,
-		&u.QuietHoursStart, &u.QuietHoursEnd)
+		&u.QuietHoursStart, &u.QuietHoursEnd, &metadata)
+	if err != nil {
+		return nil, fmt.Errorf("getting user: %w", err)
+	}
+
+	// Extraer digest_mode del metadata
+	var meta struct {
+		DigestMode string `json:"digest_mode"`
+	}
+	json.Unmarshal(metadata, &meta)
+	u.DigestMode = meta.DigestMode
+	if u.DigestMode == "" {
+		u.DigestMode = "instant"
+	}
 	if err != nil {
 		return nil, fmt.Errorf("getting user: %w", err)
 	}

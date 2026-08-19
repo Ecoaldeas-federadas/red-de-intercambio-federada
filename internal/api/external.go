@@ -670,15 +670,15 @@ func (eh *ExternalHandler) listComponents(w http.ResponseWriter, r *http.Request
 
 	switch category {
 	case "materia_prima":
-		query += fmt.Sprintf(` AND subcategory = 'Materia Prima'`)
+		query += ` AND subcategory = 'Materia Prima'`
 	case "producto_base":
-		query += fmt.Sprintf(` AND is_composite = true`)
+		query += ` AND is_composite = true`
 	case "trabajo":
-		query += fmt.Sprintf(` AND unit = 'hora'`)
+		query += ` AND unit = 'hora'`
 	case "embalaje":
-		query += fmt.Sprintf(` AND parent_category = 'Embalaje'`)
+		query += ` AND parent_category = 'Embalaje'`
 	case "envio":
-		query += fmt.Sprintf(` AND parent_category = 'Envio'`)
+		query += ` AND parent_category = 'Envio'`
 	}
 
 	if search != "" {

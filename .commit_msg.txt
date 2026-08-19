@@ -1,23 +1,19 @@
-fix: preferencias de notificaciones - solo canales configurados + select all
+fix: errores y warnings del IDE
 
-Mejoras de UX en la pagina de preferencias de notificaciones:
+Error TypeScript (NotificationSettings.tsx:101):
+- Uint8Array no asignable a BufferSource en pushManager.subscribe
+- Fix: usar .buffer as ArrayBuffer para obtener el ArrayBuffer correctamente
 
-1. Solo mostrar canales configurados:
-   - El backend ahora devuelve gateway_active en /notifications/channels
-   - El frontend filtra y solo muestra canales con gateway_active = true
-   - Si no hay ninguna pasarela configurada, muestra mensaje informativo
-   - Los usuarios ya no ven opciones de canales no configurados
+Warnings corregidos:
+- notifications.go:302: redundant or (auth_token duplicado en condicion)
+- external.go:673-681: fmt.Sprintf innecesario en strings sin formato
+- routes.go:247,253: fmt.Sprintf innecesario en strings literales
 
-2. Select all masivo:
-   - Checkbox "Todos" en cada columna (activar todos los eventos para un canal)
-   - Checkbox en cada fila (activar todos los canales para un evento)
-   - Estado indeterminate cuando algunos estan activados
-   - Botones "Activar todo" y "Desactivar todo" globales
-   - Ya no hay que tildar uno por uno
-
-3. Verificacion de permisos:
-   - La pestana "Pasarelas (admin)" solo es visible con permiso config.manage
-   - Los usuarios sin permiso no ven la configuracion de pasarelas
+Tambien incluye cambios pendientes del commit anterior:
+- WebPush auto-config (VAPID keys auto-generadas)
+- VAPID JWT signing completo (ES256 + aes128gcm RFC 8291)
+- Digest emails (resumen diario)
+- Fix TypeScript PublicSettings (footer properties)
 
 Generated with Devin
 

@@ -244,13 +244,13 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 				subtitleStr = *subtitle
 			}
 
-			sb.WriteString(fmt.Sprintf("========================================\n"))
+			sb.WriteString("========================================\n")
 			sb.WriteString(fmt.Sprintf("PAGINA: %s\n", title))
 			if subtitleStr != "" {
 				sb.WriteString(fmt.Sprintf("SUBTITULO: %s\n", subtitleStr))
 			}
 			sb.WriteString(fmt.Sprintf("URL: /html/%s.html\n", slug))
-			sb.WriteString(fmt.Sprintf("========================================\n\n"))
+			sb.WriteString("========================================\n\n")
 
 			// Convertir contenido JSON a texto plano
 			sb.WriteString(jsonContentToText(content))

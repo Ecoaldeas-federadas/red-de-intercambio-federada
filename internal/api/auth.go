@@ -680,10 +680,18 @@ func (ah *AuthHandlers) updateMyContacts(w http.ResponseWriter, r *http.Request)
 		XmppJID         *string `json:"xmpp_jid"`
 		QuietHoursStart *int    `json:"quiet_hours_start"`
 		QuietHoursEnd   *int    `json:"quiet_hours_end"`
+		DigestMode      *string `json:"digest_mode"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")
 		return
+	}
+
+	// Guardar digest_mode en metadata del usuario
+	if req.DigestMode != nil {
+		ah.Pool.Exec(r.Context(), `
+			UPDATE users SET metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('digest_mode', $2)
+			WHERE id = $1`, userID, *req.DigestMode)
 	}
 
 	_, err = ah.Pool.Exec(r.Context(), `

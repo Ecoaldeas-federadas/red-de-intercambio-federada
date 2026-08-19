@@ -451,19 +451,13 @@ func (g *GatewayService) sendWhatsAppCustom(config map[string]interface{}, phone
 // ===== WebPush (W3C Push API) =====
 //
 // WebPush envia notificaciones push al navegador del usuario via el endpoint
-// de su suscripcion. Requiere VAPID (Voluntary Application Server Identification)
-// para autenticar el envio.
+// de su suscripcion. Usa VAPID (ES256 JWT) para autenticacion y
+// aes128gcm (RFC 8291) para encriptar el payload.
 //
 // El subscription se almacena en users.webpush_subscription (JSONB) y contiene:
-//   - endpoint: URL del push service (Chrome: fcm.googleapis.com, Firefox: updates.push.services.mozilla.com, etc.)
-//   - keys.p256dh: clave publica ECDH
+//   - endpoint: URL del push service
+//   - keys.p256dh: clave publica ECDH del navegador
 //   - keys.auth: secreto de autenticacion
-//
-// El envio requiere firmar un JWT con la clave privada VAPID y encriptar el
-// payload con el esquema aes128gcm. Para evitar dependencias criptograficas
-// pesadas, esta implementacion envia una notificacion vacia (TTL only) que
-// hace que el navegador muestre la notificacion basica. Para payloads completos
-// se requiere una libreria como github.com/SherClockHolmes/webpush-go.
 func (g *GatewayService) sendWebPush(ctx context.Context, config map[string]interface{}, userID uuid.UUID, title, message, link string) error {
 	// Obtener el subscription del usuario
 	var subBytes []byte
@@ -487,7 +481,7 @@ func (g *GatewayService) sendWebPush(ctx context.Context, config map[string]inte
 		return fmt.Errorf("subscription sin endpoint")
 	}
 
-	// Verificar VAPID config
+	// VAPID config
 	vapidPublicKey, _ := config["vapid_public_key"].(string)
 	vapidPrivateKey, _ := config["vapid_private_key"].(string)
 	vapidSubject, _ := config["vapid_subject"].(string)
@@ -495,38 +489,40 @@ func (g *GatewayService) sendWebPush(ctx context.Context, config map[string]inte
 		vapidSubject = "mailto:notificaciones@red-federada.org"
 	}
 
+	// Si no hay VAPID keys, no podemos enviar (deberian auto-generarse)
 	if vapidPublicKey == "" || vapidPrivateKey == "" {
-		// Sin VAPID keys: enviar payload vacio con TTL
-		// El navegador mostrara una notificacion generica
-		req, _ := http.NewRequestWithContext(ctx, "POST", subscription.Endpoint, nil)
-		req.Header.Set("TTL", "86400")
-		req.Header.Set("Content-Encoding", "aes128gcm")
-		req.Header.Set("Content-Length", "0")
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			return err
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode >= 400 {
-			return fmt.Errorf("webpush error: %d", resp.StatusCode)
-		}
-		return nil
+		return fmt.Errorf("VAPID keys no configuradas para webpush")
 	}
 
-	// Con VAPID keys: construir el JWT y enviar
-	// Nota: para envio completo con payload encriptado se requiere
-	// una libreria especializada. Por ahora enviamos notificacion vacia
-	// con VAPID auth header.
-	jwtToken, err := buildVapidJWT(vapidPrivateKey, vapidSubject, subscription.Endpoint)
+	// Construir el JWT VAPID (ES256)
+	jwtToken, err := buildVapidJWTReal(vapidPrivateKey, vapidSubject, subscription.Endpoint)
 	if err != nil {
 		return fmt.Errorf("error generando VAPID JWT: %w", err)
 	}
 
-	req, _ := http.NewRequestWithContext(ctx, "POST", subscription.Endpoint, nil)
+	// Construir el payload JSON que recibira el Service Worker
+	pushPayload := map[string]interface{}{
+		"title":   title,
+		"message": message,
+	}
+	if link != "" {
+		pushPayload["link"] = link
+	}
+	payloadJSON, _ := json.Marshal(pushPayload)
+
+	// Encriptar el payload con aes128gcm (RFC 8291)
+	encryptedBody, err := encryptWebPushPayload(string(payloadJSON), subscription.Keys.P256dh, subscription.Keys.Auth, vapidPrivateKey)
+	if err != nil {
+		return fmt.Errorf("error encriptando payload: %w", err)
+	}
+
+	// Enviar la peticion al push service
+	req, _ := http.NewRequestWithContext(ctx, "POST", subscription.Endpoint, bytes.NewReader(encryptedBody))
 	req.Header.Set("TTL", "86400")
 	req.Header.Set("Authorization", "vapid t="+jwtToken+", k="+vapidPublicKey)
 	req.Header.Set("Content-Encoding", "aes128gcm")
-	req.Header.Set("Content-Length", "0")
+	req.Header.Set("Content-Type", "application/octet-stream")
+	req.Header.Set("Content-Length", fmt.Sprintf("%d", len(encryptedBody)))
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

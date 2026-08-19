@@ -2,7 +2,9 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -61,6 +63,7 @@ func (s *NotificationScheduler) checkAll() {
 
 	s.checkVotingDeadlines(ctx)
 	s.checkUpcomingAssemblies(ctx)
+	s.sendDailyDigest(ctx)
 }
 
 // checkVotingDeadlines busca propuestas con votacion activa que vencen en menos de 6 horas
@@ -162,4 +165,100 @@ func (s *NotificationScheduler) checkUpcomingAssemblies(ctx context.Context) {
 			UPDATE assembly_sessions SET metadata = COALESCE(metadata, '{}'::jsonb) || '{"reminder_sent": true}'::jsonb
 			WHERE id = $1`, sessionID)
 	}
+}
+
+// sendDailyDigest envia un email resumen a los usuarios que tienen
+// notificaciones no leidas y prefieren digest diario en lugar de notificaciones individuales.
+// Se ejecuta una vez al dia (a las 8:00 AM aprox).
+func (s *NotificationScheduler) sendDailyDigest(ctx context.Context) {
+	// Solo ejecutar entre 7:00 y 9:00 AM
+	hour := time.Now().Hour()
+	if hour < 7 || hour > 9 {
+		return
+	}
+
+	// Buscar usuarios con notificaciones no leidas que tengan email y prefieran digest
+	rows, err := s.Pool.Query(ctx, `
+		SELECT u.id, u.email, u.node_domain, COUNT(n.*) as unread_count
+		FROM users u
+		JOIN notifications n ON n.user_id = u.id AND n.is_read = false
+		WHERE u.email IS NOT NULL AND u.email != ''
+		  AND u.membership_status = 'active'
+		  AND (u.metadata->>'digest_mode') = 'daily'
+		  AND (u.metadata->>'last_digest_sent') IS NULL OR (u.metadata->>'last_digest_sent')::date < CURRENT_DATE
+		GROUP BY u.id, u.email, u.node_domain
+		HAVING COUNT(n.*) > 0`)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var userID uuid.UUID
+		var email, nodeDomain string
+		var unreadCount int
+		rows.Scan(&userID, &email, &nodeDomain, &unreadCount)
+
+		// Obtener las ultimas 10 notificaciones no leidas para el resumen
+		notifs, _ := s.Pool.Query(ctx, `
+			SELECT title, message, notification_type, created_at
+			FROM notifications
+			WHERE user_id = $1 AND is_read = false
+			ORDER BY created_at DESC LIMIT 10`, userID)
+		if notifs == nil {
+			continue
+		}
+
+		var items []string
+		for notifs.Next() {
+			var title, message, notifType string
+			var createdAt time.Time
+			notifs.Scan(&title, &message, &notifType, &createdAt)
+			items = append(items, fmt.Sprintf("- %s: %s (%s)", title, message, createdAt.Format("02/01 15:04")))
+		}
+		notifs.Close()
+
+		if len(items) == 0 {
+			continue
+		}
+
+		// Construir el email
+		subject := fmt.Sprintf("Resumen diario: %d notificaciones no leidas", unreadCount)
+		body := fmt.Sprintf(`Hola,
+
+Tienes %d notificaciones no leidas en la Red Federada:
+
+%s
+
+Para ver todas tus notificaciones, ingresa a la aplicacion.
+
+Saludos,
+Red Federada`, unreadCount, strings.Join(items, "\n"))
+
+		// Enviar via el gateway de email
+		gw := NewGatewayService(s.Pool)
+		gwConfig, _ := s.getGatewayConfig(ctx, nodeDomain, "email")
+		if gwConfig != nil {
+			gw.sendEmail(gwConfig, email, subject, body, "")
+		}
+
+		// Marcar digest enviado
+		s.Pool.Exec(ctx, `
+			UPDATE users SET metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('last_digest_sent', NOW()::text)
+			WHERE id = $1`, userID)
+	}
+}
+
+func (s *NotificationScheduler) getGatewayConfig(ctx context.Context, nodeDomain, channel string) (map[string]interface{}, error) {
+	var configBytes []byte
+	err := s.Pool.QueryRow(ctx, `
+		SELECT config FROM notification_gateway_config
+		WHERE node_domain = $1 AND channel_code = $2 AND is_active = true`,
+		nodeDomain, channel).Scan(&configBytes)
+	if err != nil {
+		return nil, err
+	}
+	var config map[string]interface{}
+	json.Unmarshal(configBytes, &config)
+	return config, nil
 }

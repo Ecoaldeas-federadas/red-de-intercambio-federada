@@ -441,9 +441,16 @@ El servicio de notificaciones es una funcion Go que se llama desde cualquier han
 ### Control de envio
 - Quiet hours: el usuario configura un rango de horas (0-23) durante el cual no se envian notificaciones por pasarelas externas. in_app siempre se entrega.
 - Rate limiting: max 10 notificaciones por hora por usuario. Si se excede, solo se entrega in_app.
-- Cron job (notification_scheduler.go): cada hora revisa votaciones por cerrar (< 6h) y asambleas proximas (24-48h) y notifica automaticamente.
+- Digest emails: el usuario puede elegir entre "instant" (cada notificacion por email separado) o "daily" (resumen diario a las 8:00 AM). Se configura en metadata.digest_mode.
+- Cron job (notification_scheduler.go): cada hora revisa votaciones por cerrar (< 6h), asambleas proximas (24-48h), y envia digests diarios. Notifica automaticamente.
+
+### VAPID y WebPush
+- Las claves VAPID se auto-generan en el backend cuando el primer usuario intenta suscribirse (endpoint GET /api/notifications/webpush/vapid-key).
+- No requiere configuracion manual del admin.
+- El JWT VAPID se firma con ES256 (ECDSA P-256 + SHA-256).
+- El payload se encripta con aes128gcm (RFC 8291) usando ECDH entre el servidor y el navegador.
+- El Service Worker (sw.js) recibe el push event y muestra la notificacion con titulo, mensaje y link.
 
 ### Pendiente para futuras iteraciones
-- [ ] VAPID JWT signing completo para WebPush con payload encriptado (requiere libreria criptografica)
-- [ ] Notificaciones push a app movil nativa
-- [ ] Digest emails (resumen diario/semanal)
+- [ ] App movil nativa (React Native / Flutter)
+- [ ] Digest semanal (ademas del diario)
