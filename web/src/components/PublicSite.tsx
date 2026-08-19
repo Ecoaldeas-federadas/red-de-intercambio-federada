@@ -35,6 +35,7 @@ import { DynamicAdmissionForm } from './public-site/DynamicAdmissionForm'
 import { ThemeCustomizer, ThemeDraft, PageMenuItem } from './public-site/ThemeCustomizer'
 import { FERIA_CONUQUERA_TEMPLATES } from './public-site/defaultSiteData'
 import { PublicPageData, HeaderStyleType, SiteBlock } from '../types/publicSite'
+import { PublicGovernancePage } from './public-site/PublicGovernancePage'
 
 const ICONS: Record<string, any> = {
   home: Home,
@@ -142,20 +143,46 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             show_in_menu: true,
             content: JSON.stringify(t.blocks),
           }))
-        setPages([...d, ...templateOnly])
+        // Pagina virtual de gobernanza: siempre presente en el menu,
+        // renderiza las reglas desde /api/public/governance (no bloques editables)
+        const governancePage = dbSlugs.has('gobernanza') ? null : {
+          slug: 'gobernanza',
+          title: 'Gobernanza',
+          subtitle: 'Ley de la Aldea - Reglas de convivencia',
+          icon: 'scale',
+          menu_order: 90,
+          is_published: true,
+          show_in_menu: true,
+          content: '[]',
+        }
+        const allPages = [...d, ...templateOnly]
+        if (governancePage) allPages.push(governancePage)
+        setPages(allPages)
       } else {
-        setPages(
-          FERIA_CONUQUERA_TEMPLATES.map((t) => ({
-            slug: t.slug,
-            title: t.title,
-            subtitle: t.subtitle,
-            icon: t.icon,
-            menu_order: t.menu_order,
+        const tmplPages = FERIA_CONUQUERA_TEMPLATES.map((t) => ({
+          slug: t.slug,
+          title: t.title,
+          subtitle: t.subtitle,
+          icon: t.icon,
+          menu_order: t.menu_order,
+          is_published: true,
+          show_in_menu: true,
+          content: JSON.stringify(t.blocks),
+        }))
+        // Agregar pagina virtual de gobernanza
+        if (!tmplPages.find((p) => p.slug === 'gobernanza')) {
+          tmplPages.push({
+            slug: 'gobernanza',
+            title: 'Gobernanza',
+            subtitle: 'Ley de la Aldea - Reglas de convivencia',
+            icon: 'scale',
+            menu_order: 90,
             is_published: true,
             show_in_menu: true,
-            content: JSON.stringify(t.blocks),
-          }))
-        )
+            content: '[]',
+          })
+        }
+        setPages(tmplPages)
       }
     }).catch(() => {})
   }, [])
@@ -248,9 +275,9 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
   // Navigation categorization for dropdown style (use menu-visible pages only)
   const aboutPages = menuPages.filter((p) => ['inicio', 'filosofia', 'filosofia-conuquera', 'campo-soberano'].includes(p.slug))
   const economyPages = menuPages.filter((p) => ['productos', 'como-funciona'].includes(p.slug))
-  const communityPages = menuPages.filter((p) => ['comunidad', 'faq', 'contacto', 'semillas', 'saberes-ancestrales', 'ecoaldeas-mundo'].includes(p.slug))
+  const communityPages = menuPages.filter((p) => ['comunidad', 'faq', 'contacto', 'semillas', 'saberes-ancestrales', 'ecoaldeas-mundo', 'gobernanza'].includes(p.slug))
   const otherPages = menuPages.filter(
-    (p) => !['inicio', 'filosofia', 'filosofia-conuquera', 'campo-soberano', 'productos', 'como-funciona', 'comunidad', 'faq', 'contacto', 'semillas', 'saberes-ancestrales', 'ecoaldeas-mundo'].includes(p.slug)
+    (p) => !['inicio', 'filosofia', 'filosofia-conuquera', 'campo-soberano', 'productos', 'como-funciona', 'comunidad', 'faq', 'contacto', 'semillas', 'saberes-ancestrales', 'ecoaldeas-mundo', 'gobernanza'].includes(p.slug)
   )
 
   // Hierarchical menu: top-level pages and their children (for dropdown_categories)
@@ -2045,6 +2072,11 @@ export function PublicPageView() {
         <p className="text-gray-500 font-medium text-xs">Cargando contenido...</p>
       </div>
     )
+  }
+
+  // Pagina especial: gobernanza muestra las reglas desde la BD, no bloques editables
+  if (targetSlug === 'gobernanza') {
+    return <PublicGovernancePage />
   }
 
   if (!page) {

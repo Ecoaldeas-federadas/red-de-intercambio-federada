@@ -3233,11 +3233,20 @@ func (h *SystemHandler) restoreBackup(w http.ResponseWriter, r *http.Request) {
 
 func (h *SystemHandler) listGovernanceRules(w http.ResponseWriter, r *http.Request) {
 	category := r.URL.Query().Get("category")
-	rows, err := h.Pool.Query(context.Background(), `
+	// Usar el dominio del header o del nodo, con fallback a localhost
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = h.nodeDomain
+	}
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id, category, title, description, severity, icon, sort_order, is_active
 		FROM governance_rules
-		WHERE node_domain = 'localhost' AND is_active = true
+		WHERE node_domain IN ($1, 'localhost', 'default') AND is_active = true
 		ORDER BY category, sort_order`,
+		nodeDomain,
 	)
 	if err != nil {
 		writeError(w, 500, err.Error())

@@ -1,34 +1,38 @@
-feat: envases ecologicos para servir y llevar - 22 productos nuevos
+feat: pagina publica de gobernanza /p/gobernanza - Ley de la Aldea
 
-Categoria nueva: Embalaje con 5 categorias y 16 subcategorias:
+El sistema de gobernanza ya existia en el backend (migracion 048 con
+reglas pre-aprobadas, endpoints /api/public/governance, integracion
+con asamblea) y en el panel admin (Governance.tsx), pero faltaba
+mostrarlo en la pagina publica.
 
-Vasos para liquidos:
-- Hoja de Platano: biodegradable, 45-60 dias descomposicion
-- Bagazo de Caña: compostable, resiste 100°C, para calientes y frios
-- PLA (Maiz): transparente, compostable 90-180 dias, para frios
-- Totuma/Calabaza: 100% natural, reutilizable
-- Coco: cascara pulida con cera natural, reutilizable
-- Ceramica: barro cocido artesanal, reutilizable
+Nuevo componente PublicGovernancePage.tsx:
+- Carga reglas desde /api/public/governance (endpoint publico)
+- Agrupa por categoria con iconos y colores
+- Navegacion por categorias con scroll suave
+- Muestra severidad (info, leve, grave, muy grave)
+- Diseno responsive con tarjetas
+- Footer con instruccion de como proponer modificaciones
 
-Platos y bandejas:
-- Hoja de Platano, Bagazo, Fibra de Bambu, Hoja de Palma
+Integracion en PublicSite.tsx:
+- PublicPageView: cuando slug === 'gobernanza', renderiza
+  PublicGovernancePage en vez de bloques editables
+- Agregada pagina virtual 'gobernanza' al menu publico (menu_order 90)
+- Agregada a communityPages en la navegacion
 
-Contenedores para llevar:
-- Bagazo con tapa, Fibra de Bambu, Hoja de Platano
+Fix en system.go (listGovernanceRules):
+- Antes filtraba por node_domain = 'localhost' hardcoded
+- Ahora usa el dominio del header o del nodo, con fallback a localhost
+- Busca en node_domain IN (dominio, 'localhost', 'default') para
+  incluir reglas seed
 
-Bolsas y envolturas:
-- Tela de Algodon (reutilizable), Yute, Papel Reciclado
-- Almidon de papa/maiz (bioplastico compostable)
-- Cera de Abejas (sustituye film plastico)
-- Hoja de Platano fresca, Papel Encerado
+Las reglas se muestran:
+1. Pagina publica /p/gobernanza (cualquier visitante)
+2. Formulario de admision (aceptacion obligatoria)
+3. Panel admin /app/governance (gestion)
 
-Cubiertos:
-- Madera, Bambu, Pajitas de Caña Natural, Pajitas de Papel
-
-Precios basados en investigacion web de mercado actual 2024:
-- Bagajo: $0.04-$0.12/unidad FOB
-- PLA: $0.06-$0.18/unidad
-- Bolsas tela: reutilizables, mayor costo inicial pero duran años
+Cuando la asamblea aprueba un cambio (crear, modificar, eliminar
+regla), se refleja automaticamente en la pagina publica porque lee
+directamente de la tabla governance_rules.
 
 Generated with Devin
 
