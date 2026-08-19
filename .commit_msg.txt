@@ -1,41 +1,59 @@
-fix: reglas de gobernanza con terminologia real y valores dinamicos
+feat: ID nacional + sistema de conflictos de fusion entre nodos
 
-Las reglas de gobernanza tenian dos problemas:
+Sistema completo para evitar usuarios duplicados en nodos federados y
+resolver conflictos cuando dos aldeas se confederan.
 
-1. TERMINOLOGIA INCORRECTA
-- Mencionaban "circulos" pero el sistema tiene "departamentos"
-- "Doble enlace sociocratico" con coordinador/delegado no existe
-  (los departamentos tienen jefe y miembros)
-- Decia "asamblea mensual" pero la frecuencia es configurable
+## Backend
 
-2. VALORES HARDCODED
-- Limites -500/+500 fijos cuando son configurables por nivel
-- Frecuencia de asamblea fija cuando es configurable
-- Quorum fijo cuando es configurable
-- Tasas de impuesto fijas cuando son configurables
+Migracion 062:
+- users.national_id, national_id_type, national_id_country
+- admission_requests.national_id, national_id_type, national_id_country
+- Tabla node_merge_conflicts para tracking de conflictos
 
-FIX:
+User struct actualizado con national_id en:
+- GetUser (lectura)
+- CreateUserParams (escritura)
+- CreateAdmissionRequest (guarda ID durante solicitud)
+- ApproveAdmissionRequest (transfiere ID al crear usuario)
+- updateMyContacts (editar ID desde perfil)
 
-Migracion 062: actualiza las reglas existentes:
-- "Circulos Operativos" -> "Departamentos Operativos"
-- Elimina "Doble Enlace Sociocratico" (no existe en el sistema)
-- "Asamblea General" usa placeholder {assembly_frequency}
-- "Comercio con TQ" usa {limit_new_negative}, {limit_active_negative}, etc.
-- "Impuesto de Transaccion" usa {tax_individual_rate}, {tax_org_default_rate}
-- "Aprobacion de Gastos" usa {quorum_ordinaria_first}, {quorum_extraordinaria}
-- "Asistencia a Asambleas" usa {assembly_frequency}
+Nuevo MergeConflictHandler (merge_conflicts.go):
+- POST /api/federation/scan-conflicts: detecta duplicados por national_id
+- GET /api/federation/merge-conflicts: lista conflictos pendientes
+- GET /api/federation/merge-conflicts/{id}: detalle de conflicto
+- POST /api/federation/merge-conflicts/{id}/propose: proponer resolucion
+  (que nodo se queda: a, b, o both; que hacer con saldo: transfer,
+   forgive_debt, remove_balance, keep_both)
+- POST /api/federation/merge-conflicts/{id}/vote: votar (approved/rejected)
+- POST /api/federation/merge-conflicts/{id}/execute: ejecutar migracion
+- HasPendingConflicts: verifica si hay conflictos bloqueando federacion
 
-Backend (system.go):
-- Nueva funcion loadGovernanceDynamicValues(): consulta la config real
-  del nodo (assembly_frequency_config, assembly_quorum_config,
-  member_levels, tax_config) y devuelve un map de valores
-- Nueva funcion replaceGovernancePlaceholders(): reemplaza {key} en
-  el texto de la regla con el valor real
-- listGovernanceRules ahora aplica los placeholders antes de enviar
+Flujo de resolucion:
+1. Escanear conflictos con otro nodo
+2. Proponer resolucion (que nodo, que hacer con saldo)
+3. Ambas asambleas votan (approved/rejected)
+4. Si ambas aprueban -> ejecutar migracion
+5. Si alguna rechaza -> bloqueado, no se puede federar
+6. Migracion: transfiere saldo, marca usuario como 'migrated'
 
-Asi cuando la asamblea cambia la frecuencia (de 3 a 1 mes, por ejemplo),
-el texto de la regla se actualiza automaticamente sin necesidad de
-editar la regla manualmente.
+## Frontend
+
+Profile.tsx:
+- Seccion "Identificacion Nacional" con tipo, numero, pais
+- Guarda via PUT /auth/me/contacts
+
+Admission.tsx:
+- Campos national_id, national_id_type, national_id_country en formulario
+- Explicacion de para que sirve
+
+MergeConflicts.tsx (nueva pagina):
+- Escanear conflictos con otro nodo
+- Lista conflictos con estado, usuarios, saldos, votos
+- Proponer resolucion (modal)
+- Votar (aprobar/rechazar)
+- Ejecutar migracion
+- Ruta: /app/federation/conflicts
+- Link en sidebar: "Conflictos Fusion"
 
 Generated with Devin
 

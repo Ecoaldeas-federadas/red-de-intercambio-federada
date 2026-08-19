@@ -6,7 +6,7 @@ import {
   Home, ArrowLeftRight, History, Package, Calculator, Store,
   Network, Scale, Users, Gavel, FileSearch, Globe, UserPlus, Wallet, Shield,
   Building2, Nfc, Settings, User, PiggyBank, Zap,
-  LogOut, Menu, X, ExternalLink, Bell, ChevronLeft, ChevronRight,
+  LogOut, Menu, X, ExternalLink, Bell, ChevronLeft, ChevronRight, AlertTriangle,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -22,6 +22,7 @@ const navItems = [
   { to: '/app/store', label: 'Tienda', icon: Store },
   { to: '/app/federation/limits', label: 'Limites Federacion', icon: Network },
   { to: '/app/federation/parity', label: 'Paridad', icon: Scale },
+  { to: '/app/federation/conflicts', label: 'Conflictos Fusion', icon: AlertTriangle },
   { to: '/app/organizations', label: 'Organizaciones', icon: Users },
   { to: '/app/departments', label: 'Departamentos', icon: Building2 },
   { to: '/app/governance', label: 'Gobernanza', icon: Scale },

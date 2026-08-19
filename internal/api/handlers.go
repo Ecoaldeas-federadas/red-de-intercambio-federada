@@ -236,10 +236,13 @@ func (h *Handler) listMemberLevels(w http.ResponseWriter, r *http.Request) {
 }
 
 type ApplyAdmissionRequest struct {
-	Username      string                 `json:"username"`
-	DisplayName   string                 `json:"display_name"`
-	ProposedLevel string                 `json:"proposed_level"`
-	ContactInfo   map[string]interface{} `json:"contact_info"`
+	Username          string                 `json:"username"`
+	DisplayName       string                 `json:"display_name"`
+	ProposedLevel     string                 `json:"proposed_level"`
+	ContactInfo       map[string]interface{} `json:"contact_info"`
+	NationalID        string                 `json:"national_id"`
+	NationalIDType    string                 `json:"national_id_type"`
+	NationalIDCountry string                 `json:"national_id_country"`
 }
 
 func (h *Handler) applyAdmission(w http.ResponseWriter, r *http.Request) {
@@ -256,7 +259,7 @@ func (h *Handler) applyAdmission(w http.ResponseWriter, r *http.Request) {
 	if level == "" {
 		level = "new"
 	}
-	admissionReq, err := h.accounts.CreateAdmissionRequest(r.Context(), h.nodeDomain, req.Username, req.DisplayName, level, req.ContactInfo)
+	admissionReq, err := h.accounts.CreateAdmissionRequest(r.Context(), h.nodeDomain, req.Username, req.DisplayName, level, req.ContactInfo, req.NationalID, req.NationalIDType, req.NationalIDCountry)
 	if err != nil {
 		writeError(w, 400, err.Error())
 		return

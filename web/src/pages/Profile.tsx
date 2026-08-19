@@ -65,10 +65,18 @@ export default function Profile() {
   const [passkeyLoading, setPasskeyLoading] = useState(false)
   const [showPasskeyModal, setShowPasskeyModal] = useState(false)
   const [passkeyLabel, setPasskeyLabel] = useState('')
+  const [nationalID, setNationalID] = useState('')
+  const [nationalIDType, setNationalIDType] = useState('')
+  const [nationalIDCountry, setNationalIDCountry] = useState('')
+  const [savingID, setSavingID] = useState(false)
+  const [idMsg, setIdMsg] = useState('')
 
   const load = () => {
     api.get('/auth/me').then((d: any) => {
       setMe(d)
+      setNationalID(d?.national_id || '')
+      setNationalIDType(d?.national_id_type || '')
+      setNationalIDCountry(d?.national_id_country || '')
       // Cargar nivel del usuario
       setLevelLoading(true)
       if (d?.member_level_id) {
@@ -110,6 +118,23 @@ export default function Profile() {
       load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error')
+    }
+  }
+
+  const saveNationalID = async () => {
+    setSavingID(true)
+    setIdMsg('')
+    try {
+      await api.put('/auth/me/contacts', {
+        national_id: nationalID,
+        national_id_type: nationalIDType,
+        national_id_country: nationalIDCountry,
+      })
+      setIdMsg('Identificacion guardada correctamente')
+    } catch (e: any) {
+      setIdMsg(e?.message || 'Error al guardar')
+    } finally {
+      setSavingID(false)
     }
   }
 
@@ -244,6 +269,59 @@ export default function Profile() {
         ) : (
           <p className="text-gray-500 text-sm">Cargando...</p>
         )}
+      </div>
+
+      {/* Identificacion nacional */}
+      <div className="card">
+        <h2 className="font-semibold flex items-center gap-2 mb-3"><Shield size={18} />Identificacion Nacional</h2>
+        <p className="text-xs text-gray-500 mb-3">Tu documento de identidad evita que te registres en multiples nodos. Al federar dos nodos, si hay usuarios duplicados, ambas asambleas deben consensuar en cual nodo se queda cada persona.</p>
+        {idMsg && <div className="text-sm bg-blue-50 text-blue-700 p-2 rounded-lg mb-3">{idMsg}</div>}
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Tipo de documento</label>
+            <select
+              value={nationalIDType}
+              onChange={(e) => setNationalIDType(e.target.value)}
+              className="input text-sm"
+            >
+              <option value="">Seleccionar...</option>
+              <option value="cedula">Cedula de identidad</option>
+              <option value="pasaporte">Pasaporte</option>
+              <option value="dni">DNI</option>
+              <option value="rut">RUT</option>
+              <option value="curp">CURP</option>
+              <option value="cedula_juridica">Cedula juridica</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Numero de documento</label>
+            <input
+              type="text"
+              value={nationalID}
+              onChange={(e) => setNationalID(e.target.value)}
+              placeholder="Ej: V-12345678"
+              className="input text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Pais emisor</label>
+            <input
+              type="text"
+              value={nationalIDCountry}
+              onChange={(e) => setNationalIDCountry(e.target.value)}
+              placeholder="Ej: Venezuela, Colombia, Argentina..."
+              className="input text-sm"
+            />
+          </div>
+          <button
+            onClick={saveNationalID}
+            disabled={savingID}
+            className="btn-primary text-sm flex items-center gap-2"
+          >
+            {savingID ? 'Guardando...' : 'Guardar identificacion'}
+          </button>
+        </div>
       </div>
 
       {/* Nivel de miembro */}

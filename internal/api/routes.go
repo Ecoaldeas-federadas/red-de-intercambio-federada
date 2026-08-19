@@ -81,6 +81,10 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 	sysH := &SystemHandler{Pool: pool, Auth: am, nodeDomain: h.nodeDomain}
 	sysH.RegisterRoutes(r, am)
 
+	// Merge conflicts: conflictos de fusion entre nodos
+	mergeH := &MergeConflictHandler{Pool: pool, Auth: am, nodeDomain: h.nodeDomain}
+	mergeH.RegisterRoutes(r, am)
+
 	// Servir imagenes subidas desde /uploads/
 	r.Get("/uploads/*", func(w http.ResponseWriter, r *http.Request) {
 		uploadDir := "/app/uploads"

@@ -17,6 +17,9 @@ export default function Admission() {
     requested_debit_limit: 100,
     reason: '',
     invited_by: '',
+    national_id: '',
+    national_id_type: '',
+    national_id_country: '',
   })
 
   const load = () =>
@@ -60,7 +63,7 @@ export default function Admission() {
       await api.post('/accounts/request', form)
       setSuccess('Solicitud de admision creada. Un administrador o la asamblea debe aprobarla.')
       setShowForm(false)
-      setForm({ username: '', display_name: '', requested_credit_limit: 100, requested_debit_limit: 100, reason: '', invited_by: '' })
+      setForm({ username: '', display_name: '', requested_credit_limit: 100, requested_debit_limit: 100, reason: '', invited_by: '', national_id: '', national_id_type: '', national_id_country: '' })
       load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear solicitud')
@@ -134,6 +137,33 @@ export default function Admission() {
             <label className="label">Invitado por (opcional)</label>
             <input className="input" placeholder="Ej: @juan@localhost" value={form.invited_by} onChange={(e) => setForm({ ...form, invited_by: e.target.value })} />
             <p className="text-xs text-gray-400 mt-1">Si un miembro te invito, indica su usuario. Ayuda a verificar tu identidad.</p>
+          </div>
+
+          <div className="border-t pt-3 mt-3">
+            <h3 className="font-medium text-sm mb-2">Identificacion Nacional (obligatorio para federacion)</h3>
+            <p className="text-xs text-gray-500 mb-3">Tu documento de identidad evita que te registres en multiples nodos. Al federar dos nodos, si hay duplicados, ambas asambleas deciden donde te quedas.</p>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="label">Tipo</label>
+                <select className="input" value={form.national_id_type} onChange={(e) => setForm({ ...form, national_id_type: e.target.value })}>
+                  <option value="">Seleccionar...</option>
+                  <option value="cedula">Cedula</option>
+                  <option value="pasaporte">Pasaporte</option>
+                  <option value="dni">DNI</option>
+                  <option value="rut">RUT</option>
+                  <option value="curp">CURP</option>
+                  <option value="otro">Otro</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">Numero</label>
+                <input className="input" placeholder="V-12345678" value={form.national_id} onChange={(e) => setForm({ ...form, national_id: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">Pais</label>
+                <input className="input" placeholder="Venezuela" value={form.national_id_country} onChange={(e) => setForm({ ...form, national_id_country: e.target.value })} />
+              </div>
+            </div>
           </div>
 
           <button onClick={submitRequest} className="btn-primary">Enviar Solicitud</button>

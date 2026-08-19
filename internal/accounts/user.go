@@ -19,30 +19,33 @@ func New(pool *pgxpool.Pool) *Accounts {
 }
 
 type User struct {
-	ID               uuid.UUID  `json:"id"`
-	NodeDomain       string     `json:"node_domain"`
-	Username         string     `json:"username"`
-	DisplayName      string     `json:"display_name"`
-	AccountType      string     `json:"account_type"`
-	MemberLevelID    *string    `json:"member_level_id"`
-	HasVoice         bool       `json:"has_voice"`
-	HasVote          bool       `json:"has_vote"`
-	CountsInQuorum   bool       `json:"counts_in_quorum"`
-	MembershipStatus string     `json:"membership_status"`
-	AdmittedAt       *time.Time `json:"admitted_at"`
-	Balance          int64      `json:"balance"`
-	CreditLimit      int64      `json:"credit_limit"`
-	DebitLimit       int64      `json:"debit_limit"`
-	PublicKey        *string    `json:"public_key"`
-	CreatedAt        time.Time  `json:"created_at"`
-	Email            *string    `json:"email"`
-	Phone            *string    `json:"phone"`
-	TelegramChatID   *string    `json:"telegram_chat_id"`
-	MatrixUserID     *string    `json:"matrix_user_id"`
-	XmppJID          *string    `json:"xmpp_jid"`
-	QuietHoursStart  *int       `json:"quiet_hours_start"`
-	QuietHoursEnd    *int       `json:"quiet_hours_end"`
-	DigestMode       string     `json:"digest_mode"`
+	ID                uuid.UUID  `json:"id"`
+	NodeDomain        string     `json:"node_domain"`
+	Username          string     `json:"username"`
+	DisplayName       string     `json:"display_name"`
+	AccountType       string     `json:"account_type"`
+	MemberLevelID     *string    `json:"member_level_id"`
+	HasVoice          bool       `json:"has_voice"`
+	HasVote           bool       `json:"has_vote"`
+	CountsInQuorum    bool       `json:"counts_in_quorum"`
+	MembershipStatus  string     `json:"membership_status"`
+	AdmittedAt        *time.Time `json:"admitted_at"`
+	Balance           int64      `json:"balance"`
+	CreditLimit       int64      `json:"credit_limit"`
+	DebitLimit        int64      `json:"debit_limit"`
+	PublicKey         *string    `json:"public_key"`
+	CreatedAt         time.Time  `json:"created_at"`
+	Email             *string    `json:"email"`
+	Phone             *string    `json:"phone"`
+	TelegramChatID    *string    `json:"telegram_chat_id"`
+	MatrixUserID      *string    `json:"matrix_user_id"`
+	XmppJID           *string    `json:"xmpp_jid"`
+	QuietHoursStart   *int       `json:"quiet_hours_start"`
+	QuietHoursEnd     *int       `json:"quiet_hours_end"`
+	DigestMode        string     `json:"digest_mode"`
+	NationalID        string     `json:"national_id"`
+	NationalIDType    string     `json:"national_id_type"`
+	NationalIDCountry string     `json:"national_id_country"`
 }
 
 func (a *Accounts) GetUser(ctx context.Context, id uuid.UUID) (*User, error) {
@@ -54,6 +57,7 @@ func (a *Accounts) GetUser(ctx context.Context, id uuid.UUID) (*User, error) {
 			   credit_limit, debit_limit, public_key, created_at,
 			   email, phone, telegram_chat_id, matrix_user_id, xmpp_jid,
 			   quiet_hours_start, quiet_hours_end,
+			   COALESCE(national_id, ''), COALESCE(national_id_type, ''), COALESCE(national_id_country, ''),
 			   COALESCE(metadata, '{}'::jsonb)
 		FROM users WHERE id = $1`,
 		id,
@@ -61,7 +65,9 @@ func (a *Accounts) GetUser(ctx context.Context, id uuid.UUID) (*User, error) {
 		&u.HasVoice, &u.HasVote, &u.CountsInQuorum, &u.MembershipStatus, &u.AdmittedAt,
 		&u.CreditLimit, &u.DebitLimit, &u.PublicKey, &u.CreatedAt,
 		&u.Email, &u.Phone, &u.TelegramChatID, &u.MatrixUserID, &u.XmppJID,
-		&u.QuietHoursStart, &u.QuietHoursEnd, &metadata)
+		&u.QuietHoursStart, &u.QuietHoursEnd,
+		&u.NationalID, &u.NationalIDType, &u.NationalIDCountry,
+		&metadata)
 	if err != nil {
 		return nil, fmt.Errorf("getting user: %w", err)
 	}
@@ -118,16 +124,19 @@ func (a *Accounts) FindUserByUsername(ctx context.Context, nodeDomain, username 
 }
 
 type CreateUserParams struct {
-	NodeDomain       string
-	Username         string
-	DisplayName      string
-	AccountType      string
-	MemberLevelID    string
-	CreditLimit      int64
-	DebitLimit       int64
-	PublicKey        string
-	EncryptedPrivKey []byte
-	KeySalt          []byte
+	NodeDomain        string
+	Username          string
+	DisplayName       string
+	AccountType       string
+	MemberLevelID     string
+	CreditLimit       int64
+	DebitLimit        int64
+	PublicKey         string
+	EncryptedPrivKey  []byte
+	KeySalt           []byte
+	NationalID        string
+	NationalIDType    string
+	NationalIDCountry string
 }
 
 func (a *Accounts) CreateUser(ctx context.Context, p CreateUserParams) (*User, error) {
@@ -135,13 +144,15 @@ func (a *Accounts) CreateUser(ctx context.Context, p CreateUserParams) (*User, e
 	err := a.Pool.QueryRow(ctx, `
 		INSERT INTO users (node_domain, username, display_name, account_type, member_level_id,
 						  membership_status, credit_limit, debit_limit, public_key,
-						  encrypted_private_key, encryption_key_salt, admitted_at)
-		VALUES ($1, $2, $3, $4, $5, 'active', $6, $7, $8, $9, $10, NOW())
+						  encrypted_private_key, encryption_key_salt, admitted_at,
+						  national_id, national_id_type, national_id_country)
+		VALUES ($1, $2, $3, $4, $5, 'active', $6, $7, $8, $9, $10, NOW(), $11, $12, $13)
 		RETURNING id, node_domain, username, display_name, account_type, member_level_id,
 				  has_voice, has_vote, counts_in_quorum, membership_status, admitted_at,
 				  credit_limit, debit_limit, public_key, created_at`,
 		p.NodeDomain, p.Username, p.DisplayName, p.AccountType, p.MemberLevelID,
 		p.CreditLimit, p.DebitLimit, p.PublicKey, p.EncryptedPrivKey, p.KeySalt,
+		p.NationalID, p.NationalIDType, p.NationalIDCountry,
 	).Scan(&u.ID, &u.NodeDomain, &u.Username, &u.DisplayName, &u.AccountType, &u.MemberLevelID,
 		&u.HasVoice, &u.HasVote, &u.CountsInQuorum, &u.MembershipStatus, &u.AdmittedAt,
 		&u.CreditLimit, &u.DebitLimit, &u.PublicKey, &u.CreatedAt)
@@ -224,13 +235,13 @@ type AdmissionRequest struct {
 	RejectionReason  string                 `json:"rejection_reason"`
 }
 
-func (a *Accounts) CreateAdmissionRequest(ctx context.Context, nodeDomain, username, displayName, proposedLevel string, contactInfo map[string]interface{}) (*AdmissionRequest, error) {
+func (a *Accounts) CreateAdmissionRequest(ctx context.Context, nodeDomain, username, displayName, proposedLevel string, contactInfo map[string]interface{}, nationalID, nationalIDType, nationalIDCountry string) (*AdmissionRequest, error) {
 	var req AdmissionRequest
 	err := a.Pool.QueryRow(ctx, `
-		INSERT INTO admission_requests (node_domain, proposed_username, display_name, proposed_level, contact_info, status)
-		VALUES ($1, $2, $3, $4, $5, 'pending')
+		INSERT INTO admission_requests (node_domain, proposed_username, display_name, proposed_level, contact_info, status, national_id, national_id_type, national_id_country)
+		VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8)
 		RETURNING id, node_domain, proposed_username, display_name, proposed_level, contact_info, status, submitted_at`,
-		nodeDomain, username, displayName, proposedLevel, contactInfo,
+		nodeDomain, username, displayName, proposedLevel, contactInfo, nationalID, nationalIDType, nationalIDCountry,
 	).Scan(&req.ID, &req.NodeDomain, &req.ProposedUsername, &req.DisplayName, &req.ProposedLevel, &req.ContactInfo, &req.Status, &req.SubmittedAt)
 	if err != nil {
 		return nil, fmt.Errorf("creating admission request: %w", err)
@@ -267,12 +278,14 @@ func (a *Accounts) ListAdmissionRequests(ctx context.Context, nodeDomain, status
 
 func (a *Accounts) ApproveAdmissionRequest(ctx context.Context, reqID uuid.UUID, reviewerID uuid.UUID) (*User, error) {
 	var req AdmissionRequest
+	var nationalID, nationalIDType, nationalIDCountry string
 	err := a.Pool.QueryRow(ctx, `
 		UPDATE admission_requests SET status = 'approved', approved_at = NOW(), reviewed_at = NOW(), reviewed_by = $2
 		WHERE id = $1 AND status IN ('pending', 'under_review')
-		RETURNING node_domain, proposed_username, display_name, proposed_level`,
+		RETURNING node_domain, proposed_username, display_name, proposed_level,
+		          COALESCE(national_id, ''), COALESCE(national_id_type, ''), COALESCE(national_id_country, '')`,
 		reqID, reviewerID,
-	).Scan(&req.NodeDomain, &req.ProposedUsername, &req.DisplayName, &req.ProposedLevel)
+	).Scan(&req.NodeDomain, &req.ProposedUsername, &req.DisplayName, &req.ProposedLevel, &nationalID, &nationalIDType, &nationalIDCountry)
 	if err != nil {
 		return nil, fmt.Errorf("approving admission request: %w", err)
 	}
@@ -285,13 +298,16 @@ func (a *Accounts) ApproveAdmissionRequest(ctx context.Context, reqID uuid.UUID,
 	}
 
 	user, err := a.CreateUser(ctx, CreateUserParams{
-		NodeDomain:    req.NodeDomain,
-		Username:      req.ProposedUsername,
-		DisplayName:   req.DisplayName,
-		AccountType:   "individual",
-		MemberLevelID: req.ProposedLevel,
-		CreditLimit:   levelCredit,
-		DebitLimit:    levelDebit,
+		NodeDomain:        req.NodeDomain,
+		Username:          req.ProposedUsername,
+		DisplayName:       req.DisplayName,
+		AccountType:       "individual",
+		MemberLevelID:     req.ProposedLevel,
+		CreditLimit:       levelCredit,
+		DebitLimit:        levelDebit,
+		NationalID:        nationalID,
+		NationalIDType:    nationalIDType,
+		NationalIDCountry: nationalIDCountry,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("creating user from approved request: %w", err)

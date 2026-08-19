@@ -376,8 +376,11 @@ func (ah *AuthHandlers) RegisterRoutes(r chi.Router) {
 }
 
 type BeginRegistrationRequest struct {
-	Username    string `json:"username"`
-	DisplayName string `json:"display_name"`
+	Username          string `json:"username"`
+	DisplayName       string `json:"display_name"`
+	NationalID        string `json:"national_id"`
+	NationalIDType    string `json:"national_id_type"`
+	NationalIDCountry string `json:"national_id_country"`
 }
 
 func (ah *AuthHandlers) beginRegistration(w http.ResponseWriter, r *http.Request) {
@@ -423,10 +426,13 @@ func (ah *AuthHandlers) beginRegistration(w http.ResponseWriter, r *http.Request
 }
 
 type FinishRegistrationRequest struct {
-	UserID      string      `json:"user_id"`
-	Username    string      `json:"username"`
-	DisplayName string      `json:"display_name"`
-	Response    interface{} `json:"response"`
+	UserID            string      `json:"user_id"`
+	Username          string      `json:"username"`
+	DisplayName       string      `json:"display_name"`
+	Response          interface{} `json:"response"`
+	NationalID        string      `json:"national_id"`
+	NationalIDType    string      `json:"national_id_type"`
+	NationalIDCountry string      `json:"national_id_country"`
 }
 
 func (ah *AuthHandlers) finishRegistration(w http.ResponseWriter, r *http.Request) {
@@ -674,14 +680,17 @@ func (ah *AuthHandlers) updateMyContacts(w http.ResponseWriter, r *http.Request)
 	}
 
 	var req struct {
-		Email           *string `json:"email"`
-		Phone           *string `json:"phone"`
-		TelegramChatID  *string `json:"telegram_chat_id"`
-		MatrixUserID    *string `json:"matrix_user_id"`
-		XmppJID         *string `json:"xmpp_jid"`
-		QuietHoursStart *int    `json:"quiet_hours_start"`
-		QuietHoursEnd   *int    `json:"quiet_hours_end"`
-		DigestMode      *string `json:"digest_mode"`
+		Email             *string `json:"email"`
+		Phone             *string `json:"phone"`
+		TelegramChatID    *string `json:"telegram_chat_id"`
+		MatrixUserID      *string `json:"matrix_user_id"`
+		XmppJID           *string `json:"xmpp_jid"`
+		QuietHoursStart   *int    `json:"quiet_hours_start"`
+		QuietHoursEnd     *int    `json:"quiet_hours_end"`
+		DigestMode        *string `json:"digest_mode"`
+		NationalID        *string `json:"national_id"`
+		NationalIDType    *string `json:"national_id_type"`
+		NationalIDCountry *string `json:"national_id_country"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -703,10 +712,14 @@ func (ah *AuthHandlers) updateMyContacts(w http.ResponseWriter, r *http.Request)
 			matrix_user_id = COALESCE($5, matrix_user_id),
 			xmpp_jid = COALESCE($6, xmpp_jid),
 			quiet_hours_start = $7,
-			quiet_hours_end = $8
+			quiet_hours_end = $8,
+			national_id = COALESCE($9, national_id),
+			national_id_type = COALESCE($10, national_id_type),
+			national_id_country = COALESCE($11, national_id_country)
 		WHERE id = $1`,
 		userID, req.Email, req.Phone, req.TelegramChatID, req.MatrixUserID, req.XmppJID,
-		req.QuietHoursStart, req.QuietHoursEnd)
+		req.QuietHoursStart, req.QuietHoursEnd,
+		req.NationalID, req.NationalIDType, req.NationalIDCountry)
 	if err != nil {
 		writeError(w, 500, "error updating contacts")
 		return
