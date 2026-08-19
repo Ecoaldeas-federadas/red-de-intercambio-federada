@@ -243,11 +243,12 @@ CREATE TABLE IF NOT EXISTS user_documents (
     document_number TEXT NOT NULL,
     country_iso2 CHAR(2) REFERENCES countries(iso2),
     country_name TEXT DEFAULT '',
+    photo_url TEXT DEFAULT '',
     is_verified BOOLEAN DEFAULT false,
     verified_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(user_id, document_type_code, document_number)
+    UNIQUE(user_id, document_type_code, document_number, country_iso2)
 );
 
 -- Indice para busqueda rapida por tipo + numero (deteccion de duplicados)

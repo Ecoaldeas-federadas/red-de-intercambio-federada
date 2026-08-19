@@ -2,7 +2,11 @@
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -113,7 +117,7 @@ func (h *DocumentsHandler) listMyDocuments(w http.ResponseWriter, r *http.Reques
 
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT d.id, d.document_type_code, t.spanish_name, d.document_number,
-		       d.country_iso2, d.country_name, d.is_verified, d.created_at
+		       d.country_iso2, d.country_name, d.photo_url, d.is_verified, d.created_at
 		FROM user_documents d
 		LEFT JOIN document_types t ON t.code = d.document_type_code
 		WHERE d.user_id = $1
@@ -127,11 +131,11 @@ func (h *DocumentsHandler) listMyDocuments(w http.ResponseWriter, r *http.Reques
 	var docs []map[string]interface{}
 	for rows.Next() {
 		var id uuid.UUID
-		var typeCode, typeName, number string
+		var typeCode, typeName, number, photoURL string
 		var countryISO2, countryName *string
 		var verified bool
 		var createdAt time.Time
-		if err := rows.Scan(&id, &typeCode, &typeName, &number, &countryISO2, &countryName, &verified, &createdAt); err != nil {
+		if err := rows.Scan(&id, &typeCode, &typeName, &number, &countryISO2, &countryName, &photoURL, &verified, &createdAt); err != nil {
 			continue
 		}
 		doc := map[string]interface{}{
@@ -139,6 +143,7 @@ func (h *DocumentsHandler) listMyDocuments(w http.ResponseWriter, r *http.Reques
 			"document_type":      typeCode,
 			"document_type_name": typeName,
 			"document_number":    number,
+			"photo_url":          photoURL,
 			"is_verified":        verified,
 			"created_at":         createdAt,
 		}
@@ -157,6 +162,7 @@ func (h *DocumentsHandler) listMyDocuments(w http.ResponseWriter, r *http.Reques
 }
 
 // addMyDocument agrega un documento al usuario autenticado
+// Acepta JSON normal o multipart/form-data con foto del documento
 func (h *DocumentsHandler) addMyDocument(w http.ResponseWriter, r *http.Request) {
 	am := NewAuthMiddleware(h.JWTSecret)
 	userID, err := am.GetUserID(r)
@@ -165,44 +171,89 @@ func (h *DocumentsHandler) addMyDocument(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	var req struct {
-		DocumentType   string `json:"document_type"`
-		DocumentNumber string `json:"document_number"`
-		CountryISO2    string `json:"country_iso2"`
-		CountryName    string `json:"country_name"`
+	var docType, docNumber, countryISO2, countryName string
+	var photoURL string
+
+	contentType := r.Header.Get("Content-Type")
+
+	if len(contentType) > 19 && contentType[:19] == "multipart/form-data" {
+		// Multipart: con foto
+		if err := r.ParseMultipartForm(10 << 20); err != nil { // 10MB max
+			writeError(w, 400, "error parsing form data")
+			return
+		}
+		docType = r.FormValue("document_type")
+		docNumber = r.FormValue("document_number")
+		countryISO2 = r.FormValue("country_iso2")
+
+		// Procesar foto si viene
+		file, header, err := r.FormFile("photo")
+		if err == nil {
+			defer file.Close()
+			// Guardar en /app/uploads/documents/
+			uploadDir := "/app/uploads/documents"
+			os.MkdirAll(uploadDir, 0755)
+			ext := filepath.Ext(header.Filename)
+			filename := fmt.Sprintf("%s_%s_%s%s", userID, docType, docNumber, ext)
+			photoPath := filepath.Join(uploadDir, filename)
+			out, err := os.Create(photoPath)
+			if err == nil {
+				defer out.Close()
+				io.Copy(out, file)
+				photoURL = "/uploads/documents/" + filename
+			}
+		}
+	} else {
+		// JSON normal
+		var req struct {
+			DocumentType   string `json:"document_type"`
+			DocumentNumber string `json:"document_number"`
+			CountryISO2    string `json:"country_iso2"`
+			CountryName    string `json:"country_name"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, 400, "invalid request body")
+			return
+		}
+		docType = req.DocumentType
+		docNumber = req.DocumentNumber
+		countryISO2 = req.CountryISO2
+		countryName = req.CountryName
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, 400, "invalid request body")
+
+	if docType == "" || docNumber == "" {
+		writeError(w, 400, "document_type y document_number son obligatorios")
 		return
 	}
-	if req.DocumentType == "" || req.DocumentNumber == "" {
-		writeError(w, 400, "document_type and document_number are required")
+	if countryISO2 == "" {
+		writeError(w, 400, "country_iso2 es obligatorio (se necesita el pais para evitar duplicados)")
 		return
 	}
 
-	// Si se proporciona iso2, obtener el nombre del pais
-	if req.CountryISO2 != "" && req.CountryName == "" {
-		h.Pool.QueryRow(r.Context(), `SELECT spanish_name FROM countries WHERE iso2 = $1`, req.CountryISO2).Scan(&req.CountryName)
+	// Obtener nombre del pais
+	if countryName == "" && countryISO2 != "" {
+		h.Pool.QueryRow(r.Context(), `SELECT spanish_name FROM countries WHERE iso2 = $1`, countryISO2).Scan(&countryName)
 	}
 
 	var id uuid.UUID
 	err = h.Pool.QueryRow(r.Context(), `
-		INSERT INTO user_documents (user_id, document_type_code, document_number, country_iso2, country_name)
-		VALUES ($1, $2, $3, NULLIF($4, ''), NULLIF($5, ''))
-		ON CONFLICT (user_id, document_type_code, document_number) DO NOTHING
+		INSERT INTO user_documents (user_id, document_type_code, document_number, country_iso2, country_name, photo_url)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		ON CONFLICT (user_id, document_type_code, document_number, country_iso2) DO NOTHING
 		RETURNING id`,
-		userID, req.DocumentType, req.DocumentNumber, req.CountryISO2, req.CountryName).Scan(&id)
+		userID, docType, docNumber, countryISO2, countryName, photoURL).Scan(&id)
 	if err != nil {
-		writeError(w, 400, "documento ya existe o tipo invalido")
+		writeError(w, 400, "documento ya existe o tipo/pais invalido")
 		return
 	}
 
 	writeJSON(w, 201, map[string]interface{}{
 		"id":              id.String(),
-		"document_type":   req.DocumentType,
-		"document_number": req.DocumentNumber,
-		"country_iso2":    req.CountryISO2,
-		"country_name":    req.CountryName,
+		"document_type":   docType,
+		"document_number": docNumber,
+		"country_iso2":    countryISO2,
+		"country_name":    countryName,
+		"photo_url":       photoURL,
 		"message":         "Documento agregado",
 	})
 }

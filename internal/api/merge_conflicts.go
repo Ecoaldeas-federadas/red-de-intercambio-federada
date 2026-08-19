@@ -67,8 +67,8 @@ func (h *MergeConflictHandler) scanConflicts(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Buscar usuarios duplicados por documentos (mismo tipo + mismo numero) en ambos nodos
-	// Compara cedula con cedula, pasaporte con pasaporte, etc.
+	// Buscar usuarios duplicados por documentos (mismo tipo + mismo numero + mismo pais) en ambos nodos
+	// Compara cedula con cedula del mismo pais, pasaporte con pasaporte, etc.
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT
 			d1.document_type_code,
@@ -82,6 +82,7 @@ func (h *MergeConflictHandler) scanConflicts(w http.ResponseWriter, r *http.Requ
 		INNER JOIN users u1 ON u1.id = d1.user_id
 		INNER JOIN user_documents d2 ON d2.document_type_code = d1.document_type_code
 		                            AND d2.document_number = d1.document_number
+		                            AND COALESCE(d2.country_iso2, '') = COALESCE(d1.country_iso2, '')
 		INNER JOIN users u2 ON u2.id = d2.user_id
 		WHERE u1.node_domain = $1 AND u2.node_domain = $2
 		  AND u1.id < u2.id
@@ -93,6 +94,7 @@ func (h *MergeConflictHandler) scanConflicts(w http.ResponseWriter, r *http.Requ
 		      AND c.status NOT IN ('resolved', 'blocked', 'executed')
 		      AND c.national_id = d1.document_number
 		      AND c.match_type = d1.document_type_code
+		      AND c.passport_number = COALESCE(d1.country_iso2, '')
 		  )`,
 		h.nodeDomain, req.OtherNodeDomain)
 	if err != nil {

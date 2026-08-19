@@ -78,6 +78,8 @@ export default function Profile() {
   const [newDoc, setNewDoc] = useState({ document_type: '', document_number: '', country_iso2: '' })
   const [savingDoc, setSavingDoc] = useState(false)
   const [docMsg, setDocMsg] = useState('')
+  const [showDocModal, setShowDocModal] = useState(false)
+  const [docPhoto, setDocPhoto] = useState<File | null>(null)
 
   const load = () => {
     api.get('/auth/me').then((d: any) => {
@@ -162,12 +164,32 @@ export default function Profile() {
       setDocMsg('Tipo y numero de documento son obligatorios')
       return
     }
+    if (!newDoc.country_iso2) {
+      setDocMsg('Debes seleccionar el pais emisor del documento')
+      return
+    }
     setSavingDoc(true)
     setDocMsg('')
     try {
-      await api.post('/auth/me/documents', newDoc)
-      setDocMsg('Documento agregado')
+      // Si hay foto, subir con FormData; sino, JSON normal
+      if (docPhoto) {
+        const formData = new FormData()
+        formData.append('document_type', newDoc.document_type)
+        formData.append('document_number', newDoc.document_number)
+        formData.append('country_iso2', newDoc.country_iso2)
+        formData.append('photo', docPhoto)
+        await fetch('/api/auth/me/documents', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+          body: formData,
+        })
+      } else {
+        await api.post('/auth/me/documents', newDoc)
+      }
+      setDocMsg('Documento agregado correctamente')
       setNewDoc({ document_type: '', document_number: '', country_iso2: '' })
+      setDocPhoto(null)
+      setShowDocModal(false)
       // Recargar documentos
       api.get('/auth/me/documents').then((d: any) => setDocuments(Array.isArray(d) ? d : []))
     } catch (e: any) {
@@ -321,21 +343,22 @@ export default function Profile() {
         )}
       </div>
 
-      {/* Documentos de identidad (multiples) */}
+      {/* Documentos de identidad (multiples, con modal) */}
       <div className="card">
         <h2 className="font-semibold flex items-center gap-2 mb-3"><Shield size={18} />Documentos de Identidad</h2>
-        <p className="text-xs text-gray-500 mb-3">Agrega todos tus documentos de identidad: cedula, pasaporte, carnet de conducir, etc. La comparacion entre nodos se hace por tipo + numero. Al federar dos nodos, si hay duplicados, ambas asambleas deciden donde te quedas.</p>
+        <p className="text-xs text-gray-500 mb-3">Agrega todos tus documentos: cedula, pasaporte, carnet de conducir, etc. La comparacion entre nodos federados se hace por tipo + numero + pais. No puede haber dos documentos iguales del mismo pais.</p>
 
         {/* Lista de documentos existentes */}
-        {documents.length > 0 && (
+        {documents.length > 0 ? (
           <div className="space-y-2 mb-4">
             {documents.map((doc: any, i: number) => (
-              <div key={i} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg">
+              <div key={i} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
                 <div className="text-sm">
                   <span className="font-medium">{doc.document_type_name || doc.document_type}</span>
-                  <span className="text-gray-500 ml-2">{doc.document_number}</span>
-                  {doc.country_name && <span className="text-gray-400 ml-2">({doc.country_name})</span>}
-                  {doc.is_verified && <span className="text-xs text-green-600 ml-2">Verificado</span>}
+                  <span className="text-gray-700 ml-2">{doc.document_number}</span>
+                  {doc.country_name && <span className="text-gray-400 ml-2">- {doc.country_name}</span>}
+                  {doc.is_verified && <span className="text-xs text-green-600 ml-2">✓ Verificado</span>}
+                  {doc.photo_url && <span className="text-xs text-blue-600 ml-2">📷</span>}
                 </div>
                 <button onClick={() => deleteDocument(doc.id)} className="text-red-500 hover:text-red-700">
                   <Trash2 size={16} />
@@ -343,57 +366,91 @@ export default function Profile() {
               </div>
             ))}
           </div>
+        ) : (
+          <p className="text-sm text-gray-400 mb-4">No has agregado documentos todavia.</p>
         )}
 
         {docMsg && <div className="text-sm bg-blue-50 text-blue-700 p-2 rounded-lg mb-3">{docMsg}</div>}
 
-        {/* Formulario para agregar nuevo documento */}
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Tipo de documento</label>
-            <select
-              value={newDoc.document_type}
-              onChange={(e) => setNewDoc({ ...newDoc, document_type: e.target.value })}
-              className="input text-sm"
-            >
-              <option value="">Seleccionar...</option>
-              {docTypes.map((t: any) => (
-                <option key={t.code} value={t.code}>{t.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Numero</label>
-            <input
-              type="text"
-              value={newDoc.document_number}
-              onChange={(e) => setNewDoc({ ...newDoc, document_number: e.target.value })}
-              placeholder="Ej: V-12345678"
-              className="input text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Pais emisor</label>
-            <select
-              value={newDoc.country_iso2}
-              onChange={(e) => setNewDoc({ ...newDoc, country_iso2: e.target.value })}
-              className="input text-sm"
-            >
-              <option value="">Seleccionar pais...</option>
-              {countries.map((c: any) => (
-                <option key={c.iso2} value={c.iso2}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-        </div>
         <button
-          onClick={addDocument}
-          disabled={savingDoc}
-          className="btn-primary text-sm flex items-center gap-2 mt-3"
+          onClick={() => setShowDocModal(true)}
+          className="btn-primary text-sm flex items-center gap-2"
         >
-          {savingDoc ? 'Agregando...' : 'Agregar documento'}
+          <Plus size={16} /> Agregar documento de identidad
         </button>
       </div>
+
+      {/* Modal: Agregar documento de identidad */}
+      {showDocModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-lg">Agregar Documento de Identidad</h2>
+              <button onClick={() => { setShowDocModal(false); setNewDoc({ document_type: '', document_number: '', country_iso2: '' }); setDocPhoto(null); setDocMsg('') }} className="text-gray-400 hover:text-gray-600">
+                <Trash2 size={20} />
+              </button>
+            </div>
+
+            <div>
+              <label className="label">Tipo de documento</label>
+              <select
+                value={newDoc.document_type}
+                onChange={(e) => setNewDoc({ ...newDoc, document_type: e.target.value })}
+                className="input"
+              >
+                <option value="">Seleccionar tipo...</option>
+                {docTypes.map((t: any) => (
+                  <option key={t.code} value={t.code}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="label">Numero de documento</label>
+              <input
+                type="text"
+                value={newDoc.document_number}
+                onChange={(e) => setNewDoc({ ...newDoc, document_number: e.target.value })}
+                placeholder="Ej: V-12345678"
+                className="input"
+              />
+            </div>
+
+            <div>
+              <label className="label">Pais emisor</label>
+              <select
+                value={newDoc.country_iso2}
+                onChange={(e) => setNewDoc({ ...newDoc, country_iso2: e.target.value })}
+                className="input"
+              >
+                <option value="">Seleccionar pais...</option>
+                {countries.map((c: any) => (
+                  <option key={c.iso2} value={c.iso2}>{c.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">El pais es obligatorio para evitar duplicados: dos cedulas del mismo pais no pueden tener el mismo numero, pero una cedula de Venezuela y una de Colombia pueden tener el mismo numero sin problema.</p>
+            </div>
+
+            <div>
+              <label className="label">Foto del documento (opcional)</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setDocPhoto(e.target.files?.[0] || null)}
+                className="input text-sm"
+              />
+              {docPhoto && <p className="text-xs text-gray-500 mt-1">Archivo seleccionado: {docPhoto.name}</p>}
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => { setShowDocModal(false); setNewDoc({ document_type: '', document_number: '', country_iso2: '' }); setDocPhoto(null); setDocMsg('') }} className="btn-secondary">Cancelar</button>
+              <button onClick={addDocument} disabled={savingDoc} className="btn-primary">
+                {savingDoc ? 'Guardando...' : 'Guardar documento'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Nivel de miembro */}
       <div className="card">

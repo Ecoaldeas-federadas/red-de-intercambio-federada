@@ -1,33 +1,35 @@
-feat: documentos multiples + paises del mundo en dropdown
+feat: modal para agregar documentos + foto + pais obligatorio
 
 Cambios solicitados por el usuario:
 
-1. Documentos multiples (no solo uno):
-   - Nueva tabla user_documents (un usuario puede tener varios documentos)
-   - Tipos: cedula, DNI, pasaporte, RUT, CURP, carnet de conducir, etc.
-   - Cada documento tiene: tipo, numero, pais emisor
-   - Comparacion entre nodos se hace por tipo + numero (mismo tipo)
-   - CRUD completo: GET/POST/DELETE /api/auth/me/documents
+1. Boton "Agregar documento de identidad" que abre MODAL:
+   - Ya no hay campos sueltos en la pagina
+   - Al pulsar el boton se abre una ventana con:
+     - Tipo de documento (dropdown: cedula, pasaporte, carnet, etc.)
+     - Numero de documento
+     - Pais emisor (dropdown con ~195 paises)
+     - Foto del documento (opcional, carga de archivo)
+   - Al guardar, el documento aparece en la lista
+   - Se pueden agregar todos los documentos que se quieran
 
-2. Paises del mundo en dropdown (no texto libre):
-   - Nueva tabla countries con ~195 paises (ISO 3166-1)
-   - Endpoint GET /api/countries devuelve todos los paises
-   - Frontend usa dropdown con todos los paises
-   - Admin puede agregar pais nuevo: POST /api/countries
+2. Eliminadas las secciones viejas "Identificacion Nacional" y "Pasaporte":
+   - Ya no existen dos campos separados
+   - Todo se maneja desde el sistema unificado de documentos
 
-3. Tipos de documento en dropdown:
-   - Nueva tabla document_types
-   - Endpoint GET /api/document-types
-   - Frontend usa dropdown con tipos disponibles
+3. Pais OBLIGATORIO para cada documento:
+   - No puede haber dos documentos iguales del mismo pais
+   - Una cedula de Venezuela y una de Colombia pueden tener el mismo numero
+   - La comparacion entre nodos es por tipo + numero + pais
+   - Validacion en backend: country_iso2 es obligatorio
 
-4. Admission con documentos multiples:
-   - El solicitante agrega varios documentos antes de enviar
-   - Al aprobar, los documentos se transfieren a user_documents
-   - Tabla admission_documents para documentos pendientes
+4. Foto del documento (opcional):
+   - Campo photo_url en user_documents
+   - Backend acepta multipart/form-data con foto
+   - Se guarda en /app/uploads/documents/
 
-5. Deteccion de conflictos usa user_documents:
-   - scan-conflicts busca por tipo + numero en user_documents
-   - Compara cedula con cedula, pasaporte con pasaporte, etc.
+5. Unique constraint actualizado:
+   - UNIQUE(user_id, document_type_code, document_number, country_iso2)
+   - Evita duplicados del mismo tipo+numero+pais en un mismo usuario
 
 Generated with Devin
 
