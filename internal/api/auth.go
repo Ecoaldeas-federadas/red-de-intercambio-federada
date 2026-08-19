@@ -59,7 +59,43 @@ func deriveRPID(r *http.Request) string {
 	return "localhost"
 }
 
-// deriveOrigin construye la URL de origen desde el request
+// parseUsernameDomain separa un username en formato "usuario@dominio"
+// en username y node_domain. Si no tiene @, devuelve el username tal cual
+// y nodeDomain vacio.
+func parseUsernameDomain(fullUsername string) (username, nodeDomain string) {
+	parts := strings.SplitN(fullUsername, "@", 2)
+	if len(parts) == 2 {
+		return parts[0], parts[1]
+	}
+	return fullUsername, ""
+}
+
+// resolveNodeDomain determina el node_domain efectivo para un login.
+// Orden de prioridad:
+//  1. Dominio extraido del username (formato usuario@dominio)
+//  2. Header X-Node-Domain (enviado por el frontend)
+//  3. Tabla node_config (dominio real guardado al crear el nodo)
+//  4. ah.NodeDomain (del config.yaml, puede estar vacio)
+func (ah *AuthHandlers) resolveNodeDomain(r *http.Request, usernameWithDomain string) string {
+	// 1. Si el username trae @dominio, usar ese
+	if _, domain := parseUsernameDomain(usernameWithDomain); domain != "" {
+		return domain
+	}
+	// 2. Header X-Node-Domain
+	if domain := r.Header.Get("X-Node-Domain"); domain != "" {
+		return domain
+	}
+	// 3. node_config
+	var domain string
+	_ = ah.Pool.QueryRow(r.Context(), `
+		SELECT node_domain FROM node_config WHERE initialized = true LIMIT 1`,
+	).Scan(&domain)
+	if domain != "" {
+		return domain
+	}
+	// 4. config.yaml
+	return ah.NodeDomain
+}
 func deriveOrigin(r *http.Request) string {
 	origin := r.Header.Get("Origin")
 	if origin != "" {
@@ -444,16 +480,9 @@ func (ah *AuthHandlers) beginLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		// Consultar node_config para obtener el dominio real del nodo
-		_ = ah.Pool.QueryRow(r.Context(), `
-			SELECT node_domain FROM node_config WHERE initialized = true LIMIT 1`,
-		).Scan(&nodeDomain)
-	}
-	if nodeDomain == "" {
-		nodeDomain = ah.NodeDomain
-	}
+	// Separar username@domain y resolver el dominio efectivo
+	username, _ := parseUsernameDomain(req.Username)
+	nodeDomain := ah.resolveNodeDomain(r, req.Username)
 
 	// Buscar el usuario por username y node_domain
 	var userID uuid.UUID
@@ -461,7 +490,7 @@ func (ah *AuthHandlers) beginLogin(w http.ResponseWriter, r *http.Request) {
 	err := ah.Pool.QueryRow(r.Context(), `
 		SELECT id, COALESCE(display_name, username) FROM users
 		WHERE username = $1 AND node_domain = $2 AND membership_status = 'active'`,
-		req.Username, nodeDomain).Scan(&userID, &userDisplayName)
+		username, nodeDomain).Scan(&userID, &userDisplayName)
 	if err != nil {
 		writeError(w, 404, "usuario no encontrado")
 		return
@@ -929,21 +958,9 @@ func (ah *AuthHandlers) passwordLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Determinar el node_domain del nodo al que se esta accediendo.
-	// Orden de prioridad:
-	//   1. Header X-Node-Domain (enviado por el frontend, viene de /api/config)
-	//   2. Tabla node_config (dominio real guardado al crear el nodo)
-	//   3. ah.NodeDomain (del config.yaml, puede estar vacio)
-	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		// Consultar node_config para obtener el dominio real del nodo
-		_ = ah.Pool.QueryRow(r.Context(), `
-			SELECT node_domain FROM node_config WHERE initialized = true LIMIT 1`,
-		).Scan(&nodeDomain)
-	}
-	if nodeDomain == "" {
-		nodeDomain = ah.NodeDomain
-	}
+	// Separar username@domain y resolver el dominio efectivo
+	username, _ := parseUsernameDomain(req.Username)
+	nodeDomain := ah.resolveNodeDomain(r, req.Username)
 
 	var userID uuid.UUID
 	var passwordHash string
@@ -953,7 +970,7 @@ func (ah *AuthHandlers) passwordLogin(w http.ResponseWriter, r *http.Request) {
 		FROM users u
 		JOIN user_credentials uc ON uc.user_id = u.id
 		WHERE u.username = $1 AND u.node_domain = $2 AND u.membership_status = 'active'
-	`, req.Username, nodeDomain).Scan(&userID, &passwordHash, &userNodeDomain)
+	`, username, nodeDomain).Scan(&userID, &passwordHash, &userNodeDomain)
 	if err != nil {
 		writeError(w, 401, "invalid credentials")
 		return
@@ -970,7 +987,7 @@ func (ah *AuthHandlers) passwordLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	am := NewAuthMiddleware(ah.JWTSecret)
-	token, err := am.GenerateToken(userID, req.Username, nodeDomain)
+	token, err := am.GenerateToken(userID, username, nodeDomain)
 	if err != nil {
 		writeError(w, 500, "failed to generate token")
 		return

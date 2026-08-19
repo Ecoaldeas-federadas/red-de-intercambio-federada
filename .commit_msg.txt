@@ -1,21 +1,34 @@
-fix: login deriva node_domain de node_config, no de config.yaml
+feat: login con nombre completo usuario@dominio + dominio prellenado
 
-El fix anterior (buscar sin filtrar por dominio) rompia la federacion:
-si hay dos nodos cada uno con su admin, el login encontraria el
-primero que encuentre.
+El login ahora usa el formato usuario@dominio para identificar a que
+nodo pertenece el usuario, independientemente desde que dominio se
+acceda.
 
-Fix correcto: el node_domain se determina en este orden:
-1. Header X-Node-Domain (enviado por el frontend, viene de /api/config)
-2. Tabla node_config (dominio real guardado al crear el nodo)
-3. ah.NodeDomain (del config.yaml, puede estar vacio)
+Frontend (Login.tsx):
+- Obtiene el dominio del nodo desde /api/setup/status (endpoint publico)
+- Muestra @dominio al lado del input de usuario (visualmente prellenado)
+- El usuario escribe solo "admin" y se envia "admin@localhost"
+- Si el usuario escribe "admin@otro-dominio.com", se usa ese dominio
+- Texto de ayuda explica como funciona
 
-Asi el login SIEMPRE filtra por node_domain, pero obtiene el dominio
-correcto desde la BD (node_config) si el config.yaml esta vacio o si
-el frontend no envia el header.
+Backend (auth.go):
+- Nueva funcion parseUsernameDomain(): separa "usuario@dominio"
+- Nueva funcion resolveNodeDomain(): determina el dominio efectivo en
+  este orden:
+  1. Dominio del username (usuario@dominio)
+  2. Header X-Node-Domain
+  3. Tabla node_config (dominio real guardado al crear el nodo)
+  4. config.yaml (fallback)
+- passwordLogin y beginLogin ahora separan username y dominio antes
+  de buscar al usuario
 
-Aplicado a:
-- passwordLogin: busca usuario por username + node_domain
-- beginLogin (passkey): busca usuario por username + node_domain
+Setup (setup.go):
+- getSetupStatus ahora consulta node_config para obtener el dominio
+  real, en vez de usar sh.NodeDomain que puede estar vacio
+
+Asi el login funciona desde cualquier dominio porque el nombre
+completo viaja al backend. El passkey tambien funciona porque el
+usuario se busca por username + node_domain correctos.
 
 Generated with Devin
 

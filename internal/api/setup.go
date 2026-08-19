@@ -86,10 +86,17 @@ func (sh *SetupHandler) getSetupStatus(w http.ResponseWriter, r *http.Request) {
 
 	jwtConfigured := sh.JWTSecret != "" && sh.JWTSecret != "change-me-in-production"
 
+	// Obtener el dominio y nombre reales del nodo desde node_config
+	nodeDomain := sh.NodeDomain
+	nodeName := sh.NodeName
+	_ = sh.Pool.QueryRow(ctx, `
+		SELECT node_domain, node_name FROM node_config WHERE initialized = true LIMIT 1`,
+	).Scan(&nodeDomain, &nodeName)
+
 	status := SetupStatus{
 		Initialized:   adminCount > 0,
-		NodeDomain:    sh.NodeDomain,
-		NodeName:      sh.NodeName,
+		NodeDomain:    nodeDomain,
+		NodeName:      nodeName,
 		AdminExists:   adminCount > 0,
 		JWTConfigured: jwtConfigured,
 	}

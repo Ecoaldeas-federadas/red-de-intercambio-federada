@@ -39,23 +39,48 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [mode, setMode] = useState<'password' | 'passkey'>('password')
   const [expiredMsg, setExpiredMsg] = useState(false)
+  const [nodeDomain, setNodeDomain] = useState('localhost')
 
   useEffect(() => {
     if (searchParams.get('expired') === '1') {
       setExpiredMsg(true)
     }
+    // Obtener el dominio del nodo desde el endpoint publico setup/status
+    api.get('/setup/status').then((s: any) => {
+      if (s?.node_domain) {
+        setNodeDomain(s.node_domain)
+      }
+    }).catch(() => {
+      // Fallback: intentar desde cache de config
+      const cached = localStorage.getItem('node_config')
+      if (cached) {
+        try {
+          const cfg = JSON.parse(cached)
+          if (cfg?.node_domain) setNodeDomain(cfg.node_domain)
+        } catch {}
+      }
+    })
   }, [searchParams])
+
+  // Completa el username con @dominio si el usuario no lo escribio
+  const getFullUsername = () => {
+    const trimmed = username.trim()
+    if (!trimmed) return ''
+    if (trimmed.includes('@')) return trimmed
+    return `${trimmed}@${nodeDomain}`
+  }
 
   const handlePasswordLogin = async () => {
     setError('')
-    if (!username || !password) {
+    const fullUsername = getFullUsername()
+    if (!fullUsername || !password) {
       setError('Ingresa usuario y contrasena')
       return
     }
     setLoading(true)
     try {
       const result = await api.post<{ token: string; username: string }>('/auth/login/password', {
-        username,
+        username: fullUsername,
         password,
       })
       login(result.token, result.username)
@@ -69,7 +94,8 @@ export default function Login() {
 
   const handlePasskeyLogin = async () => {
     setError('')
-    if (!username) {
+    const fullUsername = getFullUsername()
+    if (!fullUsername) {
       setError('Ingresa tu nombre de usuario')
       return
     }
@@ -82,7 +108,7 @@ export default function Login() {
     setLoading(true)
     try {
       // 1. Pedir opciones al backend
-      const beginRes: any = await api.post('/auth/login/begin', { username })
+      const beginRes: any = await api.post('/auth/login/begin', { username: fullUsername })
       const options = beginRes.options
 
       // Preparar las opciones para navigator.credentials.get
@@ -108,7 +134,7 @@ export default function Login() {
       // 3. Enviar respuesta al backend para verificar
       const result = await api.post<{ token: string; username: string }>('/auth/login/finish', {
         session_key: beginRes.session_key,
-        username,
+        username: fullUsername,
         response: {
           id: credential.id,
           rawId: bufToBase64Url(credential.rawId),
@@ -189,14 +215,23 @@ export default function Login() {
         <div className="space-y-4">
           <div>
             <label className="label">Nombre de usuario</label>
-            <input
-              type="text"
-              className="input"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="admin"
-              onKeyDown={(e) => e.key === 'Enter' && (mode === 'password' ? handlePasswordLogin() : handlePasskeyLogin())}
-            />
+            <div className="flex items-center input p-0">
+              <input
+                type="text"
+                className="flex-1 px-3 py-2 rounded-l-lg bg-transparent outline-none"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="admin"
+                onKeyDown={(e) => e.key === 'Enter' && (mode === 'password' ? handlePasswordLogin() : handlePasskeyLogin())}
+              />
+              <span className="px-3 py-2 text-gray-500 text-sm border-l border-gray-200 bg-gray-50 rounded-r-lg">
+                {username.includes('@') ? '' : `@${nodeDomain}`}
+              </span>
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              Escribe solo tu nombre. El dominio @{nodeDomain} se agrega automaticamente.
+              Para otro nodo, escribe usuario@otro-dominio.com
+            </p>
           </div>
 
           {mode === 'password' && (
