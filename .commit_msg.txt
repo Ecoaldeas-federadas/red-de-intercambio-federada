@@ -1,49 +1,24 @@
-fix: nivel de miembro no encontrado + registro de passkeys en perfil
+fix: logout al entrar a Perfil - rutas passkey sin middleware de auth
 
-PROBLEMA 1: "No se encontro tu nivel" al pedir ascenso
+Causa raiz: las rutas /api/auth/passkey/list, /api/auth/passkey/add/*
+y /api/auth/passkey/{id} se registraban sin RequireAuth middleware.
+Los handlers llamaban GetUserID(r) pero como no habia middleware que
+validara el JWT y pusiera user_id en el contexto, siempre retornaban 401.
 
-Causa raiz: El frontend nunca enviaba el header X-Node-Domain, asi que el
-backend siempre usaba 'localhost'. Pero el usuario admin fue creado con
-su node_domain real, y el member_level_id se seleccionaba sin filtrar por
-dominio, apuntando a un nivel de 'default' o 'localhost' que no coincidia
-con el dominio del usuario.
+Antes de este fix, la ruta passkey/list era POST y el frontend llamaba
+GET, asi que daba 405 (silencioso). Al cambiarla a GET, llegaba al
+handler que retornaba 401, lo que disparaba handleUnauthorized() en
+api.ts y cerraba la sesion del usuario.
 
-Fixes:
-- Frontend (api.ts): todas las requests envian header X-Node-Domain con
-  el dominio real del nodo (desde cache de configuracion)
-- Backend listMemberLevels (system.go): usa node_domain real del usuario
-  autenticado; incluye el nivel especifico del usuario via UNION aunque
-  sea de otro dominio
-- Backend autoUpgradeLevel (system.go): usa node_domain del usuario con
-  fallback que busca el nivel por ID sin filtrar por dominio
-- Backend setup.go: al crear admin, copia niveles desde default/localhost
-  al dominio del nodo si no existen; selecciona el nivel filtrando por
-  el dominio correcto
-- Migracion 060: arregla datos existentes - copia niveles a dominios sin
-  niveles propios y actualiza member_level_id de usuarios que apuntaban
-  a niveles de otro dominio
+Fix:
+- RegisterRoutes (auth.go): las rutas autenticadas (getMe, passkey/list,
+  passkey/add/begin, passkey/add/finish, passkey/{id}) ahora se registran
+  dentro de r.Group con am.RequireAuth middleware
+- Las rutas publicas (register, login, etc.) quedan fuera del grupo
 
-PROBLEMA 2: No habia opcion para registrar passkeys
-
-Causa raiz: listPasskeys era un stub que siempre devolvia array vacio
-(nunca consultaba la BD). No existia ningun endpoint para agregar
-passkeys a usuarios existentes. La tabla user_passkeys existia pero
-nunca se usaba.
-
-Fixes:
-- listPasskeys (auth.go): ahora consulta tabla user_passkeys y devuelve
-  los dispositivos reales del usuario
-- Nuevos endpoints:
-  POST /api/auth/passkey/add/begin - inicia registro WebAuthn
-  POST /api/auth/passkey/add/finish - verifica y guarda el passkey
-- deletePasskey (auth.go): ahora borra de user_passkeys verificando
-  pertenencia al usuario
-- Frontend Profile.tsx:
-  - Boton "Registrar dispositivo" usando WebAuthn browser API
-  - Pide nombre para el dispositivo (ej: "Mi celular", "Huella laptop")
-  - El navegador activa biometria/pin/llave de seguridad
-  - Boton eliminar (papelera) por cada passkey
-  - Soporta multiples dispositivos: huella, FaceID, PIN movil, llave USB
+Fix adicional: /api/nfc/cards requiere user_id como query param pero
+el frontend no lo enviaba (400 Bad Request). Ahora Profile.tsx envia
+el user_id obtenido de /accounts/me.
 
 Generated with Devin
 

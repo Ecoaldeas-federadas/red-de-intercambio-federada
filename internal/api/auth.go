@@ -254,16 +254,24 @@ func (cs *ChallengeStoreService) Delete(key string) {
 }
 
 func (ah *AuthHandlers) RegisterRoutes(r chi.Router) {
+	am := NewAuthMiddleware(ah.JWTSecret)
+
+	// Rutas publicas (sin autenticacion)
 	r.Post("/api/auth/register", ah.beginRegistration)
 	r.Post("/api/auth/passkey/finish", ah.finishRegistration)
 	r.Post("/api/auth/login/begin", ah.beginLogin)
 	r.Post("/api/auth/login/finish", ah.finishLogin)
 	r.Post("/api/auth/login/password", ah.passwordLogin)
-	r.Get("/api/auth/me", ah.getMe)
-	r.Get("/api/auth/passkey/list", ah.listPasskeys)
-	r.Post("/api/auth/passkey/add/begin", ah.beginAddPasskey)
-	r.Post("/api/auth/passkey/add/finish", ah.finishAddPasskey)
-	r.Delete("/api/auth/passkey/{id}", ah.deletePasskey)
+
+	// Rutas autenticadas (requieren token JWT valido)
+	r.Group(func(r chi.Router) {
+		r.Use(am.RequireAuth)
+		r.Get("/api/auth/me", ah.getMe)
+		r.Get("/api/auth/passkey/list", ah.listPasskeys)
+		r.Post("/api/auth/passkey/add/begin", ah.beginAddPasskey)
+		r.Post("/api/auth/passkey/add/finish", ah.finishAddPasskey)
+		r.Delete("/api/auth/passkey/{id}", ah.deletePasskey)
+	})
 }
 
 type BeginRegistrationRequest struct {

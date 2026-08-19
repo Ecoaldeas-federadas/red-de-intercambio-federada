@@ -85,11 +85,16 @@ export default function Profile() {
       // Cargar historial
       if (d?.id) {
         api.get(`/accounts/${d.id}/history`).then((h: any) => setHistory(Array.isArray(h) ? h : h?.transactions ?? [])).catch(() => {})
+        loadNfcCards(d.id)
       }
     }).catch(() => {})
 
     api.get('/auth/passkey/list').then((d: any) => setPasskeys(Array.isArray(d) ? d : d?.passkeys ?? [])).catch(() => {})
-    api.get('/nfc/cards').then((d: any) => setNfcCards(Array.isArray(d) ? d : [])).catch(() => {})
+  }
+
+  // Cargar tarjetas NFC despues de tener el user ID
+  const loadNfcCards = (userId: string) => {
+    api.get(`/nfc/cards?user_id=${userId}`).then((d: any) => setNfcCards(Array.isArray(d) ? d : [])).catch(() => {})
   }
 
   useEffect(() => { load() }, [])
