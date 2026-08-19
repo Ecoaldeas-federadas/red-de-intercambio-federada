@@ -36,6 +36,10 @@ func (h *NotificationHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequireAuth).Get("/api/notifications/preferences", h.getPreferences)
 	r.With(am.RequireAuth).Put("/api/notifications/preferences", h.updatePreferences)
 
+	// WebPush subscription
+	r.With(am.RequireAuth).Post("/api/notifications/webpush/subscribe", h.subscribeWebPush)
+	r.With(am.RequireAuth).Delete("/api/notifications/webpush/subscribe", h.unsubscribeWebPush)
+
 	// Canales disponibles (publico para usuarios autenticados)
 	r.With(am.RequireAuth).Get("/api/notifications/channels", h.listChannels)
 }
@@ -390,4 +394,55 @@ func (h *NotificationHandler) updatePreferences(w http.ResponseWriter, r *http.R
 			userID, p.NotificationType, p.ChannelCode, p.IsEnabled)
 	}
 	writeJSON(w, 200, map[string]interface{}{"message": "preferencias actualizadas"})
+}
+
+// ===== WebPush subscription =====
+
+func (h *NotificationHandler) subscribeWebPush(w http.ResponseWriter, r *http.Request) {
+	userID, err := h.Auth.GetUserID(r)
+	if err != nil {
+		writeError(w, 401, "authentication required")
+		return
+	}
+
+	var req struct {
+		Endpoint string `json:"endpoint"`
+		Keys     struct {
+			P256dh string `json:"p256dh"`
+			Auth   string `json:"auth"`
+		} `json:"keys"`
+		ExpirationTime *int64 `json:"expirationTime"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.Endpoint == "" {
+		writeError(w, 400, "endpoint is required")
+		return
+	}
+
+	subscription := map[string]interface{}{
+		"endpoint":       req.Endpoint,
+		"keys":           req.Keys,
+		"expirationTime": req.ExpirationTime,
+	}
+	subBytes, _ := json.Marshal(subscription)
+
+	_, err = h.Pool.Exec(r.Context(), `UPDATE users SET webpush_subscription = $2 WHERE id = $1`, userID, subBytes)
+	if err != nil {
+		writeError(w, 500, "error saving subscription")
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{"message": "subscription saved"})
+}
+
+func (h *NotificationHandler) unsubscribeWebPush(w http.ResponseWriter, r *http.Request) {
+	userID, err := h.Auth.GetUserID(r)
+	if err != nil {
+		writeError(w, 401, "authentication required")
+		return
+	}
+	h.Pool.Exec(r.Context(), `UPDATE users SET webpush_subscription = NULL WHERE id = $1`, userID)
+	writeJSON(w, 200, map[string]interface{}{"message": "subscription removed"})
 }

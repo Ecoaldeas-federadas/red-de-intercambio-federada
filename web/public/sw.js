@@ -30,3 +30,47 @@ self.addEventListener('fetch', (e) => {
     })
   )
 })
+
+// ===== Web Push Notifications =====
+
+self.addEventListener('push', (event) => {
+  let data = {}
+  try {
+    data = event.data ? event.data.json() : {}
+  } catch (e) {
+    data = { title: 'Notificacion', body: event.data ? event.data.text() : '' }
+  }
+
+  const title = data.title || 'Red Federada'
+  const options = {
+    body: data.message || data.body || '',
+    icon: '/icon.svg',
+    badge: '/icon.svg',
+    data: {
+      link: data.link || '/app/notifications',
+    },
+    tag: data.tag || 'notif-' + Date.now(),
+  }
+
+  event.waitUntil(self.registration.showNotification(title, options))
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const link = event.notification.data && event.notification.data.link
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window' }).then((clients) => {
+      // Si ya hay una ventana abierta, enfocarla y navegar
+      for (const client of clients) {
+        if ('focus' in client) {
+          client.postMessage({ type: 'navigate', link: link })
+          return client.focus()
+        }
+      }
+      // Si no, abrir nueva ventana
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(link)
+      }
+    })
+  )
+})

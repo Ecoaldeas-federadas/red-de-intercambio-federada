@@ -128,6 +128,7 @@ red de intercambio federada/
 | 057 | Departamentos con organizacion padre (jerarquia) |
 | 058 | Ventana de asistencia configurable |
 | 059 | Modulo de notificaciones: notifications, channels, gateways, preferences |
+| 060 | Horas silenciosas (quiet_hours_start, quiet_hours_end en users) |
 
 ## Cambios Recientes
 

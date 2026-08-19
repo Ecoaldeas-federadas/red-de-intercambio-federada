@@ -673,11 +673,13 @@ func (ah *AuthHandlers) updateMyContacts(w http.ResponseWriter, r *http.Request)
 	}
 
 	var req struct {
-		Email          *string `json:"email"`
-		Phone          *string `json:"phone"`
-		TelegramChatID *string `json:"telegram_chat_id"`
-		MatrixUserID   *string `json:"matrix_user_id"`
-		XmppJID        *string `json:"xmpp_jid"`
+		Email           *string `json:"email"`
+		Phone           *string `json:"phone"`
+		TelegramChatID  *string `json:"telegram_chat_id"`
+		MatrixUserID    *string `json:"matrix_user_id"`
+		XmppJID         *string `json:"xmpp_jid"`
+		QuietHoursStart *int    `json:"quiet_hours_start"`
+		QuietHoursEnd   *int    `json:"quiet_hours_end"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -690,9 +692,12 @@ func (ah *AuthHandlers) updateMyContacts(w http.ResponseWriter, r *http.Request)
 			phone = COALESCE($3, phone),
 			telegram_chat_id = COALESCE($4, telegram_chat_id),
 			matrix_user_id = COALESCE($5, matrix_user_id),
-			xmpp_jid = COALESCE($6, xmpp_jid)
+			xmpp_jid = COALESCE($6, xmpp_jid),
+			quiet_hours_start = $7,
+			quiet_hours_end = $8
 		WHERE id = $1`,
-		userID, req.Email, req.Phone, req.TelegramChatID, req.MatrixUserID, req.XmppJID)
+		userID, req.Email, req.Phone, req.TelegramChatID, req.MatrixUserID, req.XmppJID,
+		req.QuietHoursStart, req.QuietHoursEnd)
 	if err != nil {
 		writeError(w, 500, "error updating contacts")
 		return

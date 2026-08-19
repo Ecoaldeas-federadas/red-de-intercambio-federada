@@ -376,6 +376,8 @@ El servicio de notificaciones es una funcion Go que se llama desde cualquier han
 - [x] Organizacion aprobada (approveOrganization)
 - [x] Nodo par registrado (registerPeer)
 - [x] Producto federado aprobado (approveProductProposal)
+- [x] Votacion por cerrar - cron job (notification_scheduler.go)
+- [x] Recordatorio de asamblea proxima - cron job (notification_scheduler.go)
 
 ### Fase 3: Servicio de envio por pasarelas - COMPLETA
 - [x] GatewayService con entrega en background (goroutine)
@@ -383,19 +385,25 @@ El servicio de notificaciones es una funcion Go que se llama desde cualquier han
 - [x] Telegram Bot API (sendTelegram)
 - [x] Matrix Client-Server API (sendMatrix)
 - [x] XMPP via HTTP API / bridge (sendXMPP)
+- [x] WebPush via W3C Push API + Service Worker (sendWebPush)
+- [x] SMS via Twilio, Vonage, o API propia (sendSMS)
 - [x] Webhook generico (sendWebhook)
 - [x] WhatsApp Meta Cloud API (sendWhatsAppMeta)
 - [x] WhatsApp API propia (sendWhatsAppCustom)
 - [x] Respeto de preferencias del usuario por canal
 - [x] Registro de canales entregados y errores de entrega
 - [x] Integracion automatica en NotifyService.Notify
+- [x] Quiet hours (horas silenciosas por usuario)
+- [x] Rate limiting (max 10 notificaciones por hora por usuario)
 
 ### Fase 4: Frontend de preferencias - COMPLETA
 - [x] Pagina NotificationSettings.tsx
 - [x] Tab "Mis preferencias": matriz evento x canal
 - [x] Tab "Mis contactos": email, phone, telegram, matrix, xmpp
-- [x] Tab "Pasarelas (admin)": config de cada pasarela (incluido XMPP)
-- [x] Endpoint PUT /api/accounts/me/contacts
+- [x] Tab "Mis contactos": horas silenciosas (quiet hours)
+- [x] Tab "Mis contactos": activar WebPush del navegador
+- [x] Tab "Pasarelas (admin)": config de cada pasarela (incluido XMPP, WebPush, SMS)
+- [x] Endpoint PUT /api/accounts/me/contacts (incluye quiet_hours)
 - [x] Campos de contacto en User struct y GetUser
 - [x] Boton de test de pasarela
 - [x] Item en menu lateral
@@ -405,6 +413,7 @@ El servicio de notificaciones es una funcion Go que se llama desde cualquier han
 - [x] Iconos por tipo de notificacion (lib/notifications.tsx)
 - [x] Fecha relativa en espanol ("hace 2 horas")
 - [x] Link "Ver historial completo" en panel desplegable
+- [x] Service Worker con soporte de push events (sw.js)
 
 ### Fase 5: Scope y autorizacion - COMPLETA
 - [x] listNotifications filtra por user_id
@@ -422,14 +431,19 @@ El servicio de notificaciones es una funcion Go que se llama desde cualquier han
 1. in_app (siempre activo)
 2. matrix (federada, soberana) - RECOMENDADA
 3. xmpp (Jabber federado) - via HTTP API / bridge
-4. telegram (bot API)
-5. email (SMTP)
-6. webhook (generico)
-7. whatsapp (opcional, propietario)
+4. webpush (W3C Push, navegador, sin terceros)
+5. telegram (bot API)
+6. email (SMTP)
+7. sms (Twilio, Vonage, o API propia)
+8. webhook (generico)
+9. whatsapp (opcional, propietario)
+
+### Control de envio
+- Quiet hours: el usuario configura un rango de horas (0-23) durante el cual no se envian notificaciones por pasarelas externas. in_app siempre se entrega.
+- Rate limiting: max 10 notificaciones por hora por usuario. Si se excede, solo se entrega in_app.
+- Cron job (notification_scheduler.go): cada hora revisa votaciones por cerrar (< 6h) y asambleas proximas (24-48h) y notifica automaticamente.
 
 ### Pendiente para futuras iteraciones
-- [ ] WebPush: implementar via Service Worker (schema listo, envio pendiente)
-- [ ] SMS: integrar con proveedor (Twilio, etc.)
-- [ ] Notificaciones de proposal closing deadline approaching (cron job)
-- [ ] Rate limiting / quiet hours
+- [ ] VAPID JWT signing completo para WebPush con payload encriptado (requiere libreria criptografica)
 - [ ] Notificaciones push a app movil nativa
+- [ ] Digest emails (resumen diario/semanal)

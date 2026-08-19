@@ -137,6 +137,11 @@ func main() {
 
 	router := api.NewRouterWithAuth(handler, authHandlers, federationHandler, orgHandler, paymentsHandler, externalHandler, recoveryHandler, departmentsHandler, nfcTerminalHandler, setupHandler, cfg.API.CORSOrigins, authMiddleware, database.Pool)
 
+	// Iniciar scheduler de notificaciones automaticas (avisos de votacion por cerrar, asambleas proximas)
+	notifScheduler := api.NewNotificationScheduler(database.Pool, cfg.Node.Domain)
+	notifScheduler.Start()
+	defer notifScheduler.Stop()
+
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.API.Port),
 		Handler:      router,

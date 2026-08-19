@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
-import { Bell, Mail, Send, MessageSquare, Globe, Webhook, Save, TestTube, Check, X } from 'lucide-react'
+import { Bell, Mail, Send, MessageSquare, Globe, Webhook, Save, TestTube, Check, X, Smartphone, BellRing } from 'lucide-react'
 
 const CHANNEL_INFO: Record<string, { label: string; icon: any; color: string; description: string }> = {
   email: { label: 'Email (SMTP)', icon: Mail, color: 'text-blue-600', description: 'Envia notificaciones por correo electronico via SMTP' },
   telegram: { label: 'Telegram', icon: Send, color: 'text-cyan-600', description: 'Bot de Telegram para mensajes directos' },
   matrix: { label: 'Matrix (federada)', icon: MessageSquare, color: 'text-green-600', description: 'Red federada soberana - recomendada' },
   xmpp: { label: 'XMPP (Jabber federado)', icon: MessageSquare, color: 'text-orange-600', description: 'Red federada libre - via API HTTP del servidor' },
+  webpush: { label: 'Web Push (navegador)', icon: BellRing, color: 'text-indigo-600', description: 'Notificaciones push del navegador - sin terceros, W3C' },
+  sms: { label: 'SMS', icon: Smartphone, color: 'text-pink-600', description: 'SMS via Twilio, Vonage, o API propia' },
   whatsapp: { label: 'WhatsApp (opcional)', icon: MessageSquare, color: 'text-green-500', description: 'Meta Cloud API o API propia - propietario' },
   webhook: { label: 'Webhook generico', icon: Webhook, color: 'text-purple-600', description: 'POST HTTP a una URL configurable' },
 }
@@ -47,11 +49,66 @@ export default function NotificationSettings() {
   const [testingChannel, setTestingChannel] = useState<string | null>(null)
 
   // Contactos del usuario
-  const [contacts, setContacts] = useState({ email: '', phone: '', telegram_chat_id: '', matrix_user_id: '', xmpp_jid: '' })
+  const [contacts, setContacts] = useState({ email: '', phone: '', telegram_chat_id: '', matrix_user_id: '', xmpp_jid: '', quiet_hours_start: '', quiet_hours_end: '' })
+  const [webpushSupported, setWebpushSupported] = useState(false)
+  const [webpushSubscribed, setWebpushSubscribed] = useState(false)
+  const [webpushLoading, setWebpushLoading] = useState(false)
 
   useEffect(() => {
     loadAll()
+    // Verificar soporte de WebPush
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      setWebpushSupported(true)
+      // Verificar si ya esta suscrito
+      navigator.serviceWorker.ready.then((reg) => {
+        reg.pushManager.getSubscription().then((sub) => {
+          setWebpushSubscribed(!!sub)
+        })
+      }).catch(() => {})
+    }
   }, [])
+
+  const subscribeWebPush = async () => {
+    setWebpushLoading(true)
+    try {
+      const reg = await navigator.serviceWorker.ready
+      // Solicitar permiso
+      const permission = await Notification.requestPermission()
+      if (permission !== 'granted') {
+        setError('Permiso de notificaciones denegado')
+        setWebpushLoading(false)
+        return
+      }
+      // Suscribirse (sin VAPID key por ahora - el admin debe configurarlo)
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+      })
+      // Enviar subscription al backend
+      await api.post('/notifications/webpush/subscribe', sub.toJSON())
+      setWebpushSubscribed(true)
+      setSuccess('Suscrito a notificaciones push del navegador')
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (e: any) {
+      setError('Error al suscribirse: ' + (e.message || 'desconocido'))
+    }
+    setWebpushLoading(false)
+  }
+
+  const unsubscribeWebPush = async () => {
+    setWebpushLoading(true)
+    try {
+      const reg = await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.getSubscription()
+      if (sub) await sub.unsubscribe()
+      await api.delete('/notifications/webpush/subscribe')
+      setWebpushSubscribed(false)
+      setSuccess('Suscripcion cancelada')
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (e: any) {
+      setError('Error: ' + (e.message || 'desconocido'))
+    }
+    setWebpushLoading(false)
+  }
 
   const loadAll = () => {
     api.get<any[]>('/notifications/channels').then((d: any) => setChannels(Array.isArray(d) ? d : [])).catch(() => {})
@@ -77,6 +134,8 @@ export default function NotificationSettings() {
           telegram_chat_id: d.telegram_chat_id || '',
           matrix_user_id: d.matrix_user_id || '',
           xmpp_jid: d.xmpp_jid || '',
+          quiet_hours_start: d.quiet_hours_start != null ? String(d.quiet_hours_start) : '',
+          quiet_hours_end: d.quiet_hours_end != null ? String(d.quiet_hours_end) : '',
         })
       }
     }).catch(() => {})
@@ -105,7 +164,16 @@ export default function NotificationSettings() {
 
   const saveContacts = () => {
     setError(''); setSuccess('')
-    api.put('/accounts/me/contacts', contacts).then(() => {
+    const payload = {
+      email: contacts.email || null,
+      phone: contacts.phone || null,
+      telegram_chat_id: contacts.telegram_chat_id || null,
+      matrix_user_id: contacts.matrix_user_id || null,
+      xmpp_jid: contacts.xmpp_jid || null,
+      quiet_hours_start: contacts.quiet_hours_start !== '' ? parseInt(contacts.quiet_hours_start) : null,
+      quiet_hours_end: contacts.quiet_hours_end !== '' ? parseInt(contacts.quiet_hours_end) : null,
+    }
+    api.put('/accounts/me/contacts', payload).then(() => {
       setSuccess('Datos de contacto guardados')
       setTimeout(() => setSuccess(''), 3000)
     }).catch(() => setError('Error al guardar contactos'))
@@ -170,6 +238,20 @@ export default function NotificationSettings() {
         { key: 'endpoint_url', label: 'URL API XMPP (Prosody/ejabberd/bridge)', placeholder: 'https://xmpp.midominio.org/rest' },
         { key: 'auth_token', label: 'Token auth', type: 'password' },
         { key: 'from_jid', label: 'JID remitente', placeholder: 'bot@midominio.org' },
+      ],
+      webpush: [
+        { key: 'vapid_public_key', label: 'VAPID Public Key (Base64URL)', placeholder: 'BEl62iUYgN...' },
+        { key: 'vapid_private_key', label: 'VAPID Private Key', type: 'password' },
+        { key: 'vapid_subject', label: 'Subject (mailto: o https:)', placeholder: 'mailto:notif@midominio.org' },
+      ],
+      sms: [
+        { key: 'provider', label: 'Proveedor', placeholder: 'twilio | vonage | custom' },
+        { key: 'account_sid', label: 'Account SID (Twilio)', placeholder: 'AC...' },
+        { key: 'auth_token', label: 'Auth Token (Twilio)', type: 'password' },
+        { key: 'from_number', label: 'Numero remitente (Twilio)', placeholder: '+1234567890' },
+        { key: 'api_key', label: 'API Key (Vonage)', placeholder: 'Solo Vonage' },
+        { key: 'api_secret', label: 'API Secret (Vonage)', type: 'password' },
+        { key: 'endpoint_url', label: 'URL API propia (custom)', placeholder: 'Solo custom' },
       ],
       whatsapp: [
         { key: 'phone_number_id', label: 'Phone Number ID (Meta)', placeholder: 'Solo para Meta Cloud API' },
@@ -336,11 +418,77 @@ export default function NotificationSettings() {
               <input type="text" value={contacts.xmpp_jid} onChange={e => setContacts({ ...contacts, xmpp_jid: e.target.value })} className="input" placeholder="usuario@jabber.org" />
             </div>
           </div>
+
+          {/* Horas silenciosas */}
+          <div className="border-t border-gray-200 pt-4 mt-2">
+            <h3 className="font-medium text-sm mb-1">Horas Silenciosas (Quiet Hours)</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              Durante este rango no se enviaran notificaciones por pasarelas externas (email, telegram, etc.).
+              Las notificaciones in-app (campana) siempre se entregan. Deja vacio para desactivar.
+            </p>
+            <div className="grid grid-cols-2 gap-4 max-w-xs">
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Desde (hora)</label>
+                <select
+                  value={contacts.quiet_hours_start}
+                  onChange={e => setContacts({ ...contacts, quiet_hours_start: e.target.value })}
+                  className="input text-sm"
+                >
+                  <option value="">Desactivado</option>
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <option key={i} value={i}>{i}:00</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Hasta (hora)</label>
+                <select
+                  value={contacts.quiet_hours_end}
+                  onChange={e => setContacts({ ...contacts, quiet_hours_end: e.target.value })}
+                  className="input text-sm"
+                  disabled={contacts.quiet_hours_start === ''}
+                >
+                  <option value="">-</option>
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <option key={i} value={i}>{i}:00</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
           <div>
             <button onClick={saveContacts} className="btn-primary flex items-center gap-2">
               <Save size={16} /> Guardar contactos
             </button>
           </div>
+
+          {/* WebPush del navegador */}
+          {webpushSupported && (
+            <div className="border-t border-gray-200 pt-4 mt-4">
+              <div className="flex items-center gap-2 mb-2">
+                <BellRing size={18} className="text-indigo-600" />
+                <h3 className="font-medium text-sm">Notificaciones Push del Navegador</h3>
+              </div>
+              <p className="text-xs text-gray-500 mb-3">
+                Recibe notificaciones directamente en tu navegador, incluso cuando la app no esta abierta.
+                No requiere terceros - funciona con el estandar W3C Push.
+              </p>
+              {webpushSubscribed ? (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-green-600 flex items-center gap-1">
+                    <Check size={16} /> Suscrito
+                  </span>
+                  <button onClick={unsubscribeWebPush} disabled={webpushLoading} className="btn-secondary text-sm">
+                    {webpushLoading ? '...' : 'Cancelar suscripcion'}
+                  </button>
+                </div>
+              ) : (
+                <button onClick={subscribeWebPush} disabled={webpushLoading} className="btn-primary text-sm flex items-center gap-2">
+                  <BellRing size={16} /> {webpushLoading ? 'Suscribiendo...' : 'Activar notificaciones push'}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 

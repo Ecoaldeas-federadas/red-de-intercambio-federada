@@ -1,32 +1,34 @@
-feat: notificaciones - XMPP, mas eventos, historial completo, UX
+feat: notificaciones - WebPush, SMS, cron job, quiet hours, rate limiting
 
-XMPP (Jabber federado):
-- sendXMPP via HTTP API / bridge (Prosody mod_rest, ejabberd, o bridge propio)
-- Campos de config: endpoint_url, auth_token, from_jid
-- Anadido al CHANNEL_INFO y fieldDefs del frontend
+WebPush (W3C Push API):
+- sendWebPush en gateways.go con VAPID support
+- Service Worker (sw.js) con push event handler y notificationclick
+- Endpoints POST/DELETE /api/notifications/webpush/subscribe
+- UI: boton Activar/Cancelar notificaciones push en tab Contactos
+- Campos de config: vapid_public_key, vapid_private_key, vapid_subject
 
-Mas eventos notificados:
-- Resultado de propuesta aprobada (executeProposal)
-- Resultado de propuesta rechazada (executeProposal)
-- Quorum alcanzado / no alcanzado (verifyQuorum)
-- Minuta publicada / asamblea cerrada (closeSession)
+SMS:
+- sendSMS con 3 proveedores: Twilio, Vonage, API propia
+- sendSMSTwilio: Twilio REST API
+- sendSMSVonage: Nexmo REST API
+- sendSMSCustom: HTTP generico
+- Campos de config en frontend
 
-Frontend:
-- Pagina Notifications.tsx: historial completo con filtros
-  - Filtros: todas / no leidas / leidas
-  - Eliminar notificacion individual
-  - Marcar todas leidas
-  - Link a configuracion
-- Helper lib/notifications.tsx:
-  - Iconos por tipo de notificacion (15 tipos)
-  - relativeTime en espanol
-- Panel desplegable mejorado:
-  - Icono por tipo + color
-  - Fecha relativa
-  - Link al historial completo
-- NotificationSettings.tsx: 3 nuevos tipos en matriz de preferencias
+Cron job (notification_scheduler.go):
+- NotificationScheduler ejecuta cada hora
+- checkVotingDeadlines: notifica a no-votantes cuando quedan < 6h
+- checkUpcomingAssemblies: recordatorio 24-48h antes de asambleas
+- Integrado en cmd/node/main.go al arrancar el servidor
 
-Docs: notifications.md actualizado con estado final
+Quiet hours y rate limiting:
+- Migracion 060: quiet_hours_start, quiet_hours_end en users
+- isInQuietHours: soporta rangos que cruzan medianoche (ej: 22-7)
+- Rate limiting: max 10 notificaciones por hora por usuario
+- UI: selectores de hora en tab Contactos
+- Campos en User struct, GetUser, updateMyContacts
+
+Docs: notifications.md actualizado con estado final completo
+INDEX.md: migracion 060
 
 Generated with Devin
 
