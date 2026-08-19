@@ -117,6 +117,9 @@ export function DynamicAdmissionForm() {
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [governanceRules, setGovernanceRules] = useState<any[]>([])
+  const [acceptedRules, setAcceptedRules] = useState(false)
+  const [showRules, setShowRules] = useState(false)
 
   useEffect(() => {
     api
@@ -128,6 +131,16 @@ export function DynamicAdmissionForm() {
           if (d.schema && Array.isArray(d.schema) && d.schema.length > 0) {
             setFields(d.schema)
           }
+        }
+      })
+      .catch(() => {})
+
+    // Cargar reglas de gobernanza para aceptacion obligatoria
+    api
+      .get('/public/governance')
+      .then((data: any) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setGovernanceRules(data)
         }
       })
       .catch(() => {})
@@ -158,6 +171,12 @@ export function DynamicAdmissionForm() {
           return
         }
       }
+    }
+
+    // Validar aceptacion de reglas de gobernanza
+    if (governanceRules.length > 0 && !acceptedRules) {
+      setError('Debes aceptar la Ley de la Aldea (reglas de gobernanza) para enviar tu solicitud.')
+      return
     }
 
     setLoading(true)
@@ -360,6 +379,58 @@ export function DynamicAdmissionForm() {
             </div>
           )
         })}
+
+        {/* Aceptacion de reglas de gobernanza (Ley de la Aldea) */}
+        {governanceRules.length > 0 && (
+          <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50/50 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm text-emerald-900">Ley de la Aldea - Reglas de Gobernanza</h3>
+              <button
+                type="button"
+                onClick={() => setShowRules(!showRules)}
+                className="text-xs text-emerald-700 underline"
+              >
+                {showRules ? 'Ocultar' : 'Leer reglas'}
+              </button>
+            </div>
+            <p className="text-xs text-gray-600">
+              Antes de enviar tu solicitud, debes leer y aceptar las reglas de convivencia de la aldea ({governanceRules.length} reglas).
+            </p>
+            {showRules && (
+              <div className="max-h-64 overflow-y-auto rounded-lg bg-white p-3 space-y-2 border border-gray-200">
+                {governanceRules.map((rule: any) => (
+                  <div key={rule.id} className="text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                        rule.severity === 'muy_grave' ? 'bg-red-100 text-red-700' :
+                        rule.severity === 'grave' ? 'bg-orange-100 text-orange-700' :
+                        rule.severity === 'leve' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-blue-100 text-blue-700'
+                      }`}>
+                        {rule.severity === 'muy_grave' ? 'Muy Grave' :
+                         rule.severity === 'grave' ? 'Grave' :
+                         rule.severity === 'leve' ? 'Leve' : 'Info'}
+                      </span>
+                      <span className="font-medium">{rule.title}</span>
+                    </div>
+                    <p className="text-gray-600 mt-0.5 ml-1">{rule.description}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            <label className="flex items-start gap-2.5 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={acceptedRules}
+                onChange={(e) => setAcceptedRules(e.target.checked)}
+                className="accent-emerald-700 rounded mt-0.5"
+              />
+              <span className="text-xs text-gray-800 font-medium">
+                He leido y acepto la Ley de la Aldea: los deberes, prohibiciones, faltas y proceso de admision. Entiendo que el incumplimiento puede llevar a sanciones o expulsion.
+              </span>
+            </label>
+          </div>
+        )}
 
         <div className="pt-3">
           <button

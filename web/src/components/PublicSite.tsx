@@ -80,6 +80,8 @@ function getShortLabel(p: { slug: string; title: string }): string {
       return 'Comunidad'
     case 'como-funciona':
       return 'Cómo Funciona'
+    case 'gobernanza':
+      return 'Gobernanza'
     case 'campo-soberano':
       return 'Ecoaldea'
     case 'faq':

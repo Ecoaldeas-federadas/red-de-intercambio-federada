@@ -97,6 +97,13 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	// Fondo comunitario
 	r.With(am.RequireAuth).Get("/api/fund/balance", h.getFundBalance)
 
+	// Gobernanza - Ley de la Aldea (CRUD)
+	r.Get("/api/public/governance", h.listGovernanceRules) // publico: cualquiera puede leer
+	r.With(am.RequireAuth).Get("/api/governance/rules", h.listGovernanceRules)
+	r.With(am.RequirePermission("governance.manage")).Post("/api/governance/rules", h.createGovernanceRule)
+	r.With(am.RequirePermission("governance.manage")).Put("/api/governance/rules/{id}", h.updateGovernanceRule)
+	r.With(am.RequirePermission("governance.manage")).Delete("/api/governance/rules/{id}", h.deleteGovernanceRule)
+
 	// Auto-ascenso de nivel
 	r.With(am.RequireAuth).Post("/api/member-levels/auto-upgrade", h.autoUpgradeLevel)
 
@@ -3156,4 +3163,129 @@ func (h *SystemHandler) restoreBackup(w http.ResponseWriter, r *http.Request) {
 		"restored": restored,
 		"errors":   errors,
 	})
+}
+
+// ===== GOBERNANZA - Ley de la Aldea =====
+
+func (h *SystemHandler) listGovernanceRules(w http.ResponseWriter, r *http.Request) {
+	category := r.URL.Query().Get("category")
+	rows, err := h.Pool.Query(context.Background(), `
+		SELECT id, category, title, description, severity, icon, sort_order, is_active
+		FROM governance_rules
+		WHERE node_domain = 'localhost' AND is_active = true
+		ORDER BY category, sort_order`,
+	)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	type Rule struct {
+		ID          string `json:"id"`
+		Category    string `json:"category"`
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		Severity    string `json:"severity"`
+		Icon        string `json:"icon"`
+		SortOrder   int    `json:"sort_order"`
+		IsActive    bool   `json:"is_active"`
+	}
+
+	var rules []Rule
+	for rows.Next() {
+		var rule Rule
+		_ = rows.Scan(&rule.ID, &rule.Category, &rule.Title, &rule.Description, &rule.Severity, &rule.Icon, &rule.SortOrder, &rule.IsActive)
+		if category != "" && rule.Category != category {
+			continue
+		}
+		rules = append(rules, rule)
+	}
+
+	if rules == nil {
+		rules = []Rule{}
+	}
+	writeJSON(w, 200, rules)
+}
+
+func (h *SystemHandler) createGovernanceRule(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Category    string `json:"category"`
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		Severity    string `json:"severity"`
+		Icon        string `json:"icon"`
+		SortOrder   int    `json:"sort_order"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.Category == "" || req.Title == "" || req.Description == "" {
+		writeError(w, 400, "category, title y description son obligatorios")
+		return
+	}
+	if req.Severity == "" {
+		req.Severity = "info"
+	}
+	if req.Icon == "" {
+		req.Icon = "info"
+	}
+
+	var id uuid.UUID
+	err := h.Pool.QueryRow(context.Background(), `
+		INSERT INTO governance_rules (node_domain, category, title, description, severity, icon, sort_order)
+		VALUES ('localhost', $1, $2, $3, $4, $5, $6)
+		RETURNING id`,
+		req.Category, req.Title, req.Description, req.Severity, req.Icon, req.SortOrder).Scan(&id)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 201, map[string]interface{}{"id": id.String(), "message": "Regla creada"})
+}
+
+func (h *SystemHandler) updateGovernanceRule(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var req struct {
+		Category    string `json:"category"`
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		Severity    string `json:"severity"`
+		Icon        string `json:"icon"`
+		SortOrder   int    `json:"sort_order"`
+		IsActive    *bool  `json:"is_active"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	active := true
+	if req.IsActive != nil {
+		active = *req.IsActive
+	}
+
+	_, err := h.Pool.Exec(context.Background(), `
+		UPDATE governance_rules SET
+		  category = $1, title = $2, description = $3, severity = $4,
+		  icon = $5, sort_order = $6, is_active = $7, updated_at = NOW()
+		WHERE id = $8 AND node_domain = 'localhost'`,
+		req.Category, req.Title, req.Description, req.Severity, req.Icon, req.SortOrder, active, id)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{"message": "Regla actualizada"})
+}
+
+func (h *SystemHandler) deleteGovernanceRule(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	_, err := h.Pool.Exec(context.Background(), `
+		DELETE FROM governance_rules WHERE id = $1 AND node_domain = 'localhost'`, id)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{"message": "Regla eliminada"})
 }

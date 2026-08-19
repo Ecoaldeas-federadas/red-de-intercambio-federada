@@ -1498,6 +1498,141 @@ func getSeedPages() []seedPage {
 			Icon:      "zap",
 			MenuOrder: 13,
 		},
+		{
+			Slug:     "gobernanza",
+			Title:    "Gobernanza de la Aldea",
+			Subtitle: "Como se Gobierna, Quien Decide, Que se Puede y Que No",
+			Content: `[
+  {
+    "type": "hero",
+    "badge": " Ley de la Aldea",
+    "title": "Gobernanza Sociocratica de la Ecoaldea",
+    "description": "La aldea se gobierna por consentimiento, no por mayoria. Las decisiones se toman en circulos operativos semi-autonomos y en la Asamblea General mensual. Aqui encontraras la estructura de gobierno, tus deberes, lo que esta permitido, lo que esta prohibido y como se resuelven los conflictos.",
+    "theme": "forest"
+  },
+  {
+    "type": "features_grid",
+    "title": "Estructura de Gobernanza",
+    "subtitle": "Como se organiza la toma de decisiones en la aldea",
+    "columns": 3,
+    "items": [
+      {"icon":"users","title":"Asamblea General","description":"Organo maximo de decision. Se reune mensualmente. Todos los miembros plenos tienen voz y voto. Las decisiones se toman por consentimiento sociocratico: una propuesta se aprueba cuando nadie presenta una objecion razonada de que cause dano al proposito de la aldea. Lema: 'Suficientemente bueno por ahora, seguro para intentar'.","badge":"Mensual"},
+      {"icon":"circle","title":"Circulos Operativos","description":"La gobernanza se divide en circulos semi-autonomos: Circulo de Agua y Tierra, Circulo de Habitabilidad, Circulo de Agroecologia, Circulo de Economia Solidaria, Circulo de Convivencia y Admisiones. Cada circulo gestiona su area sin esperar aprobacion de la asamblea para decisiones operativas.","badge":"Semi-autonomos"},
+      {"icon":"briefcase","title":"Junta Directiva del Nodo","description":"Organo ejecutivo del nodo. Compuesto por miembros elegidos por consentimiento: Coordinador General, Tesorero, Secretario y Coordinadores de cada circulo. Los cargos duran 1 ano y son revocables por la asamblea.","badge":"Ejecutivo"},
+      {"icon":"link","title":"Doble Enlace Sociocratico","description":"Cada circulo elige dos personas que lo conectan con la Asamblea: un Coordinador (informacion de arriba hacia abajo) y un Delegado (inquietudes del circulo hacia la asamblea). Garantiza flujo bidireccional de informacion.","badge":"Flujo"},
+      {"icon":"building","title":"Organizaciones","description":"Colectivos de produccion, consumo o servicios registrados en el sistema: Grupo de Produccion, Grupo de Consumo, Comision, Proyecto, Institucion Publica o Cooperativa. Tienen su propia junta directiva y limites simetricos mas amplios (-5000/+5000 TQ).","badge":"Colectivos"},
+      {"icon":"folder","title":"Departamentos","description":"Unidades administrativas con roles y permisos especificos. Cada departamento tiene un jefe, miembros asignados y roles con permisos granulares. Los departamentos se mapean a los circulos operativos.","badge":"Administrativo"}
+    ]
+  },
+  {
+    "type": "features_grid",
+    "title": "Deberes de los Miembros",
+    "subtitle": "Obligaciones que asume cada miembro al unirse a la aldea",
+    "columns": 2,
+    "items": [
+      {"icon":"leaf","title":"Produccion Agroecologica","description":"Toda siembra en conucos familiares y comunes debe ser 100% agroecologica: libre de agroquimicos y semillas transgenicas. Solo se permite compost, bioinsumos, microorganismos eficientes y abonos verdes.","badge":"Obligatorio"},
+      {"icon":"tool","title":"Cayapa Semanal","description":"Cada miembro adulto debe aportar un minimo de 12 horas semanales de trabajo en proyectos comunes: mantenimiento de caminos, siembra comunitaria, cuidado de animales, reparacion de la microrred o cocina comun. Estas horas se registran en la cuenta TQ.","badge":"12h/semana"},
+      {"icon":"coins","title":"Uso Exclusivo de TQ","description":"Todo intercambio comercial dentro de la aldea debe realizarse exclusivamente mediante la plataforma contable TQ. No se permite usar dinero fiat (bolivares, dolares) para transacciones internas.","badge":"Solo TQ"},
+      {"icon":"sprout","title":"Banco de Semillas","description":"Cada miembro debe participar en el Banco de Semillas devolviendo un porcentaje superior de semillas nativas tras cada cosecha para que la reserva crezca.","badge":"Semillas"},
+      {"icon":"calendar","title":"Asistencia a Asambleas","description":"La asistencia a las asambleas mensuales es obligatoria. Tres faltas injustificadas consecutivas son una falta leve.","badge":"Mensual"}
+    ]
+  },
+  {
+    "type": "features_grid",
+    "title": "Lo Que Esta Permitido",
+    "subtitle": "Derechos y facultades de los miembros de la aldea",
+    "columns": 2,
+    "items": [
+      {"icon":"home","title":"Bioconstruccion","description":"Construir viviendas con materiales locales de baja huella de carbono: adobe, tapia, bahareque, madera certificada, bambu, techos verdes o de paja. El diseño debe ser bioclimatico (ventilacion natural, captacion solar pasiva).","badge":"Permitido"},
+      {"icon":"droplets","title":"Banos Secos Composteros","description":"El uso de banos secos composteros es obligatorio para todas las viviendas. Las aguas grises deben tratarse con biofiltros de plantas (humedales artificiales).","badge":"Obligatorio"},
+      {"icon":"sun","title":"Microrred Solar","description":"Abastecimiento energetico a traves de la microrred solar e hidraulica de la aldea. Cada vivienda tiene un limite de consumo asignado.","badge":"Permitido"},
+      {"icon":"shopping-cart","title":"Comercio con TQ","description":"Comprar y vender libremente dentro de la aldea usando TQ, respetando los limites de saldo simetricos (-500/+500 para nuevos, -1000/+1000 para activos).","badge":"Permitido"},
+      {"icon":"plus","title":"Crear Organizaciones","description":"Los miembros plenos pueden crear organizaciones de produccion, consumo o servicios con aprobacion de la asamblea.","badge":"Permitido"},
+      {"icon":"globe","title":"Federacion entre Nodos","description":"Comercio federado con otras ecoaldeas de la red usando TQ, respetando los limites bilaterales establecidos.","badge":"Permitido"}
+    ]
+  },
+  {
+    "type": "features_grid",
+    "title": "Lo Que Esta Prohibido",
+    "subtitle": "Acciones que vulneran el proposito de la aldea y estan terminantemente prohibidas",
+    "columns": 2,
+    "items": [
+      {"icon":"x-circle","title":"Agroquimicos y Transgenicos","description":"Esta estrictamente prohibido el ingreso, uso o almacenamiento de fertilizantes quimicos sinteticos, pesticidas industriales o semillas transgenicas patentadas.","badge":"Grave"},
+      {"icon":"x-circle","title":"Venta de Tierra","description":"Ningun miembro puede vender su parcela o vivienda a un tercero en el mercado abierto. La tierra pertenece colectivamente a la comunidad organizada (Fideicomiso de la Tierra).","badge":"Grave"},
+      {"icon":"x-circle","title":"Usura e Intereses","description":"Esta prohibido cobrar intereses sobre deudas, prestar con usura o negociar con divisas fiat de forma directa en transacciones internas eludiendo el sistema TQ.","badge":"Grave"},
+      {"icon":"x-circle","title":"Acumular mas alla del limite","description":"Esta prohibido eludir el control de limites de saldo con intercambios informales fuera del sistema para acumular mas de lo permitido.","badge":"Grave"},
+      {"icon":"x-circle","title":"Quema de plasticos","description":"Esta prohibida la quema de cualquier tipo de plastico o basura. Los empaques plasticos de un solo uso deben evitarse al maximo.","badge":"Leve"},
+      {"icon":"x-circle","title":"Productos no biodegradables","description":"Esta prohibido el uso de productos de higiene personal o limpieza del hogar que contengan quimicos no biodegradables. La aldea provee jabones y detergentes ecologicos.","badge":"Leve"}
+    ]
+  },
+  {
+    "type": "features_grid",
+    "title": "Faltas y Sanciones",
+    "subtitle": "Escala de infracciones y consecuencias",
+    "columns": 3,
+    "items": [
+      {"icon":"alert-triangle","title":"Faltas Leves","description":"Faltar injustificadamente a asambleas, no cumplir de forma aislada con las horas de cayapa, o ruidos molestos fuera de horario. Sancion: amonestacion verbal y compromiso de compensar las horas perdidas en la siguiente cayapa.","badge":"Leves"},
+      {"icon":"alert-octagon","title":"Faltas Graves","description":"Desperdicio consciente de agua comun, maltrato animal, comercio no autorizado usando dinero fiat dentro de la aldea para eludir el sistema TQ, o inactividad prolongada sin justificacion. Sancion: suspension temporal de la cuenta TQ y jornadas obligatorias de trabajo.","badge":"Graves"},
+      {"icon":"ban","title":"Faltas Muy Graves","description":"Introduccion voluntaria de agroquimicos o transgenicos, agresion fisica o verbal grave, robo de bienes comunes, sabotaje a los sistemas comunes, o especulacion inmobiliaria. Causal de expulsion obligatoria.","badge":"Expulsion"}
+    ]
+  },
+  {
+    "type": "features_grid",
+    "title": "Proceso de Admision",
+    "subtitle": "Como unirse a la aldea - camino de integracion en tres fases",
+    "columns": 3,
+    "items": [
+      {"icon":"user-plus","title":"Fase 1: Aspirante (1-3 meses)","description":"La persona o familia vive en el area de visitantes. Participa diariamente en cayapas comunes y talleres de agroecologia. Tiene acceso limitado a la Tienda Comunitaria en TQ (cuenta de visitante con limite estricto). No puede construir.","badge":"1-3 meses"},
+      {"icon":"user-check","title":"Fase 2: Residente Provisional (6-12 meses)","description":"Tras recibir el consentimiento de la comunidad, se le asigna un espacio temporal. Se integra a un circulo de trabajo. Puede proponer ideas (voz) pero no tiene voto en decisiones estructurales.","badge":"6-12 meses"},
+      {"icon":"award","title":"Fase 3: Miembro Pleno","description":"Aprobado por consentimiento en el Circulo de Convivencia y refrendado en Asamblea General. Se firma el Acuerdo de Vida Conuquera, se le asigna parcela y conuco, y se abren los limites completos de TQ (-500/+500 simetricos).","badge":"Pleno"}
+    ]
+  },
+  {
+    "type": "features_grid",
+    "title": "Proceso de Salida y Restitucion",
+    "subtitle": "Que pasa cuando un miembro se retira o es expulsado",
+    "columns": 2,
+    "items": [
+      {"icon":"log-out","title":"Retiro Voluntario","description":"Un miembro puede retirarse voluntariamente comunicando su decision al Circulo de Convivencia. Se aplica la Formula de Restitucion No Especulativa (FRNE) para reembolsar su inversion en materiales.","badge":"Voluntario"},
+      {"icon":"calculator","title":"Formula FRNE","description":"R_neto = I_ini - D_desgaste - C_restauracion +/- B_TQ - T_salida. I_ini = inversion en materiales, D_desgaste = amortizacion anual, C_restauracion = costo de reparar danos, B_TQ = balance TQ, T_salida = 15% de retencion solidaria para el Fondo Comunitario.","badge":"FRNE"},
+      {"icon":"calendar","title":"Pago Diferido","description":"El reembolso se paga en cuotas mensuales distribuidas en 12-24 meses usando el Factor de Conversion vigente, o cuando una nueva familia tome posesion de la parcela. No se paga de inmediato para no desestabilizar la economia del nodo.","badge":"12-24 meses"},
+      {"icon":"user-x","title":"Expulsion","description":"Si el Circulo de Armonia agota la mediacion y el miembro reincide en faltas graves o comete una falta muy grave, la Asamblea General decide por consentimiento la desincorporacion. El terreno y usufructo regresan inmediatamente al control comun.","badge":"Obligatoria"}
+    ]
+  },
+  {
+    "type": "features_grid",
+    "title": "Tenencia de la Tierra",
+    "subtitle": "La tierra es colectiva, no especulativa",
+    "columns": 3,
+    "items": [
+      {"icon":"map","title":"Fideicomiso Comunitario","description":"La tierra de la ecoaldea pertenece unica y exclusivamente a la comunidad organizada. Ningun miembro tiene titulo de propiedad individual sobre la tierra. Es indivisible e inalienable.","badge":"Colectiva"},
+      {"icon":"key","title":"Derecho de Usufructo","description":"A cada miembro o familia admitida se le otorga un derecho de usufructo exclusivo sobre una parcela habitacional y su conuco. Este derecho dura mientras mantenga su membresia activa.","badge":"Usufructo"},
+      {"icon":"lock","title":"Prohibicion de Venta","description":"Un habitante nunca puede vender su parcela o vivienda a un tercero en el mercado abierto. Si decide marcharse, el derecho de usufructo regresa a la Asamblea, que lo asigna a una nueva familia.","badge":"No venta"}
+    ]
+  },
+  {
+    "type": "features_grid",
+    "title": "Impuestos y Fondo Comunitario",
+    "subtitle": "Como se financian los proyectos comunales",
+    "columns": 3,
+    "items": [
+      {"icon":"percent","title":"Impuesto de Transaccion","description":"Cada transaccion en TQ tiene un porcentaje de impuesto definido por el nivel del miembro (ej: 1% para activos, 0% para instituciones publicas). El impuesto va al Fondo Comunitario.","badge":"1%"},
+      {"icon":"piggy-bank","title":"Fondo Comunitario","description":"Cuenta especial que recibe los impuestos y se usa para proyectos comunales aprobados por la asamblea: infraestructura, equipos, emergencias.","badge":"Fondo"},
+      {"icon":"check-square","title":"Aprobacion de Gastos","description":"Los gastos del Fondo Comunitario deben ser aprobados por la asamblea (mayoria simple). Los cambios a la tasa de impuesto requieren 2/3 de la asamblea.","badge":"Asamblea"}
+    ]
+  },
+  {
+    "type": "cta_banner",
+    "title": "Quieres unirte a la aldea?",
+    "subtitle": "Revisa el proceso de admision y envia tu solicitud. Te contactaremos para iniciar la Fase 1: Aspirante.",
+    "button_text": "Solicitar Admision",
+    "button_link": "/p/comunidad",
+    "theme": "emerald"
+  }
+]`,
+			Icon:      "scale",
+			MenuOrder: 14,
+		},
 	}
 }
 

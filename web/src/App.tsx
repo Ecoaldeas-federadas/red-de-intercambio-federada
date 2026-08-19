@@ -24,6 +24,7 @@ import Organizations from './pages/Organizations'
 import Payments from './pages/Payments'
 import Recovery from './pages/Recovery'
 import Departments from './pages/Departments'
+import Governance from './pages/Governance'
 import NFCTerminals from './pages/NFCTerminals'
 import FederationPeers from './pages/FederationPeers'
 import NodeSettings from './pages/NodeSettings'
@@ -91,6 +92,7 @@ function AppInner() {
         <Route path="/app/admission" element={<Layout><Admission /></Layout>} />
         <Route path="/app/recovery" element={<Layout><Recovery /></Layout>} />
         <Route path="/app/departments" element={<Layout><Departments /></Layout>} />
+        <Route path="/app/governance" element={<Layout><Governance /></Layout>} />
         <Route path="/app/nfc-terminals" element={<Layout><NFCTerminals /></Layout>} />
         <Route path="/app/federation/peers" element={<Layout><FederationPeers /></Layout>} />
         <Route path="/app/settings" element={<Layout><NodeSettings /></Layout>} />

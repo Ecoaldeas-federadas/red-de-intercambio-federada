@@ -23,6 +23,7 @@
 19. [Hardware NFC](nfc_hardware.md) - Terminales ESP32, PN532, tipos de terminal, componentes
 20. [Sistema de Intercambio y Moneda TQ](currency_exchange.md) - TQ, credito mutuo, historia, calculo energetico, comercio externo
 21. [Feria Conuquera Agroecologica](feria_conuquera.md) - Historia, filosofia, organizacion, productos, actividades, ecoaldeas
+22. [Gobernanza - Ley de la Aldea](governance.md) - Reglas de convivencia, estructura sociocratica, admision, FRNE, tenencia de tierra
 
 ## Estado de Implementacion
 
@@ -106,6 +107,7 @@ red de intercambio federada/
 | 045 | Separacion de productos agrupados en items individuales (group_id, is_group) |
 | 046 | Precios decimales en productos |
 | 047 | Limites simetricos (positivo = negativo) + canasta basica 500 TQ |
+| 048 | Tabla governance_rules + seed inicial (Ley de la Aldea) |
 
 ## Cambios Recientes
 
