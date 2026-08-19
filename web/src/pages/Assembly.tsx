@@ -431,7 +431,6 @@ export default function Assembly() {
         proposal_type: proposalType,
         description: proposalDesc,
         parameters: proposalFields,
-        voting_duration_minutes: votingDuration,
       })
       setShowNewProposal(false)
       setProposalDesc('')
@@ -461,9 +460,16 @@ export default function Assembly() {
     }
   }
 
+  const [votingModal, setVotingModal] = useState<{ id: string; title: string } | null>(null)
+  const [votingMode, setVotingMode] = useState<'presencial' | 'remoto'>('remoto')
+
   const openVoting = async (id: string) => {
     try {
-      await api.post(`/assembly/proposals/${id}/open-voting`, {})
+      await api.post(`/assembly/proposals/${id}/open-voting`, {
+        voting_duration_minutes: votingDuration,
+        voting_mode: votingMode,
+      })
+      setVotingModal(null)
       load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al abrir votacion')
@@ -858,19 +864,6 @@ export default function Assembly() {
                 <p className="text-xs text-gray-400 mt-1">Explica claramente la decision que se somete a votacion. Los miembros usaran este texto para decidir su voto.</p>
               </div>
 
-              <div>
-                <label className="label">Tiempo limite para votar</label>
-                <select className="input" value={votingDuration} onChange={(e) => setVotingDuration(parseInt(e.target.value))}>
-                  <option value={5}>5 minutos (votacion en asamblea presencial)</option>
-                  <option value={10}>10 minutos (asamblea presencial, discusion breve)</option>
-                  <option value={30}>30 minutos (asamblea presencial, discusion extendida)</option>
-                  <option value={60}>1 hora (discusion prolongada)</option>
-                  <option value={1440}>24 horas (votacion remota, gente vota desde casa)</option>
-                  <option value={10080}>7 dias (consulta prolongada)</option>
-                </select>
-                <p className="text-xs text-gray-400 mt-1">Cuando se venza el tiempo, la propuesta se rechaza automaticamente. Para revotar hay que crear una propuesta nueva.</p>
-              </div>
-
               <button onClick={createProposal} className="btn-primary">Crear Propuesta</button>
             </div>
           )}
@@ -901,12 +894,11 @@ export default function Assembly() {
                       <p className="text-sm text-gray-600 mt-1">{p.description}</p>
                       <div className="flex gap-2 mt-3">
                         <button
-                          onClick={() => openVoting(p.id)}
+                          onClick={() => { setVotingModal({ id: p.id, title: p.description }); setVotingDuration(1440); setVotingMode('remoto') }}
                           className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
                         >
                           Abrir votacion
                         </button>
-                        <span className="text-xs text-gray-400 self-center">Duracion: {p.voting_duration_minutes || 1440} min</span>
                       </div>
                     </div>
                   ))}
@@ -2046,6 +2038,86 @@ export default function Assembly() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Modal para abrir votacion - la asamblea decide duracion y modo */}
+      {votingModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-lg font-bold">Abrir votacion</h2>
+              <button onClick={() => setVotingModal(null)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <p className="text-sm text-gray-600">{votingModal.title}</p>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Modo de votacion</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setVotingMode('presencial'); setVotingDuration(10) }}
+                    className={`px-3 py-2 rounded-lg border-2 text-sm font-medium ${votingMode === 'presencial' ? 'border-green-600 bg-green-50 text-green-700' : 'border-gray-200 text-gray-500'}`}
+                  >
+                    Presencial
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setVotingMode('remoto'); setVotingDuration(1440) }}
+                    className={`px-3 py-2 rounded-lg border-2 text-sm font-medium ${votingMode === 'remoto' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500'}`}
+                  >
+                    Remoto
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Duracion del voto</label>
+                <select
+                  value={votingDuration}
+                  onChange={e => setVotingDuration(parseInt(e.target.value))}
+                  className="w-full px-3 py-2 border rounded-lg"
+                >
+                  {votingMode === 'presencial' ? (
+                    <>
+                      <option value={5}>5 minutos</option>
+                      <option value={10}>10 minutos</option>
+                      <option value={15}>15 minutos</option>
+                      <option value={30}>30 minutos (discusion extendida)</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value={60}>1 hora</option>
+                      <option value={360}>6 horas</option>
+                      <option value={1440}>24 horas</option>
+                      <option value={4320}>3 dias</option>
+                      <option value={10080}>7 dias (consulta prolongada)</option>
+                    </>
+                  )}
+                </select>
+                <p className="text-xs text-gray-400 mt-1">
+                  {votingMode === 'presencial'
+                    ? 'Votacion durante la asamblea presencial. Cuando se venza el tiempo, se cuentan los votos.'
+                    : 'Votacion remota: los miembros pueden votar desde cualquier lugar. Cuando se venza el tiempo, la propuesta se rechaza si no hay quorum.'}
+                </p>
+              </div>
+
+              <div className="flex gap-2 justify-end pt-2">
+                <button onClick={() => setVotingModal(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => openVoting(votingModal.id)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                >
+                  Abrir votacion
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

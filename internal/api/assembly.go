@@ -450,6 +450,7 @@ func appendToMinutes(pool *pgxpool.Pool, sessionID uuid.UUID, entry string) {
 }
 
 // openVoting: la asamblea aprueba una propuesta para que se abra la votacion
+// La duracion del voto se decide AQUI (en la asamblea), no al crear la propuesta.
 func (h *AssemblyHandler) openVoting(w http.ResponseWriter, r *http.Request) {
 	decisionID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
@@ -457,14 +458,22 @@ func (h *AssemblyHandler) openVoting(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// La asamblea decide la duracion del voto al abrirlo
+	var req struct {
+		VotingDurationMinutes int    `json:"voting_duration_minutes"`
+		VotingMode            string `json:"voting_mode"` // "presencial" o "remoto"
+	}
+	if r.Body != nil {
+		json.NewDecoder(r.Body).Decode(&req)
+	}
+
 	// Obtener estado actual y datos
 	var status, decisionType, description string
-	var votingDurationMinutes int
 	var assemblyID uuid.UUID
 	h.Pool.QueryRow(r.Context(), `
-		SELECT status, decision_type, description, voting_duration_minutes, assembly_id
+		SELECT status, decision_type, description, assembly_id
 		FROM assembly_decisions WHERE id = $1`, decisionID).
-		Scan(&status, &decisionType, &description, &votingDurationMinutes, &assemblyID)
+		Scan(&status, &decisionType, &description, &assemblyID)
 	if status == "" {
 		writeError(w, 404, "propuesta no encontrada")
 		return
@@ -475,16 +484,24 @@ func (h *AssemblyHandler) openVoting(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Duracion: la decide la asamblea al abrir la votacion
+	votingDurationMinutes := req.VotingDurationMinutes
 	if votingDurationMinutes == 0 {
-		votingDurationMinutes = 1440 // default 24h
+		// Default segun modo
+		if req.VotingMode == "presencial" {
+			votingDurationMinutes = 10 // 10 min para asamblea presencial
+		} else {
+			votingDurationMinutes = 1440 // 24h para votacion remota
+		}
 	}
 
 	userID, _ := h.Auth.GetUserID(r)
 
-	// Abrir votacion: status = pending, calcular deadline
+	// Abrir votacion: status = pending, calcular deadline con la duracion decidida
 	_, err = h.Pool.Exec(r.Context(), `
 		UPDATE assembly_decisions
 		SET status = 'pending',
+		    voting_duration_minutes = $1,
 		    voting_deadline = NOW() + ($1 || ' minutes')::INTERVAL,
 		    approved_for_voting_by = $2,
 		    approved_for_voting_at = NOW()
