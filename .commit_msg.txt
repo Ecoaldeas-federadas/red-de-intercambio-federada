@@ -1,23 +1,16 @@
-fix: app no conecta a BD en Docker - DB_HOST=yugabytedb
+fix: login con clave invalido - passwordLogin usaba NodeDomain vacio
 
-El config.yaml tiene host: "localhost" pero dentro de Docker,
-localhost se refiere al contenedor de la app, no a la base de
-datos que esta en el contenedor "yugabytedb".
+El passwordLogin buscaba al usuario con WHERE u.node_domain = $2
+pasando ah.NodeDomain, pero como el config.yaml ahora tiene el
+dominio vacio, ah.NodeDomain es "" y la query no encontraba al
+usuario (su dominio real es "localhost").
 
-Antes funcionaba porque el config.yaml local del usuario tenia
-host: "yugabytedb", pero al hacer git checkout -- config.yaml
-se perdio ese cambio y se uso el del repo con "localhost".
+Fix: el passwordLogin ahora busca al usuario solo por username
+(sin filtrar por node_domain) y obtiene el node_domain real del
+usuario desde la BD para usarlo en el token JWT.
 
-Fix:
-1. docker-compose.yml: agregada env var DB_HOST=yugabytedb
-2. config.go: las env vars (DB_HOST, DB_PORT, DB_NAME, DB_USER,
-   DB_PASSWORD) ahora sobreescriben al config.yaml despues de
-   cargarlo. Esto es necesario para Docker donde el host de la BD
-   es el nombre del contenedor, no "localhost".
-
-El config.yaml puede seguir teniendo "localhost" como template
-(para desarrollo sin Docker) y las env vars del docker-compose
-lo sobreescriben correctamente.
+Esto es consistente con como funciona el login por passkey, que
+tambien obtiene el node_domain del usuario desde la BD.
 
 Generated with Devin
 

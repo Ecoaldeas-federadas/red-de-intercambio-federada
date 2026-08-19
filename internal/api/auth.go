@@ -923,17 +923,31 @@ func (ah *AuthHandlers) passwordLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Determinar el node_domain: usar el del header, o buscar el del usuario
+	// sin filtrar por dominio (para no romper si el config esta vacio)
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = ah.NodeDomain
+	}
+
 	var userID uuid.UUID
 	var passwordHash string
+	var userNodeDomain string
 	err := ah.Pool.QueryRow(r.Context(), `
-		SELECT u.id, uc.password_hash
+		SELECT u.id, uc.password_hash, u.node_domain
 		FROM users u
 		JOIN user_credentials uc ON uc.user_id = u.id
-		WHERE u.username = $1 AND u.node_domain = $2 AND u.membership_status = 'active'
-	`, req.Username, ah.NodeDomain).Scan(&userID, &passwordHash)
+		WHERE u.username = $1 AND u.membership_status = 'active'
+		LIMIT 1
+	`, req.Username).Scan(&userID, &passwordHash, &userNodeDomain)
 	if err != nil {
 		writeError(w, 401, "invalid credentials")
 		return
+	}
+
+	// Usar el node_domain real del usuario para el token
+	if userNodeDomain != "" {
+		nodeDomain = userNodeDomain
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(req.Password)); err != nil {
@@ -942,7 +956,7 @@ func (ah *AuthHandlers) passwordLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	am := NewAuthMiddleware(ah.JWTSecret)
-	token, err := am.GenerateToken(userID, req.Username, ah.NodeDomain)
+	token, err := am.GenerateToken(userID, req.Username, nodeDomain)
 	if err != nil {
 		writeError(w, 500, "failed to generate token")
 		return
