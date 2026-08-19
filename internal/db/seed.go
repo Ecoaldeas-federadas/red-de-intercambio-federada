@@ -2292,6 +2292,137 @@ func (d *DB) SeedProductsToNode(ctx context.Context, nodeDomain string) error {
 		{"Agua Purificada", "Recursos Basicos", "Agua", "Potable", "litro",
 			"Agua filtrada/purificada. Energia: 0.5 MJ/L = 0.14 kWh/L (bombeo + microfiltracion). Fuente: ICE Database.", "Vital",
 			"https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=600&q=80", 1, 1, 0, 0, 0},
+
+		// ============ AGRICULTURA: Subcategorias faltantes ============
+		{"Fertilizantes Organicos", "Agricultura", "Insumos Agricolas", "Fertilizantes", "kg",
+			"Compost maduro, humus de lombriz, estiercol curado, gallinaza. Energia: ~2 MJ/kg = 0.6 kWh/kg (compostaje + empaque).", "Fertilidad",
+			"https://images.unsplash.com/photo-1591857170480-7b4c1f9c7b89?auto=format&fit=crop&w=600&q=80", 1, 1, 0, 0, 0},
+		{"Plaguicidas Naturales", "Agricultura", "Insumos Agricolas", "Plaguicidas", "litro",
+			"Extracto de neem, ajo, aji, repelentes botanicos. Energia: ~5 MJ/L = 1.4 kWh/L (extraccion + procesamiento).", "Control Natural",
+			"https://images.unsplash.com/photo-1585150371909-82d24f1d9b8e?auto=format&fit=crop&w=600&q=80", 2, 2, 0, 0, 0},
+		{"Hongos Comestibles", "Agricultura", "Insumos Agricolas", "Hongos", "kg",
+			"Champiñones, setas, hongos ostra cultivados. Energia: ~8 MJ/kg = 2.2 kWh/kg (sustrato + incubacion + cosecha).", "Cultivo",
+			"https://images.unsplash.com/photo-1506073884694-7631b3b1e9d2?auto=format&fit=crop&w=600&q=80", 2, 2, 0, 0, 0},
+
+		// ============ ALIMENTACION: Subcategorias faltantes ============
+		{"Carne de Res", "Alimentacion", "Carnes y Pescados", "Res", "kg",
+			"Carne de vacuno fresca. Energia: ~200 MJ/kg = 55 kWh/kg (alimentacion animal + procesamiento).", "Proteina Animal",
+			"https://images.unsplash.com/photo-1603048719571-4e0a3c9c1d0e?auto=format&fit=crop&w=600&q=80", 55, 55, 0, 0, 0},
+		{"Cereales y Avena", "Alimentacion", "Granos y Cereales", "Cereales", "kg",
+			"Avena, maiz en hojuelas, cereales para desayuno. Energia: ~15 MJ/kg = 4.2 kWh/kg (procesamiento + hojuelado).", "Cereal",
+			"https://images.unsplash.com/photo-1517686469429-8408823b9b5b?auto=format&fit=crop&w=600&q=80", 4, 4, 0, 0, 0},
+		{"Sal de Mar", "Alimentacion", "Condimentos", "Sales", "kg",
+			"Sal marina de grano, sal de roca, sal de mesa. Energia: ~3 MJ/kg = 0.8 kWh/kg (evaporacion solar + molienda).", "Mineral",
+			"https://images.unsplash.com/photo-1518110925495-7d0c1b3c4d9e?auto=format&fit=crop&w=600&q=80", 1, 1, 0, 0, 0},
+		{"Mantequilla y Queso", "Alimentacion", "Carnes y Pescados", "Lacteos Frescos", "kg",
+			"Mantequilla artesanal, queso fresco, cuajada. Energia: ~40 MJ/kg = 11 kWh/kg (ordeño + procesamiento).", "Lacteo",
+			"https://images.unsplash.com/photo-1559561853-5c8d5d3c9d4e?auto=format&fit=crop&w=600&q=80", 11, 11, 0, 0, 0},
+
+		// ============ ARTESANIA: Subcategorias faltantes ============
+		{"Cuero Artesanal", "Artesania", "Cuero", "Materia Prima", "kg",
+			"Cuero curtido vegetal para marroquineria, calzado, cinturones. Energia: ~85 MJ/kg = 24 kWh/kg (curtido + secado).", "Cuero",
+			"https://images.unsplash.com/photo-1595941068-8e3a7c1c4d2f?auto=format&fit=crop&w=600&q=80", 24, 24, 0, 0, 0},
+		{"Calzado de Cuero", "Artesania", "Cuero", "Calzado", "par",
+			"Sandalias, zapatos, botines de cuero artesanal. Energia: cuero + suela + costura = ~80 MJ = 22 kWh.", "Calzado",
+			"https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=600&q=80", 22, 22, 0, 0, 0},
+		{"Metal Forjado", "Artesania", "Metal", "Forja", "kg",
+			"Hierro forjado: cuchillos, herramientas, decoracion. Energia: ~30 MJ/kg = 8.3 kWh/kg (forja + templado).", "Forja",
+			"https://images.unsplash.com/photo-1504148455328-c3764b6c1f7e?auto=format&fit=crop&w=600&q=80", 8, 8, 0, 0, 0},
+		{"Vidrio Soplado", "Artesania", "Vidrio", "Soplado", "unidad",
+			"Vasos, botellas, decoracion de vidrio soplado artesanal. Energia: ~25 MJ/unidad = 7 kWh (horno + soplado).", "Vidrio",
+			"https://images.unsplash.com/photo-1517686469429-8408823b9b5b?auto=format&fit=crop&w=600&q=80", 7, 7, 0, 0, 0},
+
+		// ============ CONSTRUCCION: Subcategorias faltantes ============
+		{"Impermeabilizantes", "Construccion", "Acabados", "Impermeabilizantes", "litro",
+			"Impermeabilizantes naturales: brea, cera, mezclas vegetales. Energia: ~15 MJ/L = 4.2 kWh/L.", "Impermeable",
+			"https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=600&q=80", 4, 4, 0, 0, 0},
+		{"Revestimientos y Estucos", "Construccion", "Acabados", "Revestimientos", "kg",
+			"Estuco de cal, revestimientos de tierra, acabados naturales. Energia: ~5 MJ/kg = 1.4 kWh/kg.", "Acabado",
+			"https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=600&q=80", 1, 1, 0, 0, 0},
+		{"Carpinteria de Obra", "Construccion", "Materiales", "Carpinteria", "unidad",
+			"Puertas, ventanas, marcos de madera para construccion. Energia: ~80 MJ/unidad = 22 kWh.", "Carpinteria",
+			"https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=600&q=80", 22, 22, 0, 0, 0},
+
+		// ============ CULTURA: Subcategorias faltantes ============
+		{"Taller de Teatro", "Cultura", "Artes", "Teatro", "sesion",
+			"Taller de teatro comunitario, dramatizacion, expresion corporal. Energia: ~8 kWh/sesion (espacio + direccion).", "Escena",
+			"https://images.unsplash.com/photo-1503095396549-807759245b35?auto=format&fit=crop&w=600&q=80", 8, 8, 0, 0, 0},
+		{"Danza Tradicional", "Cultura", "Artes", "Danza", "sesion",
+			"Taller de danza tradicional, folclor, expresion corporal. Energia: ~6 kWh/sesion.", "Danza",
+			"https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=600&q=80", 6, 6, 0, 0, 0},
+		{"Taller de Literatura", "Cultura", "Artes", "Literatura", "sesion",
+			"Taller de escritura creativa, poesia, narrativa oral. Energia: ~4 kWh/sesion.", "Letras",
+			"https://images.unsplash.com/photo-1457369804619-52c61a3df23d?auto=format&fit=crop&w=600&q=80", 4, 4, 0, 0, 0},
+		{"Produccion Audiovisual", "Cultura", "Artes", "Audiovisual", "hora",
+			"Grabacion, edicion, fotografia documental comunitaria. Energia: ~3 kWh/h (equipos + edicion).", "Audiovisual",
+			"https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=600&q=80", 3, 3, 0, 0, 0},
+
+		// ============ EDUCACION: Subcategorias faltantes ============
+		{"Matematicas y Numeracion", "Educacion", "Alfabetizacion", "Numeracion", "sesion",
+			"Clases de matematicas basicas, aritmetica, geometria aplicada. Energia: ~4 kWh/sesion.", "Numeracion",
+			"https://images.unsplash.com/photo-1503676263721-6a1f61fcfcfc?auto=format&fit=crop&w=600&q=80", 4, 4, 0, 0, 0},
+		{"Tecnologia y Computacion", "Educacion", "Talleres", "Tecnologia", "sesion",
+			"Taller de computacion basica, ofimatica, internet. Energia: ~5 kWh/sesion (equipos + espacio).", "Tecnologia",
+			"https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=600&q=80", 5, 5, 0, 0, 0},
+		{"Idiomas", "Educacion", "Talleres", "Idiomas", "sesion",
+			"Clases de idiomas: ingles, portugues, lengua de señas. Energia: ~4 kWh/sesion.", "Idiomas",
+			"https://images.unsplash.com/photo-1503676263721-6a1f61fcfcfc?auto=format&fit=crop&w=600&q=80", 4, 4, 0, 0, 0},
+
+		// ============ ENERGIA: Subcategorias faltantes ============
+		{"Energia Eolica", "Energia", "Eolica", "Aerogeneradores", "unidad",
+			"Aerogeneradores pequenos para zonas rurales. Energia: ~500 MJ/unidad = 139 kWh (fabricacion + instalacion).", "Eolica",
+			"https://images.unsplash.com/photo-1466611653911-95081537e5b7?auto=format&fit=crop&w=600&q=80", 139, 139, 0, 0, 0},
+		{"Energia Hidraulica", "Energia", "Hidraulica", "Microturbinas", "unidad",
+			"Microturbinas hidraulicas para arroyos y rios pequenos. Energia: ~800 MJ/unidad = 222 kWh.", "Hidraulica",
+			"https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?auto=format&fit=crop&w=600&q=80", 222, 222, 0, 0, 0},
+
+		// ============ HERRAMIENTAS: Subcategorias faltantes ============
+		{"Instrumentos de Medicion", "Herramientas", "Manuales", "Medicion", "unidad",
+			"Flexometro, nivel, plomada, escuadra, calibrador. Energia: ~20 MJ/unidad = 5.5 kWh (fabricacion metal/plastico).", "Medicion",
+			"https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&w=600&q=80", 6, 6, 0, 0, 0},
+		{"Herramientas de Corte", "Herramientas", "Manuales", "Corte", "unidad",
+			"Sierras manuales, cuchillos de trabajo, tijeras de podar, machetes. Energia: ~15 MJ/unidad = 4.2 kWh (acero + templado).", "Corte",
+			"https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&w=600&q=80", 4, 4, 0, 0, 0},
+
+		// ============ SALUD: Subcategorias faltantes ============
+		{"Apiterapia", "Salud y Medicina", "Medicina Botanica", "Apiterapia", "sesion",
+			"Terapia con productos de la colmena: miel, propoleo, jalea real, apitoxina. Energia: ~3 kWh/sesion.", "Apiterapia",
+			"https://images.unsplash.com/photo-1587049352846-c460e1f0e5c0?auto=format&fit=crop&w=600&q=80", 3, 3, 0, 0, 0},
+		{"Homeopatia y Flores de Bach", "Salud y Medicina", "Medicina Botanica", "Homeopatia", "sesion",
+			"Consultas homeopaticas, preparados florales, remedios vibracionales. Energia: ~2 kWh/sesion.", "Homeopatia",
+			"https://images.unsplash.com/photo-1556228852-80b6e5eeff06?auto=format&fit=crop&w=600&q=80", 2, 2, 0, 0, 0},
+
+		// ============ SERVICIOS: Subcategorias faltantes ============
+		{"Peluqueria y Barberia", "Servicios", "Cuidado Personal", "Peluqueria", "sesion",
+			"Corte de cabello, afeitado, peinado, arreglos. Energia: ~2 kWh/sesion (espacio + herramientas).", "Cuidado",
+			"https://images.unsplash.com/photo-1503951918674-5f8aa154d46c?auto=format&fit=crop&w=600&q=80", 2, 2, 0, 0, 0},
+		{"Costura y Confeccion", "Servicios", "Reparaciones", "Costura", "hora",
+			"Arreglos de ropa, confeccion a medida, ajustes. Energia: ~1.5 kWh/h (maquina + trabajo).", "Costura",
+			"https://images.unsplash.com/photo-1581655353564-df123a1eb820?auto=format&fit=crop&w=600&q=80", 2, 2, 0, 0, 0},
+
+		// ============ TECNOLOGIA: Subcategorias faltantes ============
+		{"Equipos de Red", "Tecnologia", "Componentes", "Redes", "unidad",
+			"Routers, switches, access points, tarjetas de red. Energia: ~120 MJ/unidad = 33 kWh (fabricacion + embalaje).", "Redes",
+			"https://images.unsplash.com/photo-1551703599-6b3e8379aa88?auto=format&fit=crop&w=600&q=80", 33, 33, 0, 0, 0},
+		{"Software y Soporte", "Tecnologia", "Computacion", "Software", "hora",
+			"Instalacion de software, soporte tecnico, configuracion de sistemas. Energia: ~2 kWh/h (equipos + trabajo).", "Software",
+			"https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=600&q=80", 2, 2, 0, 0, 0},
+
+		// ============ TEXTILES: Subcategorias faltantes ============
+		{"Calzado Textil", "Textiles", "Confeccion", "Calzado", "par",
+			"Alpargatas, zapatillas de tela, calzado textil artesanal. Energia: ~30 MJ/par = 8.3 kWh.", "Calzado",
+			"https://images.unsplash.com/photo-1549298916-b57d637d1b3e?auto=format&fit=crop&w=600&q=80", 8, 8, 0, 0, 0},
+		{"Sombreros y Gorros", "Textiles", "Tejidos", "Sombrerería", "unidad",
+			"Sombreros de paja, gorros de lana, cachuchas textiles. Energia: ~15 MJ/unidad = 4.2 kWh.", "Sombrerería",
+			"https://images.unsplash.com/photo-1521369909029-2afed882baee?auto=format&fit=crop&w=600&q=80", 4, 4, 0, 0, 0},
+
+		// ============ TRANSPORTE: Subcategorias faltantes ============
+		{"Carga Animal", "Transporte", "Animales", "Carga", "viaje",
+			"Transporte de carga con animales de carga (mulas, burros). Energia: ~10 kWh/viaje (alimentacion animal + trabajo).", "Arriero",
+			"https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=600&q=80", 10, 10, 0, 0, 0},
+		{"Combustibles para Transporte", "Transporte", "Vehiculos", "Combustibles", "litro",
+			"Gasolina, diesel, biodiesel para vehiculos. Energia: ~35 MJ/L = 9.7 kWh/L.", "Combustible",
+			"https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=600&q=80", 10, 10, 0, 0, 0},
 	}
 
 	for _, p := range products {

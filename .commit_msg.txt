@@ -1,15 +1,23 @@
-feat: mas subcategorias de Bebidas en catalogo seed
+feat: revision completa de categorias - 30 productos nuevos en 3er nivel
 
-Antes solo habia: Fermentadas, Infusiones
+Revision exhaustiva de todas las categorias del catalogo seed. Se anaden
+30 productos nuevos para completar subcategorias faltantes:
 
-Ahora tambien:
-- Zumos: jugos naturales exprimidos (naranja, limon, mango, parchita)
-- Refrescos: efervescentes artesanales (ginger beer, limonada con gas)
-- Licores: destilados artesanales (aguardiente, ron, cocuy, guaro)
-- Lacteas: leche fresca, suero, yogurt liquido, kefir
-- Aguas: agua de coco, cebada, horchata, panela, isotonicas naturales
+Agricultura: Fertilizantes, Plaguicidas, Hongos
+Alimentacion: Res, Cereales, Sales, Mantequilla/Queso
+Artesania: Cuero (Calzado, Materia Prima), Metal (Forja), Vidrio (Soplado)
+Construccion: Impermeabilizantes, Revestimientos, Carpinteria
+Cultura: Teatro, Danza, Literatura, Audiovisual
+Educacion: Numeracion, Tecnologia, Idiomas
+Energia: Eolica (Aerogeneradores), Hidraulica (Microturbinas)
+Herramientas: Medicion, Corte
+Salud: Apiterapia, Homeopatia
+Servicios: Peluqueria/Barberia, Costura
+Tecnologia: Redes, Software
+Textiles: Calzado Textil, Sombrerería
+Transporte: Carga Animal, Combustibles
 
-Cada uno con su valor energetico estimado (kWh/L) y badge.
+Total: 13 categorias padre, ~50 categorias, ~150 subcategorias.
 
 Generated with Devin
 
