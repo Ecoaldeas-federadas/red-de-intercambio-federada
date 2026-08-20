@@ -122,7 +122,10 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 	r.Get("/sitemap.xml", func(w http.ResponseWriter, r *http.Request) {
 		baseURL := getScheme(r) + "://" + r.Host
 		// Listar paginas publicas desde la BD
-		nodeDomain := "localhost"
+		nodeDomain := h.nodeDomain
+		if nodeDomain == "" {
+			nodeDomain = "localhost"
+		}
 		rows, err := pool.Query(r.Context(), `SELECT slug FROM public_pages WHERE node_domain = $1 AND is_published = true ORDER BY menu_order`, nodeDomain)
 		if err != nil {
 			w.Header().Set("Content-Type", "application/xml")
@@ -237,11 +240,11 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 		// Asegurar que los archivos esten actualizados
 		GenerateStaticHTMLFiles(pool)
 
-		// Obtener todas las paginas de la BD
+		// Obtener todas las paginas de la BD (todos los dominios)
 		rows, err := pool.Query(context.Background(), `
 			SELECT slug, title, subtitle, content
 			FROM public_pages
-			WHERE node_domain = 'localhost' AND is_published = true
+			WHERE is_published = true
 			ORDER BY menu_order`)
 		if err != nil {
 			w.WriteHeader(500)
@@ -349,7 +352,7 @@ func injectMetaTags(frontendDir string, pool *pgxpool.Pool, slug string) string 
 	err = pool.QueryRow(context.Background(), `
 		SELECT title, subtitle, content
 		FROM public_pages
-		WHERE node_domain = 'localhost' AND slug = $1 AND is_published = true`,
+		WHERE is_published = true AND slug = $1`,
 		slug).Scan(&title, &subtitle, &content)
 	if err != nil {
 		return ""
@@ -449,7 +452,7 @@ func GenerateStaticHTMLFiles(pool *pgxpool.Pool) {
 	rows, err := pool.Query(context.Background(), `
 		SELECT slug, title, subtitle, content, icon, menu_order
 		FROM public_pages
-		WHERE node_domain = 'localhost' AND is_published = true
+		WHERE is_published = true
 		ORDER BY menu_order`)
 	if err != nil {
 		log.Printf("GenerateStaticHTMLFiles: error querying pages: %v", err)

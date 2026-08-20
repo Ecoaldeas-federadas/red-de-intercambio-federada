@@ -219,7 +219,15 @@ func (h *SystemHandler) WriteAudit(ctx context.Context, actorID uuid.UUID, actio
 // ===== CONFIGURACION DEL NODO =====
 
 func (h *SystemHandler) getConfig(w http.ResponseWriter, r *http.Request) {
-	nodeDomain := r.Header.Get("X-Node-Domain")
+	// Usar el node_domain del servidor si esta configurado.
+	// El header X-Node-Domain es para federation entre nodos, no para
+	// sobreescribir el dominio propio del servidor.
+	var nodeDomain string
+	if h.nodeDomain != "" {
+		nodeDomain = h.nodeDomain
+	} else {
+		nodeDomain = r.Header.Get("X-Node-Domain")
+	}
 	if nodeDomain == "" {
 		nodeDomain = "localhost"
 	}
@@ -266,7 +274,11 @@ func (h *SystemHandler) updateConfig(w http.ResponseWriter, r *http.Request) {
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	if nodeDomain == "" {
-		nodeDomain = "localhost"
+		if h.nodeDomain != "" {
+			nodeDomain = h.nodeDomain
+		} else {
+			nodeDomain = "localhost"
+		}
 	}
 
 	_, err := h.Pool.Exec(r.Context(), `
@@ -291,7 +303,11 @@ func (h *SystemHandler) updateConfig(w http.ResponseWriter, r *http.Request) {
 func (h *SystemHandler) listMemberLevels(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	if nodeDomain == "" {
-		nodeDomain = "localhost"
+		if h.nodeDomain != "" {
+			nodeDomain = h.nodeDomain
+		} else {
+			nodeDomain = "localhost"
+		}
 	}
 
 	// Intentar usar el node_domain real del usuario autenticado
@@ -427,7 +443,11 @@ func (h *SystemHandler) createMemberLevel(w http.ResponseWriter, r *http.Request
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	if nodeDomain == "" {
-		nodeDomain = "localhost"
+		if h.nodeDomain != "" {
+			nodeDomain = h.nodeDomain
+		} else {
+			nodeDomain = "localhost"
+		}
 	}
 
 	id := req.Name
@@ -489,7 +509,11 @@ func (h *SystemHandler) updateMemberLevel(w http.ResponseWriter, r *http.Request
 func (h *SystemHandler) getTariff(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	if nodeDomain == "" {
-		nodeDomain = "localhost"
+		if h.nodeDomain != "" {
+			nodeDomain = h.nodeDomain
+		} else {
+			nodeDomain = "localhost"
+		}
 	}
 
 	row := h.Pool.QueryRow(r.Context(), `
@@ -553,7 +577,11 @@ func (h *SystemHandler) updateTariff(w http.ResponseWriter, r *http.Request) {
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	if nodeDomain == "" {
-		nodeDomain = "localhost"
+		if h.nodeDomain != "" {
+			nodeDomain = h.nodeDomain
+		} else {
+			nodeDomain = "localhost"
+		}
 	}
 
 	_, err := h.Pool.Exec(r.Context(), `
@@ -582,7 +610,11 @@ func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 		nodeDomain = h.nodeDomain
 	}
 	if nodeDomain == "" {
-		nodeDomain = "localhost"
+		if h.nodeDomain != "" {
+			nodeDomain = h.nodeDomain
+		} else {
+			nodeDomain = "localhost"
+		}
 	}
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit, is_approved, origin, badge, image_url, product_code, is_system, is_hidden
@@ -1012,7 +1044,11 @@ func (h *SystemHandler) getPriceHistory(w http.ResponseWriter, r *http.Request) 
 func (h *SystemHandler) getFundBalance(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	if nodeDomain == "" {
-		nodeDomain = "localhost"
+		if h.nodeDomain != "" {
+			nodeDomain = h.nodeDomain
+		} else {
+			nodeDomain = "localhost"
+		}
 	}
 
 	// Buscar cuenta del fondo
@@ -1049,7 +1085,11 @@ func (h *SystemHandler) autoUpgradeLevel(w http.ResponseWriter, r *http.Request)
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	if nodeDomain == "" {
-		nodeDomain = "localhost"
+		if h.nodeDomain != "" {
+			nodeDomain = h.nodeDomain
+		} else {
+			nodeDomain = "localhost"
+		}
 	}
 
 	// Obtener nivel actual del usuario, su node_domain y cuando fue creado
@@ -1556,7 +1596,11 @@ func (h *SystemHandler) createCalcCategory(w http.ResponseWriter, r *http.Reques
 func (h *SystemHandler) listOrganizationLevels(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	if nodeDomain == "" {
-		nodeDomain = "localhost"
+		if h.nodeDomain != "" {
+			nodeDomain = h.nodeDomain
+		} else {
+			nodeDomain = "localhost"
+		}
 	}
 
 	rows, err := h.Pool.Query(r.Context(), `
@@ -1633,7 +1677,11 @@ func (h *SystemHandler) createOrganizationLevel(w http.ResponseWriter, r *http.R
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	if nodeDomain == "" {
-		nodeDomain = "localhost"
+		if h.nodeDomain != "" {
+			nodeDomain = h.nodeDomain
+		} else {
+			nodeDomain = "localhost"
+		}
 	}
 
 	var id uuid.UUID
@@ -1684,7 +1732,11 @@ func (h *SystemHandler) updateOrganizationLevel(w http.ResponseWriter, r *http.R
 func (h *SystemHandler) getPublicSettings(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.URL.Query().Get("node")
 	if nodeDomain == "" {
-		nodeDomain = "localhost"
+		if h.nodeDomain != "" {
+			nodeDomain = h.nodeDomain
+		} else {
+			nodeDomain = "localhost"
+		}
 	}
 
 	var siteTitle, siteSubtitle, primaryColor, secondaryColor, contactAddress, ig, fb string
@@ -1857,7 +1909,14 @@ func (h *SystemHandler) getPublicSettings(w http.ResponseWriter, r *http.Request
 func (h *SystemHandler) listPublicPages(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.URL.Query().Get("node")
 	if nodeDomain == "" {
-		nodeDomain = "localhost"
+		nodeDomain = h.nodeDomain
+	}
+	if nodeDomain == "" {
+		if h.nodeDomain != "" {
+			nodeDomain = h.nodeDomain
+		} else {
+			nodeDomain = "localhost"
+		}
 	}
 
 	rows, err := h.Pool.Query(r.Context(), `
@@ -1896,7 +1955,11 @@ func (h *SystemHandler) listPublicPages(w http.ResponseWriter, r *http.Request) 
 func (h *SystemHandler) getPublicPage(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.URL.Query().Get("node")
 	if nodeDomain == "" {
-		nodeDomain = "localhost"
+		if h.nodeDomain != "" {
+			nodeDomain = h.nodeDomain
+		} else {
+			nodeDomain = "localhost"
+		}
 	}
 	slug := chi.URLParam(r, "slug")
 
@@ -1952,7 +2015,11 @@ func (h *SystemHandler) getPublicPage(w http.ResponseWriter, r *http.Request) {
 func (h *SystemHandler) renderPublicPageHTML(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.URL.Query().Get("node")
 	if nodeDomain == "" {
-		nodeDomain = "localhost"
+		if h.nodeDomain != "" {
+			nodeDomain = h.nodeDomain
+		} else {
+			nodeDomain = "localhost"
+		}
 	}
 	slug := chi.URLParam(r, "slug")
 
@@ -2178,7 +2245,11 @@ type AdmissionRequestReq struct {
 func (h *SystemHandler) getPublicAdmissionForm(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.URL.Query().Get("node")
 	if nodeDomain == "" {
-		nodeDomain = "localhost"
+		if h.nodeDomain != "" {
+			nodeDomain = h.nodeDomain
+		} else {
+			nodeDomain = "localhost"
+		}
 	}
 
 	var schema json.RawMessage
@@ -2217,7 +2288,11 @@ func (h *SystemHandler) submitAdmissionRequest(w http.ResponseWriter, r *http.Re
 
 	nodeDomain := r.URL.Query().Get("node")
 	if nodeDomain == "" {
-		nodeDomain = "localhost"
+		if h.nodeDomain != "" {
+			nodeDomain = h.nodeDomain
+		} else {
+			nodeDomain = "localhost"
+		}
 	}
 
 	customJSON := string(req.CustomFields)
@@ -2247,7 +2322,11 @@ func (h *SystemHandler) submitAdmissionRequest(w http.ResponseWriter, r *http.Re
 func (h *SystemHandler) listSitePages(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	if nodeDomain == "" {
-		nodeDomain = "localhost"
+		if h.nodeDomain != "" {
+			nodeDomain = h.nodeDomain
+		} else {
+			nodeDomain = "localhost"
+		}
 	}
 
 	rows, err := h.Pool.Query(r.Context(), `
@@ -2309,7 +2388,11 @@ func (h *SystemHandler) createSitePage(w http.ResponseWriter, r *http.Request) {
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	if nodeDomain == "" {
-		nodeDomain = "localhost"
+		if h.nodeDomain != "" {
+			nodeDomain = h.nodeDomain
+		} else {
+			nodeDomain = "localhost"
+		}
 	}
 
 	var id uuid.UUID
@@ -2359,7 +2442,11 @@ func (h *SystemHandler) upsertSitePageBySlug(w http.ResponseWriter, r *http.Requ
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	if nodeDomain == "" {
-		nodeDomain = "localhost"
+		if h.nodeDomain != "" {
+			nodeDomain = h.nodeDomain
+		} else {
+			nodeDomain = "localhost"
+		}
 	}
 
 	targetSlug := slug
@@ -2406,7 +2493,11 @@ func (h *SystemHandler) resetSitePage(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	if nodeDomain == "" {
-		nodeDomain = "localhost"
+		if h.nodeDomain != "" {
+			nodeDomain = h.nodeDomain
+		} else {
+			nodeDomain = "localhost"
+		}
 	}
 
 	// Obtener el contenido por defecto del seed
@@ -2503,7 +2594,11 @@ func (h *SystemHandler) updateSiteSettings(w http.ResponseWriter, r *http.Reques
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	if nodeDomain == "" {
-		nodeDomain = "localhost"
+		if h.nodeDomain != "" {
+			nodeDomain = h.nodeDomain
+		} else {
+			nodeDomain = "localhost"
+		}
 	}
 
 	if req.HeaderStyle == "" {
@@ -2581,7 +2676,11 @@ func (h *SystemHandler) updateSiteSettings(w http.ResponseWriter, r *http.Reques
 func (h *SystemHandler) listAdmissionRequests(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	if nodeDomain == "" {
-		nodeDomain = "localhost"
+		if h.nodeDomain != "" {
+			nodeDomain = h.nodeDomain
+		} else {
+			nodeDomain = "localhost"
+		}
 	}
 
 	status := r.URL.Query().Get("status")
@@ -2645,7 +2744,11 @@ func (h *SystemHandler) updateSiteAdmissionForm(w http.ResponseWriter, r *http.R
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	if nodeDomain == "" {
-		nodeDomain = "localhost"
+		if h.nodeDomain != "" {
+			nodeDomain = h.nodeDomain
+		} else {
+			nodeDomain = "localhost"
+		}
 	}
 
 	schemaJSON := string(req.Schema)
@@ -2973,7 +3076,11 @@ func (h *SystemHandler) listProductCategories(w http.ResponseWriter, r *http.Req
 		nodeDomain = h.nodeDomain
 	}
 	if nodeDomain == "" {
-		nodeDomain = "localhost"
+		if h.nodeDomain != "" {
+			nodeDomain = h.nodeDomain
+		} else {
+			nodeDomain = "localhost"
+		}
 	}
 	// Obtener todas las combinaciones distintas de (parent_category, category, subcategory)
 	rows, err := h.Pool.Query(r.Context(), `
@@ -3257,7 +3364,11 @@ func (h *SystemHandler) listGovernanceRules(w http.ResponseWriter, r *http.Reque
 		nodeDomain = h.nodeDomain
 	}
 	if nodeDomain == "" {
-		nodeDomain = "localhost"
+		if h.nodeDomain != "" {
+			nodeDomain = h.nodeDomain
+		} else {
+			nodeDomain = "localhost"
+		}
 	}
 
 	// Cargar valores dinamicos de la configuracion real del nodo

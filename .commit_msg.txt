@@ -1,20 +1,25 @@
-fix: demo usa docker CLI directo desde node-app, sin demo-controller
+feat: demo node Ecoaldea Raices del Monte + fix node_domain
 
-Problema: demo-controller usaba nc -l -p 9100 que es fragil y no
-respondia al POST /start. El node-app no podia conectar al controller.
+Demo node ahora es una ecoaldea ficticia completa:
+- "Ecoaldea Raices del Monte" - comunidad montana de permacultura
+- 7 paginas publicas: inicio, quienes-somos, gobernanza, economia,
+  productos, federacion, contacto
+- 4 niveles de miembro: raiz, tronco, rama, brote
+- 13 usuarios individuales con roles especificos
+- 7 organizaciones/tiendas: tienda comunitaria, panaderia, herreria,
+  taller textil, centro de salud, escuela, cooperativa agricola
+- 7 departamentos/comisiones con roles y permisos
+- 7 reglas de gobernanza (consentimiento, admision, trabajo, TQ, etc)
+- 22 productos especificos de montana
+- 10 transacciones simuladas
+- DemoReset para borrar y re-seedear
 
-Solucion:
-- Instalar docker-cli en la imagen del node-app (apk add docker-cli)
-- node-app ya tiene /var/run/docker.sock montado
-- getDemoStatus: docker inspect -f {{.State.Running}} demo-app-1
-- startDemoNode: docker start demo-app-1, o docker compose --profile
-  demo up -d --no-deps demo-app si no existe
-- resetDemoNode: docker restart demo-app-1
-- Eliminada la dependencia del demo-controller para start/stop/status
-
-Tambien:
-- Arreglar demo_seed.go: columna price -> price_per_unit
-  (la migracion 046 la renombro pero el seed seguia usando el viejo)
+Fix node_domain:
+- SystemHandler ahora prefiere h.nodeDomain sobre X-Node-Domain header
+- Todas las funciones de system.go usan h.nodeDomain como fallback
+- Sitemap, HTML estatico y paginas publicas usan el dominio correcto
+- El demo node ahora carga sus propias paginas (node_domain=demo)
+  en vez de las del nodo principal (node_domain=localhost)
 
 Generated with [Devin](https://devin.ai)
 

@@ -15,42 +15,99 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// DemoSeedData crea datos demo genericos para un nodo demo.
-// NO incluye nada de Feria Conuquera - es un nodo limpio generico
-// que habla de la Red de Intercambio Federada.
+// DemoSeedData crea datos demo para una ecoaldea ficticia:
+// "Ecoaldea Raices del Monte" - una comunidad montanosa de permacultura.
+// NO incluye nada de Feria Conuquera ni del nodo principal.
 func DemoSeedData(ctx context.Context, d *DB, nodeDomain string) error {
 	if nodeDomain == "" {
 		nodeDomain = "demo"
 	}
 
-	log.Println("Demo: seeding generic demo data for domain:", nodeDomain)
+	log.Println("Demo: seeding Ecoaldea Raices del Monte for domain:", nodeDomain)
 
-	// 1. Crear paginas publicas genericas (no Feria Conuquera)
-	if err := demoSeedPages(ctx, d, nodeDomain); err != nil {
-		log.Printf("Demo: warning seeding pages: %v", err)
-	}
-
-	// 2. Crear productos demo genericos
-	if err := demoSeedProducts(ctx, d, nodeDomain); err != nil {
-		log.Printf("Demo: warning seeding products: %v", err)
-	}
-
-	// 3. Crear usuarios demo
-	if err := demoSeedUsers(ctx, d, nodeDomain); err != nil {
-		log.Printf("Demo: warning seeding users: %v", err)
-	}
-
-	// 4. Crear transacciones simuladas
-	if err := demoSeedTransactions(ctx, d, nodeDomain); err != nil {
-		log.Printf("Demo: warning seeding transactions: %v", err)
-	}
-
-	// 5. Crear configuracion del nodo demo
+	// 1. Configuracion del nodo
 	if err := demoSeedNodeConfig(ctx, d, nodeDomain); err != nil {
 		log.Printf("Demo: warning seeding node config: %v", err)
 	}
 
-	log.Println("Demo: seed completed")
+	// 2. Paginas publicas de la ecoaldea
+	if err := demoSeedPages(ctx, d, nodeDomain); err != nil {
+		log.Printf("Demo: warning seeding pages: %v", err)
+	}
+
+	// 3. Niveles de miembro
+	if err := demoSeedMemberLevels(ctx, d, nodeDomain); err != nil {
+		log.Printf("Demo: warning seeding member levels: %v", err)
+	}
+
+	// 4. Productos de la ecoaldea
+	if err := demoSeedProducts(ctx, d, nodeDomain); err != nil {
+		log.Printf("Demo: warning seeding products: %v", err)
+	}
+
+	// 5. Usuarios y organizaciones
+	if err := demoSeedUsers(ctx, d, nodeDomain); err != nil {
+		log.Printf("Demo: warning seeding users: %v", err)
+	}
+
+	// 6. Departamentos y comisiones
+	demoSeedDepartments(ctx, d, nodeDomain)
+
+	// 7. Reglas de gobernanza
+	demoSeedGovernance(ctx, d, nodeDomain)
+
+	// 8. Transacciones simuladas
+	if err := demoSeedTransactions(ctx, d, nodeDomain); err != nil {
+		log.Printf("Demo: warning seeding transactions: %v", err)
+	}
+
+	log.Println("Demo: seed completed for Ecoaldea Raices del Monte")
+	return nil
+}
+
+func demoSeedNodeConfig(ctx context.Context, d *DB, nodeDomain string) error {
+	// Actualizar el node_config con la identidad de la ecoaldea
+	_, err := d.Pool.Exec(ctx, `
+		UPDATE node_config SET
+			node_name = 'Ecoaldea Raices del Monte',
+			currency_name = 'TQ',
+			currency_full_name = 'Trueque Comunitario',
+			app_name = 'Raices del Monte'
+		WHERE node_domain = $1`, nodeDomain)
+	if err != nil {
+		return fmt.Errorf("update node_config: %w", err)
+	}
+	return nil
+}
+
+func demoSeedMemberLevels(ctx context.Context, d *DB, nodeDomain string) error {
+	// Crear niveles de miembro especificos de la ecoaldea
+	levels := []struct {
+		name, desc                string
+		level                     int
+		hasVoice, hasVote, quorum bool
+		credit, debit             int
+	}{
+		{"raiz", "Miembro Raiz - fundador/a de la ecoaldea, voz y voto en todas las decisiones", 100, true, true, true, 5000, 5000},
+		{"tronco", "Miembro Tronco - con mas de 2 anios, voz y voto en asamblea", 50, true, true, true, 3000, 3000},
+		{"rama", "Miembro Rama - con mas de 6 meses, voz en asamblea, voto en comisiones", 20, true, true, false, 1500, 1500},
+		{"brote", "Miembro Brote - recien ingresado/a, voz en asamblea, sin voto", 10, true, false, false, 500, 500},
+	}
+
+	for _, l := range levels {
+		var existing int
+		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM member_levels WHERE node_domain = $1 AND name = $2`, nodeDomain, l.name).Scan(&existing)
+		if existing > 0 {
+			continue
+		}
+		_, err := d.Pool.Exec(ctx, `
+			INSERT INTO member_levels (id, node_domain, name, description, level, has_voice, has_vote, counts_in_quorum, is_active, credit_limit, debit_limit)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, $9, $10)`,
+			uuid.New(), nodeDomain, l.name, l.desc, l.level, l.hasVoice, l.hasVote, l.quorum, l.credit, l.debit)
+		if err != nil {
+			log.Printf("Demo: error creating level %s: %v", l.name, err)
+		}
+	}
 	return nil
 }
 
@@ -58,104 +115,186 @@ func demoSeedPages(ctx context.Context, d *DB, nodeDomain string) error {
 	pages := []seedPage{
 		{
 			Slug:      "inicio",
-			Title:     "Inicio",
-			Subtitle:  "Red de Intercambio Federada - Nodo Demo",
+			Title:     "Ecoaldea Raices del Monte",
+			Subtitle:  "Comunidad montana de permacultura e intercambio",
 			MenuOrder: 1,
 			Content: `[
   {
     "type": "hero",
-    "badge": "🌐 Nodo Demo - Red de Intercambio Federada",
-    "title": "Bienvenido al Nodo Demo",
-    "subtitle": "Explora libremente el sistema. Los cambios se reinician cada 24 horas.",
-    "description": "Este es un nodo de demostracion de la plataforma Red de Intercambio Federada. Puedes navegar por todas las funciones, ver productos, asambleas, organizaciones y mas. Los datos se reinician automaticamente cada 24 horas para que siempre encuentres el sistema limpio.",
+    "badge": "Raices del Monte - Ecoaldea Federada",
+    "title": "Ecoaldea Raices del Monte",
+    "subtitle": "Una comunidad montana que vive en armonia con la tierra",
+    "description": "Somos una ecoaldea de 28 familias en las montanas, dedicadas a la permacultura, la agroecologia y el intercambio comunitario. Usamos el Trueque Comunitario (TQ) como nuestra moneda interna, basada en el contenido energetico real de cada producto y servicio.",
     "primary_cta": { "text": "Ver Catalogo", "link": "/p/productos" },
-    "secondary_cta": { "text": "Como Funciona", "link": "/p/como-funciona" },
+    "secondary_cta": { "text": "Conocenos", "link": "/p/quienes-somos" },
     "style": "centered"
   },
   {
     "type": "stats",
-    "title": "El Sistema en Numeros",
-    "subtitle": "Datos de demostracion del nodo demo",
+    "title": "Nuestra Comunidad en Numeros",
+    "subtitle": "Datos reales de Raices del Monte",
     "bg_theme": "primary",
     "items": [
-      { "value": "15+", "label": "Funciones", "description": "Gobernanza, economia, federacion, NFC y mas" },
-      { "value": "100+", "label": "Productos", "description": "Catalogo con precios basados en energia" },
-      { "value": "24h", "label": "Reset Automatico", "description": "Los datos se reinician cada dia" },
-      { "value": "Gratis", "label": "Plataforma Libre", "description": "Sin costos, con asesoria incluida" }
+      { "value": "28", "label": "Familias", "description": "Viviendo en la ecoaldea" },
+      { "value": "120", "label": "Hectareas", "description": "De bosque, cultivo y pasto" },
+      { "value": "15", "label": "Anios", "description": "Como comunidad organizada" },
+      { "value": "100%", "label": "Energia Solar", "description": "Autosuficiencia energetica" }
+    ]
+  },
+  {
+    "type": "features",
+    "title": "Que hacemos",
+    "columns": [
+      { "icon": "leaf", "title": "Permacultura", "description": "Disenamos sistemas alimentarios sostenibles siguiendo los principios de permacultura. Huertos en espiral, bancales, agroforesteria." },
+      { "icon": "droplet", "title": "Agua y Bosque", "description": "Captacion de agua de lluvia, tratamiento con plantas, reforestacion con especies nativas." },
+      { "icon": "sun", "title": "Energia Renovable", "description": "Paneles solares, cocinas solares, secadores solares. Cero dependencia de combustibles fosiles." },
+      { "icon": "users", "title": "Gobernanza", "description": "Asambleas mensuales, toma de decisiones por consentimiento, comisiones por area." }
     ]
   }
 ]`,
 		},
 		{
-			Slug:      "como-funciona",
-			Title:     "Como Funciona",
-			Subtitle:  "Entendiendo la Red de Intercambio Federada",
+			Slug:      "quienes-somos",
+			Title:     "Quienes Somos",
+			Subtitle:  "Nuestra historia y valores",
 			MenuOrder: 2,
 			Content: `[
   {
     "type": "hero",
-    "badge": "💡 Como Funciona",
-    "title": "Una plataforma para ecoaldeas y comunidades",
-    "subtitle": "Economia, gobernanza e intercambio en un solo sistema",
-    "description": "Cada ecoaldea o comunidad que se instala funciona como un nodo independiente. El nodo tiene su propia gobernanza, su propia moneda comunitaria (TQ), y puede federarse con otros nodos para intercambiar.",
+    "badge": "Nuestra Historia",
+    "title": "De grupo de amigos a ecoaldea",
+    "subtitle": "15 anios construyendo comunidad",
+    "description": "Raices del Monte nacio en 2010 cuando un grupo de 5 familias compro una finca ganadera degradada en las montanas. Poco a poco fuimos regenerando el suelo, plantando arboles nativos, construyendo viviendas con materiales locales y creando un sistema de intercambio interno basado en el trueque.",
     "style": "centered"
   },
   {
     "type": "features",
-    "title": "Pilares del Sistema",
+    "title": "Nuestros Valores",
     "columns": [
-      { "icon": "scale", "title": "Gobernanza", "description": "Asambleas, votaciones, niveles de miembro, admisiones. Todo configurable por cada comunidad." },
-      { "icon": "leaf", "title": "Economia TQ", "description": "Moneda comunitaria basada en energia (kWh/Joule). Sin inflacion, sin interes, sin bancos." },
-      { "icon": "network", "title": "Federacion", "description": "Cada nodo puede comerciar con otros nodos federados. Autonomia total, comercio justo." },
-      { "icon": "users", "title": "Comunidad", "description": "Organizaciones, departamentos, NFC, notificaciones, recuperacion de cuentas." }
+      { "icon": "heart", "title": "Cuidado Mutuo", "description": "Nos cuidamos entre todos. La salud, la educacion y la alimentacion son responsabilidades compartidas." },
+      { "icon": "leaf", "title": "Regeneracion", "description": "No solo sostenemos, regeneramos. Cada ano el bosque crece, el suelo mejora, el agua es mas abundante." },
+      { "icon": "scale", "title": "Justicia Economica", "description": "El TQ (Trueque Comunitario) se basa en la energia real de cada producto. Nadie se enriquece a expensas de otros." },
+      { "icon": "users", "title": "Autonomia", "description": "Tomamos nuestras propias decisiones en asamblea. No dependemos de bancos ni de gobiernos." }
     ]
+  },
+  {
+    "type": "text",
+    "title": "Como nos organizamos",
+    "body": "Tenemos 4 niveles de membresia: Raiz (fundadores), Tronco (mas de 2 anios), Rama (mas de 6 meses) y Brote (recien ingresados). Las decisiones importantes se toman en asamblea mensual por consentimiento. Las decisiones operativas las toman las comisiones: Economia, Educacion, Salud, Ambiente, Admision y Construccion."
+  }
+]`,
+		},
+		{
+			Slug:      "gobernanza",
+			Title:     "Gobernanza",
+			Subtitle:  "Como tomamos decisiones",
+			MenuOrder: 3,
+			Content: `[
+  {
+    "type": "hero",
+    "badge": "Sociocracia Adaptada",
+    "title": "Decisiones por consentimiento",
+    "subtitle": "No votamos, buscamos consentimiento",
+    "description": "En Raices del Monte no usamos votacion mayoritaria. Usamos el consentimiento: una decision se toma cuando nadie tiene una objection fundamentada. Esto asegura que todas las voces sean escuchadas y que las decisiones sean suficientemente buenas para avanzar.",
+    "style": "centered"
+  },
+  {
+    "type": "features",
+    "title": "Estructura de Gobernanza",
+    "columns": [
+      { "icon": "users", "title": "Asamblea General", "description": "Mensual. Todos los miembros con voz. Decisiones estrategicas, presupuesto, admisiones." },
+      { "icon": "network", "title": "Comisiones", "description": "6 comisiones autonomas: Economia, Educacion, Salud, Ambiente, Admision, Construccion." },
+      { "icon": "scale", "title": "Consejo de Vision", "description": "3 miembros Raiz que custodian la vision y valores de la ecoaldea." },
+      { "icon": "clipboard", "title": "Protocolos", "description": "Cada decision se documenta. Los acuerdos son revisables y mejorables." }
+    ]
+  },
+  {
+    "type": "text",
+    "title": "Niveles de Membresia",
+    "body": "Raiz: Fundadores con voz y voto en todas las decisiones. Tronco: Miembros con mas de 2 anios, voz y voto en asamblea. Rama: Miembros con mas de 6 meses, voz en asamblea y voto en comisiones. Brote: Recien ingresados, voz en asamblea pero sin voto hasta completar 6 meses."
+  }
+]`,
+		},
+		{
+			Slug:      "economia",
+			Title:     "Economia Comunitaria",
+			Subtitle:  "Como funciona el Trueque Comunitario (TQ)",
+			MenuOrder: 4,
+			Content: `[
+  {
+    "type": "hero",
+    "badge": "Trueque Comunitario",
+    "title": "El TQ: moneda energetica",
+    "subtitle": "No es dinero. No es cripto. Es energia.",
+    "description": "El TQ (Trueque Comunitario) es nuestra unidad de intercambio. Se calcula en base al contenido energetico real de cada producto o servicio (kWh/joule). Un kilo de frijol vale 35 TQ porque eso es lo que cuesta producirlo en energia. Sin inflacion, sin interes, sin bancos.",
+    "style": "centered"
+  },
+  {
+    "type": "features",
+    "title": "Principios del TQ",
+    "columns": [
+      { "icon": "zap", "title": "Basado en Energia", "description": "Cada producto vale lo que cuesta producirlo en energia (humana, solar, de insumos)." },
+      { "icon": "ban", "title": "Sin Inflacion", "description": "La energia no se devalua. Un TQ hoy vale lo mismo que en 10 anios." },
+      { "icon": "ban", "title": "Sin Interes", "description": "No hay prestamos con interes. Si necesitas credito, la asamblea lo aprueba." },
+      { "icon": "globe", "title": "Federable", "description": "Podemos intercambiar con otras ecoaldeas federadas usando los mismos principios." }
+    ]
+  }
+]`,
+		},
+		{
+			Slug:      "productos",
+			Title:     "Catalogo",
+			Subtitle:  "Productos y servicios de Raices del Monte",
+			MenuOrder: 5,
+			Content: `[
+  {
+    "type": "hero",
+    "badge": "Catalogo Comunitario",
+    "title": "Lo que producimos",
+    "subtitle": "Agricultura, artesania, servicios y mas",
+    "description": "Todo lo que se produce en la ecoaldea esta en el catalogo. Los precios estan en TQ y reflejan el contenido energetico real de cada producto.",
+    "style": "centered"
   }
 ]`,
 		},
 		{
 			Slug:      "federacion",
 			Title:     "Federacion",
-			Subtitle:  "Suma tu ecoaldea a la red",
-			MenuOrder: 3,
+			Subtitle:  "Red de Ecoaldeas",
+			MenuOrder: 6,
 			Content: `[
   {
     "type": "hero",
-    "badge": "🌐 Federacion de Ecoaldeas",
-    "title": "La red crece con cada comunidad",
-    "subtitle": "Mientras mas nodos, mas versatil e independiente",
-    "description": "Cada ecoaldea que se suma a la federacion amplía la red de comercio justo. Como Visa agrupa comercios, nuestra federacion agrupa ecoaldeas. Pero cada comunidad mantiene su autonomia y sus normas.",
+    "badge": "Red Federada",
+    "title": "No estamos solos",
+    "subtitle": "La red crece con cada comunidad",
+    "description": "Raices del Monte es parte de la Red de Intercambio Federada. Esto significa que podemos comerciar con otras ecoaldeas y comunidades que usan el mismo sistema. Cada nodo es autonomo pero puede intercambiar productos, servicios y conocimiento.",
     "style": "centered"
-  }
-]`,
-		},
-		{
-			Slug:      "productos",
-			Title:     "Productos",
-			Subtitle:  "Catalogo con precios energeticos",
-			MenuOrder: 4,
-			Content: `[
+  },
   {
-    "type": "hero",
-    "badge": "🛒 Catalogo Demo",
-    "title": "Productos del Nodo Demo",
-    "subtitle": "Precios calculados por energia (kWh/Joule)",
-    "description": "Estos son productos de demostracion. Los precios estan calculados en base al consumo energetico real de producir cada item.",
-    "style": "centered"
+    "type": "features",
+    "title": "Ventajas de Federarse",
+    "columns": [
+      { "icon": "globe", "title": "Comercio Entre Nodos", "description": "Vender tus productos a otras ecoaldeas y comprar lo que tu no produces." },
+      { "icon": "users", "title": "Intercambio de Conocimiento", "description": "Talleres, capacitaciones y experiencias compartidas entre comunidades." },
+      { "icon": "shield", "title": "Resiliencia", "description": "Si un nodo tiene problemas, otros pueden ayudar. Solidaridad practica." },
+      { "icon": "leaf", "title": "Autonomia Total", "description": "Cada nodo mantiene sus normas, su cultura y sus decisiones. Nadie impone nada." }
+    ]
   }
 ]`,
 		},
 		{
 			Slug:      "contacto",
 			Title:     "Contacto",
-			Subtitle:  "Quieres sumar tu ecoaldea?",
-			MenuOrder: 5,
+			Subtitle:  "Quieres visitarnos o unirte?",
+			MenuOrder: 7,
 			Content: `[
   {
     "type": "contact",
-    "title": "Contacto",
-    "subtitle": "Escribenos para sumar tu comunidad",
-    "description": "Si tienes una ecoaldea, comunidad o quieres crear una, escribenos. La plataforma es gratuita e incluye asesoria.",
-    "email": "contacto@redfederada.org",
+    "title": "Visita Raices del Monte",
+    "subtitle": "Recibimos visitantes y nuevos miembros",
+    "description": "Si tienes una ecoaldea, comunidad o quieres crear una, puedes contactarnos. Tambien recibimos voluntarios y visitantes. Organizamos jornadas de puertas abiertas cada primer domingo de mes.",
+    "email": "contacto@raicesdelmonte.org",
     "show_form": true
   }
 ]`,
@@ -180,45 +319,48 @@ func demoSeedPages(ctx context.Context, d *DB, nodeDomain string) error {
 }
 
 func demoSeedProducts(ctx context.Context, d *DB, nodeDomain string) error {
-	// Productos demo genericos (una muestra representativa)
+	// Productos especificos de Ecoaldea Raices del Monte
 	products := []struct {
 		parentCat, cat, subcat, name, unit, desc, badge, image string
 		price                                                  int
 	}{
-		// Agricultura
-		{"Agricultura", "Cultivos", "Granos", "Frijol negro (1kg)", "kg", "Frijol negro organico secado al sol", "organico", "https://images.unsplash.com/photo-1515543237350-b3eea1ec8082?w=400", 35},
-		{"Agricultura", "Cultivos", "Granos", "Maiz criollo (1kg)", "kg", "Maiz criollo nativo para arepas", "nativo", "https://images.unsplash.com/photo-1551754655-cd27e38d2076?w=400", 30},
-		{"Agricultura", "Cultivos", "Hortalizas", "Tomate perita (1kg)", "kg", "Tomate perita de cultivo agroecologico", "fresco", "https://images.unsplash.com/photo-1546470427-e26264be0b0d?w=400", 25},
-		{"Agricultura", "Cultivos", "Hortalizas", "Lechuga batavia", "unidad", "Lechuga batavia fresca cosechada hoy", "fresco", "https://images.unsplash.com/photo-1622205313162-4c6d8a7d8a7d?w=400", 15},
-		{"Agricultura", "Cultivos", "Raices", "Yuca (1kg)", "kg", "Yuca fresca de conuco", "nativo", "https://images.unsplash.com/photo-1607305387299-a3d96ab82b4b?w=400", 20},
-		{"Agricultura", "Cultivos", "Frutas", "Platano (1kg)", "kg", "Platano de sombra organico", "organico", "https://images.unsplash.com/photo-1571771019784-3ff35f4f4277?w=400", 18},
-		{"Agricultura", "Cultivos", "Frutas", "Mango (1kg)", "kg", "Mango de temporada", "temporal", "https://images.unsplash.com/photo-1553279768-465771b8d3db?w=400", 22},
+		// Agricultura de montana
+		{"Agricultura", "Cultivos", "Granos", "Frijol negro de altura (1kg)", "kg", "Frijol negro cultivado a 1200m, secado al sol", "organico", "https://images.unsplash.com/photo-1515543237350-b3eea1ec8082?w=400", 35},
+		{"Agricultura", "Cultivos", "Granos", "Quinua andina (1kg)", "kg", "Quinua cultivada en bancales de montana", "nativo", "https://images.unsplash.com/photo-1564093497595-593b0d4be6a0?w=400", 45},
+		{"Agricultura", "Cultivos", "Hortalizas", "Tomate de huerto (1kg)", "kg", "Tomate perita de cultivo agroecologico", "fresco", "https://images.unsplash.com/photo-1546470427-e26264be0b0d?w=400", 25},
+		{"Agricultura", "Cultivos", "Hortalizas", "Lechuga de bancale", "unidad", "Lechuga batavia de bancal elevado", "fresco", "https://images.unsplash.com/photo-1622205313162-4c6d8a7d8a7d?w=400", 15},
+		{"Agricultura", "Cultivos", "Raices", "Ocumo de montana (1kg)", "kg", "Ocumo nativo de sombra", "nativo", "https://images.unsplash.com/photo-1607305387299-a3d96ab82b4b?w=400", 20},
+		{"Agricultura", "Cultivos", "Frutas", "Guayaba de rio (1kg)", "kg", "Guayaba de arboles a orillas del arroyo", "temporal", "https://images.unsplash.com/photo-1553279768-465771b8d3db?w=400", 22},
+		{"Agricultura", "Cultivos", "Frutas", "Mora de monte (500g)", "paquete", "Mora silvestre recolectada en el bosque", "silvestre", "https://images.unsplash.com/photo-1543528176-61b239494933?w=400", 30},
 
-		// Alimentacion
-		{"Alimentacion", "Derivados", "Lacteos", "Queso fresco (500g)", "unidad", "Queso fresco artesanal", "artesanal", "https://images.unsplash.com/photo-1452195100486-9cc805987862?w=400", 60},
-		{"Alimentacion", "Derivados", "Panaderia", "Pan integral (1kg)", "kg", "Pan integral de masa madre", "artesanal", "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400", 45},
-		{"Alimentacion", "Derivados", "Conservas", "Mermelada de guayaba", "frasco", "Mermelada artesanal sin conservantes", "artesanal", "https://images.unsplash.com/photo-1505253716362-afaea1d3d1a0?w=400", 40},
+		// Derivados artesanales
+		{"Alimentacion", "Derivados", "Lacteos", "Queso de cabra (500g)", "unidad", "Queso fresco de cabras lecheras", "artesanal", "https://images.unsplash.com/photo-1452195100486-9cc805987862?w=400", 60},
+		{"Alimentacion", "Derivados", "Panaderia", "Pan de quinua (1kg)", "kg", "Pan integral hecho con harina de quinua del huerto", "artesanal", "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400", 50},
+		{"Alimentacion", "Derivados", "Conservas", "Mermelada de mora", "frasco", "Mermelada artesanal de mora de monte", "artesanal", "https://images.unsplash.com/photo-1505253716362-afaea1d3d1a0?w=400", 40},
+		{"Alimentacion", "Derivados", "Miel", "Miel de montana (250ml)", "frasco", "Miel pura de abejas nativas sin agroticos", "natural", "https://images.unsplash.com/photo-1587062259928-8f3d8c5c7f3a?w=400", 70},
 
-		// Artesania
-		{"Artesania", "Textiles", "Tejidos", "Hamaca de algodon", "unidad", "Hamaca tejida a mano en algodon", "artesanal", "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=400", 200},
-		{"Artesania", "Ceramica", "Vajilla", "Set 4 platos de barro", "set", "Platos de barro cocido artesanales", "artesanal", "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=400", 150},
-		{"Artesania", "Madera", "Muebles", "Banco de madera", "unidad", "Banco rustico de madera local", "artesanal", "https://images.unsplash.com/photo-1503602642458-232111445657?w=400", 300},
+		// Artesania local
+		{"Artesania", "Textiles", "Tejidos", "Ruana de lana (unidad)", "unidad", "Ruana tejida a mano con lana de ovejas de la comunidad", "artesanal", "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=400", 250},
+		{"Artesania", "Ceramica", "Vajilla", "Set 4 cuencos de barro", "set", "Cuencos de barro cocido hechos con arcilla local", "artesanal", "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=400", 150},
+		{"Artesania", "Madera", "Muebles", "Banco de madera de cedro", "unidad", "Banco rustico de cedro del bosque comunitario", "artesanal", "https://images.unsplash.com/photo-1503602642458-232111445657?w=400", 300},
+		{"Artesania", "Cesteria", "Cestas", "Cesta de bambu (mediana)", "unidad", "Cesta tejida con bambu del bosque", "artesanal", "https://images.unsplash.com/photo-1595777226618-2e0a8c4c4c4c?w=400", 80},
 
 		// Herramientas
-		{"Herramientas", "Agricolas", "Manuales", "Machete con funda", "unidad", "Machete de acero con funda de cuero", "util", "https://images.unsplash.com/photo-1592924357178-9c5b8b3a3a3a?w=400", 120},
-		{"Herramientas", "Agricolas", "Manuales", "Pala de mango largo", "unidad", "Pala agricola de mango de madera", "util", "", 80},
+		{"Herramientas", "Agricolas", "Manuales", "Azadon de montana", "unidad", "Azadon forjado en la herreria comunitaria", "util", "", 100},
+		{"Herramientas", "Agricolas", "Manuales", "Tijeras de podar", "unidad", "Tijeras de podar afiladas en taller", "util", "", 60},
 
-		// Salud
-		{"Salud y Medicina", "Natural", "Hierbas", "Te de hierbas (100g)", "paquete", "Mezcla de hierbas medicinales secas", "natural", "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=400", 25},
-		{"Salud y Medicina", "Natural", "Aceites", "Aceite de coco (250ml)", "botella", "Aceite de coco prensado en frio", "natural", "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=400", 50},
+		// Salud natural
+		{"Salud y Medicina", "Natural", "Hierbas", "Te de hierbas del monte (100g)", "paquete", "Mezcla de hierbas medicinales del bosque: toronjil, malojillo, llanten", "natural", "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=400", 25},
+		{"Salud y Medicina", "Natural", "Aceites", "Aceite de romero (100ml)", "botella", "Aceite esencial de romero del huerto", "natural", "", 45},
 
-		// Servicios
-		{"Servicios", "Comunitarios", "Educacion", "Taller de agroecologia (2h)", "taller", "Taller practico de agroecologia para principiantes", "educativo", "", 100},
-		{"Servicios", "Comunitarios", "Transporte", "Transporte de cosecha", "viaje", "Transporte de cosecha dentro de la comunidad", "servicio", "", 80},
+		// Servicios comunitarios
+		{"Servicios", "Comunitarios", "Educacion", "Taller de permacultura (4h)", "taller", "Taller practico de permacultura para visitantes", "educativo", "", 120},
+		{"Servicios", "Comunitarios", "Educacion", "Curso de agroecologia (8 sesiones)", "curso", "Curso completo de agroecologia de montana", "educativo", "", 500},
+		{"Servicios", "Comunitarios", "Transporte", "Transporte en mula", "viaje", "Transporte de carga en mula por senderos", "servicio", "", 80},
+		{"Servicios", "Comunitarios", "Construccion", "Mano de obra en construccion natural", "jornada", "Jornada de trabajo en construccion con barro y paja", "servicio", "", 100},
 	}
 
 	for _, p := range products {
-		// Verificar si ya existe
 		var existing int
 		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM products WHERE node_domain = $1 AND name = $2`, nodeDomain, p.name).Scan(&existing)
 		if existing > 0 {
@@ -237,59 +379,60 @@ func demoSeedProducts(ctx context.Context, d *DB, nodeDomain string) error {
 }
 
 func demoSeedUsers(ctx context.Context, d *DB, nodeDomain string) error {
-	// Obtener niveles existentes
-	var adminLevelID, activeLevelID, newLevelID string
-	d.Pool.QueryRow(ctx, `SELECT id::text FROM member_levels WHERE node_domain = $1 AND name = 'admin' ORDER BY level DESC LIMIT 1`, nodeDomain).Scan(&adminLevelID)
-	d.Pool.QueryRow(ctx, `SELECT id::text FROM member_levels WHERE node_domain = $1 AND name = 'activo' ORDER BY level DESC LIMIT 1`, nodeDomain).Scan(&activeLevelID)
-	d.Pool.QueryRow(ctx, `SELECT id::text FROM member_levels WHERE node_domain = $1 AND name = 'new' ORDER BY level DESC LIMIT 1`, nodeDomain).Scan(&newLevelID)
-	if adminLevelID == "" {
-		// Usar el nivel mas alto
-		d.Pool.QueryRow(ctx, `SELECT id::text FROM member_levels WHERE node_domain = $1 ORDER BY level DESC LIMIT 1`, nodeDomain).Scan(&adminLevelID)
+	// Obtener niveles
+	var raizLevelID, troncoLevelID, ramaLevelID, broteLevelID string
+	d.Pool.QueryRow(ctx, `SELECT id::text FROM member_levels WHERE node_domain = $1 AND name = 'raiz' LIMIT 1`, nodeDomain).Scan(&raizLevelID)
+	d.Pool.QueryRow(ctx, `SELECT id::text FROM member_levels WHERE node_domain = $1 AND name = 'tronco' LIMIT 1`, nodeDomain).Scan(&troncoLevelID)
+	d.Pool.QueryRow(ctx, `SELECT id::text FROM member_levels WHERE node_domain = $1 AND name = 'rama' LIMIT 1`, nodeDomain).Scan(&ramaLevelID)
+	d.Pool.QueryRow(ctx, `SELECT id::text FROM member_levels WHERE node_domain = $1 AND name = 'brote' LIMIT 1`, nodeDomain).Scan(&broteLevelID)
+	if raizLevelID == "" {
+		d.Pool.QueryRow(ctx, `SELECT id::text FROM member_levels WHERE node_domain = $1 ORDER BY level DESC LIMIT 1`, nodeDomain).Scan(&raizLevelID)
 	}
-	if newLevelID == "" {
-		newLevelID = adminLevelID
+	if troncoLevelID == "" {
+		troncoLevelID = raizLevelID
 	}
-	if activeLevelID == "" {
-		activeLevelID = newLevelID
+	if ramaLevelID == "" {
+		ramaLevelID = troncoLevelID
+	}
+	if broteLevelID == "" {
+		broteLevelID = ramaLevelID
 	}
 
-	// Crear credenciales (password demo1234 para todos)
 	pinHash, _ := bcrypt.GenerateFromPassword([]byte("demo1234"), bcrypt.DefaultCost)
 
+	// Usuarios individuales de la ecoaldea
 	users := []struct {
 		username, displayName, levelID, accountType string
 		credit, debit                               int
 		isSuperAdmin                                bool
 	}{
-		// Super admin
-		{"demo", "Super Admin Demo", adminLevelID, "individual", 500, 500, true},
-		// Junta Directiva
-		{"presidente", "Presidente de la Asamblea", adminLevelID, "individual", 1000, 1000, false},
-		{"vicepresidente", "Vicepresidente", adminLevelID, "individual", 800, 800, false},
-		{"tesorero", "Tesorero/a", adminLevelID, "individual", 800, 800, false},
-		{"secretario", "Secretario/a", adminLevelID, "individual", 600, 600, false},
-		{"vocal1", "Vocal Principal", activeLevelID, "individual", 500, 500, false},
-		{"vocal2", "Vocal Suplente", activeLevelID, "individual", 500, 500, false},
-		// Miembros activos
-		{"maria", "Maria Gonzalez - Agricultora", activeLevelID, "individual", 500, 500, false},
-		{"juan", "Juan Perez - Productor", activeLevelID, "individual", 500, 500, false},
-		{"carlos", "Carlos Mendoza - Artesano", activeLevelID, "individual", 400, 400, false},
-		{"ana", "Ana Ruiz - Panadera", activeLevelID, "individual", 400, 400, false},
-		{"luis", "Luis Torres - Mecanico", activeLevelID, "individual", 300, 300, false},
-		{"patricia", "Patricia Diaz - Maestra", activeLevelID, "individual", 300, 300, false},
-		// Miembro nuevo
-		{"nuevo1", "Pedro Nuevo - Recien ingresado", newLevelID, "individual", 100, 100, false},
+		// Super admin (demo)
+		{"demo", "Admin Demo - Raices del Monte", raizLevelID, "individual", 5000, 5000, true},
+		// Miembros Raiz (fundadores)
+		{"elena", "Elena Bravo - Fundadora, permacultora", raizLevelID, "individual", 3000, 3000, false},
+		{"marcos", "Marcos Soto - Fundador, herrero", raizLevelID, "individual", 3000, 3000, false},
+		{"sofia", "Sofia Lara - Fundadora, partera", raizLevelID, "individual", 3000, 3000, false},
+		// Miembros Tronco
+		{"andrea", "Andrea Paz - Coordinadora de Economia", troncoLevelID, "individual", 2000, 2000, false},
+		{"diego", "Diego Campos - Encargado del bosque", troncoLevelID, "individual", 2000, 2000, false},
+		{"lucia", "Lucia Mendoza - Maestra de la escuela", troncoLevelID, "individual", 2000, 2000, false},
+		{"pablo", "Pablo Rios - Constructor natural", troncoLevelID, "individual", 2000, 2000, false},
+		// Miembros Rama
+		{"carmen", "Carmen Vega - Panadera", ramaLevelID, "individual", 1500, 1500, false},
+		{"jose", "Jose Torres - Cabrero", ramaLevelID, "individual", 1500, 1500, false},
+		{"raul", "Raul Nunez - Artesano textil", ramaLevelID, "individual", 1500, 1500, false},
+		{"isabel", "Isabel Cruz - Herbalista", ramaLevelID, "individual", 1500, 1500, false},
+		// Miembro Brote (nuevo)
+		{"tomas", "Tomas Gil - Recien ingresado, voluntario", broteLevelID, "individual", 500, 500, false},
 	}
 
 	for _, u := range users {
-		// Verificar si ya existe
 		var existing int
 		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM users WHERE username = $1 AND node_domain = $2`, u.username, nodeDomain).Scan(&existing)
 		if existing > 0 {
 			continue
 		}
 
-		// Generar claves
 		pubKey, privKey, _ := ed25519.GenerateKey(rand.Reader)
 		pubKeyHex := hex.EncodeToString(pubKey)
 		encryptedPrivKey := encryptPrivateKeyDemo(privKey, "demo1234")
@@ -311,7 +454,6 @@ func demoSeedUsers(ctx context.Context, d *DB, nodeDomain string) error {
 			d.Pool.Exec(ctx, `UPDATE users SET is_super_admin = true, super_admin_enabled = true WHERE id = $1`, userID)
 		}
 
-		// Crear credencial
 		d.Pool.Exec(ctx, `
 			INSERT INTO user_credentials (user_id, password_hash, created_at)
 			VALUES ($1, $2, NOW())
@@ -319,20 +461,16 @@ func demoSeedUsers(ctx context.Context, d *DB, nodeDomain string) error {
 			userID, pinHash)
 	}
 
-	// Habilitar el usuario demo en demo_user_config
+	// Habilitar usuario demo
 	d.Pool.Exec(ctx, `UPDATE demo_user_config SET is_enabled = true`)
 
-	// Crear organizaciones
+	// Crear organizaciones (tiendas y servicios)
 	demoSeedOrganizations(ctx, d, nodeDomain)
-
-	// Crear departamentos
-	demoSeedDepartments(ctx, d, nodeDomain)
 
 	return nil
 }
 
 func demoSeedOrganizations(ctx context.Context, d *DB, nodeDomain string) {
-	// Obtener nivel para organizaciones
 	var orgLevelID string
 	d.Pool.QueryRow(ctx, `SELECT id::text FROM member_levels WHERE node_domain = $1 ORDER BY level DESC LIMIT 1`, nodeDomain).Scan(&orgLevelID)
 	if orgLevelID == "" {
@@ -343,11 +481,14 @@ func demoSeedOrganizations(ctx context.Context, d *DB, nodeDomain string) {
 		username, displayName, orgType string
 		credit, debit                  int
 	}{
-		{"coop_agricola", "Cooperativa Agricola La Semilla", "cooperative", 5000, 5000},
-		{"panaderia", "Panaderia Comunitaria El Buen Pan", "commerce", 3000, 3000},
-		{"taller_mecanico", "Taller Mecanico Comunitario", "services", 2000, 2000},
-		{"tienda_arte", "Tienda de Artesania Manos Creativas", "commerce", 2000, 2000},
+		// Tiendas y servicios de la ecoaldea
+		{"tienda_comunitaria", "Tienda Comunitaria La Semilla", "commerce", 5000, 5000},
+		{"panaderia_monte", "Panaderia del Monte", "commerce", 3000, 3000},
+		{"herreria", "Herreria de Marcos", "services", 2000, 2000},
+		{"taller_textil", "Taller Textil Raices", "commerce", 2000, 2000},
 		{"centro_salud", "Centro de Salud Natural", "public_service", 3000, 3000},
+		{"escuela", "Escuela Primaria Raices", "public_service", 2000, 2000},
+		{"coop_agricola", "Cooperativa Agricola El Bancale", "cooperative", 5000, 5000},
 	}
 
 	for _, org := range orgs {
@@ -374,7 +515,6 @@ func demoSeedOrganizations(ctx context.Context, d *DB, nodeDomain string) {
 			continue
 		}
 
-		// Crear entrada en organizations
 		d.Pool.Exec(ctx, `
 			INSERT INTO organizations (id, node_domain, name, org_type, account_id, is_active, created_at)
 			VALUES ($1, $2, $3, $4, $5, true, NOW())
@@ -387,12 +527,13 @@ func demoSeedDepartments(ctx context.Context, d *DB, nodeDomain string) {
 	depts := []struct {
 		name, desc string
 	}{
-		{"Junta Directiva", "Organos de direccion de la comunidad"},
-		{"Comision de Economia", "Gestion de intercambios y comercio"},
-		{"Comision de Educacion", "Talleres, capacitacion y formacion"},
-		{"Comision de Salud", "Salud comunitaria y medicina natural"},
-		{"Comision de Ambiente", "Gestion ambiental y agroecologia"},
-		{"Comision de Admision", "Revision de solicitudes de nuevos miembros"},
+		{"Consejo de Vision", "Custodia la vision y valores de la ecoaldea. 3 miembros Raiz."},
+		{"Comision de Economia", "Gestiona el TQ, intercambios, tienda comunitaria y comercio federado."},
+		{"Comision de Educacion", "Escuela, talleres, capacitacion, intercambio de conocimiento."},
+		{"Comision de Salud", "Centro de salud natural, primeros auxilios, prevencion."},
+		{"Comision de Ambiente", "Bosque, agua, biodiversidad, regeneracion de suelos."},
+		{"Comision de Admision", "Revision de solicitudes de nuevos miembros, periodo de prueba."},
+		{"Comision de Construccion", "Construcciones naturales, mantenimiento, infraestructura."},
 	}
 
 	for _, dept := range depts {
@@ -408,7 +549,6 @@ func demoSeedDepartments(ctx context.Context, d *DB, nodeDomain string) {
 			ON CONFLICT DO NOTHING`,
 			deptID, dept.name, dept.desc)
 
-		// Crear rol para el departamento
 		roleID := uuid.New()
 		d.Pool.Exec(ctx, `
 			INSERT INTO roles (id, department_id, name, description, is_active, created_at)
@@ -416,7 +556,6 @@ func demoSeedDepartments(ctx context.Context, d *DB, nodeDomain string) {
 			ON CONFLICT DO NOTHING`,
 			roleID, deptID, dept.desc)
 
-		// Asignar todos los permisos
 		rows, err := d.Pool.Query(ctx, `SELECT id FROM permissions`)
 		if err == nil {
 			for rows.Next() {
@@ -429,7 +568,33 @@ func demoSeedDepartments(ctx context.Context, d *DB, nodeDomain string) {
 	}
 }
 
-// encryptPrivateKeyDemo encripta una clave privada con bcrypt (simplificado para demo)
+func demoSeedGovernance(ctx context.Context, d *DB, nodeDomain string) {
+	rules := []struct {
+		title, category, desc, body string
+	}{
+		{"Principio de Consentimiento", "Toma de decisiones", "Las decisiones se toman por consentimiento", "Las decisiones se toman por consentimiento: una propuesta se aprueba cuando nadie tiene una objection fundamentada. No votamos a favor o en contra, preguntamos si alguien tiene una razon para que no se haga."},
+		{"Admision de Miembros", "Membresia", "Proceso de admision de nuevos miembros", "Los nuevos miembros pasan por un periodo de prueba de 6 meses como Brote. Despues, la Comision de Admision evalua y la Asamblea decide por consentimiento. Se requiere patrocinio de un miembro Tronco o Raiz."},
+		{"Trabajo Comunitario", "Obligaciones", "Aportes de trabajo comunitario", "Cada miembro contribuye con 8 horas mensuales de trabajo comunitario: mantenimiento, bosque, construccion, o tareas asignadas por comisiones. Se registra en TQ."},
+		{"Uso del TQ", "Economia", "Normas del Trueque Comunitario", "El TQ es la unica moneda para intercambios internos. No se acepta dinero externo dentro de la ecoaldea. Los intercambios con el exterior se gestionan a traves de la Comision de Economia."},
+		{"Credito Comunitario", "Economia", "Creditos en TQ", "Los creditos en TQ los aprueba la Asamblea. No hay interes. El plazo y condiciones los decide la asamblea caso por caso. El fondo comunitario respalda los creditos."},
+		{"Cuidado del Bosque", "Ambiente", "Normas de manejo del bosque", "El 60% del territorio es bosque protegido. Solo se extrae madera muerta o con permiso de la Comision de Ambiente. Cada miembro planta 10 arboles al ano."},
+		{"Asamblea Mensual", "Gobernanza", "Frecuencia y obligatoriedad", "La asamblea se realiza el primer domingo de cada mes. Es obligatoria para miembros Raiz y Tronco. Miembros Rama y Brote tienen voz pero su asistencia es voluntaria."},
+	}
+
+	for _, rule := range rules {
+		var existing int
+		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM governance_rules WHERE node_domain = $1 AND title = $2`, nodeDomain, rule.title).Scan(&existing)
+		if existing > 0 {
+			continue
+		}
+		d.Pool.Exec(ctx, `
+			INSERT INTO governance_rules (id, node_domain, title, description, category, body, is_active, created_at)
+			VALUES ($1, $2, $3, $4, $5, $6, true, NOW())
+			ON CONFLICT DO NOTHING`,
+			uuid.New(), nodeDomain, rule.title, rule.desc, rule.category, rule.body)
+	}
+}
+
 func encryptPrivateKeyDemo(privKey ed25519.PrivateKey, passphrase string) []byte {
 	key := sha256.Sum256([]byte(passphrase))
 	block, _ := aes.NewCipher(key[:])
@@ -439,139 +604,85 @@ func encryptPrivateKeyDemo(privKey ed25519.PrivateKey, passphrase string) []byte
 	return gcm.Seal(nonce, nonce, privKey, nil)
 }
 
-// demoSeedTransactions crea transacciones simuladas entre usuarios demo
 func demoSeedTransactions(ctx context.Context, d *DB, nodeDomain string) error {
-	// Obtener IDs de usuarios
-	type userPair struct {
-		sender, receiver, senderName, receiverName string
-		amount                                     int64
-		desc                                       string
-	}
-
-	// Buscar IDs por username
 	getUserID := func(username string) string {
 		var id string
 		d.Pool.QueryRow(ctx, `SELECT id::text FROM users WHERE username = $1 AND node_domain = $2`, username, nodeDomain).Scan(&id)
 		return id
 	}
 
-	maria := getUserID("maria")
-	juan := getUserID("juan")
-	carlos := getUserID("carlos")
-	ana := getUserID("ana")
-	luis := getUserID("luis")
-	patricia := getUserID("patricia")
-	coop := getUserID("coop_agricola")
-	panaderia := getUserID("panaderia")
-	taller := getUserID("taller_mecanico")
-	tienda := getUserID("tienda_arte")
-	salud := getUserID("centro_salud")
-	presidente := getUserID("presidente")
+	carmen := getUserID("carmen")
+	jose := getUserID("jose")
+	andrea := getUserID("andrea")
+	diego := getUserID("diego")
+	lucia := getUserID("lucia")
+	isabel := getUserID("isabel")
+	raul := getUserID("raul")
+	tienda := getUserID("tienda_comunitaria")
+	panaderia := getUserID("panaderia_monte")
 
-	if maria == "" || juan == "" {
-		log.Println("Demo: skipping transactions, users not found")
-		return nil
+	type txn struct {
+		sender, receiver, desc string
+		amount                 int64
 	}
 
-	// Transacciones simuladas (varios dias atras)
-	transactions := []userPair{
-		{maria, juan, "Maria", "Juan", 35, "Frijol negro 1kg"},
-		{juan, ana, "Juan", "Ana", 30, "Maiz criollo 1kg"},
-		{ana, carlos, "Ana", "Carlos", 45, "Pan integral 1kg"},
-		{carlos, maria, "Carlos", "Maria", 150, "Set 4 platos de barro"},
-		{luis, taller, "Luis", "Taller", 80, "Transporte de cosecha"},
-		{patricia, salud, "Patricia", "Centro Salud", 25, "Te de hierbas 100g"},
-		{maria, coop, "Maria", "Coop Agricola", 20, "Yuca 1kg"},
-		{ana, panaderia, "Ana", "Panaderia", 45, "Pan integral 1kg"},
-		{juan, tienda, "Juan", "Tienda Arte", 200, "Hamaca de algodon"},
-		{patricia, maria, "Patricia", "Maria", 22, "Mango 1kg"},
-		{coop, maria, "Coop Agricola", "Maria", 18, "Platano 1kg"},
-		{taller, luis, "Taller", "Luis", 120, "Machete con funda"},
-		{salud, patricia, "Centro Salud", "Patricia", 50, "Aceite de coco 250ml"},
-		{presidente, coop, "Presidente", "Coop Agricola", 100, "Taller de agroecologia 2h"},
-		{maria, ana, "Maria", "Ana", 15, "Lechuga batavia"},
+	txns := []txn{
+		{carmen, tienda, "Compra de frijol y quinua", 80},
+		{jose, tienda, "Compra de tijeras de podar", 60},
+		{andrea, panaderia, "Pan de quinua (1kg)", 50},
+		{diego, jose, "Transporte de cosecha en mula", 80},
+		{lucia, isabel, "Te de hierbas del monte", 25},
+		{isabel, carmen, "Queso de cabra (500g)", 60},
+		{raul, tienda, "Compra de ocumo y guayaba", 42},
+		{carmen, raul, "Ruana de lana (encargo)", 250},
+		{andrea, isabel, "Aceite de romero", 45},
+		{diego, panaderia, "Pan de quinua semanal", 50},
 	}
 
-	for i, t := range transactions {
+	for i, t := range txns {
 		if t.sender == "" || t.receiver == "" {
 			continue
 		}
-
-		senderID, _ := uuid.Parse(t.sender)
-		receiverID, _ := uuid.Parse(t.receiver)
-
-		// Crear transaccion
-		txID := uuid.New()
-		// Fecha: hace N dias (repartido en los ultimos 30 dias)
-		daysAgo := (i % 30) + 1
-		interval := fmt.Sprintf("%d days", daysAgo)
-
 		_, err := d.Pool.Exec(ctx, `
-			INSERT INTO transactions (id, tx_type, sender_id, receiver_id, sender_node, receiver_node, amount, tax_amount, status, metadata, created_at, confirmed_at)
-			VALUES ($1, 'transfer', $2, $3, $4, $4, $5, 0, 'confirmed', $6, NOW() - $7::interval, NOW() - $7::interval)`,
-			txID, senderID, receiverID, nodeDomain, t.amount, fmt.Sprintf(`{"description": "%s"}`, t.desc), interval)
+			INSERT INTO transactions (id, node_domain, sender_id, receiver_id, amount, description, status, created_at)
+			VALUES ($1, $2, $3, $4, $5, $6, 'completed', NOW() - interval '%d hours')`,
+			uuid.New(), nodeDomain, t.sender, t.receiver, t.amount, t.desc, i*6)
 		if err != nil {
 			log.Printf("Demo: error creating transaction %d: %v", i, err)
-			continue
 		}
-
-		// Crear ledger entries (double entry)
-		d.Pool.Exec(ctx, `
-			INSERT INTO ledger_entries (transaction_id, account_id, entry_type, amount, account_category, counterpart_node, created_at)
-			VALUES ($1, $2, 'debit', $3, 'individual', $4, NOW() - $5::interval)`,
-			txID, senderID, t.amount, nodeDomain, interval)
-
-		d.Pool.Exec(ctx, `
-			INSERT INTO ledger_entries (transaction_id, account_id, entry_type, amount, account_category, counterpart_node, created_at)
-			VALUES ($1, $2, 'credit', $3, 'individual', $4, NOW() - $5::interval)`,
-			txID, receiverID, t.amount, nodeDomain, interval)
-	}
-
-	log.Printf("Demo: seeded %d transactions", len(transactions))
-	return nil
-}
-
-func demoSeedNodeConfig(ctx context.Context, d *DB, nodeDomain string) error {
-	_, err := d.Pool.Exec(ctx, `
-		UPDATE node_config SET
-			settings = COALESCE(settings, '{}'::jsonb) || '{"is_demo": true, "demo_mode": true}'::jsonb
-		WHERE node_domain = $1`,
-		nodeDomain)
-	if err != nil {
-		log.Printf("Demo: could not update node config (ok if not setup yet): %v", err)
 	}
 	return nil
 }
 
-// DemoReset borra todos los datos del nodo demo y re-seedea
+// DemoReset borra todos los datos del dominio demo y los re-seedea
 func DemoReset(ctx context.Context, d *DB, nodeDomain string) error {
 	if nodeDomain == "" {
 		nodeDomain = "demo"
 	}
+	log.Println("DemoReset: borrando datos del dominio", nodeDomain)
 
-	log.Println("Demo: resetting demo node data...")
-
-	// Borrar datos del dominio demo
+	// Borrar tablas principales del dominio
 	tables := []string{
-		"exchange_transactions",
-		"user_documents",
-		"admission_documents",
-		"admission_requests",
-		"assembly_votes",
-		"assembly_decisions",
-		"products",
-		"public_pages",
+		"transactions",
+		"governance_rules",
+		"role_permissions",
+		"roles",
+		"departments",
+		"organizations",
+		"user_credentials",
 		"users",
-		"node_config",
+		"products",
+		"member_levels",
+		"public_pages",
 	}
-
-	for _, table := range tables {
-		_, err := d.Pool.Exec(ctx, fmt.Sprintf("DELETE FROM %s WHERE node_domain = $1", table), nodeDomain)
+	for _, t := range tables {
+		_, err := d.Pool.Exec(ctx, fmt.Sprintf("DELETE FROM %s WHERE node_domain = $1", t))
 		if err != nil {
-			log.Printf("Demo: warning cleaning %s: %v", table, err)
+			log.Printf("DemoReset: error borrando %s: %v", t, err)
 		}
 	}
 
 	// Re-seedear
+	log.Println("DemoReset: re-seedeando datos")
 	return DemoSeedData(ctx, d, nodeDomain)
 }
