@@ -45,10 +45,10 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Esperar a que YugabyteDB este listo (puede tardar 30-60s en arrancar)
+	// Esperar a que YugabyteDB este listo (puede tardar varios minutos)
 	log.Println("Waiting for database to be ready...")
 	var database *db.DB
-	maxRetries := 30
+	maxRetries := 60
 	for i := 0; i < maxRetries; i++ {
 		database, err = db.Connect(ctx, cfg.Database.ConnString())
 		if err == nil {

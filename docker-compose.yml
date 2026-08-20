@@ -37,7 +37,7 @@ services:
 
   yugabytedb:
     image: yugabytedb/yugabyte:latest
-    command: ["bin/yugabyted", "start", "--base_dir=/mnt/master", "--daemon=false", "--advertise_address=127.0.0.1"]
+    command: ["bin/yugabyted", "start", "--base_dir=/mnt/master", "--daemon=false", "--listen_ip=0.0.0.0", "--advertise_address=yugabytedb"]
     ports:
       - "5433:5433"
       - "7000:7000"
