@@ -19,7 +19,7 @@ database:
   ssl_root_cert: ""
 
 federation:
-  listen_port: 8444
+  listen_port: 9044
   mtls_required: false
   known_nodes: []
   gossip_interval: "60s"
@@ -51,6 +51,6 @@ fund:
   multisig_authorizers: []
 
 api:
-  port: 8081
+  port: 9091
   cors_origins: ["*"]
   rate_limit: 100

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
-import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon, Vote as VoteIcon, Database, Download, Upload, AlertTriangle } from 'lucide-react'
+import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon, Vote as VoteIcon, Database, Download, Upload, AlertTriangle, RefreshCw, Globe } from 'lucide-react'
 
 // Opciones del 1 al 10 para el numero de nivel (seleccionable, no texto libre)
 const LEVEL_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1)
@@ -22,10 +22,11 @@ export default function NodeSettings() {
   const { hasPermission } = usePermissions()
   const canManage = hasPermission('config.manage')
 
-  const [tab, setTab] = useState<'general' | 'levels' | 'org_levels' | 'tariff' | 'backup'>('general')
+  const [tab, setTab] = useState<'general' | 'levels' | 'org_levels' | 'tariff' | 'backup' | 'demo'>('general')
   const [showHelp, setShowHelp] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [demoResetting, setDemoResetting] = useState(false)
 
   // Backup
   const [backupLoading, setBackupLoading] = useState(false)
@@ -236,6 +237,9 @@ export default function NodeSettings() {
         <button onClick={() => setTab('tariff')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'tariff' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Tarifa Energetica</button>
         {canManage && (
           <button onClick={() => setTab('backup')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'backup' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Database size={14} className="inline mr-1" />Copia de Seguridad</button>
+        )}
+        {canManage && (
+          <button onClick={() => setTab('demo')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'demo' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Globe size={14} className="inline mr-1" />Nodo Demo</button>
         )}
       </div>
 
@@ -770,6 +774,70 @@ export default function NodeSettings() {
             <p><strong>Descargar:</strong> Genera un archivo JSON con todas las tablas de la base de datos. Guardalo en un lugar seguro (USB, nube, etc).</p>
             <p><strong>Restaurar:</strong> Sube un archivo JSON de backup. Los registros que ya existan no se duplican. Los que no existan se agregaran.</p>
             <p><strong>Frecuencia recomendada:</strong> Descarga una copia al menos una vez por semana, o antes de hacer cambios importantes.</p>
+          </div>
+        </div>
+      )}
+
+      {/* ===== NODO DEMO ===== */}
+      {tab === 'demo' && canManage && (
+        <div className="card space-y-6">
+          <h2 className="font-semibold flex items-center gap-2"><Globe size={18} />Nodo Demo</h2>
+
+          <div className="card bg-emerald-50 border-emerald-200 space-y-3">
+            <h3 className="font-medium text-sm flex items-center gap-2"><Globe size={16} />Que es el Nodo Demo?</h3>
+            <p className="text-xs text-gray-600">
+              El nodo demo es un nodo paralelo que se instala y actualiza automaticamente con el nodo principal.
+              Tiene su propia base de datos separada y NO toca los datos del nodo principal.
+              Esta disenado para que personas externas puedan probar el sistema sin afectar nada.
+              Los datos se reinician cada 24 horas automaticamente.
+            </p>
+            <div className="text-xs text-gray-600 space-y-1">
+              <p><strong>Puerto:</strong> 9091 (API) / 9044 (Federacion)</p>
+              <p><strong>Base de datos:</strong> fmc_demo (separada de fmc_node)</p>
+              <p><strong>URL:</strong> http://localhost:9091</p>
+              <p><strong>Reset automatico:</strong> Cada 24 horas</p>
+            </div>
+          </div>
+
+          <div className="card bg-amber-50 border-amber-200 space-y-3">
+            <h3 className="font-medium text-sm flex items-center gap-2"><RefreshCw size={16} />Resetear Nodo Demo</h3>
+            <p className="text-xs text-gray-600">
+              Puedes resetear el nodo demo manualmente cuando quieras. Esto borrara todos los datos demo
+              y los recreara desde cero. Util cuando hay actualizaciones del sistema y quieres que el
+              nodo demo refleje los cambios inmediatamente.
+            </p>
+            <button
+              onClick={async () => {
+                if (!confirm('Seguro que quieres resetear el nodo demo? Se borraran todos los datos demo y se recrearan.')) return
+                setDemoResetting(true)
+                setError(''); setSuccess('')
+                try {
+                  await api.post('/admin/demo/reset', {})
+                  setSuccess('Nodo demo reiniciado. Los datos se estan recreando.')
+                } catch (e: any) {
+                  setError(e?.message || 'Error al resetear nodo demo')
+                } finally {
+                  setDemoResetting(false)
+                }
+              }}
+              disabled={demoResetting}
+              className="btn-primary flex items-center gap-2"
+            >
+              <RefreshCw size={16} className={demoResetting ? 'animate-spin' : ''} />
+              {demoResetting ? 'Reiniciando...' : 'Resetear Nodo Demo'}
+            </button>
+          </div>
+
+          <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
+            <h3 className="font-medium flex items-center gap-2"><HelpCircle size={16} />Como funciona el login demo</h3>
+            <p>El nodo demo no usa usuario/contrasena normal. En su lugar, muestra botones con los roles disponibles:</p>
+            <ul className="list-disc list-inside text-xs space-y-1 ml-2">
+              <li>Super Admin - acceso total</li>
+              <li>Junta Directiva - presidente, vicepresidente, tesorero, secretario, vocales</li>
+              <li>Organizaciones - cooperativa, panaderia, taller, tienda, centro de salud</li>
+              <li>Miembros - agricultores, productores, artesanos, miembro nuevo</li>
+            </ul>
+            <p className="text-xs">Cada boton entra directamente con ese rol. Password: demo1234 para todos.</p>
           </div>
         </div>
       )}

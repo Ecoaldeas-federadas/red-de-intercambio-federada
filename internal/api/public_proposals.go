@@ -3,11 +3,13 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"os/exec"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // PublicProposalsHandler maneja propuestas publicas y usuario demo
@@ -28,11 +30,14 @@ func (h *PublicProposalsHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware
 		r.Use(am.RequireAuth)
 		r.With(am.RequirePermission("system.manage")).Get("/api/admin/proposals", h.adminListProposals)
 		r.With(am.RequirePermission("system.manage")).Put("/api/admin/proposals/{id}/status", h.updateProposalStatus)
+		// Resetear nodo demo (ejecuta docker restart demo-app)
+		r.With(am.RequirePermission("system.manage")).Post("/api/admin/demo/reset", h.resetDemoNode)
 	})
 
 	// Demo user
 	r.Get("/api/demo/status", h.getDemoStatus)
 	r.Post("/api/demo/login", h.demoLogin)
+	r.Get("/api/demo/users", h.listDemoUsers) // Lista de usuarios demo para login con botones
 	r.Group(func(r chi.Router) {
 		r.Use(am.RequireAuth)
 		r.With(am.RequirePermission("system.manage")).Put("/api/demo/toggle", h.toggleDemoUser)
@@ -230,35 +235,155 @@ func (h *PublicProposalsHandler) updateProposalStatus(w http.ResponseWriter, r *
 func (h *PublicProposalsHandler) getDemoStatus(w http.ResponseWriter, r *http.Request) {
 	var isEnabled bool
 	h.Pool.QueryRow(r.Context(), `SELECT is_enabled FROM demo_user_config LIMIT 1`).Scan(&isEnabled)
+
+	// Verificar si es nodo demo (dominio "demo")
+	isDemoNode := false
+	nodeDomain := ""
+	var cfgDomain string
+	err := h.Pool.QueryRow(r.Context(), `SELECT node_domain FROM node_config LIMIT 1`).Scan(&cfgDomain)
+	if err == nil {
+		nodeDomain = cfgDomain
+		if cfgDomain == "demo" {
+			isDemoNode = true
+		}
+	}
+
 	writeJSON(w, 200, map[string]interface{}{
-		"enabled":  isEnabled,
-		"username": "demo",
+		"enabled":      isEnabled,
+		"is_demo_node": isDemoNode,
+		"node_domain":  nodeDomain,
 	})
 }
 
-// demoLogin inicia sesion con el usuario demo (si esta habilitado)
-func (h *PublicProposalsHandler) demoLogin(w http.ResponseWriter, r *http.Request) {
-	var isEnabled bool
-	h.Pool.QueryRow(r.Context(), `SELECT is_enabled FROM demo_user_config LIMIT 1`).Scan(&isEnabled)
-	if !isEnabled {
-		writeError(w, 403, "usuario demo no disponible actualmente")
+// listDemoUsers devuelve la lista de usuarios demo para login con botones
+// Solo disponible en nodo demo
+func (h *PublicProposalsHandler) listDemoUsers(w http.ResponseWriter, r *http.Request) {
+	// Verificar que es nodo demo
+	var nodeDomain string
+	h.Pool.QueryRow(r.Context(), `SELECT node_domain FROM node_config LIMIT 1`).Scan(&nodeDomain)
+	if nodeDomain != "demo" {
+		writeError(w, 403, "not a demo node")
 		return
 	}
 
-	// Buscar el usuario demo en la BD
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT u.id, u.username, u.display_name, u.account_type, u.is_super_admin,
+		       COALESCE(ml.name, '') as level_name
+		FROM users u
+		LEFT JOIN member_levels ml ON u.member_level_id = ml.id
+		WHERE u.membership_status = 'active'
+		ORDER BY u.is_super_admin DESC, u.account_type, u.username`)
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+
+	var users []map[string]interface{}
+	for rows.Next() {
+		var id uuid.UUID
+		var username, displayName, accountType, levelName string
+		var isSuperAdmin bool
+		if err := rows.Scan(&id, &username, &displayName, &accountType, &isSuperAdmin, &levelName); err != nil {
+			continue
+		}
+
+		// Determinar rol para mostrar
+		role := "Miembro"
+		if isSuperAdmin {
+			role = "Super Admin"
+		} else if accountType == "organization" {
+			role = "Organizacion"
+		} else if levelName == "admin" || levelName == "Admin" {
+			role = "Directivo"
+		} else if levelName == "activo" || levelName == "Activo" {
+			role = "Miembro Activo"
+		} else if levelName == "new" {
+			role = "Miembro Nuevo"
+		}
+
+		users = append(users, map[string]interface{}{
+			"id":             id.String(),
+			"username":       username,
+			"display_name":   displayName,
+			"account_type":   accountType,
+			"role":           role,
+			"is_super_admin": isSuperAdmin,
+		})
+	}
+	if users == nil {
+		users = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, users)
+}
+
+// demoLogin inicia sesion con un usuario demo especifico
+// En nodo demo: cualquier usuario demo puede entrar con password demo1234
+func (h *PublicProposalsHandler) demoLogin(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// Si no hay body, usar defaults
+		req.Username = "demo"
+		req.Password = "demo1234"
+	}
+
+	// Verificar que es nodo demo
+	var nodeDomain string
+	h.Pool.QueryRow(r.Context(), `SELECT node_domain FROM node_config LIMIT 1`).Scan(&nodeDomain)
+	if nodeDomain != "demo" {
+		// En nodo no-demo, verificar si demo esta habilitado
+		var isEnabled bool
+		h.Pool.QueryRow(r.Context(), `SELECT is_enabled FROM demo_user_config LIMIT 1`).Scan(&isEnabled)
+		if !isEnabled {
+			writeError(w, 403, "usuario demo no disponible actualmente")
+			return
+		}
+	}
+
+	username := req.Username
+	if username == "" {
+		username = "demo"
+	}
+	password := req.Password
+	if password == "" {
+		password = "demo1234"
+	}
+
 	am := NewAuthMiddleware(h.JWTSecret)
 	var userID uuid.UUID
-	var username, displayName, nodeDomain string
+	var dbUsername, displayName, dbNodeDomain string
 	err := h.Pool.QueryRow(r.Context(), `
 		SELECT id, username, display_name, node_domain
-		FROM users WHERE username = 'demo' AND membership_status = 'active' LIMIT 1`).Scan(&userID, &username, &displayName, &nodeDomain)
+		FROM users WHERE username = $1 AND membership_status = 'active' LIMIT 1`, username).Scan(&userID, &dbUsername, &displayName, &dbNodeDomain)
 	if err != nil {
-		writeError(w, 404, "usuario demo no encontrado")
+		writeError(w, 404, "usuario no encontrado")
 		return
 	}
 
-	// Generar token JWT con flag demo
-	token, err := am.GenerateDemoToken(userID, username, nodeDomain)
+	// Verificar password
+	var pinHash string
+	err = h.Pool.QueryRow(r.Context(), `SELECT password_hash FROM user_credentials WHERE user_id = $1`, userID).Scan(&pinHash)
+	if err != nil {
+		writeError(w, 401, "credenciales invalidas")
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(pinHash), []byte(password)); err != nil {
+		writeError(w, 401, "credenciales invalidas")
+		return
+	}
+
+	// En nodo demo, token normal (pueden modificar libremente)
+	// En nodo no-demo, token demo (read-only)
+	var token string
+	if nodeDomain == "demo" {
+		token, err = am.GenerateToken(userID, dbUsername, dbNodeDomain)
+	} else {
+		token, err = am.GenerateDemoToken(userID, dbUsername, dbNodeDomain)
+	}
 	if err != nil {
 		writeError(w, 500, "error generating token")
 		return
@@ -267,10 +392,9 @@ func (h *PublicProposalsHandler) demoLogin(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, 200, map[string]interface{}{
 		"token":        token,
 		"user_id":      userID.String(),
-		"username":     username,
+		"username":     dbUsername,
 		"display_name": displayName,
-		"is_demo":      true,
-		"message":      "Sesion demo iniciada. Puedes navegar pero no modificar.",
+		"message":      "Sesion iniciada",
 	})
 }
 
@@ -293,5 +417,27 @@ func (h *PublicProposalsHandler) toggleDemoUser(w http.ResponseWriter, r *http.R
 	writeJSON(w, 200, map[string]interface{}{
 		"enabled": req.Enabled,
 		"message": "Usuario demo " + map[bool]string{true: "habilitado", false: "deshabilitado"}[req.Enabled],
+	})
+}
+
+// resetDemoNode resetea el nodo demo ejecutando docker compose restart
+// Esto borra y re-seedea la BD demo (porque demo-app hace auto-setup al arrancar)
+func (h *PublicProposalsHandler) resetDemoNode(w http.ResponseWriter, r *http.Request) {
+	// Ejecutar: docker restart demo-app demo-resetter
+	// Esto reinicia el nodo demo, que al arrancar hace auto-setup + seed
+	cmd := exec.Command("docker", "restart", "demo-app")
+	err := cmd.Run()
+	if err != nil {
+		// Tambien intentar con docker compose
+		cmd2 := exec.Command("docker", "compose", "restart", "demo-app")
+		err2 := cmd2.Run()
+		if err2 != nil {
+			writeError(w, 500, "no se pudo reiniciar el nodo demo. Asegurate de que Docker esta corriendo.")
+			return
+		}
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"message": "Nodo demo reiniciado. Los datos se estan recreando.",
 	})
 }

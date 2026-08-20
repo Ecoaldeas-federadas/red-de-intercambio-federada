@@ -2,8 +2,17 @@ package db
 
 import (
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"log"
+
+	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // DemoSeedData crea datos demo genericos para un nodo demo.
@@ -223,44 +232,206 @@ func demoSeedProducts(ctx context.Context, d *DB, nodeDomain string) error {
 }
 
 func demoSeedUsers(ctx context.Context, d *DB, nodeDomain string) error {
-	// Crear usuario demo si no existe
-	var existing int
-	d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM users WHERE username = 'demo' AND node_domain = $1`, nodeDomain).Scan(&existing)
-	if existing > 0 {
-		return nil
+	// Obtener niveles existentes
+	var adminLevelID, activeLevelID, newLevelID string
+	d.Pool.QueryRow(ctx, `SELECT id::text FROM member_levels WHERE node_domain = $1 AND name = 'admin' ORDER BY level DESC LIMIT 1`, nodeDomain).Scan(&adminLevelID)
+	d.Pool.QueryRow(ctx, `SELECT id::text FROM member_levels WHERE node_domain = $1 AND name = 'activo' ORDER BY level DESC LIMIT 1`, nodeDomain).Scan(&activeLevelID)
+	d.Pool.QueryRow(ctx, `SELECT id::text FROM member_levels WHERE node_domain = $1 AND name = 'new' ORDER BY level DESC LIMIT 1`, nodeDomain).Scan(&newLevelID)
+	if adminLevelID == "" {
+		// Usar el nivel mas alto
+		d.Pool.QueryRow(ctx, `SELECT id::text FROM member_levels WHERE node_domain = $1 ORDER BY level DESC LIMIT 1`, nodeDomain).Scan(&adminLevelID)
+	}
+	if newLevelID == "" {
+		newLevelID = adminLevelID
+	}
+	if activeLevelID == "" {
+		activeLevelID = newLevelID
 	}
 
-	// Obtener el nivel "new" o crear uno basico
-	var levelID string
-	d.Pool.QueryRow(ctx, `SELECT id::text FROM member_levels WHERE node_domain = $1 AND name = 'new' LIMIT 1`, nodeDomain).Scan(&levelID)
-	if levelID == "" {
-		// Crear nivel basico si no existe
-		var newLevelID string
-		d.Pool.QueryRow(ctx, `
-			INSERT INTO member_levels (node_domain, name, description, credit_limit, debit_limit, has_voice, has_vote, counts_in_quorum, is_active)
-			VALUES ($1, 'new', 'Miembro nuevo', 500, -500, false, false, false, true)
-			RETURNING id::text`, nodeDomain).Scan(&newLevelID)
-		levelID = newLevelID
+	// Crear credenciales (password demo1234 para todos)
+	pinHash, _ := bcrypt.GenerateFromPassword([]byte("demo1234"), bcrypt.DefaultCost)
+
+	users := []struct {
+		username, displayName, levelID, accountType string
+		credit, debit                               int
+		isSuperAdmin                                bool
+	}{
+		// Super admin
+		{"demo", "Super Admin Demo", adminLevelID, "individual", 500, 500, true},
+		// Junta Directiva
+		{"presidente", "Presidente de la Asamblea", adminLevelID, "individual", 1000, 1000, false},
+		{"vicepresidente", "Vicepresidente", adminLevelID, "individual", 800, 800, false},
+		{"tesorero", "Tesorero/a", adminLevelID, "individual", 800, 800, false},
+		{"secretario", "Secretario/a", adminLevelID, "individual", 600, 600, false},
+		{"vocal1", "Vocal Principal", activeLevelID, "individual", 500, 500, false},
+		{"vocal2", "Vocal Suplente", activeLevelID, "individual", 500, 500, false},
+		// Miembros activos
+		{"maria", "Maria Gonzalez - Agricultora", activeLevelID, "individual", 500, 500, false},
+		{"juan", "Juan Perez - Productor", activeLevelID, "individual", 500, 500, false},
+		{"carlos", "Carlos Mendoza - Artesano", activeLevelID, "individual", 400, 400, false},
+		{"ana", "Ana Ruiz - Panadera", activeLevelID, "individual", 400, 400, false},
+		{"luis", "Luis Torres - Mecanico", activeLevelID, "individual", 300, 300, false},
+		{"patricia", "Patricia Diaz - Maestra", activeLevelID, "individual", 300, 300, false},
+		// Miembro nuevo
+		{"nuevo1", "Pedro Nuevo - Recien ingresado", newLevelID, "individual", 100, 100, false},
 	}
 
-	// Crear usuario demo
-	_, err := d.Pool.Exec(ctx, `
-		INSERT INTO users (node_domain, username, display_name, account_type, member_level_id, membership_status, credit_limit, debit_limit)
-		VALUES ($1, 'demo', 'Usuario Demo', 'individual', $2, 'active', 500, -500)
-		ON CONFLICT DO NOTHING`,
-		nodeDomain, levelID)
-	if err != nil {
-		return fmt.Errorf("creating demo user: %w", err)
+	for _, u := range users {
+		// Verificar si ya existe
+		var existing int
+		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM users WHERE username = $1 AND node_domain = $2`, u.username, nodeDomain).Scan(&existing)
+		if existing > 0 {
+			continue
+		}
+
+		// Generar claves
+		pubKey, privKey, _ := ed25519.GenerateKey(rand.Reader)
+		pubKeyHex := hex.EncodeToString(pubKey)
+		encryptedPrivKey := encryptPrivateKeyDemo(privKey, "demo1234")
+		salt := make([]byte, 16)
+		rand.Read(salt)
+
+		var userID uuid.UUID
+		err := d.Pool.QueryRow(ctx, `
+			INSERT INTO users (node_domain, username, display_name, account_type, member_level_id, membership_status, credit_limit, debit_limit, public_key, encrypted_private_key, encryption_key_salt)
+			VALUES ($1, $2, $3, $4, $5, 'active', $6, $7, $8, $9, $10)
+			RETURNING id`,
+			nodeDomain, u.username, u.displayName, u.accountType, u.levelID, u.credit, u.debit, pubKeyHex, encryptedPrivKey, salt).Scan(&userID)
+		if err != nil {
+			log.Printf("Demo: error creating user %s: %v", u.username, err)
+			continue
+		}
+
+		if u.isSuperAdmin {
+			d.Pool.Exec(ctx, `UPDATE users SET is_super_admin = true, super_admin_enabled = true WHERE id = $1`, userID)
+		}
+
+		// Crear credencial
+		d.Pool.Exec(ctx, `
+			INSERT INTO user_credentials (user_id, password_hash, created_at)
+			VALUES ($1, $2, NOW())
+			ON CONFLICT DO NOTHING`,
+			userID, pinHash)
 	}
 
 	// Habilitar el usuario demo en demo_user_config
-	_, err = d.Pool.Exec(ctx, `UPDATE demo_user_config SET is_enabled = true`)
-	if err != nil {
-		// Si no existe la tabla aun, ignorar
-		log.Printf("Demo: could not enable demo user config: %v", err)
-	}
+	d.Pool.Exec(ctx, `UPDATE demo_user_config SET is_enabled = true`)
+
+	// Crear organizaciones
+	demoSeedOrganizations(ctx, d, nodeDomain)
+
+	// Crear departamentos
+	demoSeedDepartments(ctx, d, nodeDomain)
 
 	return nil
+}
+
+func demoSeedOrganizations(ctx context.Context, d *DB, nodeDomain string) {
+	// Obtener nivel para organizaciones
+	var orgLevelID string
+	d.Pool.QueryRow(ctx, `SELECT id::text FROM member_levels WHERE node_domain = $1 ORDER BY level DESC LIMIT 1`, nodeDomain).Scan(&orgLevelID)
+	if orgLevelID == "" {
+		orgLevelID = uuid.New().String()
+	}
+
+	orgs := []struct {
+		username, displayName, orgType string
+		credit, debit                  int
+	}{
+		{"coop_agricola", "Cooperativa Agricola La Semilla", "cooperative", 5000, 5000},
+		{"panaderia", "Panaderia Comunitaria El Buen Pan", "commerce", 3000, 3000},
+		{"taller_mecanico", "Taller Mecanico Comunitario", "services", 2000, 2000},
+		{"tienda_arte", "Tienda de Artesania Manos Creativas", "commerce", 2000, 2000},
+		{"centro_salud", "Centro de Salud Natural", "public_service", 3000, 3000},
+	}
+
+	for _, org := range orgs {
+		var existing int
+		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM users WHERE username = $1 AND node_domain = $2`, org.username, nodeDomain).Scan(&existing)
+		if existing > 0 {
+			continue
+		}
+
+		pubKey, privKey, _ := ed25519.GenerateKey(rand.Reader)
+		pubKeyHex := hex.EncodeToString(pubKey)
+		encryptedPrivKey := encryptPrivateKeyDemo(privKey, "demo1234")
+		salt := make([]byte, 16)
+		rand.Read(salt)
+
+		var orgID uuid.UUID
+		err := d.Pool.QueryRow(ctx, `
+			INSERT INTO users (node_domain, username, display_name, account_type, member_level_id, membership_status, credit_limit, debit_limit, public_key, encrypted_private_key, encryption_key_salt)
+			VALUES ($1, $2, $3, 'organization', $4, 'active', $5, $6, $7, $8, $9)
+			RETURNING id`,
+			nodeDomain, org.username, org.displayName, orgLevelID, org.credit, org.debit, pubKeyHex, encryptedPrivKey, salt).Scan(&orgID)
+		if err != nil {
+			log.Printf("Demo: error creating org %s: %v", org.username, err)
+			continue
+		}
+
+		// Crear entrada en organizations
+		d.Pool.Exec(ctx, `
+			INSERT INTO organizations (id, node_domain, name, org_type, account_id, is_active, created_at)
+			VALUES ($1, $2, $3, $4, $5, true, NOW())
+			ON CONFLICT DO NOTHING`,
+			uuid.New(), nodeDomain, org.displayName, org.orgType, orgID)
+	}
+}
+
+func demoSeedDepartments(ctx context.Context, d *DB, nodeDomain string) {
+	depts := []struct {
+		name, desc string
+	}{
+		{"Junta Directiva", "Organos de direccion de la comunidad"},
+		{"Comision de Economia", "Gestion de intercambios y comercio"},
+		{"Comision de Educacion", "Talleres, capacitacion y formacion"},
+		{"Comision de Salud", "Salud comunitaria y medicina natural"},
+		{"Comision de Ambiente", "Gestion ambiental y agroecologia"},
+		{"Comision de Admision", "Revision de solicitudes de nuevos miembros"},
+	}
+
+	for _, dept := range depts {
+		var existing int
+		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM departments WHERE name = $1`, dept.name).Scan(&existing)
+		if existing > 0 {
+			continue
+		}
+		deptID := uuid.New()
+		d.Pool.Exec(ctx, `
+			INSERT INTO departments (id, name, description, group_type, is_active, created_at)
+			VALUES ($1, $2, $3, 'department', true, NOW())
+			ON CONFLICT DO NOTHING`,
+			deptID, dept.name, dept.desc)
+
+		// Crear rol para el departamento
+		roleID := uuid.New()
+		d.Pool.Exec(ctx, `
+			INSERT INTO roles (id, department_id, name, description, is_active, created_at)
+			VALUES ($1, $2, 'Miembro', $3, true, NOW())
+			ON CONFLICT DO NOTHING`,
+			roleID, deptID, dept.desc)
+
+		// Asignar todos los permisos
+		rows, err := d.Pool.Query(ctx, `SELECT id FROM permissions`)
+		if err == nil {
+			for rows.Next() {
+				var pid uuid.UUID
+				rows.Scan(&pid)
+				d.Pool.Exec(ctx, `INSERT INTO role_permissions (role_id, permission_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, roleID, pid)
+			}
+			rows.Close()
+		}
+	}
+}
+
+// encryptPrivateKeyDemo encripta una clave privada con bcrypt (simplificado para demo)
+func encryptPrivateKeyDemo(privKey ed25519.PrivateKey, passphrase string) []byte {
+	key := sha256.Sum256([]byte(passphrase))
+	block, _ := aes.NewCipher(key[:])
+	gcm, _ := cipher.NewGCM(block)
+	nonce := make([]byte, gcm.NonceSize())
+	rand.Read(nonce)
+	return gcm.Seal(nonce, nonce, privKey, nil)
 }
 
 func demoSeedNodeConfig(ctx context.Context, d *DB, nodeDomain string) error {

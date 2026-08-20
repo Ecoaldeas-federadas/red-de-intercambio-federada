@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useConfig } from '../hooks/useConfig'
 import { api } from '../api'
-import { Fingerprint, AlertCircle, Lock, User } from 'lucide-react'
+import { Fingerprint, AlertCircle, Lock, User, Crown, Users, Building2, UserCircle, Sparkles } from 'lucide-react'
 
 // === Utilidades WebAuthn ===
 
@@ -40,6 +40,9 @@ export default function Login() {
   const [mode, setMode] = useState<'password' | 'passkey'>('password')
   const [expiredMsg, setExpiredMsg] = useState(false)
   const [nodeDomain, setNodeDomain] = useState('localhost')
+  const [isDemoNode, setIsDemoNode] = useState(false)
+  const [demoUsers, setDemoUsers] = useState<any[]>([])
+  const [demoLoading, setDemoLoading] = useState(false)
 
   useEffect(() => {
     if (searchParams.get('expired') === '1') {
@@ -60,6 +63,17 @@ export default function Login() {
         } catch {}
       }
     })
+
+    // Verificar si es nodo demo
+    api.get('/demo/status').then((s: any) => {
+      if (s?.is_demo_node) {
+        setIsDemoNode(true)
+        // Cargar lista de usuarios demo
+        api.get('/demo/users').then((users: any) => {
+          if (Array.isArray(users)) setDemoUsers(users)
+        }).catch(() => {})
+      }
+    }).catch(() => {})
   }, [searchParams])
 
   // Completa el username con @dominio si el usuario no lo escribio
@@ -89,6 +103,24 @@ export default function Login() {
       setError(err instanceof Error ? err.message : 'Error al iniciar sesion')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Login demo con un click (nodo demo)
+  const handleDemoLogin = async (username: string, displayName: string) => {
+    setError('')
+    setDemoLoading(true)
+    try {
+      const result = await api.post<{ token: string; username: string }>('/demo/login', {
+        username,
+        password: 'demo1234',
+      })
+      login(result.token, result.username)
+      window.location.href = '/'
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al iniciar sesion demo')
+    } finally {
+      setDemoLoading(false)
     }
   }
 
@@ -170,6 +202,11 @@ export default function Login() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Trueque</h1>
           <p className="text-gray-600 mt-1">Credito Mutuo Federado</p>
+          {isDemoNode && (
+            <div className="mt-2 inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-medium">
+              <Sparkles size={12} /> Nodo Demo - Los datos se reinician cada 24h
+            </div>
+          )}
         </div>
 
         {expiredMsg && !error && (
@@ -186,92 +223,210 @@ export default function Login() {
           </div>
         )}
 
-        {/* Mode tabs */}
-        <div className="flex gap-2 mb-4">
-          <button
-            onClick={() => setMode('password')}
-            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-              mode === 'password'
-                ? 'bg-trueque-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            <Lock size={16} className="inline mr-1" />
-            Contrasena
-          </button>
-          <button
-            onClick={() => setMode('passkey')}
-            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-              mode === 'passkey'
-                ? 'bg-trueque-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            <Fingerprint size={16} className="inline mr-1" />
-            Passkey
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className="label">Nombre de usuario</label>
-            <div className="flex items-center input p-0">
-              <input
-                type="text"
-                className="flex-1 px-3 py-2 rounded-l-lg bg-transparent outline-none"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="admin"
-                onKeyDown={(e) => e.key === 'Enter' && (mode === 'password' ? handlePasswordLogin() : handlePasskeyLogin())}
-              />
-              <span className="px-3 py-2 text-gray-500 text-sm border-l border-gray-200 bg-gray-50 rounded-r-lg">
-                {username.includes('@') ? '' : `@${nodeDomain}`}
-              </span>
+        {/* === Nodo Demo: Login con botones de roles === */}
+        {isDemoNode ? (
+          <div className="space-y-4">
+            <div className="text-center text-sm text-gray-600 mb-4">
+              Entra como cualquier rol para ver el sistema desde su perspectiva.
+              Password: <code className="bg-gray-100 px-1 rounded">demo1234</code>
             </div>
-            <p className="text-xs text-gray-400 mt-1">
-              Escribe solo tu nombre. El dominio @{nodeDomain} se agrega automaticamente.
-              Para otro nodo, escribe usuario@otro-dominio.com
-            </p>
-          </div>
 
-          {mode === 'password' && (
-            <div>
-              <label className="label">Contrasena</label>
-              <input
-                type="password"
-                className="input"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Tu contrasena"
-                onKeyDown={(e) => e.key === 'Enter' && handlePasswordLogin()}
-              />
+            {demoUsers.length === 0 && (
+              <div className="text-center text-sm text-gray-400 py-4">
+                Cargando usuarios demo...
+              </div>
+            )}
+
+            {/* Agrupar por rol */}
+            {demoUsers.filter(u => u.is_super_admin).length > 0 && (
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
+                  <Crown size={12} /> Super Admin
+                </div>
+                {demoUsers.filter(u => u.is_super_admin).map((u) => (
+                  <button
+                    key={u.id}
+                    onClick={() => handleDemoLogin(u.username, u.display_name)}
+                    disabled={demoLoading}
+                    className="w-full flex items-center gap-3 p-3 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition text-left"
+                  >
+                    <Crown className="text-amber-600 flex-shrink-0" size={20} />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm text-gray-800">{u.display_name}</div>
+                      <div className="text-xs text-gray-500">@{u.username}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {demoUsers.filter(u => !u.is_super_admin && u.account_type === 'individual' && u.role === 'Directivo').length > 0 && (
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
+                  <Users size={12} /> Junta Directiva
+                </div>
+                {demoUsers.filter(u => !u.is_super_admin && u.account_type === 'individual' && u.role === 'Directivo').map((u) => (
+                  <button
+                    key={u.id}
+                    onClick={() => handleDemoLogin(u.username, u.display_name)}
+                    disabled={demoLoading}
+                    className="w-full flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition text-left"
+                  >
+                    <Users className="text-blue-600 flex-shrink-0" size={20} />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm text-gray-800">{u.display_name}</div>
+                      <div className="text-xs text-gray-500">@{u.username}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {demoUsers.filter(u => u.account_type === 'organization').length > 0 && (
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
+                  <Building2 size={12} /> Organizaciones
+                </div>
+                {demoUsers.filter(u => u.account_type === 'organization').map((u) => (
+                  <button
+                    key={u.id}
+                    onClick={() => handleDemoLogin(u.username, u.display_name)}
+                    disabled={demoLoading}
+                    className="w-full flex items-center gap-3 p-3 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition text-left"
+                  >
+                    <Building2 className="text-purple-600 flex-shrink-0" size={20} />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm text-gray-800">{u.display_name}</div>
+                      <div className="text-xs text-gray-500">@{u.username}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {demoUsers.filter(u => !u.is_super_admin && u.account_type === 'individual' && u.role !== 'Directivo').length > 0 && (
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
+                  <UserCircle size={12} /> Miembros
+                </div>
+                {demoUsers.filter(u => !u.is_super_admin && u.account_type === 'individual' && u.role !== 'Directivo').map((u) => (
+                  <button
+                    key={u.id}
+                    onClick={() => handleDemoLogin(u.username, u.display_name)}
+                    disabled={demoLoading}
+                    className="w-full flex items-center gap-3 p-3 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg transition text-left"
+                  >
+                    <UserCircle className="text-green-600 flex-shrink-0" size={20} />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm text-gray-800">{u.display_name}</div>
+                      <div className="text-xs text-gray-500">@{u.username} - {u.role}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {demoLoading && (
+              <div className="text-center text-sm text-gray-500 py-2">Iniciando sesion...</div>
+            )}
+
+            <div className="text-center text-xs text-gray-400 pt-2 border-t">
+              Todos los cambios se reinician cada 24 horas.
+              No afecta a ningun nodo real.
             </div>
-          )}
-
-          {mode === 'password' ? (
-            <button
-              onClick={handlePasswordLogin}
-              disabled={loading}
-              className="btn-primary w-full flex items-center justify-center gap-2"
-            >
-              <Lock size={20} />
-              {loading ? 'Conectando...' : 'Iniciar sesion'}
-            </button>
-          ) : (
-            <button
-              onClick={handlePasskeyLogin}
-              disabled={loading}
-              className="btn-primary w-full flex items-center justify-center gap-2"
-            >
-              <Fingerprint size={20} />
-              {loading ? 'Conectando...' : 'Iniciar sesion con Passkey'}
-            </button>
-          )}
-
-          <div className="text-center text-sm text-gray-500">
-            ¿No tienes cuenta? Solicita admision en tu nodo.
           </div>
-        </div>
+        ) : (
+          <>
+            {/* === Login normal (nodo no-demo) === */}
+
+            {/* Mode tabs */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setMode('password')}
+                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                  mode === 'password'
+                    ? 'bg-trueque-600 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <Lock size={16} className="inline mr-1" />
+                Contrasena
+              </button>
+              <button
+                onClick={() => setMode('passkey')}
+                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                  mode === 'passkey'
+                    ? 'bg-trueque-600 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <Fingerprint size={16} className="inline mr-1" />
+                Passkey
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="label">Nombre de usuario</label>
+                <div className="flex items-center input p-0">
+                  <input
+                    type="text"
+                    className="flex-1 px-3 py-2 rounded-l-lg bg-transparent outline-none"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="admin"
+                    onKeyDown={(e) => e.key === 'Enter' && (mode === 'password' ? handlePasswordLogin() : handlePasskeyLogin())}
+                  />
+                  <span className="px-3 py-2 text-gray-500 text-sm border-l border-gray-200 bg-gray-50 rounded-r-lg">
+                    {username.includes('@') ? '' : `@${nodeDomain}`}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Escribe solo tu nombre. El dominio @{nodeDomain} se agrega automaticamente.
+                  Para otro nodo, escribe usuario@otro-dominio.com
+                </p>
+              </div>
+
+              {mode === 'password' && (
+                <div>
+                  <label className="label">Contrasena</label>
+                  <input
+                    type="password"
+                    className="input"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Tu contrasena"
+                    onKeyDown={(e) => e.key === 'Enter' && handlePasswordLogin()}
+                  />
+                </div>
+              )}
+
+              {mode === 'password' ? (
+                <button
+                  onClick={handlePasswordLogin}
+                  disabled={loading}
+                  className="btn-primary w-full flex items-center justify-center gap-2"
+                >
+                  <Lock size={20} />
+                  {loading ? 'Conectando...' : 'Iniciar sesion'}
+                </button>
+              ) : (
+                <button
+                  onClick={handlePasskeyLogin}
+                  disabled={loading}
+                  className="btn-primary w-full flex items-center justify-center gap-2"
+                >
+                  <Fingerprint size={20} />
+                  {loading ? 'Conectando...' : 'Iniciar sesion con Passkey'}
+                </button>
+              )}
+
+              <div className="text-center text-sm text-gray-500">
+                ¿No tienes cuenta? Solicita admision en tu nodo.
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

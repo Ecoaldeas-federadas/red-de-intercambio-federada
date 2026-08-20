@@ -50,8 +50,62 @@ services:
       - YUGABYTE_DB_PASSWORD=fmcpassword
     restart: unless-stopped
 
+  # === Nodo Demo ===
+  # Nodo paralelo para demostracion. Se instala y actualiza solo con el nodo principal.
+  # NO toca los datos del nodo principal (BD separada: fmc_demo).
+  # Se resetea cada 24 horas o cuando el admin lo pida desde el panel.
+  # Login con botones de roles (no usuario/clave).
+  demo-app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "9091:9091"
+      - "9044:9044"
+    volumes:
+      - ./config.demo.yaml:/app/config.yaml:ro
+      - ./firmware:/app/firmware:ro
+      - demo_uploads:/app/uploads
+    depends_on:
+      - yugabytedb
+    environment:
+      - DB_HOST=yugabytedb
+      - DB_NAME=fmc_demo
+      - DB_PASSWORD=${DB_PASSWORD:-fmcpassword}
+      - JWT_SECRET=demo-jwt-secret-not-for-production
+      - CONFIG_PATH=/app/config.yaml
+      - MIGRATIONS_DIR=/app/internal/db/migrations
+      - FIRMWARE_DIR=/app/firmware
+      - FIRMWARE_BUILD_DIR=/tmp/firmware-builds
+      - FIRMWARE_DOCKER_IMAGE=fmc-arduino-compiler:latest
+      - DEMO_MODE=true
+      - DEMO_DOMAIN=demo
+      - DEMO_RESET_INTERVAL_HOURS=24
+    restart: unless-stopped
+
+  # Reseteador del nodo demo: borra y re-seedea cada 24 horas
+  demo-resetter:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    depends_on:
+      - demo-app
+    environment:
+      - DB_HOST=yugabytedb
+      - DB_NAME=fmc_demo
+      - DB_PASSWORD=${DB_PASSWORD:-fmcpassword}
+      - JWT_SECRET=demo-jwt-secret-not-for-production
+      - DEMO_MODE=true
+      - DEMO_DOMAIN=demo
+      - DEMO_RESET_INTERVAL_HOURS=24
+    entrypoint: ["/bin/sh", "/app/scripts/demo-reset-loop.sh"]
+    volumes:
+      - ./scripts/demo-reset-loop.sh:/app/scripts/demo-reset-loop.sh:ro
+    restart: unless-stopped
+
 volumes:
   yb_data:
   yb_tserver:
   firmware_builds:
   uploads:
+  demo_uploads:

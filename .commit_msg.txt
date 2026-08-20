@@ -1,55 +1,49 @@
-feat: nodo demo paralelo - se reinicia cada 24h, no toca el nodo principal
+feat: nodo demo integrado en docker-compose + login con botones de roles
 
-Nodo demo completamente funcional y separado del nodo de la Feria Conuquera.
+El nodo demo ahora se instala y actualiza solo con el nodo principal.
 
-## Arquitectura
+## Cambios principales
 
-- **Nodo principal**: puerto 8080, BD fmc_node, dominio localhost/feria
-- **Nodo demo**: puerto 8081, BD fmc_demo, dominio "demo"
-- El nodo demo usa la misma imagen Docker (mismo codigo)
-- Tiene su propia base de datos separada
-- NO toca ningun dato del nodo principal
+1. **Integrado en docker-compose.yml** (no mas docker-compose.demo.yml separado):
+   - demo-app: puerto 9091 (API) / 9044 (federacion)
+   - demo-resetter: borra y re-seedea cada 24h
+   - BD separada: fmc_demo (no toca fmc_node)
+   - Se levanta con `docker compose up -d` (junto con el nodo principal)
 
-## Auto-setup del nodo demo
+2. **Seed demo rico** (no nodo vacio):
+   - Super Admin (demo)
+   - Junta Directiva: presidente, vicepresidente, tesorero, secretario, 2 vocales
+   - 6 miembros activos: agricultora, productor, artesano, panadera, mecanico, maestra
+   - 1 miembro nuevo
+   - 5 organizaciones: cooperativa agricola, panaderia, taller mecanico, tienda de arte, centro de salud
+   - 6 departamentos: Junta Directiva, Economia, Educacion, Salud, Ambiente, Admision
+   - ~18 productos demo genericos
+   - Paginas publicas genericas (no Feria Conuquera)
 
-Al arrancar con DEMO_MODE=true:
-1. Ejecuta migraciones en la BD demo
-2. DemoAutoSetup: crea admin demo, niveles, departamentos, roles, node_config
-   - Usuario: demo / demo1234
-   - No necesita wizard - todo automatico
-3. DemoSeedData: crea datos genericos (NO Feria Conuquera):
-   - Paginas: inicio, como-funciona, federacion, productos, contacto
-   - ~18 productos demo genericos (agricultura, alimentacion, artesania, etc.)
-   - Usuario demo con permisos completos
-4. Salta el seed normal (no copia paginas/productos de Feria Conuquera)
+3. **Login con botones de roles** (no usuario/clave):
+   - El nodo demo detecta automaticamente que es demo
+   - Muestra botones agrupados por rol:
+     - Super Admin (corona ambar)
+     - Junta Directiva (usuarios azul)
+     - Organizaciones (edificio purpura)
+     - Miembros (circulo verde)
+   - Un click entra directamente con ese rol
+   - Password: demo1234 para todos
 
-## Reset cada 24 horas
+4. **Reset manual desde el admin**:
+   - Nueva pestana "Nodo Demo" en Configuracion
+   - Boton "Resetear Nodo Demo" que reinicia el contenedor
+   - El nodo demo hace auto-setup + seed al arrancar
+   - Util cuando hay actualizaciones del sistema
 
-- docker-compose.demo.yml incluye demo-resetter
-- Script demo-reset-loop.sh corre en bucle infinito
-- Cada 24 horas ejecuta: fmc-node --demo-reset --demo-domain=demo
-- DemoReset: borra todos los datos del dominio "demo" y re-seedea
-- NO borra datos de ningun otro dominio
+5. **Puertos diferentes** (no chocan con desarrollo):
+   - 9091 en vez de 8081
+   - 9044 en vez de 8444
 
-## Archivos nuevos
-
-- config.demo.yaml: configuracion del nodo demo (puerto 8081, BD fmc_demo)
-- docker-compose.demo.yml: servicios demo-app + demo-resetter
-- scripts/demo-reset-loop.sh: bucle de reset
-- internal/api/demo_setup.go: auto-setup del nodo demo
-- internal/db/demo_seed.go: seed generico + reset
-
-## Pagina de federacion actualizada
-
-- Boton "Entrar al Nodo Demo" que apunta a /demo
-- Explica que es un nodo paralelo, funcional, que se reinicia cada 24h
-- No afecta al nodo real de ninguna ecoaldea
-
-## Uso
-
-  docker compose -f docker-compose.demo.yml up -d
-
-El nodo demo estara disponible en el puerto 8081.
+6. **API nueva**:
+   - GET /api/demo/users: lista usuarios demo para botones de login
+   - POST /api/demo/login: login con username + password especificos
+   - POST /api/admin/demo/reset: resetear nodo demo (admin)
 
 Generated with Devin
 
