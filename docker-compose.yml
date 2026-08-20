@@ -13,6 +13,7 @@ services:
       - firmware_builds:/tmp/firmware-builds
       - uploads:/app/uploads
       - /var/run/docker.sock:/var/run/docker.sock
+      - .:/project:ro
     depends_on:
       - yugabytedb
     environment:

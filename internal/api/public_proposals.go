@@ -282,17 +282,42 @@ func (h *PublicProposalsHandler) startDemoNode(w http.ResponseWriter, r *http.Re
 	}
 
 	// Arrancar el contenedor demo-app
-	// docker compose --profile demo up -d demo-app
-	cmd = exec.Command("docker", "compose", "--profile", "demo", "up", "-d", "demo-app")
+	// Intentar varias formas:
+	// 1. docker compose --profile demo up -d demo-app (desde el directorio del proyecto)
+	// 2. docker start demo-app (si el contenedor ya existe)
+	// 3. docker compose -f /project/docker-compose.yml --profile demo up -d demo-app
+
+	started := false
+
+	// Intento 1: docker compose desde /project
+	cmd = exec.Command("docker", "compose", "-f", "/project/docker-compose.yml", "--profile", "demo", "up", "-d", "demo-app")
 	err = cmd.Run()
-	if err != nil {
-		// Intentar con docker start (si ya existe el contenedor)
+	if err == nil {
+		started = true
+	}
+
+	// Intento 2: docker start (si ya existe el contenedor)
+	if !started {
 		cmd2 := exec.Command("docker", "start", "demo-app")
 		err2 := cmd2.Run()
-		if err2 != nil {
-			writeError(w, 500, "no se pudo iniciar el nodo demo. Docker puede no estar disponible.")
-			return
+		if err2 == nil {
+			started = true
 		}
+	}
+
+	// Intento 3: docker compose sin -f (desde working directory)
+	if !started {
+		cmd3 := exec.Command("docker", "compose", "--profile", "demo", "up", "-d", "demo-app")
+		cmd3.Dir = "/project"
+		err3 := cmd3.Run()
+		if err3 == nil {
+			started = true
+		}
+	}
+
+	if !started {
+		writeError(w, 500, "no se pudo iniciar el nodo demo. Verifica que Docker esta corriendo.")
+		return
 	}
 
 	writeJSON(w, 200, map[string]interface{}{

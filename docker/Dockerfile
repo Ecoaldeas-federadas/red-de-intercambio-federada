@@ -26,7 +26,7 @@ RUN npm run build
 # Stage 3: Final image
 FROM alpine:3.20
 
-RUN apk --no-cache add ca-certificates tzdata
+RUN apk --no-cache add ca-certificates tzdata docker-cli docker-cli-compose
 
 WORKDIR /app
 

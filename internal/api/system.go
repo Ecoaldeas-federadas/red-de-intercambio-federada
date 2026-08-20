@@ -1911,6 +1911,24 @@ func (h *SystemHandler) getPublicPage(w http.ResponseWriter, r *http.Request) {
 		WHERE node_domain = $1 AND slug = $2 AND is_published = true`,
 		nodeDomain, slug).Scan(&id, &title, &subtitle, &content, &icon, &menuOrder, &isPublished, &showInMenu)
 	if err != nil {
+		// Paginas virtuales: federacion y gobernanza no estan en la BD
+		// pero el frontend las renderiza con componentes especiales.
+		// Devolver una pagina vacia para que el frontend no de error 404.
+		if slug == "federacion" || slug == "gobernanza" {
+			writeJSON(w, 200, map[string]interface{}{
+				"id":           "",
+				"slug":         slug,
+				"title":        "Federacion",
+				"subtitle":     "",
+				"content":      "[]",
+				"icon":         "globe",
+				"menu_order":   95,
+				"is_published": true,
+				"show_in_menu": true,
+				"is_virtual":   true,
+			})
+			return
+		}
 		writeError(w, 404, "pagina no encontrada")
 		return
 	}
