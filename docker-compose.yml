@@ -89,15 +89,25 @@ services:
   # Detenedor automatico del nodo demo:
   # Corre siempre, cada 24h detiene demo-app si esta corriendo.
   # Asi no gasta recursos cuando nadie lo usa.
+  # Usa comando directo (no script archivo) para evitar problemas de CRLF en Windows.
   demo-stopper:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
+    image: docker:cli
     environment:
       - DEMO_AUTO_STOP_HOURS=24
-    entrypoint: ["/bin/sh", "/app/scripts/demo-stop-loop.sh"]
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        INTERVAL=$${DEMO_AUTO_STOP_HOURS:-24}
+        echo "Demo stopper: detendra demo-app cada $${INTERVAL} horas."
+        while true; do
+          echo "Demo stopper: esperando $${INTERVAL} horas..."
+          sleep $${INTERVAL}h 2>/dev/null || sleep 86400
+          echo "Demo stopper: deteniendo demo-app..."
+          docker stop demo-app 2>/dev/null || true
+          echo "Demo stopper: demo-app detenido."
+        done
     volumes:
-      - ./scripts/demo-stop-loop.sh:/app/scripts/demo-stop-loop.sh:ro
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
 
