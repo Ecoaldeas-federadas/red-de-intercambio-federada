@@ -1,35 +1,45 @@
-feat: modal para agregar documentos + foto + pais obligatorio
+feat: pagina de federacion + propuestas publicas + usuario demo
 
-Cambios solicitados por el usuario:
+Pagina publica /p/federacion que invita a ecoaldeas a sumarse:
 
-1. Boton "Agregar documento de identidad" que abre MODAL:
-   - Ya no hay campos sueltos en la pagina
-   - Al pulsar el boton se abre una ventana con:
-     - Tipo de documento (dropdown: cedula, pasaporte, carnet, etc.)
-     - Numero de documento
-     - Pais emisor (dropdown con ~195 paises)
-     - Foto del documento (opcional, carga de archivo)
-   - Al guardar, el documento aparece en la lista
-   - Se pueden agregar todos los documentos que se quieran
+1. Pagina de Federacion (PublicFederationPage):
+   - Hero con explicacion de la Red de Intercambio Federada
+   - "Que es la Federacion de Ecoaldeas" - analogia con Visa/Mastercard
+   - 6 beneficios: gobernanza configurable, economia propia, federacion,
+     comunidad autogestionada, sitio web publico, gratis y abierto
+   - Beneficios de federarse: mas comercios, sin inflacion, autonomia,
+     comercio justo, identidad federada, gratis con asesoria
+   - Lista de 15 funciones que incluye el sistema actualmente
+   - Seccion "Aporta tus ideas" con sistema de propuestas:
+     - Enviar propuesta (titulo, categoria, descripcion)
+     - Votar propuestas existentes
+     - Ver propuestas de la comunidad
+   - Seccion "Comparte este proyecto" con mensaje para redes sociales:
+     - Boton copiar al portapapeles
+     - Boton compartir por WhatsApp
+     - Mensaje completo sobre el proyecto
+   - Seccion demo con info del usuario demo y nodo demo futuro
+   - Agregada al menu como pagina virtual (slug: federacion)
 
-2. Eliminadas las secciones viejas "Identificacion Nacional" y "Pasaporte":
-   - Ya no existen dos campos separados
-   - Todo se maneja desde el sistema unificado de documentos
+2. Sistema de propuestas publicas (backend):
+   - Migracion 065: tablas public_proposals, public_proposal_votes, demo_user_config
+   - GET /api/public/proposals: listar propuestas
+   - POST /api/public/proposals: crear propuesta (sin auth)
+   - POST /api/public/proposals/{id}/vote: votar (una vez por IP)
+   - GET /api/admin/proposals: listar todas para admin
+   - PUT /api/admin/proposals/{id}/status: actualizar estado
 
-3. Pais OBLIGATORIO para cada documento:
-   - No puede haber dos documentos iguales del mismo pais
-   - Una cedula de Venezuela y una de Colombia pueden tener el mismo numero
-   - La comparacion entre nodos es por tipo + numero + pais
-   - Validacion en backend: country_iso2 es obligatorio
+3. Usuario demo (read-only):
+   - GET /api/demo/status: saber si esta habilitado
+   - POST /api/demo/login: iniciar sesion demo (si habilitado)
+   - PUT /api/demo/toggle: admin habilita/deshabilita
+   - Middleware BlockDemo: bloquea POST/PUT/DELETE para usuarios demo
+   - JWT con flag is_demo, expira en 2h
+   - Mensaje: "Usuario demo: no tienes permiso para modificar datos"
 
-4. Foto del documento (opcional):
-   - Campo photo_url en user_documents
-   - Backend acepta multipart/form-data con foto
-   - Se guarda en /app/uploads/documents/
-
-5. Unique constraint actualizado:
-   - UNIQUE(user_id, document_type_code, document_number, country_iso2)
-   - Evita duplicados del mismo tipo+numero+pais en un mismo usuario
+4. Mensaje para redes sociales integrado en la pagina:
+   - Texto completo sobre el proyecto, beneficios, TQ, gobernanza
+   - Boton copiar y boton compartir por WhatsApp
 
 Generated with Devin
 

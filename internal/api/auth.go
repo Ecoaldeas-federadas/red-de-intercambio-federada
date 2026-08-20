@@ -133,6 +133,7 @@ type Claims struct {
 	UserID   string `json:"user_id"`
 	Username string `json:"username"`
 	Node     string `json:"node"`
+	IsDemo   bool   `json:"is_demo"`
 	jwt.RegisteredClaims
 }
 
@@ -141,8 +142,24 @@ func (am *AuthMiddleware) GenerateToken(userID uuid.UUID, username, node string)
 		UserID:   userID.String(),
 		Username: username,
 		Node:     node,
+		IsDemo:   false,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(7 * 24 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(am.JWTSecret)
+}
+
+func (am *AuthMiddleware) GenerateDemoToken(userID uuid.UUID, username, node string) (string, error) {
+	claims := &Claims{
+		UserID:   userID.String(),
+		Username: username,
+		Node:     node,
+		IsDemo:   true,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(2 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
@@ -190,8 +207,28 @@ func (am *AuthMiddleware) RequireAuth(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), "user_id", claims.UserID)
 		ctx = context.WithValue(ctx, "username", claims.Username)
 		ctx = context.WithValue(ctx, "node", claims.Node)
+		ctx = context.WithValue(ctx, "is_demo", claims.IsDemo)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// IsDemoUser verifica si el request actual es de un usuario demo
+func (am *AuthMiddleware) IsDemoUser(r *http.Request) bool {
+	isDemo, ok := r.Context().Value("is_demo").(bool)
+	return ok && isDemo
+}
+
+// BlockDemo bloquea todas las operaciones de escritura para usuarios demo
+func (am *AuthMiddleware) BlockDemo(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if am.IsDemoUser(r) {
+			if r.Method != "GET" && r.Method != "HEAD" && r.Method != "OPTIONS" {
+				writeError(w, 403, "Usuario demo: no tienes permiso para modificar datos. Puedes navegar pero no guardar cambios.")
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
 	})
 }
 

@@ -36,6 +36,7 @@ import { ThemeCustomizer, ThemeDraft, PageMenuItem } from './public-site/ThemeCu
 import { FERIA_CONUQUERA_TEMPLATES } from './public-site/defaultSiteData'
 import { PublicPageData, HeaderStyleType, SiteBlock } from '../types/publicSite'
 import { PublicGovernancePage } from './public-site/PublicGovernancePage'
+import { PublicFederationPage } from './public-site/PublicFederationPage'
 
 const ICONS: Record<string, any> = {
   home: Home,
@@ -155,8 +156,20 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           show_in_menu: true,
           content: '[]',
         }
+        // Pagina virtual de federacion: invita a ecoaldeas a sumarse
+        const federationPage = dbSlugs.has('federacion') ? null : {
+          slug: 'federacion',
+          title: 'Federacion',
+          subtitle: 'Suma tu ecoaldea a la red',
+          icon: 'globe',
+          menu_order: 95,
+          is_published: true,
+          show_in_menu: true,
+          content: '[]',
+        }
         const allPages = [...d, ...templateOnly]
         if (governancePage) allPages.push(governancePage)
+        if (federationPage) allPages.push(federationPage)
         setPages(allPages)
       } else {
         const tmplPages = FERIA_CONUQUERA_TEMPLATES.map((t) => ({
@@ -177,6 +190,19 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             subtitle: 'Ley de la Aldea - Reglas de convivencia',
             icon: 'scale',
             menu_order: 90,
+            is_published: true,
+            show_in_menu: true,
+            content: '[]',
+          })
+        }
+        // Agregar pagina virtual de federacion
+        if (!tmplPages.find((p) => p.slug === 'federacion')) {
+          tmplPages.push({
+            slug: 'federacion',
+            title: 'Federacion',
+            subtitle: 'Suma tu ecoaldea a la red',
+            icon: 'globe',
+            menu_order: 95,
             is_published: true,
             show_in_menu: true,
             content: '[]',
@@ -275,9 +301,9 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
   // Navigation categorization for dropdown style (use menu-visible pages only)
   const aboutPages = menuPages.filter((p) => ['inicio', 'filosofia', 'filosofia-conuquera', 'campo-soberano'].includes(p.slug))
   const economyPages = menuPages.filter((p) => ['productos', 'como-funciona'].includes(p.slug))
-  const communityPages = menuPages.filter((p) => ['comunidad', 'faq', 'contacto', 'semillas', 'saberes-ancestrales', 'ecoaldeas-mundo', 'gobernanza'].includes(p.slug))
+  const communityPages = menuPages.filter((p) => ['comunidad', 'faq', 'contacto', 'semillas', 'saberes-ancestrales', 'ecoaldeas-mundo', 'gobernanza', 'federacion'].includes(p.slug))
   const otherPages = menuPages.filter(
-    (p) => !['inicio', 'filosofia', 'filosofia-conuquera', 'campo-soberano', 'productos', 'como-funciona', 'comunidad', 'faq', 'contacto', 'semillas', 'saberes-ancestrales', 'ecoaldeas-mundo', 'gobernanza'].includes(p.slug)
+    (p) => !['inicio', 'filosofia', 'filosofia-conuquera', 'campo-soberano', 'productos', 'como-funciona', 'comunidad', 'faq', 'contacto', 'semillas', 'saberes-ancestrales', 'ecoaldeas-mundo', 'gobernanza', 'federacion'].includes(p.slug)
   )
 
   // Hierarchical menu: top-level pages and their children (for dropdown_categories)
@@ -2077,6 +2103,11 @@ export function PublicPageView() {
   // Pagina especial: gobernanza muestra las reglas desde la BD, no bloques editables
   if (targetSlug === 'gobernanza') {
     return <PublicGovernancePage />
+  }
+
+  // Pagina especial: federacion muestra la pagina de invitacion a ecoaldeas
+  if (targetSlug === 'federacion') {
+    return <PublicFederationPage />
   }
 
   if (!page) {

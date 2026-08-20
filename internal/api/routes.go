@@ -48,6 +48,7 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 
 	r.Group(func(r chi.Router) {
 		r.Use(am.RequireAuth)
+		r.Use(am.BlockDemo) // Bloquear escritura para usuarios demo
 		r.Get("/api/accounts/me", ah.getMe)
 		r.Put("/api/accounts/me/contacts", ah.updateMyContacts)
 		r.Get("/api/accounts/list", ah.listAccounts)
@@ -88,6 +89,10 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 	// Documents: documentos de usuario y paises
 	docH := &DocumentsHandler{Pool: pool, Auth: am, JWTSecret: ah.JWTSecret}
 	docH.RegisterRoutes(r, am)
+
+	// Public proposals + demo user
+	ppH := &PublicProposalsHandler{Pool: pool, Auth: am, JWTSecret: ah.JWTSecret}
+	ppH.RegisterRoutes(r, am)
 
 	// Servir imagenes subidas desde /uploads/
 	r.Get("/uploads/*", func(w http.ResponseWriter, r *http.Request) {
