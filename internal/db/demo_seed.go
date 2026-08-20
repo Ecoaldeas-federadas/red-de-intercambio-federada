@@ -171,7 +171,7 @@ func demoSeedPages(ctx context.Context, d *DB, nodeDomain string) error {
     "badge": "Raices del Monte - Ecoaldea Federada",
     "title": "Ecoaldea Raices del Monte",
     "subtitle": "Una comunidad montana que vive en armonia con la tierra",
-    "description": "Somos una ecoaldea de 28 familias en las montanas, dedicadas a la permacultura, la agroecologia y el intercambio comunitario. Usamos el Trueque Comunitario (TQ) como nuestra moneda interna, basada en el contenido energetico real de cada producto y servicio.",
+    "description": "Somos una ecoaldea de 28 familias en las montanas, dedicadas a la permacultura, la agroecologia y el intercambio comunitario. Desde 2010 hemos regenerado suelo, plantado bosques nativos y construido un sistema de economia interna basado en el Trueque Comunitario (TQ), donde cada producto vale lo que realmente cuesta producir en energia.",
     "primary_cta": { "text": "Ver Catalogo", "link": "/p/productos" },
     "secondary_cta": { "text": "Conocenos", "link": "/p/quienes-somos" },
     "style": "centered"
@@ -179,86 +179,113 @@ func demoSeedPages(ctx context.Context, d *DB, nodeDomain string) error {
   {
     "type": "stats",
     "title": "Nuestra Comunidad en Numeros",
-    "subtitle": "Datos reales de Raices del Monte",
+    "subtitle": "15 anios construyendo un modelo de vida sostenible",
     "bg_theme": "primary",
     "items": [
-      { "value": "28", "label": "Familias", "description": "Viviendo en la ecoaldea" },
-      { "value": "120", "label": "Hectareas", "description": "De bosque, cultivo y pasto" },
-      { "value": "15", "label": "Anios", "description": "Como comunidad organizada" },
-      { "value": "100%", "label": "Energia Solar", "description": "Autosuficiencia energetica" }
+      { "value": "28", "label": "Familias", "description": "Viviendo en la ecoaldea, unas 95 personas" },
+      { "value": "120", "label": "Hectareas", "description": "60% bosque protegido, 30% cultivo, 10% vivienda" },
+      { "value": "15", "label": "Anios", "description": "Como comunidad organizada desde 2010" },
+      { "value": "100%", "label": "Energia Solar", "description": "Paneles solares y cocinas solares, cero fossil" },
+      { "value": "4", "label": "Zonas Permacultura", "description": "Huerto cercano, bancales, agroforesteria, bosque" },
+      { "value": "7", "label": "Comisiones", "description": "Economia, Educacion, Salud, Ambiente y mas" }
     ]
   },
   {
     "type": "features",
     "title": "Que hacemos",
+    "subtitle": "Cuatro areas de trabajo comunitario",
     "columns": [
-      { "icon": "leaf", "title": "Permacultura", "description": "Disenamos sistemas alimentarios sostenibles siguiendo los principios de permacultura. Huertos en espiral, bancales, agroforesteria." },
-      { "icon": "droplet", "title": "Agua y Bosque", "description": "Captacion de agua de lluvia, tratamiento con plantas, reforestacion con especies nativas." },
-      { "icon": "sun", "title": "Energia Renovable", "description": "Paneles solares, cocinas solares, secadores solares. Cero dependencia de combustibles fosiles." },
-      { "icon": "users", "title": "Gobernanza", "description": "Asambleas mensuales, toma de decisiones por consentimiento, comisiones por area." }
+      { "icon": "leaf", "title": "Permacultura", "description": "Disenamos sistemas alimentarios que imitan los patrones de la naturaleza. Huertos en espiral, bancales elevados, agroforesteria con especies nativas, conservacion de semillas criollas." },
+      { "icon": "droplet", "title": "Agua y Bosque", "description": "Captacion de agua de lluvia, tratamiento con plantas acuaticas, reforestacion con 2000 arboles nativos por ano. Manantiales protegidos y acequias de infiltracion." },
+      { "icon": "sun", "title": "Energia Renovable", "description": "Paneles solares fotovoltaicos, cocinas solares parabolicas, secadores solares para frutas y hierbas. Cero dependencia de combustibles fosiles." },
+      { "icon": "users", "title": "Gobernanza", "description": "Asambleas mensuales por consentimiento sociocratico. 7 comisiones autonomas. Toma de decisiones horizontal donde todas las voces son escuchadas." }
     ]
+  },
+  {
+    "type": "text",
+    "title": "Nuestra Mision",
+    "body": "Demostrar que es posible vivir en comunidades rurales autosuficientes, regenerando el entorno natural, practicando la economia solidaria y construyendo cultura comunitaria. No somos una utopia cerrada: compartimos lo que aprendemos con quienes quieran crear su propia ecoaldea o comunidad."
   }
 ]`,
 		},
 		{
 			Slug:      "quienes-somos",
 			Title:     "Quienes Somos",
-			Subtitle:  "Nuestra historia y valores",
+			Subtitle:  "Nuestra historia, valores y forma de vida",
 			MenuOrder: 2,
 			Content: `[
   {
     "type": "hero",
     "badge": "Nuestra Historia",
-    "title": "De grupo de amigos a ecoaldea",
-    "subtitle": "15 anios construyendo comunidad",
-    "description": "Raices del Monte nacio en 2010 cuando un grupo de 5 familias compro una finca ganadera degradada en las montanas. Poco a poco fuimos regenerando el suelo, plantando arboles nativos, construyendo viviendas con materiales locales y creando un sistema de intercambio interno basado en el trueque.",
+    "title": "De finca ganadera degradada a ecoaldea regenerativa",
+    "subtitle": "15 anios transformando la tierra y la comunidad",
+    "description": "Raices del Monte nacio en 2010 cuando cinco familias adquirieron una finca ganadera que habia perdido su capa vegetal y buena parte de su biodiversidad. El suelo estaba compactado, los manantiales secos, el bosque reducido a parches. Poco a poco fuimos regenerando: plantamos arboles nativos, construimos bancales, instalamos sistemas de captacion de agua, sembramos huertos y creamos un sistema de intercambio interno basado en el contenido energetico real de cada producto.",
     "style": "centered"
   },
   {
     "type": "features",
     "title": "Nuestros Valores",
+    "subtitle": "Los principios que guian nuestra vida comunitaria",
     "columns": [
-      { "icon": "heart", "title": "Cuidado Mutuo", "description": "Nos cuidamos entre todos. La salud, la educacion y la alimentacion son responsabilidades compartidas." },
-      { "icon": "leaf", "title": "Regeneracion", "description": "No solo sostenemos, regeneramos. Cada ano el bosque crece, el suelo mejora, el agua es mas abundante." },
-      { "icon": "scale", "title": "Justicia Economica", "description": "El TQ (Trueque Comunitario) se basa en la energia real de cada producto. Nadie se enriquece a expensas de otros." },
-      { "icon": "users", "title": "Autonomia", "description": "Tomamos nuestras propias decisiones en asamblea. No dependemos de bancos ni de gobiernos." }
+      { "icon": "heart", "title": "Cuidado Mutuo", "description": "Nos cuidamos entre todos. La salud, la educacion y la alimentacion son responsabilidades compartidas, no individuales. Nadie enfrenta solo una enfermedad, una perdida o un problema." },
+      { "icon": "leaf", "title": "Regeneracion", "description": "No solo sostenemos, regeneramos. Cada ano el bosque crece, el suelo mejora, el agua es mas abundante. Dejamos el lugar mejor de lo que lo encontramos." },
+      { "icon": "scale", "title": "Justicia Economica", "description": "El TQ (Trueque Comunitario) se basa en la energia real de cada producto. Nadie se enriquece a expensas de otros. El trabajo de todos vale lo mismo por hora." },
+      { "icon": "users", "title": "Autonomia", "description": "Tomamos nuestras propias decisiones en asamblea. No dependemos de bancos, ni de gobiernos, ni de corporaciones. Somos autosuficientes en lo basico." },
+      { "icon": "globe", "title": "Federacion", "description": "No estamos solos. Comerciamos e intercambiamos con otras ecoaldeas federadas. La solidaridad entre comunidades es nuestra red de seguridad." },
+      { "icon": "book", "title": "Aprendizaje Permanente", "description": "Aprendemos de la naturaleza y de las tradiciones campesinas. Compartimos lo que sabemos. Recibimos voluntarios y visitantes." }
     ]
   },
   {
     "type": "text",
-    "title": "Como nos organizamos",
-    "body": "Tenemos 4 niveles de membresia: Raiz (fundadores), Tronco (mas de 2 anios), Rama (mas de 6 meses) y Brote (recien ingresados). Las decisiones importantes se toman en asamblea mensual por consentimiento. Las decisiones operativas las toman las comisiones: Economia, Educacion, Salud, Ambiente, Admision y Construccion."
+    "title": "Como vivimos",
+    "body": "Las viviendas son de bioconstruccion: adobe, bahareque, paja y madera local. Cada familia tiene su casa y un huerto. Tenemos espacios comunes: el comedor comunitario donde almorzamos juntos tres veces por semana, la escuela primaria donde estudian los ninos de la comunidad, el centro de salud natural, la herreria, el taller textil y la panaderia. El 60% del territorio es bosque protegido donde solo se extrae madera muera. El 30% son cultivos en bancales, agroforesteria y huertos. El 10% es vivienda e infraestructura."
+  },
+  {
+    "type": "text",
+    "title": "Que comemos",
+    "body": "Producimos el 80% de nuestra alimentacion: granos (frijol, quinua, maiz), hortalizas (tomate, lechuga, acelga, cilantro), frutas (guayaba, mora, platano), tuberculos (ocumo, yuca), lacteos (queso de cabra), miel, huevos, pan de quinua. El 20% restante lo intercambiamos con otras ecoaldeas federadas o compramos en el pueblo mas cercano: sal, aceite, cafe, algunos granos que no se dan en altura."
   }
 ]`,
 		},
 		{
 			Slug:      "gobernanza",
 			Title:     "Gobernanza",
-			Subtitle:  "Como tomamos decisiones",
+			Subtitle:  "Como tomamos decisiones y nos organizamos",
 			MenuOrder: 3,
 			Content: `[
   {
     "type": "hero",
     "badge": "Sociocracia Adaptada",
-    "title": "Decisiones por consentimiento",
-    "subtitle": "No votamos, buscamos consentimiento",
-    "description": "En Raices del Monte no usamos votacion mayoritaria. Usamos el consentimiento: una decision se toma cuando nadie tiene una objection fundamentada. Esto asegura que todas las voces sean escuchadas y que las decisiones sean suficientemente buenas para avanzar.",
+    "title": "Decisiones por consentimiento, no por mayoria",
+    "subtitle": "Todas las voces importan, ninguna decision se impone",
+    "description": "En Raices del Monte no usamos votacion mayoritaria. Usamos el consentimiento: una decision se toma cuando nadie tiene una objection fundamentada. Esto asegura que todas las voces sean escuchadas y que las decisiones sean suficientemente buenas para avanzar, sin que nadie quede excluido. La sociocracia nos permite ser eficientes sin sacrificar la horizontalidad.",
     "style": "centered"
   },
   {
     "type": "features",
     "title": "Estructura de Gobernanza",
+    "subtitle": "Circulos interconectados con doble enlace",
     "columns": [
-      { "icon": "users", "title": "Asamblea General", "description": "Mensual. Todos los miembros con voz. Decisiones estrategicas, presupuesto, admisiones." },
-      { "icon": "network", "title": "Comisiones", "description": "6 comisiones autonomas: Economia, Educacion, Salud, Ambiente, Admision, Construccion." },
-      { "icon": "scale", "title": "Consejo de Vision", "description": "3 miembros Raiz que custodian la vision y valores de la ecoaldea." },
-      { "icon": "clipboard", "title": "Protocolos", "description": "Cada decision se documenta. Los acuerdos son revisables y mejorables." }
+      { "icon": "users", "title": "Asamblea General", "description": "Mensual, primer domingo de cada mes. Todos los miembros con voz. Decisiones estrategicas: presupuesto, admisiones, grandes cambios, conflictos entre comisiones." },
+      { "icon": "network", "title": "7 Comisiones", "description": "Economia, Educacion, Salud, Ambiente, Admision, Construccion y Consejo de Vision. Cada una es autonoma en su area y tiene doble enlace con la asamblea." },
+      { "icon": "scale", "title": "Consejo de Vision", "description": "Tres miembros Raiz que custodian la vision y valores fundacionales. No gobiernan, sino que recuerdan por que estamos aqui y por que tomamos ciertas decisiones." },
+      { "icon": "clipboard", "title": "Protocolos Documentados", "description": "Cada decision se documenta en actas. Los acuerdos son revisables y mejorables. Nada es permanente: todo puede ser evaluado y cambiado por consentimiento." }
     ]
   },
   {
     "type": "text",
     "title": "Niveles de Membresia",
-    "body": "Raiz: Fundadores con voz y voto en todas las decisiones. Tronco: Miembros con mas de 2 anios, voz y voto en asamblea. Rama: Miembros con mas de 6 meses, voz en asamblea y voto en comisiones. Brote: Recien ingresados, voz en asamblea pero sin voto hasta completar 6 meses."
+    "body": "Raiz: Fundadores con voz y voto en todas las decisiones. Custodian la vision y memoria de la comunidad. Tronco: Miembros con mas de 2 anios, voz y voto en asamblea. Pueden liderar comisiones. Rama: Miembros con mas de 6 meses, voz en asamblea y voto en su comision. Brote: Recien ingresados, voz en asamblea pero sin voto hasta completar 6 meses y pasar por la evaluacion de la Comision de Admision."
+  },
+  {
+    "type": "text",
+    "title": "Como se Toma una Decision",
+    "body": "1) Alguien presenta una propuesta en asamblea o en su comision. 2) Se hace una ronda de preguntas para entender la propuesta. 3) Se hace una ronda de reacciones: cada persona dice que le parece. 4) Se modifica la propuesta si es necesario. 5) Se pregunta: ¿alguien tiene una objection fundamentada que impida que avancemos con esto? 6) Si nadie objeta, la decision se toma. 7) Si hay objeci\u00f3n, se trabaja la objeci\u00f3n hasta llegar a una version que todos puedan consentir."
+  },
+  {
+    "type": "text",
+    "title": "Trabajo Comunitario",
+    "body": "Cada miembro contribuye con 8 horas mensuales de trabajo comunitario: mantenimiento de senderos, reforestacion, construccion, limpieza de acequias, o tareas asignadas por comisiones. Este trabajo se registra en TQ al valor estandar de 10 TQ por hora. Es la base de nuestra economia: el trabajo comunitario genera TQ que despues se intercambian por productos."
   }
 ]`,
 		},
@@ -271,20 +298,33 @@ func demoSeedPages(ctx context.Context, d *DB, nodeDomain string) error {
   {
     "type": "hero",
     "badge": "Trueque Comunitario",
-    "title": "El TQ: moneda energetica",
-    "subtitle": "No es dinero. No es cripto. Es energia.",
-    "description": "El TQ (Trueque Comunitario) es nuestra unidad de intercambio. Se calcula en base al contenido energetico real de cada producto o servicio (kWh/joule). Un kilo de frijol vale 35 TQ porque eso es lo que cuesta producirlo en energia. Sin inflacion, sin interes, sin bancos.",
+    "title": "El TQ: moneda energetica, no dinero",
+    "subtitle": "No es dinero. No es cripto. No genera interes. Es energia.",
+    "description": "El TQ (Trueque Comunitario) es nuestra unidad de intercambio interno. Se calcula en base al contenido energetico real de cada producto o servicio, medido en kWh o joules. Un kilo de frijol vale 35 TQ porque eso es lo que cuesta producirlo en energia humana, solar y de insumos. Sin inflacion, sin interes, sin bancos, sin devaluacion. Un TQ hoy vale lo mismo que en 10 anios.",
     "style": "centered"
   },
   {
     "type": "features",
     "title": "Principios del TQ",
+    "subtitle": "Lo que hace diferente a nuestra moneda",
     "columns": [
-      { "icon": "zap", "title": "Basado en Energia", "description": "Cada producto vale lo que cuesta producirlo en energia (humana, solar, de insumos)." },
-      { "icon": "ban", "title": "Sin Inflacion", "description": "La energia no se devalua. Un TQ hoy vale lo mismo que en 10 anios." },
-      { "icon": "ban", "title": "Sin Interes", "description": "No hay prestamos con interes. Si necesitas credito, la asamblea lo aprueba." },
-      { "icon": "globe", "title": "Federable", "description": "Podemos intercambiar con otras ecoaldeas federadas usando los mismos principios." }
+      { "icon": "zap", "title": "Basado en Energia Real", "description": "Cada producto vale lo que cuesta producirlo en energia: humana (trabajo), solar (paneles, secadores), de insumos (semillas, agua). El precio lo calcula la Calculadora Energetica." },
+      { "icon": "ban", "title": "Sin Inflacion", "description": "La energia no se devalua. Un TQ hoy vale lo mismo que en 10 anios. No hay emision de dinero nuevo sin respaldo energetico." },
+      { "icon": "ban", "title": "Sin Interes", "description": "No hay prestamos con interes. Si necesitas credito, la asamblea lo aprueba sin costo financiero. El fondo comunitario respalda los creditos." },
+      { "icon": "globe", "title": "Federable", "description": "Podemos intercambiar con otras ecoaldeas federadas usando los mismos principios energeticos. El comercio entre nodos respeta la autonomia de cada comunidad." },
+      { "icon": "scale", "title": "Justo", "description": "El trabajo de todos vale lo mismo por hora: 10 TQ. Nadie cobra mas por hacer trabajo intelectual vs manual. La diferencia esta en las horas, no en la tarifa." },
+      { "icon": "shield", "title": "Transparente", "description": "Todas las transacciones son publicas dentro de la comunidad. Cualquier miembro puede auditar el libro de transacciones." }
     ]
+  },
+  {
+    "type": "text",
+    "title": "Como se Calcula el Precio",
+    "body": "La Calculadora Energetica del sistema toma en cuenta: 1) Energia humana: horas de trabajo x 10 TQ/hora. 2) Energia de insumos: semillas, agua, compost, herramientas (depreciadas). 3) Energia solar: secado, bombeo de agua. 4) Factor de esfuerzo: trabajos fisicamente exigentes tienen un pequeno factor extra. 5) Categoria: alimentos vitales (granos, hortalizas) tienen tarifa energetica preferente. Servicios y artesania tienen tarifa estandar."
+  },
+  {
+    "type": "text",
+    "title": "Limites y Creditos",
+    "body": "Cada miembro tiene un limite de credito (positivo) y debito (negativo) en TQ. Los limites dependen del nivel de membresia: Raiz +/-5000, Tronco +/-3000, Rama +/-1500, Brote +/-500. Si necesitas mas, puedes solicitar un credito extraordinario a la asamblea. Los creditos se aprueban por consentimiento, sin interes, con plazo definido. El fondo comunitario respalda los creditos."
   }
 ]`,
 		},
@@ -298,35 +338,58 @@ func demoSeedPages(ctx context.Context, d *DB, nodeDomain string) error {
     "type": "hero",
     "badge": "Catalogo Comunitario",
     "title": "Lo que producimos",
-    "subtitle": "Agricultura, artesania, servicios y mas",
-    "description": "Todo lo que se produce en la ecoaldea esta en el catalogo. Los precios estan en TQ y reflejan el contenido energetico real de cada producto.",
+    "subtitle": "Agricultura, artesania, servicios y mas - todo en TQ",
+    "description": "Todo lo que se produce en la ecoaldea esta en el catalogo. Los precios estan en TQ y reflejan el contenido energetico real de cada producto. Puedes ver productos agricolas, derivados artesanales, artesania local, herramientas, salud natural y servicios comunitarios.",
     "style": "centered"
+  },
+  {
+    "type": "features",
+    "title": "Categorias del Catalogo",
+    "columns": [
+      { "icon": "leaf", "title": "Agricultura", "description": "Granos, hortalizas, frutas, raices. Cultivados en bancales y agroforesteria, sin agroticos." },
+      { "icon": "wheat", "title": "Derivados", "description": "Queso de cabra, pan de quinua, mermeladas, miel de montana. Procesados artesanalmente." },
+      { "icon": "palette", "title": "Artesania", "description": "Ruanas de lana, ceramica de barro local, muebles de madera, cestas de bambu." },
+      { "icon": "wrench", "title": "Herramientas", "description": "Forjadas en la herreria comunitaria con hierro reciclado." },
+      { "icon": "heart", "title": "Salud Natural", "description": "Tes de hierbas del monte, aceites esenciales, preparados herbalistas." },
+      { "icon": "book", "title": "Servicios", "description": "Talleres de permacultura, transporte en mula, construccion natural." }
+    ]
   }
 ]`,
 		},
 		{
 			Slug:      "federacion",
 			Title:     "Federacion",
-			Subtitle:  "Red de Ecoaldeas",
+			Subtitle:  "La Red de Ecoaldeas Federadas",
 			MenuOrder: 6,
 			Content: `[
   {
     "type": "hero",
     "badge": "Red Federada",
     "title": "No estamos solos",
-    "subtitle": "La red crece con cada comunidad",
-    "description": "Raices del Monte es parte de la Red de Intercambio Federada. Esto significa que podemos comerciar con otras ecoaldeas y comunidades que usan el mismo sistema. Cada nodo es autonomo pero puede intercambiar productos, servicios y conocimiento.",
+    "subtitle": "La red crece con cada comunidad que se suma",
+    "description": "Raices del Monte es parte de la Red de Intercambio Federada. Esto significa que podemos comerciar con otras ecoaldeas, comunidades y cooperativas que usan el mismo sistema. Cada nodo es completamente autonomo: tiene sus propias normas, su propia moneda comunitaria, su propia gobernanza. Pero todos podemos intercambiar productos, servicios y conocimiento usando los mismos principios energeticos.",
     "style": "centered"
   },
   {
     "type": "features",
-    "title": "Ventajas de Federarse",
+    "title": "Como Funciona la Federacion",
+    "subtitle": "Comercio entre nodos con autonomia total",
     "columns": [
-      { "icon": "globe", "title": "Comercio Entre Nodos", "description": "Vender tus productos a otras ecoaldeas y comprar lo que tu no produces." },
-      { "icon": "users", "title": "Intercambio de Conocimiento", "description": "Talleres, capacitaciones y experiencias compartidas entre comunidades." },
-      { "icon": "shield", "title": "Resiliencia", "description": "Si un nodo tiene problemas, otros pueden ayudar. Solidaridad practica." },
-      { "icon": "leaf", "title": "Autonomia Total", "description": "Cada nodo mantiene sus normas, su cultura y sus decisiones. Nadie impone nada." }
+      { "icon": "globe", "title": "Comercio Entre Nodos", "description": "Vender tus productos a otras ecoaldeas y comprar lo que tu no produces. El sistema calcula el equivalente energetico entre monedas comunitarias." },
+      { "icon": "users", "title": "Intercambio de Conocimiento", "description": "Talleres, capacitaciones y experiencias compartidas entre comunidades. Si tu ecoaldea sabe de bioconstruccion y la nuestra de permacultura, intercambiamos." },
+      { "icon": "shield", "title": "Resiliencia Colectiva", "description": "Si un nodo tiene problemas (sequia, incendio, enfermedad), otros pueden ayudar. La solidaridad practica es nuestra red de seguridad." },
+      { "icon": "leaf", "title": "Autonomia Total", "description": "Cada nodo mantiene sus normas, su cultura, sus decisiones y sus datos. Nadie impone nada a nadie. La federacion es voluntaria y revocable." }
     ]
+  },
+  {
+    "type": "text",
+    "title": "Como se Federan los Nodos",
+    "body": "Cada nodo tiene su propia identidad criptografica (claves Ed25519). Cuando dos nodos quieren federarse, intercambian certificados y establecen un canal seguro con mTLS. A partir de ahi pueden consultar balances, intercambiar productos y sincronizar estados. El sistema detecta automaticamente conflictos de fusion (cuando dos nodos registran transacciones contradictorias) y los reporta para que las asambleas de cada nodo los resuelvan."
+  },
+  {
+    "type": "text",
+    "title": "Limites de Comercio Federado",
+    "body": "Cada nodo define sus propios limites de comercio multilateral: cuanto puede deber un nodo a otro, cuanto puede recibir. Estos limites los aprueba la asamblea de cada nodo. El sistema bloquea automaticamente transacciones que excedan los limites, protegiendo a las comunidades de deudas insostenibles."
   }
 ]`,
 		},
@@ -339,10 +402,20 @@ func demoSeedPages(ctx context.Context, d *DB, nodeDomain string) error {
   {
     "type": "contact",
     "title": "Visita Raices del Monte",
-    "subtitle": "Recibimos visitantes y nuevos miembros",
-    "description": "Si tienes una ecoaldea, comunidad o quieres crear una, puedes contactarnos. Tambien recibimos voluntarios y visitantes. Organizamos jornadas de puertas abiertas cada primer domingo de mes.",
+    "subtitle": "Recibimos visitantes, voluntarios y nuevos miembros",
+    "description": "Si tienes una ecoaldea, comunidad o quieres crear una, puedes contactarnos. Tambien recibimos voluntarios que quieran aprender permacultura, bioconstruccion o agroecologia. Organizamos jornadas de puertas abiertas cada primer domingo de mes, despues de la asamblea. Escribenos con tiempo para coordinar tu visita.",
     "email": "contacto@raicesdelmonte.org",
     "show_form": true
+  },
+  {
+    "type": "text",
+    "title": "Como Llegar",
+    "body": "Estamos en una zona montanosa a 1200m de altitud, a 45 minutos en vehiculo del pueblo mas cercano. El ultimo tramo se hace a pie o en mula por un sendero de 3km. Coordinamos el encuentro en el pueblo para guiarte. No hay senal de telefono movil dentro de la ecoaldea, pero tenemos radio y internet por satelite."
+  },
+  {
+    "type": "text",
+    "title": "Para Nuevos Miembros",
+    "body": "El proceso de admision tiene varias etapas: 1) Visita inicial de un fin de semana. 2) Periodo de voluntariado de 1-3 meses. 3) Solicitud formal con patrocinio de un miembro Tronco o Raiz. 4) Periodo de prueba de 6 meses como Brote. 5) Evaluacion de la Comision de Admision. 6) Decision de la asamblea por consentimiento. No es un proceso rapido, pero asegura que la comunidad y la persona sean compatibles."
   }
 ]`,
 		},

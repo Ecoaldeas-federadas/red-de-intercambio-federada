@@ -1,4 +1,4 @@
-const CACHE_NAME = 'trueque-v2'
+const CACHE_NAME = 'trueque-v3'
 const ASSETS = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg']
 
 self.addEventListener('install', (e) => {
@@ -17,9 +17,15 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return
-  // No cachear assets con hash (index-XXXX.js, index-XXXX.css)
-  // porque cambian de nombre en cada build y causarian errores
   const url = new URL(e.request.url)
+
+  // NUNCA cachear respuestas de API - siempre ir a la red
+  if (url.pathname.startsWith('/api/')) {
+    e.respondWith(fetch(e.request))
+    return
+  }
+
+  // No cachear assets con hash (index-XXXX.js, index-XXXX.css)
   if (url.pathname.startsWith('/assets/')) {
     e.respondWith(fetch(e.request).catch(() => caches.match(e.request)))
     return

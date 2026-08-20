@@ -1,27 +1,27 @@
-fix: demo seed public_settings + quitar defaults Feria Conuquera
+fix: service worker no cachea API + paginas demo enriquecidas
 
-Problema: El header del demo mostraba "Feria Conuquera Agroecologica"
-porque:
-1. getPublicSettings tenia defaults hardcodeados de Feria Conuquera
-   en los COALESCE (announcement_text, footer_about, footer_schedule,
-   footer_slogan, etc.)
-2. El demo seed no creaba public_settings para el dominio demo
-3. Sin fila en public_settings, el COALESCE devolvia los defaults
-   de Feria Conuquera
+Problemas:
+1. El service worker cacheaba respuestas de /api/* (public/settings,
+   public/pages). Cuando el demo-app cambiaba, el SW seguia sirviendo
+   las respuestas viejas cacheadas con contenido de Feria Conuquera.
+   Por eso el header mostraba "Feria Conuquera" aunque la BD tuviera
+   los datos nuevos de Raices del Monte.
 
-Solucion:
-- Cambiar todos los COALESCE defaults a strings vacios o genericos
-  (no mas Feria Conuquera hardcodeado en el codigo)
-- Agregar demoSeedPublicSettings que crea public_settings para el
-  dominio demo con:
-  - site_title: "Ecoaldea Raices del Monte"
-  - site_subtitle: "Comunidad montana de permacultura e intercambio"
-  - announcement_text: "Asamblea mensual primer domingo de cada mes"
-  - footer_about: descripcion de la ecoaldea
-  - footer_schedule: info de asambleas
-  - admission_form_title/subtitle: propias de la ecoaldea
-- DemoAutoSetup y DemoReset ahora tambien borran public_settings
-  viejas del dominio demo y de "localhost"
+2. Las paginas del demo eran muy pobres y algunas tenian contenido
+   residual de Feria Conuquera (historia, fundacion, etc).
+
+Soluciones:
+- sw.js: NUNCA cachear respuestas de /api/* (siempre ir a la red)
+- sw.js: bump cache version v2 -> v3 para invalidar cache viejo
+- demo_seed.go: 7 paginas completamente reescritas con contenido
+  rico y realista sobre ecoaldeas:
+  - inicio: stats ampliadas, features, mision
+  - quienes-somos: historia, valores, como viven, que comen
+  - gobernanza: sociocracia, comisiones, niveles, como se decide
+  - economia: principios TQ, calculo de precio, limites y creditos
+  - productos: categorias del catalogo
+  - federacion: como funciona, como se federan, limites
+  - contacto: como llegar, proceso de admision
 
 Generated with [Devin](https://devin.ai)
 
