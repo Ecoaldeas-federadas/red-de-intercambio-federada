@@ -226,7 +226,7 @@ func demoSeedProducts(ctx context.Context, d *DB, nodeDomain string) error {
 		}
 
 		_, err := d.Pool.Exec(ctx, `
-			INSERT INTO products (node_domain, parent_category, category, subcategory, name, unit, description, price, badge, image_url, is_active)
+			INSERT INTO products (node_domain, parent_category, category, subcategory, name, unit, description, price_per_unit, badge, image_url, is_active)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULLIF($10, ''), true)`,
 			nodeDomain, p.parentCat, p.cat, p.subcat, p.name, p.unit, p.desc, p.price, p.badge, p.image)
 		if err != nil {

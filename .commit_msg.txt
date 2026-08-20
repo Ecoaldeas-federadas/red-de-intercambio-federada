@@ -1,17 +1,20 @@
-fix: demo-app no arranca solo, controller lo crea con --no-deps
+fix: demo usa docker CLI directo desde node-app, sin demo-controller
 
-Problema: Al quitar profiles: ["demo"], demo-app arrancaba solo
-con docker compose up -d. Pero con profiles, el controller no
-podia crearlo por un problema de mount de config.demo.yaml.
+Problema: demo-controller usaba nc -l -p 9100 que es fragil y no
+respondia al POST /start. El node-app no podia conectar al controller.
 
 Solucion:
-- Copiar config.demo.yaml dentro de la imagen Docker (COPY en Dockerfile)
-- Quitar el mount de ./config.demo.yaml del servicio demo-app
-- Restaurar profiles: ["demo"] para que NO arranque solo
-- demo-controller crea el contenedor con:
-  docker compose --profile demo up -d --no-deps demo-app
-  (--no-deps evita que intente crear otro yugabytedb)
-- CONFIG_PATH apunta a /app/config.demo.yaml (dentro de la imagen)
+- Instalar docker-cli en la imagen del node-app (apk add docker-cli)
+- node-app ya tiene /var/run/docker.sock montado
+- getDemoStatus: docker inspect -f {{.State.Running}} demo-app-1
+- startDemoNode: docker start demo-app-1, o docker compose --profile
+  demo up -d --no-deps demo-app si no existe
+- resetDemoNode: docker restart demo-app-1
+- Eliminada la dependencia del demo-controller para start/stop/status
+
+Tambien:
+- Arreglar demo_seed.go: columna price -> price_per_unit
+  (la migracion 046 la renombro pero el seed seguia usando el viejo)
 
 Generated with [Devin](https://devin.ai)
 

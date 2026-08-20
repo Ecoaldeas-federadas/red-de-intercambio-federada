@@ -2,9 +2,9 @@ package api
 
 import (
 	"encoding/json"
-	"io"
 	"net/http"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -238,17 +238,11 @@ func (h *PublicProposalsHandler) updateProposalStatus(w http.ResponseWriter, r *
 func (h *PublicProposalsHandler) getDemoStatus(w http.ResponseWriter, r *http.Request) {
 	running := false
 
-	// Preguntar al demo-controller si demo-app esta corriendo
-	resp, err := http.Get("http://demo-controller:9100/status")
+	// Verificar si el contenedor demo-app esta corriendo usando docker CLI
+	cmd := exec.Command("docker", "inspect", "-f", "{{.State.Running}}", "red-de-intercambio-federada-demo-app-1")
+	output, err := cmd.Output()
 	if err == nil {
-		defer resp.Body.Close()
-		body, _ := io.ReadAll(resp.Body)
-		var result map[string]interface{}
-		if err := json.Unmarshal(body, &result); err == nil {
-			if v, ok := result["running"].(bool); ok {
-				running = v
-			}
-		}
+		running = strings.TrimSpace(string(output)) == "true"
 	}
 
 	// Verificar si es nodo demo (dominio "demo")
@@ -273,26 +267,16 @@ func (h *PublicProposalsHandler) getDemoStatus(w http.ResponseWriter, r *http.Re
 
 // startDemoNode arranca el contenedor demo-app bajo demanda.
 // Es PUBLICO: cualquier visitante puede iniciarlo desde el boton en la pagina.
-// Le pide al demo-controller que arranque demo-app via HTTP.
 func (h *PublicProposalsHandler) startDemoNode(w http.ResponseWriter, r *http.Request) {
-	// Pedir al demo-controller que inicie demo-app
-	resp, err := http.Post("http://demo-controller:9100/start", "application/json", nil)
+	// Intentar docker start del contenedor demo-app
+	cmd := exec.Command("docker", "start", "red-de-intercambio-federada-demo-app-1")
+	err := cmd.Run()
 	if err != nil {
-		// Si el controller no responde, intentar con docker directo (fallback)
-		cmd := exec.Command("docker", "start", "red-de-intercambio-federada-demo-app-1")
-		err2 := cmd.Run()
+		// Si no existe, crearlo con docker compose --profile demo --no-deps
+		cmd2 := exec.Command("docker", "compose", "--profile", "demo", "up", "-d", "--no-deps", "demo-app")
+		err2 := cmd2.Run()
 		if err2 != nil {
-			cmd3 := exec.Command("docker", "start", "demo-app")
-			err3 := cmd3.Run()
-			if err3 != nil {
-				writeError(w, 500, "no se pudo iniciar el nodo demo.")
-				return
-			}
-		}
-	} else {
-		defer resp.Body.Close()
-		if resp.StatusCode != 200 {
-			writeError(w, 500, "demo-controller no pudo iniciar el nodo demo.")
+			writeError(w, 500, "no se pudo iniciar el nodo demo: "+err.Error())
 			return
 		}
 	}
@@ -469,25 +453,14 @@ func (h *PublicProposalsHandler) toggleDemoUser(w http.ResponseWriter, r *http.R
 	})
 }
 
-// resetDemoNode resetea el nodo demo ejecutando docker compose restart
+// resetDemoNode resetea el nodo demo ejecutando docker restart
 // Esto borra y re-seedea la BD demo (porque demo-app hace auto-setup al arrancar)
 func (h *PublicProposalsHandler) resetDemoNode(w http.ResponseWriter, r *http.Request) {
-	// Intentar reiniciar el contenedor demo-app
 	cmd := exec.Command("docker", "restart", "red-de-intercambio-federada-demo-app-1")
 	err := cmd.Run()
 	if err != nil {
-		// Intentar con nombre alternativo
-		cmd2 := exec.Command("docker", "restart", "demo-app")
-		err2 := cmd2.Run()
-		if err2 != nil {
-			// Intentar con docker compose
-			cmd3 := exec.Command("docker", "compose", "restart", "demo-app")
-			err3 := cmd3.Run()
-			if err3 != nil {
-				writeError(w, 500, "no se pudo reiniciar el nodo demo. Asegurate de que el contenedor existe.")
-				return
-			}
-		}
+		writeError(w, 500, "no se pudo reiniciar el nodo demo: "+err.Error())
+		return
 	}
 
 	writeJSON(w, 200, map[string]interface{}{
