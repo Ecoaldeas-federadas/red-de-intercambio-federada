@@ -14,6 +14,10 @@ const CATEGORIES = [
   { value: 'salida', label: 'Proceso de Salida', icon: UserX, color: 'text-gray-700 bg-gray-50' },
   { value: 'impuestos', label: 'Impuestos', icon: Percent, color: 'text-purple-700 bg-purple-50' },
   { value: 'tierra', label: 'Tenencia de la Tierra', icon: Map, color: 'text-amber-700 bg-amber-50' },
+  { value: 'unidades_productivas', label: 'Unidades Productivas', icon: FileText, color: 'text-teal-700 bg-teal-50' },
+  { value: 'bienestar', label: 'Bienestar Comunitario', icon: Info, color: 'text-pink-700 bg-pink-50' },
+  { value: 'aprendizaje', label: 'Aprendizaje y Conocimiento', icon: FileText, color: 'text-indigo-700 bg-indigo-50' },
+  { value: 'convivencia', label: 'Convivencia y Cultura', icon: Users, color: 'text-rose-700 bg-rose-50' },
 ]
 
 const SEVERITY_STYLES: Record<string, { label: string; class: string }> = {

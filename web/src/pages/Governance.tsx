@@ -27,6 +27,10 @@ const CATEGORIES = [
   { value: 'salida', label: 'Proceso de Salida' },
   { value: 'impuestos', label: 'Impuestos' },
   { value: 'tierra', label: 'Tenencia de la Tierra' },
+  { value: 'unidades_productivas', label: 'Unidades Productivas' },
+  { value: 'bienestar', label: 'Bienestar Comunitario' },
+  { value: 'aprendizaje', label: 'Aprendizaje y Conocimiento' },
+  { value: 'convivencia', label: 'Convivencia y Cultura' },
 ]
 
 const RULE_TYPES = [
