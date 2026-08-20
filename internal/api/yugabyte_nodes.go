@@ -22,11 +22,10 @@ func NewYugabyteNodesHandler(pool *pgxpool.Pool) *YugabyteNodesHandler {
 
 func (h *YugabyteNodesHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.Group(func(r chi.Router) {
-		r.Use(am.RequireAuth)
-		r.With(am.RequirePermission("system.manage")).Get("/api/admin/yb-nodes", h.listNodes)
-		r.With(am.RequirePermission("system.manage")).Post("/api/admin/yb-nodes", h.createNode)
-		r.With(am.RequirePermission("system.manage")).Delete("/api/admin/yb-nodes/{id}", h.deleteNode)
-		r.With(am.RequirePermission("system.manage")).Get("/api/admin/yb-nodes/{id}/script", h.downloadScript)
+		r.With(am.RequirePermission("config.manage")).Get("/api/admin/yb-nodes", h.listNodes)
+		r.With(am.RequirePermission("config.manage")).Post("/api/admin/yb-nodes", h.createNode)
+		r.With(am.RequirePermission("config.manage")).Delete("/api/admin/yb-nodes/{id}", h.deleteNode)
+		r.With(am.RequirePermission("config.manage")).Get("/api/admin/yb-nodes/{id}/script", h.downloadScript)
 	})
 }
 

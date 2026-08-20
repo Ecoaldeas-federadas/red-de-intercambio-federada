@@ -17,8 +17,8 @@ import (
 
 // BackupsHandler maneja los endpoints de backups
 type BackupsHandler struct {
-	Pool        *pgxpool.Pool
-	BackupsDir  string
+	Pool       *pgxpool.Pool
+	BackupsDir string
 }
 
 // NewBackupsHandler crea un nuevo handler de backups
@@ -31,23 +31,22 @@ func NewBackupsHandler(pool *pgxpool.Pool) *BackupsHandler {
 
 func (h *BackupsHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.Group(func(r chi.Router) {
-		r.Use(am.RequireAuth)
-		r.With(am.RequirePermission("system.manage")).Get("/api/admin/backups", h.listBackups)
-		r.With(am.RequirePermission("system.manage")).Post("/api/admin/backups/now", h.createBackupNow)
-		r.With(am.RequirePermission("system.manage")).Get("/api/admin/backups/{filename}/download", h.downloadBackup)
-		r.With(am.RequirePermission("system.manage")).Delete("/api/admin/backups/{filename}", h.deleteBackup)
-		r.With(am.RequirePermission("system.manage")).Put("/api/admin/backups/{filename}/lock", h.toggleLockBackup)
-		r.With(am.RequirePermission("system.manage")).Get("/api/admin/backup-config", h.getBackupConfig)
-		r.With(am.RequirePermission("system.manage")).Put("/api/admin/backup-config", h.updateBackupConfig)
+		r.With(am.RequirePermission("config.manage")).Get("/api/admin/backups", h.listBackups)
+		r.With(am.RequirePermission("config.manage")).Post("/api/admin/backups/now", h.createBackupNow)
+		r.With(am.RequirePermission("config.manage")).Get("/api/admin/backups/{filename}/download", h.downloadBackup)
+		r.With(am.RequirePermission("config.manage")).Delete("/api/admin/backups/{filename}", h.deleteBackup)
+		r.With(am.RequirePermission("config.manage")).Put("/api/admin/backups/{filename}/lock", h.toggleLockBackup)
+		r.With(am.RequirePermission("config.manage")).Get("/api/admin/backup-config", h.getBackupConfig)
+		r.With(am.RequirePermission("config.manage")).Put("/api/admin/backup-config", h.updateBackupConfig)
 	})
 }
 
 // backupFileInfo representa un archivo de backup
 type backupFileInfo struct {
-	Filename   string    `json:"filename"`
-	SizeBytes  int64     `json:"size_bytes"`
-	IsLocked   bool      `json:"is_locked"`
-	CreatedAt  time.Time `json:"created_at"`
+	Filename  string    `json:"filename"`
+	SizeBytes int64     `json:"size_bytes"`
+	IsLocked  bool      `json:"is_locked"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // listBackups lista todos los archivos de backup

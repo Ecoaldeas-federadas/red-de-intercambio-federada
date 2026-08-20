@@ -89,7 +89,7 @@ export default function NodeSettings() {
   // Cargar backups automaticos y nodos YugabyteDB cuando se abren esos tabs
   const loadAutoBackups = async () => {
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('fmc_token')
       const res = await fetch('/api/admin/backups', {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
@@ -99,7 +99,7 @@ export default function NodeSettings() {
 
   const loadBackupConfig = async () => {
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('fmc_token')
       const res = await fetch('/api/admin/backup-config', {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
@@ -109,7 +109,7 @@ export default function NodeSettings() {
 
   const loadYbNodes = async () => {
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('fmc_token')
       const res = await fetch('/api/admin/yb-nodes', {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
@@ -710,7 +710,7 @@ export default function NodeSettings() {
                 setBackupLoading(true)
                 setError(''); setSuccess('')
                 try {
-                  const token = localStorage.getItem('token')
+                  const token = localStorage.getItem('fmc_token')
                   const res = await fetch('/api/backup', {
                     headers: token ? { Authorization: `Bearer ${token}` } : {},
                   })
@@ -771,7 +771,7 @@ export default function NodeSettings() {
                 try {
                   const text = await restoreFile.text()
                   const backup = JSON.parse(text)
-                  const token = localStorage.getItem('token')
+                  const token = localStorage.getItem('fmc_token')
                   const res = await fetch('/api/backup/restore', {
                     method: 'POST',
                     headers: {
@@ -882,7 +882,7 @@ export default function NodeSettings() {
                   setBackupConfigLoading(true)
                   setError(''); setSuccess('')
                   try {
-                    const token = localStorage.getItem('token')
+                    const token = localStorage.getItem('fmc_token')
                     const res = await fetch('/api/admin/backup-config', {
                       method: 'PUT',
                       headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
@@ -910,7 +910,7 @@ export default function NodeSettings() {
                 setAutoBackupLoading(true)
                 setError(''); setSuccess('')
                 try {
-                  const token = localStorage.getItem('token')
+                  const token = localStorage.getItem('fmc_token')
                   const res = await fetch('/api/admin/backups/now', {
                     method: 'POST',
                     headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -956,7 +956,7 @@ export default function NodeSettings() {
                           href={`/api/admin/backups/${encodeURIComponent(b.filename)}/download`}
                           onClick={(e) => {
                             e.preventDefault()
-                            const token = localStorage.getItem('token')
+                            const token = localStorage.getItem('fmc_token')
                             fetch(`/api/admin/backups/${encodeURIComponent(b.filename)}/download`, {
                               headers: token ? { Authorization: `Bearer ${token}` } : {},
                             }).then(res => res.blob()).then(blob => {
@@ -977,7 +977,7 @@ export default function NodeSettings() {
                         </a>
                         <button
                           onClick={async () => {
-                            const token = localStorage.getItem('token')
+                            const token = localStorage.getItem('fmc_token')
                             await fetch(`/api/admin/backups/${encodeURIComponent(b.filename)}/lock`, {
                               method: 'PUT',
                               headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -993,7 +993,7 @@ export default function NodeSettings() {
                           <button
                             onClick={async () => {
                               if (!confirm('Borrar este backup? Esta accion no se puede deshacer.')) return
-                              const token = localStorage.getItem('token')
+                              const token = localStorage.getItem('fmc_token')
                               await fetch(`/api/admin/backups/${encodeURIComponent(b.filename)}`, {
                                 method: 'DELETE',
                                 headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -1049,7 +1049,7 @@ export default function NodeSettings() {
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => {
-                          const token = localStorage.getItem('token')
+                          const token = localStorage.getItem('fmc_token')
                           fetch(`/api/admin/yb-nodes/${n.id}/script`, {
                             headers: token ? { Authorization: `Bearer ${token}` } : {},
                           }).then(res => res.blob()).then(blob => {
@@ -1070,7 +1070,7 @@ export default function NodeSettings() {
                       <button
                         onClick={async () => {
                           if (!confirm('Eliminar este nodo de la lista? Esto no detiene el nodo en el servidor remoto.')) return
-                          const token = localStorage.getItem('token')
+                          const token = localStorage.getItem('fmc_token')
                           await fetch(`/api/admin/yb-nodes/${n.id}`, {
                             method: 'DELETE',
                             headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -1153,7 +1153,7 @@ export default function NodeSettings() {
                 setYbLoading(true)
                 setError(''); setSuccess('')
                 try {
-                  const token = localStorage.getItem('token')
+                  const token = localStorage.getItem('fmc_token')
                   const res = await fetch('/api/admin/yb-nodes', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },

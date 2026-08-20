@@ -1,24 +1,8 @@
-feat: sistema de backups automaticos + nodos YugabyteDB
+fix: usar fmc_token y permiso config.manage en backups y nodos
 
-Backups automaticos:
-- Tab backup_config: frecuencia, retencion, activar/desactivar
-- Tab backup_files: registro de backups con lock
-- API: listar, descargar, borrar, bloquear/desbloquear, crear ahora
-- API: get/put configuracion (intervalo, retencion, enabled)
-- Servicio db-backup lee config.json del volumen compartido
-- Trigger manual: .trigger_now hace backup inmediato
-- Backups locked (.lock) nunca se borran automaticamente
-- find -mtime +retention borra los viejos (excepto locked)
-- Frontend: tab Backups con lista, config, bloquear, descargar, borrar
-
-Nodos YugabyteDB:
-- Tab yugabyte_nodes: nombre, IP, puerto, region, status
-- API: listar, crear, eliminar, descargar script
-- Script descargable: instala Docker, descarga YugabyteDB, join al cluster
-- Frontend: tab Base de Datos con lista, formulario, instrucciones
-- Tooltips de ayuda en todos los campos
-
-Migracion 066: backup_config, backup_files, yugabyte_nodes
+- localStorage.getItem('token') -> localStorage.getItem('fmc_token')
+- Permiso system.manage -> config.manage (consistente con /api/backup)
+- Quitar RequireAuth duplicado (RequirePermission ya verifica auth)
 
 Generated with [Devin](https://devin.ai)
 
