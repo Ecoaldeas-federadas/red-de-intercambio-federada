@@ -52,10 +52,12 @@ services:
       - YUGABYTE_DB_PASSWORD=fmcpassword
     restart: unless-stopped
 
-  # Backup automatico diario de la base de datos
-  # Exporta un dump SQL completo cada 24h a /backups
-  # Los backups se guardan en el volumen db_backups (persistente)
-  # Para restaurar: copiar el archivo .sql al servidor y ejecutarlo
+  # Backup automatico de la base de datos
+  # Lee configuracion de /backups/config.json (escrito por el backend)
+  # - interval_hours: cada cuanto hacer backup
+  # - retention_days: cuantos dias mantener backups (los .lock nunca se borran)
+  # - enabled: activar/desactivar
+  # Trigger manual: si existe /backups/.trigger_now, hace backup inmediato
   db-backup:
     image: yugabytedb/yugabyte:latest
     depends_on:
@@ -66,54 +68,71 @@ services:
       - |
         echo "Backup service: esperando a que YugabyteDB este listo..."
         sleep 90
+        LAST_BACKUP=0
         while true; do
-          DATE=$$(date +%Y%m%d_%H%M%S)
-          FILE="/backups/fmc_node_$$DATE.sql"
-          echo "Backup service: creando backup $$FILE"
-          /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "COPY (SELECT 'BACKUP ' || to_char(now(),'YYYY-MM-DD HH24:MI:SS')) TO STDOUT" > /dev/null 2>&1
-          if [ $$? -ne 0 ]; then
-            echo "Backup service: BD no lista, reintentando en 5 min"
-            sleep 300
-            continue
+          INTERVAL=24
+          RETENTION=7
+          ENABLED=true
+          if [ -f /backups/config.json ]; then
+            INTERVAL=$$(grep -o '"interval_hours":[0-9]*' /backups/config.json | grep -o '[0-9]*')
+            RETENTION=$$(grep -o '"retention_days":[0-9]*' /backups/config.json | grep -o '[0-9]*')
+            ENABLED=$$(grep -o '"enabled":[a-z]*' /backups/config.json | grep -o 'true\|false')
           fi
-          # Exportar todas las tablas principales
-          {
-            echo "-- Backup automatico $$DATE"
-            echo "-- Base de datos: fmc_node"
-            echo ""
-            echo "-- Paginas publicas"
-            /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT * FROM public_pages;" 2>/dev/null
-            echo ""
-            echo "-- Configuracion del nodo"
-            /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT * FROM node_config;" 2>/dev/null
-            echo ""
-            echo "-- Usuarios"
-            /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT id, username, node_domain, role, is_active FROM users;" 2>/dev/null
-            echo ""
-            echo "-- Productos"
-            /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT * FROM products;" 2>/dev/null
-            echo ""
-            echo "-- Departamentos"
-            /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT * FROM departments;" 2>/dev/null
-            echo ""
-            echo "-- Organizaciones"
-            /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT * FROM organizations;" 2>/dev/null
-            echo ""
-            echo "-- Transacciones"
-            /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT * FROM transactions;" 2>/dev/null
-          } > $$FILE
-          if [ -s $$FILE ]; then
-            echo "Backup service: backup OK $$FILE ($$(wc -c < $$FILE) bytes)"
-            # Mantener solo los ultimos 7 backups
-            ls -t /backups/fmc_node_*.sql 2>/dev/null | tail -n +8 | xargs rm -f 2>/dev/null
-          else
-            echo "Backup service: backup vacio, reintentando en 1h"
-            rm -f $$FILE
-            sleep 3600
-            continue
+          INTERVAL=$${INTERVAL:-24}
+          RETENTION=$${RETENTION:-7}
+          ENABLED=$${ENABLED:-true}
+
+          TRIGGER=0
+          if [ -f /backups/.trigger_now ]; then
+            TRIGGER=1
+            rm -f /backups/.trigger_now
           fi
-          echo "Backup service: proximo backup en 24h"
-          sleep 86400
+
+          NOW=$$(date +%s)
+          ELAPSED=$$((NOW - LAST_BACKUP))
+          NEED_BACKUP=0
+          if [ "$$TRIGGER" = "1" ]; then NEED_BACKUP=1; fi
+          if [ "$$ENABLED" = "true" ] && [ $$ELAPSED -ge $$((INTERVAL * 3600)) ]; then NEED_BACKUP=1; fi
+
+          if [ $$NEED_BACKUP -eq 1 ]; then
+            /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT 1" > /dev/null 2>&1
+            if [ $$? -ne 0 ]; then
+              echo "Backup service: BD no lista, reintentando en 5 min"
+              sleep 300
+              continue
+            fi
+            DATE=$$(date +%Y%m%d_%H%M%S)
+            FILE="/backups/fmc_node_$$DATE.sql"
+            echo "Backup service: creando backup $$FILE"
+            {
+              echo "-- Backup $$DATE"
+              echo "-- Base de datos: fmc_node"
+              echo ""
+              /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT * FROM public_pages;" 2>/dev/null
+              /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT * FROM node_config;" 2>/dev/null
+              /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT id, username, node_domain, role, is_active FROM users;" 2>/dev/null
+              /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT * FROM products;" 2>/dev/null
+              /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT * FROM departments;" 2>/dev/null
+              /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT * FROM organizations;" 2>/dev/null
+              /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT * FROM transactions;" 2>/dev/null
+            } > $$FILE
+            if [ -s $$FILE ]; then
+              echo "Backup service: backup OK $$FILE ($$(wc -c < $$FILE) bytes)"
+              LAST_BACKUP=$$NOW
+              find /backups -name "fmc_node_*.sql" -mtime +$$RETENTION 2>/dev/null | while read f; do
+                if [ ! -f "$$f.lock" ]; then
+                  rm -f "$$f"
+                  echo "Backup service: borrado $$f (mayor a $$RETENTION dias)"
+                fi
+              done
+            else
+              echo "Backup service: backup vacio, reintentando en 1h"
+              rm -f $$FILE
+              sleep 3600
+              continue
+            fi
+          fi
+          sleep 60
         done
     volumes:
       - db_backups:/backups

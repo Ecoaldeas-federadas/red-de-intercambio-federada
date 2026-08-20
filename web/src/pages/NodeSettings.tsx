@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
-import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon, Vote as VoteIcon, Database, Download, Upload, AlertTriangle, RefreshCw, Globe } from 'lucide-react'
+import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon, Vote as VoteIcon, Database, Download, Upload, AlertTriangle, RefreshCw, Globe, Lock, Unlock, Trash2, FileText, Server, HardDrive } from 'lucide-react'
 
 // Opciones del 1 al 10 para el numero de nivel (seleccionable, no texto libre)
 const LEVEL_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1)
@@ -22,7 +22,7 @@ export default function NodeSettings() {
   const { hasPermission } = usePermissions()
   const canManage = hasPermission('config.manage')
 
-  const [tab, setTab] = useState<'general' | 'levels' | 'org_levels' | 'tariff' | 'backup' | 'demo'>('general')
+  const [tab, setTab] = useState<'general' | 'levels' | 'org_levels' | 'tariff' | 'backup' | 'database' | 'demo'>('general')
   const [showHelp, setShowHelp] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -33,6 +33,17 @@ export default function NodeSettings() {
   const [restoreLoading, setRestoreLoading] = useState(false)
   const [restoreFile, setRestoreFile] = useState<File | null>(null)
   const [restoreResult, setRestoreResult] = useState<any>(null)
+
+  // Backups automaticos
+  const [autoBackups, setAutoBackups] = useState<any[]>([])
+  const [backupConfig, setBackupConfig] = useState({ interval_hours: 24, retention_days: 7, enabled: true })
+  const [backupConfigLoading, setBackupConfigLoading] = useState(false)
+  const [autoBackupLoading, setAutoBackupLoading] = useState(false)
+
+  // Nodos YugabyteDB
+  const [ybNodes, setYbNodes] = useState<any[]>([])
+  const [ybNodeForm, setYbNodeForm] = useState({ node_name: '', host_ip: '', port: 7100, region: '' })
+  const [ybLoading, setYbLoading] = useState(false)
 
   // Config general
   const [config, setConfig] = useState({ node_name: '', currency_name: 'TQ', currency_full_name: 'Trueque', app_name: 'Red de Intercambio' })
@@ -74,6 +85,42 @@ export default function NodeSettings() {
   }
 
   useEffect(() => { load() }, [])
+
+  // Cargar backups automaticos y nodos YugabyteDB cuando se abren esos tabs
+  const loadAutoBackups = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/admin/backups', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (res.ok) setAutoBackups(await res.json())
+    } catch {}
+  }
+
+  const loadBackupConfig = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/admin/backup-config', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (res.ok) setBackupConfig(await res.json())
+    } catch {}
+  }
+
+  const loadYbNodes = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/admin/yb-nodes', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (res.ok) setYbNodes(await res.json())
+    } catch {}
+  }
+
+  useEffect(() => {
+    if (tab === 'backup') { loadAutoBackups(); loadBackupConfig() }
+    if (tab === 'database') { loadYbNodes() }
+  }, [tab])
 
   const saveConfig = async () => {
     setError(''); setSuccess('')
@@ -237,6 +284,9 @@ export default function NodeSettings() {
         <button onClick={() => setTab('tariff')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'tariff' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Tarifa Energetica</button>
         {canManage && (
           <button onClick={() => setTab('backup')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'backup' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Database size={14} className="inline mr-1" />Copia de Seguridad</button>
+        )}
+        {canManage && (
+          <button onClick={() => setTab('database')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'database' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><HardDrive size={14} className="inline mr-1" />Base de Datos</button>
         )}
         {canManage && (
           <button onClick={() => setTab('demo')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'demo' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Globe size={14} className="inline mr-1" />Nodo Demo</button>
@@ -774,6 +824,371 @@ export default function NodeSettings() {
             <p><strong>Descargar:</strong> Genera un archivo JSON con todas las tablas de la base de datos. Guardalo en un lugar seguro (USB, nube, etc).</p>
             <p><strong>Restaurar:</strong> Sube un archivo JSON de backup. Los registros que ya existan no se duplican. Los que no existan se agregaran.</p>
             <p><strong>Frecuencia recomendada:</strong> Descarga una copia al menos una vez por semana, o antes de hacer cambios importantes.</p>
+          </div>
+
+          {/* ===== BACKUPS AUTOMATICOS ===== */}
+          <div className="border-t pt-4 space-y-4">
+            <h3 className="font-medium text-sm flex items-center gap-2"><RefreshCw size={16} />Backups Automaticos</h3>
+            <p className="text-xs text-gray-600">
+              El sistema puede crear backups automaticos de la base de datos y guardarlos en el servidor.
+              Configura cada cuanto tiempo hacerlos y cuanto tiempo mantenerlos antes de borrarlos.
+              Los backups bloqueados nunca se borran automaticamente.
+            </p>
+
+            {/* Configuracion */}
+            <div className="card bg-gray-50 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="label flex items-center gap-1">
+                    Frecuencia (horas)
+                    <HelpCircle size={12} className="text-gray-400" title="Cada cuantas horas se crea un backup automatico. Minimo 1." />
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={backupConfig.interval_hours}
+                    onChange={(e) => setBackupConfig({ ...backupConfig, interval_hours: parseInt(e.target.value) || 1 })}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label className="label flex items-center gap-1">
+                    Retencion (dias)
+                    <HelpCircle size={12} className="text-gray-400" title="Cuantos dias se mantiene un backup antes de borrarlo automaticamente. Los bloqueados no se borran." />
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={backupConfig.retention_days}
+                    onChange={(e) => setBackupConfig({ ...backupConfig, retention_days: parseInt(e.target.value) || 1 })}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label className="label flex items-center gap-1">
+                    Estado
+                    <HelpCircle size={12} className="text-gray-400" title="Activa o desactiva los backups automaticos." />
+                  </label>
+                  <button
+                    onClick={() => setBackupConfig({ ...backupConfig, enabled: !backupConfig.enabled })}
+                    className={`w-full px-4 py-2 rounded-lg text-sm font-medium ${backupConfig.enabled ? 'bg-green-600 text-white' : 'bg-gray-300'}`}
+                  >
+                    {backupConfig.enabled ? 'Activados' : 'Desactivados'}
+                  </button>
+                </div>
+              </div>
+              <button
+                onClick={async () => {
+                  setBackupConfigLoading(true)
+                  setError(''); setSuccess('')
+                  try {
+                    const token = localStorage.getItem('token')
+                    const res = await fetch('/api/admin/backup-config', {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                      body: JSON.stringify(backupConfig),
+                    })
+                    if (!res.ok) throw new Error('Error al guardar configuracion')
+                    setSuccess('Configuracion de backups guardada')
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : 'Error al guardar')
+                  } finally {
+                    setBackupConfigLoading(false)
+                  }
+                }}
+                disabled={backupConfigLoading}
+                className="btn-primary flex items-center gap-2"
+              >
+                <Save size={16} />
+                {backupConfigLoading ? 'Guardando...' : 'Guardar Configuracion'}
+              </button>
+            </div>
+
+            {/* Crear backup ahora */}
+            <button
+              onClick={async () => {
+                setAutoBackupLoading(true)
+                setError(''); setSuccess('')
+                try {
+                  const token = localStorage.getItem('token')
+                  const res = await fetch('/api/admin/backups/now', {
+                    method: 'POST',
+                    headers: token ? { Authorization: `Bearer ${token}` } : {},
+                  })
+                  if (!res.ok) throw new Error('Error al solicitar backup')
+                  setSuccess('Backup solicitado. Se creara en los proximos segundos.')
+                  // Recargar lista
+                  setTimeout(() => loadAutoBackups(), 5000)
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : 'Error al crear backup')
+                } finally {
+                  setAutoBackupLoading(false)
+                }
+              }}
+              disabled={autoBackupLoading}
+              className="btn-primary flex items-center gap-2"
+            >
+              <Plus size={16} />
+              {autoBackupLoading ? 'Solicitando...' : 'Crear Backup Ahora'}
+            </button>
+
+            {/* Lista de backups automaticos */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium">Backups guardados en el servidor:</h4>
+              {autoBackups.length === 0 ? (
+                <p className="text-xs text-gray-500">No hay backups automaticos todavia.</p>
+              ) : (
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {autoBackups.map((b: any) => (
+                    <div key={b.filename} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg text-sm">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <FileText size={16} className="text-gray-400 flex-shrink-0" />
+                        <div className="min-w-0">
+                          <div className="font-mono text-xs truncate">{b.filename}</div>
+                          <div className="text-xs text-gray-500">
+                            {new Date(b.created_at).toLocaleString()} - {(b.size_bytes / 1024).toFixed(1)} KB
+                            {b.is_locked && <span className="ml-2 text-amber-600 font-medium">Bloqueado</span>}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <a
+                          href={`/api/admin/backups/${encodeURIComponent(b.filename)}/download`}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            const token = localStorage.getItem('token')
+                            fetch(`/api/admin/backups/${encodeURIComponent(b.filename)}/download`, {
+                              headers: token ? { Authorization: `Bearer ${token}` } : {},
+                            }).then(res => res.blob()).then(blob => {
+                              const url = URL.createObjectURL(blob)
+                              const a = document.createElement('a')
+                              a.href = url
+                              a.download = b.filename
+                              document.body.appendChild(a)
+                              a.click()
+                              document.body.removeChild(a)
+                              URL.revokeObjectURL(url)
+                            })
+                          }}
+                          className="p-1.5 text-blue-600 hover:bg-blue-100 rounded"
+                          title="Descargar"
+                        >
+                          <Download size={14} />
+                        </a>
+                        <button
+                          onClick={async () => {
+                            const token = localStorage.getItem('token')
+                            await fetch(`/api/admin/backups/${encodeURIComponent(b.filename)}/lock`, {
+                              method: 'PUT',
+                              headers: token ? { Authorization: `Bearer ${token}` } : {},
+                            })
+                            loadAutoBackups()
+                          }}
+                          className="p-1.5 text-amber-600 hover:bg-amber-100 rounded"
+                          title={b.is_locked ? 'Desbloquear' : 'Bloquear (no se borrara automaticamente)'}
+                        >
+                          {b.is_locked ? <Unlock size={14} /> : <Lock size={14} />}
+                        </button>
+                        {!b.is_locked && (
+                          <button
+                            onClick={async () => {
+                              if (!confirm('Borrar este backup? Esta accion no se puede deshacer.')) return
+                              const token = localStorage.getItem('token')
+                              await fetch(`/api/admin/backups/${encodeURIComponent(b.filename)}`, {
+                                method: 'DELETE',
+                                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                              })
+                              loadAutoBackups()
+                            }}
+                            className="p-1.5 text-red-600 hover:bg-red-100 rounded"
+                            title="Borrar"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== BASE DE DATOS / NODOS YUGABYTE ===== */}
+      {tab === 'database' && canManage && (
+        <div className="card space-y-6">
+          <h2 className="font-semibold flex items-center gap-2"><HardDrive size={18} />Base de Datos</h2>
+
+          <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
+            <h3 className="font-medium flex items-center gap-2"><HelpCircle size={16} />Que son los nodos YugabyteDB?</h3>
+            <p>YugabyteDB puede correr en multiples servidores al mismo tiempo. Los datos se replican entre todos los nodos.</p>
+            <p>Si un servidor se cae, los otros nodos siguen funcionando y tus datos estan seguros.</p>
+            <p><strong>Como funciona:</strong> Agregas un nodo desde aqui, descargas el script de instalacion, lo copias al otro servidor y lo ejecutas. El nuevo nodo se une al cluster automaticamente.</p>
+          </div>
+
+          {/* Lista de nodos existentes */}
+          <div className="space-y-2">
+            <h3 className="font-medium text-sm">Nodos YugabyteDB del cluster:</h3>
+            {ybNodes.length === 0 ? (
+              <p className="text-xs text-gray-500">No hay nodos adicionales configurados. Solo estas usando el nodo principal.</p>
+            ) : (
+              <div className="space-y-2">
+                {ybNodes.map((n: any) => (
+                  <div key={n.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg text-sm">
+                    <div className="flex items-center gap-2">
+                      <Server size={16} className="text-gray-400" />
+                      <div>
+                        <div className="font-medium">{n.node_name}</div>
+                        <div className="text-xs text-gray-500">
+                          {n.host_ip}:{n.port} - {n.region || 'sin region'} - {n.status}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          const token = localStorage.getItem('token')
+                          fetch(`/api/admin/yb-nodes/${n.id}/script`, {
+                            headers: token ? { Authorization: `Bearer ${token}` } : {},
+                          }).then(res => res.blob()).then(blob => {
+                            const url = URL.createObjectURL(blob)
+                            const a = document.createElement('a')
+                            a.href = url
+                            a.download = `install_yugabyte_${n.node_name}.sh`
+                            document.body.appendChild(a)
+                            a.click()
+                            document.body.removeChild(a)
+                            URL.revokeObjectURL(url)
+                          })
+                        }}
+                        className="btn-primary text-xs flex items-center gap-1"
+                      >
+                        <Download size={12} /> Script
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!confirm('Eliminar este nodo de la lista? Esto no detiene el nodo en el servidor remoto.')) return
+                          const token = localStorage.getItem('token')
+                          await fetch(`/api/admin/yb-nodes/${n.id}`, {
+                            method: 'DELETE',
+                            headers: token ? { Authorization: `Bearer ${token}` } : {},
+                          })
+                          loadYbNodes()
+                        }}
+                        className="p-1.5 text-red-600 hover:bg-red-100 rounded"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Formulario para agregar nodo */}
+          <div className="card bg-gray-50 space-y-3">
+            <h3 className="font-medium text-sm flex items-center gap-2"><Plus size={16} />Agregar nuevo nodo YugabyteDB</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="label flex items-center gap-1">
+                  Nombre del nodo
+                  <HelpCircle size={12} className="text-gray-400" title="Nombre identificatorio. Ej: nodo-backup-1, nodo-caracas, etc." />
+                </label>
+                <input
+                  type="text"
+                  value={ybNodeForm.node_name}
+                  onChange={(e) => setYbNodeForm({ ...ybNodeForm, node_name: e.target.value })}
+                  className="input"
+                  placeholder="nodo-caracas"
+                />
+              </div>
+              <div>
+                <label className="label flex items-center gap-1">
+                  IP del servidor remoto
+                  <HelpCircle size={12} className="text-gray-400" title="Direccion IP del servidor donde se instalara el nodo. Ej: 192.168.1.100" />
+                </label>
+                <input
+                  type="text"
+                  value={ybNodeForm.host_ip}
+                  onChange={(e) => setYbNodeForm({ ...ybNodeForm, host_ip: e.target.value })}
+                  className="input"
+                  placeholder="192.168.1.100"
+                />
+              </div>
+              <div>
+                <label className="label flex items-center gap-1">
+                  Puerto
+                  <HelpCircle size={12} className="text-gray-400" title="Puerto para comunicacion entre nodos. Por defecto 7100." />
+                </label>
+                <input
+                  type="number"
+                  value={ybNodeForm.port}
+                  onChange={(e) => setYbNodeForm({ ...ybNodeForm, port: parseInt(e.target.value) || 7100 })}
+                  className="input"
+                />
+              </div>
+              <div>
+                <label className="label flex items-center gap-1">
+                  Region
+                  <HelpCircle size={12} className="text-gray-400" title="Region geografica. Ej: caracas, maracay, valencia. Opcional." />
+                </label>
+                <input
+                  type="text"
+                  value={ybNodeForm.region}
+                  onChange={(e) => setYbNodeForm({ ...ybNodeForm, region: e.target.value })}
+                  className="input"
+                  placeholder="caracas"
+                />
+              </div>
+            </div>
+            <button
+              onClick={async () => {
+                if (!ybNodeForm.node_name || !ybNodeForm.host_ip) {
+                  setError('Nombre e IP son obligatorios')
+                  return
+                }
+                setYbLoading(true)
+                setError(''); setSuccess('')
+                try {
+                  const token = localStorage.getItem('token')
+                  const res = await fetch('/api/admin/yb-nodes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                    body: JSON.stringify(ybNodeForm),
+                  })
+                  if (!res.ok) throw new Error('Error al crear nodo')
+                  setSuccess('Nodo creado. Descarga el script y ejecutalo en el servidor remoto.')
+                  setYbNodeForm({ node_name: '', host_ip: '', port: 7100, region: '' })
+                  loadYbNodes()
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : 'Error al crear nodo')
+                } finally {
+                  setYbLoading(false)
+                }
+              }}
+              disabled={ybLoading}
+              className="btn-primary flex items-center gap-2"
+            >
+              <Plus size={16} />
+              {ybLoading ? 'Creando...' : 'Crear Nodo'}
+            </button>
+          </div>
+
+          {/* Instrucciones */}
+          <div className="card bg-amber-50 border-amber-200 text-sm space-y-2">
+            <h3 className="font-medium flex items-center gap-2"><HelpCircle size={16} />Instrucciones de uso</h3>
+            <ol className="list-decimal list-inside space-y-1 text-xs">
+              <li>Agrega un nuevo nodo con el formulario de arriba.</li>
+              <li>Descarga el script de instalacion (boton "Script").</li>
+              <li>Copia el archivo <code>.sh</code> al servidor remoto (USB, scp, etc).</li>
+              <li>En el servidor remoto, ejecuta: <code>chmod +x install_yugabyte_*.sh</code></li>
+              <li>Ejecuta: <code>sudo ./install_yugabyte_*.sh</code></li>
+              <li>El nodo se unira al cluster automaticamente y los datos se replicaran.</li>
+              <li>Asegurate de que los puertos 7100, 9100, 5433, 7000 esten abiertos en ambos servidores.</li>
+            </ol>
           </div>
         </div>
       )}

@@ -94,6 +94,12 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 	ppH := &PublicProposalsHandler{Pool: pool, Auth: am, JWTSecret: ah.JWTSecret}
 	ppH.RegisterRoutes(r, am)
 
+	// Backups + YugabyteDB nodes
+	backupH := NewBackupsHandler(pool)
+	backupH.RegisterRoutes(r, am)
+	ybH := NewYugabyteNodesHandler(pool)
+	ybH.RegisterRoutes(r, am)
+
 	// Servir imagenes subidas desde /uploads/
 	r.Get("/uploads/*", func(w http.ResponseWriter, r *http.Request) {
 		uploadDir := "/app/uploads"
