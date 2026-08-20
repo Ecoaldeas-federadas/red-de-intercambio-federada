@@ -34,6 +34,12 @@ export default function NodeSettings() {
   const [restoreFile, setRestoreFile] = useState<File | null>(null)
   const [restoreResult, setRestoreResult] = useState<any>(null)
 
+  // Mensajes locales junto a botones
+  const [backupMsg, setBackupMsg] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null)
+  const [configMsg, setConfigMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  const [demoMsg, setDemoMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  const [confirmModal, setConfirmModal] = useState<{ open: boolean, action: () => void, text: string }>({ open: false, action: () => {}, text: '' })
+
   // Backups automaticos
   const [autoBackups, setAutoBackups] = useState<any[]>([])
   const [backupConfig, setBackupConfig] = useState({ interval_hours: 24, retention_days: 7, enabled: true })
@@ -880,7 +886,7 @@ export default function NodeSettings() {
               <button
                 onClick={async () => {
                   setBackupConfigLoading(true)
-                  setError(''); setSuccess('')
+                  setConfigMsg(null)
                   try {
                     const token = localStorage.getItem('fmc_token')
                     const res = await fetch('/api/admin/backup-config', {
@@ -889,9 +895,9 @@ export default function NodeSettings() {
                       body: JSON.stringify(backupConfig),
                     })
                     if (!res.ok) throw new Error('Error al guardar configuracion')
-                    setSuccess('Configuracion de backups guardada')
+                    setConfigMsg({ type: 'success', text: 'Configuracion guardada correctamente.' })
                   } catch (err) {
-                    setError(err instanceof Error ? err.message : 'Error al guardar')
+                    setConfigMsg({ type: 'error', text: err instanceof Error ? err.message : 'Error al guardar' })
                   } finally {
                     setBackupConfigLoading(false)
                   }
@@ -902,35 +908,70 @@ export default function NodeSettings() {
                 <Save size={16} />
                 {backupConfigLoading ? 'Guardando...' : 'Guardar Configuracion'}
               </button>
+              {configMsg && (
+                <div className={`text-xs p-2 rounded-lg flex items-center gap-2 ${
+                  configMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                }`}>
+                  {configMsg.type === 'success' ? <RefreshCw size={14} /> : <AlertTriangle size={14} />}
+                  {configMsg.text}
+                </div>
+              )}
             </div>
 
             {/* Crear backup ahora */}
-            <button
-              onClick={async () => {
-                setAutoBackupLoading(true)
-                setError(''); setSuccess('')
-                try {
-                  const token = localStorage.getItem('fmc_token')
-                  const res = await fetch('/api/admin/backups/now', {
-                    method: 'POST',
-                    headers: token ? { Authorization: `Bearer ${token}` } : {},
-                  })
-                  if (!res.ok) throw new Error('Error al solicitar backup')
-                  setSuccess('Backup solicitado. Se creara en los proximos segundos.')
-                  // Recargar lista
-                  setTimeout(() => loadAutoBackups(), 5000)
-                } catch (err) {
-                  setError(err instanceof Error ? err.message : 'Error al crear backup')
-                } finally {
-                  setAutoBackupLoading(false)
-                }
-              }}
-              disabled={autoBackupLoading}
-              className="btn-primary flex items-center gap-2"
-            >
-              <Plus size={16} />
-              {autoBackupLoading ? 'Solicitando...' : 'Crear Backup Ahora'}
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={async () => {
+                  setAutoBackupLoading(true)
+                  setBackupMsg({ type: 'info', text: 'Solicitando backup...' })
+                  try {
+                    const token = localStorage.getItem('fmc_token')
+                    const res = await fetch('/api/admin/backups/now', {
+                      method: 'POST',
+                      headers: token ? { Authorization: `Bearer ${token}` } : {},
+                    })
+                    if (!res.ok) throw new Error('Error al solicitar backup')
+                    setBackupMsg({ type: 'info', text: 'Backup solicitado. Creando en segundo plano...' })
+                    // Auto-recargar la lista cada 5 segundos hasta que aparezca el nuevo backup
+                    let attempts = 0
+                    const initialCount = autoBackups.length
+                    const checkInterval = setInterval(async () => {
+                      attempts++
+                      await loadAutoBackups()
+                      if (autoBackups.length > initialCount || attempts > 12) {
+                        clearInterval(checkInterval)
+                        if (autoBackups.length > initialCount) {
+                          setBackupMsg({ type: 'success', text: 'Backup creado correctamente.' })
+                        } else {
+                          setBackupMsg({ type: 'info', text: 'Backup en proceso. Recarga la pagina en unos segundos para verlo.' })
+                        }
+                      }
+                    }, 5000)
+                  } catch (err) {
+                    setBackupMsg({ type: 'error', text: err instanceof Error ? err.message : 'Error al crear backup' })
+                  } finally {
+                    setAutoBackupLoading(false)
+                  }
+                }}
+                disabled={autoBackupLoading}
+                className="btn-primary flex items-center gap-2"
+              >
+                <Plus size={16} />
+                {autoBackupLoading ? 'Solicitando...' : 'Crear Backup Ahora'}
+              </button>
+              {backupMsg && (
+                <div className={`text-xs p-2 rounded-lg flex items-center gap-2 ${
+                  backupMsg.type === 'success' ? 'bg-green-50 text-green-700' :
+                  backupMsg.type === 'error' ? 'bg-red-50 text-red-700' :
+                  'bg-blue-50 text-blue-700'
+                }`}>
+                  {backupMsg.type === 'success' && <RefreshCw size={14} />}
+                  {backupMsg.type === 'error' && <AlertTriangle size={14} />}
+                  {backupMsg.type === 'info' && <RefreshCw size={14} className="animate-spin" />}
+                  {backupMsg.text}
+                </div>
+              )}
+            </div>
 
             {/* Lista de backups automaticos */}
             <div className="space-y-2">
@@ -991,14 +1032,19 @@ export default function NodeSettings() {
                         </button>
                         {!b.is_locked && (
                           <button
-                            onClick={async () => {
-                              if (!confirm('Borrar este backup? Esta accion no se puede deshacer.')) return
-                              const token = localStorage.getItem('fmc_token')
-                              await fetch(`/api/admin/backups/${encodeURIComponent(b.filename)}`, {
-                                method: 'DELETE',
-                                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                            onClick={() => {
+                              setConfirmModal({
+                                open: true,
+                                text: 'Borrar este backup? Esta accion no se puede deshacer.',
+                                action: async () => {
+                                  const token = localStorage.getItem('fmc_token')
+                                  await fetch(`/api/admin/backups/${encodeURIComponent(b.filename)}`, {
+                                    method: 'DELETE',
+                                    headers: token ? { Authorization: `Bearer ${token}` } : {},
+                                  })
+                                  loadAutoBackups()
+                                }
                               })
-                              loadAutoBackups()
                             }}
                             className="p-1.5 text-red-600 hover:bg-red-100 rounded"
                             title="Borrar"
@@ -1068,14 +1114,19 @@ export default function NodeSettings() {
                         <Download size={12} /> Script
                       </button>
                       <button
-                        onClick={async () => {
-                          if (!confirm('Eliminar este nodo de la lista? Esto no detiene el nodo en el servidor remoto.')) return
-                          const token = localStorage.getItem('fmc_token')
-                          await fetch(`/api/admin/yb-nodes/${n.id}`, {
-                            method: 'DELETE',
-                            headers: token ? { Authorization: `Bearer ${token}` } : {},
+                        onClick={() => {
+                          setConfirmModal({
+                            open: true,
+                            text: 'Eliminar este nodo de la lista? Esto no detiene el nodo en el servidor remoto.',
+                            action: async () => {
+                              const token = localStorage.getItem('fmc_token')
+                              await fetch(`/api/admin/yb-nodes/${n.id}`, {
+                                method: 'DELETE',
+                                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                              })
+                              loadYbNodes()
+                            }
                           })
-                          loadYbNodes()
                         }}
                         className="p-1.5 text-red-600 hover:bg-red-100 rounded"
                       >
@@ -1222,18 +1273,23 @@ export default function NodeSettings() {
               nodo demo refleje los cambios inmediatamente.
             </p>
             <button
-              onClick={async () => {
-                if (!confirm('Seguro que quieres resetear el nodo demo? Se borraran todos los datos demo y se recrearan.')) return
-                setDemoResetting(true)
-                setError(''); setSuccess('')
-                try {
-                  await api.post('/admin/demo/reset', {})
-                  setSuccess('Nodo demo reiniciado. Los datos se estan recreando.')
-                } catch (e: any) {
-                  setError(e?.message || 'Error al resetear nodo demo')
-                } finally {
-                  setDemoResetting(false)
-                }
+              onClick={() => {
+                setConfirmModal({
+                  open: true,
+                  text: 'Seguro que quieres resetear el nodo demo? Se borraran todos los datos demo y se recrearan.',
+                  action: async () => {
+                    setDemoResetting(true)
+                    setDemoMsg(null)
+                    try {
+                      await api.post('/admin/demo/reset', {})
+                      setDemoMsg({ type: 'success', text: 'Nodo demo reiniciado. Los datos se estan recreando.' })
+                    } catch (e: any) {
+                      setDemoMsg({ type: 'error', text: e?.message || 'Error al resetear nodo demo' })
+                    } finally {
+                      setDemoResetting(false)
+                    }
+                  }
+                })
               }}
               disabled={demoResetting}
               className="btn-primary flex items-center gap-2"
@@ -1241,6 +1297,14 @@ export default function NodeSettings() {
               <RefreshCw size={16} className={demoResetting ? 'animate-spin' : ''} />
               {demoResetting ? 'Reiniciando...' : 'Resetear Nodo Demo'}
             </button>
+            {demoMsg && (
+              <div className={`text-xs p-2 rounded-lg flex items-center gap-2 ${
+                demoMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+              }`}>
+                {demoMsg.type === 'success' ? <RefreshCw size={14} /> : <AlertTriangle size={14} />}
+                {demoMsg.text}
+              </div>
+            )}
           </div>
 
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
@@ -1253,6 +1317,35 @@ export default function NodeSettings() {
               <li>Miembros - agricultores, productores, artesanos, miembro nuevo</li>
             </ul>
             <p className="text-xs">Cada boton entra directamente con ese rol. Password: demo1234 para todos.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmacion interno (no usa confirm() de Windows) */}
+      {confirmModal.open && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setConfirmModal({ ...confirmModal, open: false })}>
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-3 mb-4">
+              <AlertTriangle size={24} className="text-amber-500 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-gray-700">{confirmModal.text}</p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmModal({ ...confirmModal, open: false })}
+                className="px-4 py-2 text-sm bg-gray-200 rounded-lg hover:bg-gray-300"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  setConfirmModal({ ...confirmModal, open: false })
+                  await confirmModal.action()
+                }}
+                className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Confirmar
+              </button>
+            </div>
           </div>
         </div>
       )}

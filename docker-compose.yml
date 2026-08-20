@@ -192,7 +192,12 @@ services:
           
           if echo "$$PATH_LINE" | grep -q "POST /start"; then
             echo "Demo controller: arrancando demo-app..."
-            docker start demo-app 2>/dev/null || docker compose -f /project/docker-compose.yml --profile demo up -d demo-app 2>/dev/null || true
+            # Intentar start directo, si no existe crear con compose
+            docker start demo-app 2>/dev/null
+            if [ $$? -ne 0 ]; then
+              echo "Demo controller: demo-app no existe, creando con compose..."
+              cd /project && docker compose --profile demo up -d demo-app 2>&1 || true
+            fi
             RESPONSE="HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"running\":true,\"message\":\"demo iniciado\"}"
           elif echo "$$PATH_LINE" | grep -q "POST /stop"; then
             echo "Demo controller: deteniendo demo-app..."

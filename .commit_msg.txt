@@ -1,8 +1,21 @@
-fix: usar fmc_token y permiso config.manage en backups y nodos
+fix: mensajes junto a botones, modal interno, demo-controller
 
-- localStorage.getItem('token') -> localStorage.getItem('fmc_token')
-- Permiso system.manage -> config.manage (consistente con /api/backup)
-- Quitar RequireAuth duplicado (RequirePermission ya verifica auth)
+Backups:
+- Mensajes de exito/error ahora aparecen junto al boton, no arriba
+- Auto-refresh de la lista cada 5s despues de crear backup
+- Spinner mientras se crea el backup
+- Mensaje de progreso: "Creando en segundo plano..."
+
+Demo:
+- Reemplazar confirm() de Windows con modal interno estilizado
+- Modal con boton Cancelar/Confirmar
+- Mensajes junto al boton de resetear demo
+
+Demo-controller (docker-compose):
+- Arreglar creacion de demo-app: si docker start falla, hacer
+  cd /project && docker compose --profile demo up -d demo-app
+- El comando anterior no funcionaba porque docker compose necesita
+  estar en el directorio del proyecto
 
 Generated with [Devin](https://devin.ai)
 
