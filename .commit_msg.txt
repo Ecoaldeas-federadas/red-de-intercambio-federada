@@ -1,24 +1,17 @@
-fix: backups visibles desde node-app + URLs por tab + status en tiempo real
+fix: nodo demo arranca correctamente
 
-Backups:
-- Montar volumen db_backups en node-app (antes no lo tenia montado
-  y por eso no podia ver los archivos que creaba db-backup)
-- Nuevo endpoint GET /api/admin/backups/status devuelve el estado
-  del servicio db-backup (idle, creating, done, error)
-- db-backup escribe .backup_status con el estado actual
-- Frontend hace polling cada 3s del status y muestra:
-  "Solicitando backup..." -> "Creando backup... exportando tablas"
-  -> "Backup creado correctamente" o "Error: ..."
-- Spinner visible durante todo el proceso
+Problema: demo-app tenia profiles: ["demo"] lo que hacia que nunca
+se creara con docker compose up -d normal. El demo-controller
+intentaba docker start demo-app pero el contenedor no existia.
 
-URLs por tab:
-- Cada tab de NodeSettings tiene su propia URL:
-  /app/settings?tab=backup
-  /app/settings?tab=database
-  /app/settings?tab=demo
-  etc.
-- Recargar la pagina mantiene el tab activo
-- Se puede compartir/enlazar directamente a un tab
+Solucion:
+- Quitar profiles: ["demo"] de demo-app
+- Ahora demo-app se crea con docker compose up -d (como los demas)
+- restart: "no" hace que no arranque solo, solo cuando se le pide
+- demo-controller hace docker start/stop del contenedor ya creado
+- Usar nombre completo red-de-intercambio-federada-demo-app-1
+- Backend startDemoNode y resetDemoNode usan el nombre correcto
+- demo-stopper tambien usa el nombre correcto
 
 Generated with [Devin](https://devin.ai)
 

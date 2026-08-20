@@ -279,11 +279,15 @@ func (h *PublicProposalsHandler) startDemoNode(w http.ResponseWriter, r *http.Re
 	resp, err := http.Post("http://demo-controller:9100/start", "application/json", nil)
 	if err != nil {
 		// Si el controller no responde, intentar con docker directo (fallback)
-		cmd := exec.Command("docker", "start", "demo-app")
+		cmd := exec.Command("docker", "start", "red-de-intercambio-federada-demo-app-1")
 		err2 := cmd.Run()
 		if err2 != nil {
-			writeError(w, 500, "no se pudo iniciar el nodo demo.")
-			return
+			cmd3 := exec.Command("docker", "start", "demo-app")
+			err3 := cmd3.Run()
+			if err3 != nil {
+				writeError(w, 500, "no se pudo iniciar el nodo demo.")
+				return
+			}
 		}
 	} else {
 		defer resp.Body.Close()
@@ -468,17 +472,21 @@ func (h *PublicProposalsHandler) toggleDemoUser(w http.ResponseWriter, r *http.R
 // resetDemoNode resetea el nodo demo ejecutando docker compose restart
 // Esto borra y re-seedea la BD demo (porque demo-app hace auto-setup al arrancar)
 func (h *PublicProposalsHandler) resetDemoNode(w http.ResponseWriter, r *http.Request) {
-	// Ejecutar: docker restart demo-app demo-resetter
-	// Esto reinicia el nodo demo, que al arrancar hace auto-setup + seed
-	cmd := exec.Command("docker", "restart", "demo-app")
+	// Intentar reiniciar el contenedor demo-app
+	cmd := exec.Command("docker", "restart", "red-de-intercambio-federada-demo-app-1")
 	err := cmd.Run()
 	if err != nil {
-		// Tambien intentar con docker compose
-		cmd2 := exec.Command("docker", "compose", "restart", "demo-app")
+		// Intentar con nombre alternativo
+		cmd2 := exec.Command("docker", "restart", "demo-app")
 		err2 := cmd2.Run()
 		if err2 != nil {
-			writeError(w, 500, "no se pudo reiniciar el nodo demo. Asegurate de que Docker esta corriendo.")
-			return
+			// Intentar con docker compose
+			cmd3 := exec.Command("docker", "compose", "restart", "demo-app")
+			err3 := cmd3.Run()
+			if err3 != nil {
+				writeError(w, 500, "no se pudo reiniciar el nodo demo. Asegurate de que el contenedor existe.")
+				return
+			}
 		}
 	}
 
