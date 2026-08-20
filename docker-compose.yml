@@ -37,6 +37,7 @@ services:
 
   yugabytedb:
     image: yugabytedb/yugabyte:latest
+    hostname: yugabytedb
     command: ["bin/yugabyted", "start", "--base_dir=/mnt/master", "--daemon=false"]
     ports:
       - "5433:5433"
