@@ -1,25 +1,23 @@
-feat: demo node Ecoaldea Raices del Monte + fix node_domain
+fix: demo reset recrea contenedor + limpia BD vieja
 
-Demo node ahora es una ecoaldea ficticia completa:
-- "Ecoaldea Raices del Monte" - comunidad montana de permacultura
-- 7 paginas publicas: inicio, quienes-somos, gobernanza, economia,
-  productos, federacion, contacto
-- 4 niveles de miembro: raiz, tronco, rama, brote
-- 13 usuarios individuales con roles especificos
-- 7 organizaciones/tiendas: tienda comunitaria, panaderia, herreria,
-  taller textil, centro de salud, escuela, cooperativa agricola
-- 7 departamentos/comisiones con roles y permisos
-- 7 reglas de gobernanza (consentimiento, admision, trabajo, TQ, etc)
-- 22 productos especificos de montana
-- 10 transacciones simuladas
-- DemoReset para borrar y re-seedear
+Problemas:
+1. "Resetear Nodo Demo" hacia docker restart, que reinicia el mismo
+   contenedor con la misma imagen vieja. No aplicaba los cambios.
+2. La BD fmc_demo tenia paginas viejas con node_domain="localhost"
+   que el codigo viejo sembro. Las paginas nuevas con node_domain="demo"
+   no las sobreescribian porque eran keys diferentes.
+3. DemoAutoSetup se saltaba si ya estaba "initialized", asi que
+   nunca limpiaba ni reconfiguraba.
 
-Fix node_domain:
-- SystemHandler ahora prefiere h.nodeDomain sobre X-Node-Domain header
-- Todas las funciones de system.go usan h.nodeDomain como fallback
-- Sitemap, HTML estatico y paginas publicas usan el dominio correcto
-- El demo node ahora carga sus propias paginas (node_domain=demo)
-  en vez de las del nodo principal (node_domain=localhost)
+Soluciones:
+- resetDemoNode ahora hace: docker stop, docker rm -f, docker compose
+  --profile demo up -d --no-deps --force-recreate demo-app
+  Esto recrea el contenedor con la imagen mas reciente.
+- DemoAutoSetup ahora SIEMPRE corre (no se salta si initialized=true)
+- DemoAutoSetup limpia todas las tablas del dominio demo antes de
+  configurar, y tambien borra datos viejos con node_domain="localhost"
+  que pudo haber sembrado el codigo viejo en la BD fmc_demo.
+- startDemoNode: si docker start falla, crea con docker compose
 
 Generated with [Devin](https://devin.ai)
 

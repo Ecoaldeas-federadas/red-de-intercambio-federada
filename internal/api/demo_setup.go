@@ -17,15 +17,24 @@ import (
 // Crea: admin demo, niveles de miembro, departamentos, roles, node_config.
 // No toca ningun otro dominio - solo configura el dominio demo.
 func DemoAutoSetup(ctx context.Context, db *pgxpool.Pool, jwtSecret, nodeDomain, nodeName string) error {
-	// Verificar si ya esta configurado
-	var initialized bool
-	err := db.QueryRow(ctx, `SELECT COALESCE(initialized, false) FROM node_config WHERE node_domain = $1`, nodeDomain).Scan(&initialized)
-	if err == nil && initialized {
-		log.Println("Demo: node already initialized, skipping auto-setup")
-		return nil
-	}
-
 	log.Println("Demo: running auto-setup for domain:", nodeDomain)
+
+	// 0. Limpiar datos viejos del dominio demo (por si acaso)
+	// Esto asegura que un reset siempre empiece limpio
+	tables := []string{"transactions", "governance_rules", "role_permissions", "roles",
+		"departments", "organizations", "user_credentials", "users", "products",
+		"member_levels", "public_pages", "node_config"}
+	for _, t := range tables {
+		db.Exec(ctx, fmt.Sprintf("DELETE FROM %s WHERE node_domain = $1", t))
+	}
+	// Tambien borrar paginas viejas con node_domain = "localhost" que pudo haber
+	// sembrado el codigo viejo en la BD fmc_demo
+	db.Exec(ctx, `DELETE FROM public_pages WHERE node_domain = 'localhost'`)
+	db.Exec(ctx, `DELETE FROM member_levels WHERE node_domain = 'localhost'`)
+	db.Exec(ctx, `DELETE FROM products WHERE node_domain = 'localhost'`)
+	db.Exec(ctx, `DELETE FROM users WHERE node_domain = 'localhost'`)
+	db.Exec(ctx, `DELETE FROM node_config WHERE node_domain = 'localhost'`)
+	log.Println("Demo: cleaned old data")
 
 	// 1. Copiar niveles de miembro desde default/localhost
 	var levelCount int

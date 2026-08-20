@@ -453,17 +453,22 @@ func (h *PublicProposalsHandler) toggleDemoUser(w http.ResponseWriter, r *http.R
 	})
 }
 
-// resetDemoNode resetea el nodo demo ejecutando docker restart
-// Esto borra y re-seedea la BD demo (porque demo-app hace auto-setup al arrancar)
+// resetDemoNode resetea el nodo demo: detiene, borra y recrea el contenedor
+// con la imagen actualizada. Esto asegura que el demo siempre use el codigo mas reciente.
 func (h *PublicProposalsHandler) resetDemoNode(w http.ResponseWriter, r *http.Request) {
-	cmd := exec.Command("docker", "restart", "red-de-intercambio-federada-demo-app-1")
+	// 1. Detener y borrar el contenedor demo-app
+	exec.Command("docker", "stop", "red-de-intercambio-federada-demo-app-1").Run()
+	exec.Command("docker", "rm", "-f", "red-de-intercambio-federada-demo-app-1").Run()
+
+	// 2. Recrear con la imagen actualizada (sin dependencias para no tocar yugabytedb)
+	cmd := exec.Command("docker", "compose", "--profile", "demo", "up", "-d", "--no-deps", "--force-recreate", "demo-app")
 	err := cmd.Run()
 	if err != nil {
-		writeError(w, 500, "no se pudo reiniciar el nodo demo: "+err.Error())
+		writeError(w, 500, "no se pudo recrear el nodo demo: "+err.Error())
 		return
 	}
 
 	writeJSON(w, 200, map[string]interface{}{
-		"message": "Nodo demo reiniciado. Los datos se estan recreando.",
+		"message": "Nodo demo recreado con la ultima version. Los datos se estan regenerando.",
 	})
 }
