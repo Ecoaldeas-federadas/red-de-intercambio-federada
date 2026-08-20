@@ -161,7 +161,6 @@ services:
       - "9091:9091"
       - "9044:9044"
     volumes:
-      - ./config.demo.yaml:/app/config.yaml:ro
       - ./firmware:/app/firmware:ro
       - demo_uploads:/app/uploads
     depends_on:
@@ -171,7 +170,7 @@ services:
       - DB_NAME=fmc_demo
       - DB_PASSWORD=${DB_PASSWORD:-fmcpassword}
       - JWT_SECRET=demo-jwt-secret-not-for-production
-      - CONFIG_PATH=/app/config.yaml
+      - CONFIG_PATH=/app/config.demo.yaml
       - MIGRATIONS_DIR=/app/internal/db/migrations
       - FIRMWARE_DIR=/app/firmware
       - FIRMWARE_BUILD_DIR=/tmp/firmware-builds
@@ -179,9 +178,10 @@ services:
       - DEMO_MODE=true
       - DEMO_DOMAIN=demo
       - DEMO_AUTO_STOP_HOURS=24
-    # NO auto-inicia. Se arranca bajo demanda desde la pagina web.
-    # Se crea con docker compose up -d (sin --profile) pero restart: "no"
-    # hace que no arranque solo. El demo-controller hace docker start/stop.
+    # NO auto-inicia con docker compose up -d normal.
+    # Se crea con: docker compose --profile demo up -d --no-deps demo-app
+    # El demo-controller lo arranca/detiene con docker start/stop.
+    profiles: ["demo"]
     restart: "no"
 
   # Controlador del nodo demo:
@@ -202,11 +202,17 @@ services:
           
           if echo "$$PATH_LINE" | grep -q "POST /start"; then
             echo "Demo controller: arrancando demo-app..."
-            docker start demo-app 2>/dev/null || docker start red-de-intercambio-federada-demo-app-1 2>/dev/null || true
+            # Intentar start directo primero
+            docker start red-de-intercambio-federada-demo-app-1 2>/dev/null || docker start demo-app 2>/dev/null
+            if [ $$? -ne 0 ]; then
+              # Si no existe, crearlo con compose (--no-deps para no crear otro yugabytedb)
+              echo "Demo controller: creando demo-app con compose..."
+              cd /project && docker compose --profile demo up -d --no-deps demo-app 2>&1 || true
+            fi
             RESPONSE="HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"running\":true,\"message\":\"demo iniciado\"}"
           elif echo "$$PATH_LINE" | grep -q "POST /stop"; then
             echo "Demo controller: deteniendo demo-app..."
-            docker stop demo-app 2>/dev/null || docker stop red-de-intercambio-federada-demo-app-1 2>/dev/null || true
+            docker stop red-de-intercambio-federada-demo-app-1 2>/dev/null || docker stop demo-app 2>/dev/null || true
             RESPONSE="HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"running\":false,\"message\":\"demo detenido\"}"
           elif echo "$$PATH_LINE" | grep -q "GET /status"; then
             RUNNING=$$(docker inspect -f '{{.State.Running}}' red-de-intercambio-federada-demo-app-1 2>/dev/null || docker inspect -f '{{.State.Running}}' demo-app 2>/dev/null || echo "false")

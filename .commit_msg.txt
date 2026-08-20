@@ -1,17 +1,17 @@
-fix: nodo demo arranca correctamente
+fix: demo-app no arranca solo, controller lo crea con --no-deps
 
-Problema: demo-app tenia profiles: ["demo"] lo que hacia que nunca
-se creara con docker compose up -d normal. El demo-controller
-intentaba docker start demo-app pero el contenedor no existia.
+Problema: Al quitar profiles: ["demo"], demo-app arrancaba solo
+con docker compose up -d. Pero con profiles, el controller no
+podia crearlo por un problema de mount de config.demo.yaml.
 
 Solucion:
-- Quitar profiles: ["demo"] de demo-app
-- Ahora demo-app se crea con docker compose up -d (como los demas)
-- restart: "no" hace que no arranque solo, solo cuando se le pide
-- demo-controller hace docker start/stop del contenedor ya creado
-- Usar nombre completo red-de-intercambio-federada-demo-app-1
-- Backend startDemoNode y resetDemoNode usan el nombre correcto
-- demo-stopper tambien usa el nombre correcto
+- Copiar config.demo.yaml dentro de la imagen Docker (COPY en Dockerfile)
+- Quitar el mount de ./config.demo.yaml del servicio demo-app
+- Restaurar profiles: ["demo"] para que NO arranque solo
+- demo-controller crea el contenedor con:
+  docker compose --profile demo up -d --no-deps demo-app
+  (--no-deps evita que intente crear otro yugabytedb)
+- CONFIG_PATH apunta a /app/config.demo.yaml (dentro de la imagen)
 
 Generated with [Devin](https://devin.ai)
 

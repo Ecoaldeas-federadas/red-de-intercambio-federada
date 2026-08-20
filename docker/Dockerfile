@@ -33,6 +33,7 @@ WORKDIR /app
 COPY --from=go-builder /fmc-node /app/fmc-node
 COPY --from=go-builder /app/internal/db/migrations /app/internal/db/migrations
 COPY --from=go-builder /app/config.yaml /app/config.yaml
+COPY --from=go-builder /app/config.demo.yaml /app/config.demo.yaml
 COPY --from=go-builder /app/firmware /app/firmware
 COPY --from=frontend-builder /web/dist /app/web/dist
 
