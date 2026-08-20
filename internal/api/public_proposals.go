@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"os/exec"
 	"time"
@@ -235,12 +236,19 @@ func (h *PublicProposalsHandler) updateProposalStatus(w http.ResponseWriter, r *
 
 // getDemoStatus devuelve si el nodo demo esta corriendo y disponible
 func (h *PublicProposalsHandler) getDemoStatus(w http.ResponseWriter, r *http.Request) {
-	// Verificar si el contenedor demo-app esta corriendo
 	running := false
-	cmd := exec.Command("docker", "inspect", "-f", "{{.State.Running}}", "demo-app")
-	output, err := cmd.Output()
+
+	// Preguntar al demo-controller si demo-app esta corriendo
+	resp, err := http.Get("http://demo-controller:9100/status")
 	if err == nil {
-		running = string(output) == "true\n" || string(output) == "true"
+		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
+		var result map[string]interface{}
+		if err := json.Unmarshal(body, &result); err == nil {
+			if v, ok := result["running"].(bool); ok {
+				running = v
+			}
+		}
 	}
 
 	// Verificar si es nodo demo (dominio "demo")
@@ -265,59 +273,24 @@ func (h *PublicProposalsHandler) getDemoStatus(w http.ResponseWriter, r *http.Re
 
 // startDemoNode arranca el contenedor demo-app bajo demanda.
 // Es PUBLICO: cualquier visitante puede iniciarlo desde el boton en la pagina.
-// El nodo demo hace auto-setup + seed al arrancar.
+// Le pide al demo-controller que arranque demo-app via HTTP.
 func (h *PublicProposalsHandler) startDemoNode(w http.ResponseWriter, r *http.Request) {
-	// Verificar si ya esta corriendo
-	cmd := exec.Command("docker", "inspect", "-f", "{{.State.Running}}", "demo-app")
-	output, err := cmd.Output()
-	alreadyRunning := err == nil && (string(output) == "true\n" || string(output) == "true")
-
-	if alreadyRunning {
-		writeJSON(w, 200, map[string]interface{}{
-			"running":  true,
-			"message":  "Nodo demo ya esta corriendo",
-			"demo_url": "http://localhost:9091",
-		})
-		return
-	}
-
-	// Arrancar el contenedor demo-app
-	// Intentar varias formas:
-	// 1. docker compose --profile demo up -d demo-app (desde el directorio del proyecto)
-	// 2. docker start demo-app (si el contenedor ya existe)
-	// 3. docker compose -f /project/docker-compose.yml --profile demo up -d demo-app
-
-	started := false
-
-	// Intento 1: docker compose desde /project
-	cmd = exec.Command("docker", "compose", "-f", "/project/docker-compose.yml", "--profile", "demo", "up", "-d", "demo-app")
-	err = cmd.Run()
-	if err == nil {
-		started = true
-	}
-
-	// Intento 2: docker start (si ya existe el contenedor)
-	if !started {
-		cmd2 := exec.Command("docker", "start", "demo-app")
-		err2 := cmd2.Run()
-		if err2 == nil {
-			started = true
+	// Pedir al demo-controller que inicie demo-app
+	resp, err := http.Post("http://demo-controller:9100/start", "application/json", nil)
+	if err != nil {
+		// Si el controller no responde, intentar con docker directo (fallback)
+		cmd := exec.Command("docker", "start", "demo-app")
+		err2 := cmd.Run()
+		if err2 != nil {
+			writeError(w, 500, "no se pudo iniciar el nodo demo.")
+			return
 		}
-	}
-
-	// Intento 3: docker compose sin -f (desde working directory)
-	if !started {
-		cmd3 := exec.Command("docker", "compose", "--profile", "demo", "up", "-d", "demo-app")
-		cmd3.Dir = "/project"
-		err3 := cmd3.Run()
-		if err3 == nil {
-			started = true
+	} else {
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			writeError(w, 500, "demo-controller no pudo iniciar el nodo demo.")
+			return
 		}
-	}
-
-	if !started {
-		writeError(w, 500, "no se pudo iniciar el nodo demo. Verifica que Docker esta corriendo.")
-		return
 	}
 
 	writeJSON(w, 200, map[string]interface{}{

@@ -13,7 +13,6 @@ services:
       - firmware_builds:/tmp/firmware-builds
       - uploads:/app/uploads
       - /var/run/docker.sock:/var/run/docker.sock
-      - .:/project:ro
     depends_on:
       - yugabytedb
     environment:
@@ -87,10 +86,49 @@ services:
     profiles: ["demo"]
     restart: "no"
 
+  # Controlador del nodo demo:
+  # Contenedor ligero basado en docker:cli que siempre esta corriendo.
+  # Expone un HTTP endpoint simple para iniciar/detener el nodo demo.
+  # El nodo principal le envia HTTP requests (no necesita docker CLI instalado).
+  demo-controller:
+    image: docker:cli
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        echo "Demo controller: iniciando en puerto 9100..."
+        while true; do
+          # Escuchar peticiones HTTP simples con nc
+          REQUEST=$$(nc -l -p 9100 -w 5 2>/dev/null)
+          PATH_LINE=$$(echo "$$REQUEST" | head -1)
+          
+          if echo "$$PATH_LINE" | grep -q "POST /start"; then
+            echo "Demo controller: arrancando demo-app..."
+            docker start demo-app 2>/dev/null || docker compose -f /project/docker-compose.yml --profile demo up -d demo-app 2>/dev/null || true
+            RESPONSE="HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"running\":true,\"message\":\"demo iniciado\"}"
+          elif echo "$$PATH_LINE" | grep -q "POST /stop"; then
+            echo "Demo controller: deteniendo demo-app..."
+            docker stop demo-app 2>/dev/null || true
+            RESPONSE="HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"running\":false,\"message\":\"demo detenido\"}"
+          elif echo "$$PATH_LINE" | grep -q "GET /status"; then
+            RUNNING=$$(docker inspect -f '{{.State.Running}}' demo-app 2>/dev/null || echo "false")
+            RESPONSE="HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"running\":$$RUNNING}"
+          else
+            RESPONSE="HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"status\":\"demo-controller running\"}"
+          fi
+          
+          echo -e "$$RESPONSE" | nc -l -p 9100 -w 1 2>/dev/null || true
+        done
+    ports:
+      - "9100:9100"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/project:ro
+    restart: unless-stopped
+
   # Detenedor automatico del nodo demo:
   # Corre siempre, cada 24h detiene demo-app si esta corriendo.
-  # Asi no gasta recursos cuando nadie lo usa.
-  # Usa comando directo (no script archivo) para evitar problemas de CRLF en Windows.
+  # Usa comando directo (no script archivo) para evitar problemas de CRLF.
   demo-stopper:
     image: docker:cli
     environment:
