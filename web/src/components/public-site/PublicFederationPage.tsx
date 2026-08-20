@@ -389,7 +389,8 @@ export function PublicFederationPage() {
         </div>
       </section>
 
-      {/* Demo */}
+      {/* Demo - solo se muestra en el nodo principal, no en el demo */}
+      {(window as any).__BASE_PATH__ !== '/demo' && (
       <section className="bg-emerald-700 text-white py-16">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-3xl font-bold mb-4">Quieres ver el sistema por dentro?</h2>
@@ -477,6 +478,7 @@ export function PublicFederationPage() {
           </div>
         </div>
       </section>
+      )}
 
       {/* Footer */}
       <footer className="bg-gray-900 text-gray-400 py-8 text-center text-sm">

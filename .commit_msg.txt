@@ -1,10 +1,32 @@
-fix: redirect /demo -> /demo/ para que chi router coincida
+feat: paginas demo enriquecidas + reutiliza paginas del sistema
 
-Problema: chi router no coincide /demo (sin slash final) con el
-patron /demo/*. Solo coincide /demo/ y /demo/*.
+Problemas:
+1. El demo solo tenia 7 paginas pobres mientras el nodo principal tenia
+   14 paginas ricas. Las paginas viejas de Feria Conuquera seguian
+   apareciendo porque no se borraban.
+2. Paginas como filosofia, comunidad, faq, semillas, saberes-ancestrales
+   tenian contenido de Feria Conuquera (Los Caobos, Caracas, 2014, etc).
+3. La pagina de federacion tenia seccion "Iniciar Nodo Demo" que no
+   deberia mostrarse cuando ya estas en el demo.
+4. El menu mostraba "Historia" pero la pagina se llamaba "filosofia".
 
-Solucion: agregar ruta explicita r.Get("/demo") que redirige a
-/demo/ con HTTP 302.
+Soluciones:
+- demoSeedPages reescrita completamente:
+  - Paginas comunitarias (inicio, quienes-somos, filosofia, comunidad,
+    economia, gobernanza, campo-soberano, faq, contacto, semillas,
+    saberes-ancestrales, filosofia-conuquera, federacion) con contenido
+    rico y especifico de Ecoaldea Raices del Monte.
+  - Paginas del sistema (como-funciona, metodologia-energetica,
+    productos, ecoaldeas-mundo) reutilizadas del seed principal con
+    replaceFeriaTerms() que reemplaza todos los terminos de Feria
+    Conuquera por terminos genericos.
+- replaceFeriaTerms: 50+ reemplazos (Feria Conuquera, Los Caobos,
+  Caracas, conuco, Cayapa Conuquera, etc).
+- PublicFederationPage: oculta seccion "Iniciar Nodo Demo" cuando
+  window.__BASE_PATH__ === '/demo'.
+- Pagina filosofia-conuquera renombrada a "Filosofia Comunitaria".
+- Todas las paginas tienen contenido abundante con hero, features_grid,
+  timeline, testimonials, FAQ, CTA banners, etc.
 
 Generated with [Devin](https://devin.ai)
 
