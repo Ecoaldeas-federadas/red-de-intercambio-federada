@@ -40,7 +40,12 @@ func DemoSeedData(ctx context.Context, d *DB, nodeDomain string) error {
 		log.Printf("Demo: warning seeding users: %v", err)
 	}
 
-	// 4. Crear configuracion del nodo demo
+	// 4. Crear transacciones simuladas
+	if err := demoSeedTransactions(ctx, d, nodeDomain); err != nil {
+		log.Printf("Demo: warning seeding transactions: %v", err)
+	}
+
+	// 5. Crear configuracion del nodo demo
 	if err := demoSeedNodeConfig(ctx, d, nodeDomain); err != nil {
 		log.Printf("Demo: warning seeding node config: %v", err)
 	}
@@ -434,9 +439,99 @@ func encryptPrivateKeyDemo(privKey ed25519.PrivateKey, passphrase string) []byte
 	return gcm.Seal(nonce, nonce, privKey, nil)
 }
 
+// demoSeedTransactions crea transacciones simuladas entre usuarios demo
+func demoSeedTransactions(ctx context.Context, d *DB, nodeDomain string) error {
+	// Obtener IDs de usuarios
+	type userPair struct {
+		sender, receiver, senderName, receiverName string
+		amount                                     int64
+		desc                                       string
+	}
+
+	// Buscar IDs por username
+	getUserID := func(username string) string {
+		var id string
+		d.Pool.QueryRow(ctx, `SELECT id::text FROM users WHERE username = $1 AND node_domain = $2`, username, nodeDomain).Scan(&id)
+		return id
+	}
+
+	maria := getUserID("maria")
+	juan := getUserID("juan")
+	carlos := getUserID("carlos")
+	ana := getUserID("ana")
+	luis := getUserID("luis")
+	patricia := getUserID("patricia")
+	coop := getUserID("coop_agricola")
+	panaderia := getUserID("panaderia")
+	taller := getUserID("taller_mecanico")
+	tienda := getUserID("tienda_arte")
+	salud := getUserID("centro_salud")
+	presidente := getUserID("presidente")
+
+	if maria == "" || juan == "" {
+		log.Println("Demo: skipping transactions, users not found")
+		return nil
+	}
+
+	// Transacciones simuladas (varios dias atras)
+	transactions := []userPair{
+		{maria, juan, "Maria", "Juan", 35, "Frijol negro 1kg"},
+		{juan, ana, "Juan", "Ana", 30, "Maiz criollo 1kg"},
+		{ana, carlos, "Ana", "Carlos", 45, "Pan integral 1kg"},
+		{carlos, maria, "Carlos", "Maria", 150, "Set 4 platos de barro"},
+		{luis, taller, "Luis", "Taller", 80, "Transporte de cosecha"},
+		{patricia, salud, "Patricia", "Centro Salud", 25, "Te de hierbas 100g"},
+		{maria, coop, "Maria", "Coop Agricola", 20, "Yuca 1kg"},
+		{ana, panaderia, "Ana", "Panaderia", 45, "Pan integral 1kg"},
+		{juan, tienda, "Juan", "Tienda Arte", 200, "Hamaca de algodon"},
+		{patricia, maria, "Patricia", "Maria", 22, "Mango 1kg"},
+		{coop, maria, "Coop Agricola", "Maria", 18, "Platano 1kg"},
+		{taller, luis, "Taller", "Luis", 120, "Machete con funda"},
+		{salud, patricia, "Centro Salud", "Patricia", 50, "Aceite de coco 250ml"},
+		{presidente, coop, "Presidente", "Coop Agricola", 100, "Taller de agroecologia 2h"},
+		{maria, ana, "Maria", "Ana", 15, "Lechuga batavia"},
+	}
+
+	for i, t := range transactions {
+		if t.sender == "" || t.receiver == "" {
+			continue
+		}
+
+		senderID, _ := uuid.Parse(t.sender)
+		receiverID, _ := uuid.Parse(t.receiver)
+
+		// Crear transaccion
+		txID := uuid.New()
+		// Fecha: hace N dias (repartido en los ultimos 30 dias)
+		daysAgo := (i % 30) + 1
+		interval := fmt.Sprintf("%d days", daysAgo)
+
+		_, err := d.Pool.Exec(ctx, `
+			INSERT INTO transactions (id, tx_type, sender_id, receiver_id, sender_node, receiver_node, amount, tax_amount, status, metadata, created_at, confirmed_at)
+			VALUES ($1, 'transfer', $2, $3, $4, $4, $5, 0, 'confirmed', $6, NOW() - $7::interval, NOW() - $7::interval)`,
+			txID, senderID, receiverID, nodeDomain, t.amount, fmt.Sprintf(`{"description": "%s"}`, t.desc), interval)
+		if err != nil {
+			log.Printf("Demo: error creating transaction %d: %v", i, err)
+			continue
+		}
+
+		// Crear ledger entries (double entry)
+		d.Pool.Exec(ctx, `
+			INSERT INTO ledger_entries (transaction_id, account_id, entry_type, amount, account_category, counterpart_node, created_at)
+			VALUES ($1, $2, 'debit', $3, 'individual', $4, NOW() - $5::interval)`,
+			txID, senderID, t.amount, nodeDomain, interval)
+
+		d.Pool.Exec(ctx, `
+			INSERT INTO ledger_entries (transaction_id, account_id, entry_type, amount, account_category, counterpart_node, created_at)
+			VALUES ($1, $2, 'credit', $3, 'individual', $4, NOW() - $5::interval)`,
+			txID, receiverID, t.amount, nodeDomain, interval)
+	}
+
+	log.Printf("Demo: seeded %d transactions", len(transactions))
+	return nil
+}
+
 func demoSeedNodeConfig(ctx context.Context, d *DB, nodeDomain string) error {
-	// La configuracion del nodo (node_config) la maneja el setup wizard.
-	// Aqui solo actualizamos settings si ya existe el registro.
 	_, err := d.Pool.Exec(ctx, `
 		UPDATE node_config SET
 			settings = COALESCE(settings, '{}'::jsonb) || '{"is_demo": true, "demo_mode": true}'::jsonb

@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { api } from '../../api'
 import {
   Globe, Users, Network, Leaf, Heart, Scale, ArrowRight, Check,
-  Sparkles, MessageSquare, ThumbsUp, Send, Menu, X, Home, Copy, Share2
+  Sparkles, MessageSquare, ThumbsUp, Send, Menu, X, Home, Copy, Share2,
+  Power, Loader2, ExternalLink
 } from 'lucide-react'
 
 const SHARE_MESSAGE = `¿El mayor reto de crear una ecoaldea? No es comprar el terreno... es ponerse de acuerdo. 🏡🤝
@@ -33,12 +34,60 @@ export function PublicFederationPage() {
   const [msg, setMsg] = useState('')
   const [votedIds, setVotedIds] = useState<Set<string>>(new Set())
   const [copiedMsg, setCopiedMsg] = useState(false)
+  const [demoState, setDemoState] = useState<'unknown' | 'stopped' | 'starting' | 'running'>('unknown')
+  const [demoStarting, setDemoStarting] = useState(false)
 
   useEffect(() => {
     api.get('/public/proposals').then((d: any) => {
       setProposals(Array.isArray(d) ? d : [])
     }).catch(() => {})
+
+    // Verificar estado del nodo demo
+    checkDemoStatus()
   }, [])
+
+  const checkDemoStatus = () => {
+    api.get('/demo/status').then((d: any) => {
+      if (d?.running) {
+        setDemoState('running')
+      } else {
+        setDemoState('stopped')
+      }
+    }).catch(() => setDemoState('unknown'))
+  }
+
+  const startDemo = async () => {
+    setDemoStarting(true)
+    setDemoState('starting')
+    try {
+      await api.post('/demo/start', {})
+      // Esperar a que el nodo demo este listo (polling cada 3s)
+      let attempts = 0
+      const poll = setInterval(() => {
+        attempts++
+        // Intentar conectar al nodo demo
+        fetch('http://localhost:9091/api/setup/status', { mode: 'no-cors' })
+          .then(() => {
+            clearInterval(poll)
+            setDemoState('running')
+            setDemoStarting(false)
+            // Redirigir al nodo demo
+            window.open('http://localhost:9091', '_blank')
+          })
+          .catch(() => {
+            if (attempts > 20) {
+              clearInterval(poll)
+              setDemoState('running')
+              setDemoStarting(false)
+              window.open('http://localhost:9091', '_blank')
+            }
+          })
+      }, 3000)
+    } catch (e: any) {
+      setDemoState('stopped')
+      setDemoStarting(false)
+    }
+  }
 
   const submitProposal = async () => {
     if (!newProposal.title || !newProposal.description) {
@@ -345,31 +394,87 @@ export function PublicFederationPage() {
         <div className="max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-3xl font-bold mb-4">Quieres ver el sistema por dentro?</h2>
           <p className="text-lg text-emerald-100 mb-6 max-w-2xl mx-auto">
-            Tenemos un <strong>nodo demo</strong> completo y funcional: un nodo paralelo con datos genericos
-            (no es la Feria Conuquera, es un nodo limpio). Puedes entrar, navegar por todas las funciones,
-            ver productos, asambleas, organizaciones, hacer intercambios y mas.
-            Los datos se reinician cada 24 horas para que siempre encuentres el sistema limpio.
+            Tenemos un <strong>nodo demo</strong> completo y funcional: un sistema con datos de muestra
+            (usuarios, organizaciones, productos, transacciones) para que puedas explorar todo libremente.
+            No afecta al nodo real. Se reinicia cada 24 horas.
           </p>
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 max-w-md mx-auto border border-white/20">
-            <p className="text-sm text-emerald-100 mb-2">Usuario demo:</p>
-            <p className="font-mono text-lg bg-white/20 rounded-lg p-2">demo / demo1234</p>
+
+          {/* Estado del nodo demo */}
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 max-w-md mx-auto border border-white/20 mb-6">
+            <div className="flex items-center justify-center gap-2 mb-3">
+              {demoState === 'running' && (
+                <span className="flex items-center gap-2 text-green-300">
+                  <span className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></span>
+                  Nodo demo activo
+                </span>
+              )}
+              {demoState === 'stopped' && (
+                <span className="flex items-center gap-2 text-yellow-200">
+                  <span className="w-3 h-3 bg-yellow-400 rounded-full"></span>
+                  Nodo demo detenido
+                </span>
+              )}
+              {demoState === 'starting' && (
+                <span className="flex items-center gap-2 text-blue-200">
+                  <Loader2 size={16} className="animate-spin" />
+                  Iniciando nodo demo...
+                </span>
+              )}
+              {demoState === 'unknown' && (
+                <span className="flex items-center gap-2 text-gray-300">
+                  <span className="w-3 h-3 bg-gray-400 rounded-full"></span>
+                  Verificando estado...
+                </span>
+              )}
+            </div>
+
+            {/* Boton principal */}
+            {demoState === 'running' ? (
+              <a
+                href="http://localhost:9091"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-white text-emerald-700 font-semibold px-8 py-4 rounded-xl hover:bg-emerald-50 transition text-lg"
+              >
+                <ExternalLink size={20} /> Entrar al Nodo Demo
+              </a>
+            ) : (
+              <button
+                onClick={startDemo}
+                disabled={demoStarting || demoState === 'starting'}
+                className="inline-flex items-center gap-2 bg-white text-emerald-700 font-semibold px-8 py-4 rounded-xl hover:bg-emerald-50 transition text-lg disabled:opacity-60"
+              >
+                {demoStarting ? (
+                  <><Loader2 size={20} className="animate-spin" /> Iniciando...</>
+                ) : (
+                  <><Power size={20} /> Iniciar Nodo Demo</>
+                )}
+              </button>
+            )}
+
+            <p className="text-xs text-emerald-200 mt-4">
+              {demoState === 'running'
+                ? 'El nodo demo esta activo. Entra y explora libremente.'
+                : 'El nodo demo no esta corriendo para ahorrar recursos. Pulsa el boton para iniciarlo. Toma unos segundos en arrancar.'}
+            </p>
             <p className="text-xs text-emerald-200 mt-2">
-              Puedes hacer cambios libremente. Todo se reinicia cada 24 horas.
-              No afecta al nodo real de ninguna ecoaldea.
+              Se detiene automaticamente cada 24 horas. Cada vez que reinicia, parte de cero con datos frescos.
             </p>
           </div>
-          <div className="mt-6">
-            <a
-              href="/demo"
-              className="inline-flex items-center gap-2 bg-white text-emerald-700 font-semibold px-8 py-4 rounded-xl hover:bg-emerald-50 transition text-lg"
-            >
-              <Globe size={20} /> Entrar al Nodo Demo
-            </a>
+
+          <div className="text-sm text-emerald-200 max-w-2xl mx-auto">
+            <p>El nodo demo tiene su propio sistema completo:</p>
+            <div className="grid grid-cols-2 gap-2 mt-3 text-left max-w-lg mx-auto">
+              <div className="flex items-center gap-2"><Check size={14} /> Junta Directiva</div>
+              <div className="flex items-center gap-2"><Check size={14} /> Organizaciones</div>
+              <div className="flex items-center gap-2"><Check size={14} /> Departamentos</div>
+              <div className="flex items-center gap-2"><Check size={14} /> Productos y tiendas</div>
+              <div className="flex items-center gap-2"><Check size={14} /> Transacciones</div>
+              <div className="flex items-center gap-2"><Check size={14} /> Asambleas</div>
+              <div className="flex items-center gap-2"><Check size={14} /> Auditoria</div>
+              <div className="flex items-center gap-2"><Check size={14} /> Login por roles</div>
+            </div>
           </div>
-          <p className="text-sm text-emerald-200 mt-4">
-            El nodo demo es un nodo completamente funcional que podria incluso solicitar federacion
-            con otros nodos para mostrar como funciona el proceso de federacion.
-          </p>
         </div>
       </section>
 

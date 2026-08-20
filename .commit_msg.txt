@@ -1,49 +1,57 @@
-feat: nodo demo integrado en docker-compose + login con botones de roles
+feat: nodo demo bajo demanda - boton publico lo arranca, se detiene solo cada 24h
 
-El nodo demo ahora se instala y actualiza solo con el nodo principal.
+El nodo demo ya NO corre siempre. Se inicia desde un boton en la pagina web
+y se detiene automaticamente cada 24 horas para ahorrar recursos.
 
-## Cambios principales
+## Como funciona ahora
 
-1. **Integrado en docker-compose.yml** (no mas docker-compose.demo.yml separado):
-   - demo-app: puerto 9091 (API) / 9044 (federacion)
-   - demo-resetter: borra y re-seedea cada 24h
-   - BD separada: fmc_demo (no toca fmc_node)
-   - Se levanta con `docker compose up -d` (junto con el nodo principal)
+1. **docker-compose.yml**: demo-app tiene `profiles: ["demo"]` y `restart: "no"`
+   - NO arranca solo con `docker compose up -d`
+   - Solo arranca cuando alguien pulsa el boton en la pagina
 
-2. **Seed demo rico** (no nodo vacio):
-   - Super Admin (demo)
-   - Junta Directiva: presidente, vicepresidente, tesorero, secretario, 2 vocales
-   - 6 miembros activos: agricultora, productor, artesano, panadera, mecanico, maestra
-   - 1 miembro nuevo
-   - 5 organizaciones: cooperativa agricola, panaderia, taller mecanico, tienda de arte, centro de salud
-   - 6 departamentos: Junta Directiva, Economia, Educacion, Salud, Ambiente, Admision
-   - ~18 productos demo genericos
-   - Paginas publicas genericas (no Feria Conuquera)
+2. **API publica (sin auth)**:
+   - GET /api/demo/status: devuelve si el nodo demo esta corriendo o detenido
+   - POST /api/demo/start: arranca el contenedor demo-app bajo demanda
 
-3. **Login con botones de roles** (no usuario/clave):
-   - El nodo demo detecta automaticamente que es demo
-   - Muestra botones agrupados por rol:
-     - Super Admin (corona ambar)
-     - Junta Directiva (usuarios azul)
-     - Organizaciones (edificio purpura)
-     - Miembros (circulo verde)
-   - Un click entra directamente con ese rol
-   - Password: demo1234 para todos
+3. **Pagina de federacion** (boton publico):
+   - Muestra estado del nodo demo (activo/detenido/iniciando)
+   - Si esta detenido: boton "Iniciar Nodo Demo"
+   - Si esta activo: boton "Entrar al Nodo Demo" (link a localhost:9091)
+   - Al pulsar iniciar: llama a /api/demo/start, espera con polling, redirige
+   - Cualquier visitante puede iniciarlo, sin auth, sin consola
 
-4. **Reset manual desde el admin**:
-   - Nueva pestana "Nodo Demo" en Configuracion
-   - Boton "Resetear Nodo Demo" que reinicia el contenedor
-   - El nodo demo hace auto-setup + seed al arrancar
-   - Util cuando hay actualizaciones del sistema
+4. **demo-stopper** (reemplaza a demo-resetter):
+   - Corre siempre (liviano, solo duerme)
+   - Cada 24h detiene demo-app con `docker stop demo-app`
+   - Asi no gasta recursos cuando nadie lo usa
+   - La proxima vez que alguien pulsa el boton, arranca limpio
 
-5. **Puertos diferentes** (no chocan con desarrollo):
-   - 9091 en vez de 8081
-   - 9044 en vez de 8444
+5. **Transacciones simuladas** en el seed demo:
+   - 15 transacciones entre usuarios y organizaciones
+   - Repartidas en los ultimos 30 dias
+   - Incluye ledger entries (double entry)
+   - Productos reales: frijol, maiz, pan, platos, hamaca, etc.
+   - Permite ver auditoria con datos
 
-6. **API nueva**:
-   - GET /api/demo/users: lista usuarios demo para botones de login
-   - POST /api/demo/login: login con username + password especificos
-   - POST /api/admin/demo/reset: resetear nodo demo (admin)
+6. **Mismo servidor BD, base separada**:
+   - YugabyteDB compartido
+   - BD fmc_demo separada de fmc_node
+   - El nodo demo no toca los datos del nodo principal
+
+## Flujo completo
+
+1. Visitante entra a la pagina de federacion
+2. Ve el boton "Iniciar Nodo Demo"
+3. Pulsa el boton
+4. El backend ejecuta `docker compose --profile demo up -d demo-app`
+5. demo-app arranca, hace auto-setup + seed (usuarios, orgs, productos, transacciones)
+6. Frontend hace polling hasta que demo-app responde
+7. Redirige a localhost:9091
+8. Visitante ve login con botones de roles
+9. Entra como super admin, directivo, organizacion o miembro
+10. Explora todo el sistema con datos reales
+11. 24h despues, demo-stopper detiene demo-app
+12. No gasta recursos hasta que alguien lo vuelve a necesitar
 
 Generated with Devin
 

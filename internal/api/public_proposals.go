@@ -37,10 +37,12 @@ func (h *PublicProposalsHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware
 	// Demo user
 	r.Get("/api/demo/status", h.getDemoStatus)
 	r.Post("/api/demo/login", h.demoLogin)
-	r.Get("/api/demo/users", h.listDemoUsers) // Lista de usuarios demo para login con botones
+	r.Get("/api/demo/users", h.listDemoUsers)  // Lista de usuarios demo para login con botones
+	r.Post("/api/demo/start", h.startDemoNode) // PUBLICO: arrancar nodo demo desde boton web
 	r.Group(func(r chi.Router) {
 		r.Use(am.RequireAuth)
 		r.With(am.RequirePermission("system.manage")).Put("/api/demo/toggle", h.toggleDemoUser)
+		r.With(am.RequirePermission("system.manage")).Post("/api/admin/demo/reset", h.resetDemoNode)
 	})
 }
 
@@ -231,16 +233,21 @@ func (h *PublicProposalsHandler) updateProposalStatus(w http.ResponseWriter, r *
 	writeJSON(w, 200, map[string]string{"status": "updated"})
 }
 
-// getDemoStatus devuelve si el usuario demo esta habilitado
+// getDemoStatus devuelve si el nodo demo esta corriendo y disponible
 func (h *PublicProposalsHandler) getDemoStatus(w http.ResponseWriter, r *http.Request) {
-	var isEnabled bool
-	h.Pool.QueryRow(r.Context(), `SELECT is_enabled FROM demo_user_config LIMIT 1`).Scan(&isEnabled)
+	// Verificar si el contenedor demo-app esta corriendo
+	running := false
+	cmd := exec.Command("docker", "inspect", "-f", "{{.State.Running}}", "demo-app")
+	output, err := cmd.Output()
+	if err == nil {
+		running = string(output) == "true\n" || string(output) == "true"
+	}
 
 	// Verificar si es nodo demo (dominio "demo")
 	isDemoNode := false
 	nodeDomain := ""
 	var cfgDomain string
-	err := h.Pool.QueryRow(r.Context(), `SELECT node_domain FROM node_config LIMIT 1`).Scan(&cfgDomain)
+	err = h.Pool.QueryRow(r.Context(), `SELECT node_domain FROM node_config LIMIT 1`).Scan(&cfgDomain)
 	if err == nil {
 		nodeDomain = cfgDomain
 		if cfgDomain == "demo" {
@@ -249,9 +256,49 @@ func (h *PublicProposalsHandler) getDemoStatus(w http.ResponseWriter, r *http.Re
 	}
 
 	writeJSON(w, 200, map[string]interface{}{
-		"enabled":      isEnabled,
+		"running":      running,
 		"is_demo_node": isDemoNode,
 		"node_domain":  nodeDomain,
+		"demo_url":     "http://localhost:9091",
+	})
+}
+
+// startDemoNode arranca el contenedor demo-app bajo demanda.
+// Es PUBLICO: cualquier visitante puede iniciarlo desde el boton en la pagina.
+// El nodo demo hace auto-setup + seed al arrancar.
+func (h *PublicProposalsHandler) startDemoNode(w http.ResponseWriter, r *http.Request) {
+	// Verificar si ya esta corriendo
+	cmd := exec.Command("docker", "inspect", "-f", "{{.State.Running}}", "demo-app")
+	output, err := cmd.Output()
+	alreadyRunning := err == nil && (string(output) == "true\n" || string(output) == "true")
+
+	if alreadyRunning {
+		writeJSON(w, 200, map[string]interface{}{
+			"running":  true,
+			"message":  "Nodo demo ya esta corriendo",
+			"demo_url": "http://localhost:9091",
+		})
+		return
+	}
+
+	// Arrancar el contenedor demo-app
+	// docker compose --profile demo up -d demo-app
+	cmd = exec.Command("docker", "compose", "--profile", "demo", "up", "-d", "demo-app")
+	err = cmd.Run()
+	if err != nil {
+		// Intentar con docker start (si ya existe el contenedor)
+		cmd2 := exec.Command("docker", "start", "demo-app")
+		err2 := cmd2.Run()
+		if err2 != nil {
+			writeError(w, 500, "no se pudo iniciar el nodo demo. Docker puede no estar disponible.")
+			return
+		}
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"running":  true,
+		"message":  "Nodo demo iniciando. Estara listo en unos segundos.",
+		"demo_url": "http://localhost:9091",
 	})
 }
 
