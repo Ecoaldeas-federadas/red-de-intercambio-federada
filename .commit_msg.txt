@@ -1,15 +1,14 @@
-fix: update.ps1 recrea demo-app con imagen nueva (detenido)
+fix: update.ps1 construye imagen demo-app con --profile demo
 
-Problema: update.ps1 no tocaba demo-app porque tiene profiles:["demo"].
-El demo-app viejo seguia corriendo con la imagen antigua despues de update.
+Problema: docker compose build (sin --profile demo) no construye
+demo-app porque tiene profiles:["demo"]. El demo-app seguia usando
+una imagen vieja con el codigo anterior (price en vez de price_per_unit,
+"node already initialized" skip, etc).
 
-Solucion: update.ps1 ahora:
-1. Detiene y elimina el contenedor demo-app viejo
-2. Recrea demo-app con docker compose --profile demo up -d --no-deps
-   (usa la imagen recien construida)
-3. Lo detiene inmediatamente con docker stop
-4. Asi el demo-app queda recreado con la nueva imagen pero detenido,
-   listo para arrancar desde la pagina web
+Solucion: update.ps1 ahora ejecuta ademas:
+  docker compose --profile demo build demo-app
+despues del build normal, para asegurar que la imagen demo-app
+se reconstruya con los ultimos cambios.
 
 Generated with [Devin](https://devin.ai)
 

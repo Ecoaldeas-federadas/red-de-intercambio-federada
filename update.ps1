@@ -87,6 +87,11 @@ if ($buildCode -ne 0) {
     Write-Err "Error construyendo las imagenes (codigo $buildCode)"
     exit 1
 }
+# Tambien construir demo-app (tiene profile, no se construye solo)
+$demoBuildCode = Invoke-Compose @("--profile", "demo", "build", "demo-app")
+if ($demoBuildCode -ne 0) {
+    Write-Warn "No se pudo construir la imagen demo-app (no es critico)"
+}
 Write-OK "Imagenes reconstruidas"
 
 # 4. Detener y eliminar demo-app viejo (si esta corriendo)
