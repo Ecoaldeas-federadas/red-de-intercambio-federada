@@ -46,9 +46,77 @@ services:
     volumes:
       - yb_data:/mnt/master
       - yb_tserver:/mnt/tserver
+      - db_backups:/backups
     environment:
       - YUGABYTE_DB_USER=fmc
       - YUGABYTE_DB_PASSWORD=fmcpassword
+    restart: unless-stopped
+
+  # Backup automatico diario de la base de datos
+  # Exporta un dump SQL completo cada 24h a /backups
+  # Los backups se guardan en el volumen db_backups (persistente)
+  # Para restaurar: copiar el archivo .sql al servidor y ejecutarlo
+  db-backup:
+    image: yugabytedb/yugabyte:latest
+    depends_on:
+      - yugabytedb
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        echo "Backup service: esperando a que YugabyteDB este listo..."
+        sleep 90
+        while true; do
+          DATE=$$(date +%Y%m%d_%H%M%S)
+          FILE="/backups/fmc_node_$$DATE.sql"
+          echo "Backup service: creando backup $$FILE"
+          /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "COPY (SELECT 'BACKUP ' || to_char(now(),'YYYY-MM-DD HH24:MI:SS')) TO STDOUT" > /dev/null 2>&1
+          if [ $$? -ne 0 ]; then
+            echo "Backup service: BD no lista, reintentando en 5 min"
+            sleep 300
+            continue
+          fi
+          # Exportar todas las tablas principales
+          {
+            echo "-- Backup automatico $$DATE"
+            echo "-- Base de datos: fmc_node"
+            echo ""
+            echo "-- Paginas publicas"
+            /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT * FROM public_pages;" 2>/dev/null
+            echo ""
+            echo "-- Configuracion del nodo"
+            /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT * FROM node_config;" 2>/dev/null
+            echo ""
+            echo "-- Usuarios"
+            /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT id, username, node_domain, role, is_active FROM users;" 2>/dev/null
+            echo ""
+            echo "-- Productos"
+            /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT * FROM products;" 2>/dev/null
+            echo ""
+            echo "-- Departamentos"
+            /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT * FROM departments;" 2>/dev/null
+            echo ""
+            echo "-- Organizaciones"
+            /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT * FROM organizations;" 2>/dev/null
+            echo ""
+            echo "-- Transacciones"
+            /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT * FROM transactions;" 2>/dev/null
+          } > $$FILE
+          if [ -s $$FILE ]; then
+            echo "Backup service: backup OK $$FILE ($$(wc -c < $$FILE) bytes)"
+            # Mantener solo los ultimos 7 backups
+            ls -t /backups/fmc_node_*.sql 2>/dev/null | tail -n +8 | xargs rm -f 2>/dev/null
+          else
+            echo "Backup service: backup vacio, reintentando en 1h"
+            rm -f $$FILE
+            sleep 3600
+            continue
+          fi
+          echo "Backup service: proximo backup en 24h"
+          sleep 86400
+        done
+    volumes:
+      - db_backups:/backups
     restart: unless-stopped
 
   # === Nodo Demo ===
@@ -154,6 +222,7 @@ services:
 volumes:
   yb_data:
   yb_tserver:
+  db_backups:
   firmware_builds:
   uploads:
   demo_uploads:
