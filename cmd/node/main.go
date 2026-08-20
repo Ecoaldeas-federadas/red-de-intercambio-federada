@@ -45,9 +45,23 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	database, err := db.Connect(ctx, cfg.Database.ConnString())
-	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+	// Esperar a que YugabyteDB este listo (puede tardar 30-60s en arrancar)
+	log.Println("Waiting for database to be ready...")
+	var database *db.DB
+	maxRetries := 30
+	for i := 0; i < maxRetries; i++ {
+		database, err = db.Connect(ctx, cfg.Database.ConnString())
+		if err == nil {
+			log.Println("Database is ready!")
+			break
+		}
+		log.Printf("Database not ready yet (attempt %d/%d): %v", i+1, maxRetries, err)
+		if i < maxRetries-1 {
+			time.Sleep(5 * time.Second)
+		}
+	}
+	if database == nil {
+		log.Fatalf("Failed to connect to database after %d attempts", maxRetries)
 	}
 	defer database.Close()
 
