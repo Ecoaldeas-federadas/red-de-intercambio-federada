@@ -23,13 +23,14 @@ func DemoAutoSetup(ctx context.Context, db *pgxpool.Pool, jwtSecret, nodeDomain,
 	// Esto asegura que un reset siempre empiece limpio
 	tables := []string{"transactions", "governance_rules", "role_permissions", "roles",
 		"departments", "organizations", "user_credentials", "users", "products",
-		"member_levels", "public_pages", "node_config"}
+		"member_levels", "public_pages", "public_settings", "node_config"}
 	for _, t := range tables {
 		db.Exec(ctx, fmt.Sprintf("DELETE FROM %s WHERE node_domain = $1", t))
 	}
 	// Tambien borrar paginas viejas con node_domain = "localhost" que pudo haber
 	// sembrado el codigo viejo en la BD fmc_demo
 	db.Exec(ctx, `DELETE FROM public_pages WHERE node_domain = 'localhost'`)
+	db.Exec(ctx, `DELETE FROM public_settings WHERE node_domain = 'localhost'`)
 	db.Exec(ctx, `DELETE FROM member_levels WHERE node_domain = 'localhost'`)
 	db.Exec(ctx, `DELETE FROM products WHERE node_domain = 'localhost'`)
 	db.Exec(ctx, `DELETE FROM users WHERE node_domain = 'localhost'`)

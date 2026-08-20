@@ -35,6 +35,11 @@ func DemoSeedData(ctx context.Context, d *DB, nodeDomain string) error {
 		log.Printf("Demo: warning seeding pages: %v", err)
 	}
 
+	// 2b. Configuracion del sitio publico (header, footer, colores)
+	if err := demoSeedPublicSettings(ctx, d, nodeDomain); err != nil {
+		log.Printf("Demo: warning seeding public settings: %v", err)
+	}
+
 	// 3. Niveles de miembro
 	if err := demoSeedMemberLevels(ctx, d, nodeDomain); err != nil {
 		log.Printf("Demo: warning seeding member levels: %v", err)
@@ -107,6 +112,48 @@ func demoSeedMemberLevels(ctx context.Context, d *DB, nodeDomain string) error {
 		if err != nil {
 			log.Printf("Demo: error creating level %s: %v", l.name, err)
 		}
+	}
+	return nil
+}
+
+func demoSeedPublicSettings(ctx context.Context, d *DB, nodeDomain string) error {
+	_, err := d.Pool.Exec(ctx, `
+		INSERT INTO public_settings (node_domain, site_title, site_subtitle, primary_color, secondary_color,
+			contact_email, contact_address, social_instagram, social_facebook, show_join_form,
+			header_style, announcement_text, show_announcement, footer_style,
+			footer_about, footer_schedule, footer_col2_title, footer_col3_title, footer_col4_title,
+			footer_slogan, footer_admission_text, admission_form_title, admission_form_subtitle)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true,
+			'modern_eco', '🌱 Ecoaldea Raices del Monte - Asamblea mensual primer domingo de cada mes', true, 'columns',
+			'Comunidad montana de 28 familias dedicadas a la permacultura, agroecologia e intercambio comunitario. 15 anios construyendo un modelo de vida sostenible.',
+			'Asamblea mensual: primer domingo de cada mes. Puertas abiertas a visitantes.',
+			'Paginas del Nodo', 'Nuestra Ubicacion', 'Comunidad & Redes',
+			'Permacultura, Energia Solar, Trueque Comunitario',
+			'Solicitar Ingreso a la Ecoaldea',
+			'Solicitud de Ingreso a Raices del Monte',
+			'Completa tus datos para postularte como miembro de la ecoaldea.')
+		ON CONFLICT (node_domain) DO UPDATE SET
+			site_title = EXCLUDED.site_title,
+			site_subtitle = EXCLUDED.site_subtitle,
+			announcement_text = EXCLUDED.announcement_text,
+			show_announcement = EXCLUDED.show_announcement,
+			footer_about = EXCLUDED.footer_about,
+			footer_schedule = EXCLUDED.footer_schedule,
+			footer_slogan = EXCLUDED.footer_slogan,
+			admission_form_title = EXCLUDED.admission_form_title,
+			admission_form_subtitle = EXCLUDED.admission_form_subtitle`,
+		nodeDomain,
+		"Ecoaldea Raices del Monte",
+		"Comunidad montana de permacultura e intercambio",
+		"#2d5016",
+		"#8B4513",
+		"contacto@raicesdelmonte.org",
+		"Montanas, zona rural",
+		"raicesdelmonte",
+		"raicesdelmonte",
+	)
+	if err != nil {
+		return fmt.Errorf("insert public_settings: %w", err)
 	}
 	return nil
 }
@@ -674,6 +721,7 @@ func DemoReset(ctx context.Context, d *DB, nodeDomain string) error {
 		"products",
 		"member_levels",
 		"public_pages",
+		"public_settings",
 	}
 	for _, t := range tables {
 		_, err := d.Pool.Exec(ctx, fmt.Sprintf("DELETE FROM %s WHERE node_domain = $1", t))

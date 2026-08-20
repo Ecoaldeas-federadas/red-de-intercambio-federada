@@ -1,14 +1,27 @@
-fix: update.ps1 construye imagen demo-app con --profile demo
+fix: demo seed public_settings + quitar defaults Feria Conuquera
 
-Problema: docker compose build (sin --profile demo) no construye
-demo-app porque tiene profiles:["demo"]. El demo-app seguia usando
-una imagen vieja con el codigo anterior (price en vez de price_per_unit,
-"node already initialized" skip, etc).
+Problema: El header del demo mostraba "Feria Conuquera Agroecologica"
+porque:
+1. getPublicSettings tenia defaults hardcodeados de Feria Conuquera
+   en los COALESCE (announcement_text, footer_about, footer_schedule,
+   footer_slogan, etc.)
+2. El demo seed no creaba public_settings para el dominio demo
+3. Sin fila en public_settings, el COALESCE devolvia los defaults
+   de Feria Conuquera
 
-Solucion: update.ps1 ahora ejecuta ademas:
-  docker compose --profile demo build demo-app
-despues del build normal, para asegurar que la imagen demo-app
-se reconstruya con los ultimos cambios.
+Solucion:
+- Cambiar todos los COALESCE defaults a strings vacios o genericos
+  (no mas Feria Conuquera hardcodeado en el codigo)
+- Agregar demoSeedPublicSettings que crea public_settings para el
+  dominio demo con:
+  - site_title: "Ecoaldea Raices del Monte"
+  - site_subtitle: "Comunidad montana de permacultura e intercambio"
+  - announcement_text: "Asamblea mensual primer domingo de cada mes"
+  - footer_about: descripcion de la ecoaldea
+  - footer_schedule: info de asambleas
+  - admission_form_title/subtitle: propias de la ecoaldea
+- DemoAutoSetup y DemoReset ahora tambien borran public_settings
+  viejas del dominio demo y de "localhost"
 
 Generated with [Devin](https://devin.ai)
 
