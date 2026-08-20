@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -26,6 +27,11 @@ import (
 )
 
 func main() {
+	// Flags para modo demo
+	demoReset := flag.Bool("demo-reset", false, "Resetear datos del nodo demo y salir")
+	demoDomain := flag.String("demo-domain", "demo", "Dominio del nodo demo")
+	flag.Parse()
+
 	configPath := os.Getenv("CONFIG_PATH")
 	if configPath == "" {
 		configPath = "config.yaml"
@@ -56,21 +62,60 @@ func main() {
 
 	log.Println("Database migrations completed")
 
+	// Modo demo-reset: borrar y re-seedear, luego salir
+	if *demoReset {
+		log.Println("Demo reset mode: resetting domain", *demoDomain)
+		if err := db.DemoReset(ctx, database, *demoDomain); err != nil {
+			log.Fatalf("Demo reset failed: %v", err)
+		}
+		log.Println("Demo reset completed successfully")
+		return
+	}
+
+	// Modo demo: auto-setup si DEMO_MODE=true
+	isDemoMode := os.Getenv("DEMO_MODE") == "true"
+	if isDemoMode {
+		demoDom := os.Getenv("DEMO_DOMAIN")
+		if demoDom == "" {
+			demoDom = "demo"
+		}
+		jwtSecret := os.Getenv("JWT_SECRET")
+		if jwtSecret == "" {
+			jwtSecret = "demo-jwt-secret"
+		}
+		log.Println("Demo mode: running auto-setup for domain", demoDom)
+		if err := api.DemoAutoSetup(ctx, database.Pool, jwtSecret, demoDom, "Nodo Demo - Red Federada"); err != nil {
+			log.Printf("Warning: demo auto-setup failed: %v", err)
+		}
+		// Seed datos demo genericos (no Feria Conuquera)
+		if err := db.DemoSeedData(ctx, database, demoDom); err != nil {
+			log.Printf("Warning: demo seed failed: %v", err)
+		}
+		// En modo demo, usar el dominio demo para seeds
+		cfg.Node.Domain = demoDom
+	}
+
 	// Seed: insertar paginas por defecto del sitio publico si no existen
-	if err := database.SeedPublicPages(ctx, "localhost"); err != nil {
-		log.Printf("Warning: failed to seed public pages: %v", err)
+	// En modo demo, las paginas las crea DemoSeedData (no usar las de Feria Conuquera)
+	if !isDemoMode {
+		if err := database.SeedPublicPages(ctx, "localhost"); err != nil {
+			log.Printf("Warning: failed to seed public pages: %v", err)
+		}
 	}
 
 	// Generar archivos HTML estaticos reales en disco para crawlers
 	api.GenerateStaticHTMLFiles(database.Pool)
 
 	// Seed: copiar productos seed de 'default' al dominio del nodo si no existen
-	seedDomain := cfg.Node.Domain
-	if seedDomain == "" {
-		seedDomain = "localhost"
-	}
-	if err := database.SeedProductsToNode(ctx, seedDomain); err != nil {
-		log.Printf("Warning: failed to seed products to node: %v", err)
+	// En modo demo, los productos los crea DemoSeedData
+	if !isDemoMode {
+		seedDomain := cfg.Node.Domain
+		if seedDomain == "" {
+			seedDomain = "localhost"
+		}
+		if err := database.SeedProductsToNode(ctx, seedDomain); err != nil {
+			log.Printf("Warning: failed to seed products to node: %v", err)
+		}
 	}
 
 	ledgerSvc := ledger.New(database.Pool)

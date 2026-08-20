@@ -345,21 +345,30 @@ export function PublicFederationPage() {
         <div className="max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-3xl font-bold mb-4">Quieres ver el sistema por dentro?</h2>
           <p className="text-lg text-emerald-100 mb-6 max-w-2xl mx-auto">
-            Puedes entrar con un usuario demo y navegar por toda la plataforma sin modificar nada.
-            Explora las funciones, mira como funciona y decidan si les sirve para su comunidad.
-            Si el admin tiene el usuario demo habilitado, puedes iniciar sesion y ver todo.
+            Tenemos un <strong>nodo demo</strong> completo y funcional: un nodo paralelo con datos genericos
+            (no es la Feria Conuquera, es un nodo limpio). Puedes entrar, navegar por todas las funciones,
+            ver productos, asambleas, organizaciones, hacer intercambios y mas.
+            Los datos se reinician cada 24 horas para que siempre encuentres el sistema limpio.
           </p>
           <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 max-w-md mx-auto border border-white/20">
-            <p className="text-sm text-emerald-100 mb-2">Usuario demo (si esta habilitado):</p>
+            <p className="text-sm text-emerald-100 mb-2">Usuario demo:</p>
             <p className="font-mono text-lg bg-white/20 rounded-lg p-2">demo / demo1234</p>
             <p className="text-xs text-emerald-200 mt-2">
-              Este usuario es de solo lectura. Puedes navegar pero no guardar cambios.
-              El admin puede habilitar o deshabilitar este acceso cuando quiera.
+              Puedes hacer cambios libremente. Todo se reinicia cada 24 horas.
+              No afecta al nodo real de ninguna ecoaldea.
             </p>
           </div>
-          <p className="text-sm text-emerald-200 mt-6 max-w-2xl mx-auto">
-            Tambien estamos trabajando en un <strong>nodo demo</strong> independiente: una base de datos paralela
-            donde podras probar todas las funciones sin afectar los datos reales de ninguna ecoaldea.
+          <div className="mt-6">
+            <a
+              href="/demo"
+              className="inline-flex items-center gap-2 bg-white text-emerald-700 font-semibold px-8 py-4 rounded-xl hover:bg-emerald-50 transition text-lg"
+            >
+              <Globe size={20} /> Entrar al Nodo Demo
+            </a>
+          </div>
+          <p className="text-sm text-emerald-200 mt-4">
+            El nodo demo es un nodo completamente funcional que podria incluso solicitar federacion
+            con otros nodos para mostrar como funciona el proceso de federacion.
           </p>
         </div>
       </section>

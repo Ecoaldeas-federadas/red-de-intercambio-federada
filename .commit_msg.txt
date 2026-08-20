@@ -1,45 +1,55 @@
-feat: pagina de federacion + propuestas publicas + usuario demo
+feat: nodo demo paralelo - se reinicia cada 24h, no toca el nodo principal
 
-Pagina publica /p/federacion que invita a ecoaldeas a sumarse:
+Nodo demo completamente funcional y separado del nodo de la Feria Conuquera.
 
-1. Pagina de Federacion (PublicFederationPage):
-   - Hero con explicacion de la Red de Intercambio Federada
-   - "Que es la Federacion de Ecoaldeas" - analogia con Visa/Mastercard
-   - 6 beneficios: gobernanza configurable, economia propia, federacion,
-     comunidad autogestionada, sitio web publico, gratis y abierto
-   - Beneficios de federarse: mas comercios, sin inflacion, autonomia,
-     comercio justo, identidad federada, gratis con asesoria
-   - Lista de 15 funciones que incluye el sistema actualmente
-   - Seccion "Aporta tus ideas" con sistema de propuestas:
-     - Enviar propuesta (titulo, categoria, descripcion)
-     - Votar propuestas existentes
-     - Ver propuestas de la comunidad
-   - Seccion "Comparte este proyecto" con mensaje para redes sociales:
-     - Boton copiar al portapapeles
-     - Boton compartir por WhatsApp
-     - Mensaje completo sobre el proyecto
-   - Seccion demo con info del usuario demo y nodo demo futuro
-   - Agregada al menu como pagina virtual (slug: federacion)
+## Arquitectura
 
-2. Sistema de propuestas publicas (backend):
-   - Migracion 065: tablas public_proposals, public_proposal_votes, demo_user_config
-   - GET /api/public/proposals: listar propuestas
-   - POST /api/public/proposals: crear propuesta (sin auth)
-   - POST /api/public/proposals/{id}/vote: votar (una vez por IP)
-   - GET /api/admin/proposals: listar todas para admin
-   - PUT /api/admin/proposals/{id}/status: actualizar estado
+- **Nodo principal**: puerto 8080, BD fmc_node, dominio localhost/feria
+- **Nodo demo**: puerto 8081, BD fmc_demo, dominio "demo"
+- El nodo demo usa la misma imagen Docker (mismo codigo)
+- Tiene su propia base de datos separada
+- NO toca ningun dato del nodo principal
 
-3. Usuario demo (read-only):
-   - GET /api/demo/status: saber si esta habilitado
-   - POST /api/demo/login: iniciar sesion demo (si habilitado)
-   - PUT /api/demo/toggle: admin habilita/deshabilita
-   - Middleware BlockDemo: bloquea POST/PUT/DELETE para usuarios demo
-   - JWT con flag is_demo, expira en 2h
-   - Mensaje: "Usuario demo: no tienes permiso para modificar datos"
+## Auto-setup del nodo demo
 
-4. Mensaje para redes sociales integrado en la pagina:
-   - Texto completo sobre el proyecto, beneficios, TQ, gobernanza
-   - Boton copiar y boton compartir por WhatsApp
+Al arrancar con DEMO_MODE=true:
+1. Ejecuta migraciones en la BD demo
+2. DemoAutoSetup: crea admin demo, niveles, departamentos, roles, node_config
+   - Usuario: demo / demo1234
+   - No necesita wizard - todo automatico
+3. DemoSeedData: crea datos genericos (NO Feria Conuquera):
+   - Paginas: inicio, como-funciona, federacion, productos, contacto
+   - ~18 productos demo genericos (agricultura, alimentacion, artesania, etc.)
+   - Usuario demo con permisos completos
+4. Salta el seed normal (no copia paginas/productos de Feria Conuquera)
+
+## Reset cada 24 horas
+
+- docker-compose.demo.yml incluye demo-resetter
+- Script demo-reset-loop.sh corre en bucle infinito
+- Cada 24 horas ejecuta: fmc-node --demo-reset --demo-domain=demo
+- DemoReset: borra todos los datos del dominio "demo" y re-seedea
+- NO borra datos de ningun otro dominio
+
+## Archivos nuevos
+
+- config.demo.yaml: configuracion del nodo demo (puerto 8081, BD fmc_demo)
+- docker-compose.demo.yml: servicios demo-app + demo-resetter
+- scripts/demo-reset-loop.sh: bucle de reset
+- internal/api/demo_setup.go: auto-setup del nodo demo
+- internal/db/demo_seed.go: seed generico + reset
+
+## Pagina de federacion actualizada
+
+- Boton "Entrar al Nodo Demo" que apunta a /demo
+- Explica que es un nodo paralelo, funcional, que se reinicia cada 24h
+- No afecta al nodo real de ninguna ecoaldea
+
+## Uso
+
+  docker compose -f docker-compose.demo.yml up -d
+
+El nodo demo estara disponible en el puerto 8081.
 
 Generated with Devin
 

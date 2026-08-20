@@ -1,0 +1,56 @@
+# Configuracion del nodo demo
+# Nodo paralelo para demostracion - NO toca el nodo principal
+# Se reinicia cada 24 horas
+
+node:
+  domain: "demo"
+  name: "Nodo Demo - Red Federada"
+  private_key_path: "/secrets/demo_private_key.ed25519"
+  certificate_path: "/secrets/demo_certificate.pem"
+  ca_certificate_path: "/secrets/ca_root.pem"
+
+database:
+  host: "yugabytedb"
+  port: 5433
+  name: "fmc_demo"
+  user: "fmc"
+  password: "fmcpassword"
+  ssl_mode: "disable"
+  ssl_root_cert: ""
+
+federation:
+  listen_port: 8444
+  mtls_required: false
+  known_nodes: []
+  gossip_interval: "60s"
+  balance_sync_enabled: true
+
+limits:
+  node_multilateral_negative: -10000000
+  node_multilateral_positive: 10000000
+  default_individual_negative: -50000
+  default_individual_positive: 50000
+  default_organization_negative: -5000000
+  default_organization_positive: 5000000
+
+taxes:
+  individual:
+    rate: 0.0
+    enabled: false
+  organization:
+    default_rate: 0.05
+    by_type:
+      commerce: 0.05
+      services: 0.03
+      public_service: 0.0
+      cooperative: 0.02
+
+fund:
+  account_username: "fund"
+  multisig_required: 3
+  multisig_authorizers: []
+
+api:
+  port: 8081
+  cors_origins: ["*"]
+  rate_limit: 100
