@@ -307,7 +307,12 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 				http.Redirect(w, r, basePath+"/", http.StatusFound)
 			})
 
-			// Servir frontend bajo /demo/*
+			// Redirect /demo -> /demo/ (chi no coincide /demo con /demo/*)
+			r.Get(basePath, func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, basePath+"/", http.StatusFound)
+			})
+
+			// Servir frontend bajo /demo/* (incluye /demo/ que sirve index.html)
 			r.Get(basePath+"/*", func(w http.ResponseWriter, r *http.Request) {
 				serveFrontendFile(w, r, frontendDir, pool, basePath)
 			})
