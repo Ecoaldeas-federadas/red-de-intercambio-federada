@@ -32,6 +32,7 @@ func NewBackupsHandler(pool *pgxpool.Pool) *BackupsHandler {
 func (h *BackupsHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.Group(func(r chi.Router) {
 		r.With(am.RequirePermission("config.manage")).Get("/api/admin/backups", h.listBackups)
+		r.With(am.RequirePermission("config.manage")).Get("/api/admin/backups/status", h.getBackupStatus)
 		r.With(am.RequirePermission("config.manage")).Post("/api/admin/backups/now", h.createBackupNow)
 		r.With(am.RequirePermission("config.manage")).Get("/api/admin/backups/{filename}/download", h.downloadBackup)
 		r.With(am.RequirePermission("config.manage")).Delete("/api/admin/backups/{filename}", h.deleteBackup)
@@ -94,15 +95,48 @@ func (h *BackupsHandler) listBackups(w http.ResponseWriter, r *http.Request) {
 
 // createBackupNow crea un backup manual inmediato
 func (h *BackupsHandler) createBackupNow(w http.ResponseWriter, r *http.Request) {
+	// Asegurar que el directorio existe
+	os.MkdirAll(h.BackupsDir, 0755)
+
 	// Escribir un archivo trigger que el servicio db-backup lee
 	triggerFile := filepath.Join(h.BackupsDir, ".trigger_now")
 	err := os.WriteFile(triggerFile, []byte(fmt.Sprintf("%d", time.Now().Unix())), 0644)
 	if err != nil {
-		writeError(w, 500, "no se pudo crear el trigger de backup")
+		writeError(w, 500, "no se pudo crear el trigger de backup: "+err.Error())
 		return
 	}
+
+	// Verificar que el servicio db-backup este activo leyendo el archivo de status
+	statusFile := filepath.Join(h.BackupsDir, ".backup_status")
+	status := "unknown"
+	if fileExists(statusFile) {
+		data, _ := os.ReadFile(statusFile)
+		status = string(data)
+	}
+
 	writeJSON(w, 200, map[string]interface{}{
-		"message": "Backup solicitado. Se creara en los proximos segundos.",
+		"message":     "Backup solicitado. El servicio db-backup lo creara en los proximos 60 segundos.",
+		"status":      status,
+		"trigger_set": true,
+	})
+}
+
+// getBackupStatus devuelve el estado actual del servicio de backup
+func (h *BackupsHandler) getBackupStatus(w http.ResponseWriter, r *http.Request) {
+	statusFile := filepath.Join(h.BackupsDir, ".backup_status")
+	status := "idle"
+	if fileExists(statusFile) {
+		data, _ := os.ReadFile(statusFile)
+		status = string(data)
+	}
+
+	// Verificar si hay un trigger pendiente
+	triggerFile := filepath.Join(h.BackupsDir, ".trigger_now")
+	triggerPending := fileExists(triggerFile)
+
+	writeJSON(w, 200, map[string]interface{}{
+		"status":          status,
+		"trigger_pending": triggerPending,
 	})
 }
 

@@ -1,21 +1,24 @@
-fix: mensajes junto a botones, modal interno, demo-controller
+fix: backups visibles desde node-app + URLs por tab + status en tiempo real
 
 Backups:
-- Mensajes de exito/error ahora aparecen junto al boton, no arriba
-- Auto-refresh de la lista cada 5s despues de crear backup
-- Spinner mientras se crea el backup
-- Mensaje de progreso: "Creando en segundo plano..."
+- Montar volumen db_backups en node-app (antes no lo tenia montado
+  y por eso no podia ver los archivos que creaba db-backup)
+- Nuevo endpoint GET /api/admin/backups/status devuelve el estado
+  del servicio db-backup (idle, creating, done, error)
+- db-backup escribe .backup_status con el estado actual
+- Frontend hace polling cada 3s del status y muestra:
+  "Solicitando backup..." -> "Creando backup... exportando tablas"
+  -> "Backup creado correctamente" o "Error: ..."
+- Spinner visible durante todo el proceso
 
-Demo:
-- Reemplazar confirm() de Windows con modal interno estilizado
-- Modal con boton Cancelar/Confirmar
-- Mensajes junto al boton de resetear demo
-
-Demo-controller (docker-compose):
-- Arreglar creacion de demo-app: si docker start falla, hacer
-  cd /project && docker compose --profile demo up -d demo-app
-- El comando anterior no funcionaba porque docker compose necesita
-  estar en el directorio del proyecto
+URLs por tab:
+- Cada tab de NodeSettings tiene su propia URL:
+  /app/settings?tab=backup
+  /app/settings?tab=database
+  /app/settings?tab=demo
+  etc.
+- Recargar la pagina mantiene el tab activo
+- Se puede compartir/enlazar directamente a un tab
 
 Generated with [Devin](https://devin.ai)
 

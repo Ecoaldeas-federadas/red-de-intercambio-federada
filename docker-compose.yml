@@ -12,6 +12,7 @@ services:
       - ./firmware:/app/firmware:ro
       - firmware_builds:/tmp/firmware-builds
       - uploads:/app/uploads
+      - db_backups:/backups
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       - yugabytedb
@@ -69,6 +70,7 @@ services:
         echo "Backup service: esperando a que YugabyteDB este listo..."
         sleep 90
         LAST_BACKUP=0
+        echo "idle" > /backups/.backup_status
         while true; do
           INTERVAL=24
           RETENTION=7
@@ -95,10 +97,13 @@ services:
           if [ "$$ENABLED" = "true" ] && [ $$ELAPSED -ge $$((INTERVAL * 3600)) ]; then NEED_BACKUP=1; fi
 
           if [ $$NEED_BACKUP -eq 1 ]; then
+            echo "creating" > /backups/.backup_status
             /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT 1" > /dev/null 2>&1
             if [ $$? -ne 0 ]; then
               echo "Backup service: BD no lista, reintentando en 5 min"
+              echo "error: BD no lista" > /backups/.backup_status
               sleep 300
+              echo "idle" > /backups/.backup_status
               continue
             fi
             DATE=$$(date +%Y%m%d_%H%M%S)
@@ -118,6 +123,7 @@ services:
             } > $$FILE
             if [ -s $$FILE ]; then
               echo "Backup service: backup OK $$FILE ($$(wc -c < $$FILE) bytes)"
+              echo "done: $$FILE" > /backups/.backup_status
               LAST_BACKUP=$$NOW
               find /backups -name "fmc_node_*.sql" -mtime +$$RETENTION 2>/dev/null | while read f; do
                 if [ ! -f "$$f.lock" ]; then
@@ -127,12 +133,15 @@ services:
               done
             else
               echo "Backup service: backup vacio, reintentando en 1h"
+              echo "error: backup vacio" > /backups/.backup_status
               rm -f $$FILE
               sleep 3600
+              echo "idle" > /backups/.backup_status
               continue
             fi
           fi
           sleep 60
+          echo "idle" > /backups/.backup_status 2>/dev/null
         done
     volumes:
       - db_backups:/backups

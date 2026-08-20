@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon, Vote as VoteIcon, Database, Download, Upload, AlertTriangle, RefreshCw, Globe, Lock, Unlock, Trash2, FileText, Server, HardDrive } from 'lucide-react'
@@ -22,7 +23,15 @@ export default function NodeSettings() {
   const { hasPermission } = usePermissions()
   const canManage = hasPermission('config.manage')
 
-  const [tab, setTab] = useState<'general' | 'levels' | 'org_levels' | 'tariff' | 'backup' | 'database' | 'demo'>('general')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialTab = (searchParams.get('tab') as any) || 'general'
+  const [tab, setTab] = useState<'general' | 'levels' | 'org_levels' | 'tariff' | 'backup' | 'database' | 'demo'>(initialTab)
+
+  // Actualizar URL cuando cambia el tab
+  const changeTab = (newTab: typeof tab) => {
+    setTab(newTab)
+    setSearchParams({ tab: newTab }, { replace: true })
+  }
   const [showHelp, setShowHelp] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -284,18 +293,18 @@ export default function NodeSettings() {
       )}
 
       <div className="flex gap-2 flex-wrap">
-        <button onClick={() => setTab('general')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'general' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>General</button>
-        <button onClick={() => setTab('levels')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'levels' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><UsersIcon size={14} className="inline mr-1" />Niveles de Miembro</button>
-        <button onClick={() => setTab('org_levels')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'org_levels' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Building2 size={14} className="inline mr-1" />Niveles de Organizacion</button>
-        <button onClick={() => setTab('tariff')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'tariff' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Tarifa Energetica</button>
+        <button onClick={() => changeTab('general')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'general' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>General</button>
+        <button onClick={() => changeTab('levels')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'levels' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><UsersIcon size={14} className="inline mr-1" />Niveles de Miembro</button>
+        <button onClick={() => changeTab('org_levels')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'org_levels' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Building2 size={14} className="inline mr-1" />Niveles de Organizacion</button>
+        <button onClick={() => changeTab('tariff')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'tariff' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Tarifa Energetica</button>
         {canManage && (
-          <button onClick={() => setTab('backup')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'backup' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Database size={14} className="inline mr-1" />Copia de Seguridad</button>
+          <button onClick={() => changeTab('backup')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'backup' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Database size={14} className="inline mr-1" />Copia de Seguridad</button>
         )}
         {canManage && (
-          <button onClick={() => setTab('database')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'database' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><HardDrive size={14} className="inline mr-1" />Base de Datos</button>
+          <button onClick={() => changeTab('database')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'database' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><HardDrive size={14} className="inline mr-1" />Base de Datos</button>
         )}
         {canManage && (
-          <button onClick={() => setTab('demo')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'demo' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Globe size={14} className="inline mr-1" />Nodo Demo</button>
+          <button onClick={() => changeTab('demo')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'demo' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Globe size={14} className="inline mr-1" />Nodo Demo</button>
         )}
       </div>
 
@@ -931,25 +940,52 @@ export default function NodeSettings() {
                       headers: token ? { Authorization: `Bearer ${token}` } : {},
                     })
                     if (!res.ok) throw new Error('Error al solicitar backup')
-                    setBackupMsg({ type: 'info', text: 'Backup solicitado. Creando en segundo plano...' })
-                    // Auto-recargar la lista cada 5 segundos hasta que aparezca el nuevo backup
+                    setBackupMsg({ type: 'info', text: 'Backup solicitado. El servicio lo creara en los proximos 60 segundos...' })
+                    // Polling del status cada 3 segundos
                     let attempts = 0
                     const initialCount = autoBackups.length
                     const checkInterval = setInterval(async () => {
                       attempts++
-                      await loadAutoBackups()
-                      if (autoBackups.length > initialCount || attempts > 12) {
-                        clearInterval(checkInterval)
-                        if (autoBackups.length > initialCount) {
-                          setBackupMsg({ type: 'success', text: 'Backup creado correctamente.' })
-                        } else {
-                          setBackupMsg({ type: 'info', text: 'Backup en proceso. Recarga la pagina en unos segundos para verlo.' })
+                      try {
+                        const statusRes = await fetch('/api/admin/backups/status', {
+                          headers: token ? { Authorization: `Bearer ${token}` } : {},
+                        })
+                        if (statusRes.ok) {
+                          const statusData = await statusRes.json()
+                          if (statusData.status?.startsWith('error')) {
+                            clearInterval(checkInterval)
+                            setBackupMsg({ type: 'error', text: 'Error: ' + statusData.status })
+                            setAutoBackupLoading(false)
+                            loadAutoBackups()
+                            return
+                          }
+                          if (statusData.status?.startsWith('done')) {
+                            clearInterval(checkInterval)
+                            setBackupMsg({ type: 'success', text: 'Backup creado correctamente.' })
+                            setAutoBackupLoading(false)
+                            loadAutoBackups()
+                            return
+                          }
+                          if (statusData.status === 'creating') {
+                            setBackupMsg({ type: 'info', text: 'Creando backup... exportando tablas de la base de datos.' })
+                          }
                         }
+                      } catch {}
+                      // Tambien recargar la lista por si aparece
+                      await loadAutoBackups()
+                      if (autoBackups.length > initialCount) {
+                        clearInterval(checkInterval)
+                        setBackupMsg({ type: 'success', text: 'Backup creado correctamente.' })
+                        setAutoBackupLoading(false)
                       }
-                    }, 5000)
+                      if (attempts > 20) {
+                        clearInterval(checkInterval)
+                        setBackupMsg({ type: 'info', text: 'El backup sigue en proceso. Recarga en unos minutos para verlo.' })
+                        setAutoBackupLoading(false)
+                      }
+                    }, 3000)
                   } catch (err) {
                     setBackupMsg({ type: 'error', text: err instanceof Error ? err.message : 'Error al crear backup' })
-                  } finally {
                     setAutoBackupLoading(false)
                   }
                 }}
@@ -957,7 +993,7 @@ export default function NodeSettings() {
                 className="btn-primary flex items-center gap-2"
               >
                 <Plus size={16} />
-                {autoBackupLoading ? 'Solicitando...' : 'Crear Backup Ahora'}
+                {autoBackupLoading ? 'Procesando...' : 'Crear Backup Ahora'}
               </button>
               {backupMsg && (
                 <div className={`text-xs p-2 rounded-lg flex items-center gap-2 ${
