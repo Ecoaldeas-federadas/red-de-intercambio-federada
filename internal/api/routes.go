@@ -34,6 +34,12 @@ func NewRouter(h *Handler, corsOrigins []string) http.Handler {
 }
 
 func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *OrganizationHandler, ph *PaymentsHandler, eh *ExternalHandler, rh *RecoveryHandler, dh *DepartmentsHandler, nh *NFCTerminalHandler, sh *SetupHandler, corsOrigins []string, am *AuthMiddleware, pool *pgxpool.Pool) http.Handler {
+	return NewRouterWithAuthAndBasePath(h, ah, fh, oh, ph, eh, rh, dh, nh, sh, corsOrigins, am, pool, "")
+}
+
+// NewRouterWithAuthAndBasePath crea el router con un prefijo de ruta opcional
+// para el frontend (ej: "/demo" para el nodo demo). Las API routes quedan en /api/*.
+func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *OrganizationHandler, ph *PaymentsHandler, eh *ExternalHandler, rh *RecoveryHandler, dh *DepartmentsHandler, nh *NFCTerminalHandler, sh *SetupHandler, corsOrigins []string, am *AuthMiddleware, pool *pgxpool.Pool, basePath string) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -293,47 +299,117 @@ func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *
 		frontendDir = "./web/dist"
 	}
 	if _, err := os.Stat(frontendDir); err == nil {
-		// Servir archivos estaticos
-		fileServer := http.FileServer(http.Dir(frontendDir))
-		r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
-			// Si la ruta no es un archivo, servir index.html (SPA routing)
-			path := filepath.Join(frontendDir, r.URL.Path)
-			if _, err := os.Stat(path); err != nil {
-				// index.html: NUNCA cachear (para que cambios de JS/CSS se carguen siempre)
-				w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-				w.Header().Set("Pragma", "no-cache")
-				w.Header().Set("Expires", "0")
+		// Si hay basePath (ej: "/demo"), servir el frontend bajo ese prefijo
+		// y redirigir / al basePath. Las API routes quedan en /api/* sin prefijo.
+		if basePath != "" {
+			// Redirect / -> /demo/
+			r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, basePath+"/", http.StatusFound)
+			})
 
-				// Para rutas /p/{slug}: inyectar meta tags Open Graph en el head
-				// para que las redes sociales muestren titulo y descripcion correctos.
-				// Esto NO rompe React porque React no toca el <head>.
-				if len(r.URL.Path) > 3 && r.URL.Path[:3] == "/p/" {
-					slug := r.URL.Path[3:]
-					if idx := strings.Index(slug, "?"); idx >= 0 {
-						slug = slug[:idx]
-					}
-					if html := injectMetaTags(frontendDir, pool, slug); html != "" {
-						w.Header().Set("Content-Type", "text/html; charset=utf-8")
-						w.Write([]byte(html))
-						return
-					}
-				}
-
-				http.ServeFile(w, r, filepath.Join(frontendDir, "index.html"))
-				return
-			}
-			// Assets con hash (assets/index-XXXX.js): cachear por 1 hora
-			// (cambian el nombre con cada build, asi que es seguro)
-			if len(r.URL.Path) > 8 && r.URL.Path[:8] == "/assets/" {
-				w.Header().Set("Cache-Control", "public, max-age=3600")
-			} else {
-				w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-			}
-			fileServer.ServeHTTP(w, r)
-		})
+			// Servir frontend bajo /demo/*
+			r.Get(basePath+"/*", func(w http.ResponseWriter, r *http.Request) {
+				serveFrontendFile(w, r, frontendDir, pool, basePath)
+			})
+		} else {
+			// Sin basePath: servir frontend en /* (comportamiento normal)
+			r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
+				serveFrontendFile(w, r, frontendDir, pool, "")
+			})
+		}
 	}
 
 	return r
+}
+
+// serveFrontendFile sirve un archivo del frontend o index.html (SPA fallback).
+// Si basePath no es vacio, inyecta <base href> y window.__BASE_PATH__ en index.html.
+func serveFrontendFile(w http.ResponseWriter, r *http.Request, frontendDir string, pool *pgxpool.Pool, basePath string) {
+	// Calcular la ruta del archivo quitando el basePath si existe
+	urlPath := r.URL.Path
+	if basePath != "" && strings.HasPrefix(urlPath, basePath) {
+		urlPath = strings.TrimPrefix(urlPath, basePath)
+		if urlPath == "" {
+			urlPath = "/"
+		}
+	}
+
+	// Si la ruta es un archivo real, servirlo
+	filePath := filepath.Join(frontendDir, urlPath)
+	if _, err := os.Stat(filePath); err == nil && urlPath != "/" {
+		// Assets con hash: cachear por 1 hora
+		if strings.HasPrefix(urlPath, "/assets/") {
+			w.Header().Set("Cache-Control", "public, max-age=3600")
+		} else {
+			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		}
+		http.ServeFile(w, r, filePath)
+		return
+	}
+
+	// No es archivo: servir index.html (SPA routing)
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+
+	// Para rutas /p/{slug}: inyectar meta tags Open Graph
+	slugPath := urlPath
+	if strings.HasPrefix(slugPath, "/p/") {
+		slug := slugPath[3:]
+		if idx := strings.Index(slug, "?"); idx >= 0 {
+			slug = slug[:idx]
+		}
+		if html := injectMetaTags(frontendDir, pool, slug); html != "" {
+			if basePath != "" {
+				html = injectBasePath(html, basePath)
+			}
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Write([]byte(html))
+			return
+		}
+	}
+
+	// Servir index.html, inyectando basePath si es necesario
+	indexPath := filepath.Join(frontendDir, "index.html")
+	indexBytes, err := os.ReadFile(indexPath)
+	if err != nil {
+		w.WriteHeader(404)
+		return
+	}
+	html := string(indexBytes)
+	if basePath != "" {
+		html = injectBasePath(html, basePath)
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write([]byte(html))
+}
+
+// injectBasePath inyecta <base href="/demo/"> y window.__BASE_PATH__ en el HTML
+// para que el frontend se sirva bajo un prefijo de ruta.
+// Tambien reescribe las rutas absolutas de assets a relativas para que
+// se resuelvan contra el <base href>.
+func injectBasePath(html, basePath string) string {
+	// Reescribir rutas absolutas a relativas para que <base href> las resuelva
+	// ej: /assets/index-XXXX.js -> assets/index-XXXX.js
+	// ej: /icon.svg -> icon.svg
+	// ej: /manifest.webmanifest -> manifest.webmanifest
+	html = strings.ReplaceAll(html, `src="/assets/`, `src="assets/`)
+	html = strings.ReplaceAll(html, `href="/assets/`, `href="assets/`)
+	html = strings.ReplaceAll(html, `href="/icon.svg`, `href="icon.svg`)
+	html = strings.ReplaceAll(html, `href="/manifest.webmanifest`, `href="manifest.webmanifest`)
+	html = strings.ReplaceAll(html, `href="/favicon`, `href="favicon`)
+
+	// Inyectar <base href> al inicio del <head>
+	baseTag := `<base href="` + basePath + `/">`
+	if strings.Contains(html, "<head>") {
+		html = strings.Replace(html, "<head>", "<head>"+baseTag, 1)
+	}
+
+	// Inyectar script con window.__BASE_PATH__ antes de </head>
+	scriptTag := `<script>window.__BASE_PATH__="` + basePath + `";</script>`
+	html = strings.Replace(html, "</head>", scriptTag+"</head>", 1)
+
+	return html
 }
 
 // injectMetaTags lee el index.html, busca la pagina en la BD y reemplaza

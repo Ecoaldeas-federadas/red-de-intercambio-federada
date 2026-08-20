@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { api } from '../../api'
 import {
   Globe, Users, Network, Leaf, Heart, Scale, ArrowRight, Check,
@@ -72,14 +72,14 @@ export function PublicFederationPage() {
             setDemoState('running')
             setDemoStarting(false)
             // Redirigir al nodo demo
-            window.open('http://localhost:9091', '_blank')
+            window.open('http://localhost:9091/demo', '_blank')
           })
           .catch(() => {
             if (attempts > 20) {
               clearInterval(poll)
               setDemoState('running')
               setDemoStarting(false)
-              window.open('http://localhost:9091', '_blank')
+              window.open('http://localhost:9091/demo', '_blank')
             }
           })
       }, 3000)
@@ -431,7 +431,7 @@ export function PublicFederationPage() {
             {/* Boton principal */}
             {demoState === 'running' ? (
               <a
-                href="http://localhost:9091"
+                href="http://localhost:9091/demo"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 bg-white text-emerald-700 font-semibold px-8 py-4 rounded-xl hover:bg-emerald-50 transition text-lg"

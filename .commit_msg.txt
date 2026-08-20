@@ -1,27 +1,26 @@
-fix: service worker no cachea API + paginas demo enriquecidas
+feat: demo node usa /demo como prefijo de ruta
 
-Problemas:
-1. El service worker cacheaba respuestas de /api/* (public/settings,
-   public/pages). Cuando el demo-app cambiaba, el SW seguia sirviendo
-   las respuestas viejas cacheadas con contenido de Feria Conuquera.
-   Por eso el header mostraba "Feria Conuquera" aunque la BD tuviera
-   los datos nuevos de Raices del Monte.
+Problema: El demo y el nodo principal usaban las mismas rutas (/p/inicio,
+/assets/*, /sw.js) en el mismo dominio (localhost). Aunque estaban en
+puertos diferentes, el service worker y el cache del navegador podian
+confundir las respuestas.
 
-2. Las paginas del demo eran muy pobres y algunas tenian contenido
-   residual de Feria Conuquera (historia, fundacion, etc).
+Solucion: El nodo demo ahora sirve todo bajo /demo/*:
+- http://localhost:9091/ redirige a http://localhost:9091/demo/
+- El frontend usa BrowserRouter basename="/demo"
+- El service worker se registra como /demo/sw.js (scope /demo/)
+- Los assets se sirven bajo /demo/assets/*
+- Las API routes siguen en /api/* (sin prefijo, compartidas)
 
-Soluciones:
-- sw.js: NUNCA cachear respuestas de /api/* (siempre ir a la red)
-- sw.js: bump cache version v2 -> v3 para invalidar cache viejo
-- demo_seed.go: 7 paginas completamente reescritas con contenido
-  rico y realista sobre ecoaldeas:
-  - inicio: stats ampliadas, features, mision
-  - quienes-somos: historia, valores, como viven, que comen
-  - gobernanza: sociocracia, comisiones, niveles, como se decide
-  - economia: principios TQ, calculo de precio, limites y creditos
-  - productos: categorias del catalogo
-  - federacion: como funciona, como se federan, limites
-  - contacto: como llegar, proceso de admision
+Implementacion:
+- NewRouterWithAuthAndBasePath: nuevo constructor con basePath param
+- serveFrontendFile: sirve archivos del frontend bajo el prefijo
+- injectBasePath: inyecta <base href="/demo/"> y window.__BASE_PATH__
+  en el index.html, reescribe rutas absolutas a relativas
+- main.tsx: lee window.__BASE_PATH__ y lo usa como BrowserRouter
+  basename y para registrar el SW
+- cmd/node/main.go: pasa "/demo" como basePath cuando DEMO_MODE=true
+- URLs actualizadas en frontend y backend
 
 Generated with [Devin](https://devin.ai)
 

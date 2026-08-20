@@ -88,6 +88,10 @@ func main() {
 
 	// Modo demo: auto-setup si DEMO_MODE=true
 	isDemoMode := os.Getenv("DEMO_MODE") == "true"
+	demoBasePath := ""
+	if isDemoMode {
+		demoBasePath = "/demo"
+	}
 	if isDemoMode {
 		demoDom := os.Getenv("DEMO_DOMAIN")
 		if demoDom == "" {
@@ -194,7 +198,7 @@ func main() {
 
 	setupHandler := api.NewSetupHandler(database.Pool, accountsSvc, jwtSecret, cfg.Node.Domain, cfg.Node.Name)
 
-	router := api.NewRouterWithAuth(handler, authHandlers, federationHandler, orgHandler, paymentsHandler, externalHandler, recoveryHandler, departmentsHandler, nfcTerminalHandler, setupHandler, cfg.API.CORSOrigins, authMiddleware, database.Pool)
+	router := api.NewRouterWithAuthAndBasePath(handler, authHandlers, federationHandler, orgHandler, paymentsHandler, externalHandler, recoveryHandler, departmentsHandler, nfcTerminalHandler, setupHandler, cfg.API.CORSOrigins, authMiddleware, database.Pool, demoBasePath)
 
 	// Iniciar scheduler de notificaciones automaticas (avisos de votacion por cerrar, asambleas proximas)
 	notifScheduler := api.NewNotificationScheduler(database.Pool, cfg.Node.Domain)

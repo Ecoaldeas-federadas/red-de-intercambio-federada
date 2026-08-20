@@ -1,4 +1,4 @@
-package api
+﻿package api
 
 import (
 	"encoding/json"
@@ -261,7 +261,7 @@ func (h *PublicProposalsHandler) getDemoStatus(w http.ResponseWriter, r *http.Re
 		"running":      running,
 		"is_demo_node": isDemoNode,
 		"node_domain":  nodeDomain,
-		"demo_url":     "http://localhost:9091",
+		"demo_url":     "http://localhost:9091/demo",
 	})
 }
 
@@ -284,7 +284,7 @@ func (h *PublicProposalsHandler) startDemoNode(w http.ResponseWriter, r *http.Re
 	writeJSON(w, 200, map[string]interface{}{
 		"running":  true,
 		"message":  "Nodo demo iniciando. Estara listo en unos segundos.",
-		"demo_url": "http://localhost:9091",
+		"demo_url": "http://localhost:9091/demo",
 	})
 }
 
