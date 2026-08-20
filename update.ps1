@@ -89,7 +89,31 @@ if ($buildCode -ne 0) {
 }
 Write-OK "Imagenes reconstruidas"
 
-# 4. Reiniciar servicios (sin borrar volumenes)
+# 4. Detener y eliminar demo-app viejo (si esta corriendo)
+Write-Step "Actualizando nodo demo..."
+$demoContainer = docker ps -a --filter "name=demo-app" --format "{{.Names}}" 2>$null
+if ($demoContainer) {
+    docker stop $demoContainer 2>$null
+    docker rm -f $demoContainer 2>$null
+    Write-OK "Nodo demo viejo eliminado"
+} else {
+    Write-OK "No habia nodo demo corriendo"
+}
+
+# 5. Recrear demo-app con la nueva imagen (sin arrancarlo)
+$demoCreateCode = Invoke-Compose @("--profile", "demo", "up", "-d", "--no-deps", "demo-app")
+if ($demoCreateCode -eq 0) {
+    # Detenerlo inmediatamente para que no arranque solo
+    $demoContainer2 = docker ps -a --filter "name=demo-app" --format "{{.Names}}" 2>$null
+    if ($demoContainer2) {
+        docker stop $demoContainer2 2>$null
+    }
+    Write-OK "Nodo demo recreado (detenido, listo para arrancar desde la web)"
+} else {
+    Write-Warn "No se pudo recrear el nodo demo (no es critico)"
+}
+
+# 6. Reiniciar servicios (sin borrar volumenes)
 Write-Step "Reiniciando servicios (sin tocar la base de datos)..."
 $upCode = Invoke-Compose @("up", "-d")
 if ($upCode -ne 0) {
@@ -98,7 +122,7 @@ if ($upCode -ne 0) {
 }
 Write-OK "Servicios reiniciados"
 
-# 5. Esperar al servidor
+# 7. Esperar al servidor
 Write-Step "Esperando al servidor..."
 $serverUrl = "http://localhost:8080"
 $maxWait = 60
