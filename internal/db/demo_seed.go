@@ -511,20 +511,6 @@ func getRaicesDelMontePages() []seedPage {
     }
   },
   {
-    "type": "timeline_history",
-    "badge": "Hitos",
-    "title": "Nuestra Linea de Tiempo",
-    "subtitle": "15 anos de regeneracion, comunidad y soberania.",
-    "items": [
-      { "year": "2010", "title": "Fundacion de la Ecoaldea", "description": "Cinco familias adquieren una finca ganadera degradada y comienzan la regeneracion.", "badge": "Fundacion" },
-      { "year": "2012", "title": "Primeros Huertos", "description": "Bancales elevados, agroforesteria y conservacion de semillas criollas.", "badge": "Permacultura" },
-      { "year": "2015", "title": "Sistema TQ", "description": "Implementacion del Trueque Comunitario basado en energia incorporada.", "badge": "Economia" },
-      { "year": "2018", "title": "Autonomia Energetica", "description": "Paneles solares y cocinas solares. 100% energia renovable.", "badge": "Energia" },
-      { "year": "2021", "title": "Federacion", "description": "Nos federamos con otras ecoaldeas usando el mismo sistema.", "badge": "Federacion" },
-      { "year": "2025", "title": "15 Anos", "description": "Bosque duplicado, manantiales recuperados, 28 familias en comunidad.", "badge": "Presente" }
-    ]
-  },
-  {
     "type": "features_grid",
     "title": "Estructura Organizativa",
     "subtitle": "Como se organiza la ecoaldea mas alla del huerto",
