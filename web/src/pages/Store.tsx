@@ -214,6 +214,7 @@ export default function Store() {
   }
 
   const categories = [...new Set(products.map((p) => p.category).filter(Boolean))]
+  const storeCategories = [...new Set(allStores.map((s) => s.parent_category || s.category).filter(Boolean))].sort()
 
   const addItem = async () => {
     setError('')
@@ -290,9 +291,9 @@ export default function Store() {
       s.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.store_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.owner_name?.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchCategory = !filterCategory || s.category === filterCategory
+    const matchCategory = !filterCategory || s.parent_category === filterCategory || s.category === filterCategory
     return matchSearch && matchCategory
-  })
+  }).sort((a, b) => (a.product_name || '').localeCompare(b.product_name || ''))
 
   // Agrupar por producto para ver quien tiene que
   const storesByProduct = filteredStores.reduce((acc, s) => {
@@ -319,7 +320,7 @@ export default function Store() {
           Mi Tienda
         </button>
         <button onClick={() => setView('browse')} className={`px-4 py-2 rounded-lg text-sm font-medium ${view === 'browse' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>
-          Buscar Productos
+          Todas las Tiendas
         </button>
       </div>
 
@@ -728,66 +729,116 @@ export default function Store() {
         </div>
       )}
 
-      {/* VISTA: BUSCAR PRODUCTOS */}
+      {/* VISTA: TODAS LAS TIENDAS (MARKETPLACE) */}
       {view === 'browse' && (
         <div className="space-y-4">
-          <h2 className="font-semibold flex items-center gap-2"><Search size={18} />Buscar Productos Disponibles</h2>
-          <p className="text-xs text-gray-500">Busca que productos estan disponibles y en que tiendas. Los precios son los mismos para todos.</p>
+          <h2 className="font-semibold flex items-center gap-2"><StoreIcon size={18} />Todas las Tiendas</h2>
+          <p className="text-xs text-gray-500">Explora todos los productos disponibles en la comunidad. Cada producto muestra quien lo vende y su precio.</p>
 
           {/* Filtros */}
           <div className="card space-y-3">
-            <div>
-              <label className="label">Buscar por nombre</label>
-              <input className="input" placeholder="Ej: pan, harina, jabon..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-              <p className="text-xs text-gray-400 mt-1">Escribe el nombre del producto, tienda o persona que buscas. La busqueda es por coincidencia parcial. <strong>Ejemplo:</strong> "pan" encuentra "Pan integral", "Pan dulce", etc.</p>
+            <div className="flex gap-2 flex-wrap">
+              <div className="flex-1 min-w-[200px]">
+                <label className="label">Buscar producto o vendedor</label>
+                <input className="input" placeholder="Ej: pan, quinua, elena, tienda..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+              </div>
+              <div className="min-w-[180px]">
+                <label className="label">Categoria</label>
+                <select className="input" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+                  <option value="">Todas las categorias</option>
+                  {storeCategories.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="label">Filtrar por categoria</label>
-              <select className="input" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
-                <option value="">Todas las categorias</option>
-                {categories.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-400 mt-1">Filtra los productos disponibles por categoria. <strong>Ejemplo:</strong> Selecciona "Alimentos" para ver solo productos alimenticios disponibles en todas las tiendas.</p>
-            </div>
+            {(searchQuery || filterCategory) && (
+              <button onClick={() => { setSearchQuery(''); setFilterCategory('') }} className="text-xs text-blue-600 hover:underline">
+                Limpiar filtros
+              </button>
+            )}
+            <p className="text-xs text-gray-400">
+              {filteredStores.length} producto(s) disponible(s) en {new Set(filteredStores.map(s => s.owner_name).filter(Boolean)).size} tienda(s)
+            </p>
           </div>
 
-          {Object.keys(storesByProduct).length === 0 ? (
+          {/* Grid de productos estilo marketplace */}
+          {filteredStores.length === 0 ? (
             <div className="card text-center text-gray-500 py-8">
-              <p>No hay productos disponibles.</p>
-              <p className="text-xs mt-2">Los productos aparecen cuando los usuarios los agregan a sus tiendas.</p>
+              <StoreIcon size={48} className="mx-auto mb-3 opacity-30" />
+              <p>No hay productos disponibles{searchQuery || filterCategory ? ' con esos filtros' : ''}.</p>
+              <p className="text-xs mt-2">
+                {searchQuery || filterCategory
+                  ? 'Intenta limpiar los filtros o buscar otro termino.'
+                  : 'Los productos aparecen cuando los miembros los agregan a sus tiendas.'}
+              </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {Object.entries(storesByProduct).map(([productName, stores]) => (
-                <div key={productName} className="card">
-                  <h3 className="font-semibold">{productName}</h3>
-                  <p className="text-xs text-gray-500 mb-3">Disponible en {stores.length} tienda(s)</p>
-                  <div className="space-y-2">
-                    {stores.map((s, i) => (
-                      <div key={i} className="flex items-center justify-between border-b border-gray-100 py-2 last:border-0">
-                        <div>
-                          <span className="font-medium text-sm">{s.store_name || s.owner_name || 'Tienda'}</span>
-                          {s.stock === 0 && <span className="ml-2 text-xs text-red-500">Agotado</span>}
-                          {s.stock > 0 && <span className="ml-2 text-xs text-gray-500">Stock: {s.stock}</span>}
-                          {s.extra_costs > 0 && s.extra_description && (
-                            <span className="block text-xs text-amber-600 italic">{s.extra_description} (+{s.extra_costs} {currency})</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="text-right">
-                            <span className="font-bold text-trueque-700">{s.final_price || s.price_trueque} {currency}</span>
-                            {s.unit && <span className="block text-[10px] text-gray-400">por {s.unit}</span>}
-                          </div>
-                          {s.stock > 0 && (
-                            <button onClick={() => buy(s)} className="btn-primary text-sm flex items-center gap-1">
-                              <ShoppingCart size={14} /> Comprar
-                            </button>
-                          )}
-                        </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {filteredStores.map((s) => (
+                <div key={s.id} className="card overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
+                  {/* Imagen / placeholder */}
+                  <div className="h-40 bg-gray-100 flex items-center justify-center overflow-hidden">
+                    {s.image_url ? (
+                      <img
+                        src={s.image_url}
+                        alt={s.product_name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none'
+                          const parent = (e.target as HTMLImageElement).parentElement
+                          if (parent) {
+                            parent.innerHTML = '<div class="text-gray-300 text-4xl"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>'
+                          }
+                        }}
+                      />
+                    ) : (
+                      <div className="text-gray-300">
+                        <Package size={48} />
                       </div>
-                    ))}
+                    )}
+                  </div>
+
+                  {/* Info del producto */}
+                  <div className="p-3 flex-1 flex flex-col gap-2">
+                    <div>
+                      <h3 className="font-semibold text-sm leading-tight line-clamp-2">{s.product_name}</h3>
+                      {(s.parent_category || s.category) && (
+                        <span className="inline-block text-[10px] text-gray-400 mt-1">{s.parent_category}{s.subcategory ? ` · ${s.subcategory}` : ''}</span>
+                      )}
+                    </div>
+
+                    {/* Vendedor */}
+                    <div className="flex items-center gap-1.5 text-xs text-gray-600 bg-gray-50 rounded-lg px-2 py-1.5">
+                      <StoreIcon size={12} className="flex-shrink-0 text-trueque-600" />
+                      <span className="font-medium truncate">{s.owner_name || s.store_name || 'Tienda'}</span>
+                    </div>
+
+                    {/* Precio y stock */}
+                    <div className="flex items-end justify-between mt-auto pt-2">
+                      <div>
+                        <span className="font-bold text-trueque-700 text-lg">{s.final_price || s.price_trueque} {currency}</span>
+                        {s.unit && <span className="block text-[10px] text-gray-400">por {s.unit}</span>}
+                      </div>
+                      <div className="text-right">
+                        {s.stock === 0 ? (
+                          <span className="text-xs text-red-500 font-medium">Agotado</span>
+                        ) : (
+                          <span className="text-xs text-gray-500">Stock: {s.stock}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {s.extra_costs > 0 && s.extra_description && (
+                      <p className="text-[10px] text-amber-600 italic">{s.extra_description} (+{s.extra_costs} {currency})</p>
+                    )}
+
+                    {/* Botón comprar */}
+                    {s.stock > 0 && (
+                      <button onClick={() => buy(s)} className="btn-primary text-sm flex items-center justify-center gap-1 w-full mt-1">
+                        <ShoppingCart size={14} /> Comprar
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

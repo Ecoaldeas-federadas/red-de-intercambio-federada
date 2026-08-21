@@ -41,6 +41,7 @@ type StoreItem struct {
 	Stock            int64      `json:"stock"`
 	IsActive         bool       `json:"is_active"`
 	ExternalOpID     *uuid.UUID `json:"external_op_id"`
+	ImageURL         string     `json:"image_url"`
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
 }
@@ -92,16 +93,18 @@ func (s *Store) ListItems(ctx context.Context, category string) ([]StoreItem, er
 	query := `SELECT si.id, si.node_domain, si.owner_id, si.product_id, si.product_name, si.description, si.parent_category, si.category, si.subcategory, si.origin,
 			  si.unit, si.quantity_per_unit, si.price_trueque, si.base_price, si.extra_costs, si.final_price, si.extra_description,
 			  si.stock, si.is_active, si.external_op_id, si.created_at, si.updated_at,
-			  COALESCE(u.username, '') as owner_name
+			  COALESCE(u.username, '') as owner_name,
+			  COALESCE(p.image_url, '') as image_url
 			  FROM store_items si
 			  LEFT JOIN users u ON si.owner_id = u.id
+			  LEFT JOIN products p ON si.product_id = p.id
 			  WHERE si.node_domain = $1 AND si.is_active = true`
 	args := []interface{}{s.NodeDomain}
 	if category != "" {
-		query += ` AND si.category = $2`
+		query += ` AND (si.parent_category = $2 OR si.category = $2)`
 		args = append(args, category)
 	}
-	query += ` ORDER BY si.created_at DESC`
+	query += ` ORDER BY si.product_name ASC`
 
 	rows, err := s.Pool.Query(ctx, query, args...)
 	if err != nil {
@@ -115,7 +118,7 @@ func (s *Store) ListItems(ctx context.Context, category string) ([]StoreItem, er
 		err := rows.Scan(&item.ID, &item.NodeDomain, &item.OwnerID, &item.ProductID, &item.ProductName, &item.Description,
 			&item.ParentCategory, &item.Category, &item.Subcategory, &item.Origin, &item.Unit, &item.QuantityPerUnit, &item.PriceTrueque,
 			&item.BasePrice, &item.ExtraCosts, &item.FinalPrice, &item.ExtraDescription,
-			&item.Stock, &item.IsActive, &item.ExternalOpID, &item.CreatedAt, &item.UpdatedAt, &item.OwnerName)
+			&item.Stock, &item.IsActive, &item.ExternalOpID, &item.CreatedAt, &item.UpdatedAt, &item.OwnerName, &item.ImageURL)
 		if err != nil {
 			return nil, fmt.Errorf("scanning store item: %w", err)
 		}
