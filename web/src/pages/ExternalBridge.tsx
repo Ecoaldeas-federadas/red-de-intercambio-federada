@@ -203,23 +203,53 @@ export default function ExternalBridge() {
             <br />
             <span className="text-sm">Crea una nueva operacion con el boton de arriba.</span>
           </div>
-        ) : ops.map((op, i) => (
-          <div key={i} className="card flex items-center justify-between">
-            <div>
-              <span className="font-medium">{op.operation_type === 'import' ? 'Importacion' : 'Exportacion'}: {op.product_name}</span>
-              <p className="text-sm text-gray-600">Cant: {op.quantity} | Total: {op.total_trueque} {currency} | FC usado: {op.fc_used}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={`text-xs px-2 py-1 rounded ${op.status === 'approved' ? 'bg-trueque-100 text-trueque-700' : op.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{op.status}</span>
-              {op.status === 'pending' && (
-                <>
-                  <button onClick={() => approve(op.id)} className="btn-secondary flex items-center gap-1"><Check size={16} /></button>
-                  <button onClick={() => reject(op.id)} className="btn-secondary flex items-center gap-1"><X size={16} /></button>
-                </>
-              )}
+        ) : ops.map((op, i) => {
+          const totalTQ = op.internal_value ?? op.total_trueque ?? 0
+          const fcUsed = op.fc_applied ?? op.fc_used ?? 0
+          const usdTotal = op.external_value_usd ?? 0
+          return (
+          <div key={i} className="card">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <span className="font-medium">
+                  {op.operation_type === 'import' ? 'Importacion' : 'Exportacion'}: {op.product_name}
+                </span>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2 text-sm">
+                  <div>
+                    <span className="text-gray-500">Cantidad:</span> <b>{op.quantity}</b>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Total USD:</span> <b>${usdTotal.toFixed(2)}</b>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Total {currency}:</span> <b className="text-trueque-700">{totalTQ} {currency}</b>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">FC usado:</span> <b>{fcUsed.toFixed(2)}</b>
+                  </div>
+                </div>
+                {op.buyer_seller && (
+                  <p className="text-xs text-gray-500 mt-1">Solicitado por: {op.buyer_seller}</p>
+                )}
+                {op.completed_at && (
+                  <p className="text-xs text-gray-500">Completado: {String(op.completed_at).slice(0, 19)}</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs px-2 py-1 rounded ${op.status === 'approved' ? 'bg-trueque-100 text-trueque-700' : op.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                  {op.status === 'approved' ? 'Aprobado' : op.status === 'rejected' ? 'Rechazado' : 'Pendiente'}
+                </span>
+                {op.status === 'pending' && (
+                  <>
+                    <button onClick={() => approve(op.id)} className="btn-secondary flex items-center gap-1"><Check size={16} /></button>
+                    <button onClick={() => reject(op.id)} className="btn-secondary flex items-center gap-1"><X size={16} /></button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

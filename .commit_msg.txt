@@ -1,17 +1,21 @@
-fix: Audit page crash por objetos en details + Service Worker tolerante
+fix: Comercio externo muestra todos los datos en historial
 
 ## Problema
-- React error #31: "Objects are not valid as a React child"
-- Audit page intentaba renderizar {e.details} que era un objeto
-  como {amount, peer, type} o {level, username}
-- Service Worker fallaba con addAll si un asset no existia
+El historial de operaciones mostraba:
+  "Cant: 1 | Total: TQ | FC usado:"
+Sin valores reales.
+
+## Causa
+El frontend usaba op.total_trueque y op.fc_used que no existen.
+El backend devuelve op.internal_value y op.fc_applied.
 
 ## Solucion
-1. Audit.tsx: funcion formatDetails() que convierte objetos a string
-   legible: "amount: 100 | peer: nodo-remoto | type: transfer"
-2. sw.js: usa Promise.allSettled en vez de cache.addAll
-   - Si un asset falla, los demas se cachean igual
-   - Version de cache bumpada a v4 para regenerar
+- Usar los nombres correctos: internal_value, fc_applied, external_value_usd
+- Mostrar grid con 4 columnas: Cantidad, Total USD, Total TQ, FC usado
+- Mostrar quien solicito la operacion (buyer_seller)
+- Mostrar fecha de completado si existe
+- Status traducido: Aprobado/Rechazado/Pendiente
+- Layout mejorado con flexbox
 
 Generated with [Devin](https://devin.ai)
 
