@@ -282,27 +282,9 @@ export default function Login() {
               </div>
             )}
 
-            {demoUsers.filter(u => u.account_type === 'organization').length > 0 && (
-              <div className="space-y-2">
-                <div className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
-                  <Building2 size={12} /> Organizaciones
-                </div>
-                {demoUsers.filter(u => u.account_type === 'organization').map((u) => (
-                  <button
-                    key={u.id}
-                    onClick={() => handleDemoLogin(u.username, u.display_name)}
-                    disabled={demoLoading}
-                    className="w-full flex items-center gap-3 p-3 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition text-left"
-                  >
-                    <Building2 className="text-purple-600 flex-shrink-0" size={20} />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm text-gray-800">{u.display_name}</div>
-                      <div className="text-xs text-gray-500">@{u.username}</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
+            {/* NOTA: Las organizaciones y departamentos NO se muestran como botones de login.
+                El usuario inicia sesion con su cuenta personal y luego accede a las
+                organizaciones/departamentos donde es miembro desde el Dashboard. */}
 
             {demoUsers.filter(u => !u.is_super_admin && u.account_type === 'individual' && u.role !== 'Directivo').length > 0 && (
               <div className="space-y-2">

@@ -1498,10 +1498,74 @@ func demoSeedOrganizations(ctx context.Context, d *DB, nodeDomain string) {
 			RETURNING id`,
 			nodeDomain, org.username, org.displayName, orgLevelID, org.orgType, org.credit, org.debit, pubKeyHex, encryptedPrivKey, salt).Scan(&orgID)
 		if err != nil {
-			log.Printf("Demo: error creating org %s: %v", org.username, err)
+			// Ya existe, obtener ID
+			d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE username = $1 AND node_domain = $2`, org.username, nodeDomain).Scan(&orgID)
+		}
+		if orgID == uuid.Nil {
 			continue
 		}
+
+		// Asignar junta directiva
+		boardAssignments, ok := orgBoards[org.username]
+		if !ok {
+			continue
+		}
+		for _, ba := range boardAssignments {
+			var memberUserID uuid.UUID
+			d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE username = $1 AND node_domain = $2`, ba.username, nodeDomain).Scan(&memberUserID)
+			if memberUserID == uuid.Nil {
+				continue
+			}
+			d.Pool.Exec(ctx, `
+				INSERT INTO organization_board_members (organization_id, user_id, position, term_start)
+				VALUES ($1, $2, $3, NOW())
+				ON CONFLICT (organization_id, user_id, position) DO NOTHING`,
+				orgID, memberUserID, ba.position)
+		}
 	}
+}
+
+// orgBoards define la junta directiva de cada organizacion del demo
+// username -> [{username, position}]
+var orgBoards = map[string][]struct {
+	username, position string
+}{
+	"asamblea": {
+		{"elena", "coordinadora"},
+		{"marcos", "secretario"},
+		{"sofia", "tesorera"},
+		{"demo", "vocal"},
+	},
+	"tienda_comunitaria": {
+		{"andrea", "coordinadora"},
+		{"carmen", "tesorera"},
+		{"jose", "vocal"},
+	},
+	"panaderia_monte": {
+		{"carmen", "coordinadora"},
+		{"isabel", "miembro"},
+	},
+	"herreria": {
+		{"marcos", "coordinador"},
+		{"pablo", "ayudante"},
+	},
+	"taller_textil": {
+		{"raul", "coordinador"},
+		{"isabel", "artesana"},
+	},
+	"centro_salud": {
+		{"sofia", "coordinadora"},
+		{"isabel", "herbalista"},
+	},
+	"escuela": {
+		{"lucia", "directora"},
+		{"andrea", "maestra"},
+	},
+	"coop_agricola": {
+		{"diego", "coordinador"},
+		{"tomas", "campesino"},
+		{"elena", "vocal"},
+	},
 }
 
 func demoSeedDepartments(ctx context.Context, d *DB, nodeDomain string) {

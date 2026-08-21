@@ -41,9 +41,11 @@ export default function DepartmentDetail() {
   const [showAssignMember, setShowAssignMember] = useState(false)
   const [newRole, setNewRole] = useState({ name: '', description: '' })
   const [newMember, setNewMember] = useState({ user_id: '', role_id: '' })
+  const [myRole, setMyRole] = useState<any>(null)
 
-  const canManage = hasPermission('dept.manage')
-  const canAssign = hasPermission('dept.assign_members')
+  const canManage = hasPermission('dept.manage') || myRole?.can_manage
+  const canAssign = hasPermission('dept.assign_members') || myRole?.can_manage
+  const canTransfer = hasPermission('dept.manage') || myRole?.can_transfer
 
   const load = () => {
     if (!id) return
@@ -51,6 +53,13 @@ export default function DepartmentDetail() {
     api.get(`/departments/${id}/roles`).then((d: any) => setRoles(Array.isArray(d) ? d : [])).catch(() => {})
     api.get(`/departments/${id}/members`).then((d: any) => setMembers(Array.isArray(d) ? d : [])).catch(() => {})
     api.get('/accounts/list').then((d: any) => setAllUsers(Array.isArray(d) ? d : [])).catch(() => {})
+
+    // Cargar mi rol en este departamento
+    api.get(`/my/departments`).then((d: any) => {
+      const list = Array.isArray(d) ? d : []
+      const found = list.find((dp: any) => dp.id === id)
+      setMyRole(found || null)
+    }).catch(() => {})
 
     // Cargar billetera del departamento
     api.get(`/ledger/transactions?account_id=${id}&limit=100`).then((d: any) => {
@@ -156,6 +165,14 @@ export default function DepartmentDetail() {
             {dept.is_active ? 'Activo' : 'Inactivo'}
           </span>
         </div>
+        {myRole && (
+          <div className="mt-3 flex items-center gap-2 text-sm">
+            <span className="text-gray-500">Tu rol aqui:</span>
+            <span className="font-medium text-teal-700">{myRole.role}</span>
+            {myRole.can_manage && <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded">Puede gestionar</span>}
+            {myRole.can_transfer && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Puede transferir</span>}
+          </div>
+        )}
       </div>
 
       {/* Tabs */}

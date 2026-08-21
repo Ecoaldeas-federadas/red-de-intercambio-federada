@@ -80,6 +80,10 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 	scopedAsmbH := NewScopedAssemblyHandler(pool, am)
 	scopedAsmbH.RegisterRoutes(r, am)
 
+	// Mis organizaciones y departamentos (acceso con sesion personal)
+	myH := NewMyMembershipHandler(pool, am)
+	myH.RegisterRoutes(r, am)
+
 	// Notificaciones
 	notifH := &NotificationHandler{Pool: pool, Auth: am}
 	notifH.RegisterRoutes(r, am)

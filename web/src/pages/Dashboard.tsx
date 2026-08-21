@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
-import { Wallet, AlertTriangle, Network, HelpCircle, Send, History as HistoryIcon, ShoppingBag, Calculator, Calendar, ChevronRight } from 'lucide-react'
+import { Wallet, AlertTriangle, Network, HelpCircle, Send, History as HistoryIcon, ShoppingBag, Calculator, Calendar, ChevronRight, Building2, Users as UsersIcon } from 'lucide-react'
 
 export default function Dashboard() {
   const { currency } = useConfig()
@@ -15,6 +15,8 @@ export default function Dashboard() {
   const [warnings, setWarnings] = useState<any[]>([])
   const [nodes, setNodes] = useState<any[]>([])
   const [upcomingAssemblies, setUpcomingAssemblies] = useState<any[]>([])
+  const [myOrgs, setMyOrgs] = useState<any[]>([])
+  const [myDepts, setMyDepts] = useState<any[]>([])
   const [error, setError] = useState('')
   const [showHelp, setShowHelp] = useState(false)
 
@@ -24,7 +26,9 @@ export default function Dashboard() {
       api.get<any>('/federation/warnings').catch(() => ({ warnings: [] })),
       api.get<any[]>('/federation/nodes').catch(() => []),
       api.get<any[]>('/assembly/sessions?filter=upcoming').catch(() => []),
-    ]).then(([user, warn, n, sessions]) => {
+      api.get<any[]>('/my/organizations').catch(() => []),
+      api.get<any[]>('/my/departments').catch(() => []),
+    ]).then(([user, warn, n, sessions, orgs, depts]) => {
       if (user) {
         setBalance(user.balance ?? 0)
         setCreditLimit(user.credit_limit ?? null)
@@ -35,6 +39,8 @@ export default function Dashboard() {
       setWarnings(warn?.warnings ?? [])
       setNodes(Array.isArray(n) ? n : [])
       setUpcomingAssemblies(Array.isArray(sessions) ? sessions.slice(0, 3) : [])
+      setMyOrgs(Array.isArray(orgs) ? orgs : [])
+      setMyDepts(Array.isArray(depts) ? depts : [])
     }).catch(() => setError('Error al cargar datos'))
   }, [])
 
@@ -205,6 +211,79 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
+
+      {/* Mis Organizaciones */}
+      {myOrgs.length > 0 && (
+        <div className="card">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Building2 className="text-purple-600" size={20} />
+              Mis Organizaciones
+            </h2>
+            <button onClick={() => navigate('/app/organizations')} className="text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1">
+              Ver todas <ChevronRight size={14} />
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mb-3">Organizaciones donde tienes un rol. Entras con tu usuario y la organizacion sabe quien eres y que puedes hacer.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {myOrgs.map((org) => (
+              <button
+                key={org.id}
+                onClick={() => navigate(`/app/organizations/${org.id}`)}
+                className="text-left flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-purple-300 hover:bg-purple-50 transition"
+              >
+                <Building2 className="text-purple-600 flex-shrink-0" size={24} />
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm text-gray-800">{org.display_name}</div>
+                  <div className="text-xs text-gray-500">
+                    Rol: <span className="font-medium">{org.role}</span>
+                    {org.is_board_member && <span className="text-purple-600"> · Junta Directiva</span>}
+                  </div>
+                  {org.can_transfer && (
+                    <div className="text-xs text-green-600 mt-0.5">Puede transferir</div>
+                  )}
+                </div>
+                <ChevronRight size={16} className="text-gray-400" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Mis Departamentos */}
+      {myDepts.length > 0 && (
+        <div className="card">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <UsersIcon className="text-teal-600" size={20} />
+              Mis Departamentos
+            </h2>
+            <button onClick={() => navigate('/app/departments')} className="text-xs text-teal-600 hover:text-teal-800 flex items-center gap-1">
+              Ver todos <ChevronRight size={14} />
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mb-3">Comisiones y departamentos donde eres miembro. Entras con tu usuario y ves segun tu rol.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {myDepts.map((dept) => (
+              <button
+                key={dept.id}
+                onClick={() => navigate(`/app/departments/${dept.id}`)}
+                className="text-left flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-teal-300 hover:bg-teal-50 transition"
+              >
+                <UsersIcon className="text-teal-600 flex-shrink-0" size={24} />
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm text-gray-800">{dept.name}</div>
+                  <div className="text-xs text-gray-500">
+                    Rol: <span className="font-medium">{dept.role}</span>
+                    {dept.can_manage && <span className="text-teal-600"> · Puede gestionar</span>}
+                  </div>
+                </div>
+                <ChevronRight size={16} className="text-gray-400" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Asambleas pendientes */}
       {upcomingAssemblies.length > 0 && (

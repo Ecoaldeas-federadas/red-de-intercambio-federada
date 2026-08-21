@@ -23,8 +23,11 @@ export default function OrganizationDetail() {
   const [boardForm, setBoardForm] = useState({ user_id: '', position: 'presidente' })
   const [multisig, setMultisig] = useState<any>(null)
   const [multisigForm, setMultisigForm] = useState({ required_signatures: 1, authorized_signers: [] as string[] })
+  const [myRole, setMyRole] = useState<any>(null)
 
-  const canManage = hasPermission('org.manage')
+  const canManage = hasPermission('org.manage') || myRole?.can_manage
+  const canTransfer = hasPermission('org.manage') || myRole?.can_transfer
+  const canConfig = hasPermission('org.manage') || myRole?.can_config
 
   const load = () => {
     if (!id) return
@@ -32,6 +35,13 @@ export default function OrganizationDetail() {
       const list = Array.isArray(d) ? d : []
       const found = list.find((o: any) => o.id === id)
       setOrg(found || null)
+    }).catch(() => {})
+
+    // Cargar mi rol en esta organizacion
+    api.get(`/my/organizations`).then((d: any) => {
+      const list = Array.isArray(d) ? d : []
+      const found = list.find((o: any) => o.id === id)
+      setMyRole(found || null)
     }).catch(() => {})
 
     api.get(`/organizations/${id}/board`).then((d: any) => {
@@ -167,6 +177,15 @@ export default function OrganizationDetail() {
             {org.is_approved ? 'Aprobada' : 'Pendiente'}
           </span>
         </div>
+        {myRole && (
+          <div className="mt-3 flex items-center gap-2 text-sm">
+            <span className="text-gray-500">Tu rol aqui:</span>
+            <span className="font-medium text-purple-700">{myRole.role}</span>
+            {myRole.is_board_member && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Junta Directiva</span>}
+            {myRole.can_transfer && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Puede transferir</span>}
+            {myRole.can_config && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Puede configurar</span>}
+          </div>
+        )}
       </div>
 
       {/* Tabs */}

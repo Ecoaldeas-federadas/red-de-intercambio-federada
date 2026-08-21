@@ -305,6 +305,7 @@ func (h *PublicProposalsHandler) listDemoUsers(w http.ResponseWriter, r *http.Re
 		FROM users u
 		LEFT JOIN member_levels ml ON u.member_level_id = ml.id
 		WHERE u.membership_status = 'active'
+		  AND u.account_type = 'individual'
 		ORDER BY u.is_super_admin DESC, u.account_type, u.username`)
 	if err != nil {
 		writeJSON(w, 200, []interface{}{})
