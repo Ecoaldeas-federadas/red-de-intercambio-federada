@@ -57,7 +57,9 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequireAuth).Get("/api/audit", h.listAudit)
 
 	// Configuracion del nodo (moneda, nombre, etc)
-	r.With(am.RequireAuth).Get("/api/config", h.getConfig)
+	// GET es publico (solo devuelve nombre, moneda, app_name - no hay datos sensibles)
+	// PUT requiere permiso
+	r.Get("/api/config", h.getConfig)
 	r.With(am.RequirePermission("config.manage")).Put("/api/config", h.updateConfig)
 
 	// Backup y restauracion de la base de datos
