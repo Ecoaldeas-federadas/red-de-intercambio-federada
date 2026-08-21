@@ -319,7 +319,7 @@ export function CarouselBlock({ data }: { data: CarouselBlockData }) {
                     : 'border-transparent opacity-60 hover:opacity-100'
                 }`}
               >
-                <img src={item.image_url} alt="" className="w-full h-full object-cover" />
+                <img src={item.image_url} alt="" className="w-full h-full object-cover" onError={(e) => { const t = e.currentTarget; t.onerror = null; if (!t.src.startsWith('data:image/svg+xml')) { t.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgMzAwIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2YwZjlmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMCIgZmlsbD0iIzljYTNhZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPlNpbiBpbWFnZW48L3RleHQ+PC9zdmc+'; } }} />
               </button>
               <EdRemoveItem arrayField="items" index={idx} className="absolute -top-1 -right-1 z-10" />
             </div>
@@ -349,6 +349,7 @@ export function CarouselBlock({ data }: { data: CarouselBlockData }) {
               src={items[lightboxIndex].image_url}
               alt=""
               className="max-h-[70vh] mx-auto rounded-2xl object-contain shadow-2xl"
+              onError={(e) => { const t = e.currentTarget; t.onerror = null; if (!t.src.startsWith('data:image/svg+xml')) { t.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgMzAwIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2YwZjlmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMCIgZmlsbD0iIzljYTNhZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPlNpbiBpbWFnZW48L3RleHQ+PC9zdmc+'; } }}
             />
             {items[lightboxIndex].title && (
               <h4 className="text-lg sm:text-xl font-bold">{items[lightboxIndex].title}</h4>

@@ -543,7 +543,7 @@ export function EdImage({ field, src, alt = '', className = '', style }: EdImage
   const [showEditor, setShowEditor] = useState(false)
 
   if (!editMode) {
-    return <img src={src} alt={alt} className={className} style={style} />
+    return <img src={src} alt={alt} className={className} style={style} onError={(e) => { const t = e.currentTarget; t.onerror = null; if (!t.src.startsWith('data:image/svg+xml')) { t.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgMzAwIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2YwZjlmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMCIgZmlsbD0iIzljYTNhZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPlNpbiBpbWFnZW48L3RleHQ+PC9zdmc+'; t.className = (t.className || '') + ' object-contain'; } }} />
   }
 
   return (
@@ -553,6 +553,7 @@ export function EdImage({ field, src, alt = '', className = '', style }: EdImage
         alt={alt}
         className={`${className} cursor-pointer`}
         onClick={() => setShowEditor(true)}
+        onError={(e) => { const t = e.currentTarget; t.onerror = null; if (!t.src.startsWith('data:image/svg+xml')) { t.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgMzAwIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2YwZjlmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMCIgZmlsbD0iIzljYTNhZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPlNpbiBpbWFnZW48L3RleHQ+PC9zdmc+'; } }}
       />
       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center pointer-events-none">
         <div className="bg-white/90 rounded-lg px-3 py-1.5 text-xs font-bold text-gray-900 flex items-center gap-1.5">
@@ -602,7 +603,7 @@ export function EdArrayImage({
   const [showEditor, setShowEditor] = useState(false)
 
   if (!editMode) {
-    return <img src={src} alt={alt} className={className} style={style} />
+    return <img src={src} alt={alt} className={className} style={style} onError={(e) => { const t = e.currentTarget; t.onerror = null; if (!t.src.startsWith('data:image/svg+xml')) { t.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgMzAwIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2YwZjlmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMCIgZmlsbD0iIzljYTNhZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPlNpbiBpbWFnZW48L3RleHQ+PC9zdmc+'; t.className = (t.className || '') + ' object-contain'; } }} />
   }
 
   return (
@@ -612,6 +613,7 @@ export function EdArrayImage({
         alt={alt}
         className={`${className} cursor-pointer`}
         onClick={() => setShowEditor(true)}
+        onError={(e) => { const t = e.currentTarget; t.onerror = null; if (!t.src.startsWith('data:image/svg+xml')) { t.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgMzAwIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2YwZjlmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMCIgZmlsbD0iIzljYTNhZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPlNpbiBpbWFnZW48L3RleHQ+PC9zdmc+'; } }}
       />
       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center pointer-events-none">
         <div className="bg-white/90 rounded-lg px-2 py-1 text-[10px] font-bold text-gray-900 flex items-center gap-1">

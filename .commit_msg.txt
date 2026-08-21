@@ -1,18 +1,18 @@
-fix: cargar todos los productos de una vez, no infinite scroll
+fix: agregar onError a imagenes para reemplazar URLs 404 con placeholder
 
 Problema:
-- El infinite scroll no cargaba todos los productos. El usuario veia
-  168 productos en lugar de 238.
-- Los contadores por categoria no sumaban el total porque solo
-  contaban los productos cargados, no todos.
+- Muchas URLs de imagenes de Unsplash en el catalogo de productos
+  retornaban 404 (no existen).
+- Esto causaba montones de errores 404 en la consola del navegador
+  y las imagenes no cargaban.
 
 Solucion:
-- Reemplazar el infinite scroll por carga completa en bucle: el
-  frontend hace fetch de 100 en 100 hasta cargar todos los productos.
-- Los productos se muestran progresivamente mientras cargan.
-- Eliminado el sentinel, IntersectionObserver y boton "Cargar mas".
-- Ahora los contadores por categoria muestran el total real porque
-  todos los productos estan cargados.
+- Agregar onError a EdImage, EdArrayImage y <img> directos en
+  PublicBlocks.tsx (carrusel y lightbox).
+- Cuando una imagen falla, se reemplaza con un placeholder SVG
+  "Sin imagen" en gris claro.
+- El onError tiene guardia para evitar loops infinitos (verifica
+  que no sea ya el placeholder).
 
 Generated with [Devin](https://devin.ai)
 
