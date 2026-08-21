@@ -10,6 +10,8 @@ export default function Dashboard() {
   const [balance, setBalance] = useState<number | null>(null)
   const [creditLimit, setCreditLimit] = useState<number | null>(null)
   const [debitLimit, setDebitLimit] = useState<number | null>(null)
+  const [userName, setUserName] = useState('')
+  const [userDisplay, setUserDisplay] = useState('')
   const [warnings, setWarnings] = useState<any[]>([])
   const [nodes, setNodes] = useState<any[]>([])
   const [upcomingAssemblies, setUpcomingAssemblies] = useState<any[]>([])
@@ -27,6 +29,8 @@ export default function Dashboard() {
         setBalance(user.balance ?? 0)
         setCreditLimit(user.credit_limit ?? null)
         setDebitLimit(user.debit_limit ?? null)
+        setUserName(user.username || '')
+        setUserDisplay(user.display_name || user.username || '')
       }
       setWarnings(warn?.warnings ?? [])
       setNodes(Array.isArray(n) ? n : [])
@@ -116,8 +120,11 @@ export default function Dashboard() {
             <Wallet className="text-trueque-600" size={24} />
             <h2 className="text-lg font-semibold">Mi Balance</h2>
           </div>
+          {userDisplay && (
+            <p className="text-xs text-gray-500 mb-1">@{userName} ({userDisplay})</p>
+          )}
           <p className="text-3xl font-bold text-trueque-700">
-            {balance !== null ? `${balance.toLocaleString()} ${currency}` : '...'}
+            {balance !== null ? `${balance >= 0 ? '+' : ''}${balance.toLocaleString()} ${currency}` : '...'}
           </p>
           {creditLimit !== null && debitLimit !== null && (
             <p className="text-xs text-gray-500 mt-2">

@@ -1,35 +1,40 @@
-fix: Votos de asamblea + botones de voto para status voting + SW v5
+fix: Wallet muestra nombre, balance real, direcciones y filtros por fecha
 
-## Causa raiz de votos en 0
-El CHECK constraint de assembly_votes exige:
-  vote IN ('for', 'against', 'abstain')
-Pero el seed usaba "yes" y "no" que NO son validos.
-El INSERT fallaba silenciosamente -> 0 votos en la BD.
+## Causa raiz: balance 0 y todo como "Recibido"
+
+1. No habia ledger_entries en la BD (seed se salto porque ya habia transacciones)
+2. El backend leia X-User-ID del header, pero el frontend no lo enviaba
+3. Sin X-User-ID, direction siempre era "neutral" -> todo aparecia como "Recibido"
+4. Sin ledger_entries, el balance era 0
 
 ## Fixes
 
-### 1. Seed de votos corregido
-- Cambiado "yes" -> "for"
-- Cambiado "no" -> "against"
-- "abstain" ya era correcto
-- Ahora los votos se insertan correctamente
-- 8 propuestas aprobadas tendran votos reales (70% a favor, 20% en contra, 10% abstencion)
+### 1. Backend: listLedgerTransactions lee user_id del context JWT
+- Antes: solo leia X-User-ID del header (que el frontend no enviaba)
+- Ahora: si no hay header, lee del context del JWT
+- Tambien lee nodeDomain del context del JWT
+- Esto hace que direction sea "debit" o "credit" correctamente
 
-### 2. Botones de voto para status 'voting'
-- Antes: botones solo aparecian si status === 'pending'
-- Ahora: botones aparecen si status === 'pending' OR 'voting'
-- Countdown tambien muestra para 'voting'
+### 2. Wallet.tsx reescrito
+- Muestra nombre del usuario (@username y display_name)
+- Muestra saldo con signo (+/-)
+- Filtros por periodo: 24h, 7d, 30d, 3m, todo, personalizado
+- Filtro personalizado con fecha desde/hasta
+- Lista de movimientos con direccion correcta (entradas/salidas)
+- Resumen con 3 tarjetas: entradas, salidas, balance del periodo
+- Saldo real de la cuenta separado del balance del periodo
+- Usa Math.abs(amount) para mostrar montos siempre positivos
+- Fallback: si no hay direction, usa signo del monto
 
-### 3. Service Worker v5
-- Bump de cache version v4 -> v5
-- Fuerza actualizacion del SW en navegadores con cache viejo
-- El error "addAll" era del cache v3/v4 que tenia codigo viejo
+### 3. Dashboard.tsx
+- Muestra nombre del usuario (@username y display_name)
+- Muestra balance con signo (+/-)
 
-### 4. ERR_EMPTY_RESPONSE al activar demo
-- No es un bug: el demo-app tarda en arrancar
-- El frontend hace polling cada 3s hasta que responde
-- Los errores en consola son normales durante el arranque
-- Despues de ~10-30s el demo responde y se abre la ventana
+## Importante
+Despues de update.ps1, ejecutar reset-demo.ps1 para que:
+- Se creen los ledger_entries correctamente
+- Se actualicen los balances
+- Los votos de asamblea se siembren con valores correctos
 
 Generated with [Devin](https://devin.ai)
 

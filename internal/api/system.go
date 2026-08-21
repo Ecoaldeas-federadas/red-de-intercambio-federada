@@ -1178,10 +1178,22 @@ func (h *SystemHandler) listLedgerTransactions(w http.ResponseWriter, r *http.Re
 		nodeDomain = h.nodeDomain
 	}
 	if nodeDomain == "" {
+		// Intentar obtener del context (JWT)
+		if node, ok := r.Context().Value("node").(string); ok && node != "" {
+			nodeDomain = node
+		}
+	}
+	if nodeDomain == "" {
 		nodeDomain = "localhost"
 	}
 
 	userID := r.Header.Get("X-User-ID")
+	// Si no hay header, intentar obtener del context (JWT)
+	if userID == "" {
+		if uid, ok := r.Context().Value("user_id").(uuid.UUID); ok {
+			userID = uid.String()
+		}
+	}
 	limit := 100
 	if l := r.URL.Query().Get("limit"); l != "" {
 		if v, err := strconv.Atoi(l); err == nil && v > 0 && v <= 500 {
