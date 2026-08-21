@@ -83,6 +83,21 @@ func DemoSeedData(ctx context.Context, d *DB, nodeDomain string) error {
 		log.Printf("Demo: warning seeding assembly proposals: %v", err)
 	}
 
+	// 10b. Junta directiva
+	demoSeedBoardMembers(ctx, d, nodeDomain)
+
+	// 10c. Solicitudes de admision
+	demoSeedAdmissionRequests(ctx, d, nodeDomain)
+
+	// 10d. Comercio externo (DEX)
+	demoSeedExternalOps(ctx, d, nodeDomain)
+
+	// 10e. Propuestas de distribucion del fondo
+	demoSeedFundProposals(ctx, d, nodeDomain)
+
+	// 10f. Reportes de paridad federada
+	demoSeedParityReports(ctx, d, nodeDomain)
+
 	// 11. Nodos federados simulados
 	if err := demoSeedFederationPeers(ctx, d, nodeDomain); err != nil {
 		log.Printf("Demo: warning seeding federation peers: %v", err)
@@ -1543,6 +1558,7 @@ func demoSeedTransactions(ctx context.Context, d *DB, nodeDomain string) error {
 	sofia := getUserID("sofia")
 	pablo := getUserID("pablo")
 	tomas := getUserID("tomas")
+	demoUser := getUserID("demo")
 	tienda := getUserID("tienda_comunitaria")
 	panaderia := getUserID("panaderia_monte")
 	herreria := getUserID("herreria")
@@ -1566,6 +1582,15 @@ func demoSeedTransactions(ctx context.Context, d *DB, nodeDomain string) error {
 	}
 
 	txns := []txn{
+		// Transacciones del usuario demo (para que tenga saldo e historial)
+		{demoUser, tienda, 120, "Compra de granos y abarrotes", 24 * 60},
+		{panaderia, demoUser, 50, "Pago por pan de quinua semanal", 24 * 58},
+		{demoUser, herreria, 80, "Reparacion de herramientas", 24 * 45},
+		{taller, demoUser, 100, "Pago por costura de cortina", 24 * 30},
+		{demoUser, coop, 200, "Compra de semillas para huerto", 24 * 20},
+		{isabel, demoUser, 60, "Pago por queso de cabra", 24 * 10},
+		{demoUser, panaderia, 45, "Pan y galletas", 24 * 5},
+		{coop, demoUser, 150, "Venta de verduras del huerto", 24 * 2},
 		// Compras en tiendas (varios meses)
 		{carmen, tienda, 80, "Compra de frijol y quinua", 24 * 90},
 		{jose, tienda, 60, "Compra de tijeras de podar", 24 * 88},
@@ -1638,9 +1663,9 @@ func demoSeedTransactions(ctx context.Context, d *DB, nodeDomain string) error {
 		txID := uuid.New()
 		_, err := d.Pool.Exec(ctx, `
 			INSERT INTO transactions (id, tx_type, sender_id, receiver_id, sender_node, receiver_node, amount, tax_amount, tax_target_account, status, metadata, created_at, confirmed_at)
-			VALUES ($1, 'transfer', $2, $3, $4, $4, $5, $6, $7, 'completed', $8, NOW() - interval '%d hours', NOW() - interval '%d hours')`,
+			VALUES ($1, 'transfer', $2, $3, $4, $4, $5, $6, $7, 'completed', $8, NOW() - make_interval(hours => $9), NOW() - make_interval(hours => $9))`,
 			txID, t.sender, t.receiver, nodeDomain, t.amount, taxAmount, taxTarget,
-			fmt.Sprintf(`{"description": "%s"}`, t.desc), t.hoursAgo, t.hoursAgo)
+			fmt.Sprintf(`{"description": "%s"}`, t.desc), t.hoursAgo)
 		if err != nil {
 			log.Printf("Demo: error creating transaction %d: %v", i, err)
 			continue
@@ -1649,25 +1674,25 @@ func demoSeedTransactions(ctx context.Context, d *DB, nodeDomain string) error {
 		// Crear ledger entries (débito/crédito)
 		d.Pool.Exec(ctx, `
 			INSERT INTO ledger_entries (id, transaction_id, account_id, entry_type, amount, account_category, counterpart_node, created_at)
-			VALUES (gen_random_uuid(), $1, $2, 'debit', $3, 'individual', $4, NOW() - interval '%d hours')`,
+			VALUES (gen_random_uuid(), $1, $2, 'debit', $3, 'individual', $4, NOW() - make_interval(hours => $5))`,
 			txID, t.sender, t.amount, nodeDomain, t.hoursAgo)
 		d.Pool.Exec(ctx, `
 			INSERT INTO ledger_entries (id, transaction_id, account_id, entry_type, amount, account_category, counterpart_node, created_at)
-			VALUES (gen_random_uuid(), $1, $2, 'credit', $3, 'individual', $4, NOW() - interval '%d hours')`,
+			VALUES (gen_random_uuid(), $1, $2, 'credit', $3, 'individual', $4, NOW() - make_interval(hours => $5))`,
 			txID, t.receiver, t.amount, nodeDomain, t.hoursAgo)
 
 		// Si hay impuesto, crear ledger entry para la cuenta de impuestos
 		if taxAmount > 0 && impuestos != uuid.Nil {
 			d.Pool.Exec(ctx, `
 				INSERT INTO ledger_entries (id, transaction_id, account_id, entry_type, amount, account_category, counterpart_node, created_at)
-				VALUES (gen_random_uuid(), $1, $2, 'credit', $3, 'fund', $4, NOW() - interval '%d hours')`,
+				VALUES (gen_random_uuid(), $1, $2, 'credit', $3, 'fund', $4, NOW() - make_interval(hours => $5))`,
 				txID, impuestos, taxAmount, nodeDomain, t.hoursAgo)
 		}
 
 		// Crear audit log
 		d.Pool.Exec(ctx, `
 			INSERT INTO audit_log (actor_id, action, target_id, details, created_at)
-			VALUES ($1, 'transfer', $2, $3, NOW() - interval '%d hours')`,
+			VALUES ($1, 'transfer', $2, $3, NOW() - make_interval(hours => $4))`,
 			t.sender, t.receiver,
 			fmt.Sprintf(`{"amount": %d, "description": "%s", "tx_id": "%s"}`, t.amount, t.desc, txID.String()),
 			t.hoursAgo)
@@ -1738,7 +1763,7 @@ func demoSeedAssemblyVotes(ctx context.Context, d *DB, nodeDomain string, adminI
 			}
 			d.Pool.Exec(ctx, `
 				INSERT INTO assembly_votes (id, decision_id, voter_id, vote, created_at)
-				VALUES (gen_random_uuid(), $1, $2, $3, NOW() - interval '%d days')
+				VALUES (gen_random_uuid(), $1, $2, $3, NOW() - make_interval(days => $4))
 				ON CONFLICT DO NOTHING`,
 				decID, voterID, vote, 25-i)
 		}
@@ -1845,9 +1870,9 @@ func demoSeedExternalOps(ctx context.Context, d *DB, nodeDomain string) {
 
 		d.Pool.Exec(ctx, `
 			INSERT INTO external_bridge_operations (id, node_domain, operation_type, product_name, quantity, internal_value, external_value_usd, fc_applied, status, buyer_seller, notes, created_at, completed_at)
-			VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, '', NOW() - interval '%d days', $10)
+			VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, '', NOW() - make_interval(days => $11), $10)
 			ON CONFLICT DO NOTHING`,
-			nodeDomain, op.opType, op.productName, op.quantity, op.internalValue, op.externalUSD, op.fcApplied, op.status, op.buyerSeller, 25-i, completedAt)
+			nodeDomain, op.opType, op.productName, op.quantity, op.internalValue, op.externalUSD, op.fcApplied, op.status, op.buyerSeller, completedAt, 25-i)
 	}
 
 	log.Println("Demo: external operations seeded")
@@ -1954,11 +1979,8 @@ func DemoReset(ctx context.Context, d *DB, nodeDomain string) error {
 	log.Println("DemoReset: borrando datos del dominio", nodeDomain)
 
 	// Borrar tablas principales del dominio
-	tables := []string{
-		"transactions",
-		"ledger_entries",
-		"audit_log",
-		"assembly_votes",
+	// Tablas con node_domain
+	ndTables := []string{
 		"assembly_decisions",
 		"assembly_sessions",
 		"assembly_quorum_config",
@@ -1966,9 +1988,6 @@ func DemoReset(ctx context.Context, d *DB, nodeDomain string) error {
 		"board_members",
 		"tax_config",
 		"tax_distributions",
-		"bilateral_limits",
-		"node_federation_keys",
-		"node_balance",
 		"external_bridge_operations",
 		"admission_requests",
 		"store_items",
@@ -1986,8 +2005,25 @@ func DemoReset(ctx context.Context, d *DB, nodeDomain string) error {
 		"public_settings",
 		"node_config",
 	}
-	for _, t := range tables {
-		_, err := d.Pool.Exec(ctx, fmt.Sprintf("DELETE FROM %s WHERE node_domain = $1", t))
+	for _, t := range ndTables {
+		_, err := d.Pool.Exec(ctx, fmt.Sprintf("DELETE FROM %s WHERE node_domain = $1", t), nodeDomain)
+		if err != nil {
+			log.Printf("DemoReset: error borrando %s: %v", t, err)
+		}
+	}
+
+	// Tablas sin node_domain - borrar todo (es demo)
+	allTables := []string{
+		"assembly_votes",
+		"transactions",
+		"ledger_entries",
+		"audit_log",
+		"node_balance",
+		"node_federation_keys",
+		"bilateral_limits",
+	}
+	for _, t := range allTables {
+		_, err := d.Pool.Exec(ctx, fmt.Sprintf("DELETE FROM %s", t))
 		if err != nil {
 			log.Printf("DemoReset: error borrando %s: %v", t, err)
 		}
@@ -2069,6 +2105,10 @@ func demoSeedStoreItems(ctx context.Context, d *DB, nodeDomain string) error {
 		{"isabel", "Te de hierbas del monte (100g)", 25},
 		// Marcos (herrero)
 		{"marcos", "Banco de madera de cedro", 3},
+		// Demo (admin) - tienda personal
+		{"demo", "Frijol negro de altura (1kg)", 10},
+		{"demo", "Miel de montana (250ml)", 5},
+		{"demo", "Pan de quinua (1kg)", 8},
 	}
 
 	for _, si := range storeItems {
@@ -2168,8 +2208,8 @@ func demoSeedAssemblyProposals(ctx context.Context, d *DB, nodeDomain string) er
 		}
 
 		_, err := d.Pool.Exec(ctx, `
-			INSERT INTO assembly_decisions (id, assembly_id, decision_type, description, status, created_at, voting_deadline, voting_duration_minutes, approved_for_voting_by, approved_for_voting_at)
-			VALUES (gen_random_uuid(), $1, $2, $3, $4, NOW() - interval '30 days', NOW() + interval '7 days', 10080, $5, NOW() - interval '30 days')
+			INSERT INTO assembly_decisions (id, assembly_id, decision_type, description, required_signatures, status, created_at, voting_deadline, voting_duration_minutes, approved_for_voting_by, approved_for_voting_at)
+			VALUES (gen_random_uuid(), $1, $2, $3, 1, $4, NOW() - interval '30 days', NOW() + interval '7 days', 10080, $5, NOW() - interval '30 days')
 			ON CONFLICT DO NOTHING`,
 			assemblyID, p.decisionType, p.title+": "+p.description, p.status, adminID)
 		if err != nil {
@@ -2192,25 +2232,29 @@ func demoSeedAssemblySessions(ctx context.Context, d *DB, nodeDomain string) {
 	}
 
 	sessions := []struct {
-		sessionType, title, description, status string
-		startOffset                             int // horas desde ahora (negativo = pasado)
-		duration                                int // horas
+		sessionType, title, description, status, minutes string
+		startOffset                                      int // horas desde ahora (negativo = pasado)
+		duration                                         int // horas
 	}{
-		{"ordinary", "Asamblea Ordinaria Ene 2026", "Primera asamblea del año. Aprobacion de presupuesto, plan anual, admision de nuevos miembros.", "completed", -24 * 30 * 7, 3},
-		{"ordinary", "Asamblea Ordinaria Abr 2026", "Asamblea trimestral. Revision de balances, aprobacion de proyectos de infraestructura.", "completed", -24 * 30 * 4, 3},
-		{"ordinary", "Asamblea Ordinaria Jul 2026", "Asamblea trimestral. Eleccion de junta directiva, revision de comisiones.", "completed", -24 * 30 * 1, 3},
-		{"extraordinary", "Asamblea Extraordinaria - Emergencia Climatica", "Asamblea urgente por tormenta. Aprobacion de fondos de emergencia para reparaciones.", "completed", -24 * 14, 2},
-		{"ordinary", "Asamblea Ordinaria Oct 2026", "Asamblea trimestral. Planificacion de cosecha, presupuesto de invierno.", "scheduled", 24 * 30, 3},
+		{"ordinary", "Asamblea Ordinaria Ene 2026", "Primera asamblea del año. Aprobacion de presupuesto, plan anual, admision de nuevos miembros.", "completed", "ACTA DE ASAMBLEA ORDINARIA - ENERO 2026\n\nFecha: 15 de enero de 2026\nLugar: Casa Comunal de la Ecoaldea\nHora: 15:00 - 18:00\nAsistentes: 28 miembros (quorum cumplido: 70%)\n\n1. APROBACION DE NUEVO MIEMBRO\n   - Propuesta: Admitir a Tomas Gil como miembro Brote\n   - Votacion: 25 a favor, 2 en contra, 1 abstencion\n   - Resultado: APROBADO\n   - Tomas Gil admitido como miembro Brote con periodo de prueba de 6 meses\n\n2. COMPRA DE MOLINO DE MAIZ\n   - Propuesta: Usar 500 TQ del Fondo Comunitario para molino manual\n   - Votacion: 27 a favor, 1 en contra, 0 abstenciones\n   - Resultado: APROBADO\n   - Se autoriza compra del molino, beneficiara a 40 familias\n\n3. PLAN ANUAL 2026\n   - Se presento el plan anual de actividades\n   - Prioridades: infraestructura, educacion, soberania alimentaria\n   - Aprobado por unanimidad\n\n4. PRESUPUESTO\n   - Ingresos estimados: 3000 TQ (intercambios + impuestos)\n   - Egresos: 2500 TQ (proyectos + fondo operativo)\n   - Superavit: 500 TQ para fondo comunitario\n\nLa asamblea concluye a las 18:00. Proxima asamblea: 15 de abril de 2026.", -24 * 30 * 7, 3},
+		{"ordinary", "Asamblea Ordinaria Abr 2026", "Asamblea trimestral. Revision de balances, aprobacion de proyectos de infraestructura.", "completed", "ACTA DE ASAMBLEA ORDINARIA - ABRIL 2026\n\nFecha: 15 de abril de 2026\nLugar: Casa Comunal de la Ecoaldea\nHora: 15:00 - 18:30\nAsistentes: 25 miembros (quorum cumplido: 62%)\n\n1. CONSTRUCCION DE SECADOR SOLAR\n   - Propuesta: Construir secador solar comunitario\n   - Costo: 200 TQ en materiales + 3 jornadas de trabajo\n   - Votacion: 23 a favor, 1 en contra, 1 abstencion\n   - Resultado: APROBADO\n   - Beneficio: secar granos y frutas para conservacion\n\n2. REDUCCION DE IMPUESTO A ORGANIZACIONES\n   - Propuesta: Reducir impuesto de org_produccion de 2% a 1.5%\n   - Votacion: 20 a favor, 4 en contra, 1 abstencion\n   - Resultado: APROBADO\n   - Objetivo: estimular produccion local\n\n3. REPORTE DE BALANCES Q1\n   - Intercambios: 1850 TQ\n   - Impuestos recaudados: 28 TQ\n   - Fondo comunitario: 528 TQ\n   - Balance general: positivo\n\nLa asamblea concluye a las 18:30. Proxima asamblea: 15 de julio de 2026.", -24 * 30 * 4, 3},
+		{"ordinary", "Asamblea Ordinaria Jul 2026", "Asamblea trimestral. Eleccion de junta directiva, revision de comisiones.", "completed", "ACTA DE ASAMBLEA ORDINARIA - JULIO 2026\n\nFecha: 15 de julio de 2026\nLugar: Casa Comunal de la Ecoaldea\nHora: 15:00 - 19:00\nAsistentes: 30 miembros (quorum cumplido: 75%)\n\n1. APROBACION DE PRODUCTO COMPUESTO\n   - Propuesta: Aprobar Kit de Huerto Familiar como producto compuesto\n   - Incluye: azadon, tijeras, semillas, abono y manual\n   - Votacion: 28 a favor, 1 en contra, 1 abstencion\n   - Resultado: APROBADO\n\n2. CONSTRUCCION DE LETRINA SECA\n   - Propuesta: Construir letrina seca abonera comunitaria\n   - Costo: 150 TQ\n   - Votacion: 29 a favor, 1 en contra, 0 abstenciones\n   - Resultado: APROBADO\n   - Beneficio: saneamiento + compost para huertos\n\n3. RENOVACION DEL CONSEJO DE VISION\n   - Consejo actual cumple 2 años\n   - Propuesta: Elegir 3 nuevos miembros Raiz\n   - Votacion: 30 a favor, 0 en contra, 0 abstenciones\n   - Resultado: APROBADO\n   - Nuevos miembros: Elena Vega, Marcos Diaz, Lucia Soto\n\n4. REPORTE DE COMISIONES\n   - Comision de Tierra: 3 huertos nuevos\n   - Comision de Educacion: 2 talleres realizados\n   - Comision de Salud: botiquin comunitario abastecido\n\nLa asamblea concluye a las 19:00. Proxima asamblea: 15 de octubre de 2026.", -24 * 30 * 1, 3},
+		{"extraordinary", "Asamblea Extraordinaria - Emergencia Climatica", "Asamblea urgente por tormenta. Aprobacion de fondos de emergencia para reparaciones.", "completed", "ACTA DE ASAMBLEA EXTRAORDINARIA - EMERGENCIA CLIMATICA\n\nFecha: 7 de agosto de 2026\nLugar: Casa Comunal de la Ecoaldea\nHora: 10:00 - 12:00\nAsistentes: 22 miembros (quorum cumplido: 55%)\n\n1. FONDO DE EMERGENCIA POR TORMENTA\n   - 12 familias afectadas por tormenta\n   - Propuesta: Aprobar 300 TQ del fondo comunitario para reparaciones\n   - Votacion: 22 a favor, 0 en contra, 0 abstenciones\n   - Resultado: APROBADO POR UNANIMIDAD\n   - Distribucion: 25 TQ por familia para materiales de reparacion\n\n2. EVALUACION DE DAÑOS\n   - 3 viviendas con daños en techo\n   - 1 deposito de granos afectado\n   - Huertos comunitarios: perdidas parciales\n\n3. PLAN DE RESPUESTA\n   - Cayapa comunitaria: fin de semana\n   - Solicitud de apoyo a nodos federados\n   - Reactivacion de huertos en 2 semanas\n\nLa asamblea concluye a las 12:00. Se convoca asamblea ordinaria para octubre.", -24 * 14, 2},
+		{"ordinary", "Asamblea Ordinaria Oct 2026", "Asamblea trimestral. Planificacion de cosecha, presupuesto de invierno.", "scheduled", "", 24 * 30, 3},
 	}
 
 	for _, s := range sessions {
 		startTime := time.Now().Add(time.Duration(s.startOffset) * time.Hour)
 		endTime := startTime.Add(time.Duration(s.duration) * time.Hour)
+		var minutesVal interface{}
+		if s.minutes != "" {
+			minutesVal = s.minutes
+		}
 		_, err := d.Pool.Exec(ctx, `
-			INSERT INTO assembly_sessions (id, node_domain, session_type, title, description, start_time, end_time, status, is_presential, created_at)
-			VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, true, NOW())
+			INSERT INTO assembly_sessions (id, node_domain, session_type, title, description, start_time, end_time, status, is_presential, created_at, minutes)
+			VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, true, NOW(), $8)
 			ON CONFLICT DO NOTHING`,
-			nodeDomain, s.sessionType, s.title, s.description, startTime, endTime, s.status)
+			nodeDomain, s.sessionType, s.title, s.description, startTime, endTime, s.status, minutesVal)
 		if err != nil {
 			log.Printf("Demo: error seeding session %s: %v", s.title, err)
 		}
