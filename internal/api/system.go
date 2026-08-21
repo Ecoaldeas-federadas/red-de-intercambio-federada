@@ -2976,7 +2976,11 @@ func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Reques
 	query := `SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit, product_code, is_approved, origin, badge, image_url, is_group, group_id
 		FROM products
 		WHERE node_domain = $1 AND is_approved = true AND is_hidden = false`
-	args := []interface{}{h.nodeDomain}
+	domain := h.nodeDomain
+	if domain == "" {
+		domain = "localhost"
+	}
+	args := []interface{}{domain}
 	argIdx := 2
 
 	if parentCat != "" {

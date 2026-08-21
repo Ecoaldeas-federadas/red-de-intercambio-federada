@@ -1,8 +1,20 @@
-fix: eliminar timeline duplicado de pagina filosofia del demo
+fix: listPublicProducts usaba nodeDomain vacio sin fallback a localhost
 
-La pagina filosofia tenia el mismo timeline_history que quienes-somos.
-Ahora filosofia tiene Estructura Organizativa y Trabajo Comunitario en
-lugar del timeline duplicado.
+Problema:
+- listPublicProducts usaba h.nodeDomain directamente en el query SQL
+  sin fallback a "localhost".
+- Cuando cfg.Node.Domain es "" (vacio, como en el config.yaml por
+  defecto), el query buscaba node_domain = '' que no coincide con
+  ningun producto.
+- Resultado: la pagina de productos del nodo principal mostraba 0
+  productos aunque la BD tenia 238 productos sembrados bajo
+  node_domain = 'localhost'.
+- Otros handlers como listProducts ya tenian el fallback correcto
+  (IN ($1, 'localhost', 'default')) pero listPublicProducts no.
+
+Solucion:
+- Agregar fallback: si h.nodeDomain es vacio, usar "localhost" como
+  dominio en el query de listPublicProducts.
 
 Generated with [Devin](https://devin.ai)
 
