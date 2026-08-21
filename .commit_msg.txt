@@ -1,8 +1,17 @@
-fix: Aumentar retraso inicial del polling del demo a 8s
+fix: Servir placeholder.svg en raiz para nodo demo (basePath /demo/)
 
-El contenedor demo tarda varios segundos en arrancar (YugabyteDB +
-migraciones + seed). Con 3s el primer fetch fallaba con
-ERR_EMPTY_RESPONSE. Con 8s el contenedor ya deberia estar respondiendo.
+## Problema
+El nodo demo sirve el frontend desde /demo/ con <base href="/demo/">.
+Pero las referencias a /placeholder.svg son rutas absolutas (con slash
+inicial) que ignoran el <base href>, resolviendose a
+http://localhost:9091/placeholder.svg en vez de
+http://localhost:9091/demo/placeholder.svg.
+
+## Solucion
+Agregar ruta explicita GET /placeholder.svg que sirve el archivo
+desde el frontendDir, sin importar el basePath. Asi funciona tanto
+en el nodo normal (localhost:8080/placeholder.svg) como en el demo
+(localhost:9091/placeholder.svg).
 
 Generated with [Devin](https://devin.ai)
 
