@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { usePermissions } from '../hooks/usePermissions'
-import { ArrowLeft, Users, Wallet as WalletIcon, Vote as VoteIcon, Settings, Crown, Plus, Trash2, ArrowUpCircle, ArrowDownCircle, FileText, Building2 } from 'lucide-react'
+import { ArrowLeft, Users, Wallet as WalletIcon, Vote as VoteIcon, Settings, Crown, Plus, Trash2, ArrowUpCircle, ArrowDownCircle, FileText, Building2, Plug } from 'lucide-react'
 import ScopedAssembly from '../components/ScopedAssembly'
 
 export default function OrganizationDetail() {
@@ -11,7 +11,7 @@ export default function OrganizationDetail() {
   const navigate = useNavigate()
   const { currency } = useConfig()
   const { hasPermission } = usePermissions()
-  const [tab, setTab] = useState<'info' | 'board' | 'members' | 'departments' | 'wallet' | 'assembly'>('info')
+  const [tab, setTab] = useState<'info' | 'board' | 'members' | 'departments' | 'services' | 'wallet' | 'assembly'>('info')
   const [org, setOrg] = useState<any>(null)
   const [boardMembers, setBoardMembers] = useState<any[]>([])
   const [allUsers, setAllUsers] = useState<any[]>([])
@@ -27,6 +27,13 @@ export default function OrganizationDetail() {
   const [deptList, setDeptList] = useState<any[]>([])
   const [showDeptForm, setShowDeptForm] = useState(false)
   const [deptForm, setDeptForm] = useState({ name: '', description: '' })
+  const [services, setServices] = useState<any[]>([])
+  const [showServiceForm, setShowServiceForm] = useState(false)
+  const [serviceForm, setServiceForm] = useState({
+    name: '', description: '', service_type: 'subscription', amount: 0,
+    frequency: 'monthly', is_mandatory: false,
+    obligations: '', rights: '', duties: '',
+  })
 
   const canManage = hasPermission('org.manage') || myRole?.can_manage
   const canTransfer = hasPermission('org.manage') || myRole?.can_transfer
@@ -84,6 +91,11 @@ export default function OrganizationDetail() {
       const all = Array.isArray(d) ? d : []
       setDeptList(all.filter((dp: any) => dp.parent_organization_id === id))
     }).catch(() => setDeptList([]))
+
+    // Cargar servicios de esta organizacion
+    api.get(`/organizations/${id}/services`).then((d: any) => {
+      setServices(Array.isArray(d) ? d : [])
+    }).catch(() => setServices([]))
   }
 
   useEffect(() => {
@@ -187,6 +199,7 @@ export default function OrganizationDetail() {
     { key: 'board', label: 'Junta Directiva', icon: <Crown size={16} /> },
     { key: 'members', label: 'Miembros', icon: <Users size={16} /> },
     { key: 'departments', label: 'Departamentos', icon: <Building2 size={16} /> },
+    { key: 'services', label: 'Servicios', icon: <Plug size={16} /> },
     { key: 'wallet', label: 'Billetera', icon: <WalletIcon size={16} /> },
     { key: 'assembly', label: 'Asamblea', icon: <VoteIcon size={16} /> },
   ]
@@ -452,6 +465,225 @@ export default function OrganizationDetail() {
                         Abrir <ArrowUpCircle size={12} />
                       </button>
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Servicios */}
+      {tab === 'services' && (
+        <div className="space-y-4">
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="font-semibold text-lg flex items-center gap-2"><Plug size={18} />Servicios de la Organizacion</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Servicios que ofrece esta organizacion: mensualidades, cobros, pagos a miembros.
+                </p>
+              </div>
+              {canConfig && (
+                <button
+                  onClick={() => setShowServiceForm(!showServiceForm)}
+                  className="px-3 py-1.5 bg-trueque-600 text-white rounded-lg text-sm font-medium hover:bg-trueque-700"
+                >
+                  <Plus size={14} className="inline mr-1" />Nuevo Servicio
+                </button>
+              )}
+            </div>
+
+            {showServiceForm && canConfig && (
+              <div className="border border-gray-200 rounded-lg p-4 mb-4 bg-gray-50">
+                <h3 className="font-medium mb-3">Crear Nuevo Servicio</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-gray-500">Nombre del servicio *</label>
+                    <input
+                      className="input mt-1"
+                      value={serviceForm.name}
+                      onChange={(e) => setServiceForm({ ...serviceForm, name: e.target.value })}
+                      placeholder="Ej: Mensualidad Electrica"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">Tipo de servicio</label>
+                    <select
+                      className="input mt-1"
+                      value={serviceForm.service_type}
+                      onChange={(e) => setServiceForm({ ...serviceForm, service_type: e.target.value })}
+                    >
+                      <option value="subscription">Cobro: la organizacion cobra al miembro</option>
+                      <option value="benefit">Pago: la organizacion PAGA al miembro</option>
+                      <option value="one_time">Cobro unico: pago una sola vez</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">Monto (0 = gratuito)</label>
+                    <input
+                      type="number"
+                      className="input mt-1"
+                      value={serviceForm.amount}
+                      onChange={(e) => setServiceForm({ ...serviceForm, amount: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">Frecuencia</label>
+                    <select
+                      className="input mt-1"
+                      value={serviceForm.frequency}
+                      onChange={(e) => setServiceForm({ ...serviceForm, frequency: e.target.value })}
+                    >
+                      <option value="monthly">Mensual</option>
+                      <option value="quarterly">Trimestral</option>
+                      <option value="annual">Anual</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-xs text-gray-500">Descripcion</label>
+                    <input
+                      className="input mt-1"
+                      value={serviceForm.description}
+                      onChange={(e) => setServiceForm({ ...serviceForm, description: e.target.value })}
+                      placeholder="Que incluye el servicio"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">Obligaciones del miembro</label>
+                    <textarea
+                      className="input mt-1"
+                      rows={2}
+                      value={serviceForm.obligations}
+                      onChange={(e) => setServiceForm({ ...serviceForm, obligations: e.target.value })}
+                      placeholder="Que debe hacer el miembro"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">Derechos del miembro</label>
+                    <textarea
+                      className="input mt-1"
+                      rows={2}
+                      value={serviceForm.rights}
+                      onChange={(e) => setServiceForm({ ...serviceForm, rights: e.target.value })}
+                      placeholder="Que recibe el miembro"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-xs text-gray-500">Deberes del miembro</label>
+                    <textarea
+                      className="input mt-1"
+                      rows={2}
+                      value={serviceForm.duties}
+                      onChange={(e) => setServiceForm({ ...serviceForm, duties: e.target.value })}
+                      placeholder="Tareas o compromisos esperados"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={serviceForm.is_mandatory}
+                        onChange={(e) => setServiceForm({ ...serviceForm, is_mandatory: e.target.checked })}
+                      />
+                      <span>
+                        <strong>Servicio obligatorio</strong> — todos los miembros deben cumplir
+                        {org?.is_assembly_owned ? ' (aplica a todos los miembros del nodo)' : ' (requiere aprobacion por votacion de los miembros de la organizacion)'}
+                      </span>
+                    </label>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-4">
+                  <button
+                    onClick={() => {
+                      if (!serviceForm.name) { alert('El nombre es requerido'); return }
+                      api.post(`/organizations/${id}/services`, serviceForm).then(() => {
+                        setSuccess('Servicio creado')
+                        setShowServiceForm(false)
+                        setServiceForm({ name: '', description: '', service_type: 'subscription', amount: 0, frequency: 'monthly', is_mandatory: false, obligations: '', rights: '', duties: '' })
+                        load()
+                        setTimeout(() => setSuccess(''), 3000)
+                      }).catch((err: any) => {
+                        alert(err instanceof Error ? err.message : 'Error al crear servicio')
+                      })
+                    }}
+                    className="px-4 py-2 bg-trueque-600 text-white rounded-lg text-sm font-medium hover:bg-trueque-700"
+                  >
+                    Crear Servicio
+                  </button>
+                  <button
+                    onClick={() => setShowServiceForm(false)}
+                    className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-200"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {services.length === 0 ? (
+              <p className="text-gray-400 py-8 text-center">Esta organizacion no tiene servicios activos.</p>
+            ) : (
+              <div className="space-y-3">
+                {services.map((svc: any) => (
+                  <div key={svc.id} className="border border-gray-100 rounded-lg p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-medium">{svc.name}</h3>
+                          {svc.is_mandatory && (
+                            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Obligatorio</span>
+                          )}
+                          {svc.service_type === 'benefit' && (
+                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Paga al miembro</span>
+                          )}
+                          {svc.service_type === 'one_time' && (
+                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Pago unico</span>
+                          )}
+                          {svc.amount === 0 && (
+                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">Gratuito</span>
+                          )}
+                          {!svc.is_active && (
+                            <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">Inactivo</span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">{svc.description}</p>
+                        <p className="text-sm font-medium mt-2">
+                          {svc.service_type === 'benefit' ? '+' : svc.amount === 0 ? '' : '-'}
+                          {svc.amount > 0 ? `${fmtAmount(svc.amount)} ${currency}` : 'Gratuito'}
+                          {svc.amount > 0 && svc.frequency === 'monthly' ? ' / mes' : svc.frequency === 'quarterly' ? ' / trimestre' : svc.frequency === 'annual' ? ' / ano' : ''}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {svc.subscribers_count || 0} suscriptores
+                        </p>
+                      </div>
+                      {canConfig && svc.is_active && (
+                        <button
+                          onClick={() => {
+                            if (!confirm('Desactivar este servicio?')) return
+                            api.delete(`/organizations/services/${svc.id}`).then(() => {
+                              load()
+                            }).catch(() => {})
+                          }}
+                          className="text-red-500 hover:text-red-700 text-xs"
+                        >
+                          Desactivar
+                        </button>
+                      )}
+                    </div>
+                    {(svc.obligations || svc.rights || svc.duties) && (
+                      <div className="mt-3 pt-3 border-t border-gray-50 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                        {svc.obligations && (
+                          <div><strong className="text-gray-700">Obligaciones:</strong> <span className="text-gray-500">{svc.obligations}</span></div>
+                        )}
+                        {svc.rights && (
+                          <div><strong className="text-gray-700">Derechos:</strong> <span className="text-gray-500">{svc.rights}</span></div>
+                        )}
+                        {svc.duties && (
+                          <div><strong className="text-gray-700">Deberes:</strong> <span className="text-gray-500">{svc.duties}</span></div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
