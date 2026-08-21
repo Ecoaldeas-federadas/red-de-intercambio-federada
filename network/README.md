@@ -58,8 +58,8 @@ network/
 
 ## Documentacion
 
-- [Arquitectura tecnica](docs/ARCHITECTURE.md)
-- [Guia de instalacion](docs/INSTALL.md)
-- [Como federar aldeas](docs/FEDERATION.md)
-- [Hardware recomendado](docs/HARDWARE.md)
-- [Dominios y certificados SSL](docs/SSL-DOMAINS.md)
+- [Arquitectura tecnica](docs/ARQUITECTURA.md)
+- [Guia de instalacion](docs/INSTALACION.md)
+- [Como federar aldeas](docs/FEDERACION.md)
+- [Equipamento recomendado](docs/EQUIPAMENTO.md)
+- [Dominios y certificados SSL](docs/DOMINIOS-SSL.md)

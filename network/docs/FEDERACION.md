@@ -27,7 +27,7 @@ Federar dos aldeas significa conectarlas por un tunel cifrado WireGuard para que
 #### Paso 2: Aldea B instala la imagen
 
 1. Aldea B recibe el archivo `openwrt-aldeaB.com.img.gz`
-2. Flashear en su servidor OpenWrt (ver [INSTALL.md](INSTALL.md))
+2. Flashear en su servidor OpenWrt (ver [INSTALACION.md](INSTALACION.md))
 3. Conectar el servidor OpenWrt de Aldea B a Internet y a su LAN
 4. Encender el servidor
 
@@ -115,7 +115,7 @@ Reiniciar dnsmasq en ambas:
 
 Si ambas aldeas estan detras de CGNAT (sin IP publica):
 
-1. Instalar un Lighthouse/STUN en un VPS con IP publica (ver [ARCHITECTURE.md](ARCHITECTURE.md))
+1. Instalar un Lighthouse/STUN en un VPS con IP publica (ver [ARQUITECTURA.md](ARQUITECTURA.md))
 2. Configurar ambas aldeas para usar el Lighthouse
 3. El Lighthouse coordina el apretón de manos
 4. El trafico fluye directamente entre las aldeas (P2P)

@@ -117,7 +117,7 @@ El certificado wildcard `*.aldea1.com` se instala automaticamente y se renueva c
 
 ## Paso 6: Federar con otra aldea
 
-Ver [docs/FEDERATION.md](FEDERATION.md) para instrucciones detalladas.
+Ver [FEDERACION.md](FEDERACION.md) para instrucciones detalladas.
 
 ## Solucion de problemas
 
@@ -136,7 +136,7 @@ Ver [docs/FEDERATION.md](FEDERATION.md) para instrucciones detalladas.
 ### WireGuard no conecta
 
 - Verificar que el puerto 51820 este abierto en el firewall del ISP
-- Si detras de CGNAT, configurar STUN/Lighthouse (ver docs/ARCHITECTURE.md)
+- Si detras de CGNAT, configurar STUN/Lighthouse (ver ARQUITECTURA.md)
 - Verificar claves publicas de ambos lados
 
 ### DNS no resuelve

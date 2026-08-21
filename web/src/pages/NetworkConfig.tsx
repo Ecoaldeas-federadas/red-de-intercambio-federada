@@ -490,7 +490,7 @@ export default function NetworkConfig() {
               <li>USB o disco para flashear la imagen</li>
               <li>BalenaEtcher o Rufus para flashear</li>
             </ul>
-            <p className="mt-2 text-xs">Ver <a href="https://github.com/discapacidad5/red-de-intercambio-federada/tree/main/network/docs/HARDWARE.md" target="_blank" className="underline">hardware recomendado</a></p>
+            <p className="mt-2 text-xs">Ver <a href="https://github.com/discapacidad5/red-de-intercambio-federada/tree/main/network/docs/EQUIPAMENTO.md" target="_blank" className="underline">equipamento recomendado</a></p>
           </div>
 
           <div className="border-t pt-3">
