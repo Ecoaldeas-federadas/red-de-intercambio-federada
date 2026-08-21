@@ -1,46 +1,21 @@
-fix: Reconstruir imagenes de productos con contenido semantico correcto
+fix: Corregir imagenes con mal aspect ratio + actualizar BD en vivo
 
-## Problema
-- Las imagenes del nodo principal no coincidian con los productos
-  (ej: leche mostraba queso, productos repetidos)
-- Wikimedia Commons devolvio imagenes incorrectas en la primera pasada
-- Las imagenes del demo si quedaron bien pero no se usaban en el nodo principal
+## Correcciones de imagenes
+- Bioinsumos y Preparados: imagen 960x1440 (negra) -> 960x720 (correcta)
+- Tierra Fertil: imagen demasiado alta -> 600x450 (landscape)
+- Estacas y Esquejes: imagen demasiado alta -> 600x450 (landscape)
+- Abonos Organicos: imagen demasiado alta -> 600x450 (landscape)
+- Copiadas a contenedores Docker en vivo
 
-## Solucion
+## Nota sobre el flujo de actualizacion
+Los cambios anteriores a la BD se hicieron directamente en los
+contenedores Docker con docker exec y docker cp. Al reiniciar los
+dockers con git pull + update.ps1, los cambios se reconstruyen desde
+el codigo fuente (seed.go) que ya tiene las rutas correctas.
 
-### 1. Copiar imagenes del demo al nodo principal (23 productos)
-- frijol-negro -> granos-basicos
-- tomate -> verduras-hortalizas
-- lechuga -> hojas-verdes
-- queso-de-cabra -> lacteos-artesanales
-- pan-quinua -> panaderia
-- mermelada -> dulces-conservas
-- miel -> miel-pura
-- ceramica-barro -> taza-barro, plato-barro, olla-barro
-- banco-madera -> banco-madera
-- cesta-bambu -> cesta-mediana
-- azadon-de-montana -> azadon
-- tijeras-de-podar -> herramientas-corte
-- hierbas-medicinales -> hierbas-medicinales-secas, infusiones-tes
-- aceite-de-romero -> cosmetica-natural, aceites-vinagres
-- ruana-de-lana -> frazada-lana
-- Y mas...
-
-### 2. Re-descargar 227 imagenes con terminos mas especificos
-- Terminos de busqueda mas precisos por producto
-- Verificacion de contenido semantico
-- 160 descargadas exitosamente
-- 67 reintentadas con terminos simplificados
-
-### 3. Verificacion
-- 241 imagenes de productos en 16 categorias
-- 16 imagenes de paginas publicas
-- 32 imagenes del demo
-- 0 referencias a nombres numericos viejos
-- 0 URLs de Unsplash
-- Build Go: OK
-- Build Vite: OK
-- Tienda y lista de productos usan el mismo campo image_url
+## Cambios del usuario preservados
+- demo_seed.go: tax_rate en member_levels (raiz 0.5%, tronco 1%,
+  rama 1.5%, brote 2%)
 
 Generated with [Devin](https://devin.ai)
 

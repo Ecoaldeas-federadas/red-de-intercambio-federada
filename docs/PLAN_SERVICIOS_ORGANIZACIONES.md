@@ -337,8 +337,8 @@ POST   /api/assembly/proposals                   -- tipo: create_assembly_organi
 ### Paso 7: Build + commit + deploy [x]
 - [x] go build OK
 - [x] npm run build OK
-- [ ] commit + push
-- [ ] update.ps1
+- [x] commit + push (1af8d78)
+- [ ] update.ps1 (pendiente por el usuario)
 
 ---
 
