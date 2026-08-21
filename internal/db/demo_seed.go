@@ -1459,6 +1459,42 @@ func demoSeedOrganizations(ctx context.Context, d *DB, nodeDomain string) {
 }
 
 func demoSeedDepartments(ctx context.Context, d *DB, nodeDomain string) {
+	// Mapeo de departamento -> miembros ( usernames )
+	deptMembers := map[string][]struct {
+		username, role string
+	}{
+		"Consejo de Vision": {
+			{"elena", "Coordinadora"},
+			{"marcos", "Visionario"},
+			{"lucia", "Visionaria"},
+		},
+		"Comision de Economia": {
+			{"jose", "Coordinador"},
+			{"carmen", "Tesorera"},
+			{"demo", "Miembro"},
+		},
+		"Comision de Educacion": {
+			{"andrea", "Coordinadora"},
+			{"isabel", "Educadora"},
+		},
+		"Comision de Salud": {
+			{"sofia", "Coordinadora"},
+			{"pablo", "Saludista"},
+		},
+		"Comision de Ambiente": {
+			{"raul", "Coordinador"},
+			{"tomas", "Guardabosque"},
+		},
+		"Comision de Admision": {
+			{"diego", "Coordinador"},
+			{"elena", "Miembro"},
+		},
+		"Comision de Construccion": {
+			{"marcos", "Coordinador"},
+			{"raul", "Constructor"},
+		},
+	}
+
 	depts := []struct {
 		name, desc string
 	}{
@@ -1474,31 +1510,94 @@ func demoSeedDepartments(ctx context.Context, d *DB, nodeDomain string) {
 	for _, dept := range depts {
 		var existing int
 		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM departments WHERE name = $1 AND node_domain = $2`, dept.name, nodeDomain).Scan(&existing)
+
+		var deptID uuid.UUID
 		if existing > 0 {
-			continue
+			d.Pool.QueryRow(ctx, `SELECT id FROM departments WHERE name = $1 AND node_domain = $2`, dept.name, nodeDomain).Scan(&deptID)
+		} else {
+			deptID = uuid.New()
+			d.Pool.Exec(ctx, `
+				INSERT INTO departments (id, node_domain, name, description, group_type, is_active, created_at)
+				VALUES ($1, $2, $3, $4, 'department', true, NOW())
+				ON CONFLICT DO NOTHING`,
+				deptID, nodeDomain, dept.name, dept.desc)
 		}
-		deptID := uuid.New()
-		d.Pool.Exec(ctx, `
-			INSERT INTO departments (id, node_domain, name, description, group_type, is_active, created_at)
-			VALUES ($1, $2, $3, $4, 'department', true, NOW())
-			ON CONFLICT DO NOTHING`,
-			deptID, nodeDomain, dept.name, dept.desc)
 
-		roleID := uuid.New()
-		d.Pool.Exec(ctx, `
-			INSERT INTO roles (id, department_id, name, description, is_active, created_at)
-			VALUES ($1, $2, 'Miembro', $3, true, NOW())
-			ON CONFLICT DO NOTHING`,
-			roleID, deptID, dept.desc)
+		// Crear rol de Miembro si no existe
+		var roleID uuid.UUID
+		d.Pool.QueryRow(ctx, `SELECT id FROM department_roles WHERE department_id = $1 AND name = 'Miembro' LIMIT 1`, deptID).Scan(&roleID)
+		if roleID == uuid.Nil {
+			roleID = uuid.New()
+			d.Pool.Exec(ctx, `
+				INSERT INTO department_roles (id, department_id, name, description, is_active, created_at)
+				VALUES ($1, $2, 'Miembro', $3, true, NOW())
+				ON CONFLICT DO NOTHING`,
+				roleID, deptID, dept.desc)
 
-		rows, err := d.Pool.Query(ctx, `SELECT id FROM permissions`)
-		if err == nil {
-			for rows.Next() {
-				var pid uuid.UUID
-				rows.Scan(&pid)
-				d.Pool.Exec(ctx, `INSERT INTO role_permissions (role_id, permission_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, roleID, pid)
+			rows, err := d.Pool.Query(ctx, `SELECT id FROM permissions`)
+			if err == nil {
+				for rows.Next() {
+					var pid uuid.UUID
+					rows.Scan(&pid)
+					d.Pool.Exec(ctx, `INSERT INTO role_permissions (role_id, permission_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, roleID, pid)
+				}
+				rows.Close()
 			}
-			rows.Close()
+		}
+
+		// Asignar miembros al departamento
+		members := deptMembers[dept.name]
+		for _, m := range members {
+			var userID uuid.UUID
+			d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE username = $1 AND node_domain = $2`, m.username, nodeDomain).Scan(&userID)
+			if userID == uuid.Nil {
+				continue
+			}
+
+			// Crear rol especifico si no es "Miembro"
+			memberRoleID := roleID
+			if m.role != "Miembro" {
+				d.Pool.QueryRow(ctx, `SELECT id FROM department_roles WHERE department_id = $1 AND name = $2 LIMIT 1`, deptID, m.role).Scan(&memberRoleID)
+				if memberRoleID == uuid.Nil {
+					memberRoleID = uuid.New()
+					d.Pool.Exec(ctx, `
+						INSERT INTO department_roles (id, department_id, name, description, is_active, created_at)
+						VALUES ($1, $2, $3, $4, true, NOW())
+						ON CONFLICT DO NOTHING`,
+						memberRoleID, deptID, m.role, m.role)
+				}
+			}
+
+			// Verificar si ya es miembro
+			var memCount int
+			d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM department_members WHERE department_id = $1 AND user_id = $2`, deptID, userID).Scan(&memCount)
+			if memCount == 0 {
+				d.Pool.Exec(ctx, `
+					INSERT INTO department_members (id, department_id, user_id, role_id, assigned_at)
+					VALUES ($1, $2, $3, $4, NOW())
+					ON CONFLICT DO NOTHING`,
+					uuid.New(), deptID, userID, memberRoleID)
+			}
+		}
+
+		// Crear cuenta bancaria del departamento (user con account_type='department')
+		var deptAccountID uuid.UUID
+		deptAccountUsername := "dept_" + strings.ReplaceAll(strings.ToLower(dept.name), " ", "_")
+		d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE username = $1 AND node_domain = $2`, deptAccountUsername, nodeDomain).Scan(&deptAccountID)
+		if deptAccountID == uuid.Nil {
+			deptAccountID = uuid.New()
+			pubKey, privKey, _ := ed25519.GenerateKey(rand.Reader)
+			pubKeyHex := hex.EncodeToString(pubKey)
+			encryptedPrivKey := encryptPrivateKeyDemo(privKey, "demo1234")
+			salt := make([]byte, 16)
+			rand.Read(salt)
+
+			d.Pool.Exec(ctx, `
+				INSERT INTO users (id, node_domain, username, display_name, account_type, membership_status, is_approved, balance, credit_limit, debit_limit, public_key, encrypted_private_key, encryption_key_salt)
+				VALUES ($1, $2, $3, $4, 'department', 'active', true, 0, 5000, 5000, $5, $6, $7)
+				ON CONFLICT DO NOTHING`,
+				deptAccountID, nodeDomain, deptAccountUsername, "Cuenta: "+dept.name,
+				pubKeyHex, encryptedPrivKey, salt)
 		}
 	}
 }
@@ -1566,6 +1665,8 @@ func demoSeedTransactions(ctx context.Context, d *DB, nodeDomain string) error {
 	coop := getUserID("coop_agricola")
 	impuestos := getUserID("impuestos")
 	fondo := getUserID("fondo_comunitario")
+	escuela := getUserID("escuela")
+	centroSalud := getUserID("centro_salud")
 
 	// Verificar si ya hay transacciones
 	var count int
@@ -1642,6 +1743,22 @@ func demoSeedTransactions(ctx context.Context, d *DB, nodeDomain string) error {
 		// Transacciones federadas (entre nodos)
 		{carmen, jose, 100, "Compra de quinua andina (federada)", 24 * 20},
 		{tienda, coop, 300, "Compra mayorista de semillas", 24 * 15},
+		// Transacciones con organizaciones (para que tengan saldo)
+		{tienda, fondo, 100, "Donacion al fondo comunitario", 24 * 25},
+		{coop, fondo, 80, "Aporte al fondo comunitario", 24 * 22},
+		{fondo, escuela, 150, "Materiales educativos para escuela", 24 * 18},
+		{fondo, coop, 100, "Compra de semillas para banco comunitario", 24 * 12},
+		{escuela, tienda, 60, "Compra de utiles y materiales", 24 * 10},
+		{centroSalud, tienda, 45, "Compra de medicamentos naturales", 24 * 8},
+		{tienda, panaderia, 90, "Pago por panaderia semanal", 24 * 6},
+		{coop, herreria, 120, "Compra de herramientas agricolas", 24 * 4},
+		// Transacciones con cuentas de departamentos
+		{fondo, getUserID("dept_comision_de_economia"), 200, "Presupuesto trimestral Comision de Economia", 24 * 15},
+		{fondo, getUserID("dept_comision_de_ambiente"), 100, "Presupuesto para reforestacion", 24 * 14},
+		{fondo, getUserID("dept_comision_de_construccion"), 150, "Materiales para reparaciones", 24 * 10},
+		{getUserID("dept_comision_de_economia"), tienda, 80, "Compra de suministros para evento", 24 * 8},
+		{getUserID("dept_comision_de_ambiente"), coop, 50, "Compra de arbolitos", 24 * 5},
+		{getUserID("dept_comision_de_construccion"), herreria, 70, "Herramientas de construccion", 24 * 3},
 	}
 
 	taxRate := int64(1) // 1%
@@ -2021,6 +2138,8 @@ func DemoReset(ctx context.Context, d *DB, nodeDomain string) error {
 		"node_balance",
 		"node_federation_keys",
 		"bilateral_limits",
+		"department_roles",
+		"role_permissions",
 	}
 	for _, t := range allTables {
 		_, err := d.Pool.Exec(ctx, fmt.Sprintf("DELETE FROM %s", t))

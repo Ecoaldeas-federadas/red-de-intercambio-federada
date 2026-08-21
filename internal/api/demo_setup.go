@@ -60,6 +60,8 @@ func DemoAutoSetup(ctx context.Context, db *pgxpool.Pool, jwtSecret, nodeDomain,
 		"node_balance",
 		"node_federation_keys",
 		"bilateral_limits",
+		"department_roles",
+		"role_permissions",
 	}
 	for _, t := range allTables {
 		db.Exec(ctx, fmt.Sprintf("DELETE FROM %s", t))
@@ -181,18 +183,18 @@ func DemoAutoSetup(ctx context.Context, db *pgxpool.Pool, jwtSecret, nodeDomain,
 	// 6. Crear departamento y rol admin
 	deptID := uuid.New()
 	db.Exec(ctx, `
-		INSERT INTO departments (id, name, description, group_type, is_active, created_at)
-		VALUES ($1, 'Administracion Demo', 'Departamento demo', 'department', true, NOW())
-		ON CONFLICT DO NOTHING`, deptID)
+		INSERT INTO departments (id, node_domain, name, description, group_type, is_active, created_at)
+		VALUES ($1, $2, 'Administracion Demo', 'Departamento demo', 'department', true, NOW())
+		ON CONFLICT DO NOTHING`, deptID, nodeDomain)
 
 	roleID := uuid.New()
 	db.Exec(ctx, `
-		INSERT INTO roles (id, department_id, name, description, is_active, created_at)
+		INSERT INTO department_roles (id, department_id, name, description, is_active, created_at)
 		VALUES ($1, $2, 'Administrador Demo', 'Rol admin demo', true, NOW())
 		ON CONFLICT DO NOTHING`, roleID, deptID)
 
 	db.Exec(ctx, `
-		INSERT INTO department_members (id, department_id, user_id, role_id, joined_at)
+		INSERT INTO department_members (id, department_id, user_id, role_id, assigned_at)
 		VALUES ($1, $2, $3, $4, NOW())
 		ON CONFLICT DO NOTHING`, uuid.New(), deptID, adminUserID, roleID)
 
