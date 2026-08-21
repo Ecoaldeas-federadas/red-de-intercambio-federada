@@ -1,12 +1,9 @@
-fix: Reemplazar imagen oscura de Bioinsumos por una clara y brillante
+fix: Reemplazar imagen de Bioinsumos (codigo de barras negro) por tanques de fertilizante organico
 
-La imagen anterior de Bioinsumos y Preparados era muy oscura
-(cuadro negro). Se reemplazo por una imagen brillante de 600x450
-con contenido verde de jardin/plantas organicas.
-
-Todos los cambios de imagenes estan en la carpeta local (web/public),
-no en los contenedores Docker. Al hacer git pull + update.ps1 se
-cargaran automaticamente.
+La imagen anterior era un cuadro negro con codigo de barras.
+Se reemplazo por una foto real de tanques de fertilizante liquido
+organico (Organic Liquid Fertilizer Tanks, Wikimedia Commons).
+Imagen 960x720, 374KB, aspect ratio correcto.
 
 Generated with [Devin](https://devin.ai)
 
