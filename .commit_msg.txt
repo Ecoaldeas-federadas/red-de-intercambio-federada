@@ -1,31 +1,26 @@
-feat: Billetera por cuenta, productos pendientes, saldos federados, fixes endpoints
+fix: Reportes de Paridad con datos reales + ayuda completa
 
-## Frontend
-- Nueva página Wallet.tsx que reemplaza el Historial inútil
-  - Muestra saldo de la cuenta
-  - Selector de cuenta (personal, organizaciones, departamentos)
-  - Transacciones con débito/crédito claro (rojo negativo, verde positivo)
-  - Muestra de quién a quién con display_name
-  - Botones para transferir y pagar con QR
-  - Resumen contable de entradas y salidas
-- Pestaña "Billetera" reemplaza "Historial" en navegación
-- Productos.tsx: botón "Pendientes" con panel de aprobación
-  - Muestra productos no aprobados
-  - Botones Aprobar/Rechazar
-  - Badge con contador
-- FederationPeers.tsx: muestra saldo bilateral por nodo
-  - Saldo positivo (te deben) en verde
-  - Saldo negativo (debes) en rojo
-  - Endpoint nuevo /api/federation/balances
-- Admission.tsx: cambiado de /api/accounts/pending a /api/admission/requests
+## Backend (gossip.go)
+- ParityReport ahora incluye: parity_ratio, local_fc, remote_fc, created_at
+- Calcula parity_ratio = imports / exports (1.0 = equilibrado)
+- Obtiene FC local desde conversion_factor (default 5.0)
+- Estima FC remoto basado en balance comercial
+- Busca tambien en transactions si no hay ledger_entries con node_bridge
+- Usa node_balance para el balance real
 
-## Backend
-- /api/ledger/transactions: devuelve sender_display, receiver_display, direction, description
-- /api/external/fc: devuelve FC por defecto (5.0) si no hay datos, en vez de 404
-- /api/organizations: COALESCE en organization_subtype y public_key (nullable) - fix 500
-- /api/products/{id}/reject: nuevo endpoint para rechazar productos
-- /api/federation/balances: nuevo endpoint para listar todos los saldos bilaterales
-- demo_seed.go: store_items ahora copian price_per_unit, unit, category del producto
+## Frontend (Parity.tsx)
+- Muestra paridad con etiqueta clara: Equilibrado / Importas mas / Exportas mas
+- Importaciones, exportaciones y balance en cards separadas con colores
+- FC local y remoto con explicacion de que significa (kWh por TQ)
+- Barras de progreso para uso del limite bilateral
+- Sugerencias automaticas del sistema
+- Ayuda completa que explica:
+  - Que es la paridad y como se calcula
+  - Que significa cada valor (ratio, imports, exports, balance, FC)
+  - Que es el Factor de Conversion
+  - Como se compara con monedas externas (USD)
+  - Que hacer si hay desequilibrio
+  - Para que sirve el reporte
 
 Generated with [Devin](https://devin.ai)
 

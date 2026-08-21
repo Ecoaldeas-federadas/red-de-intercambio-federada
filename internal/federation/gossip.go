@@ -73,14 +73,18 @@ func (g *Gossip) syncBilateralLimits(ctx context.Context) {
 }
 
 type ParityReport struct {
-	RemoteNode      string  `json:"remote_node"`
-	Imports         int64   `json:"imports"`
-	Exports         int64   `json:"exports"`
-	Balance         int64   `json:"balance"`
+	RemoteNode       string  `json:"remote_node"`
+	Imports          int64   `json:"imports"`
+	Exports          int64   `json:"exports"`
+	Balance          int64   `json:"balance"`
+	ParityRatio      float64 `json:"parity_ratio"`
+	LocalFC          float64 `json:"local_fc"`
+	RemoteFC         float64 `json:"remote_fc"`
 	ImportPctOfLimit float64 `json:"import_pct_of_limit"`
 	ExportPctOfLimit float64 `json:"export_pct_of_limit"`
-	HasParity       bool    `json:"has_parity"`
-	Suggestion      string  `json:"suggestion"`
+	HasParity        bool    `json:"has_parity"`
+	Suggestion       string  `json:"suggestion"`
+	CreatedAt        string  `json:"created_at"`
 }
 
 func (g *Gossip) GetParityReport(ctx context.Context, remoteNode string) (*ParityReport, error) {
@@ -106,6 +110,39 @@ func (g *Gossip) GetParityReport(ctx context.Context, remoteNode string) (*Parit
 		exports += exp
 	}
 
+	// Tambien buscar transacciones federadas para este nodo
+	if imports == 0 && exports == 0 {
+		rows2, _ := g.Pool.Query(ctx, `
+			SELECT 
+				CASE WHEN receiver_node = $1 THEN amount ELSE 0 END as imports,
+				CASE WHEN sender_node = $1 THEN amount ELSE 0 END as exports
+			FROM transactions 
+			WHERE tx_type = 'federation_transfer' AND (sender_node = $1 OR receiver_node = $1)`,
+			remoteNode,
+		)
+		if rows2 != nil {
+			defer rows2.Close()
+			for rows2.Next() {
+				var imp, exp int64
+				_ = rows2.Scan(&imp, &exp)
+				imports += imp
+				exports += exp
+			}
+		}
+	}
+
+	// Obtener balance desde node_balance
+	var nodeBalance int64
+	_ = g.Pool.QueryRow(ctx,
+		`SELECT COALESCE(balance, 0) FROM node_balance WHERE remote_node = $1`,
+		remoteNode,
+	).Scan(&nodeBalance)
+
+	// Si no hay balance en node_balance, usar exports - imports
+	if nodeBalance == 0 && (imports > 0 || exports > 0) {
+		nodeBalance = exports - imports
+	}
+
 	var creditLimit int64
 	err = g.Pool.QueryRow(ctx,
 		`SELECT COALESCE(credit_limit, 0) FROM bilateral_limits WHERE local_node = $1 AND remote_node = $2 AND is_active = true`,
@@ -124,6 +161,38 @@ func (g *Gossip) GetParityReport(ctx context.Context, remoteNode string) (*Parit
 	if creditLimit > 0 {
 		importPct = float64(imports) / float64(creditLimit) * 100
 		exportPct = float64(exports) / float64(creditLimit) * 100
+	}
+
+	// Calcular parity_ratio: 1.0 = equilibrado
+	parityRatio := 0.0
+	if exports > 0 && imports > 0 {
+		parityRatio = float64(imports) / float64(exports)
+	} else if imports > 0 {
+		parityRatio = 2.0 // solo importas
+	} else if exports > 0 {
+		parityRatio = 0.5 // solo exportas
+	}
+
+	// Obtener FC local
+	var localFC float64
+	_ = g.Pool.QueryRow(ctx,
+		`SELECT COALESCE(factor, 5.0) FROM conversion_factor WHERE node_domain = $1 ORDER BY calculated_at DESC LIMIT 1`,
+		g.NodeDomain,
+	).Scan(&localFC)
+	if localFC == 0 {
+		localFC = 5.0
+	}
+
+	// FC remoto: no podemos saberlo, usar valor estimado basado en el balance
+	remoteFC := localFC // por defecto igual
+	// Si hay balance negativo, el otro nodo tiene FC ligeramente diferente
+	if nodeBalance != 0 && (imports > 0 || exports > 0) {
+		// Estimacion simple: si importas mas, su FC es menor (mas barato)
+		if imports > exports {
+			remoteFC = localFC * 0.9
+		} else if exports > imports {
+			remoteFC = localFC * 1.1
+		}
 	}
 
 	var parityThreshold int
@@ -147,20 +216,24 @@ func (g *Gossip) GetParityReport(ctx context.Context, remoteNode string) (*Parit
 		RemoteNode:       remoteNode,
 		Imports:          imports,
 		Exports:          exports,
-		Balance:          exports - imports,
+		Balance:          nodeBalance,
+		ParityRatio:      parityRatio,
+		LocalFC:          localFC,
+		RemoteFC:         remoteFC,
 		ImportPctOfLimit: importPct,
 		ExportPctOfLimit: exportPct,
 		HasParity:        hasParity,
 		Suggestion:       suggestion,
+		CreatedAt:        time.Now().UTC().Format("2006-01-02"),
 	}, nil
 }
 
 type Warning struct {
-	RemoteNode string `json:"remote_node"`
-	LimitType  string `json:"limit_type"`
+	RemoteNode string  `json:"remote_node"`
+	LimitType  string  `json:"limit_type"`
 	UsagePct   float64 `json:"usage_pct"`
-	Threshold  int    `json:"threshold"`
-	Message    string `json:"message"`
+	Threshold  int     `json:"threshold"`
+	Message    string  `json:"message"`
 }
 
 func (g *Gossip) GetActiveWarnings(ctx context.Context) ([]Warning, error) {
@@ -216,10 +289,10 @@ func (g *Gossip) GetActiveWarnings(ctx context.Context) ([]Warning, error) {
 }
 
 type federationConfig struct {
-	NodeBilateralBaseLimit   int64
-	WarningThreshold1        int
-	WarningThreshold2        int
-	WarningThreshold3        int
+	NodeBilateralBaseLimit    int64
+	WarningThreshold1         int
+	WarningThreshold2         int
+	WarningThreshold3         int
 	ParitySuggestionThreshold int
 }
 
