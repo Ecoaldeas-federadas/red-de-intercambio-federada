@@ -1,0 +1,24 @@
+# Collabora (CODE) - Editor de documentos colaborativo en linea
+# Se integra con Nextcloud para permitir edicion colaborativa de archivos Office
+version: '3.8'
+
+services:
+  collabora:
+    image: collabora/code:latest
+    container_name: collabora
+    restart: unless-stopped
+    ports:
+      - "9980:9980"
+    environment:
+      - domain=${NEXTCLOUD_DOMAIN:-nextcloud\\.localhost}
+      - username=${ADMIN_USER:-admin}
+      - password=${ADMIN_PASS:-admin_pass}
+      - extra_params=--o:ssl.enable=true
+    volumes:
+      - ./data/collabora:/opt/collabora
+    networks:
+      - aldea-network
+
+networks:
+  aldea-network:
+    external: true

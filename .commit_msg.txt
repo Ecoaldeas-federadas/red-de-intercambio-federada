@@ -1,30 +1,12 @@
-feat: red privada federada con OpenWrt (WireGuard + IPv6 ULA + DNS federado)
+docs: renombrar documentacion de red privada a espanol
 
-Sistema de red privada federada que permite a las aldeas comunicarse entre
-si sin depender de Internet publico. OpenWrt es opcional: el nodo funciona
-sin el desde el dia 1 por Internet normal.
+ARCHITECTURE.md -> ARQUITECTURA.md
+INSTALL.md -> INSTALACION.md
+FEDERATION.md -> FEDERACION.md
+HARDWARE.md -> EQUIPAMENTO.md
+SSL-DOMAINS.md -> DOMINIOS-SSL.md
 
-Infraestructura de red (carpeta network/):
-- Generador de prefijo IPv6 ULA unico sin colisiones
-- Plantillas OpenWrt: network, dhcp, firewall, wireguard, dns, ssl, api
-- Endpoint LuCI (Lua) para registro de subdominios via API REST
-- DNS federado con dnsmasq + certificado SSL wildcard con acme.sh
-- Servidor STUN/Lighthouse para NAT traversal (CGNAT)
-- Script constructor de imagen OpenWrt preconfigurada
-- Documentacion: README, ARCHITECTURE, INSTALL, FEDERATION, HARDWARE, SSL-DOMAINS
-
-Integracion en el nodo de la aplicacion:
-- NetworkConfig en config.go (todos los campos opcionales)
-- Migracion 072: tablas network_config, network_peers, network_services
-- Handler API /api/network/* (status, config, peers, services, image)
-- Frontend: pagina "Red Privada" en Ajustes con 4 sub-tabs
-- Generador de imagen OpenWrt descargable desde el nodo
-
-Arquitectura:
-- OpenWrt maneja el dominio publico y certificado SSL wildcard
-- El nodo se registra como subdominio (nodo.aldea1.com) en OpenWrt
-- El nombre interno del nodo no cambia al instalar OpenWrt
-- Flujo "llave en mano": generar imagen pre-federada para otra aldea
+Actualizadas todas las referencias internas.
 
 Generated with [Devin](https://devin.ai)
 

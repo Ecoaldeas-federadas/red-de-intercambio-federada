@@ -7,6 +7,7 @@ import {
   Network, Scale, Users, Gavel, FileSearch, Globe, UserPlus, Wallet, Shield,
   Building2, Nfc, Settings, User, PiggyBank, Zap, Plug,
   LogOut, Menu, X, ExternalLink, Bell, ChevronLeft, ChevronRight, AlertTriangle,
+  Server,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -36,6 +37,7 @@ const navItems = [
   { to: '/app/profile', label: 'Mi Perfil', icon: User },
   { to: '/app/notifications/settings', label: 'Notificaciones', icon: Bell },
   { to: '/app/settings', label: 'Configuracion', icon: Settings },
+  { to: '/app/services', label: 'Servicios Federados', icon: Server },
   { to: '/app/website', label: 'Sitio Web Publico', icon: Globe },
 ]
 

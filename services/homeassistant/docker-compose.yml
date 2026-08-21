@@ -1,0 +1,22 @@
+# Home Assistant - Plataforma de automatizacion del hogar (smart home)
+# Permite integrar y controlar dispositivos IoT, automatizando tareas del hogar
+version: '3.8'
+
+services:
+  homeassistant:
+    image: homeassistant/home-assistant:latest
+    container_name: homeassistant
+    restart: unless-stopped
+    ports:
+      - "8123:8123"
+    environment:
+      - TZ=America/Bogota
+    volumes:
+      - ./data/homeassistant:/config
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - aldea-network
+
+networks:
+  aldea-network:
+    external: true

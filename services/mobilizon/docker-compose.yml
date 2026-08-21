@@ -1,0 +1,42 @@
+# Mobilizon - Plataforma federada de organizacion de eventos (alternativa a Facebook Events)
+# Permite crear y gestionar eventos, federando via ActivityPub
+version: '3.8'
+
+services:
+  mobilizon:
+    image: framasoft/mobilizon:latest
+    container_name: mobilizon
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      - MOBILIZON_INSTANCE_HOST=${DOMAIN:-localhost}
+      - MOBILIZON_INSTANCE_PORT=4000
+      - MOBILIZON_DATABASE_HOST=mobilizon-db
+      - MOBILIZON_DATABASE_USERNAME=${DB_USER:-mobilizon}
+      - MOBILIZON_DATABASE_PASSWORD=${DB_PASS:-mobilizon_pass}
+      - MOBILIZON_DATABASE_DBNAME=mobilizon
+      - MOBILIZON_INSTANCE_SECRET_KEY=${SECRET_KEY:-cambio_esto}
+    volumes:
+      - ./data/mobilizon:/var/lib/mobilizon
+    depends_on:
+      - mobilizon-db
+    networks:
+      - aldea-network
+
+  mobilizon-db:
+    image: postgres:15-alpine
+    container_name: mobilizon-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${DB_USER:-mobilizon}
+      - POSTGRES_PASSWORD=${DB_PASS:-mobilizon_pass}
+      - POSTGRES_DB=mobilizon
+    volumes:
+      - ./data/mobilizon-db:/var/lib/postgresql/data
+    networks:
+      - aldea-network
+
+networks:
+  aldea-network:
+    external: true

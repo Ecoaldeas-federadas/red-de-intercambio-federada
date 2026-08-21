@@ -1,0 +1,54 @@
+# Funkwhale - Plataforma federada de musica (alternativa a SoundCloud/Spotify)
+# Permite alojar y compartir musica, podcasts y audios federando via ActivityPub
+version: '3.8'
+
+services:
+  funkwhale:
+    image: funkwhale/all-in-one:latest
+    container_name: funkwhale
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - FUNKWHALE_HOSTNAME=${DOMAIN:-localhost}
+      - FUNKWHALE_PROTOCOL=https
+      - DATABASE_HOST=funkwhale-db
+      - DATABASE_USER=${DB_USER:-funkwhale}
+      - DATABASE_PASSWORD=${DB_PASS:-funkwhale_pass}
+      - DATABASE_NAME=funkwhale
+      - CACHE_HOST=funkwhale-redis
+      - CACHE_PORT=6379
+      - DJANGO_SECRET_KEY=${SECRET_KEY:-cambio_esto}
+    volumes:
+      - ./data/funkwhale:/data
+    depends_on:
+      - funkwhale-db
+      - funkwhale-redis
+    networks:
+      - aldea-network
+
+  funkwhale-db:
+    image: postgres:15-alpine
+    container_name: funkwhale-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${DB_USER:-funkwhale}
+      - POSTGRES_PASSWORD=${DB_PASS:-funkwhale_pass}
+      - POSTGRES_DB=funkwhale
+    volumes:
+      - ./data/funkwhale-db:/var/lib/postgresql/data
+    networks:
+      - aldea-network
+
+  funkwhale-redis:
+    image: redis:7-alpine
+    container_name: funkwhale-redis
+    restart: unless-stopped
+    volumes:
+      - ./data/funkwhale-redis:/data
+    networks:
+      - aldea-network
+
+networks:
+  aldea-network:
+    external: true

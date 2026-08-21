@@ -1,0 +1,56 @@
+# Pixelfed - Red social federada de fotos (alternativa a Instagram)
+# Permite compartir imagenes y federar con otras instancias mediante ActivityPub
+version: '3.8'
+
+services:
+  pixelfed:
+    image: zknt/pixelfed:latest
+    container_name: pixelfed
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      - APP_NAME=Pixelfed
+      - APP_ENV=production
+      - APP_KEY=${APP_KEY:-base64:cambio_esto}
+      - APP_URL=https://${DOMAIN:-localhost}
+      - DB_HOST=pixelfed-db
+      - DB_DATABASE=pixelfed
+      - DB_USERNAME=${DB_USER:-pixelfed}
+      - DB_PASSWORD=${DB_PASS:-pixelfed_pass}
+      - REDIS_HOST=pixelfed-redis
+      - MAIL_HOST=${MAIL_HOST:-mailhog}
+      - MAIL_PORT=${MAIL_PORT:-1025}
+    volumes:
+      - ./data/pixelfed:/var/www/storage
+    depends_on:
+      - pixelfed-db
+      - pixelfed-redis
+    networks:
+      - aldea-network
+
+  pixelfed-db:
+    image: postgres:15-alpine
+    container_name: pixelfed-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${DB_USER:-pixelfed}
+      - POSTGRES_PASSWORD=${DB_PASS:-pixelfed_pass}
+      - POSTGRES_DB=pixelfed
+    volumes:
+      - ./data/pixelfed-db:/var/lib/postgresql/data
+    networks:
+      - aldea-network
+
+  pixelfed-redis:
+    image: redis:7-alpine
+    container_name: pixelfed-redis
+    restart: unless-stopped
+    volumes:
+      - ./data/pixelfed-redis:/data
+    networks:
+      - aldea-network
+
+networks:
+  aldea-network:
+    external: true

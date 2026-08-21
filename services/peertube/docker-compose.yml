@@ -1,0 +1,53 @@
+# PeerTube - Plataforma de video federada (alternativa a YouTube)
+# Permite alojar y compartir videos de forma descentralizada mediante ActivityPub
+version: '3.8'
+
+services:
+  peertube:
+    image: chocobozzz/peertube:production
+    container_name: peertube
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    environment:
+      - PEERTUBE_WEBSERVER_HOSTNAME=${DOMAIN:-localhost}
+      - PEERTUBE_WEBSERVER_PORT=9000
+      - PEERTUBE_DB_HOSTNAME=peertube-db
+      - PEERTUBE_DB_USERNAME=${DB_USER:-peertube}
+      - PEERTUBE_DB_PASSWORD=${DB_PASS:-peertube_pass}
+      - PEERTUBE_DB_SSL=false
+      - PEERTUBE_REDIS_HOSTNAME=peertube-redis
+      - PEERTUBE_TRUST_PROXY=true
+    volumes:
+      - ./data/peertube:/data
+    depends_on:
+      - peertube-db
+      - peertube-redis
+    networks:
+      - aldea-network
+
+  peertube-db:
+    image: postgres:15-alpine
+    container_name: peertube-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${DB_USER:-peertube}
+      - POSTGRES_PASSWORD=${DB_PASS:-peertube_pass}
+      - POSTGRES_DB=peertube
+    volumes:
+      - ./data/peertube-db:/var/lib/postgresql/data
+    networks:
+      - aldea-network
+
+  peertube-redis:
+    image: redis:7-alpine
+    container_name: peertube-redis
+    restart: unless-stopped
+    volumes:
+      - ./data/peertube-redis:/data
+    networks:
+      - aldea-network
+
+networks:
+  aldea-network:
+    external: true

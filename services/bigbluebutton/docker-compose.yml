@@ -1,0 +1,22 @@
+# BigBlueButton - Plataforma de videoconferencia orientada a educacion
+# Permite realizar clases virtuales, presentaciones y reuniones con pizarras compartidas
+version: '3.8'
+
+services:
+  bigbluebutton:
+    image: bigbluebutton/bigbluebutton:latest
+    container_name: bigbluebutton
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      - BBB_DOMAIN=${DOMAIN:-localhost}
+      - BBB_SECRET=${BBB_SECRET:-cambio_esto}
+    volumes:
+      - ./data/bigbluebutton:/bigbluebutton
+    networks:
+      - aldea-network
+
+networks:
+  aldea-network:
+    external: true

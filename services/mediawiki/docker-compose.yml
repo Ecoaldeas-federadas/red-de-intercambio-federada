@@ -1,0 +1,42 @@
+# MediaWiki - Software wiki colaborativo (el mismo que usa Wikipedia)
+# Permite crear y mantener documentacion colaborativa con historial de cambios
+version: '3.8'
+
+services:
+  mediawiki:
+    image: mediawiki:latest
+    container_name: mediawiki
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      - MEDIAWIKI_SITE_SERVER=https://${DOMAIN:-localhost}
+      - MEDIAWIKI_SITE_NAME=Aldea Wiki
+      - MEDIAWIKI_DB_HOST=mediawiki-db
+      - MEDIAWIKI_DB_USER=${DB_USER:-mediawiki}
+      - MEDIAWIKI_DB_PASSWORD=${DB_PASS:-mediawiki_pass}
+      - MEDIAWIKI_DB_NAME=mediawiki
+    volumes:
+      - ./data/mediawiki:/var/www/html
+    depends_on:
+      - mediawiki-db
+    networks:
+      - aldea-network
+
+  mediawiki-db:
+    image: mariadb:11
+    container_name: mediawiki-db
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASS:-root_pass}
+      - MYSQL_DATABASE=mediawiki
+      - MYSQL_USER=${DB_USER:-mediawiki}
+      - MYSQL_PASSWORD=${DB_PASS:-mediawiki_pass}
+    volumes:
+      - ./data/mediawiki-db:/var/lib/mysql
+    networks:
+      - aldea-network
+
+networks:
+  aldea-network:
+    external: true

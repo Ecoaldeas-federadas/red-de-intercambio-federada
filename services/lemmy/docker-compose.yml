@@ -1,0 +1,36 @@
+# Lemmy - Plataforma federada de agregacion de enlaces (alternativa a Reddit)
+# Permite crear comunidades, publicar enlaces y votar, federando via ActivityPub
+version: '3.8'
+
+services:
+  lemmy:
+    image: lemmy/lemmy:latest
+    container_name: lemmy
+    restart: unless-stopped
+    ports:
+      - "1236:8536"
+    environment:
+      - RUST_LOG=info
+    volumes:
+      - ./data/lemmy:/lemmy
+    depends_on:
+      - lemmy-db
+    networks:
+      - aldea-network
+
+  lemmy-db:
+    image: postgres:15-alpine
+    container_name: lemmy-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${DB_USER:-lemmy}
+      - POSTGRES_PASSWORD=${DB_PASS:-lemmy_pass}
+      - POSTGRES_DB=lemmy
+    volumes:
+      - ./data/lemmy-db:/var/lib/postgresql/data
+    networks:
+      - aldea-network
+
+networks:
+  aldea-network:
+    external: true

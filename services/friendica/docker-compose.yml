@@ -1,0 +1,43 @@
+# Friendica - Red social federada con soporte para multiples protocolos
+# Permite conectar con usuarios de Diaspora, ActivityPub, RSS y mas
+version: '3.8'
+
+services:
+  friendica:
+    image: friendica/server:latest
+    container_name: friendica
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      - FRIENDICA_URL=https://${DOMAIN:-localhost}
+      - FRIENDICA_TZ=America/Bogota
+      - FRIENDICA_LANG=es
+      - MYSQL_HOST=friendica-db
+      - MYSQL_USER=${DB_USER:-friendica}
+      - MYSQL_PASSWORD=${DB_PASS:-friendica_pass}
+      - MYSQL_DATABASE=friendica
+    volumes:
+      - ./data/friendica:/var/www/html
+    depends_on:
+      - friendica-db
+    networks:
+      - aldea-network
+
+  friendica-db:
+    image: mariadb:11
+    container_name: friendica-db
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASS:-root_pass}
+      - MYSQL_DATABASE=friendica
+      - MYSQL_USER=${DB_USER:-friendica}
+      - MYSQL_PASSWORD=${DB_PASS:-friendica_pass}
+    volumes:
+      - ./data/friendica-db:/var/lib/mysql
+    networks:
+      - aldea-network
+
+networks:
+  aldea-network:
+    external: true

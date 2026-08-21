@@ -1,0 +1,38 @@
+# WriteFreely - Plataforma federada de blogging minimalista
+# Permite publicar blogs y federar via ActivityPub, con soporte opcional de MySQL
+version: '3.8'
+
+services:
+  writefreely:
+    image: writefreely/writefreely:latest
+    container_name: writefreely
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - WRITEFREELY_DOMAIN=${DOMAIN:-localhost}
+      - WRITEFREELY_SINGLE_USER=false
+      - WRITEFREELY_FEDERATION=true
+    volumes:
+      - ./data/writefreely:/var/www/writefreely
+    networks:
+      - aldea-network
+
+  # Base de datos MySQL opcional (descomentar si se requiere multiusuario con BD)
+  # writefreely-db:
+  #   image: mysql:8
+  #   container_name: writefreely-db
+  #   restart: unless-stopped
+  #   environment:
+  #     - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASS:-root_pass}
+  #     - MYSQL_DATABASE=writefreely
+  #     - MYSQL_USER=${DB_USER:-writefreely}
+  #     - MYSQL_PASSWORD=${DB_PASS:-writefreely_pass}
+  #   volumes:
+  #     - ./data/writefreely-db:/var/lib/mysql
+  #   networks:
+  #     - aldea-network
+
+networks:
+  aldea-network:
+    external: true

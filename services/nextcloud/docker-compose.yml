@@ -1,0 +1,42 @@
+# Nextcloud - Plataforma de almacenamiento y colaboracion en la nube
+# Permite sincronizar archivos, calendarios, contactos y colaborar en documentos
+version: '3.8'
+
+services:
+  nextcloud:
+    image: nextcloud:latest
+    container_name: nextcloud
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      - NEXTCLOUD_URL=https://${DOMAIN:-localhost}
+      - POSTGRES_HOST=nextcloud-db
+      - POSTGRES_DB=nextcloud
+      - POSTGRES_USER=${DB_USER:-nextcloud}
+      - POSTGRES_PASSWORD=${DB_PASS:-nextcloud_pass}
+      - NEXTCLOUD_ADMIN_USER=${ADMIN_USER:-admin}
+      - NEXTCLOUD_ADMIN_PASSWORD=${ADMIN_PASS:-admin_pass}
+    volumes:
+      - ./data/nextcloud:/var/www/html
+    depends_on:
+      - nextcloud-db
+    networks:
+      - aldea-network
+
+  nextcloud-db:
+    image: postgres:15-alpine
+    container_name: nextcloud-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${DB_USER:-nextcloud}
+      - POSTGRES_PASSWORD=${DB_PASS:-nextcloud_pass}
+      - POSTGRES_DB=nextcloud
+    volumes:
+      - ./data/nextcloud-db:/var/lib/postgresql/data
+    networks:
+      - aldea-network
+
+networks:
+  aldea-network:
+    external: true

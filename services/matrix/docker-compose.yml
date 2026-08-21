@@ -1,0 +1,41 @@
+# Matrix (Synapse) - Servidor de mensajeria federada descentralizada
+# Permite comunicacion en tiempo real, federando con otros servidores Matrix
+version: '3.8'
+
+services:
+  matrix:
+    image: matrixdotorg/synapse:latest
+    container_name: matrix-synapse
+    restart: unless-stopped
+    ports:
+      - "8008:8008"
+    environment:
+      - SYNAPSE_SERVER_NAME=${DOMAIN:-localhost}
+      - SYNAPSE_REPORT_STATS=no
+      - POSTGRES_HOST=matrix-db
+      - POSTGRES_USER=${DB_USER:-matrix}
+      - POSTGRES_PASSWORD=${DB_PASS:-matrix_pass}
+      - POSTGRES_DB=matrix
+    volumes:
+      - ./data/matrix:/data
+    depends_on:
+      - matrix-db
+    networks:
+      - aldea-network
+
+  matrix-db:
+    image: postgres:15-alpine
+    container_name: matrix-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${DB_USER:-matrix}
+      - POSTGRES_PASSWORD=${DB_PASS:-matrix_pass}
+      - POSTGRES_DB=matrix
+    volumes:
+      - ./data/matrix-db:/var/lib/postgresql/data
+    networks:
+      - aldea-network
+
+networks:
+  aldea-network:
+    external: true

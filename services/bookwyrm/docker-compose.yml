@@ -1,0 +1,54 @@
+# BookWyrm - Plataforma federada para compartir libros y resenas (alternativa a Goodreads)
+# Permite rastrear lecturas, escribir resenas y federar via ActivityPub
+version: '3.8'
+
+services:
+  bookwyrm:
+    image: bookwyrm/bookwyrm:latest
+    container_name: bookwyrm
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+      - EMAIL=${EMAIL:-admin@localhost}
+      - PG_HOST=bookwyrm-db
+      - PG_DB=bookwyrm
+      - PG_USER=${DB_USER:-bookwyrm}
+      - PG_PASSWORD=${DB_PASS:-bookwyrm_pass}
+      - REDIS_HOST=bookwyrm-redis
+      - REDIS_PORT=6379
+      - SECRET_KEY=${SECRET_KEY:-cambio_esto}
+    volumes:
+      - ./data/bookwyrm:/app
+    depends_on:
+      - bookwyrm-db
+      - bookwyrm-redis
+    networks:
+      - aldea-network
+
+  bookwyrm-db:
+    image: postgres:15-alpine
+    container_name: bookwyrm-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${DB_USER:-bookwyrm}
+      - POSTGRES_PASSWORD=${DB_PASS:-bookwyrm_pass}
+      - POSTGRES_DB=bookwyrm
+    volumes:
+      - ./data/bookwyrm-db:/var/lib/postgresql/data
+    networks:
+      - aldea-network
+
+  bookwyrm-redis:
+    image: redis:7-alpine
+    container_name: bookwyrm-redis
+    restart: unless-stopped
+    volumes:
+      - ./data/bookwyrm-redis:/data
+    networks:
+      - aldea-network
+
+networks:
+  aldea-network:
+    external: true

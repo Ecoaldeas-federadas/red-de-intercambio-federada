@@ -1,0 +1,47 @@
+# Gitea - Servidor Git ligero y autoalojado (alternativa a GitHub)
+# Permite alojar repositorios, gestionar issues y revisar codigo de forma colaborativa
+version: '3.8'
+
+services:
+  gitea:
+    image: gitea/gitea:latest
+    container_name: gitea
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+      - "22:22"
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+      - GITEA__server__DOMAIN=${DOMAIN:-localhost}
+      - GITEA__server__ROOT_URL=https://${DOMAIN:-localhost}/
+      - GITEA__database__DB_TYPE=postgres
+      - GITEA__database__HOST=gitea-db:5432
+      - GITEA__database__NAME=gitea
+      - GITEA__database__USER=${DB_USER:-gitea}
+      - GITEA__database__PASSWD=${DB_PASS:-gitea_pass}
+    volumes:
+      - ./data/gitea:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - gitea-db
+    networks:
+      - aldea-network
+
+  gitea-db:
+    image: postgres:15-alpine
+    container_name: gitea-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${DB_USER:-gitea}
+      - POSTGRES_PASSWORD=${DB_PASS:-gitea_pass}
+      - POSTGRES_DB=gitea
+    volumes:
+      - ./data/gitea-db:/var/lib/postgresql/data
+    networks:
+      - aldea-network
+
+networks:
+  aldea-network:
+    external: true

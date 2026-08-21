@@ -1,0 +1,43 @@
+# BookStack - Plataforma de documentacion y wiki organizada por libros
+# Permite crear y organizar documentacion de forma estructurada y colaborativa
+version: '3.8'
+
+services:
+  bookstack:
+    image: lscr.io/linuxserver/bookstack:latest
+    container_name: bookstack
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - APP_URL=https://${DOMAIN:-localhost}
+      - DB_HOST=bookstack-db
+      - DB_USER=${DB_USER:-bookstack}
+      - DB_PASS=${DB_PASS:-bookstack_pass}
+      - DB_DATABASE=bookstack
+    volumes:
+      - ./data/bookstack:/config
+    depends_on:
+      - bookstack-db
+    networks:
+      - aldea-network
+
+  bookstack-db:
+    image: mariadb:11
+    container_name: bookstack-db
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASS:-root_pass}
+      - MYSQL_DATABASE=bookstack
+      - MYSQL_USER=${DB_USER:-bookstack}
+      - MYSQL_PASSWORD=${DB_PASS:-bookstack_pass}
+    volumes:
+      - ./data/bookstack-db:/var/lib/mysql
+    networks:
+      - aldea-network
+
+networks:
+  aldea-network:
+    external: true

@@ -1,0 +1,74 @@
+# Jitsi Meet - Plataforma de videoconferencia federada y autoalojada
+# Permite realizar reuniones video sin necesidad de instalar software cliente
+version: '3.8'
+
+services:
+  jitsi-web:
+    image: jitsi/web:latest
+    container_name: jitsi-web
+    restart: unless-stopped
+    ports:
+      - "443:443"
+    environment:
+      - PUBLIC_URL=https://${DOMAIN:-localhost}
+      - XMPP_DOMAIN=${DOMAIN:-localhost}
+      - JICOFO_AUTH_USER=focus
+      - JVB_AUTH_USER=jvb
+      - JICOFO_COMPONENT_SECRET=${JICOFO_COMPONENT_SECRET:-cambio_esto}
+      - JVB_AUTH_PASSWORD=${JVB_AUTH_PASSWORD:-cambio_esto}
+      - JICOFO_AUTH_PASSWORD=${JICOFO_AUTH_PASSWORD:-cambio_esto}
+    volumes:
+      - ./data/jitsi-web:/config
+    depends_on:
+      - jitsi-prosody
+      - jitsi-jicofo
+      - jitsi-jvb
+    networks:
+      - aldea-network
+
+  jitsi-prosody:
+    image: jitsi/prosody:latest
+    container_name: jitsi-prosody
+    restart: unless-stopped
+    environment:
+      - XMPP_DOMAIN=${DOMAIN:-localhost}
+      - JICOFO_COMPONENT_SECRET=${JICOFO_COMPONENT_SECRET:-cambio_esto}
+      - JVB_AUTH_PASSWORD=${JVB_AUTH_PASSWORD:-cambio_esto}
+      - JICOFO_AUTH_PASSWORD=${JICOFO_AUTH_PASSWORD:-cambio_esto}
+    volumes:
+      - ./data/jitsi-prosody:/config
+    networks:
+      - aldea-network
+
+  jitsi-jicofo:
+    image: jitsi/jicofo:latest
+    container_name: jitsi-jicofo
+    restart: unless-stopped
+    environment:
+      - XMPP_DOMAIN=${DOMAIN:-localhost}
+      - JICOFO_COMPONENT_SECRET=${JICOFO_COMPONENT_SECRET:-cambio_esto}
+      - JICOFO_AUTH_PASSWORD=${JICOFO_AUTH_PASSWORD:-cambio_esto}
+    depends_on:
+      - jitsi-prosody
+    networks:
+      - aldea-network
+
+  jitsi-jvb:
+    image: jitsi/jvb:latest
+    container_name: jitsi-jvb
+    restart: unless-stopped
+    environment:
+      - XMPP_DOMAIN=${DOMAIN:-localhost}
+      - JVB_AUTH_USER=jvb
+      - JVB_AUTH_PASSWORD=${JVB_AUTH_PASSWORD:-cambio_esto}
+      - JVB_PORT=10000
+    ports:
+      - "10000:10000/udp"
+    depends_on:
+      - jitsi-prosody
+    networks:
+      - aldea-network
+
+networks:
+  aldea-network:
+    external: true

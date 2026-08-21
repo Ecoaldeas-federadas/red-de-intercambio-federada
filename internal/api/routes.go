@@ -34,12 +34,12 @@ func NewRouter(h *Handler, corsOrigins []string) http.Handler {
 }
 
 func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *OrganizationHandler, ph *PaymentsHandler, eh *ExternalHandler, rh *RecoveryHandler, dh *DepartmentsHandler, nh *NFCTerminalHandler, sh *SetupHandler, corsOrigins []string, am *AuthMiddleware, pool *pgxpool.Pool) http.Handler {
-	return NewRouterWithAuthAndBasePath(h, ah, fh, oh, ph, eh, rh, dh, nh, sh, nil, corsOrigins, am, pool, "")
+	return NewRouterWithAuthAndBasePath(h, ah, fh, oh, ph, eh, rh, dh, nh, sh, nil, nil, corsOrigins, am, pool, "")
 }
 
 // NewRouterWithAuthAndBasePath crea el router con un prefijo de ruta opcional
 // para el frontend (ej: "/demo" para el nodo demo). Las API routes quedan en /api/*.
-func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *OrganizationHandler, ph *PaymentsHandler, eh *ExternalHandler, rh *RecoveryHandler, dh *DepartmentsHandler, nh *NFCTerminalHandler, sh *SetupHandler, nwh *NetworkHandler, corsOrigins []string, am *AuthMiddleware, pool *pgxpool.Pool, basePath string) http.Handler {
+func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *OrganizationHandler, ph *PaymentsHandler, eh *ExternalHandler, rh *RecoveryHandler, dh *DepartmentsHandler, nh *NFCTerminalHandler, sh *SetupHandler, nwh *NetworkHandler, fsvh *FederatedServicesHandler, corsOrigins []string, am *AuthMiddleware, pool *pgxpool.Pool, basePath string) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -73,6 +73,11 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 	// Network handler (red privada federada con OpenWrt - opcional)
 	if nwh != nil {
 		nwh.RegisterRoutesWithAuth(r, am)
+	}
+
+	// Services handler (catalogo de servicios federados/autohospedados)
+	if fsvh != nil {
+		fsvh.RegisterRoutesWithAuth(r, am)
 	}
 
 	// Assembly y Tax

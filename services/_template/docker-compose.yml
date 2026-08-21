@@ -1,0 +1,70 @@
+# ============================================================================
+# PLANTILLA BASE - Servicio generico para la red de intercambio federada
+# ============================================================================
+# Copia este archivo a una nueva carpeta de servicio y adapta los valores
+# segun las necesidades del servicio que quieras desplegar.
+# ============================================================================
+
+# version: Especifica la version del formato docker-compose
+version: '3.8'
+
+services:
+  # Nombre del servicio principal (cambiar por el nombre real del servicio)
+  servicio:
+    # image: Imagen oficial del servicio a desplegar
+    image: imagen/oficial:latest
+
+    # container_name: Nombre fijo para el contenedor (facilita su gestion)
+    container_name: servicio
+
+    # restart: Politica de reinicio del contenedor
+    # unless-stopped: Reinicia siempre excepto si se detiene manualmente
+    restart: unless-stopped
+
+    # ports: Mapeo de puertos host:contenedor
+    # Permite acceder al servicio desde el host
+    ports:
+      - "8080:80"
+
+    # environment: Variables de entorno del servicio
+    # Usar ${VARIABLE:-valor_por_defecto} para permitir override desde .env
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+      - DB_HOST=servicio-db
+      - DB_USER=${DB_USER:-servicio}
+      - DB_PASS=${DB_PASS:-servicio_pass}
+
+    # volumes: Volumenes persistentes para no perder datos al reiniciar
+    # Formato: ruta_host:ruta_contenedor
+    volumes:
+      - ./data/servicio:/datos
+
+    # depends_on: Servicios que deben iniciar antes que este
+    depends_on:
+      - servicio-db
+
+    # networks: Redes a las que se conecta el servicio
+    networks:
+      - aldea-network
+
+  # Ejemplo de servicio de base de datos (descomentar si se necesita)
+  # servicio-db:
+  #   image: postgres:15-alpine
+  #   container_name: servicio-db
+  #   restart: unless-stopped
+  #   environment:
+  #     - POSTGRES_USER=${DB_USER:-servicio}
+  #     - POSTGRES_PASSWORD=${DB_PASS:-servicio_pass}
+  #     - POSTGRES_DB=servicio
+  #   volumes:
+  #     - ./data/servicio-db:/var/lib/postgresql/data
+  #   networks:
+  #     - aldea-network
+
+# networks: Definicion de redes compartidas entre servicios
+# aldea-network: Red comun para todos los servicios de la red federada
+# external: true indica que la red debe crearse previamente con:
+#   docker network create aldea-network
+networks:
+  aldea-network:
+    external: true

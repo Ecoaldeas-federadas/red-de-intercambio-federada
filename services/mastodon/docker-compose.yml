@@ -1,0 +1,57 @@
+# Mastodon - Red social federada de microblogging (alternativa a Twitter/X)
+# Permite publicar mensajes cortos y federar con otras instancias mediante ActivityPub
+version: '3.8'
+
+services:
+  mastodon:
+    image: tootsuite/mastodon:latest
+    container_name: mastodon
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+      - "4000:4000"
+    environment:
+      - LOCAL_DOMAIN=${DOMAIN:-localhost}
+      - DB_HOST=mastodon-db
+      - DB_USER=${DB_USER:-mastodon}
+      - DB_NAME=mastodon
+      - DB_PASS=${DB_PASS:-mastodon_pass}
+      - REDIS_HOST=mastodon-redis
+      - REDIS_PORT=6379
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE:-cambio_esto}
+      - OTP_SECRET=${OTP_SECRET:-cambio_esto_tambien}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY:-cambio_esto}
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY:-cambio_esto}
+    volumes:
+      - ./data/mastodon:/mastodon/public/system
+    depends_on:
+      - mastodon-db
+      - mastodon-redis
+    networks:
+      - aldea-network
+
+  mastodon-db:
+    image: postgres:15-alpine
+    container_name: mastodon-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${DB_USER:-mastodon}
+      - POSTGRES_PASSWORD=${DB_PASS:-mastodon_pass}
+      - POSTGRES_DB=mastodon
+    volumes:
+      - ./data/mastodon-db:/var/lib/postgresql/data
+    networks:
+      - aldea-network
+
+  mastodon-redis:
+    image: redis:7-alpine
+    container_name: mastodon-redis
+    restart: unless-stopped
+    volumes:
+      - ./data/mastodon-redis:/data
+    networks:
+      - aldea-network
+
+networks:
+  aldea-network:
+    external: true

@@ -1,0 +1,24 @@
+# Asterisk - Servidor VoIP para llamadas de voz sobre IP
+# Permite gestionar extensiones, llamadas y mensajeria telefonica
+version: '3.8'
+
+services:
+  voip:
+    image: tiredofit/asterisk:latest
+    container_name: voip-asterisk
+    restart: unless-stopped
+    ports:
+      - "5060:5060/udp"
+      - "10000-20000:10000-20000/udp"
+    environment:
+      - ASTERISK_DOMAIN=${DOMAIN:-localhost}
+      - ADMIN_USER=${ADMIN_USER:-admin}
+      - ADMIN_PASS=${ADMIN_PASS:-admin_pass}
+    volumes:
+      - ./data/voip:/data
+    networks:
+      - aldea-network
+
+networks:
+  aldea-network:
+    external: true

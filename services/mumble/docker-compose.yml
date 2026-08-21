@@ -1,0 +1,24 @@
+# Mumble - Servidor de chat de voz de baja latencia
+# Permite comunicacion de voz en grupo, ideal para comunidades y gaming
+version: '3.8'
+
+services:
+  mumble:
+    image: mumblevoip/mumble-server:latest
+    container_name: mumble
+    restart: unless-stopped
+    ports:
+      - "64738:64738/udp"
+      - "64738:64738/tcp"
+    environment:
+      - MUMBLE_SERVERNAME=${MUMBLE_SERVERNAME:-Aldea Mumble}
+      - MUMBLE_WELCOMETEXT=Bienvenido al servidor de voz de la Aldea
+      - MUMBLE_SU_PASSWORD=${MUMBLE_SU_PASSWORD:-superuser_pass}
+    volumes:
+      - ./data/mumble:/data
+    networks:
+      - aldea-network
+
+networks:
+  aldea-network:
+    external: true

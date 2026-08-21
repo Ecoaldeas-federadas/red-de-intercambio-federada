@@ -1,0 +1,23 @@
+# Jellyfin - Servidor de medios para streaming de audio y video
+# Permite organizar y transmitir peliculas, series y musica a multiples dispositivos
+version: '3.8'
+
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    restart: unless-stopped
+    ports:
+      - "8096:8096"
+    environment:
+      - JELLYFIN_PublishedServerUrl=https://${DOMAIN:-localhost}
+    volumes:
+      - ./data/jellyfin/config:/config
+      - ./data/jellyfin/cache:/cache
+      - ./data/jellyfin/media:/media
+    networks:
+      - aldea-network
+
+networks:
+  aldea-network:
+    external: true
