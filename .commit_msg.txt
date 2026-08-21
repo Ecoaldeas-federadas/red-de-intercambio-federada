@@ -1,26 +1,32 @@
-fix: Grafica mensual en federacion + imagenes locales + productos pendientes
+feat: Demo auto-resetea datos al arrancar (no necesita reset-demo.ps1)
 
-## FederationPeers: grafica de barras mensual
-- Al expandir un peer, ahora muestra:
-  - 3 tarjetas: Total enviado, Total recibido, Balance
-  - Grafica de barras mensual (entradas verdes, salidas rojas)
-  - Cada barra escala proporcional al maximo del periodo
-  - Leyenda con colores
-  - Exportar CSV sigue disponible
-- Permite estudiar el movimiento durante los meses
-- Ver cuantas transacciones, cuanto entra y sale por mes
+## Cambio principal
+En modo DEMO_MODE=true, el nodo ahora SIEMPRE resetea los datos del
+dominio demo al arrancar. Esto significa que:
 
-## Imagenes de Unsplash reemplazadas
-- 25 URLs de images.unsplash.com en defaultSiteData.ts
-- 5 archivos mas: InlineEditable, LivePageEditor, PublicBlocks, PublicSite, WebsiteAdmin
-- Todas reemplazadas por /placeholder.svg local
-- Crea web/public/placeholder.svg (SVG verde con montanas)
-- Elimina los errores 404 en consola del navegador
+- Cada vez que el contenedor demo arranca, comienza desde cero
+- No se necesita ejecutar reset-demo.ps1 manualmente
+- Los cambios que haga el usuario en la demo NO persisten tras reiniciar
+- Es el comportamiento esperado de una demo
 
-## Productos pendientes
-- La BD tiene 269 productos, 0 pendientes
-- El seed se salta porque ya hay productos
-- Solucion: ejecutar reset-demo.ps1 despues de update.ps1
+## Como funciona
+1. main.go: en modo demo, llama db.DemoReset() antes de DemoSeedData()
+2. DemoReset() borra todos los datos del dominio demo en orden correcto
+3. DemoSeedData() crea datos frescos (usuarios, productos, transacciones, etc)
+
+## DemoReset mejorado
+- Borra tablas con FK a users antes de borrar users
+- Usa tabla+columna especifica para cada DELETE (no OR masivo)
+- Ignora errores de tablas/columnas inexistentes (compatibilidad)
+- Borra tablas scoped (assembly_sessions_scoped, etc)
+- Orden correcto por foreign keys
+
+## Flujo correcto ahora
+1. git pull
+2. powershell -ExecutionPolicy Bypass -File update.ps1
+3. El demo arranca solo y se resetea automaticamente
+
+No se necesita reset-demo.ps1 nunca mas.
 
 Generated with [Devin](https://devin.ai)
 

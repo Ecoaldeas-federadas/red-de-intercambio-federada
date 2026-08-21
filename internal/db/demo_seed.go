@@ -2171,14 +2171,67 @@ func DemoReset(ctx context.Context, d *DB, nodeDomain string) error {
 	}
 	log.Println("DemoReset: borrando datos del dominio", nodeDomain)
 
-	// Borrar tablas principales del dominio
-	// Tablas con node_domain
+	// 1. Borrar tablas que referencian users via FK (antes de borrar users)
+	// Estas tablas no tienen node_domain, asi que filtramos por user_id IN (SELECT ...)
+	type tableCol struct {
+		table, col string
+	}
+	userDepTables := []tableCol{
+		{"notification_preferences", "user_id"},
+		{"user_documents", "user_id"},
+		{"user_permissions", "user_id"},
+		{"user_passkeys", "user_id"},
+		{"membership_history", "user_id"},
+		{"device_registrations", "user_id"},
+		{"nfc_cards", "user_id"},
+		{"nfc_transactions", "user_id"},
+		{"nfc_transactions", "seller_user_id"},
+		{"nfc_transactions", "buyer_user_id"},
+		{"nfc_terminal_sessions", "merchant_user_id"},
+		{"multi_sig_approvals", "from_account"},
+		{"multi_sig_approvals", "to_account"},
+		{"approval_signatures", "signer_id"},
+		{"recovery_approvals", "approver_id"},
+		{"recovery_requests", "target_user_id"},
+		{"recovery_requests", "requester_id"},
+		{"invitation_codes", "created_by"},
+		{"invitation_codes", "used_by"},
+		{"organization_board_members", "user_id"},
+		{"organization_board_members", "appointed_by"},
+		{"member_group_members", "user_id"},
+		{"member_groups", "institution_id"},
+		{"node_merge_conflicts", "user_a_id"},
+		{"node_merge_conflicts", "user_b_id"},
+		{"uploaded_images", "uploaded_by"},
+	}
+	for _, tc := range userDepTables {
+		_, err := d.Pool.Exec(ctx, fmt.Sprintf("DELETE FROM %s WHERE %s IN (SELECT id FROM users WHERE node_domain = $1)", tc.table, tc.col), nodeDomain)
+		if err != nil {
+			// Ignorar errores (tabla o columna puede no existir en esta version)
+			log.Printf("DemoReset: warning borrando %s.%s: %v", tc.table, tc.col, err)
+		}
+	}
+
+	// 2. Borrar node_federation_keys (referencia users via added_by)
+	_, _ = d.Pool.Exec(ctx, "DELETE FROM node_federation_keys WHERE added_by IN (SELECT id FROM users WHERE node_domain = $1)", nodeDomain)
+
+	// 3. Borrar assembly_votes y assembly_attendance (referencian assembly_sessions/decisions)
+	_, _ = d.Pool.Exec(ctx, "DELETE FROM assembly_votes WHERE decision_id IN (SELECT id FROM assembly_decisions WHERE assembly_id IN (SELECT id FROM assembly_sessions WHERE node_domain = $1))", nodeDomain)
+	_, _ = d.Pool.Exec(ctx, "DELETE FROM assembly_attendance WHERE session_id IN (SELECT id FROM assembly_sessions WHERE node_domain = $1)", nodeDomain)
+	_, _ = d.Pool.Exec(ctx, "DELETE FROM assembly_votes_scoped WHERE decision_id IN (SELECT id FROM assembly_decisions_scoped WHERE session_id IN (SELECT id FROM assembly_sessions_scoped WHERE node_domain = $1))", nodeDomain)
+	_, _ = d.Pool.Exec(ctx, "DELETE FROM assembly_attendance_scoped WHERE session_id IN (SELECT id FROM assembly_sessions_scoped WHERE node_domain = $1)", nodeDomain)
+
+	// 4. Borrar tablas con node_domain (orden por FK)
 	ndTables := []string{
 		"assembly_decisions",
+		"assembly_decisions_scoped",
 		"assembly_sessions",
+		"assembly_sessions_scoped",
 		"assembly_quorum_config",
+		"assembly_quorum_config_scoped",
 		"assembly_frequency_config",
 		"assembly_config",
+		"assembly_notifications",
 		"board_members",
 		"tax_config",
 		"tax_distributions",
@@ -2187,6 +2240,7 @@ func DemoReset(ctx context.Context, d *DB, nodeDomain string) error {
 		"store_items",
 		"governance_rules",
 		"department_members",
+		"department_roles",
 		"departments",
 		"organization_levels",
 		"member_levels",
@@ -2194,36 +2248,33 @@ func DemoReset(ctx context.Context, d *DB, nodeDomain string) error {
 		"products",
 		"notifications",
 		"user_credentials",
-		"users",
 		"public_pages",
 		"public_settings",
 		"node_config",
+		"conversion_factor",
 	}
 	for _, t := range ndTables {
 		_, err := d.Pool.Exec(ctx, fmt.Sprintf("DELETE FROM %s WHERE node_domain = $1", t), nodeDomain)
 		if err != nil {
-			log.Printf("DemoReset: error borrando %s: %v", t, err)
+			log.Printf("DemoReset: warning borrando %s: %v", t, err)
 		}
 	}
 
-	// Tablas sin node_domain - borrar todo (es demo)
-	allTables := []string{
-		"assembly_votes",
-		"transactions",
-		"ledger_entries",
-		"audit_log",
-		"node_balance",
-		"node_federation_keys",
-		"bilateral_limits",
-		"department_roles",
-		"role_permissions",
+	// 5. Borrar tablas sin node_domain que dependen de users
+	_, _ = d.Pool.Exec(ctx, "DELETE FROM ledger_entries WHERE account_id IN (SELECT id FROM users WHERE node_domain = $1)", nodeDomain)
+	_, _ = d.Pool.Exec(ctx, "DELETE FROM transactions WHERE sender_node = $1 OR receiver_node = $1", nodeDomain)
+	_, _ = d.Pool.Exec(ctx, "DELETE FROM audit_log WHERE actor_id IN (SELECT id FROM users WHERE node_domain = $1)", nodeDomain)
+
+	// 6. Borrar users (ahora si, sin FKs que lo bloqueen)
+	_, err := d.Pool.Exec(ctx, "DELETE FROM users WHERE node_domain = $1", nodeDomain)
+	if err != nil {
+		log.Printf("DemoReset: warning borrando users: %v", err)
 	}
-	for _, t := range allTables {
-		_, err := d.Pool.Exec(ctx, fmt.Sprintf("DELETE FROM %s", t))
-		if err != nil {
-			log.Printf("DemoReset: error borrando %s: %v", t, err)
-		}
-	}
+
+	// 7. Borrar tablas globales de federacion
+	_, _ = d.Pool.Exec(ctx, "DELETE FROM node_balance WHERE remote_node IN ('aldea-semilla-viva', 'comunidad-rio-claro', 'ecoaldea-cerro-verde', 'cooperativa-pueblo-nuevo')")
+	_, _ = d.Pool.Exec(ctx, "DELETE FROM bilateral_limits WHERE local_node = $1", nodeDomain)
+	_, _ = d.Pool.Exec(ctx, "DELETE FROM role_permissions")
 
 	// Re-seedear
 	log.Println("DemoReset: re-seedeando datos")

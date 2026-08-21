@@ -101,6 +101,11 @@ func main() {
 		if jwtSecret == "" {
 			jwtSecret = "demo-jwt-secret"
 		}
+		log.Println("Demo mode: resetting demo data for domain", demoDom)
+		// Siempre resetear datos demo al arrancar (es demo, no debe persistir cambios)
+		if err := db.DemoReset(ctx, database, demoDom); err != nil {
+			log.Printf("Warning: demo reset failed: %v", err)
+		}
 		log.Println("Demo mode: running auto-setup for domain", demoDom)
 		if err := api.DemoAutoSetup(ctx, database.Pool, jwtSecret, demoDom, "Nodo Demo - Red Federada"); err != nil {
 			log.Printf("Warning: demo auto-setup failed: %v", err)
