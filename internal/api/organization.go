@@ -27,6 +27,7 @@ func (oh *OrganizationHandler) RegisterRoutes(r chi.Router) {
 
 func (oh *OrganizationHandler) RegisterRoutesWithAuth(r chi.Router, am *AuthMiddleware) {
 	r.Get("/api/organizations", oh.listOrganizations)
+	r.Get("/api/organizations/types", oh.listOrganizationTypes)
 	r.Post("/api/organizations", oh.createOrganization)
 	if am != nil {
 		r.With(am.RequirePermission("org.approve")).Post("/api/organizations/{id}/approve", oh.approveOrganization)
@@ -97,6 +98,40 @@ func (oh *OrganizationHandler) listOrganizations(w http.ResponseWriter, r *http.
 		return
 	}
 	writeJSON(w, 200, orgs)
+}
+
+func (oh *OrganizationHandler) listOrganizationTypes(w http.ResponseWriter, r *http.Request) {
+	// Devolver tipos de organizacion desde organization_levels
+	rows, err := oh.Orgs.Pool.Query(r.Context(), `
+		SELECT name, description FROM organization_levels WHERE node_domain = $1 AND is_active = true ORDER BY level, name`,
+		oh.NodeDomain)
+	if err != nil {
+		// Si no hay organization_levels, devolver tipos por defecto
+		writeJSON(w, 200, []map[string]string{
+			{"value": "org_produccion", "label": "Organizacion de Produccion"},
+			{"value": "org_consumo", "label": "Organizacion de Consumo"},
+			{"value": "org_publica", "label": "Institucion Publica"},
+			{"value": "org_cooperativa", "label": "Cooperativa"},
+		})
+		return
+	}
+	defer rows.Close()
+
+	types := []map[string]string{}
+	for rows.Next() {
+		var name, desc string
+		rows.Scan(&name, &desc)
+		types = append(types, map[string]string{"value": name, "label": desc})
+	}
+	if len(types) == 0 {
+		types = []map[string]string{
+			{"value": "org_produccion", "label": "Organizacion de Produccion"},
+			{"value": "org_consumo", "label": "Organizacion de Consumo"},
+			{"value": "org_publica", "label": "Institucion Publica"},
+			{"value": "org_cooperativa", "label": "Cooperativa"},
+		}
+	}
+	writeJSON(w, 200, types)
 }
 
 func (oh *OrganizationHandler) approveOrganization(w http.ResponseWriter, r *http.Request) {

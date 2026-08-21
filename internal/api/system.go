@@ -97,6 +97,9 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	// Fondo comunitario
 	r.With(am.RequireAuth).Get("/api/fund/balance", h.getFundBalance)
 
+	// Ledger / historial de transacciones
+	r.With(am.RequireAuth).Get("/api/ledger/transactions", h.listLedgerTransactions)
+
 	// Gobernanza - Ley de la Aldea (CRUD)
 	r.Get("/api/public/governance", h.listGovernanceRules) // publico: cualquiera puede leer
 	r.With(am.RequireAuth).Get("/api/governance/rules", h.listGovernanceRules)
@@ -1072,6 +1075,71 @@ func (h *SystemHandler) getFundBalance(w http.ResponseWriter, r *http.Request) {
 		"username":     username,
 		"balance":      balance,
 	})
+}
+
+// ===== LEDGER / HISTORIAL DE TRANSACCIONES =====
+
+func (h *SystemHandler) listLedgerTransactions(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = h.nodeDomain
+	}
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	userID := r.Header.Get("X-User-ID")
+	limit := 100
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if v, err := strconv.Atoi(l); err == nil && v > 0 && v <= 500 {
+			limit = v
+		}
+	}
+
+	query := `SELECT t.id, t.tx_type, t.sender_id, t.receiver_id, t.amount, t.tax_amount,
+			  t.status, t.created_at, t.confirmed_at,
+			  COALESCE(sender.username, '') as sender_name,
+			  COALESCE(receiver.username, '') as receiver_name
+			  FROM transactions t
+			  LEFT JOIN users sender ON t.sender_id = sender.id
+			  LEFT JOIN users receiver ON t.receiver_id = receiver.id
+			  WHERE (sender.node_domain = $1 OR receiver.node_domain = $1)`
+	args := []interface{}{nodeDomain}
+	if userID != "" {
+		query += ` AND (t.sender_id = $2 OR t.receiver_id = $2)`
+		args = append(args, userID)
+	}
+	query += ` ORDER BY t.created_at DESC LIMIT ` + strconv.Itoa(limit)
+
+	rows, err := h.Pool.Query(r.Context(), query, args...)
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+
+	txs := []map[string]interface{}{}
+	for rows.Next() {
+		var id, txType, senderID, receiverID, status, senderName, receiverName string
+		var amount, taxAmount float64
+		var confirmedAt *time.Time
+		var createdAt time.Time
+		_ = rows.Scan(&id, &txType, &senderID, &receiverID, &amount, &taxAmount, &status, &createdAt, &confirmedAt, &senderName, &receiverName)
+		txs = append(txs, map[string]interface{}{
+			"id":            id,
+			"tx_type":       txType,
+			"sender_id":     senderID,
+			"receiver_id":   receiverID,
+			"sender_name":   senderName,
+			"receiver_name": receiverName,
+			"amount":        amount,
+			"tax_amount":    taxAmount,
+			"status":        status,
+			"created_at":    createdAt,
+			"confirmed_at":  confirmedAt,
+		})
+	}
+	writeJSON(w, 200, txs)
 }
 
 // ===== AUTO-ASCENSO DE NIVEL =====

@@ -18,39 +18,39 @@ func NewOrganizations(pool *pgxpool.Pool) *Organizations {
 }
 
 type Organization struct {
-	ID                uuid.UUID  `json:"id"`
-	NodeDomain        string     `json:"node_domain"`
-	Username          string     `json:"username"`
-	DisplayName       string     `json:"display_name"`
-	AccountType       string     `json:"account_type"`
-	OrganizationSubtype string   `json:"organization_subtype"`
-	MembershipStatus  string     `json:"membership_status"`
-	IsApproved        bool       `json:"is_approved"`
-	ApprovedBy        []uuid.UUID `json:"approved_by"`
-	Balance           int64      `json:"balance"`
-	CreditLimit       int64      `json:"credit_limit"`
-	DebitLimit        int64      `json:"debit_limit"`
-	AnnualBudgetLimit *int64     `json:"annual_budget_limit"`
-	TaxRate           float64    `json:"tax_rate"`
-	RequiredSignatures int       `json:"required_signatures"`
-	AuthorizedSigners []uuid.UUID `json:"authorized_signers"`
-	PublicKey         string     `json:"public_key"`
-	CreatedAt         time.Time  `json:"created_at"`
+	ID                  uuid.UUID   `json:"id"`
+	NodeDomain          string      `json:"node_domain"`
+	Username            string      `json:"username"`
+	DisplayName         string      `json:"display_name"`
+	AccountType         string      `json:"account_type"`
+	OrganizationSubtype string      `json:"organization_subtype"`
+	MembershipStatus    string      `json:"membership_status"`
+	IsApproved          bool        `json:"is_approved"`
+	ApprovedBy          []uuid.UUID `json:"approved_by"`
+	Balance             int64       `json:"balance"`
+	CreditLimit         int64       `json:"credit_limit"`
+	DebitLimit          int64       `json:"debit_limit"`
+	AnnualBudgetLimit   *int64      `json:"annual_budget_limit"`
+	TaxRate             float64     `json:"tax_rate"`
+	RequiredSignatures  int         `json:"required_signatures"`
+	AuthorizedSigners   []uuid.UUID `json:"authorized_signers"`
+	PublicKey           string      `json:"public_key"`
+	CreatedAt           time.Time   `json:"created_at"`
 }
 
 type CreateOrganizationParams struct {
-	NodeDomain         string
-	Username           string
-	DisplayName        string
+	NodeDomain          string
+	Username            string
+	DisplayName         string
 	OrganizationSubtype string
-	CreditLimit        int64
-	DebitLimit         int64
-	AnnualBudgetLimit  *int64
-	TaxRate            float64
-	PublicKey          string
-	EncryptedPrivKey   []byte
-	KeySalt            []byte
-	CreatedBy          uuid.UUID
+	CreditLimit         int64
+	DebitLimit          int64
+	AnnualBudgetLimit   *int64
+	TaxRate             float64
+	PublicKey           string
+	EncryptedPrivKey    []byte
+	KeySalt             []byte
+	CreatedBy           uuid.UUID
 }
 
 func (o *Organizations) Create(ctx context.Context, p CreateOrganizationParams) (*Organization, error) {
@@ -104,7 +104,7 @@ func (o *Organizations) Approve(ctx context.Context, orgID, approverID uuid.UUID
 func (o *Organizations) List(ctx context.Context, nodeDomain, subtype string) ([]Organization, error) {
 	query := `SELECT id, node_domain, username, display_name, account_type, organization_subtype,
 			  membership_status, is_approved, COALESCE(approved_by, ARRAY[]::uuid[]),
-			  credit_limit, debit_limit, annual_budget_limit, tax_rate,
+			  credit_limit, debit_limit, annual_budget_limit, COALESCE(tax_rate, 0)::float8,
 			  required_signatures, COALESCE(authorized_signers, ARRAY[]::uuid[]), public_key, created_at
 			  FROM users WHERE node_domain = $1 AND account_type = 'organization'`
 	args := []interface{}{nodeDomain}
@@ -190,16 +190,16 @@ func (o *Organizations) IncreaseAnnualBudget(ctx context.Context, orgID uuid.UUI
 }
 
 type MultiSigApproval struct {
-	ID                uuid.UUID  `json:"id"`
-	ProposalType      string     `json:"proposal_type"`
-	FromAccount       uuid.UUID  `json:"from_account"`
-	ToAccount         uuid.UUID  `json:"to_account"`
-	Amount            int64      `json:"amount"`
-	RequiredSignatures int        `json:"required_signatures"`
+	ID                  uuid.UUID                `json:"id"`
+	ProposalType        string                   `json:"proposal_type"`
+	FromAccount         uuid.UUID                `json:"from_account"`
+	ToAccount           uuid.UUID                `json:"to_account"`
+	Amount              int64                    `json:"amount"`
+	RequiredSignatures  int                      `json:"required_signatures"`
 	CollectedSignatures []map[string]interface{} `json:"collected_signatures"`
-	Status            string     `json:"status"`
-	CreatedAt         time.Time  `json:"created_at"`
-	ExecutedAt        *time.Time `json:"executed_at"`
+	Status              string                   `json:"status"`
+	CreatedAt           time.Time                `json:"created_at"`
+	ExecutedAt          *time.Time               `json:"executed_at"`
 }
 
 func (o *Organizations) CreateMultiSigProposal(ctx context.Context, propType string, fromAccount, toAccount uuid.UUID, amount int64, requiredSigs int) (*MultiSigApproval, error) {

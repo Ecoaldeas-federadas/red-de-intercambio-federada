@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -1431,20 +1432,14 @@ func demoSeedOrganizations(ctx context.Context, d *DB, nodeDomain string) {
 
 		var orgID uuid.UUID
 		err := d.Pool.QueryRow(ctx, `
-			INSERT INTO users (node_domain, username, display_name, account_type, member_level_id, organization_level_id, membership_status, credit_limit, debit_limit, public_key, encrypted_private_key, encryption_key_salt)
-			VALUES ($1, $2, $3, 'organization', $4, $4, 'active', $5, $6, $7, $8, $9)
+			INSERT INTO users (node_domain, username, display_name, account_type, member_level_id, organization_level_id, organization_subtype, membership_status, is_approved, credit_limit, debit_limit, public_key, encrypted_private_key, encryption_key_salt)
+			VALUES ($1, $2, $3, 'organization', $4, $4, $5, 'active', true, $6, $7, $8, $9, $10)
 			RETURNING id`,
-			nodeDomain, org.username, org.displayName, orgLevelID, org.credit, org.debit, pubKeyHex, encryptedPrivKey, salt).Scan(&orgID)
+			nodeDomain, org.username, org.displayName, orgLevelID, org.orgType, org.credit, org.debit, pubKeyHex, encryptedPrivKey, salt).Scan(&orgID)
 		if err != nil {
 			log.Printf("Demo: error creating org %s: %v", org.username, err)
 			continue
 		}
-
-		d.Pool.Exec(ctx, `
-			INSERT INTO organizations (id, node_domain, name, org_type, account_id, is_active, created_at)
-			VALUES ($1, $2, $3, $4, $5, true, NOW())
-			ON CONFLICT DO NOTHING`,
-			uuid.New(), nodeDomain, org.displayName, org.orgType, orgID)
 	}
 }
 
@@ -1715,27 +1710,24 @@ func demoSeedAssemblyProposals(ctx context.Context, d *DB, nodeDomain string) er
 	var adminID uuid.UUID
 	d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE node_domain = $1 AND username = 'demo' LIMIT 1`, nodeDomain).Scan(&adminID)
 	if adminID == uuid.Nil {
-		// usar cualquier usuario activo
 		d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE node_domain = $1 AND account_type = 'individual' AND membership_status = 'active' LIMIT 1`, nodeDomain).Scan(&adminID)
 	}
 
-	// Verificar si ya existen propuestas
+	// Verificar si ya existen decisiones
 	var count int
-	d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM assembly_proposals WHERE node_domain = $1`, nodeDomain).Scan(&count)
+	d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM assembly_decisions WHERE assembly_id IS NULL OR node_domain IS NOT NULL`).Scan(&count)
 	if count > 0 {
-		return nil
+		// Verificar especificamente para este dominio
+		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM assembly_decisions WHERE description LIKE $1`, "%"+nodeDomain+"%").Scan(&count)
+		if count > 0 {
+			return nil
+		}
 	}
 
-	// Verificar si la tabla existe
-	var tableExists int
-	d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'assembly_proposals'`).Scan(&tableExists)
-	if tableExists == 0 {
-		log.Println("Demo: assembly_proposals table does not exist, skipping")
-		return nil
-	}
-
+	// assembly_decisions no tiene node_domain, usamos description para marcar el dominio
+	// y decision_type para el tipo de propuesta
 	proposals := []struct {
-		title, description, proposalType, status string
+		title, description, decisionType, status string
 	}{
 		{"Aprobar nuevo miembro: Tomas Gil", "Tomas ha completado su periodo de prueba de 3 meses. Participa en cayapas, asiste a asambleas. Propuesta: aceptar como miembro Brote.", "admission", "approved"},
 		{"Comprar molino de maiz comunitario", "El molino actual esta dañado. Propuesta: usar 500 TQ del Fondo Comunitario para comprar un molino manual de hierro. Beneficio: 40 familias.", "budget", "approved"},
@@ -1748,55 +1740,202 @@ func demoSeedAssemblyProposals(ctx context.Context, d *DB, nodeDomain string) er
 	}
 
 	for _, p := range proposals {
+		var existing int
+		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM assembly_decisions WHERE description = $1`, p.title).Scan(&existing)
+		if existing > 0 {
+			continue
+		}
 		_, err := d.Pool.Exec(ctx, `
-			INSERT INTO assembly_proposals (node_domain, title, description, proposal_type, status, proposed_by, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+			INSERT INTO assembly_decisions (id, assembly_id, decision_type, description, status, created_at, voting_deadline, voting_duration_minutes, approved_for_voting_by, approved_for_voting_at)
+			VALUES (gen_random_uuid(), NULL, $1, $2, $3, NOW(), NOW() + interval '7 days', 10080, $4, NOW())
 			ON CONFLICT DO NOTHING`,
-			nodeDomain, p.title, p.description, p.proposalType, p.status, adminID)
+			p.decisionType, p.title+": "+p.description, p.status, adminID)
 		if err != nil {
 			log.Printf("Demo: error seeding proposal %s: %v", p.title, err)
 		}
 	}
+
+	// Crear sesiones de asamblea pasadas y futuras
+	demoSeedAssemblySessions(ctx, d, nodeDomain)
+
 	log.Println("Demo: assembly proposals seeded")
 	return nil
 }
 
-func demoSeedFederationPeers(ctx context.Context, d *DB, nodeDomain string) error {
-	// Verificar si la tabla existe
-	var tableExists int
-	d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'federation_peers'`).Scan(&tableExists)
-	if tableExists == 0 {
-		log.Println("Demo: federation_peers table does not exist, skipping")
-		return nil
+func demoSeedAssemblySessions(ctx context.Context, d *DB, nodeDomain string) {
+	var count int
+	d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM assembly_sessions WHERE node_domain = $1`, nodeDomain).Scan(&count)
+	if count > 0 {
+		return
 	}
 
+	sessions := []struct {
+		sessionType, title, description, status string
+		startOffset                             int // horas desde ahora (negativo = pasado)
+		duration                                int // horas
+	}{
+		{"ordinary", "Asamblea Ordinaria Ene 2026", "Primera asamblea del año. Aprobacion de presupuesto, plan anual, admision de nuevos miembros.", "completed", -24 * 30 * 7, 3},
+		{"ordinary", "Asamblea Ordinaria Abr 2026", "Asamblea trimestral. Revision de balances, aprobacion de proyectos de infraestructura.", "completed", -24 * 30 * 4, 3},
+		{"ordinary", "Asamblea Ordinaria Jul 2026", "Asamblea trimestral. Eleccion de junta directiva, revision de comisiones.", "completed", -24 * 30 * 1, 3},
+		{"extraordinary", "Asamblea Extraordinaria - Emergencia Climatica", "Asamblea urgente por tormenta. Aprobacion de fondos de emergencia para reparaciones.", "completed", -24 * 14, 2},
+		{"ordinary", "Asamblea Ordinaria Oct 2026", "Asamblea trimestral. Planificacion de cosecha, presupuesto de invierno.", "scheduled", 24 * 30, 3},
+	}
+
+	for _, s := range sessions {
+		startTime := time.Now().Add(time.Duration(s.startOffset) * time.Hour)
+		endTime := startTime.Add(time.Duration(s.duration) * time.Hour)
+		_, err := d.Pool.Exec(ctx, `
+			INSERT INTO assembly_sessions (id, node_domain, session_type, title, description, start_time, end_time, status, is_presential, created_at)
+			VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, true, NOW())
+			ON CONFLICT DO NOTHING`,
+			nodeDomain, s.sessionType, s.title, s.description, startTime, endTime, s.status)
+		if err != nil {
+			log.Printf("Demo: error seeding session %s: %v", s.title, err)
+		}
+	}
+
+	// Crear junta directiva
+	demoSeedBoardMembers(ctx, d, nodeDomain)
+}
+
+func demoSeedBoardMembers(ctx context.Context, d *DB, nodeDomain string) {
+	var count int
+	d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM board_members WHERE node_domain = $1`, nodeDomain).Scan(&count)
+	if count > 0 {
+		return
+	}
+
+	// Obtener IDs de usuarios
+	type userRef struct {
+		username string
+		id       uuid.UUID
+	}
+	userMap := map[string]uuid.UUID{}
+	rows, err := d.Pool.Query(ctx, `SELECT username, id FROM users WHERE node_domain = $1 AND account_type = 'individual' AND membership_status = 'active'`, nodeDomain)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var u userRef
+		rows.Scan(&u.username, &u.id)
+		userMap[u.username] = u.id
+	}
+
+	board := []struct {
+		username, position string
+	}{
+		{"elena", "presidente"},
+		{"marcos", "vicepresidente"},
+		{"andrea", "tesorero"},
+		{"lucia", "secretario"},
+		{"sofia", "vocal1"},
+		{"diego", "vocal2"},
+		{"pablo", "vocal3"},
+	}
+
+	for _, b := range board {
+		uid, ok := userMap[b.username]
+		if !ok {
+			continue
+		}
+		_, err := d.Pool.Exec(ctx, `
+			INSERT INTO board_members (id, node_domain, user_id, position, term_start, term_end, is_active, created_at)
+			VALUES (gen_random_uuid(), $1, $2, $3, NOW() - interval '6 months', NOW() + interval '18 months', true, NOW())
+			ON CONFLICT DO NOTHING`,
+			nodeDomain, uid, b.position)
+		if err != nil {
+			log.Printf("Demo: error seeding board member %s: %v", b.username, err)
+		}
+	}
+
+	// Configurar quorum
+	d.Pool.Exec(ctx, `
+		INSERT INTO assembly_quorum_config (id, node_domain, session_type, quorum_first_call, quorum_second_call, grace_period_hours, allow_reschedule, max_recall_count, is_active, created_at, updated_at)
+		VALUES (gen_random_uuid(), $1, 'ordinary', 50.0, 30.0, 2, true, 2, true, NOW(), NOW())
+		ON CONFLICT DO NOTHING`,
+		nodeDomain)
+	d.Pool.Exec(ctx, `
+		INSERT INTO assembly_quorum_config (id, node_domain, session_type, quorum_first_call, quorum_second_call, grace_period_hours, allow_reschedule, max_recall_count, is_active, created_at, updated_at)
+		VALUES (gen_random_uuid(), $1, 'extraordinary', 66.67, 50.0, 1, true, 1, true, NOW(), NOW())
+		ON CONFLICT DO NOTHING`,
+		nodeDomain)
+
+	// Configurar tax_config con tasa de impuesto
+	var taxAccountID uuid.UUID
+	d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE node_domain = $1 AND username = 'impuestos' LIMIT 1`, nodeDomain).Scan(&taxAccountID)
+	if taxAccountID != uuid.Nil {
+		d.Pool.Exec(ctx, `
+			INSERT INTO tax_config (id, node_domain, tax_rate, tax_account_id, applies_to, min_amount, is_active, created_at, updated_at)
+			VALUES (gen_random_uuid(), $1, 0.01, $2, 'all', 0, true, NOW(), NOW())
+			ON CONFLICT DO NOTHING`,
+			nodeDomain, taxAccountID)
+	}
+}
+
+func demoSeedFederationPeers(ctx context.Context, d *DB, nodeDomain string) error {
+	// node_federation_keys no tiene node_domain, usamos added_by para marcar
 	// Verificar si ya existen peers
 	var count int
-	d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM federation_peers WHERE node_domain = $1`, nodeDomain).Scan(&count)
+	d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM node_federation_keys WHERE peer_domain LIKE '%demo%' OR peer_domain LIKE '%ecoaldea%' OR peer_domain LIKE '%aldea%'`).Scan(&count)
 	if count > 0 {
 		return nil
 	}
 
+	// Obtener el admin user para added_by
+	var adminID uuid.UUID
+	d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE node_domain = $1 AND username = 'demo' LIMIT 1`, nodeDomain).Scan(&adminID)
+	if adminID == uuid.Nil {
+		d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE node_domain = $1 LIMIT 1`, nodeDomain).Scan(&adminID)
+	}
+
+	// Generar claves públicas ficticias para los peers
 	peers := []struct {
 		domain, name, status string
-		balance              int
 	}{
-		{"ecoaldea-cerro-verde", "Ecoaldea Cerro Verde", "active", 1500},
-		{"comunidad-rio-claro", "Comunidad Rio Claro", "active", -800},
-		{"aldea-semilla-viva", "Aldea Semilla Viva", "active", 320},
-		{"cooperativa-pueblo-nuevo", "Cooperativa Pueblo Nuevo", "pending", 0},
+		{"ecoaldea-cerro-verde", "Ecoaldea Cerro Verde", "active"},
+		{"comunidad-rio-claro", "Comunidad Rio Claro", "active"},
+		{"aldea-semilla-viva", "Aldea Semilla Viva", "active"},
+		{"cooperativa-pueblo-nuevo", "Cooperativa Pueblo Nuevo", "pending"},
 	}
 
 	for _, p := range peers {
+		// Generar clave pública ficticia
+		pubKey, _, _ := ed25519.GenerateKey(rand.Reader)
+		pubKeyHex := hex.EncodeToString(pubKey)
+
 		_, err := d.Pool.Exec(ctx, `
-			INSERT INTO federation_peers (node_domain, peer_domain, peer_name, status, balance, created_at)
-			VALUES ($1, $2, $3, $4, $5, NOW())
+			INSERT INTO node_federation_keys (peer_domain, peer_name, peer_public_key, peer_endpoint, status, mutual_verified, added_by, created_at, updated_at)
+			VALUES ($1, $2, $3, '', $4, $5, $6, NOW(), NOW())
 			ON CONFLICT DO NOTHING`,
-			nodeDomain, p.domain, p.name, p.status, p.balance)
+			p.domain, p.name, pubKeyHex, p.status, p.status == "active", adminID)
 		if err != nil {
 			log.Printf("Demo: error seeding peer %s: %v", p.domain, err)
 		}
 	}
+
+	// Crear límites bilaterales para los peers activos
+	activePeers := []struct {
+		remoteNode  string
+		creditLimit int64
+		debitLimit  int64
+	}{
+		{"ecoaldea-cerro-verde", 50000, 50000},
+		{"comunidad-rio-claro", 30000, 30000},
+		{"aldea-semilla-viva", 20000, 20000},
+	}
+
+	for _, bl := range activePeers {
+		_, err := d.Pool.Exec(ctx, `
+			INSERT INTO bilateral_limits (local_node, remote_node, credit_limit, debit_limit, is_customized, local_approved, is_active, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, true, true, true, NOW(), NOW())
+			ON CONFLICT DO NOTHING`,
+			nodeDomain, bl.remoteNode, bl.creditLimit, bl.debitLimit)
+		if err != nil {
+			log.Printf("Demo: error seeding bilateral limit %s: %v", bl.remoteNode, err)
+		}
+	}
+
 	log.Println("Demo: federation peers seeded")
 	return nil
 }

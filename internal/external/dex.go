@@ -68,22 +68,20 @@ func (d *DEX) GetCurrentFC(ctx context.Context) (*ConversionFactor, error) {
 }
 
 type ExternalOperation struct {
-	ID                uuid.UUID   `json:"id"`
-	NodeDomain        string      `json:"node_domain"`
-	OperationType     string      `json:"operation_type"`
-	ProductName       string      `json:"product_name"`
-	Quantity          int64       `json:"quantity"`
-	ExternalPriceUSD  float64     `json:"external_price_usd"`
-	LocalPriceTrueque float64     `json:"local_price_trueque"`
-	FCUsed            float64     `json:"fc_used"`
-	LogisticsPct      float64     `json:"logistics_pct"`
-	ExternalTaxRate   float64     `json:"external_tax_rate"`
-	TotalTrueque      int64       `json:"total_trueque"`
-	Status            string      `json:"status"`
-	RequestedBy       uuid.UUID   `json:"requested_by"`
-	ApprovedBy        []uuid.UUID `json:"approved_by"`
-	CreatedAt         time.Time   `json:"created_at"`
-	ApprovedAt        *time.Time  `json:"approved_at"`
+	ID               uuid.UUID   `json:"id"`
+	NodeDomain       string      `json:"node_domain"`
+	OperationType    string      `json:"operation_type"`
+	ProductName      string      `json:"product_name"`
+	Quantity         int64       `json:"quantity"`
+	InternalValue    int64       `json:"internal_value"`
+	ExternalPriceUSD float64     `json:"external_value_usd"`
+	FCUsed           float64     `json:"fc_applied"`
+	BuyerSeller      string      `json:"buyer_seller"`
+	Notes            string      `json:"notes"`
+	Status           string      `json:"status"`
+	ApprovedBy       []uuid.UUID `json:"approved_by"`
+	CreatedAt        time.Time   `json:"created_at"`
+	CompletedAt      *time.Time  `json:"completed_at"`
 }
 
 type CreateOperationParams struct {
@@ -111,21 +109,17 @@ func (d *DEX) CreateOperation(ctx context.Context, p CreateOperationParams) (*Ex
 
 	var op ExternalOperation
 	err = d.Pool.QueryRow(ctx, `
-		INSERT INTO external_bridge_operations 
-		(node_domain, operation_type, product_name, quantity, external_price_usd, 
-		 local_price_trueque, fc_used, logistics_pct, external_tax_rate, total_trueque,
-		 status, requested_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending', $11)
-		RETURNING id, node_domain, operation_type, product_name, quantity, external_price_usd,
-				  local_price_trueque, fc_used, logistics_pct, external_tax_rate, total_trueque,
-				  status, requested_by, approved_by, created_at, approved_at`,
-		d.NodeDomain, p.OperationType, p.ProductName, p.Quantity, p.ExternalPriceUSD,
-		p.LocalPriceTrueque, cf.Factor, p.LogisticsPct, p.ExternalTaxRate, totalTrueque,
-		p.RequestedBy,
+		INSERT INTO external_bridge_operations
+		(node_domain, operation_type, product_name, quantity, internal_value, external_value_usd,
+		 fc_applied, status, buyer_seller, notes)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $9)
+		RETURNING id, node_domain, operation_type, product_name, quantity, internal_value, external_value_usd,
+				  fc_applied, buyer_seller, notes, status, approved_by, created_at, completed_at`,
+		d.NodeDomain, p.OperationType, p.ProductName, p.Quantity, totalTrueque,
+		p.ExternalPriceUSD, cf.Factor, p.RequestedBy.String(), "",
 	).Scan(&op.ID, &op.NodeDomain, &op.OperationType, &op.ProductName, &op.Quantity,
-		&op.ExternalPriceUSD, &op.LocalPriceTrueque, &op.FCUsed, &op.LogisticsPct,
-		&op.ExternalTaxRate, &op.TotalTrueque, &op.Status, &op.RequestedBy,
-		&op.ApprovedBy, &op.CreatedAt, &op.ApprovedAt)
+		&op.InternalValue, &op.ExternalPriceUSD, &op.FCUsed, &op.BuyerSeller,
+		&op.Notes, &op.Status, &op.ApprovedBy, &op.CreatedAt, &op.CompletedAt)
 	if err != nil {
 		return nil, fmt.Errorf("creating external operation: %w", err)
 	}
@@ -159,9 +153,8 @@ func (d *DEX) RejectOperation(ctx context.Context, opID uuid.UUID, reason string
 }
 
 func (d *DEX) ListOperations(ctx context.Context, status string) ([]ExternalOperation, error) {
-	query := `SELECT id, node_domain, operation_type, product_name, quantity, external_price_usd,
-			  local_price_trueque, fc_used, logistics_pct, external_tax_rate, total_trueque,
-			  status, requested_by, COALESCE(approved_by, ARRAY[]::uuid[]), created_at, approved_at
+	query := `SELECT id, node_domain, operation_type, product_name, quantity, internal_value, external_value_usd,
+			  fc_applied, COALESCE(buyer_seller, ''), COALESCE(notes, ''), status, COALESCE(approved_by, ARRAY[]::uuid[]), created_at, completed_at
 			  FROM external_bridge_operations WHERE node_domain = $1`
 	args := []interface{}{d.NodeDomain}
 	if status != "" {
@@ -180,9 +173,8 @@ func (d *DEX) ListOperations(ctx context.Context, status string) ([]ExternalOper
 	for rows.Next() {
 		var op ExternalOperation
 		err := rows.Scan(&op.ID, &op.NodeDomain, &op.OperationType, &op.ProductName, &op.Quantity,
-			&op.ExternalPriceUSD, &op.LocalPriceTrueque, &op.FCUsed, &op.LogisticsPct,
-			&op.ExternalTaxRate, &op.TotalTrueque, &op.Status, &op.RequestedBy,
-			&op.ApprovedBy, &op.CreatedAt, &op.ApprovedAt)
+			&op.InternalValue, &op.ExternalPriceUSD, &op.FCUsed, &op.BuyerSeller,
+			&op.Notes, &op.Status, &op.ApprovedBy, &op.CreatedAt, &op.CompletedAt)
 		if err != nil {
 			return nil, fmt.Errorf("scanning operation: %w", err)
 		}
@@ -194,15 +186,13 @@ func (d *DEX) ListOperations(ctx context.Context, status string) ([]ExternalOper
 func (d *DEX) GetOperation(ctx context.Context, opID uuid.UUID) (*ExternalOperation, error) {
 	var op ExternalOperation
 	err := d.Pool.QueryRow(ctx, `
-		SELECT id, node_domain, operation_type, product_name, quantity, external_price_usd,
-			  local_price_trueque, fc_used, logistics_pct, external_tax_rate, total_trueque,
-			  status, requested_by, COALESCE(approved_by, ARRAY[]::uuid[]), created_at, approved_at
+		SELECT id, node_domain, operation_type, product_name, quantity, internal_value, external_value_usd,
+			  fc_applied, COALESCE(buyer_seller, ''), COALESCE(notes, ''), status, COALESCE(approved_by, ARRAY[]::uuid[]), created_at, completed_at
 		FROM external_bridge_operations WHERE id = $1`,
 		opID,
 	).Scan(&op.ID, &op.NodeDomain, &op.OperationType, &op.ProductName, &op.Quantity,
-		&op.ExternalPriceUSD, &op.LocalPriceTrueque, &op.FCUsed, &op.LogisticsPct,
-		&op.ExternalTaxRate, &op.TotalTrueque, &op.Status, &op.RequestedBy,
-		&op.ApprovedBy, &op.CreatedAt, &op.ApprovedAt)
+		&op.InternalValue, &op.ExternalPriceUSD, &op.FCUsed, &op.BuyerSeller,
+		&op.Notes, &op.Status, &op.ApprovedBy, &op.CreatedAt, &op.CompletedAt)
 	if err != nil {
 		return nil, fmt.Errorf("getting operation: %w", err)
 	}

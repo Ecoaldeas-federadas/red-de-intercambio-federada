@@ -88,18 +88,7 @@ export default function Organizations() {
 
   const loadTypes = async () => {
     try {
-      const res = await fetch('/api/organizations/types', {
-        headers: { 'Content-Type': 'application/json' },
-      })
-      if (res.status === 404) {
-        setOrgTypes(DEFAULT_ORG_TYPES)
-        return
-      }
-      if (!res.ok) {
-        setOrgTypes(DEFAULT_ORG_TYPES)
-        return
-      }
-      const data = await res.json()
+      const data = await api.get('/organizations/types')
       const types = Array.isArray(data) ? data : data?.types
       if (Array.isArray(types) && types.length > 0) {
         setOrgTypes(types)

@@ -1,21 +1,44 @@
-fix: excluir productos compuestos del catalogo (admin y publico)
+fix: errores 500/404 en demo + tablas correctas + endpoints faltantes
 
-Los productos compuestos (is_composite=true) NO deben aparecer en
-la lista de productos del catalogo. Solo aparecen en la tienda
-como store_items.
+Problemas arreglados:
 
-Cambios:
-- listPublicProducts: agregar AND COALESCE(is_composite, false) = false
-- listProducts (admin): agregar AND COALESCE(is_composite, false) = false
+1. /api/organizations 500:
+   - tax_rate es numeric en BD, no se puede escanear a float64
+   - Fix: CAST(tax_rate, 0)::float8 en la query List
 
-Ahora el catalogo muestra:
-- Admin: productos aprobados + no aprobados (sin compuestos)
-- Publico: solo productos aprobados (sin compuestos)
-- Diferencia = productos no aprobados (para flujo de aprobacion)
+2. /api/organizations/types 404:
+   - No existia el endpoint
+   - Fix: agregar ruta + handler que lee de organization_levels
+   - Fix: cambiar fetch directo a api.get (respeta base path)
 
-Los productos compuestos se gestionan desde la tienda, no del
-catalogo. No necesitan aprobacion de asamblea porque se componen
-de productos ya aprobados.
+3. /api/ledger/transactions 404:
+   - No existia el endpoint
+   - Fix: agregar ruta + handler que consulta transactions con JOIN
+
+4. /api/external/operations 500:
+   - Query usaba columnas que no existen en la BD
+   - Fix: usar columnas reales (internal_value, external_value_usd,
+     fc_applied, buyer_seller, notes, completed_at)
+   - Fix: actualizar struct ExternalOperation
+
+5. demo_seed: tablas inexistentes causaban crash del demo:
+   - organizations: NO existe -> usar users con account_type=organization
+   - federation_peers: NO existe -> usar node_federation_keys
+   - assembly_proposals: NO existe -> usar assembly_decisions
+   - Fix: reescribir todas las funciones de seed
+
+6. demo_seed: agregar sesiones de asamblea (5 sesiones pasadas/futuras)
+7. demo_seed: agregar junta directiva (7 miembros con cargos)
+8. demo_seed: agregar quorum config (ordinary + extraordinary)
+9. demo_seed: agregar tax_config con tasa 1%
+10. demo_seed: agregar bilateral_limits para peers activos
+11. demo_seed: organizaciones con is_approved=true y organization_subtype
+
+12. icon.svg 404:
+   - manifest.webmanifest usaba ruta absoluta /icon.svg
+   - Fix: usar ruta relativa icon.svg
+
+13. Organizaciones: marcar is_approved=true al crear en demo
 
 Generated with [Devin](https://devin.ai)
 
