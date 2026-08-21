@@ -122,6 +122,21 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 		http.StripPrefix("/uploads/", fileServer).ServeHTTP(w, r)
 	})
 
+	// Servir imagenes estaticas del frontend desde /images/
+	// (web/public/images/ se copia a web/dist/images/ tras el build de Vite)
+	r.Get("/images/*", func(w http.ResponseWriter, r *http.Request) {
+		imgDir := "/app/web/dist/images"
+		if _, err := os.Stat(imgDir); err != nil {
+			imgDir = "./web/dist/images"
+		}
+		if _, err := os.Stat(imgDir); err != nil {
+			imgDir = "./web/public/images"
+		}
+		fileServer := http.FileServer(http.Dir(imgDir))
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		http.StripPrefix("/images/", fileServer).ServeHTTP(w, r)
+	})
+
 	// robots.txt: permitir que todos los crawlers indexen el sitio
 	r.Get("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
