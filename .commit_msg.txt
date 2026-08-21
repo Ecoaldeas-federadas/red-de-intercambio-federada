@@ -1,34 +1,30 @@
-fix: Balances reales + Wallet solo cuenta propia + Fondo separado de impuestos
+fix: Productos pendientes + historial y reportes de federacion
 
-## Causa raiz del balance 0
-ledger_entries.id es bigint (serial), no UUID. El seed insertaba
-gen_random_uuid() en un campo bigint, lo que fallaba silenciosamente.
-Resultado: 0 ledger_entries, 0 balances actualizados.
+## Productos pendientes
+- Seed crea 23 productos pendientes (is_approved=false)
+- Cafe de altura, cilantro, mango, salsa de aji, yogur de cabra,
+  bufanda, jarra, mesa, unguento, aceite de lavanda, taller de
+  ceramica, transporte en canoa, machete, pala, frijol rojo, name,
+  galletas, polen, canasta, taller construccion, aji criollo,
+  vinagre de mora, te de valeriana
+- Ahora el boton "Pendientes" muestra productos reales
 
-## Fixes
+## Historial de transacciones federadas
+- Nuevo endpoint: GET /api/federation/peer/{remoteNode}/transactions
+- Devuelve transacciones federadas con un nodo especifico
+- Cada transaccion incluye direccion (debit/credit) y descripcion
 
-### 1. Ledger entries (backend seed)
-- Quitado gen_random_uuid() del campo id (es serial/autoincrement)
-- Ahora los ledger_entries se crean correctamente
-- Los balances se calculan desde ledger_entries con UPDATE
+## Frontend FederationPeers
+- Boton "Ver historial" por cada nodo peer
+- Panel expandible con transacciones del nodo
+- Muestra salidas (rojo) y entradas (verde) con descripcion
+- Resumen con total enviado y recibido
+- Boton "Exportar CSV" para descargar informe
 
-### 2. Wallet - solo cuenta propia
-- Eliminado selector de cuentas que mostraba TODAS las cuentas
-- La billetera ahora solo muestra la cuenta personal del usuario
-- Para ver cuentas de organizaciones/departamentos, se entra desde
-  esa organizacion/departamento (cada uno tendra su billetera)
-- Funcion getDirection() que usa t.direction del backend
-- Muestra salidas (debito, rojo, -) y entradas (credito, verde, +)
-- Resumen con total entradas, total salidas y balance calculado
-
-### 3. Fondo Comunitario separado de impuestos
-- Backend getFundBalance ahora excluye username='impuestos'
-- Devuelve display_name del fondo comunitario
-- Frontend muestra "Fondo Comunitario" en vez de "impuestos"
-- Muestra contador de transacciones del fondo
-
-### 4. Dashboard
-- Agregado boton "Ver mi billetera" que lleva a /app/wallet
+## Seed de transacciones federadas
+- Agregadas 6 transacciones adicionales por peer con fechas y
+  descripciones diferentes (exportaciones e importaciones)
+- Total: 7 transacciones por nodo peer (1 inicial + 6 adicionales)
 
 Generated with [Devin](https://devin.ai)
 

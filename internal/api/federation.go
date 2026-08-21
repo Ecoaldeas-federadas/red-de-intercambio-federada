@@ -54,6 +54,7 @@ func (fh *FederationHandler) RegisterRoutesWithAuth(r chi.Router, am *AuthMiddle
 		r.Post("/api/federation/bilateral/{remoteNode}/confirm", fh.confirmBilateral)
 	}
 	r.Get("/api/federation/bilateral/{remoteNode}/history", fh.bilateralHistory)
+	r.Get("/api/federation/peer/{remoteNode}/transactions", fh.peerTransactions)
 
 	r.Get("/api/federation/parity/{remoteNode}", fh.getParityReport)
 	r.Get("/api/federation/parity", fh.listParityReports)
@@ -810,4 +811,89 @@ func (fh *FederationHandler) rejectProductProposal(w http.ResponseWriter, r *htt
 	}
 
 	writeJSON(w, 200, map[string]string{"status": "rejected"})
+}
+
+func (fh *FederationHandler) peerTransactions(w http.ResponseWriter, r *http.Request) {
+	remoteNode := chi.URLParam(r, "remoteNode")
+	if remoteNode == "" {
+		writeError(w, 400, "remoteNode is required")
+		return
+	}
+
+	limit := 100
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if v, err := strconv.Atoi(l); err == nil && v > 0 && v <= 500 {
+			limit = v
+		}
+	}
+
+	rows, err := fh.Pool.Query(r.Context(), `
+		SELECT t.id, t.tx_type, t.sender_id, t.receiver_id, t.sender_node, t.receiver_node,
+		       t.amount, t.status, t.created_at, t.confirmed_at, t.metadata,
+		       COALESCE(s.username, '') as sender_username,
+		       COALESCE(s.display_name, '') as sender_display,
+		       COALESCE(r.username, '') as receiver_username,
+		       COALESCE(r.display_name, '') as receiver_display
+		FROM transactions t
+		LEFT JOIN users s ON t.sender_id = s.id
+		LEFT JOIN users r ON t.receiver_id = r.id
+		WHERE t.tx_type = 'federation_transfer'
+		  AND (t.sender_node = $1 OR t.receiver_node = $1)
+		ORDER BY t.created_at DESC LIMIT $2`,
+		remoteNode, limit,
+	)
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+
+	var txs []map[string]interface{}
+	for rows.Next() {
+		var id, txType, senderID, receiverID, senderNode, receiverNode, status string
+		var senderUsername, senderDisplay, receiverUsername, receiverDisplay string
+		var amount float64
+		var createdAt time.Time
+		var confirmedAt *time.Time
+		var metadata []byte
+		_ = rows.Scan(&id, &txType, &senderID, &receiverID, &senderNode, &receiverNode,
+			&amount, &status, &createdAt, &confirmedAt, &metadata,
+			&senderUsername, &senderDisplay, &receiverUsername, &receiverDisplay)
+
+		description := ""
+		if len(metadata) > 0 {
+			var meta map[string]interface{}
+			if json.Unmarshal(metadata, &meta) == nil {
+				if d, ok := meta["description"].(string); ok {
+					description = d
+				}
+			}
+		}
+
+		// Direccion: si mi nodo envio, es debito; si recibi, es credito
+		direction := "credit"
+		if senderNode == fh.NodeDomain {
+			direction = "debit"
+		}
+
+		txs = append(txs, map[string]interface{}{
+			"id":               id,
+			"tx_type":          txType,
+			"sender_id":        senderID,
+			"receiver_id":      receiverID,
+			"sender_node":      senderNode,
+			"receiver_node":    receiverNode,
+			"sender_display":   senderDisplay,
+			"receiver_display": receiverDisplay,
+			"amount":           amount,
+			"status":           status,
+			"direction":        direction,
+			"description":      description,
+			"created_at":       createdAt,
+		})
+	}
+	if txs == nil {
+		txs = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, txs)
 }

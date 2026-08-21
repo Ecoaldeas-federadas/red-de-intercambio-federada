@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
-import { Globe, Plus, Trash2, Key, Copy, CheckCircle, AlertCircle, Link2, HelpCircle } from 'lucide-react'
+import { useConfig } from '../hooks/useConfig'
+import { Globe, Plus, Trash2, Key, Copy, CheckCircle, AlertCircle, Link2, HelpCircle, ArrowUpCircle, ArrowDownCircle, FileText } from 'lucide-react'
 
 interface Peer {
   peer_domain: string
@@ -22,6 +23,7 @@ interface NodeKeys {
 }
 
 export default function FederationPeers() {
+  const { currency } = useConfig()
   const { hasPermission } = usePermissions()
   const [peers, setPeers] = useState<Peer[]>([])
   const [nodeKeys, setNodeKeys] = useState<NodeKeys | null>(null)
@@ -31,6 +33,9 @@ export default function FederationPeers() {
   const [showHelp, setShowHelp] = useState(false)
   const [copied, setCopied] = useState(false)
   const [balances, setBalances] = useState<Record<string, number>>({})
+  const [expandedPeer, setExpandedPeer] = useState<string | null>(null)
+  const [peerTxs, setPeerTxs] = useState<any[]>([])
+  const [loadingTxs, setLoadingTxs] = useState(false)
 
   const canManage = hasPermission('federation.change_config')
 
@@ -99,6 +104,44 @@ export default function FederationPeers() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error')
     }
+  }
+
+  const loadPeerTxs = async (peerDomain: string) => {
+    setLoadingTxs(true)
+    setPeerTxs([])
+    try {
+      const res = await api.get<any[]>(`/federation/peer/${peerDomain}/transactions?limit=100`)
+      setPeerTxs(Array.isArray(res) ? res : [])
+    } catch {
+      setPeerTxs([])
+    }
+    setLoadingTxs(false)
+  }
+
+  const togglePeer = (peerDomain: string) => {
+    if (expandedPeer === peerDomain) {
+      setExpandedPeer(null)
+      setPeerTxs([])
+    } else {
+      setExpandedPeer(peerDomain)
+      loadPeerTxs(peerDomain)
+    }
+  }
+
+  const exportReport = (peerDomain: string) => {
+    const lines = ['Fecha,Tipo,Direccion,Monto,Descripcion,Estado']
+    peerTxs.forEach(t => {
+      const dir = t.direction === 'debit' ? 'Salida' : 'Entrada'
+      const date = String(t.created_at || '').slice(0, 19)
+      lines.push(`${date},${t.tx_type},${dir},${t.amount},"${t.description || ''}",${t.status}`)
+    })
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `federacion_${peerDomain}_${new Date().toISOString().slice(0,10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   const copyPublicKey = () => {
@@ -186,40 +229,124 @@ export default function FederationPeers() {
 
         {peers.map((p) => {
           const bal = balances[p.peer_domain] ?? 0
+          const isExpanded = expandedPeer === p.peer_domain
           return (
-          <div key={p.peer_domain} className="card flex items-center justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <Globe size={16} className="text-blue-600" />
-                <p className="font-medium">{p.peer_name || p.peer_domain}</p>
-                <span className={`text-xs px-2 py-0.5 rounded ${
-                  p.status === 'active' ? 'bg-green-100 text-green-700' :
-                  p.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                  'bg-gray-100 text-gray-600'
-                }`}>{p.status}</span>
-                {p.mutual_verified && (
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded flex items-center gap-1">
-                    <CheckCircle size={12} /> Mutuo
+          <div key={p.peer_domain} className="card">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1 flex-1">
+                <div className="flex items-center gap-2">
+                  <Globe size={16} className="text-blue-600" />
+                  <p className="font-medium">{p.peer_name || p.peer_domain}</p>
+                  <span className={`text-xs px-2 py-0.5 rounded ${
+                    p.status === 'active' ? 'bg-green-100 text-green-700' :
+                    p.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-gray-100 text-gray-600'
+                  }`}>{p.status}</span>
+                  {p.mutual_verified && (
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded flex items-center gap-1">
+                      <CheckCircle size={12} /> Mutuo
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500">{p.peer_domain}</p>
+                {p.peer_endpoint && <p className="text-xs text-gray-400">{p.peer_endpoint}</p>}
+                <code className="text-xs text-gray-400 block">{p.peer_public_key.substring(0, 24)}...</code>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-xs text-gray-600">Saldo bilateral:</span>
+                  <span className={`text-sm font-bold ${bal > 0 ? 'text-green-600' : bal < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                    {bal > 0 ? '+' : ''}{bal} {currency}
                   </span>
+                  {bal > 0 && <span className="text-xs text-green-600">(te deben)</span>}
+                  {bal < 0 && <span className="text-xs text-red-600">(debes)</span>}
+                  {bal === 0 && <span className="text-xs text-gray-400">(sin transacciones)</span>}
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 items-end">
+                <button
+                  onClick={() => togglePeer(p.peer_domain)}
+                  className="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-1"
+                >
+                  <FileText size={14} />
+                  {isExpanded ? 'Ocultar' : 'Ver historial'}
+                </button>
+                {canManage && (
+                  <button onClick={() => removePeer(p.peer_domain)} className="text-red-500 hover:text-red-700">
+                    <Trash2 size={16} />
+                  </button>
                 )}
               </div>
-              <p className="text-xs text-gray-500">{p.peer_domain}</p>
-              {p.peer_endpoint && <p className="text-xs text-gray-400">{p.peer_endpoint}</p>}
-              <code className="text-xs text-gray-400 block">{p.peer_public_key.substring(0, 24)}...</code>
-              <div className="mt-2 flex items-center gap-2">
-                <span className="text-xs text-gray-600">Saldo bilateral:</span>
-                <span className={`text-sm font-bold ${bal > 0 ? 'text-green-600' : bal < 0 ? 'text-red-600' : 'text-gray-500'}`}>
-                  {bal > 0 ? '+' : ''}{bal} TQ
-                </span>
-                {bal > 0 && <span className="text-xs text-green-600">(te deben)</span>}
-                {bal < 0 && <span className="text-xs text-red-600">(debes)</span>}
-                {bal === 0 && <span className="text-xs text-gray-400">(sin transacciones)</span>}
-              </div>
             </div>
-            {canManage && (
-              <button onClick={() => removePeer(p.peer_domain)} className="text-red-500 hover:text-red-700">
-                <Trash2 size={16} />
-              </button>
+
+            {/* Historial de transacciones expandible */}
+            {isExpanded && (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-semibold">Transacciones con {p.peer_name || p.peer_domain}</h4>
+                  {peerTxs.length > 0 && (
+                    <button
+                      onClick={() => exportReport(p.peer_domain)}
+                      className="text-xs px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 flex items-center gap-1"
+                    >
+                      <FileText size={14} /> Exportar CSV
+                    </button>
+                  )}
+                </div>
+
+                {loadingTxs ? (
+                  <p className="text-gray-500 text-sm py-4">Cargando transacciones...</p>
+                ) : peerTxs.length === 0 ? (
+                  <p className="text-gray-500 text-sm py-4">No hay transacciones con este nodo.</p>
+                ) : (
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {peerTxs.map((t, i) => {
+                      const isDebit = t.direction === 'debit'
+                      const amount = t.amount || 0
+                      return (
+                        <div key={i} className="flex items-center justify-between p-2 border border-gray-100 rounded-lg hover:bg-gray-50">
+                          <div className="flex items-center gap-2">
+                            {isDebit ? (
+                              <ArrowUpCircle size={16} className="text-red-500" />
+                            ) : (
+                              <ArrowDownCircle size={16} className="text-green-500" />
+                            )}
+                            <div>
+                              <p className="text-sm font-medium">
+                                {isDebit ? 'Enviado a ' : 'Recibido de '}
+                                <span className="font-semibold">{isDebit ? (t.receiver_display || t.receiver_node) : (t.sender_display || t.sender_node)}</span>
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {String(t.created_at || '').slice(0, 16).replace('T', ' ')}
+                                {t.description ? ` - ${t.description}` : ''}
+                              </p>
+                            </div>
+                          </div>
+                          <div className={`font-bold text-sm ${isDebit ? 'text-red-600' : 'text-green-600'}`}>
+                            {isDebit ? '-' : '+'}{amount} {currency}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {/* Resumen */}
+                {!loadingTxs && peerTxs.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-gray-600">Total enviado:</p>
+                      <p className="font-bold text-red-600">
+                        -{peerTxs.filter(t => t.direction === 'debit').reduce((s, t) => s + (t.amount || 0), 0)} {currency}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600">Total recibido:</p>
+                      <p className="font-bold text-green-600">
+                        +{peerTxs.filter(t => t.direction === 'credit').reduce((s, t) => s + (t.amount || 0), 0)} {currency}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
           )

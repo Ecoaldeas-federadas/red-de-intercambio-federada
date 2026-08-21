@@ -1280,6 +1280,52 @@ func demoSeedProducts(ctx context.Context, d *DB, nodeDomain string) error {
 		}
 	}
 
+	// Productos pendientes de aprobacion (no aprobados)
+	pendingProducts := []struct {
+		parentCat, cat, subcat, name, unit, desc, badge string
+		price                                           int
+	}{
+		{"Agricultura", "Cultivos", "Granos", "Cafe de altura (1kg)", "kg", "Cafe arabica cultivado a 1400m, tostado artesanal", "organico", 90},
+		{"Agricultura", "Cultivos", "Hortalizas", "Cilantro fresco (atado)", "atado", "Cilantro del huerto comunitario", "fresco", 10},
+		{"Agricultura", "Cultivos", "Frutas", "Mango de rio (1kg)", "kg", "Mango de arboles a orillas del arroyo", "temporal", 25},
+		{"Alimentacion", "Derivados", "Conservas", "Salsa de ají criollo", "frasco", "Salsa picante de aji nativo", "artesanal", 35},
+		{"Alimentacion", "Derivados", "Lacteos", "Yogur de cabra (500ml)", "botella", "Yogur natural de leche de cabra", "artesanal", 30},
+		{"Artesania", "Textiles", "Tejidos", "Bufanda de lana (unidad)", "unidad", "Bufanda tejida a mano con lana de oveja", "artesanal", 80},
+		{"Artesania", "Ceramica", "Vajilla", "Jarra de barro (1L)", "unidad", "Jarra de barro cocido artesanal", "artesanal", 65},
+		{"Artesania", "Madera", "Muebles", "Mesa rustica de cedro", "unidad", "Mesa de cedro del bosque comunitario", "artesanal", 450},
+		{"Salud y Medicina", "Natural", "Hierbas", "Unguento de calendula (50g)", "tarro", "Unguento cicatrizante de caléndula", "natural", 28},
+		{"Salud y Medicina", "Natural", "Aceites", "Aceite de lavanda (50ml)", "botella", "Aceite esencial de lavanda relajante", "natural", 55},
+		{"Servicios", "Comunitarios", "Educacion", "Taller de ceramica (3h)", "taller", "Taller practico de ceramica para principiantes", "educativo", 90},
+		{"Servicios", "Comunitarios", "Transporte", "Transporte en canoa", "viaje", "Transporte por rio en canoa comunitaria", "servicio", 50},
+		{"Herramientas", "Agricolas", "Manuales", "Machete de monte", "unidad", "Machete forjado en la herreria comunitaria", "util", 70},
+		{"Herramientas", "Agricolas", "Manuales", "Pala de punta", "unidad", "Pala de punta para excavacion", "util", 85},
+		{"Agricultura", "Cultivos", "Granos", "Frijol rojo (1kg)", "kg", "Frijol rojo criollo de altura", "nativo", 38},
+		{"Agricultura", "Cultivos", "Raices", "Name de monte (1kg)", "kg", "Name cultivado en bancales de sombra", "nativo", 18},
+		{"Alimentacion", "Derivados", "Panaderia", "Galletas de avena (500g)", "paquete", "Galletas artesanales de avena y miel", "artesanal", 25},
+		{"Alimentacion", "Derivados", "Miel", "Polen de abejas (100g)", "frasco", "Polen fresco de abejas nativas", "natural", 40},
+		{"Artesania", "Cesteria", "Cestas", "Canasta grande de bambu", "unidad", "Canasta grande tejida con bambu del bosque", "artesanal", 110},
+		{"Servicios", "Comunitarios", "Construccion", "Taller de construccion natural (2 dias)", "taller", "Taller intensivo de construccion con barro y paja", "educativo", 200},
+		{"Agricultura", "Cultivos", "Hortalizas", "Aji criollo (500g)", "paquete", "Aji nativo picante del huerto", "nativo", 20},
+		{"Alimentacion", "Derivados", "Conservas", "Vinagre de mora (250ml)", "botella", "Vinagre artesanal de mora de monte", "artesanal", 32},
+		{"Salud y Medicina", "Natural", "Hierbas", "Te de valeriana (100g)", "paquete", "Te relajante de valeriana del huerto", "natural", 22},
+	}
+
+	for _, p := range pendingProducts {
+		var existing int
+		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM products WHERE node_domain = $1 AND name = $2`, nodeDomain, p.name).Scan(&existing)
+		if existing > 0 {
+			continue
+		}
+
+		_, err := d.Pool.Exec(ctx, `
+			INSERT INTO products (node_domain, parent_category, category, subcategory, name, unit, description, price_per_unit, badge, image_url, is_active, is_approved)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, '', true, false)`,
+			nodeDomain, p.parentCat, p.cat, p.subcat, p.name, p.unit, p.desc, p.price, p.badge)
+		if err != nil {
+			log.Printf("Demo: error seeding pending product %s: %v", p.name, err)
+		}
+	}
+
 	return nil
 }
 
@@ -2071,17 +2117,47 @@ func demoSeedParityReports(ctx context.Context, d *DB, nodeDomain string) {
 
 		// Crear transacciones federadas para generar reportes de paridad
 		if adminID != uuid.Nil {
+			// Transaccion principal (balance inicial)
 			txID := uuid.New()
 			d.Pool.Exec(ctx, `
 				INSERT INTO transactions (id, tx_type, sender_id, receiver_id, sender_node, receiver_node, amount, status, metadata, created_at, confirmed_at)
-				VALUES ($1, 'federation_transfer', $2, $2, $3, $4, $5, 'completed', '{"type": "federation", "description": "Intercambio federado"}', NOW() - interval '15 days', NOW() - interval '15 days')`,
+				VALUES ($1, 'federation_transfer', $2, $2, $3, $4, $5, 'completed', '{"type": "federation", "description": "Intercambio federado inicial"}', NOW() - interval '15 days', NOW() - interval '15 days')`,
 				txID, adminID, nodeDomain, p.peerDomain, p.balance)
 
-			// Audit log para federación
-			d.Pool.Exec(ctx, `
-				INSERT INTO audit_log (actor_id, action, details, created_at)
-				VALUES ($1, 'federation', $2, NOW() - interval '15 days')`,
-				adminID, fmt.Sprintf(`{"peer": "%s", "amount": %d, "type": "parity_check"}`, p.peerDomain, p.balance))
+			// Transacciones adicionales con diferentes fechas y descripciones
+			fedTxns := []struct {
+				amount    int64
+				desc      string
+				daysAgo   int
+				direction string // "out" = envias, "in" = recibes
+			}{
+				{120, "Exportacion: Miel organica (10kg)", 12, "out"},
+				{80, "Importacion: Herramientas de jardin", 10, "in"},
+				{150, "Exportacion: Cafe de altura (5kg)", 8, "out"},
+				{60, "Importacion: Medicamentos basicos", 6, "in"},
+				{200, "Exportacion: Artesania textil (lote)", 4, "out"},
+				{90, "Importacion: Sal de cocina (50kg)", 2, "in"},
+			}
+			for _, ft := range fedTxns {
+				ftxID := uuid.New()
+				senderNode := nodeDomain
+				receiverNode := p.peerDomain
+				if ft.direction == "in" {
+					senderNode = p.peerDomain
+					receiverNode = nodeDomain
+				}
+				d.Pool.Exec(ctx, `
+					INSERT INTO transactions (id, tx_type, sender_id, receiver_id, sender_node, receiver_node, amount, status, metadata, created_at, confirmed_at)
+					VALUES ($1, 'federation_transfer', $2, $2, $3, $4, $5, 'completed', $6, NOW() - interval '1 day' * $7, NOW() - interval '1 day' * $7)`,
+					ftxID, adminID, senderNode, receiverNode, ft.amount,
+					fmt.Sprintf(`{"type": "federation", "description": "%s"}`, ft.desc), ft.daysAgo)
+
+				// Audit log
+				d.Pool.Exec(ctx, `
+					INSERT INTO audit_log (actor_id, action, details, created_at)
+					VALUES ($1, 'federation', $2, NOW() - interval '1 day' * $3)`,
+					adminID, fmt.Sprintf(`{"peer": "%s", "amount": %d, "description": "%s"}`, p.peerDomain, ft.amount, ft.desc), ft.daysAgo)
+			}
 		}
 	}
 
