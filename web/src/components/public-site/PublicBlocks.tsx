@@ -644,7 +644,7 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
   // If source is "backend", load real products from the API
   const useBackend = (data as any).source === 'backend'
 
-  const PAGE_SIZE = 24
+  const PAGE_SIZE = 48
 
   const loadProducts = useCallback((reset = false) => {
     if (!useBackend) return
@@ -848,11 +848,19 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
 
       {/* Sentinel para infinite scroll (solo backend) */}
       {useBackend && hasMore && (
-        <div ref={sentinelRef} className="flex justify-center py-6">
+        <div ref={sentinelRef} className="flex flex-col items-center justify-center py-6 gap-3">
           {loading ? (
             <div className="animate-pulse text-emerald-700 text-sm">Cargando más productos...</div>
           ) : (
-            <span className="text-xs text-gray-400">Desliza para ver más...</span>
+            <>
+              <span className="text-xs text-gray-400">Desliza para ver más...</span>
+              <button
+                onClick={() => loadProducts(false)}
+                className="px-6 py-2.5 rounded-xl font-bold text-white bg-emerald-700 hover:bg-emerald-600 transition text-sm shadow"
+              >
+                Cargar más productos
+              </button>
+            </>
           )}
         </div>
       )}
