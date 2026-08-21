@@ -21,9 +21,11 @@ import Audit from './pages/Audit'
 import ExternalBridge from './pages/ExternalBridge'
 import Admission from './pages/Admission'
 import Organizations from './pages/Organizations'
+import OrganizationDetail from './pages/OrganizationDetail'
 import Payments from './pages/Payments'
 import Recovery from './pages/Recovery'
 import Departments from './pages/Departments'
+import DepartmentDetail from './pages/DepartmentDetail'
 import Governance from './pages/Governance'
 import NFCTerminals from './pages/NFCTerminals'
 import FederationPeers from './pages/FederationPeers'
@@ -90,12 +92,14 @@ function AppInner() {
         <Route path="/app/federation/limits" element={<Layout><FederationLimits /></Layout>} />
         <Route path="/app/federation/parity" element={<Layout><Parity /></Layout>} />
         <Route path="/app/organizations" element={<Layout><Organizations /></Layout>} />
+        <Route path="/app/organizations/:id" element={<Layout><OrganizationDetail /></Layout>} />
         <Route path="/app/assembly" element={<Layout><Assembly /></Layout>} />
         <Route path="/app/audit" element={<Layout><Audit /></Layout>} />
         <Route path="/app/external" element={<Layout><ExternalBridge /></Layout>} />
         <Route path="/app/admission" element={<Layout><Admission /></Layout>} />
         <Route path="/app/recovery" element={<Layout><Recovery /></Layout>} />
         <Route path="/app/departments" element={<Layout><Departments /></Layout>} />
+        <Route path="/app/departments/:id" element={<Layout><DepartmentDetail /></Layout>} />
         <Route path="/app/governance" element={<Layout><Governance /></Layout>} />
         <Route path="/app/nfc-terminals" element={<Layout><NFCTerminals /></Layout>} />
         <Route path="/app/federation/peers" element={<Layout><FederationPeers /></Layout>} />

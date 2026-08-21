@@ -1,0 +1,403 @@
+import { useState, useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { api } from '../api'
+import { useConfig } from '../hooks/useConfig'
+import { usePermissions } from '../hooks/usePermissions'
+import { ArrowLeft, Users, Wallet as WalletIcon, Vote as VoteIcon, Settings, Crown, Plus, Trash2, ArrowUpCircle, ArrowDownCircle, FileText } from 'lucide-react'
+import ScopedAssembly from '../components/ScopedAssembly'
+
+export default function OrganizationDetail() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const { currency } = useConfig()
+  const { hasPermission } = usePermissions()
+  const [tab, setTab] = useState<'info' | 'board' | 'members' | 'wallet' | 'assembly'>('info')
+  const [org, setOrg] = useState<any>(null)
+  const [boardMembers, setBoardMembers] = useState<any[]>([])
+  const [allUsers, setAllUsers] = useState<any[]>([])
+  const [orgMembers, setOrgMembers] = useState<any[]>([])
+  const [txs, setTxs] = useState<any[]>([])
+  const [balance, setBalance] = useState(0)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [boardForm, setBoardForm] = useState({ user_id: '', position: 'presidente' })
+  const [multisig, setMultisig] = useState<any>(null)
+  const [multisigForm, setMultisigForm] = useState({ required_signatures: 1, authorized_signers: [] as string[] })
+
+  const canManage = hasPermission('org.manage')
+
+  const load = () => {
+    if (!id) return
+    api.get(`/organizations`).then((d: any) => {
+      const list = Array.isArray(d) ? d : []
+      const found = list.find((o: any) => o.id === id)
+      setOrg(found || null)
+    }).catch(() => {})
+
+    api.get(`/organizations/${id}/board`).then((d: any) => {
+      setBoardMembers(Array.isArray(d) ? d : [])
+    }).catch(() => {})
+
+    api.get('/accounts/list').then((d: any) => {
+      setAllUsers(Array.isArray(d) ? d : [])
+    }).catch(() => {})
+
+    // Cargar miembros de la organizacion (usuarios con parent_organization_id = org)
+    // Por ahora usamos allUsers filtrado si tiene campo organization_id
+
+    // Cargar billetera
+    if (org?.id) {
+      api.get(`/ledger/transactions?account_id=${org.id}&limit=100`).then((d: any) => {
+        setTxs(Array.isArray(d) ? d : [])
+      }).catch(() => {})
+      api.get(`/accounts/${org.id}`).then((d: any) => {
+        setBalance(d?.balance ?? 0)
+      }).catch(() => {})
+    }
+
+    // Cargar multisig
+    api.get(`/organizations/${id}/multisig`).then((d: any) => {
+      setMultisig(d)
+      if (d?.required_signatures) {
+        setMultisigForm({
+          required_signatures: d.required_signatures,
+          authorized_signers: (d.authorized_signers || []).map((s: any) => s.user_id || s.id),
+        })
+      }
+    }).catch(() => {})
+  }
+
+  useEffect(() => {
+    load()
+  }, [id])
+
+  useEffect(() => {
+    if (org?.id) {
+      api.get(`/ledger/transactions?account_id=${org.id}&limit=100`).then((d: any) => {
+        setTxs(Array.isArray(d) ? d : [])
+      }).catch(() => {})
+      api.get(`/accounts/${org.id}`).then((d: any) => {
+        setBalance(d?.balance ?? 0)
+      }).catch(() => {})
+    }
+  }, [org?.id])
+
+  const assignBoard = async () => {
+    setError('')
+    if (!boardForm.user_id) {
+      setError('Selecciona un usuario')
+      return
+    }
+    try {
+      await api.post(`/organizations/${id}/board`, boardForm)
+      setSuccess('Miembro asignado a la junta directiva')
+      setBoardForm({ user_id: '', position: 'presidente' })
+      load()
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error')
+    }
+  }
+
+  const removeBoard = async (memberId: string) => {
+    try {
+      await api.delete(`/organizations/${id}/board/${memberId}`)
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error')
+    }
+  }
+
+  const saveMultisig = async () => {
+    try {
+      await api.put(`/organizations/${id}/multisig`, multisigForm)
+      setSuccess('Configuracion multi-firma guardada')
+      setTimeout(() => setSuccess(''), 3000)
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error')
+    }
+  }
+
+  const fmtAmount = (n: number) => Math.round(n * 100) / 100
+
+  if (!org) {
+    return (
+      <div className="space-y-4">
+        <button onClick={() => navigate('/app/organizations')} className="text-trueque-600 flex items-center gap-1">
+          <ArrowLeft size={16} /> Volver
+        </button>
+        <p className="text-gray-500">Cargando organizacion...</p>
+      </div>
+    )
+  }
+
+  const POSITIONS = [
+    { value: 'presidente', label: 'Presidente' },
+    { value: 'vicepresidente', label: 'Vicepresidente' },
+    { value: 'secretario', label: 'Secretario/a' },
+    { value: 'tesorero', label: 'Tesorero/a' },
+    { value: 'vocal', label: 'Vocal' },
+  ]
+
+  const tabs = [
+    { key: 'info', label: 'Informacion', icon: <Settings size={16} /> },
+    { key: 'board', label: 'Junta Directiva', icon: <Crown size={16} /> },
+    { key: 'members', label: 'Miembros', icon: <Users size={16} /> },
+    { key: 'wallet', label: 'Billetera', icon: <WalletIcon size={16} /> },
+    { key: 'assembly', label: 'Asamblea', icon: <VoteIcon size={16} /> },
+  ]
+
+  return (
+    <div className="space-y-4">
+      <button onClick={() => navigate('/app/organizations')} className="text-trueque-600 flex items-center gap-1 text-sm">
+        <ArrowLeft size={16} /> Volver a organizaciones
+      </button>
+
+      <div className="card">
+        <div className="flex items-center gap-3">
+          <div className="bg-trueque-100 rounded-full p-3">
+            <Users size={24} className="text-trueque-700" />
+          </div>
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold">{org.display_name || org.username}</h1>
+            <p className="text-sm text-gray-500">@{org.username} | {org.organization_subtype || 'Organizacion'}</p>
+          </div>
+          <span className={`text-xs px-2 py-1 rounded ${org.is_approved ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+            {org.is_approved ? 'Aprobada' : 'Pendiente'}
+          </span>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-gray-200 overflow-x-auto">
+        {tabs.map(t => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key as any)}
+            className={`px-4 py-2 text-sm font-medium flex items-center gap-1 whitespace-nowrap ${
+              tab === t.key ? 'text-trueque-700 border-b-2 border-trueque-600' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {t.icon} {t.label}
+          </button>
+        ))}
+      </div>
+
+      {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</div>}
+      {success && <div className="text-green-600 text-sm bg-green-50 p-3 rounded-lg">{success}</div>}
+
+      {/* Tab: Informacion */}
+      {tab === 'info' && (
+        <div className="card space-y-3">
+          <h2 className="font-semibold">Informacion de la Organizacion</h2>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-gray-500">Nombre:</p>
+              <p className="font-medium">{org.display_name || org.username}</p>
+            </div>
+            <div>
+              <p className="text-gray-500">Usuario:</p>
+              <p className="font-medium">@{org.username}</p>
+            </div>
+            <div>
+              <p className="text-gray-500">Tipo:</p>
+              <p className="font-medium">{org.organization_subtype || 'N/A'}</p>
+            </div>
+            <div>
+              <p className="text-gray-500">Balance:</p>
+              <p className="font-medium">{fmtAmount(balance)} {currency}</p>
+            </div>
+            <div>
+              <p className="text-gray-500">Limite credito:</p>
+              <p className="font-medium">{org.credit_limit || 0} {currency}</p>
+            </div>
+            <div>
+              <p className="text-gray-500">Limite debito:</p>
+              <p className="font-medium">{org.debit_limit || 0} {currency}</p>
+            </div>
+          </div>
+          <p className="text-xs text-gray-400">
+            Para transferir a esta organizacion, usa su usuario @{org.username} como destinatario.
+          </p>
+        </div>
+      )}
+
+      {/* Tab: Junta Directiva */}
+      {tab === 'board' && (
+        <div className="space-y-4">
+          <div className="card space-y-3">
+            <h2 className="font-semibold flex items-center gap-2"><Crown size={18} /> Junta Directiva</h2>
+            <p className="text-xs text-gray-500">Los cargos asignados definen quienes pueden tomar decisiones en nombre de la organizacion.</p>
+
+            {boardMembers.length === 0 ? (
+              <p className="text-gray-500 text-sm">No hay miembros en la junta directiva.</p>
+            ) : (
+              <div className="space-y-2">
+                {boardMembers.map((m, i) => (
+                  <div key={i} className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                    <div>
+                      <span className="font-medium">{m.display_name || m.username}</span>
+                      <span className="ml-2 text-xs bg-trueque-100 text-trueque-700 px-2 py-0.5 rounded">{m.position}</span>
+                    </div>
+                    {canManage && (
+                      <button onClick={() => removeBoard(m.id)} className="text-red-500 hover:text-red-700">
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {canManage && (
+              <div className="border-t pt-3 space-y-2">
+                <h3 className="text-sm font-medium">Asignar nuevo miembro</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <select className="input" value={boardForm.user_id} onChange={(e) => setBoardForm({ ...boardForm, user_id: e.target.value })}>
+                    <option value="">Seleccionar...</option>
+                    {allUsers.map((u: any) => (
+                      <option key={u.id} value={u.id}>{u.display_name || u.username} ({u.username})</option>
+                    ))}
+                  </select>
+                  <select className="input" value={boardForm.position} onChange={(e) => setBoardForm({ ...boardForm, position: e.target.value })}>
+                    {POSITIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                  </select>
+                </div>
+                <button onClick={assignBoard} className="btn-primary text-sm">Asignar</button>
+              </div>
+            )}
+          </div>
+
+          {/* Multi-firma */}
+          <div className="card space-y-3">
+            <h2 className="font-semibold flex items-center gap-2"><Settings size={18} /> Multi-firma</h2>
+            <p className="text-xs text-gray-500">Selecciona quienes deben firmar para aprobar transacciones de esta organizacion.</p>
+
+            <div>
+              <label className="label">Firmas requeridas</label>
+              <input
+                type="number"
+                min={1}
+                className="input"
+                value={multisigForm.required_signatures}
+                onChange={(e) => setMultisigForm({ ...multisigForm, required_signatures: parseInt(e.target.value) || 1 })}
+              />
+            </div>
+
+            <div>
+              <label className="label">Personas autorizadas a firmar</label>
+              <div className="space-y-1 max-h-48 overflow-y-auto border rounded-lg p-2">
+                {allUsers.map((u: any) => (
+                  <label key={u.id} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={multisigForm.authorized_signers.includes(u.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setMultisigForm({ ...multisigForm, authorized_signers: [...multisigForm.authorized_signers, u.id] })
+                        } else {
+                          setMultisigForm({ ...multisigForm, authorized_signers: multisigForm.authorized_signers.filter((s) => s !== u.id) })
+                        }
+                      }}
+                    />
+                    {u.display_name || u.username} ({u.username})
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {canManage && (
+              <button onClick={saveMultisig} className="btn-primary text-sm">Guardar configuracion</button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Miembros */}
+      {tab === 'members' && (
+        <div className="card space-y-3">
+          <h2 className="font-semibold flex items-center gap-2"><Users size={18} /> Miembros de la Organizacion</h2>
+          <p className="text-xs text-gray-500">Los miembros pueden ver las actividades de la organizacion y participar en sus decisiones.</p>
+          {orgMembers.length === 0 ? (
+            <p className="text-gray-500 text-sm">No hay miembros asignados a esta organizacion.</p>
+          ) : (
+            <div className="space-y-2">
+              {orgMembers.map((m, i) => (
+                <div key={i} className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                  <span className="font-medium">{m.display_name || m.username}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab: Billetera */}
+      {tab === 'wallet' && (
+        <div className="space-y-4">
+          <div className="card">
+            <div className="bg-gradient-to-r from-trueque-600 to-trueque-700 text-white rounded-xl p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-trueque-100 text-sm">Saldo de {org.display_name || org.username}</p>
+                  <p className="text-4xl font-bold mt-1">
+                    {balance >= 0 ? '+' : ''}{fmtAmount(balance)} {currency}
+                  </p>
+                  <p className="text-trueque-200 text-xs mt-2">
+                    Cuenta: @{org.username}
+                  </p>
+                </div>
+                <WalletIcon size={48} className="text-trueque-200" />
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <h2 className="font-semibold text-lg mb-3">Movimientos</h2>
+            {txs.length === 0 ? (
+              <p className="text-gray-500 text-sm py-4">No hay transacciones en esta cuenta.</p>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {txs.map((t, i) => {
+                  const isDebit = t.direction === 'debit'
+                  const fromName = t.sender_display || t.from_user || t.sender_name || '???'
+                  const toName = t.receiver_display || t.to_user || t.receiver_name || '???'
+                  return (
+                    <div key={i} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:bg-gray-50">
+                      <div className="flex items-center gap-3">
+                        {isDebit ? (
+                          <ArrowUpCircle size={20} className="text-red-500" />
+                        ) : (
+                          <ArrowDownCircle size={20} className="text-green-500" />
+                        )}
+                        <div>
+                          <p className="text-sm font-medium">
+                            {isDebit ? 'Enviado a ' : 'Recibido de '}
+                            <span className="font-semibold">{isDebit ? toName : fromName}</span>
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {String(t.created_at || '').slice(0, 16).replace('T', ' ')}
+                            {t.description ? ` - ${t.description}` : ''}
+                          </p>
+                        </div>
+                      </div>
+                      <div className={`font-bold text-sm ${isDebit ? 'text-red-600' : 'text-green-600'}`}>
+                        {isDebit ? '-' : '+'}{fmtAmount(t.amount || 0)} {currency}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Asamblea */}
+      {tab === 'assembly' && (
+        <ScopedAssembly scope="organization" scopeId={id!} scopeName={org.display_name || org.username} />
+      )}
+    </div>
+  )
+}

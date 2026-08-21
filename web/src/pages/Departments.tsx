@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
-import { Building2, Plus, Users, Shield, Trash2, ChevronDown, ChevronRight, HelpCircle } from 'lucide-react'
+import { Building2, Plus, Users, Shield, Trash2, ChevronDown, ChevronRight, HelpCircle, ArrowRight } from 'lucide-react'
 
 interface Department {
   id: string
@@ -41,6 +42,7 @@ interface Permission {
 }
 
 export default function Departments() {
+  const navigate = useNavigate()
   const { hasPermission } = usePermissions()
   const [departments, setDepartments] = useState<Department[]>([])
   const [allPermissions, setAllPermissions] = useState<Permission[]>([])
@@ -279,9 +281,17 @@ export default function Departments() {
                 </p>
               </div>
             </div>
-            <span className={`text-xs px-2 py-1 rounded ${dept.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-              {dept.is_active ? 'Activo' : 'Inactivo'}
-            </span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={(e) => { e.stopPropagation(); navigate(`/app/departments/${dept.id}`) }}
+                className="text-sm text-trueque-600 hover:underline flex items-center gap-1 font-medium"
+              >
+                Abrir <ArrowRight size={14} />
+              </button>
+              <span className={`text-xs px-2 py-1 rounded ${dept.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                {dept.is_active ? 'Activo' : 'Inactivo'}
+              </span>
+            </div>
           </div>
 
           {expandedDept === dept.id && (

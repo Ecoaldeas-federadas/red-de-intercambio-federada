@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
-import { Users, Plus, HelpCircle, X, Crown, Trash2, Key, Vote as VoteIcon } from 'lucide-react'
+import { Users, Plus, HelpCircle, X, Crown, Trash2, Key, Vote as VoteIcon, ArrowRight } from 'lucide-react'
 import { EntitySelector } from '../components/EntitySelector'
 import { useConfig } from '../hooks/useConfig'
 import ScopedAssembly from '../components/ScopedAssembly'
@@ -60,6 +61,7 @@ const HELP_SECTIONS = [
 ]
 
 export default function Organizations() {
+  const navigate = useNavigate()
   const { currency } = useConfig()
   const [orgs, setOrgs] = useState<any[]>([])
   const [orgTypes, setOrgTypes] = useState<string[]>(DEFAULT_ORG_TYPES)
@@ -353,6 +355,12 @@ export default function Organizations() {
               {org.membership_status === 'active' && (
                 <div className="flex gap-2">
                   <button
+                    onClick={() => navigate(`/app/organizations/${org.id}`)}
+                    className="text-sm text-trueque-600 hover:underline flex items-center gap-1 font-medium"
+                  >
+                    Abrir <ArrowRight size={14} />
+                  </button>
+                  <button
                     onClick={() => {
                       if (boardOrgId === org.id) {
                         setBoardOrgId(null)
@@ -365,7 +373,7 @@ export default function Organizations() {
                     className="text-sm text-blue-600 hover:underline flex items-center gap-1"
                   >
                     <Crown size={14} />
-                    Junta Directiva
+                    Junta
                   </button>
                   <button
                     onClick={() => {

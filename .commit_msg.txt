@@ -1,25 +1,45 @@
-fix: Boton solicitar cambio limite bilateral + script reset-demo
+fix: Organizaciones y Departamentos abren como paginas con tabs
 
-## FederationLimits
-- Boton "Solicitar cambio" en cada limite bilateral
-- Modal con accion (aumentar/reducir), nuevos limites y razon
-- Crea propuesta de asamblea tipo federation_limit_change
-- La asamblea vota para aprobar el cambio
+## Problema
+Las organizaciones y departamentos solo tenian botoncitos para
+cambiar configuraciones. No se podia entrar a una pagina completa
+como la Asamblea. Los departamentos mostraban "Sin miembros" y
+"Sin roles" aunque tenian datos en la BD (codigo viejo en Docker).
 
-## reset-demo.ps1
-- Nuevo script para resetear el nodo demo con datos frescos
-- Borra todos los datos del dominio demo en la BD
-- Reconstruye y reinicia demo-app
-- El seed se ejecuta desde cero con todos los datos nuevos
-- Uso: powershell -ExecutionPolicy Bypass -File reset-demo.ps1
+## Solucion
 
-## Importante
-El update.ps1 NO borra datos existentes. Por eso los cambios al seed
-(productos pendientes, transacciones federadas, ledger_entries, etc.)
-no se ven hasta que se hace un reset completo del demo.
+### OrganizationDetail (nueva pagina)
+- Ruta: /app/organizations/:id
+- Tabs: Informacion, Junta Directiva, Miembros, Billetera, Asamblea
+- Informacion: datos de la organizacion, balance, limites
+- Junta Directiva: asignar/remover miembros con cargo
+- Billetera: saldo + movimientos con entradas/salidas
+- Asamblea: ScopedAssembly integrado
 
-Despues de git pull + update.ps1, ejecutar reset-demo.ps1 para ver
-todos los datos nuevos.
+### DepartmentDetail (nueva pagina)
+- Ruta: /app/departments/:id
+- Tabs: Informacion, Roles, Miembros, Billetera, Asamblea
+- Informacion: datos del departamento, cuenta asociada
+- Roles: crear y listar roles del departamento
+- Miembros: asignar/remover miembros con rol
+- Billetera: saldo + movimientos
+- Asamblea: ScopedAssembly integrado
+
+### Organizations.tsx
+- Agregado boton "Abrir" que navega a /app/organizations/:id
+- Botones existentes (Junta, Multi-firma, Asamblea) siguen disponibles
+
+### Departments.tsx
+- Agregado boton "Abrir" que navega a /app/departments/:id
+- Boton usa e.stopPropagation() para no expandir el card
+
+### App.tsx
+- Agregadas rutas /app/organizations/:id y /app/departments/:id
+
+## Nota
+Los departamentos ya tienen 17 miembros y 8 roles en la BD.
+El problema de "Sin miembros" era codigo viejo en Docker.
+Despues de update.ps1 + reset-demo.ps1 se veran correctamente.
 
 Generated with [Devin](https://devin.ai)
 
