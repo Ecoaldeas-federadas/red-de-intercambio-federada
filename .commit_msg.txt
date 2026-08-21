@@ -1,52 +1,24 @@
-feat: fondo comunitario + organizaciones + tienda + asamblea + federacion demo
+feat: pestañas backup/database/demo read-only en modo demo + fixes
 
-Cambios principales:
+Cambios:
 
-1. FONDO COMUNITARIO (todos los nodos):
-   - Crear cuenta 'fondo_comunitario' (tipo fund) automaticamente en
-     setup, demo_setup y startup del nodo.
-   - Crear cuenta 'impuestos' (tipo fund) automaticamente.
-   - Crear cuenta 'asamblea' (tipo organization) en demo.
-   - Esto resuelve el error "No hay cuenta de fondo comunitario" en
-     todos los nodos, no solo el demo.
+1. READ-ONLY EN MODO DEMO:
+   - Las pestañas "Copia de Seguridad", "Base de Datos" y "Nodo Demo"
+     en NodeSettings son ahora read-only cuando se esta dentro del
+     nodo demo (isDemoNode = __BASE_PATH__ === '/demo').
+   - Muestra banner amarillo "⚠️ Vista de Demostración" explicando que
+     es solo lectura.
+   - Muestra icono grande y mensaje de deshabilitado en lugar de los
+     botones/funciones.
 
-2. NIVELES DE ORGANIZACION (demo):
-   - Crear 4 niveles: org_produccion, org_consumo, org_publica,
-     org_cooperativa con sus tax rates y limites.
-   - Las organizaciones ahora se vinculan con organization_level_id.
-
-3. DEPARTAMENTOS (demo):
-   - Arreglar bug: los departamentos no tenian node_domain.
-   - Ahora se insertan con node_domain correcto.
-
-4. RUTA FEDERACION:
-   - Agregar "Nodos Federados" al menu lateral.
-   - Arreglar link en FederationLimits que usaba href="/federation/
-     peers" (no respetaba base path del demo) -> ahora usa
-     import.meta.env.BASE_URL.
-
-5. TIENDA (demo):
-   - Sembrar items de tienda para usuarios y organizaciones del demo.
-   - 20+ productos distribuidos en tiendas de: tienda_comunitaria,
-     panaderia_monte, coop_agricola, taller_textil, herreria, elena,
-     carmen, raul, isabel, marcos.
-
-6. ASAMBLEA (demo):
-   - Sembrar 8 propuestas de asamblea con diferentes estados:
-     approved, voting, pending.
-   - Incluye propuestas de admision, presupuesto, politica,
-     federacion, eleccion, aprobacion de productos.
-
-7. FEDERACION (demo):
-   - Sembrar 4 nodos federados simulados:
-     Ecoaldea Cerro Verde, Comunidad Rio Claro, Aldea Semilla Viva,
-     Cooperativa Pueblo Nuevo.
-   - Con balances y estados (active, pending).
-
-8. PRODUCTOS DEMO:
-   - Marcar productos demo como is_approved=true al sembrar.
-   - Agregar 8 productos compuestos al demo.
-   - Aumentar LIMIT de listProducts de 200 a 500.
+2. Commit anterior incluyo:
+   - Fondo comunitario automatico en todos los nodos
+   - Niveles de organizacion en demo
+   - Departamentos con node_domain correcto
+   - Ruta federation/peers arreglada + agregada al menu
+   - Items de tienda sembrados en demo
+   - Propuestas de asamblea simuladas
+   - Nodos federados simulados
 
 Generated with [Devin](https://devin.ai)
 

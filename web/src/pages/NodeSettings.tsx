@@ -22,6 +22,7 @@ const LEVEL_LABELS: Record<number, string> = {
 export default function NodeSettings() {
   const { hasPermission } = usePermissions()
   const canManage = hasPermission('config.manage')
+  const isDemoNode = (window as any).__BASE_PATH__ === '/demo'
 
   const [searchParams, setSearchParams] = useSearchParams()
   const initialTab = (searchParams.get('tab') as any) || 'general'
@@ -712,6 +713,20 @@ export default function NodeSettings() {
         <div className="card space-y-6">
           <h2 className="font-semibold flex items-center gap-2"><Database size={18} />Copia de Seguridad</h2>
 
+          {isDemoNode && (
+            <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 text-sm text-amber-800">
+              <strong>⚠️ Vista de Demostración:</strong> Esta pestaña es solo lectura en el nodo demo.
+              No se pueden crear, descargar ni restaurar copias de seguridad en modo demostración.
+            </div>
+          )}
+
+          {isDemoNode ? (
+            <div className="text-center text-gray-400 py-8">
+              <Database size={48} className="mx-auto mb-3 opacity-30" />
+              <p>Las funciones de copia de seguridad están deshabilitadas en el nodo demo.</p>
+            </div>
+          ) : (
+            <>
           {/* Descargar backup */}
           <div className="card bg-green-50 border-green-200 space-y-3">
             <h3 className="font-medium text-sm flex items-center gap-2"><Download size={16} />Descargar Copia de Seguridad</h3>
@@ -1095,6 +1110,8 @@ export default function NodeSettings() {
               )}
             </div>
           </div>
+            </>
+          )}
         </div>
       )}
 
@@ -1102,6 +1119,21 @@ export default function NodeSettings() {
       {tab === 'database' && canManage && (
         <div className="card space-y-6">
           <h2 className="font-semibold flex items-center gap-2"><HardDrive size={18} />Base de Datos</h2>
+
+          {isDemoNode && (
+            <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 text-sm text-amber-800">
+              <strong>⚠️ Vista de Demostración:</strong> Esta pestaña es solo lectura en el nodo demo.
+              No se pueden modificar nodos de base de datos ni descargar scripts en modo demostración.
+            </div>
+          )}
+
+          {isDemoNode ? (
+            <div className="text-center text-gray-400 py-8">
+              <HardDrive size={48} className="mx-auto mb-3 opacity-30" />
+              <p>Las funciones de base de datos están deshabilitadas en el nodo demo.</p>
+            </div>
+          ) : (
+        <div>
 
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
             <h3 className="font-medium flex items-center gap-2"><HelpCircle size={16} />Que son los nodos YugabyteDB?</h3>
@@ -1278,6 +1310,8 @@ export default function NodeSettings() {
             </ol>
           </div>
         </div>
+          )}
+        </div>
       )}
 
       {/* ===== NODO DEMO ===== */}
@@ -1285,6 +1319,21 @@ export default function NodeSettings() {
         <div className="card space-y-6">
           <h2 className="font-semibold flex items-center gap-2"><Globe size={18} />Nodo Demo</h2>
 
+          {isDemoNode && (
+            <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 text-sm text-amber-800">
+              <strong>⚠️ Vista de Demostración:</strong> Esta pestaña es solo lectura en el nodo demo.
+              No se puede reiniciar ni configurar el nodo demo desde aquí en modo demostración.
+            </div>
+          )}
+
+          {isDemoNode ? (
+            <div className="text-center text-gray-400 py-8">
+              <Globe size={48} className="mx-auto mb-3 opacity-30" />
+              <p>Las funciones del nodo demo están deshabilitadas cuando estás dentro del nodo demo.</p>
+              <p className="text-xs mt-2">Para gestionar el nodo demo, usa el nodo principal en http://localhost:8080</p>
+            </div>
+          ) : (
+        <div>
           <div className="card bg-emerald-50 border-emerald-200 space-y-3">
             <h3 className="font-medium text-sm flex items-center gap-2"><Globe size={16} />Que es el Nodo Demo?</h3>
             <p className="text-xs text-gray-600">
@@ -1354,6 +1403,8 @@ export default function NodeSettings() {
             </ul>
             <p className="text-xs">Cada boton entra directamente con ese rol. Password: demo1234 para todos.</p>
           </div>
+        </div>
+          )}
         </div>
       )}
 
