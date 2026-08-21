@@ -27,6 +27,7 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
   const [accounts, setAccounts] = useState<any[]>([])
   const [selectedSessionForMinutes, setSelectedSessionForMinutes] = useState<string | null>(null)
   const [minutesText, setMinutesText] = useState('')
+  const [minutesEditMode, setMinutesEditMode] = useState(false)
 
   const basePath = `/api/${scope}/${scopeId}/assembly`
 
@@ -510,10 +511,10 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
                     </>
                   ) : s.status === 'completed' ? (
                     <button
-                      onClick={() => { setSelectedSessionForMinutes(s.id); setMinutesText(s.minutes || '') }}
+                      onClick={() => { setSelectedSessionForMinutes(s.id); setMinutesText(s.minutes || ''); setMinutesEditMode(false) }}
                       className="text-xs px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 mt-2"
                     >
-                      {s.minutes ? 'Ver/editar acta' : 'Ver acta'}
+                      Ver acta
                     </button>
                   ) : (
                     <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
@@ -525,25 +526,42 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
             </div>
           )}
 
-          {/* Modal de minuta */}
+          {/* Modal de minuta/acta */}
           {selectedSessionForMinutes && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedSessionForMinutes(null)}>
               <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between p-4 border-b">
-                  <h3 className="font-bold">Minuta de la Asamblea</h3>
+                  <h3 className="font-bold">Acta de la Asamblea</h3>
                   <button onClick={() => setSelectedSessionForMinutes(null)} className="text-gray-400 hover:text-gray-600 text-xl">x</button>
                 </div>
                 <div className="p-4 space-y-3">
-                  <p className="text-sm text-gray-600">Escribe aqui todas las decisiones tomadas. Las propuestas y votaciones se agregan automaticamente.</p>
-                  <textarea
-                    className="input min-h-[300px]"
-                    placeholder="Ej:&#10;&#10;Reunion del 15 de marzo&#10;&#10;1. Se aprobo comprar materiales por 500 TQ&#10;2. Se rechazo la propuesta de cambiar el horario&#10;3. Pendiente: organizar la actividad del mes"
-                    value={minutesText}
-                    onChange={e => setMinutesText(e.target.value)}
-                  />
+                  <p className="text-sm text-gray-600">
+                    {minutesEditMode ? 'Edita el acta. Las decisiones tomadas ya estan registradas.' : 'Solo lectura. Si tienes permiso puedes editar con el boton abajo.'}
+                  </p>
+                  {minutesEditMode ? (
+                    <textarea
+                      className="input min-h-[300px]"
+                      placeholder="Ej:&#10;&#10;Reunion del 15 de marzo&#10;&#10;1. Se aprobo comprar materiales por 500 TQ&#10;2. Se rechazo la propuesta de cambiar el horario&#10;3. Pendiente: organizar la actividad del mes"
+                      value={minutesText}
+                      onChange={e => setMinutesText(e.target.value)}
+                    />
+                  ) : (
+                    <div className="bg-gray-50 rounded-lg p-4 min-h-[300px] whitespace-pre-wrap text-sm text-gray-800">
+                      {minutesText || 'No hay contenido en el acta.'}
+                    </div>
+                  )}
                   <div className="flex gap-2 justify-end">
-                    <button onClick={() => setSelectedSessionForMinutes(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
-                    <button onClick={() => saveMinutes(selectedSessionForMinutes)} className="px-4 py-2 bg-trueque-600 text-white rounded-lg hover:bg-trueque-700">Guardar</button>
+                    <button onClick={() => setSelectedSessionForMinutes(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cerrar</button>
+                    {minutesEditMode ? (
+                      <>
+                        <button onClick={() => { setMinutesEditMode(false) }} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar edicion</button>
+                        <button onClick={() => saveMinutes(selectedSessionForMinutes)} className="px-4 py-2 bg-trueque-600 text-white rounded-lg hover:bg-trueque-700">Guardar</button>
+                      </>
+                    ) : (
+                      <button onClick={() => setMinutesEditMode(true)} className="px-4 py-2 bg-trueque-600 text-white rounded-lg hover:bg-trueque-700">
+                        {minutesText ? 'Editar' : 'Escribir'}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

@@ -1,33 +1,17 @@
-fix: Departamentos con miembros, cuentas bancarias y movimientos
+fix: Acta de asamblea abre en modo lectura, editar es separado
 
-## Problema
-- Departamentos no tenian miembros (seed insertaba en tabla 'roles'
-  que no existe, la tabla real es 'department_roles')
-- Departamentos no tenian cuenta bancaria
-- Organizaciones no tenian transacciones (balance 0)
-- DemoAutoSetup tambien usaba tabla 'roles' incorrecta y 'joined_at'
-  que no existe (es 'assigned_at')
+El acta de asambleas completadas ahora se abre en modo LECTURA por defecto.
+Solo si tienes permiso (assembly.manage_board) aparece un boton "Editar"
+dentro del modal. Sin permiso, solo puedes ver el acta.
 
-## Solucion
-1. demoSeedDepartments:
-   - Usa department_roles en vez de roles
-   - Asigna 2-3 miembros reales a cada departamento
-   - Crea cuenta bancaria por departamento (account_type='department')
-   - Crea roles especificos (Coordinador, Tesorera, etc.)
-
-2. demoSeedTransactions:
-   - Agregadas transacciones con organizaciones (escuela, centro_salud)
-   - Agregadas transacciones con cuentas de departamentos
-   - Agregadas transacciones fondo -> departamentos (presupuestos)
-
-3. DemoAutoSetup:
-   - Usa department_roles en vez de roles
-   - Usa assigned_at en vez de joined_at
-   - Agrega node_domain al departamento
-
-4. DemoReset y DemoAutoSetup:
-   - Limpian department_roles y role_permissions
-   (tablas sin node_domain, se borran con DELETE completo)
+Cambios en Assembly.tsx y ScopedAssembly.tsx:
+- Nuevo estado minutesEditMode (false por defecto)
+- Boton dice "Ver acta" (no "Ver/editar acta")
+- Modal muestra texto en div de lectura (no textarea)
+- Boton "Editar" solo aparece si canManageBoard
+- Boton "Escribir" si no hay contenido y tienes permiso
+- Si no tienes permiso, no aparece boton de editar
+- Modal dice "Cerrar" en vez de "Cancelar" en modo lectura
 
 Generated with [Devin](https://devin.ai)
 

@@ -374,6 +374,7 @@ export default function Assembly() {
   const [selectedSessionForMinutes, setSelectedSessionForMinutes] = useState<string | null>(null)
   const [attendanceList, setAttendanceList] = useState<any[]>([])
   const [minutesText, setMinutesText] = useState('')
+  const [minutesEditMode, setMinutesEditMode] = useState(false)
   const [quorumConfigs, setQuorumConfigs] = useState<any[]>([])
   const [quorumResult, setQuorumResult] = useState<any>(null)
   const [rescheduleSession, setRescheduleSession] = useState<any>(null)
@@ -1530,10 +1531,10 @@ export default function Assembly() {
                         </button>
                       )}
                       <button
-                        onClick={() => { setSelectedSessionForMinutes(s.id); setMinutesText(s.minutes || '') }}
+                        onClick={() => { setSelectedSessionForMinutes(s.id); setMinutesText(s.minutes || ''); setMinutesEditMode(false) }}
                         className="text-xs px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
                       >
-                        {s.status === 'completed' ? (s.minutes ? 'Ver/editar acta' : 'Ver acta') : (s.minutes ? 'Editar minuta' : 'Escribir minuta')}
+                        {s.status === 'completed' ? 'Ver acta' : (s.minutes ? 'Ver minuta' : 'Escribir minuta')}
                       </button>
                       {(s.status === 'active' || s.status === 'waiting_quorum') && (
                         <button
@@ -1619,7 +1620,7 @@ export default function Assembly() {
             </div>
           )}
 
-          {/* Modal de minuta */}
+          {/* Modal de minuta/acta */}
           {selectedSessionForMinutes && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedSessionForMinutes(null)}>
               <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -1628,20 +1629,42 @@ export default function Assembly() {
                   <button onClick={() => setSelectedSessionForMinutes(null)} className="text-gray-400 hover:text-gray-600 text-xl">x</button>
                 </div>
                 <div className="p-4 space-y-3">
-                  <p className="text-sm text-gray-600">
-                    {selectedSessionForMinutes && sessions.find(s => s.id === selectedSessionForMinutes)?.status === 'completed'
-                      ? 'Estas viendo/editando el acta de una asamblea completada. Puedes agregar detalles adicionales pero las decisiones ya estan registradas.'
-                      : 'Escribe aqui todas las decisiones tomadas en la asamblea. Esta minuta queda registrada permanentemente como documento oficial.'}
-                  </p>
-                  <textarea
-                    className="input min-h-[300px]"
-                    placeholder="Ej:&#10;&#10;Asamblea del 15 de marzo de 2024&#10;&#10;1. Se aprobo por mayoria cambiar el limite de credito a 1000 TQ&#10;2. Se rechazo la propuesta de aumentar el impuesto al 3%&#10;3. Se admitio a Maria Rodriguez como miembro nuevo&#10;4. Pendiente: revisar el presupuesto del fondo comunitario"
-                    value={minutesText}
-                    onChange={e => setMinutesText(e.target.value)}
-                  />
+                  {selectedSessionForMinutes && sessions.find(s => s.id === selectedSessionForMinutes)?.status === 'completed' && (
+                    <p className="text-sm text-gray-600">
+                      Esta es el acta oficial de la asamblea. {minutesEditMode ? 'Puedes agregar detalles adicionales pero las decisiones ya estan registradas.' : 'Solo lectura. Si tienes permiso, puedes editar con el boton abajo.'}
+                    </p>
+                  )}
+                  {selectedSessionForMinutes && sessions.find(s => s.id === selectedSessionForMinutes)?.status !== 'completed' && !minutesEditMode && (
+                    <p className="text-sm text-gray-600">
+                      {minutesText ? 'Minuta en lectura. Usa el boton editar para modificar.' : 'No hay minuta escrita aun. Usa el boton escribir para crearla.'}
+                    </p>
+                  )}
+                  {minutesEditMode ? (
+                    <textarea
+                      className="input min-h-[300px]"
+                      placeholder="Ej:&#10;&#10;Asamblea del 15 de marzo de 2024&#10;&#10;1. Se aprobo por mayoria cambiar el limite de credito a 1000 TQ&#10;2. Se rechazo la propuesta de aumentar el impuesto al 3%&#10;3. Se admitio a Maria Rodriguez como miembro nuevo&#10;4. Pendiente: revisar el presupuesto del fondo comunitario"
+                      value={minutesText}
+                      onChange={e => setMinutesText(e.target.value)}
+                    />
+                  ) : (
+                    <div className="bg-gray-50 rounded-lg p-4 min-h-[300px] whitespace-pre-wrap text-sm text-gray-800">
+                      {minutesText || 'No hay contenido en el acta.'}
+                    </div>
+                  )}
                   <div className="flex gap-2 justify-end">
-                    <button onClick={() => setSelectedSessionForMinutes(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
-                    <button onClick={() => saveMinutes(selectedSessionForMinutes)} className="px-4 py-2 bg-trueque-600 text-white rounded-lg hover:bg-trueque-700">Guardar minuta</button>
+                    <button onClick={() => setSelectedSessionForMinutes(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cerrar</button>
+                    {minutesEditMode ? (
+                      <>
+                        <button onClick={() => { setMinutesEditMode(false) }} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar edicion</button>
+                        <button onClick={() => saveMinutes(selectedSessionForMinutes)} className="px-4 py-2 bg-trueque-600 text-white rounded-lg hover:bg-trueque-700">Guardar</button>
+                      </>
+                    ) : (
+                      (canManageBoard || sessions.find(s => s.id === selectedSessionForMinutes)?.status !== 'completed') && (
+                        <button onClick={() => setMinutesEditMode(true)} className="px-4 py-2 bg-trueque-600 text-white rounded-lg hover:bg-trueque-700">
+                          {minutesText ? 'Editar' : 'Escribir'}
+                        </button>
+                      )
+                    )}
                   </div>
                 </div>
               </div>
