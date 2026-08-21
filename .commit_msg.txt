@@ -1,21 +1,12 @@
-fix: Corregir imagenes con mal aspect ratio + actualizar BD en vivo
+fix: Reemplazar imagen oscura de Bioinsumos por una clara y brillante
 
-## Correcciones de imagenes
-- Bioinsumos y Preparados: imagen 960x1440 (negra) -> 960x720 (correcta)
-- Tierra Fertil: imagen demasiado alta -> 600x450 (landscape)
-- Estacas y Esquejes: imagen demasiado alta -> 600x450 (landscape)
-- Abonos Organicos: imagen demasiado alta -> 600x450 (landscape)
-- Copiadas a contenedores Docker en vivo
+La imagen anterior de Bioinsumos y Preparados era muy oscura
+(cuadro negro). Se reemplazo por una imagen brillante de 600x450
+con contenido verde de jardin/plantas organicas.
 
-## Nota sobre el flujo de actualizacion
-Los cambios anteriores a la BD se hicieron directamente en los
-contenedores Docker con docker exec y docker cp. Al reiniciar los
-dockers con git pull + update.ps1, los cambios se reconstruyen desde
-el codigo fuente (seed.go) que ya tiene las rutas correctas.
-
-## Cambios del usuario preservados
-- demo_seed.go: tax_rate en member_levels (raiz 0.5%, tronco 1%,
-  rama 1.5%, brote 2%)
+Todos los cambios de imagenes estan en la carpeta local (web/public),
+no en los contenedores Docker. Al hacer git pull + update.ps1 se
+cargaran automaticamente.
 
 Generated with [Devin](https://devin.ai)
 
