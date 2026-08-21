@@ -1,4 +1,4 @@
-const CACHE_NAME = 'trueque-v4'
+const CACHE_NAME = 'trueque-v5'
 const ASSETS = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg']
 
 self.addEventListener('install', (e) => {

@@ -1918,9 +1918,9 @@ func demoSeedAssemblyVotes(ctx context.Context, d *DB, nodeDomain string, adminI
 			var vote string
 			pct := i % 10
 			if pct < 7 {
-				vote = "yes"
+				vote = "for"
 			} else if pct < 9 {
-				vote = "no"
+				vote = "against"
 			} else {
 				vote = "abstain"
 			}

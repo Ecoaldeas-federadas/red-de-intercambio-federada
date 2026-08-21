@@ -941,7 +941,7 @@ export default function Assembly() {
                   </div>
 
                   {/* Tiempo limite / countdown */}
-                  {p.status === 'pending' && p.voting_deadline && (
+                  {(p.status === 'pending' || p.status === 'voting') && p.voting_deadline && (
                     <div className="mt-2 text-xs text-orange-600 font-medium">
                       {(() => {
                         const deadline = new Date(p.voting_deadline).getTime()
@@ -964,7 +964,7 @@ export default function Assembly() {
                   )}
 
                   {/* Botones de voto */}
-                  {p.status === 'pending' && (
+                  {(p.status === 'pending' || p.status === 'voting') && (
                     <div className="flex gap-2 mt-3">
                       <button onClick={() => vote(p.id, 'for')} className="btn-secondary text-green-600 flex items-center gap-1"><Check size={16} />A favor</button>
                       <button onClick={() => vote(p.id, 'against')} className="btn-secondary text-red-600 flex items-center gap-1"><X size={16} />En contra</button>

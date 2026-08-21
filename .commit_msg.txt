@@ -1,45 +1,35 @@
-fix: Organizaciones y Departamentos abren como paginas con tabs
+fix: Votos de asamblea + botones de voto para status voting + SW v5
 
-## Problema
-Las organizaciones y departamentos solo tenian botoncitos para
-cambiar configuraciones. No se podia entrar a una pagina completa
-como la Asamblea. Los departamentos mostraban "Sin miembros" y
-"Sin roles" aunque tenian datos en la BD (codigo viejo en Docker).
+## Causa raiz de votos en 0
+El CHECK constraint de assembly_votes exige:
+  vote IN ('for', 'against', 'abstain')
+Pero el seed usaba "yes" y "no" que NO son validos.
+El INSERT fallaba silenciosamente -> 0 votos en la BD.
 
-## Solucion
+## Fixes
 
-### OrganizationDetail (nueva pagina)
-- Ruta: /app/organizations/:id
-- Tabs: Informacion, Junta Directiva, Miembros, Billetera, Asamblea
-- Informacion: datos de la organizacion, balance, limites
-- Junta Directiva: asignar/remover miembros con cargo
-- Billetera: saldo + movimientos con entradas/salidas
-- Asamblea: ScopedAssembly integrado
+### 1. Seed de votos corregido
+- Cambiado "yes" -> "for"
+- Cambiado "no" -> "against"
+- "abstain" ya era correcto
+- Ahora los votos se insertan correctamente
+- 8 propuestas aprobadas tendran votos reales (70% a favor, 20% en contra, 10% abstencion)
 
-### DepartmentDetail (nueva pagina)
-- Ruta: /app/departments/:id
-- Tabs: Informacion, Roles, Miembros, Billetera, Asamblea
-- Informacion: datos del departamento, cuenta asociada
-- Roles: crear y listar roles del departamento
-- Miembros: asignar/remover miembros con rol
-- Billetera: saldo + movimientos
-- Asamblea: ScopedAssembly integrado
+### 2. Botones de voto para status 'voting'
+- Antes: botones solo aparecian si status === 'pending'
+- Ahora: botones aparecen si status === 'pending' OR 'voting'
+- Countdown tambien muestra para 'voting'
 
-### Organizations.tsx
-- Agregado boton "Abrir" que navega a /app/organizations/:id
-- Botones existentes (Junta, Multi-firma, Asamblea) siguen disponibles
+### 3. Service Worker v5
+- Bump de cache version v4 -> v5
+- Fuerza actualizacion del SW en navegadores con cache viejo
+- El error "addAll" era del cache v3/v4 que tenia codigo viejo
 
-### Departments.tsx
-- Agregado boton "Abrir" que navega a /app/departments/:id
-- Boton usa e.stopPropagation() para no expandir el card
-
-### App.tsx
-- Agregadas rutas /app/organizations/:id y /app/departments/:id
-
-## Nota
-Los departamentos ya tienen 17 miembros y 8 roles en la BD.
-El problema de "Sin miembros" era codigo viejo en Docker.
-Despues de update.ps1 + reset-demo.ps1 se veran correctamente.
+### 4. ERR_EMPTY_RESPONSE al activar demo
+- No es un bug: el demo-app tarda en arrancar
+- El frontend hace polling cada 3s hasta que responde
+- Los errores en consola son normales durante el arranque
+- Despues de ~10-30s el demo responde y se abre la ventana
 
 Generated with [Devin](https://devin.ai)
 
