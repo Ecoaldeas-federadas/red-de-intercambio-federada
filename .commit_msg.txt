@@ -1,31 +1,21 @@
-feat: Departamentos dentro de Organizaciones (no pestaña separada)
+fix: Usar picsum.photos en demo (siempre carga, nunca 404)
 
 ## Problema
-Los departamentos estaban en una pestaña separada del sidebar, mezclando
-departamentos de todas las organizaciones. Era confuso y poco practico.
+Todas las URLs de Unsplash que puse en demo_seed.go devuelven 404
+porque los IDs de fotos no existen. Unsplash no garantiza que un
+photo ID sea permanente.
 
 ## Solucion
+Reemplazadas las 41 URLs de Unsplash con picsum.photos:
+- https://picsum.photos/seed/{id}/{width}/400
+- picsum.photos SIEMPRE devuelve una imagen real (nunca 404)
+- Cada seed produce una imagen diferente pero determinista
+- Las imagenes son fotografias reales (paisajes, objetos, etc.)
 
-### 1. Pestaña "Departamentos" dentro de cada Organizacion
-- OrganizationDetail.tsx ahora tiene una pestaña "Departamentos" que
-  muestra solo los departamentos de esa organizacion
-- Se pueden crear departamentos desde ahi, ya vinculados a la org
-- Cada departamento tiene boton "Abrir" que va a su detalle
-
-### 2. Eliminada la pestaña "Departamentos" del sidebar
-- Layout.tsx ya no muestra "Departamentos" en el menu lateral
-- La ruta /app/departments/:id se mantiene para los detalles
-- La ruta /app/departments (lista) ya no es accesible desde el menu
-
-### 3. Demo seed: departamentos vinculados a la Asamblea
-- demoSeedDepartments ahora asigna parent_organization_id = asamblea
-  a todos los departamentos del demo
-- Los departamentos existentes tambien se vinculan si no lo estan
-
-### Resultado
-- Cada organizacion muestra sus propios departamentos
-- No hay departamentos "regados" de multiples organizaciones
-- Crear un departamento desde una org lo vincula automaticamente
+## Como funciona
+- Las fotos se cargan desde picsum.photos (servicio gratuito y estable)
+- Si por alguna razon picsum no carga, el onError muestra el placeholder
+- El demo se ve con fotos reales, no con placeholders
 
 Generated with [Devin](https://devin.ai)
 
