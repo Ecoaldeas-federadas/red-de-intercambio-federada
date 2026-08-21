@@ -1412,11 +1412,11 @@ func demoSeedUsers(ctx context.Context, d *DB, nodeDomain string) error {
 		var existing int
 		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM users WHERE username = $1 AND node_domain = $2`, u.username, nodeDomain).Scan(&existing)
 		if existing > 0 {
-			// Actualizar usuario existente: asegurar nivel y limites correctos
+			// Actualizar usuario existente: asegurar nombre, nivel y limites correctos
 			d.Pool.Exec(ctx, `
-				UPDATE users SET member_level_id = $3, credit_limit = $4, debit_limit = $5, membership_status = 'active'
+				UPDATE users SET display_name = $3, member_level_id = $4, credit_limit = $5, debit_limit = $6, membership_status = 'active'
 				WHERE username = $1 AND node_domain = $2`,
-				u.username, nodeDomain, u.levelID, u.credit, u.debit)
+				u.username, nodeDomain, u.displayName, u.levelID, u.credit, u.debit)
 			if u.isSuperAdmin {
 				d.Pool.Exec(ctx, `UPDATE users SET is_super_admin = true, super_admin_enabled = true WHERE username = $1 AND node_domain = $2`, u.username, nodeDomain)
 			}

@@ -67,25 +67,28 @@ func DemoAutoSetup(ctx context.Context, db *pgxpool.Pool, jwtSecret, nodeDomain,
 	salt := make([]byte, 16)
 	rand.Read(salt)
 
-	// 3. Obtener nivel mas alto para el admin
+	// 3. Obtener nivel mas alto para el admin y sus limites
 	var memberLevelID string
-	db.QueryRow(ctx, `SELECT id::text FROM member_levels WHERE node_domain = $1 ORDER BY level DESC LIMIT 1`, nodeDomain).Scan(&memberLevelID)
+	var levelCredit, levelDebit int64
+	db.QueryRow(ctx, `SELECT id::text, COALESCE(credit_limit, 5000), COALESCE(debit_limit, 5000) FROM member_levels WHERE node_domain = $1 ORDER BY level DESC LIMIT 1`, nodeDomain).Scan(&memberLevelID, &levelCredit, &levelDebit)
 	if memberLevelID == "" {
 		memberLevelID = uuid.New().String()
+		levelCredit = 5000
+		levelDebit = 5000
 		db.Exec(ctx, `
 			INSERT INTO member_levels (id, node_domain, name, description, level, has_voice, has_vote, counts_in_quorum, credit_limit, debit_limit)
-			VALUES ($1, $2, 'Admin', 'Administrator', 99, true, true, true, 1000000, 1000000)`,
-			memberLevelID, nodeDomain)
+			VALUES ($1, $2, 'Admin', 'Administrator', 99, true, true, true, $3, $4)`,
+			memberLevelID, nodeDomain, levelCredit, levelDebit)
 	}
 
-	// 4. Crear usuario admin demo
+	// 4. Crear usuario admin demo con limites del nivel (no hardcodeados)
 	var adminUserID uuid.UUID
 	err = db.QueryRow(ctx, `
 		INSERT INTO users (node_domain, username, display_name, account_type, member_level_id, membership_status, credit_limit, debit_limit, public_key, encrypted_private_key, encryption_key_salt)
-		VALUES ($1, 'demo', 'Usuario Demo', 'individual', $2, 'active', 500, 500, $3, $4, $5)
+		VALUES ($1, 'demo', 'Usuario Demo', 'individual', $2, 'active', $3, $4, $5, $6, $7)
 		ON CONFLICT DO NOTHING
 		RETURNING id`,
-		nodeDomain, memberLevelID, pubKeyHex, encryptedPrivKey, salt).Scan(&adminUserID)
+		nodeDomain, memberLevelID, levelCredit, levelDebit, pubKeyHex, encryptedPrivKey, salt).Scan(&adminUserID)
 	if err != nil {
 		// Ya existe, obtener el ID
 		db.QueryRow(ctx, `SELECT id FROM users WHERE username = 'demo' AND node_domain = $1`, nodeDomain).Scan(&adminUserID)
