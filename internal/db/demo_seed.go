@@ -346,7 +346,7 @@ func getRaicesDelMontePages() []seedPage {
     "title": "Ecoaldea Raices del Monte",
     "subtitle": "Una comunidad montana que vive en armonia con la tierra",
     "description": "Somos una ecoaldea de 28 familias en las montanas, dedicadas a la permacultura, la agroecologia y el intercambio comunitario. Desde 2010 hemos regenerado suelo, plantado bosques nativos y construido un sistema de economia interna basado en el Trueque Comunitario (TQ), donde cada producto vale lo que realmente cuesta producir en energia.",
-    "image_url": "https://picsum.photos/seed/photo-1500382017468-9049fed747ef/1200/400",
+    "image_url": "https://image.pollinations.ai/prompt/ecovillage%20mountain%20community%20permaculture%20farms%20aerial%20view?width=1200&height=400&nologo=true&seed=42",
     "primary_cta": { "text": "Ver Catalogo", "link": "/p/productos" },
     "secondary_cta": { "text": "Conocenos", "link": "/p/quienes-somos" },
     "style": "split"
@@ -372,25 +372,25 @@ func getRaicesDelMontePages() []seedPage {
     "autoplay": true,
     "items": [
       {
-        "image_url": "https://picsum.photos/seed/photo-1448375240586-882707db888b/1000/400",
+        "image_url": "https://image.pollinations.ai/prompt/regenerated%20native%20forest%20reforestation%20mountain?width=1000&height=400&nologo=true&seed=42",
         "title": "Bosque Regenerado",
         "caption": "15 anos de reforestacion con especies nativas han devuelto el agua a los manantiales.",
         "tag": "Regeneracion"
       },
       {
-        "image_url": "https://picsum.photos/seed/photo-1464226184884-fa280b87c3be/1000/400",
+        "image_url": "https://image.pollinations.ai/prompt/terraced%20permaculture%20garden%20mountain%20bancal?width=1000&height=400&nologo=true&seed=42",
         "title": "Huertos en Bancales",
         "caption": "Permacultura en bancales elevados siguiendo curvas de nivel para conservar suelo y agua.",
         "tag": "Permacultura"
       },
       {
-        "image_url": "https://picsum.photos/seed/photo-1509444154694-2c20049b1c1e/1000/400",
+        "image_url": "https://image.pollinations.ai/prompt/artisan%20quinoa%20bread%20bakery%20whole%20grain%20loaf?width=1000&height=400&nologo=true&seed=42",
         "title": "Pan de Quinua",
         "caption": "Panaderia comunitaria con granos andinos cultivados en altura.",
         "tag": "Soberania"
       },
       {
-        "image_url": "https://picsum.photos/seed/photo-1509391366360-2e959784a276/1000/400",
+        "image_url": "https://image.pollinations.ai/prompt/solar%20panels%20off%20grid%20mountain%20community%20renewable%20energy?width=1000&height=400&nologo=true&seed=42",
         "title": "Energia Solar",
         "caption": "Paneles fotovoltaicos y secadores solares. Cero dependencia de combustibles fosiles.",
         "tag": "Autonomia"
@@ -437,7 +437,7 @@ func getRaicesDelMontePages() []seedPage {
     "title": "De finca ganadera degradada a ecoaldea regenerativa",
     "subtitle": "15 anos transformando la tierra y la comunidad",
     "description": "Raices del Monte nacio en 2010 cuando cinco familias adquirieron una finca ganadera que habia perdido su capa vegetal y buena parte de su biodiversidad. El suelo estaba compactado, los manantiales secos, el bosque reducido a parches. Poco a poco fuimos regenerando: plantamos arboles nativos, construimos bancales, instalamos sistemas de captacion de agua, sembramos huertos y creamos un sistema de intercambio interno basado en el contenido energetico real de cada producto.",
-    "image_url": "https://picsum.photos/seed/photo-1469594292607-9bd787ad1f7d/1200/400",
+    "image_url": "https://image.pollinations.ai/prompt/degraded%20land%20restoration%20ecovillage%20regeneration?width=1200&height=400&nologo=true&seed=42",
     "style": "split"
   },
   {
@@ -446,7 +446,7 @@ func getRaicesDelMontePages() []seedPage {
     "title": "Bioconstruccion y espacios comunes",
     "subtitle": "Viviendas de adobe, bahareque y madera local",
     "content": "Las viviendas son de bioconstruccion: adobe, bahareque, paja y madera local. Cada familia tiene su casa y un huerto. Tenemos espacios comunes: el comedor comunitario donde almorzamos juntos tres veces por semana, la escuela primaria donde estudian los ninos de la comunidad, el centro de salud natural, la herreria, el taller textil y la panaderia. El 60% del territorio es bosque protegido donde solo se extrae madera muerta. El 30% son cultivos en bancales, agroforesteria y huertos. El 10% es vivienda e infraestructura.",
-    "image_url": "https://picsum.photos/seed/photo-1486297678162-eb2a19b0a32d/1000/400",
+    "image_url": "https://image.pollinations.ai/prompt/adobe%20natural%20building%20bioconstruction%20house%20clay%20straw?width=1000&height=400&nologo=true&seed=42",
     "image_position": "left",
     "highlights": [
       "Viviendas de adobe, bahareque y madera local construidas comunitariamente.",
@@ -524,7 +524,7 @@ func getRaicesDelMontePages() []seedPage {
     "title": "Un Movimiento al Calor de la Tierra",
     "subtitle": "La permacultura como horizonte ecologico, social y espiritual de soberania integral.",
     "description": "Nacimos en un momento crucial de la historia ambiental, al calor de los movimientos de soberania alimentaria y regeneracion ecologica. La ecoaldea es tanto un hogar como una organizacion viva con asambleas y comisiones activas.",
-    "image_url": "https://picsum.photos/seed/photo-1416879595882-3373a0480b5f/1200/400",
+    "image_url": "https://image.pollinations.ai/prompt/permaculture%20movement%20community%20farming%20hands%20soil?width=1200&height=400&nologo=true&seed=42",
     "style": "split"
   },
   {
@@ -533,7 +533,7 @@ func getRaicesDelMontePages() []seedPage {
     "title": "Vida Organizativa Mas Alla del Huerto",
     "subtitle": "Asambleas mensuales, comisiones y trabajo colectivo",
     "content": "Raices del Monte no es solo un conjunto de viviendas. Contamos con una estructura organizativa solida y horizontal:\n\nAsambleas Mensuales: Cada primer domingo de mes, todos los miembros plenos se reunen en asamblea formal para evaluar el funcionamiento, admitir nuevos miembros y debatir politicas colectivas.\nComisiones de Trabajo: Se conforman comisiones para economia, educacion, salud, ambiente, admision, construccion y consejo de vision. Cada comision es autonoma en su area.\nCayapas Comunitarias: Organizamos jornadas de trabajo voluntario para mantenimiento de senderos, reforestacion, construccion y limpieza de acequias.",
-    "image_url": "https://picsum.photos/seed/photo-1522202176988-66273c2fd55f/1000/400",
+    "image_url": "https://image.pollinations.ai/prompt/community%20assembly%20meeting%20circle%20people%20gathering?width=1000&height=400&nologo=true&seed=42",
     "image_position": "left",
     "highlights": [
       "Asamblea general mensual para toma de decisiones por consentimiento.",
@@ -582,7 +582,7 @@ func getRaicesDelMontePages() []seedPage {
     "title": "Mas que una Ecoaldea: Espacio de Formacion Permanente",
     "subtitle": "Talleres gratuitos, musica, trueque de semillas y saberes para toda la comunidad.",
     "description": "Inspirados en la metodologia de campesino a campesino, cada mes realizamos actividades pedagogicas gratuitas para compartir conocimientos de permacultura, bioconstruccion, salud natural y artesania. La educacion es continua: no solo aprendes a producir, aprendes a vivir en comunidad.",
-    "image_url": "https://picsum.photos/seed/photo-1503676263500-dc4d0b59d4df/1200/400",
+    "image_url": "https://image.pollinations.ai/prompt/permaculture%20workshop%20education%20outdoor%20teaching?width=1200&height=400&nologo=true&seed=42",
     "style": "split"
   },
   {
@@ -626,7 +626,7 @@ func getRaicesDelMontePages() []seedPage {
     "title": "El TQ: moneda energetica, no dinero",
     "subtitle": "No es dinero. No es cripto. No genera interes. Es energia.",
     "description": "El TQ (Trueque Comunitario) es nuestra unidad de intercambio interno. Se calcula en base al contenido energetico real de cada producto o servicio, medido en kWh o joules. Un kilo de frijol vale 35 TQ porque eso es lo que cuesta producirlo en energia humana, solar y de insumos. Sin inflacion, sin interes, sin bancos, sin devaluacion. Un TQ hoy vale lo mismo que en 10 anos.",
-    "image_url": "https://picsum.photos/seed/photo-1554224155-6726b3ff858f/1200/400",
+    "image_url": "https://image.pollinations.ai/prompt/community%20market%20exchange%20goods%20trading%20table?width=1200&height=400&nologo=true&seed=42",
     "style": "standard"
   },
   {
@@ -773,7 +773,7 @@ func getRaicesDelMontePages() []seedPage {
     "title": "Proyecto Campo Soberano",
     "subtitle": "Habitat colectivo rural con soberania alimentaria, energetica, digital y financiera.",
     "description": "Estructuracion de una comunidad intencional agroecologica disenada bajo principios de permacultura, propiedad colectiva indivisible, energia solar/eolica off-grid y economia de credito mutuo libre de acumulacion. Campo Soberano es la vision de Raices del Monte llevada a su maxima expresion: autonomia total.",
-    "image_url": "https://picsum.photos/seed/photo-1469594292607-9bd787ad1f7d/1200/400",
+    "image_url": "https://image.pollinations.ai/prompt/degraded%20land%20restoration%20ecovillage%20regeneration?width=1200&height=400&nologo=true&seed=42",
     "style": "split"
   },
   {
@@ -816,7 +816,7 @@ func getRaicesDelMontePages() []seedPage {
     "badge": "Centro de Respuestas",
     "title": "Preguntas Frecuentes",
     "subtitle": "Informacion clara sobre como funciona la ecoaldea, el trueque, la federacion y como sumarte.",
-    "image_url": "https://picsum.photos/seed/photo-1516321318423-f06f85e504b3/1200/400",
+    "image_url": "https://image.pollinations.ai/prompt/information%20help%20desk%20questions%20answers?width=1200&height=400&nologo=true&seed=42",
     "style": "standard"
   },
   {
@@ -943,7 +943,7 @@ func getRaicesDelMontePages() []seedPage {
     "title": "Banco Comunitario de Semillas Criollas",
     "subtitle": "Conservar nuestras semillas es conservar nuestra libertad.",
     "description": "Las semillas son el primer eslabon de la cadena alimentaria. Quien controla las semillas controla la alimentacion. Por eso defendemos las semillas criollas y nativas: porque son patrimonio colectivo de los pueblos, se reproducen libremente, estan adaptadas a nuestro clima y han sido seleccionadas por generaciones de campesinos y campesinas.",
-    "image_url": "https://picsum.photos/seed/photo-1463249035-39d7d217e5b9/1200/400",
+    "image_url": "https://image.pollinations.ai/prompt/heirloom%20seeds%20collection%20seed%20bank%20conservation?width=1200&height=400&nologo=true&seed=42",
     "style": "split"
   },
   {
@@ -1017,7 +1017,7 @@ func getRaicesDelMontePages() []seedPage {
     "title": "Saberes Ancestrales y Conocimiento Tradicional",
     "subtitle": "La sabiduria de los abuelos no es pasado: es futuro.",
     "description": "Los saberes ancestrales son conocimientos transmitidos de generacion en generacion, nacidos de la observacion paciente de la naturaleza y de la relacion respetuosa entre las personas y la tierra. No son recetas del pasado: son tecnologias vivas, adaptadas y vigentes, que ofrecen respuestas a los problemas contemporaneos de alimentacion, salud, vivienda y comunidad.",
-    "image_url": "https://picsum.photos/seed/photo-1532009877182-46d5c9231e51/1200/400",
+    "image_url": "https://image.pollinations.ai/prompt/ancestral%20traditional%20farming%20knowledge%20elder%20wisdom?width=1200&height=400&nologo=true&seed=42",
     "style": "standard"
   },
   {
@@ -1092,7 +1092,7 @@ func getRaicesDelMontePages() []seedPage {
     "title": "Filosofia Comunitaria",
     "subtitle": "Raices del Monte no es solo un lugar donde vivimos: es una organizacion que aglutina a familias que buscan transformar como producimos, distribuimos y consumimos alimentos.",
     "description": "Nacimos en 2010 como respuesta a la crisis ambiental y alimentaria. Frente a la degradacion del suelo, la perdida de biodiversidad y la comida procesada, retomamos los principios de la permacultura: producir sin agroquimicos, distribuir sin intermediarios, consumir alimentos soberanos y tejer comunidad alrededor de la tierra.",
-    "image_url": "https://picsum.photos/seed/photo-1416879595882-3373a0480b5f/1200/400",
+    "image_url": "https://image.pollinations.ai/prompt/permaculture%20movement%20community%20farming%20hands%20soil?width=1200&height=400&nologo=true&seed=42",
     "style": "standard"
   },
   {
@@ -1159,7 +1159,7 @@ func getRaicesDelMontePages() []seedPage {
     "title": "No estamos solos",
     "subtitle": "La red crece con cada comunidad que se suma",
     "description": "Raices del Monte es parte de la Red de Intercambio Federada. Esto significa que podemos comerciar con otras ecoaldeas, comunidades y cooperativas que usan el mismo sistema. Cada nodo es completamente autonomo: tiene sus propias normas, su propia moneda comunitaria, su propia gobernanza. Pero todos podemos intercambiar productos, servicios y conocimiento usando los mismos principios energeticos.",
-    "image_url": "https://picsum.photos/seed/photo-1469594292607-9bd787ad1f7d/1200/400",
+    "image_url": "https://image.pollinations.ai/prompt/degraded%20land%20restoration%20ecovillage%20regeneration?width=1200&height=400&nologo=true&seed=42",
     "style": "centered"
   },
   {
@@ -1197,32 +1197,32 @@ func demoSeedProducts(ctx context.Context, d *DB, nodeDomain string) error {
 		price                                                  int
 	}{
 		// Agricultura de montana
-		{"Agricultura", "Cultivos", "Granos", "Frijol negro de altura (1kg)", "kg", "Frijol negro cultivado a 1200m, secado al sol", "organico", "https://picsum.photos/seed/photo-1515543237350-bf1b67e41be3/600/400", 35},
-		{"Agricultura", "Cultivos", "Granos", "Quinua andina (1kg)", "kg", "Quinua cultivada en bancales de montana", "nativo", "https://picsum.photos/seed/photo-1564093497595-593b129d4143/600/400", 45},
-		{"Agricultura", "Cultivos", "Hortalizas", "Tomate de huerto (1kg)", "kg", "Tomate perita de cultivo agroecologico", "fresco", "https://picsum.photos/seed/photo-1546470427-e26264be0b0d/600/400", 25},
-		{"Agricultura", "Cultivos", "Hortalizas", "Lechuga de bancale", "unidad", "Lechuga batavia de bancal elevado", "fresco", "https://picsum.photos/seed/photo-1622205313165-497e3f53e31c/600/400", 15},
-		{"Agricultura", "Cultivos", "Raices", "Ocumo de montana (1kg)", "kg", "Ocumo nativo de sombra", "nativo", "https://picsum.photos/seed/photo-1607305387299-a3d96abfd2a8/600/400", 20},
-		{"Agricultura", "Cultivos", "Frutas", "Guayaba de rio (1kg)", "kg", "Guayaba de arboles a orillas del arroyo", "temporal", "https://picsum.photos/seed/photo-1605000797499-95a51c5269ae/600/400", 22},
-		{"Agricultura", "Cultivos", "Frutas", "Mora de monte (500g)", "paquete", "Mora silvestre recolectada en el bosque", "silvestre", "https://picsum.photos/seed/photo-1490477359199-29529uflack/600/400", 30},
+		{"Agricultura", "Cultivos", "Granos", "Frijol negro de altura (1kg)", "kg", "Frijol negro cultivado a 1200m, secado al sol", "organico", "https://image.pollinations.ai/prompt/black%20beans%20harvest%20dried%20legumes%20organic?width=600&height=400&nologo=true&seed=42", 35},
+		{"Agricultura", "Cultivos", "Granos", "Quinua andina (1kg)", "kg", "Quinua cultivada en bancales de montana", "nativo", "https://image.pollinations.ai/prompt/quinoa%20grain%20andean%20mountain%20cultivar?width=600&height=400&nologo=true&seed=42", 45},
+		{"Agricultura", "Cultivos", "Hortalizas", "Tomate de huerto (1kg)", "kg", "Tomate perita de cultivo agroecologico", "fresco", "https://image.pollinations.ai/prompt/fresh%20tomatoes%20organic%20garden%20harvest?width=600&height=400&nologo=true&seed=42", 25},
+		{"Agricultura", "Cultivos", "Hortalizas", "Lechuga de bancale", "unidad", "Lechuga batavia de bancal elevado", "fresco", "https://image.pollinations.ai/prompt/fresh%20lettuce%20garden%20bancal%20leaves?width=600&height=400&nologo=true&seed=42", 15},
+		{"Agricultura", "Cultivos", "Raices", "Ocumo de montana (1kg)", "kg", "Ocumo nativo de sombra", "nativo", "https://image.pollinations.ai/prompt/taro%20root%20ocumo%20mountain%20tuber?width=600&height=400&nologo=true&seed=42", 20},
+		{"Agricultura", "Cultivos", "Frutas", "Guayaba de rio (1kg)", "kg", "Guayaba de arboles a orillas del arroyo", "temporal", "https://image.pollinations.ai/prompt/guava%20fruit%20tropical%20river%20tree?width=600&height=400&nologo=true&seed=42", 22},
+		{"Agricultura", "Cultivos", "Frutas", "Mora de monte (500g)", "paquete", "Mora silvestre recolectada en el bosque", "silvestre", "https://image.pollinations.ai/prompt/wild%20blackberries%20mountain%20forest%20berries?width=600&height=400&nologo=true&seed=42", 30},
 
 		// Derivados artesanales
-		{"Alimentacion", "Derivados", "Lacteos", "Queso de cabra (500g)", "unidad", "Queso fresco de cabras lecheras", "artesanal", "https://picsum.photos/seed/photo-1486297678162-eb2a19b0a32d/600/400", 60},
-		{"Alimentacion", "Derivados", "Panaderia", "Pan de quinua (1kg)", "kg", "Pan integral hecho con harina de quinua del huerto", "artesanal", "https://picsum.photos/seed/photo-1509444154694-2c20049b1c1e/600/400", 50},
-		{"Alimentacion", "Derivados", "Conservas", "Mermelada de mora", "frasco", "Mermelada artesanal de mora de monte", "artesanal", "https://picsum.photos/seed/photo-1591047139829-d91aecb6caea/600/400", 40},
-		{"Alimentacion", "Derivados", "Miel", "Miel de montana (250ml)", "frasco", "Miel pura de abejas nativas sin agroticos", "natural", "https://picsum.photos/seed/photo-1587049352846-cf289f7c4b52/600/400", 70},
+		{"Alimentacion", "Derivados", "Lacteos", "Queso de cabra (500g)", "unidad", "Queso fresco de cabras lecheras", "artesanal", "https://image.pollinations.ai/prompt/adobe%20natural%20building%20bioconstruction%20house%20clay%20straw?width=600&height=400&nologo=true&seed=42", 60},
+		{"Alimentacion", "Derivados", "Panaderia", "Pan de quinua (1kg)", "kg", "Pan integral hecho con harina de quinua del huerto", "artesanal", "https://image.pollinations.ai/prompt/artisan%20quinoa%20bread%20bakery%20whole%20grain%20loaf?width=600&height=400&nologo=true&seed=42", 50},
+		{"Alimentacion", "Derivados", "Conservas", "Mermelada de mora", "frasco", "Mermelada artesanal de mora de monte", "artesanal", "https://image.pollinations.ai/prompt/artisan%20jam%20jar%20homemade%20preserves%20fruit?width=600&height=400&nologo=true&seed=42", 40},
+		{"Alimentacion", "Derivados", "Miel", "Miel de montana (250ml)", "frasco", "Miel pura de abejas nativas sin agroticos", "natural", "https://image.pollinations.ai/prompt/raw%20honey%20jar%20mountain%20natural%20bees?width=600&height=400&nologo=true&seed=42", 70},
 
 		// Artesania local
-		{"Artesania", "Textiles", "Tejidos", "Ruana de lana (unidad)", "unidad", "Ruana tejida a mano con lana de ovejas de la comunidad", "artesanal", "https://picsum.photos/seed/photo-1591047139829-d91aecb6caea/600/400", 250},
-		{"Artesania", "Ceramica", "Vajilla", "Set 4 cuencos de barro", "set", "Cuencos de barro cocido hechos con arcilla local", "artesanal", "https://picsum.photos/seed/photo-1565193566173-7a0ee3dbe261/600/400", 150},
-		{"Artesania", "Madera", "Muebles", "Banco de madera de cedro", "unidad", "Banco rustico de cedro del bosque comunitario", "artesanal", "https://picsum.photos/seed/photo-1555041469-a586c61ea9bc/600/400", 300},
-		{"Artesania", "Cesteria", "Cestas", "Cesta de bambu (mediana)", "unidad", "Cesta tejida con bambu del bosque", "artesanal", "https://picsum.photos/seed/photo-1595590424283-b8f17842773f/600/400", 80},
+		{"Artesania", "Textiles", "Tejidos", "Ruana de lana (unidad)", "unidad", "Ruana tejida a mano con lana de ovejas de la comunidad", "artesanal", "https://image.pollinations.ai/prompt/artisan%20jam%20jar%20homemade%20preserves%20fruit?width=600&height=400&nologo=true&seed=42", 250},
+		{"Artesania", "Ceramica", "Vajilla", "Set 4 cuencos de barro", "set", "Cuencos de barro cocido hechos con arcilla local", "artesanal", "https://image.pollinations.ai/prompt/handmade%20clay%20pottery%20bowls%20ceramic%20artisan?width=600&height=400&nologo=true&seed=42", 150},
+		{"Artesania", "Madera", "Muebles", "Banco de madera de cedro", "unidad", "Banco rustico de cedro del bosque comunitario", "artesanal", "https://image.pollinations.ai/prompt/wooden%20bench%20rustic%20cedar%20furniture%20handmade?width=600&height=400&nologo=true&seed=42", 300},
+		{"Artesania", "Cesteria", "Cestas", "Cesta de bambu (mediana)", "unidad", "Cesta tejida con bambu del bosque", "artesanal", "https://image.pollinations.ai/prompt/bamboo%20basket%20woven%20handmade%20craft?width=600&height=400&nologo=true&seed=42", 80},
 
 		// Herramientas
 		{"Herramientas", "Agricolas", "Manuales", "Azadon de montana", "unidad", "Azadon forjado en la herreria comunitaria", "util", "", 100},
 		{"Herramientas", "Agricolas", "Manuales", "Tijeras de podar", "unidad", "Tijeras de podar afiladas en taller", "util", "", 60},
 
 		// Salud natural
-		{"Salud y Medicina", "Natural", "Hierbas", "Te de hierbas del monte (100g)", "paquete", "Mezcla de hierbas medicinales del bosque: toronjil, malojillo, llanten", "natural", "https://picsum.photos/seed/photo-1556909114-f6e7ad7d3136/600/400", 25},
+		{"Salud y Medicina", "Natural", "Hierbas", "Te de hierbas del monte (100g)", "paquete", "Mezcla de hierbas medicinales del bosque: toronjil, malojillo, llanten", "natural", "https://image.pollinations.ai/prompt/medicinal%20herbs%20tea%20dried%20plants%20natural?width=600&height=400&nologo=true&seed=42", 25},
 		{"Salud y Medicina", "Natural", "Aceites", "Aceite de romero (100ml)", "botella", "Aceite esencial de romero del huerto", "natural", "", 45},
 
 		// Servicios comunitarios
@@ -1254,14 +1254,14 @@ func demoSeedProducts(ctx context.Context, d *DB, nodeDomain string) error {
 		parentCat, cat, subcat, name, unit, desc, badge, image string
 		price                                                  int
 	}{
-		{"Alimentacion", "Compuestos", "Cocina", "Kit de Mermelada Artesanal (3 frascos)", "kit", "Set de 3 mermeladas artesanales: mora, guayaba y tomate. Incluye envases de vidrio retornables.", "Compuesto", "https://picsum.photos/seed/photo-1591047139829-d91aecb6caea/600/400", 150},
-		{"Alimentacion", "Compuestos", "Cocina", "Cesta de Desayuno de Montaña", "cesta", "Cesta con pan de quinua, miel, queso de cabra y te de hierbas. Para 4 personas.", "Compuesto", "https://picsum.photos/seed/photo-1509444154694-2c20049b1c1e/600/400", 220},
-		{"Agricultura", "Compuestos", "Semillas", "Banco de Semillas Criollas (10 variedades)", "set", "Coleccion de 10 semillas criollas: frijol, quinua, tomate, lechuga, ocumo, guayaba, mora, ají, cilantro, calabaza.", "Compuesto", "https://picsum.photos/seed/photo-1463249035-39d7d217e5b9/600/400", 180},
-		{"Artesania", "Compuestos", "Vajilla", "Vajilla de Barro (4 personas)", "set", "Set completo: 4 platos, 4 cuencos, 4 tazas de barro cocido artesanal.", "Compuesto", "https://picsum.photos/seed/photo-1565193566173-7a0ee3dbe261/600/400", 400},
-		{"Salud y Medicina", "Compuestos", "Botiquin", "Botiquin Natural de Montaña", "botiquin", "Set de remedios naturales: te de hierbas, aceite de romero, miel medicinal, cataplasma de llanten.", "Compuesto", "https://picsum.photos/seed/photo-1556909114-f6e7ad7d3136/600/400", 130},
-		{"Herramientas", "Compuestos", "Kits", "Kit de Huerto Familiar", "kit", "Kit completo: azadon, tijeras de podar, semillas, abono organico y manual de agroecologia.", "Compuesto", "https://picsum.photos/seed/photo-1416879595882-3373a0480b5f/600/400", 280},
-		{"Servicios", "Compuestos", "Talleres", "Programa de Formacion Comunitaria", "programa", "Paquete educativo: curso de agroecologia (8 sesiones) + taller de permacultura + taller de medicina natural.", "Compuesto", "https://picsum.photos/seed/photo-1503676263500-dc4d0b59d4df/600/400", 800},
-		{"Construccion", "Compuestos", "Natural", "Kit de Construccion con Barro y Paja", "kit", "Materiales y herramientas para construccion natural: barro, paja, madera, mano de obra (2 jornadas).", "Compuesto", "https://picsum.photos/seed/photo-1486297678162-eb2a19b0a32d/600/400", 450},
+		{"Alimentacion", "Compuestos", "Cocina", "Kit de Mermelada Artesanal (3 frascos)", "kit", "Set de 3 mermeladas artesanales: mora, guayaba y tomate. Incluye envases de vidrio retornables.", "Compuesto", "https://image.pollinations.ai/prompt/artisan%20jam%20jar%20homemade%20preserves%20fruit?width=600&height=400&nologo=true&seed=42", 150},
+		{"Alimentacion", "Compuestos", "Cocina", "Cesta de Desayuno de Montaña", "cesta", "Cesta con pan de quinua, miel, queso de cabra y te de hierbas. Para 4 personas.", "Compuesto", "https://image.pollinations.ai/prompt/artisan%20quinoa%20bread%20bakery%20whole%20grain%20loaf?width=600&height=400&nologo=true&seed=42", 220},
+		{"Agricultura", "Compuestos", "Semillas", "Banco de Semillas Criollas (10 variedades)", "set", "Coleccion de 10 semillas criollas: frijol, quinua, tomate, lechuga, ocumo, guayaba, mora, ají, cilantro, calabaza.", "Compuesto", "https://image.pollinations.ai/prompt/heirloom%20seeds%20collection%20seed%20bank%20conservation?width=600&height=400&nologo=true&seed=42", 180},
+		{"Artesania", "Compuestos", "Vajilla", "Vajilla de Barro (4 personas)", "set", "Set completo: 4 platos, 4 cuencos, 4 tazas de barro cocido artesanal.", "Compuesto", "https://image.pollinations.ai/prompt/handmade%20clay%20pottery%20bowls%20ceramic%20artisan?width=600&height=400&nologo=true&seed=42", 400},
+		{"Salud y Medicina", "Compuestos", "Botiquin", "Botiquin Natural de Montaña", "botiquin", "Set de remedios naturales: te de hierbas, aceite de romero, miel medicinal, cataplasma de llanten.", "Compuesto", "https://image.pollinations.ai/prompt/medicinal%20herbs%20tea%20dried%20plants%20natural?width=600&height=400&nologo=true&seed=42", 130},
+		{"Herramientas", "Compuestos", "Kits", "Kit de Huerto Familiar", "kit", "Kit completo: azadon, tijeras de podar, semillas, abono organico y manual de agroecologia.", "Compuesto", "https://image.pollinations.ai/prompt/permaculture%20movement%20community%20farming%20hands%20soil?width=600&height=400&nologo=true&seed=42", 280},
+		{"Servicios", "Compuestos", "Talleres", "Programa de Formacion Comunitaria", "programa", "Paquete educativo: curso de agroecologia (8 sesiones) + taller de permacultura + taller de medicina natural.", "Compuesto", "https://image.pollinations.ai/prompt/permaculture%20workshop%20education%20outdoor%20teaching?width=600&height=400&nologo=true&seed=42", 800},
+		{"Construccion", "Compuestos", "Natural", "Kit de Construccion con Barro y Paja", "kit", "Materiales y herramientas para construccion natural: barro, paja, madera, mano de obra (2 jornadas).", "Compuesto", "https://image.pollinations.ai/prompt/adobe%20natural%20building%20bioconstruction%20house%20clay%20straw?width=600&height=400&nologo=true&seed=42", 450},
 	}
 
 	for _, p := range compositeProducts {

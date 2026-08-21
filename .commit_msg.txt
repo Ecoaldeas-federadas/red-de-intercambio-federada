@@ -1,21 +1,32 @@
-fix: Usar picsum.photos en demo (siempre carga, nunca 404)
+fix: Usar pollinations.ai para imagenes tematicas en demo
 
 ## Problema
-Todas las URLs de Unsplash que puse en demo_seed.go devuelven 404
-porque los IDs de fotos no existen. Unsplash no garantiza que un
-photo ID sea permanente.
+picsum.photos devuelve fotos aleatorias (caras, zapatos, etc.) sin
+relacion con el contenido. El usuario queria imagenes que SI tengan
+relacion con el tema de cada pagina/producto.
 
 ## Solucion
-Reemplazadas las 41 URLs de Unsplash con picsum.photos:
-- https://picsum.photos/seed/{id}/{width}/400
-- picsum.photos SIEMPRE devuelve una imagen real (nunca 404)
-- Cada seed produce una imagen diferente pero determinista
-- Las imagenes son fotografias reales (paisajes, objetos, etc.)
+Reemplazadas las 41 URLs con pollinations.ai:
+- https://image.pollinations.ai/prompt/{descripcion}?width=W&height=H&nologo=true&seed=42
+- pollinations.ai genera imagenes con IA basadas en el prompt
+- NUNCA da 404 (siempre devuelve una imagen)
+- Las imagenes SON tematicas (ej: "black beans harvest" -> foto de frijoles)
+- Determinista: misma URL = misma imagen (cached)
 
-## Como funciona
-- Las fotos se cargan desde picsum.photos (servicio gratuito y estable)
-- Si por alguna razon picsum no carga, el onError muestra el placeholder
-- El demo se ve con fotos reales, no con placeholders
+## Prompts usados
+- Paginas: "ecovillage mountain community", "regenerated forest",
+  "terraced permaculture garden", "solar panels off grid", etc.
+- Productos: "black beans harvest", "quinoa grain andean",
+  "fresh tomatoes organic garden", "artisan quinoa bread", etc.
+- Artesania: "handmade clay pottery", "wooden bench rustic",
+  "bamboo basket woven", etc.
+
+## Ventajas
+- Imagenes reales generadas con IA (modelo Flux/Sana)
+- Tematicas: cada imagen corresponde al contenido
+- Estables: nunca 404, siempre devuelve imagen
+- Gratis: sin API key, sin cuenta
+- Deterministas: misma URL siempre misma imagen
 
 Generated with [Devin](https://devin.ai)
 
