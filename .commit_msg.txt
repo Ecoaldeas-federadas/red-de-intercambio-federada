@@ -1,30 +1,25 @@
-fix: Productos pendientes + historial y reportes de federacion
+fix: Boton solicitar cambio limite bilateral + script reset-demo
 
-## Productos pendientes
-- Seed crea 23 productos pendientes (is_approved=false)
-- Cafe de altura, cilantro, mango, salsa de aji, yogur de cabra,
-  bufanda, jarra, mesa, unguento, aceite de lavanda, taller de
-  ceramica, transporte en canoa, machete, pala, frijol rojo, name,
-  galletas, polen, canasta, taller construccion, aji criollo,
-  vinagre de mora, te de valeriana
-- Ahora el boton "Pendientes" muestra productos reales
+## FederationLimits
+- Boton "Solicitar cambio" en cada limite bilateral
+- Modal con accion (aumentar/reducir), nuevos limites y razon
+- Crea propuesta de asamblea tipo federation_limit_change
+- La asamblea vota para aprobar el cambio
 
-## Historial de transacciones federadas
-- Nuevo endpoint: GET /api/federation/peer/{remoteNode}/transactions
-- Devuelve transacciones federadas con un nodo especifico
-- Cada transaccion incluye direccion (debit/credit) y descripcion
+## reset-demo.ps1
+- Nuevo script para resetear el nodo demo con datos frescos
+- Borra todos los datos del dominio demo en la BD
+- Reconstruye y reinicia demo-app
+- El seed se ejecuta desde cero con todos los datos nuevos
+- Uso: powershell -ExecutionPolicy Bypass -File reset-demo.ps1
 
-## Frontend FederationPeers
-- Boton "Ver historial" por cada nodo peer
-- Panel expandible con transacciones del nodo
-- Muestra salidas (rojo) y entradas (verde) con descripcion
-- Resumen con total enviado y recibido
-- Boton "Exportar CSV" para descargar informe
+## Importante
+El update.ps1 NO borra datos existentes. Por eso los cambios al seed
+(productos pendientes, transacciones federadas, ledger_entries, etc.)
+no se ven hasta que se hace un reset completo del demo.
 
-## Seed de transacciones federadas
-- Agregadas 6 transacciones adicionales por peer con fechas y
-  descripciones diferentes (exportaciones e importaciones)
-- Total: 7 transacciones por nodo peer (1 inicial + 6 adicionales)
+Despues de git pull + update.ps1, ejecutar reset-demo.ps1 para ver
+todos los datos nuevos.
 
 Generated with [Devin](https://devin.ai)
 

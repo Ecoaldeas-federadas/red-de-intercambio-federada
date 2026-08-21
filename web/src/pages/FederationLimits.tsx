@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
-import { Plus, HelpCircle, Network } from 'lucide-react'
+import { Plus, HelpCircle, Network, ArrowUpCircle, ArrowDownCircle } from 'lucide-react'
 
 export default function FederationLimits() {
   const { currency } = useConfig()
@@ -11,6 +11,10 @@ export default function FederationLimits() {
   const [showPropose, setShowPropose] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [form, setForm] = useState({ remote_node: '', credit_limit: 0, debit_limit: 0 })
+  const [changeRequest, setChangeRequest] = useState<{ node: string; currentCredit: number; currentDebit: number } | null>(null)
+  const [changeForm, setChangeForm] = useState({ action: 'increase', credit_limit: 0, debit_limit: 0, reason: '' })
+  const [success, setSuccess] = useState('')
+  const [error, setError] = useState('')
 
   const load = () => {
     api.get('/federation/config').then(setConfig).catch(() => {})
@@ -38,6 +42,46 @@ export default function FederationLimits() {
   const confirm = async (node: string) => {
     await api.post(`/federation/bilateral/${node}/confirm`, {})
     load()
+  }
+
+  const openChangeRequest = (b: any) => {
+    setChangeRequest({ node: b.remote_node, currentCredit: b.credit_limit, currentDebit: b.debit_limit })
+    setChangeForm({ action: 'increase', credit_limit: b.credit_limit, debit_limit: b.debit_limit, reason: '' })
+    setError('')
+    setSuccess('')
+  }
+
+  const submitChangeRequest = async () => {
+    if (!changeRequest) return
+    setError('')
+    setSuccess('')
+    const { action, credit_limit, debit_limit, reason } = changeForm
+    if (credit_limit <= 0 || debit_limit <= 0) {
+      setError('Los limites deben ser mayores a 0')
+      return
+    }
+    const verb = action === 'increase' ? 'aumentar' : 'reducir'
+    const description = `Cambiar limite bilateral con ${changeRequest.node}: ${verb} credito de ${changeRequest.currentCredit} a ${credit_limit} ${currency} y debito de ${changeRequest.currentDebit} a ${debit_limit} ${currency}. Razon: ${reason || 'No especificada'}`
+    try {
+      await api.post('/assembly/proposals', {
+        proposal_type: 'federation_limit_change',
+        description,
+        parameters: {
+          remote_node: changeRequest.node,
+          action,
+          current_credit_limit: changeRequest.currentCredit,
+          current_debit_limit: changeRequest.currentDebit,
+          new_credit_limit: credit_limit,
+          new_debit_limit: debit_limit,
+          reason,
+        },
+      })
+      setSuccess(`Solicitud enviada a la asamblea para ${verb} el limite con ${changeRequest.node}.`)
+      setChangeRequest(null)
+      setTimeout(() => setSuccess(''), 5000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al crear la solicitud')
+    }
   }
 
   return (
@@ -140,6 +184,9 @@ export default function FederationLimits() {
         </div>
       )}
 
+      {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</div>}
+      {success && <div className="text-green-600 text-sm bg-green-50 p-3 rounded-lg">{success}</div>}
+
       <div className="card">
         <h2 className="font-semibold mb-3">Limites Bilaterales</h2>
         {bilaterals.length === 0 ? (
@@ -147,20 +194,72 @@ export default function FederationLimits() {
         ) : (
           <div className="space-y-2">
             {bilaterals.map((b, i) => (
-              <div key={i} className="flex items-center justify-between border-b border-gray-100 py-2">
-                <div>
-                  <span className="font-medium">{b.remote_node}</span>
-                  {b.is_customized && <span className="ml-2 text-xs bg-trueque-100 text-trueque-700 px-2 py-0.5 rounded">Personalizado</span>}
-                </div>
-                <div className="text-sm text-gray-600">
-                  Credito: {b.credit_limit} {currency} | Debito: {b.debit_limit} {currency}
-                  {!b.remote_confirmed && <button onClick={() => confirm(b.remote_node)} className="ml-2 text-blue-600 hover:underline">Confirmar</button>}
+              <div key={i} className="border-b border-gray-100 py-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="font-medium">{b.remote_node}</span>
+                    {b.is_customized && <span className="ml-2 text-xs bg-trueque-100 text-trueque-700 px-2 py-0.5 rounded">Personalizado</span>}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-sm text-gray-600">
+                      Credito: {b.credit_limit} {currency} | Debito: {b.debit_limit} {currency}
+                      {!b.remote_confirmed && <button onClick={() => confirm(b.remote_node)} className="ml-2 text-blue-600 hover:underline">Confirmar</button>}
+                    </div>
+                    <button
+                      onClick={() => openChangeRequest(b)}
+                      className="text-xs px-3 py-1 bg-amber-600 text-white rounded hover:bg-amber-700 flex items-center gap-1"
+                    >
+                      <ArrowUpCircle size={14} /> Solicitar cambio
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Modal: Solicitar cambio de limite */}
+      {changeRequest && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setChangeRequest(null)}>
+          <div className="bg-white rounded-xl p-6 w-96 space-y-3" onClick={(e) => e.stopPropagation()}>
+            <h2 className="font-bold text-lg">Solicitar cambio de limite</h2>
+            <p className="text-sm text-gray-600">Nodo: <b>{changeRequest.node}</b></p>
+            <p className="text-xs text-gray-500">Limites actuales: Credito {changeRequest.currentCredit} {currency} | Debito {changeRequest.currentDebit} {currency}</p>
+
+            <div>
+              <label className="label">Accion</label>
+              <select className="input" value={changeForm.action} onChange={(e) => setChangeForm({ ...changeForm, action: e.target.value })}>
+                <option value="increase">Aumentar limite</option>
+                <option value="decrease">Reducir limite</option>
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Nuevo limite credito ({currency})</label>
+                <input type="number" className="input" value={changeForm.credit_limit} onChange={(e) => setChangeForm({ ...changeForm, credit_limit: parseInt(e.target.value) || 0 })} />
+              </div>
+              <div>
+                <label className="label">Nuevo limite debito ({currency})</label>
+                <input type="number" className="input" value={changeForm.debit_limit} onChange={(e) => setChangeForm({ ...changeForm, debit_limit: parseInt(e.target.value) || 0 })} />
+              </div>
+            </div>
+
+            <div>
+              <label className="label">Razon del cambio</label>
+              <textarea className="input" rows={2} placeholder="Ej: Aumentamos el comercio con este nodo, necesitamos mas limite" value={changeForm.reason} onChange={(e) => setChangeForm({ ...changeForm, reason: e.target.value })} />
+            </div>
+
+            <p className="text-xs text-gray-500">Esta solicitud pasara a la asamblea para votacion. Los miembros decidiran si aprueban el cambio.</p>
+
+            <div className="flex gap-2">
+              <button onClick={() => setChangeRequest(null)} className="btn-secondary flex-1">Cancelar</button>
+              <button onClick={submitChangeRequest} className="btn-primary flex-1">Enviar a Asamblea</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
