@@ -213,7 +213,10 @@ func main() {
 
 	setupHandler := api.NewSetupHandler(database.Pool, accountsSvc, jwtSecret, cfg.Node.Domain, cfg.Node.Name)
 
-	router := api.NewRouterWithAuthAndBasePath(handler, authHandlers, federationHandler, orgHandler, paymentsHandler, externalHandler, recoveryHandler, departmentsHandler, nfcTerminalHandler, setupHandler, cfg.API.CORSOrigins, authMiddleware, database.Pool, demoBasePath)
+	// Network handler (red privada federada con OpenWrt - opcional)
+	networkHandler := api.NewNetworkHandler(database.Pool, cfg.Node.Domain)
+
+	router := api.NewRouterWithAuthAndBasePath(handler, authHandlers, federationHandler, orgHandler, paymentsHandler, externalHandler, recoveryHandler, departmentsHandler, nfcTerminalHandler, setupHandler, networkHandler, cfg.API.CORSOrigins, authMiddleware, database.Pool, demoBasePath)
 
 	// Iniciar scheduler de notificaciones automaticas (avisos de votacion por cerrar, asambleas proximas)
 	notifScheduler := api.NewNotificationScheduler(database.Pool, cfg.Node.Domain)

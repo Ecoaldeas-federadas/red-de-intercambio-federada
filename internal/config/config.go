@@ -19,6 +19,7 @@ type Config struct {
 	Taxes      TaxesConfig      `yaml:"taxes"`
 	Fund       FundConfig       `yaml:"fund"`
 	API        APIConfig        `yaml:"api"`
+	Network    NetworkConfig    `yaml:"network"`
 }
 
 type NodeConfig struct {
@@ -89,6 +90,28 @@ type APIConfig struct {
 	Port        int      `yaml:"port"`
 	CORSOrigins []string `yaml:"cors_origins"`
 	RateLimit   int      `yaml:"rate_limit"`
+}
+
+// NetworkConfig configura la red privada federada (OpenWrt).
+// Todos los campos son opcionales: si estan vacios, el nodo funciona
+// por Internet normal sin OpenWrt. Se llena desde la pagina "Red Privada"
+// en Ajustes cuando OpenWrt se instala.
+type NetworkConfig struct {
+	Mode           string         `yaml:"mode"`            // "internet" (default), "intranet", "both"
+	IPv6ULA        string         `yaml:"ipv6_ula"`        // fdXX:XXXX:XXXX::/48 (vacio si no hay OpenWrt)
+	Subdomain      string         `yaml:"subdomain"`       // "nodo" -> nodo.aldea1.com
+	OpenWrtAddress string         `yaml:"openwrt_address"` // IP/IPv6 del OpenWrt (vacio si no hay)
+	OpenWrtDomain  string         `yaml:"openwrt_domain"`  // aldea1.com (dominio publico del OpenWrt)
+	OpenWrtToken   string         `yaml:"openwrt_token"`   // Token API de OpenWrt
+	STUNServer     string         `yaml:"stun_server"`     // stun.aldea1.com:3478 (vacio si no hay)
+	WireGuardPort  int            `yaml:"wireguard_port"`  // 51820
+	Peers          []IntranetPeer `yaml:"peers"`
+}
+
+type IntranetPeer struct {
+	Domain    string `yaml:"domain"`
+	Endpoint  string `yaml:"endpoint"` // IPv6 ULA o dominio
+	PublicKey string `yaml:"public_key"`
 }
 
 // defaultConfig retorna una configuracion segura por defecto.
@@ -162,6 +185,10 @@ func defaultConfig() *Config {
 			Port:        8080,
 			CORSOrigins: []string{"http://localhost:3000", "http://localhost:8080"},
 			RateLimit:   100,
+		},
+		Network: NetworkConfig{
+			Mode:          "internet", // sin OpenWrt por defecto
+			WireGuardPort: 51820,
 		},
 	}
 }
@@ -284,6 +311,14 @@ func Load(path string) (*Config, error) {
 			"public_service": 0.0,
 			"cooperative":    0.02,
 		}
+	}
+
+	// Defaults de network (OpenWrt opcional)
+	if cfg.Network.Mode == "" {
+		cfg.Network.Mode = "internet"
+	}
+	if cfg.Network.WireGuardPort == 0 {
+		cfg.Network.WireGuardPort = 51820
 	}
 
 	return &cfg, nil

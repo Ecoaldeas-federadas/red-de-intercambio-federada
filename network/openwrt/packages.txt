@@ -1,0 +1,61 @@
+# Paquetes de OpenWrt a instalar en el servidor de aldea
+#
+# Estos paquetes se instalan automaticamente al generar la imagen
+# con el OpenWrt Image Builder.
+
+# === WireGuard: tuneles cifrados entre aldeas ===
+wireguard-tools
+kmod-wireguard
+luci-proto-wireguard
+
+# === DNS y DHCP ===
+dnsmasq-full
+luci-mod-admin-full
+
+# === IPv6 y SLAAC ===
+ip6tables
+kmod-ip6tables
+kmod-ipv6
+radvd
+ip6tables-nft
+
+# === Enrutamiento dinamico (Babel) ===
+babeld
+bird2
+
+# === SSL / Certificados ===
+acme
+acme-dnsapi
+openssl-util
+ca-certificates
+
+# === Herramientas de red ===
+curl
+wget-ssl
+jq
+bind-tools
+ip-full
+tcpdump-mini
+
+# === LuCI (panel web) ===
+luci
+luci-base
+luci-mod-system
+luci-mod-network
+luci-mod-status
+luci-theme-bootstrap
+luci-lib-ipkg
+luci-lib-jsonc
+
+# === STUN/TURN (opcional, para NAT traversal) ===
+coturn
+
+# === Firewall ===
+luci-app-firewall
+nftables
+kmod-nftables
+
+# === Monitorizacion ===
+luci-app-statistics
+collectd-mod-interface
+collectd-mod-ping
