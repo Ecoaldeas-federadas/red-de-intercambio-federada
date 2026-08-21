@@ -11,7 +11,7 @@ UPDATE public_pages SET content = '[
     "title": "Cosecha Sana, Sabores y Medicina",
     "subtitle": "Compra directamente a los productores en moneda local cada primer sábado de mes.",
     "description": "No necesitas ser miembro de la feria para comprar. Ven a Parque Los Caobos y encuentra hortalizas recién cosechadas, tubérculos ancestrales, quesos artesanales, botica conuquera, cosmética natural y delicias tradicionales a precios solidarios.",
-    "image_url": "/placeholder.svg",
+    "image_url": "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=1200&q=80",
     "style": "standard"
   },
   {

@@ -1,14 +1,41 @@
-fix: Migracion 067 defensiva (verifica columnas antes de UPDATE)
+fix: Restaurar URLs originales de Unsplash en products (no reemplazar todas)
 
 ## Problema
-La migracion 067 fallaba con "column image_url does not exist" porque
-algunas tablas (store_items, public_pages) no tienen esa columna en
-todos los esquemas. El nodo normal no arrancaba por esto.
+El commit anterior (4f35cc5) reemplazo TODAS las URLs de Unsplash con
+/placeholder.svg, incluyendo las que funcionaban bien. Esto elimino
+todas las fotos reales del sistema. El placeholder debe ser solo un
+fallback cuando una foto no carga, no reemplazar fotos que funcionan.
 
 ## Solucion
-Usar DO $$ blocks con information_schema.columns para verificar que
-cada columna existe antes de ejecutar el UPDATE. Si la columna no
-existe, se salta silenciosamente.
+
+### 1. Revertir seed.go y migraciones 018-042
+Restauradas al estado anterior al commit 4f35cc5, con sus URLs
+originales de Unsplash intactas (255 URLs en seed.go, 244 en
+migraciones).
+
+### 2. Migracion 067: ahora es un SELECT 1 (no-op)
+La version anterior reemplazaba URLs de Unsplash con /placeholder.svg.
+Como ya se ejecuto en algunas bases de datos, no se puede eliminar
+(migraciones ya ejecutadas no se reejecutan). Se reemplaza con
+SELECT 1 para mantener el numero de secuencia sin hacer nada.
+
+### 3. Nueva migracion 068: restaurar URLs originales
+126 UPDATEs que restauran las URLs originales de Unsplash producto por
+producto, SOLO donde image_url = '/placeholder.svg' (los que fueron
+afectados por la 067). Los productos que ya tienen otra URL no se
+tocan.
+
+### 4. Eliminados placeholders tematicos
+Los archivos placeholder-agricultura.svg, placeholder-alimentacion.svg,
+etc. no son necesarios. El frontend ya tiene handlers onError que
+muestran un placeholder cuando una imagen no carga.
+
+### Como funciona el fallback
+- Las fotos reales de Unsplash se cargan normalmente
+- Si una URL de Unsplash devuelve 404, el onError del <img> muestra
+  un placeholder SVG inline (data URI)
+- El placeholder SOLO aparece cuando una foto no carga, no reemplaza
+  fotos que funcionan
 
 Generated with [Devin](https://devin.ai)
 
