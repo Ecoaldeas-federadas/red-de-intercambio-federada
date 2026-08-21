@@ -27,20 +27,11 @@ func (h *TaxHandler) getTaxConfig(w http.ResponseWriter, r *http.Request) {
 		nodeDomain = "localhost"
 	}
 
-	var taxRate float64
-	var isActive bool
-	var appliesTo string
-	var minAmount int64
-	var maxAmount *int64
-	var updatedAt time.Time
-	var taxAccountID *string
-
-	err := h.Pool.QueryRow(r.Context(), `
+	// Obtener todas las configuraciones de impuestos
+	rows, err := h.Pool.Query(r.Context(), `
 		SELECT tax_rate, is_active, applies_to, min_amount, max_amount, updated_at, tax_account_id::text
-		FROM tax_config WHERE node_domain = $1`, nodeDomain).Scan(
-		&taxRate, &isActive, &appliesTo, &minAmount, &maxAmount, &updatedAt, &taxAccountID)
-	if err != nil {
-		// No hay configuracion, devolver defaults
+		FROM tax_config WHERE node_domain = $1 ORDER BY applies_to`, nodeDomain)
+	if err != nil || rows == nil {
 		writeJSON(w, 200, map[string]interface{}{
 			"tax_rate":    0,
 			"is_active":   false,
@@ -49,19 +40,57 @@ func (h *TaxHandler) getTaxConfig(w http.ResponseWriter, r *http.Request) {
 			"max_amount":  nil,
 			"tax_account": nil,
 			"updated_at":  "",
+			"configs":     []interface{}{},
+			"message":     "No hay configuracion de impuestos. La asamblea debe aprobar una propuesta de cambio de impuestos.",
+		})
+		return
+	}
+	defer rows.Close()
+
+	type taxConfigEntry struct {
+		TaxRate    float64   `json:"tax_rate"`
+		IsActive   bool      `json:"is_active"`
+		AppliesTo  string    `json:"applies_to"`
+		MinAmount  int64     `json:"min_amount"`
+		MaxAmount  *int64    `json:"max_amount"`
+		TaxAccount *string   `json:"tax_account"`
+		UpdatedAt  time.Time `json:"updated_at"`
+	}
+	configs := []taxConfigEntry{}
+	for rows.Next() {
+		var c taxConfigEntry
+		var taxAccountID *string
+		rows.Scan(&c.TaxRate, &c.IsActive, &c.AppliesTo, &c.MinAmount, &c.MaxAmount, &c.UpdatedAt, &taxAccountID)
+		c.TaxAccount = taxAccountID
+		configs = append(configs, c)
+	}
+
+	if len(configs) == 0 {
+		writeJSON(w, 200, map[string]interface{}{
+			"tax_rate":    0,
+			"is_active":   false,
+			"applies_to":  "all",
+			"min_amount":  0,
+			"max_amount":  nil,
+			"tax_account": nil,
+			"updated_at":  "",
+			"configs":     []interface{}{},
 			"message":     "No hay configuracion de impuestos. La asamblea debe aprobar una propuesta de cambio de impuestos.",
 		})
 		return
 	}
 
+	// Devolver la primera config como principal + lista completa
+	first := configs[0]
 	writeJSON(w, 200, map[string]interface{}{
-		"tax_rate":    taxRate,
-		"is_active":   isActive,
-		"applies_to":  appliesTo,
-		"min_amount":  minAmount,
-		"max_amount":  maxAmount,
-		"tax_account": derefStr(taxAccountID),
-		"updated_at":  updatedAt,
+		"tax_rate":    first.TaxRate,
+		"is_active":   first.IsActive,
+		"applies_to":  first.AppliesTo,
+		"min_amount":  first.MinAmount,
+		"max_amount":  first.MaxAmount,
+		"tax_account": derefStr(first.TaxAccount),
+		"updated_at":  first.UpdatedAt,
+		"configs":     configs,
 	})
 }
 
@@ -124,20 +153,26 @@ func (h *TaxHandler) getTaxAccount(w http.ResponseWriter, r *http.Request) {
 		SELECT tax_account_id::text FROM tax_config WHERE node_domain = $1`, nodeDomain).Scan(&taxAccountID)
 	if err != nil || taxAccountID == nil {
 		writeJSON(w, 200, map[string]interface{}{
-			"tax_account": nil,
-			"balance":     0,
-			"message":     "No hay cuenta de impuestos configurada. La asamblea debe asignar una cuenta.",
+			"tax_account":      nil,
+			"tax_account_name": nil,
+			"balance":          0,
+			"message":          "No hay cuenta de impuestos configurada. La asamblea debe asignar una cuenta.",
 		})
 		return
 	}
 
-	// Obtener balance de la cuenta de impuestos
+	// Obtener balance y nombre de la cuenta de impuestos
 	var balance int64
-	h.Pool.QueryRow(r.Context(), `SELECT balance FROM users WHERE id = $1::uuid`, *taxAccountID).Scan(&balance)
+	var username, displayName string
+	h.Pool.QueryRow(r.Context(), `
+		SELECT balance, COALESCE(username, ''), COALESCE(display_name, '')
+		FROM users WHERE id = $1::uuid`, *taxAccountID).Scan(&balance, &username, &displayName)
 
 	writeJSON(w, 200, map[string]interface{}{
-		"tax_account": *taxAccountID,
-		"balance":     balance,
+		"tax_account":         *taxAccountID,
+		"tax_account_name":    username,
+		"tax_account_display": displayName,
+		"balance":             balance,
 	})
 }
 

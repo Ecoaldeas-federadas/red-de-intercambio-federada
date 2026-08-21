@@ -1736,25 +1736,65 @@ export default function Assembly() {
 
           {taxConfig && (
             <div className="card">
-              <h3 className="font-medium mb-3">Configuracion Actual</h3>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <label className="label">Tasa de impuesto</label>
-                  <b>{taxConfig.tax_rate ? `${(taxConfig.tax_rate * 100).toFixed(2)}%` : '0%'}</b>
+              <h3 className="font-medium mb-3">Configuracion de Impuestos</h3>
+              {taxConfig.configs && taxConfig.configs.length > 0 ? (
+                <div className="space-y-2">
+                  <table className="w-full text-sm">
+                    <thead><tr className="border-b text-left text-gray-600">
+                      <th className="py-2">Tipo de cuenta</th>
+                      <th>Tasa</th>
+                      <th>Estado</th>
+                      <th>Monto minimo</th>
+                    </tr></thead>
+                    <tbody>
+                      {taxConfig.configs.map((c: any, i: number) => {
+                        const labels: Record<string, string> = {
+                          'individual': 'Personas',
+                          'organization': 'Organizaciones',
+                          'department': 'Departamentos',
+                          'fund': 'Fondo (exento)',
+                          'commerce': 'Tiendas comerciales',
+                          'public_service': 'Servicios publicos',
+                          'cooperative': 'Cooperativas',
+                          'all': 'General',
+                        }
+                        return (
+                          <tr key={i} className="border-b border-gray-100">
+                            <td className="py-2 font-medium">{labels[c.applies_to] || c.applies_to}</td>
+                            <td className={c.tax_rate > 0 ? 'text-amber-600 font-bold' : 'text-green-600'}>
+                              {c.tax_rate > 0 ? `${(c.tax_rate * 100).toFixed(2)}%` : 'Exento'}
+                            </td>
+                            <td>{c.is_active ? 'Activo' : 'Inactivo'}</td>
+                            <td>{c.min_amount || 0} {currency}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Cada tipo de cuenta tiene su propia tasa de impuesto. Las organizaciones comerciales pagan mas, los servicios publicos menos, y el fondo comunitario esta exento.
+                  </p>
                 </div>
-                <div>
-                  <label className="label">Estado</label>
-                  <b>{taxConfig.is_active ? 'Activo' : 'Inactivo'}</b>
+              ) : (
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <label className="label">Tasa de impuesto</label>
+                    <b>{taxConfig.tax_rate ? `${(taxConfig.tax_rate * 100).toFixed(2)}%` : '0%'}</b>
+                  </div>
+                  <div>
+                    <label className="label">Estado</label>
+                    <b>{taxConfig.is_active ? 'Activo' : 'Inactivo'}</b>
+                  </div>
+                  <div>
+                    <label className="label">Aplica a</label>
+                    <b>{taxConfig.applies_to || 'Todas las transacciones'}</b>
+                  </div>
+                  <div>
+                    <label className="label">Monto minimo</label>
+                    <b>{taxConfig.min_amount || 0} {currency}</b>
+                  </div>
                 </div>
-                <div>
-                  <label className="label">Aplica a</label>
-                  <b>{taxConfig.applies_to || 'Todas las transacciones'}</b>
-                </div>
-                <div>
-                  <label className="label">Monto minimo</label>
-                  <b>{taxConfig.min_amount || 0} {currency}</b>
-                </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -1763,7 +1803,7 @@ export default function Assembly() {
               <h3 className="font-medium mb-3">Cuenta de la Asamblea (Impuestos)</h3>
               {taxAccount.tax_account ? (
                 <div className="text-sm">
-                  <p><span className="text-gray-500">Cuenta:</span> <b>{taxAccount.tax_account}</b></p>
+                  <p><span className="text-gray-500">Cuenta:</span> <b>{taxAccount.tax_account_display || taxAccount.tax_account_name || taxAccount.tax_account}</b></p>
                   <p className="mt-1"><span className="text-gray-500">Balance recaudado:</span> <b className="text-trueque-700">{taxAccount.balance} {currency}</b></p>
                   <p className="mt-2 text-xs text-gray-500">Los impuestos llegan automaticamente a esta cuenta. Para gastar este dinero, crea una propuesta de "Distribucion de fondos" en asamblea.</p>
                 </div>

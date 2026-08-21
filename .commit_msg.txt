@@ -1,17 +1,34 @@
-fix: Acta de asamblea abre en modo lectura, editar es separado
+fix: Impuestos por tipo de cuenta + config de asamblea + nombre cuenta
 
-El acta de asambleas completadas ahora se abre en modo LECTURA por defecto.
-Solo si tienes permiso (assembly.manage_board) aparece un boton "Editar"
-dentro del modal. Sin permiso, solo puedes ver el acta.
+## Impuestos
+- Seed crea 8 configuraciones de tax_config con tasas diferentes:
+  - Personas: 0.5%
+  - Organizaciones: 1%
+  - Departamentos: 0.5%
+  - Fondo: exento (0%)
+  - Tiendas comerciales: 1.5%
+  - Servicios publicos: 0.8%
+  - Cooperativas: 1.2%
+  - General: 0%
+- Backend getTaxConfig devuelve lista completa en "configs"
+- Frontend muestra tabla con todas las tasas por tipo
+- Etiquetas legibles: "Personas", "Tiendas comerciales", etc.
 
-Cambios en Assembly.tsx y ScopedAssembly.tsx:
-- Nuevo estado minutesEditMode (false por defecto)
-- Boton dice "Ver acta" (no "Ver/editar acta")
-- Modal muestra texto en div de lectura (no textarea)
-- Boton "Editar" solo aparece si canManageBoard
-- Boton "Escribir" si no hay contenido y tienes permiso
-- Si no tienes permiso, no aparece boton de editar
-- Modal dice "Cerrar" en vez de "Cancelar" en modo lectura
+## Cuenta de impuestos
+- Backend getTaxAccount devuelve tax_account_name y tax_account_display
+- Frontend muestra el nombre (ej: "impuestos") en vez del UUID
+
+## Configuracion de aprobaciones de asamblea
+- Seed crea 14 configuraciones en assembly_config:
+  - Cambio de limites: asamblea 50%
+  - Admision: asamblea 66.67%
+  - Expulsion: asamblea 80%
+  - Config federacion: junta directiva 3 firmas
+  - Cambio de impuestos: asamblea 66.67%
+  - Distribucion de fondo: asamblea 66.67%
+  - Crear cuenta: junta directiva 2 firmas
+  - etc.
+- assembly_config agregado a limpieza en DemoReset y DemoAutoSetup
 
 Generated with [Devin](https://devin.ai)
 

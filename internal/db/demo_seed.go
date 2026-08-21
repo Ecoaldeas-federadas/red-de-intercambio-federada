@@ -2102,6 +2102,7 @@ func DemoReset(ctx context.Context, d *DB, nodeDomain string) error {
 		"assembly_sessions",
 		"assembly_quorum_config",
 		"assembly_frequency_config",
+		"assembly_config",
 		"board_members",
 		"tax_config",
 		"tax_distributions",
@@ -2450,15 +2451,65 @@ func demoSeedBoardMembers(ctx context.Context, d *DB, nodeDomain string) {
 		ON CONFLICT DO NOTHING`,
 		nodeDomain)
 
-	// Configurar tax_config con tasa de impuesto
+	// Configurar assembly_config (metodo de aprobacion por tipo de propuesta)
+	assemblyConfigs := []struct {
+		proposalType       string
+		approvalMethod     string
+		requiredPercentage float64
+		requiredQuorum     int
+		requiredSignatures int
+		description        string
+	}{
+		{"limit_change", "assembly", 50.0, 10, 0, "Cambios de limites de credito/debito - mayoria simple"},
+		{"admission", "assembly", 66.67, 15, 0, "Admision de nuevos miembros - 2/3 de la asamblea"},
+		{"expulsion", "assembly", 80.0, 20, 0, "Expulsion de miembro - supermayoria 80%"},
+		{"budget_increase", "assembly", 66.67, 15, 0, "Aumento de presupuesto - 2/3 de la asamblea"},
+		{"federation_config", "board", 50.0, 0, 3, "Configuracion de federacion - junta directiva (3 firmas)"},
+		{"recovery_config", "assembly", 66.67, 15, 0, "Configuracion de recuperacion - 2/3 de la asamblea"},
+		{"tax_change", "assembly", 66.67, 20, 0, "Cambios de impuestos - 2/3 con quorum alto"},
+		{"member_level", "assembly", 50.0, 10, 0, "Cambios de nivel de miembro - mayoria simple"},
+		{"policy", "assembly", 50.0, 10, 0, "Politicas generales - mayoria simple"},
+		{"create_account", "board", 50.0, 0, 2, "Creacion de cuentas - junta directiva (2 firmas)"},
+		{"fund_distribution", "assembly", 66.67, 15, 0, "Distribucion del fondo comunitario - 2/3 de la asamblea"},
+		{"energy_rate_change", "assembly", 66.67, 15, 0, "Cambio de tarifa energetica - 2/3 de la asamblea"},
+		{"product_modification", "assembly", 50.0, 10, 0, "Modificacion de productos del catalogo - mayoria simple"},
+		{"free_proposal", "assembly", 50.0, 10, 0, "Propuesta libre - mayoria simple"},
+	}
+	for _, ac := range assemblyConfigs {
+		d.Pool.Exec(ctx, `
+			INSERT INTO assembly_config (id, node_domain, proposal_type, approval_method, required_percentage, required_quorum, required_signatures, description, is_active, created_at, updated_at)
+			VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, true, NOW(), NOW())
+			ON CONFLICT DO NOTHING`,
+			nodeDomain, ac.proposalType, ac.approvalMethod, ac.requiredPercentage,
+			ac.requiredQuorum, ac.requiredSignatures, ac.description)
+	}
+
+	// Configurar tax_config con tasas de impuesto por tipo de cuenta
 	var taxAccountID uuid.UUID
 	d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE node_domain = $1 AND username = 'impuestos' LIMIT 1`, nodeDomain).Scan(&taxAccountID)
 	if taxAccountID != uuid.Nil {
-		d.Pool.Exec(ctx, `
-			INSERT INTO tax_config (id, node_domain, tax_rate, tax_account_id, applies_to, min_amount, is_active, created_at, updated_at)
-			VALUES (gen_random_uuid(), $1, 0.01, $2, 'all', 0, true, NOW(), NOW())
-			ON CONFLICT DO NOTHING`,
-			nodeDomain, taxAccountID)
+		// Tasas diferentes por tipo de cuenta
+		taxConfigs := []struct {
+			rate      float64
+			appliesTo string
+			minAmount int64
+		}{
+			{0.005, "individual", 0},     // 0.5% para personas
+			{0.01, "organization", 0},    // 1% para organizaciones comerciales
+			{0.005, "department", 0},     // 0.5% para departamentos
+			{0.0, "fund", 0},             // 0% para cuentas del fondo (exentas)
+			{0.015, "commerce", 0},       // 1.5% para tiendas comerciales
+			{0.008, "public_service", 0}, // 0.8% para servicios publicos
+			{0.012, "cooperative", 0},    // 1.2% para cooperativas
+			{0.0, "all", 0},              // 0% general (no se usa, las especificas prevalecen)
+		}
+		for _, tc := range taxConfigs {
+			d.Pool.Exec(ctx, `
+				INSERT INTO tax_config (id, node_domain, tax_rate, tax_account_id, applies_to, min_amount, is_active, created_at, updated_at)
+				VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, true, NOW(), NOW())
+				ON CONFLICT DO NOTHING`,
+				nodeDomain, tc.rate, taxAccountID, tc.appliesTo, tc.minAmount)
+		}
 	}
 }
 
