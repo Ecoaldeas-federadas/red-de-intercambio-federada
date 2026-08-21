@@ -403,6 +403,13 @@ function VoIPPanel() {
   const [msg, setMsg] = useState<{ type: string, text: string } | null>(null)
   const [newExt, setNewExt] = useState({ extension: '', display_name: '', password: '' })
   const [newRoute, setNewRoute] = useState({ remote_village_code: 0, remote_village_name: '', remote_endpoint: '', remote_domain: '' })
+  const [pstnGateways, setPstnGateways] = useState<any[]>([])
+  const [newGateway, setNewGateway] = useState({ name: '', provider: '', sip_server: '', sip_username: '', sip_password: '', inbound_number: '', cost_per_minute: 0, max_concurrent_calls: 2 })
+  const [balance, setBalance] = useState<{ balance: number, balance_display: string, total_recharged: number, total_spent: number } | null>(null)
+  const [rechargeAmount, setRechargeAmount] = useState(0)
+  const [rechargeMethod, setRechargeMethod] = useState('transfer')
+  const [rechargeRef, setRechargeRef] = useState('')
+  const [cdr, setCdr] = useState<any[]>([])
 
   useEffect(() => {
     loadAll()
@@ -411,9 +418,76 @@ function VoIPPanel() {
   const loadAll = async () => {
     setLoading(true)
     try {
-      await Promise.all([loadConfig(), loadExtensions(), loadRoutes()])
+      await Promise.all([loadConfig(), loadExtensions(), loadRoutes(), loadPSTNGateways(), loadBalance(), loadCDR()])
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadPSTNGateways = async () => {
+    try {
+      const res = await api.get('/api/voip/pstn-gateways')
+      setPstnGateways(res.data.gateways || [])
+    } catch (e) { console.error(e) }
+  }
+
+  const loadBalance = async () => {
+    try {
+      const res = await api.get('/api/voip/balance')
+      setBalance(res.data)
+    } catch (e) { console.error(e) }
+  }
+
+  const loadCDR = async () => {
+    try {
+      const res = await api.get('/api/voip/cdr')
+      setCdr(res.data.calls || [])
+    } catch (e) { console.error(e) }
+  }
+
+  const autoConfigureRoutes = async () => {
+    try {
+      const res = await api.post('/api/voip/auto-configure-routes', {})
+      setMsg({ type: 'success', text: res.data.message })
+      await loadRoutes()
+    } catch (e: any) {
+      setMsg({ type: 'error', text: e.response?.data?.error || 'Error' })
+    }
+  }
+
+  const createPSTNGateway = async () => {
+    if (!newGateway.name || !newGateway.sip_server || !newGateway.sip_username || !newGateway.sip_password) {
+      setMsg({ type: 'error', text: 'Nombre, servidor, usuario y password son obligatorios' })
+      return
+    }
+    try {
+      const res = await api.post('/api/voip/pstn-gateways', newGateway)
+      setMsg({ type: 'success', text: res.data.message })
+      setNewGateway({ name: '', provider: '', sip_server: '', sip_username: '', sip_password: '', inbound_number: '', cost_per_minute: 0, max_concurrent_calls: 2 })
+      await loadPSTNGateways()
+    } catch (e: any) {
+      setMsg({ type: 'error', text: e.response?.data?.error || 'Error' })
+    }
+  }
+
+  const deletePSTNGateway = async (id: string) => {
+    if (!confirm('Eliminar pasarela PSTN?')) return
+    try {
+      await api.delete(`/api/voip/pstn-gateways/${id}`)
+      await loadPSTNGateways()
+    } catch (e: any) {
+      setMsg({ type: 'error', text: e.response?.data?.error || 'Error' })
+    }
+  }
+
+  const rechargeVoIP = async () => {
+    if (rechargeAmount <= 0) { setMsg({ type: 'error', text: 'Monto debe ser positivo' }); return }
+    try {
+      const res = await api.post('/api/voip/recharge', { amount: rechargeAmount, payment_method: rechargeMethod, reference: rechargeRef })
+      setMsg({ type: 'success', text: res.data.message })
+      setRechargeAmount(0); setRechargeRef('')
+    } catch (e: any) {
+      setMsg({ type: 'error', text: e.response?.data?.error || 'Error' })
     }
   }
 
@@ -606,6 +680,88 @@ function VoIPPanel() {
           <input className="input text-sm" placeholder="Endpoint SIP" value={newRoute.remote_endpoint} onChange={(e) => setNewRoute({ ...newRoute, remote_endpoint: e.target.value })} />
           <button onClick={createRoute} className="px-3 py-2 bg-trueque-600 text-white rounded-lg text-sm">Agregar ruta</button>
         </div>
+        <button onClick={autoConfigureRoutes} className="mt-2 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-1">
+          <RefreshCw size={14} /> Auto-configurar rutas desde nodos federados
+        </button>
+      </div>
+
+      {/* Pasarelas PSTN */}
+      <div className="border-t pt-3">
+        <h3 className="font-medium text-sm mb-2">Pasarelas PSTN (llamadas a telefonos normales)</h3>
+        <p className="text-xs text-gray-500 mb-2">Permite llamar a numeros de telefono fijos/moviles fuera de la red federada. Requiere cuenta con un proveedor SIP trunk.</p>
+        {pstnGateways.length === 0 ? (
+          <p className="text-gray-500 text-xs">No hay pasarelas PSTN configuradas. Las llamadas entre nodos federados son gratis.</p>
+        ) : (
+          <div className="space-y-1">
+            {pstnGateways.map((gw) => (
+              <div key={gw.id} className="flex items-center justify-between bg-gray-50 p-2 rounded text-sm">
+                <div>
+                  <span className="font-medium">{gw.name}</span>
+                  {gw.provider && <span className="text-gray-500 ml-2">({gw.provider})</span>}
+                  {gw.inbound_number && <span className="text-gray-400 ml-2 text-xs">Entrante: {gw.inbound_number}</span>}
+                  <span className="text-gray-400 ml-2 text-xs">{gw.cost_per_minute} TQ/min</span>
+                </div>
+                <button onClick={() => deletePSTNGateway(String(gw.id))} className="text-red-500"><Trash2 size={14} /></button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
+          <input className="input text-sm" placeholder="Nombre (ej: VoIP.ms)" value={newGateway.name} onChange={(e) => setNewGateway({ ...newGateway, name: e.target.value })} />
+          <input className="input text-sm" placeholder="Proveedor" value={newGateway.provider} onChange={(e) => setNewGateway({ ...newGateway, provider: e.target.value })} />
+          <input className="input text-sm" placeholder="Servidor SIP" value={newGateway.sip_server} onChange={(e) => setNewGateway({ ...newGateway, sip_server: e.target.value })} />
+          <input className="input text-sm" placeholder="Usuario SIP" value={newGateway.sip_username} onChange={(e) => setNewGateway({ ...newGateway, sip_username: e.target.value })} />
+          <input className="input text-sm" placeholder="Password SIP" type="password" value={newGateway.sip_password} onChange={(e) => setNewGateway({ ...newGateway, sip_password: e.target.value })} />
+          <input className="input text-sm" placeholder="Numero entrante (opcional)" value={newGateway.inbound_number} onChange={(e) => setNewGateway({ ...newGateway, inbound_number: e.target.value })} />
+          <input className="input text-sm" type="number" placeholder="Costo/min (centavos TQ)" value={newGateway.cost_per_minute || ''} onChange={(e) => setNewGateway({ ...newGateway, cost_per_minute: parseFloat(e.target.value) || 0 })} />
+          <input className="input text-sm" type="number" placeholder="Llamadas simultaneas" value={newGateway.max_concurrent_calls || ''} onChange={(e) => setNewGateway({ ...newGateway, max_concurrent_calls: parseInt(e.target.value) || 2 })} />
+          <button onClick={createPSTNGateway} className="px-3 py-2 bg-trueque-600 text-white rounded-lg text-sm">Agregar pasarela</button>
+        </div>
+      </div>
+
+      {/* Saldo prepago */}
+      <div className="border-t pt-3">
+        <h3 className="font-medium text-sm mb-2">Saldo prepago para llamadas externas</h3>
+        <p className="text-xs text-gray-500 mb-2">Las llamadas entre nodos federados son gratis. Las llamadas a telefonos normales (PSTN) requieren saldo.</p>
+        {balance !== null && (
+          <div className="bg-green-50 p-3 rounded-lg mb-2">
+            <div className="text-xs text-green-600">Mi saldo</div>
+            <div className="text-xl font-bold text-green-700">{balance.balance_display}</div>
+            <div className="text-xs text-green-500 mt-1">Recargado: {balance.total_recharged} | Gastado: {balance.total_spent}</div>
+          </div>
+        )}
+        <div className="flex gap-2">
+          <input className="input text-sm" type="number" placeholder="Monto a recargar (centavos TQ)" value={rechargeAmount || ''} onChange={(e) => setRechargeAmount(parseInt(e.target.value) || 0)} />
+          <input className="input text-sm" placeholder="Metodo (transfer/cash)" value={rechargeMethod} onChange={(e) => setRechargeMethod(e.target.value)} />
+          <input className="input text-sm" placeholder="Referencia" value={rechargeRef} onChange={(e) => setRechargeRef(e.target.value)} />
+          <button onClick={rechargeVoIP} className="px-3 py-2 bg-trueque-600 text-white rounded-lg text-sm whitespace-nowrap">Solicitar recarga</button>
+        </div>
+      </div>
+
+      {/* Registro de llamadas */}
+      <div className="border-t pt-3">
+        <h3 className="font-medium text-sm mb-2">Registro de llamadas (CDR)</h3>
+        {cdr.length === 0 ? (
+          <p className="text-gray-500 text-xs">No hay llamadas registradas.</p>
+        ) : (
+          <div className="space-y-1 max-h-48 overflow-y-auto">
+            {cdr.map((c) => (
+              <div key={c.id} className="flex items-center justify-between bg-gray-50 p-2 rounded text-xs">
+                <div>
+                  <span className="font-mono">{c.destination}</span>
+                  <span className={`ml-2 px-1.5 py-0.5 rounded ${c.destination_type === 'internal' ? 'bg-green-100 text-green-700' : c.destination_type === 'federated' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+                    {c.destination_type}
+                  </span>
+                  {c.direction === 'inbound' && <span className="ml-1 text-gray-400">(entrante)</span>}
+                </div>
+                <div className="text-right">
+                  <div>{c.duration}s | {c.cost_display}</div>
+                  <div className="text-gray-400">{c.user_name}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

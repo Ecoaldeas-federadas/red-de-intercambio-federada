@@ -1,12 +1,43 @@
-docs: renombrar documentacion de red privada a espanol
+feat: numero de nodo SIP, pasarelas PSTN, saldo prepago y documentacion completa
 
-ARCHITECTURE.md -> ARQUITECTURA.md
-INSTALL.md -> INSTALACION.md
-FEDERATION.md -> FEDERACION.md
-HARDWARE.md -> EQUIPAMENTO.md
-SSL-DOMAINS.md -> DOMINIOS-SSL.md
+Numero de nodo SIP unico:
+- Cada nodo tiene un numero unico (100-999) para telefonia federada
+- Se genera automaticamente desde el dominio del nodo
+- Se comparte con otros nodos al federarse (protocol.go + federation.go)
+- Auto-configuracion de rutas SIP desde nodos federados
+- Campo peer_node_number en node_federation_keys
 
-Actualizadas todas las referencias internas.
+Pasarelas PSTN (llamadas a telefonos normales):
+- Tabla voip_pstn_gateways con proveedores SIP trunk
+- Configuracion de servidor SIP, credenciales, numero DID entrante
+- Costo por minuto y limite de llamadas simultaneas
+- API: /api/voip/pstn-gateways (CRUD)
+
+Saldo prepago y facturacion VoIP:
+- Tabla voip_balance: saldo por usuario en TQ
+- Tabla voip_recharges: solicitudes de recarga (admin confirma)
+- Tabla voip_cdr: registro de llamadas con costo y duracion
+- Tabla voip_rates: tarifas por prefijo de pais (13 paises por defecto)
+- API: /api/voip/balance, /api/voip/recharge, /api/voip/cdr, /api/voip/rates
+
+OpenWrt - asignacion automatica de dominios:
+- Script domain-assign.sh para que nuevos nodos soliciten subdominio
+- Verifica disponibilidad, crea entrada DNS en dnsmasq
+- Token de autorizacion para seguridad
+
+Documentacion completa:
+- AGREGAR-SERVICIOS.md: guia tecnica para agregar nuevos servicios al catalogo
+  con instrucciones paso a paso, iconos disponibles, y guia para usar IA
+- GUIA-SIP-COMPLETA.md: documentacion completa de telefonia VoIP
+  con configuracion de clientes (Android, iOS, Windows, Mac, Linux, hardware),
+  pasarelas PSTN, saldo prepago, facturacion, seguridad, y resolucion de problemas
+- DOMINIOS-NODOS.md: arquitectura de dominios con OpenWrt
+  con asignacion automatica, DNS split-horizon, y flujo de instalacion
+
+Frontend:
+- Panel VoIP ampliado con pasarelas PSTN, saldo prepago, CDR
+- Boton "Auto-configurar rutas desde nodos federados"
+- Lista de llamadas con tipo (interna, federada, PSTN) y costo
 
 Generated with [Devin](https://devin.ai)
 

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -248,6 +249,42 @@ func (sh *FederatedServicesHandler) RegisterRoutesWithAuth(r chi.Router, am *Aut
 	}
 	r.Get("/api/voip/extensions", sh.listExtensions)
 	r.Get("/api/voip/routes", sh.listRoutes)
+
+	// Numero de nodo
+	r.Get("/api/node/number", sh.getNodeNumber)
+	if am != nil {
+		r.With(am.RequirePermission("config.manage")).Post("/api/node/number/generate", sh.generateNodeNumber)
+		r.With(am.RequirePermission("config.manage")).Post("/api/voip/auto-configure-routes", sh.autoConfigureSIPRoutes)
+	} else {
+		r.Post("/api/node/number/generate", sh.generateNodeNumber)
+		r.Post("/api/voip/auto-configure-routes", sh.autoConfigureSIPRoutes)
+	}
+
+	// Pasarelas PSTN
+	r.Get("/api/voip/pstn-gateways", sh.listPSTNGateways)
+	if am != nil {
+		r.With(am.RequirePermission("config.manage")).Post("/api/voip/pstn-gateways", sh.createPSTNGateway)
+		r.With(am.RequirePermission("config.manage")).Delete("/api/voip/pstn-gateways/{id}", sh.deletePSTNGateway)
+	} else {
+		r.Post("/api/voip/pstn-gateways", sh.createPSTNGateway)
+		r.Delete("/api/voip/pstn-gateways/{id}", sh.deletePSTNGateway)
+	}
+
+	// Saldo prepago
+	r.Get("/api/voip/balance", sh.getVoIPBalance)
+	r.Post("/api/voip/recharge", sh.rechargeVoIP)
+	r.Get("/api/voip/recharges", sh.listRecharges)
+	if am != nil {
+		r.With(am.RequirePermission("config.manage")).Post("/api/voip/recharges/{id}/confirm", sh.confirmRecharge)
+	} else {
+		r.Post("/api/voip/recharges/{id}/confirm", sh.confirmRecharge)
+	}
+
+	// CDR (registro de llamadas)
+	r.Get("/api/voip/cdr", sh.listCDR)
+
+	// Tarifas
+	r.Get("/api/voip/rates", sh.listRates)
 }
 
 // getCatalog devuelve el catalogo completo de servicios.
@@ -560,13 +597,13 @@ Si tienes OpenWrt instalado, registra el subdominio:
 
 	// Devolver como JSON (el frontend puede descargarlo)
 	writeJSON(w, 200, map[string]interface{}{
-		"success":         true,
-		"service_id":      serviceID,
-		"service_name":    svc.Name,
-		"docker_compose":  composeContent,
-		"readme":          readmeContent,
-		"subdomain":       fmt.Sprintf("%s.%s", svc.Subdomain, sh.NodeDomain),
-		"instructions":    fmt.Sprintf("1. Guardar docker-compose.yml\n2. Ejecutar: docker compose up -d\n3. Acceder: http://%s.%s:%d", svc.Subdomain, sh.NodeDomain, svc.DefaultPort),
+		"success":        true,
+		"service_id":     serviceID,
+		"service_name":   svc.Name,
+		"docker_compose": composeContent,
+		"readme":         readmeContent,
+		"subdomain":      fmt.Sprintf("%s.%s", svc.Subdomain, sh.NodeDomain),
+		"instructions":   fmt.Sprintf("1. Guardar docker-compose.yml\n2. Ejecutar: docker compose up -d\n3. Acceder: http://%s.%s:%d", svc.Subdomain, sh.NodeDomain, svc.DefaultPort),
 	})
 }
 
@@ -647,7 +684,7 @@ func (sh *FederatedServicesHandler) generateVillageCode(w http.ResponseWriter, r
 	for _, c := range sh.NodeDomain {
 		hash = hash*31 + int(c)
 	}
-	code := 100 + (hash%900 + 900)%900 // 100-999
+	code := 100 + (hash%900+900)%900 // 100-999
 
 	// Guardar
 	_, err := sh.Pool.Exec(ctx, `
@@ -878,4 +915,489 @@ func (sh *FederatedServicesHandler) deleteRoute(w http.ResponseWriter, r *http.R
 		return
 	}
 	writeJSON(w, 200, map[string]interface{}{"success": true})
+}
+
+// === Pasarelas PSTN (llamadas a telefonos normales) ===
+
+// listPSTNGateways lista las pasarelas PSTN configuradas.
+func (sh *FederatedServicesHandler) listPSTNGateways(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	rows, err := sh.Pool.Query(ctx, `
+		SELECT id, name, provider, sip_server, sip_username, inbound_number,
+		       is_active, max_concurrent_calls, cost_per_minute, billing_increment, created_at
+		FROM voip_pstn_gateways ORDER BY created_at DESC`)
+	if err != nil {
+		writeJSON(w, 200, map[string]interface{}{"gateways": []interface{}{}})
+		return
+	}
+	defer rows.Close()
+
+	var gateways []map[string]interface{}
+	for rows.Next() {
+		var id int
+		var name, sipServer, sipUsername string
+		var provider, inboundNumber *string
+		var isActive bool
+		var maxConcurrent int
+		var costPerMinute float64
+		var billingIncrement int
+		var createdAt time.Time
+		_ = rows.Scan(&id, &name, &provider, &sipServer, &sipUsername, &inboundNumber,
+			&isActive, &maxConcurrent, &costPerMinute, &billingIncrement, &createdAt)
+		gw := map[string]interface{}{
+			"id":                   id,
+			"name":                 name,
+			"sip_server":           sipServer,
+			"sip_username":         sipUsername,
+			"is_active":            isActive,
+			"max_concurrent_calls": maxConcurrent,
+			"cost_per_minute":      costPerMinute,
+			"billing_increment":    billingIncrement,
+			"created_at":           createdAt,
+		}
+		if provider != nil {
+			gw["provider"] = *provider
+		}
+		if inboundNumber != nil {
+			gw["inbound_number"] = *inboundNumber
+		}
+		gateways = append(gateways, gw)
+	}
+	if gateways == nil {
+		gateways = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, map[string]interface{}{"gateways": gateways})
+}
+
+// createPSTNGateway crea una pasarela PSTN.
+func (sh *FederatedServicesHandler) createPSTNGateway(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	var req struct {
+		Name               string  `json:"name"`
+		Provider           string  `json:"provider"`
+		SipServer          string  `json:"sip_server"`
+		SipUsername        string  `json:"sip_username"`
+		SipPassword        string  `json:"sip_password"`
+		InboundNumber      string  `json:"inbound_number"`
+		MaxConcurrentCalls int     `json:"max_concurrent_calls"`
+		CostPerMinute      float64 `json:"cost_per_minute"`
+		BillingIncrement   int     `json:"billing_increment"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request")
+		return
+	}
+	if req.Name == "" || req.SipServer == "" || req.SipUsername == "" || req.SipPassword == "" {
+		writeError(w, 400, "name, sip_server, sip_username y sip_password son obligatorios")
+		return
+	}
+	if req.MaxConcurrentCalls == 0 {
+		req.MaxConcurrentCalls = 2
+	}
+	if req.BillingIncrement == 0 {
+		req.BillingIncrement = 60
+	}
+
+	var id int
+	err := sh.Pool.QueryRow(ctx, `
+		INSERT INTO voip_pstn_gateways (name, provider, sip_server, sip_username, sip_password,
+			inbound_number, is_active, max_concurrent_calls, cost_per_minute, billing_increment, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, true, $7, $8, $9, NOW(), NOW())
+		RETURNING id`,
+		req.Name, req.Provider, req.SipServer, req.SipUsername, req.SipPassword,
+		req.InboundNumber, req.MaxConcurrentCalls, req.CostPerMinute, req.BillingIncrement).Scan(&id)
+	if err != nil {
+		writeError(w, 500, "error al crear pasarela PSTN")
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"success": true,
+		"id":      id,
+		"message": "Pasarela PSTN creada. Las llamadas externas usaran esta pasarela.",
+	})
+}
+
+// deletePSTNGateway elimina una pasarela PSTN.
+func (sh *FederatedServicesHandler) deletePSTNGateway(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	id := chi.URLParam(r, "id")
+	_, err := sh.Pool.Exec(ctx, `DELETE FROM voip_pstn_gateways WHERE id = $1`, id)
+	if err != nil {
+		writeError(w, 500, "error al eliminar pasarela")
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{"success": true})
+}
+
+// === Saldo prepago VoIP ===
+
+// getVoIPBalance obtiene el saldo VoIP del usuario actual.
+func (sh *FederatedServicesHandler) getVoIPBalance(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID, err := getUserID(r)
+	if err != nil {
+		writeError(w, 401, "authentication required")
+		return
+	}
+
+	var balance, totalRecharged, totalSpent int64
+	err = sh.Pool.QueryRow(ctx, `
+		SELECT balance, total_recharged, total_spent FROM voip_balance WHERE user_id = $1`,
+		userID).Scan(&balance, &totalRecharged, &totalSpent)
+	if err != nil {
+		balance = 0
+		totalRecharged = 0
+		totalSpent = 0
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"balance":         balance,
+		"total_recharged": totalRecharged,
+		"total_spent":     totalSpent,
+		"balance_display": fmt.Sprintf("%d.%02d TQ", balance/100, balance%100),
+	})
+}
+
+// rechargeVoIP recarga saldo VoIP (solicita recarga, admin confirma).
+func (sh *FederatedServicesHandler) rechargeVoIP(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID, err := getUserID(r)
+	if err != nil {
+		writeError(w, 401, "authentication required")
+		return
+	}
+
+	var req struct {
+		Amount        int64  `json:"amount"` // en centavos de TQ
+		PaymentMethod string `json:"payment_method"`
+		Reference     string `json:"reference"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request")
+		return
+	}
+	if req.Amount <= 0 {
+		writeError(w, 400, "amount debe ser positivo")
+		return
+	}
+
+	var id int
+	err = sh.Pool.QueryRow(ctx, `
+		INSERT INTO voip_recharges (user_id, amount, payment_method, reference, status, created_at)
+		VALUES ($1, $2, $3, $4, 'pending', NOW())
+		RETURNING id`,
+		userID, req.Amount, req.PaymentMethod, req.Reference).Scan(&id)
+	if err != nil {
+		writeError(w, 500, "error al crear recarga")
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"success": true,
+		"id":      id,
+		"message": "Recarga solicitada. Un administrador debe confirmarla.",
+		"status":  "pending",
+	})
+}
+
+// confirmRecharge confirma una recarga (solo admin).
+func (sh *FederatedServicesHandler) confirmRecharge(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	adminID, err := getUserID(r)
+	if err != nil {
+		writeError(w, 401, "authentication required")
+		return
+	}
+
+	rechargeID := chi.URLParam(r, "id")
+
+	// Obtener monto y user_id de la recarga
+	var userID uuid.UUID
+	var amount int64
+	err = sh.Pool.QueryRow(ctx, `SELECT user_id, amount FROM voip_recharges WHERE id = $1 AND status = 'pending'`, rechargeID).Scan(&userID, &amount)
+	if err != nil {
+		writeError(w, 404, "recarga no encontrada o ya procesada")
+		return
+	}
+
+	// Actualizar recarga
+	_, err = sh.Pool.Exec(ctx, `UPDATE voip_recharges SET status = 'confirmed', processed_by = $1, confirmed_at = NOW() WHERE id = $2`, adminID, rechargeID)
+	if err != nil {
+		writeError(w, 500, "error al confirmar recarga")
+		return
+	}
+
+	// Actualizar saldo
+	_, err = sh.Pool.Exec(ctx, `
+		INSERT INTO voip_balance (user_id, balance, total_recharged, total_spent, updated_at)
+		VALUES ($1, $2, $2, 0, NOW())
+		ON CONFLICT (user_id) DO UPDATE SET
+			balance = voip_balance.balance + $2,
+			total_recharged = voip_balance.total_recharged + $2,
+			updated_at = NOW()`,
+		userID, amount)
+	if err != nil {
+		writeError(w, 500, "error al actualizar saldo")
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("Recarga confirmada. Saldo actualizado en +%d.%02d TQ", amount/100, amount%100),
+	})
+}
+
+// listRecharges lista las recargas (admin ve todas, usuario ve las suyas).
+func (sh *FederatedServicesHandler) listRecharges(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	rows, err := sh.Pool.Query(ctx, `
+		SELECT r.id, r.user_id, r.amount, r.payment_method, r.reference, r.status, r.created_at, r.confirmed_at,
+		       COALESCE(u.display_name, u.username, '') as user_name
+		FROM voip_recharges r
+		JOIN users u ON u.id = r.user_id
+		ORDER BY r.created_at DESC LIMIT 100`)
+	if err != nil {
+		writeJSON(w, 200, map[string]interface{}{"recharges": []interface{}{}})
+		return
+	}
+	defer rows.Close()
+
+	var recharges []map[string]interface{}
+	for rows.Next() {
+		var id int
+		var amount int64
+		var userID uuid.UUID
+		var userName, status string
+		var paymentMethod, reference *string
+		var createdAt time.Time
+		var confirmedAt *time.Time
+		_ = rows.Scan(&id, &userID, &amount, &paymentMethod, &reference, &status, &createdAt, &confirmedAt, &userName)
+		rc := map[string]interface{}{
+			"id":         id,
+			"user_id":    userID,
+			"user_name":  userName,
+			"amount":     amount,
+			"status":     status,
+			"created_at": createdAt,
+		}
+		if paymentMethod != nil {
+			rc["payment_method"] = *paymentMethod
+		}
+		if reference != nil {
+			rc["reference"] = *reference
+		}
+		if confirmedAt != nil {
+			rc["confirmed_at"] = *confirmedAt
+		}
+		recharges = append(recharges, rc)
+	}
+	if recharges == nil {
+		recharges = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, map[string]interface{}{"recharges": recharges})
+}
+
+// === Registro de llamadas (CDR) ===
+
+// listCDR lista el registro de llamadas.
+func (sh *FederatedServicesHandler) listCDR(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	rows, err := sh.Pool.Query(ctx, `
+		SELECT c.id, c.call_id, c.source_extension, c.destination, c.destination_type,
+		       c.remote_node_number, c.start_time, c.end_time, c.duration, c.billed_duration,
+		       c.cost, c.status, c.direction,
+		       COALESCE(u.display_name, u.username, '') as user_name
+		FROM voip_cdr c
+		LEFT JOIN users u ON u.id = c.user_id
+		ORDER BY c.start_time DESC LIMIT 200`)
+	if err != nil {
+		writeJSON(w, 200, map[string]interface{}{"calls": []interface{}{}})
+		return
+	}
+	defer rows.Close()
+
+	var calls []map[string]interface{}
+	for rows.Next() {
+		var id int
+		var destination, destType, status, direction string
+		var sourceExt *string
+		var remoteNode *int
+		var duration, billedDuration int
+		var cost int64
+		var startTime time.Time
+		var endTime *time.Time
+		var callID *string
+		var userName string
+		_ = rows.Scan(&id, &callID, &sourceExt, &destination, &destType, &remoteNode,
+			&startTime, &endTime, &duration, &billedDuration, &cost, &status, &direction, &userName)
+		call := map[string]interface{}{
+			"id":               id,
+			"destination":      destination,
+			"destination_type": destType,
+			"duration":         duration,
+			"billed_duration":  billedDuration,
+			"cost":             cost,
+			"cost_display":     fmt.Sprintf("%d.%02d TQ", cost/100, cost%100),
+			"status":           status,
+			"direction":        direction,
+			"start_time":       startTime,
+			"user_name":        userName,
+		}
+		if sourceExt != nil {
+			call["source_extension"] = *sourceExt
+		}
+		if remoteNode != nil {
+			call["remote_node_number"] = *remoteNode
+		}
+		if endTime != nil {
+			call["end_time"] = *endTime
+		}
+		if callID != nil {
+			call["call_id"] = *callID
+		}
+		calls = append(calls, call)
+	}
+	if calls == nil {
+		calls = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, map[string]interface{}{"calls": calls})
+}
+
+// === Tarifas VoIP ===
+
+// listRates lista las tarifas por destino.
+func (sh *FederatedServicesHandler) listRates(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	rows, err := sh.Pool.Query(ctx, `
+		SELECT id, prefix, description, rate_per_minute, billing_increment, is_active
+		FROM voip_rates ORDER BY prefix`)
+	if err != nil {
+		writeJSON(w, 200, map[string]interface{}{"rates": []interface{}{}})
+		return
+	}
+	defer rows.Close()
+
+	var rates []map[string]interface{}
+	for rows.Next() {
+		var id int
+		var prefix, description string
+		var ratePerMinute int64
+		var billingIncrement int
+		var isActive bool
+		_ = rows.Scan(&id, &prefix, &description, &ratePerMinute, &billingIncrement, &isActive)
+		rates = append(rates, map[string]interface{}{
+			"id":                id,
+			"prefix":            prefix,
+			"description":       description,
+			"rate_per_minute":   ratePerMinute,
+			"rate_display":      fmt.Sprintf("%d.%02d TQ/min", ratePerMinute/100, ratePerMinute%100),
+			"billing_increment": billingIncrement,
+			"is_active":         isActive,
+		})
+	}
+	if rates == nil {
+		rates = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, map[string]interface{}{"rates": rates})
+}
+
+// === Numero de nodo ===
+
+// getNodeNumber obtiene el numero del nodo.
+func (sh *FederatedServicesHandler) getNodeNumber(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	var nodeNumber *int
+	_ = sh.Pool.QueryRow(ctx, `SELECT node_number FROM node_config LIMIT 1`).Scan(&nodeNumber)
+
+	result := map[string]interface{}{
+		"node_domain": sh.NodeDomain,
+	}
+	if nodeNumber != nil {
+		result["node_number"] = *nodeNumber
+	} else {
+		result["node_number"] = 0
+	}
+	writeJSON(w, 200, result)
+}
+
+// generateNodeNumber genera un numero unico para el nodo.
+func (sh *FederatedServicesHandler) generateNodeNumber(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Generar numero entre 100 y 999 basado en hash del dominio
+	// Esto garantiza que el mismo nodo siempre tenga el mismo numero
+	hash := 0
+	for _, c := range sh.NodeDomain {
+		hash = hash*31 + int(c)
+	}
+	number := 100 + (hash%900+900)%900 // 100-999
+
+	// Guardar en node_config
+	_, err := sh.Pool.Exec(ctx, `UPDATE node_config SET node_number = $1, updated_at = NOW()`, number)
+	if err != nil {
+		writeError(w, 500, "error al guardar numero de nodo")
+		return
+	}
+
+	// Tambien guardar en voip_config para compatibilidad
+	_, _ = sh.Pool.Exec(ctx, `UPDATE voip_config SET village_code = $1, enabled = true, updated_at = NOW()`, number)
+
+	writeJSON(w, 200, map[string]interface{}{
+		"success":     true,
+		"node_number": number,
+		"message":     fmt.Sprintf("Numero de nodo generado: %d. Este numero se comparte con otros nodos para SIP/VoIP.", number),
+	})
+}
+
+// autoConfigureSIPRoutes configura automaticamente las rutas SIP a todos los nodos federados.
+func (sh *FederatedServicesHandler) autoConfigureSIPRoutes(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Obtener todos los peers federados con su numero de nodo
+	rows, err := sh.Pool.Query(ctx, `
+		SELECT peer_domain, peer_name, peer_node_number, peer_endpoint
+		FROM node_federation_keys
+		WHERE status = 'active' AND peer_node_number IS NOT NULL`)
+	if err != nil {
+		writeError(w, 500, "error al obtener peers federados")
+		return
+	}
+	defer rows.Close()
+
+	configured := 0
+	for rows.Next() {
+		var peerDomain string
+		var peerName *string
+		var peerNodeNumber int
+		var peerEndpoint *string
+		_ = rows.Scan(&peerDomain, &peerName, &peerNodeNumber, &peerEndpoint)
+
+		// Construir endpoint SIP
+		sipEndpoint := peerDomain
+		if peerEndpoint != nil && *peerEndpoint != "" {
+			sipEndpoint = *peerEndpoint
+		}
+
+		// Insertar o actualizar ruta VoIP
+		name := peerDomain
+		if peerName != nil {
+			name = *peerName
+		}
+		_, err := sh.Pool.Exec(ctx, `
+			INSERT INTO voip_routes (remote_village_code, remote_village_name, remote_endpoint, remote_domain, is_active, created_at)
+			VALUES ($1, $2, $3, $4, true, NOW())
+			ON CONFLICT (remote_village_code) DO UPDATE SET
+				remote_village_name = $2, remote_endpoint = $3, remote_domain = $4`,
+			peerNodeNumber, name, sipEndpoint, peerDomain)
+		if err == nil {
+			configured++
+		}
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"success":    true,
+		"configured": configured,
+		"message":    fmt.Sprintf("Configuradas %d rutas SIP automaticamente desde nodos federados", configured),
+	})
 }

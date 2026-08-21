@@ -78,11 +78,20 @@ func (p *Protocol) GetNodeInfo(ctx context.Context) (map[string]interface{}, err
 		return nil, fmt.Errorf("getting node info: %w", err)
 	}
 
-	return map[string]interface{}{
+	// Obtener numero de nodo (para SIP/VoIP federado)
+	var nodeNumber *int
+	_ = p.Pool.QueryRow(ctx, `SELECT node_number FROM node_config LIMIT 1`).Scan(&nodeNumber)
+
+	info := map[string]interface{}{
 		"node_domain": p.NodeDomain,
 		"known_nodes": nodeCount,
 		"protocol":    "fmc/1.0",
-	}, nil
+	}
+	if nodeNumber != nil {
+		info["node_number"] = *nodeNumber
+	}
+
+	return info, nil
 }
 
 func (p *Protocol) QueryRemoteLimits(ctx context.Context, remoteNode string) (*LimitResponse, error) {

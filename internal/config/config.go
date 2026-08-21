@@ -25,6 +25,7 @@ type Config struct {
 type NodeConfig struct {
 	Domain            string `yaml:"domain"`
 	Name              string `yaml:"name"`
+	Number            int    `yaml:"number"` // Numero unico del nodo para SIP/VoIP (ej: 101)
 	PrivateKeyPath    string `yaml:"private_key_path"`
 	CertificatePath   string `yaml:"certificate_path"`
 	CACertificatePath string `yaml:"ca_certificate_path"`

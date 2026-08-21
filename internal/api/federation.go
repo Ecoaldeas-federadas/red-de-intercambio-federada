@@ -468,17 +468,18 @@ func (fh *FederationHandler) getVolumeReport(w http.ResponseWriter, r *http.Requ
 // === Registro de nodos pares (claves publicas para federacion) ===
 
 type RegisterPeerRequest struct {
-	PeerDomain    string `json:"peer_domain"`
-	PeerName      string `json:"peer_name"`
-	PeerPublicKey string `json:"peer_public_key"`
-	PeerEndpoint  string `json:"peer_endpoint"`
-	Notes         string `json:"notes"`
+	PeerDomain     string `json:"peer_domain"`
+	PeerName       string `json:"peer_name"`
+	PeerPublicKey  string `json:"peer_public_key"`
+	PeerEndpoint   string `json:"peer_endpoint"`
+	PeerNodeNumber int    `json:"peer_node_number"`
+	Notes          string `json:"notes"`
 }
 
 // listPeers lista todos los nodos pares registrados con sus claves publicas
 func (fh *FederationHandler) listPeers(w http.ResponseWriter, r *http.Request) {
 	rows, err := fh.Pool.Query(r.Context(), `
-		SELECT peer_domain, peer_name, peer_public_key, peer_endpoint,
+		SELECT peer_domain, peer_name, peer_public_key, peer_endpoint, peer_node_number,
 			   status, mutual_verified, notes, created_at, updated_at
 		FROM node_federation_keys
 		ORDER BY created_at DESC`)
@@ -492,9 +493,10 @@ func (fh *FederationHandler) listPeers(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var peerDomain, peerPubKey, status string
 		var peerName, peerEndpoint, notes *string
+		var peerNodeNumber *int
 		var mutualVerified bool
 		var createdAt, updatedAt interface{}
-		_ = rows.Scan(&peerDomain, &peerName, &peerPubKey, &peerEndpoint,
+		_ = rows.Scan(&peerDomain, &peerName, &peerPubKey, &peerEndpoint, &peerNodeNumber,
 			&status, &mutualVerified, &notes, &createdAt, &updatedAt)
 
 		peer := map[string]interface{}{
@@ -510,6 +512,9 @@ func (fh *FederationHandler) listPeers(w http.ResponseWriter, r *http.Request) {
 		}
 		if peerEndpoint != nil {
 			peer["peer_endpoint"] = *peerEndpoint
+		}
+		if peerNodeNumber != nil {
+			peer["peer_node_number"] = *peerNodeNumber
 		}
 		if notes != nil {
 			peer["notes"] = *notes
@@ -557,15 +562,16 @@ func (fh *FederationHandler) registerPeer(w http.ResponseWriter, r *http.Request
 	}
 
 	_, err := fh.Pool.Exec(r.Context(), `
-		INSERT INTO node_federation_keys (peer_domain, peer_name, peer_public_key, peer_endpoint, status, added_by, notes, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, 'pending', $5, $6, NOW(), NOW())
+		INSERT INTO node_federation_keys (peer_domain, peer_name, peer_public_key, peer_endpoint, peer_node_number, status, added_by, notes, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, NOW(), NOW())
 		ON CONFLICT (peer_domain) DO UPDATE SET
 			peer_name = $2,
 			peer_public_key = $3,
 			peer_endpoint = $4,
-			notes = $6,
+			peer_node_number = $5,
+			notes = $7,
 			updated_at = NOW()`,
-		req.PeerDomain, req.PeerName, req.PeerPublicKey, req.PeerEndpoint, addedBy, req.Notes)
+		req.PeerDomain, req.PeerName, req.PeerPublicKey, req.PeerEndpoint, req.PeerNodeNumber, addedBy, req.Notes)
 	if err != nil {
 		writeError(w, 500, fmt.Sprintf("error registering peer: %v", err))
 		return
