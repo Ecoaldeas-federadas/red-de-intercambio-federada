@@ -1,18 +1,30 @@
-fix: agregar onError a imagenes para reemplazar URLs 404 con placeholder
+fix: productos demo aprobados + compuestos + LIMIT 500 en ajustes
 
-Problema:
-- Muchas URLs de imagenes de Unsplash en el catalogo de productos
-  retornaban 404 (no existen).
-- Esto causaba montones de errores 404 en la consola del navegador
-  y las imagenes no cargaban.
+Problemas:
+1. Los 23 productos especificos del demo (Raices del Monte) se
+   sembraban con is_approved=false, por lo que no aparecian en la
+   pagina publica. Solo aparecian los 238 del catalogo compartido.
+2. Los ajustes de productos usaban LIMIT 200, por lo que no mostraba
+   todos los productos cuando habia mas de 200.
+3. El demo no tenia productos compuestos (creados por miembros y
+   aprobados por asamblea).
 
-Solucion:
-- Agregar onError a EdImage, EdArrayImage y <img> directos en
-  PublicBlocks.tsx (carrusel y lightbox).
-- Cuando una imagen falla, se reemplaza con un placeholder SVG
-  "Sin imagen" en gris claro.
-- El onError tiene guardia para evitar loops infinitos (verifica
-  que no sea ya el placeholder).
+Soluciones:
+1. Marcar productos demo como is_approved=true al sembrar (simula
+   aprobacion por asamblea).
+2. Aumentar LIMIT de 200 a 500 en listProducts (ajustes).
+3. Agregar 8 productos compuestos al demo seed:
+   - Kit de Mermelada Artesanal (3 frascos)
+   - Cesta de Desayuno de Montaña
+   - Banco de Semillas Criollas (10 variedades)
+   - Vajilla de Barro (4 personas)
+   - Botiquin Natural de Montaña
+   - Kit de Huerto Familiar
+   - Programa de Formacion Comunitaria
+   - Kit de Construccion con Barro y Paja
+
+Ahora el demo tendra 238 (catalogo compartido) + 23 (productos demo)
++ 8 (compuestos) = 269 productos aprobados.
 
 Generated with [Devin](https://devin.ai)
 

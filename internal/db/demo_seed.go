@@ -1204,13 +1204,46 @@ func demoSeedProducts(ctx context.Context, d *DB, nodeDomain string) error {
 		}
 
 		_, err := d.Pool.Exec(ctx, `
-			INSERT INTO products (node_domain, parent_category, category, subcategory, name, unit, description, price_per_unit, badge, image_url, is_active)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULLIF($10, ''), true)`,
+			INSERT INTO products (node_domain, parent_category, category, subcategory, name, unit, description, price_per_unit, badge, image_url, is_active, is_approved)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULLIF($10, ''), true, true)`,
 			nodeDomain, p.parentCat, p.cat, p.subcat, p.name, p.unit, p.desc, p.price, p.badge, p.image)
 		if err != nil {
 			log.Printf("Demo: error seeding product %s: %v", p.name, err)
 		}
 	}
+
+	// Productos compuestos aprobados por asamblea (is_composite = true)
+	// Simulan productos creados por miembros y aprobados para el catalogo
+	compositeProducts := []struct {
+		parentCat, cat, subcat, name, unit, desc, badge, image string
+		price                                                  int
+	}{
+		{"Alimentacion", "Compuestos", "Cocina", "Kit de Mermelada Artesanal (3 frascos)", "kit", "Set de 3 mermeladas artesanales: mora, guayaba y tomate. Incluye envases de vidrio retornables.", "Compuesto", "https://images.unsplash.com/photo-1488900128323-21503983a078?w=400", 150},
+		{"Alimentacion", "Compuestos", "Cocina", "Cesta de Desayuno de Montaña", "cesta", "Cesta con pan de quinua, miel, queso de cabra y te de hierbas. Para 4 personas.", "Compuesto", "https://images.unsplash.com/photo-1505253716362-afaea1d3d1a0?w=400", 220},
+		{"Agricultura", "Compuestos", "Semillas", "Banco de Semillas Criollas (10 variedades)", "set", "Coleccion de 10 semillas criollas: frijol, quinua, tomate, lechuga, ocumo, guayaba, mora, ají, cilantro, calabaza.", "Compuesto", "https://images.unsplash.com/photo-1574943323818-eb3fcdc94d93?w=400", 180},
+		{"Artesania", "Compuestos", "Vajilla", "Vajilla de Barro (4 personas)", "set", "Set completo: 4 platos, 4 cuencos, 4 tazas de barro cocido artesanal.", "Compuesto", "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=400", 400},
+		{"Salud y Medicina", "Compuestos", "Botiquin", "Botiquin Natural de Montaña", "botiquin", "Set de remedios naturales: te de hierbas, aceite de romero, miel medicinal, cataplasma de llanten.", "Compuesto", "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=400", 130},
+		{"Herramientas", "Compuestos", "Kits", "Kit de Huerto Familiar", "kit", "Kit completo: azadon, tijeras de podar, semillas, abono organico y manual de agroecologia.", "Compuesto", "https://images.unsplash.com/photo-1592982537447-7440770cbfc9?w=400", 280},
+		{"Servicios", "Compuestos", "Talleres", "Programa de Formacion Comunitaria", "programa", "Paquete educativo: curso de agroecologia (8 sesiones) + taller de permacultura + taller de medicina natural.", "Compuesto", "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400", 800},
+		{"Construccion", "Compuestos", "Natural", "Kit de Construccion con Barro y Paja", "kit", "Materiales y herramientas para construccion natural: barro, paja, madera, mano de obra (2 jornadas).", "Compuesto", "https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=400", 450},
+	}
+
+	for _, p := range compositeProducts {
+		var existing int
+		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM products WHERE node_domain = $1 AND name = $2`, nodeDomain, p.name).Scan(&existing)
+		if existing > 0 {
+			continue
+		}
+
+		_, err := d.Pool.Exec(ctx, `
+			INSERT INTO products (node_domain, parent_category, category, subcategory, name, unit, description, price_per_unit, badge, image_url, is_active, is_approved, is_composite)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULLIF($10, ''), true, true, true)`,
+			nodeDomain, p.parentCat, p.cat, p.subcat, p.name, p.unit, p.desc, p.price, p.badge, p.image)
+		if err != nil {
+			log.Printf("Demo: error seeding composite product %s: %v", p.name, err)
+		}
+	}
+
 	return nil
 }
 
