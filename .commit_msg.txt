@@ -1,30 +1,21 @@
-fix: Demo no muestra setup - DemoReset no siembra, DemoAutoSetup no borra
+fix: Eliminar URLs de Unsplash del seed del demo (41 URLs)
 
 ## Problema
-El demo mostraba la pagina de setup inicial en vez del login con cuentas.
-
-## Causa
-El flujo era:
-1. DemoReset → borra todo → llama DemoSeedData (siembra todo)
-2. DemoAutoSetup → borra todo otra vez → crea solo admin
-3. DemoSeedData → corre de nuevo (algunos datos se pierden)
-
-DemoAutoSetup tenia su propia limpieza (lineas 22-78) que borraba
-todo lo que DemoReset acababa de sembrar.
+El nodo demo mostraba errores 404 en consola por imagenes de
+images.unsplash.com que no existen. Estas URLs estaban en los
+datos del seed (demo_seed.go), no en el frontend.
 
 ## Solucion
-1. DemoReset: ahora SOLO borra, no llama DemoSeedData al final
-2. DemoAutoSetup: removida la limpieza (ya la hace DemoReset)
-3. Flujo correcto:
-   - DemoReset: borra todo del dominio demo
-   - DemoAutoSetup: crea admin + node_config (initialized=true)
-   - DemoSeedData: siembra usuarios, productos, transacciones, etc
+Reemplazadas 41 URLs de images.unsplash.com por /placeholder.svg
+en internal/db/demo_seed.go. Afecta:
+- Paginas publicas (inicio, quienes-somos, filosofia, etc)
+- Productos del catalogo
+- Imagenes de carrusel y galeria
 
-## Resultado
-- El demo arranca con node_config.initialized=true
-- setup/status devuelve initialized=true
-- El frontend muestra login con cuentas, no setup
-- Todas las cuentas demo aparecen para seleccionar
+## Nota
+El nodo principal (localhost:8080) no mostraba el error porque
+usa defaultSiteData.ts (ya arreglado en commit anterior).
+El nodo demo usa datos del seed que aun tenia URLs viejas.
 
 Generated with [Devin](https://devin.ai)
 
