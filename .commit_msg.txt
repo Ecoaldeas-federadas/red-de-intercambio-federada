@@ -1,45 +1,20 @@
-fix: productos no aprobados en lista separada + datos demo completos
+fix: DemoAutoSetup limpia todas las tablas correctamente
 
-Cambios principales:
+El problema principal era que DemoAutoSetup solo limpiaba algunas tablas
+cuando el contenedor demo arrancaba. Las tablas que no se limpiaban
+tenian datos viejos, y los seeds verifican count > 0 antes de insertar,
+por lo que no se re-seedeaban.
 
-1. Productos no aprobados fuera de la lista principal:
-   - listProducts (admin): ahora solo muestra is_approved=true
-   - listPublicProducts: ya solo mostraba aprobados
-   - Ambas listas ahora son identicas (mismos productos)
-   - Nuevo endpoint /api/products/pending para productos pendientes
-   - Los no aprobados van en lista separada de aprobacion
+Cambios:
+- Limpiar todas las tablas con node_domain (assembly_*, tax_*, board_members,
+  external_bridge_operations, admission_requests, store_items, etc.)
+- Limpiar tablas sin node_domain con DELETE completo (transactions,
+  ledger_entries, audit_log, node_balance, node_federation_keys,
+  bilateral_limits, assembly_votes)
+- Remover referencia a tabla inexistente 'organizations'
 
-2. demoSeedTransactions reescrito completamente:
-   - 40+ transacciones reales entre usuarios y organizaciones
-   - Ledger entries (debit/credit) para cada transaccion
-   - Impuestos del 1% en ventas de organizaciones
-   - Audit log por cada transaccion
-   - Actualizacion automatica de saldos (balance) de usuarios
-   - Transacciones federadas entre nodos
-
-3. Nuevos seeds para demo:
-   - demoSeedAssemblyVotes: votos en propuestas aprobadas
-   - demoSeedAdmissionRequests: 5 solicitudes (2 aprobadas, 2 pendientes, 1 rechazada)
-   - demoSeedExternalOps: 7 operaciones de comercio externo
-   - demoSeedFundProposals: 2 distribuciones del fondo ejecutadas
-   - demoSeedParityReports: balances federados + reportes de paridad
-
-4. Fix assembly_decisions seed:
-   - assembly_id es NOT NULL, ahora usa IDs de sesiones reales
-   - Orden: crear sesiones primero, luego decisiones
-
-5. Fix asambleas completadas (frontend):
-   - "Pasar lista" solo aparece si status !== 'completed'
-   - "Escribir minuta" cambia a "Ver/editar acta" si completada
-   - ScopedAssembly: canStartAttendance excluye completadas
-   - ScopedAssembly: boton "Ver/editar acta" para completadas
-
-6. Fix bilateral_limits:
-   - remote_confirmed=true para que aparezcan como confirmados
-
-7. Fix DemoReset:
-   - Borrar tablas correctas (no organizations que no existe)
-   - Incluir ledger_entries, audit_log, assembly_*, tax_*, etc.
+Esto asegura que cada vez que el contenedor demo se reinicia,
+TODOS los datos se regeneran desde cero con los seeds actualizados.
 
 Generated with [Devin](https://devin.ai)
 

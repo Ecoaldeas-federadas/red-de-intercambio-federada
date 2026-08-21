@@ -21,11 +21,48 @@ func DemoAutoSetup(ctx context.Context, db *pgxpool.Pool, jwtSecret, nodeDomain,
 
 	// 0. Limpiar datos viejos del dominio demo (por si acaso)
 	// Esto asegura que un reset siempre empiece limpio
-	tables := []string{"transactions", "governance_rules", "role_permissions", "roles",
-		"departments", "organizations", "user_credentials", "users", "products",
-		"member_levels", "public_pages", "public_settings", "node_config"}
-	for _, t := range tables {
-		db.Exec(ctx, fmt.Sprintf("DELETE FROM %s WHERE node_domain = $1", t))
+	ndTables := []string{
+		"assembly_decisions",
+		"assembly_sessions",
+		"assembly_quorum_config",
+		"assembly_frequency_config",
+		"board_members",
+		"tax_config",
+		"tax_distributions",
+		"external_bridge_operations",
+		"admission_requests",
+		"store_items",
+		"governance_rules",
+		"department_members",
+		"departments",
+		"organization_levels",
+		"member_levels",
+		"product_compositions",
+		"products",
+		"notifications",
+		"user_credentials",
+		"users",
+		"public_pages",
+		"public_settings",
+		"node_config",
+		"roles",
+		"role_permissions",
+	}
+	for _, t := range ndTables {
+		db.Exec(ctx, fmt.Sprintf("DELETE FROM %s WHERE node_domain = $1", t), nodeDomain)
+	}
+	// Tablas sin node_domain - borrar todo (es demo)
+	allTables := []string{
+		"assembly_votes",
+		"transactions",
+		"ledger_entries",
+		"audit_log",
+		"node_balance",
+		"node_federation_keys",
+		"bilateral_limits",
+	}
+	for _, t := range allTables {
+		db.Exec(ctx, fmt.Sprintf("DELETE FROM %s", t))
 	}
 	// Tambien borrar paginas viejas con node_domain = "localhost" que pudo haber
 	// sembrado el codigo viejo en la BD fmc_demo
