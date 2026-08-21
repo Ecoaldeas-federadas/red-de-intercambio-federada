@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+﻿import React, { useState, useEffect, useRef } from 'react'
 import { Link, useParams, useLocation } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../hooks/useAuth'
@@ -257,7 +257,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
     ? headerBannerImages.split(',').map((s: string) => s.trim()).filter(Boolean)
     : headerBannerImage
       ? [headerBannerImage]
-      : ['https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1600&q=80']
+      : ['/placeholder.svg']
 
   useEffect(() => {
     if (bannerImagesList.length <= 1) return
@@ -1571,7 +1571,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           className="lg:hidden text-white p-4 space-y-1 z-40 w-full"
           style={{
             backgroundColor: primaryColor,
-            backgroundImage: 'linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.6)), url(https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=800&q=80)',
+            backgroundImage: 'linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.6)), url(/placeholder.svg',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
           }}

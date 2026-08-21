@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react'
+﻿import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Image as ImageIcon, X, Check, Plus, Trash2, Upload, Link2 } from 'lucide-react'
 import { api } from '../../api'
@@ -426,12 +426,12 @@ function ImageEditorModal({
   const fileRef = useRef<HTMLInputElement>(null)
 
   const presets = [
-    { label: 'Hortalizas', url: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80' },
-    { label: 'Siembra', url: 'https://images.unsplash.com/photo-1592417817098-8f3d69102a5e?auto=format&fit=crop&w=900&q=80' },
-    { label: 'Cosecha', url: 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&w=1000&q=80' },
-    { label: 'Ecoaldea', url: 'https://images.unsplash.com/photo-1516253593875-bd7ba052fbc5?auto=format&fit=crop&w=1200&q=80' },
-    { label: 'Mercado', url: 'https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&w=1200&q=80' },
-    { label: 'Semillas', url: 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?auto=format&fit=crop&w=900&q=80' },
+    { label: 'Hortalizas', url: '/placeholder.svg' },
+    { label: 'Siembra', url: '/placeholder.svg' },
+    { label: 'Cosecha', url: '/placeholder.svg' },
+    { label: 'Ecoaldea', url: '/placeholder.svg' },
+    { label: 'Mercado', url: '/placeholder.svg' },
+    { label: 'Semillas', url: '/placeholder.svg' },
   ]
 
   const handleUpload = async (file: File) => {

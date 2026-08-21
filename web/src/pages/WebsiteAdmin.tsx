@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import {
@@ -70,7 +70,7 @@ const BLOCK_DEFINITIONS: {
       title: t || 'Nuestra Comunidad',
       subtitle: 'Soberanía alimentaria y economía solidaria',
       description: 'Espacio de encuentro popular y trueque comunitario.',
-      image_url: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80',
+      image_url: '/placeholder.svg',
       primary_cta: { text: 'Ver Productos', link: '/p/productos' },
       secondary_cta: { text: 'Unirse', link: '/p/unirse' },
       style: 'split',
@@ -88,13 +88,13 @@ const BLOCK_DEFINITIONS: {
       autoplay: true,
       items: [
         {
-          image_url: 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&w=1000&q=80',
+          image_url: '/placeholder.svg',
           title: 'Hortalizas Frescas',
           caption: 'Cosecha de la mañana sin químicos ni agrotóxicos.',
           tag: 'Cosecha',
         },
         {
-          image_url: 'https://images.unsplash.com/photo-1597848212624-a19eb35e2651?auto=format&fit=crop&w=1000&q=80',
+          image_url: '/placeholder.svg',
           title: 'Botica Comunitaria',
           caption: 'Medicina botánica y cosmética natural.',
           tag: 'Salud',
@@ -145,7 +145,7 @@ const BLOCK_DEFINITIONS: {
       title: 'Nuestra Historia y Resistencia',
       subtitle: 'Saberes ancestrales y soberanía popular',
       content: 'Nuestra comunidad es más que un cultivo: es un laboratorio integral de vida comunitaria.',
-      image_url: 'https://images.unsplash.com/photo-1592417817098-8f3d69102a5e?auto=format&fit=crop&w=900&q=80',
+      image_url: '/placeholder.svg',
       image_position: 'left',
       highlights: ['Sin agrotóxicos ni venenos.', 'Semillas libres y criollas.'],
       quote: { text: 'La abundancia nace del respeto a la diversidad.', author: 'Vocería Comunitaria' },
@@ -206,7 +206,7 @@ const BLOCK_DEFINITIONS: {
           category: 'Cosecha Fresca',
           description: 'Acelgas, col rizada, lechugas y hierbas aromáticas.',
           badge: 'Fresco del Día',
-          image_url: 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?auto=format&fit=crop&w=600&q=80',
+          image_url: '/placeholder.svg',
         },
       ],
     }),
@@ -228,7 +228,7 @@ const BLOCK_DEFINITIONS: {
           author: 'Equipo Promotor',
           category: 'Aniversario',
           excerpt: 'Más de 45 marcas y familias productoras se dieron cita en una jornada multitudinaria de mercado y trueque.',
-          image_url: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=600&q=80',
+          image_url: '/placeholder.svg',
           link: '/p/filosofia',
         },
       ],
@@ -2143,7 +2143,7 @@ function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (upd
                 const newItems = [
                   ...block.items,
                   {
-                    image_url: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80',
+                    image_url: '/placeholder.svg',
                     title: 'Nueva Foto',
                     caption: 'Descripción de la foto',
                     tag: 'Feria',

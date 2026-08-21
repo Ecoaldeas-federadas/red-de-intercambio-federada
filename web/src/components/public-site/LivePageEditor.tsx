@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+﻿import React, { useState } from 'react'
 import {
   Sparkles,
   Plus,
@@ -40,7 +40,7 @@ const BLOCK_TEMPLATES: {
       title: 'Nuevo Encabezado Destacado',
       subtitle: 'Soberanía alimentaria y saberes comunitarios',
       description: 'Espacio de encuentro popular y economía solidaria.',
-      image_url: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80',
+      image_url: '/placeholder.svg',
       primary_cta: { text: 'Conoce Nuestros Productos', link: '/p/productos' },
       secondary_cta: { text: 'Solicitar Unirse', link: '/p/unirse' },
       style: 'split',
@@ -57,13 +57,13 @@ const BLOCK_TEMPLATES: {
       autoplay: true,
       items: [
         {
-          image_url: 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&w=1000&q=80',
+          image_url: '/placeholder.svg',
           title: 'Hortalizas Frescas',
           caption: 'Cosechadas el mismo día sin agrotóxicos.',
           tag: 'Cosecha',
         },
         {
-          image_url: 'https://images.unsplash.com/photo-1597848212624-a19eb35e2651?auto=format&fit=crop&w=1000&q=80',
+          image_url: '/placeholder.svg',
           title: 'Botica Conuquera',
           caption: 'Medicina botánica y salud natural.',
           tag: 'Salud',
@@ -97,7 +97,7 @@ const BLOCK_TEMPLATES: {
       title: 'El Conuco como Proyecto de Vida',
       subtitle: 'Resistencia ecosocialista y saberes campesinos',
       content: 'El conuco es un laboratorio integral de vida comunitaria y soberanía alimentaria.',
-      image_url: 'https://images.unsplash.com/photo-1592417817098-8f3d69102a5e?auto=format&fit=crop&w=900&q=80',
+      image_url: '/placeholder.svg',
       image_position: 'left',
       highlights: ['Producción 100% limpia sin venenos.', 'Semillas criollas y libres.'],
       quote: { text: 'La abundancia nace del respeto a la diversidad.', author: 'Vocería Conuquera' },
@@ -155,7 +155,7 @@ const BLOCK_TEMPLATES: {
           category: 'Cosecha Fresca',
           description: 'Acelgas, col rizada y hierbas aromáticas.',
           badge: 'Fresco del Día',
-          image_url: 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?auto=format&fit=crop&w=600&q=80',
+          image_url: '/placeholder.svg',
         },
       ],
     }),
@@ -189,7 +189,7 @@ const BLOCK_TEMPLATES: {
           author: 'Equipo Promotor',
           category: 'Aniversario',
           excerpt: 'Más de 45 familias y marcas se dieron cita en una jornada multitudinaria de mercado y trueque.',
-          image_url: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=600&q=80',
+          image_url: '/placeholder.svg',
         },
       ],
     }),
@@ -769,10 +769,10 @@ function LiveBlockCustomizer({
           <div className="flex flex-wrap gap-1.5 mt-2">
             <span className="text-[10px] text-gray-500 font-bold block w-full">Fotos de muestra:</span>
             {[
-              { label: 'Hortalizas', url: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80' },
-              { label: 'Siembra', url: 'https://images.unsplash.com/photo-1592417817098-8f3d69102a5e?auto=format&fit=crop&w=900&q=80' },
-              { label: 'Cosecha', url: 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&w=1000&q=80' },
-              { label: 'Ecoaldea', url: 'https://images.unsplash.com/photo-1516253593875-bd7ba052fbc5?auto=format&fit=crop&w=1200&q=80' },
+              { label: 'Hortalizas', url: '/placeholder.svg' },
+              { label: 'Siembra', url: '/placeholder.svg' },
+              { label: 'Cosecha', url: '/placeholder.svg' },
+              { label: 'Ecoaldea', url: '/placeholder.svg' },
             ].map((pic, i) => (
               <button
                 key={i}
@@ -835,7 +835,7 @@ function LiveBlockCustomizer({
                 const newItems = [
                   ...block.items,
                   {
-                    image_url: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80',
+                    image_url: '/placeholder.svg',
                     title: 'Nueva Foto',
                     caption: 'Descripción de la foto',
                     tag: 'Feria',

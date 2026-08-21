@@ -1,40 +1,26 @@
-fix: Wallet muestra nombre, balance real, direcciones y filtros por fecha
+fix: Grafica mensual en federacion + imagenes locales + productos pendientes
 
-## Causa raiz: balance 0 y todo como "Recibido"
+## FederationPeers: grafica de barras mensual
+- Al expandir un peer, ahora muestra:
+  - 3 tarjetas: Total enviado, Total recibido, Balance
+  - Grafica de barras mensual (entradas verdes, salidas rojas)
+  - Cada barra escala proporcional al maximo del periodo
+  - Leyenda con colores
+  - Exportar CSV sigue disponible
+- Permite estudiar el movimiento durante los meses
+- Ver cuantas transacciones, cuanto entra y sale por mes
 
-1. No habia ledger_entries en la BD (seed se salto porque ya habia transacciones)
-2. El backend leia X-User-ID del header, pero el frontend no lo enviaba
-3. Sin X-User-ID, direction siempre era "neutral" -> todo aparecia como "Recibido"
-4. Sin ledger_entries, el balance era 0
+## Imagenes de Unsplash reemplazadas
+- 25 URLs de images.unsplash.com en defaultSiteData.ts
+- 5 archivos mas: InlineEditable, LivePageEditor, PublicBlocks, PublicSite, WebsiteAdmin
+- Todas reemplazadas por /placeholder.svg local
+- Crea web/public/placeholder.svg (SVG verde con montanas)
+- Elimina los errores 404 en consola del navegador
 
-## Fixes
-
-### 1. Backend: listLedgerTransactions lee user_id del context JWT
-- Antes: solo leia X-User-ID del header (que el frontend no enviaba)
-- Ahora: si no hay header, lee del context del JWT
-- Tambien lee nodeDomain del context del JWT
-- Esto hace que direction sea "debit" o "credit" correctamente
-
-### 2. Wallet.tsx reescrito
-- Muestra nombre del usuario (@username y display_name)
-- Muestra saldo con signo (+/-)
-- Filtros por periodo: 24h, 7d, 30d, 3m, todo, personalizado
-- Filtro personalizado con fecha desde/hasta
-- Lista de movimientos con direccion correcta (entradas/salidas)
-- Resumen con 3 tarjetas: entradas, salidas, balance del periodo
-- Saldo real de la cuenta separado del balance del periodo
-- Usa Math.abs(amount) para mostrar montos siempre positivos
-- Fallback: si no hay direction, usa signo del monto
-
-### 3. Dashboard.tsx
-- Muestra nombre del usuario (@username y display_name)
-- Muestra balance con signo (+/-)
-
-## Importante
-Despues de update.ps1, ejecutar reset-demo.ps1 para que:
-- Se creen los ledger_entries correctamente
-- Se actualicen los balances
-- Los votos de asamblea se siembren con valores correctos
+## Productos pendientes
+- La BD tiene 269 productos, 0 pendientes
+- El seed se salta porque ya hay productos
+- Solucion: ejecutar reset-demo.ps1 despues de update.ps1
 
 Generated with [Devin](https://devin.ai)
 

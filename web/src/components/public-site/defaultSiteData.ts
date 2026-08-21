@@ -1,4 +1,4 @@
-import { SiteBlock } from '../../types/publicSite'
+﻿import { SiteBlock } from '../../types/publicSite'
 
 export interface PreconfiguredPageTemplate {
   slug: string
@@ -25,7 +25,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         description:
           'Abrimos nuestro mercado a cielo abierto para todo el público general en moneda local. Un espacio autogestionado donde compras directo al productor sin intermediarios ni agrotóxicos, y donde los miembros de la red además intercambian en trueque y crédito mutuo.',
         image_url:
-          'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80',
+          '/placeholder.svg',
         primary_cta: {
           text: 'Ver Catálogo de Productos',
           link: '/p/productos',
@@ -92,28 +92,28 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         items: [
           {
             image_url:
-              'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&w=1000&q=80',
+              '/placeholder.svg',
             title: 'Hortalizas Frescas y Rubros Ancestrales',
             caption: 'Cosechadas en la madrugada para venta directa en moneda local.',
             tag: 'Cosecha del Día',
           },
           {
             image_url:
-              'https://images.unsplash.com/photo-1597848212624-a19eb35e2651?auto=format&fit=crop&w=1000&q=80',
+              '/placeholder.svg',
             title: 'Botica Comunitaria y Medicina Tradicional',
             caption: 'Tinturas de propóleo, pomadas botánicas, aceites esenciales y plantas medicinales.',
             tag: 'Salud Botánica',
           },
           {
             image_url:
-              'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1000&q=80',
+              '/placeholder.svg',
             title: 'Gastronomía Artesanal y Ancestral',
             caption: 'La tradicional Cafunga, harinas sin gluten, cacao puro y café de montaña.',
             tag: 'Sabores Soberanos',
           },
           {
             image_url:
-              'https://images.unsplash.com/photo-1595974482597-4b8da8879bc5?auto=format&fit=crop&w=1000&q=80',
+              '/placeholder.svg',
             title: 'Talleres en Vivo & Trueque de Semillas',
             caption: 'Intercambio solidario de saberes, semillas nativas y libros para toda la comunidad.',
             tag: 'Formación Popular',
@@ -199,7 +199,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         description:
           'Nacimos en un momento crucial, al calor de los debates populares para la construcción de soberanía alimentaria. La feria es tanto un mercado mensual como una organización viva con asambleas y comisiones activas.',
         image_url:
-          'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=1200&q=80',
+          '/placeholder.svg',
         style: 'split',
       },
       {
@@ -210,7 +210,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         content:
           'Nuestra comunidad no es solo el evento de venta mensual. Contamos con una estructura organizativa sólida y horizontal:\n\n• **Asamblea General Trimestral:** Cada 3 meses, todos los miembros plenos se reúnen en asamblea formal para evaluar el funcionamiento, admitir nuevos miembros, decidir sobre impuestos, tarifas y políticas colectivas. La asamblea se convoca automáticamente con 7 días de anticipación mínima.\n• **Organizaciones:** Los miembros pueden crear organizaciones (cooperativas, colectivos, proyectos). Cada organización puede tener su propia junta directiva y asamblea interna para decidir sobre sus fondos y políticas.\n• **Departamentos:** Las organizaciones y la asamblea pueden crear departamentos (áreas de trabajo como Producción, Distribución, Pagos). Cada departamento puede tener su propia asamblea o funcionar con un responsable único.\n• **Comisiones de Trabajo:** Se conforman comisiones periódicas para la logística, comunicación, bioinsumos, cultura y articulación comunitaria.\n• **Cayapas de Campo:** Organizamos jornadas de trabajo voluntario y formativo en los conucos y unidades productivas de diversas comunidades productoras.',
         image_url:
-          'https://images.unsplash.com/photo-1592417817098-8f3d69102a5e?auto=format&fit=crop&w=900&q=80',
+          '/placeholder.svg',
         image_position: 'left',
         highlights: [
           'Mercado mensual a cielo abierto con venta al público en moneda local.',
@@ -297,7 +297,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         description:
           'No necesitas ser miembro de la feria para comprar. Ven a nuestra feria y encuentra hortalizas recién cosechadas, tubérculos ancestrales, quesos artesanales, botica comunitaria, cosmética natural y delicias tradicionales a precios solidarios.',
         image_url:
-          'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=1200&q=80',
+          '/placeholder.svg',
         style: 'standard',
       },
       {
@@ -319,7 +319,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
               'Col rizada (kale portuguesa), acelgas, lechugas variadas, cebollín, cilantro de monte y apio España cosechados en la mañana.',
             badge: 'Fresco del Día',
             image_url:
-              'https://images.unsplash.com/photo-1576045057995-568f588f82fb?auto=format&fit=crop&w=600&q=80',
+              '/placeholder.svg',
           },
           {
             name: 'Tubérculos Ancestrales y Plátanos',
@@ -328,7 +328,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
               'Ñame morado criollo, ocumo blanco y morado, yuca dulce, auyama madura y cambur morado.',
             badge: 'Rubro Olvidado',
             image_url:
-              'https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=600&q=80',
+              '/placeholder.svg',
           },
           {
             name: 'Tinturas Madres y Botica Comunitaria',
@@ -337,7 +337,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
               'Extractos de propóleo puro, tinturas de moringa, cúrcuma, jengibre, pomadas desinflamatorias de árnica y jarabes naturales.',
             badge: '100% Puro',
             image_url:
-              'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&w=600&q=80',
+              '/placeholder.svg',
           },
           {
             name: 'Cosmética Natural sin Químicos',
@@ -346,7 +346,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
               'Desodorantes ecológicos de aceite de coco y bicarbonato, bálsamos labiales de cera de abeja, jabones artesanales y toallas reutilizables.',
             badge: 'Residuo Cero',
             image_url:
-              'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80',
+              '/placeholder.svg',
           },
           {
             name: 'La Tradicional Cafunga',
@@ -355,7 +355,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
               'Dulce patrimonial tradicional elaborado a base de plátano maduro, coco rallado, papelón y anís dulce, horneado en hoja de plátano.',
             badge: 'Plato Estrella',
             image_url:
-              'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=600&q=80',
+              '/placeholder.svg',
           },
           {
             name: 'Quesos Artesanales de Búfala y Cabra',
@@ -364,7 +364,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
               'Quesos madurados y frescos, dulce de leche de cabra, yogurt natural y mantequilla de pequeños rebaños pastoreados.',
             badge: 'Pastoreo Libre',
             image_url:
-              'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?auto=format&fit=crop&w=600&q=80',
+              '/placeholder.svg',
           },
           {
             name: 'Cacao Puro, Chocolates y Café de Montaña',
@@ -373,7 +373,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
               'Barras de chocolate bean-to-bar 70% cacao, licor de cacao artesanal y café lavado tostado a leña.',
             badge: 'Origen Venezolano',
             image_url:
-              'https://images.unsplash.com/photo-1549007994-cb92caebd54b?auto=format&fit=crop&w=600&q=80',
+              '/placeholder.svg',
           },
           {
             name: 'Plántulas Medicinales y Semillas Criollas',
@@ -382,7 +382,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
               'Plantas en maceta de poleo, estevia, malojillo, romero, ruda, orégano orejón y sobres de semillas adaptadas al clima local.',
             badge: 'Para tu Huerto',
             image_url:
-              'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?auto=format&fit=crop&w=600&q=80',
+              '/placeholder.svg',
           },
         ],
       },
@@ -403,7 +403,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         description:
           'Inspirados en la metodología "de campesino a campesino", cada jornada cuenta con actividades pedagógicas gratuitas para compartir conocimientos de siembra, lombricultura, salud botánica y fermentos.',
         image_url:
-          'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=80',
+          '/placeholder.svg',
         style: 'split',
       },
       {
@@ -473,7 +473,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         description:
           'En la feria, la venta al público general se realiza de forma directa en moneda local. Paralelamente, los miembros registrados cuentan con una herramienta contable de crédito mutuo donde lo que das y lo que recibes se calcula en base a la energía física invertida (1 TQ = 1 kWh).',
         image_url:
-          'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=1200&q=80',
+          '/placeholder.svg',
         style: 'standard',
       },
       {
@@ -997,7 +997,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         description:
           'Estructuración de una comunidad intencional agroecológica diseñada bajo principios de permacultura, propiedad colectiva indivisible, energía solar/eólica off-grid y economía de crédito mutuo libre de acumulación.',
         image_url:
-          'https://images.unsplash.com/photo-1516253593875-bd7ba052fbc5?auto=format&fit=crop&w=1200&q=80',
+          '/placeholder.svg',
         style: 'split',
       },
       {
@@ -1065,7 +1065,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         title: 'Preguntas Frecuentes',
         subtitle: 'Información clara sobre cómo comprar, participar, truequear y sumarte a la feria.',
         image_url:
-          'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=1200&q=80',
+          '/placeholder.svg',
         style: 'standard',
       },
       {
@@ -1156,7 +1156,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         description:
           'Las semillas son el primer eslabón de la cadena alimentaria. Quien controla las semillas controla la alimentación. Por eso defendemos las semillas criollas y nativas: porque son patrimonio colectivo de los pueblos, se reproducen libremente, están adaptadas a nuestro clima y han sido seleccionadas por generaciones de campesinos y campesinas.',
         image_url:
-          'https://images.unsplash.com/photo-1746474072546-9fbda10daffe?auto=format&fit=crop&w=1200&q=80',
+          '/placeholder.svg',
         style: 'split',
       },
       {
@@ -1322,7 +1322,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         description:
           'Los saberes ancestrales son conocimientos transmitidos de generación en generación, nacidos de la observación paciente de la naturaleza y de la relación respetuosa entre las personas y la tierra. No son recetas del pasado: son tecnologías vivas, adaptadas y vigentes, que ofrecen respuestas a los problemas contemporáneos de alimentación, salud, vivienda y comunidad.',
         image_url:
-          'https://images.unsplash.com/photo-1466637574441-749b8f19452f?auto=format&fit=crop&w=1200&q=80',
+          '/placeholder.svg',
         style: 'standard',
       },
       {
@@ -1531,7 +1531,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         description:
           'Nacimos como respuesta a la crisis alimentaria y la guerra económica. Frente a las colas, el desabastecimiento y la comida procesada, retomamos el concepto y la práctica comunitaria: producir sin agrotóxicos, distribuir sin intermediarios, consumir alimentos soberanos y tejer comunidad alrededor de la tierra.',
         image_url:
-          'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1200&q=80',
+          '/placeholder.svg',
         style: 'standard',
       },
       {
@@ -1746,7 +1746,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         description:
           'Estas son experiencias reales de comunidades en distintos continentes que han decidido vivir de otra manera: cultivando sus propios alimentos sin agrotóxicos, construyendo con materiales naturales, usando energías limpias y practicando la economía solidaria. No son nuestros aliados ni socios: son referentes que nos inspiran y de los cuales aprendemos. Cada una demuestra que otra forma de vida es posible.',
         image_url:
-          'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1200&q=80',
+          '/placeholder.svg',
         style: 'standard',
       },
       {
@@ -1919,7 +1919,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         description:
           'El TQ no está anclado al oro ni a ninguna moneda. Está anclado al julio (J), la unidad universal de energía del Sistema Internacional. 1 TQ = 1 kWh = 3.6 megajulios (MJ). Esto hace que el valor sea objetivo, medible y auditable: cualquier persona puede verificar cuánta energía se invirtió en producir algo.',
         image_url:
-          'https://images.unsplash.com/photo-1466611653911-95081537e5b7?auto=format&fit=crop&w=1200&q=80',
+          '/placeholder.svg',
         style: 'standard',
       },
       {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import {
   EdText,
@@ -330,7 +330,7 @@ export function CarouselBlock({ data }: { data: CarouselBlockData }) {
       <div className="text-center">
         <EdAddItem
           arrayField="items"
-          template={{ image_url: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1000&q=80', title: 'Nueva Foto', caption: 'Descripción de la foto', tag: 'Feria' }}
+          template={{ image_url: '/placeholder.svg', title: 'Nueva Foto', caption: 'Descripción de la foto', tag: 'Feria' }}
           label="+ Añadir foto al carrusel"
         />
       </div>

@@ -331,19 +331,73 @@ export default function FederationPeers() {
 
                 {/* Resumen */}
                 {!loadingTxs && peerTxs.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-gray-600">Total enviado:</p>
-                      <p className="font-bold text-red-600">
-                        -{peerTxs.filter(t => t.direction === 'debit').reduce((s, t) => s + (t.amount || 0), 0)} {currency}
-                      </p>
+                  <div className="mt-3 pt-3 border-t border-gray-100 space-y-4">
+                    {/* Tarjetas de totales */}
+                    <div className="grid grid-cols-3 gap-3 text-sm">
+                      <div className="bg-red-50 rounded-lg p-2">
+                        <p className="text-gray-600 text-xs">Total enviado</p>
+                        <p className="font-bold text-red-600 text-lg">
+                          -{peerTxs.filter(t => t.direction === 'debit').reduce((s, t) => s + Math.abs(t.amount || 0), 0)} {currency}
+                        </p>
+                      </div>
+                      <div className="bg-green-50 rounded-lg p-2">
+                        <p className="text-gray-600 text-xs">Total recibido</p>
+                        <p className="font-bold text-green-600 text-lg">
+                          +{peerTxs.filter(t => t.direction === 'credit').reduce((s, t) => s + Math.abs(t.amount || 0), 0)} {currency}
+                        </p>
+                      </div>
+                      <div className={`rounded-lg p-2 ${(peerTxs.filter(t => t.direction === 'credit').reduce((s, t) => s + Math.abs(t.amount || 0), 0) - peerTxs.filter(t => t.direction === 'debit').reduce((s, t) => s + Math.abs(t.amount || 0), 0)) >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+                        <p className="text-gray-600 text-xs">Balance</p>
+                        <p className={`font-bold text-lg ${(peerTxs.filter(t => t.direction === 'credit').reduce((s, t) => s + Math.abs(t.amount || 0), 0) - peerTxs.filter(t => t.direction === 'debit').reduce((s, t) => s + Math.abs(t.amount || 0), 0)) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {(() => {
+                            const net = peerTxs.filter(t => t.direction === 'credit').reduce((s, t) => s + Math.abs(t.amount || 0), 0) - peerTxs.filter(t => t.direction === 'debit').reduce((s, t) => s + Math.abs(t.amount || 0), 0)
+                            return net >= 0 ? '+' : ''
+                          })()}
+                          {peerTxs.filter(t => t.direction === 'credit').reduce((s, t) => s + Math.abs(t.amount || 0), 0) - peerTxs.filter(t => t.direction === 'debit').reduce((s, t) => s + Math.abs(t.amount || 0), 0)} {currency}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-gray-600">Total recibido:</p>
-                      <p className="font-bold text-green-600">
-                        +{peerTxs.filter(t => t.direction === 'credit').reduce((s, t) => s + (t.amount || 0), 0)} {currency}
-                      </p>
-                    </div>
+
+                    {/* Grafica de barras mensual */}
+                    {(() => {
+                      const monthly: Record<string, { in: number; out: number }> = {}
+                      peerTxs.forEach(t => {
+                        const month = String(t.created_at || '').slice(0, 7)
+                        if (!monthly[month]) monthly[month] = { in: 0, out: 0 }
+                        if (t.direction === 'credit') monthly[month].in += Math.abs(t.amount || 0)
+                        if (t.direction === 'debit') monthly[month].out += Math.abs(t.amount || 0)
+                      })
+                      const months = Object.keys(monthly).sort()
+                      const maxVal = Math.max(...months.map(m => Math.max(monthly[m].in, monthly[m].out)), 1)
+                      return (
+                        <div className="bg-gray-50 rounded-lg p-3">
+                          <p className="text-xs font-medium text-gray-600 mb-2">Movimientos por mes</p>
+                          <div className="flex items-end gap-2 h-32">
+                            {months.map(m => (
+                              <div key={m} className="flex-1 flex flex-col items-center gap-1">
+                                <div className="flex items-end gap-0.5 h-24 w-full justify-center">
+                                  <div
+                                    className="w-3 bg-green-500 rounded-t"
+                                    style={{ height: `${(monthly[m].in / maxVal) * 100}%` }}
+                                    title={`Entradas: ${monthly[m].in} ${currency}`}
+                                  />
+                                  <div
+                                    className="w-3 bg-red-500 rounded-t"
+                                    style={{ height: `${(monthly[m].out / maxVal) * 100}%` }}
+                                    title={`Salidas: ${monthly[m].out} ${currency}`}
+                                  />
+                                </div>
+                                <span className="text-xs text-gray-500">{m.slice(5)}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex gap-4 mt-2 justify-center text-xs">
+                            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-500 rounded"></span> Entradas</span>
+                            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-500 rounded"></span> Salidas</span>
+                          </div>
+                        </div>
+                      )
+                    })()}
                   </div>
                 )}
               </div>
