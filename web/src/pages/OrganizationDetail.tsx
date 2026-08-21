@@ -755,7 +755,7 @@ export default function OrganizationDetail() {
 
       {/* Tab: Asamblea */}
       {tab === 'assembly' && (
-        <ScopedAssembly scope="organization" scopeId={id!} scopeName={org.display_name || org.username} />
+        <ScopedAssembly scope="organization" scopeId={id!} scopeName={org.display_name || org.username} isAssemblyOwned={org?.is_assembly_owned} />
       )}
     </div>
   )

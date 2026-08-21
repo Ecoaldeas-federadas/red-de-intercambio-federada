@@ -35,6 +35,7 @@ type Organization struct {
 	RequiredSignatures  int         `json:"required_signatures"`
 	AuthorizedSigners   []uuid.UUID `json:"authorized_signers"`
 	PublicKey           string      `json:"public_key"`
+	IsAssemblyOwned     bool        `json:"is_assembly_owned"`
 	CreatedAt           time.Time   `json:"created_at"`
 }
 
@@ -105,7 +106,8 @@ func (o *Organizations) List(ctx context.Context, nodeDomain, subtype string) ([
 	query := `SELECT id, node_domain, username, display_name, account_type, COALESCE(organization_subtype, ''),
 			  membership_status, is_approved, COALESCE(approved_by, ARRAY[]::uuid[]),
 			  credit_limit, debit_limit, annual_budget_limit, COALESCE(tax_rate, 0)::float8,
-			  required_signatures, COALESCE(authorized_signers, ARRAY[]::uuid[]), COALESCE(public_key, ''), created_at
+			  required_signatures, COALESCE(authorized_signers, ARRAY[]::uuid[]), COALESCE(public_key, ''),
+			  COALESCE(is_assembly_owned, false), created_at
 			  FROM users WHERE node_domain = $1 AND account_type = 'organization'`
 	args := []interface{}{nodeDomain}
 	if subtype != "" {
@@ -126,7 +128,8 @@ func (o *Organizations) List(ctx context.Context, nodeDomain, subtype string) ([
 		err := rows.Scan(&org.ID, &org.NodeDomain, &org.Username, &org.DisplayName, &org.AccountType,
 			&org.OrganizationSubtype, &org.MembershipStatus, &org.IsApproved, &org.ApprovedBy,
 			&org.CreditLimit, &org.DebitLimit, &org.AnnualBudgetLimit, &org.TaxRate,
-			&org.RequiredSignatures, &org.AuthorizedSigners, &org.PublicKey, &org.CreatedAt)
+			&org.RequiredSignatures, &org.AuthorizedSigners, &org.PublicKey,
+			&org.IsAssemblyOwned, &org.CreatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("scanning organization: %w", err)
 		}

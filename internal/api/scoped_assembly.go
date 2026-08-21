@@ -82,10 +82,44 @@ func (h *ScopedAssemblyHandler) getScope(r *http.Request) (string, *uuid.UUID, e
 // getEligibleVoters obtiene los miembros con derecho a voto segun el scope
 func (h *ScopedAssemblyHandler) getEligibleVoters(ctx context.Context, scope string, scopeID uuid.UUID) ([]uuid.UUID, error) {
 	if scope == "organization" {
-		// Miembros de la junta directiva de la organizacion
+		// Verificar si es una organizacion de la Asamblea
+		var isAssemblyOwned bool
+		var nodeDomain string
+		_ = h.Pool.QueryRow(ctx, `SELECT COALESCE(is_assembly_owned, false), node_domain FROM users WHERE id = $1`, scopeID).Scan(&isAssemblyOwned, &nodeDomain)
+
+		if isAssemblyOwned {
+			// Las organizaciones de la Asamblea usan la Asamblea General:
+			// todos los miembros activos del nodo son votantes
+			rows, err := h.Pool.Query(ctx, `
+				SELECT id FROM users
+				WHERE node_domain = $1 AND account_type = 'individual' AND membership_status = 'active'`,
+				nodeDomain)
+			if err != nil {
+				return nil, err
+			}
+			defer rows.Close()
+			var voters []uuid.UUID
+			for rows.Next() {
+				var id uuid.UUID
+				rows.Scan(&id)
+				voters = append(voters, id)
+			}
+			return voters, nil
+		}
+
+		// Organizacion regular: todos los miembros de la organizacion
+		// (junta directiva + miembros suscritos a servicios de la org)
 		rows, err := h.Pool.Query(ctx, `
-			SELECT user_id FROM organization_board_members
-			WHERE organization_id = $1 AND is_active = true`, scopeID)
+			SELECT DISTINCT user_id FROM (
+				-- Junta directiva
+				SELECT user_id FROM organization_board_members
+				WHERE organization_id = $1 AND is_active = true
+				UNION
+				-- Miembros suscritos a servicios de la organizacion
+				SELECT sub.user_id FROM organization_subscriptions sub
+				JOIN organization_services svc ON svc.id = sub.service_id
+				WHERE svc.organization_id = $1 AND sub.status IN ('active', 'auto')
+			) AS members`, scopeID)
 		if err != nil {
 			return nil, err
 		}

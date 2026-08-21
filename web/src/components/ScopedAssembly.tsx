@@ -6,9 +6,10 @@ interface ScopedAssemblyProps {
   scope: 'organization' | 'department'
   scopeId: string
   scopeName: string
+  isAssemblyOwned?: boolean
 }
 
-export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAssemblyProps) {
+export default function ScopedAssembly({ scope, scopeId, scopeName, isAssemblyOwned }: ScopedAssemblyProps) {
   const [tab, setTab] = useState<'config' | 'proposals' | 'sessions' | 'reports'>('proposals')
   const [error, setError] = useState('')
   const [sessions, setSessions] = useState<any[]>([])
@@ -205,8 +206,17 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
       <h2 className="font-semibold flex items-center gap-2"><VoteIcon size={18} />Asamblea de {label}: {scopeName}</h2>
 
       <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
-        <p>Esta es la asamblea interna de {scopeName}. Aqui se toman decisiones propias de {label === 'Organizacion' ? 'la organizacion' : 'el departamento'}: propuestas libres, votaciones, minutas y reuniones.</p>
-        <p className="mt-1 text-xs">Las decisiones de esta asamblea son independientes de la asamblea general del nodo.</p>
+        {isAssemblyOwned && scope === 'organization' ? (
+          <>
+            <p>Esta organizacion pertenece a la Asamblea. Sus decisiones se discuten y votan en la <strong>Asamblea General</strong> del nodo, donde participan todos los miembros.</p>
+            <p className="mt-1 text-xs">La junta directiva puede tomar decisiones operativas que no requieren aprobacion de la Asamblea.</p>
+          </>
+        ) : (
+          <>
+            <p>Esta es la asamblea interna de {scopeName}. Aqui se toman decisiones propias de {label === 'Organizacion' ? 'la organizacion' : 'el departamento'}: propuestas libres, votaciones, minutas y reuniones.</p>
+            <p className="mt-1 text-xs">Las decisiones de esta asamblea son independientes de la asamblea general del nodo.</p>
+          </>
+        )}
       </div>
 
       {/* Tabs */}
