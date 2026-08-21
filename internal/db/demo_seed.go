@@ -1906,14 +1906,14 @@ func demoSeedTransactions(ctx context.Context, d *DB, nodeDomain string) error {
 			continue
 		}
 
-		// Crear ledger entries (débito/crédito)
+		// Crear ledger entries (débito/crédito) - usar 'user_balance' para que GetBalance los cuente
 		d.Pool.Exec(ctx, `
 			INSERT INTO ledger_entries (transaction_id, account_id, entry_type, amount, account_category, counterpart_node, created_at)
-			VALUES ($1, $2, 'debit', $3, 'individual', $4, NOW() - make_interval(hours => $5))`,
+			VALUES ($1, $2, 'debit', $3, 'user_balance', $4, NOW() - make_interval(hours => $5))`,
 			txID, t.sender, t.amount, nodeDomain, t.hoursAgo)
 		d.Pool.Exec(ctx, `
 			INSERT INTO ledger_entries (transaction_id, account_id, entry_type, amount, account_category, counterpart_node, created_at)
-			VALUES ($1, $2, 'credit', $3, 'individual', $4, NOW() - make_interval(hours => $5))`,
+			VALUES ($1, $2, 'credit', $3, 'user_balance', $4, NOW() - make_interval(hours => $5))`,
 			txID, t.receiver, t.amount, nodeDomain, t.hoursAgo)
 
 		// Si hay impuesto, crear ledger entry para la cuenta de impuestos
@@ -1933,11 +1933,11 @@ func demoSeedTransactions(ctx context.Context, d *DB, nodeDomain string) error {
 			t.hoursAgo)
 	}
 
-	// Actualizar saldos de usuarios basado en ledger entries
+	// Actualizar saldos de usuarios basado en ledger entries (solo user_balance)
 	d.Pool.Exec(ctx, `
 		UPDATE users u SET balance = COALESCE((
 			SELECT SUM(CASE WHEN entry_type = 'credit' THEN amount ELSE -amount END)
-			FROM ledger_entries le WHERE le.account_id = u.id
+			FROM ledger_entries le WHERE le.account_id = u.id AND le.account_category = 'user_balance'
 		), 0)
 		WHERE u.node_domain = $1`, nodeDomain)
 

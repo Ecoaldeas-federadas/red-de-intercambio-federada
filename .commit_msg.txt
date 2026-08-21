@@ -1,35 +1,51 @@
-fix: Todas las imagenes locales - nodo principal y demo
+fix: Reorganizar imagenes con nombres descriptivos por categoria
 
 ## Problema
-- Productos del demo compartian imagenes equivocadas (queso de cabra
-  usaba foto de adobe, ruana usaba foto de mermelada)
-- Nodo principal tenia ~126 URLs de Unsplash que podrian fallar (404)
-- 19 URLs de Unsplash ya daban 404
-- URLs locales tenian query strings ?auto=format... que no funcionan
+- Las imagenes tenian nombres numericos sin significado
+  (photo-1466611653911-95081537e5b7.jpg)
+- No habia organizacion por categorias, todo mezclado
+- Muchos productos compartian la misma imagen
+- Imagenes no correspondian con los productos
 
-## Solucion: 110 imagenes locales
+## Solucion: 287 imagenes locales organizadas
 
-### Nodo principal (78 imagenes)
-- 59 URLs de Unsplash que SI cargaban -> descargadas localmente
-- 19 URLs de Unsplash que daban 404 -> buscadas en Wikimedia Commons
-  con terminos relacionados al producto
-- Actualizadas: seed.go (211 URLs) + migracion 068 (125 URLs)
-- Query strings ?auto=format&fit=crop&w=600&q=80 eliminadas de paths locales
+### Productos (239 imagenes en 16 categorias)
+- servicios/ (16 imagenes): jornal-agricola.jpg, albanileria.jpg, etc.
+- alimentacion/ (36): hojas-verdes.jpg, panaderia.jpg, miel-pura.jpg, etc.
+- agricultura/ (15): semillas-criollas.jpg, abonos-organicos.jpg, etc.
+- salud/ (14): terapias-manuales.jpg, jabones-higiene.jpg, etc.
+- artesania/ (28): taza-barro.jpg, silla-madera.jpg, sombrero-paja.jpg, etc.
+- construccion/ (15): bloques-adobe.jpg, ladrillo-arcilla.jpg, etc.
+- energia/ (10): panel-solar.jpg, carbon-vegetal.jpg, etc.
+- herramientas/ (18): machete.jpg, pala.jpg, martillo.jpg, etc.
+- tecnologia/ (20): telefono-inteligente.jpg, lavadora.jpg, etc.
+- transporte/ (11): bicicleta.jpg, caballo-silla.jpg, etc.
+- cultura/ (12): cuatro-venezolano.jpg, guitarra-artesanal.jpg, etc.
+- educacion/ (7): talleres-agroecologia.jpg, matematicas.jpg, etc.
+- textiles/ (11): tela-algodon.jpg, frazada-lana.jpg, etc.
+- embalaje/ (22): vasos-hoja-platano.jpg, bolsas-yute.jpg, etc.
+- recursos/ (1): agua-purificada.jpg
 
-### Demo (32 imagenes, 5 nuevas)
+### Paginas publicas (16 imagenes con nombres descriptivos)
+- hero-feria-conuquera.jpg, stats-feria.jpg, conuco-horizonte.jpg,
+  asambleas-gobernanza.jpg, mercado-productores.jpg, etc.
+
+### Demo (32 imagenes, 5 corregidas)
 - queso-de-cabra.jpg (antes usaba bioconstruccion-adobe.jpg)
 - ruana-de-lana.jpg (antes usaba mermelada.jpg)
-- azadon-de-montana.jpg (antes sin imagen)
-- tijeras-de-podar.jpg (antes sin imagen)
-- aceite-de-romero.jpg (antes sin imagen)
+- azadon-de-montana.jpg, tijeras-de-podar.jpg, aceite-de-romero.jpg
+
+### Limpieza
+- Eliminados 78 archivos con nombres numericos (photo-XXX.jpg)
+- 0 referencias a Unsplash en todo el codigo
+- 0 referencias a nombres numericos viejos
+- Cada producto tiene su propia imagen unica y tematica
+- Todas las imagenes servidas localmente sin dependencias externas
 
 ### Verificacion
-- 0 URLs de Unsplash en seed.go
-- 0 URLs de Unsplash en demo_seed.go
-- 0 query strings en paths locales
-- 78 imagenes en web/public/images/products/
-- 32 imagenes en web/public/images/demo/
-- Build exitoso (Go + Vite)
+- Build Go: OK
+- Build Vite: OK
+- 239 + 16 + 32 = 287 imagenes en dist
 
 Generated with [Devin](https://devin.ai)
 
