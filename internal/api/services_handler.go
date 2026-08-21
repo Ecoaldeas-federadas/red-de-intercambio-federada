@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"federated-credit-node/internal/accounts"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"federated-credit-node/internal/accounts"
 )
 
 // ServicesHandler maneja los endpoints de servicios y suscripciones
@@ -108,9 +109,9 @@ func (h *ServicesHandler) createService(w http.ResponseWriter, r *http.Request) 
 	if svc.IsMandatory {
 		if err := h.Services.AutoSubscribeAllMembers(r.Context(), svc.ID, nodeDomain); err != nil {
 			writeJSON(w, 200, map[string]interface{}{
-				"service":     svc,
-				"warning":     "Servicio creado pero fallo auto-suscripcion de miembros",
-				"error":       err.Error(),
+				"service": svc,
+				"warning": "Servicio creado pero fallo auto-suscripcion de miembros",
+				"error":   err.Error(),
 			})
 			return
 		}
@@ -288,8 +289,8 @@ func (h *ServicesHandler) myServices(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, 200, map[string]interface{}{
-		"assembly_services":   assemblyServices,
-		"voluntary_services":  voluntaryServices,
+		"assembly_services":  assemblyServices,
+		"voluntary_services": voluntaryServices,
 	})
 }
 
@@ -314,6 +315,11 @@ func (h *ServicesHandler) mySubscriptions(w http.ResponseWriter, r *http.Request
 
 // getUserID extrae el user ID del contexto JWT
 func getUserID(r *http.Request) (uuid.UUID, error) {
+	// El middleware RequireAuth guarda user_id como string
+	if uidStr, ok := r.Context().Value("user_id").(string); ok {
+		return uuid.Parse(uidStr)
+	}
+	// Compatibilidad: algunos contextos podrian guardarlo como uuid.UUID
 	if uid, ok := r.Context().Value("user_id").(uuid.UUID); ok {
 		return uid, nil
 	}
