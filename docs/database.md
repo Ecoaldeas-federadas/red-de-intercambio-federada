@@ -42,6 +42,36 @@
 | `043_product_federation.sql` | Federacion de productos entre nodos (product_federation_proposals) |
 | `044_store_items_hierarchy.sql` | Jerarquia de 3 niveles en store_items (parent_category, subcategory) |
 | `045_split_grouped_products.sql` | Separacion de productos agrupados en items individuales (group_id, is_group) |
+| `046_decimal_prices.sql` | Precios decimales (NUMERIC 12,2) |
+| `047_symmetric_limits.sql` | Limites simetricos (positivo = negativo) + canasta basica 500 TQ |
+| `048_governance_rules.sql` | Tabla governance_rules + seed Ley de la Aldea |
+| `049_governance_assembly.sql` | Estructuras de asamblea: sesiones, decisiones, votos |
+| `050_voting_deadline.sql` | Plazos de votacion |
+| `051_assembly_attendance.sql` | Asistencia y doble validacion presencial |
+| `052_quorum_config.sql` | Quorum configurable, gracia, reprogramacion |
+| `053_proposal_review_flow.sql` | Flujo: proposed -> pending -> executed |
+| `054_scoped_assemblies.sql` | Asambleas de organizacion y departamento (tablas *_scoped) |
+| `055_assembly_convocation.sql` | Convocatoria automatica, frecuencia, notificaciones |
+| `056_assembly_advance_tax.sql` | Tiempos minimos, cuenta predefinida de impuestos |
+| `057_department_parent.sql` | Departamentos con organizacion padre |
+| `058_attendance_window.sql` | Ventana de anticipacion para asistencia |
+| `059_notifications.sql` | Modulo de notificaciones (notifications, channels, gateways, preferences) |
+| `060_fix_member_levels_domain.sql` | Fix member_levels para usuarios de otro node_domain |
+| `060_quiet_hours.sql` | Horas silenciosas por usuario |
+| `061_user_metadata.sql` | Columna metadata en users (digest_mode, last_digest_sent) |
+| `062_fix_governance_rules_dynamic.sql` | Corregir reglas con terminologia real |
+| `062_national_id_and_merge_conflicts.sql` | ID nacional + tabla de conflictos de fusion |
+| `063_governance_rule_type.sql` | Campo rule_type en governance_rules |
+| `063_passport_and_merge_fix.sql` | Pasaporte + fix conflictos |
+| `064_new_governance_rules_community.sql` | 24 reglas de comunidad intencional |
+| `064_user_documents_and_countries.sql` | Paises (ISO 3166-1) + tipos de documento + documentos de usuario |
+| `065_public_proposals.sql` | Propuestas publicas para mejorar el sistema |
+| `066_backup_system.sql` | Sistema de backups + nodos YugabyteDB |
+| `067_replace_unsplash_urls.sql` | (vacia, mantiene secuencia) |
+| `068_restore_unsplash_urls.sql` | Restaurar URLs de Unsplash en products |
+| `069_organization_services.sql` | Servicios, suscripciones, is_assembly_owned |
+| `070_board_meetings.sql` | Reuniones de junta directiva (meeting_type) |
+| `071_governance_org_services_rules.sql` | 12 reglas publicas sobre organizaciones y servicios |
 
 ## Tablas Principales
 
@@ -112,10 +142,52 @@
 - Tablas de pagos usan `transactions` y `ledger_entries`
 
 ### Asamblea y Auditoria
-- **`assembly_sessions`**: Sesiones de asamblea
+- **`assembly_sessions`**: Sesiones de asamblea del nodo
 - **`assembly_decisions`**: Decisiones con multi-firma
 - **`assembly_votes`**: Votos de miembros en decisiones
 - **`assembly_config`**: Configuracion de aprobacion por tipo de propuesta
+- **`assembly_attendance`**: Asistencia a sesiones presenciales
+- **`assembly_quorum_config`**: Quorum configurable por tipo de asamblea
+- **`assembly_frequency_config`**: Frecuencia y convocatoria automatica
+- **`assembly_notifications`**: Notificaciones a miembros de asamblea
+- **`assembly_proposal_types`**: Tipos de propuestas permitidos por scope
+
+### Asambleas Scoped (org/depto + juntas directivas)
+- **`assembly_sessions_scoped`**: Sesiones de asamblea de org/depto (con `meeting_type`: assembly o board)
+- **`assembly_decisions_scoped`**: Decisiones propuestas en sesiones scoped
+- **`assembly_votes_scoped`**: Votos en decisiones scoped
+- **`assembly_attendance_scoped`**: Asistencia a sesiones scoped
+- **`assembly_quorum_config_scoped`**: Quorum configurable por scope y meeting_type
+
+### Gobernanza
+- **`governance_rules`**: Reglas de gobernanza (Ley de la Aldea) con categoria, severidad, icono
+
+### Servicios de Organizaciones
+- **`organization_services`**: Servicios ofrecidos por organizaciones (subscription, benefit, one_time)
+- **`organization_subscriptions`**: Suscripciones de miembros a servicios (active, auto, cancelled)
+- **`organization_service_failures`**: Fallos de cobro registrados
+
+### Notificaciones
+- **`notifications`**: Notificaciones del usuario
+- **`notification_channels`**: Canales de entrega (email, telegram, matrix, webpush, sms, whatsapp, webhook)
+- **`notification_gateways`**: Configuracion de pasarelas por nodo
+- **`notification_preferences`**: Preferencias de usuario por tipo y canal
+- **`notification_quiet_hours`**: Horas silenciosas por usuario
+
+### Documentos y Paises
+- **`countries`**: Paises del mundo (ISO 3166-1)
+- **`document_types`**: Tipos de documento de identidad
+- **`user_documents`**: Documentos de identidad de usuarios
+
+### Propuestas Publicas y Backups
+- **`public_proposals`**: Propuestas publicas para mejorar el sistema (sin cuenta)
+- **`backups`**: Configuracion de backups de BD
+- **`yugabyte_nodes`**: Nodos YugabyteDB del cluster
+
+### Conflictos de Fusion
+- **`merge_conflicts`**: Conflictos cuando dos nodos se federan con usuarios duplicados
+
+### Auditoria
 - **`audit_log`**: Registro de auditoria
 
 ### Recuperacion
@@ -147,10 +219,18 @@ users 1--* recovery_approvals (approver)
 users 1--* device_registrations
 users 1--* organizations (as signer)
 users 1--* store_items (as owner)
+users 1--* organization_services (as organization)
+users 1--* organization_subscriptions (as member)
+users 1--* notifications
+users 1--* user_documents
+users 1--* assembly_sessions_scoped (as scope_id for org)
+departments 1--* assembly_sessions_scoped (as scope_id for dept)
 transactions 1--* ledger_entries
 transactions 1--* multi_sig_approvals
 assembly_sessions 1--* assembly_decisions
 assembly_decisions 1--* assembly_votes
+assembly_sessions_scoped 1--* assembly_decisions_scoped
+assembly_decisions_scoped 1--* assembly_votes_scoped
 recovery_requests 1--* recovery_approvals
 member_groups 1--* member_group_members
 products 1--* product_producers
@@ -158,4 +238,6 @@ products 1--* product_price_history
 products 1--* product_compositions (as component_product_id)
 store_items 1--* product_compositions (as product_id)
 product_federation_proposals --> products (on approval)
+organization_services 1--* organization_subscriptions
+governance_rules (independiente por node_domain)
 ```

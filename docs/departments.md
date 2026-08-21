@@ -106,6 +106,14 @@ Los departamentos pueden transferir dinero a:
 - `nfc.deactivate_card` — Desactivar tarjeta NFC
 - `nfc.reset_pin` — Resetear PIN de tarjeta
 
+### Gobernanza
+- `governance.manage` — Gestionar reglas de gobernanza (Ley de la Aldea)
+- `config.manage` — Configuracion general del nodo
+
+### Organizaciones (juntas directivas)
+- `organization.board.manage` — Gestionar reuniones de junta directiva
+- `organization.board.open_voting` — Abrir votacion en junta directiva
+
 ## Multi-firma
 
 Algunos permisos pueden requerir multi-firma (multisig). Esto significa que multiples aprobaciones son necesarias para ejecutar la accion.

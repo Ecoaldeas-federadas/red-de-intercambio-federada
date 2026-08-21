@@ -27,7 +27,7 @@ Ver `departments.md` para la lista completa de permisos.
 | POST | `/api/auth/passkey/list` | Lista passkeys del usuario |
 | DELETE | `/api/auth/passkey/{id}` | Elimina un passkey |
 
-### Transacciones (`internal/api/handler.go`)
+### Transacciones (`internal/api/handlers.go`)
 
 | Metodo | Ruta | Descripcion |
 |--------|------|-------------|
@@ -40,6 +40,188 @@ Ver `departments.md` para la lista completa de permisos.
 | POST | `/api/products/{id}/approve` | Aprueba producto (permiso products.manage) |
 | GET | `/api/products/categories` | Lista jerarquia de 3 niveles (parent_category, category, subcategory) |
 | GET | `/api/pricing/calculate` | Calcula precio energetico |
+
+### Dashboard y Profile (`internal/api/handlers.go`, `internal/api/system.go`)
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| GET | `/api/dashboard` | Resumen del dashboard (balance, alertas, asambleas, orgs) |
+| GET | `/api/profile` | Perfil del usuario autenticado |
+| PUT | `/api/profile` | Actualizar perfil |
+| GET | `/api/wallet` | Billetera con balance, limites y movimientos |
+| GET | `/api/history` | Historial de transacciones |
+| GET | `/api/my-membership` | Organizaciones y departamentos del usuario |
+| GET | `/api/countries` | Lista de paises (ISO 3166-1) |
+| GET | `/api/document-types` | Tipos de documento de identidad |
+| POST | `/api/user/documents` | Subir documento de identidad |
+| GET | `/api/user/documents` | Listar documentos del usuario |
+
+### Asamblea del Nodo (`internal/api/assembly.go`)
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| GET | `/api/assembly/sessions` | Listar sesiones (filter=upcoming/past) |
+| POST | `/api/assembly/sessions` | Crear sesion (fecha obligatoria) |
+| POST | `/api/assembly/sessions/{id}/close` | Cerrar asamblea + auto-convocar siguiente |
+| POST | `/api/assembly/sessions/{id}/reschedule` | Reprogramar (notifica a miembros) |
+| GET | `/api/assembly/proposals` | Listar propuestas |
+| POST | `/api/assembly/proposals` | Crear propuesta (estado: proposed) |
+| POST | `/api/assembly/proposals/{id}/open-voting` | Abrir votacion (estado: pending) |
+| POST | `/api/assembly/proposals/{id}/vote` | Votar (for/against/abstain) |
+| POST | `/api/assembly/proposals/{id}/execute` | Ejecutar propuesta aprobada |
+| GET | `/api/assembly/proposals/{id}/report` | Informe de votacion |
+| GET | `/api/assembly/config` | Configuracion de quorum |
+| PUT | `/api/assembly/config/{proposalType}` | Actualizar config |
+| GET | `/api/assembly/frequency-config` | Config de frecuencia |
+| PUT | `/api/assembly/frequency-config` | Actualizar frecuencia |
+| GET | `/api/assembly/notifications` | Notificaciones del usuario |
+| PUT | `/api/assembly/notifications/{id}/read` | Marcar como leida |
+| GET | `/api/assembly/proposal-types` | Tipos permitidos por scope |
+| GET | `/api/assembly/board` | Junta directiva del nodo |
+| GET | `/api/assembly/voting-members` | Miembros con derecho a voto |
+
+### Asambleas y Juntas de Organizacion (`internal/api/scoped_assembly.go`)
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| GET | `/api/organization/{id}/assembly/sessions` | Listar sesiones de asamblea |
+| POST | `/api/organization/{id}/assembly/sessions` | Crear sesion de asamblea |
+| GET | `/api/organization/{id}/assembly/proposals` | Listar propuestas de asamblea |
+| POST | `/api/organization/{id}/assembly/proposals` | Crear propuesta de asamblea |
+| POST | `/api/organization/{id}/assembly/proposals/{id}/open-voting` | Abrir votacion |
+| POST | `/api/organization/{id}/assembly/proposals/{id}/vote` | Votar |
+| POST | `/api/organization/{id}/assembly/proposals/{id}/execute` | Ejecutar |
+| GET | `/api/organization/{id}/assembly/config` | Config de asamblea |
+| PUT | `/api/organization/{id}/assembly/config` | Actualizar config |
+| GET | `/api/organization/{id}/assembly/proposal-types` | Tipos permitidos |
+| GET | `/api/organization/{id}/assembly/reports` | Reportes |
+| PUT | `/api/organization/{id}/assembly/sessions/{id}/minutes` | Actualizar minutas |
+| GET/POST | `/api/organization/{id}/assembly/sessions/{id}/attendance` | Asistencia |
+| POST | `/api/organization/{id}/assembly/sessions/{id}/close` | Cerrar sesion |
+
+### Juntas Directivas de Organizacion (`internal/api/scoped_assembly.go`)
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| GET | `/api/organization/{id}/board/sessions` | Listar sesiones de junta directiva |
+| POST | `/api/organization/{id}/board/sessions` | Crear sesion de junta |
+| GET | `/api/organization/{id}/board/proposals` | Listar propuestas de junta |
+| POST | `/api/organization/{id}/board/proposals` | Crear propuesta de junta |
+| POST | `/api/organization/{id}/board/proposals/{id}/open-voting` | Abrir votacion de junta |
+| POST | `/api/organization/{id}/board/proposals/{id}/vote` | Votar en junta |
+| POST | `/api/organization/{id}/board/proposals/{id}/execute` | Ejecutar decision de junta |
+| GET | `/api/organization/{id}/board/config` | Config de junta |
+| GET | `/api/organization/{id}/board/proposal-types` | Tipos: board_operational, board_financial, board_appointment |
+
+### Asambleas de Departamento (`internal/api/scoped_assembly.go`)
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| GET | `/api/department/{id}/assembly/sessions` | Listar sesiones |
+| POST | `/api/department/{id}/assembly/sessions` | Crear sesion |
+| GET | `/api/department/{id}/assembly/proposals` | Listar propuestas |
+| POST | `/api/department/{id}/assembly/proposals` | Crear propuesta |
+| POST | `/api/department/{id}/assembly/proposals/{id}/vote` | Votar |
+| POST | `/api/department/{id}/assembly/proposals/{id}/execute` | Ejecutar |
+
+### Servicios de Organizaciones (`internal/api/services_handler.go`)
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| GET | `/api/organization/{id}/services` | Listar servicios de la organizacion |
+| POST | `/api/organization/{id}/services` | Crear servicio |
+| PUT | `/api/organization/{id}/services/{serviceId}` | Actualizar servicio |
+| DELETE | `/api/organization/{id}/services/{serviceId}` | Eliminar servicio |
+| POST | `/api/organization/{id}/services/{serviceId}/subscribe` | Suscribirse a servicio |
+| POST | `/api/organization/{id}/services/{serviceId}/unsubscribe` | Cancelar suscripcion |
+| GET | `/api/my-services` | Mis servicios suscritos |
+
+### Gobernanza (`internal/api/system.go`)
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| GET | `/api/public/governance` | Reglas de gobernanza publicas (sin auth) |
+| GET | `/api/governance/rules` | Listar todas las reglas |
+| POST | `/api/governance/rules` | Crear regla (permiso governance.manage) |
+| PUT | `/api/governance/rules/{id}` | Actualizar regla |
+| DELETE | `/api/governance/rules/{id}` | Eliminar regla |
+
+### Impuestos (`internal/api/tax.go`)
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| GET | `/api/tax/config` | Configuracion de impuestos del nodo |
+| PUT | `/api/tax/config` | Actualizar configuracion |
+| GET | `/api/tax/distributions` | Distribuciones aprobadas |
+
+### Notificaciones (`internal/api/notifications.go`)
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| GET | `/api/notifications` | Notificaciones del usuario |
+| PUT | `/api/notifications/{id}/read` | Marcar como leida |
+| PUT | `/api/notifications/read-all` | Marcar todas como leidas |
+| GET | `/api/notifications/preferences` | Preferencias del usuario |
+| PUT | `/api/notifications/preferences` | Actualizar preferencias |
+| GET | `/api/notifications/gateways` | Pasarelas configuradas |
+| PUT | `/api/notifications/gateways/{id}` | Configurar pasarela |
+| POST | `/api/notifications/test` | Enviar notificacion de prueba |
+| GET | `/api/notifications/vapid-public-key` | Clave publica VAPID para WebPush |
+
+### Configuracion del Nodo (`internal/api/system.go`)
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| GET | `/api/node/settings` | Configuracion del nodo |
+| PUT | `/api/node/settings` | Actualizar configuracion |
+| GET | `/api/member-levels` | Niveles de miembro |
+| POST | `/api/member-levels` | Crear nivel |
+| PUT | `/api/member-levels/{id}` | Actualizar nivel |
+| GET | `/api/organization-levels` | Niveles de organizacion |
+| POST | `/api/organization-levels` | Crear nivel de org |
+| PUT | `/api/organization-levels/{id}` | Actualizar nivel de org |
+
+### Fondo Comunitario (`internal/api/handlers.go`)
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| GET | `/api/fund` | Estado del fondo comunitario |
+| GET | `/api/fund/distributions` | Distribuciones del fondo |
+
+### Backups y YugabyteDB (`internal/api/backups.go`, `internal/api/yugabyte_nodes.go`)
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| GET | `/api/backups` | Lista de backups |
+| POST | `/api/backups` | Crear backup |
+| GET | `/api/backups/{id}/download` | Descargar backup |
+| DELETE | `/api/backups/{id}` | Eliminar backup |
+| GET | `/api/yugabyte/nodes` | Nodos YugabyteDB |
+| POST | `/api/yugabyte/nodes` | Agregar nodo |
+
+### Conflictos de Fusion (`internal/api/merge_conflicts.go`)
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| GET | `/api/merge-conflicts` | Lista de conflictos |
+| POST | `/api/merge-conflicts/{id}/resolve` | Resolver conflicto |
+
+### Propuestas Publicas (`internal/api/public_proposals.go`)
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| GET | `/api/public/proposals` | Propuestas publicas (sin auth) |
+| POST | `/api/public/proposals` | Crear propuesta publica (sin auth) |
+| POST | `/api/public/proposals/{id}/vote` | Votar propuesta publica (sin auth) |
+
+### Calculadora (`internal/api/handlers.go`)
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| GET | `/api/calculator/params` | Parametros de calculadora |
+| POST | `/api/calculator/params` | Crear parametro (permiso config.manage) |
+| PUT | `/api/calculator/params/{id}` | Actualizar parametro |
+| DELETE | `/api/calculator/params/{id}` | Eliminar parametro |
 
 ### Federacion (`internal/api/federation.go`)
 

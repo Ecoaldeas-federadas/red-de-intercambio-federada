@@ -13,8 +13,10 @@ El sistema de credito mutuo federado es una red descentralizada de nodos indepen
 
 ### 2. Base de Datos
 - **YugabyteDB / PostgreSQL**: Compatible con ambos
-- **Migraciones**: `internal/db/migrations/` (001_initial_schema, 002_seed_data, 003_account_recovery, 004_nfc_terminals)
+- **Migraciones**: `internal/db/migrations/` (71 migraciones, 001-071)
 - **Pool de conexiones**: `pgx/v5`
+- **Backups**: `internal/api/backups.go` — export/import `.sql`
+- **Nodos YugabyteDB**: `internal/api/yugabyte_nodes.go` — gestion de cluster
 
 ### 3. Ledger de Doble Entrada
 - **Archivo**: `internal/ledger/`
@@ -30,11 +32,13 @@ El sistema de credito mutuo federado es una red descentralizada de nodos indepen
 - **NFC Terminal Crypto**: `internal/crypto/terminal_crypto.go` — Ed25519, ECDH Curve25519, AES-256-GCM para terminales ESP32
 
 ### 5. API REST
-- **Archivo**: `internal/api/`
+- **Archivo**: `internal/api/` (29 handlers)
 - **Router**: Chi v5 con middleware
 - **Autenticacion**: JWT (Bearer token, 24h de validez)
-- **Handlers**: auth, setup, federation, organization, payments, external, recovery, departments, nfc_terminal
+- **Handlers**: auth, setup, federation, organization, payments, external, recovery, departments, nfc_terminal, assembly, scoped_assembly, services_handler, subscription_scheduler, notifications, gateways, notification_scheduler, system, tax, handlers, demo_setup, backups, yugabyte_nodes, documents, merge_conflicts, my_membership, public_proposals, vapid, vapid_crypto, routes
 - **Permisos**: Middleware `RequirePermission` verifica permisos por rol de departamento + permisos directos del usuario
+- **WebPush**: VAPID (ES256 JWT) + encriptacion aes128gcm (RFC 8291)
+- **HTML estatico**: Generacion de archivos HTML en disco para crawlers y sitemap
 
 ### 6. Federacion
 - **Archivo**: `internal/federation/`
@@ -46,9 +50,41 @@ El sistema de credito mutuo federado es una red descentralizada de nodos indepen
 - **Archivo**: `web/`
 - **Stack**: React 18, TypeScript, TailwindCSS, Vite
 - **PWA**: Manifest, service worker, offline cache
-- **18 paginas**: Setup, Login, Dashboard, Transfer, History, Products, Calculator, Store, FederationLimits, Parity, Assembly, Audit, ExternalBridge, Admission, Organizations, Payments, Recovery, Departments, NFCTerminals
-- **Hooks**: `useAuth`, `usePermissions`
+- **32 paginas**: Setup, Login, Dashboard, Transfer, Wallet, History, MyServices, Payments, NFCTerminals, Products, Calculator, CalculatorParams, Store, FederationPeers, FederationLimits, Parity, MergeConflicts, Organizations, OrganizationDetail, Governance, Assembly, Audit, ExternalBridge, Admission, Recovery, Departments, DepartmentDetail, NodeSettings, NotificationSettings, Notifications, Profile, CommunityFund, WebsiteAdmin
+- **12 componentes**: Layout, EntitySelector, PublicSite, ScopedAssembly, SessionExpiredModal, DynamicAdmissionForm, InlineEditable, LivePageEditor, PublicBlocks, PublicFederationPage, PublicGovernancePage, ThemeCustomizer
+- **Hooks**: `useAuth`, `usePermissions`, `useConfig`
 - **Setup Wizard**: Pagina de configuracion inicial de 4 pasos para nuevo nodo (auto-genera claves, crea admin, departamentos, permisos)
+
+### 8. Gobernanza y Asambleas
+- **Archivo**: `internal/api/assembly.go` (asamblea del nodo), `internal/api/scoped_assembly.go` (asambleas de org/depto + juntas directivas)
+- **Asamblea del nodo**: sesiones, propuestas, votaciones, quorum, minutas, convocatoria automatica
+- **Asambleas scoped**: organizacion y departamento, con tipos de propuesta separados
+- **Juntas directivas**: `meeting_type = 'board'` — reuniones separadas de la asamblea
+- **Organizaciones de la Asamblea**: `is_assembly_owned = true` — decisiones se votan en Asamblea General
+- **Reglas de gobernanza**: `governance_rules` — Ley de la Aldea, visible en pagina publica
+
+### 9. Servicios de Organizaciones
+- **Archivo**: `internal/accounts/services.go`, `internal/api/services_handler.go`, `internal/api/subscription_scheduler.go`
+- **Tipos**: subscription (cobra), benefit (paga), one_time (cobro unico)
+- **Frecuencia**: mensual, trimestral, anual
+- **Obligatorios o voluntarios**
+- **Scheduler**: cobra/paga automaticamente segun frecuencia
+
+### 10. Notificaciones
+- **Archivo**: `internal/api/notifications.go`, `internal/api/gateways.go`, `internal/api/notification_scheduler.go`
+- **Canales**: Email, Telegram, Matrix, WebPush, SMS, WhatsApp, webhook
+- **Preferencias por usuario**: horas silenciosas, modo digest
+- **Scheduler**: notificaciones automaticas de votaciones, asambleas, cobros
+
+### 11. Auditoria
+- **Archivo**: `internal/audit/logger.go`
+- **Tabla**: `audit_log`
+- **Hash chain**: verificacion de integridad del ledger
+
+### 12. Impuestos
+- **Archivo**: `internal/taxes/calculator.go`, `internal/api/tax.go`
+- **Resolucion**: users.tax_rate > member_levels.tax_rate > organization_levels.tax_rate > tax_config
+- **Destino**: cuenta de la Asamblea
 
 ## Flujo de Datos
 

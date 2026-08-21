@@ -138,9 +138,17 @@ red de intercambio federada/
 | 058 | Ventana de asistencia configurable |
 | 059 | Modulo de notificaciones: notifications, channels, gateways, preferences |
 | 060 | Horas silenciosas (quiet_hours_start, quiet_hours_end en users) |
-| 064 | Nuevas reglas de gobernanza de comunidad intencional (24 reglas) |
+| 061 | Metadata de usuario (digest_mode, last_digest_sent) |
+| 062 | Fix gobernanza dinamica + ID nacional + conflictos de fusion |
+| 063 | rule_type en governance_rules + pasaporte + fix conflictos |
+| 064 | 24 reglas de comunidad intencional + paises + documentos de usuario |
+| 065 | Propuestas publicas para mejorar el sistema (sin cuenta) |
+| 066 | Sistema de backups + nodos YugabyteDB |
+| 067 | (vacia, mantiene secuencia) |
+| 068 | Restaurar URLs de Unsplash en products |
 | 069 | Servicios de organizaciones, suscripciones, is_assembly_owned |
 | 070 | Reuniones de junta directiva (meeting_type en scoped assemblies) |
+| 071 | 12 reglas publicas sobre organizaciones, servicios y juntas |
 
 ## Cambios Recientes
 

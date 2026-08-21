@@ -7,7 +7,27 @@ El sistema de asambleas permite la toma de decisiones democratica en tres nivele
 2. **Asamblea de organizacion** - decisiones internas de una organizacion
 3. **Asamblea de departamento** - decisiones internas de un departamento
 
+Ademas, cada organizacion tiene **dos espacios de decision**:
+- **Asamblea** (`meeting_type = 'assembly'`): todos los miembros participan
+- **Junta Directiva** (`meeting_type = 'board'`): solo la junta directiva participa
+
 Cada nivel tiene su propio catalogo de propuestas. Las decisiones de un nivel no se mezclan con las de otro.
+
+## Organizaciones de la Asamblea
+
+Las organizaciones con `is_assembly_owned = true` pertenecen a la Asamblea:
+- **No tienen asamblea separada**: sus decisiones se votan en la Asamblea General del nodo
+- **Todos los miembros del nodo** son automaticamente miembros
+- **Tienen junta directiva propia** para decisiones operativas
+- **Sus servicios obligatorios** aplican a todos los miembros del nodo
+
+## Juntas Directivas
+
+Cada organizacion tiene su propia junta directiva con reuniones separadas:
+- `meeting_type = 'board'`: solo miembros de la junta directiva votan
+- `meeting_type = 'assembly'`: todos los miembros de la organizacion votan
+
+Ambos tipos de reunion tienen: sesiones, propuestas, votaciones, actas, asistencia, quorum y reportes.
 
 ## Tablas
 
@@ -170,6 +190,14 @@ La minuta tambien es editable para que los miembros agreguen notas manuales.
 | `admission` | Admision al depto (NO al nodo) |
 | `free_proposal` | Propuesta libre |
 
+### Junta Directiva (3 tipos, solo meeting_type=board)
+
+| Tipo | Descripcion |
+|------|-------------|
+| `board_operational` | Decision operativa: coordinacion, tareas, gastos menores |
+| `board_financial` | Decision financiera: transferencias y pagos dentro de limites |
+| `board_appointment` | Nombramiento interno: cambios de roles en la junta |
+
 ## Reglas de Transferencia
 
 | Scope | Puede transferir a | No puede transferir a |
@@ -250,6 +278,27 @@ La minuta tambien es editable para que los miembros agreguen notas manuales.
 
 Donde `scope` es `organization` o `department`.
 
+### Juntas Directivas de Organizacion
+
+| Metodo | Endpoint | Descripcion |
+|--------|----------|-------------|
+| GET | `/api/organization/{id}/board/sessions` | Listar sesiones de junta |
+| POST | `/api/organization/{id}/board/sessions` | Crear sesion de junta |
+| GET | `/api/organization/{id}/board/proposals` | Listar propuestas de junta |
+| POST | `/api/organization/{id}/board/proposals` | Crear propuesta de junta |
+| POST | `/api/organization/{id}/board/proposals/{id}/open-voting` | Abrir votacion |
+| POST | `/api/organization/{id}/board/proposals/{id}/vote` | Votar (solo junta directiva) |
+| POST | `/api/organization/{id}/board/proposals/{id}/execute` | Ejecutar |
+| GET | `/api/organization/{id}/board/config` | Config de quorum de junta |
+| PUT | `/api/organization/{id}/board/config` | Actualizar config |
+| GET | `/api/organization/{id}/board/proposal-types` | Tipos: board_operational, board_financial, board_appointment |
+| GET | `/api/organization/{id}/board/reports` | Reportes de junta |
+| POST | `/api/organization/{id}/board/sessions/{id}/close` | Cerrar sesion |
+
+**Votantes en junta directiva**: solo miembros activos de `organization_board_members`.
+**Votantes en asamblea de org regular**: junta directiva + miembros suscritos a servicios.
+**Votantes en asamblea de org de la Asamblea**: todos los miembros activos del nodo.
+
 ## Migraciones
 
 - `049_governance_assembly.sql` - Estructuras base
@@ -260,10 +309,13 @@ Donde `scope` es `organization` o `department`.
 - `054_scoped_assemblies.sql` - Asambleas de org/depto
 - `055_assembly_convocation.sql` - Convocatoria automatica, tipos por scope
 - `056_assembly_advance_tax.sql` - Tiempos minimos, cuenta de impuestos
+- `058_attendance_window.sql` - Ventana de anticipacion para asistencia
+- `070_board_meetings.sql` - Reuniones de junta directiva (meeting_type: assembly/board)
 
 ## Archivos Relevantes
 
 - `internal/api/assembly.go` - Handlers de la asamblea del nodo
-- `internal/api/scoped_assembly.go` - Handlers de asambleas de org/depto
+- `internal/api/scoped_assembly.go` - Handlers de asambleas y juntas de org/depto
 - `web/src/pages/Assembly.tsx` - UI de la asamblea del nodo
-- `web/src/components/ScopedAssembly.tsx` - UI de asambleas de org/depto
+- `web/src/components/ScopedAssembly.tsx` - UI de asambleas y juntas de org/depto
+- `web/src/pages/OrganizationDetail.tsx` - UI de organizacion con tabs de asamblea y junta

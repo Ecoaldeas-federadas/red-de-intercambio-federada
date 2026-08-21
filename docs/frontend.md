@@ -33,29 +33,53 @@ web/
     │   ├── usePermissions.ts  # Hook de permisos del usuario
     │   └── useConfig.ts       # Hook de configuracion del nodo
     ├── components/
-    │   ├── Layout.tsx         # Sidebar + header responsive
+    │   ├── Layout.tsx              # Sidebar + header responsive + campana notificaciones
+    │   ├── EntitySelector.tsx      # Selector de entidades para formularios
+    │   ├── PublicSite.tsx          # Componente principal del sitio publico
+    │   ├── ScopedAssembly.tsx      # Asambleas y juntas de org/depto
+    │   ├── SessionExpiredModal.tsx # Modal de sesion expirada
     │   └── public-site/
-    │       └── PublicBlocks.tsx  # Bloques del sitio publico con infinite scroll
+    │       ├── DynamicAdmissionForm.tsx  # Formulario de admision configurable
+    │       ├── InlineEditable.tsx        # Campo editable en linea
+    │       ├── LivePageEditor.tsx        # Editor en vivo de paginas
+    │       ├── PublicBlocks.tsx          # Bloques del sitio publico
+    │       ├── PublicFederationPage.tsx  # Pagina publica de federacion
+    │       ├── PublicGovernancePage.tsx  # Pagina publica de gobernanza
+    │       └── ThemeCustomizer.tsx       # Personalizador de tema visual
     └── pages/
-        ├── Setup.tsx         # Wizard de configuracion inicial (4 pasos)
-        ├── Login.tsx         # Login con contrasena o Passkey WebAuthn
-        ├── Dashboard.tsx     # Panel principal (balance, advertencias, nodos)
-        ├── Transfer.tsx      # Transferencia interna
-        ├── History.tsx       # Historial de transacciones
-        ├── Products.tsx      # Catalogo de productos + productos federados
-        ├── Calculator.tsx    # Calculadora energetica
-        ├── Store.tsx         # Tienda comunitaria con productos compuestos
-        ├── FederationLimits.tsx  # Limites bilaterales
-        ├── Parity.tsx        # Reportes de paridad
-        ├── Assembly.tsx      # Propuestas de asamblea
-        ├── Audit.tsx         # Log de auditoria
-        ├── ExternalBridge.tsx  # Comercio externo (FC, operaciones)
-        ├── Admission.tsx     # Admision de miembros
-        ├── Organizations.tsx # Organizaciones
-        ├── Payments.tsx      # Pagos QR/NFC/manual
-        ├── Recovery.tsx      # Recuperacion de cuenta
-        ├── Departments.tsx   # Departamentos, roles, permisos, miembros
-        └── NFCTerminals.tsx  # Terminales NFC, tarjetas, transacciones
+        ├── Setup.tsx              # Wizard de configuracion inicial (4 pasos)
+        ├── Login.tsx              # Login con contrasena o Passkey WebAuthn
+        ├── Dashboard.tsx          # Panel principal (balance, alertas, nodos, asambleas)
+        ├── Transfer.tsx           # Transferencia interna
+        ├── Wallet.tsx             # Billetera con balance, limites y movimientos
+        ├── History.tsx            # Historial de transacciones (alias de Wallet)
+        ├── MyServices.tsx         # Mis servicios suscritos
+        ├── Payments.tsx           # Pagos QR/NFC/manual
+        ├── NFCTerminals.tsx       # Terminales NFC, tarjetas, transacciones
+        ├── Products.tsx           # Catalogo de productos + productos federados
+        ├── Calculator.tsx         # Calculadora energetica
+        ├── CalculatorParams.tsx   # Parametros de calculadora (trabajo, materiales)
+        ├── Store.tsx              # Tienda comunitaria con productos compuestos
+        ├── FederationPeers.tsx    # Nodos federados (peers)
+        ├── FederationLimits.tsx   # Limites bilaterales
+        ├── Parity.tsx             # Reportes de paridad
+        ├── MergeConflicts.tsx     # Conflictos de fusion entre nodos
+        ├── Organizations.tsx      # Lista de organizaciones
+        ├── OrganizationDetail.tsx # Detalle de organizacion (info, junta, miembros, servicios, asamblea, reuniones)
+        ├── Governance.tsx         # Gestion de reglas de gobernanza (Ley de la Aldea)
+        ├── Assembly.tsx           # Propuestas de asamblea del nodo
+        ├── Audit.tsx              # Log de auditoria
+        ├── ExternalBridge.tsx     # Comercio externo (FC, operaciones)
+        ├── Admission.tsx          # Admision de miembros (documentos, paises)
+        ├── Recovery.tsx           # Recuperacion de cuenta
+        ├── Departments.tsx        # Departamentos, roles, permisos, miembros
+        ├── DepartmentDetail.tsx   # Detalle de departamento
+        ├── NodeSettings.tsx       # Configuracion del nodo
+        ├── NotificationSettings.tsx # Preferencias de notificaciones
+        ├── Notifications.tsx      # Historial de notificaciones
+        ├── Profile.tsx            # Perfil del usuario, documentos
+        ├── CommunityFund.tsx      # Fondo comunitario
+        └── WebsiteAdmin.tsx       # Admin del sitio web publico
 ```
 
 ## PWA
