@@ -11,7 +11,7 @@ export default function OrganizationDetail() {
   const navigate = useNavigate()
   const { currency } = useConfig()
   const { hasPermission } = usePermissions()
-  const [tab, setTab] = useState<'info' | 'board' | 'members' | 'departments' | 'services' | 'wallet' | 'assembly'>('info')
+  const [tab, setTab] = useState<'info' | 'board' | 'members' | 'departments' | 'services' | 'wallet' | 'assembly' | 'boardmeetings'>('info')
   const [org, setOrg] = useState<any>(null)
   const [boardMembers, setBoardMembers] = useState<any[]>([])
   const [allUsers, setAllUsers] = useState<any[]>([])
@@ -202,6 +202,7 @@ export default function OrganizationDetail() {
     { key: 'services', label: 'Servicios', icon: <Plug size={16} /> },
     { key: 'wallet', label: 'Billetera', icon: <WalletIcon size={16} /> },
     { key: 'assembly', label: 'Asamblea', icon: <VoteIcon size={16} /> },
+    { key: 'boardmeetings', label: 'Reuniones Junta', icon: <VoteIcon size={16} /> },
   ]
 
   return (
@@ -756,6 +757,11 @@ export default function OrganizationDetail() {
       {/* Tab: Asamblea */}
       {tab === 'assembly' && (
         <ScopedAssembly scope="organization" scopeId={id!} scopeName={org.display_name || org.username} isAssemblyOwned={org?.is_assembly_owned} />
+      )}
+
+      {/* Tab: Reuniones de Junta Directiva */}
+      {tab === 'boardmeetings' && (
+        <ScopedAssembly scope="organization" scopeId={id!} scopeName={org.display_name || org.username} meetingType="board" />
       )}
     </div>
   )

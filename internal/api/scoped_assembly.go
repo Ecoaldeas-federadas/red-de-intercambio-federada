@@ -1,4 +1,4 @@
-package api
+﻿package api
 
 import (
 	"context"
@@ -23,7 +23,7 @@ func NewScopedAssemblyHandler(pool *pgxpool.Pool, auth *AuthMiddleware) *ScopedA
 }
 
 func (h *ScopedAssemblyHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
-	// Asambleas de organizacion
+	// Asambleas de organizacion (meeting_type=assembly por defecto)
 	r.With(am.RequireAuth).Get("/api/organization/{orgId}/assembly/sessions", h.listSessions)
 	r.With(am.RequireAuth).Post("/api/organization/{orgId}/assembly/sessions", h.createSession)
 	r.With(am.RequireAuth).Put("/api/organization/{orgId}/assembly/sessions/{id}/minutes", h.updateMinutes)
@@ -39,6 +39,23 @@ func (h *ScopedAssemblyHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware)
 	r.With(am.RequireAuth).Put("/api/organization/{orgId}/assembly/config", h.updateConfig)
 	r.With(am.RequireAuth).Post("/api/organization/{orgId}/assembly/sessions/{id}/close", h.closeSession)
 	r.With(am.RequireAuth).Get("/api/organization/{orgId}/assembly/proposal-types", h.getProposalTypes)
+
+	// Juntas directivas de organizacion (meeting_type=board)
+	r.With(am.RequireAuth).Get("/api/organization/{orgId}/board/sessions", h.listBoardSessions)
+	r.With(am.RequireAuth).Post("/api/organization/{orgId}/board/sessions", h.createBoardSession)
+	r.With(am.RequireAuth).Put("/api/organization/{orgId}/board/sessions/{id}/minutes", h.updateBoardMinutes)
+	r.With(am.RequireAuth).Get("/api/organization/{orgId}/board/sessions/{id}/attendance", h.listBoardAttendance)
+	r.With(am.RequireAuth).Post("/api/organization/{orgId}/board/sessions/{id}/attendance", h.registerBoardAttendance)
+	r.With(am.RequireAuth).Get("/api/organization/{orgId}/board/proposals", h.listBoardProposals)
+	r.With(am.RequireAuth).Post("/api/organization/{orgId}/board/proposals", h.createBoardProposal)
+	r.With(am.RequireAuth).Post("/api/organization/{orgId}/board/proposals/{id}/open-voting", h.openBoardVoting)
+	r.With(am.RequireAuth).Post("/api/organization/{orgId}/board/proposals/{id}/vote", h.voteBoardProposal)
+	r.With(am.RequireAuth).Post("/api/organization/{orgId}/board/proposals/{id}/execute", h.executeBoardProposal)
+	r.With(am.RequireAuth).Get("/api/organization/{orgId}/board/reports", h.listBoardReports)
+	r.With(am.RequireAuth).Get("/api/organization/{orgId}/board/config", h.getBoardConfig)
+	r.With(am.RequireAuth).Put("/api/organization/{orgId}/board/config", h.updateBoardConfig)
+	r.With(am.RequireAuth).Post("/api/organization/{orgId}/board/sessions/{id}/close", h.closeBoardSession)
+	r.With(am.RequireAuth).Get("/api/organization/{orgId}/board/proposal-types", h.getBoardProposalTypes)
 
 	// Asambleas de departamento
 	r.With(am.RequireAuth).Get("/api/department/{deptId}/assembly/sessions", h.listSessions)
@@ -79,10 +96,40 @@ func (h *ScopedAssemblyHandler) getScope(r *http.Request) (string, *uuid.UUID, e
 	return "", nil, fmt.Errorf("no scope found")
 }
 
-// getEligibleVoters obtiene los miembros con derecho a voto segun el scope
-func (h *ScopedAssemblyHandler) getEligibleVoters(ctx context.Context, scope string, scopeID uuid.UUID) ([]uuid.UUID, error) {
+// getMeetingType extrae meeting_type del query param (default: "assembly")
+func (h *ScopedAssemblyHandler) getMeetingType(r *http.Request) string {
+	mt := r.URL.Query().Get("meeting_type")
+	if mt == "" {
+		mt = "assembly"
+	}
+	if mt != "assembly" && mt != "board" {
+		mt = "assembly"
+	}
+	return mt
+}
+
+// getEligibleVoters obtiene los miembros con derecho a voto segun el scope y meeting_type
+func (h *ScopedAssemblyHandler) getEligibleVoters(ctx context.Context, scope string, scopeID uuid.UUID, meetingType string) ([]uuid.UUID, error) {
 	if scope == "organization" {
-		// Verificar si es una organizacion de la Asamblea
+		// Junta directiva: solo miembros de la junta, sin importar el tipo de organizacion
+		if meetingType == "board" {
+			rows, err := h.Pool.Query(ctx, `
+				SELECT user_id FROM organization_board_members
+				WHERE organization_id = $1 AND is_active = true`, scopeID)
+			if err != nil {
+				return nil, err
+			}
+			defer rows.Close()
+			var voters []uuid.UUID
+			for rows.Next() {
+				var id uuid.UUID
+				rows.Scan(&id)
+				voters = append(voters, id)
+			}
+			return voters, nil
+		}
+
+		// Asamblea: verificar si es organizacion de la Asamblea
 		var isAssemblyOwned bool
 		var nodeDomain string
 		_ = h.Pool.QueryRow(ctx, `SELECT COALESCE(is_assembly_owned, false), node_domain FROM users WHERE id = $1`, scopeID).Scan(&isAssemblyOwned, &nodeDomain)
@@ -111,11 +158,9 @@ func (h *ScopedAssemblyHandler) getEligibleVoters(ctx context.Context, scope str
 		// (junta directiva + miembros suscritos a servicios de la org)
 		rows, err := h.Pool.Query(ctx, `
 			SELECT DISTINCT user_id FROM (
-				-- Junta directiva
 				SELECT user_id FROM organization_board_members
 				WHERE organization_id = $1 AND is_active = true
 				UNION
-				-- Miembros suscritos a servicios de la organizacion
 				SELECT sub.user_id FROM organization_subscriptions sub
 				JOIN organization_services svc ON svc.id = sub.service_id
 				WHERE svc.organization_id = $1 AND sub.status IN ('active', 'auto')
@@ -159,13 +204,14 @@ func (h *ScopedAssemblyHandler) listSessions(w http.ResponseWriter, r *http.Requ
 	if nodeDomain == "" {
 		nodeDomain = "localhost"
 	}
+	meetingType := h.getMeetingType(r)
 
 	filter := r.URL.Query().Get("filter")
 	query := `SELECT id, session_type, title, description, start_time, end_time, status, created_at,
 		       is_presential, minutes, recall_number, quorum_verified
 		FROM assembly_sessions_scoped
-		WHERE node_domain = $1 AND scope = $2 AND scope_id = $3`
-	args := []interface{}{nodeDomain, scope, scopeID}
+		WHERE node_domain = $1 AND scope = $2 AND scope_id = $3 AND meeting_type = $4`
+	args := []interface{}{nodeDomain, scope, scopeID, meetingType}
 	if filter == "upcoming" {
 		query += ` AND status IN ('scheduled', 'waiting_quorum', 'active') ORDER BY start_time ASC LIMIT 50`
 	} else if filter == "past" {
@@ -276,10 +322,11 @@ func (h *ScopedAssemblyHandler) createSession(w http.ResponseWriter, r *http.Req
 	}
 
 	id := uuid.New()
+	meetingType := h.getMeetingType(r)
 	_, err = h.Pool.Exec(r.Context(), `
-		INSERT INTO assembly_sessions_scoped (id, node_domain, scope, scope_id, session_type, title, description, start_time, status, is_presential)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'scheduled', $9)`,
-		id, nodeDomain, scope, scopeID, req.SessionType, req.Title, req.Description, startTime, req.IsPresential)
+		INSERT INTO assembly_sessions_scoped (id, node_domain, scope, scope_id, session_type, title, description, start_time, status, is_presential, meeting_type)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'scheduled', $9, $10)`,
+		id, nodeDomain, scope, scopeID, req.SessionType, req.Title, req.Description, startTime, req.IsPresential, meetingType)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -406,6 +453,7 @@ func (h *ScopedAssemblyHandler) listProposals(w http.ResponseWriter, r *http.Req
 	}
 
 	// Obtener sesiones del scope
+	meetingType := h.getMeetingType(r)
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT d.id, d.session_id, d.decision_type, d.description, d.status, d.created_at,
 		       d.voting_deadline, d.voting_duration_minutes, d.executed_at,
@@ -421,8 +469,8 @@ func (h *ScopedAssemblyHandler) listProposals(w http.ResponseWriter, r *http.Req
 				COUNT(*) as total_votes
 			FROM assembly_votes_scoped GROUP BY decision_id
 		) sv ON sv.decision_id = d.id
-		WHERE s.node_domain = $1 AND s.scope = $2 AND s.scope_id = $3
-		ORDER BY d.created_at DESC`, nodeDomain, scope, scopeID)
+		WHERE s.node_domain = $1 AND s.scope = $2 AND s.scope_id = $3 AND s.meeting_type = $4
+		ORDER BY d.created_at DESC`, nodeDomain, scope, scopeID, meetingType)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -430,7 +478,7 @@ func (h *ScopedAssemblyHandler) listProposals(w http.ResponseWriter, r *http.Req
 	defer rows.Close()
 
 	// Obtener total de votantes
-	voters, _ := h.getEligibleVoters(r.Context(), scope, *scopeID)
+	voters, _ := h.getEligibleVoters(r.Context(), scope, *scopeID, h.getMeetingType(r))
 	totalVotingMembers := len(voters)
 
 	var proposals []map[string]interface{}
@@ -658,7 +706,7 @@ func (h *ScopedAssemblyHandler) voteProposal(w http.ResponseWriter, r *http.Requ
 		writeError(w, 400, err.Error())
 		return
 	}
-	voters, _ := h.getEligibleVoters(r.Context(), scope, *scopeID)
+	voters, _ := h.getEligibleVoters(r.Context(), scope, *scopeID, h.getMeetingType(r))
 	isEligible := false
 	for _, v := range voters {
 		if v == userID {
@@ -736,7 +784,7 @@ func (h *ScopedAssemblyHandler) executeProposal(w http.ResponseWriter, r *http.R
 		writeError(w, 400, err.Error())
 		return
 	}
-	voters, _ := h.getEligibleVoters(r.Context(), scope, *scopeID)
+	voters, _ := h.getEligibleVoters(r.Context(), scope, *scopeID, h.getMeetingType(r))
 	totalVotingMembers := len(voters)
 	totalVotes := votesFor + votesAgainst + votesAbstain
 	notVoted := totalVotingMembers - totalVotes
@@ -786,7 +834,7 @@ func (h *ScopedAssemblyHandler) listReports(w http.ResponseWriter, r *http.Reque
 		nodeDomain = "localhost"
 	}
 
-	voters, _ := h.getEligibleVoters(r.Context(), scope, *scopeID)
+	voters, _ := h.getEligibleVoters(r.Context(), scope, *scopeID, h.getMeetingType(r))
 	totalVotingMembers := len(voters)
 
 	rows, err := h.Pool.Query(r.Context(), `
@@ -1228,4 +1276,61 @@ func (h *ScopedAssemblyHandler) executeScopedDecision(r *http.Request, scope str
 		// Propuesta libre - no requiere accion automatica, queda registrada en la minuta
 	}
 	return nil
+}
+
+// ===== Handlers para Junta Directiva (meeting_type=board) =====
+// Estos son wrappers que inyectan meeting_type=board en el query string
+// y delegan a los handlers de asamblea existentes.
+
+func (h *ScopedAssemblyHandler) withBoardMeetingType(r *http.Request) *http.Request {
+	q := r.URL.Query()
+	q.Set("meeting_type", "board")
+	r.URL.RawQuery = q.Encode()
+	return r
+}
+
+func (h *ScopedAssemblyHandler) listBoardSessions(w http.ResponseWriter, r *http.Request) {
+	h.listSessions(w, h.withBoardMeetingType(r))
+}
+func (h *ScopedAssemblyHandler) createBoardSession(w http.ResponseWriter, r *http.Request) {
+	h.createSession(w, h.withBoardMeetingType(r))
+}
+func (h *ScopedAssemblyHandler) updateBoardMinutes(w http.ResponseWriter, r *http.Request) {
+	h.updateMinutes(w, h.withBoardMeetingType(r))
+}
+func (h *ScopedAssemblyHandler) listBoardAttendance(w http.ResponseWriter, r *http.Request) {
+	h.listAttendance(w, h.withBoardMeetingType(r))
+}
+func (h *ScopedAssemblyHandler) registerBoardAttendance(w http.ResponseWriter, r *http.Request) {
+	h.registerAttendance(w, h.withBoardMeetingType(r))
+}
+func (h *ScopedAssemblyHandler) listBoardProposals(w http.ResponseWriter, r *http.Request) {
+	h.listProposals(w, h.withBoardMeetingType(r))
+}
+func (h *ScopedAssemblyHandler) createBoardProposal(w http.ResponseWriter, r *http.Request) {
+	h.createProposal(w, h.withBoardMeetingType(r))
+}
+func (h *ScopedAssemblyHandler) openBoardVoting(w http.ResponseWriter, r *http.Request) {
+	h.openVoting(w, h.withBoardMeetingType(r))
+}
+func (h *ScopedAssemblyHandler) voteBoardProposal(w http.ResponseWriter, r *http.Request) {
+	h.voteProposal(w, h.withBoardMeetingType(r))
+}
+func (h *ScopedAssemblyHandler) executeBoardProposal(w http.ResponseWriter, r *http.Request) {
+	h.executeProposal(w, h.withBoardMeetingType(r))
+}
+func (h *ScopedAssemblyHandler) listBoardReports(w http.ResponseWriter, r *http.Request) {
+	h.listReports(w, h.withBoardMeetingType(r))
+}
+func (h *ScopedAssemblyHandler) getBoardConfig(w http.ResponseWriter, r *http.Request) {
+	h.getConfig(w, h.withBoardMeetingType(r))
+}
+func (h *ScopedAssemblyHandler) updateBoardConfig(w http.ResponseWriter, r *http.Request) {
+	h.updateConfig(w, h.withBoardMeetingType(r))
+}
+func (h *ScopedAssemblyHandler) closeBoardSession(w http.ResponseWriter, r *http.Request) {
+	h.closeSession(w, h.withBoardMeetingType(r))
+}
+func (h *ScopedAssemblyHandler) getBoardProposalTypes(w http.ResponseWriter, r *http.Request) {
+	h.getProposalTypes(w, h.withBoardMeetingType(r))
 }

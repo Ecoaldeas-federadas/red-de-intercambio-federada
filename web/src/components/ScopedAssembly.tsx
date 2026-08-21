@@ -7,9 +7,10 @@ interface ScopedAssemblyProps {
   scopeId: string
   scopeName: string
   isAssemblyOwned?: boolean
+  meetingType?: 'assembly' | 'board'
 }
 
-export default function ScopedAssembly({ scope, scopeId, scopeName, isAssemblyOwned }: ScopedAssemblyProps) {
+export default function ScopedAssembly({ scope, scopeId, scopeName, isAssemblyOwned, meetingType = 'assembly' }: ScopedAssemblyProps) {
   const [tab, setTab] = useState<'config' | 'proposals' | 'sessions' | 'reports'>('proposals')
   const [error, setError] = useState('')
   const [sessions, setSessions] = useState<any[]>([])
@@ -30,7 +31,7 @@ export default function ScopedAssembly({ scope, scopeId, scopeName, isAssemblyOw
   const [minutesText, setMinutesText] = useState('')
   const [minutesEditMode, setMinutesEditMode] = useState(false)
 
-  const basePath = `/api/${scope}/${scopeId}/assembly`
+  const basePath = `/api/${scope}/${scopeId}/${meetingType === 'board' ? 'board' : 'assembly'}`
 
   const load = () => {
     api.get(`${basePath}/sessions`).then((d: any) => setSessions(Array.isArray(d) ? d : [])).catch(() => {})
@@ -190,6 +191,7 @@ export default function ScopedAssembly({ scope, scopeId, scopeName, isAssemblyOw
   }
 
   const label = scope === 'organization' ? 'Organizacion' : 'Departamento'
+  const meetingLabel = meetingType === 'board' ? 'Junta Directiva' : 'Asamblea'
 
   // Helper: ¿ya se puede registrar asistencia? (1 hora antes por defecto)
   const attendanceWindowHours = config.attendance_window_hours || 1
@@ -203,10 +205,15 @@ export default function ScopedAssembly({ scope, scopeId, scopeName, isAssemblyOw
 
   return (
     <div className="space-y-4">
-      <h2 className="font-semibold flex items-center gap-2"><VoteIcon size={18} />Asamblea de {label}: {scopeName}</h2>
+      <h2 className="font-semibold flex items-center gap-2"><VoteIcon size={18} />{meetingLabel} de {label}: {scopeName}</h2>
 
       <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
-        {isAssemblyOwned && scope === 'organization' ? (
+        {meetingType === 'board' ? (
+          <>
+            <p>Esta es la <strong>Junta Directiva</strong> de {scopeName}. Aqui se toman decisiones operativas: coordinacion de actividades, gastos menores, asignacion de tareas.</p>
+            <p className="mt-1 text-xs">Solo los miembros de la junta directiva pueden votar. Las decisiones que requieren aprobacion de todos los miembros deben ir a la Asamblea.</p>
+          </>
+        ) : isAssemblyOwned && scope === 'organization' ? (
           <>
             <p>Esta organizacion pertenece a la Asamblea. Sus decisiones se discuten y votan en la <strong>Asamblea General</strong> del nodo, donde participan todos los miembros.</p>
             <p className="mt-1 text-xs">La junta directiva puede tomar decisiones operativas que no requieren aprobacion de la Asamblea.</p>
