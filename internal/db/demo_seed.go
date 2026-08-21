@@ -1206,24 +1206,24 @@ func demoSeedProducts(ctx context.Context, d *DB, nodeDomain string) error {
 		{"Agricultura", "Cultivos", "Frutas", "Mora de monte (500g)", "paquete", "Mora silvestre recolectada en el bosque", "silvestre", "/images/demo/mora.jpg", 30},
 
 		// Derivados artesanales
-		{"Alimentacion", "Derivados", "Lacteos", "Queso de cabra (500g)", "unidad", "Queso fresco de cabras lecheras", "artesanal", "/images/demo/bioconstruccion-adobe.jpg", 60},
+		{"Alimentacion", "Derivados", "Lacteos", "Queso de cabra (500g)", "unidad", "Queso fresco de cabras lecheras", "artesanal", "/images/demo/queso-de-cabra.jpg", 60},
 		{"Alimentacion", "Derivados", "Panaderia", "Pan de quinua (1kg)", "kg", "Pan integral hecho con harina de quinua del huerto", "artesanal", "/images/demo/pan-quinua.jpg", 50},
 		{"Alimentacion", "Derivados", "Conservas", "Mermelada de mora", "frasco", "Mermelada artesanal de mora de monte", "artesanal", "/images/demo/mermelada.jpg", 40},
 		{"Alimentacion", "Derivados", "Miel", "Miel de montana (250ml)", "frasco", "Miel pura de abejas nativas sin agroticos", "natural", "/images/demo/miel.jpg", 70},
 
 		// Artesania local
-		{"Artesania", "Textiles", "Tejidos", "Ruana de lana (unidad)", "unidad", "Ruana tejida a mano con lana de ovejas de la comunidad", "artesanal", "/images/demo/mermelada.jpg", 250},
+		{"Artesania", "Textiles", "Tejidos", "Ruana de lana (unidad)", "unidad", "Ruana tejida a mano con lana de ovejas de la comunidad", "artesanal", "/images/demo/ruana-de-lana.jpg", 250},
 		{"Artesania", "Ceramica", "Vajilla", "Set 4 cuencos de barro", "set", "Cuencos de barro cocido hechos con arcilla local", "artesanal", "/images/demo/ceramica-barro.jpg", 150},
 		{"Artesania", "Madera", "Muebles", "Banco de madera de cedro", "unidad", "Banco rustico de cedro del bosque comunitario", "artesanal", "/images/demo/banco-madera.jpg", 300},
 		{"Artesania", "Cesteria", "Cestas", "Cesta de bambu (mediana)", "unidad", "Cesta tejida con bambu del bosque", "artesanal", "/images/demo/cesta-bambu.jpg", 80},
 
 		// Herramientas
-		{"Herramientas", "Agricolas", "Manuales", "Azadon de montana", "unidad", "Azadon forjado en la herreria comunitaria", "util", "", 100},
-		{"Herramientas", "Agricolas", "Manuales", "Tijeras de podar", "unidad", "Tijeras de podar afiladas en taller", "util", "", 60},
+		{"Herramientas", "Agricolas", "Manuales", "Azadon de montana", "unidad", "Azadon forjado en la herreria comunitaria", "util", "/images/demo/azadon-de-montana.jpg", 100},
+		{"Herramientas", "Agricolas", "Manuales", "Tijeras de podar", "unidad", "Tijeras de podar afiladas en taller", "util", "/images/demo/tijeras-de-podar.jpg", 60},
 
 		// Salud natural
 		{"Salud y Medicina", "Natural", "Hierbas", "Te de hierbas del monte (100g)", "paquete", "Mezcla de hierbas medicinales del bosque: toronjil, malojillo, llanten", "natural", "/images/demo/hierbas-medicinales.jpg", 25},
-		{"Salud y Medicina", "Natural", "Aceites", "Aceite de romero (100ml)", "botella", "Aceite esencial de romero del huerto", "natural", "", 45},
+		{"Salud y Medicina", "Natural", "Aceites", "Aceite de romero (100ml)", "botella", "Aceite esencial de romero del huerto", "natural", "/images/demo/aceite-de-romero.jpg", 45},
 
 		// Servicios comunitarios
 		{"Servicios", "Comunitarios", "Educacion", "Taller de permacultura (4h)", "taller", "Taller practico de permacultura para visitantes", "educativo", "", 120},
