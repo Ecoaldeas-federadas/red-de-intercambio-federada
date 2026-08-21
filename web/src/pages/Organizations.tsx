@@ -63,7 +63,9 @@ const HELP_SECTIONS = [
 export default function Organizations() {
   const navigate = useNavigate()
   const { currency } = useConfig()
+  const [tab, setTab] = useState<'mine' | 'all'>('mine')
   const [orgs, setOrgs] = useState<any[]>([])
+  const [myOrgs, setMyOrgs] = useState<any[]>([])
   const [orgTypes, setOrgTypes] = useState<string[]>(DEFAULT_ORG_TYPES)
   const [showForm, setShowForm] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
@@ -85,8 +87,10 @@ export default function Organizations() {
     public_key: '',
   })
 
-  const loadOrgs = () =>
+  const loadOrgs = () => {
     api.get('/organizations').then((d: any) => setOrgs(Array.isArray(d) ? d : [])).catch(() => {})
+    api.get('/my/organizations').then((d: any) => setMyOrgs(Array.isArray(d) ? d : [])).catch(() => {})
+  }
 
   const loadTypes = async () => {
     try {
@@ -192,6 +196,46 @@ export default function Organizations() {
           comunidad define sus propios tipos segun sus necesidades.
         </p>
       </div>
+
+      {/* Pestañas Mis Organizaciones / Todas las Organizaciones */}
+      <div className="flex gap-1 border-b border-gray-200">
+        <button
+          onClick={() => setTab('mine')}
+          className={`px-4 py-2 text-sm font-medium flex items-center gap-1 ${
+            tab === 'mine' ? 'text-trueque-700 border-b-2 border-trueque-600' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Users size={16} /> Mis Organizaciones
+          {myOrgs.length > 0 && <span className="text-xs bg-trueque-100 text-trueque-700 px-1.5 rounded">{myOrgs.length}</span>}
+        </button>
+        <button
+          onClick={() => setTab('all')}
+          className={`px-4 py-2 text-sm font-medium flex items-center gap-1 ${
+            tab === 'all' ? 'text-trueque-700 border-b-2 border-trueque-600' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Users size={16} /> Todas las Organizaciones
+          {orgs.length > 0 && <span className="text-xs bg-gray-100 text-gray-600 px-1.5 rounded">{orgs.length}</span>}
+        </button>
+      </div>
+
+      {tab === 'mine' && (
+        <div className="card bg-blue-50 border-blue-200">
+          <p className="text-sm text-blue-800">
+            Estas son las organizaciones donde tienes un rol (junta directiva o membresia).
+            Puedes trabajar en ellas: ver billetera, gestionar, transferir segun tus permisos.
+          </p>
+        </div>
+      )}
+
+      {tab === 'all' && (
+        <div className="card bg-gray-50 border-gray-200">
+          <p className="text-sm text-gray-700">
+            Todas las organizaciones del nodo. Puedes verlas pero solo puedes actuar en las
+            donde tienes un rol. Haz clic en una para ver su informacion publica.
+          </p>
+        </div>
+      )}
 
       {showForm && (
         <div className="card space-y-3">
@@ -328,219 +372,106 @@ export default function Organizations() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {orgs.map((org, i) => (
-          <div key={i} className="card">
-            <div className="flex items-center gap-2 mb-2">
-              <Users size={20} className="text-trueque-600" />
-              <h3 className="font-semibold">{org.display_name}</h3>
+      {tab === 'mine' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {myOrgs.length === 0 && (
+            <div className="col-span-2 card text-center py-8 text-gray-500">
+              <Users size={32} className="mx-auto mb-2 text-gray-300" />
+              <p>No eres miembro de ninguna organizacion aun.</p>
+              <p className="text-xs mt-1">Cuando te asignen a la junta directiva de una organizacion, aparecera aqui.</p>
             </div>
-            <p className="text-sm text-gray-600">@{org.username}</p>
-            <p className="text-xs text-gray-400 mt-1">Tipo: {org.organization_subtype}</p>
-            <div className="flex items-center justify-between mt-3">
-              <span
-                className={`text-xs px-2 py-1 rounded ${
-                  org.membership_status === 'active'
-                    ? 'bg-trueque-100 text-trueque-700'
-                    : 'bg-yellow-100 text-yellow-700'
-                }`}
-              >
-                {org.membership_status}
-              </span>
-              {org.membership_status === 'pending' && (
-                <button onClick={() => approve(org.id)} className="btn-secondary text-sm">
-                  Aprobar
-                </button>
-              )}
-              {org.membership_status === 'active' && (
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => navigate(`/app/organizations/${org.id}`)}
-                    className="text-sm text-trueque-600 hover:underline flex items-center gap-1 font-medium"
-                  >
-                    Abrir <ArrowRight size={14} />
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (boardOrgId === org.id) {
-                        setBoardOrgId(null)
-                      } else {
-                        setBoardOrgId(org.id)
-                        api.get(`/organizations/${org.id}/board`).then((d: any) => setBoardMembers(Array.isArray(d) ? d : [])).catch(() => setBoardMembers([]))
-                        api.get('/accounts/list').then((d: any) => setAllUsers(Array.isArray(d) ? d.filter((u: any) => u.account_type === 'individual') : [])).catch(() => setAllUsers([]))
-                      }
-                    }}
-                    className="text-sm text-blue-600 hover:underline flex items-center gap-1"
-                  >
-                    <Crown size={14} />
-                    Junta
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (multisigOrgId === org.id) {
-                        setMultisigOrgId(null)
-                      } else {
-                        setMultisigOrgId(org.id)
-                        setMultisigForm({ required_signatures: org.required_signatures || 1, authorized_signers: (org.authorized_signers || []) as string[] })
-                        api.get('/accounts/list').then((d: any) => setAllUsers(Array.isArray(d) ? d.filter((u: any) => u.account_type === 'individual') : [])).catch(() => setAllUsers([]))
-                      }
-                    }}
-                    className="text-sm text-purple-600 hover:underline flex items-center gap-1"
-                  >
-                    <Key size={14} />
-                    Multi-firma
-                  </button>
-                  <button
-                    onClick={() => setAssemblyOrgId(assemblyOrgId === org.id ? null : org.id)}
-                    className="text-sm text-blue-600 hover:underline flex items-center gap-1"
-                  >
-                    <VoteIcon size={14} />
-                    Asamblea
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {boardOrgId === org.id && (
-              <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
-                <h4 className="font-medium text-sm flex items-center gap-1"><Crown size={14} />Junta Directiva de {org.display_name}</h4>
-
-                {boardMembers.length > 0 && (
-                  <div className="space-y-1">
-                    {boardMembers.map((m: any) => (
-                      <div key={m.id} className="flex items-center justify-between text-sm bg-gray-50 px-3 py-2 rounded">
-                        <div>
-                          <b>{m.position}</b>
-                          <span className="text-gray-500 ml-2">{m.username || m.display_name}</span>
-                        </div>
-                        <button
-                          onClick={async () => {
-                            try {
-                              await api.delete(`/organizations/${org.id}/board/${m.id}`)
-                              api.get(`/organizations/${org.id}/board`).then((d: any) => setBoardMembers(Array.isArray(d) ? d : []))
-                            } catch (err) { /* ignore */ }
-                          }}
-                          className="text-red-500 hover:bg-red-50 p-1 rounded"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+          )}
+          {myOrgs.map((org, i) => (
+            <div key={i} className="card">
+              <div className="flex items-center gap-2 mb-2">
+                <Users size={20} className="text-trueque-600" />
+                <h3 className="font-semibold">{org.display_name}</h3>
+              </div>
+              <p className="text-sm text-gray-600">@{org.username}</p>
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">
+                  Tu rol: {org.role}
+                </span>
+                {org.is_board_member && (
+                  <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">Junta Directiva</span>
                 )}
-
-                <div className="flex gap-2 items-end">
-                  <div className="flex-1">
-                    <label className="label">Miembro</label>
-                    <select
-                      className="input"
-                      value={boardForm.user_id}
-                      onChange={(e) => setBoardForm({ ...boardForm, user_id: e.target.value })}
-                    >
-                      <option value="">Seleccionar...</option>
-                      {allUsers.map((u: any) => (
-                        <option key={u.id} value={u.id}>{u.display_name || u.username} ({u.username})</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="label">Cargo</label>
-                    <select
-                      className="input"
-                      value={boardForm.position}
-                      onChange={(e) => setBoardForm({ ...boardForm, position: e.target.value })}
-                    >
-                      <option value="presidente">Presidente</option>
-                      <option value="vicepresidente">Vicepresidente</option>
-                      <option value="secretario">Secretario</option>
-                      <option value="tesorero">Tesorero</option>
-                      <option value="vocal">Vocal</option>
-                      <option value="fiscal">Fiscal</option>
-                      <option value="coordinador">Coordinador</option>
-                    </select>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      if (!boardForm.user_id) return
-                      try {
-                        await api.post(`/organizations/${org.id}/board`, boardForm)
-                        setBoardForm({ user_id: '', position: 'presidente' })
-                        api.get(`/organizations/${org.id}/board`).then((d: any) => setBoardMembers(Array.isArray(d) ? d : []))
-                      } catch (err) { /* ignore */ }
-                    }}
-                    className="btn-primary text-sm"
-                  >
-                    Asignar
-                  </button>
-                </div>
-                <p className="text-xs text-gray-400">Los cargos asignados aqui definen quienes pueden tomar decisiones en nombre de la organizacion. Si cambias el cargo de una persona, los permisos automaticamente siguen al cargo, no a la persona.</p>
+                {org.can_transfer && (
+                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Puede transferir</span>
+                )}
               </div>
-            )}
-
-            {multisigOrgId === org.id && (
-              <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
-                <h4 className="font-medium text-sm flex items-center gap-1"><Key size={14} />Multi-firma de {org.display_name}</h4>
-                <p className="text-xs text-gray-500">Selecciona que personas deben firmar para aprobar transacciones de esta organizacion. Cuando se alcanza el numero de firmas requeridas, la transaccion se ejecuta automaticamente.</p>
-
-                <div>
-                  <label className="label">Firmas requeridas para aprobar</label>
-                  <input
-                    type="number"
-                    min="1"
-                    className="input"
-                    value={multisigForm.required_signatures}
-                    onChange={(e) => setMultisigForm({ ...multisigForm, required_signatures: parseInt(e.target.value) || 1 })}
-                  />
-                  <p className="text-xs text-gray-400 mt-1">Cuantas de las personas autorizadas deben firmar para aprobar una transaccion. Ej: 2 de 3.</p>
-                </div>
-
-                <div>
-                  <label className="label">Personas autorizadas a firmar</label>
-                  <div className="space-y-1 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2">
-                    {allUsers.map((u: any) => (
-                      <label key={u.id} className="flex items-center gap-2 text-sm py-1">
-                        <input
-                          type="checkbox"
-                          checked={multisigForm.authorized_signers.includes(u.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setMultisigForm({ ...multisigForm, authorized_signers: [...multisigForm.authorized_signers, u.id] })
-                            } else {
-                              setMultisigForm({ ...multisigForm, authorized_signers: multisigForm.authorized_signers.filter((id) => id !== u.id) })
-                            }
-                          }}
-                        />
-                        <span>{u.display_name || u.username} ({u.username})</span>
-                      </label>
-                    ))}
-                    {allUsers.length === 0 && <p className="text-xs text-gray-400">No hay usuarios disponibles.</p>}
-                  </div>
-                  <p className="text-xs text-gray-400 mt-1">Selecciona las personas que pueden firmar. El numero de firmas requeridas no puede ser mayor al numero de personas autorizadas.</p>
-                </div>
-
+              <div className="flex items-center justify-end mt-3">
                 <button
-                  onClick={async () => {
-                    try {
-                      await api.put(`/organizations/${org.id}/multisig`, multisigForm)
-                      setMultisigOrgId(null)
-                      loadOrgs()
-                    } catch (err) { /* ignore */ }
-                  }}
-                  className="btn-primary text-sm"
+                  onClick={() => navigate(`/app/organizations/${org.id}`)}
+                  className="text-sm text-trueque-600 hover:underline flex items-center gap-1 font-medium"
                 >
-                  Guardar configuracion
+                  Abrir <ArrowRight size={14} />
                 </button>
               </div>
-            )}
-
-            {assemblyOrgId === org.id && (
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <ScopedAssembly scope="organization" scopeId={org.id} scopeName={org.display_name || org.username} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {orgs.length === 0 && (
+            <div className="col-span-2 card text-center py-8 text-gray-500">
+              <Users size={32} className="mx-auto mb-2 text-gray-300" />
+              <p>No hay organizaciones en este nodo.</p>
+            </div>
+          )}
+          {orgs.map((org, i) => {
+            const myOrg = myOrgs.find((m: any) => m.id === org.id)
+            return (
+              <div key={i} className="card">
+                <div className="flex items-center gap-2 mb-2">
+                  <Users size={20} className="text-trueque-600" />
+                  <h3 className="font-semibold">{org.display_name}</h3>
+                  {myOrg && (
+                    <span className="text-xs bg-trueque-100 text-trueque-700 px-2 py-0.5 rounded">Tu org</span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-600">@{org.username}</p>
+                <p className="text-xs text-gray-400 mt-1">Tipo: {org.organization_subtype}</p>
+                <div className="flex items-center justify-between mt-3">
+                  <span
+                    className={`text-xs px-2 py-1 rounded ${
+                      org.membership_status === 'active'
+                        ? 'bg-trueque-100 text-trueque-700'
+                        : 'bg-yellow-100 text-yellow-700'
+                    }`}
+                  >
+                    {org.membership_status}
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => navigate(`/app/organizations/${org.id}`)}
+                      className="text-sm text-trueque-600 hover:underline flex items-center gap-1 font-medium"
+                    >
+                      {myOrg ? 'Abrir' : 'Ver'} <ArrowRight size={14} />
+                    </button>
+                    {myOrg && (
+                      <button
+                        onClick={() => {
+                          if (boardOrgId === org.id) {
+                            setBoardOrgId(null)
+                          } else {
+                            setBoardOrgId(org.id)
+                            api.get(`/organizations/${org.id}/board`).then((d: any) => setBoardMembers(Array.isArray(d) ? d : [])).catch(() => setBoardMembers([]))
+                            api.get('/accounts/list').then((d: any) => setAllUsers(Array.isArray(d) ? d.filter((u: any) => u.account_type === 'individual') : [])).catch(() => setAllUsers([]))
+                          }
+                        }}
+                        className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                      >
+                        <Crown size={14} />
+                        Junta
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
-        ))}
-      </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
