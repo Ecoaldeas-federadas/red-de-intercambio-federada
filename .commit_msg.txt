@@ -1,32 +1,35 @@
-fix: Imagenes reales locales de Wikimedia Commons en demo
+fix: Todas las imagenes locales - nodo principal y demo
 
 ## Problema
-- Unsplash: URLs inventadas daban 404
-- picsum.photos: imagenes aleatorias sin relacion (caras, zapatos)
-- pollinations.ai: 429 Too Many Requests (servidor caido)
+- Productos del demo compartian imagenes equivocadas (queso de cabra
+  usaba foto de adobe, ruana usaba foto de mermelada)
+- Nodo principal tenia ~126 URLs de Unsplash que podrian fallar (404)
+- 19 URLs de Unsplash ya daban 404
+- URLs locales tenian query strings ?auto=format... que no funcionan
 
-## Solucion: imagenes locales
-Descargadas 27 imagenes reales de Wikimedia Commons (CC/public domain)
-a web/public/images/demo/. Ahora se sirven desde nuestro propio servidor.
+## Solucion: 110 imagenes locales
 
-### Que se hizo
-1. Script Go busco imagenes en Wikimedia Commons API por tema
-2. Descargo cada imagen verificando:
-   - HTTP 200
-   - Minimo 5KB (no imagenes error)
-   - Magic bytes validos (JPEG/PNG/GIF)
-   - Si falla, prueba otra imagen
-3. 27 imagenes unicas descargadas (21 + 6 en segundo intento)
-4. Ruta /images/* agregada en routes.go para servir estaticos
-5. demo_seed.go actualizado: 41 URLs -> paths locales /images/demo/*.jpg
+### Nodo principal (78 imagenes)
+- 59 URLs de Unsplash que SI cargaban -> descargadas localmente
+- 19 URLs de Unsplash que daban 404 -> buscadas en Wikimedia Commons
+  con terminos relacionados al producto
+- Actualizadas: seed.go (211 URLs) + migracion 068 (125 URLs)
+- Query strings ?auto=format&fit=crop&w=600&q=80 eliminadas de paths locales
 
-### Ventajas
-- 100% offline: no depende de servicios externos
-- Imagenes reales: fotos de Wikimedia Commons
-- Tematicas: frijol->foto de frijol, quinua->foto de quinua, etc
-- Estables: nunca 404, nunca 429
-- Cacheable: Cache-Control public max-age=86400
-- Legal: CC-BY-SA / public domain
+### Demo (32 imagenes, 5 nuevas)
+- queso-de-cabra.jpg (antes usaba bioconstruccion-adobe.jpg)
+- ruana-de-lana.jpg (antes usaba mermelada.jpg)
+- azadon-de-montana.jpg (antes sin imagen)
+- tijeras-de-podar.jpg (antes sin imagen)
+- aceite-de-romero.jpg (antes sin imagen)
+
+### Verificacion
+- 0 URLs de Unsplash en seed.go
+- 0 URLs de Unsplash en demo_seed.go
+- 0 query strings en paths locales
+- 78 imagenes en web/public/images/products/
+- 32 imagenes en web/public/images/demo/
+- Build exitoso (Go + Vite)
 
 Generated with [Devin](https://devin.ai)
 
