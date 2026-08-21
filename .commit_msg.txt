@@ -1,17 +1,33 @@
-fix: Servir placeholder.svg en raiz para nodo demo (basePath /demo/)
+fix: placeholder.svg se carga desde /demo/ en nodo demo (no desde raiz)
 
 ## Problema
 El nodo demo sirve el frontend desde /demo/ con <base href="/demo/">.
-Pero las referencias a /placeholder.svg son rutas absolutas (con slash
-inicial) que ignoran el <base href>, resolviendose a
-http://localhost:9091/placeholder.svg en vez de
+Pero las referencias a /placeholder.svg son rutas absolutas (con /)
+que ignoran el <base href>, resolviendose a
+http://localhost:9091/placeholder.svg (404) en vez de
 http://localhost:9091/demo/placeholder.svg.
 
-## Solucion
-Agregar ruta explicita GET /placeholder.svg que sirve el archivo
-desde el frontendDir, sin importar el basePath. Asi funciona tanto
-en el nodo normal (localhost:8080/placeholder.svg) como en el demo
-(localhost:9091/placeholder.svg).
+## Solucion correcta
+En vez de servir placeholder.svg en la raiz (que mezcla los nodos),
+crear un helper assetUrl() que resuelve rutas de assets segun el
+basePath:
+
+- URL externa (http://...) -> sin modificar
+- URL absoluta (/foo.svg) -> basePath + /foo.svg (ej: /demo/foo.svg)
+- URL relativa -> sin modificar
+
+### Cambios
+- Nuevo: web/src/utils/assetUrl.ts - helper assetUrl()
+- InlineEditable.tsx: EdImage y EdArrayImage usan assetUrl() para
+  resolver el src antes de renderizar <img>
+- PublicBlocks.tsx: backgroundImage y <img> directos usan assetUrl()
+- PublicSite.tsx: backgroundImage y array de banners usan assetUrl()
+- Revertido: el fix anterior que servia /placeholder.svg en la raiz
+
+### Resultado
+- Nodo normal: localhost:8080/placeholder.svg
+- Nodo demo: localhost:9091/demo/placeholder.svg
+Cada nodo carga sus assets desde su propia raiz.
 
 Generated with [Devin](https://devin.ai)
 

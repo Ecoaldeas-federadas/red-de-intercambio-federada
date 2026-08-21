@@ -12,6 +12,7 @@ import {
   InlineEditProvider,
   useInlineEdit,
 } from './InlineEditable'
+import { assetUrl } from '../../utils/assetUrl'
 import {
   Leaf,
   Heart,
@@ -184,7 +185,7 @@ export function HeroBlock({ data }: { data: HeroBlockData }) {
       className="relative rounded-3xl overflow-hidden text-white my-4 sm:my-6 shadow-xl text-center py-12 sm:py-20 px-4 sm:px-12"
       style={{
         backgroundImage: data.image_url
-          ? `linear-gradient(to bottom, rgba(16, 35, 16, 0.86), rgba(12, 24, 12, 0.93)), url(${data.image_url})`
+          ? `linear-gradient(to bottom, rgba(16, 35, 16, 0.86), rgba(12, 24, 12, 0.93)), url(${assetUrl(data.image_url)})`
           : 'linear-gradient(135deg, #142a14 0%, #254a20 50%, #102210 100%)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
@@ -319,7 +320,7 @@ export function CarouselBlock({ data }: { data: CarouselBlockData }) {
                     : 'border-transparent opacity-60 hover:opacity-100'
                 }`}
               >
-                <img src={item.image_url} alt="" className="w-full h-full object-cover" onError={(e) => { const t = e.currentTarget; t.onerror = null; if (!t.src.startsWith('data:image/svg+xml')) { t.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgMzAwIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2YwZjlmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMCIgZmlsbD0iIzljYTNhZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPlNpbiBpbWFnZW48L3RleHQ+PC9zdmc+'; } }} />
+                <img src={assetUrl(item.image_url)} alt="" className="w-full h-full object-cover" onError={(e) => { const t = e.currentTarget; t.onerror = null; if (!t.src.startsWith('data:image/svg+xml')) { t.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgMzAwIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2YwZjlmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMCIgZmlsbD0iIzljYTNhZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPlNpbiBpbWFnZW48L3RleHQ+PC9zdmc+'; } }} />
               </button>
               <EdRemoveItem arrayField="items" index={idx} className="absolute -top-1 -right-1 z-10" />
             </div>
@@ -346,7 +347,7 @@ export function CarouselBlock({ data }: { data: CarouselBlockData }) {
           </button>
           <div className="max-w-4xl max-h-[85vh] text-white text-center space-y-3">
             <img
-              src={items[lightboxIndex].image_url}
+              src={assetUrl(items[lightboxIndex].image_url)}
               alt=""
               className="max-h-[70vh] mx-auto rounded-2xl object-contain shadow-2xl"
               onError={(e) => { const t = e.currentTarget; t.onerror = null; if (!t.src.startsWith('data:image/svg+xml')) { t.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgMzAwIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2YwZjlmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMCIgZmlsbD0iIzljYTNhZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPlNpbiBpbWFnZW48L3RleHQ+PC9zdmc+'; } }}

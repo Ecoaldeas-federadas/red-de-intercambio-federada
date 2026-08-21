@@ -303,12 +303,6 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 		frontendDir = "./web/dist"
 	}
 	if _, err := os.Stat(frontendDir); err == nil {
-		// Servir placeholder.svg en la raiz (para que funcione con y sin basePath)
-		// Las referencias /placeholder.svg son absolutas y no respetan <base href>
-		r.Get("/placeholder.svg", func(w http.ResponseWriter, r *http.Request) {
-			http.ServeFile(w, r, frontendDir+"/placeholder.svg")
-		})
-
 		// Si hay basePath (ej: "/demo"), servir el frontend bajo ese prefijo
 		// y redirigir / al basePath. Las API routes quedan en /api/* sin prefijo.
 		if basePath != "" {

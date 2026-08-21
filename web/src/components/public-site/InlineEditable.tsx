@@ -2,6 +2,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { Image as ImageIcon, X, Check, Plus, Trash2, Upload, Link2 } from 'lucide-react'
 import { api } from '../../api'
+import { assetUrl } from '../../utils/assetUrl'
 
 // -------------------------------------------------------------
 // INLINE EDIT CONTEXT
@@ -541,15 +542,16 @@ interface EdImageProps {
 export function EdImage({ field, src, alt = '', className = '', style }: EdImageProps) {
   const { editMode, updateField } = useInlineEdit()
   const [showEditor, setShowEditor] = useState(false)
+  const resolvedSrc = assetUrl(src)
 
   if (!editMode) {
-    return <img src={src} alt={alt} className={className} style={style} onError={(e) => { const t = e.currentTarget; t.onerror = null; if (!t.src.startsWith('data:image/svg+xml')) { t.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgMzAwIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2YwZjlmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMCIgZmlsbD0iIzljYTNhZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPlNpbiBpbWFnZW48L3RleHQ+PC9zdmc+'; t.className = (t.className || '') + ' object-contain'; } }} />
+    return <img src={resolvedSrc} alt={alt} className={className} style={style} onError={(e) => { const t = e.currentTarget; t.onerror = null; if (!t.src.startsWith('data:image/svg+xml')) { t.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgMzAwIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2YwZjlmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMCIgZmlsbD0iIzljYTNhZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPlNpbiBpbWFnZW48L3RleHQ+PC9zdmc+'; t.className = (t.className || '') + ' object-contain'; } }} />
   }
 
   return (
     <div className="relative group" style={style}>
       <img
-        src={src}
+        src={resolvedSrc}
         alt={alt}
         className={`${className} cursor-pointer`}
         onClick={() => setShowEditor(true)}
@@ -601,15 +603,16 @@ export function EdArrayImage({
 }: EdArrayImageProps) {
   const { editMode, updateArrayItem } = useInlineEdit()
   const [showEditor, setShowEditor] = useState(false)
+  const resolvedSrc = assetUrl(src)
 
   if (!editMode) {
-    return <img src={src} alt={alt} className={className} style={style} onError={(e) => { const t = e.currentTarget; t.onerror = null; if (!t.src.startsWith('data:image/svg+xml')) { t.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgMzAwIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2YwZjlmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMCIgZmlsbD0iIzljYTNhZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPlNpbiBpbWFnZW48L3RleHQ+PC9zdmc+'; t.className = (t.className || '') + ' object-contain'; } }} />
+    return <img src={resolvedSrc} alt={alt} className={className} style={style} onError={(e) => { const t = e.currentTarget; t.onerror = null; if (!t.src.startsWith('data:image/svg+xml')) { t.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgMzAwIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2YwZjlmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMCIgZmlsbD0iIzljYTNhZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPlNpbiBpbWFnZW48L3RleHQ+PC9zdmc+'; t.className = (t.className || '') + ' object-contain'; } }} />
   }
 
   return (
     <div className="relative group" style={style}>
       <img
-        src={src}
+        src={resolvedSrc}
         alt={alt}
         className={`${className} cursor-pointer`}
         onClick={() => setShowEditor(true)}

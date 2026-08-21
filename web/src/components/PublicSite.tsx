@@ -2,6 +2,7 @@
 import { Link, useParams, useLocation } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../hooks/useAuth'
+import { assetUrl } from '../utils/assetUrl'
 import {
   Home,
   Heart,
@@ -257,7 +258,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
     ? headerBannerImages.split(',').map((s: string) => s.trim()).filter(Boolean)
     : headerBannerImage
       ? [headerBannerImage]
-      : ['/placeholder.svg']
+      : [assetUrl('/placeholder.svg')]
 
   useEffect(() => {
     if (bannerImagesList.length <= 1) return
@@ -1571,7 +1572,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           className="lg:hidden text-white p-4 space-y-1 z-40 w-full"
           style={{
             backgroundColor: primaryColor,
-            backgroundImage: 'linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.6)), url(/placeholder.svg',
+            backgroundImage: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.6)), url(${assetUrl('/placeholder.svg')})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
           }}
