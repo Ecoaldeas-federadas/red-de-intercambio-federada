@@ -170,20 +170,68 @@ func (h *Handler) transfer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Calcular impuesto
+	// Calcular impuesto basado en el nivel del emisor
+	// 1. Buscar tax_rate del usuario (override personal)
+	// 2. Si es 0, buscar tax_rate del member_level u organization_level
+	// 3. Si sigue siendo 0, usar tax_config global del nodo
 	var taxAmount int64
 	var taxTargetAccount *uuid.UUID
 	if h.Pool != nil {
-		var taxRate float64
-		var isActive bool
-		var minAmount int64
-		var taxAcctID *uuid.UUID
+		// Obtener tax_rate del emisor segun su nivel
+		var userTaxRate float64
+		var accountType string
+		var memberLevelID *string
+		var orgLevelID *string
 		_ = h.Pool.QueryRow(r.Context(), `
-			SELECT tax_rate, is_active, min_amount, tax_account_id
-			FROM tax_config WHERE node_domain = $1`, h.nodeDomain).Scan(&taxRate, &isActive, &minAmount, &taxAcctID)
-		if isActive && taxRate > 0 && req.Amount >= minAmount {
-			taxAmount = int64(float64(req.Amount) * taxRate)
-			taxTargetAccount = taxAcctID
+			SELECT COALESCE(tax_rate, 0), account_type, member_level_id::text, organization_level_id::text
+			FROM users WHERE id = $1`, senderID).Scan(&userTaxRate, &accountType, &memberLevelID, &orgLevelID)
+
+		effectiveRate := userTaxRate
+		if effectiveRate == 0 {
+			if accountType == "organization" && orgLevelID != nil {
+				// Buscar tax_rate del organization_level
+				_ = h.Pool.QueryRow(r.Context(), `SELECT COALESCE(tax_rate, 0) FROM organization_levels WHERE id = $1::uuid`, *orgLevelID).Scan(&effectiveRate)
+			} else if memberLevelID != nil {
+				// Buscar tax_rate del member_level
+				_ = h.Pool.QueryRow(r.Context(), `SELECT COALESCE(tax_rate, 0) FROM member_levels WHERE id = $1`, *memberLevelID).Scan(&effectiveRate)
+			}
+		}
+
+		// Si no hay tasa por nivel, usar tax_config global
+		if effectiveRate == 0 {
+			var configRate float64
+			var isActive bool
+			var minAmount int64
+			var taxAcctID *uuid.UUID
+			_ = h.Pool.QueryRow(r.Context(), `
+				SELECT tax_rate, is_active, min_amount, tax_account_id
+				FROM tax_config WHERE node_domain = $1 ORDER BY applies_to = 'all' DESC LIMIT 1`, h.nodeDomain).Scan(&configRate, &isActive, &minAmount, &taxAcctID)
+			if isActive && configRate > 0 && req.Amount >= minAmount {
+				effectiveRate = configRate
+				taxTargetAccount = taxAcctID
+			}
+		}
+
+		if effectiveRate > 0 {
+			taxAmount = int64(float64(req.Amount) * effectiveRate)
+		}
+
+		// Si no se ha definido cuenta destino, buscar la cuenta de la Asamblea
+		if taxAmount > 0 && taxTargetAccount == nil {
+			var assemblyAcctID uuid.UUID
+			_ = h.Pool.QueryRow(r.Context(), `
+				SELECT id FROM users WHERE node_domain = $1 AND username = 'asamblea' LIMIT 1`, h.nodeDomain).Scan(&assemblyAcctID)
+			if assemblyAcctID != uuid.Nil {
+				taxTargetAccount = &assemblyAcctID
+			} else {
+				// Fallback: cuenta de impuestos
+				var taxAcctID uuid.UUID
+				_ = h.Pool.QueryRow(r.Context(), `
+					SELECT id FROM users WHERE node_domain = $1 AND username = 'impuestos' LIMIT 1`, h.nodeDomain).Scan(&taxAcctID)
+				if taxAcctID != uuid.Nil {
+					taxTargetAccount = &taxAcctID
+				}
+			}
 		}
 	}
 

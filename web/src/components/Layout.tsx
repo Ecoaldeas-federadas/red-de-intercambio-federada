@@ -5,7 +5,7 @@ import { getNotifIcon, relativeTime } from '../lib/notifications'
 import {
   Home, ArrowLeftRight, History, Package, Calculator, Store,
   Network, Scale, Users, Gavel, FileSearch, Globe, UserPlus, Wallet, Shield,
-  Building2, Nfc, Settings, User, PiggyBank, Zap,
+  Building2, Nfc, Settings, User, PiggyBank, Zap, Plug,
   LogOut, Menu, X, ExternalLink, Bell, ChevronLeft, ChevronRight, AlertTriangle,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
@@ -14,6 +14,7 @@ const navItems = [
   { to: '/app/dashboard', label: 'Inicio', icon: Home },
   { to: '/app/transfer', label: 'Transferir', icon: ArrowLeftRight },
   { to: '/app/wallet', label: 'Billetera', icon: Wallet },
+  { to: '/app/my-services', label: 'Mis Servicios', icon: Plug },
   { to: '/app/payments', label: 'Pagos', icon: Wallet },
   { to: '/app/nfc-terminals', label: 'Terminales NFC', icon: Nfc },
   { to: '/app/products', label: 'Productos', icon: Package },

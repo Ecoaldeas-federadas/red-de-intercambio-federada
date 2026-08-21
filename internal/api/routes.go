@@ -110,6 +110,10 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 	ybH := NewYugabyteNodesHandler(pool)
 	ybH.RegisterRoutes(r, am)
 
+	// Servicios y mensualidades de organizaciones
+	servicesH := NewServicesHandler(pool)
+	servicesH.RegisterRoutes(r, am)
+
 	// Servir imagenes subidas desde /uploads/
 	r.Get("/uploads/*", func(w http.ResponseWriter, r *http.Request) {
 		uploadDir := "/app/uploads"

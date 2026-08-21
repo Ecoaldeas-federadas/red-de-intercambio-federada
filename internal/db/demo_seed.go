@@ -62,6 +62,9 @@ func DemoSeedData(ctx context.Context, d *DB, nodeDomain string) error {
 		log.Printf("Demo: warning seeding users: %v", err)
 	}
 
+	// 5b. Organizaciones de la Asamblea con servicios obligatorios
+	demoSeedAssemblyOrganizations(ctx, d, nodeDomain)
+
 	// 6. Departamentos y comisiones
 	demoSeedDepartments(ctx, d, nodeDomain)
 
@@ -129,23 +132,27 @@ func demoSeedMemberLevels(ctx context.Context, d *DB, nodeDomain string) error {
 		level                     int
 		hasVoice, hasVote, quorum bool
 		credit, debit             int
+		taxRate                   float64
 	}{
-		{"raiz", "Miembro Raiz - fundador/a de la ecoaldea, voz y voto en todas las decisiones", 100, true, true, true, 5000, 5000},
-		{"tronco", "Miembro Tronco - con mas de 2 anios, voz y voto en asamblea", 50, true, true, true, 3000, 3000},
-		{"rama", "Miembro Rama - con mas de 6 meses, voz en asamblea, voto en comisiones", 20, true, true, false, 1500, 1500},
-		{"brote", "Miembro Brote - recien ingresado/a, voz en asamblea, sin voto", 10, true, false, false, 500, 500},
+		{"raiz", "Miembro Raiz - fundador/a de la ecoaldea, voz y voto en todas las decisiones", 100, true, true, true, 5000, 5000, 0.005},
+		{"tronco", "Miembro Tronco - con mas de 2 anios, voz y voto en asamblea", 50, true, true, true, 3000, 3000, 0.01},
+		{"rama", "Miembro Rama - con mas de 6 meses, voz en asamblea, voto en comisiones", 20, true, true, false, 1500, 1500, 0.015},
+		{"brote", "Miembro Brote - recien ingresado/a, voz en asamblea, sin voto", 10, true, false, false, 500, 500, 0.02},
 	}
 
 	for _, l := range levels {
 		var existing int
 		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM member_levels WHERE node_domain = $1 AND name = $2`, nodeDomain, l.name).Scan(&existing)
 		if existing > 0 {
+			// Actualizar tax_rate si no estaba configurado
+			d.Pool.Exec(ctx, `UPDATE member_levels SET tax_rate = $3 WHERE node_domain = $1 AND name = $2 AND (tax_rate IS NULL OR tax_rate = 0)`,
+				nodeDomain, l.name, l.taxRate)
 			continue
 		}
 		_, err := d.Pool.Exec(ctx, `
-			INSERT INTO member_levels (id, node_domain, name, description, level, has_voice, has_vote, counts_in_quorum, is_active, credit_limit, debit_limit)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, $9, $10)`,
-			uuid.New(), nodeDomain, l.name, l.desc, l.level, l.hasVoice, l.hasVote, l.quorum, l.credit, l.debit)
+			INSERT INTO member_levels (id, node_domain, name, description, level, has_voice, has_vote, counts_in_quorum, is_active, credit_limit, debit_limit, tax_rate)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, $9, $10, $11)`,
+			uuid.New(), nodeDomain, l.name, l.desc, l.level, l.hasVoice, l.hasVote, l.quorum, l.credit, l.debit, l.taxRate)
 		if err != nil {
 			log.Printf("Demo: error creating level %s: %v", l.name, err)
 		}
@@ -1533,6 +1540,150 @@ func demoSeedOrganizations(ctx context.Context, d *DB, nodeDomain string) {
 	}
 }
 
+// demoSeedAssemblyOrganizations crea organizaciones de la Asamblea con servicios
+// obligatorios (electricidad, transporte, etc.) y auto-suscribe a todos los miembros.
+func demoSeedAssemblyOrganizations(ctx context.Context, d *DB, nodeDomain string) {
+	// Obtener nivel de organizacion publica
+	var orgLevelID string
+	d.Pool.QueryRow(ctx, `SELECT id::text FROM organization_levels WHERE node_domain = $1 AND name = 'org_publica' LIMIT 1`, nodeDomain).Scan(&orgLevelID)
+	if orgLevelID == "" {
+		d.Pool.QueryRow(ctx, `SELECT id::text FROM organization_levels WHERE node_domain = $1 ORDER BY level DESC LIMIT 1`, nodeDomain).Scan(&orgLevelID)
+	}
+
+	// Organizaciones de la Asamblea (servicios publicos obligatorios)
+	assemblyOrgs := []struct {
+		username, displayName, orgType string
+		credit, debit                  int
+	}{
+		{"electricidad", "Servicio Electrico Comunitario", "public_service", 10000, 10000},
+		{"transporte", "Transporte Comunitario", "public_service", 5000, 5000},
+		{"agua", "Sistema de Agua Comunitario", "public_service", 8000, 8000},
+	}
+
+	for _, org := range assemblyOrgs {
+		var existing int
+		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM users WHERE username = $1 AND node_domain = $2`, org.username, nodeDomain).Scan(&existing)
+		if existing > 0 {
+			// Asegurar que esta marcada como assembly_owned
+			d.Pool.Exec(ctx, `UPDATE users SET is_assembly_owned = true WHERE username = $1 AND node_domain = $2`, org.username, nodeDomain)
+			continue
+		}
+
+		pubKey, privKey, _ := ed25519.GenerateKey(rand.Reader)
+		pubKeyHex := hex.EncodeToString(pubKey)
+		encryptedPrivKey := encryptPrivateKeyDemo(privKey, "demo1234")
+		salt := make([]byte, 16)
+		rand.Read(salt)
+
+		var orgID uuid.UUID
+		_ = d.Pool.QueryRow(ctx, `
+			INSERT INTO users (node_domain, username, display_name, account_type, organization_subtype, membership_status, is_approved, is_assembly_owned, credit_limit, debit_limit, public_key, encrypted_private_key, encryption_key_salt)
+			VALUES ($1, $2, $3, 'organization', $4, 'active', true, true, $5, $6, $7, $8, $9)
+			RETURNING id`,
+			nodeDomain, org.username, org.displayName, org.orgType, org.credit, org.debit, pubKeyHex, encryptedPrivKey, salt).Scan(&orgID)
+		if orgID == uuid.Nil {
+			continue
+		}
+	}
+
+	// Crear servicios para las organizaciones de la Asamblea
+	type serviceDef struct {
+		orgUsername, name, description, serviceType, frequency string
+		amount                                                 int64
+		obligations, rights, duties                            string
+	}
+
+	services := []serviceDef{
+		{
+			"electricidad", "Mensualidad Electrica", "Tarifa mensual fija por servicio electrico comunitario",
+			"subscription", "monthly", 50,
+			"Pagar la mensualidad mensualmente. Reportar fallas electricas.",
+			"Acceso a la red electrica comunitaria. Mantenimiento de instalaciones.",
+			"Ahorrar energia. Usar paneles solares cuando sea posible.",
+		},
+		{
+			"transporte", "Mensualidad Transporte", "Tarifa mensual fija por servicio de transporte comunitario",
+			"subscription", "monthly", 30,
+			"Pagar la mensualidad mensualmente. Respetar horarios de salida.",
+			"Acceso al transporte comunitario a la ciudad y entre comunidades.",
+			"Cuidar el vehiculo comunitario. Compartir asientos.",
+		},
+		{
+			"agua", "Mensualidad Agua", "Tarifa mensual fija por sistema de agua comunitario",
+			"subscription", "monthly", 25,
+			"Pagar la mensualidad mensualmente. Reportar fugas de agua.",
+			"Acceso al sistema de agua potable comunitario.",
+			"Usar agua de lluvia para riego. Cuidar las fuentes.",
+		},
+	}
+
+	for _, svc := range services {
+		var orgID uuid.UUID
+		d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE username = $1 AND node_domain = $2`, svc.orgUsername, nodeDomain).Scan(&orgID)
+		if orgID == uuid.Nil {
+			continue
+		}
+
+		// Verificar si ya existe el servicio
+		var svcCount int
+		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM organization_services WHERE organization_id = $1 AND name = $2`, orgID, svc.name).Scan(&svcCount)
+		if svcCount > 0 {
+			continue
+		}
+
+		var serviceID uuid.UUID
+		_ = d.Pool.QueryRow(ctx, `
+			INSERT INTO organization_services (node_domain, organization_id, name, description, service_type, amount, frequency, is_mandatory, obligations, rights, duties, is_active)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, true, $8, $9, $10, true)
+			RETURNING id`,
+			nodeDomain, orgID, svc.name, svc.description, svc.serviceType, svc.amount, svc.frequency,
+			svc.obligations, svc.rights, svc.duties).Scan(&serviceID)
+		if serviceID == uuid.Nil {
+			continue
+		}
+
+		// Auto-suscribir a todos los miembros activos
+		_, _ = d.Pool.Exec(ctx, `
+			INSERT INTO organization_subscriptions (service_id, user_id, status, next_charge_at)
+			SELECT $1, u.id, 'auto', NOW() + interval '1 month'
+			FROM users u
+			WHERE u.node_domain = $2 AND u.account_type = 'individual' AND u.membership_status = 'active'
+			ON CONFLICT (service_id, user_id) DO UPDATE SET status = 'auto', left_at = NULL, next_charge_at = NOW() + interval '1 month'`,
+			serviceID, nodeDomain)
+	}
+
+	// Tambien crear una organizacion voluntaria con servicio opcional
+	var voluntariaID uuid.UUID
+	d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE username = 'centro_salud' AND node_domain = $1`, nodeDomain).Scan(&voluntariaID)
+	if voluntariaID != uuid.Nil {
+		var svcCount int
+		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM organization_services WHERE organization_id = $1 AND name = 'Membresia Centro de Salud'`, voluntariaID).Scan(&svcCount)
+		if svcCount == 0 {
+			var serviceID uuid.UUID
+			_ = d.Pool.QueryRow(ctx, `
+				INSERT INTO organization_services (node_domain, organization_id, name, description, service_type, amount, frequency, is_mandatory, obligations, rights, duties, is_active)
+				VALUES ($1, $2, 'Membresia Centro de Salud', 'Membresia voluntaria para acceso a medicinas naturales y consultas', 'subscription', $3, 'monthly', false, 'Pagar mensualidad si estas suscrito', 'Acceso a consultas y medicinas naturales', 'Cuidar las plantas medicinales', true)
+				RETURNING id`,
+				nodeDomain, voluntariaID, int64(15)).Scan(&serviceID)
+
+			// Suscribir a algunos miembros voluntariamente
+			for _, username := range []string{"elena", "isabel", "sofia", "diego"} {
+				var uid uuid.UUID
+				d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE username = $1 AND node_domain = $2`, username, nodeDomain).Scan(&uid)
+				if uid != uuid.Nil {
+					d.Pool.Exec(ctx, `
+						INSERT INTO organization_subscriptions (service_id, user_id, status, next_charge_at)
+						VALUES ($1, $2, 'active', NOW() + interval '1 month')
+						ON CONFLICT DO NOTHING`,
+						serviceID, uid)
+				}
+			}
+		}
+	}
+
+	log.Println("Demo: assembly organizations + services seeded")
+}
+
 // orgBoards define la junta directiva de cada organizacion del demo
 // username -> [{username, position}]
 var orgBoards = map[string][]struct {
@@ -2346,6 +2497,9 @@ func DemoReset(ctx context.Context, d *DB, nodeDomain string) error {
 		"public_pages",
 		"public_settings",
 		"node_config",
+		"subscription_charge_failures",
+		"organization_subscriptions",
+		"organization_services",
 		"conversion_factor",
 	}
 	for _, t := range ndTables {

@@ -220,6 +220,11 @@ func main() {
 	notifScheduler.Start()
 	defer notifScheduler.Stop()
 
+	// Iniciar scheduler de cobros de mensualidades (servicios de organizaciones)
+	subScheduler := api.NewSubscriptionScheduler(database.Pool, cfg.Node.Domain)
+	subScheduler.Start()
+	defer subScheduler.Stop()
+
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.API.Port),
 		Handler:      router,

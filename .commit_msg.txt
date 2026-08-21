@@ -1,51 +1,46 @@
-fix: Reorganizar imagenes con nombres descriptivos por categoria
+fix: Reconstruir imagenes de productos con contenido semantico correcto
 
 ## Problema
-- Las imagenes tenian nombres numericos sin significado
-  (photo-1466611653911-95081537e5b7.jpg)
-- No habia organizacion por categorias, todo mezclado
-- Muchos productos compartian la misma imagen
-- Imagenes no correspondian con los productos
+- Las imagenes del nodo principal no coincidian con los productos
+  (ej: leche mostraba queso, productos repetidos)
+- Wikimedia Commons devolvio imagenes incorrectas en la primera pasada
+- Las imagenes del demo si quedaron bien pero no se usaban en el nodo principal
 
-## Solucion: 287 imagenes locales organizadas
+## Solucion
 
-### Productos (239 imagenes en 16 categorias)
-- servicios/ (16 imagenes): jornal-agricola.jpg, albanileria.jpg, etc.
-- alimentacion/ (36): hojas-verdes.jpg, panaderia.jpg, miel-pura.jpg, etc.
-- agricultura/ (15): semillas-criollas.jpg, abonos-organicos.jpg, etc.
-- salud/ (14): terapias-manuales.jpg, jabones-higiene.jpg, etc.
-- artesania/ (28): taza-barro.jpg, silla-madera.jpg, sombrero-paja.jpg, etc.
-- construccion/ (15): bloques-adobe.jpg, ladrillo-arcilla.jpg, etc.
-- energia/ (10): panel-solar.jpg, carbon-vegetal.jpg, etc.
-- herramientas/ (18): machete.jpg, pala.jpg, martillo.jpg, etc.
-- tecnologia/ (20): telefono-inteligente.jpg, lavadora.jpg, etc.
-- transporte/ (11): bicicleta.jpg, caballo-silla.jpg, etc.
-- cultura/ (12): cuatro-venezolano.jpg, guitarra-artesanal.jpg, etc.
-- educacion/ (7): talleres-agroecologia.jpg, matematicas.jpg, etc.
-- textiles/ (11): tela-algodon.jpg, frazada-lana.jpg, etc.
-- embalaje/ (22): vasos-hoja-platano.jpg, bolsas-yute.jpg, etc.
-- recursos/ (1): agua-purificada.jpg
+### 1. Copiar imagenes del demo al nodo principal (23 productos)
+- frijol-negro -> granos-basicos
+- tomate -> verduras-hortalizas
+- lechuga -> hojas-verdes
+- queso-de-cabra -> lacteos-artesanales
+- pan-quinua -> panaderia
+- mermelada -> dulces-conservas
+- miel -> miel-pura
+- ceramica-barro -> taza-barro, plato-barro, olla-barro
+- banco-madera -> banco-madera
+- cesta-bambu -> cesta-mediana
+- azadon-de-montana -> azadon
+- tijeras-de-podar -> herramientas-corte
+- hierbas-medicinales -> hierbas-medicinales-secas, infusiones-tes
+- aceite-de-romero -> cosmetica-natural, aceites-vinagres
+- ruana-de-lana -> frazada-lana
+- Y mas...
 
-### Paginas publicas (16 imagenes con nombres descriptivos)
-- hero-feria-conuquera.jpg, stats-feria.jpg, conuco-horizonte.jpg,
-  asambleas-gobernanza.jpg, mercado-productores.jpg, etc.
+### 2. Re-descargar 227 imagenes con terminos mas especificos
+- Terminos de busqueda mas precisos por producto
+- Verificacion de contenido semantico
+- 160 descargadas exitosamente
+- 67 reintentadas con terminos simplificados
 
-### Demo (32 imagenes, 5 corregidas)
-- queso-de-cabra.jpg (antes usaba bioconstruccion-adobe.jpg)
-- ruana-de-lana.jpg (antes usaba mermelada.jpg)
-- azadon-de-montana.jpg, tijeras-de-podar.jpg, aceite-de-romero.jpg
-
-### Limpieza
-- Eliminados 78 archivos con nombres numericos (photo-XXX.jpg)
-- 0 referencias a Unsplash en todo el codigo
+### 3. Verificacion
+- 241 imagenes de productos en 16 categorias
+- 16 imagenes de paginas publicas
+- 32 imagenes del demo
 - 0 referencias a nombres numericos viejos
-- Cada producto tiene su propia imagen unica y tematica
-- Todas las imagenes servidas localmente sin dependencias externas
-
-### Verificacion
+- 0 URLs de Unsplash
 - Build Go: OK
 - Build Vite: OK
-- 239 + 16 + 32 = 287 imagenes en dist
+- Tienda y lista de productos usan el mismo campo image_url
 
 Generated with [Devin](https://devin.ai)
 
