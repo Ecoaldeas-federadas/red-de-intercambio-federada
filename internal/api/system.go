@@ -1216,7 +1216,8 @@ func (h *SystemHandler) listLedgerTransactions(w http.ResponseWriter, r *http.Re
 			  FROM transactions t
 			  LEFT JOIN users sender ON t.sender_id = sender.id
 			  LEFT JOIN users receiver ON t.receiver_id = receiver.id
-			  WHERE (sender.node_domain = $1 OR receiver.node_domain = $1)`
+			  WHERE (sender.node_domain = $1 OR receiver.node_domain = $1)
+			  AND t.tx_type != 'federation_transfer'`
 	args := []interface{}{nodeDomain}
 	argIdx := 2
 	if userID != "" {

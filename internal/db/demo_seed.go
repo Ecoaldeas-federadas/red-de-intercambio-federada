@@ -1412,6 +1412,14 @@ func demoSeedUsers(ctx context.Context, d *DB, nodeDomain string) error {
 		var existing int
 		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM users WHERE username = $1 AND node_domain = $2`, u.username, nodeDomain).Scan(&existing)
 		if existing > 0 {
+			// Actualizar usuario existente: asegurar nivel y limites correctos
+			d.Pool.Exec(ctx, `
+				UPDATE users SET member_level_id = $3, credit_limit = $4, debit_limit = $5, membership_status = 'active'
+				WHERE username = $1 AND node_domain = $2`,
+				u.username, nodeDomain, u.levelID, u.credit, u.debit)
+			if u.isSuperAdmin {
+				d.Pool.Exec(ctx, `UPDATE users SET is_super_admin = true, super_admin_enabled = true WHERE username = $1 AND node_domain = $2`, u.username, nodeDomain)
+			}
 			continue
 		}
 
@@ -2188,13 +2196,28 @@ func demoSeedParityReports(ctx context.Context, d *DB, nodeDomain string) {
 			p.peerDomain, p.balance)
 
 		// Crear transacciones federadas para generar reportes de paridad
+		// Estas son transacciones entre nodos, NO personales.
+		// sender_id y receiver_id son NULL para que no aparezcan en la billetera personal.
 		if adminID != uuid.Nil {
 			// Transaccion principal (balance inicial)
 			txID := uuid.New()
 			d.Pool.Exec(ctx, `
 				INSERT INTO transactions (id, tx_type, sender_id, receiver_id, sender_node, receiver_node, amount, status, metadata, created_at, confirmed_at)
-				VALUES ($1, 'federation_transfer', $2, $2, $3, $4, $5, 'completed', '{"type": "federation", "description": "Intercambio federado inicial"}', NOW() - interval '15 days', NOW() - interval '15 days')`,
-				txID, adminID, nodeDomain, p.peerDomain, p.balance)
+				VALUES ($1, 'federation_transfer', NULL, NULL, $2, $3, $4, 'completed', '{"type": "federation", "description": "Intercambio federado inicial"}', NOW() - interval '15 days', NOW() - interval '15 days')`,
+				txID, nodeDomain, p.peerDomain, p.balance)
+
+			// Crear ledger entry de node_bridge para que el balance del nodo funcione
+			if p.balance > 0 {
+				d.Pool.Exec(ctx, `
+					INSERT INTO ledger_entries (transaction_id, account_id, entry_type, amount, account_category, counterpart_node, created_at)
+					VALUES ($1, $2, 'credit', $3, 'node_bridge', $4, NOW() - interval '15 days')`,
+					txID, adminID, p.balance, p.peerDomain)
+			} else if p.balance < 0 {
+				d.Pool.Exec(ctx, `
+					INSERT INTO ledger_entries (transaction_id, account_id, entry_type, amount, account_category, counterpart_node, created_at)
+					VALUES ($1, $2, 'debit', $3, 'node_bridge', $4, NOW() - interval '15 days')`,
+					txID, adminID, -p.balance, p.peerDomain)
+			}
 
 			// Transacciones adicionales con diferentes fechas y descripciones
 			fedTxns := []struct {
@@ -2220,8 +2243,8 @@ func demoSeedParityReports(ctx context.Context, d *DB, nodeDomain string) {
 				}
 				d.Pool.Exec(ctx, `
 					INSERT INTO transactions (id, tx_type, sender_id, receiver_id, sender_node, receiver_node, amount, status, metadata, created_at, confirmed_at)
-					VALUES ($1, 'federation_transfer', $2, $2, $3, $4, $5, 'completed', $6, NOW() - interval '1 day' * $7, NOW() - interval '1 day' * $7)`,
-					ftxID, adminID, senderNode, receiverNode, ft.amount,
+					VALUES ($1, 'federation_transfer', NULL, NULL, $2, $3, $4, 'completed', $5, NOW() - interval '1 day' * $6, NOW() - interval '1 day' * $6)`,
+					ftxID, senderNode, receiverNode, ft.amount,
 					fmt.Sprintf(`{"type": "federation", "description": "%s"}`, ft.desc), ft.daysAgo)
 
 				// Audit log
