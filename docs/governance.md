@@ -78,14 +78,23 @@ El formulario de admision publica (`DynamicAdmissionForm`) carga las reglas de g
 
 ```
 Nodo / Asamblea General (organo maximo)
-  ├── Organizaciones (pertenecen a personas, las personas pertenecen a la asamblea)
-  │     └── Departamentos (pertenecen a una organizacion)
+  ├── Organizaciones de la Asamblea (is_assembly_owned=true)
+  │     ├── Sus decisiones se votan en la Asamblea General
+  │     ├── Tienen junta directiva propia (reuniones separadas)
+  │     ├── Todos los miembros del nodo son automaticamente miembros
+  │     └── Departamentos (pertenecen a la organizacion)
+  ├── Organizaciones regulares
+  │     ├── Tienen su propia asamblea interna (todos los miembros de la org)
+  │     ├── Tienen junta directiva propia (reuniones separadas)
+  │     ├── Pueden ofrecer servicios (mensualidades, cobros, pagos)
+  │     └── Departamentos (pertenecen a la organizacion)
   └── Departamentos (pueden pertenecer al nodo directamente)
 ```
 
 - **El nodo** es la unidad federada independiente.
 - **La Asamblea General** es el organo maximo de decision del nodo.
-- **Las organizaciones** pertenecen a las personas, y las personas pertenecen a la asamblea.
+- **Las organizaciones de la Asamblea** pertenecen a la Asamblea. Todos los miembros del nodo son automaticamente miembros. Sus decisiones se votan en la Asamblea General.
+- **Las organizaciones regulares** pertenecen a personas, y las personas pertenecen a la asamblea. Tienen su propia asamblea interna.
 - **Los departamentos** deben pertenecer a una organizacion o al nodo/asamblea. No pueden existir aislados ni pertenecer a una persona.
 
 ### Asamblea General
@@ -97,17 +106,31 @@ Organo maximo de decision del nodo. Sus decisiones afectan a todo el nodo:
 - Distribucion de fondos de la cuenta de la asamblea
 - Reglas de gobernanza
 - Niveles de miembros
+- Creacion de organizaciones de la Asamblea
 - Politicas generales del nodo
 
 **La asamblea del nodo NO puede transferir dinero directamente a personas.** Solo puede transferir a organizaciones y departamentos. Estos, a su vez, deciden como distribuir el dinero (incluyendo pagos a personas).
 
-### Asambleas de Organizaciones
+### Organizaciones de la Asamblea
 
-Las organizaciones pueden tener su propia asamblea interna. **No es obligatorio**: una organizacion con un solo miembro o que no necesite asambleas puede desactivarlas.
+Las organizaciones de la Asamblea (`is_assembly_owned = true`) son un tipo especial:
+- **Pertenecen a la Asamblea**, no a una persona.
+- **Todos los miembros del nodo** son automaticamente miembros.
+- **Los miembros nuevos** se auto-suscriben al ser admitidos al nodo.
+- **Sus decisiones se votan en la Asamblea General** del nodo, no en una asamblea separada.
+- **Tienen junta directiva propia** que puede tomar decisiones operativas.
+- **Sus servicios obligatorios** aplican a todos los miembros del nodo.
+- **Para crear una organizacion de la Asamblea** se requiere propuesta y votacion en la Asamblea General.
+
+Ejemplos: servicio electrico comunitario, transporte comunitario, sistema de agua.
+
+### Asambleas de Organizaciones Regulares
+
+Las organizaciones regulares tienen su propia asamblea interna con todos sus miembros (junta directiva + miembros suscritos a servicios). **No es obligatorio**: una organizacion con un solo miembro o que no necesite asambleas puede desactivarlas.
 
 Las decisiones de la asamblea de organizacion **son diferentes** a las de la asamblea del nodo:
 - **NO pueden decidir** sobre admision/expulsion del nodo, impuestos del nodo, federacion, etc.
-- **SI pueden decidir** sobre: presupuesto de la org, distribucion de fondos de la org, politicas internas, creacion de cuentas, admision a la org, expulsion de la org.
+- **SI pueden decidir** sobre: presupuesto de la org, distribucion de fondos de la org, politicas internas, creacion de cuentas, admision a la org, expulsion de la org, servicios obligatorios.
 
 **Las organizaciones pueden transferir dinero a organizaciones, departamentos y personas.**
 
@@ -121,17 +144,40 @@ Las decisiones de la asamblea de departamento **son diferentes** a las de la asa
 
 **Los departamentos pueden transferir dinero a organizaciones, departamentos y personas.**
 
-### Junta Directiva del Nodo
+### Juntas Directivas
 
-Organo ejecutivo: Coordinador General, Tesorero, Secretario y Coordinadores de cada circulo. Cargos de 1 ano, revocables.
+Cada organizacion tiene su propia junta directiva. Los cargos son configurables (presidente, vicepresidente, secretario, tesorero, coordinador, miembro).
 
-### Junta Directiva de Organizaciones
+La junta directiva tiene su propio espacio de reunion (separado de la asamblea):
+- **Reuniones de junta directiva** (`meeting_type = 'board'`): solo miembros de la junta participan.
+- **Reuniones de asamblea** (`meeting_type = 'assembly'`): todos los miembros participan.
 
-Cada organizacion puede tener su propia junta directiva. Puede consistir de una sola persona. Los cargos son configurables (presidente, vicepresidente, secretario, tesorero, coordinador, miembro).
+Ambos tipos de reunion tienen: sesiones, propuestas, votaciones, actas, asistencia, config de quorum, reportes.
 
-### Doble Enlace Sociocratico
+Las juntas directivas pueden tomar **decisiones operativas** que no requieren aprobacion de la asamblea: coordinacion de actividades, gastos menores, asignacion de tareas, nombramientos internos.
 
-Cada circulo elige dos personas que lo conectan con la Asamblea: un Coordinador y un Delegado.
+**Para organizaciones de la Asamblea**: la junta directiva es la de ESA organizacion, no la junta directiva de la Asamblea. Las decisiones de la asamblea se votan en la Asamblea General, pero la junta directiva de la organizacion tiene sus propias reuniones operativas.
+
+### Servicios de Organizaciones
+
+Las organizaciones pueden ofrecer servicios con las siguientes configuracion:
+
+| Campo | Valores | Descripcion |
+|-------|---------|-------------|
+| `service_type` | `subscription`, `benefit`, `one_time` | Cobro al miembro, pago al miembro, o cobro unico |
+| `amount` | 0 o positivo | 0 = gratuito, positivo = monto en TQ |
+| `frequency` | `monthly`, `quarterly`, `annual` | Cada cuanto se cobra/paga |
+| `is_mandatory` | true/false | Si es obligatorio para todos los miembros |
+| `obligations` | texto | Obligaciones del miembro |
+| `rights` | texto | Derechos del miembro |
+| `duties` | texto | Deberes del miembro |
+
+- **Servicios obligatorios** en organizaciones de la Asamblea: aplican a todos los miembros del nodo, auto-suscritos.
+- **Servicios obligatorios** en organizaciones regulares: aplican a todos los miembros de la organizacion, requieren votacion.
+- **Servicios voluntarios**: los miembros se suscriben y cancelan libremente.
+- **Servicios gratuitos** (monto=0): sin cobro, solo registro de membresia.
+- **Servicios que pagan al miembro** (`benefit`): la organizacion transfiere dinero al miembro mensualmente.
+- El scheduler cobra/paga automaticamente segun la frecuencia configurada.
 
 ## Proceso de Admision (3 Fases)
 
@@ -171,6 +217,9 @@ Pago diferido en cuotas mensuales (12-24 meses) para no desestabilizar la econom
 - `055_assembly_convocation.sql` - Convocatoria automatica, frecuencia, notificaciones, tipos por scope
 - `056_assembly_advance_tax.sql` - Tiempos minimos de anticipacion, cuenta predefinida de impuestos
 - `057_department_parent.sql` - Departamentos con organizacion padre
+- `064_new_governance_rules_community.sql` - 24 reglas de comunidad intencional
+- `069_organization_services.sql` - Servicios, suscripciones, is_assembly_owned
+- `070_board_meetings.sql` - Reuniones de junta directiva (meeting_type)
 
 Permiso `governance.manage` para gestionar las reglas.
 
@@ -179,11 +228,17 @@ Permiso `governance.manage` para gestionar las reglas.
 - `internal/db/migrations/048_governance_rules.sql` - Migracion y seed
 - `internal/api/system.go` - Endpoints API CRUD
 - `internal/api/assembly.go` - Asamblea del nodo
-- `internal/api/scoped_assembly.go` - Asambleas de org/depto
-- `internal/db/seed.go` - Pagina publica "gobernanza"
+- `internal/api/scoped_assembly.go` - Asambleas de org/depto + juntas directivas
+- `internal/api/services_handler.go` - API de servicios y suscripciones
+- `internal/api/subscription_scheduler.go` - Scheduler de cobros mensuales
+- `internal/accounts/services.go` - Modelo de servicios y suscripciones
+- `internal/db/demo_seed.go` - Seed con organizaciones de la Asamblea
 - `web/src/pages/Governance.tsx` - Interfaz admin
 - `web/src/pages/Assembly.tsx` - UI de asamblea del nodo
-- `web/src/components/ScopedAssembly.tsx` - UI de asambleas de org/depto
+- `web/src/pages/OrganizationDetail.tsx` - UI de organizacion con tabs de servicios y reuniones
+- `web/src/pages/MyServices.tsx` - UI de mis servicios y suscripciones
+- `web/src/components/ScopedAssembly.tsx` - UI de asambleas y juntas de org/depto
 - `web/src/components/public-site/DynamicAdmissionForm.tsx` - Aceptacion en admision
-- `web/src/App.tsx` - Ruta `/app/governance`
-- `web/src/components/Layout.tsx` - Enlace en sidebar
+- `web/src/components/public-site/PublicGovernancePage.tsx` - Pagina publica de gobernanza
+- `web/src/App.tsx` - Rutas `/app/governance`, `/app/my-services`
+- `web/src/components/Layout.tsx` - Enlaces en sidebar

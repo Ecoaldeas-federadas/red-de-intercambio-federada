@@ -25,6 +25,7 @@
 21. [Feria Conuquera Agroecologica](feria_conuquera.md) - Historia, filosofia, organizacion, productos, actividades, ecoaldeas
 22. [Gobernanza - Ley de la Aldea](governance.md) - Reglas, jerarquia nodo/org/depto, asambleas por scope, admision, FRNE, tenencia de tierra
 23. [Notificaciones](notifications.md) - Sistema unificado, pasarelas federadas (Matrix, Telegram, XMPP), preferencias, scope por usuario
+24. [Plan: Servicios de Organizaciones](PLAN_SERVICIOS_ORGANIZACIONES.md) - Plan de impuestos por nivel, servicios, organizaciones de la Asamblea
 
 ## Estado de Implementacion
 
@@ -59,6 +60,14 @@
 | 14.5 | Reglas de transferencia por scope | Completado |
 | 14.6 | Departamentos con organizacion padre (jerarquia) | Completado |
 | 14.7 | Documentacion actualizada de asambleas y gobernanza | Completado |
+| 15 | Impuestos por nivel de miembro y organizacion | Completado |
+| 15.1 | Servicios y mensualidades de organizaciones | Completado |
+| 15.2 | Organizaciones de la Asamblea (is_assembly_owned) | Completado |
+| 15.3 | Auto-suscripcion de miembros a servicios obligatorios | Completado |
+| 15.4 | Scheduler de cobros mensuales automaticos | Completado |
+| 15.5 | Juntas directivas con reuniones, votaciones y actas | Completado |
+| 15.6 | Organizaciones de la Asamblea usan Asamblea General | Completado |
+| 15.7 | Documentacion actualizada de servicios y gobernanza | Completado |
 
 ## Estructura del Proyecto
 
@@ -129,6 +138,9 @@ red de intercambio federada/
 | 058 | Ventana de asistencia configurable |
 | 059 | Modulo de notificaciones: notifications, channels, gateways, preferences |
 | 060 | Horas silenciosas (quiet_hours_start, quiet_hours_end en users) |
+| 064 | Nuevas reglas de gobernanza de comunidad intencional (24 reglas) |
+| 069 | Servicios de organizaciones, suscripciones, is_assembly_owned |
+| 070 | Reuniones de junta directiva (meeting_type en scoped assemblies) |
 
 ## Cambios Recientes
 
@@ -160,11 +172,42 @@ El sistema de asambleas ahora soporta tres niveles de decision:
 - Todo departamento debe pertenecer a una organizacion o al nodo/asamblea
 - No puede existir aislado ni pertenecer a una persona
 
+### Servicios y Organizaciones de la Asamblea (migraciones 069-070)
+
+**Impuestos por nivel:**
+- El handler de transferencias ahora usa el `tax_rate` del `member_level` u `organization_level` del emisor
+- Orden de precedencia: users.tax_rate > member_levels.tax_rate > organization_levels.tax_rate > tax_config
+- El impuesto va a la cuenta de la Asamblea (fallback: impuestos, fallback: tax_config)
+
+**Servicios de organizaciones:**
+- Las organizaciones pueden ofrecer servicios: mensualidades, cobros, pagos a miembros
+- Tipos: subscription (cobra), benefit (paga), one_time (cobro unico)
+- Monto puede ser 0 (gratuito) o positivo
+- Frecuencia: mensual, trimestral, anual
+- Obligatorios o voluntarios
+- Cada servicio define obligaciones, derechos y deberes
+- Scheduler cobra/paga automaticamente
+
+**Organizaciones de la Asamblea:**
+- `is_assembly_owned = true` marca organizaciones que pertenecen a la Asamblea
+- Todos los miembros del nodo son automaticamente miembros
+- Sus decisiones se votan en la Asamblea General
+- Tienen junta directiva propia para decisiones operativas
+- Servicios obligatorios aplican a todos los miembros del nodo
+
+**Juntas directivas con reuniones:**
+- Cada organizacion tiene dos espacios de decision: asamblea y junta directiva
+- `meeting_type = 'assembly'`: todos los miembros participan
+- `meeting_type = 'board'`: solo la junta directiva participa
+- Ambos tienen: sesiones, propuestas, votaciones, actas, asistencia, quorum, reportes
+- Tipos de propuesta para junta: board_operational, board_financial, board_appointment
+
 Ver detalles en:
 - [assembly.md](assembly.md) - Documentacion completa del sistema de asambleas
 - [governance.md](governance.md) - Estructura de gobernanza y jerarquia
 - [departments.md](departments.md) - Departamentos con organizacion padre
-- [taxes.md](taxes.md) - Cuenta predefinida de la asamblea y reglas de distribucion
+- [taxes.md](taxes.md) - Impuestos por nivel y cuenta de la asamblea
+- [PLAN_SERVICIOS_ORGANIZACIONES.md](PLAN_SERVICIOS_ORGANIZACIONES.md) - Plan de servicios
 
 ### Sistema de Moneda Saldo Cero: 5 Pilares
 

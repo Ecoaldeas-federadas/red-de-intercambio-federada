@@ -4,8 +4,11 @@
 - [x] Fase 1: Estudio del sistema actual (impuestos)
 - [x] Fase 1: Estudio del sistema actual (organizaciones)
 - [x] Fase 1: Estudio del sistema actual (asamblea)
-- [ ] Fase 2: Diseno de la solucion
-- [ ] Fase 3: Implementacion
+- [x] Fase 2: Diseno de la solucion
+- [x] Fase 3: Implementacion
+- [x] Fase 4: Juntas directivas con reuniones
+- [x] Fase 5: Documentacion actualizada
+- [x] Fase 6: Reglas de gobernanza publicas
 
 ---
 

@@ -93,11 +93,44 @@ Estos limites estan definidos por el nivel de miembro y pueden aumentarse por la
 - Organizaciones requieren aprobacion (como admision)
 - `approved_by` acumula aprobadores
 
+### Organizaciones de la Asamblea
+- Las organizaciones con `is_assembly_owned = true` pertenecen a la Asamblea
+- Todos los miembros del nodo son automaticamente miembros
+- Los miembros nuevos se auto-suscriben al ser admitidos
+- Sus decisiones se votan en la Asamblea General del nodo
+- Tienen junta directiva propia para decisiones operativas
+- Para crear una organizacion de la Asamblea se requiere propuesta y votacion en la Asamblea General
+- Ejemplos: servicio electrico comunitario, transporte comunitario, sistema de agua
+
 ### Instituciones Publicas
 - Subtipo especial de organizacion
 - Presupuesto anual configurable
 - Aumento de presupuesto requiere aprobacion de asamblea
 - No pagan impuestos (tax_rate = 0)
+
+### Servicios de Organizaciones
+
+Las organizaciones pueden ofrecer servicios (ver `governance.md` para detalles completos):
+
+- **Mensualidades** (subscription): la organizacion cobra al miembro
+- **Beneficios** (benefit): la organizacion paga al miembro
+- **Cobro unico** (one_time): pago una sola vez
+- **Gratuitos** (amount=0): sin cobro, solo membresia
+- **Obligatorios** (is_mandatory=true): todos los miembros deben cumplir
+- **Voluntarios** (is_mandatory=false): suscripcion libre
+
+El scheduler cobra/paga automaticamente segun la frecuencia configurada (mensual, trimestral, anual).
+
+### Niveles de Organizacion
+
+Los niveles de organizacion (`organization_levels`) definen limites y tasas de impuesto:
+
+| Nivel | Limite | Tasa |
+|-------|--------|------|
+| org_produccion | -100000 / +100000 | 2% |
+| org_consumo | -50000 / +50000 | 1% |
+| org_publica | -1000000 / +1000000 | 0% (exenta) |
+| org_cooperativa | -200000 / +200000 | 1% |
 
 ## Multi-firma de Organizaciones
 
