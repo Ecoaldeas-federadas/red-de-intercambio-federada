@@ -103,8 +103,11 @@ export default function CommunityFund() {
         {fund ? (
           fund.fund_account ? (
             <div className="space-y-2">
-              <div className="text-3xl font-bold text-trueque-700">{fund.balance} {currency}</div>
-              <p className="text-sm text-gray-500">Cuenta: {fund.username || fund.fund_account}</p>
+              <div className="text-3xl font-bold text-trueque-700">{fund.balance || 0} {currency}</div>
+              <p className="text-sm text-gray-500">Cuenta: <b>{fund.display_name || fund.username || 'fondo_comunitario'}</b></p>
+              {fund.transaction_count > 0 && (
+                <p className="text-xs text-gray-400">{fund.transaction_count} transacciones registradas</p>
+              )}
             </div>
           ) : (
             <div>

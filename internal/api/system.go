@@ -1139,13 +1139,15 @@ func (h *SystemHandler) getFundBalance(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Buscar cuenta del fondo
+	// Buscar cuenta del fondo comunitario (excluir cuenta de impuestos)
 	var fundID uuid.UUID
 	var balance int64
-	var username string
+	var username, displayName string
 	err := h.Pool.QueryRow(r.Context(), `
-		SELECT id, balance, username FROM users WHERE node_domain = $1 AND account_type = 'fund' AND membership_status = 'active' LIMIT 1`,
-		nodeDomain).Scan(&fundID, &balance, &username)
+		SELECT id, balance, username, COALESCE(display_name, username)
+		FROM users WHERE node_domain = $1 AND account_type = 'fund' AND username != 'impuestos'
+		ORDER BY username LIMIT 1`,
+		nodeDomain).Scan(&fundID, &balance, &username, &displayName)
 	if err != nil {
 		writeJSON(w, 200, map[string]interface{}{
 			"fund_account": nil,
@@ -1155,10 +1157,16 @@ func (h *SystemHandler) getFundBalance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Tambien obtener transacciones del fondo
+	var txCount int
+	h.Pool.QueryRow(r.Context(), `SELECT COUNT(*) FROM transactions WHERE (sender_id = $1 OR receiver_id = $1) AND status = 'completed'`, fundID).Scan(&txCount)
+
 	writeJSON(w, 200, map[string]interface{}{
-		"fund_account": fundID.String(),
-		"username":     username,
-		"balance":      balance,
+		"fund_account":      fundID.String(),
+		"username":          username,
+		"display_name":      displayName,
+		"balance":           balance,
+		"transaction_count": txCount,
 	})
 }
 

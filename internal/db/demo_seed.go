@@ -1790,19 +1790,19 @@ func demoSeedTransactions(ctx context.Context, d *DB, nodeDomain string) error {
 
 		// Crear ledger entries (débito/crédito)
 		d.Pool.Exec(ctx, `
-			INSERT INTO ledger_entries (id, transaction_id, account_id, entry_type, amount, account_category, counterpart_node, created_at)
-			VALUES (gen_random_uuid(), $1, $2, 'debit', $3, 'individual', $4, NOW() - make_interval(hours => $5))`,
+			INSERT INTO ledger_entries (transaction_id, account_id, entry_type, amount, account_category, counterpart_node, created_at)
+			VALUES ($1, $2, 'debit', $3, 'individual', $4, NOW() - make_interval(hours => $5))`,
 			txID, t.sender, t.amount, nodeDomain, t.hoursAgo)
 		d.Pool.Exec(ctx, `
-			INSERT INTO ledger_entries (id, transaction_id, account_id, entry_type, amount, account_category, counterpart_node, created_at)
-			VALUES (gen_random_uuid(), $1, $2, 'credit', $3, 'individual', $4, NOW() - make_interval(hours => $5))`,
+			INSERT INTO ledger_entries (transaction_id, account_id, entry_type, amount, account_category, counterpart_node, created_at)
+			VALUES ($1, $2, 'credit', $3, 'individual', $4, NOW() - make_interval(hours => $5))`,
 			txID, t.receiver, t.amount, nodeDomain, t.hoursAgo)
 
 		// Si hay impuesto, crear ledger entry para la cuenta de impuestos
 		if taxAmount > 0 && impuestos != uuid.Nil {
 			d.Pool.Exec(ctx, `
-				INSERT INTO ledger_entries (id, transaction_id, account_id, entry_type, amount, account_category, counterpart_node, created_at)
-				VALUES (gen_random_uuid(), $1, $2, 'credit', $3, 'fund', $4, NOW() - make_interval(hours => $5))`,
+				INSERT INTO ledger_entries (transaction_id, account_id, entry_type, amount, account_category, counterpart_node, created_at)
+				VALUES ($1, $2, 'credit', $3, 'fund', $4, NOW() - make_interval(hours => $5))`,
 				txID, impuestos, taxAmount, nodeDomain, t.hoursAgo)
 		}
 

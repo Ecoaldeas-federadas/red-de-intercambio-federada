@@ -127,6 +127,11 @@ export default function Dashboard() {
           <p className="text-xs text-gray-400 mt-1">
             Saldo positivo = tienes credito (te deben). Saldo negativo = debes (es normal, pagaras despues). Ej: -80 significa que recibiste 80 {currency} en bienes que compensaras despues.
           </p>
+          <div className="mt-3 flex gap-2">
+            <button onClick={() => navigate('/app/wallet')} className="text-sm text-trueque-600 hover:text-trueque-700 font-medium">
+              Ver mi billetera →
+            </button>
+          </div>
         </div>
 
         <div className="card">
