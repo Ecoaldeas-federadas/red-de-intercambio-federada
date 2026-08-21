@@ -22,6 +22,21 @@ export default function Audit() {
     assembly: 'Asamblea',
   }
 
+  const formatDetails = (d: any): string => {
+    if (!d) return ''
+    if (typeof d === 'string') return d
+    if (typeof d === 'object') {
+      const parts: string[] = []
+      for (const [k, v] of Object.entries(d)) {
+        if (v !== null && v !== undefined && v !== '') {
+          parts.push(`${k}: ${v}`)
+        }
+      }
+      return parts.join(' | ')
+    }
+    return String(d)
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -84,7 +99,7 @@ export default function Audit() {
                   <td className="py-2">{e.created_at?.slice(0, 19)}</td>
                   <td>{e.actor}</td>
                   <td><span className="bg-gray-100 px-2 py-0.5 rounded text-xs">{e.action}</span></td>
-                  <td className="text-gray-600 max-w-xs truncate">{e.details}</td>
+                  <td className="text-gray-600 max-w-xs truncate">{formatDetails(e.details)}</td>
                 </tr>
               ))}
             </tbody>

@@ -1,34 +1,17 @@
-fix: Impuestos por tipo de cuenta + config de asamblea + nombre cuenta
+fix: Audit page crash por objetos en details + Service Worker tolerante
 
-## Impuestos
-- Seed crea 8 configuraciones de tax_config con tasas diferentes:
-  - Personas: 0.5%
-  - Organizaciones: 1%
-  - Departamentos: 0.5%
-  - Fondo: exento (0%)
-  - Tiendas comerciales: 1.5%
-  - Servicios publicos: 0.8%
-  - Cooperativas: 1.2%
-  - General: 0%
-- Backend getTaxConfig devuelve lista completa en "configs"
-- Frontend muestra tabla con todas las tasas por tipo
-- Etiquetas legibles: "Personas", "Tiendas comerciales", etc.
+## Problema
+- React error #31: "Objects are not valid as a React child"
+- Audit page intentaba renderizar {e.details} que era un objeto
+  como {amount, peer, type} o {level, username}
+- Service Worker fallaba con addAll si un asset no existia
 
-## Cuenta de impuestos
-- Backend getTaxAccount devuelve tax_account_name y tax_account_display
-- Frontend muestra el nombre (ej: "impuestos") en vez del UUID
-
-## Configuracion de aprobaciones de asamblea
-- Seed crea 14 configuraciones en assembly_config:
-  - Cambio de limites: asamblea 50%
-  - Admision: asamblea 66.67%
-  - Expulsion: asamblea 80%
-  - Config federacion: junta directiva 3 firmas
-  - Cambio de impuestos: asamblea 66.67%
-  - Distribucion de fondo: asamblea 66.67%
-  - Crear cuenta: junta directiva 2 firmas
-  - etc.
-- assembly_config agregado a limpieza en DemoReset y DemoAutoSetup
+## Solucion
+1. Audit.tsx: funcion formatDetails() que convierte objetos a string
+   legible: "amount: 100 | peer: nodo-remoto | type: transfer"
+2. sw.js: usa Promise.allSettled en vez de cache.addAll
+   - Si un asset falla, los demas se cachean igual
+   - Version de cache bumpada a v4 para regenerar
 
 Generated with [Devin](https://devin.ai)
 
