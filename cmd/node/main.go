@@ -134,6 +134,18 @@ func main() {
 		log.Printf("Warning: failed to seed products to node: %v", err)
 	}
 
+	// Asegurar que existe la cuenta de Fondo Comunitario para el dominio del nodo
+	_, _ = database.Pool.Exec(ctx, `
+		INSERT INTO users (id, node_domain, username, display_name, account_type, membership_status, balance, credit_limit, debit_limit)
+		SELECT gen_random_uuid(), $1, 'fondo_comunitario', 'Fondo Comunitario', 'fund', 'active', 0, 0, 999999999
+		WHERE NOT EXISTS (SELECT 1 FROM users WHERE account_type = 'fund' AND node_domain = $1)`,
+		seedDomain)
+	_, _ = database.Pool.Exec(ctx, `
+		INSERT INTO users (id, node_domain, username, display_name, account_type, membership_status, balance, credit_limit, debit_limit)
+		SELECT gen_random_uuid(), $1, 'impuestos', 'Cuenta de Impuestos', 'fund', 'active', 0, 0, 999999999
+		WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'impuestos' AND node_domain = $1)`,
+		seedDomain)
+
 	ledgerSvc := ledger.New(database.Pool)
 	accountsSvc := accounts.New(database.Pool)
 	pricingSvc := pricing.New(database.Pool)

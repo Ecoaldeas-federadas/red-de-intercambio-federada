@@ -112,6 +112,27 @@ func DemoAutoSetup(ctx context.Context, db *pgxpool.Pool, jwtSecret, nodeDomain,
 	// Marcar como super admin
 	db.Exec(ctx, `UPDATE users SET is_super_admin = true, super_admin_enabled = true WHERE id = $1`, adminUserID)
 
+	// 4b. Crear cuenta de Fondo Comunitario
+	db.Exec(ctx, `
+		INSERT INTO users (id, node_domain, username, display_name, account_type, membership_status, balance, credit_limit, debit_limit)
+		SELECT gen_random_uuid(), $1, 'fondo_comunitario', 'Fondo Comunitario', 'fund', 'active', 0, 0, 999999999
+		WHERE NOT EXISTS (SELECT 1 FROM users WHERE account_type = 'fund' AND node_domain = $1)`,
+		nodeDomain)
+
+	// 4c. Crear cuenta de Impuestos
+	db.Exec(ctx, `
+		INSERT INTO users (id, node_domain, username, display_name, account_type, membership_status, balance, credit_limit, debit_limit)
+		SELECT gen_random_uuid(), $1, 'impuestos', 'Cuenta de Impuestos', 'fund', 'active', 0, 0, 999999999
+		WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'impuestos' AND node_domain = $1)`,
+		nodeDomain)
+
+	// 4d. Crear cuenta de Asamblea (organizacion padre)
+	db.Exec(ctx, `
+		INSERT INTO users (id, node_domain, username, display_name, account_type, membership_status, balance, credit_limit, debit_limit)
+		SELECT gen_random_uuid(), $1, 'asamblea', 'Asamblea General', 'organization', 'active', 0, 0, 999999999
+		WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'asamblea' AND node_domain = $1)`,
+		nodeDomain)
+
 	// 5. Crear credencial (password)
 	pinHash, _ := bcrypt.GenerateFromPassword([]byte("demo1234"), bcrypt.DefaultCost)
 	db.Exec(ctx, `

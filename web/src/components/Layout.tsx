@@ -20,6 +20,7 @@ const navItems = [
   { to: '/app/calculator', label: 'Calculadora', icon: Calculator },
   { to: '/app/calculator/params', label: 'Parametros Calc.', icon: Zap },
   { to: '/app/store', label: 'Tienda', icon: Store },
+  { to: '/app/federation/peers', label: 'Nodos Federados', icon: Network },
   { to: '/app/federation/limits', label: 'Limites Federacion', icon: Network },
   { to: '/app/federation/parity', label: 'Paridad', icon: Scale },
   { to: '/app/federation/conflicts', label: 'Conflictos Fusion', icon: AlertTriangle },

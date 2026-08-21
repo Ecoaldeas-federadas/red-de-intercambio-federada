@@ -116,7 +116,7 @@ export default function FederationLimits() {
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
                   <p>No hay nodos federados registrados todavia.</p>
                   <p className="text-xs mt-1">Para proponer un limite bilateral, primero debes registrar un nodo peer.</p>
-                  <a href="/federation/peers" className="inline-block mt-2 text-blue-600 underline text-sm font-medium">Ir a registrar nodo peer →</a>
+                  <a href={`${import.meta.env.BASE_URL}app/federation/peers`} className="inline-block mt-2 text-blue-600 underline text-sm font-medium">Ir a registrar nodo peer →</a>
                 </div>
               </div>
             )}

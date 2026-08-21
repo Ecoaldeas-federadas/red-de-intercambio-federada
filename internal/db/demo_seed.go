@@ -46,6 +46,11 @@ func DemoSeedData(ctx context.Context, d *DB, nodeDomain string) error {
 		log.Printf("Demo: warning seeding member levels: %v", err)
 	}
 
+	// 3b. Niveles de organizacion
+	if err := demoSeedOrgLevels(ctx, d, nodeDomain); err != nil {
+		log.Printf("Demo: warning seeding org levels: %v", err)
+	}
+
 	// 4. Productos de la ecoaldea
 	if err := demoSeedProducts(ctx, d, nodeDomain); err != nil {
 		log.Printf("Demo: warning seeding products: %v", err)
@@ -65,6 +70,21 @@ func DemoSeedData(ctx context.Context, d *DB, nodeDomain string) error {
 	// 8. Transacciones simuladas
 	if err := demoSeedTransactions(ctx, d, nodeDomain); err != nil {
 		log.Printf("Demo: warning seeding transactions: %v", err)
+	}
+
+	// 9. Items de tienda (para que haya productos en la tienda)
+	if err := demoSeedStoreItems(ctx, d, nodeDomain); err != nil {
+		log.Printf("Demo: warning seeding store items: %v", err)
+	}
+
+	// 10. Propuestas de asamblea simuladas
+	if err := demoSeedAssemblyProposals(ctx, d, nodeDomain); err != nil {
+		log.Printf("Demo: warning seeding assembly proposals: %v", err)
+	}
+
+	// 11. Nodos federados simulados
+	if err := demoSeedFederationPeers(ctx, d, nodeDomain); err != nil {
+		log.Printf("Demo: warning seeding federation peers: %v", err)
 	}
 
 	log.Println("Demo: seed completed for Ecoaldea Raices del Monte")
@@ -1247,6 +1267,37 @@ func demoSeedProducts(ctx context.Context, d *DB, nodeDomain string) error {
 	return nil
 }
 
+func demoSeedOrgLevels(ctx context.Context, d *DB, nodeDomain string) error {
+	orgLevels := []struct {
+		name, desc string
+		level      int
+		credit     int
+		debit      int
+		taxRate    float64
+	}{
+		{"org_produccion", "Organizacion de produccion. Fabrica o produce bienes.", 1, -100000, 100000, 0.02},
+		{"org_consumo", "Organizacion de consumo. Compra bienes para distribuir.", 1, -50000, 50000, 0.01},
+		{"org_publica", "Institucion publica. Sin fines de lucro, exenta de impuestos.", 1, -1000000, 1000000, 0.00},
+		{"org_cooperativa", "Cooperativa. Propiedad compartida de miembros.", 1, -200000, 200000, 0.01},
+	}
+
+	for _, ol := range orgLevels {
+		var existing int
+		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM organization_levels WHERE node_domain = $1 AND name = $2`, nodeDomain, ol.name).Scan(&existing)
+		if existing > 0 {
+			continue
+		}
+		_, err := d.Pool.Exec(ctx, `
+			INSERT INTO organization_levels (node_domain, name, description, level, credit_limit, debit_limit, tax_rate, is_active)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, true)`,
+			nodeDomain, ol.name, ol.desc, ol.level, ol.credit, ol.debit, ol.taxRate)
+		if err != nil {
+			log.Printf("Demo: error seeding org level %s: %v", ol.name, err)
+		}
+	}
+	return nil
+}
+
 func demoSeedUsers(ctx context.Context, d *DB, nodeDomain string) error {
 	// Obtener niveles
 	var raizLevelID, troncoLevelID, ramaLevelID, broteLevelID string
@@ -1340,8 +1391,13 @@ func demoSeedUsers(ctx context.Context, d *DB, nodeDomain string) error {
 }
 
 func demoSeedOrganizations(ctx context.Context, d *DB, nodeDomain string) {
+	// Obtener nivel de organizacion
 	var orgLevelID string
-	d.Pool.QueryRow(ctx, `SELECT id::text FROM member_levels WHERE node_domain = $1 ORDER BY level DESC LIMIT 1`, nodeDomain).Scan(&orgLevelID)
+	d.Pool.QueryRow(ctx, `SELECT id::text FROM organization_levels WHERE node_domain = $1 ORDER BY level DESC LIMIT 1`, nodeDomain).Scan(&orgLevelID)
+	if orgLevelID == "" {
+		// Fallback: usar member_levels si no hay org levels
+		d.Pool.QueryRow(ctx, `SELECT id::text FROM member_levels WHERE node_domain = $1 ORDER BY level DESC LIMIT 1`, nodeDomain).Scan(&orgLevelID)
+	}
 	if orgLevelID == "" {
 		orgLevelID = uuid.New().String()
 	}
@@ -1375,8 +1431,8 @@ func demoSeedOrganizations(ctx context.Context, d *DB, nodeDomain string) {
 
 		var orgID uuid.UUID
 		err := d.Pool.QueryRow(ctx, `
-			INSERT INTO users (node_domain, username, display_name, account_type, member_level_id, membership_status, credit_limit, debit_limit, public_key, encrypted_private_key, encryption_key_salt)
-			VALUES ($1, $2, $3, 'organization', $4, 'active', $5, $6, $7, $8, $9)
+			INSERT INTO users (node_domain, username, display_name, account_type, member_level_id, organization_level_id, membership_status, credit_limit, debit_limit, public_key, encrypted_private_key, encryption_key_salt)
+			VALUES ($1, $2, $3, 'organization', $4, $4, 'active', $5, $6, $7, $8, $9)
 			RETURNING id`,
 			nodeDomain, org.username, org.displayName, orgLevelID, org.credit, org.debit, pubKeyHex, encryptedPrivKey, salt).Scan(&orgID)
 		if err != nil {
@@ -1407,16 +1463,16 @@ func demoSeedDepartments(ctx context.Context, d *DB, nodeDomain string) {
 
 	for _, dept := range depts {
 		var existing int
-		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM departments WHERE name = $1`, dept.name).Scan(&existing)
+		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM departments WHERE name = $1 AND node_domain = $2`, dept.name, nodeDomain).Scan(&existing)
 		if existing > 0 {
 			continue
 		}
 		deptID := uuid.New()
 		d.Pool.Exec(ctx, `
-			INSERT INTO departments (id, name, description, group_type, is_active, created_at)
-			VALUES ($1, $2, $3, 'department', true, NOW())
+			INSERT INTO departments (id, node_domain, name, description, group_type, is_active, created_at)
+			VALUES ($1, $2, $3, $4, 'department', true, NOW())
 			ON CONFLICT DO NOTHING`,
-			deptID, dept.name, dept.desc)
+			deptID, nodeDomain, dept.name, dept.desc)
 
 		roleID := uuid.New()
 		d.Pool.Exec(ctx, `
@@ -1555,4 +1611,192 @@ func DemoReset(ctx context.Context, d *DB, nodeDomain string) error {
 	// Re-seedear
 	log.Println("DemoReset: re-seedeando datos")
 	return DemoSeedData(ctx, d, nodeDomain)
+}
+
+func demoSeedStoreItems(ctx context.Context, d *DB, nodeDomain string) error {
+	// Obtener IDs de usuarios individuales y organizaciones
+	type userRef struct {
+		username string
+		id       uuid.UUID
+	}
+	rows, err := d.Pool.Query(ctx, `SELECT username, id FROM users WHERE node_domain = $1 AND account_type IN ('individual', 'organization') AND membership_status = 'active'`, nodeDomain)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	userMap := map[string]uuid.UUID{}
+	for rows.Next() {
+		var u userRef
+		rows.Scan(&u.username, &u.id)
+		userMap[u.username] = u.id
+	}
+
+	// Obtener productos aprobados del dominio
+	type prodRef struct {
+		name string
+		id   uuid.UUID
+	}
+	prodRows, err := d.Pool.Query(ctx, `SELECT name, id FROM products WHERE node_domain = $1 AND is_approved = true ORDER BY name`, nodeDomain)
+	if err != nil {
+		return err
+	}
+	defer prodRows.Close()
+	prodMap := map[string]uuid.UUID{}
+	for prodRows.Next() {
+		var p prodRef
+		prodRows.Scan(&p.name, &p.id)
+		prodMap[p.name] = p.id
+	}
+
+	// Asignar productos a tiendas de usuarios
+	storeItems := []struct {
+		ownerUsername, productName string
+		stock                      int
+	}{
+		// Tienda comunitaria
+		{"tienda_comunitaria", "Frijol negro de altura (1kg)", 50},
+		{"tienda_comunitaria", "Quinua andina (1kg)", 30},
+		{"tienda_comunitaria", "Tomate de huerto (1kg)", 40},
+		{"tienda_comunitaria", "Miel de montana (250ml)", 20},
+		{"tienda_comunitaria", "Mermelada de mora", 15},
+		// Panaderia
+		{"panaderia_monte", "Pan de quinua (1kg)", 25},
+		// Cooperativa agricola
+		{"coop_agricola", "Lechuga de bancale", 30},
+		{"coop_agricola", "Ocumo de montana (1kg)", 35},
+		{"coop_agricola", "Guayaba de rio (1kg)", 20},
+		{"coop_agricola", "Mora de monte (500g)", 15},
+		// Taller textil
+		{"taller_textil", "Ruana de lana (unidad)", 5},
+		// Herreria
+		{"herreria", "Azadon de montana", 8},
+		{"herreria", "Tijeras de podar", 12},
+		// Elena (permacultora)
+		{"elena", "Queso de cabra (500g)", 10},
+		{"elena", "Te de hierbas del monte (100g)", 20},
+		{"elena", "Aceite de romero (100ml)", 8},
+		// Carmen (panadera)
+		{"carmen", "Pan de quinua (1kg)", 15},
+		// Raul (artesano)
+		{"raul", "Set 4 cuencos de barro", 6},
+		{"raul", "Cesta de bambu (mediana)", 10},
+		// Isabel (herbalista)
+		{"isabel", "Te de hierbas del monte (100g)", 25},
+		// Marcos (herrero)
+		{"marcos", "Banco de madera de cedro", 3},
+	}
+
+	for _, si := range storeItems {
+		ownerID, ok1 := userMap[si.ownerUsername]
+		prodID, ok2 := prodMap[si.productName]
+		if !ok1 || !ok2 {
+			continue
+		}
+		var existing int
+		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM store_items WHERE owner_id = $1 AND product_id = $2`, ownerID, prodID).Scan(&existing)
+		if existing > 0 {
+			continue
+		}
+		_, err := d.Pool.Exec(ctx, `
+			INSERT INTO store_items (node_domain, owner_id, product_id, product_name, stock, is_active)
+			VALUES ($1, $2, $3, $4, $5, true)
+			ON CONFLICT DO NOTHING`,
+			nodeDomain, ownerID, prodID, si.productName, si.stock)
+		if err != nil {
+			log.Printf("Demo: error seeding store item %s for %s: %v", si.productName, si.ownerUsername, err)
+		}
+	}
+	log.Println("Demo: store items seeded")
+	return nil
+}
+
+func demoSeedAssemblyProposals(ctx context.Context, d *DB, nodeDomain string) error {
+	// Obtener el admin user
+	var adminID uuid.UUID
+	d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE node_domain = $1 AND username = 'demo' LIMIT 1`, nodeDomain).Scan(&adminID)
+	if adminID == uuid.Nil {
+		// usar cualquier usuario activo
+		d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE node_domain = $1 AND account_type = 'individual' AND membership_status = 'active' LIMIT 1`, nodeDomain).Scan(&adminID)
+	}
+
+	// Verificar si ya existen propuestas
+	var count int
+	d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM assembly_proposals WHERE node_domain = $1`, nodeDomain).Scan(&count)
+	if count > 0 {
+		return nil
+	}
+
+	// Verificar si la tabla existe
+	var tableExists int
+	d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'assembly_proposals'`).Scan(&tableExists)
+	if tableExists == 0 {
+		log.Println("Demo: assembly_proposals table does not exist, skipping")
+		return nil
+	}
+
+	proposals := []struct {
+		title, description, proposalType, status string
+	}{
+		{"Aprobar nuevo miembro: Tomas Gil", "Tomas ha completado su periodo de prueba de 3 meses. Participa en cayapas, asiste a asambleas. Propuesta: aceptar como miembro Brote.", "admission", "approved"},
+		{"Comprar molino de maiz comunitario", "El molino actual esta dañado. Propuesta: usar 500 TQ del Fondo Comunitario para comprar un molino manual de hierro. Beneficio: 40 familias.", "budget", "approved"},
+		{"Construir secador solar", "Propuesta: construir un secador solar comunitario para secar granos y frutas. Costo: 200 TQ en materiales + 3 jornadas de trabajo.", "budget", "voting"},
+		{"Cambiar tasa de impuesto organizacion", "Propuesta: reducir impuesto de org_produccion de 2% a 1.5% para estimular produccion local.", "policy", "voting"},
+		{"Admitir Cooperativa de Cafe del Valle", "Solicitud de federacion de la Cooperativa de Cafe del Valle. Tienen 15 miembros, 200 hectareas. Propuesta: aceptar como nodo federado.", "federation", "pending"},
+		{"Aprobar producto compuesto: Kit de Huerto Familiar", "Propuesta: aprobar el Kit de Huerto Familiar como producto compuesto del catalogo. Incluye azadon, tijeras, semillas, abono y manual.", "product_approval", "approved"},
+		{"Renovar Consejo de Vision", "El Consejo de Vision actual cumple 2 años. Propuesta: elegir nuevos 3 miembros Raiz para el Consejo.", "election", "pending"},
+		{"Construir letrina seca comunitaria", "Propuesta: construir letrina seca abonera comunitaria. Costo: 150 TQ. Beneficio: saneamiento + compost para huertos.", "budget", "approved"},
+	}
+
+	for _, p := range proposals {
+		_, err := d.Pool.Exec(ctx, `
+			INSERT INTO assembly_proposals (node_domain, title, description, proposal_type, status, proposed_by, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+			ON CONFLICT DO NOTHING`,
+			nodeDomain, p.title, p.description, p.proposalType, p.status, adminID)
+		if err != nil {
+			log.Printf("Demo: error seeding proposal %s: %v", p.title, err)
+		}
+	}
+	log.Println("Demo: assembly proposals seeded")
+	return nil
+}
+
+func demoSeedFederationPeers(ctx context.Context, d *DB, nodeDomain string) error {
+	// Verificar si la tabla existe
+	var tableExists int
+	d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'federation_peers'`).Scan(&tableExists)
+	if tableExists == 0 {
+		log.Println("Demo: federation_peers table does not exist, skipping")
+		return nil
+	}
+
+	// Verificar si ya existen peers
+	var count int
+	d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM federation_peers WHERE node_domain = $1`, nodeDomain).Scan(&count)
+	if count > 0 {
+		return nil
+	}
+
+	peers := []struct {
+		domain, name, status string
+		balance              int
+	}{
+		{"ecoaldea-cerro-verde", "Ecoaldea Cerro Verde", "active", 1500},
+		{"comunidad-rio-claro", "Comunidad Rio Claro", "active", -800},
+		{"aldea-semilla-viva", "Aldea Semilla Viva", "active", 320},
+		{"cooperativa-pueblo-nuevo", "Cooperativa Pueblo Nuevo", "pending", 0},
+	}
+
+	for _, p := range peers {
+		_, err := d.Pool.Exec(ctx, `
+			INSERT INTO federation_peers (node_domain, peer_domain, peer_name, status, balance, created_at)
+			VALUES ($1, $2, $3, $4, $5, NOW())
+			ON CONFLICT DO NOTHING`,
+			nodeDomain, p.domain, p.name, p.status, p.balance)
+		if err != nil {
+			log.Printf("Demo: error seeding peer %s: %v", p.domain, err)
+		}
+	}
+	log.Println("Demo: federation peers seeded")
+	return nil
 }
