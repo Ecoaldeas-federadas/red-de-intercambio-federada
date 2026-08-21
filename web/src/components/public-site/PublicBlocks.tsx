@@ -637,9 +637,11 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
   const [selectedParent, setSelectedParent] = useState<string>('all')
   const [selectedCat, setSelectedCat] = useState<string>('all')
   const [backendProducts, setBackendProducts] = useState<any[]>([])
+  const [totalCount, setTotalCount] = useState<number>(0)
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const sentinelRef = useRef<HTMLDivElement>(null)
+  const offsetRef = useRef<number>(0)
 
   // If source is "backend", load real products from the API
   const useBackend = (data as any).source === 'backend'
@@ -649,22 +651,26 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
   const loadProducts = useCallback((reset = false) => {
     if (!useBackend) return
     setLoading(true)
-    const offset = reset ? 0 : backendProducts.length
+    const offset = reset ? 0 : offsetRef.current
     let url = `/api/public/products?limit=${PAGE_SIZE}&offset=${offset}`
     fetch(url)
       .then((res) => res.json())
       .then((d) => {
         const newItems = Array.isArray(d) ? d : d?.products ?? []
+        const total = d?.total ?? newItems.length
+        setTotalCount(total)
         if (reset) {
           setBackendProducts(newItems)
+          offsetRef.current = newItems.length
         } else {
           setBackendProducts(prev => [...prev, ...newItems])
+          offsetRef.current = offsetRef.current + newItems.length
         }
-        setHasMore(d?.has_more ?? (newItems.length >= PAGE_SIZE))
+        setHasMore(d?.has_more ?? (offsetRef.current < total))
       })
       .catch(() => { if (reset) setBackendProducts([]) })
       .finally(() => setLoading(false))
-  }, [useBackend, backendProducts.length])
+  }, [useBackend])
 
   useEffect(() => {
     if (!useBackend) return
@@ -741,7 +747,7 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
                 : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
             }`}
           >
-            Todos ({items.length})
+            Todos ({useBackend ? totalCount : items.length})
           </button>
           {parentCategories.map((pc, i) => {
             const count = items.filter((it: any) => it.parent_category === pc).length
