@@ -1,30 +1,30 @@
-fix: Polling del demo mas silencioso y con mejor feedback
+fix: Demo no muestra setup - DemoReset no siembra, DemoAutoSetup no borra
 
 ## Problema
-Al arrancar el nodo demo, el frontend hacia polling cada 3s con
-fetch a http://localhost:9091/api/setup/status. Mientras el
-contenedor arrancaba, el navegador logueaba ERR_EMPTY_RESPONSE
-en consola repetidamente.
+El demo mostraba la pagina de setup inicial en vez del login con cuentas.
 
-## Cambios
-- Primer intento despues de 3s (no inmediato) para dar tiempo
-  al contenedor a arrancar
-- Intervalo de 2s entre intentos (antes 3s)
-- Max 30 intentos (60s total) antes de asumir que ya esta listo
-- cache: 'no-store' para evitar respuestas cacheadas
-- El UI ya muestra "Iniciando nodo demo..." con spinner
+## Causa
+El flujo era:
+1. DemoReset → borra todo → llama DemoSeedData (siembra todo)
+2. DemoAutoSetup → borra todo otra vez → crea solo admin
+3. DemoSeedData → corre de nuevo (algunos datos se pierden)
 
-## Nota
-Los errores ERR_EMPTY_RESPONSE los loguea el navegador, no
-JavaScript. No se pueden suprimir completamente desde codigo.
-Pero con el retraso inicial de 3s, la mayoria ya no aparecen
-porque el contenedor habra arrancado.
+DemoAutoSetup tenia su propia limpieza (lineas 22-78) que borraba
+todo lo que DemoReset acababa de sembrar.
 
-## Sobre el error 401 de /api/config
-Ese error aparece en el nodo principal (localhost:8080) porque
-el binario viejo aun requiere auth para GET /api/config.
-El fix (commit anterior) hace que GET /api/config sea publico.
-Se aplica al reconstruir con update.ps1.
+## Solucion
+1. DemoReset: ahora SOLO borra, no llama DemoSeedData al final
+2. DemoAutoSetup: removida la limpieza (ya la hace DemoReset)
+3. Flujo correcto:
+   - DemoReset: borra todo del dominio demo
+   - DemoAutoSetup: crea admin + node_config (initialized=true)
+   - DemoSeedData: siembra usuarios, productos, transacciones, etc
+
+## Resultado
+- El demo arranca con node_config.initialized=true
+- setup/status devuelve initialized=true
+- El frontend muestra login con cuentas, no setup
+- Todas las cuentas demo aparecen para seleccionar
 
 Generated with [Devin](https://devin.ai)
 

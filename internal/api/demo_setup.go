@@ -19,63 +19,8 @@ import (
 func DemoAutoSetup(ctx context.Context, db *pgxpool.Pool, jwtSecret, nodeDomain, nodeName string) error {
 	log.Println("Demo: running auto-setup for domain:", nodeDomain)
 
-	// 0. Limpiar datos viejos del dominio demo (por si acaso)
-	// Esto asegura que un reset siempre empiece limpio
-	ndTables := []string{
-		"assembly_decisions",
-		"assembly_sessions",
-		"assembly_quorum_config",
-		"assembly_frequency_config",
-		"assembly_config",
-		"board_members",
-		"tax_config",
-		"tax_distributions",
-		"external_bridge_operations",
-		"admission_requests",
-		"store_items",
-		"governance_rules",
-		"department_members",
-		"departments",
-		"organization_levels",
-		"member_levels",
-		"product_compositions",
-		"products",
-		"notifications",
-		"user_credentials",
-		"users",
-		"public_pages",
-		"public_settings",
-		"node_config",
-		"roles",
-		"role_permissions",
-	}
-	for _, t := range ndTables {
-		db.Exec(ctx, fmt.Sprintf("DELETE FROM %s WHERE node_domain = $1", t), nodeDomain)
-	}
-	// Tablas sin node_domain - borrar todo (es demo)
-	allTables := []string{
-		"assembly_votes",
-		"transactions",
-		"ledger_entries",
-		"audit_log",
-		"node_balance",
-		"node_federation_keys",
-		"bilateral_limits",
-		"department_roles",
-		"role_permissions",
-	}
-	for _, t := range allTables {
-		db.Exec(ctx, fmt.Sprintf("DELETE FROM %s", t))
-	}
-	// Tambien borrar paginas viejas con node_domain = "localhost" que pudo haber
-	// sembrado el codigo viejo en la BD fmc_demo
-	db.Exec(ctx, `DELETE FROM public_pages WHERE node_domain = 'localhost'`)
-	db.Exec(ctx, `DELETE FROM public_settings WHERE node_domain = 'localhost'`)
-	db.Exec(ctx, `DELETE FROM member_levels WHERE node_domain = 'localhost'`)
-	db.Exec(ctx, `DELETE FROM products WHERE node_domain = 'localhost'`)
-	db.Exec(ctx, `DELETE FROM users WHERE node_domain = 'localhost'`)
-	db.Exec(ctx, `DELETE FROM node_config WHERE node_domain = 'localhost'`)
-	log.Println("Demo: cleaned old data")
+	// Nota: La limpieza de datos viejos la hace DemoReset() antes de llamar a esta funcion.
+	// Aqui solo creamos la configuracion base del nodo.
 
 	// 1. Copiar niveles de miembro desde default/localhost
 	var levelCount int

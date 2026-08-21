@@ -2277,8 +2277,8 @@ func DemoReset(ctx context.Context, d *DB, nodeDomain string) error {
 	_, _ = d.Pool.Exec(ctx, "DELETE FROM role_permissions")
 
 	// Re-seedear
-	log.Println("DemoReset: re-seedeando datos")
-	return DemoSeedData(ctx, d, nodeDomain)
+	log.Println("DemoReset: datos borrados, listo para re-seedear")
+	return nil
 }
 
 func demoSeedStoreItems(ctx context.Context, d *DB, nodeDomain string) error {
