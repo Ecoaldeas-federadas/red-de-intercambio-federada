@@ -87,8 +87,9 @@ export function PublicFederationPage() {
             }
           })
       }
-      // Primer intento despues de 3s (dar tiempo al contenedor a arrancar)
-      setTimeout(checkReady, 3000)
+      // Primer intento despues de 8s (dar tiempo al contenedor a arrancar)
+      // El contenedor tarda varios segundos en iniciar YugabyteDB + migraciones + seed
+      setTimeout(checkReady, 8000)
     } catch (e: any) {
       setDemoState('stopped')
       setDemoStarting(false)

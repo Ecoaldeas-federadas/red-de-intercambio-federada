@@ -1,59 +1,8 @@
-feat: Organizaciones y departamentos se acceden con sesion personal
+fix: Aumentar retraso inicial del polling del demo a 8s
 
-## Cambio principal
-Las organizaciones y departamentos ya NO aparecen como botones de login
-en el demo. El usuario inicia sesion con su cuenta personal y luego
-accede a las organizaciones/departamentos donde es miembro desde el
-Dashboard.
-
-## Cambios especificos
-
-### Backend
-- Nuevo archivo: internal/api/my_membership.go
-- GET /api/my/organizations: orgs donde el usuario tiene rol (junta
-  directiva o membresia), con su posicion y permisos (can_manage,
-  can_transfer, can_config)
-- GET /api/my/departments: deptos donde el usuario es miembro, con su
-  rol y permisos
-- GET /api/my/assembly: info de asamblea + permisos del usuario
-  (can_vote, can_propose, can_start_session, can_config)
-- listDemoUsers: solo devuelve account_type='individual' (no orgs/depts)
-
-### Seed (demo_seed.go)
-- demoSeedOrganizations: ahora asigna junta directiva a cada org
-  (presidente, coordinador, tesorero, vocal, etc)
-- 8 organizaciones con juntas: asamblea, tienda_comunitaria,
-  panaderia_monte, herreria, taller_textil, centro_salud, escuela,
-  coop_agricola
-- Cada org tiene 2-4 miembros de junta con posiciones reales
-
-### Frontend
-- Login.tsx: removida seccion "Organizaciones" de botones de login
-- Dashboard.tsx: nuevas secciones "Mis Organizaciones" y "Mis
-  Departamentos" que muestran las orgs/deptos donde el usuario tiene
-  rol, con botones que llevan a las paginas de detalle
-- OrganizationDetail.tsx: carga el rol del usuario desde /my/organizations
-  y muestra "Tu rol aqui: [rol]" con badges de permisos
-- DepartmentDetail.tsx: carga el rol del usuario desde /my/departments
-  y muestra "Tu rol aqui: [rol]" con badges de permisos
-
-## Como funciona ahora
-1. Usuario inicia sesion con su cuenta personal (ej: elena)
-2. Dashboard muestra "Mis Organizaciones" (ej: Asamblea General -
-   coordinadora, Cooperativa Agricola - vocal)
-3. Dashboard muestra "Mis Departamentos" (ej: Comision de Ambiente -
-   Miembro)
-4. Usuario hace clic en una organizacion/departamento
-5. Entra con SU sesion - la org sabe quien es y que puede hacer
-6. Ve info, miembros, billetera, asamblea segun sus permisos
-7. Las acciones de gestion/transferencia solo aparecen si tiene permiso
-
-## La Asamblea
-- No tiene login directo
-- Se accede desde el Dashboard o menu
-- El usuario entra con su sesion personal
-- Segun su nivel: puede votar, proponer, o solo ver
-- Los super admin pueden iniciar sesiones y configurar
+El contenedor demo tarda varios segundos en arrancar (YugabyteDB +
+migraciones + seed). Con 3s el primer fetch fallaba con
+ERR_EMPTY_RESPONSE. Con 8s el contenedor ya deberia estar respondiendo.
 
 Generated with [Devin](https://devin.ai)
 
