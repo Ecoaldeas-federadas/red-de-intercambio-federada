@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { usePermissions } from '../hooks/usePermissions'
-import { ArrowLeft, Users, Wallet as WalletIcon, Vote as VoteIcon, Settings, Crown, Plus, Trash2, ArrowUpCircle, ArrowDownCircle, FileText } from 'lucide-react'
+import { ArrowLeft, Users, Wallet as WalletIcon, Vote as VoteIcon, Settings, Crown, Plus, Trash2, ArrowUpCircle, ArrowDownCircle, FileText, Building2 } from 'lucide-react'
 import ScopedAssembly from '../components/ScopedAssembly'
 
 export default function OrganizationDetail() {
@@ -11,7 +11,7 @@ export default function OrganizationDetail() {
   const navigate = useNavigate()
   const { currency } = useConfig()
   const { hasPermission } = usePermissions()
-  const [tab, setTab] = useState<'info' | 'board' | 'members' | 'wallet' | 'assembly'>('info')
+  const [tab, setTab] = useState<'info' | 'board' | 'members' | 'departments' | 'wallet' | 'assembly'>('info')
   const [org, setOrg] = useState<any>(null)
   const [boardMembers, setBoardMembers] = useState<any[]>([])
   const [allUsers, setAllUsers] = useState<any[]>([])
@@ -24,6 +24,9 @@ export default function OrganizationDetail() {
   const [multisig, setMultisig] = useState<any>(null)
   const [multisigForm, setMultisigForm] = useState({ required_signatures: 1, authorized_signers: [] as string[] })
   const [myRole, setMyRole] = useState<any>(null)
+  const [deptList, setDeptList] = useState<any[]>([])
+  const [showDeptForm, setShowDeptForm] = useState(false)
+  const [deptForm, setDeptForm] = useState({ name: '', description: '' })
 
   const canManage = hasPermission('org.manage') || myRole?.can_manage
   const canTransfer = hasPermission('org.manage') || myRole?.can_transfer
@@ -75,6 +78,12 @@ export default function OrganizationDetail() {
         })
       }
     }).catch(() => {})
+
+    // Cargar departamentos de esta organizacion
+    api.get('/departments').then((d: any) => {
+      const all = Array.isArray(d) ? d : []
+      setDeptList(all.filter((dp: any) => dp.parent_organization_id === id))
+    }).catch(() => setDeptList([]))
   }
 
   useEffect(() => {
@@ -129,6 +138,29 @@ export default function OrganizationDetail() {
     }
   }
 
+  const createDept = async () => {
+    setError('')
+    if (!deptForm.name.trim()) {
+      setError('El nombre del departamento es obligatorio')
+      return
+    }
+    try {
+      await api.post('/departments', {
+        name: deptForm.name,
+        description: deptForm.description,
+        group_type: 'department',
+        parent_organization_id: id,
+      })
+      setSuccess('Departamento creado')
+      setDeptForm({ name: '', description: '' })
+      setShowDeptForm(false)
+      load()
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error')
+    }
+  }
+
   const fmtAmount = (n: number) => Math.round(n * 100) / 100
 
   if (!org) {
@@ -154,6 +186,7 @@ export default function OrganizationDetail() {
     { key: 'info', label: 'Informacion', icon: <Settings size={16} /> },
     { key: 'board', label: 'Junta Directiva', icon: <Crown size={16} /> },
     { key: 'members', label: 'Miembros', icon: <Users size={16} /> },
+    { key: 'departments', label: 'Departamentos', icon: <Building2 size={16} /> },
     { key: 'wallet', label: 'Billetera', icon: <WalletIcon size={16} /> },
     { key: 'assembly', label: 'Asamblea', icon: <VoteIcon size={16} /> },
   ]
@@ -349,6 +382,81 @@ export default function OrganizationDetail() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Tab: Departamentos */}
+      {tab === 'departments' && (
+        <div className="space-y-4">
+          <div className="card space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-semibold flex items-center gap-2"><Building2 size={18} /> Departamentos de {org.display_name || org.username}</h2>
+                <p className="text-xs text-gray-500 mt-1">Los departamentos son subgrupos internos de esta organizacion. Cada departamento tiene sus propios miembros, roles y billetera.</p>
+              </div>
+              {canManage && (
+                <button onClick={() => setShowDeptForm(!showDeptForm)} className="btn-primary text-sm flex items-center gap-1">
+                  <Plus size={16} /> Nuevo Departamento
+                </button>
+              )}
+            </div>
+
+            {showDeptForm && (
+              <div className="border-t pt-3 space-y-2">
+                <div>
+                  <label className="label">Nombre del departamento</label>
+                  <input
+                    className="input"
+                    placeholder="Ej: Comision de Economia, Consejo de Vision..."
+                    value={deptForm.name}
+                    onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="label">Descripcion</label>
+                  <textarea
+                    className="input"
+                    rows={2}
+                    placeholder="Que hace este departamento?"
+                    value={deptForm.description}
+                    onChange={(e) => setDeptForm({ ...deptForm, description: e.target.value })}
+                  />
+                </div>
+                <button onClick={createDept} className="btn-primary text-sm">Crear Departamento</button>
+              </div>
+            )}
+
+            {deptList.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Building2 size={32} className="mx-auto mb-2 text-gray-300" />
+                <p>Esta organizacion no tiene departamentos.</p>
+                {canManage && <p className="text-xs mt-1">Crea uno con el boton "Nuevo Departamento".</p>}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {deptList.map((dp, i) => (
+                  <div key={i} className="border border-gray-200 rounded-lg p-3 hover:border-trueque-300 transition-colors">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Building2 size={16} className="text-trueque-600" />
+                      <h3 className="font-medium text-sm">{dp.name}</h3>
+                    </div>
+                    <p className="text-xs text-gray-500 mb-2">{dp.description || 'Sin descripcion'}</p>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-xs px-2 py-0.5 rounded ${dp.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                        {dp.is_active ? 'Activo' : 'Inactivo'}
+                      </span>
+                      <button
+                        onClick={() => navigate(`/app/departments/${dp.id}`)}
+                        className="text-xs text-trueque-600 hover:underline flex items-center gap-1 font-medium"
+                      >
+                        Abrir <ArrowUpCircle size={12} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

@@ -25,7 +25,6 @@ const navItems = [
   { to: '/app/federation/parity', label: 'Paridad', icon: Scale },
   { to: '/app/federation/conflicts', label: 'Conflictos Fusion', icon: AlertTriangle },
   { to: '/app/organizations', label: 'Organizaciones', icon: Users },
-  { to: '/app/departments', label: 'Departamentos', icon: Building2 },
   { to: '/app/governance', label: 'Gobernanza', icon: Scale },
   { to: '/app/assembly', label: 'Asamblea', icon: Gavel },
   { to: '/app/audit', label: 'Auditoria', icon: FileSearch },

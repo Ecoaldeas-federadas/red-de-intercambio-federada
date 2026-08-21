@@ -1621,16 +1621,24 @@ func demoSeedDepartments(ctx context.Context, d *DB, nodeDomain string) {
 		var existing int
 		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM departments WHERE name = $1 AND node_domain = $2`, dept.name, nodeDomain).Scan(&existing)
 
+		// Obtener el ID de la organizacion asamblea para vincular el dept
+		var asambleaOrgID uuid.UUID
+		d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE username = 'asamblea' AND node_domain = $1 AND account_type = 'organization'`, nodeDomain).Scan(&asambleaOrgID)
+
 		var deptID uuid.UUID
 		if existing > 0 {
 			d.Pool.QueryRow(ctx, `SELECT id FROM departments WHERE name = $1 AND node_domain = $2`, dept.name, nodeDomain).Scan(&deptID)
+			// Vincular al asamblea si no lo esta
+			if asambleaOrgID != uuid.Nil {
+				d.Pool.Exec(ctx, `UPDATE departments SET parent_organization_id = $1 WHERE id = $2 AND parent_organization_id IS NULL`, asambleaOrgID, deptID)
+			}
 		} else {
 			deptID = uuid.New()
 			d.Pool.Exec(ctx, `
-				INSERT INTO departments (id, node_domain, name, description, group_type, is_active, created_at)
-				VALUES ($1, $2, $3, $4, 'department', true, NOW())
+				INSERT INTO departments (id, node_domain, name, description, group_type, is_active, created_at, parent_organization_id)
+				VALUES ($1, $2, $3, $4, 'department', true, NOW(), $5)
 				ON CONFLICT DO NOTHING`,
-				deptID, nodeDomain, dept.name, dept.desc)
+				deptID, nodeDomain, dept.name, dept.desc, asambleaOrgID)
 		}
 
 		// Crear rol de Miembro si no existe

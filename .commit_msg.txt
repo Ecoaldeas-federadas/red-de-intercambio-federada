@@ -1,34 +1,31 @@
-feat: Pestañas Mis/Todas Organizaciones + fotos reales en demo
+feat: Departamentos dentro de Organizaciones (no pestaña separada)
 
-## Problemas
-1. El superadmin solo veia una organizacion (la Asamblea) porque
-   "Mis Organizaciones" solo muestra donde tienes rol
-2. El demo no tenia fotos reales en las paginas publicas ni en los
-   productos - todo era placeholder
+## Problema
+Los departamentos estaban en una pestaña separada del sidebar, mezclando
+departamentos de todas las organizaciones. Era confuso y poco practico.
 
 ## Solucion
 
-### 1. Pestañas Mis/Todas Organizaciones
-- Organizations.tsx ahora tiene dos pestañas:
-  - "Mis Organizaciones": solo las del usuario (con rol, permisos,
-    boton Abrir)
-  - "Todas las Organizaciones": todas las del nodo (solo visualizar,
-    boton "Ver" si no es tuya, "Abrir" si lo es)
-- Cualquier usuario puede ver todas las organizaciones pero solo
-  actuar en las suyas
+### 1. Pestaña "Departamentos" dentro de cada Organizacion
+- OrganizationDetail.tsx ahora tiene una pestaña "Departamentos" que
+  muestra solo los departamentos de esa organizacion
+- Se pueden crear departamentos desde ahi, ya vinculados a la org
+- Cada departamento tiene boton "Abrir" que va a su detalle
 
-### 2. Fotos reales en demo_seed.go
-- 16 imagenes de paginas publicas reemplazadas con URLs de Unsplash
-  apropiadas para cada seccion (bosque, huertos, panaderia, energia
-  solar, bioconstruccion, asamblea, educacion, etc.)
-- 24 productos del demo reemplazados con URLs de Unsplash por categoria
-  (agricultura, alimentacion, artesania, salud, herramientas, etc.)
-- Cero placeholders quedan en demo_seed.go
+### 2. Eliminada la pestaña "Departamentos" del sidebar
+- Layout.tsx ya no muestra "Departamentos" en el menu lateral
+- La ruta /app/departments/:id se mantiene para los detalles
+- La ruta /app/departments (lista) ya no es accesible desde el menu
 
-### Como funciona el fallback
-- Las fotos reales de Unsplash se cargan normalmente
-- Si una URL devuelve 404, el onError del <img> muestra un placeholder
-- El placeholder SOLO aparece cuando una foto no carga
+### 3. Demo seed: departamentos vinculados a la Asamblea
+- demoSeedDepartments ahora asigna parent_organization_id = asamblea
+  a todos los departamentos del demo
+- Los departamentos existentes tambien se vinculan si no lo estan
+
+### Resultado
+- Cada organizacion muestra sus propios departamentos
+- No hay departamentos "regados" de multiples organizaciones
+- Crear un departamento desde una org lo vincula automaticamente
 
 Generated with [Devin](https://devin.ai)
 
