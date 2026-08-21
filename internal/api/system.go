@@ -618,7 +618,7 @@ func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 	}
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit, is_approved, origin, badge, image_url, product_code, is_system, is_hidden
-		FROM products WHERE node_domain IN ($1, 'localhost', 'default') ORDER BY parent_category, category, subcategory, name LIMIT 500`, nodeDomain)
+		FROM products WHERE node_domain IN ($1, 'localhost', 'default') AND COALESCE(is_composite, false) = false ORDER BY parent_category, category, subcategory, name LIMIT 500`, nodeDomain)
 	if err != nil {
 		writeJSON(w, 200, []interface{}{})
 		return
@@ -2975,7 +2975,7 @@ func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Reques
 
 	query := `SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit, product_code, is_approved, origin, badge, image_url, is_group, group_id
 		FROM products
-		WHERE node_domain = $1 AND is_approved = true AND is_hidden = false`
+		WHERE node_domain = $1 AND is_approved = true AND is_hidden = false AND COALESCE(is_composite, false) = false`
 	domain := h.nodeDomain
 	if domain == "" {
 		domain = "localhost"

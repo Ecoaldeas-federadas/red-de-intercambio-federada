@@ -1,23 +1,21 @@
-feat: rediseño tienda - marketplace con cards y vendedor visible
+fix: excluir productos compuestos del catalogo (admin y publico)
+
+Los productos compuestos (is_composite=true) NO deben aparecer en
+la lista de productos del catalogo. Solo aparecen en la tienda
+como store_items.
 
 Cambios:
-- "Buscar Productos" renombrado a "Todas las Tiendas"
-- Vista rediseñada como marketplace estilo Mercado Libre:
-  - Grid de cards con imagen, nombre, vendedor, precio, stock
-  - Cada card muestra quien vende el producto (owner_name)
-  - Botón Comprar directamente en cada card
-  - Fallback de imagen con icono Package si no hay imagen
-- Filtros mejorados:
-  - Buscar por nombre de producto o vendedor
-  - Filtrar por categoria (parent_category)
-  - Contador de productos y tiendas
-  - Botón "Limpiar filtros"
-- Categorias ahora vienen de allStores (no del catalogo)
-- Orden alfabético por nombre de producto
-- Backend: ListItems ahora hace JOIN con products para obtener
-  image_url del producto
-- Backend: Filtro por categoria ahora busca en parent_category
-  Y category
+- listPublicProducts: agregar AND COALESCE(is_composite, false) = false
+- listProducts (admin): agregar AND COALESCE(is_composite, false) = false
+
+Ahora el catalogo muestra:
+- Admin: productos aprobados + no aprobados (sin compuestos)
+- Publico: solo productos aprobados (sin compuestos)
+- Diferencia = productos no aprobados (para flujo de aprobacion)
+
+Los productos compuestos se gestionan desde la tienda, no del
+catalogo. No necesitan aprobacion de asamblea porque se componen
+de productos ya aprobados.
 
 Generated with [Devin](https://devin.ai)
 
