@@ -13,7 +13,7 @@ import { useState, useEffect } from 'react'
 const navItems = [
   { to: '/app/dashboard', label: 'Inicio', icon: Home },
   { to: '/app/transfer', label: 'Transferir', icon: ArrowLeftRight },
-  { to: '/app/history', label: 'Historial', icon: History },
+  { to: '/app/wallet', label: 'Billetera', icon: Wallet },
   { to: '/app/payments', label: 'Pagos', icon: Wallet },
   { to: '/app/nfc-terminals', label: 'Terminales NFC', icon: Nfc },
   { to: '/app/products', label: 'Productos', icon: Package },

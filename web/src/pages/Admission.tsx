@@ -24,7 +24,7 @@ export default function Admission() {
   const [newDoc, setNewDoc] = useState({ document_type: '', document_number: '', country_iso2: '' })
 
   const load = () =>
-    api.get('/accounts/pending').then((d: any) => setPending(Array.isArray(d) ? d : d?.users ?? [])).catch(() => {})
+    api.get('/admission/requests').then((d: any) => setPending(Array.isArray(d) ? d : d?.requests ?? d?.users ?? [])).catch(() => {})
   useEffect(() => {
     load()
     api.get('/countries').then((d: any) => setCountries(Array.isArray(d) ? d : [])).catch(() => {})
@@ -35,7 +35,7 @@ export default function Admission() {
     setError('')
     setSuccess('')
     try {
-      await api.post(`/accounts/${id}/approve`, {})
+      await api.post(`/admission/requests/${id}/approve`, {})
       setSuccess('Solicitud aprobada. El usuario ya puede iniciar sesion.')
       load()
     } catch (err) {
@@ -49,7 +49,7 @@ export default function Admission() {
     const reason = prompt('Razon del rechazo:')
     if (!reason) return
     try {
-      await api.post(`/accounts/${id}/reject`, { reason })
+      await api.post(`/admission/requests/${id}/reject`, { reason })
       setSuccess('Solicitud rechazada')
       load()
     } catch (err) {

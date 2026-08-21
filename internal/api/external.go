@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -71,7 +72,14 @@ func (eh *ExternalHandler) RegisterRoutesWithAuth(r chi.Router, am *AuthMiddlewa
 func (eh *ExternalHandler) getCurrentFC(w http.ResponseWriter, r *http.Request) {
 	cf, err := eh.DEX.GetCurrentFC(r.Context())
 	if err != nil {
-		writeError(w, 404, err.Error())
+		// Devolver FC por defecto en vez de 404
+		writeJSON(w, 200, map[string]interface{}{
+			"factor":            5.0,
+			"external_cpi":      300,
+			"local_energy_cost": 60,
+			"calculated_at":     time.Now().UTC(),
+			"is_default":        true,
+		})
 		return
 	}
 	writeJSON(w, 200, cf)

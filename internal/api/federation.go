@@ -62,6 +62,7 @@ func (fh *FederationHandler) RegisterRoutesWithAuth(r chi.Router, am *AuthMiddle
 
 	r.Get("/api/federation/nodes", fh.listKnownNodes)
 	r.Get("/api/federation/balance/{remoteNode}", fh.getNodeBalance)
+	r.Get("/api/federation/balances", fh.listAllBalances)
 
 	r.Get("/api/federation/volume", fh.getVolumeReport)
 
@@ -407,6 +408,29 @@ func (fh *FederationHandler) getNodeBalance(w http.ResponseWriter, r *http.Reque
 		"last_sync":   lastSync,
 		"last_hash":   lastHash,
 	})
+}
+
+func (fh *FederationHandler) listAllBalances(w http.ResponseWriter, r *http.Request) {
+	rows, err := fh.Pool.Query(r.Context(),
+		`SELECT remote_node, balance, last_sync FROM node_balance ORDER BY remote_node`)
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+
+	type balanceEntry struct {
+		RemoteNode string     `json:"remote_node"`
+		Balance    int64      `json:"balance"`
+		LastSync   *time.Time `json:"last_sync"`
+	}
+	balances := []balanceEntry{}
+	for rows.Next() {
+		var b balanceEntry
+		rows.Scan(&b.RemoteNode, &b.Balance, &b.LastSync)
+		balances = append(balances, b)
+	}
+	writeJSON(w, 200, balances)
 }
 
 func (fh *FederationHandler) getVolumeReport(w http.ResponseWriter, r *http.Request) {

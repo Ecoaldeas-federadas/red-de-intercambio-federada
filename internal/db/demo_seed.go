@@ -2122,11 +2122,15 @@ func demoSeedStoreItems(ctx context.Context, d *DB, nodeDomain string) error {
 		if existing > 0 {
 			continue
 		}
+		// Obtener precio, unidad y categoria del producto
+		var price float64
+		var unit, category, parentCat string
+		d.Pool.QueryRow(ctx, `SELECT price_per_unit, unit, category, parent_category FROM products WHERE id = $1`, prodID).Scan(&price, &unit, &category, &parentCat)
 		_, err := d.Pool.Exec(ctx, `
-			INSERT INTO store_items (node_domain, owner_id, product_id, product_name, stock, is_active)
-			VALUES ($1, $2, $3, $4, $5, true)
+			INSERT INTO store_items (node_domain, owner_id, product_id, product_name, stock, is_active, price_trueque, unit, category, parent_category)
+			VALUES ($1, $2, $3, $4, $5, true, $6, $7, $8, $9)
 			ON CONFLICT DO NOTHING`,
-			nodeDomain, ownerID, prodID, si.productName, si.stock)
+			nodeDomain, ownerID, prodID, si.productName, si.stock, price, unit, category, parentCat)
 		if err != nil {
 			log.Printf("Demo: error seeding store item %s for %s: %v", si.productName, si.ownerUsername, err)
 		}

@@ -86,6 +86,7 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequirePermission("products.manage")).Post("/api/products", h.createProduct)
 	r.With(am.RequirePermission("products.manage")).Put("/api/products/{id}", h.updateProduct)
 	r.With(am.RequirePermission("products.manage")).Post("/api/products/{id}/approve", h.approveProduct)
+	r.With(am.RequirePermission("products.manage")).Post("/api/products/{id}/reject", h.rejectProduct)
 
 	// Productores
 	r.With(am.RequireAuth).Get("/api/products/{id}/producers", h.listProducers)
@@ -899,6 +900,26 @@ func (h *SystemHandler) approveProduct(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *SystemHandler) rejectProduct(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+
+	userID, _ := h.Auth.GetUserID(r)
+	_, err = h.Pool.Exec(r.Context(), `UPDATE products SET is_approved = false, is_hidden = true, approved_by = $1 WHERE id = $2`,
+		userID, id)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"message": "Producto rechazado y ocultado del catalogo.",
+	})
+}
+
 // broadcastProductToFederation envia el producto aprobado a todos los nodos federados conocidos
 // para que cada nodo lo apruebe individualmente via su propia asamblea
 func (h *SystemHandler) broadcastProductToFederation(ctx context.Context, productID uuid.UUID) {
@@ -1160,18 +1181,31 @@ func (h *SystemHandler) listLedgerTransactions(w http.ResponseWriter, r *http.Re
 		}
 	}
 
+	// Soportar filtro por cuenta especifica
+	accountID := r.URL.Query().Get("account_id")
+
 	query := `SELECT t.id, t.tx_type, t.sender_id, t.receiver_id, t.amount, t.tax_amount,
 			  t.status, t.created_at, t.confirmed_at,
 			  COALESCE(sender.username, '') as sender_name,
-			  COALESCE(receiver.username, '') as receiver_name
+			  COALESCE(sender.display_name, '') as sender_display,
+			  COALESCE(receiver.username, '') as receiver_name,
+			  COALESCE(receiver.display_name, '') as receiver_display,
+			  t.metadata
 			  FROM transactions t
 			  LEFT JOIN users sender ON t.sender_id = sender.id
 			  LEFT JOIN users receiver ON t.receiver_id = receiver.id
 			  WHERE (sender.node_domain = $1 OR receiver.node_domain = $1)`
 	args := []interface{}{nodeDomain}
+	argIdx := 2
 	if userID != "" {
-		query += ` AND (t.sender_id = $2 OR t.receiver_id = $2)`
+		query += fmt.Sprintf(` AND (t.sender_id = $%d OR t.receiver_id = $%d)`, argIdx, argIdx)
 		args = append(args, userID)
+		argIdx++
+	}
+	if accountID != "" {
+		query += fmt.Sprintf(` AND (t.sender_id = $%d OR t.receiver_id = $%d)`, argIdx, argIdx)
+		args = append(args, accountID)
+		argIdx++
 	}
 	query += ` ORDER BY t.created_at DESC LIMIT ` + strconv.Itoa(limit)
 
@@ -1184,23 +1218,52 @@ func (h *SystemHandler) listLedgerTransactions(w http.ResponseWriter, r *http.Re
 
 	txs := []map[string]interface{}{}
 	for rows.Next() {
-		var id, txType, senderID, receiverID, status, senderName, receiverName string
+		var id, txType, senderID, receiverID, status, senderName, senderDisplay, receiverName, receiverDisplay string
 		var amount, taxAmount float64
 		var confirmedAt *time.Time
 		var createdAt time.Time
-		_ = rows.Scan(&id, &txType, &senderID, &receiverID, &amount, &taxAmount, &status, &createdAt, &confirmedAt, &senderName, &receiverName)
+		var metadata []byte
+		_ = rows.Scan(&id, &txType, &senderID, &receiverID, &amount, &taxAmount, &status, &createdAt, &confirmedAt, &senderName, &senderDisplay, &receiverName, &receiverDisplay, &metadata)
+
+		// Determinar direccion desde la perspectiva del usuario
+		direction := "neutral"
+		if userID != "" {
+			if senderID == userID {
+				direction = "debit"
+			} else if receiverID == userID {
+				direction = "credit"
+			}
+		}
+
+		// Extraer descripcion del metadata
+		description := ""
+		if len(metadata) > 0 {
+			var meta map[string]interface{}
+			if json.Unmarshal(metadata, &meta) == nil {
+				if d, ok := meta["description"].(string); ok {
+					description = d
+				}
+			}
+		}
+
 		txs = append(txs, map[string]interface{}{
-			"id":            id,
-			"tx_type":       txType,
-			"sender_id":     senderID,
-			"receiver_id":   receiverID,
-			"sender_name":   senderName,
-			"receiver_name": receiverName,
-			"amount":        amount,
-			"tax_amount":    taxAmount,
-			"status":        status,
-			"created_at":    createdAt,
-			"confirmed_at":  confirmedAt,
+			"id":               id,
+			"tx_type":          txType,
+			"sender_id":        senderID,
+			"receiver_id":      receiverID,
+			"sender_name":      senderName,
+			"sender_display":   senderDisplay,
+			"receiver_name":    receiverName,
+			"receiver_display": receiverDisplay,
+			"from_user":        senderDisplay,
+			"to_user":          receiverDisplay,
+			"amount":           amount,
+			"tax_amount":       taxAmount,
+			"status":           status,
+			"direction":        direction,
+			"description":      description,
+			"created_at":       createdAt,
+			"confirmed_at":     confirmedAt,
 		})
 	}
 	writeJSON(w, 200, txs)

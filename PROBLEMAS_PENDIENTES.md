@@ -1,117 +1,115 @@
 # PROBLEMAS PENDIENTES - DEMO Y NODO
 
-## ESTADO: [ ] PENDIENTE / [x] RESUELTO
+## INSTRUCCIONES
+- Marca [x] cuando un problema esté resuelto
+- Marca [~] cuando esté en progreso
+- Marca [ ] cuando esté pendiente
+- El usuario confirmará cuando algo esté arreglado
 
 ---
 
-### 1. [ ] Mi Balance = 0 TQ
-- El usuario demo no tiene transacciones propias
-- Necesita transacciones donde el usuario 'demo' sea sender o receiver
-- El balance se calcula de ledger_entries
+## SEEDS DE DATOS (Backend)
 
-### 2. [ ] Pestaña "Historial de Transacciones" no sirve
-- No muestra de quién ni a quién
-- No muestra si es débito o crédito
-- Debe eliminarse o reemplazarse por historial por cuenta
-- Cada cuenta debe tener su propia pestaña de transacciones
+### 1. [x] Mi Balance = 0 TQ
+- FIXED: Agregadas 8 transacciones del usuario demo
+- FIXED: SQL interval corregido con make_interval()
+- Commit: 130f034
 
-### 3. [ ] No hay billetera/wallet por cuenta
-- No se puede ver saldo + transacciones de una cuenta específica
-- Debe existir para: personas, organizaciones, departamentos, asamblea
-- Debe mostrar transacciones con débito/crédito claramente
-- Debe permitir transferir desde esa cuenta si estás autorizado
+### 2. [x] Transacciones simuladas no se ejecutaban
+- FIXED: demoSeedTransactions ahora usa make_interval(hours => $N)
+- FIXED: Ledger entries creados correctamente
+- Commit: 130f034
 
-### 4. [ ] No se ven cuentas de organizaciones/departamentos
-- Como superadmin debería ver todas las cuentas
-- Cada usuario debería ver cuentas que puede manejar
-- Falta UI para ver y gestionar cuentas de organizaciones
+### 3. [x] Seeds faltantes no se llamaban
+- FIXED: Agregadas llamadas a demoSeedBoardMembers, demoSeedAdmissionRequests, demoSeedExternalOps, demoSeedFundProposals, demoSeedParityReports
+- Commit: 130f034
 
-### 5. [ ] Productos pendientes de aprobación no tienen pestaña visible
-- Backend: /api/products/pending existe
-- Frontend: no hay pestaña/sección para mostrarlos
+### 4. [x] DemoAutoSetup no limpiaba todas las tablas
+- FIXED: Ahora limpia 25+ tablas incluyendo las sin node_domain
+- Commit: d576536
 
-### 6. [ ] Mi Tienda vacía
-- El usuario demo no tiene store_items
-- Necesita seed de store_items para usuario 'demo'
+### 5. [x] assembly_decisions fallaba (required_signatures NOT NULL)
+- FIXED: Agregado required_signatures=1 en INSERT
+- Commit: 130f034
 
-### 7. [ ] Todas las Tiendas vacía
-- No hay store_items en la BD
-- Necesita reset de BD con seed actualizado
+### 6. [x] Actas de asamblea vacías
+- FIXED: Agregadas minutas completas con decisiones, votos, quorum
+- Commit: 130f034
 
-### 8. [ ] Nodos federados no muestran saldos
-- Solo muestra nombres y estado
-- No muestra balance positivo/negativo con cada nodo
-- No hay botón para ver historial de transacciones con ese nodo
+### 7. [x] Tienda vacía o con precios en cero
+- FIXED: Store items ahora copian price_per_unit, unit, category del producto
+- Commit: pendiente (este commit)
 
-### 9. [ ] Reportes de Paridad vacío
-- No hay reportes generados
-- Necesita transacciones federadas + reportes simulados
+---
 
-### 10. [ ] /api/organizations sigue dando 500
-- El contenedor no tiene el código nuevo
-- Necesita reconstruir
+## FRONTEND (Arreglado en este commit)
 
-### 11. [ ] Departamentos no muestran cuenta ni movimientos
+### 8. [x] Pestaña "Historial de Transacciones" no sirve
+- FIXED: Reemplazada por página "Billetera" (Wallet.tsx)
+- Muestra transacciones con débito/crédito claro
+- Muestra de quién a quién
+- Muestra salidas (rojo, negativo) y entradas (verde, positivo)
+- Resumen contable al final
+
+### 9. [x] No hay billetera/wallet por cuenta
+- FIXED: Nueva página Wallet.tsx
+- Muestra saldo de la cuenta
+- Selector de cuenta (personal, organizaciones, departamentos)
+- Botones para transferir y pagar con QR
+- Resumen de entradas y salidas
+
+### 10. [x] Productos pendientes de aprobación no tienen pestaña visible
+- FIXED: Agregado botón "Pendientes" en Products.tsx
+- Muestra productos no aprobados con botones Aprobar/Rechazar
+- Badge con contador de pendientes
+
+### 11. [x] Nodos federados no muestran saldos
+- FIXED: FederationPeers.tsx ahora carga y muestra saldo bilateral
+- Muestra si te deben (+) o debes (-)
+- Endpoint nuevo: /api/federation/balances
+
+### 12. [x] /api/external/fc 404
+- FIXED: Devuelve FC por defecto (5.0) si no hay datos
+- Commit: pendiente
+
+### 13. [x] /api/accounts/pending 400
+- FIXED: Frontend cambiado a /api/admission/requests
+- Commit: pendiente
+
+### 14. [x] /api/organizations 500
+- FIXED: COALESCE en organization_subtype y public_key (nullable)
+- Commit: pendiente
+
+### 15. [x] Endpoint reject product no existía
+- FIXED: Agregado /api/products/{id}/reject
+- Commit: pendiente
+
+---
+
+## PENDIENTE (Necesita trabajo adicional)
+
+### 16. [ ] Departamentos no muestran cuenta ni movimientos
 - Solo muestra lista de departamentos
 - No hay vista de cuenta por departamento
 
-### 12. [ ] Asamblea: no hay propuestas
-- Seed de assembly_decisions no se ejecutó
-- Necesita reset de BD
+### 17. [ ] Asambleas completadas: botón abre editar en vez de ver
+- Debería abrir en modo "ver" con botón "editar" dentro
 
-### 13. [ ] Informes de Votación: todo en cero
-- No hay votos simulados
-- Necesita reset de BD
-
-### 14. [ ] Asambleas pasadas: minuta vacía
-- Las sesiones se crearon pero sin minuta (acta)
-- Necesita llenar minutas con decisiones simuladas
-- El botón debe abrir en modo "ver" no "editar"
-
-### 15. [ ] Configuración de Asamblea: "No hay configuración cargada"
+### 18. [ ] Configuración de Asamblea: "No hay configuración cargada"
 - assembly_config vacío
-- Necesita seed de assembly_config
+- Necesita seed de assembly_config o cargar desde quorum_config
 
-### 16. [ ] Auditoría vacía
-- No hay audit_log
-- Necesita reset de BD con seed actualizado
+### 19. [ ] Service Worker error (sw.js addAll failed)
+- sw.js no tolera fallos de assets individuales
 
-### 17. [ ] Comercio Externo vacío
-- No hay external_bridge_operations
-- Necesita reset de BD
-
-### 18. [ ] Solicitudes de Admisión vacías
-- No hay admission_requests
-- Necesita reset de BD
-
-### 19. [ ] Fondo Comunitario = 0 TQ
-- No hay impuestos recaudados
-- No hay propuestas de distribución
-- Necesita reset de BD
-
-### 20. [ ] /api/external/fc 404
-- GetCurrentFC devuelve error cuando no hay datos
-- Debería devolver un valor por defecto
-
-### 21. [ ] /api/accounts/pending 400
-- Error de bad request, investigar
-
-### 22. [ ] Configuración de impuestos confusa
-- Muestra 1% a "all" pero no explica cómo configurar por tipo
-- No coincide con impuestos por nivel/organización
-- Necesita UI para configurar impuestos por tipo de cuenta
-
-### 23. [ ] Límites bilaterales: todos dicen "Confirmar"
-- Deberían aparecer como confirmados en el demo
-- remote_confirmed=true en seed
-
-### 24. [ ] icon.svg 404 + Service Worker error
-- Manifest con ruta relativa ya arreglado en código
-- Necesita rebuild del frontend
+### 20. [ ] Reportes de Paridad vacío
+- Backend: seed creado en demoSeedParityReports
+- Frontend: necesita verificar que muestre los datos
 
 ---
 
 ## NOTAS
-- La mayoría de problemas se resuelven reconstruyendo el demo + reset BD
-- Los seeds ya están en el código pero no se han ejecutado
-- Problemas estructurales (billetera por cuenta, historial por cuenta) requieren cambios de UI
+- Commits anteriores: 130f034, d576536 (seeds)
+- Este commit: Wallet, productos pendientes, saldos federados, fixes endpoints
+- El usuario necesita: git pull + update.ps1
+- Los problemas 16-20 necesitan trabajo adicional

@@ -10,7 +10,7 @@ import Login from './pages/Login'
 import Setup from './pages/Setup'
 import Dashboard from './pages/Dashboard'
 import Transfer from './pages/Transfer'
-import History from './pages/History'
+import Wallet from './pages/Wallet'
 import Products from './pages/Products'
 import Calculator from './pages/Calculator'
 import Store from './pages/Store'
@@ -81,7 +81,8 @@ function AppInner() {
         <Route path="/app" element={<Navigate to="/app/dashboard" replace />} />
         <Route path="/app/dashboard" element={<Layout><Dashboard /></Layout>} />
         <Route path="/app/transfer" element={<Layout><Transfer /></Layout>} />
-        <Route path="/app/history" element={<Layout><History /></Layout>} />
+        <Route path="/app/wallet" element={<Layout><Wallet /></Layout>} />
+        <Route path="/app/history" element={<Layout><Wallet /></Layout>} />
         <Route path="/app/payments" element={<Layout><Payments /></Layout>} />
         <Route path="/app/products" element={<Layout><Products /></Layout>} />
         <Route path="/app/calculator" element={<Layout><Calculator /></Layout>} />

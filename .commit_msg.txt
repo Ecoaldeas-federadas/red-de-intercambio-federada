@@ -1,20 +1,31 @@
-fix: DemoAutoSetup limpia todas las tablas correctamente
+feat: Billetera por cuenta, productos pendientes, saldos federados, fixes endpoints
 
-El problema principal era que DemoAutoSetup solo limpiaba algunas tablas
-cuando el contenedor demo arrancaba. Las tablas que no se limpiaban
-tenian datos viejos, y los seeds verifican count > 0 antes de insertar,
-por lo que no se re-seedeaban.
+## Frontend
+- Nueva página Wallet.tsx que reemplaza el Historial inútil
+  - Muestra saldo de la cuenta
+  - Selector de cuenta (personal, organizaciones, departamentos)
+  - Transacciones con débito/crédito claro (rojo negativo, verde positivo)
+  - Muestra de quién a quién con display_name
+  - Botones para transferir y pagar con QR
+  - Resumen contable de entradas y salidas
+- Pestaña "Billetera" reemplaza "Historial" en navegación
+- Productos.tsx: botón "Pendientes" con panel de aprobación
+  - Muestra productos no aprobados
+  - Botones Aprobar/Rechazar
+  - Badge con contador
+- FederationPeers.tsx: muestra saldo bilateral por nodo
+  - Saldo positivo (te deben) en verde
+  - Saldo negativo (debes) en rojo
+  - Endpoint nuevo /api/federation/balances
+- Admission.tsx: cambiado de /api/accounts/pending a /api/admission/requests
 
-Cambios:
-- Limpiar todas las tablas con node_domain (assembly_*, tax_*, board_members,
-  external_bridge_operations, admission_requests, store_items, etc.)
-- Limpiar tablas sin node_domain con DELETE completo (transactions,
-  ledger_entries, audit_log, node_balance, node_federation_keys,
-  bilateral_limits, assembly_votes)
-- Remover referencia a tabla inexistente 'organizations'
-
-Esto asegura que cada vez que el contenedor demo se reinicia,
-TODOS los datos se regeneran desde cero con los seeds actualizados.
+## Backend
+- /api/ledger/transactions: devuelve sender_display, receiver_display, direction, description
+- /api/external/fc: devuelve FC por defecto (5.0) si no hay datos, en vez de 404
+- /api/organizations: COALESCE en organization_subtype y public_key (nullable) - fix 500
+- /api/products/{id}/reject: nuevo endpoint para rechazar productos
+- /api/federation/balances: nuevo endpoint para listar todos los saldos bilaterales
+- demo_seed.go: store_items ahora copian price_per_unit, unit, category del producto
 
 Generated with [Devin](https://devin.ai)
 

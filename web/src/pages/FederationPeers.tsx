@@ -30,6 +30,7 @@ export default function FederationPeers() {
   const [showAdd, setShowAdd] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [balances, setBalances] = useState<Record<string, number>>({})
 
   const canManage = hasPermission('federation.change_config')
 
@@ -44,7 +45,20 @@ export default function FederationPeers() {
   useEffect(() => {
     loadPeers()
     loadNodeKeys()
+    loadBalances()
   }, [])
+
+  const loadBalances = async () => {
+    try {
+      const res = await api.get<any>('/federation/balances')
+      const list = Array.isArray(res) ? res : res?.balances ?? []
+      const map: Record<string, number> = {}
+      list.forEach((b: any) => {
+        map[b.remote_node || b.peer_domain] = b.balance ?? 0
+      })
+      setBalances(map)
+    } catch {}
+  }
 
   const loadPeers = async () => {
     try {
@@ -170,7 +184,9 @@ export default function FederationPeers() {
           </div>
         )}
 
-        {peers.map((p) => (
+        {peers.map((p) => {
+          const bal = balances[p.peer_domain] ?? 0
+          return (
           <div key={p.peer_domain} className="card flex items-center justify-between">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
@@ -190,6 +206,15 @@ export default function FederationPeers() {
               <p className="text-xs text-gray-500">{p.peer_domain}</p>
               {p.peer_endpoint && <p className="text-xs text-gray-400">{p.peer_endpoint}</p>}
               <code className="text-xs text-gray-400 block">{p.peer_public_key.substring(0, 24)}...</code>
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-xs text-gray-600">Saldo bilateral:</span>
+                <span className={`text-sm font-bold ${bal > 0 ? 'text-green-600' : bal < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                  {bal > 0 ? '+' : ''}{bal} TQ
+                </span>
+                {bal > 0 && <span className="text-xs text-green-600">(te deben)</span>}
+                {bal < 0 && <span className="text-xs text-red-600">(debes)</span>}
+                {bal === 0 && <span className="text-xs text-gray-400">(sin transacciones)</span>}
+              </div>
             </div>
             {canManage && (
               <button onClick={() => removePeer(p.peer_domain)} className="text-red-500 hover:text-red-700">
@@ -197,7 +222,8 @@ export default function FederationPeers() {
               </button>
             )}
           </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Info: como federar */}

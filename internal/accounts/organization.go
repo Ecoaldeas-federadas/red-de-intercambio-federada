@@ -102,10 +102,10 @@ func (o *Organizations) Approve(ctx context.Context, orgID, approverID uuid.UUID
 }
 
 func (o *Organizations) List(ctx context.Context, nodeDomain, subtype string) ([]Organization, error) {
-	query := `SELECT id, node_domain, username, display_name, account_type, organization_subtype,
+	query := `SELECT id, node_domain, username, display_name, account_type, COALESCE(organization_subtype, ''),
 			  membership_status, is_approved, COALESCE(approved_by, ARRAY[]::uuid[]),
 			  credit_limit, debit_limit, annual_budget_limit, COALESCE(tax_rate, 0)::float8,
-			  required_signatures, COALESCE(authorized_signers, ARRAY[]::uuid[]), public_key, created_at
+			  required_signatures, COALESCE(authorized_signers, ARRAY[]::uuid[]), COALESCE(public_key, ''), created_at
 			  FROM users WHERE node_domain = $1 AND account_type = 'organization'`
 	args := []interface{}{nodeDomain}
 	if subtype != "" {

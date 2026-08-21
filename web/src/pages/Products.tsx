@@ -57,6 +57,8 @@ export default function Products() {
   const [loading, setLoading] = useState(false)
   const [fedProposals, setFedProposals] = useState<any[]>([])
   const [showFedPanel, setShowFedPanel] = useState(false)
+  const [pendingProducts, setPendingProducts] = useState<any[]>([])
+  const [showPending, setShowPending] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const sentinelRef = useRef<HTMLDivElement>(null)
 
@@ -87,6 +89,12 @@ export default function Products() {
   }
   useEffect(() => { loadFedProposals() }, [])
 
+  // Cargar productos pendientes de aprobacion
+  const loadPending = () => {
+    api.get('/products/pending').then((d: any) => setPendingProducts(Array.isArray(d) ? d : [])).catch(() => {})
+  }
+  useEffect(() => { loadPending() }, [])
+
   const approveFedProduct = async (id: string) => {
     try {
       await api.post(`/federation/products/${id}/approve`, {})
@@ -94,6 +102,25 @@ export default function Products() {
       load(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al aprobar producto federado')
+    }
+  }
+
+  const approveProduct = async (id: string) => {
+    try {
+      await api.post(`/products/${id}/approve`, {})
+      loadPending()
+      load(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al aprobar producto')
+    }
+  }
+
+  const rejectProduct = async (id: string) => {
+    try {
+      await api.post(`/products/${id}/reject`, {})
+      loadPending()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al rechazar producto')
     }
   }
 
@@ -362,6 +389,17 @@ export default function Products() {
             </button>
           )}
           {canManage && (
+            <button onClick={() => { setShowPending(!showPending); loadPending() }} className="btn-secondary flex items-center gap-2 relative">
+              <Package size={18} />
+              Pendientes
+              {pendingProducts.length > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                  {pendingProducts.length}
+                </span>
+              )}
+            </button>
+          )}
+          {canManage && (
             <button onClick={() => { setShowForm(!showForm); setEditingId(null); setForm(emptyForm) }} className="btn-primary flex items-center gap-2"><Plus size={18} />Nuevo</button>
           )}
         </div>
@@ -396,6 +434,44 @@ export default function Products() {
                         <Check size={14} /> Aprobar
                       </button>
                       <button onClick={() => rejectFedProduct(p.id)} className="btn-secondary text-sm text-red-600 flex items-center gap-1">
+                        <X size={14} /> Rechazar
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Panel de productos pendientes de aprobacion */}
+      {showPending && (
+        <div className="card space-y-3">
+          <h2 className="font-semibold flex items-center gap-2"><Package size={18} />Productos Pendientes de Aprobacion</h2>
+          <p className="text-xs text-gray-500">Productos que han sido solicitados pero aun no han sido aprobados para el catalogo. Aprobalos para que aparezcan en la lista principal.</p>
+          {pendingProducts.length === 0 ? (
+            <p className="text-sm text-gray-400 py-4 text-center">No hay productos pendientes de aprobacion.</p>
+          ) : (
+            <div className="space-y-2">
+              {pendingProducts.map((p: any) => (
+                <div key={p.id} className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">{p.name}</span>
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{p.price_per_unit} {currency}/{p.unit}</span>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-1">{p.description}</p>
+                    <p className="text-[10px] text-gray-400 mt-1">
+                      {p.parent_category} › {p.category} {p.subcategory ? `› ${p.subcategory}` : ''}
+                    </p>
+                  </div>
+                  {canManage && (
+                    <div className="flex gap-2">
+                      <button onClick={() => approveProduct(p.id)} className="btn-primary text-sm flex items-center gap-1">
+                        <Check size={14} /> Aprobar
+                      </button>
+                      <button onClick={() => rejectProduct(p.id)} className="btn-secondary text-sm text-red-600 flex items-center gap-1">
                         <X size={14} /> Rechazar
                       </button>
                     </div>
