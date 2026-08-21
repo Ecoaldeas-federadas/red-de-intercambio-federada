@@ -82,7 +82,7 @@ interface ColorPreset {
 
 const COLOR_PRESETS: ColorPreset[] = [
   {
-    name: 'Verde Conuquero',
+    name: 'Verde Comunitario',
     primary_color: '#162e16', secondary_color: '#c2410c',
     text_color: '#1a1a1a', button_hover_color: '#15803d',
     module_bg_color: '#ffffff', page_bg_color: '#f8faf5',

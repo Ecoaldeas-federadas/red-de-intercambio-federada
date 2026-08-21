@@ -67,9 +67,9 @@ const BLOCK_DEFINITIONS: {
     defaultData: (t) => ({
       type: 'hero',
       badge: '🌱 Bienvenidos',
-      title: t || 'Feria Conuquera Agroecológica',
+      title: t || 'Nuestra Comunidad',
       subtitle: 'Soberanía alimentaria y economía solidaria',
-      description: 'Espacio de encuentro popular y trueque comunitario en Caracas.',
+      description: 'Espacio de encuentro popular y trueque comunitario.',
       image_url: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80',
       primary_cta: { text: 'Ver Productos', link: '/p/productos' },
       secondary_cta: { text: 'Unirse', link: '/p/unirse' },
@@ -95,7 +95,7 @@ const BLOCK_DEFINITIONS: {
         },
         {
           image_url: 'https://images.unsplash.com/photo-1597848212624-a19eb35e2651?auto=format&fit=crop&w=1000&q=80',
-          title: 'Botica Conuquera',
+          title: 'Botica Comunitaria',
           caption: 'Medicina botánica y cosmética natural.',
           tag: 'Salud',
         },
@@ -142,13 +142,13 @@ const BLOCK_DEFINITIONS: {
     defaultData: () => ({
       type: 'split_story',
       badge: 'Historia Viva',
-      title: 'El Conuco como Forma de Resistencia',
+      title: 'Nuestra Historia y Resistencia',
       subtitle: 'Saberes ancestrales y soberanía popular',
-      content: 'El conuco es más que un cultivo: es un laboratorio integral de vida comunitaria.',
+      content: 'Nuestra comunidad es más que un cultivo: es un laboratorio integral de vida comunitaria.',
       image_url: 'https://images.unsplash.com/photo-1592417817098-8f3d69102a5e?auto=format&fit=crop&w=900&q=80',
       image_position: 'left',
       highlights: ['Sin agrotóxicos ni venenos.', 'Semillas libres y criollas.'],
-      quote: { text: 'La abundancia nace del respeto a la diversidad.', author: 'Vocería Conuquera' },
+      quote: { text: 'La abundancia nace del respeto a la diversidad.', author: 'Vocería Comunitaria' },
     }),
   },
   {
@@ -177,11 +177,11 @@ const BLOCK_DEFINITIONS: {
     defaultData: () => ({
       type: 'event_schedule',
       badge: '📍 Próxima Cita',
-      title: 'Encuentro Mensual en Los Caobos',
+      title: 'Encuentro Mensual',
       date_text: 'Primer sábado de cada mes',
       time_text: '9:00 AM a 1:00 PM',
-      location_name: 'Parque Los Caobos, Caracas',
-      address: 'Zona Sur, cerca de la Fuente Venezuela (Metro Bellas Artes).',
+      location_name: '',
+      address: '',
       guidelines: [
         'Venta al público general en moneda local.',
         'Prohibido el uso de bolsas plásticas desechables.',
@@ -218,12 +218,12 @@ const BLOCK_DEFINITIONS: {
     icon: Newspaper,
     defaultData: () => ({
       type: 'news_feed',
-      badge: 'Boletín Conuquero',
+      badge: 'Boletín Comunitario',
       title: 'Noticias y Articulaciones Populares',
-      subtitle: 'Avances de la producción campesina y soberanía en Caracas.',
+      subtitle: 'Avances de la producción campesina y soberanía popular.',
       items: [
         {
-          title: 'Celebración de 10 Años de Encuentro en Los Caobos',
+          title: 'Celebración de Nuestro Aniversario',
           date: 'Octubre 2024',
           author: 'Equipo Promotor',
           category: 'Aniversario',
@@ -245,7 +245,7 @@ const BLOCK_DEFINITIONS: {
       title: 'Hitos de Nuestra Historia Colectiva',
       subtitle: 'El camino de la siembra y el trueque.',
       items: [
-        { year: '2014', title: 'Nacimiento de la Feria Conuquera', description: 'Primer mercado en Los Caobos tras debates de semillas.', badge: 'Fundacional' },
+        { year: '2014', title: 'Nacimiento de Nuestra Comunidad', description: 'Primer mercado tras debates de semillas.', badge: 'Fundacional' },
         { year: '2015', title: 'Promulgación de la Ley de Semillas', description: 'Victoria popular en la Asamblea Nacional.', badge: 'Ley Popular' },
         { year: '2024', title: '10 Años de Soberanía Activa', description: 'Consolidación de la red y sistema digital de trueque.', badge: 'Presente' },
       ],
@@ -270,7 +270,7 @@ const BLOCK_DEFINITIONS: {
     defaultData: () => ({
       type: 'resource_downloads',
       title: 'Guías y Materiales de Formación',
-      subtitle: 'Descarga gratuita de saberes conuqueros.',
+      subtitle: 'Descarga gratuita de saberes comunitarios.',
       items: [
         {
           title: 'Manual de Lombricultura y Bioinsumos',
@@ -301,7 +301,7 @@ const BLOCK_DEFINITIONS: {
   },
   {
     type: 'testimonials',
-    name: 'Testimonios / Voces Conuqueras',
+    name: 'Testimonios / Voces Comunitarias',
     description: 'Tarjetas de productores y miembros con citas, nombres, roles y fotos.',
     icon: MessageSquare,
     defaultData: () => ({
@@ -313,7 +313,7 @@ const BLOCK_DEFINITIONS: {
           name: 'Familia Miranda',
           role: 'Alfivegetales',
           project: 'El Junquito Km 38',
-          quote: 'Sembrar agroecológicamente es cuidar el futuro de nuestras familias y de Caracas.',
+          quote: 'Sembrar agroecológicamente es cuidar el futuro de nuestras familias.',
           location: 'El Junquito, Miranda',
         },
       ],
@@ -354,7 +354,7 @@ const BLOCK_DEFINITIONS: {
       items: [
         {
           question: '¿Cuándo nos reunimos?',
-          answer: 'El primer sábado de cada mes en el Parque Los Caobos, Caracas.',
+          answer: 'Consulta nuestro calendario de encuentros para conocer la próxima fecha y ubicación.',
         },
       ],
     }),
@@ -393,11 +393,11 @@ const BLOCK_DEFINITIONS: {
     defaultData: () => ({
       type: 'contact_location',
       title: 'Contacto y Canales',
-      address: 'Parque Los Caobos, Caracas, Venezuela.',
-      schedule: 'Primer sábado de cada mes de 9:00 AM a 1:00 PM',
-      instagram: 'feriaconuquera',
-      facebook: 'feriaconuquera',
-      email: 'contacto@feriaconuquera.org',
+      address: '',
+      schedule: '',
+      instagram: '',
+      facebook: '',
+      email: '',
     }),
   },
 ]
@@ -434,7 +434,7 @@ export default function WebsiteAdmin() {
   // Dynamic Admission Form Builder State
   const [formConfig, setFormConfig] = useState({
     title: 'Solicitud de Ingreso a la Red',
-    subtitle: 'Completa tus datos para postularte como productor conuquero, artesano o miembro.',
+    subtitle: 'Completa tus datos para postularte como productor comunitario, artesano o miembro.',
     schema: DEFAULT_ADMISSION_FIELDS as FormFieldSchema[],
   })
   const [editingFieldIndex, setEditingFieldIndex] = useState<number | null>(null)
@@ -454,7 +454,7 @@ export default function WebsiteAdmin() {
     social_twitter: '',
     show_join_form: true,
     header_style: 'modern_eco' as HeaderStyleType,
-    announcement_text: '🗓️ Próximo Encuentro Conuquero: Primer sábado de cada mes en Parque Los Caobos, Caracas | 9:00 AM',
+    announcement_text: '',
     show_announcement: true,
     footer_style: 'columns',
     footer_about: '',
@@ -502,7 +502,7 @@ export default function WebsiteAdmin() {
       if (d) {
         setFormConfig({
           title: d.title || 'Solicitud de Ingreso a la Red',
-          subtitle: d.subtitle || 'Completa tus datos para postularte como productor conuquero, artesano o miembro.',
+          subtitle: d.subtitle || 'Completa tus datos para postularte como productor comunitario, artesano o miembro.',
           schema: Array.isArray(d.schema) && d.schema.length > 0 ? d.schema : DEFAULT_ADMISSION_FIELDS,
         })
       }
@@ -529,9 +529,7 @@ export default function WebsiteAdmin() {
         social_twitter: settings.social_twitter || '',
         show_join_form: settings.show_join_form ?? true,
         header_style: (settings.header_style || 'modern_eco') as HeaderStyleType,
-        announcement_text:
-          settings.announcement_text ||
-          '🗓️ Próximo Encuentro Conuquero: Primer sábado de cada mes en Parque Los Caobos, Caracas | 9:00 AM',
+        announcement_text: settings.announcement_text || '',
         show_announcement: settings.show_announcement ?? true,
         footer_style: settings.footer_style || 'columns',
         footer_about: settings.footer_about || '',
@@ -688,7 +686,7 @@ export default function WebsiteAdmin() {
   const applyAllFeriaTemplates = async () => {
     if (
       !confirm(
-        '¿Deseas aplicar la plantilla completa con todos los módulos y fotos de la Feria Conuquera en Caracas? Esto actualizará las páginas públicas existentes con el diseño enriquecido.'
+        '¿Deseas aplicar la plantilla completa con todos los módulos y fotos prediseñadas? Esto actualizará las páginas públicas existentes con el diseño enriquecido.'
       )
     )
       return
@@ -924,7 +922,7 @@ export default function WebsiteAdmin() {
                 title="Cargar todas las plantillas ricas prediseñadas"
               >
                 <RotateCcw size={15} className="text-amber-600" />
-                Cargar Plantilla Viva (Feria Conuquera)
+                Cargar Plantilla Viva
               </button>
 
               <button
@@ -1413,7 +1411,7 @@ export default function WebsiteAdmin() {
               <label className="label font-semibold text-xs">URL del Logotipo</label>
               <input
                 className="input text-sm"
-                placeholder="https://ejemplo.com/logo-conuquero.png"
+                placeholder="https://ejemplo.com/logo.png"
                 value={settingsForm.logo_url}
                 onChange={(e) => setSettingsForm({ ...settingsForm, logo_url: e.target.value })}
               />
@@ -1478,7 +1476,7 @@ export default function WebsiteAdmin() {
                 className="input text-xs"
                 value={settingsForm.footer_schedule}
                 onChange={(e) => setSettingsForm({ ...settingsForm, footer_schedule: e.target.value })}
-                placeholder="Primer sábado de cada mes (9:00 AM a 1:00 PM)..."
+                placeholder="Ej: Primer sábado de cada mes (9:00 AM a 1:00 PM)..."
               />
             </div>
 
@@ -1489,7 +1487,7 @@ export default function WebsiteAdmin() {
                   className="input text-xs"
                   value={settingsForm.social_instagram}
                   onChange={(e) => setSettingsForm({ ...settingsForm, social_instagram: e.target.value })}
-                  placeholder="feriaconuquera"
+                  placeholder="tu_usuario"
                 />
               </div>
               <div>
@@ -1498,7 +1496,7 @@ export default function WebsiteAdmin() {
                   className="input text-xs"
                   value={settingsForm.social_facebook}
                   onChange={(e) => setSettingsForm({ ...settingsForm, social_facebook: e.target.value })}
-                  placeholder="feriaconuquera"
+                  placeholder="tu_pagina"
                 />
               </div>
             </div>
@@ -1509,7 +1507,7 @@ export default function WebsiteAdmin() {
                 className="input text-xs"
                 value={settingsForm.contact_address}
                 onChange={(e) => setSettingsForm({ ...settingsForm, contact_address: e.target.value })}
-                placeholder="Parque Los Caobos, Caracas..."
+                placeholder="Dirección del lugar de encuentro..."
               />
             </div>
           </div>

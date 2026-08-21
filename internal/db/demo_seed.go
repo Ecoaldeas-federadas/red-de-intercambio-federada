@@ -525,24 +525,24 @@ func getRaicesDelMontePages() []seedPage {
     ]
   },
   {
-    "type": "testimonials",
-    "title": "Familias Fundadoras",
-    "subtitle": "Algunas de las experiencias que hacen vida activa en la ecoaldea.",
+    "type": "features_grid",
+    "title": "Estructura Organizativa",
+    "subtitle": "Como se organiza la ecoaldea mas alla del huerto",
+    "columns": 2,
     "items": [
-      {
-        "name": "Familia Rojas",
-        "role": "Fundadores - Nivel Raiz",
-        "project": "Huerto de altura y panaderia de quinua",
-        "quote": "Llegamos en 2010 con ganas de cambiar nuestra vida. Hoy producimos el 90% de lo que comemos y hemos visto volver los manantiales secos.",
-        "location": "Zona alta de la ecoaldea"
-      },
-      {
-        "name": "Familia Mendez",
-        "role": "Miembros Tronco - 10 anos",
-        "project": "Apicultura y miel de montana",
-        "quote": "La ecoaldea nos enseno que la abundancia viene de la diversidad. Donde antes habia pasto, ahora hay bosque, abejas y agua.",
-        "location": "Zona del bosque"
-      }
+      { "icon": "users", "title": "Asamblea General", "description": "Mensual, primer domingo de cada mes. Todos los miembros con voz. Decisiones estrategicas: presupuesto, admisiones, grandes cambios.", "badge": "Mensual" },
+      { "icon": "network", "title": "7 Comisiones", "description": "Economia, Educacion, Salud, Ambiente, Admision, Construccion y Consejo de Vision. Cada una es autonoma en su area con doble enlace sociocratico.", "badge": "Autonomas" },
+      { "icon": "scale", "title": "Consejo de Vision", "description": "Tres miembros Raiz que custodian la vision y valores fundacionales. No gobiernan, sino que recuerdan por que estamos aqui.", "badge": "Vision" },
+      { "icon": "clipboard", "title": "Protocolos Documentados", "description": "Cada decision se documenta en actas. Los acuerdos son revisables y mejorables. Nada es permanente: todo puede ser evaluado.", "badge": "Actas" }
+    ]
+  },
+  {
+    "type": "features_grid",
+    "title": "Trabajo Comunitario",
+    "subtitle": "Como contribuimos al funcionamiento de la ecoaldea",
+    "columns": 1,
+    "items": [
+      { "icon": "tool", "title": "Cayapa Semanal (8 horas)", "description": "Cada miembro adulto aporta 8 horas semanales de trabajo comunitario: mantenimiento de senderos, reforestacion, construccion, limpieza de acequias, o tareas asignadas por comisiones. Este trabajo se registra en TQ al valor estandar de 10 TQ por hora. Es la base de nuestra economia: el trabajo comunitario genera TQ que despues se intercambian por productos.", "badge": "8h/semana" }
     ]
   }
 ]`,

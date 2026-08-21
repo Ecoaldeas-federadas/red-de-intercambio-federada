@@ -38,8 +38,8 @@ const BLOCK_TEMPLATES: {
       type: 'hero',
       badge: '🌱 Bienvenidos',
       title: 'Nuevo Encabezado Destacado',
-      subtitle: 'Soberanía alimentaria y saberes conuqueros',
-      description: 'Espacio de encuentro popular y economía solidaria en Caracas.',
+      subtitle: 'Soberanía alimentaria y saberes comunitarios',
+      description: 'Espacio de encuentro popular y economía solidaria.',
       image_url: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80',
       primary_cta: { text: 'Conoce Nuestros Productos', link: '/p/productos' },
       secondary_cta: { text: 'Solicitar Unirse', link: '/p/unirse' },
@@ -53,7 +53,7 @@ const BLOCK_TEMPLATES: {
     defaultData: () => ({
       type: 'carousel',
       title: 'Galería Viva de Nuestras Cosechas',
-      subtitle: 'Imágenes de las jornadas en Los Caobos.',
+      subtitle: 'Imágenes de las jornadas comunitarias.',
       autoplay: true,
       items: [
         {
@@ -113,8 +113,8 @@ const BLOCK_TEMPLATES: {
       subtitle: 'Cifras reales de nuestro movimiento.',
       bg_theme: 'primary',
       items: [
-        { value: '+10 Años', label: 'De Trayectoria', description: 'En Los Caobos' },
-        { value: '+45 Familias', label: 'Productoras', description: 'Valles del Tuy y Caracas' },
+        { value: '+10 Años', label: 'De Trayectoria', description: 'En la comunidad' },
+        { value: '+45 Familias', label: 'Productoras', description: 'De la región' },
         { value: '0%', label: 'Agrotóxicos', description: '100% limpia' },
         { value: 'Venta Libre', label: 'Moneda Local', description: 'Abierto a todos' },
       ],
@@ -127,10 +127,10 @@ const BLOCK_TEMPLATES: {
     defaultData: () => ({
       type: 'event_schedule',
       badge: '📍 Mercado Mensual',
-      title: 'Encuentro Mensual en Los Caobos',
+      title: 'Encuentro Mensual',
       date_text: 'Primer sábado de cada mes',
       time_text: '9:00 AM a 1:00 PM',
-      location_name: 'Parque Los Caobos, Caracas',
+      location_name: '',
       address: 'Zona Sur, cerca de la Fuente Venezuela (Metro Bellas Artes).',
       guidelines: [
         'Venta abierta al público general en moneda local.',
@@ -179,12 +179,12 @@ const BLOCK_TEMPLATES: {
     description: 'Cuadrícula de artículos y comunicados con fechas y fotos.',
     defaultData: () => ({
       type: 'news_feed',
-      badge: 'Boletín Conuquero',
+      badge: 'Boletín Comunitario',
       title: 'Noticias y Articulaciones Populares',
-      subtitle: 'Avances de la producción campesina y soberanía en Caracas.',
+      subtitle: 'Avances de la producción campesina y soberanía alimentaria.',
       items: [
         {
-          title: 'Celebración de 10 Años de Encuentro en Los Caobos',
+          title: 'Celebración de 10 Años de Encuentro Comunitario',
           date: 'Octubre 2024',
           author: 'Equipo Promotor',
           category: 'Aniversario',
@@ -204,7 +204,7 @@ const BLOCK_TEMPLATES: {
       title: 'Hitos de Nuestra Historia Colectiva',
       subtitle: 'El camino de la siembra y la soberanía popular.',
       items: [
-        { year: '2014', title: 'Nacimiento de la Feria Conuquera', description: 'Primer mercado en Los Caobos tras debates de semillas.', badge: 'Fundación' },
+        { year: '2014', title: 'Nacimiento de la Comunidad', description: 'Primer mercado tras debates de semillas.', badge: 'Fundación' },
         { year: '2015', title: 'Promulgación de la Ley de Semillas', description: 'Victoria popular en la Asamblea Nacional.', badge: 'Ley Popular' },
         { year: '2024', title: '10 Años de Soberanía Activa', description: 'Consolidación de la red y sistema digital de trueque.', badge: 'Presente' },
       ],
@@ -233,7 +233,7 @@ const BLOCK_TEMPLATES: {
           name: 'Familia Miranda',
           role: 'Alfivegetales',
           project: 'El Junquito Km 38',
-          quote: 'Sembrar agroecológicamente es cuidar el futuro de nuestras familias y de Caracas.',
+          quote: 'Sembrar agroecológicamente es cuidar el futuro de nuestras familias.',
           location: 'El Junquito, Miranda',
         },
       ],
@@ -297,12 +297,12 @@ const BLOCK_TEMPLATES: {
     description: 'Tarjetas de dirección, horarios, metro y redes sociales.',
     defaultData: () => ({
       type: 'contact_location',
-      title: 'Visítanos en Parque Los Caobos',
-      address: 'Parque Los Caobos, Caracas, Venezuela.',
+      title: 'Visítanos',
+      address: '',
       schedule: 'Primer sábado de cada mes de 9:00 AM a 1:00 PM',
-      instagram: 'feriaconuquera',
-      facebook: 'feriaconuquera',
-      email: 'contacto@feriaconuquera.org',
+      instagram: '',
+      facebook: '',
+      email: '',
     }),
   },
 ]

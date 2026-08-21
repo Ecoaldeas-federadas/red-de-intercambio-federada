@@ -125,15 +125,13 @@ func main() {
 	api.GenerateStaticHTMLFiles(database.Pool)
 
 	// Seed: copiar productos seed de 'default' al dominio del nodo si no existen
-	// En modo demo, los productos los crea DemoSeedData
-	if !isDemoMode {
-		seedDomain := cfg.Node.Domain
-		if seedDomain == "" {
-			seedDomain = "localhost"
-		}
-		if err := database.SeedProductsToNode(ctx, seedDomain); err != nil {
-			log.Printf("Warning: failed to seed products to node: %v", err)
-		}
+	// En modo demo, los productos los crea DemoSeedData + el catalogo compartido
+	seedDomain := cfg.Node.Domain
+	if seedDomain == "" {
+		seedDomain = "localhost"
+	}
+	if err := database.SeedProductsToNode(ctx, seedDomain); err != nil {
+		log.Printf("Warning: failed to seed products to node: %v", err)
 	}
 
 	ledgerSvc := ledger.New(database.Pool)

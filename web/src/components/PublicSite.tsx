@@ -270,8 +270,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
   const stickyClass = headerSticky ? 'sticky top-0' : ''
   const showAnnouncement = settings?.show_announcement ?? true
   const announcementText =
-    settings?.announcement_text ||
-    '🗓️ Próximo Encuentro Conuquero: Primer sábado de cada mes en Parque Los Caobos, Caracas | 9:00 AM'
+    settings?.announcement_text || ''
 
   // Primary visible navigation items (first 5) and extra items in "Más ▾"
   // Filter out pages hidden from menu, then sort by menu_order
@@ -325,6 +324,14 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
+      {/* DEMO BANNER - solo se muestra en el nodo demo */}
+      {(window as any).__BASE_PATH__ === '/demo' && (
+        <div className="bg-amber-500 text-amber-950 text-[11px] sm:text-xs py-2 px-4 text-center font-semibold shadow-sm">
+          ⚠️ Nodo de Demostración — La comunidad, nombres, ubicación y contacto son ficticios. 
+          La información sobre el sistema (TQ, calculadora, federación, gobernanza) es real y aplicable a cualquier nodo.
+        </div>
+      )}
+
       {/* 2. DYNAMIC HEADER BY SELECTED STYLE */}
 
       {/* STYLE A: TARJETAS CON ICONOS — cada item del menu es una tarjeta con icono */}
@@ -343,7 +350,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 )}
                 <div>
                   <h1 className="text-sm sm:text-base font-black tracking-tight leading-tight" style={{ color: (settings as any)?.text_color || '#1a1a1a' }}>
-                    {settings?.site_title || 'Feria Conuquera Agroecológica'}
+                    {settings?.site_title || ''}
                   </h1>
                   <p className="text-[10px] sm:text-[11px] font-semibold hidden sm:block truncate" style={{ color: (settings as any)?.link_color || '#15803d' }}>
                     {settings?.site_subtitle || 'Soberanía Alimentaria'}
@@ -433,7 +440,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 )}
                 <div>
                   <h1 className="text-xs sm:text-sm md:text-base font-black text-amber-950 uppercase tracking-tight font-serif leading-tight">
-                    {settings?.site_title || 'Feria Conuquera & Agroecología'}
+                    {settings?.site_title || ''}
                   </h1>
                   <p className="text-[10px] text-amber-800 italic hidden sm:block truncate">
                     {settings?.site_subtitle || 'Publicación y Red Comunitaria'}
@@ -537,7 +544,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               )}
               <div>
                 <h1 className="text-xs sm:text-sm md:text-base font-bold leading-tight">
-                  {settings?.site_title || 'Feria Conuquera'}
+                  {settings?.site_title || ''}
                 </h1>
                 <p className="text-[10px] text-emerald-200 hidden sm:block truncate">{settings?.site_subtitle}</p>
               </div>
@@ -692,13 +699,13 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                     className="text-sm sm:text-lg font-black tracking-tight leading-tight"
                     style={{ color: (settings as any)?.text_color || '#1a1a1a' }}
                   >
-                    {settings?.site_title || 'Feria Conuquera Agroecológica'}
+                    {settings?.site_title || ''}
                   </h1>
                   <p
                     className="text-[10px] sm:text-[11px] font-medium hidden sm:block"
                     style={{ color: (settings as any)?.link_color || '#15803d' }}
                   >
-                    {settings?.site_subtitle || 'Parque Los Caobos, Caracas'}
+                    {settings?.site_subtitle || ''}
                   </p>
                 </div>
               </Link>
@@ -816,10 +823,10 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 )}
                 <div>
                   <h1 className="text-sm sm:text-xl font-black tracking-tight leading-tight drop-shadow-lg">
-                    {settings?.site_title || 'Feria Conuquera Agroecológica'}
+                    {settings?.site_title || ''}
                   </h1>
                   <p className="text-[11px] sm:text-xs text-white/80 font-medium hidden sm:block truncate drop-shadow">
-                    {settings?.site_subtitle || 'Parque Los Caobos, Caracas'}
+                    {settings?.site_subtitle || ''}
                   </p>
                 </div>
               </Link>
@@ -924,7 +931,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                   <Leaf size={24} />
                 </div>
               )}
-              <h1 className="text-xs font-black leading-tight">{settings?.site_title || 'Feria Conuquera'}</h1>
+              <h1 className="text-xs font-black leading-tight">{settings?.site_title || ''}</h1>
               <p className="text-[9px] text-white/60 hidden sm:block">{settings?.site_subtitle}</p>
             </Link>
           </div>
@@ -999,7 +1006,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                   <Leaf size={22} />
                 </div>
               )}
-              <h1 className="text-[10px] sm:text-xs font-black leading-tight text-center max-w-[180px] sm:max-w-[220px]">{settings?.site_title || 'Feria Conuquera'}</h1>
+              <h1 className="text-[10px] sm:text-xs font-black leading-tight text-center max-w-[180px] sm:max-w-[220px]">{settings?.site_title || ''}</h1>
             </Link>
 
             {/* Right menu */}
@@ -1039,7 +1046,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 </div>
               )}
               <h1 className="text-sm font-bold tracking-tight hidden sm:block" style={{ color: (settings as any)?.text_color || '#1a1a1a' }}>
-                {settings?.site_title || 'Feria Conuquera'}
+                {settings?.site_title || ''}
               </h1>
             </Link>
 
@@ -1090,7 +1097,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 </div>
               )}
               <div>
-                <h1 className="text-sm font-black tracking-tight drop-shadow">{settings?.site_title || 'Feria Conuquera'}</h1>
+                <h1 className="text-sm font-black tracking-tight drop-shadow">{settings?.site_title || ''}</h1>
                 <p className="text-[10px] text-white/70 hidden sm:block">{settings?.site_subtitle}</p>
               </div>
             </Link>
@@ -1149,7 +1156,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 </div>
               )}
               <h1 className="text-xs font-bold hidden sm:block truncate max-w-[120px]" style={{ color: (settings as any)?.text_color || '#1a1a1a' }}>
-                {settings?.site_title || 'Feria Conuquera'}
+                {settings?.site_title || ''}
               </h1>
             </Link>
 
@@ -1218,10 +1225,10 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               )}
               <div>
                 <h1 className="text-xs sm:text-sm md:text-base font-extrabold tracking-tight leading-tight">
-                  {settings?.site_title || 'Feria Conuquera Agroecológica'}
+                  {settings?.site_title || ''}
                 </h1>
                 <p className="text-[10px] sm:text-[11px] text-emerald-200/90 hidden md:block font-medium">
-                  {settings?.site_subtitle || 'Parque Los Caobos, Caracas'}
+                  {settings?.site_subtitle || ''}
                 </p>
               </div>
             </Link>
@@ -1604,7 +1611,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         <div className="lg:hidden fixed inset-0 z-50 flex">
           <div className="w-64 h-full text-white p-4 space-y-1 overflow-y-auto" style={{ backgroundColor: primaryColor }}>
             <div className="flex items-center justify-between mb-3 pb-3 border-b border-white/10">
-              <span className="text-sm font-black">{settings?.site_title || 'Feria Conuquera'}</span>
+              <span className="text-sm font-black">{settings?.site_title || ''}</span>
               <button onClick={() => setMenuOpen(false)} className="text-white/80 hover:text-white"><X size={18} /></button>
             </div>
             {menuPages.map((p) => {
@@ -1677,7 +1684,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         /* === MOBILE: HERO OVERLAY — overlay oscuro translucido === */
         <div className="lg:hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm p-4 flex flex-col">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-white font-black text-sm">{settings?.site_title || 'Feria Conuquera'}</span>
+            <span className="text-white font-black text-sm">{settings?.site_title || ''}</span>
             <button onClick={() => setMenuOpen(false)} className="text-white p-1.5 bg-white/10 rounded-lg"><X size={18} /></button>
           </div>
           <div className="space-y-1 flex-1">
@@ -1755,7 +1762,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 )}
               </div>
               <p className="text-[11px] sm:text-xs text-gray-300 leading-relaxed">
-                {settings?.footer_about || 'Mercado a cielo abierto para todo el público en moneda local, agroecología, trueque y soberanía alimentaria en Caracas desde octubre de 2014.'}
+                {settings?.footer_about || ''}
               </p>
               <div className="flex items-center gap-2 text-[11px] text-emerald-300 font-semibold pt-1">
                 <ShieldCheck size={14} />
@@ -1788,7 +1795,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               <div className="text-xs text-gray-300 space-y-2">
                 <div className="flex items-start gap-2">
                   <MapPin size={15} className="text-amber-400 flex-shrink-0 mt-0.5" />
-                  <span>{settings?.contact_address || 'Parque Los Caobos, Caracas. Zona sur cerca de la Fuente Venezuela.'}</span>
+                  <span>{settings?.contact_address || ''}</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <Calendar size={15} className="text-amber-400 flex-shrink-0 mt-0.5" />
@@ -1840,7 +1847,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
           {/* Bottom Copyright & Member Login Link */}
           <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-[11px] sm:text-xs text-gray-400 gap-2 text-center sm:text-left">
-            <p>© {new Date().getFullYear()} Red de Intercambio Federada — Feria Conuquera Agroecológica.</p>
+            <p>© {new Date().getFullYear()} Red de Intercambio Federada.</p>
             <div>
               {isAuthenticated ? (
                 <Link to="/app/dashboard" className="text-amber-400 hover:underline">

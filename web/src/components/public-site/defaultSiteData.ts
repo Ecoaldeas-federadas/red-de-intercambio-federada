@@ -19,11 +19,11 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
     blocks: [
       {
         type: 'hero',
-        badge: '🌱 Mercado a Cielo Abierto & 10 Años de Historia',
-        title: 'Feria Conuquera Agroecológica',
-        subtitle: 'Cosecha fresca, alimentos sanos y saberes campesinos para toda Caracas.',
+        badge: '🌱 Mercado a Cielo Abierto',
+        title: 'Nuestra Comunidad',
+        subtitle: 'Cosecha fresca, alimentos sanos y saberes campesinos para toda la comunidad.',
         description:
-          'El primer sábado de cada mes abrimos nuestro mercado a cielo abierto en Parque Los Caobos para todo el público general en moneda local. Un espacio autogestionado donde compras directo al productor sin intermediarios ni agrotóxicos, y donde los miembros de la red además intercambian en trueque y crédito mutuo.',
+          'Abrimos nuestro mercado a cielo abierto para todo el público general en moneda local. Un espacio autogestionado donde compras directo al productor sin intermediarios ni agrotóxicos, y donde los miembros de la red además intercambian en trueque y crédito mutuo.',
         image_url:
           'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80',
         primary_cta: {
@@ -39,11 +39,11 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
       {
         type: 'event_schedule',
         badge: '📍 Mercado Abierto al Público General',
-        title: 'Encuentro Mensual en Los Caobos',
-        date_text: 'El primer sábado de cada mes',
-        time_text: 'Desde las 9:00 AM hasta pasado el mediodía',
-        location_name: 'Parque Los Caobos, Caracas',
-        address: 'Zona Sur, área del estacionamiento principal, cerca de la Fuente Venezuela (Metro Bellas Artes / Colegio de Ingenieros)',
+        title: 'Encuentro Mensual',
+        date_text: '',
+        time_text: '',
+        location_name: '',
+        address: '',
         guidelines: [
           '�️ Venta abierta a todo el público en moneda local (no necesitas ser miembro para comprar).',
           '�🚫 Prohibido el uso de bolsas plásticas desechables: trae tu morral, bolsa de tela o canasta.',
@@ -58,19 +58,19 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
       },
       {
         type: 'stats',
-        title: 'Diez Años Construyendo Soberanía Popular',
-        subtitle: 'Cifras reales de un movimiento autónomo nacido en 2014 al calor de la Ley de Semillas.',
+        title: 'Construyendo Soberanía Popular',
+        subtitle: 'Cifras reales de un movimiento autónomo y comunitario.',
         bg_theme: 'primary',
         items: [
           {
-            value: '+10 Años',
+            value: '',
             label: 'De Encuentro Continuo',
-            description: 'Mercado mensual en Parque Los Caobos desde octubre de 2014',
+            description: 'Mercado mensual desde nuestros inicios',
           },
           {
             value: '+45 Colectivos',
             label: 'Familias Productoras',
-            description: 'Valles del Tuy, El Junquito, El Hatillo, La Pastora y Baruta',
+            description: 'Diversas comunidades productoras',
           },
           {
             value: '0% Agrotóxicos',
@@ -80,27 +80,27 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
           {
             value: 'Venta Libre',
             label: 'Moneda Local & Trueque',
-            description: 'Abierto a toda Caracas con opción de trueque para miembros',
+            description: 'Abierto a toda la comunidad con opción de trueque para miembros',
           },
         ],
       },
       {
         type: 'carousel',
         title: 'Galería Viva de Nuestras Jornadas',
-        subtitle: 'Postales de las jornadas de mercado, talleres, cultura y trueque en Los Caobos.',
+        subtitle: 'Postales de las jornadas de mercado, talleres, cultura y trueque en cada encuentro.',
         autoplay: true,
         items: [
           {
             image_url:
               'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&w=1000&q=80',
             title: 'Hortalizas Frescas y Rubros Ancestrales',
-            caption: 'Cosechadas en la madrugada en El Junquito y La Pastora para venta directa en moneda local.',
+            caption: 'Cosechadas en la madrugada para venta directa en moneda local.',
             tag: 'Cosecha del Día',
           },
           {
             image_url:
               'https://images.unsplash.com/photo-1597848212624-a19eb35e2651?auto=format&fit=crop&w=1000&q=80',
-            title: 'Botica Conuquera y Medicina Tradicional',
+            title: 'Botica Comunitaria y Medicina Tradicional',
             caption: 'Tinturas de propóleo, pomadas botánicas, aceites esenciales y plantas medicinales.',
             tag: 'Salud Botánica',
           },
@@ -108,7 +108,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
             image_url:
               'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1000&q=80',
             title: 'Gastronomía Artesanal y Ancestral',
-            caption: 'La tradicional Cafunga de Barlovento, harinas sin gluten, cacao puro y café de montaña.',
+            caption: 'La tradicional Cafunga, harinas sin gluten, cacao puro y café de montaña.',
             tag: 'Sabores Soberanos',
           },
           {
@@ -123,14 +123,14 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
       {
         type: 'features_grid',
         title: 'Dinámica y Organización de la Red',
-        subtitle: 'Cómo funciona la Feria Conuquera tanto en el mercado mensual como en su vida interna.',
+        subtitle: 'Cómo funciona nuestra comunidad tanto en el mercado mensual como en su vida interna.',
         columns: 3,
         items: [
           {
             icon: 'shopping-cart',
             title: 'Mercado Mensual a Cielo Abierto',
             description:
-              'Venta directa al público general en moneda local cada primer sábado de mes en Parque Los Caobos. Sin intermediarios ni usura.',
+              'Venta directa al público general en moneda local en cada encuentro mensual. Sin intermediarios ni usura.',
             badge: 'Venta Pública',
           },
           {
@@ -193,11 +193,11 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
     blocks: [
       {
         type: 'hero',
-        badge: '📜 Nacidos el 29 de Octubre de 2014',
+        badge: '📜 Nuestra Historia',
         title: 'Un Movimiento al Calor de la Semilla Libre',
         subtitle: 'El conuco como horizonte histórico, político y espiritual de soberanía integral.',
         description:
-          'Nacimos en un momento crucial de la historia agrícola nacional, al calor de los debates populares del Movimiento Semillas del Pueblo para la construcción de la Ley de Semillas de Venezuela. La feria es tanto un mercado mensual como una organización viva con asambleas y comisiones activas.',
+          'Nacimos en un momento crucial, al calor de los debates populares para la construcción de soberanía alimentaria. La feria es tanto un mercado mensual como una organización viva con asambleas y comisiones activas.',
         image_url:
           'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=1200&q=80',
         style: 'split',
@@ -208,7 +208,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         title: 'Vida Organizativa Más Allá del Mercado',
         subtitle: 'Asambleas trimestrales, organizaciones, departamentos y trabajo colectivo',
         content:
-          'La Feria Conuquera no es solo el evento de venta del primer sábado de cada mes. Contamos con una estructura organizativa sólida y horizontal:\n\n• **Asamblea General Trimestral:** Cada 3 meses, todos los miembros plenos se reúnen en asamblea formal para evaluar el funcionamiento, admitir nuevos miembros, decidir sobre impuestos, tarifas y políticas colectivas. La asamblea se convoca automáticamente con 7 días de anticipación mínima.\n• **Organizaciones:** Los miembros pueden crear organizaciones (cooperativas, colectivos, proyectos). Cada organización puede tener su propia junta directiva y asamblea interna para decidir sobre sus fondos y políticas.\n• **Departamentos:** Las organizaciones y la asamblea pueden crear departamentos (áreas de trabajo como Producción, Distribución, Pagos). Cada departamento puede tener su propia asamblea o funcionar con un responsable único.\n• **Comisiones de Trabajo:** Se conforman comisiones periódicas para la logística, comunicación, bioinsumos, cultura y articulación comunitaria.\n• **Cayapas de Campo:** Organizamos jornadas de trabajo voluntario y formativo en los conucos y unidades productivas en El Junquito, La Pastora, Baruta y Valles del Tuy.',
+          'Nuestra comunidad no es solo el evento de venta mensual. Contamos con una estructura organizativa sólida y horizontal:\n\n• **Asamblea General Trimestral:** Cada 3 meses, todos los miembros plenos se reúnen en asamblea formal para evaluar el funcionamiento, admitir nuevos miembros, decidir sobre impuestos, tarifas y políticas colectivas. La asamblea se convoca automáticamente con 7 días de anticipación mínima.\n• **Organizaciones:** Los miembros pueden crear organizaciones (cooperativas, colectivos, proyectos). Cada organización puede tener su propia junta directiva y asamblea interna para decidir sobre sus fondos y políticas.\n• **Departamentos:** Las organizaciones y la asamblea pueden crear departamentos (áreas de trabajo como Producción, Distribución, Pagos). Cada departamento puede tener su propia asamblea o funcionar con un responsable único.\n• **Comisiones de Trabajo:** Se conforman comisiones periódicas para la logística, comunicación, bioinsumos, cultura y articulación comunitaria.\n• **Cayapas de Campo:** Organizamos jornadas de trabajo voluntario y formativo en los conucos y unidades productivas de diversas comunidades productoras.',
         image_url:
           'https://images.unsplash.com/photo-1592417817098-8f3d69102a5e?auto=format&fit=crop&w=900&q=80',
         image_position: 'left',
@@ -222,7 +222,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         ],
         quote: {
           text: 'El conuco es la escuela donde la tierra nos enseña que la abundancia nace de la diversidad y la organización comunitaria.',
-          author: 'Vocería Colectiva de la Feria Conuquera',
+          author: 'Vocería Colectiva',
         },
       },
       {
@@ -232,27 +232,27 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         subtitle: 'Más de una década de siembra, trueque y organización popular.',
         items: [
           {
-            year: 'Octubre 2014',
-            title: 'Nacimiento de la Feria Conuquera',
-            description: 'Primer mercado en Los Caobos articulando a productores urbanos y rurales en resistencia económica.',
+            year: '',
+            title: 'Nacimiento de Nuestra Comunidad',
+            description: 'Primer mercado articulando a productores urbanos y rurales en resistencia económica.',
             badge: 'Fundación',
           },
           {
-            year: 'Diciembre 2015',
+            year: '',
             title: 'Aprobación de la Ley de Semillas',
             description: 'Victoria popular protegiendo las semillas nativas y prohibiendo transgénicos y patentes agrícolas.',
             badge: 'Ley Popular',
           },
           {
-            year: '2016 - 2023',
+            year: '',
             title: 'Consolidación de Asambleas y Talleres',
             description: 'Encuentros trimestrales continuos, formación en bioinsumos y articulación con escuelas y organopónicos.',
             badge: 'Crecimiento',
           },
           {
-            year: 'Octubre 2024',
-            title: '10 Años de Encuentro Ininterrumpido',
-            description: 'Celebración de una década en Los Caobos e integración de sistemas digitales de trueque y crédito mutuo.',
+            year: '',
+            title: 'Encuentro Ininterrumpido',
+            description: 'Celebración de una década e integración de sistemas digitales de trueque y crédito mutuo.',
             badge: 'Presente',
           },
         ],
@@ -265,18 +265,18 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
           {
             name: 'Melissa Producción Diversificada',
             role: 'Mónica Pérez y Luis Araujo',
-            project: 'Camino de los Españoles, La Pastora',
+            project: '',
             quote:
-              'Sembrar en las faldas de El Ávila nos ha permitido alimentar a Caracas con dignidad, amor a la tierra y precios justos para nuestro pueblo.',
-            location: 'Caracas, Dto. Capital',
+              'Sembrar nos ha permitido alimentar a nuestra comunidad con dignidad, amor a la tierra y precios justos para nuestro pueblo.',
+            location: '',
           },
           {
             name: 'Alfivegetales Km 38',
             role: 'Familia Miranda',
-            project: 'El Junquito Km 38',
+            project: '',
             quote:
               'Llevamos 10 años trayendo acelgas, col rizada, queso de cabra y tubérculos 100% agroecológicos para venta directa en moneda local a toda la ciudad.',
-            location: 'El Junquito, Miranda',
+            location: '',
           },
         ],
       },
@@ -295,7 +295,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         title: 'Cosecha Sana, Sabores y Medicina',
         subtitle: 'Compra directamente a los productores en moneda local cada primer sábado de mes.',
         description:
-          'No necesitas ser miembro de la feria para comprar. Ven a Parque Los Caobos y encuentra hortalizas recién cosechadas, tubérculos ancestrales, quesos artesanales, botica conuquera, cosmética natural y delicias tradicionales a precios solidarios.',
+          'No necesitas ser miembro de la feria para comprar. Ven a nuestra feria y encuentra hortalizas recién cosechadas, tubérculos ancestrales, quesos artesanales, botica comunitaria, cosmética natural y delicias tradicionales a precios solidarios.',
         image_url:
           'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=1200&q=80',
         style: 'standard',
@@ -313,7 +313,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         ],
         items: [
           {
-            name: 'Hortalizas y Hojas Verdes de El Junquito',
+            name: 'Hortalizas y Hojas Verdes',
             category: 'Cosecha Fresca',
             description:
               'Col rizada (kale portuguesa), acelgas, lechugas variadas, cebollín, cilantro de monte y apio España cosechados en la mañana.',
@@ -325,13 +325,13 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
             name: 'Tubérculos Ancestrales y Plátanos',
             category: 'Cosecha Fresca',
             description:
-              'Ñame morado criollo, ocumo blanco y morado, yuca dulce de Carayaca, auyama madura y cambur morado.',
+              'Ñame morado criollo, ocumo blanco y morado, yuca dulce, auyama madura y cambur morado.',
             badge: 'Rubro Olvidado',
             image_url:
               'https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=600&q=80',
           },
           {
-            name: 'Tinturas Madres y Botica Conuquera',
+            name: 'Tinturas Madres y Botica Comunitaria',
             category: 'Medicina Botánica & Cosmética',
             description:
               'Extractos de propóleo puro, tinturas de moringa, cúrcuma, jengibre, pomadas desinflamatorias de árnica y jarabes naturales.',
@@ -349,10 +349,10 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
               'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80',
           },
           {
-            name: 'La Tradicional Cafunga de Barlovento',
+            name: 'La Tradicional Cafunga',
             category: 'Gastronomía Artesanal',
             description:
-              'Dulce patrimonial afrovenezolano elaborado a base de plátano maduro, coco rallado, papelón y anís dulce, horneado en hoja de plátano.',
+              'Dulce patrimonial tradicional elaborado a base de plátano maduro, coco rallado, papelón y anís dulce, horneado en hoja de plátano.',
             badge: 'Plato Estrella',
             image_url:
               'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=600&q=80',
@@ -370,7 +370,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
             name: 'Cacao Puro, Chocolates y Café de Montaña',
             category: 'Gastronomía Artesanal',
             description:
-              'Barras de chocolate bean-to-bar 70% cacao de Barlovento y Chuao, licor de cacao artesanal y café lavado tostado a leña.',
+              'Barras de chocolate bean-to-bar 70% cacao, licor de cacao artesanal y café lavado tostado a leña.',
             badge: 'Origen Venezolano',
             image_url:
               'https://images.unsplash.com/photo-1549007994-cb92caebd54b?auto=format&fit=crop&w=600&q=80',
@@ -379,7 +379,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
             name: 'Plántulas Medicinales y Semillas Criollas',
             category: 'Semillas & Plántulas',
             description:
-              'Plantas en maceta de poleo, estevia, malojillo, romero, ruda, orégano orejón y sobres de semillas adaptadas al clima caraqueño.',
+              'Plantas en maceta de poleo, estevia, malojillo, romero, ruda, orégano orejón y sobres de semillas adaptadas al clima local.',
             badge: 'Para tu Huerto',
             image_url:
               'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?auto=format&fit=crop&w=600&q=80',
@@ -401,7 +401,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         title: 'Más que un Mercado: Espacio de Formación Popular',
         subtitle: 'Talleres gratuitos, música en vivo, trueque de libros y semillas para toda la familia.',
         description:
-          'Inspirados en la metodología "de campesino a campesino", cada jornada en Parque Los Caobos cuenta con actividades pedagógicas gratuitas para compartir conocimientos de siembra, lombricultura, salud botánica y fermentos.',
+          'Inspirados en la metodología "de campesino a campesino", cada jornada cuenta con actividades pedagógicas gratuitas para compartir conocimientos de siembra, lombricultura, salud botánica y fermentos.',
         image_url:
           'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=80',
         style: 'split',
@@ -428,7 +428,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
           },
           {
             icon: 'users',
-            title: 'Aula Conuquera Abierta',
+            title: 'Aula Comunitaria Abierta',
             description:
               'Talleres prácticos en vivo: sustratos con fibra de coco, biofertilizantes, kokedamas, medicina tradicional y bioinsumos.',
             badge: 'Talleres Gratis',
@@ -437,7 +437,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
             icon: 'shopping-cart',
             title: 'Música & Expresiones Culturales',
             description:
-              'Música tradicional venezolana, ska popular, cantautores populares con cuatro y poesía campesina en vivo.',
+              'Música tradicional, ska popular, cantautores populares con cuatro y poesía campesina en vivo.',
             badge: 'Música en Vivo',
           },
           {
@@ -702,7 +702,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
             icon: 'globe',
             title: 'Un movimiento global',
             description:
-              'Desde la Cumbre de la Tierra de Río en 1992, las ecoaldeas se han expandido como respuesta local a problemas globales urgentes. Hay ecoaldeas en Filipinas, granjas de permacultura en Senegal, proyectos de cohousing urbano en Berlín, comunidades tradicionales en los Andes donde los ancianos transmiten la sabiduría de la tierra. La Feria Conuquera comparte principios con este movimiento: soberanía alimentaria, energía limpia, gobernanza comunitaria y economía solidaria.',
+              'Desde la Cumbre de la Tierra de Río en 1992, las ecoaldeas se han expandido como respuesta local a problemas globales urgentes. Hay ecoaldeas en Filipinas, granjas de permacultura en Senegal, proyectos de cohousing urbano en Berlín, comunidades tradicionales en los Andes donde los ancianos transmiten la sabiduría de la tierra. Nuestra comunidad comparte principios con este movimiento: soberanía alimentaria, energía limpia, gobernanza comunitaria y economía solidaria.',
             badge: 'Global',
           },
           {
@@ -1075,7 +1075,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
           {
             question: '¿Necesito ser miembro de la feria para comprar productos?',
             answer:
-              '¡No! El evento del primer sábado de cada mes en Parque Los Caobos es un mercado a cielo abierto abierto a todo el público general. Cualquier persona puede venir y comprar hortalizas frescas, tubérculos, quesos, panes, botica natural y comida artesanal directamente de los productores pagando en moneda local.',
+              '¡No! Nuestro evento mensual es un mercado a cielo abierto abierto a todo el público general. Cualquier persona puede venir y comprar hortalizas frescas, tubérculos, quesos, panes, botica natural y comida artesanal directamente de los productores pagando en moneda local.',
           },
           {
             question: '¿Quiénes pueden participar en los intercambios de trueque?',
@@ -1083,19 +1083,19 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
               'El trueque directo y el sistema de crédito mutuo (Trueque TQ) está disponible para los miembros y colectivos registrados en la red. Si deseas participar formalmente en los intercambios de crédito mutuo o traer tu propia producción a la feria, puedes llenar la solicitud de admisión para ser evaluado por la asamblea.',
           },
           {
-            question: '¿Cómo se organiza la Feria Conuquera más allá del día de mercado?',
+            question: '¿Cómo se organiza la feria más allá del día de mercado?',
             answer:
-              'La feria tiene una vida organizativa continua: celebramos Asambleas Generales cada 3 meses para la toma de decisiones colectivas, estructuramos comisiones temáticas periódicas (logística, comunicación, bioinsumos, cultura), realizamos talleres formativos presenciales y organizamos cayapas y visitas a los conucos fuera de Caracas.',
+              'La feria tiene una vida organizativa continua: celebramos Asambleas Generales cada 3 meses para la toma de decisiones colectivas, estructuramos comisiones temáticas periódicas (logística, comunicación, bioinsumos, cultura), realizamos talleres formativos presenciales y organizamos cayapas y visitas a los conucos.',
           },
           {
             question: '¿Cuándo y en qué horario se realiza el mercado mensual?',
             answer:
-              'Se realiza el primer sábado de cada mes en el Parque Los Caobos de Caracas (área sur, cerca del estacionamiento y la Fuente Venezuela), desde las 9:00 AM hasta la 1:00 PM aproximadamente.',
+              '',
           },
           {
             question: '¿Cómo llegar en transporte público?',
             answer:
-              'Puedes llegar cómodamente en Metro de Caracas bajándote en la estación Bellas Artes o Colegio de Ingenieros (Línea 1). Desde ambas estaciones caminas unos 5 minutos hacia el Parque Los Caobos.',
+              '',
           },
           {
             question: '¿Por qué está prohibido el uso de bolsas plásticas desechables?',
@@ -1114,26 +1114,26 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
   {
     slug: 'contacto',
     title: 'Contacto y Ubicación',
-    subtitle: 'Canales de Comunicación y Cómo Llegar a Los Caobos',
+    subtitle: 'Canales de Comunicación y Cómo Llegar',
     icon: 'mail',
     menu_order: 8,
     blocks: [
       {
         type: 'contact_location',
-        title: 'Visítanos en Parque Los Caobos',
-        subtitle: 'Abierto al público general cada primer sábado de mes.',
-        address: 'Parque Los Caobos, área del estacionamiento sur, cerca de la Fuente Venezuela, Caracas, Distrito Capital, Venezuela.',
-        schedule: 'Primer sábado de cada mes, de 9:00 AM a 1:00 PM (Venta en moneda local y actividades abiertas)',
-        instagram: 'feriaconuquera',
-        facebook: 'feriaconuquera',
-        email: 'contacto@feriaconuquera.org',
-        phone: '+58 212 000-0000',
-        transport_info: 'Estaciones de Metro Bellas Artes o Colegio de Ingenieros (Línea 1). Acceso peatonal y vehicular por Plaza Venezuela o Av. México.',
+        title: 'Visítanos',
+        subtitle: '',
+        address: '',
+        schedule: '',
+        instagram: '',
+        facebook: '',
+        email: '',
+        phone: '',
+        transport_info: '',
       },
       {
         type: 'cta_banner',
         badge: '📩 Postulación Comunitaria',
-        title: '¿Deseas postularte como productor conuquero o miembro?',
+        title: '¿Deseas postularte como productor comunitario o miembro?',
         subtitle: 'Llena nuestro formulario público de postulación para ser evaluado por la asamblea trimestral.',
         button_text: 'Ir al Formulario de Admisión',
         button_link: '/p/unirse',
@@ -1270,7 +1270,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
             icon: 'sprout',
             title: 'Recuperación de variedades perdidas',
             description:
-              'En Colombia, la campaña "Semillas de Identidad" identificó 27 variedades de maíz criollo entre Urabá y Boliván. En Venezuela, colectivos agroecológicos recuperan variedades de caraota, maíz, ají y tubérculos que habían desaparecido del mercado pero seguían vivas en los conucos de los abuelos. Cada variedad recuperada es un triunfo contra la homogeneización.',
+              'En Colombia, la campaña "Semillas de Identidad" identificó 27 variedades de maíz criollo entre Urabá y Boliván. En nuestra región, colectivos agroecológicos recuperan variedades de caraota, maíz, ají y tubérculos que habían desaparecido del mercado pero seguían vivas en los conucos de los abuelos. Cada variedad recuperada es un triunfo contra la homogeneización.',
             badge: 'Recuperación',
           },
           {
@@ -1300,7 +1300,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         type: 'cta_banner',
         badge: '🌱 Participa',
         title: 'Trae tus semillas a la próxima feria',
-        subtitle: 'Cada primer sábado de mes en Parque Los Caobos. Intercambio libre de semillas criollas, plántulas medicinales y esquejes. No necesitas ser miembro para participar en el trueque de semillas.',
+        subtitle: 'En cada encuentro mensual. Intercambio libre de semillas criollas, plántulas medicinales y esquejes. No necesitas ser miembro para participar en el trueque de semillas.',
         button_text: 'Ver Próxima Feria',
         button_link: '/p/contacto',
         theme: 'forest',
@@ -1328,21 +1328,21 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
       {
         type: 'features_grid',
         title: 'Casas de Bahareque: Construcción Natural Ancestral',
-        subtitle: 'Cuatro siglos de arquitectura sostenible en Venezuela',
+        subtitle: 'Cuatro siglos de arquitectura sostenible en nuestra región',
         columns: 2,
         items: [
           {
             icon: 'home',
             title: '¿Qué es el bahareque?',
             description:
-              'El bahareque es una técnica constructiva prehispánica que ha sobrevivido hasta nuestros días en Venezuela, especialmente en el estado Zulia, desde el siglo XVII. Está compuesto por columnas de madera (horconadura), varas horizontales amarradas a ambos lados (enlatado), un relleno de barro con piedras y paja (embutido), y un acabado de barro con o sin cal (empañetado). Es arquitectura de tierra: vernácula, sostenible y patrimonial.',
+              'El bahareque es una técnica constructiva prehispánica que ha sobrevivido hasta nuestros días, desde el siglo XVII. Está compuesto por columnas de madera (horconadura), varas horizontales amarradas a ambos lados (enlatado), un relleno de barro con piedras y paja (embutido), y un acabado de barro con o sin cal (empañetado). Es arquitectura de tierra: vernácula, sostenible y patrimonial.',
             badge: 'Técnica ancestral',
           },
           {
             icon: 'leaf',
             title: 'Construcción sostenible',
             description:
-              'El bahareque usa materiales locales y reciclables: madera, barro, caña, bejucos, paja. Requiere poca energía y agua para construirse. No contamina. Se integra al paisaje. Regula la temperatura naturalmente (fresco durante el día, cálido en la noche). Estudios de la Universidad Central de Venezuela demuestran que es posible construir y reparar bahareque con materiales disponibles hoy, aplicando principios de construcción sostenible.',
+              'El bahareque usa materiales locales y reciclables: madera, barro, caña, bejucos, paja. Requiere poca energía y agua para construirse. No contamina. Se integra al paisaje. Regula la temperatura naturalmente (fresco durante el día, cálido en la noche). Estudios universitarios demuestran que es posible construir y reparar bahareque con materiales disponibles hoy, aplicando principios de construcción sostenible.',
             badge: 'Sostenible',
           },
           {
@@ -1385,14 +1385,14 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
             icon: 'history',
             title: '4.000 años de tradición',
             description:
-              'El uso de ollas de barro se remonta a las culturas originarias de América. En Ecuador, la cultura Valdivia ya elaboraba vasijas para procesar, servir y guardar alimentos hace 4.000 años. En Venezuela, comunidades de Barinas, Mérida y los Andes mantienen viva la tradición alfarera. Cada olla es única: hecha a mano, cocida en horno a 1000°C, con la arcilla del lugar.',
+              'El uso de ollas de barro se remonta a las culturas originarias de América. En Ecuador, la cultura Valdivia ya elaboraba vasijas para procesar, servir y guardar alimentos hace 4.000 años. En diversas comunidades se mantiene viva la tradición alfarera. Cada olla es única: hecha a mano, cocida en horno a 1000°C, con la arcilla del lugar.',
             badge: 'Tradición',
           },
           {
             icon: 'leaf',
             title: 'Cocina sin dependencia industrial',
             description:
-              'Usar ollas de barro es un acto de soberanía: no dependes de utensilios industriales importados, apoyas a los alfareros locales, reduces el consumo de metal y plástico, y recuperas una forma de cocinar que es más sabrosa, más saludable y más justa. En la feria conseguimos ollas, budares, tiestos y vasijas de barro hechas por artesanos venezolanos.',
+              'Usar ollas de barro es un acto de soberanía: no dependes de utensilios industriales importados, apoyas a los alfareros locales, reduces el consumo de metal y plástico, y recuperas una forma de cocinar que es más sabrosa, más saludable y más justa. En la feria conseguimos ollas, budares, tiestos y vasijas de barro hechas por artesanos locales.',
             badge: 'Soberanía',
           },
         ],
@@ -1407,21 +1407,21 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
             icon: 'home',
             title: '¿Qué es una casa de cultivo?',
             description:
-              'Las casas de cultivo son estructuras protegidas que permiten producir hortalizas durante todo el año, protegiendo los cultivos del sol intenso, la lluvia excesiva y las plagas. En Caracas, experiencias como el AVIVIR La Limonera (Baruta) y casas de cultivo en El Junquito han demostrado que se pueden producir tomates, pimentones, pepinos y lechugas de forma agroecológica en espacios urbanos.',
+              'Las casas de cultivo son estructuras protegidas que permiten producir hortalizas durante todo el año, protegiendo los cultivos del sol intenso, la lluvia excesiva y las plagas. En diversas comunidades, las casas de cultivo han demostrado que se pueden producir tomates, pimentones, pepinos y lechugas de forma agroecológica en espacios urbanos.',
             badge: 'Cultivo protegido',
           },
           {
             icon: 'leaf',
             title: 'Producción agroecológica urbana',
             description:
-              'En las casas de cultivo se usan abonos orgánicos (humus de lombriz, biol), control biológico de plagas (Trichoderma, Bacillus thuringiensis, Beauveria bassiana) y caldos naturales (sulfocalcico). No se usan agrotóxicos. En El Junquito, una casa de cultivo de 300 m² produce hasta 8.000 kg de tomate por ciclo, libre de agrotóxicos.',
+              'En las casas de cultivo se usan abonos orgánicos (humus de lombriz, biol), control biológico de plagas (Trichoderma, Bacillus thuringiensis, Beauveria bassiana) y caldos naturales (sulfocalcico). No se usan agrotóxicos. Una casa de cultivo de 300 m² puede producir hasta 8.000 kg de tomate por ciclo, libre de agrotóxicos.',
             badge: 'Sin agrotóxicos',
           },
           {
             icon: 'users',
             title: 'Agricultura comunitaria',
             description:
-              'En barios como Catia, los huertos urbanos se han convertido en centros de desarrollo comunitario. El Centro Agro Catia, en un predio que fue campamento de damnificados, ahora produce tomate, cebollín, ají, pimentón, repollo y lechuga. Escolares visitan para aprender a cultivar. La siembra urbana es herramienta de soberanía alimentaria, educación y tejido social.',
+              'En diversos barrios, los huertos urbanos se han convertido en centros de desarrollo comunitario. Muchos huertos, en predios recuperados, ahora producen tomate, cebollín, ají, pimentón, repollo y lechuga. Escolares visitan para aprender a cultivar. La siembra urbana es herramienta de soberanía alimentaria, educación y tejido social.',
             badge: 'Comunidad',
           },
           {
@@ -1435,15 +1435,15 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
       },
       {
         type: 'features_grid',
-        title: 'Medicina Natural y Botica Conuquera',
-        subtitle: 'El conocimiento etnobotánico de las comunidades venezolanas',
+        title: 'Medicina Natural y Botica Comunitaria',
+        subtitle: 'El conocimiento etnobotánico de las comunidades locales',
         columns: 2,
         items: [
           {
             icon: 'heart',
             title: 'Plantas medicinales: patrimonio vivo',
             description:
-              'Estudios etnobotánicos en comunidades campesinas de Aragua, Mérida, Anzoátegui y Barinas documentan cientos de especies de plantas medicinales usadas por los venezolanos. En El Onoto (Aragua), todas las familias usan plantas medicinales, desde niños hasta ancianos. Es patrimonio cultural y ancestral que se transmite oralmente, de abuelos a nietos.',
+              'Estudios etnobotánicos en comunidades campesinas documentan cientos de especies de plantas medicinales usadas por las comunidades locales. En muchas comunidades rurales, todas las familias usan plantas medicinales, desde niños hasta ancianos. Es patrimonio cultural y ancestral que se transmite oralmente, de abuelos a nietos.',
             badge: 'Etnobotánica',
           },
           {
@@ -1471,7 +1471,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
       },
       {
         type: 'features_grid',
-        title: 'La Cosmovisión Conuquera',
+        title: 'La Cosmovisión Comunitaria',
         subtitle: 'El conuco como forma de vida, no solo de producción',
         columns: 2,
         items: [
@@ -1479,14 +1479,14 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
             icon: 'sprout',
             title: '¿Qué es el conuco?',
             description:
-              'El conuco es el sistema agrícola tradicional de los pueblos originarios y campesinos de Venezuela y el Caribe. No es solo una parcela: es una forma de relación con la tierra basada en la diversidad, la reciprocidad y el respeto. En el conuco se siembran juntos maíz, caraota, frijol, yuca, ají, lechosa: cada planta protege y nutre a las demás. Es el modelo original de la agroecología.',
+              'El conuco es el sistema agrícola tradicional de los pueblos originarios y campesinos de nuestra región. No es solo una parcela: es una forma de relación con la tierra basada en la diversidad, la reciprocidad y el respeto. En el conuco se siembran juntos maíz, caraota, frijol, yuca, ají, lechosa: cada planta protege y nutre a las demás. Es el modelo original de la agroecología.',
             badge: 'Conuco',
           },
           {
             icon: 'heart',
             title: 'La Pachamama y la Cruz de Mayo',
             description:
-              'Cada mayo, los productores de la Feria Conuquera celebran un convite en honor a la Cruz de Mayo, un sentido homenaje a la Pachamama que les provee sustento y vida. No es solo una festividad: es un acto de gratitud a la tierra. La cosmovisión conuquera entiende que la tierra no es un recurso que se explota, sino un ser vivo del que se es parte y al que se debe respeto.',
+              'Cada mayo, los productores de nuestra comunidad celebran un convite en honor a la Cruz de Mayo, un sentido homenaje a la Pachamama que les provee sustento y vida. No es solo una festividad: es un acto de gratitud a la tierra. La cosmovisión comunitaria entiende que la tierra no es un recurso que se explota, sino un ser vivo del que se es parte y al que se debe respeto.',
             badge: 'Pachamama',
           },
           {
@@ -1500,7 +1500,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
             icon: 'book-open',
             title: 'Diálogo intergeneracional',
             description:
-              'La feria es un puente entre generaciones: los abuelos enseñan a seleccionar semillas, preparar remedios y cocinar recetas ancestrales; los jóvenes aportan técnicas de documentación, redes sociales y experimentación agroecológica. El conocimiento no se pierde cuando circula. La Feria Conuquera busca "rescatar las recetas y alimentos soberanos" y "restaurar la cultura alimentaria de los ancestros".',
+              'La feria es un puente entre generaciones: los abuelos enseñan a seleccionar semillas, preparar remedios y cocinar recetas ancestrales; los jóvenes aportan técnicas de documentación, redes sociales y experimentación agroecológica. El conocimiento no se pierde cuando circula. Nuestra comunidad busca "rescatar las recetas y alimentos soberanos" y "restaurar la cultura alimentaria de los ancestros".',
             badge: 'Diálogo',
           },
         ],
@@ -1518,7 +1518,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
   },
   {
     slug: 'filosofia-conuquera',
-    title: 'Filosofía Conuquera',
+    title: 'Filosofía Comunitaria',
     subtitle: 'Agroecología, Soberanía y Vida Comunitaria',
     icon: 'heart',
     menu_order: 11,
@@ -1526,10 +1526,10 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
       {
         type: 'hero',
         badge: '🌱 Más que un Mercado, una Forma de Vida',
-        title: 'Filosofía Conuquera',
-        subtitle: 'La Feria Conuquera no es solo un mercado: es una organización que aglutina a colectivos, familias y comunidades que buscan transformar cómo producimos, distribuimos y consumimos alimentos.',
+        title: 'Filosofía Comunitaria',
+        subtitle: 'Nuestra comunidad no es solo un mercado: es una organización que aglutina a colectivos, familias y comunidades que buscan transformar cómo producimos, distribuimos y consumimos alimentos.',
         description:
-          'Nacimos en 2014 como respuesta a la crisis alimentaria y la guerra económica. Frente a las colas, el desabastecimiento y la comida procesada, retomamos el concepto y la práctica conuquera: producir sin agrotóxicos, distribuir sin intermediarios, consumir alimentos soberanos y tejer comunidad alrededor de la tierra.',
+          'Nacimos como respuesta a la crisis alimentaria y la guerra económica. Frente a las colas, el desabastecimiento y la comida procesada, retomamos el concepto y la práctica comunitaria: producir sin agrotóxicos, distribuir sin intermediarios, consumir alimentos soberanos y tejer comunidad alrededor de la tierra.',
         image_url:
           'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1200&q=80',
         style: 'standard',
@@ -1558,14 +1558,14 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
             icon: 'users',
             title: 'Economía solidaria',
             description:
-              'Frente al capitalismo que explota personas y tierra, proponemos la economía solidaria: trueque, crédito mutuo, convite, cayapa, distribución sin intermediarios, precios justos. El dinero no es el centro: el centro son las personas. Producimos para el bien común, no para la acumulación. La Feria Conuquera es un mercado a costo solidario, no a precio de mercado.',
+              'Frente al capitalismo que explota personas y tierra, proponemos la economía solidaria: trueque, crédito mutuo, convite, cayapa, distribución sin intermediarios, precios justos. El dinero no es el centro: el centro son las personas. Producimos para el bien común, no para la acumulación. Nuestra comunidad es un mercado a costo solidario, no a precio de mercado.',
             badge: 'Solidaridad',
           },
           {
             icon: 'heart',
             title: 'Respeto a la Madre Tierra',
             description:
-              'La tierra no es un recurso: es un ser vivo del que somos parte. La cosmovisión conuquera entiende que la Pachamama nos provee sustento y vida, y merece gratitud y respeto. Por eso prohibimos el plástico desechable, usamos agroecología sin agrotóxicos, reciclamos nutrientes y promovemos construcciones naturales como el bahareque. Cuidar la tierra es cuidarnos a nosotros mismos.',
+              'La tierra no es un recurso: es un ser vivo del que somos parte. La cosmovisión comunitaria entiende que la Pachamama nos provee sustento y vida, y merece gratitud y respeto. Por eso prohibimos el plástico desechable, usamos agroecología sin agrotóxicos, reciclamos nutrientes y promovemos construcciones naturales como el bahareque. Cuidar la tierra es cuidarnos a nosotros mismos.',
             badge: 'Pachamama',
           },
           {
@@ -1579,7 +1579,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
             icon: 'globe',
             title: 'Red global de resistencia',
             description:
-              'No estamos solos. La Feria Conuquera es parte de un movimiento planetario: la Red Global de Ecoaldeas, la Vía Campesina, Slow Food, las Redes de Semillas Libres, los sistemas LETS, los clubes de trueque. En todos los continentes hay comunidades que están construyendo alternativas al modelo agroindustrial. Somos parte de esa red global de resistencia regenerativa.',
+              'No estamos solos. Nuestra comunidad es parte de un movimiento planetario: la Red Global de Ecoaldeas, la Vía Campesina, Slow Food, las Redes de Semillas Libres, los sistemas LETS, los clubes de trueque. En todos los continentes hay comunidades que están construyendo alternativas al modelo agroindustrial. Somos parte de esa red global de resistencia regenerativa.',
             badge: 'Global',
           },
         ],
@@ -1592,30 +1592,30 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         items: [
           {
             icon: 'calendar',
-            title: '2014: Nacimiento en la crisis',
+            title: 'Nacimiento en la crisis',
             description:
-              'La Feria Conuquera Agroecológica nace en 2014 como respuesta al contexto de guerra económica. La compra compulsiva de alimentos procesados y las colas llevaron a miles de personas a asumir prácticas nuevas para acceder a bienes. Frente a ese panorama, un colectivo de productores decidió articular una red popular para generar una alternativa de distribución de alimentos sanos, producidos agroecológicamente.',
-            badge: '2014',
+              'Nuestra Comunidad nace como respuesta al contexto de guerra económica. La compra compulsiva de alimentos procesados y las colas llevaron a miles de personas a asumir prácticas nuevas para acceder a bienes. Frente a ese panorama, un colectivo de productores decidió articular una red popular para generar una alternativa de distribución de alimentos sanos, producidos agroecológicamente.',
+            badge: 'Fundación',
           },
           {
             icon: 'leaf',
-            title: '2015: Primera feria en Los Caobos',
+            title: 'Primera feria',
             description:
-              'La primera Feria Conuquera se realizó en el Parque Los Caobos de Caracas. El objetivo era visibilizar el trabajo del productor y la productora de alimentos e incentivar al caraqueño a incorporarse al sector productivo. Desde entonces, cada primer sábado de mes, el parque se transforma en un mercado a cielo abierto donde se venden e intercambian alimentos agroecológicos.',
-            badge: '2015',
+              'La primera feria se realizó en nuestro espacio de encuentro. El objetivo era visibilizar el trabajo del productor y la productora de alimentos e incentivar a la comunidad a incorporarse al sector productivo. Desde entonces, en cada encuentro mensual, el espacio se transforma en un mercado a cielo abierto donde se venden e intercambian alimentos agroecológicos.',
+            badge: 'Primera feria',
           },
           {
             icon: 'users',
             title: 'Crecimiento y red de colectivos',
             description:
-              'La feria creció. Hoy aglutina a más de 40 productores de Valles del Tuy, El Hatillo, Baruta, El Junquito, Puerta Caracas y otras comunidades alrededor de Caracas. Se venden frutas, verduras, quesos de búfala y cabra, productos de miel, licores artesanales, cosmética natural, semillas criollas, plántulas medicinales y comida ancestral. Más que un mercado, es una red de colectivos.',
+              'La feria creció. Hoy aglutina a más de 40 productores de diversas comunidades aledañas. Se venden frutas, verduras, quesos de búfala y cabra, productos de miel, licores artesanales, cosmética natural, semillas criollas, plántulas medicinales y comida ancestral. Más que un mercado, es una red de colectivos.',
             badge: 'Red',
           },
           {
             icon: 'sparkles',
             title: '10 años de resistencia',
             description:
-              'En octubre celebramos nuestro aniversario. Diez años de organización, formación y trabajo colectivo. Diez años demostrando que es posible producir alimentos sanos sin agrotóxicos, distribuir sin intermediarios, intercambiar sin dinero y tejer comunidad alrededor de la tierra. La Feria Conuquera es prueba viviente de que otra forma de vida es posible.',
+              'En octubre celebramos nuestro aniversario. Años de organización, formación y trabajo colectivo. Años demostrando que es posible producir alimentos sanos sin agrotóxicos, distribuir sin intermediarios, intercambiar sin dinero y tejer comunidad alrededor de la tierra. Nuestra comunidad es prueba viviente de que otra forma de vida es posible.',
             badge: '10 años',
           },
         ],
@@ -1630,7 +1630,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
             icon: 'leaf',
             title: 'Cosecha fresca',
             description:
-              'Hortalizas y hojas verdes de El Junquito: col rizada, acelgas, lechugas variadas, cebollín, cilantro, perejil, espinaca. Tubérculos ancestrales: ñame morado criollo, ocumo blanco y morado, yuca dulce de Carayaca, auyama madura, cambur morado. Todo cosechado en la mañana, sin agrotóxicos.',
+              'Hortalizas y hojas verdes: col rizada, acelgas, lechugas variadas, cebollín, cilantro, perejil, espinaca. Tubérculos ancestrales: ñame morado criollo, ocumo blanco y morado, yuca dulce, auyama madura, cambur morado. Todo cosechado en la mañana, sin agrotóxicos.',
             badge: 'Fresco',
           },
           {
@@ -1644,7 +1644,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
             icon: 'utensils',
             title: 'Gastronomía artesanal',
             description:
-              'Cafunga de Barlovento (postre afro-venezolano con plátano maduro, coco y papelón). Quesos de búfala y cabra: añejados, frescos, dulce de leche, yogur, mantequilla. Cacao puro, chocolates bean-to-bar de Barlovento y Chuao. Café de montaña tostado en leña.',
+              'Cafunga (postre tradicional con plátano maduro, coco y papelón). Quesos de búfala y cabra: añejados, frescos, dulce de leche, yogur, mantequilla. Cacao puro, chocolates bean-to-bar. Café de montaña tostado en leña.',
             badge: 'Gastronomía',
           },
           {
@@ -1658,7 +1658,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
             icon: 'home',
             title: 'Artesanía y ollas de barro',
             description:
-              'Ollas, budares y tiestos de barro hechos por alfareros venezolanos. Cestería tradicional. Vasijas de arcilla. Productos de fibras naturales. Cada pieza es única, hecha a mano con técnicas ancestrales y materiales del lugar.',
+              'Ollas, budares y tiestos de barro hechos por alfareros locales. Cestería tradicional. Vasijas de arcilla. Productos de fibras naturales. Cada pieza es única, hecha a mano con técnicas ancestrales y materiales del lugar.',
             badge: 'Artesanía',
           },
           {
@@ -1715,7 +1715,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
             icon: 'leaf',
             title: 'Cayapas y visitas a conucos',
             description:
-              'Organizamos cayapas (jornadas colectivas de trabajo) y visitas a los conucos de los productores fuera de Caracas. Es ayuda mutua: vas a sembrar o cosechar con el compañero, aprendes de su práctica y fortaleces el vínculo rural-urbano.',
+              'Organizamos cayapas (jornadas colectivas de trabajo) y visitas a los conucos de los productores. Es ayuda mutua: vas a sembrar o cosechar con el compañero, aprendes de su práctica y fortaleces el vínculo rural-urbano.',
             badge: 'Cayapa',
           },
         ],
@@ -1723,7 +1723,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
       {
         type: 'cta_banner',
         badge: '🤝 Únete a la Red',
-        title: 'La Feria Conuquera es una forma de vida',
+        title: 'Nuestra comunidad es una forma de vida',
         subtitle: 'No solo vienes a comprar: vienes a aprender, a intercambiar, a compartir, a construir comunidad. Si deseas ingresar como productor o participar en las asambleas y trueques, postúlate ante la asamblea.',
         button_text: 'Completar Solicitud de Admisión',
         button_link: '/p/unirse',
@@ -1897,7 +1897,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         type: 'cta_banner',
         badge: '🌱 Nuestro Sueño',
         title: 'Campo Soberano: nuestra ecoaldea',
-        subtitle: 'Nos inspiramos en estas experiencias para construir nuestra propia comunidad intencional agroecológica en Venezuela. Conoce el proyecto Campo Soberano: permacultura, energía solar, bahareque, crédito mutuo y gobernanza sociocrática.',
+        subtitle: 'Nos inspiramos en estas experiencias para construir nuestra propia comunidad intencional agroecológica. Conoce el proyecto Campo Soberano: permacultura, energía solar, bahareque, crédito mutuo y gobernanza sociocrática.',
         button_text: 'Conocer Campo Soberano',
         button_link: '/p/campo-soberano',
         theme: 'forest',
@@ -1932,7 +1932,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
             icon: 'zap',
             title: 'Universal e invariable',
             description:
-              'El julio (J) es la unidad de energía del Sistema Internacional de Unidades (SI). Es la misma en Caracas, en Tokio y en la Luna. No depende de ningún gobierno, banco central ni mercado. 1 kWh siempre será 3.6 MJ, sin importar la inflación, la política ni la especulación.',
+              'El julio (J) es la unidad de energía del Sistema Internacional de Unidades (SI). Es la misma en cualquier lugar del mundo. No depende de ningún gobierno, banco central ni mercado. 1 kWh siempre será 3.6 MJ, sin importar la inflación, la política ni la especulación.',
             badge: 'Universal',
           },
           {
@@ -1962,7 +1962,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         type: 'features_grid',
         title: 'La Fórmula Fundamental',
         subtitle: 'Cómo se calcula el precio de cualquier producto',
-        columns: 1,
+        columns: 2,
         items: [
           {
             icon: 'calculator',
@@ -2075,7 +2075,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         type: 'features_grid',
         title: 'Ejemplo Práctico: Pan Artesanal (1 kg)',
         subtitle: 'Cómo se calcula paso a paso el precio de un kilo de pan integral',
-        columns: 1,
+        columns: 2,
         items: [
           {
             icon: 'wheat',
@@ -2090,7 +2090,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         type: 'features_grid',
         title: 'Productos Compuestos: Cálculo por Rendimiento',
         subtitle: 'Cuando un productor transforma materias primas en productos terminados',
-        columns: 1,
+        columns: 2,
         items: [
           {
             icon: 'droplet',
@@ -2274,7 +2274,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
         subtitle: 'Usa nuestra calculadora energética para ver el desglose de energía y precio de cualquier producto del catálogo. Puedes ver la energía directa, humana, de insumos y de amortización que hay en cada cosa que producimos.',
         button_text: 'Ver Catálogo de Productos',
         button_link: '/p/productos',
-        theme: 'emerald',
+        theme: 'forest',
       },
     ],
   },

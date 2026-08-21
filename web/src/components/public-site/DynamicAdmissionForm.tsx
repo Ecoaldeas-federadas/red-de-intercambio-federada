@@ -43,10 +43,10 @@ export const DEFAULT_ADMISSION_FIELDS: FormFieldSchema[] = [
     id: 'participation_type',
     label: 'Tipo de Participación / Perfil en la Red',
     type: 'select',
-    help_text: 'Selecciona cómo deseas participar en la Feria Conuquera.',
+    help_text: 'Selecciona cómo deseas participar en la comunidad.',
     required: true,
     options: [
-      'Productor Agrícola / Conuquero',
+      'Productor Agrícola',
       'Artesano Gastronómico / Alimentos Procesados',
       'Medicina Botánica & Cosmética Natural',
       'Consumidor Consciente / Miembro de Trueque',
@@ -59,7 +59,7 @@ export const DEFAULT_ADMISSION_FIELDS: FormFieldSchema[] = [
     label: 'Ubicación / Sector donde resides o produces',
     type: 'text',
     placeholder: 'Ej: El Junquito Km 18 / La Pastora / Valles del Tuy / Baruta',
-    help_text: 'Nos ayuda a geolocalizar las unidades productivas en la Gran Caracas.',
+    help_text: 'Nos ayuda a geolocalizar las unidades productivas.',
     required: false,
   },
   {
@@ -95,14 +95,14 @@ export const DEFAULT_ADMISSION_FIELDS: FormFieldSchema[] = [
   },
   {
     id: 'how_heard',
-    label: '¿Cómo te enteraste de la Feria Conuquera?',
+    label: '¿Cómo te enteraste de nosotros?',
     type: 'select',
     help_text: 'Para conocer cómo se expande nuestra red popular.',
     required: false,
     options: [
-      'Visité el mercado en Parque Los Caobos',
+      'Visité la comunidad',
       'Redes Sociales (Instagram / Facebook)',
-      'Recomendación de un productor o vecino conuquero',
+      'Recomendación de un miembro de la comunidad',
       'Asamblea popular o taller comunitario',
       'Prensa comunitaria o radio',
     ],
@@ -112,7 +112,7 @@ export const DEFAULT_ADMISSION_FIELDS: FormFieldSchema[] = [
 export function DynamicAdmissionForm() {
   const [fields, setFields] = useState<FormFieldSchema[]>(DEFAULT_ADMISSION_FIELDS)
   const [title, setTitle] = useState('Solicitud de Ingreso a la Red')
-  const [subtitle, setSubtitle] = useState('Completa tus datos para postularte como productor conuquero, artesano o miembro.')
+  const [subtitle, setSubtitle] = useState('Completa tus datos para postularte como productor, artesano o miembro.')
   const [answers, setAnswers] = useState<Record<string, any>>({})
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -211,7 +211,7 @@ export function DynamicAdmissionForm() {
           ¡Solicitud enviada con éxito!
         </h2>
         <p className="text-xs sm:text-sm text-gray-600 leading-relaxed max-w-lg mx-auto">
-          Muchas gracias por tu interés en sumarte a la <b>Feria Conuquera Agroecológica</b>. Tus respuestas han sido registradas y serán evaluadas por la asamblea comunitaria. Nos pondremos en contacto contigo a la brevedad.
+          Muchas gracias por tu interés en sumarte a la <b>comunidad</b>. Tus respuestas han sido registradas y serán evaluadas por la asamblea comunitaria. Nos pondremos en contacto contigo a la brevedad.
         </p>
         <div className="pt-3">
           <Link

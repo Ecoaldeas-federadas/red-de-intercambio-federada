@@ -167,10 +167,10 @@ export function HeroBlock({ data }: { data: HeroBlockData }) {
           </div>
           <div className="lg:col-span-5 relative">
             <div className="relative rounded-2xl overflow-hidden shadow-2xl border-2 sm:border-4 border-white/10 aspect-[4/3] group">
-              <EdImage field="image_url" src={data.image_url} alt={data.title} className="w-full h-full object-cover transition duration-700 group-hover:scale-105" />
+              <EdImage field="image_url" src={data.image_url || ''} alt={data.title || ''} className="w-full h-full object-cover transition duration-700 group-hover:scale-105" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
               <div className="absolute bottom-3 left-3 right-3 text-[11px] sm:text-xs text-white/90 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10">
-                🌱 Parque Los Caobos, Caracas
+                {data.subtitle || ''}
               </div>
             </div>
           </div>
@@ -447,7 +447,7 @@ export function SplitStoryBlock({ data }: { data: SplitStoryBlockData }) {
         <div className={`lg:col-span-5 ${isLeft ? 'lg:order-1' : 'lg:order-2'}`}>
           {data.image_url ? (
             <div className="rounded-2xl overflow-hidden shadow-lg border-2 sm:border-4 border-emerald-50 aspect-[4/3] relative group">
-              <EdImage field="image_url" src={data.image_url} alt={data.title} className="w-full h-full object-cover transition duration-700 group-hover:scale-105" />
+              <EdImage field="image_url" src={data.image_url || ''} alt={data.title || ''} className="w-full h-full object-cover transition duration-700 group-hover:scale-105" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
             </div>
           ) : (
