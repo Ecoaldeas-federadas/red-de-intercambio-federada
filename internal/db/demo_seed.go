@@ -1525,9 +1525,9 @@ func encryptPrivateKeyDemo(privKey ed25519.PrivateKey, passphrase string) []byte
 }
 
 func demoSeedTransactions(ctx context.Context, d *DB, nodeDomain string) error {
-	getUserID := func(username string) string {
-		var id string
-		d.Pool.QueryRow(ctx, `SELECT id::text FROM users WHERE username = $1 AND node_domain = $2`, username, nodeDomain).Scan(&id)
+	getUserID := func(username string) uuid.UUID {
+		var id uuid.UUID
+		d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE username = $1 AND node_domain = $2`, username, nodeDomain).Scan(&id)
 		return id
 	}
 
@@ -1538,40 +1538,412 @@ func demoSeedTransactions(ctx context.Context, d *DB, nodeDomain string) error {
 	lucia := getUserID("lucia")
 	isabel := getUserID("isabel")
 	raul := getUserID("raul")
+	elena := getUserID("elena")
+	marcos := getUserID("marcos")
+	sofia := getUserID("sofia")
+	pablo := getUserID("pablo")
+	tomas := getUserID("tomas")
 	tienda := getUserID("tienda_comunitaria")
 	panaderia := getUserID("panaderia_monte")
+	herreria := getUserID("herreria")
+	taller := getUserID("taller_textil")
+	coop := getUserID("coop_agricola")
+	impuestos := getUserID("impuestos")
+	fondo := getUserID("fondo_comunitario")
+
+	// Verificar si ya hay transacciones
+	var count int
+	d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM transactions WHERE sender_node = $1 OR receiver_node = $1`, nodeDomain).Scan(&count)
+	if count > 0 {
+		return nil
+	}
 
 	type txn struct {
-		sender, receiver, desc string
-		amount                 int64
+		sender, receiver uuid.UUID
+		amount           int64
+		desc             string
+		hoursAgo         int
 	}
 
 	txns := []txn{
-		{carmen, tienda, "Compra de frijol y quinua", 80},
-		{jose, tienda, "Compra de tijeras de podar", 60},
-		{andrea, panaderia, "Pan de quinua (1kg)", 50},
-		{diego, jose, "Transporte de cosecha en mula", 80},
-		{lucia, isabel, "Te de hierbas del monte", 25},
-		{isabel, carmen, "Queso de cabra (500g)", 60},
-		{raul, tienda, "Compra de ocumo y guayaba", 42},
-		{carmen, raul, "Ruana de lana (encargo)", 250},
-		{andrea, isabel, "Aceite de romero", 45},
-		{diego, panaderia, "Pan de quinua semanal", 50},
+		// Compras en tiendas (varios meses)
+		{carmen, tienda, 80, "Compra de frijol y quinua", 24 * 90},
+		{jose, tienda, 60, "Compra de tijeras de podar", 24 * 88},
+		{andrea, panaderia, 50, "Pan de quinua (1kg)", 24 * 85},
+		{diego, jose, 80, "Transporte de cosecha en mula", 24 * 82},
+		{lucia, isabel, 25, "Te de hierbas del monte", 24 * 80},
+		{isabel, carmen, 60, "Queso de cabra (500g)", 24 * 78},
+		{raul, tienda, 42, "Compra de ocumo y guayaba", 24 * 75},
+		{carmen, raul, 250, "Ruana de lana (encargo)", 24 * 72},
+		{andrea, isabel, 45, "Aceite de romero", 24 * 70},
+		{diego, panaderia, 50, "Pan de quinua semanal", 24 * 68},
+		{sofia, taller, 120, "Tela de algodon (3m)", 24 * 65},
+		{pablo, herreria, 90, "Reparacion de azadon", 24 * 60},
+		{elena, coop, 200, "Semillas criollas (lote)", 24 * 58},
+		{marcos, panaderia, 35, "Pan integral semanal", 24 * 55},
+		{tomas, tienda, 70, "Compra de miel y cafe", 24 * 52},
+		{lucia, taller, 85, "Manta de lana", 24 * 50},
+		{carmen, panaderia, 40, "Pan y dulces", 24 * 48},
+		{jose, herreria, 110, "Cuchillo de cocina", 24 * 45},
+		{andrea, coop, 150, "Abono organico (sacos)", 24 * 42},
+		{diego, taller, 95, "Costura de ropa de trabajo", 24 * 40},
+		// Mes anterior
+		{sofia, tienda, 55, "Compra mensual de granos", 24 * 35},
+		{pablo, isabel, 30, "Jabon natural (6 unidades)", 24 * 32},
+		{elena, panaderia, 45, "Pan artesanal", 24 * 30},
+		{raul, herreria, 75, "Herramienta de jardin", 24 * 28},
+		{tomas, coop, 130, "Semillas para huerto", 24 * 25},
+		{carmen, taller, 180, "Cortina de lana", 24 * 22},
+		{marcos, coop, 95, "Fertilizante organico", 24 * 20},
+		{andrea, tienda, 65, "Aceite, sal, especias", 24 * 18},
+		{diego, isabel, 40, "Unguento medicinal", 24 * 15},
+		{lucia, panaderia, 38, "Pan semanal", 24 * 12},
+		// Recientes
+		{jose, taller, 70, "Bolsa de lona", 24 * 10},
+		{sofia, coop, 110, "Banca de semillas", 24 * 8},
+		{pablo, tienda, 52, "Compra quinua y frijol", 24 * 6},
+		{elena, isabel, 28, "Te de manzanilla", 24 * 5},
+		{tomas, panaderia, 33, "Pan y galletas", 24 * 3},
+		{carmen, coop, 140, "Canasta de verduras", 24 * 2},
+		{marcos, taller, 65, "Gorro de lana", 24 * 1},
+		// Transacciones con impuesto (org -> individual)
+		{tienda, impuestos, 8, "Impuesto 1% sobre venta 80", 24 * 90},
+		{panaderia, impuestos, 5, "Impuesto 1% sobre venta 50", 24 * 85},
+		{taller, impuestos, 12, "Impuesto 1% sobre venta 120", 24 * 65},
+		{herreria, impuestos, 9, "Impuesto 1% sobre venta 90", 24 * 60},
+		{coop, impuestos, 20, "Impuesto 1% sobre venta 200", 24 * 58},
+		// Distribución del fondo a proyectos
+		{impuestos, fondo, 54, "Transferencia a fondo comunitario", 24 * 30},
+		// Transacciones federadas (entre nodos)
+		{carmen, jose, 100, "Compra de quinua andina (federada)", 24 * 20},
+		{tienda, coop, 300, "Compra mayorista de semillas", 24 * 15},
 	}
 
+	taxRate := int64(1) // 1%
 	for i, t := range txns {
-		if t.sender == "" || t.receiver == "" {
+		if t.sender == uuid.Nil || t.receiver == uuid.Nil {
 			continue
 		}
+
+		// Calcular impuesto (1% si el emisor es organización)
+		var taxAmount int64 = 0
+		var taxTarget *uuid.UUID
+		var senderType string
+		d.Pool.QueryRow(ctx, `SELECT account_type FROM users WHERE id = $1`, t.sender).Scan(&senderType)
+		if senderType == "organization" && impuestos != uuid.Nil {
+			taxAmount = t.amount * taxRate / 100
+			taxTarget = &impuestos
+		}
+
+		txID := uuid.New()
 		_, err := d.Pool.Exec(ctx, `
-			INSERT INTO transactions (id, node_domain, sender_id, receiver_id, amount, description, status, created_at)
-			VALUES ($1, $2, $3, $4, $5, $6, 'completed', NOW() - interval '%d hours')`,
-			uuid.New(), nodeDomain, t.sender, t.receiver, t.amount, t.desc, i*6)
+			INSERT INTO transactions (id, tx_type, sender_id, receiver_id, sender_node, receiver_node, amount, tax_amount, tax_target_account, status, metadata, created_at, confirmed_at)
+			VALUES ($1, 'transfer', $2, $3, $4, $4, $5, $6, $7, 'completed', $8, NOW() - interval '%d hours', NOW() - interval '%d hours')`,
+			txID, t.sender, t.receiver, nodeDomain, t.amount, taxAmount, taxTarget,
+			fmt.Sprintf(`{"description": "%s"}`, t.desc), t.hoursAgo, t.hoursAgo)
 		if err != nil {
 			log.Printf("Demo: error creating transaction %d: %v", i, err)
+			continue
+		}
+
+		// Crear ledger entries (débito/crédito)
+		d.Pool.Exec(ctx, `
+			INSERT INTO ledger_entries (id, transaction_id, account_id, entry_type, amount, account_category, counterpart_node, created_at)
+			VALUES (gen_random_uuid(), $1, $2, 'debit', $3, 'individual', $4, NOW() - interval '%d hours')`,
+			txID, t.sender, t.amount, nodeDomain, t.hoursAgo)
+		d.Pool.Exec(ctx, `
+			INSERT INTO ledger_entries (id, transaction_id, account_id, entry_type, amount, account_category, counterpart_node, created_at)
+			VALUES (gen_random_uuid(), $1, $2, 'credit', $3, 'individual', $4, NOW() - interval '%d hours')`,
+			txID, t.receiver, t.amount, nodeDomain, t.hoursAgo)
+
+		// Si hay impuesto, crear ledger entry para la cuenta de impuestos
+		if taxAmount > 0 && impuestos != uuid.Nil {
+			d.Pool.Exec(ctx, `
+				INSERT INTO ledger_entries (id, transaction_id, account_id, entry_type, amount, account_category, counterpart_node, created_at)
+				VALUES (gen_random_uuid(), $1, $2, 'credit', $3, 'fund', $4, NOW() - interval '%d hours')`,
+				txID, impuestos, taxAmount, nodeDomain, t.hoursAgo)
+		}
+
+		// Crear audit log
+		d.Pool.Exec(ctx, `
+			INSERT INTO audit_log (actor_id, action, target_id, details, created_at)
+			VALUES ($1, 'transfer', $2, $3, NOW() - interval '%d hours')`,
+			t.sender, t.receiver,
+			fmt.Sprintf(`{"amount": %d, "description": "%s", "tx_id": "%s"}`, t.amount, t.desc, txID.String()),
+			t.hoursAgo)
+	}
+
+	// Actualizar saldos de usuarios basado en ledger entries
+	d.Pool.Exec(ctx, `
+		UPDATE users u SET balance = COALESCE((
+			SELECT SUM(CASE WHEN entry_type = 'credit' THEN amount ELSE -amount END)
+			FROM ledger_entries le WHERE le.account_id = u.id
+		), 0)
+		WHERE u.node_domain = $1`, nodeDomain)
+
+	// Crear solicitudes de admisión
+	demoSeedAdmissionRequests(ctx, d, nodeDomain)
+
+	// Crear operaciones de comercio externo
+	demoSeedExternalOps(ctx, d, nodeDomain)
+
+	// Crear propuestas de distribución del fondo
+	demoSeedFundProposals(ctx, d, nodeDomain)
+
+	// Crear reportes de paridad federada
+	demoSeedParityReports(ctx, d, nodeDomain)
+
+	log.Println("Demo: transactions + ledger + audit seeded")
+	return nil
+}
+
+func demoSeedAssemblyVotes(ctx context.Context, d *DB, nodeDomain string, adminID uuid.UUID) {
+	// Obtener miembros con derecho a voto
+	rows, err := d.Pool.Query(ctx, `SELECT id FROM users WHERE node_domain = $1 AND account_type = 'individual' AND membership_status = 'active' LIMIT 20`, nodeDomain)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	var voters []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		rows.Scan(&id)
+		voters = append(voters, id)
+	}
+
+	// Obtener decisiones aprobadas
+	decRows, err := d.Pool.Query(ctx, `SELECT id FROM assembly_decisions WHERE status = 'approved'`)
+	if err != nil {
+		return
+	}
+	defer decRows.Close()
+	var decisions []uuid.UUID
+	for decRows.Next() {
+		var id uuid.UUID
+		decRows.Scan(&id)
+		decisions = append(decisions, id)
+	}
+
+	// Crear votos (70% a favor, 20% en contra, 10% abstencion)
+	for _, decID := range decisions {
+		for i, voterID := range voters {
+			var vote string
+			pct := i % 10
+			if pct < 7 {
+				vote = "yes"
+			} else if pct < 9 {
+				vote = "no"
+			} else {
+				vote = "abstain"
+			}
+			d.Pool.Exec(ctx, `
+				INSERT INTO assembly_votes (id, decision_id, voter_id, vote, created_at)
+				VALUES (gen_random_uuid(), $1, $2, $3, NOW() - interval '%d days')
+				ON CONFLICT DO NOTHING`,
+				decID, voterID, vote, 25-i)
 		}
 	}
-	return nil
+}
+
+func demoSeedAdmissionRequests(ctx context.Context, d *DB, nodeDomain string) {
+	var count int
+	d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM admission_requests WHERE node_domain = $1`, nodeDomain).Scan(&count)
+	if count > 0 {
+		return
+	}
+
+	requests := []struct {
+		username, displayName, level, status string
+	}{
+		{"tomas_gil", "Tomas Gil", "brote", "approved"},
+		{"maria_fernandez", "Maria Fernandez", "brote", "pending"},
+		{"carlos_rojas", "Carlos Rojas", "semilla", "pending"},
+		{"ana_morales", "Ana Morales", "brote", "rejected"},
+		{"luis_perez", "Luis Perez", "raiz", "approved"},
+	}
+
+	for _, r := range requests {
+		var reviewerID uuid.UUID
+		if r.status == "approved" || r.status == "rejected" {
+			d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE node_domain = $1 AND username = 'demo' LIMIT 1`, nodeDomain).Scan(&reviewerID)
+		}
+
+		d.Pool.Exec(ctx, `
+			INSERT INTO admission_requests (id, node_domain, proposed_username, display_name, proposed_level, status, submitted_at, reviewed_at, approved_at, rejected_at, reviewed_by, metadata, created_at)
+			VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW() - interval '30 days', $6, $7, $8, $9, '{}', NOW() - interval '30 days')
+			ON CONFLICT DO NOTHING`,
+			nodeDomain, r.username, r.displayName, r.level, r.status,
+			func() interface{} {
+				if r.status == "approved" || r.status == "rejected" {
+					return time.Now().Add(-25 * 24 * time.Hour)
+				}
+				return nil
+			}(),
+			func() interface{} {
+				if r.status == "approved" {
+					return time.Now().Add(-25 * 24 * time.Hour)
+				}
+				return nil
+			}(),
+			func() interface{} {
+				if r.status == "rejected" {
+					return time.Now().Add(-25 * 24 * time.Hour)
+				}
+				return nil
+			}(),
+			func() interface{} {
+				if r.status == "approved" || r.status == "rejected" {
+					return reviewerID
+				}
+				return nil
+			}())
+	}
+
+	// Crear audit log para admisiones
+	for _, r := range requests {
+		if r.status == "approved" {
+			d.Pool.Exec(ctx, `
+				INSERT INTO audit_log (action, details, created_at)
+				VALUES ('admission_approved', $1, NOW() - interval '25 days')`,
+				fmt.Sprintf(`{"username": "%s", "level": "%s"}`, r.username, r.level))
+		}
+	}
+
+	log.Println("Demo: admission requests seeded")
+}
+
+func demoSeedExternalOps(ctx context.Context, d *DB, nodeDomain string) {
+	var count int
+	d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM external_bridge_operations WHERE node_domain = $1`, nodeDomain).Scan(&count)
+	if count > 0 {
+		return
+	}
+
+	ops := []struct {
+		opType, productName, status, buyerSeller string
+		quantity                                 int64
+		internalValue                            int64
+		externalUSD                              float64
+		fcApplied                                float64
+	}{
+		{"import", "Sal de cocina (50kg)", "completed", "Distribuidora Externa", 50, 250, 50, 5.0},
+		{"import", "Herramientas de jardin (lote)", "completed", "Ferreteria El Tornillo", 1, 180, 36, 5.0},
+		{"export", "Cafe de altura (20kg)", "completed", "Cooperativa de Cafe del Valle", 20, 400, 80, 5.0},
+		{"import", "Medicamentos basicos", "approved", "Farmacia Central", 1, 350, 70, 5.0},
+		{"export", "Miel organica (10kg)", "approved", "Mercado Natural", 10, 200, 40, 5.0},
+		{"import", "Tela de algon (100m)", "pending", "Textiles del Sur", 100, 500, 100, 5.0},
+		{"export", "Artesania textil (lote)", "pending", "Tienda Solidaria", 1, 300, 60, 5.0},
+	}
+
+	for i, op := range ops {
+		var completedAt interface{}
+		if op.status == "completed" {
+			completedAt = time.Now().Add(-time.Duration(24*(20-i)) * time.Hour)
+		} else {
+			completedAt = nil
+		}
+
+		d.Pool.Exec(ctx, `
+			INSERT INTO external_bridge_operations (id, node_domain, operation_type, product_name, quantity, internal_value, external_value_usd, fc_applied, status, buyer_seller, notes, created_at, completed_at)
+			VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, '', NOW() - interval '%d days', $10)
+			ON CONFLICT DO NOTHING`,
+			nodeDomain, op.opType, op.productName, op.quantity, op.internalValue, op.externalUSD, op.fcApplied, op.status, op.buyerSeller, 25-i, completedAt)
+	}
+
+	log.Println("Demo: external operations seeded")
+}
+
+func demoSeedFundProposals(ctx context.Context, d *DB, nodeDomain string) {
+	// Crear propuestas de distribución del fondo en tax_distributions
+	var fondoID uuid.UUID
+	d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE node_domain = $1 AND username = 'fondo_comunitario' LIMIT 1`, nodeDomain).Scan(&fondoID)
+	if fondoID == uuid.Nil {
+		return
+	}
+
+	var count int
+	d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM tax_distributions WHERE node_domain = $1`, nodeDomain).Scan(&count)
+	if count > 0 {
+		return
+	}
+
+	// Obtener IDs de organizaciones para distribuciones
+	var escuelaID uuid.UUID
+	d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE node_domain = $1 AND username = 'escuela' LIMIT 1`, nodeDomain).Scan(&escuelaID)
+
+	var coopID uuid.UUID
+	d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE node_domain = $1 AND username = 'coop_agricola' LIMIT 1`, nodeDomain).Scan(&coopID)
+
+	// Crear algunas distribuciones ejecutadas
+	distributions := []struct {
+		toAccount uuid.UUID
+		amount    int64
+		reason    string
+		status    string
+	}{
+		{escuelaID, 150, "Materiales educativos para escuela", "executed"},
+		{coopID, 100, "Compra de semillas para banco comunitario", "executed"},
+	}
+
+	for _, dist := range distributions {
+		if dist.toAccount == uuid.Nil {
+			continue
+		}
+		d.Pool.Exec(ctx, `
+			INSERT INTO tax_distributions (id, node_domain, from_account, to_account, amount, reason, status, executed_at, created_at)
+			VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, NOW() - interval '20 days', NOW() - interval '25 days')
+			ON CONFLICT DO NOTHING`,
+			nodeDomain, fondoID, dist.toAccount, dist.amount, dist.reason, dist.status)
+	}
+
+	log.Println("Demo: fund distribution proposals seeded")
+}
+
+func demoSeedParityReports(ctx context.Context, d *DB, nodeDomain string) {
+	// Crear node_balance entries para peers federados
+	peers := []struct {
+		peerDomain string
+		balance    int64
+	}{
+		{"ecoaldea-cerro-verde", 1500},
+		{"comunidad-rio-claro", -800},
+		{"aldea-semilla-viva", 320},
+	}
+
+	var adminID uuid.UUID
+	d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE node_domain = $1 AND username = 'demo' LIMIT 1`, nodeDomain).Scan(&adminID)
+
+	for _, p := range peers {
+		// Verificar si ya existe
+		var count int
+		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM node_balance WHERE remote_node = $1`, p.peerDomain).Scan(&count)
+		if count > 0 {
+			continue
+		}
+
+		d.Pool.Exec(ctx, `
+			INSERT INTO node_balance (remote_node, balance, last_sync)
+			VALUES ($1, $2, NOW())
+			ON CONFLICT DO NOTHING`,
+			p.peerDomain, p.balance)
+
+		// Crear transacciones federadas para generar reportes de paridad
+		if adminID != uuid.Nil {
+			txID := uuid.New()
+			d.Pool.Exec(ctx, `
+				INSERT INTO transactions (id, tx_type, sender_id, receiver_id, sender_node, receiver_node, amount, status, metadata, created_at, confirmed_at)
+				VALUES ($1, 'federation_transfer', $2, $2, $3, $4, $5, 'completed', '{"type": "federation", "description": "Intercambio federado"}', NOW() - interval '15 days', NOW() - interval '15 days')`,
+				txID, adminID, nodeDomain, p.peerDomain, p.balance)
+
+			// Audit log para federación
+			d.Pool.Exec(ctx, `
+				INSERT INTO audit_log (actor_id, action, details, created_at)
+				VALUES ($1, 'federation', $2, NOW() - interval '15 days')`,
+				adminID, fmt.Sprintf(`{"peer": "%s", "amount": %d, "type": "parity_check"}`, p.peerDomain, p.balance))
+		}
+	}
+
+	log.Println("Demo: parity reports + federation balances seeded")
 }
 
 // DemoReset borra todos los datos del dominio demo y los re-seedea
@@ -1584,17 +1956,35 @@ func DemoReset(ctx context.Context, d *DB, nodeDomain string) error {
 	// Borrar tablas principales del dominio
 	tables := []string{
 		"transactions",
+		"ledger_entries",
+		"audit_log",
+		"assembly_votes",
+		"assembly_decisions",
+		"assembly_sessions",
+		"assembly_quorum_config",
+		"assembly_frequency_config",
+		"board_members",
+		"tax_config",
+		"tax_distributions",
+		"bilateral_limits",
+		"node_federation_keys",
+		"node_balance",
+		"external_bridge_operations",
+		"admission_requests",
+		"store_items",
 		"governance_rules",
-		"role_permissions",
-		"roles",
+		"department_members",
 		"departments",
-		"organizations",
+		"organization_levels",
+		"member_levels",
+		"product_compositions",
+		"products",
+		"notifications",
 		"user_credentials",
 		"users",
-		"products",
-		"member_levels",
 		"public_pages",
 		"public_settings",
+		"node_config",
 	}
 	for _, t := range tables {
 		_, err := d.Pool.Exec(ctx, fmt.Sprintf("DELETE FROM %s WHERE node_domain = $1", t))
@@ -1713,50 +2103,82 @@ func demoSeedAssemblyProposals(ctx context.Context, d *DB, nodeDomain string) er
 		d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE node_domain = $1 AND account_type = 'individual' AND membership_status = 'active' LIMIT 1`, nodeDomain).Scan(&adminID)
 	}
 
-	// Verificar si ya existen decisiones
-	var count int
-	d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM assembly_decisions WHERE assembly_id IS NULL OR node_domain IS NOT NULL`).Scan(&count)
-	if count > 0 {
-		// Verificar especificamente para este dominio
-		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM assembly_decisions WHERE description LIKE $1`, "%"+nodeDomain+"%").Scan(&count)
-		if count > 0 {
-			return nil
+	// Primero crear sesiones
+	demoSeedAssemblySessions(ctx, d, nodeDomain)
+
+	// Obtener IDs de sesiones pasadas para asociar decisiones
+	sessionRows, err := d.Pool.Query(ctx, `SELECT id, title FROM assembly_sessions WHERE node_domain = $1 AND status = 'completed' ORDER BY start_time`, nodeDomain)
+	if err != nil {
+		log.Printf("Demo: error getting sessions: %v", err)
+		return nil
+	}
+	defer sessionRows.Close()
+	sessions := []struct {
+		id    uuid.UUID
+		title string
+	}{}
+	for sessionRows.Next() {
+		var s struct {
+			id    uuid.UUID
+			title string
 		}
+		sessionRows.Scan(&s.id, &s.title)
+		sessions = append(sessions, s)
 	}
 
-	// assembly_decisions no tiene node_domain, usamos description para marcar el dominio
-	// y decision_type para el tipo de propuesta
-	proposals := []struct {
+	// Verificar si ya existen decisiones
+	var count int
+	d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM assembly_decisions`).Scan(&count)
+	if count > 0 {
+		return nil
+	}
+
+	// Propuestas asociadas a sesiones pasadas
+	type proposal struct {
 		title, description, decisionType, status string
-	}{
-		{"Aprobar nuevo miembro: Tomas Gil", "Tomas ha completado su periodo de prueba de 3 meses. Participa en cayapas, asiste a asambleas. Propuesta: aceptar como miembro Brote.", "admission", "approved"},
-		{"Comprar molino de maiz comunitario", "El molino actual esta dañado. Propuesta: usar 500 TQ del Fondo Comunitario para comprar un molino manual de hierro. Beneficio: 40 familias.", "budget", "approved"},
-		{"Construir secador solar", "Propuesta: construir un secador solar comunitario para secar granos y frutas. Costo: 200 TQ en materiales + 3 jornadas de trabajo.", "budget", "voting"},
-		{"Cambiar tasa de impuesto organizacion", "Propuesta: reducir impuesto de org_produccion de 2% a 1.5% para estimular produccion local.", "policy", "voting"},
-		{"Admitir Cooperativa de Cafe del Valle", "Solicitud de federacion de la Cooperativa de Cafe del Valle. Tienen 15 miembros, 200 hectareas. Propuesta: aceptar como nodo federado.", "federation", "pending"},
-		{"Aprobar producto compuesto: Kit de Huerto Familiar", "Propuesta: aprobar el Kit de Huerto Familiar como producto compuesto del catalogo. Incluye azadon, tijeras, semillas, abono y manual.", "product_approval", "approved"},
-		{"Renovar Consejo de Vision", "El Consejo de Vision actual cumple 2 años. Propuesta: elegir nuevos 3 miembros Raiz para el Consejo.", "election", "pending"},
-		{"Construir letrina seca comunitaria", "Propuesta: construir letrina seca abonera comunitaria. Costo: 150 TQ. Beneficio: saneamiento + compost para huertos.", "budget", "approved"},
+		sessionIdx                               int // -1 = sin sesión (pendiente/voting)
+	}
+	proposals := []proposal{
+		{"Aprobar nuevo miembro: Tomas Gil", "Tomas ha completado su periodo de prueba de 3 meses. Participa en cayapas, asiste a asambleas. Propuesta: aceptar como miembro Brote.", "admission", "approved", 0},
+		{"Comprar molino de maiz comunitario", "El molino actual esta dañado. Propuesta: usar 500 TQ del Fondo Comunitario para comprar un molino manual de hierro. Beneficio: 40 familias.", "budget", "approved", 0},
+		{"Construir secador solar", "Propuesta: construir un secador solar comunitario para secar granos y frutas. Costo: 200 TQ en materiales + 3 jornadas de trabajo.", "budget", "approved", 1},
+		{"Cambiar tasa de impuesto organizacion", "Propuesta: reducir impuesto de org_produccion de 2% a 1.5% para estimular produccion local.", "policy", "approved", 1},
+		{"Aprobar producto compuesto: Kit de Huerto Familiar", "Propuesta: aprobar el Kit de Huerto Familiar como producto compuesto del catalogo. Incluye azadon, tijeras, semillas, abono y manual.", "product_approval", "approved", 2},
+		{"Construir letrina seca comunitaria", "Propuesta: construir letrina seca abonera comunitaria. Costo: 150 TQ. Beneficio: saneamiento + compost para huertos.", "budget", "approved", 2},
+		{"Renovar Consejo de Vision", "El Consejo de Vision actual cumple 2 años. Propuesta: elegir nuevos 3 miembros Raiz para el Consejo.", "election", "approved", 3},
+		{"Fondo de emergencia por tormenta", "Aprobacion de 300 TQ del fondo comunitario para reparaciones post-tormenta. 12 familias afectadas.", "budget", "approved", 3},
+		// Pendientes/voting sin sesión
+		{"Admitir Cooperativa de Cafe del Valle", "Solicitud de federacion de la Cooperativa de Cafe del Valle. Tienen 15 miembros, 200 hectareas. Propuesta: aceptar como nodo federado.", "federation", "pending", -1},
+		{"Distribuir fondo comunitario: materiales para escuela", "Propuesta: transferir 200 TQ del fondo a la Escuela Primaria Raices para comprar materiales educativos.", "fund_distribution", "voting", -1},
+		{"Cambiar horario de asamblea", "Propuesta: cambiar horario de asambleas de 15:00 a 10:00 para mejor asistencia.", "policy", "voting", -1},
 	}
 
 	for _, p := range proposals {
-		var existing int
-		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM assembly_decisions WHERE description = $1`, p.title).Scan(&existing)
-		if existing > 0 {
-			continue
+		var assemblyID interface{}
+		if p.sessionIdx >= 0 && p.sessionIdx < len(sessions) {
+			assemblyID = sessions[p.sessionIdx].id
+		} else {
+			// Para propuestas pendientes, usar la última sesión (futura)
+			// o crear una sesión virtual
+			if len(sessions) > 0 {
+				assemblyID = sessions[0].id
+			} else {
+				continue
+			}
 		}
+
 		_, err := d.Pool.Exec(ctx, `
 			INSERT INTO assembly_decisions (id, assembly_id, decision_type, description, status, created_at, voting_deadline, voting_duration_minutes, approved_for_voting_by, approved_for_voting_at)
-			VALUES (gen_random_uuid(), NULL, $1, $2, $3, NOW(), NOW() + interval '7 days', 10080, $4, NOW())
+			VALUES (gen_random_uuid(), $1, $2, $3, $4, NOW() - interval '30 days', NOW() + interval '7 days', 10080, $5, NOW() - interval '30 days')
 			ON CONFLICT DO NOTHING`,
-			p.decisionType, p.title+": "+p.description, p.status, adminID)
+			assemblyID, p.decisionType, p.title+": "+p.description, p.status, adminID)
 		if err != nil {
 			log.Printf("Demo: error seeding proposal %s: %v", p.title, err)
 		}
 	}
 
-	// Crear sesiones de asamblea pasadas y futuras
-	demoSeedAssemblySessions(ctx, d, nodeDomain)
+	// Crear votos para las propuestas aprobadas
+	demoSeedAssemblyVotes(ctx, d, nodeDomain, adminID)
 
 	log.Println("Demo: assembly proposals seeded")
 	return nil
@@ -1927,8 +2349,8 @@ func demoSeedFederationPeers(ctx context.Context, d *DB, nodeDomain string) erro
 
 	for _, bl := range activePeers {
 		_, err := d.Pool.Exec(ctx, `
-			INSERT INTO bilateral_limits (local_node, remote_node, credit_limit, debit_limit, is_customized, local_approved, is_active, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, true, true, true, NOW(), NOW())
+			INSERT INTO bilateral_limits (local_node, remote_node, credit_limit, debit_limit, is_customized, local_approved, remote_confirmed, is_active, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, true, true, true, true, NOW(), NOW())
 			ON CONFLICT DO NOTHING`,
 			nodeDomain, bl.remoteNode, bl.creditLimit, bl.debitLimit)
 		if err != nil {

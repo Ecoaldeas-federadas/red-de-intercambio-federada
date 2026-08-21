@@ -1497,7 +1497,7 @@ export default function Assembly() {
                   {/* Botones de gestion */}
                   {canStartAttendance(s) ? (
                     <div className="flex gap-2 mt-2 flex-wrap">
-                      {s.is_presential && (
+                      {s.is_presential && s.status !== 'completed' && (
                         <button
                           onClick={() => { setSelectedSessionForAttendance(s.id); loadAttendance(s.id) }}
                           className="text-xs px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700"
@@ -1533,7 +1533,7 @@ export default function Assembly() {
                         onClick={() => { setSelectedSessionForMinutes(s.id); setMinutesText(s.minutes || '') }}
                         className="text-xs px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
                       >
-                        {s.minutes ? 'Editar minuta' : 'Escribir minuta'}
+                        {s.status === 'completed' ? (s.minutes ? 'Ver/editar acta' : 'Ver acta') : (s.minutes ? 'Editar minuta' : 'Escribir minuta')}
                       </button>
                       {(s.status === 'active' || s.status === 'waiting_quorum') && (
                         <button
@@ -1624,12 +1624,14 @@ export default function Assembly() {
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedSessionForMinutes(null)}>
               <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between p-4 border-b">
-                  <h3 className="font-bold">Minuta de la Asamblea</h3>
+                  <h3 className="font-bold">{selectedSessionForMinutes && sessions.find(s => s.id === selectedSessionForMinutes)?.status === 'completed' ? 'Acta de la Asamblea' : 'Minuta de la Asamblea'}</h3>
                   <button onClick={() => setSelectedSessionForMinutes(null)} className="text-gray-400 hover:text-gray-600 text-xl">x</button>
                 </div>
                 <div className="p-4 space-y-3">
                   <p className="text-sm text-gray-600">
-                    Escribe aqui todas las decisiones tomadas en la asamblea. Esta minuta queda registrada permanentemente como documento oficial.
+                    {selectedSessionForMinutes && sessions.find(s => s.id === selectedSessionForMinutes)?.status === 'completed'
+                      ? 'Estas viendo/editando el acta de una asamblea completada. Puedes agregar detalles adicionales pero las decisiones ya estan registradas.'
+                      : 'Escribe aqui todas las decisiones tomadas en la asamblea. Esta minuta queda registrada permanentemente como documento oficial.'}
                   </p>
                   <textarea
                     className="input min-h-[300px]"

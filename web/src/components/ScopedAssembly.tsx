@@ -192,6 +192,7 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
   // Helper: ¿ya se puede registrar asistencia? (1 hora antes por defecto)
   const attendanceWindowHours = config.attendance_window_hours || 1
   const canStartAttendance = (s: any) => {
+    if (s.status === 'completed') return false
     if (!s.start_time) return false
     const start = new Date(s.start_time).getTime()
     const windowStart = start - attendanceWindowHours * 60 * 60 * 1000
@@ -507,6 +508,13 @@ export default function ScopedAssembly({ scope, scopeId, scopeName }: ScopedAsse
                         </button>
                       )}
                     </>
+                  ) : s.status === 'completed' ? (
+                    <button
+                      onClick={() => { setSelectedSessionForMinutes(s.id); setMinutesText(s.minutes || '') }}
+                      className="text-xs px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 mt-2"
+                    >
+                      {s.minutes ? 'Ver/editar acta' : 'Ver acta'}
+                    </button>
                   ) : (
                     <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
                       <strong>Programada</strong> — El registro de asistencia se abrira {attendanceWindowHours} {attendanceWindowHours === 1 ? 'hora' : 'horas'} antes de la hora programada.

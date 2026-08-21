@@ -80,6 +80,7 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 
 	// Productos - editar y aprobar
 	r.With(am.RequireAuth).Get("/api/products", h.listProducts)
+	r.With(am.RequireAuth).Get("/api/products/pending", h.listPendingProducts)
 	r.With(am.RequireAuth).Get("/api/products/categories", h.listProductCategories)
 	r.With(am.RequireAuth).Get("/api/products/{id}", h.getProduct)
 	r.With(am.RequirePermission("products.manage")).Post("/api/products", h.createProduct)
@@ -621,7 +622,70 @@ func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 	}
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit, is_approved, origin, badge, image_url, product_code, is_system, is_hidden
-		FROM products WHERE node_domain IN ($1, 'localhost', 'default') AND COALESCE(is_composite, false) = false ORDER BY parent_category, category, subcategory, name LIMIT 500`, nodeDomain)
+		FROM products WHERE node_domain IN ($1, 'localhost', 'default') AND is_approved = true AND is_hidden = false AND COALESCE(is_composite, false) = false ORDER BY parent_category, category, subcategory, name LIMIT 500`, nodeDomain)
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+
+	var products []map[string]interface{}
+	for rows.Next() {
+		var id uuid.UUID
+		var name, description, parentCategory, category, subcategory, unit, origin string
+		var price float64
+		var isApproved, isSystem, isHidden bool
+		var badge, imageURL, productCode *string
+		if err := rows.Scan(&id, &name, &description, &parentCategory, &category, &subcategory, &unit, &price, &isApproved, &origin, &badge, &imageURL, &productCode, &isSystem, &isHidden); err != nil {
+			continue
+		}
+		bdg := ""
+		if badge != nil {
+			bdg = *badge
+		}
+		imgURL := ""
+		if imageURL != nil {
+			imgURL = *imageURL
+		}
+		pcode := ""
+		if productCode != nil {
+			pcode = *productCode
+		}
+		products = append(products, map[string]interface{}{
+			"id":              id.String(),
+			"name":            name,
+			"description":     description,
+			"parent_category": parentCategory,
+			"category":        category,
+			"subcategory":     subcategory,
+			"unit":            unit,
+			"price":           price,
+			"is_approved":     isApproved,
+			"origin":          origin,
+			"badge":           bdg,
+			"image_url":       imgURL,
+			"product_code":    pcode,
+			"is_system":       isSystem,
+			"is_hidden":       isHidden,
+		})
+	}
+	if products == nil {
+		products = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, products)
+}
+
+func (h *SystemHandler) listPendingProducts(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = h.nodeDomain
+	}
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit, is_approved, origin, badge, image_url, product_code, is_system, is_hidden
+		FROM products WHERE node_domain = $1 AND is_approved = false AND is_hidden = false AND COALESCE(is_composite, false) = false ORDER BY created_at DESC LIMIT 200`, nodeDomain)
 	if err != nil {
 		writeJSON(w, 200, []interface{}{})
 		return
