@@ -4,9 +4,9 @@
 -- Esta migracion usa URLs verificadas correctamente.
 
 UPDATE products SET
-  image_url = 'https://images.unsplash.com/photo-1765144815957-6bc44c13fc2c?auto=format&fit=crop&w=600&q=80'
+  image_url = '/placeholder.svg'
 WHERE name = 'Granos basicos (maiz, frijol) 1kg';
 
 UPDATE products SET
-  image_url = 'https://images.unsplash.com/photo-1699315529894-402495fddb8b?auto=format&fit=crop&w=600&q=80'
+  image_url = '/placeholder.svg'
 WHERE name = 'Harina de maiz 50kg';

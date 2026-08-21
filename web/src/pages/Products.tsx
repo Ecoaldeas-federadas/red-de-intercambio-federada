@@ -3,6 +3,7 @@ import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useConfig } from '../hooks/useConfig'
 import { Plus, HelpCircle, Package, Pencil, Check, X, Upload, Eye, EyeOff, Loader2, Globe } from 'lucide-react'
+import { assetUrl } from '../utils/assetUrl'
 
 interface ProductForm {
   name: string
@@ -275,7 +276,7 @@ export default function Products() {
         <label className="label">Foto del producto</label>
         <div className="flex items-center gap-3">
           {form.image_url && (
-            <img src={form.image_url} alt="" className="w-16 h-16 rounded-lg object-cover border border-gray-200" />
+            <img src={assetUrl(form.image_url)} alt="" className="w-16 h-16 rounded-lg object-cover border border-gray-200" />
           )}
           <div className="flex-1 space-y-2">
             <input className="input" placeholder="URL de la imagen..." value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} />
@@ -609,7 +610,7 @@ export default function Products() {
                     <>
                       {p.image_url && (
                         <div className="relative -mx-4 -mt-4 mb-3 h-32 overflow-hidden">
-                          <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+                          <img src={assetUrl(p.image_url)} alt={p.name} className="w-full h-full object-cover" />
                           {p.badge && (
                             <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-amber-950 shadow">
                               {p.badge}

@@ -1,33 +1,35 @@
-fix: placeholder.svg se carga desde /demo/ en nodo demo (no desde raiz)
+fix: Eliminar todas las URLs de Unsplash (499 URLs) + assetUrl en tienda
 
 ## Problema
-El nodo demo sirve el frontend desde /demo/ con <base href="/demo/">.
-Pero las referencias a /placeholder.svg son rutas absolutas (con /)
-que ignoran el <base href>, resolviendose a
-http://localhost:9091/placeholder.svg (404) en vez de
-http://localhost:9091/demo/placeholder.svg.
+La tienda y la lista de productos mostraban URLs de images.unsplash.com
+que devuelven 404. El nodo demo hereda productos de las migraciones
+(node_domain='localhost'/'default') que sobreviven el DemoReset porque
+este solo borra node_domain='demo'.
 
-## Solucion correcta
-En vez de servir placeholder.svg en la raiz (que mezcla los nodos),
-crear un helper assetUrl() que resuelve rutas de assets segun el
-basePath:
+## Solucion
 
-- URL externa (http://...) -> sin modificar
-- URL absoluta (/foo.svg) -> basePath + /foo.svg (ej: /demo/foo.svg)
-- URL relativa -> sin modificar
+### 1. Reemplazar 499 URLs de Unsplash en seed.go y migraciones
+- internal/db/seed.go: 255 URLs
+- 13 archivos de migraciones: 244 URLs
+- Todas reemplazadas con /placeholder.svg
 
-### Cambios
-- Nuevo: web/src/utils/assetUrl.ts - helper assetUrl()
-- InlineEditable.tsx: EdImage y EdArrayImage usan assetUrl() para
-  resolver el src antes de renderizar <img>
-- PublicBlocks.tsx: backgroundImage y <img> directos usan assetUrl()
-- PublicSite.tsx: backgroundImage y array de banners usan assetUrl()
-- Revertido: el fix anterior que servia /placeholder.svg en la raiz
+### 2. Nueva migracion 067_replace_unsplash_urls.sql
+- UPDATE products SET image_url = '/placeholder.svg' WHERE image_url
+  LIKE '%unsplash%'
+- Tambien limpia store_items, public_settings, public_pages
+- Esto arregla las bases de datos existentes que ya tienen los
+  productos con URLs de Unsplash
+
+### 3. assetUrl() en Store.tsx y Products.tsx
+- Las paginas de tienda y productos ahora usan assetUrl() para
+  resolver las rutas de imagenes segun el basePath
+- Nodo normal: /placeholder.svg -> localhost:8080/placeholder.svg
+- Nodo demo: /placeholder.svg -> localhost:9091/demo/placeholder.svg
 
 ### Resultado
-- Nodo normal: localhost:8080/placeholder.svg
-- Nodo demo: localhost:9091/demo/placeholder.svg
-Cada nodo carga sus assets desde su propia raiz.
+- No mas errores 404 de images.unsplash.com en la consola
+- No mas errores 404 de /placeholder.svg en el nodo demo
+- Cada nodo carga sus assets desde su propia raiz
 
 Generated with [Devin](https://devin.ai)
 

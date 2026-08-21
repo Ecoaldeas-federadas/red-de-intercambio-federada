@@ -320,7 +320,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Canasta Basica Familiar Semanal', 'Alimentacion', 'Canasta Basica', 'Semanal', 'internal', 'canasta',
 'Canasta semanal para familia de 4-5 personas: 3kg granos, 2kg verduras, 1kg frutas, 0.5kg carne, 1L leche, 0.5L aceite, 0.5kg azucar, 1 docena huevos, especias. Energia total estimada: ~180 kWh/semana.',
 'Necesidad Vital',
-'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=600&q=80', 50, true, true, '', 0, 0, 50, 0
+'/placeholder.svg', 50, true, true, '', 0, 0, 50, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Canasta Basica Familiar Semanal' AND node_domain = nd.node_domain);
 
@@ -330,7 +330,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Jornada Agricola Completa', 'Servicios', 'Trabajo Agricola', 'Jornadas', 'internal', 'jornada',
 'Jornada completa de trabajo manual agricola (8 horas x 0.61 kWh/h = 4.88 kWh). Siembra, cosecha, riego, desmalece.',
 'Conuquero',
-'https://images.unsplash.com/photo-1592982537447-7440770cbfc9?auto=format&fit=crop&w=600&q=80', 5, true, true, '', 0, 5, 0, 0
+'/placeholder.svg', 5, true, true, '', 0, 5, 0, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Jornada Agricola Completa' AND node_domain = nd.node_domain);
 
@@ -338,7 +338,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Jornada de Trabajo General', 'Servicios', 'Trabajo General', 'Jornadas', 'internal', 'jornada',
 'Jornada completa de trabajo general/servicios (8 horas x 1.0 kWh/h = 8 kWh). Limpieza, atencion, gestion, oficios no especializados.',
 'General',
-'https://images.unsplash.com/photo-1503676263721-6a1f61fcacd6?auto=format&fit=crop&w=600&q=80', 8, true, true, '', 0, 8, 0, 0
+'/placeholder.svg', 8, true, true, '', 0, 8, 0, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Jornada de Trabajo General' AND node_domain = nd.node_domain);
 
@@ -346,7 +346,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Jornada de Trabajo Tecnico', 'Servicios', 'Trabajo Tecnico', 'Jornadas', 'internal', 'jornada',
 'Jornada completa de trabajo tecnico especializado (8 horas x 3.0 kWh/h = 24 kWh). Mecanica, electricidad, plomeria, reparacion de equipos.',
 'Tecnico',
-'https://images.unsplash.com/photo-1632823469850-1e6a3d1c14e1?auto=format&fit=crop&w=600&q=80', 24, true, true, '', 0, 24, 0, 0
+'/placeholder.svg', 24, true, true, '', 0, 24, 0, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Jornada de Trabajo Tecnico' AND node_domain = nd.node_domain);
 
@@ -355,7 +355,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Arroz y Legumbres', 'Alimentacion', 'Granos y Cereales', 'Arroz y Legumbres', 'internal', 'kg',
 'Arroz procesado, sorgo, caraota, frijol, quinchoncho, lentejas, garbanzos, habas. Energia: 36-43 MJ/kg = 10-12 kWh/kg. Fuente: Agribalyse, Ecoinvent, FAO.',
 'Cereal',
-'https://images.unsplash.com/photo-1765144815957-6bc44c13fc2c?auto=format&fit=crop&w=600&q=80', 11, true, true, '', 0, 0, 11, 0
+'/placeholder.svg', 11, true, true, '', 0, 0, 11, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Arroz y Legumbres' AND node_domain = nd.node_domain);
 
@@ -364,7 +364,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Leche Fresca', 'Alimentacion', 'Carnes y Pescados', 'Lacteos Frescos', 'internal', 'litro',
 'Leche fresca de vaca, cabra. Energia: 5-7 MJ/L = 1.5-1.7 kWh/L (forraje + ordeño + pasteurizacion). Fuente: Ecoinvent, JRC, USDA.',
 'Fresca',
-'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?auto=format&fit=crop&w=600&q=80', 2, true, true, '', 0, 0, 2, 0
+'/placeholder.svg', 2, true, true, '', 0, 0, 2, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Leche Fresca' AND node_domain = nd.node_domain);
 
@@ -373,7 +373,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Carnes de Pollo y Aves', 'Alimentacion', 'Carnes y Pescados', 'Aves', 'internal', 'kg',
 'Pollo de patio, gallina, pato, conejo. Energia: 30 MJ/kg = 8.3 kWh/kg (conversion 4.2 kg pienso/kg). Fuente: Pimentel, Agribalyse.',
 'De Patio',
-'https://images.unsplash.com/photo-1607623814025-e3df5d8d6e1e?auto=format&fit=crop&w=600&q=80', 8, true, true, '', 0, 0, 8, 0
+'/placeholder.svg', 8, true, true, '', 0, 0, 8, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Carnes de Pollo y Aves' AND node_domain = nd.node_domain);
 
@@ -381,7 +381,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Carnes de Cerdo y Chivo', 'Alimentacion', 'Carnes y Pescados', 'Cerdo y Chivo', 'internal', 'kg',
 'Cerdo criollo, chivo. Energia: 47.5 MJ/kg = 13.2 kWh/kg (conversion 10.7 kg pienso/kg + climatizacion). Fuente: USDA, Agribalyse.',
 'Criollo',
-'https://images.unsplash.com/photo-1607623814025-e3df5d8d6e1e?auto=format&fit=crop&w=600&q=80', 13, true, true, '', 0, 0, 13, 0
+'/placeholder.svg', 13, true, true, '', 0, 0, 13, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Carnes de Cerdo y Chivo' AND node_domain = nd.node_domain);
 
@@ -389,7 +389,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Carnes de Vacuno', 'Alimentacion', 'Carnes y Pescados', 'Vacuno', 'internal', 'kg',
 'Carne de res, vacuno pastoreado. Energia: 80-100 MJ/kg = 22-28 kWh/kg (conversion 31.7 kg forraje/kg). Fuente: Pimentel, Ecoinvent, Agribalyse.',
 'Pastoreo',
-'https://images.unsplash.com/photo-1607623814025-e3df5d8d6e1e?auto=format&fit=crop&w=600&q=80', 25, true, true, '', 0, 0, 25, 0
+'/placeholder.svg', 25, true, true, '', 0, 0, 25, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Carnes de Vacuno' AND node_domain = nd.node_domain);
 
@@ -398,7 +398,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Telefono Inteligente', 'Tecnologia', 'Electronica', 'Telefonos', 'internal', 'unidad',
 'Smartphone completo. Energia incorporada: 1000 MJ = 278 kWh (tierras raras + microprocesadores + ensamblado). Fuente: ICE Database, Marspedia.',
 'Dispositivo',
-'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=80', 278, true, true, '', 0, 0, 278, 0
+'/placeholder.svg', 278, true, true, '', 0, 0, 278, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Telefono Inteligente' AND node_domain = nd.node_domain);
 
@@ -406,7 +406,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Computadora Portatil', 'Tecnologia', 'Electronica', 'Computadoras', 'internal', 'unidad',
 'Laptop completa. Energia: 4500 MJ = 1250 kWh (placa madre + LCD + bateria litio + chasis). Fuente: Ecoinvent, Marspedia.',
 'Dispositivo',
-'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=80', 1250, true, true, '', 0, 0, 1250, 0
+'/placeholder.svg', 1250, true, true, '', 0, 0, 1250, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Computadora Portatil' AND node_domain = nd.node_domain);
 
@@ -414,7 +414,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Lavadora Domestica', 'Tecnologia', 'Electrodomesticos', 'Lavanderia', 'internal', 'unidad',
 'Lavadora domestica. Energia: 3900 MJ = 1083 kWh (acero + motor + contrapesos + electronica). Fuente: ICE Database.',
 'Electrodomestico',
-'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=80', 1083, true, true, '', 0, 0, 1083, 0
+'/placeholder.svg', 1083, true, true, '', 0, 0, 1083, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Lavadora Domestica' AND node_domain = nd.node_domain);
 
@@ -422,7 +422,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Refrigerador Domestico', 'Tecnologia', 'Electrodomesticos', 'Refrigeracion', 'internal', 'unidad',
 'Refrigerador domestico. Energia: 5900 MJ = 1639 kWh (compresor + poliuretano + cobre + acero). Fuente: ICE Database.',
 'Electrodomestico',
-'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=80', 1639, true, true, '', 0, 0, 1639, 0
+'/placeholder.svg', 1639, true, true, '', 0, 0, 1639, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Refrigerador Domestico' AND node_domain = nd.node_domain);
 
@@ -430,7 +430,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Panel Solar Fotovoltaico', 'Energia', 'Solar', 'Paneles', 'internal', 'm2',
 'Panel solar monocristalino 1m2. Energia incorporada: 4750 MJ/m2 = 1319 kWh (silicio grado solar + obleas + cristal). Fuente: ICE Database, Ecoinvent.',
 'Energia Limpia',
-'https://images.unsplash.com/photo-1509391366360-2e959784a276?auto=format&fit=crop&w=600&q=80', 1319, true, true, '', 0, 0, 1319, 0
+'/placeholder.svg', 1319, true, true, '', 0, 0, 1319, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Panel Solar Fotovoltaico' AND node_domain = nd.node_domain);
 
@@ -438,7 +438,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Diesel Agricola', 'Energia', 'Combustibles', 'Diesel', 'internal', 'litro',
 'Diesel/gasoil agricola. Energia: 41.7 MJ/L = 11.6 kWh/L (refinacion + distribucion). Fuente: Ecoinvent, ResearchGate.',
 'Combustible',
-'https://images.unsplash.com/photo-1509391366360-2e959784a276?auto=format&fit=crop&w=600&q=80', 12, true, true, '', 12, 0, 0, 0
+'/placeholder.svg', 12, true, true, '', 12, 0, 0, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Diesel Agricola' AND node_domain = nd.node_domain);
 
@@ -447,7 +447,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Acero Reciclado', 'Construccion', 'Metales', 'Acero', 'internal', 'kg',
 'Acero reciclado en horno de arco electrico. Energia: 20 MJ/kg = 5.56 kWh/kg. Fuente: ICE Database, Ecoinvent.',
 'Reciclado',
-'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=600&q=80', 6, true, true, '', 0, 0, 6, 0
+'/placeholder.svg', 6, true, true, '', 0, 0, 6, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Acero Reciclado' AND node_domain = nd.node_domain);
 
@@ -455,7 +455,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Acero Virgen', 'Construccion', 'Metales', 'Acero', 'internal', 'kg',
 'Acero estructural virgen. Energia: 35 MJ/kg = 9.72 kWh/kg (alto horno + laminacion). Fuente: ICE Database, WorldSteel.',
 'Industrial',
-'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=600&q=80', 10, true, true, '', 0, 0, 10, 0
+'/placeholder.svg', 10, true, true, '', 0, 0, 10, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Acero Virgen' AND node_domain = nd.node_domain);
 
@@ -463,7 +463,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Aluminio', 'Construccion', 'Metales', 'Aluminio', 'internal', 'kg',
 'Aluminio comercial (33% reciclado). Energia: 193 MJ/kg = 53.6 kWh/kg (electrolisis Hall-Heroult). Fuente: ICE Database, Ecoinvent.',
 'Ligero',
-'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=600&q=80', 54, true, true, '', 0, 0, 54, 0
+'/placeholder.svg', 54, true, true, '', 0, 0, 54, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Aluminio' AND node_domain = nd.node_domain);
 
@@ -471,7 +471,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Vidrio Plano', 'Construccion', 'Materiales', 'Vidrio', 'internal', 'kg',
 'Vidrio plano para ventanas. Energia: 15 MJ/kg = 4.17 kWh/kg (fusion de silice >1500C). Fuente: ICE Database.',
 'Transparente',
-'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=600&q=80', 4, true, true, '', 0, 0, 4, 0
+'/placeholder.svg', 4, true, true, '', 0, 0, 4, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Vidrio Plano' AND node_domain = nd.node_domain);
 
@@ -479,7 +479,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Hormigon Estructural', 'Construccion', 'Materiales', 'Hormigon', 'internal', 'kg',
 'Hormigon M20 (1:1.5:3). Energia: 1.55 MJ/kg = 0.43 kWh/kg (calcina de clinker + mezclado). Fuente: ICE Database, Ecoinvent.',
 'Estructural',
-'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=600&q=80', 1, true, true, '', 0, 0, 1, 0
+'/placeholder.svg', 1, true, true, '', 0, 0, 1, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Hormigon Estructural' AND node_domain = nd.node_domain);
 
@@ -487,7 +487,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Ladrillo de Arcilla', 'Construccion', 'Materiales', 'Ladrillos', 'internal', 'unidad',
 'Ladrillo comun de arcilla cocida. Energia: 4.75 MJ/unidad = 1.32 kWh (extraccion + moldeado + coccion). Fuente: ICE Database, Ecoinvent.',
 'Cocido',
-'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=600&q=80', 1, true, true, '', 0, 0, 1, 0
+'/placeholder.svg', 1, true, true, '', 0, 0, 1, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Ladrillo de Arcilla' AND node_domain = nd.node_domain);
 
@@ -495,7 +495,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Bloque de Paja', 'Construccion', 'Materiales', 'Bioconstruccion', 'internal', 'bloque',
 'Bloque de paja (straw bale). Energia: 0.91 MJ/kg = 0.25 kWh/kg (empacado agricola). Fuente: ICE Database.',
 'Bioconstruccion',
-'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=600&q=80', 1, true, true, '', 0, 0, 1, 0
+'/placeholder.svg', 1, true, true, '', 0, 0, 1, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Bloque de Paja' AND node_domain = nd.node_domain);
 
@@ -504,7 +504,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Gasolina', 'Energia', 'Combustibles', 'Gasolina', 'internal', 'kg',
 'Gasolina comercial. Energia: 47.1 MJ/kg = 13.08 kWh/kg (refinacion del petroleo). Fuente: Ecoinvent.',
 'Combustible',
-'https://images.unsplash.com/photo-1509391366360-2e959784a276?auto=format&fit=crop&w=600&q=80', 13, true, true, '', 13, 0, 0, 0
+'/placeholder.svg', 13, true, true, '', 13, 0, 0, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Gasolina' AND node_domain = nd.node_domain);
 
@@ -512,7 +512,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Gas GLP', 'Energia', 'Combustibles', 'GLP', 'internal', 'kg',
 'Gas licuado de petroleo. Energia: 50.1 MJ/kg = 13.92 kWh/kg (refinacion + envasado). Fuente: Ecoinvent.',
 'Domestico',
-'https://images.unsplash.com/photo-1509391366360-2e959784a276?auto=format&fit=crop&w=600&q=80', 14, true, true, '', 14, 0, 0, 0
+'/placeholder.svg', 14, true, true, '', 14, 0, 0, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Gas GLP' AND node_domain = nd.node_domain);
 
@@ -520,7 +520,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Biomasa Seca (Pellets)', 'Energia', 'Combustibles', 'Biomasa', 'internal', 'kg',
 'Pellets de madera seca. Energia: 15.3 MJ/kg = 4.25 kWh/kg (secado + compactacion). Fuente: Ecoinvent.',
 'Renovable',
-'https://images.unsplash.com/photo-1592982537447-7440770cbfc9?auto=format&fit=crop&w=600&q=80', 4, true, true, '', 4, 0, 0, 0
+'/placeholder.svg', 4, true, true, '', 4, 0, 0, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Biomasa Seca (Pellets)' AND node_domain = nd.node_domain);
 
@@ -529,7 +529,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Tuberia PVC', 'Construccion', 'Materiales', 'Polimeros', 'internal', 'kg',
 'Tuberia de PVC. Energia: 10.64-77.2 MJ/kg = 3-21 kWh/kg (polimerizacion etileno + cloro). Fuente: ICE Database, Ecoinvent.',
 'Plastico',
-'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=600&q=80', 10, true, true, '', 0, 0, 10, 0
+'/placeholder.svg', 10, true, true, '', 0, 0, 10, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Tuberia PVC' AND node_domain = nd.node_domain);
 
@@ -538,7 +538,7 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Agua Purificada', 'Recursos Basicos', 'Agua', 'Potable', 'internal', 'litro',
 'Agua filtrada/purificada. Energia: 0.5 MJ/L = 0.14 kWh/L (bombeo + microfiltracion). Fuente: ICE Database.',
 'Vital',
-'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=600&q=80', 1, true, true, '', 1, 0, 0, 0
+'/placeholder.svg', 1, true, true, '', 1, 0, 0, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Agua Purificada' AND node_domain = nd.node_domain);
 
@@ -547,6 +547,6 @@ INSERT INTO products (node_domain, name, parent_category, category, subcategory,
 SELECT node_domain, 'Frutos Secos y Mani', 'Alimentacion', 'Cosecha Fresca', 'Frutos Secos', 'internal', 'kg',
 'Nueces, almendras, mani, cachuates, avellanas. Energia: 40.87 MJ/kg = 11.35 kWh/kg (cultivo + secado + descascarado). Fuente: Agribalyse.',
 'Seco',
-'https://images.unsplash.com/photo-1619566636856-adf8ab172aa0?auto=format&fit=crop&w=600&q=80', 11, true, true, '', 0, 0, 11, 0
+'/placeholder.svg', 11, true, true, '', 0, 0, 11, 0
 FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) nd
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Frutos Secos y Mani' AND node_domain = nd.node_domain);

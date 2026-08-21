@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { ShoppingCart, Plus, HelpCircle, Trash2, Search, Store as StoreIcon, Package, Layers, X } from 'lucide-react'
+import { assetUrl } from '../utils/assetUrl'
 
 interface CompositeComponent {
   component_product_id: string
@@ -781,7 +782,7 @@ export default function Store() {
                   <div className="h-40 bg-gray-100 flex items-center justify-center overflow-hidden">
                     {s.image_url ? (
                       <img
-                        src={s.image_url}
+                        src={assetUrl(s.image_url)}
                         alt={s.product_name}
                         className="w-full h-full object-cover"
                         onError={(e) => {
