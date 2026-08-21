@@ -24,7 +24,10 @@ export default function Admission() {
   const [newDoc, setNewDoc] = useState({ document_type: '', document_number: '', country_iso2: '' })
 
   const load = () =>
-    api.get('/admission/requests').then((d: any) => setPending(Array.isArray(d) ? d : d?.requests ?? d?.users ?? [])).catch(() => {})
+    api.get('/admission/requests').then((d: any) => {
+      const list = Array.isArray(d) ? d : d?.requests ?? d?.users ?? []
+      setPending(list)
+    }).catch(() => {})
   useEffect(() => {
     load()
     api.get('/countries').then((d: any) => setCountries(Array.isArray(d) ? d : [])).catch(() => {})
@@ -217,31 +220,50 @@ export default function Admission() {
 
       {pending.length === 0 && !showForm ? (
         <div className="card text-center text-gray-500 py-8">
-          No hay solicitudes pendientes.
+          No hay solicitudes de admision.
           <br />
           <span className="text-sm">Crea una nueva solicitud con el boton de arriba.</span>
         </div>
       ) : (
         <div className="space-y-2">
-          {pending.map((u, i) => (
-            <div key={i} className="card">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="font-medium">{u.username}</span>
-                  <p className="text-sm text-gray-600">{u.display_name}</p>
-                  <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                    <span>Credito solicitado: {u.requested_credit_limit} {currency}</span>
-                    <span>Debito solicitado: {u.requested_debit_limit} {currency}</span>
-                    {u.reason && <span className="flex items-center gap-1"><Clock size={12} />{u.reason}</span>}
+          {pending.map((u, i) => {
+            const username = u.proposed_username || u.username || ''
+            const displayName = u.display_name || ''
+            const status = u.status || 'pending'
+            const level = u.proposed_level || u.requested_level || ''
+            const reason = u.reason || u.rejection_reason || ''
+            const submittedAt = u.submitted_at ? String(u.submitted_at).slice(0, 10) : ''
+            return (
+              <div key={i} className="card">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{username}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded ${
+                        status === 'approved' ? 'bg-green-100 text-green-700' :
+                        status === 'rejected' ? 'bg-red-100 text-red-700' :
+                        'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {status === 'approved' ? 'Aprobada' : status === 'rejected' ? 'Rechazada' : 'Pendiente'}
+                      </span>
+                      {level && <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">Nivel: {level}</span>}
+                    </div>
+                    <p className="text-sm text-gray-600">{displayName}</p>
+                    {reason && <p className="text-xs text-gray-500 mt-1">{reason}</p>}
+                    {submittedAt && <p className="text-xs text-gray-400 mt-1">Solicitada: {submittedAt}</p>}
+                  </div>
+                  <div className="flex gap-2">
+                    {status === 'pending' && (
+                      <>
+                        <button onClick={() => approve(u.id)} className="btn-primary flex items-center gap-1"><Check size={16} />Aprobar</button>
+                        <button onClick={() => reject(u.id)} className="btn-danger flex items-center gap-1"><X size={16} />Rechazar</button>
+                      </>
+                    )}
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <button onClick={() => approve(u.id)} className="btn-primary flex items-center gap-1"><Check size={16} />Aprobar</button>
-                  <button onClick={() => reject(u.id)} className="btn-danger flex items-center gap-1"><X size={16} />Rechazar</button>
-                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

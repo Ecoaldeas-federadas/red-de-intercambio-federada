@@ -1,21 +1,22 @@
-fix: Comercio externo muestra todos los datos en historial
+fix: Admision muestra datos + EntitySelector usa api.get
 
-## Problema
-El historial de operaciones mostraba:
-  "Cant: 1 | Total: TQ | FC usado:"
-Sin valores reales.
-
-## Causa
-El frontend usaba op.total_trueque y op.fc_used que no existen.
-El backend devuelve op.internal_value y op.fc_applied.
+## Problemas
+1. Admision en blanco: frontend usaba u.username pero backend devuelve
+   u.proposed_username. Lo mismo con requested_credit_limit que no existe.
+2. GET /products 404: EntitySelector usaba fetch(endpoint) sin prefijo /api
+3. Las solicitudes aprobadas/rechazadas no se mostraban
 
 ## Solucion
-- Usar los nombres correctos: internal_value, fc_applied, external_value_usd
-- Mostrar grid con 4 columnas: Cantidad, Total USD, Total TQ, FC usado
-- Mostrar quien solicito la operacion (buyer_seller)
-- Mostrar fecha de completado si existe
-- Status traducido: Aprobado/Rechazado/Pendiente
-- Layout mejorado con flexbox
+1. Admission.tsx:
+   - Usa proposed_username, display_name, proposed_level, status
+   - Muestra badge de estado: Aprobada/Rechazada/Pendiente
+   - Muestra nivel solicitado y fecha de solicitud
+   - Botones Aprobar/Rechazar solo si status === 'pending'
+   - Muestra todas las solicitudes (no solo pendientes)
+
+2. EntitySelector.tsx:
+   - Usa api.get() en vez de fetch() directo
+   - Agrega soporte para data.products
 
 Generated with [Devin](https://devin.ai)
 

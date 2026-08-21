@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Search, X } from 'lucide-react'
+import { api } from '../api'
 
 interface EntitySelectorProps {
   label: string
@@ -28,10 +29,9 @@ export function EntitySelector({
 
   useEffect(() => {
     setLoading(true)
-    fetch(endpoint)
-      .then(res => res.json())
+    api.get(endpoint)
       .then(data => {
-        const arr = Array.isArray(data) ? data : (data?.items ?? data?.organizations ?? data?.users ?? [])
+        const arr = Array.isArray(data) ? data : (data?.items ?? data?.organizations ?? data?.users ?? data?.products ?? [])
         setItems(filterFn ? arr.filter(filterFn) : arr)
       })
       .catch(() => setItems([]))
