@@ -1,24 +1,30 @@
-fix: GET /api/config es publico (no requiere auth)
+fix: Polling del demo mas silencioso y con mejor feedback
 
 ## Problema
-Las paginas publicas (/p/federacion, /p/quienes-somos, etc) cargan
-useConfig al arrancar, que llama GET /api/config. Pero ese endpoint
-requeria autenticacion (RequireAuth), asi que devolvia 401 para
-visitantes no autenticados.
+Al arrancar el nodo demo, el frontend hacia polling cada 3s con
+fetch a http://localhost:9091/api/setup/status. Mientras el
+contenedor arrancaba, el navegador logueaba ERR_EMPTY_RESPONSE
+en consola repetidamente.
 
-## Solucion
-- GET /api/config ahora es publico (sin RequireAuth)
-- PUT /api/config sigue requiriendo permiso config.manage
-- El endpoint solo devuelve: node_name, currency_name,
-  currency_full_name, app_name, node_domain
-- No hay informacion sensible en la respuesta
+## Cambios
+- Primer intento despues de 3s (no inmediato) para dar tiempo
+  al contenedor a arrancar
+- Intervalo de 2s entre intentos (antes 3s)
+- Max 30 intentos (60s total) antes de asumir que ya esta listo
+- cache: 'no-store' para evitar respuestas cacheadas
+- El UI ya muestra "Iniciando nodo demo..." con spinner
 
-## Impacto
-- Adios al error 401 en consola al abrir paginas publicas
-- El frontend ya manejaba el 401 con catch, pero el navegador
-  igual lo logueaba en consola
-- Las paginas publicas ahora cargan la configuracion del nodo
-  (nombre, moneda) sin necesidad de sesion
+## Nota
+Los errores ERR_EMPTY_RESPONSE los loguea el navegador, no
+JavaScript. No se pueden suprimir completamente desde codigo.
+Pero con el retraso inicial de 3s, la mayoria ya no aparecen
+porque el contenedor habra arrancado.
+
+## Sobre el error 401 de /api/config
+Ese error aparece en el nodo principal (localhost:8080) porque
+el binario viejo aun requiere auth para GET /api/config.
+El fix (commit anterior) hace que GET /api/config sea publico.
+Se aplica al reconstruir con update.ps1.
 
 Generated with [Devin](https://devin.ai)
 

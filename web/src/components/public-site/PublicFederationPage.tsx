@@ -61,28 +61,34 @@ export function PublicFederationPage() {
     setDemoState('starting')
     try {
       await api.post('/demo/start', {})
-      // Esperar a que el nodo demo este listo (polling cada 3s)
+      // Esperar a que el nodo demo este listo
+      // Usar fetch con no-cors: el navegador puede loguear ERR_EMPTY_RESPONSE
+      // mientras el contenedor arranca, pero es esperado y no afecta al usuario.
       let attempts = 0
-      const poll = setInterval(() => {
+      const maxAttempts = 30 // 30 * 2s = 60s max
+      const checkReady = () => {
         attempts++
-        // Intentar conectar al nodo demo
-        fetch('http://localhost:9091/api/setup/status', { mode: 'no-cors' })
+        fetch('http://localhost:9091/api/setup/status', { mode: 'no-cors', cache: 'no-store' })
           .then(() => {
-            clearInterval(poll)
+            // Servidor respondio (aunque sea opaco con no-cors)
             setDemoState('running')
             setDemoStarting(false)
-            // Redirigir al nodo demo
             window.open('http://localhost:9091/demo', '_blank')
           })
           .catch(() => {
-            if (attempts > 20) {
-              clearInterval(poll)
+            if (attempts >= maxAttempts) {
+              // Timeout: asumir que ya esta listo (puede tardar mas en arranques lentos)
               setDemoState('running')
               setDemoStarting(false)
               window.open('http://localhost:9091/demo', '_blank')
+            } else {
+              // Reintentar en 2s
+              setTimeout(checkReady, 2000)
             }
           })
-      }, 3000)
+      }
+      // Primer intento despues de 3s (dar tiempo al contenedor a arrancar)
+      setTimeout(checkReady, 3000)
     } catch (e: any) {
       setDemoState('stopped')
       setDemoStarting(false)
