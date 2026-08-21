@@ -1,22 +1,18 @@
-fix: contador de productos muestra total real + infinite scroll arreglado
+fix: cargar todos los productos de una vez, no infinite scroll
 
-Problemas:
-1. El contador "Todos (24)" mostraba la cantidad de productos cargados,
-   no el total real. El usuario pensaba que solo habia 24 productos
-   cuando en realidad habia 238.
-2. El infinite scroll no cargaba todos los productos porque
-   loadProducts dependia de backendProducts.length en el useCallback,
-   lo que causaba que el observer no se reactivara correctamente.
+Problema:
+- El infinite scroll no cargaba todos los productos. El usuario veia
+  168 productos en lugar de 238.
+- Los contadores por categoria no sumaban el total porque solo
+  contaban los productos cargados, no todos.
 
-Soluciones:
-- Agregar estado totalCount que se actualiza con el campo "total" de
-  la API.
-- El contador "Todos" ahora muestra totalCount (de la BD) en lugar de
-  items.length (productos cargados).
-- Usar offsetRef (ref) en lugar de backendProducts.length para el
-  offset del infinite scroll, evitando que el useCallback se recree
-  innecesariamente.
-- hasMore ahora se calcula con offsetRef.current < total.
+Solucion:
+- Reemplazar el infinite scroll por carga completa en bucle: el
+  frontend hace fetch de 100 en 100 hasta cargar todos los productos.
+- Los productos se muestran progresivamente mientras cargan.
+- Eliminado el sentinel, IntersectionObserver y boton "Cargar mas".
+- Ahora los contadores por categoria muestran el total real porque
+  todos los productos estan cargados.
 
 Generated with [Devin](https://devin.ai)
 

@@ -639,60 +639,41 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
   const [backendProducts, setBackendProducts] = useState<any[]>([])
   const [totalCount, setTotalCount] = useState<number>(0)
   const [loading, setLoading] = useState(false)
-  const [hasMore, setHasMore] = useState(true)
-  const sentinelRef = useRef<HTMLDivElement>(null)
-  const offsetRef = useRef<number>(0)
 
   // If source is "backend", load real products from the API
   const useBackend = (data as any).source === 'backend'
 
-  const PAGE_SIZE = 48
+  const PAGE_SIZE = 100
 
-  const loadProducts = useCallback((reset = false) => {
+  // Cargar todos los productos en un bucle hasta que no haya mas
+  useEffect(() => {
     if (!useBackend) return
+    let cancelled = false
     setLoading(true)
-    const offset = reset ? 0 : offsetRef.current
-    let url = `/api/public/products?limit=${PAGE_SIZE}&offset=${offset}`
-    fetch(url)
-      .then((res) => res.json())
-      .then((d) => {
+
+    const loadAll = async () => {
+      let offset = 0
+      let all: any[] = []
+      let total = 0
+      let more = true
+      while (more && !cancelled) {
+        const res = await fetch(`/api/public/products?limit=${PAGE_SIZE}&offset=${offset}`)
+        const d = await res.json()
         const newItems = Array.isArray(d) ? d : d?.products ?? []
-        const total = d?.total ?? newItems.length
+        total = d?.total ?? newItems.length
+        all = [...all, ...newItems]
+        offset += newItems.length
+        more = d?.has_more ?? (offset < total)
+        if (cancelled) return
+        // Actualizar progressivamente para que el usuario vea productos mientras cargan
+        setBackendProducts([...all])
         setTotalCount(total)
-        if (reset) {
-          setBackendProducts(newItems)
-          offsetRef.current = newItems.length
-        } else {
-          setBackendProducts(prev => [...prev, ...newItems])
-          offsetRef.current = offsetRef.current + newItems.length
-        }
-        setHasMore(d?.has_more ?? (offsetRef.current < total))
-      })
-      .catch(() => { if (reset) setBackendProducts([]) })
-      .finally(() => setLoading(false))
+      }
+      setLoading(false)
+    }
+    loadAll()
+    return () => { cancelled = true }
   }, [useBackend])
-
-  useEffect(() => {
-    if (!useBackend) return
-    loadProducts(true)
-  }, [useBackend])
-
-  // Infinite scroll observer
-  useEffect(() => {
-    if (!useBackend) return
-    const sentinel = sentinelRef.current
-    if (!sentinel) return
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loading) {
-          loadProducts(false)
-        }
-      },
-      { rootMargin: '200px' }
-    )
-    observer.observe(sentinel)
-    return () => observer.disconnect()
-  }, [useBackend, hasMore, loading, loadProducts])
 
   const items = useBackend
     ? backendProducts.map((p: any) => ({
@@ -852,22 +833,10 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
         })}
       </div>
 
-      {/* Sentinel para infinite scroll (solo backend) */}
-      {useBackend && hasMore && (
-        <div ref={sentinelRef} className="flex flex-col items-center justify-center py-6 gap-3">
-          {loading ? (
-            <div className="animate-pulse text-emerald-700 text-sm">Cargando más productos...</div>
-          ) : (
-            <>
-              <span className="text-xs text-gray-400">Desliza para ver más...</span>
-              <button
-                onClick={() => loadProducts(false)}
-                className="px-6 py-2.5 rounded-xl font-bold text-white bg-emerald-700 hover:bg-emerald-600 transition text-sm shadow"
-              >
-                Cargar más productos
-              </button>
-            </>
-          )}
+      {/* Loading indicator (solo backend) */}
+      {useBackend && loading && (
+        <div className="flex justify-center py-6">
+          <div className="animate-pulse text-emerald-700 text-sm">Cargando productos...</div>
         </div>
       )}
 
