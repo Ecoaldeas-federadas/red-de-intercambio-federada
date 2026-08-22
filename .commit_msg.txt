@@ -1,17 +1,42 @@
-fix: quitar SPLIT INTO 1 TABLETS (incompatible con BD colocada)
+feat: unificar Federacion en una sola pagina + explicar datos OpenWrt
 
-Error: cannot create colocated table with split option (SQLSTATE 42P16)
+Antes habia 3 lugares separados que se mezclaban y confundian:
+- NetworkConfig (dentro de Configuracion) con sub-tab "Aldeas Federadas"
+- FederationPeers (pagina separada)
+- FederationGov (pagina separada)
 
-La BD fmc_node se crea con COLOCATION = true (connection.go).
-En una BD colocada, las tablas comparten una tableta automaticamente,
-por lo que SPLIT INTO 1 TABLETS es innecesario e incompatible.
+Ahora todo esta unificado en una sola pagina de Federacion con 3 tabs:
 
-Quitado SPLIT INTO 1 TABLETS de:
-- 076_federation_governance.sql (3 tablas)
-- 077_node_expulsion.sql (2 tablas)
-- 078_cluster_config.sql (1 tabla)
+1. Red del Nodo (antes NetworkConfig):
+   - General: modo de red, IP, OpenWrt
+   - Mis Datos de Red: info de red del nodo (NO federacion)
+   - Servicios Locales: DNS de OpenWrt
+   - Instalador OpenWrt: con explicacion de donde obtener cada dato
 
-La colocation de la BD ya reduce el consumo de tabletas.
+2. Federar Aldeas (antes FederationPeers):
+   - Agregar y gestionar aldeas federadas
+   - Por Internet y por Intranet
+
+3. Gobernanza (antes FederationGov):
+   - Propuestas, votacion, constantes federadas
+
+Cambios:
+- Nueva pagina Federation.tsx que integra los 3 componentes
+- NetworkConfig: quitado sub-tab "Aldeas Federadas" (era duplicado)
+- NetworkConfig: "Mis Datos para Compartir" renombrado a "Mis Datos de Red"
+  - Ya no habla de "como federar" — eso va en "Federar Aldeas"
+  - Ahora explica que es el registro de red del nodo
+  - Al final: nota que dice "para federar, usar pestana Federar Aldeas"
+- NodeSettings: quitado tab "Red Privada" (ahora esta en Federacion)
+- Layout.tsx: "Nodos Federados" → "Federacion" (un solo item de menu)
+- App.tsx: /app/federation/peers y /app/federation → Federation
+- Instalador OpenWrt: agregada explicacion de donde obtener cada dato:
+  - Direccion de OpenWrt: IP del servidor (192.168.1.1 por defecto)
+  - Dominio de la aldea: se configura en OpenWrt
+  - Token API: System → Administration → API Token
+  - IPv6 ULA: se genera automaticamente
+  - Claves WireGuard: se generan automaticamente
+  - Puerto WireGuard: 51820 por defecto
 
 Generated with [Devin](https://devin.ai)
 

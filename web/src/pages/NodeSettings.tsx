@@ -3,7 +3,6 @@ import { useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon, Vote as VoteIcon, Database, Download, Upload, AlertTriangle, RefreshCw, Globe, Lock, Unlock, Trash2, FileText, Server, HardDrive, CheckCircle } from 'lucide-react'
-import NetworkConfig from './NetworkConfig'
 
 // Opciones del 1 al 10 para el numero de nivel (seleccionable, no texto libre)
 const LEVEL_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1)
@@ -27,7 +26,7 @@ export default function NodeSettings() {
 
   const [searchParams, setSearchParams] = useSearchParams()
   const initialTab = (searchParams.get('tab') as any) || 'general'
-  const [tab, setTab] = useState<'general' | 'levels' | 'org_levels' | 'tariff' | 'backup' | 'database' | 'demo' | 'network'>(initialTab)
+  const [tab, setTab] = useState<'general' | 'levels' | 'org_levels' | 'tariff' | 'backup' | 'database' | 'demo'>(initialTab)
   const [clusterStatus, setClusterStatus] = useState<any>(null)
   const [clusterChecking, setClusterChecking] = useState(false)
   const [clusterConfig, setClusterConfig] = useState<any>(null)
@@ -373,7 +372,6 @@ export default function NodeSettings() {
         {canManage && (
           <button onClick={() => changeTab('demo')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'demo' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Globe size={14} className="inline mr-1" />Nodo Demo</button>
         )}
-        <button onClick={() => changeTab('network')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'network' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Server size={14} className="inline mr-1" />Red Privada</button>
       </div>
 
       {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</div>}
@@ -1794,10 +1792,6 @@ export default function NodeSettings() {
         </div>
       )}
 
-      {/* ===== RED PRIVADA (OpenWrt) ===== */}
-      {tab === 'network' && (
-        <NetworkConfig />
-      )}
     </div>
   )
 }
