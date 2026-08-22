@@ -254,24 +254,24 @@ export default function ExternalBridge() {
                   </p>
                 </div>
 
-                {/* Paso 3: Costo canasta local */}
+                {/* Paso 3: Costo canasta local - SOLO LECTURA, viene de la federacion */}
                 <div>
                   <label className="label">
-                    3. Costo de la misma canasta basica aca (en {currency})
+                    3. Canasta basica interna (en {currency}) - <span className="text-blue-600">valor federado</span>
                   </label>
                   <div className="flex items-center gap-2">
                     <input
                       type="number"
-                      className="input flex-1"
-                      placeholder="Ej: 1500"
-                      value={fcForm.basket_cost_local_tq || ''}
-                      onChange={(e) => { setFcForm({ ...fcForm, basket_cost_local_tq: parseInt(e.target.value) || 0 }); setFcPreview(null) }}
+                      className="input flex-1 bg-gray-100"
+                      value={fcForm.basket_cost_local_tq || 500}
+                      readOnly
                     />
                     <span className="text-gray-500 font-medium">{currency}</span>
                   </div>
                   <p className="text-xs text-gray-400 mt-1">
-                    Cuanto cuesta la misma canasta basica aca en tu comunidad, en {currency}.
-                    Ej: si aca cuesta 1500 {currency}, escribe 1500.
+                    <strong>Este valor no se puede editar.</strong> Es el mismo en todos los nodos de la federacion.
+                    Solo se puede cambiar mediante una propuesta federada aprobada por consenso.
+                    Ve a "Federacion" para proponer o votar cambios.
                   </p>
                 </div>
               </div>
@@ -279,9 +279,9 @@ export default function ExternalBridge() {
               {/* Ejemplo visual */}
               <div className="text-xs bg-white p-3 rounded border border-blue-100">
                 <p className="font-medium text-gray-600 mb-1">Ejemplo de como funciona:</p>
-                <p>Si alla la canasta cuesta <b>300 {fcForm.external_currency}</b> y aca cuesta <b>1500 {currency}</b>:</p>
-                <p className="mt-1">FC = 1500 / 300 = <b className="text-blue-700">5.00 {currency}</b> por cada <b>1 {fcForm.external_currency}</b></p>
-                <p className="mt-1 text-gray-400">Esto significa que 1 {fcForm.external_currency} tiene el mismo poder adquisitivo que 5.00 {currency}.</p>
+                <p>Si alla la canasta cuesta <b>300 {fcForm.external_currency}</b> y aca cuesta <b>{fcForm.basket_cost_local_tq || 500} {currency}</b>:</p>
+                <p className="mt-1">FC = {fcForm.basket_cost_local_tq || 500} / 300 = <b className="text-blue-700">{((fcForm.basket_cost_local_tq || 500) / 300).toFixed(2)} {currency}</b> por cada <b>1 {fcForm.external_currency}</b></p>
+                <p className="mt-1 text-gray-400">Esto significa que 1 {fcForm.external_currency} tiene el mismo poder adquisitivo que {((fcForm.basket_cost_local_tq || 500) / 300).toFixed(2)} {currency}.</p>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">

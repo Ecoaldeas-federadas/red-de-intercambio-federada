@@ -38,6 +38,7 @@ const navItems = [
   { to: '/app/notifications/settings', label: 'Notificaciones', icon: Bell },
   { to: '/app/settings', label: 'Configuracion', icon: Settings },
   { to: '/app/services', label: 'Servicios Federados', icon: Server },
+  { to: '/app/federation', label: 'Federacion', icon: Globe },
   { to: '/app/website', label: 'Sitio Web Publico', icon: Globe },
 ]
 

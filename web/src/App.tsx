@@ -33,6 +33,7 @@ import FederationPeers from './pages/FederationPeers'
 import MergeConflicts from './pages/MergeConflicts'
 import NodeSettings from './pages/NodeSettings'
 import FederatedServices from './pages/FederatedServices'
+import FederationGov from './pages/FederationGov'
 import Profile from './pages/Profile'
 import CommunityFund from './pages/CommunityFund'
 import CalculatorParams from './pages/CalculatorParams'
@@ -109,6 +110,7 @@ function AppInner() {
         <Route path="/app/federation/conflicts" element={<Layout><MergeConflicts /></Layout>} />
         <Route path="/app/settings" element={<Layout><NodeSettings /></Layout>} />
         <Route path="/app/services" element={<Layout><FederatedServices /></Layout>} />
+        <Route path="/app/federation" element={<Layout><FederationGov /></Layout>} />
         <Route path="/app/notifications/settings" element={<Layout><NotificationSettings /></Layout>} />
         <Route path="/app/notifications" element={<Layout><Notifications /></Layout>} />
         <Route path="/app/profile" element={<Layout><Profile /></Layout>} />

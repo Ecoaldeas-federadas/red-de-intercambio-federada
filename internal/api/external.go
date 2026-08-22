@@ -73,21 +73,43 @@ func (eh *ExternalHandler) RegisterRoutesWithAuth(r chi.Router, am *AuthMiddlewa
 }
 
 func (eh *ExternalHandler) getCurrentFC(w http.ResponseWriter, r *http.Request) {
+	// Obtener la canasta interna desde la federacion (constante federada)
+	// Es el mismo valor en TODOS los nodos. No es configurable por nodo.
+	var basketInternalTQ int64 = 500 // valor por defecto
+	var basketValue []byte
+	err := eh.Pool.QueryRow(r.Context(), `SELECT value FROM federation_constants WHERE key = 'basket_cost_internal_tq'`).Scan(&basketValue)
+	if err == nil {
+		// Intentar parsear como numero
+		var n int64
+		if json.Unmarshal(basketValue, &n) == nil {
+			basketInternalTQ = n
+		} else {
+			var s string
+			if json.Unmarshal(basketValue, &s) == nil {
+				fmt.Sscanf(s, "%d", &basketInternalTQ)
+			}
+		}
+	}
+
 	cf, err := eh.DEX.GetCurrentFC(r.Context())
 	if err != nil {
 		// Devolver FC por defecto en vez de 404
 		writeJSON(w, 200, map[string]interface{}{
-			"factor":               5.0,
-			"external_cpi":         300,
-			"local_energy_cost":    60,
-			"external_currency":    "USD",
-			"basket_cost_external": 0,
-			"basket_cost_local_tq": 0,
-			"calculated_at":        time.Now().UTC(),
-			"is_default":           true,
+			"factor":                 5.0,
+			"external_cpi":           300,
+			"local_energy_cost":      60,
+			"external_currency":      "USD",
+			"basket_cost_external":   0,
+			"basket_cost_local_tq":   basketInternalTQ,
+			"basket_internal_source": "federation",
+			"calculated_at":          time.Now().UTC(),
+			"is_default":             true,
 		})
 		return
 	}
+
+	// Sobrescribir la canasta interna con el valor federado
+	cf.BasketCostLocalTQ = basketInternalTQ
 	writeJSON(w, 200, cf)
 }
 
@@ -139,10 +161,11 @@ func (eh *ExternalHandler) storeFC(w http.ResponseWriter, r *http.Request) {
 }
 
 // CalculateFCBasketRequest - calcular FC desde canasta basica
+// La canasta interna NO se envia: viene de la federacion (constante federada)
 type CalculateFCBasketRequest struct {
 	ExternalCurrency   string  `json:"external_currency"`
 	BasketCostExternal float64 `json:"basket_cost_external"`
-	BasketCostLocalTQ  int64   `json:"basket_cost_local_tq"`
+	BasketCostLocalTQ  int64   `json:"basket_cost_local_tq"` // ignorado, viene de la federacion
 }
 
 func (eh *ExternalHandler) calculateFCBasket(w http.ResponseWriter, r *http.Request) {
@@ -155,17 +178,35 @@ func (eh *ExternalHandler) calculateFCBasket(w http.ResponseWriter, r *http.Requ
 		req.ExternalCurrency = "USD"
 	}
 
-	fc, err := eh.DEX.CalculateFCFromBasket(r.Context(), req.BasketCostExternal, req.BasketCostLocalTQ)
+	// La canasta interna viene de la federacion, no del request
+	var basketInternalTQ int64 = 500
+	var basketValue []byte
+	err := eh.Pool.QueryRow(r.Context(), `SELECT value FROM federation_constants WHERE key = 'basket_cost_internal_tq'`).Scan(&basketValue)
+	if err == nil {
+		var n int64
+		if json.Unmarshal(basketValue, &n) == nil {
+			basketInternalTQ = n
+		} else {
+			var s string
+			if json.Unmarshal(basketValue, &s) == nil {
+				fmt.Sscanf(s, "%d", &basketInternalTQ)
+			}
+		}
+	}
+
+	fc, err := eh.DEX.CalculateFCFromBasket(r.Context(), req.BasketCostExternal, basketInternalTQ)
 	if err != nil {
 		writeError(w, 400, err.Error())
 		return
 	}
 
 	writeJSON(w, 200, map[string]interface{}{
-		"factor":               fc,
-		"external_currency":    req.ExternalCurrency,
-		"basket_cost_external": req.BasketCostExternal,
-		"basket_cost_local_tq": req.BasketCostLocalTQ,
+		"factor":                 fc,
+		"external_currency":      req.ExternalCurrency,
+		"basket_cost_external":   req.BasketCostExternal,
+		"basket_cost_local_tq":   basketInternalTQ,
+		"basket_internal_source": "federation",
+		"basket_internal_note":   "La canasta interna es un valor federado. Es el mismo en todos los nodos. Solo se puede cambiar via propuesta federada aprobada.",
 	})
 }
 
@@ -188,7 +229,23 @@ func (eh *ExternalHandler) storeFCBasket(w http.ResponseWriter, r *http.Request)
 		req.ExternalCurrency = "USD"
 	}
 
-	cf, err := eh.DEX.StoreFCFromBasket(r.Context(), req.Factor, req.BasketCostExternal, req.BasketCostLocalTQ, req.ExternalCurrency, req.ApprovedBy)
+	// La canasta interna viene de la federacion, no del request
+	var basketInternalTQ int64 = 500
+	var basketValue []byte
+	err := eh.Pool.QueryRow(r.Context(), `SELECT value FROM federation_constants WHERE key = 'basket_cost_internal_tq'`).Scan(&basketValue)
+	if err == nil {
+		var n int64
+		if json.Unmarshal(basketValue, &n) == nil {
+			basketInternalTQ = n
+		} else {
+			var s string
+			if json.Unmarshal(basketValue, &s) == nil {
+				fmt.Sscanf(s, "%d", &basketInternalTQ)
+			}
+		}
+	}
+
+	cf, err := eh.DEX.StoreFCFromBasket(r.Context(), req.Factor, req.BasketCostExternal, basketInternalTQ, req.ExternalCurrency, req.ApprovedBy)
 	if err != nil {
 		writeError(w, 400, err.Error())
 		return

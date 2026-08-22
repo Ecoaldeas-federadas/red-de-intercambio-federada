@@ -1,21 +1,42 @@
-fix: pagina Servicios Federados en blanco por doble /api
+feat: gobernanza federada - canasta interna compartida y votacion entre nodos
 
-Mismo bug que NetworkConfig: FederatedServices.tsx llamaba
-api.get('/api/services/catalog') pero api.get ya anade /api,
-resultando en /api/api/services/catalog -> 404 -> HTML -> error JSON.
+La canasta basica interna (500 TQ) ahora es una CONSTANTE FEDERADA:
+- Es el mismo valor en TODOS los nodos
+- No se puede editar por nodo individual
+- Solo se puede cambiar mediante una propuesta federada aprobada por consenso
+- Cuando se alcanza el 75% de aprobacion, el cambio se aplica automaticamente
 
-Corregidas las 22 llamadas API de la pagina:
-- /api/services/* -> /services/*
-- /api/voip/* -> /voip/*
+Migracion 076: tablas federation_constants, federation_proposals, federation_votes
+- federation_constants: valores compartidos por toda la federacion
+- federation_proposals: propuestas de cambio con umbral y expiracion
+- federation_votes: votos de cada nodo (approve/reject)
+- Constantes iniciales: basket_cost_internal_tq=500, fc_approval_threshold=75
 
-Ahora la pagina muestra los 22 servicios del catalogo correctamente:
-PeerTube, Mastodon, Pixelfed, Friendica, Lemmy, BookWyrm, WriteFreely,
-Mobilizon, Matrix, Jitsi, Asterisk/FreePBX, Mumble, Nextcloud, Collabora,
-BookStack, MediaWiki, Jellyfin, Funkwhale, Gitea/Forgejo, BigBlueButton,
-Home Assistant, Vaultwarden.
+Backend (federation_gov.go):
+- GET /api/federation-gov/constants - listar constantes federadas
+- GET /api/federation-gov/constants/{key} - obtener constante
+- GET /api/federation-gov/proposals - listar propuestas
+- GET /api/federation-gov/proposals/{id} - detalle con votos
+- POST /api/federation-gov/proposals - crear propuesta (auto-aprueba)
+- POST /api/federation-gov/proposals/{id}/vote - votar
+- POST /api/federation-gov/proposals/{id}/remote-vote - recibir voto de otro nodo
+- POST /api/federation-gov/proposals/remote - recibir propuesta de otro nodo
+- checkConsensus: aplica el cambio automaticamente al alcanzar el umbral
+- applyProposal: actualiza la constante federada
 
-Cada servicio tiene botones para instalar con un clic, descargar,
-iniciar, detener y desinstalar.
+Backend (external.go):
+- getCurrentFC: la canasta interna viene de federation_constants, no del nodo
+- calculateFCBasket: ignora basket_cost_local_tq del request, usa valor federado
+- storeFCBasket: guarda con la canasta interna federada
+
+Frontend:
+- Nueva pagina FederationGov con 3 pestanas:
+  - Propuestas: lista con estado, barra de progreso, botones aprobar/rechazar
+  - Constantes Federadas: valores actuales (solo lectura)
+  - Nueva Propuesta: formulario para proponer cambios
+- FC en ExternalBridge: canasta interna ahora es solo lectura (gris)
+  con nota de que es valor federado
+- Enlace "Federacion" en el sidebar
 
 Generated with [Devin](https://devin.ai)
 

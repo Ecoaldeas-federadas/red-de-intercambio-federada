@@ -80,6 +80,10 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 		fsvh.RegisterRoutesWithAuth(r, am)
 	}
 
+	// Federation governance handler (propuestas y votacion entre nodos)
+	fedGovH := NewFederationGovHandler(pool, fh.NodeDomain)
+	fedGovH.RegisterRoutesWithAuth(r, am)
+
 	// Assembly y Tax
 	asmbH := &AssemblyHandler{Pool: pool, Auth: am}
 	asmbH.RegisterRoutes(r, am)
