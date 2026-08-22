@@ -1,22 +1,18 @@
-fix: volver al comando EXACTO original de yugabyted (sin tserver_flags)
+fix: migracion 068 truncada + backup con pg_dump
 
-El flag --tserver_flags causaba crash de yugabyted con Python TypeError:
-  ProcessManager.wait_until_stop() missing 1 required positional argument: 'pid'
+Migracion 068_restore_unsplash_urls.sql:
+- El archivo estaba truncado en la linea 22
+- La ultima linea no tenia cierre de string ni punto y coma
+- Error: unterminated quoted string at or near
+  '/images/products/alimentacion/panaderia.jpg
+- Arreglado: agregado cierre ' WHERE name = ...;
 
-Solucion: volver al comando original que SI funcionaba:
-  bin/yugabyted start --base_dir=/mnt/master --daemon=false
-
-Sin --tserver_flags, sin --background=false, sin --advertise_address.
-
-El limite de tabletas se maneja ahora con SPLIT INTO 1 TABLETS
-en las tablas nuevas (076, 077, 078). Cada tabla usa solo 1 tableta
-en vez de 8-16, reduciendo drasticamente el consumo de tabletas
-sin necesidad de cambiar flags del tserver.
-
-Migraciones con SPLIT INTO 1 TABLETS:
-- 076: federation_constants, federation_proposals, federation_votes
-- 077: federation_expelled_nodes, federation_known_nodes
-- 078: cluster_config
+Script de backup (docker-compose.yml):
+- Antes usaba ysqlsh -c "SELECT * FROM tabla" que produce texto
+  tabulado, no SQL restaurable
+- Ahora usa pg_dump --data-only --column-inserts que produce
+  INSERT statements validos que se pueden restaurar
+- Los backups anteriores (formato texto) no son restaurables
 
 Generated with [Devin](https://devin.ai)
 

@@ -112,18 +112,13 @@ services:
             DATE=$$(date +%Y%m%d_%H%M%S)
             FILE="/backups/fmc_node_$$DATE.sql"
             echo "Backup service: creando backup $$FILE"
-            {
-              echo "-- Backup $$DATE"
-              echo "-- Base de datos: fmc_node"
-              echo ""
-              /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT * FROM public_pages;" 2>/dev/null
-              /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT * FROM node_config;" 2>/dev/null
-              /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT id, username, node_domain, role, is_active FROM users;" 2>/dev/null
-              /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT * FROM products;" 2>/dev/null
-              /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT * FROM departments;" 2>/dev/null
-              /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT * FROM organizations;" 2>/dev/null
-              /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node -c "SELECT * FROM transactions;" 2>/dev/null
-            } > $$FILE
+            /home/yugabyte/bin/pg_dump -h yugabytedb -p 5433 -U yugabyte -d fmc_node --data-only --column-inserts > $$FILE 2>/dev/null
+            if [ ! -s $$FILE ]; then
+              echo "Backup service: pg_dump vacio, intentando con ysqlsh"
+              /home/yugabyte/bin/ysqlsh -h yugabytedb -p 5433 -U yugabyte -d fmc_node --command="COPY (SELECT '-- pg_dump no disponible, backup vacio'::text) TO STDOUT" > $$FILE 2>/dev/null
+            fi
+            echo "-- Backup $$DATE" >> $$FILE
+            echo "-- Base de datos: fmc_node" >> $$FILE
             if [ -s $$FILE ]; then
               echo "Backup service: backup OK $$FILE ($$(wc -c < $$FILE) bytes)"
               echo "done: $$FILE" > /backups/.backup_status

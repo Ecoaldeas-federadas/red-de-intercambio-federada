@@ -19,4 +19,4 @@ UPDATE products SET image_url = '/images/products/alimentacion/granos-basicos.jp
 UPDATE products SET image_url = '/images/products/alimentacion/harinas-integrales.jpg' WHERE name = 'Harina de maiz 50kg' AND image_url = '/placeholder.svg';
 UPDATE products SET image_url = '/images/products/alimentacion/frutas-temporada.jpg' WHERE name = 'Frutas de Temporada' AND image_url = '/placeholder.svg';
 UPDATE products SET image_url = '/images/products/alimentacion/raices-bulbos.jpg' WHERE name = 'Raices y Bulbos' AND image_url = '/placeholder.svg';
-UPDATE products SET image_url = '/images/products/alimentacion/panaderia.jpg
+UPDATE products SET image_url = '/images/products/alimentacion/panaderia.jpg' WHERE name = 'Pan integral 1kg' AND image_url = '/placeholder.svg';
