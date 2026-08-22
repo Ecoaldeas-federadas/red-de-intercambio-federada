@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
-import { Search, Globe, Send, CheckCircle, XCircle, RefreshCw, Trash2, Settings, Users, Server, Mail, ExternalLink, AlertTriangle, Clock } from 'lucide-react'
+import { Search, Globe, Send, CheckCircle, XCircle, RefreshCw, Trash2, Settings, Users, Server, Mail, ExternalLink, AlertTriangle, Clock, MapPin, FileText, Wifi, WifiOff } from 'lucide-react'
 
-// NodeDiscovery: descubre nodos via gossip, envia solicitudes de federacion
-// y configura los intervalos de descubrimiento/verificacion.
+// NodeDiscovery: descubre nodos via gossip, envia solicitudes de contacto
+// (NO federacion automatica) y verifica salud por consenso.
+//
+// IMPORTANTE: La federacion NO se hace aceptando/rechazando en el sistema.
+// La clave publica se comparte personalmente entre personas.
+// El sistema solo muestra info de contacto (pais, ubicacion, gobernanza, web)
+// para que la gente se contacte fisicamente.
 export default function NodeDiscovery() {
-  const { node_domain: nodeDomain } = useConfig()
   const [tab, setTab] = useState<'discovered' | 'requests' | 'config'>('discovered')
   const [nodes, setNodes] = useState<any[]>([])
   const [federatedNodes, setFederatedNodes] = useState<any[]>([])
@@ -19,8 +23,9 @@ export default function NodeDiscovery() {
   const [showRequestModal, setShowRequestModal] = useState<string | null>(null)
   const [requestData, setRequestData] = useState({ to_node_domain: '', message: '', contact_info: '' })
   const [showRespondModal, setShowRespondModal] = useState<any | null>(null)
-  const [respondData, setRespondData] = useState({ status: 'accepted', response_message: '', response_contact: '', response_public_key: '' })
+  const [respondData, setRespondData] = useState({ status: 'interested', response_message: '', response_contact: '' })
   const [syncing, setSyncing] = useState(false)
+  const [consensusRunning, setConsensusRunning] = useState(false)
 
   const loadData = async () => {
     setLoading(true)
@@ -29,7 +34,7 @@ export default function NodeDiscovery() {
         api.get('/nodes/discovered') as any,
         api.get('/nodes/federated') as any,
         api.get('/nodes/inactive') as any,
-        api.get('/nodes/federation-requests') as any,
+        api.get('/nodes/contact-requests') as any,
         api.get('/nodes/discovery-config') as any,
       ])
       setNodes(disc.discovered_nodes || [])
@@ -48,7 +53,7 @@ export default function NodeDiscovery() {
 
   const showMsg = (type: 'success' | 'error' | 'info', text: string) => {
     setMsg({ type, text })
-    setTimeout(() => setMsg(null), 5000)
+    setTimeout(() => setMsg(null), 6000)
   }
 
   const handleSendRequest = async () => {
@@ -57,8 +62,8 @@ export default function NodeDiscovery() {
       return
     }
     try {
-      await api.post('/nodes/federation-request', requestData)
-      showMsg('success', `Solicitud enviada a ${requestData.to_node_domain}`)
+      const res = await api.post('/nodes/contact-request', requestData) as any
+      showMsg('success', res.message || `Solicitud de contacto enviada a ${requestData.to_node_domain}`)
       setShowRequestModal(null)
       setRequestData({ to_node_domain: '', message: '', contact_info: '' })
       loadData()
@@ -70,10 +75,10 @@ export default function NodeDiscovery() {
   const handleRespond = async () => {
     if (!showRespondModal) return
     try {
-      await api.post(`/nodes/federation-requests/${showRespondModal.id}/respond`, respondData)
-      showMsg('success', `Solicitud ${respondData.status === 'accepted' ? 'aceptada' : 'rechazada'}`)
+      const res = await api.post(`/nodes/contact-requests/${showRespondModal.id}/respond`, respondData) as any
+      showMsg('success', res.message || 'Respuesta enviada')
       setShowRespondModal(null)
-      setRespondData({ status: 'accepted', response_message: '', response_contact: '', response_public_key: '' })
+      setRespondData({ status: 'interested', response_message: '', response_contact: '' })
       loadData()
     } catch (e: any) {
       showMsg('error', e.message || 'Error respondiendo solicitud')
@@ -103,6 +108,19 @@ export default function NodeDiscovery() {
     }
   }
 
+  const handleConsensusCheck = async () => {
+    setConsensusRunning(true)
+    try {
+      const res = await api.post('/nodes/discovered/consensus-check', {}) as any
+      showMsg('success', res.message || 'Consenso evaluado')
+      loadData()
+    } catch (e: any) {
+      showMsg('error', e.message || 'Error evaluando consenso')
+    } finally {
+      setConsensusRunning(false)
+    }
+  }
+
   const handleRemoveNode = async (domain: string) => {
     if (!confirm(`Eliminar ${domain} de la lista de nodos descubiertos?`)) return
     try {
@@ -127,7 +145,10 @@ export default function NodeDiscovery() {
   const filteredNodes = nodes.filter((n: any) => {
     if (!search) return true
     const s = search.toLowerCase()
-    return n.node_domain?.toLowerCase().includes(s) || n.node_name?.toLowerCase().includes(s)
+    return n.node_domain?.toLowerCase().includes(s) ||
+      n.node_name?.toLowerCase().includes(s) ||
+      n.country?.toLowerCase().includes(s) ||
+      n.location?.toLowerCase().includes(s)
   })
 
   const incomingRequests = requests.filter((r: any) => r.direction === 'incoming' && r.status === 'pending')
@@ -141,13 +162,24 @@ export default function NodeDiscovery() {
         </div>
       )}
 
+      {/* Aviso importante sobre como funciona la federacion */}
+      <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg text-sm text-gray-700">
+        <div className="flex items-start gap-2">
+          <AlertTriangle size={18} className="text-amber-600 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-semibold text-gray-900 mb-1">La federacion se hace personalmente, no automaticamente</p>
+            <p>Este sistema NO federa nodos con un clic. La clave publica para federar se comparte <strong>personalmente</strong> entre las personas, no por el sistema. Aqui solo ves informacion de otros nodos (pais, ubicacion, gobernanza, web, contacto) para que te comuniques con ellos directamente. La idea es que haya contacto humano, que las personas se conozcan, que las asambleas aprueben, y luego compartan las claves en persona.</p>
+          </div>
+        </div>
+      </div>
+
       {/* Tabs internos */}
       <div className="flex flex-wrap gap-2 border-b pb-2">
         <button onClick={() => setTab('discovered')} className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5 ${tab === 'discovered' ? 'bg-trueque-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}>
           <Globe size={14} /> Nodos Descubiertos ({nodes.length})
         </button>
         <button onClick={() => setTab('requests')} className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5 ${tab === 'requests' ? 'bg-trueque-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}>
-          <Mail size={14} /> Solicitudes
+          <Mail size={14} /> Solicitudes de Contacto
           {incomingRequests.length > 0 && <span className="bg-red-500 text-white text-xs px-1.5 rounded-full">{incomingRequests.length}</span>}
         </button>
         <button onClick={() => setTab('config')} className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5 ${tab === 'config' ? 'bg-trueque-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}>
@@ -163,7 +195,7 @@ export default function NodeDiscovery() {
               <Users size={18} className="text-blue-600 mt-0.5 shrink-0" />
               <div>
                 <p className="font-semibold text-gray-900 mb-1">Como funciona el descubrimiento de nodos</p>
-                <p>No hay un servidor central. Cada nodo comparte su lista de nodos conocidos con los nodos federados, y estos a su vez la comparten con los suyos. Asi, basta con que un nodo se feder con uno solo para que toda la red descubra que existe. Para federar un nodo, envia una solicitud de federacion y comparte las claves publicas.</p>
+                <p>No hay un servidor central. Cada nodo comparte su lista de nodos conocidos con los nodos federados, y estos a su vez la comparten con los suyos. Asi, basta con que un nodo se feder con uno solo para que toda la red descubra que existe. Para federar, contacta personalmente a la persona responsable del otro nodo e intercambien las claves publicas.</p>
               </div>
             </div>
           </div>
@@ -171,89 +203,153 @@ export default function NodeDiscovery() {
           <div className="flex flex-wrap gap-2 items-center">
             <div className="relative flex-1 min-w-[200px]">
               <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
-              <input type="text" placeholder="Buscar nodo por dominio o nombre..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm" />
+              <input type="text" placeholder="Buscar por dominio, nombre, pais o ubicacion..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm" />
             </div>
             <button onClick={handleSyncNow} disabled={syncing} className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-1.5 disabled:opacity-50">
-              <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} /> Sincronizar ahora
+              <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} /> Sincronizar
+            </button>
+            <button onClick={handleConsensusCheck} disabled={consensusRunning} className="px-3 py-2 bg-purple-600 text-white rounded-lg text-sm flex items-center gap-1.5 disabled:opacity-50">
+              <CheckCircle size={16} className={consensusRunning ? 'animate-spin' : ''} /> Evaluar consenso
             </button>
             <button onClick={() => { setRequestData({ to_node_domain: '', message: '', contact_info: '' }); setShowRequestModal('new') }} className="px-3 py-2 bg-trueque-600 text-white rounded-lg text-sm flex items-center gap-1.5">
-              <Send size={16} /> Solicitar federacion
+              <Send size={16} /> Solicitar contacto
             </button>
           </div>
 
-          {loading ? (
-            <div className="text-center py-8 text-gray-500">Cargando nodos...</div>
-          ) : filteredNodes.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <Globe size={48} className="mx-auto mb-2 text-gray-300" />
-              <p>No hay nodos descubiertos aun.</p>
-              <p className="text-xs mt-1">Federate con un nodo para empezar a descubrir mas nodos en la red.</p>
-            </div>
-          ) : (
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {filteredNodes.map((n: any) => (
-                <div key={n.node_domain} className={`border rounded-lg p-4 space-y-2 ${n.is_this_node ? 'border-trueque-400 bg-trueque-50' : n.is_expelled ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <Server size={16} className={n.is_direct_peer ? 'text-green-600' : 'text-gray-400'} />
-                        <span className="font-medium text-sm truncate">{n.node_name || n.node_domain}</span>
-                      </div>
-                      <div className="text-xs text-gray-500 truncate">{n.node_domain}</div>
+          {/* Nodos federados (peers directos) con estado online/offline */}
+          {federatedNodes.length > 0 && (
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+                <Server size={16} className="text-green-600" /> Nodos Federados ({federatedNodes.length})
+              </h3>
+              <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+                {federatedNodes.map((n: any) => (
+                  <div key={n.node_domain} className={`border rounded-lg p-3 flex items-center justify-between ${n.online ? 'border-green-300 bg-green-50' : 'border-gray-300 bg-gray-50'}`}>
+                    <div>
+                      <div className="font-medium text-sm">{n.node_domain}</div>
+                      <div className="text-xs text-gray-500">Federado desde {new Date(n.created_at).toLocaleDateString()}</div>
                     </div>
-                    {n.is_this_node && <span className="text-xs bg-trueque-100 text-trueque-700 px-2 py-0.5 rounded">Tu nodo</span>}
-                    {n.is_direct_peer && !n.is_this_node && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Federado</span>}
-                    {n.is_expelled && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Expulsado</span>}
-                  </div>
-
-                  {n.description && <p className="text-xs text-gray-600 line-clamp-2">{n.description}</p>}
-
-                  <div className="flex flex-wrap gap-1 text-xs text-gray-500">
-                    {n.node_number > 0 && <span className="bg-gray-100 px-1.5 py-0.5 rounded">#{n.node_number}</span>}
-                    {n.discovered_via && <span className="bg-gray-100 px-1.5 py-0.5 rounded">via {n.discovered_via}</span>}
-                    {n.last_seen && <span className="bg-gray-100 px-1.5 py-0.5 rounded">visto {new Date(n.last_seen).toLocaleDateString()}</span>}
-                  </div>
-
-                  {!n.is_this_node && (
-                    <div className="flex flex-wrap gap-1 pt-2 border-t">
-                      {n.public_url && (
-                        <a href={n.public_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
-                          <ExternalLink size={12} /> Ver pagina
-                        </a>
-                      )}
-                      {!n.is_direct_peer && !n.is_expelled && (
-                        <button onClick={() => { setRequestData({ to_node_domain: n.node_domain, message: '', contact_info: '' }); setShowRequestModal(n.node_domain) }} className="text-xs text-trueque-600 hover:underline flex items-center gap-1">
-                          <Send size={12} /> Solicitar federacion
-                        </button>
-                      )}
-                      <button onClick={() => handleCheckNode(n.node_domain)} className="text-xs text-gray-600 hover:underline flex items-center gap-1">
-                        <RefreshCw size={12} /> Verificar
-                      </button>
-                      {!n.is_direct_peer && (
-                        <button onClick={() => handleRemoveNode(n.node_domain)} className="text-xs text-red-600 hover:underline flex items-center gap-1">
-                          <Trash2 size={12} /> Eliminar
-                        </button>
+                    <div className="flex items-center gap-1.5">
+                      {n.online ? (
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded flex items-center gap-1">
+                          <Wifi size={12} /> En linea
+                        </span>
+                      ) : (
+                        <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded flex items-center gap-1">
+                          <WifiOff size={12} /> Sin conexion
+                        </span>
                       )}
                     </div>
-                  )}
-                </div>
-              ))}
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Los nodos federados no se eliminan aunque esten sin conexion. Solo muestran su estado actual.</p>
             </div>
           )}
 
-          {/* Nodos inactivos */}
+          {/* Nodos descubiertos (no federados) */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+              <Globe size={16} className="text-blue-600" /> Nodos Descubiertos via Gossip
+            </h3>
+            {loading ? (
+              <div className="text-center py-8 text-gray-500">Cargando nodos...</div>
+            ) : filteredNodes.filter((n: any) => !n.is_direct_peer).length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Globe size={48} className="mx-auto mb-2 text-gray-300" />
+                <p>No hay nodos descubiertos aun.</p>
+                <p className="text-xs mt-1">Federate con un nodo para empezar a descubrir mas nodos en la red via gossip.</p>
+              </div>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                {filteredNodes.filter((n: any) => !n.is_direct_peer).map((n: any) => (
+                  <div key={n.node_domain} className={`border rounded-lg p-4 space-y-2 ${n.is_this_node ? 'border-trueque-400 bg-trueque-50' : n.is_expelled ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <Server size={16} className="text-gray-400" />
+                          <span className="font-medium text-sm truncate">{n.node_name || n.node_domain}</span>
+                        </div>
+                        <div className="text-xs text-gray-500 truncate">{n.node_domain}</div>
+                      </div>
+                      {n.is_this_node && <span className="text-xs bg-trueque-100 text-trueque-700 px-2 py-0.5 rounded">Tu nodo</span>}
+                      {n.is_expelled && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Expulsado</span>}
+                    </div>
+
+                    {n.description && <p className="text-xs text-gray-600 line-clamp-2">{n.description}</p>}
+
+                    {/* Info de ubicacion */}
+                    {(n.country || n.location) && (
+                      <div className="flex items-center gap-1 text-xs text-gray-600">
+                        <MapPin size={12} />
+                        {n.country && <span>{n.country}</span>}
+                        {n.country && n.location && <span>, </span>}
+                        {n.location && <span>{n.location}</span>}
+                      </div>
+                    )}
+
+                    {/* Info de contacto */}
+                    {n.contact_info && (
+                      <div className="flex items-center gap-1 text-xs text-gray-600">
+                        <Mail size={12} />
+                        <span>{n.contact_info}</span>
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-1 text-xs text-gray-500">
+                      {n.node_number > 0 && <span className="bg-gray-100 px-1.5 py-0.5 rounded">#{n.node_number}</span>}
+                      {n.discovered_via && <span className="bg-gray-100 px-1.5 py-0.5 rounded">via {n.discovered_via}</span>}
+                      {n.member_count > 0 && <span className="bg-gray-100 px-1.5 py-0.5 rounded">{n.member_count} miembros</span>}
+                      {n.peer_count > 0 && <span className="bg-gray-100 px-1.5 py-0.5 rounded">{n.peer_count} federados</span>}
+                      {n.last_seen && <span className="bg-gray-100 px-1.5 py-0.5 rounded">visto {new Date(n.last_seen).toLocaleDateString()}</span>}
+                    </div>
+
+                    {/* Links a gobernanza y pagina */}
+                    {!n.is_this_node && (
+                      <div className="flex flex-wrap gap-2 pt-2 border-t">
+                        {n.public_url && (
+                          <a href={n.public_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                            <ExternalLink size={12} /> Ver pagina
+                          </a>
+                        )}
+                        {n.governance_url && (
+                          <a href={n.governance_url} target="_blank" rel="noopener noreferrer" className="text-xs text-purple-600 hover:underline flex items-center gap-1">
+                            <FileText size={12} /> Ver gobernanza
+                          </a>
+                        )}
+                        {!n.is_expelled && (
+                          <button onClick={() => { setRequestData({ to_node_domain: n.node_domain, message: '', contact_info: '' }); setShowRequestModal(n.node_domain) }} className="text-xs text-trueque-600 hover:underline flex items-center gap-1">
+                            <Send size={12} /> Solicitar contacto
+                          </button>
+                        )}
+                        <button onClick={() => handleCheckNode(n.node_domain)} className="text-xs text-gray-600 hover:underline flex items-center gap-1">
+                          <RefreshCw size={12} /> Verificar
+                        </button>
+                        <button onClick={() => handleRemoveNode(n.node_domain)} className="text-xs text-red-600 hover:underline flex items-center gap-1">
+                          <Trash2 size={12} /> Eliminar
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Nodos inactivos por consenso (solo visibles para admins) */}
           {inactiveNodes.length > 0 && (
             <div className="mt-6">
               <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
-                <AlertTriangle size={16} className="text-yellow-600" /> Nodos inactivos ({inactiveNodes.length})
+                <AlertTriangle size={16} className="text-yellow-600" /> Nodos Inactivos por Consenso ({inactiveNodes.length})
               </h3>
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 space-y-2">
-                <p className="text-xs text-gray-600">Estos nodos no respondieron despues de varios intentos de verificacion. Se limpian automaticamente segun la configuracion.</p>
+                <p className="text-xs text-gray-600">Estos nodos fueron marcados como inactivos porque <strong>todos</strong> los nodos de la red reportaron que no pueden conectar con ellos. No es que un solo nodo no pudo (puede ser que no tenga internet), sino que todos confirmaron que no responde. Se mantienen internamente para seguir consultando si algun dia reaparecen, pero no se muestran en la lista principal.</p>
                 {inactiveNodes.map((n: any) => (
                   <div key={n.node_domain} className="flex items-center justify-between text-sm">
                     <div>
                       <span className="font-medium">{n.node_name || n.node_domain}</span>
-                      <span className="text-xs text-gray-500 ml-2">{n.failed_checks} intentos fallidos</span>
+                      {n.country && <span className="text-xs text-gray-500 ml-2">{n.country}</span>}
+                      {n.location && <span className="text-xs text-gray-500 ml-1">{n.location}</span>}
                       {n.last_checked && <span className="text-xs text-gray-500 ml-2">verificado {new Date(n.last_checked).toLocaleDateString()}</span>}
                     </div>
                     <div className="flex gap-1">
@@ -268,13 +364,17 @@ export default function NodeDiscovery() {
         </div>
       )}
 
-      {/* === TAB: SOLICITUDES === */}
+      {/* === TAB: SOLICITUDES DE CONTACTO === */}
       {tab === 'requests' && (
         <div className="space-y-4">
+          <div className="bg-blue-50 p-3 rounded-lg text-sm text-gray-700">
+            <p>Las solicitudes de contacto <strong>no federan automaticamente</strong>. Son una forma de expresar interes y compartir informacion de contacto. La federacion se hace personalmente: las personas se contactan, se reúnen, las asambleas aprueban, y luego comparten las claves publicas en persona.</p>
+          </div>
+
           {/* Solicitudes recibidas */}
           <div>
             <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
-              <Mail size={16} className="text-trueque-600" /> Solicitudes recibidas ({incomingRequests.length})
+              <Mail size={16} className="text-trueque-600" /> Solicitudes Recibidas ({incomingRequests.length})
             </h3>
             {incomingRequests.length === 0 ? (
               <div className="text-center py-6 text-gray-500 text-sm">No hay solicitudes pendientes</div>
@@ -286,17 +386,30 @@ export default function NodeDiscovery() {
                       <div>
                         <div className="font-medium text-sm">{r.from_node_name || r.from_node_domain}</div>
                         <div className="text-xs text-gray-500">{r.from_node_domain}</div>
+                        {(r.from_country || r.from_location) && (
+                          <div className="text-xs text-gray-600 flex items-center gap-1 mt-1">
+                            <MapPin size={12} /> {r.from_country}{r.from_country && r.from_location ? ', ' : ''}{r.from_location}
+                          </div>
+                        )}
                       </div>
                       <span className="text-xs text-gray-500">{new Date(r.created_at).toLocaleDateString()}</span>
                     </div>
                     {r.message && <p className="text-sm text-gray-700">{r.message}</p>}
-                    {r.contact_info && <p className="text-xs text-gray-500">Contacto: {r.contact_info}</p>}
+                    {r.contact_info && <p className="text-xs text-gray-600">Contacto: {r.contact_info}</p>}
+                    {r.from_governance_url && (
+                      <a href={r.from_governance_url} target="_blank" rel="noopener noreferrer" className="text-xs text-purple-600 hover:underline flex items-center gap-1">
+                        <FileText size={12} /> Ver gobernanza del nodo
+                      </a>
+                    )}
+                    <div className="bg-amber-50 border border-amber-200 p-2 rounded text-xs text-amber-700">
+                      Para federar: contacta personalmente a esta persona, revisen sus gobernanzas, las asambleas aprueban, y luego comparten las claves publicas en persona. No se federa con un clic.
+                    </div>
                     <div className="flex gap-2 pt-2">
-                      <button onClick={() => { setShowRespondModal(r); setRespondData({ status: 'accepted', response_message: '', response_contact: '', response_public_key: '' }) }} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs flex items-center gap-1">
-                        <CheckCircle size={14} /> Aceptar
+                      <button onClick={() => { setShowRespondModal(r); setRespondData({ status: 'interested', response_message: '', response_contact: '' }) }} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs flex items-center gap-1">
+                        <CheckCircle size={14} /> Interesado
                       </button>
-                      <button onClick={() => { setShowRespondModal(r); setRespondData({ status: 'rejected', response_message: '', response_contact: '', response_public_key: '' }) }} className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs flex items-center gap-1">
-                        <XCircle size={14} /> Rechazar
+                      <button onClick={() => { setShowRespondModal(r); setRespondData({ status: 'not_interested', response_message: '', response_contact: '' }) }} className="px-3 py-1.5 bg-gray-400 text-white rounded-lg text-xs flex items-center gap-1">
+                        <XCircle size={14} /> No interesado
                       </button>
                     </div>
                   </div>
@@ -308,7 +421,7 @@ export default function NodeDiscovery() {
           {/* Solicitudes enviadas */}
           <div>
             <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
-              <Send size={16} className="text-gray-600" /> Solicitudes enviadas ({outgoingRequests.length})
+              <Send size={16} className="text-gray-600" /> Solicitudes Enviadas ({outgoingRequests.length})
             </h3>
             {outgoingRequests.length === 0 ? (
               <div className="text-center py-6 text-gray-500 text-sm">No has enviado solicitudes</div>
@@ -321,8 +434,8 @@ export default function NodeDiscovery() {
                         <span className="font-medium text-sm">{r.to_node_domain}</span>
                         {r.message && <p className="text-xs text-gray-600 mt-0.5">{r.message}</p>}
                       </div>
-                      <span className={`text-xs px-2 py-0.5 rounded ${r.status === 'accepted' ? 'bg-green-100 text-green-700' : r.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                        {r.status === 'pending' ? 'Pendiente' : r.status === 'accepted' ? 'Aceptada' : 'Rechazada'}
+                      <span className={`text-xs px-2 py-0.5 rounded ${r.status === 'interested' ? 'bg-green-100 text-green-700' : r.status === 'not_interested' ? 'bg-gray-200 text-gray-600' : 'bg-yellow-100 text-yellow-700'}`}>
+                        {r.status === 'pending' ? 'Pendiente' : r.status === 'interested' ? 'Interesado' : 'No interesado'}
                       </span>
                     </div>
                     {r.response_message && <p className="text-xs text-gray-600 bg-gray-50 p-2 rounded">Respuesta: {r.response_message}</p>}
@@ -342,8 +455,8 @@ export default function NodeDiscovery() {
             <div className="flex items-start gap-2">
               <Clock size={18} className="text-blue-600 mt-0.5 shrink-0" />
               <div>
-                <p className="font-semibold text-gray-900 mb-1">Intervalos de descubrimiento</p>
-                <p>Configura cada cuanto tiempo tu nodo comparte su lista de nodos, verifica si estan activos y limpia los inactivos. Cada nodo puede tener su propia configuracion.</p>
+                <p className="font-semibold text-gray-900 mb-1">Intervalos de descubrimiento y verificacion</p>
+                <p>Configura cada cuanto tiempo tu nodo comparte su lista, verifica si los nodos estan activos, y limpia los inactivos. Cada nodo puede tener su propia configuracion.</p>
               </div>
             </div>
           </div>
@@ -358,19 +471,19 @@ export default function NodeDiscovery() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Verificar nodos activos (horas)</label>
               <input type="number" min={1} value={config.health_check_interval_hours || 168} onChange={e => setConfig({ ...config, health_check_interval_hours: parseInt(e.target.value) || 168 })} className="w-full px-3 py-2 border rounded-lg text-sm" />
-              <p className="text-xs text-gray-500 mt-1">Cada cuanto tu nodo verifica si los nodos descubiertos siguen activos. Default: 168 horas (7 dias).</p>
+              <p className="text-xs text-gray-500 mt-1">Cada cuanto tu nodo verifica si los nodos descubiertos siguen activos. Default: 168 horas (7 dias). Un nodo inactivo se decide por consenso de toda la red, no por tu sola verificacion.</p>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Limpiar nodos inactivos (dias)</label>
               <input type="number" min={1} value={config.inactive_cleanup_interval_days || 365} onChange={e => setConfig({ ...config, inactive_cleanup_interval_days: parseInt(e.target.value) || 365 })} className="w-full px-3 py-2 border rounded-lg text-sm" />
-              <p className="text-xs text-gray-500 mt-1">Cada cuanto se eliminan los nodos inactivos de la lista. Default: 365 dias. Un nodo puede configurar 90 dias (3 meses) si quiere limpiar mas frecuente.</p>
+              <p className="text-xs text-gray-500 mt-1">Cada cuanto se eliminan los nodos inactivos de la lista visible. Se mantienen internamente para seguir consultando. Default: 365 dias. Un nodo puede configurar 90 dias (3 meses) si quiere limpiar mas frecuente.</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Intentos fallidos antes de marcar inactivo</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Intentos fallidos antes de evaluar consenso</label>
               <input type="number" min={1} value={config.max_failed_checks || 3} onChange={e => setConfig({ ...config, max_failed_checks: parseInt(e.target.value) || 3 })} className="w-full px-3 py-2 border rounded-lg text-sm" />
-              <p className="text-xs text-gray-500 mt-1">Cuantas veces un nodo debe fallar la verificacion antes de marcarlo como inactivo. Default: 3.</p>
+              <p className="text-xs text-gray-500 mt-1">Cuantas veces un nodo debe fallar tu verificacion antes de pedir el consenso a los demas nodos. Default: 3. Esto no marca al nodo como inactivo - solo inicia la evaluacion de consenso.</p>
             </div>
 
             <div className="pt-2">
@@ -391,12 +504,16 @@ export default function NodeDiscovery() {
         </div>
       )}
 
-      {/* === MODAL: Enviar solicitud === */}
+      {/* === MODAL: Enviar solicitud de contacto === */}
       {showRequestModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowRequestModal(null)}>
           <div className="bg-white rounded-xl p-6 max-w-md w-full space-y-3" onClick={e => e.stopPropagation()}>
-            <h3 className="font-bold text-lg">Solicitar federacion</h3>
-            <p className="text-sm text-gray-600">Enviaras una solicitud a otro nodo. El administrador del otro nodo vera tu solicitud y podra aceptarla o rechazarla. Cuando acepte, podran intercambiar las claves publicas para federar.</p>
+            <h3 className="font-bold text-lg">Solicitar contacto</h3>
+            <p className="text-sm text-gray-600">Enviaras una solicitud de contacto a otro nodo. Esto <strong>no federa automaticamente</strong>. El otro nodo vera tu informacion y podra contactarte personalmente para federar.</p>
+
+            <div className="bg-amber-50 border border-amber-200 p-2 rounded text-xs text-amber-700">
+              Recuerda: la federacion se hace personalmente. Las personas se contactan, se reúnen, las asambleas aprueban, y luego comparten las claves publicas en persona.
+            </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Dominio del nodo</label>
@@ -405,7 +522,7 @@ export default function NodeDiscovery() {
 
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Mensaje (opcional)</label>
-              <textarea placeholder="Hola, somos la aldea X y nos gustaria federar con ustedes..." value={requestData.message} onChange={e => setRequestData({ ...requestData, message: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" rows={3} />
+              <textarea placeholder="Hola, somos la aldea X de [pais] y nos gustaria conocerlos..." value={requestData.message} onChange={e => setRequestData({ ...requestData, message: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" rows={3} />
             </div>
 
             <div>
@@ -422,36 +539,46 @@ export default function NodeDiscovery() {
         </div>
       )}
 
-      {/* === MODAL: Responder solicitud === */}
+      {/* === MODAL: Responder solicitud de contacto === */}
       {showRespondModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowRespondModal(null)}>
           <div className="bg-white rounded-xl p-6 max-w-md w-full space-y-3" onClick={e => e.stopPropagation()}>
-            <h3 className="font-bold text-lg">{respondData.status === 'accepted' ? 'Aceptar solicitud' : 'Rechazar solicitud'}</h3>
+            <h3 className="font-bold text-lg">{respondData.status === 'interested' ? 'Responder: Interesado' : 'Responder: No interesado'}</h3>
             <p className="text-sm text-gray-600">De: <strong>{showRespondModal.from_node_name || showRespondModal.from_node_domain}</strong></p>
+            {(showRespondModal.from_country || showRespondModal.from_location) && (
+              <p className="text-xs text-gray-600 flex items-center gap-1">
+                <MapPin size={12} /> {showRespondModal.from_country}{showRespondModal.from_country && showRespondModal.from_location ? ', ' : ''}{showRespondModal.from_location}
+              </p>
+            )}
             {showRespondModal.message && <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded">{showRespondModal.message}</p>}
+            {showRespondModal.from_governance_url && (
+              <a href={showRespondModal.from_governance_url} target="_blank" rel="noopener noreferrer" className="text-xs text-purple-600 hover:underline flex items-center gap-1">
+                <FileText size={12} /> Ver gobernanza del nodo
+              </a>
+            )}
+
+            <div className="bg-amber-50 border border-amber-200 p-2 rounded text-xs text-amber-700">
+              {respondData.status === 'interested'
+                ? 'Si estan interesados, contacten personalmente. Revisen las gobernanzas de ambos nodos, las asambleas aprueban, y luego comparten las claves publicas en persona. Esto NO federa automaticamente.'
+                : 'Si no estan interesados, pueden responder cortesmente. No hay obligacion de federar.'}
+            </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Mensaje de respuesta</label>
-              <textarea placeholder={respondData.status === 'accepted' ? 'Bienvenidos! Nos alegra federar con ustedes...' : 'Gracias por su interes, pero por ahora...'} value={respondData.response_message} onChange={e => setRespondData({ ...respondData, response_message: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" rows={3} />
+              <textarea placeholder={respondData.status === 'interested' ? 'Gracias por contactarnos! Nos gustaria conocernos. Podemos coordinar una reunion...' : 'Gracias por su interes, pero por ahora no podemos federar...'} value={respondData.response_message} onChange={e => setRespondData({ ...respondData, response_message: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" rows={3} />
             </div>
 
-            {respondData.status === 'accepted' && (
-              <>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Informacion de contacto</label>
-                  <input type="text" placeholder="ej: admin@mi-aldea.com" value={respondData.response_contact} onChange={e => setRespondData({ ...respondData, response_contact: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Clave publica para federar</label>
-                  <textarea placeholder="Pega aqui la clave publica de tu nodo para que el otro nodo pueda registrarte..." value={respondData.response_public_key} onChange={e => setRespondData({ ...respondData, response_public_key: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm font-mono text-xs" rows={4} />
-                  <p className="text-xs text-gray-500 mt-1">La clave publica permite al otro nodo verificar las comunicaciones federadas contigo.</p>
-                </div>
-              </>
+            {respondData.status === 'interested' && (
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Informacion de contacto</label>
+                <input type="text" placeholder="ej: admin@mi-aldea.com o +1234567890" value={respondData.response_contact} onChange={e => setRespondData({ ...respondData, response_contact: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" />
+                <p className="text-xs text-gray-500 mt-1">Como pueden contactarte del otro nodo para coordinar la reunion</p>
+              </div>
             )}
 
             <div className="flex gap-2 pt-2">
-              <button onClick={handleRespond} className={`flex-1 px-4 py-2 text-white rounded-lg text-sm ${respondData.status === 'accepted' ? 'bg-green-600' : 'bg-red-600'}`}>
-                {respondData.status === 'accepted' ? 'Aceptar y enviar' : 'Rechazar'}
+              <button onClick={handleRespond} className={`flex-1 px-4 py-2 text-white rounded-lg text-sm ${respondData.status === 'interested' ? 'bg-green-600' : 'bg-gray-500'}`}>
+                {respondData.status === 'interested' ? 'Enviar y contactar despues' : 'Enviar respuesta'}
               </button>
               <button onClick={() => setShowRespondModal(null)} className="px-4 py-2 bg-gray-200 rounded-lg text-sm">Cancelar</button>
             </div>

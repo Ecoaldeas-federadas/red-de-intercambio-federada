@@ -1,62 +1,50 @@
-feat: descubrimiento de nodos por gossip (chisme) + solicitudes de federacion
+fix: correcciones al descubrimiento de nodos (federacion humana + consenso)
 
-Implementa el protocolo gossip para que los nodos se descubran entre si
-sin necesidad de un servidor central. Ademas permite enviar solicitudes
-de federacion a nodos descubiertos.
+Correcciones importantes al sistema de descubrimiento de nodos:
 
-=== Como funciona el descubrimiento ===
+1. La federacion NO se hace aceptando/rechazando en el sistema
+   - La clave publica se comparte personalmente entre personas, no por el sistema
+   - El sistema solo muestra info de contacto (pais, ubicacion, gobernanza, web)
+   - Las solicitudes ahora son de "contacto" no de "federacion"
+   - Las respuestas son "interesado" o "no interesado", no "aceptar/rechazar"
+   - Se quito response_public_key de federation_requests
+   - Se agregaron avisos en la UI recordando que la federacion es personal
 
-1. Cada nodo mantiene una lista de nodos conocidos (federation_known_nodes)
-2. Periodicamente, cada nodo comparte su lista con sus peers directos
-3. Los peers reciben la lista y agregan los nodos nuevos como descubiertos
-4. Asi, basta con que un nodo se feder con uno solo para que toda la red
-   descubra que existe (efecto chisme/cadena)
-5. Periodicamente, cada nodo verifica si los nodos descubiertos estan activos
-6. Si un nodo no responde despues de varios intentos, se marca como inactivo
-7. Periodicamente, la lista de inactivos se limpia (configurable por nodo)
+2. Un nodo inactivo se decide por CONSENSO de toda la red, no por un solo nodo
+   - Si tu no puedes conectar, puede ser que tu no tengas internet
+   - Hay que preguntar a los demas nodos
+   - Solo cuando TODOS los nodos reportan que no pueden conectar, se marca inactivo
+   - Nueva tabla node_health_reports: cada nodo reporta si puede conectar
+   - Nuevo endpoint POST /api/public/health-report: recibir reportes de otros
+   - Nuevo endpoint GET /api/public/health-reports/{target}: consultar reportes
+   - Nuevo endpoint POST /api/nodes/discovered/consensus-check: evaluar consenso
+   - checkNodeHealth ahora registra reporte pero NO marca inactivo automaticamente
+   - consensusCheckInactive marca inactivo solo si todos reportan inalcanzable
 
-=== Migracion 083 ===
+3. Nodos inactivos se ocultan de la lista visible pero se mantienen internamente
+   - listDiscoveredNodes filtra is_inactive = false
+   - listInactiveNodes muestra los inactivos (solo para admins)
+   - Se mantienen en la BD para seguir consultando si reaparecen
 
-- federation_known_nodes: + is_inactive, last_checked, failed_checks,
-  description, public_url, contact_info, node_type
-- node_discovery_config: configuracion por nodo de intervalos
-  (discovery, health_check, inactive_cleanup, max_failed_checks)
-- federation_requests: solicitudes de federacion entre nodos
-  (incoming/outgoing, status pending/accepted/rejected)
-- node_config: + description, federation_contact
+4. Nodos federados offline no se eliminan
+   - listFederatedNodes muestra estado online/offline en tiempo real
+   - removeDiscoveredNode bloquea eliminacion de peers directos
+   - Los federados solo muestran "En linea" o "Sin conexion"
 
-=== Backend (internal/api/node_discovery.go) ===
+5. Info de pais y ubicacion
+   - node_config: + country, location
+   - federation_known_nodes: + country, location, governance_url, admission_url,
+     member_count, peer_count
+   - getPublicNodeInfo incluye country, location, governance_url
+   - Las tarjetas de nodos muestran pais, ubicacion, link a gobernanza
 
-Endpoints publicos (sin auth, para que otros nodos los consulten):
-- GET  /api/public/node-info: perfil publico del nodo
-- POST /api/public/federation-request: recibir solicitud de federacion
-- POST /api/public/known-nodes-sync: recibir lista de nodos de otro nodo
-
-Endpoints privados (requieren auth + federation.change_config):
-- GET  /api/nodes/discovered: listar nodos descubiertos
-- GET  /api/nodes/federated: listar peers directos
-- GET  /api/nodes/inactive: listar nodos inactivos
-- GET  /api/nodes/discovery-config: obtener config de descubrimiento
-- PUT  /api/nodes/discovery-config: actualizar config
-- POST /api/nodes/federation-request: enviar solicitud a otro nodo
-- GET  /api/nodes/federation-requests: listar solicitudes
-- POST /api/nodes/federation-requests/{id}/respond: responder solicitud
-- POST /api/nodes/discovered/{domain}/check: verificar salud de un nodo
-- POST /api/nodes/discovered/sync-now: forzar sincronizacion gossip
-- DELETE /api/nodes/discovered/{domain}: eliminar nodo descubierto
-
-=== Frontend (web/src/pages/NodeDiscovery.tsx) ===
-
-Nuevo tab "Descubrir Nodos" en la pagina de Federacion con 3 sub-tabs:
-1. Nodos Descubiertos: grid de tarjetas con info de cada nodo,
-   buscar, sincronizar ahora, verificar, eliminar, solicitar federacion,
-   ver pagina publica del nodo, seccion de nodos inactivos
-2. Solicitudes: recibidas (con aceptar/rechazar) y enviadas (con estado)
-3. Configuracion: intervalos de discovery/health_check/cleanup/max_failed
-
-Modales:
-- Enviar solicitud de federacion (dominio, mensaje, contacto)
-- Responder solicitud (aceptar con clave publica / rechazar)
+Migracion 084:
+- federation_known_nodes: + country, location, governance_url, admission_url,
+  member_count, peer_count
+- node_config: + country, location
+- node_health_reports: tabla de reportes de salud entre nodos (consensus)
+- federation_requests: quita response_public_key, agrega from_country,
+  from_location, from_governance_url
 
 Generated with [Devin](https://devin.ai)
 
