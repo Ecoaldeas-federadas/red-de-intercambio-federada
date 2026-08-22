@@ -111,6 +111,38 @@ Organo maximo de decision del nodo. Sus decisiones afectan a todo el nodo:
 
 **La asamblea del nodo NO puede transferir dinero directamente a personas.** Solo puede transferir a organizaciones y departamentos. Estos, a su vez, deciden como distribuir el dinero (incluyendo pagos a personas).
 
+### Junta Directiva del Nodo
+
+La Asamblea General tiene su propia Junta Directiva que toma **decisiones
+operativas** del nodo. Esto separa las decisiones grandes (que requieren
+asamblea) de las decisiones del dia a dia (que la junta puede tomar mas
+frecuentemente).
+
+**Decisiones de la Junta Directiva del nodo**:
+- Creacion de cuentas contables
+- Cambios de limites de credito/debito
+- Modificacion de productos del catalogo
+- Distribucion de fondos (operativa)
+- Aumento de presupuesto
+
+**Decisiones de la Asamblea General** (no delegables a la junta):
+- Admision y expulsion de miembros
+- Cambios de impuestos y tarifas energeticas
+- Configuracion de federacion
+- Reglas de gobernanza
+- Niveles de miembros
+- Politicas generales
+
+**La Asamblea decide** que decisiones delega a la junta. Puede cambiar el
+`approval_method` de cualquier tipo de propuesta (de `assembly` a `board`
+o viceversa) mediante una propuesta de configuracion.
+
+**Quorum de la junta**: se calcula sobre los miembros activos de la junta
+(no sobre todos los miembros del nodo). Si la junta tiene 5 miembros y el
+quorum es 50%, se necesitan 3 presentes.
+
+**Cambiar el quorum de la junta** es decision de la Asamblea, no de la junta.
+
 ### Organizaciones de la Asamblea
 
 Las organizaciones de la Asamblea (`is_assembly_owned = true`) son un tipo especial:
@@ -219,7 +251,9 @@ Pago diferido en cuotas mensuales (12-24 meses) para no desestabilizar la econom
 - `057_department_parent.sql` - Departamentos con organizacion padre
 - `064_new_governance_rules_community.sql` - 24 reglas de comunidad intencional
 - `069_organization_services.sql` - Servicios, suscripciones, is_assembly_owned
-- `070_board_meetings.sql` - Reuniones de junta directiva (meeting_type)
+- `070_board_meetings.sql` - Reuniones de junta directiva (meeting_type) en orgs
+- `080_node_board_meetings.sql` - Junta Directiva del nodo (meeting_type en assembly_sessions)
+- `082_board_decision_routing.sql` - Reclasificar decisiones operativas a Junta Directiva
 
 Permiso `governance.manage` para gestionar las reglas.
 

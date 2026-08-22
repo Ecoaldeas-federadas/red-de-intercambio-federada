@@ -217,6 +217,9 @@ func demoSeedPages(ctx context.Context, d *DB, nodeDomain string) error {
 		"metodologia-energetica": true,
 		"productos":              true,
 		"ecoaldeas-mundo":        true,
+		"comercio-exterior":      true,
+		"servicios-federados":    true,
+		"gobernanza":             true,
 	}
 
 	// Construir lista final de paginas
@@ -705,9 +708,9 @@ func getRaicesDelMontePages() []seedPage {
     "subtitle": "Como se organiza la toma de decisiones en la ecoaldea",
     "columns": 3,
     "items": [
-      {"icon":"users","title":"Asamblea General","description":"Organo maximo de decision. Se reune mensualmente, primer domingo de cada mes. Todos los miembros plenos tienen voz y voto. Las decisiones se toman por consentimiento sociocratico: una propuesta se aprueba cuando nadie presenta una objecion razonada. Lema: Suficientemente bueno por ahora, seguro para intentar.","badge":"Mensual"},
+      {"icon":"users","title":"Asamblea General","description":"Organo maximo de decision. Se reune mensualmente, primer domingo de cada mes. Todos los miembros plenos tienen voz y voto. Decide sobre admision, expulsion, impuestos, tarifas energeticas, federacion, reglas de gobernanza y politicas generales. Las decisiones grandes requieren mayoria calificada (2/3 o 75% segun el caso).","badge":"Mensual"},
       {"icon":"circle","title":"7 Comisiones","description":"Gobernanza dividida en comisiones semi-autonomas: Economia, Educacion, Salud, Ambiente, Admision, Construccion y Consejo de Vision. Cada comision gestiona su area sin esperar aprobacion de la asamblea para decisiones operativas.","badge":"Semi-autonomas"},
-      {"icon":"briefcase","title":"Junta Directiva del Nodo","description":"Organo ejecutivo. Compuesto por miembros elegidos por consentimiento: Coordinador General, Tesorero, Secretario y Coordinadores de cada comision. Los cargos duran 1 ano y son revocables por la asamblea.","badge":"Ejecutivo"},
+      {"icon":"briefcase","title":"Junta Directiva del Nodo","description":"Organo ejecutivo. Toma decisiones operativas frecuentes: creacion de cuentas, cambios de limites, modificacion de productos, distribucion de fondos y aumento de presupuesto. Compuesto por miembros elegidos por consentimiento: Coordinador General, Tesorero, Secretario y Coordinadores de cada comision. El quorum se calcula sobre los miembros de la junta. La Asamblea decide que decisiones delega a la junta.","badge":"Ejecutivo"},
       {"icon":"link","title":"Doble Enlace Sociocratico","description":"Cada comision elige dos personas que la conectan con la Asamblea: un Coordinador (informacion de arriba hacia abajo) y un Delegado (inquietudes de la comision hacia la asamblea). Garantiza flujo bidireccional de informacion.","badge":"Flujo"},
       {"icon":"building","title":"Organizaciones","description":"Colectivos de produccion, consumo o servicios registrados en el sistema: Grupo de Produccion, Grupo de Consumo, Comision, Proyecto, Cooperativa. Tienen su propia junta directiva y limites simetricos mas amplios.","badge":"Colectivos"},
       {"icon":"folder","title":"Departamentos","description":"Unidades administrativas con roles y permisos especificos. Cada departamento tiene un jefe, miembros asignados y roles con permisos granulares. Los departamentos se mapean a las comisiones operativas.","badge":"Administrativo"}

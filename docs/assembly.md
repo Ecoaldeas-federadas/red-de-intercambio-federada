@@ -7,9 +7,13 @@ El sistema de asambleas permite la toma de decisiones democratica en tres nivele
 2. **Asamblea de organizacion** - decisiones internas de una organizacion
 3. **Asamblea de departamento** - decisiones internas de un departamento
 
-Ademas, cada organizacion tiene **dos espacios de decision**:
-- **Asamblea** (`meeting_type = 'assembly'`): todos los miembros participan
+Ademas, **cada nivel** tiene **dos espacios de decision**:
+- **Asamblea** (`meeting_type = 'assembly'`): todos los miembros con derecho a voto participan
 - **Junta Directiva** (`meeting_type = 'board'`): solo la junta directiva participa
+
+Esto aplica tanto al nodo como a las organizaciones. La Asamblea General del
+nodo tiene su propia Junta Directiva, y cada organizacion tiene su propia
+Junta Directiva.
 
 Cada nivel tiene su propio catalogo de propuestas. Las decisiones de un nivel no se mezclan con las de otro.
 
@@ -22,6 +26,25 @@ Las organizaciones con `is_assembly_owned = true` pertenecen a la Asamblea:
 - **Sus servicios obligatorios** aplican a todos los miembros del nodo
 
 ## Juntas Directivas
+
+### Junta Directiva del Nodo
+
+La Asamblea General del nodo tiene su propia Junta Directiva. Esto significa
+que el nodo tiene dos tipos de reunion:
+
+- **Asamblea General** (`meeting_type = 'assembly'`): todos los miembros con
+  derecho a voto participan. Decisiones grandes (expulsion, federacion,
+  impuestos, tarifas energeticas, reglas de gobernanza).
+- **Junta Directiva del nodo** (`meeting_type = 'board'`): solo miembros de
+  la junta directiva participan. Decisiones operativas (creacion de cuentas,
+  cambios de limites, modificacion de productos, distribucion de fondos,
+  aumento de presupuesto).
+
+Ambos tipos de reunion tienen: sesiones, propuestas, votaciones, actas,
+asistencia, quorum y reportes. El quorum de la junta se calcula sobre el
+numero de miembros de la junta (no sobre todos los miembros del nodo).
+
+### Junta Directiva de Organizaciones
 
 Cada organizacion tiene su propia junta directiva con reuniones separadas:
 - `meeting_type = 'board'`: solo miembros de la junta directiva votan
@@ -149,23 +172,48 @@ La minuta tambien es editable para que los miembros agreguen notas manuales.
 
 ### Asamblea del nodo (15 tipos)
 
-| Tipo | Descripcion |
-|------|-------------|
-| `limit_change` | Cambio de limites de credito/debito |
-| `admission` | Admision de miembro al nodo |
-| `expulsion` | Expulsion de miembro del nodo |
-| `budget_increase` | Aumento de presupuesto |
-| `federation_config` | Configuracion de federacion |
-| `recovery_config` | Configuracion de recuperacion |
-| `tax_change` | Cambio de tasa de impuesto |
-| `member_level` | Crear/modificar nivel de miembro |
-| `policy` | Politica general del nodo |
-| `create_account` | Crear cuenta contable |
-| `fund_distribution` | Distribuir fondos de la asamblea |
-| `energy_rate_change` | Cambio de tarifa energetica |
-| `product_modification` | Modificacion de producto |
-| `governance_rule` | Crear/modificar/eliminar regla de gobernanza |
-| `free_proposal` | Propuesta libre |
+Cada tipo de propuesta tiene un `approval_method` configurable en `assembly_config`:
+- `assembly`: la decision la toma la Asamblea General (todos los miembros con voto)
+- `board`: la decision la toma la Junta Directiva del nodo
+- `multisig`: requiere firmas de personas especificas
+
+**Por defecto**, las decisiones se distribuyen asi:
+
+#### Decisiones por Asamblea General (decisiones grandes/constitutivas)
+
+| Tipo | % Aprobacion | Descripcion |
+|------|-------------|-------------|
+| `admission` | 50% | Admision de miembro al nodo |
+| `expulsion` | 75% | Expulsion de miembro del nodo |
+| `federation_config` | 66.67% | Configuracion de federacion |
+| `tax_change` | 66.67% | Cambio de tasa de impuesto |
+| `energy_rate_change` | 66.67% | Cambio de tarifa energetica |
+| `member_level` | 50% | Crear/modificar nivel de miembro |
+| `org_level` | 50% | Crear/modificar nivel de organizacion |
+| `policy` | 50% | Politica general del nodo |
+| `governance_rule` | 50% | Crear/modificar/eliminar regla de gobernanza |
+| `free_proposal` | 50% | Propuesta libre |
+
+#### Decisiones por Junta Directiva (decisiones operativas)
+
+| Tipo | % Aprobacion | Descripcion |
+|------|-------------|-------------|
+| `create_account` | 50% | Crear cuenta contable |
+| `limit_change` | 50% | Cambio de limites de credito/debito |
+| `product_modification` | 50% | Modificacion de producto |
+| `fund_distribution` | 50% | Distribuir fondos de la asamblea |
+| `budget_increase` | 50% | Aumento de presupuesto |
+
+#### Decisiones por Multi-firma
+
+| Tipo | % Aprobacion | Firmas | Descripcion |
+|------|-------------|--------|-------------|
+| `recovery_config` | 100% | 1 | Configuracion de recuperacion de cuenta |
+
+**La Asamblea decide** quien aprueba que: puede cambiar el `approval_method`
+de cualquier tipo de propuesta (de `assembly` a `board` o viceversa) mediante
+una propuesta de configuracion. Esto permite que cada comunidad adapte quien
+toma que decisiones segun su contexto.
 
 ### Organizacion (9 tipos)
 
@@ -225,8 +273,22 @@ La minuta tambien es editable para que los miembros agreguen notas manuales.
 ### Quorum
 - Configurable por tipo de propuesta
 - Configurable por tipo de asamblea (ordinaria, extraordinaria, urgente)
+- Configurable por tipo de reunion (asamblea vs junta directiva)
 - Gracia para segunda convocatoria
 - Doble validacion de asistencia presencial
+
+**Quorum de Asamblea**: porcentaje sobre todos los miembros con derecho a voto.
+**Quorum de Junta Directiva**: porcentaje sobre los miembros activos de la junta
+(ej: si la junta tiene 5 miembros y el quorum es 50%, se necesitan 3 presentes).
+
+**Defaults de quorum de Junta Directiva**:
+- Ordinaria: 50% / 30%, gracia 0h, 1 rellamado
+- Extraordinaria: 50% / 30%, gracia 0h, 1 rellamado
+- Urgente: 40% / 25%, gracia 0h, 0 rellamados
+
+**Importante**: cambiar el quorum de la Junta Directiva es una decision de la
+Asamblea, no de la junta. La Asamblea decide los parametros con los que opera
+la junta.
 
 ### Enable/disable
 - Las organizaciones pueden activar/desactivar asambleas
@@ -239,8 +301,8 @@ La minuta tambien es editable para que los miembros agreguen notas manuales.
 
 | Metodo | Endpoint | Descripcion |
 |--------|----------|-------------|
-| GET | `/api/assembly/sessions` | Listar sesiones (filter=upcoming/past) |
-| POST | `/api/assembly/sessions` | Crear sesion (fecha obligatoria) |
+| GET | `/api/assembly/sessions` | Listar sesiones (filter=upcoming/past, meeting_type=assembly/board) |
+| POST | `/api/assembly/sessions` | Crear sesion (fecha obligatoria, meeting_type opcional) |
 | GET | `/api/assembly/sessions/{id}` | Obtener sesion |
 | POST | `/api/assembly/sessions/{id}/close` | Cerrar asamblea + auto-convocar siguiente |
 | POST | `/api/assembly/sessions/{id}/reschedule` | Reprogramar (notifica a miembros) |
@@ -250,8 +312,10 @@ La minuta tambien es editable para que los miembros agreguen notas manuales.
 | POST | `/api/assembly/proposals/{id}/vote` | Votar (for/against/abstain) |
 | POST | `/api/assembly/proposals/{id}/execute` | Ejecutar propuesta aprobada |
 | GET | `/api/assembly/proposals/{id}/report` | Informe de votacion |
-| GET | `/api/assembly/config` | Configuracion de quorum |
-| PUT | `/api/assembly/config/{proposalType}` | Actualizar config |
+| GET | `/api/assembly/config` | Configuracion de aprobaciones (incluye approval_method) |
+| PUT | `/api/assembly/config/{proposalType}` | Actualizar config (cambiar assembly/board/multisig) |
+| GET | `/api/assembly/quorum-config` | Config de quorum (incluye meeting_type) |
+| PUT | `/api/assembly/quorum-config/{sessionType}?meeting_type=board` | Actualizar quorum de junta |
 | GET | `/api/assembly/frequency-config` | Config de frecuencia |
 | PUT | `/api/assembly/frequency-config` | Actualizar frecuencia |
 | GET | `/api/assembly/notifications` | Notificaciones del usuario |
@@ -311,6 +375,9 @@ Donde `scope` es `organization` o `department`.
 - `056_assembly_advance_tax.sql` - Tiempos minimos, cuenta de impuestos
 - `058_attendance_window.sql` - Ventana de anticipacion para asistencia
 - `070_board_meetings.sql` - Reuniones de junta directiva (meeting_type: assembly/board)
+- `080_node_board_meetings.sql` - Junta Directiva del nodo (meeting_type en assembly_sessions del nodo)
+- `081_conversion_factor_nullable.sql` - Fix: internal_cost y external_price_usd nullable
+- `082_board_decision_routing.sql` - Reclasificar decisiones operativas a Junta Directiva + defaults de quorum
 
 ## Archivos Relevantes
 

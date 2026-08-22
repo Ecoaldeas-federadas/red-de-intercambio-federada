@@ -50,6 +50,61 @@ para la intranet**. Si federas por Internet normal, no necesitas esos datos.
 - `internal/federation/helpers.go` - Utilidades JSON
 - `internal/federation/gossip.go` - Sincronizacion periodica
 - `internal/api/federation.go` - Handlers API REST
+- `internal/api/net_sync.go` - Sincronizacion automatica de informacion de red y servicios
+
+## Sincronizacion Automatica de Informacion de Red
+
+Cuando un nodo actualiza su configuracion de red (dominio, IP, IPv6 ULA,
+endpoint WireGuard, clave publica WireGuard) o registra nuevos servicios,
+la informacion se sincroniza automaticamente con los peers federados
+conocidos.
+
+### Que se sincroniza
+- Dominio del nodo y dominio publico (OpenWrt)
+- Direccion IP publica
+- IPv6 ULA (para intranet)
+- Endpoint WireGuard y clave publica
+- Puerto WireGuard
+- Lista de servicios disponibles con sus direcciones
+- Ultima actualizacion
+
+### Como funciona
+1. El nodo actualiza su configuracion de red o registra un servicio
+2. Se dispara una sincronizacion en segundo plano (`net_sync.go`)
+3. El nodo envia su informacion a todos los peers federados conocidos
+4. Los peers reciben y almacenan la informacion en `federation_node_info`
+5. Los usuarios pueden ver las direcciones y servicios de otros nodos
+
+### Endpoints
+
+| Metodo | Endpoint | Descripcion |
+|--------|----------|-------------|
+| GET | `/api/federation/node-info` | Informacion de red del nodo actual |
+| POST | `/api/federation/node-info/publish` | Publicar info a peers |
+| POST | `/api/federation/node-info/receive` | Recibir info de un peer |
+| POST | `/api/federation/node-info/sync` | Sincronizar con todos los peers |
+
+### Tabla `federation_node_info`
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| node_domain | TEXT PK | Dominio del nodo |
+| node_name | TEXT | Nombre descriptivo |
+| public_domain | TEXT | Dominio publico (OpenWrt) |
+| public_ip | TEXT | IP publica |
+| intranet_domain | TEXT | Dominio intranet |
+| ipv6_ula | TEXT | IPv6 ULA |
+| wireguard_endpoint | TEXT | Endpoint WireGuard |
+| wireguard_public_key | TEXT | Clave publica WireGuard |
+| wireguard_port | INT | Puerto WireGuard |
+| services | JSONB | Lista de servicios disponibles |
+| last_updated | TIMESTAMPTZ | Ultima actualizacion |
+
+### Pagina de Federacion (Frontend)
+La pagina `/app/federation` tiene tres tabs:
+- **Red del Nodo**: configuracion de OpenWrt, WireGuard, IPv6 ULA
+- **Federar Aldeas**: registrar peers, ver nodos federados, sincronizar
+- **Gobernanza**: propuestas federadas, constantes, expulsion
 
 ## Transporte: mTLS
 

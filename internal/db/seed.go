@@ -1516,9 +1516,9 @@ func getSeedPages() []seedPage {
     "subtitle": "Como se organiza la toma de decisiones en la aldea",
     "columns": 3,
     "items": [
-      {"icon":"users","title":"Asamblea General","description":"Organo maximo de decision. Se reune mensualmente. Todos los miembros plenos tienen voz y voto. Las decisiones se toman por consentimiento sociocratico: una propuesta se aprueba cuando nadie presenta una objecion razonada de que cause dano al proposito de la aldea. Lema: 'Suficientemente bueno por ahora, seguro para intentar'.","badge":"Mensual"},
+      {"icon":"users","title":"Asamblea General","description":"Organo maximo de decision. Se reune trimestralmente. Todos los miembros plenos tienen voz y voto. Decide sobre admision, expulsion, impuestos, tarifas energeticas, federacion, reglas de gobernanza y politicas generales. Las decisiones grandes requieren mayoria calificada (2/3 o 75% segun el caso).","badge":"Trimestral"},
       {"icon":"circle","title":"Circulos Operativos","description":"La gobernanza se divide en circulos semi-autonomos: Circulo de Agua y Tierra, Circulo de Habitabilidad, Circulo de Agroecologia, Circulo de Economia Solidaria, Circulo de Convivencia y Admisiones. Cada circulo gestiona su area sin esperar aprobacion de la asamblea para decisiones operativas.","badge":"Semi-autonomos"},
-      {"icon":"briefcase","title":"Junta Directiva del Nodo","description":"Organo ejecutivo del nodo. Compuesto por miembros elegidos por consentimiento: Coordinador General, Tesorero, Secretario y Coordinadores de cada circulo. Los cargos duran 1 ano y son revocables por la asamblea.","badge":"Ejecutivo"},
+      {"icon":"briefcase","title":"Junta Directiva del Nodo","description":"Organo ejecutivo del nodo. Toma decisiones operativas frecuentes: creacion de cuentas, cambios de limites, modificacion de productos, distribucion de fondos y aumento de presupuesto. Compuesto por miembros elegidos por la asamblea. El quorum se calcula sobre los miembros de la junta (no sobre todos los miembros). La Asamblea decide que decisiones delega a la junta.","badge":"Ejecutivo"},
       {"icon":"link","title":"Doble Enlace Sociocratico","description":"Cada circulo elige dos personas que lo conectan con la Asamblea: un Coordinador (informacion de arriba hacia abajo) y un Delegado (inquietudes del circulo hacia la asamblea). Garantiza flujo bidireccional de informacion.","badge":"Flujo"},
       {"icon":"building","title":"Organizaciones","description":"Colectivos de produccion, consumo o servicios registrados en el sistema: Grupo de Produccion, Grupo de Consumo, Comision, Proyecto, Institucion Publica o Cooperativa. Tienen su propia junta directiva y limites simetricos mas amplios (-5000/+5000 TQ).","badge":"Colectivos"},
       {"icon":"folder","title":"Departamentos","description":"Unidades administrativas con roles y permisos especificos. Cada departamento tiene un jefe, miembros asignados y roles con permisos granulares. Los departamentos se mapean a los circulos operativos.","badge":"Administrativo"}
@@ -1617,8 +1617,8 @@ func getSeedPages() []seedPage {
     "columns": 3,
     "items": [
       {"icon":"percent","title":"Impuesto de Transaccion","description":"Cada transaccion en TQ tiene un porcentaje de impuesto definido por el nivel del miembro (ej: 1% para activos, 0% para instituciones publicas). El impuesto va al Fondo Comunitario.","badge":"1%"},
-      {"icon":"piggy-bank","title":"Fondo Comunitario","description":"Cuenta especial que recibe los impuestos y se usa para proyectos comunales aprobados por la asamblea: infraestructura, equipos, emergencias.","badge":"Fondo"},
-      {"icon":"check-square","title":"Aprobacion de Gastos","description":"Los gastos del Fondo Comunitario deben ser aprobados por la asamblea (mayoria simple). Los cambios a la tasa de impuesto requieren 2/3 de la asamblea.","badge":"Asamblea"}
+      {"icon":"piggy-bank","title":"Fondo Comunitario","description":"Cuenta especial que recibe los impuestos y se usa para proyectos comunales: infraestructura, equipos, emergencias. La distribucion de fondos la aprueba la Junta Directiva (decision operativa).","badge":"Fondo"},
+      {"icon":"check-square","title":"Aprobacion de Gastos","description":"Los gastos del Fondo Comunitario los aprueba la Junta Directiva (mayoria simple). Los cambios a la tasa de impuesto requieren 2/3 de la Asamblea General. La Asamblea decide que decisiones delega a la junta.","badge":"Asamblea y Junta"}
     ]
   },
   {
@@ -1632,6 +1632,148 @@ func getSeedPages() []seedPage {
 ]`,
 			Icon:      "scale",
 			MenuOrder: 14,
+		},
+		{
+			Slug:     "comercio-exterior",
+			Title:    "Comercio Exterior",
+			Subtitle: "Como Funciona el Intercambio con el Exterior",
+			Content: `[
+  {
+    "type": "hero",
+    "badge": "Comercio Externo",
+    "title": "Comerciar con el Exterior sin Dinero Fiat",
+    "description": "La aldea puede comprar y vender productos con el exterior usando el Factor de Conversion (FC), que relaciona el TQ con monedas externas (USD, EUR, COP, etc). El FC no es una tasa de cambio especulativa: se calcula comparando el costo de la canasta basica alla y aca.",
+    "theme": "ocean"
+  },
+  {
+    "type": "features_grid",
+    "title": "Factor de Conversion (FC)",
+    "subtitle": "Como se relaciona el TQ con monedas externas",
+    "columns": 3,
+    "items": [
+      {"icon":"calculator","title":"Calculo desde Canasta Basica","description":"Se compara el costo de la misma canasta basica de alimentos alla (en su moneda) y aca (en TQ). FC = canasta_interna_TQ / canasta_externa. Ejemplo: si alla cuesta 300 USD y aca 500 TQ, entonces 1 USD = 1.67 TQ.","badge":"Metodo"},
+      {"icon":"globe","title":"Moneda de Referencia","description":"Se puede elegir la moneda del pais con el que se comercia: USD, EUR, COP, MXN, ARS, etc. El FC se calcula para esa moneda especifica.","badge":"Multi-moneda"},
+      {"icon":"lock","title":"Canasta Federada","description":"El costo de la canasta interna en TQ es el mismo en todos los nodos de la federacion. Solo se puede cambiar mediante una propuesta federada aprobada por consenso. Esto asegura que el TQ valga lo mismo en todas las aldeas.","badge":"Federado"}
+    ]
+  },
+  {
+    "type": "features_grid",
+    "title": "Quien Actualiza el FC",
+    "subtitle": "La Asamblea decide quien puede actualizar el FC",
+    "columns": 2,
+    "items": [
+      {"icon":"user","title":"Persona Autorizada","description":"En paises con economia inestable (ej: Venezuela), conviene asignar una persona que actualice el FC frecuentemente segun los precios reales del mercado.","badge":"Frecuente"},
+      {"icon":"briefcase","title":"Junta Directiva","description":"La junta directiva puede actualizar el FC como decision operativa, sin necesidad de convocar asamblea.","badge":"Operativo"},
+      {"icon":"users","title":"Solo por Asamblea","description":"En paises estables, la asamblea puede decidir que el FC solo se actualice por votacion de todos los miembros.","badge":"Estable"}
+    ]
+  },
+  {
+    "type": "features_grid",
+    "title": "Calculadora de Precios Externos",
+    "subtitle": "Verifica si el FC esta bien calibrado",
+    "columns": 1,
+    "items": [
+      {"icon":"table","title":"Tabla Comparativa","description":"El sistema muestra una tabla con todos los productos del nodo y su precio equivalente en moneda externa segun el FC actual. Es informativo: ayuda a comparar si el FC calculado desde la canasta basica esta cerca del precio real externo. Si los precios calculados estan muy diferentes de los reales, hay que recalcular el FC.","badge":"Informativo"}
+    ]
+  },
+  {
+    "type": "features_grid",
+    "title": "Operaciones de Comercio",
+    "subtitle": "Importacion y exportacion con el exterior",
+    "columns": 2,
+    "items": [
+      {"icon":"download","title":"Importacion","description":"Traer productos de fuera (sal, herramientas, medicinas, telas). Se paga en TQ, el sistema convierte al precio externo usando el FC. Incluye logistica e impuestos externos.","badge":"Importar"},
+      {"icon":"upload","title":"Exportacion","description":"Vender productos al exterior (cafe, miel, textiles). Se recibe en TQ, el externo paga en su moneda. El sistema registra la operacion con el FC aplicado.","badge":"Exportar"}
+    ]
+  },
+  {
+    "type": "cta_banner",
+    "title": "Quieres comerciar con el exterior?",
+    "subtitle": "El sistema gestiona automaticamente la conversion de moneda. Solo necesitas configurar el FC y crear operaciones.",
+    "button_text": "Ver Comercio Exterior",
+    "button_link": "/app/external",
+    "theme": "ocean"
+  }
+]`,
+			Icon:      "globe",
+			MenuOrder: 15,
+		},
+		{
+			Slug:     "servicios-federados",
+			Title:    "Servicios Federados",
+			Subtitle: "Reemplaza Servicios Comerciales con Alternativas Autohospedadas",
+			Content: `[
+  {
+    "type": "hero",
+    "badge": "Soberania Digital",
+    "title": "Servicios Autohospedados y Federados",
+    "description": "La aldea puede instalar mas de 20 servicios que reemplazan plataformas comerciales: videos, redes sociales, almacenamiento, comunicacion, productividad y mas. Todo se hospeda en el servidor de la aldea, sin anuncios, sin vigilancia, sin empresas intermediarias.",
+    "theme": "forest"
+  },
+  {
+    "type": "features_grid",
+    "title": "Redes Sociales Federadas",
+    "subtitle": "Reemplaza las redes sociales comerciales",
+    "columns": 3,
+    "items": [
+      {"icon":"video","title":"PeerTube","description":"Plataforma de videos. Reemplaza YouTube. Los videos se almacenan en el servidor de la aldea. Las aldeas federadas pueden ver videos entre ellas.","badge":"Reemplaza YouTube"},
+      {"icon":"message-circle","title":"Mastodon","description":"Red social de mensajes cortos. Reemplaza Twitter/X. Cada aldea tiene su propio servidor. Sin anuncios, sin algoritmos.","badge":"Reemplaza Twitter"},
+      {"icon":"image","title":"Pixelfed","description":"Red social de fotografias. Reemplaza Instagram. Sin filtros que alteran tu imagen, sin anuncios.","badge":"Reemplaza Instagram"},
+      {"icon":"users","title":"Friendica","description":"Red social completa con perfiles, grupos, eventos. Reemplaza Facebook. Sin vender tus datos.","badge":"Reemplaza Facebook"},
+      {"icon":"message-square","title":"Lemmy","description":"Plataforma de foros y discusiones. Reemplaza Reddit. La comunidad vota lo util de cada respuesta.","badge":"Reemplaza Reddit"},
+      {"icon":"book-open","title":"BookWyrm","description":"Red social para amantes de libros. Reemplaza Goodreads. Sin que Amazon vigile tus lecturas.","badge":"Reemplaza Goodreads"}
+    ]
+  },
+  {
+    "type": "features_grid",
+    "title": "Comunicacion",
+    "subtitle": "Reemplaza las apps de mensajeria y llamadas comerciales",
+    "columns": 3,
+    "items": [
+      {"icon":"phone","title":"VoIP - Telefonía","description":"Sistema telefonico de la aldea. Llamadas internas gratis, llamadas al exterior via pasarela SIP. Cada miembro tiene su extension.","badge":"Telefonia"},
+      {"icon":"mic","title":"Mumble","description":"Chat de voz para reuniones y coordinacion. Bajo consumo de ancho de banda. Ideal para conexiones lentas.","badge":"Voz"},
+      {"icon":"cloud","title":"Nextcloud","description":"Almacenamiento y colaboracion. Reemplaza Google Drive, Dropbox. Archivos, calendarios, contactos, documentos compartidos.","badge":"Reemplaza GDrive"},
+      {"icon":"message-square","title":"Matrix","description":"Mensajeria instantanea descentralizada. Reemplaza WhatsApp, Telegram. Mensajes cifrados de extremo a extremo.","badge":"Reemplaza WhatsApp"},
+      {"icon":"mail","title":"Servidor de Email","description":"Correo electronico propio. Reemplaza Gmail, Outlook. Cada miembro tiene su correo @tu-aldea.org.","badge":"Reemplaza Gmail"}
+    ]
+  },
+  {
+    "type": "features_grid",
+    "title": "Productividad y Multimedia",
+    "subtitle": "Herramientas de trabajo y entretenimiento",
+    "columns": 3,
+    "items": [
+      {"icon":"file-text","title":"MediaWiki","description":"Enciclopedia y documentacion colaborativa. Reemplaza Wikipedia privada. La aldea documenta su conocimiento.","badge":"Wiki"},
+      {"icon":"film","title":"Jellyfin","description":"Servidor de medios. Reemplaza Netflix, Spotify. Peliculas, series, musica almacenadas en la aldea.","badge":"Reemplaza Netflix"},
+      {"icon":"music","title":"Navidrome","description":"Servidor de musica. Reemplaza Spotify. Tu musica en tu servidor, sin anuncios, sin tracking.","badge":"Reemplaza Spotify"},
+      {"icon":"git-branch","title":"Gitea","description":"Servidor Git. Reemplaza GitHub, GitLab. Repositorios de codigo y proyectos de la aldea.","badge":"Reemplaza GitHub"},
+      {"icon":"graduation-cap","title":"BigBlueButton","description":"Aula virtual para clases y talleres. Reemplaza Zoom, Google Classroom. Pizarra compartida, grabacion.","badge":"Reemplaza Zoom"},
+      {"icon":"home","title":"Home Assistant","description":"Automatizacion del hogar. Reemplaza Google Home, Alexa. Controla luces, sensores, energia solar. Todo local.","badge":"IoT local"}
+    ]
+  },
+  {
+    "type": "features_grid",
+    "title": "Como Funciona",
+    "subtitle": "Instalacion y gestion de servicios",
+    "columns": 2,
+    "items": [
+      {"icon":"server","title":"Instalacion con un Clic","description":"Cada servicio se instala con un clic desde el panel de administracion. El sistema genera el docker-compose.yml y las instrucciones. Solo necesitas un servidor con suficiente RAM y disco.","badge":"1 clic"},
+      {"icon":"settings","title":"Gestion Centralizada","description":"Desde el panel puedes iniciar, detener, desinstalar y ver el estado de cada servicio. Tambien puedes descargar el docker-compose para instalarlo manualmente en otro servidor.","badge":"Gestion"},
+      {"icon":"shield","title":"Sin Empresas Intermediarias","description":"Todos los servicios se hospedan en el servidor de la aldea. No hay anuncios, no hay recopilacion de datos, no hay empresas vigilando. Los datos pertenecen a la comunidad.","badge":"Soberano"},
+      {"icon":"link","title":"Federacion entre Aldeas","description":"Los servicios que soportan ActivityPub (PeerTube, Mastodon, Pixelfed, Friendica, Lemmy, BookWyrm) pueden federarse con otras aldeas. El contenido se comparte entre nodos federados.","badge":"Federado"}
+    ]
+  },
+  {
+    "type": "cta_banner",
+    "title": "Quieres instalar servicios?",
+    "subtitle": "Accede al catalogo completo desde el panel de administracion.",
+    "button_text": "Ver Catalogo",
+    "button_link": "/app/services",
+    "theme": "forest"
+  }
+]`,
+			Icon:      "server",
+			MenuOrder: 16,
 		},
 	}
 }

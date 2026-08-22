@@ -70,6 +70,14 @@
 | 15.5 | Juntas directivas con reuniones, votaciones y actas | Completado |
 | 15.6 | Organizaciones de la Asamblea usan Asamblea General | Completado |
 | 15.7 | Documentacion actualizada de servicios y gobernanza | Completado |
+| 16 | Junta Directiva del nodo (meeting_type en assembly_sessions) | Completado |
+| 16.1 | Reclasificacion de decisiones: operativas a Junta Directiva | Completado |
+| 16.2 | Quorum configurable de Junta Directiva del nodo | Completado |
+| 16.3 | Sincronizacion automatica de informacion de red entre nodos | Completado |
+| 16.4 | Calculadora de precios externos en Comercio Exterior | Completado |
+| 16.5 | Fix: catalogo de servicios federados no cargaba (res.data) | Completado |
+| 16.6 | Fix: guardar FC desde canasta basica (internal_cost nullable) | Completado |
+| 16.7 | Documentacion actualizada | Completado |
 
 ## Estructura del Proyecto
 
@@ -151,8 +159,55 @@ red de intercambio federada/
 | 069 | Servicios de organizaciones, suscripciones, is_assembly_owned |
 | 070 | Reuniones de junta directiva (meeting_type en scoped assemblies) |
 | 071 | 12 reglas publicas sobre organizaciones, servicios y juntas |
+| 076 | Gobernanza federada: constantes, propuestas, votacion entre nodos |
+| 077 | Expulsion de nodos de la federacion |
+| 078 | Configuracion de cluster YugabyteDB |
+| 079 | Informacion de red del nodo para sincronizacion federada |
+| 080 | Junta Directiva del nodo (meeting_type en assembly_sessions del nodo) |
+| 081 | Fix: internal_cost y external_price_usd nullable en conversion_factor |
+| 082 | Reclasificar decisiones operativas a Junta Directiva + defaults de quorum |
 
 ## Cambios Recientes
+
+### Junta Directiva del Nodo y Reclasificacion de Decisiones (migraciones 080-082)
+
+La Asamblea General del nodo ahora tiene dos tipos de reunion:
+
+1. **Asamblea General** - todos los miembros con derecho a voto
+   - Decisiones grandes: expulsion, federacion, impuestos, tarifas, gobernanza
+2. **Junta Directiva del nodo** - solo miembros de la junta
+   - Decisiones operativas: cuentas, limites, productos, fondos, presupuesto
+
+**Decisiones reclasificadas a Junta Directiva** (antes todas eran Asamblea):
+- `create_account`, `limit_change`, `product_modification`,
+  `fund_distribution`, `budget_increase`
+
+**Decisiones que siguen siendo de Asamblea**:
+- `admission` (50%), `expulsion` (75%), `federation_config` (66.67%),
+  `tax_change` (66.67%), `energy_rate_change` (66.67%),
+  `member_level` (50%), `org_level` (50%), `policy` (50%),
+  `governance_rule` (50%), `free_proposal` (50%)
+
+**Quorum de Junta Directiva**: calculado sobre miembros de la junta
+(no sobre todos los miembros del nodo). Defaults: 50%/30% (ordinaria),
+50%/30% (extraordinaria), 40%/25% (urgente).
+
+**La Asamblea decide** quien aprueba que: puede cambiar el
+`approval_method` de cualquier tipo de propuesta.
+
+### Sincronizacion Automatica de Red (migracion 079)
+
+Los nodos federados ahora sincronizan automaticamente:
+- Dominio, IP publica, IPv6 ULA, endpoint WireGuard
+- Lista de servicios disponibles con sus direcciones
+- Cuando un nodo cambia su configuracion, los peers se actualizan
+
+### Calculadora de Precios Externos
+
+Comercio Exterior ahora tiene una sub-pestana "Calculadora de Precios"
+que muestra todos los productos del nodo con su precio equivalente en
+moneda externa segun el FC actual. Es informativo: ayuda a verificar
+si el FC esta bien calibrado.
 
 ### Sistema de Asambleas Completo (migraciones 049-057)
 

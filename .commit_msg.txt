@@ -1,51 +1,32 @@
-feat: reclasificar decisiones operativas a Junta Directiva + quorum de junta
+docs: actualizar documentacion y paginas publicas
 
-Antes todas las decisiones eran por Asamblea. Ahora se separan:
+Documentacion interna (docs/):
+- assembly.md: Junta Directiva del nodo, tipos de propuesta reclasificados
+  (operativas a board, grandes a assembly), quorum de junta, API con
+  meeting_type, migraciones 080-082
+- governance.md: Junta Directiva del nodo, que decisiones delega, quorum
+- federation.md: sincronizacion automatica de red, tabla
+  federation_node_info, endpoints, pagina de federacion con 3 tabs
+- external_bridge.md: FC desde canasta basica, calculadora de precios,
+  quien aprueba el FC, sub-pestanas del frontend
+- INDEX.md: fases 16-16.7, migraciones 076-082, cambios recientes
 
-DECISIONES OPERATIVAS (Junta Directiva, mayoria simple 50%):
-- create_account: creacion de cuentas
-- limit_change: cambios de limites de credito/debito
-- product_modification: modificacion de productos
-- fund_distribution: distribucion del fondo
-- budget_increase: aumento de presupuesto
+Paginas publicas (seed.go):
+- gobernanza: actualizada Asamblea General (decisiones grandes, mayoria
+  calificada), Junta Directiva (decisiones operativas, quorum sobre
+  miembros de la junta), Fondo Comunitario (junta aprueba gastos
+  operativos, asamblea aprueba cambios de impuesto)
+- comercio-exterior (NUEVA): explica FC, calculo desde canasta basica,
+  canasta federada, quien actualiza el FC, calculadora de precios,
+  importacion/exportacion
+- servicios-federados (NUEVA): explica los 20+ servicios autohospedados,
+  redes sociales federadas, comunicacion, productividad, multimedia,
+  instalacion con un clic, federacion entre aldeas
 
-DECISIONES GRANDES (Asamblea, siguen igual):
-- admission: admision de miembros (50%)
-- expulsion: expulsion de miembro (75%)
-- energy_rate_change: cambio de tarifa energetica (66.67%)
-- federation_config: configuracion de federacion (66.67%)
-- tax_change: cambios de impuestos (66.67%)
-- member_level: niveles de miembro (50%)
-- org_level: niveles de organizacion (50%)
-- policy: politicas generales (50%)
-- governance_rule: reglas de gobernanza (50%)
-- free_proposal: propuesta libre (50%)
-- recovery_config: configuracion de recuperacion (multisig 100%)
-
-Backend (assembly.go):
-- El metodo "board" ahora usa required_percentage y required_quorum
-  de assembly_config (antes caia en default y solo hacia votesFor > votesAgainst)
-- totalVotingMembers para board = COUNT(assembly_board_members WHERE is_active)
-- El porcentaje se calcula sobre los votos de la junta, no de todos los miembros
-
-Migracion 082:
-- UPDATE assembly_config para reclasificar las 5 decisiones operativas
-- INSERT de defaults de quorum para junta directiva:
-  - ordinaria: 50% / 30%, gracia 0h, 1 rellamado
-  - extraordinaria: 50% / 30%, gracia 0h, 1 rellamado
-  - urgente: 40% / 25%, gracia 0h, 0 rellamados
-
-Frontend (Assembly.tsx):
-- Configuracion ahora muestra dos secciones de quorum:
-  1. Quorum de Asamblea (morado)
-  2. Quorum de Junta Directiva (morado, con etiqueta "Junta Directiva")
-- QuorumConfigCard muestra etiqueta "Junta Directiva" si meeting_type=board
-- updateQuorumConfig acepta meetingType para guardar en el endpoint correcto
-- Nota: "cambiar el quorum de la junta directiva es decision de la Asamblea"
-
-La logica es: la Asamblea decide quien aprueba que (board vs assembly),
-y la Asamblea decide los parametros del quorum de la junta. La junta
-no se autoregula.
+Pagina publica del demo (demo_seed.go):
+- gobernanza: actualizada igual que la pagina normal
+- systemPageSlugs: agregadas comercio-exterior, servicios-federados y
+  gobernanza para que el demo las herede con reemplazos de terminos
 
 Generated with [Devin](https://devin.ai)
 

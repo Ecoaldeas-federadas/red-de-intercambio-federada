@@ -9,18 +9,54 @@
 
 ### Concepto
 El FC es el factor que convierte entre moneda interna (energia, en TQ) y moneda
-externa (USD). Permite que la comunidad interactue con el mercado externo sin
-usar dinero fiat internamente.
+externa (USD, EUR, COP, MXN, etc). Permite que la comunidad interactue con el
+mercado externo sin usar dinero fiat internamente.
 
-### Calculo
-1. Se selecciona un producto de referencia (canasta basica)
-2. Se compara precio interno (energia total) vs precio externo (USD)
-3. `FC = precio_interno / precio_externo`
-4. Se almacena en `conversion_factor` con: internal_cost, external_price_usd, factor, external_tax_rate
+### Calculo desde Canasta Basica
+1. Se elige la moneda externa de referencia (USD, EUR, COP, etc.)
+2. Se ingresa el costo de la canasta basica alla (en moneda externa)
+3. La canasta basica interna (en TQ) es un valor federado: es la misma en
+   todos los nodos y solo se puede cambiar mediante propuesta federada
+4. `FC = canasta_interna_TQ / canasta_externa`
+5. Resultado: cuantos TQ equivale 1 unidad de moneda externa
 
-### Recalculo
-- `POST /api/external/fc/recalculate`: recalcula FC basado en precios actuales
-- Requiere aprobacion (segun reglas configuradas)
+### Ejemplo
+- Canasta alla: 300 USD
+- Canasta aca: 500 TQ (valor federado)
+- FC = 500 / 300 = 1.67 TQ por cada 1 USD
+
+### Quien puede actualizar el FC
+El permiso `external.store_fc` controla quien puede guardar el FC. La Asamblea
+decide quien tiene este permiso:
+- **Administrador**: una persona con permisos de admin
+- **Junta Directiva**: los miembros de la junta pueden actualizarlo
+- **Persona autorizada**: en paises con economia inestable (ej: Venezuela),
+  conviene asignar una persona que actualice el FC frecuentemente
+- **Solo por Asamblea**: en paises estables, la asamblea decide cuando actualizar
+
+### Calculadora de Precios Externos
+La pagina de Comercio Externo tiene una sub-pestana "Calculadora de Precios"
+que muestra una tabla con todos los productos del nodo y su precio equivalente
+en moneda externa segun el FC actual:
+- `precio_externo = precio_TQ / FC`
+- Es informativo: ayuda a comparar si el FC esta bien calibrado
+- Si los precios externos calculados estan cerca de los reales, el FC esta bien
+- Si estan muy diferentes, hay que recalcular el FC desde la canasta basica
+
+### Endpoints del FC
+
+| Metodo | Endpoint | Descripcion |
+|--------|----------|-------------|
+| GET | `/api/external/fc` | FC actual |
+| POST | `/api/external/fc/calculate` | Calcular FC desde CPI/energia (metodo viejo) |
+| POST | `/api/external/fc/calculate-basket` | Calcular FC desde canasta basica |
+| POST | `/api/external/fc/store` | Guardar FC (requiere permiso external.store_fc) |
+| POST | `/api/external/fc/store-basket` | Guardar FC desde canasta basica |
+
+### Sub-pestanaas del frontend
+- **Operaciones**: lista de operaciones DEX (import/export)
+- **Factor de Conversion**: calcular y guardar FC
+- **Calculadora de Precios**: tabla comparativa de productos en moneda externa
 
 ## Operaciones Externas
 
