@@ -1,49 +1,17 @@
-feat: expulsion de nodos + red en cadena + herencia de reglas
+fix: flags correctos de yugabyted start (advertise_address, background)
 
-Expulsion de nodos:
-- Migracion 077: tablas federation_expelled_nodes y federation_known_nodes
-- Propuesta tipo 'expel_node' para expulsar un nodo por mal comportamiento
-- Cuando se aprueba, el nodo se marca como expulsado
-- El nodo expulsado no puede participar en la federacion
-- Para volver a entrar, debe solicitar ingreso nuevamente
+Los flags --listen_ip y --daemon=false no existen en yugabyted.
+yugabyted mostraba la ayuda y se reiniciaba en bucle.
 
-Red en cadena:
-- Las decisiones globales aplican a TODOS los nodos de la red
-- Aunque no estes federado directamente con todos
-- Es una cadena: A-B-C-D, las decisiones de A afectan a D
-- Nuevo endpoint /api/federation-gov/known-nodes muestra todos los nodos
-- Los nodos se descubren via peers directos y propagacion
+Flags correctos segun la documentacion de YugabyteDB:
+- --advertise_address (no --listen_ip)
+- --background=false (no --daemon=false)
+- --join=hostname para unirse a un cluster existente
 
-Herencia de reglas:
-- Los nodos nuevos heredan automaticamente todas las reglas existentes
-- No votan sobre reglas previas (las aceptan al unirse)
-- Nuevo endpoint /api/federation-gov/sync-constants
-- Devuelve constantes federadas + nodos expulsados
-
-Frontend (FederationGov.tsx):
-- Nueva pestana "Nodos de la Red": muestra todos los nodos conocidos
-  - Peer directo vs indirecto
-  - Este nodo vs otros
-  - Nodos expulsados
-- Nueva pestana "Expulsar Nodo": formulario para proponer expulsion
-  - Dominio del nodo a expulsar
-  - Razon de la expulsion
-  - Advertencias sobre el proceso
-
-Backend (federation_gov.go):
-- listExpelledNodes: lista nodos expulsados
-- listKnownNodes: lista todos los nodos de la red (peers + indirectos)
-- syncConstants: constantes + expulsados para nodos nuevos
-- applyProposal: soporta proposal_type='expel_node'
-  - Marca al nodo como expulsado en federation_expelled_nodes
-  - Actualiza is_expelled en federation_known_nodes
-
-Documentacion (federation_governance.md):
-- Seccion de expulsion de nodos
-- Seccion de estructura de red en cadena
-- Explicacion de por que las decisiones aplican a todos
-- Tablas de la base de datos
-- API de expulsion y nodos
+Cambios:
+- yugabytedb: --advertise_address=yugabytedb
+- yugabytedb2: --advertise_address=yugabytedb2 --join=yugabytedb
+- Ambos: --background=false
 
 Generated with [Devin](https://devin.ai)
 
