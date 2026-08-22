@@ -2128,7 +2128,7 @@ func demoSeedTransactions(ctx context.Context, d *DB, nodeDomain string) error {
 	return nil
 }
 
-func demoSeedAssemblyVotes(ctx context.Context, d *DB, nodeDomain string, adminID uuid.UUID) {
+func demoSeedAssemblyVotes(ctx context.Context, d *DB, nodeDomain string) {
 	// Obtener miembros con derecho a voto
 	rows, err := d.Pool.Query(ctx, `SELECT id FROM users WHERE node_domain = $1 AND account_type = 'individual' AND membership_status = 'active' LIMIT 20`, nodeDomain)
 	if err != nil {
@@ -2730,7 +2730,7 @@ func demoSeedAssemblyProposals(ctx context.Context, d *DB, nodeDomain string) er
 	}
 
 	// Crear votos para las propuestas aprobadas
-	demoSeedAssemblyVotes(ctx, d, nodeDomain, adminID)
+	demoSeedAssemblyVotes(ctx, d, nodeDomain)
 
 	log.Println("Demo: assembly proposals seeded")
 	return nil

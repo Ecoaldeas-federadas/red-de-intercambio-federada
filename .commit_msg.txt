@@ -1,11 +1,4 @@
-fix: pestaña Mis Servicios cerraba sesion por type assertion incorrecta
-
-getUserID intentaba afirmar user_id como uuid.UUID, pero el middleware
-RequireAuth lo guarda como string. Esto causaba que getUserID siempre
-fallara, devolviendo 401, lo que disparaba el modal de sesion expirada.
-
-Ahora getUserID intenta primero string (como lo guarda el middleware),
-luego uuid.UUID (compatibilidad), y finalmente el header X-User-ID.
+fix: eliminar parametro adminID no usado en demoSeedAssemblyVotes
 
 Generated with [Devin](https://devin.ai)
 
