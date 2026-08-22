@@ -694,7 +694,7 @@ func (h *NodeDiscoveryHandler) checkNodeHealth(w http.ResponseWriter, r *http.Re
 	_, _ = h.Pool.Exec(ctx, `
 		INSERT INTO node_health_reports (reporter_node, target_node, reachable)
 		VALUES ($1, $2, $3)
-		ON CONFLICT (reporter_node, target_node, checked_at::DATE) DO UPDATE SET reachable = EXCLUDED.reachable, checked_at = NOW()`,
+		ON CONFLICT (reporter_node, target_node, check_date) DO UPDATE SET reachable = EXCLUDED.reachable, checked_at = NOW()`,
 		h.NodeDomain, domain, active)
 
 	// Actualizar last_checked y failed_checks del nodo
@@ -856,7 +856,7 @@ func (h *NodeDiscoveryHandler) receiveHealthReport(w http.ResponseWriter, r *htt
 	_, err := h.Pool.Exec(ctx, `
 		INSERT INTO node_health_reports (reporter_node, target_node, reachable)
 		VALUES ($1, $2, $3)
-		ON CONFLICT (reporter_node, target_node, checked_at::DATE) DO UPDATE SET reachable = EXCLUDED.reachable, checked_at = NOW()`,
+		ON CONFLICT (reporter_node, target_node, check_date) DO UPDATE SET reachable = EXCLUDED.reachable, checked_at = NOW()`,
 		req.ReporterNode, req.TargetNode, req.Reachable)
 	if err != nil {
 		writeError(w, 500, fmt.Sprintf("guardando reporte: %v", err))

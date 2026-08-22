@@ -39,8 +39,10 @@ CREATE TABLE IF NOT EXISTS node_health_reports (
   reachable BOOLEAN NOT NULL,
   -- Cuando se hizo el check
   checked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  -- Fecha del check (sin hora) para unique constraint
+  check_date DATE NOT NULL DEFAULT CURRENT_DATE,
   -- Unique: un reportero solo reporta una vez por dia por nodo
-  UNIQUE(reporter_node, target_node, checked_at::DATE)
+  UNIQUE(reporter_node, target_node, check_date)
 );
 
 -- Indice para buscar reportes de un nodo target
