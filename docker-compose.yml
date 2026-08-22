@@ -37,16 +37,14 @@ services:
       - firmware_builds:/build-output
 
   # YugabyteDB: un solo nodo optimizado para servidores con 16GB RAM.
-  # - max_num_tablets=1000: sube el limite de tabletas
-  # - global_memstore_size_percentage=10: reduce memoria de escritura
-  #   (por defecto es 85%, demasiado para 16GB). Con 10% usa ~1.6GB
-  #   en lugar de ~13.6GB, dejando RAM para el backend y el OS.
-  # Para servidores con mas RAM (32GB+): subir global_memstore_size_percentage a 30-50.
-  # Para servidores con poca RAM (4-8GB): usar max_num_tablets=534 y global_memstore_size_percentage=5.
+  # - max_num_tablets=800: limite suficiente para el proyecto sin saturar
+  # - global_memstore_size_percentage=10: solo 1.6GB para DocDB
+  # Si tu PC esta muy pesada, baja max_num_tablets a 600 o 534.
+  # Si tienes mas de 16GB RAM, puedes subir a 1000.
   yugabytedb:
     image: yugabytedb/yugabyte:latest
     hostname: yugabytedb
-    command: ["bin/yugabyted", "start", "--base_dir=/mnt/master", "--background=false", "--advertise_address=yugabytedb", "--tserver_flags=max_num_tablets=1000,global_memstore_size_percentage=10"]
+    command: ["bin/yugabyted", "start", "--base_dir=/mnt/master", "--background=false", "--advertise_address=yugabytedb", "--tserver_flags=max_num_tablets=800,global_memstore_size_percentage=10"]
     ports:
       - "5433:5433"
       - "7000:7000"
