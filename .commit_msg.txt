@@ -1,18 +1,17 @@
-fix: migracion 068 truncada + backup con pg_dump
+fix: quitar SPLIT INTO 1 TABLETS (incompatible con BD colocada)
 
-Migracion 068_restore_unsplash_urls.sql:
-- El archivo estaba truncado en la linea 22
-- La ultima linea no tenia cierre de string ni punto y coma
-- Error: unterminated quoted string at or near
-  '/images/products/alimentacion/panaderia.jpg
-- Arreglado: agregado cierre ' WHERE name = ...;
+Error: cannot create colocated table with split option (SQLSTATE 42P16)
 
-Script de backup (docker-compose.yml):
-- Antes usaba ysqlsh -c "SELECT * FROM tabla" que produce texto
-  tabulado, no SQL restaurable
-- Ahora usa pg_dump --data-only --column-inserts que produce
-  INSERT statements validos que se pueden restaurar
-- Los backups anteriores (formato texto) no son restaurables
+La BD fmc_node se crea con COLOCATION = true (connection.go).
+En una BD colocada, las tablas comparten una tableta automaticamente,
+por lo que SPLIT INTO 1 TABLETS es innecesario e incompatible.
+
+Quitado SPLIT INTO 1 TABLETS de:
+- 076_federation_governance.sql (3 tablas)
+- 077_node_expulsion.sql (2 tablas)
+- 078_cluster_config.sql (1 tabla)
+
+La colocation de la BD ya reduce el consumo de tabletas.
 
 Generated with [Devin](https://devin.ai)
 

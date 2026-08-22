@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS federation_expelled_nodes (
   expelled_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   -- Si se permite reingreso despues de un tiempo (null = no permitido)
   reentry_allowed_at TIMESTAMPTZ
-) SPLIT INTO 1 TABLETS;
+);
 
 -- Registro de nodos conocidos en la red federada
 -- No solo los peers directos, sino todos los nodos de la red
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS federation_known_nodes (
   node_number INT,                         -- numero de nodo SIP (si tiene)
   last_seen TIMESTAMPTZ,                   -- ultima vez que se supo de el
   discovered_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-) SPLIT INTO 1 TABLETS;
+);
 
 -- Insertar este nodo como conocido
 -- (Se hace desde el backend, no aqui, para no hardcodear el dominio)

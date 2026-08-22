@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS federation_constants (
   description TEXT,                        -- descripcion para humanos
   approved_proposal_id UUID,               -- que propuesta aprobo este valor
   updated_at TIMESTAMPTZ DEFAULT NOW()
-) SPLIT INTO 1 TABLETS;
+);
 
 -- Propuestas de cambios federados
 CREATE TABLE IF NOT EXISTS federation_proposals (
@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS federation_proposals (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   expires_at TIMESTAMPTZ,                          -- fecha limite para votar
   applied_at TIMESTAMPTZ                           -- cuando se aplico el cambio
-) SPLIT INTO 1 TABLETS;
+);
 
 -- Votos de cada nodo en una propuesta
 CREATE TABLE IF NOT EXISTS federation_votes (
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS federation_votes (
   voted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   notes TEXT,
   UNIQUE(proposal_id, voter_node)          -- un nodo solo vota una vez por propuesta
-) SPLIT INTO 1 TABLETS;
+);
 
 -- Insertar constantes federadas iniciales
 -- La canasta basica interna es 500 TQ en TODOS los nodos (valor fijado)
