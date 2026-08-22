@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS federation_proposals (
   description TEXT,                         -- explicacion del cambio
   proposed_by_node VARCHAR(128) NOT NULL,   -- dominio del nodo que propone
   status VARCHAR(20) NOT NULL DEFAULT 'pending',  -- 'pending', 'approved', 'rejected', 'expired'
-  approval_threshold INT NOT NULL DEFAULT 100,     -- % de nodos que deben aprobar
+  approval_threshold INT NOT NULL DEFAULT 75,      -- % de nodos que deben aprobar (default 75%, configurable)
   total_nodes INT NOT NULL DEFAULT 0,              -- total de nodos federados al momento
   approvals INT NOT NULL DEFAULT 0,                -- contador de aprobaciones
   rejections INT NOT NULL DEFAULT 0,               -- contador de rechazos
@@ -70,7 +70,7 @@ VALUES ('basket_cost_internal_tq', '500', 'Costo de la canasta basica interna en
 ON CONFLICT (key) DO NOTHING;
 
 INSERT INTO federation_constants (key, value, description)
-VALUES ('fc_approval_threshold', '100', 'Porcentaje de nodos que deben aprobar un cambio federado para que se aplique. Por defecto 100% (todos los nodos). Para cambiar este umbral, se necesita la aprobacion bajo el umbral actual.')
+VALUES ('fc_approval_threshold', '75', 'Porcentaje de nodos que deben aprobar un cambio federado para que se aplique. Por defecto 75% (mayoria). Se puede cambiar a 100% o cualquier otro valor via propuesta federada.')
 ON CONFLICT (key) DO NOTHING;
 
 INSERT INTO federation_constants (key, value, description)

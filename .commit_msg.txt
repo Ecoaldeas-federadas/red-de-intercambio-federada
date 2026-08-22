@@ -1,48 +1,19 @@
-feat: optimizacion de YugabyteDB segun hardware + global_memstore_size_percentage
+fix: volver a comando original de yugabyted + umbral 75%
 
-Optimiza YugabyteDB automaticamente segun la RAM del servidor para no
-saturar el equipo (especialmente con 16GB RAM como un Core i3).
+YugabyteDB:
+- Volver al comando original que funcionaba: --daemon=false
+- Quitar --background=false y --advertise_address que causaban error
+- Mantener --tserver_flags=max_num_tablets=800,global_memstore_size_percentage=10
+- El error era: yugabyted crash con Python TypeError
 
-docker-compose.yml:
-- Agregado --tserver_flags=max_num_tablets=1000,global_memstore_size_percentage=10
-- global_memstore_size_percentage=10: solo usa 1.6GB de 16GB para DocDB
-  (por defecto es 85% = 13.6GB, que saturaria el servidor)
-- El resto (14GB) queda para el backend, frontend y el OS
-
-Backend (cluster_handler.go):
-- HardwareInfo ahora incluye:
-  - recommended_mem_pct: % recomendado de memoria para DocDB
-  - needs_more_servers: true si la RAM es insuficiente
-  - servers_needed: cuantos servidores adicionales se necesitan
-- Recomendaciones por hardware:
-  - 32GB+: 2000 tabletas, 30% DocDB (9.6GB)
-  - 16GB:  1000 tabletas, 10% DocDB (1.6GB)
-  - 8GB:   600 tabletas, 5% DocDB (0.4GB)
-  - 4GB:   400 tabletas, 5% DocDB -> NECESITA OTRO SERVIDOR
-  - <4GB:  300 tabletas, 5% DocDB -> NECESITA OTRO SERVIDOR
-- ClusterConfigResponse incluye memstore_percentage
-- updateClusterConfig valida y guarda memstore_percentage (5-85%)
-- Respuesta incluye restart_command con los flags exactos
-
-Migracion 078:
-- Agregado campo memstore_percentage INT NOT NULL DEFAULT 10
-- Default actualizado para 16GB RAM
-
-Frontend (NodeSettings.tsx):
-- Panel de hardware ahora muestra advertencia en rojo si needs_more_servers
-- Si la RAM es insuficiente, muestra:
-  "Hardware insuficiente. Necesitas N servidor(es) adicional(es)
-   con minimo 8GB RAM (idealmente 16GB)"
-- Nuevo campo: "Memoria para DocDB (%)"
-  - Muestra cuanto GB usa YugabyteDB vs cuanto queda para el resto
-  - Ejemplo: "10% = 1.6GB de 16GB. El resto (14.4GB) queda para
-    el backend, frontend y el OS"
-- Recomendacion automatica muestra el % recomendado de DocDB
-
-Para tu caso (Core i3, 16GB RAM):
-- Limite: 1000 tabletas
-- MemDocDB: 10% (1.6GB para YugabyteDB, 14.4GB para todo lo demas)
-- No necesitas otro servidor
+Umbral de aprobacion:
+- Cambiar default de 100% a 75% (mayoria)
+- 75% ya es mayoria, evita que un solo nodo bloquee todo
+- Si un nodo no quiere aprobar, tiene dos opciones:
+  1. Aceptar los cambios
+  2. Retirarse de la federacion
+- El umbral sigue siendo configurable via propuesta federada
+- Se puede cambiar a 100% o cualquier otro valor
 
 Generated with [Devin](https://devin.ai)
 

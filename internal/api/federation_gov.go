@@ -232,10 +232,10 @@ func (fh *FederationGovHandler) createProposal(w http.ResponseWriter, r *http.Re
 	var currentValue []byte
 	_ = fh.Pool.QueryRow(r.Context(), `SELECT value FROM federation_constants WHERE key = $1`, req.Key).Scan(&currentValue)
 
-	// Obtener umbral de aprobacion (default 100% = todos los nodos)
+	// Obtener umbral de aprobacion (default 75% = mayoria, configurable a 100% o cualquier valor)
 	threshold, _ := fh.getConstantInt64(r.Context(), "fc_approval_threshold")
 	if threshold == 0 {
-		threshold = 100
+		threshold = 75
 	}
 
 	// Contar nodos federados
