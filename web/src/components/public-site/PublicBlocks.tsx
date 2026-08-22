@@ -643,11 +643,29 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
   const [totalCount, setTotalCount] = useState<number>(0)
   const [loading, setLoading] = useState(false)
   const [viewMode, setViewMode] = useState<'feria' | 'catalogo'>('feria')
+  const [fc, setFc] = useState<any>(null)
+  const [nodeConfig, setNodeConfig] = useState<any>(null)
 
   // If source is "backend", load real products from the API
   const useBackend = (data as any).source === 'backend'
 
   const PAGE_SIZE = 100
+
+  // Cargar factor de conversion y configuracion del nodo
+  useEffect(() => {
+    if (!useBackend) return
+    fetch('/api/external/fc').then(r => r.json()).then(setFc).catch(() => {})
+    fetch('/api/config').then(r => r.json()).then(setNodeConfig).catch(() => {})
+  }, [useBackend])
+
+  // Calcular precio externo: TQ / FC = moneda externa
+  const currencyName = nodeConfig?.currency_name || 'TQ'
+  const fcFactor = fc?.factor || 0
+  const externalCurrency = fc?.external_currency || 'USD'
+  const formatExternal = (tq: number) => {
+    if (!tq || !fcFactor) return ''
+    return (tq / fcFactor).toFixed(2)
+  }
 
   // Cargar items de la tienda (lo que realmente hay en la feria)
   useEffect(() => {
@@ -889,12 +907,20 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
               </div>
 
               {prod.price_energy && (
-                <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-                  <span className="text-gray-500">Valor Energético</span>
-                  <div className="text-right">
-                    <EdArrayText arrayField="items" index={realIdx} itemField="price_energy" value={prod.price_energy} as="span" className="font-bold text-amber-600" />
-                    {prod.unit && <span className="block text-[10px] text-gray-400">por {prod.unit}</span>}
+                <div className="pt-2 border-t border-gray-100 space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500">Valor Energetico</span>
+                    <div className="text-right">
+                      <EdArrayText arrayField="items" index={realIdx} itemField="price_energy" value={prod.price_energy} as="span" className="font-bold text-amber-600" />
+                      {prod.unit && <span className="block text-[10px] text-gray-400">por {prod.unit}</span>}
+                    </div>
                   </div>
+                  {useBackend && fcFactor > 0 && prod.price_trueque > 0 && (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-500">Ref. externo</span>
+                      <span className="font-semibold text-gray-700">{formatExternal(prod.price_trueque)} {externalCurrency}</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
