@@ -385,6 +385,7 @@ export default function Assembly() {
   const [freqEditing, setFreqEditing] = useState(false)
   const [freqSaving, setFreqSaving] = useState(false)
   const [sessionFilter, setSessionFilter] = useState<'upcoming' | 'past'>('upcoming')
+  const [meetingType, setMeetingType] = useState<'assembly' | 'board'>('assembly')
 
   // Helper: ¿ya se puede registrar asistencia? (dentro de la ventana configurada)
   const attendanceWindowHours = freqConfig.attendance_window_hours || 1
@@ -404,7 +405,7 @@ export default function Assembly() {
     api.get('/assembly/voting-members').then((d: any) => setVotingMembers(Array.isArray(d) ? d : [])).catch(() => {})
     api.get('/member-levels').then((d: any) => setMemberLevels(Array.isArray(d) ? d : [])).catch(() => {})
     api.get('/assembly/board').then((d: any) => setBoard(Array.isArray(d) ? d : [])).catch(() => {})
-    api.get(`/assembly/sessions?filter=${sessionFilter}`).then((d: any) => setSessions(Array.isArray(d) ? d : [])).catch(() => {})
+    api.get(`/assembly/sessions?filter=${sessionFilter}&meeting_type=${meetingType}`).then((d: any) => setSessions(Array.isArray(d) ? d : [])).catch(() => {})
     api.get('/assembly/proposals').then((d: any) => setProposals(Array.isArray(d) ? d : [])).catch(() => {})
     api.get('/tax/config').then(setTaxConfig).catch(() => {})
     api.get('/tax/account').then(setTaxAccount).catch(() => {})
@@ -412,12 +413,12 @@ export default function Assembly() {
   }
 
   const loadSessions = () => {
-    api.get(`/assembly/sessions?filter=${sessionFilter}`).then((d: any) => setSessions(Array.isArray(d) ? d : [])).catch(() => {})
+    api.get(`/assembly/sessions?filter=${sessionFilter}&meeting_type=${meetingType}`).then((d: any) => setSessions(Array.isArray(d) ? d : [])).catch(() => {})
   }
 
   useEffect(() => {
     if (tab === 'sessions') loadSessions()
-  }, [sessionFilter, tab])
+  }, [sessionFilter, tab, meetingType])
 
   useEffect(() => { load(); loadFreqConfig() }, [])
 
@@ -652,7 +653,7 @@ export default function Assembly() {
     // Combinar fecha y hora en ISO 8601
     const start_time = new Date(`${sessionDate}T${sessionTime}:00`).toISOString()
     try {
-      await api.post('/assembly/sessions', { ...newSession, start_time })
+      await api.post('/assembly/sessions', { ...newSession, meeting_type: meetingType, start_time })
       setShowNewSession(false)
       setNewSession({ session_type: 'ordinaria', title: '', description: '', is_presential: false, start_time: '' })
       setSessionDate('')
@@ -1358,9 +1359,34 @@ export default function Assembly() {
       {tab === 'sessions' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="font-semibold flex items-center gap-2"><Calendar size={18} />Sesiones de Asamblea</h2>
+            <h2 className="font-semibold flex items-center gap-2"><Calendar size={18} />
+              {meetingType === 'board' ? 'Sesiones de Junta Directiva' : 'Sesiones de Asamblea'}
+            </h2>
             <button onClick={() => setShowNewSession(!showNewSession)} className="btn-primary flex items-center gap-2"><Plus size={18} />Nueva Sesion</button>
           </div>
+
+          {/* Toggle: Asamblea vs Junta Directiva */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setMeetingType('assembly')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium ${meetingType === 'assembly' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}
+            >
+              Asamblea (todos los miembros)
+            </button>
+            <button
+              onClick={() => setMeetingType('board')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium ${meetingType === 'board' ? 'bg-purple-600 text-white' : 'bg-gray-200'}`}
+            >
+              Junta Directiva (solo la junta)
+            </button>
+          </div>
+
+          {meetingType === 'board' && (
+            <div className="card bg-purple-50 border-purple-200 text-sm text-purple-700">
+              Las sesiones de Junta Directiva son mas frecuentes y para decisiones operativas.
+              Solo pueden votar los miembros de la junta directiva. El quorum es mas bajo.
+            </div>
+          )}
 
           {/* Filtro: pendientes vs pasadas */}
           <div className="flex gap-2">
@@ -1368,13 +1394,13 @@ export default function Assembly() {
               onClick={() => setSessionFilter('upcoming')}
               className={`px-4 py-2 rounded-lg text-sm font-medium ${sessionFilter === 'upcoming' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}
             >
-              Proximas asambleas
+              {meetingType === 'board' ? 'Proximas juntas' : 'Proximas asambleas'}
             </button>
             <button
               onClick={() => setSessionFilter('past')}
               className={`px-4 py-2 rounded-lg text-sm font-medium ${sessionFilter === 'past' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}
             >
-              Asambleas pasadas
+              {meetingType === 'board' ? 'Juntas pasadas' : 'Asambleas pasadas'}
             </button>
           </div>
 

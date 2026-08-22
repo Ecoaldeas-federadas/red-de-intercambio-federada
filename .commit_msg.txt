@@ -1,46 +1,51 @@
-feat: sincronizacion automatica de info de red entre nodos federados
+feat: reuniones de Junta Directiva para la Asamblea General del nodo
 
-Antes: habia que compartir manualmente los datos de red (dominio, IP,
-WireGuard, servicios) con cada nodo federado.
+Antes la Asamblea General del nodo solo tenia sesiones de asamblea
+(todos los miembros). Ahora tiene dos tipos de reunion:
 
-Ahora: cuando un nodo cambia su config de red o sus servicios, la info
-se comparte automaticamente con todos los peers federados.
+1. Asamblea (todos los miembros con derecho a voto)
+   - Menos frecuentes
+   - Decisiones grandes (constantes, expulsion, grandes cambios)
+   - Quorum: 50% primer llamado, 30% segundo
 
-Migracion 079: tabla federation_node_info
-- Guarda la info de red de cada nodo federado conocido
-- Dominio, nombre, IP publica, IPv6 ULA, WireGuard, servicios
-- Se actualiza automaticamente cuando un peer envia su info
+2. Junta Directiva (solo miembros de la junta)
+   - Mas frecuentes
+   - Decisiones operativas (presupuesto, nombramientos, decisiones del dia)
+   - Quorum: 50% primer llamado, 30% segundo (configurable)
+   - Solo pueden votar miembros activos de la junta directiva
 
-Backend (net_sync.go - nuevo):
-- GET /api/federation/net-info: mi info de red (para que otros nodos la lean)
-- POST /api/federation/net-info/update: recibo info de un peer y la guardo
-- GET /api/federation/peers-info: lista info de red de todos los peers
-- pushNetInfoToPeers(): envia mi info a todos los peers en background
-- pullNetInfoFromPeers(): consulta info de todos los peers
+Migracion 080:
+- ALTER TABLE assembly_sessions ADD meeting_type ('assembly' o 'board')
+- ALTER TABLE assembly_quorum_config ADD meeting_type
+- UNIQUE actualizado para incluir meeting_type
+- Defaults de quorum para junta directiva (ordinaria, extraordinaria, urgente)
+- Tipos de propuestas para junta: board_operative, board_budget, board_appointment
 
-Push automatico:
-- Cuando cambio mi config de red (updateConfig) -> push a peers
-- Cuando registro un servicio nuevo -> push a peers
-- El push es async (goroutine) para no bloquear la respuesta
+Backend (assembly.go):
+- listSessions: filtra por meeting_type (param ?meeting_type=board)
+- createSession: acepta meeting_type en el request
+- voteProposal: si meeting_type=board, solo miembros de la junta pueden votar
+- verifyQuorum: calcula total de votantes segun meeting_type
+  - board: COUNT(assembly_board_members WHERE is_active)
+  - assembly: COUNT(users con has_vote y counts_in_quorum)
+- getQuorumConfig: devuelve meeting_type en cada config
+- updateQuorumConfig: acepta ?meeting_type=board en la URL
+- rescheduleSession: usa meeting_type en la consulta de quorum
+- Notificaciones: junta directiva notifica solo a miembros de la junta
 
-Que se comparte automaticamente:
-- Dominio del nodo
-- Nombre del nodo
-- Dominio/IP publica
-- IPv6 ULA (intranet)
-- Endpoint WireGuard (direccion:puerto)
-- Clave publica WireGuard
-- Puerto WireGuard
-- Modo de red (internet, intranet, both)
-- Lista de servicios levantados (nombre, URL, descripcion)
+Frontend (Assembly.tsx):
+- Toggle "Asamblea" vs "Junta Directiva" en la pestana de sesiones
+- Los textos cambian segun el tipo (proximas asambleas / proximas juntas)
+- Al crear sesion, envia meeting_type
+- Info box explicando que la junta directiva es para decisiones operativas
+  y que solo votan miembros de la junta
 
-Frontend (Federation.tsx):
-- Nuevo tab "Nodos Federados" (4to tab)
-- Muestra la info de red de cada nodo federado
-- Muestra los servicios que tiene levantados cada nodo
-- Boton "Sincronizar ahora" para forzar la sincronizacion
-- Explica que la info se sincroniza automaticamente
-- No hay que compartir nada manualmente
+Nota: Las organizaciones ya tenian meeting_type desde la migracion 070.
+Esta migracion lo agrega a la Asamblea General del nodo.
+
+Las organizaciones creadas por la Asamblea siguen compartiendo la misma
+Asamblea General del nodo (no tienen su propia asamblea), pero tienen
+su propia Junta Directiva (ya implementado en scoped_assembly.go).
 
 Generated with [Devin](https://devin.ai)
 
