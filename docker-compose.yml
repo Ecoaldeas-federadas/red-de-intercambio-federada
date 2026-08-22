@@ -16,6 +16,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       - yugabytedb
+      - yugabytedb2
     environment:
       - DB_HOST=yugabytedb
       - DB_PASSWORD=${DB_PASSWORD:-fmcpassword}
@@ -36,10 +37,14 @@ services:
     volumes:
       - firmware_builds:/build-output
 
+  # Nodo 1 de YugabyteDB (master + tserver)
+  # El limite de tabletas es ~534 por tserver.
+  # Con 2 tservers el limite sube a ~1068.
+  # Para produccion, agregar mas nodos en servidores separados.
   yugabytedb:
     image: yugabytedb/yugabyte:latest
     hostname: yugabytedb
-    command: ["bin/yugabyted", "start", "--base_dir=/mnt/master", "--daemon=false", "--master_flags=enforce_tablet_replica_limits=false", "--tserver_flags=enforce_tablet_replica_limits=false"]
+    command: ["bin/yugabyted", "start", "--base_dir=/mnt/master", "--daemon=false", "--listen_ip=0.0.0.0"]
     ports:
       - "5433:5433"
       - "7000:7000"
@@ -51,6 +56,29 @@ services:
     environment:
       - YUGABYTE_DB_USER=fmc
       - YUGABYTE_DB_PASSWORD=fmcpassword
+    restart: unless-stopped
+
+  # Nodo 2 de YugabyteDB (tserver adicional)
+  # Agrega capacidad de tabletas al cluster (~534 mas).
+  # Se une al nodo 1 via --join.
+  # Para desarrollo: corre en el mismo computador con puertos diferentes.
+  # Para produccion: mover a un servidor separado con mas RAM/CPU.
+  yugabytedb2:
+    image: yugabytedb/yugabyte:latest
+    hostname: yugabytedb2
+    command: ["bin/yugabyted", "start", "--base_dir=/mnt/master", "--daemon=false", "--join=yugabytedb", "--listen_ip=0.0.0.0"]
+    ports:
+      - "5434:5433"
+      - "7001:7000"
+      - "9001:9000"
+    volumes:
+      - yb_data2:/mnt/master
+      - yb_tserver2:/mnt/tserver
+    environment:
+      - YUGABYTE_DB_USER=fmc
+      - YUGABYTE_DB_PASSWORD=fmcpassword
+    depends_on:
+      - yugabytedb
     restart: unless-stopped
 
   # Backup automatico de la base de datos
@@ -257,6 +285,8 @@ services:
 volumes:
   yb_data:
   yb_tserver:
+  yb_data2:
+  yb_tserver2:
   db_backups:
   firmware_builds:
   uploads:

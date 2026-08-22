@@ -27,6 +27,7 @@
 23. [Notificaciones](notifications.md) - Sistema unificado, pasarelas federadas (Matrix, Telegram, XMPP), preferencias, scope por usuario
 24. [Plan: Servicios de Organizaciones](PLAN_SERVICIOS_ORGANIZACIONES.md) - Plan de impuestos por nivel, servicios, organizaciones de la Asamblea
 25. [Gobernanza Federada](federation_governance.md) - Constantes federadas, propuestas, votacion entre nodos, consenso, canasta basica compartida
+26. [Escalar YugabyteDB](scaling_yugabytedb.md) - Limite de tabletas, agregar nodos, colocation, configuracion de cluster
 
 ## Estado de Implementacion
 

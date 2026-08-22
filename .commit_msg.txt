@@ -1,28 +1,34 @@
-fix: separar datos de federacion por Internet vs Intranet (OpenWrt)
+feat: escalar YugabyteDB con segundo nodo + documentacion
 
-OpenWrt no es para dar Internet a la aldea. Es para crear un Internet
-paralelo (intranet) entre aldeas que no depende del Internet publico.
+En vez de desactivar el limite de tabletas (workaround inseguro),
+se agrega un segundo nodo YugabyteDB al docker-compose.
 
-La pestaña "Mis Datos para Compartir" ahora separa claramente:
+Cambios:
+- docker-compose.yml: agregado yugabytedb2 (segundo tserver)
+  - Se une al nodo 1 via --join=yugabytedb
+  - Puertos: 5434, 7001, 9001
+  - Duplica el limite de tabletas (~534 -> ~1068)
+  - Removido enforce_tablet_replica_limits=false (ya no necesario)
+  - node-app ahora depende de ambos nodos
+  - Volumenes nuevos: yb_data2, yb_tserver2
 
-1. Datos para federacion por Internet (siempre disponibles, sin OpenWrt):
-   - Dominio del nodo
-   - No necesita IPv6 ULA, WireGuard ni OpenWrt
+- docs/scaling_yugabytedb.md: documentacion completa
+  - Explicacion del limite de tabletas
+  - Como agregar mas nodos (desarrollo y produccion)
+  - Colocation como optimizacion
+  - Tabla de limites por numero de nodos
+  - Comandos para verificar estado del cluster
+  - Por que NO desactivar el limite
 
-2. Datos para federacion por Intranet (requiere OpenWrt):
-   - IPv6 ULA
-   - Endpoint WireGuard
-   - Clave publica WireGuard
-   - Puerto WireGuard
-   - Solo aplican si se usa OpenWrt para crear la intranet privada
+- docs/INDEX.md: agregada entrada 26
 
-Si no hay OpenWrt configurado, la seccion de intranet muestra un mensaje
-explicando que esos datos no aplican para federacion por Internet.
+Para aplicar:
+1. git pull
+2. docker compose down
+3. docker compose up -d (levanta ambos nodos YugabyteDB)
+4. docker compose up -d --build node-app
 
-Documentacion (federation.md) actualizada con:
-- Explicacion de los dos modos (Internet vs Intranet)
-- Tabla de que datos compartir en cada modo
-- Aclaracion de que IPv6 ULA y WireGuard solo aplican para intranet
+Para produccion: minimo 3 nodos en servidores separados.
 
 Generated with [Devin](https://devin.ai)
 
