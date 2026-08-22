@@ -1,37 +1,51 @@
-fix: servicios federados no cargaban (res.data undefined)
+feat: reclasificar decisiones operativas a Junta Directiva + quorum de junta
 
-Bug: la pagina /app/services mostraba "No se encontraron servicios" y
-el error en consola era:
-  TypeError: Cannot read properties of undefined (reading 'services')
+Antes todas las decisiones eran por Asamblea. Ahora se separan:
 
-Causa: el frontend usaba `res.data.services` pero api.get() devuelve
-directamente el JSON parseado (no hay .data). El backend devuelve
-{"services": [...]}, asi que deberia ser `res.services`.
+DECISIONES OPERATIVAS (Junta Directiva, mayoria simple 50%):
+- create_account: creacion de cuentas
+- limit_change: cambios de limites de credito/debito
+- product_modification: modificacion de productos
+- fund_distribution: distribucion del fondo
+- budget_increase: aumento de presupuesto
 
-Lo mismo pasaba con todas las llamadas de VoIP (res.data.message,
-res.data.gateways, res.data.extensions, etc.) y los catch blocks
-que usaban e.response?.data?.error (axios-style) cuando el wrapper
-apiFetch lanza new Error(err.error) que se captura como e.message.
+DECISIONES GRANDES (Asamblea, siguen igual):
+- admission: admision de miembros (50%)
+- expulsion: expulsion de miembro (75%)
+- energy_rate_change: cambio de tarifa energetica (66.67%)
+- federation_config: configuracion de federacion (66.67%)
+- tax_change: cambios de impuestos (66.67%)
+- member_level: niveles de miembro (50%)
+- org_level: niveles de organizacion (50%)
+- policy: politicas generales (50%)
+- governance_rule: reglas de gobernanza (50%)
+- free_proposal: propuesta libre (50%)
+- recovery_config: configuracion de recuperacion (multisig 100%)
 
-Arreglado en FederatedServices.tsx:
-- loadServices: res.data.services -> res?.services
-- installService: res.data.success -> res.success
-- downloadService: res.data.docker_compose -> res.docker_compose
-- loadPSTNGateways: res.data.gateways -> res?.gateways
-- loadBalance: res.data -> res
-- loadCDR: res.data.calls -> res?.calls
-- autoConfigureRoutes: res.data.message -> res.message
-- createPSTNGateway: res.data.message -> res.message
-- rechargeVoIP: res.data.message -> res.message
-- loadConfig: res.data -> res
-- loadExtensions: res.data.extensions -> res?.extensions
-- loadRoutes: res.data.routes -> res?.routes
-- generateCode: res.data.message -> res.message
-- createExt: res.data.message -> res.message
-- createRoute: res.data.message -> res.message
-- Todos los catch: e.response?.data?.error -> e.message
+Backend (assembly.go):
+- El metodo "board" ahora usa required_percentage y required_quorum
+  de assembly_config (antes caia en default y solo hacia votesFor > votesAgainst)
+- totalVotingMembers para board = COUNT(assembly_board_members WHERE is_active)
+- El porcentaje se calcula sobre los votos de la junta, no de todos los miembros
 
-Ahora los 20+ servicios del catalogo deberian cargar correctamente.
+Migracion 082:
+- UPDATE assembly_config para reclasificar las 5 decisiones operativas
+- INSERT de defaults de quorum para junta directiva:
+  - ordinaria: 50% / 30%, gracia 0h, 1 rellamado
+  - extraordinaria: 50% / 30%, gracia 0h, 1 rellamado
+  - urgente: 40% / 25%, gracia 0h, 0 rellamados
+
+Frontend (Assembly.tsx):
+- Configuracion ahora muestra dos secciones de quorum:
+  1. Quorum de Asamblea (morado)
+  2. Quorum de Junta Directiva (morado, con etiqueta "Junta Directiva")
+- QuorumConfigCard muestra etiqueta "Junta Directiva" si meeting_type=board
+- updateQuorumConfig acepta meetingType para guardar en el endpoint correcto
+- Nota: "cambiar el quorum de la junta directiva es decision de la Asamblea"
+
+La logica es: la Asamblea decide quien aprueba que (board vs assembly),
+y la Asamblea decide los parametros del quorum de la junta. La junta
+no se autoregula.
 
 Generated with [Devin](https://devin.ai)
 

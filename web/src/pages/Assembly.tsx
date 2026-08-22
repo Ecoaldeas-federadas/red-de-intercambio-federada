@@ -590,9 +590,10 @@ export default function Assembly() {
     }
   }
 
-  const updateQuorumConfig = async (sessionType: string, data: any) => {
+  const updateQuorumConfig = async (sessionType: string, data: any, meetingType?: string) => {
     try {
-      await api.put(`/assembly/quorum-config/${sessionType}`, data)
+      const mt = meetingType || 'assembly'
+      await api.put(`/assembly/quorum-config/${sessionType}?meeting_type=${mt}`, data)
       loadQuorumConfigs()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al actualizar quorum')
@@ -1853,7 +1854,7 @@ export default function Assembly() {
         <div className="space-y-4">
           <h2 className="font-semibold flex items-center gap-2"><Shield size={18} />Configuracion de Asamblea</h2>
 
-          {/* ===== Configuracion de quorum ===== */}
+          {/* ===== Configuracion de quorum - Asamblea ===== */}
           <div className="card bg-purple-50 border-purple-200 text-sm text-gray-700 space-y-2">
             <p><strong>Quorum de Asamblea - Ayuda</strong></p>
             <p>El quorum es el porcentaje minimo de miembros con derecho a voto que deben estar presentes para que la asamblea sea valida.</p>
@@ -1870,8 +1871,26 @@ export default function Assembly() {
             <button onClick={loadQuorumConfigs} className="btn-primary">Cargar configuracion de quorum</button>
           ) : (
             <div className="space-y-3">
-              {quorumConfigs.map((qc: any) => (
+              {quorumConfigs.filter((qc: any) => qc.meeting_type !== 'board').map((qc: any) => (
                 <QuorumConfigCard key={qc.id} config={qc} onSave={updateQuorumConfig} />
+              ))}
+            </div>
+          )}
+
+          {/* ===== Configuracion de quorum - Junta Directiva ===== */}
+          <div className="card bg-purple-50 border-purple-200 text-sm text-gray-700 space-y-2 mt-6">
+            <p><strong>Quorum de Junta Directiva - Ayuda</strong></p>
+            <p>El quorum de la junta directiva es el porcentaje minimo de miembros de la junta que deben estar presentes para que la reunion sea valida.</p>
+            <p>Como la junta tiene menos miembros (ej: 5-7), el quorum es sobre ese numero, no sobre todos los miembros del nodo.</p>
+            <p className="text-xs text-purple-600 mt-1"><strong>Importante:</strong> cambiar el quorum de la junta directiva es una decision de la Asamblea, no de la junta.</p>
+          </div>
+
+          {quorumConfigs.length === 0 ? (
+            <button onClick={loadQuorumConfigs} className="btn-primary">Cargar configuracion de quorum</button>
+          ) : (
+            <div className="space-y-3">
+              {quorumConfigs.filter((qc: any) => qc.meeting_type === 'board').map((qc: any) => (
+                <QuorumConfigCard key={qc.id} config={qc} onSave={(st: string, data: any) => updateQuorumConfig(st, data, 'board')} />
               ))}
             </div>
           )}
@@ -2230,11 +2249,16 @@ function QuorumConfigCard({ config, onSave }: { config: any; onSave: (sessionTyp
     urgente: 'Asamblea Urgente',
   }
 
+  const isBoard = config.meeting_type === 'board'
+  const prefix = isBoard ? 'Junta ' : 'Asamblea '
+  const label = (sessionTypeLabel[config.session_type] || config.session_type).replace('Asamblea ', prefix)
+
   return (
-    <div className="card">
+    <div className={`card ${isBoard ? 'border-purple-200' : ''}`}>
       <div className="flex items-center justify-between">
         <div>
-          <b className="text-sm">{sessionTypeLabel[config.session_type] || config.session_type}</b>
+          <b className="text-sm">{label}</b>
+          {isBoard && <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Junta Directiva</span>}
           <div className="flex gap-4 mt-1 text-xs text-gray-600">
             <span>1er llamado: <b>{config.quorum_first_call}%</b></span>
             <span>2do llamado: <b>{config.quorum_second_call}%</b></span>

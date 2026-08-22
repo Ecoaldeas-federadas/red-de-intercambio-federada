@@ -767,6 +767,22 @@ func (h *AssemblyHandler) executeProposal(w http.ResponseWriter, r *http.Request
 			}
 
 			approved = quorumMet && percentage >= requiredPercentage
+		case "board":
+			// Junta directiva: solo miembros activos de la junta
+			h.Pool.QueryRow(r.Context(), `SELECT COUNT(*) FROM assembly_board_members WHERE is_active = true`).Scan(&totalVotingMembers)
+
+			totalVotes := votesFor + votesAgainst
+			quorumMet := true
+			if requiredQuorum > 0 {
+				quorumMet = totalVotes >= requiredQuorum
+			}
+
+			percentage := 0.0
+			if totalVotes > 0 {
+				percentage = (float64(votesFor) / float64(totalVotes)) * 100
+			}
+
+			approved = quorumMet && percentage >= requiredPercentage
 		case "multisig":
 			// Contar firmas en collected_signatures
 			var signatures []interface{}
@@ -776,7 +792,7 @@ func (h *AssemblyHandler) executeProposal(w http.ResponseWriter, r *http.Request
 			sigCount := len(signatures)
 			approved = sigCount >= requiredSignatures
 		default:
-			// board, council u otros: criterio por defecto
+			// council u otros: criterio por defecto
 			approved = votesFor > votesAgainst
 		}
 	} else {
