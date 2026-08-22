@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { Video, MessageCircle, Image as ImageIcon, Users, MessageSquare, BookOpen, PenTool, Calendar, Phone, Mic, Cloud, FileText, BookMarked, Globe, Film, Music, GitBranch, GraduationCap, Home, Lock, Download, Play, Square, Trash2, RefreshCw, Search, Server, AlertTriangle, CheckCircle, XCircle, Loader, Phone as PhoneIcon } from 'lucide-react'
 
@@ -82,8 +82,8 @@ export default function FederatedServices() {
   const loadServices = async () => {
     setLoading(true)
     try {
-      const res = await api.get('/services/catalog')
-      setServices(res.data.services || [])
+      const res: any = await api.get('/services/catalog')
+      setServices(res?.services || [])
     } catch (e) {
       console.error(e)
     } finally {
@@ -104,15 +104,15 @@ export default function FederatedServices() {
     setInstalling(true)
     setMsg(null)
     try {
-      const res = await api.post(`/services/${svc.id}/install`, {})
-      if (res.data.success) {
-        setMsg({ type: 'success', text: res.data.message })
+      const res: any = await api.post(`/services/${svc.id}/install`, {})
+      if (res.success) {
+        setMsg({ type: 'success', text: res.message })
       } else {
-        setMsg({ type: 'info', text: res.data.message })
+        setMsg({ type: 'info', text: res.message })
       }
       await loadServices()
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.response?.data?.error || 'Error al instalar' })
+      setMsg({ type: 'error', text: 'Error al instalar' })
     } finally {
       setInstalling(false)
     }
@@ -125,7 +125,7 @@ export default function FederatedServices() {
       setMsg({ type: 'success', text: `${svc.name} desinstalado` })
       await loadServices()
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.response?.data?.error || 'Error al desinstalar' })
+      setMsg({ type: 'error', text: 'Error al desinstalar' })
     }
   }
 
@@ -135,7 +135,7 @@ export default function FederatedServices() {
       setMsg({ type: 'success', text: `${svc.name} iniciado` })
       await loadServices()
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.response?.data?.error || 'Error al iniciar' })
+      setMsg({ type: 'error', text: 'Error al iniciar' })
     }
   }
 
@@ -145,14 +145,14 @@ export default function FederatedServices() {
       setMsg({ type: 'success', text: `${svc.name} detenido` })
       await loadServices()
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.response?.data?.error || 'Error al detener' })
+      setMsg({ type: 'error', text: 'Error al detener' })
     }
   }
 
   const downloadService = async (svc: ServiceItem) => {
     try {
-      const res = await api.get(`/services/${svc.id}/download`)
-      const content = `# docker-compose.yml\n${res.data.docker_compose}\n\n---\n# README.md\n${res.data.readme}`
+      const res: any = await api.get(`/services/${svc.id}/download`)
+      const content = `# docker-compose.yml\n${res.docker_compose}\n\n---\n# README.md\n${res.readme}`
       const blob = new Blob([content], { type: 'text/plain' })
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -162,7 +162,7 @@ export default function FederatedServices() {
       window.URL.revokeObjectURL(url)
       setMsg({ type: 'success', text: `Descarga de ${svc.name} generada` })
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.response?.data?.error || 'Error al descargar' })
+      setMsg({ type: 'error', text: 'Error al descargar' })
     }
   }
 
@@ -426,32 +426,32 @@ function VoIPPanel() {
 
   const loadPSTNGateways = async () => {
     try {
-      const res = await api.get('/voip/pstn-gateways')
-      setPstnGateways(res.data.gateways || [])
+      const res: any = await api.get('/voip/pstn-gateways')
+      setPstnGateways(res?.gateways || [])
     } catch (e) { console.error(e) }
   }
 
   const loadBalance = async () => {
     try {
-      const res = await api.get('/voip/balance')
-      setBalance(res.data)
+      const res: any = await api.get('/voip/balance')
+      setBalance(res)
     } catch (e) { console.error(e) }
   }
 
   const loadCDR = async () => {
     try {
-      const res = await api.get('/voip/cdr')
-      setCdr(res.data.calls || [])
+      const res: any = await api.get('/voip/cdr')
+      setCdr(res?.calls || [])
     } catch (e) { console.error(e) }
   }
 
   const autoConfigureRoutes = async () => {
     try {
-      const res = await api.post('/voip/auto-configure-routes', {})
-      setMsg({ type: 'success', text: res.data.message })
+      const res: any = await api.post('/voip/auto-configure-routes', {})
+      setMsg({ type: 'success', text: res.message })
       await loadRoutes()
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.response?.data?.error || 'Error' })
+      setMsg({ type: 'error', text: e.message || 'Error' })
     }
   }
 
@@ -461,12 +461,12 @@ function VoIPPanel() {
       return
     }
     try {
-      const res = await api.post('/voip/pstn-gateways', newGateway)
-      setMsg({ type: 'success', text: res.data.message })
+      const res: any = await api.post('/voip/pstn-gateways', newGateway)
+      setMsg({ type: 'success', text: res.message })
       setNewGateway({ name: '', provider: '', sip_server: '', sip_username: '', sip_password: '', inbound_number: '', cost_per_minute: 0, max_concurrent_calls: 2 })
       await loadPSTNGateways()
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.response?.data?.error || 'Error' })
+      setMsg({ type: 'error', text: e.message || 'Error' })
     }
   }
 
@@ -476,49 +476,49 @@ function VoIPPanel() {
       await api.delete(`/voip/pstn-gateways/${id}`)
       await loadPSTNGateways()
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.response?.data?.error || 'Error' })
+      setMsg({ type: 'error', text: 'Error' })
     }
   }
 
   const rechargeVoIP = async () => {
     if (rechargeAmount <= 0) { setMsg({ type: 'error', text: 'Monto debe ser positivo' }); return }
     try {
-      const res = await api.post('/voip/recharge', { amount: rechargeAmount, payment_method: rechargeMethod, reference: rechargeRef })
-      setMsg({ type: 'success', text: res.data.message })
+      const res: any = await api.post('/voip/recharge', { amount: rechargeAmount, payment_method: rechargeMethod, reference: rechargeRef })
+      setMsg({ type: 'success', text: res.message })
       setRechargeAmount(0); setRechargeRef('')
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.response?.data?.error || 'Error' })
+      setMsg({ type: 'error', text: e.message || 'Error' })
     }
   }
 
   const loadConfig = async () => {
     try {
-      const res = await api.get('/voip/config')
-      setConfig(res.data)
+      const res: any = await api.get('/voip/config')
+      setConfig(res)
     } catch (e) { console.error(e) }
   }
 
   const loadExtensions = async () => {
     try {
-      const res = await api.get('/voip/extensions')
-      setExtensions(res.data.extensions || [])
+      const res: any = await api.get('/voip/extensions')
+      setExtensions(res?.extensions || [])
     } catch (e) { console.error(e) }
   }
 
   const loadRoutes = async () => {
     try {
-      const res = await api.get('/voip/routes')
-      setRoutes(res.data.routes || [])
+      const res: any = await api.get('/voip/routes')
+      setRoutes(res?.routes || [])
     } catch (e) { console.error(e) }
   }
 
   const generateCode = async () => {
     try {
-      const res = await api.post('/voip/generate-code', {})
-      setMsg({ type: 'success', text: res.data.message })
+      const res: any = await api.post('/voip/generate-code', {})
+      setMsg({ type: 'success', text: res.message })
       await loadConfig()
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.response?.data?.error || 'Error' })
+      setMsg({ type: 'error', text: e.message || 'Error' })
     }
   }
 
@@ -528,19 +528,19 @@ function VoIPPanel() {
       await api.put('/voip/config', config)
       setMsg({ type: 'success', text: 'Configuracion VoIP guardada' })
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.response?.data?.error || 'Error' })
+      setMsg({ type: 'error', text: 'Error' })
     }
   }
 
   const createExt = async () => {
     if (!newExt.extension) { setMsg({ type: 'error', text: 'Extension obligatoria' }); return }
     try {
-      const res = await api.post('/voip/extensions', newExt)
-      setMsg({ type: 'success', text: res.data.message })
+      const res: any = await api.post('/voip/extensions', newExt)
+      setMsg({ type: 'success', text: res.message })
       setNewExt({ extension: '', display_name: '', password: '' })
       await loadExtensions()
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.response?.data?.error || 'Error' })
+      setMsg({ type: 'error', text: e.message || 'Error' })
     }
   }
 
@@ -550,19 +550,19 @@ function VoIPPanel() {
       await api.delete(`/voip/extensions/${ext}`)
       await loadExtensions()
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.response?.data?.error || 'Error' })
+      setMsg({ type: 'error', text: e.message || 'Error' })
     }
   }
 
   const createRoute = async () => {
     if (!newRoute.remote_village_code) { setMsg({ type: 'error', text: 'Codigo de aldea remota obligatorio' }); return }
     try {
-      const res = await api.post('/voip/routes', newRoute)
-      setMsg({ type: 'success', text: res.data.message })
+      const res: any = await api.post('/voip/routes', newRoute)
+      setMsg({ type: 'success', text: res.message })
       setNewRoute({ remote_village_code: 0, remote_village_name: '', remote_endpoint: '', remote_domain: '' })
       await loadRoutes()
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.response?.data?.error || 'Error' })
+      setMsg({ type: 'error', text: 'Error' })
     }
   }
 
@@ -572,7 +572,7 @@ function VoIPPanel() {
       await api.delete(`/voip/routes/${code}`)
       await loadRoutes()
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.response?.data?.error || 'Error' })
+      setMsg({ type: 'error', text: 'Error' })
     }
   }
 

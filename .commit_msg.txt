@@ -1,40 +1,37 @@
-fix: error al guardar FC desde canasta basica + calculadora de precios
+fix: servicios federados no cargaban (res.data undefined)
 
-Bug: al guardar el FC calculado desde canasta basica, el INSERT fallaba con:
-  null value in column "internal_cost" of relation "conversion_factor"
-  violates not-null constraint (SQLSTATE 23502)
+Bug: la pagina /app/services mostraba "No se encontraron servicios" y
+el error en consola era:
+  TypeError: Cannot read properties of undefined (reading 'services')
 
-Causa: la tabla conversion_factor tenia internal_cost y external_price_usd
-como NOT NULL (esquema original de 001), pero el metodo StoreFCFromBasket
-no los usa (usa basket_cost_external y basket_cost_local_tq).
+Causa: el frontend usaba `res.data.services` pero api.get() devuelve
+directamente el JSON parseado (no hay .data). El backend devuelve
+{"services": [...]}, asi que deberia ser `res.services`.
 
-Fix: migracion 081 hace nullable internal_cost y external_price_usd.
-Las columnas basket_cost_external y basket_cost_local_tq ya existian
-desde la migracion 075.
+Lo mismo pasaba con todas las llamadas de VoIP (res.data.message,
+res.data.gateways, res.data.extensions, etc.) y los catch blocks
+que usaban e.response?.data?.error (axios-style) cuando el wrapper
+apiFetch lanza new Error(err.error) que se captura como e.message.
 
-Mejoras:
+Arreglado en FederatedServices.tsx:
+- loadServices: res.data.services -> res?.services
+- installService: res.data.success -> res.success
+- downloadService: res.data.docker_compose -> res.docker_compose
+- loadPSTNGateways: res.data.gateways -> res?.gateways
+- loadBalance: res.data -> res
+- loadCDR: res.data.calls -> res?.calls
+- autoConfigureRoutes: res.data.message -> res.message
+- createPSTNGateway: res.data.message -> res.message
+- rechargeVoIP: res.data.message -> res.message
+- loadConfig: res.data -> res
+- loadExtensions: res.data.extensions -> res?.extensions
+- loadRoutes: res.data.routes -> res?.routes
+- generateCode: res.data.message -> res.message
+- createExt: res.data.message -> res.message
+- createRoute: res.data.message -> res.message
+- Todos los catch: e.response?.data?.error -> e.message
 
-1. Calculadora de Precios Externos (nueva sub-pestana):
-   - Tabla con todos los productos del nodo
-   - Muestra precio en TQ y precio equivalente en moneda externa
-   - Usa el FC actual para convertir: precio externo = precio TQ / FC
-   - Buscador por nombre de producto
-   - Es informativo: ayuda a comparar si el FC esta bien calibrado
-   - Si los precios externos calculados estan cerca de los reales,
-     el FC esta bien. Si estan muy diferentes, hay que recalcular.
-
-2. Sub-pestanas en Comercio Externo:
-   - Operaciones (antes era todo en una pagina)
-   - Factor de Conversion
-   - Calculadora de Precios
-
-3. Nota sobre quien puede actualizar el FC:
-   - Explica que lo decide la Asamblea
-   - Puede ser: administrador, junta directiva, persona autorizada,
-     o solo por votacion de asamblea
-   - En paises inestables: asignar una persona que actualice frecuentemente
-   - En paises estables: decidir por asamblea
-   - El permiso external.store_fc ya existe en el sistema
+Ahora los 20+ servicios del catalogo deberian cargar correctamente.
 
 Generated with [Devin](https://devin.ai)
 
