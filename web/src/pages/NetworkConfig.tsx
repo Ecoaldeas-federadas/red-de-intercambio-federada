@@ -46,10 +46,11 @@ export default function NetworkConfig() {
   const [config, setConfig] = useState<NetworkConfigData | null>(null)
   const [peers, setPeers] = useState<IntranetPeer[]>([])
   const [services, setServices] = useState<NetworkService[]>([])
+  const [myInfo, setMyInfo] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null)
-  const [subTab, setSubTab] = useState<'general' | 'peers' | 'services' | 'installer'>('general')
+  const [subTab, setSubTab] = useState<'general' | 'peers' | 'services' | 'installer' | 'myinfo'>('general')
 
   // Formularios
   const [newPeer, setNewPeer] = useState({ peer_domain: '', peer_name: '', peer_ipv6_ula: '', peer_endpoint: '', peer_public_key: '', notes: '' })
@@ -63,37 +64,66 @@ export default function NetworkConfig() {
   const loadAll = async () => {
     setLoading(true)
     try {
-      await Promise.all([loadStatus(), loadConfig(), loadPeers(), loadServices()])
+      await Promise.all([loadStatus(), loadConfig(), loadPeers(), loadServices(), loadMyInfo()])
     } finally {
       setLoading(false)
     }
   }
 
+  const loadMyInfo = async () => {
+    try {
+      const res = await api.get('/network/my-info')
+      setMyInfo(res)
+    } catch (e) { console.error(e) }
+  }
+
+  const generateWGKeys = async () => {
+    setSaving(true)
+    setMsg(null)
+    try {
+      const res = await api.post('/network/generate-wg-keys', {})
+      setMsg({ type: 'success', text: (res as any).message })
+      await loadMyInfo()
+    } catch (e: any) {
+      setMsg({ type: 'error', text: e.message || 'Error al generar claves' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setMsg({ type: 'success', text: `${label} copiado al portapapeles` })
+    }).catch(() => {
+      setMsg({ type: 'error', text: 'No se pudo copiar' })
+    })
+  }
+
   const loadStatus = async () => {
     try {
-      const res = await api.get('/api/network/status')
-      setStatus(res.data)
+      const res = await api.get('/network/status')
+      setStatus(res)
     } catch (e) { console.error(e) }
   }
 
   const loadConfig = async () => {
     try {
-      const res = await api.get('/api/network/config')
-      setConfig(res.data)
+      const res = await api.get('/network/config')
+      setConfig(res)
     } catch (e) { console.error(e) }
   }
 
   const loadPeers = async () => {
     try {
-      const res = await api.get('/api/network/peers')
-      setPeers(res.data.peers || [])
+      const res = await api.get('/network/peers')
+      setPeers((res as any).peers || [])
     } catch (e) { console.error(e) }
   }
 
   const loadServices = async () => {
     try {
-      const res = await api.get('/api/network/services')
-      setServices(res.data.services || [])
+      const res = await api.get('/network/services')
+      setServices((res as any).services || [])
     } catch (e) { console.error(e) }
   }
 
@@ -102,11 +132,11 @@ export default function NetworkConfig() {
     setSaving(true)
     setMsg(null)
     try {
-      await api.put('/api/network/config', config)
+      await api.put('/network/config', config)
       setMsg({ type: 'success', text: 'Configuracion guardada' })
       await loadStatus()
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.response?.data?.error || 'Error al guardar' })
+      setMsg({ type: 'error', text: e.message || 'Error al guardar' })
     } finally {
       setSaving(false)
     }
@@ -116,12 +146,12 @@ export default function NetworkConfig() {
     setSaving(true)
     setMsg(null)
     try {
-      const res = await api.post('/api/network/ula/generate', {})
-      if (config) setConfig({ ...config, ipv6_ula: res.data.ipv6_ula })
-      setMsg({ type: 'success', text: `Prefijo ULA generado: ${res.data.ipv6_ula}` })
+      const res = await api.post('/network/ula/generate', {})
+      if (config) setConfig({ ...config, ipv6_ula: (res as any).ipv6_ula })
+      setMsg({ type: 'success', text: `Prefijo ULA generado: ${(res as any).ipv6_ula}` })
       await loadStatus()
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.response?.data?.error || 'Error al generar ULA' })
+      setMsg({ type: 'error', text: e.message || 'Error al generar ULA' })
     } finally {
       setSaving(false)
     }
@@ -131,14 +161,14 @@ export default function NetworkConfig() {
     setSaving(true)
     setMsg(null)
     try {
-      const res = await api.post('/api/network/register-openwrt', {})
-      if (res.data.success) {
-        setMsg({ type: 'success', text: res.data.message })
+      const res = await api.post('/network/register-openwrt', {})
+      if ((res as any).success) {
+        setMsg({ type: 'success', text: (res as any).message })
       } else {
-        setMsg({ type: 'info', text: res.data.message + (res.data.manual_config ? ` | ${res.data.manual_config}` : '') })
+        setMsg({ type: 'info', text: (res as any).message + ((res as any).manual_config ? ` | ${(res as any).manual_config}` : '') })
       }
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.response?.data?.error || 'Error al registrar en OpenWrt' })
+      setMsg({ type: 'error', text: e.message || 'Error al registrar en OpenWrt' })
     } finally {
       setSaving(false)
     }
@@ -152,13 +182,13 @@ export default function NetworkConfig() {
     setSaving(true)
     setMsg(null)
     try {
-      await api.post('/api/network/peers', newPeer)
+      await api.post('/network/peers', newPeer)
       setNewPeer({ peer_domain: '', peer_name: '', peer_ipv6_ula: '', peer_endpoint: '', peer_public_key: '', notes: '' })
       setMsg({ type: 'success', text: 'Peer agregado' })
       await loadPeers()
       await loadStatus()
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.response?.data?.error || 'Error al agregar peer' })
+      setMsg({ type: 'error', text: e.message || 'Error al agregar peer' })
     } finally {
       setSaving(false)
     }
@@ -167,12 +197,12 @@ export default function NetworkConfig() {
   const removePeer = async (domain: string) => {
     if (!confirm(`Eliminar peer ${domain}?`)) return
     try {
-      await api.delete(`/api/network/peers/${domain}`)
+      await api.delete(`/network/peers/${domain}`)
       setMsg({ type: 'success', text: 'Peer eliminado' })
       await loadPeers()
       await loadStatus()
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.response?.data?.error || 'Error al eliminar' })
+      setMsg({ type: 'error', text: e.message || 'Error al eliminar' })
     }
   }
 
@@ -184,12 +214,12 @@ export default function NetworkConfig() {
     setSaving(true)
     setMsg(null)
     try {
-      const res = await api.post('/api/network/services', newService)
+      const res = await api.post('/network/services', newService)
       setNewService({ name: '', ipv6_address: '', description: '' })
-      setMsg({ type: res.data.is_registered ? 'success' : 'info', text: res.data.message })
+      setMsg({ type: (res as any).is_registered ? 'success' : 'info', text: (res as any).message })
       await loadServices()
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.response?.data?.error || 'Error al registrar servicio' })
+      setMsg({ type: 'error', text: e.message || 'Error al registrar servicio' })
     } finally {
       setSaving(false)
     }
@@ -198,11 +228,11 @@ export default function NetworkConfig() {
   const removeService = async (name: string) => {
     if (!confirm(`Eliminar servicio ${name}?`)) return
     try {
-      await api.delete(`/api/network/services/${name}`)
+      await api.delete(`/network/services/${name}`)
       setMsg({ type: 'success', text: 'Servicio eliminado' })
       await loadServices()
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.response?.data?.error || 'Error al eliminar' })
+      setMsg({ type: 'error', text: e.message || 'Error al eliminar' })
     }
   }
 
@@ -210,9 +240,9 @@ export default function NetworkConfig() {
     setSaving(true)
     setMsg(null)
     try {
-      const res = await api.post('/api/network/openwrt-image', { for_domain: imageDomain }, { responseType: 'blob' })
+      const res = await api.post('/network/openwrt-image', { for_domain: imageDomain })
       // Descargar archivo
-      const url = window.URL.createObjectURL(new Blob([res.data]))
+      const url = window.URL.createObjectURL(new Blob([res as any]))
       const a = document.createElement('a')
       a.href = url
       a.download = imageDomain ? `openwrt-${imageDomain}.tar.gz` : 'openwrt-config.tar.gz'
@@ -220,18 +250,7 @@ export default function NetworkConfig() {
       window.URL.revokeObjectURL(url)
       setMsg({ type: 'success', text: 'Imagen descargada' })
     } catch (e: any) {
-      // Si la respuesta es JSON (no blob), mostrar el mensaje
-      if (e.response?.data instanceof Blob) {
-        const text = await e.response.data.text()
-        try {
-          const data = JSON.parse(text)
-          setMsg({ type: 'info', text: data.message || 'Configuracion generada (ver datos)' })
-        } catch {
-          setMsg({ type: 'error', text: 'Error al generar imagen' })
-        }
-      } else {
-        setMsg({ type: 'error', text: e.response?.data?.error || 'Error al generar imagen' })
-      }
+      setMsg({ type: 'error', text: e.message || 'Error al generar imagen' })
     } finally {
       setSaving(false)
     }
@@ -289,10 +308,150 @@ export default function NetworkConfig() {
       {/* Sub-tabs */}
       <div className="flex gap-2 flex-wrap">
         <button onClick={() => setSubTab('general')} className={`px-3 py-1.5 rounded-lg text-sm ${subTab === 'general' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>General</button>
+        <button onClick={() => setSubTab('myinfo')} className={`px-3 py-1.5 rounded-lg text-sm ${subTab === 'myinfo' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Mis Datos para Compartir</button>
         <button onClick={() => setSubTab('peers')} className={`px-3 py-1.5 rounded-lg text-sm ${subTab === 'peers' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Aldeas Federadas</button>
         <button onClick={() => setSubTab('services')} className={`px-3 py-1.5 rounded-lg text-sm ${subTab === 'services' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Servicios Locales</button>
         <button onClick={() => setSubTab('installer')} className={`px-3 py-1.5 rounded-lg text-sm ${subTab === 'installer' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Instalador OpenWrt</button>
       </div>
+
+      {/* Mis Datos para Compartir */}
+      {subTab === 'myinfo' && myInfo && (
+        <div className="space-y-4">
+          <div className="card p-4 bg-green-50 border-green-200">
+            <h3 className="font-semibold flex items-center gap-2 mb-2">
+              <CheckCircle size={18} className="text-green-600" /> Mis Datos para Compartir con Otra Aldea
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Estos son los datos de <strong>tu aldea</strong>. Entregaselos al administrador de la otra aldea
+              para que pueda configurarte como aldea federada. Puedes copiar cada dato con el boton de copiar.
+            </p>
+
+            <div className="space-y-3">
+              {/* Dominio publico */}
+              <div className="bg-white p-3 rounded-lg border">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-500 mb-1">Dominio publico de la aldea</div>
+                    <div className="font-mono font-medium text-sm">{myInfo.public_domain || myInfo.node_domain || 'No configurado'}</div>
+                  </div>
+                  {myInfo.public_domain && (
+                    <button onClick={() => copyToClipboard(myInfo.public_domain, 'Dominio')} className="text-blue-600 text-xs">Copiar</button>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Este es el dominio que la otra aldea debe poner en "Dominio de la aldea".
+                  {!myInfo.openwrt_domain && ' Si no tienes OpenWrt, se usa el dominio interno del nodo.'}
+                </p>
+              </div>
+
+              {/* IPv6 ULA */}
+              <div className="bg-white p-3 rounded-lg border">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-500 mb-1">IPv6 ULA de la aldea</div>
+                    <div className="font-mono font-medium text-sm">{myInfo.ipv6_ula || 'No generado'}</div>
+                  </div>
+                  {myInfo.ipv6_ula && (
+                    <button onClick={() => copyToClipboard(myInfo.ipv6_ula, 'IPv6 ULA')} className="text-blue-600 text-xs">Copiar</button>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Prefijo unico de tu aldea. Generalo en la pestana "General" si no lo tienes.
+                </p>
+              </div>
+
+              {/* Endpoint */}
+              <div className="bg-white p-3 rounded-lg border">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-500 mb-1">Endpoint (direccion:puerto)</div>
+                    <div className="font-mono font-medium text-sm">{myInfo.endpoint || 'No configurado'}</div>
+                  </div>
+                  {myInfo.endpoint && (
+                    <button onClick={() => copyToClipboard(myInfo.endpoint, 'Endpoint')} className="text-blue-600 text-xs">Copiar</button>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Direccion y puerto donde la otra aldea debe conectarse por WireGuard.
+                </p>
+              </div>
+
+              {/* Clave publica WireGuard */}
+              <div className="bg-white p-3 rounded-lg border">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-500 mb-1">Clave publica WireGuard</div>
+                    {myInfo.wireguard_public_key ? (
+                      <div className="font-mono font-medium text-sm break-all">{myInfo.wireguard_public_key}</div>
+                    ) : (
+                      <div className="text-amber-600 text-sm">No generada aun</div>
+                    )}
+                  </div>
+                  {myInfo.wireguard_public_key && (
+                    <button onClick={() => copyToClipboard(myInfo.wireguard_public_key, 'Clave publica')} className="text-blue-600 text-xs">Copiar</button>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  La clave publica es lo que la otra aldea necesita para conectarse contigo por WireGuard.
+                  {!myInfo.has_wg_keys && ' Genera las claves con el boton de abajo.'}
+                </p>
+                {!myInfo.has_wg_keys && (
+                  <button onClick={generateWGKeys} disabled={saving} className="mt-2 px-3 py-1.5 bg-trueque-600 text-white rounded-lg text-sm disabled:opacity-50">
+                    {saving ? 'Generando...' : 'Generar claves WireGuard'}
+                  </button>
+                )}
+              </div>
+
+              {/* Puerto WireGuard */}
+              <div className="bg-white p-3 rounded-lg border">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-500 mb-1">Puerto WireGuard</div>
+                    <div className="font-mono font-medium text-sm">{myInfo.wireguard_port}</div>
+                  </div>
+                  <button onClick={() => copyToClipboard(String(myInfo.wireguard_port), 'Puerto')} className="text-blue-600 text-xs">Copiar</button>
+                </div>
+              </div>
+            </div>
+
+            {/* Resumen para copiar todo */}
+            <div className="mt-4 bg-white p-3 rounded-lg border">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-medium">Resumen completo (para enviar)</h4>
+                <button
+                  onClick={() => copyToClipboard(
+                    `Datos de mi aldea para federacion:
+- Dominio: ${myInfo.public_domain || myInfo.node_domain}
+- IPv6 ULA: ${myInfo.ipv6_ula || 'No generado'}
+- Endpoint: ${myInfo.endpoint || 'No configurado'}
+- Clave publica WireGuard: ${myInfo.wireguard_public_key || 'No generada'}
+- Puerto WireGuard: ${myInfo.wireguard_port}`,
+                    'Resumen completo'
+                  )}
+                  className="text-blue-600 text-xs"
+                >
+                  Copiar todo
+                </button>
+              </div>
+              <pre className="text-xs text-gray-600 whitespace-pre-wrap font-mono">{`Dominio: ${myInfo.public_domain || myInfo.node_domain}
+IPv6 ULA: ${myInfo.ipv6_ula || 'No generado'}
+Endpoint: ${myInfo.endpoint || 'No configurado'}
+Clave publica WireGuard: ${myInfo.wireguard_public_key || 'No generada'}
+Puerto WireGuard: ${myInfo.wireguard_port}`}</pre>
+            </div>
+
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg text-xs text-blue-700">
+              <strong>Como federar dos aldeas:</strong>
+              <ol className="list-decimal list-inside mt-1 space-y-1">
+                <li>Cada aldea genera sus claves WireGuard (boton de arriba)</li>
+                <li>Cada aldea copia sus datos y se los envia a la otra</li>
+                <li>En la pestana "Aldeas Federadas", cada una agrega los datos de la otra</li>
+                <li>Las aldeas se conectan automaticamente por WireGuard</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* General */}
       {subTab === 'general' && config && (

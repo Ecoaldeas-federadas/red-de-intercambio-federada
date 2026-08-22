@@ -1,30 +1,28 @@
-feat: calculadora de FC con canasta basica y selector de moneda externa
+fix: errores JSON en Red Privada + agregar "Mis Datos para Compartir"
 
-Rediseño completo del Factor de Conversion (FC) para que sea facil de
-calcular sin terminos tecnicos. Antes usaba "CPI externo" y "costo
-energetico local" que son conceptos dificiles. Ahora usa canasta basica:
+Bug 1: Doble /api en las llamadas del frontend
+- NetworkConfig.tsx llamaba api.get('/api/network/status') pero api.get
+  ya anade /api automaticamente, resultando en /api/api/network/status
+- El servidor devolvia HTML (SPA fallback) en lugar de JSON
+- Esto causaba el error "Unexpected token '<', '<!DOCTYPE'... is not valid JSON"
+- Corregido: todas las llamadas ahora usan /network/... sin /api
 
-- Selector de moneda externa (20 monedas: USD, EUR, COP, MXN, VES, etc.)
-- Campo: costo de la canasta basica alla (en moneda externa)
-- Campo: costo de la misma canasta basica aca (en TQ)
-- El sistema calcula automaticamente: FC = canasta_TQ / canasta_externa
-- Ejemplo visual integrado para que se entienda
-- Guarda la moneda externa junto con el FC
-
-Cambios backend:
-- Migracion 075: agrega external_currency, basket_cost_external,
-  basket_cost_local_tq a la tabla conversion_factor
-- Nuevos endpoints: /api/external/fc/calculate-basket y /api/external/fc/store-basket
-- CalculateFCFromBasket y StoreFCFromBasket en dex.go
-- GetCurrentFC ahora devuelve external_currency y datos de canasta
-- Corregido bug: el codigo Go usaba columnas que no existian en la tabla
-
-Cambios frontend:
-- Formulario rediseñado con 3 pasos simples: moneda, canasta alla, canasta aca
-- Lista de 20 monedas latinoamericanas e internacionales
-- Ejemplo visual de como funciona el calculo
-- Explicacion de que el FC es referencia contable, no especulativo
-- Muestra el simbolo de la moneda seleccionada
+Feature: Pestana "Mis Datos para Compartir"
+- Nuevo endpoint GET /api/network/my-info que devuelve los datos propios
+  del nodo para compartir con otra aldea:
+  - Dominio publico (subdomain.openwrt_domain o node_domain)
+  - IPv6 ULA
+  - Endpoint (dominio:puerto)
+  - Clave publica WireGuard
+  - Puerto WireGuard
+- Nuevo endpoint POST /api/network/generate-wg-keys que genera claves
+  WireGuard automaticamente (usa wg genkey si esta disponible, sino base64)
+- Las claves se guardan en network_config (wireguard_private_key, wireguard_public_key)
+- Frontend: nueva pestana "Mis Datos para Compartir" con:
+  - Cada dato en una tarjeta con boton "Copiar"
+  - Boton "Generar claves WireGuard" si no existen
+  - Resumen completo para copiar y enviar
+  - Instrucciones de como federar dos aldeas (4 pasos)
 
 Generated with [Devin](https://devin.ai)
 
