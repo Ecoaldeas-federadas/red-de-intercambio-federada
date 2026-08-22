@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { Search, Globe, Send, CheckCircle, XCircle, RefreshCw, Trash2, Settings, Users, Server, Mail, ExternalLink, AlertTriangle, Clock, MapPin, FileText, Wifi, WifiOff } from 'lucide-react'
@@ -11,7 +12,13 @@ import { Search, Globe, Send, CheckCircle, XCircle, RefreshCw, Trash2, Settings,
 // El sistema solo muestra info de contacto (pais, ubicacion, gobernanza, web)
 // para que la gente se contacte fisicamente.
 export default function NodeDiscovery() {
-  const [tab, setTab] = useState<'discovered' | 'requests' | 'config'>('discovered')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialTab = (searchParams.get('tab') as 'discovered' | 'requests' | 'config') || 'discovered'
+  const [tab, setTab] = useState<'discovered' | 'requests' | 'config'>(initialTab)
+  const changeTab = (t: 'discovered' | 'requests' | 'config') => {
+    setTab(t)
+    setSearchParams({ tab: t })
+  }
   const [nodes, setNodes] = useState<any[]>([])
   const [federatedNodes, setFederatedNodes] = useState<any[]>([])
   const [inactiveNodes, setInactiveNodes] = useState<any[]>([])
@@ -175,14 +182,14 @@ export default function NodeDiscovery() {
 
       {/* Tabs internos */}
       <div className="flex flex-wrap gap-2 border-b pb-2">
-        <button onClick={() => setTab('discovered')} className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5 ${tab === 'discovered' ? 'bg-trueque-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}>
+        <button onClick={() => changeTab('discovered')} className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5 ${tab === 'discovered' ? 'bg-trueque-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}>
           <Globe size={14} /> Nodos Descubiertos ({nodes.length})
         </button>
-        <button onClick={() => setTab('requests')} className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5 ${tab === 'requests' ? 'bg-trueque-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}>
+        <button onClick={() => changeTab('requests')} className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5 ${tab === 'requests' ? 'bg-trueque-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}>
           <Mail size={14} /> Solicitudes de Contacto
           {incomingRequests.length > 0 && <span className="bg-red-500 text-white text-xs px-1.5 rounded-full">{incomingRequests.length}</span>}
         </button>
-        <button onClick={() => setTab('config')} className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5 ${tab === 'config' ? 'bg-trueque-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}>
+        <button onClick={() => changeTab('config')} className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5 ${tab === 'config' ? 'bg-trueque-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}>
           <Settings size={14} /> Configuracion
         </button>
       </div>

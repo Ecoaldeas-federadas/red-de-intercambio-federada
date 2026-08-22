@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { Bell, Mail, Send, MessageSquare, Globe, Webhook, Save, TestTube, Check, X, Smartphone, BellRing, HelpCircle, ExternalLink } from 'lucide-react'
@@ -187,7 +188,13 @@ const NOTIF_TYPES = [
 export default function NotificationSettings() {
   const { hasPermission } = usePermissions()
   const canManageGateways = hasPermission('config.manage')
-  const [tab, setTab] = useState<'preferences' | 'gateways' | 'contacts'>('preferences')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialTab = (searchParams.get('tab') as 'preferences' | 'gateways' | 'contacts') || 'preferences'
+  const [tab, setTab] = useState<'preferences' | 'gateways' | 'contacts'>(initialTab)
+  const changeTab = (t: 'preferences' | 'gateways' | 'contacts') => {
+    setTab(t)
+    setSearchParams({ tab: t })
+  }
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
@@ -610,20 +617,20 @@ export default function NotificationSettings() {
       {/* Tabs */}
       <div className="flex gap-1 border-b border-gray-200">
         <button
-          onClick={() => setTab('preferences')}
+          onClick={() => changeTab('preferences')}
           className={`px-4 py-2 text-sm font-medium border-b-2 ${tab === 'preferences' ? 'border-trueque-600 text-trueque-600' : 'border-transparent text-gray-500'}`}
         >
           Mis preferencias
         </button>
         <button
-          onClick={() => setTab('contacts')}
+          onClick={() => changeTab('contacts')}
           className={`px-4 py-2 text-sm font-medium border-b-2 ${tab === 'contacts' ? 'border-trueque-600 text-trueque-600' : 'border-transparent text-gray-500'}`}
         >
           Mis contactos
         </button>
         {canManageGateways && (
           <button
-            onClick={() => setTab('gateways')}
+            onClick={() => changeTab('gateways')}
             className={`px-4 py-2 text-sm font-medium border-b-2 ${tab === 'gateways' ? 'border-trueque-600 text-trueque-600' : 'border-transparent text-gray-500'}`}
           >
             Pasarelas (admin)

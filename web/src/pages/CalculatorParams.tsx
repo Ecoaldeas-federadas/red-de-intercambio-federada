@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useConfig } from '../hooks/useConfig'
@@ -10,7 +11,13 @@ export default function CalculatorParams() {
   const canManage = hasPermission('calculator.manage_params')
 
   const [showHelp, setShowHelp] = useState(false)
-  const [tab, setTab] = useState<'work' | 'material'>('work')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialTab = (searchParams.get('tab') as 'work' | 'material') || 'work'
+  const [tab, setTab] = useState<'work' | 'material'>(initialTab)
+  const changeTab = (t: 'work' | 'material') => {
+    setTab(t)
+    setSearchParams({ tab: t })
+  }
   const [params, setParams] = useState<any[]>([])
   const [categories, setCategories] = useState<any[]>([])
   const [search, setSearch] = useState('')
@@ -157,8 +164,8 @@ export default function CalculatorParams() {
       {success && <div className="text-green-600 text-sm bg-green-50 p-3 rounded-lg">{success}</div>}
 
       <div className="flex gap-2 flex-wrap">
-        <button onClick={() => setTab('work')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'work' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Tipos de Trabajo</button>
-        <button onClick={() => setTab('material')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'material' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Insumos/Materiales</button>
+        <button onClick={() => changeTab('work')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'work' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Tipos de Trabajo</button>
+        <button onClick={() => changeTab('material')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'material' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Insumos/Materiales</button>
       </div>
 
       <div className="flex gap-2 flex-wrap items-end">

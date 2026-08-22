@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { QrCode, Nfc, Send, ScanLine, Copy, Check, Camera, Upload, X, HelpCircle, Download, Share2 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
@@ -25,7 +26,13 @@ interface ParseQRResponse {
 }
 
 export default function Payments() {
-  const [tab, setTab] = useState<'qr' | 'nfc' | 'manual'>('qr')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialTab = (searchParams.get('tab') as 'qr' | 'nfc' | 'manual') || 'qr'
+  const [tab, setTab] = useState<'qr' | 'nfc' | 'manual'>(initialTab)
+  const changeTab = (t: 'qr' | 'nfc' | 'manual') => {
+    setTab(t)
+    setSearchParams({ tab: t })
+  }
   const [error, setError] = useState('')
 
   // QR Generate state
@@ -300,7 +307,7 @@ export default function Payments() {
 
       <div className="flex gap-2">
         {([['qr', 'QR'], ['nfc', 'NFC'], ['manual', 'Manual']] as const).map(([key, label]) => (
-          <button key={key} onClick={() => setTab(key)} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === key ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{label}</button>
+          <button key={key} onClick={() => changeTab(key)} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === key ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{label}</button>
         ))}
       </div>
       {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</div>}

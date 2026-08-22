@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { Plus, Check, X, HelpCircle, Globe, Calculator, Save, Edit3, Info, Package } from 'lucide-react'
@@ -6,12 +7,14 @@ import { EntitySelector } from '../components/EntitySelector'
 
 export default function ExternalBridge() {
   const { currency } = useConfig()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [fc, setFc] = useState<any>(null)
   const [ops, setOps] = useState<any[]>([])
   const [products, setProducts] = useState<any[]>([])
   const [showForm, setShowForm] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
-  const [subTab, setSubTab] = useState<'operations' | 'fc' | 'calculator'>('operations')
+  const initialSubTab = (searchParams.get('tab') as 'operations' | 'fc' | 'calculator') || 'operations'
+  const [subTab, setSubTab] = useState<'operations' | 'fc' | 'calculator'>(initialSubTab)
   const [calcSearch, setCalcSearch] = useState('')
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null)
   const [form, setForm] = useState({ operation_type: 'import', product_id: '', product_name: '', quantity: 0, external_price_usd: 0, local_price_trueque: 0, logistics_pct: 0, external_tax_rate: 0 })
@@ -167,9 +170,9 @@ export default function ExternalBridge() {
 
       {/* Sub-pestanas */}
       <div className="flex flex-wrap gap-2 border-b pb-2">
-        <button onClick={() => setSubTab('operations')} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'operations' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Operaciones</button>
-        <button onClick={() => setSubTab('fc')} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'fc' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Factor de Conversion</button>
-        <button onClick={() => setSubTab('calculator')} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'calculator' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Calculadora de Precios</button>
+        <button onClick={() => { setSubTab('operations'); setSearchParams({ tab: 'operations' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'operations' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Operaciones</button>
+        <button onClick={() => { setSubTab('fc'); setSearchParams({ tab: 'fc' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'fc' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Factor de Conversion</button>
+        <button onClick={() => { setSubTab('calculator'); setSearchParams({ tab: 'calculator' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'calculator' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Calculadora de Precios</button>
       </div>
 
       {showHelp && (

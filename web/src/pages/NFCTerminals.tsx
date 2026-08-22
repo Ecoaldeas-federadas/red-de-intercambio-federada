@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api, apiFetch } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useSerialChipId } from '../hooks/useSerialChipId'
@@ -31,7 +32,13 @@ interface Transaction {
 
 export default function NFCTerminals() {
   const { hasPermission } = usePermissions()
-  const [tab, setTab] = useState<'terminals' | 'provision' | 'cards' | 'transactions'>('terminals')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialTab = (searchParams.get('tab') as 'terminals' | 'provision' | 'cards' | 'transactions') || 'terminals'
+  const [tab, setTab] = useState<'terminals' | 'provision' | 'cards' | 'transactions'>(initialTab)
+  const changeTab = (t: 'terminals' | 'provision' | 'cards' | 'transactions') => {
+    setTab(t)
+    setSearchParams({ tab: t })
+  }
   const [terminals, setTerminals] = useState<Terminal[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [terminalTypes, setTerminalTypes] = useState<string[]>([])
@@ -279,16 +286,16 @@ export default function NFCTerminals() {
       <div className="flex gap-2 flex-wrap">
         {/* Terminales y Provisionar: solo admin */}
         {canRegisterTerminal && (
-          <button onClick={() => setTab('terminals')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'terminals' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Terminales</button>
+          <button onClick={() => changeTab('terminals')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'terminals' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Terminales</button>
         )}
         {canRegisterTerminal && (
-          <button onClick={() => setTab('provision')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'provision' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Provisionar</button>
+          <button onClick={() => changeTab('provision')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'provision' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Provisionar</button>
         )}
         {/* Tarjetas: todos pueden ver (su propia tarjeta) */}
-        <button onClick={() => setTab('cards')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'cards' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Tarjetas</button>
+        <button onClick={() => changeTab('cards')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'cards' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Tarjetas</button>
         {/* Transacciones: solo admin */}
         {canRegisterTerminal && (
-          <button onClick={() => setTab('transactions')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'transactions' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Transacciones</button>
+          <button onClick={() => changeTab('transactions')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'transactions' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Transacciones</button>
         )}
       </div>
 

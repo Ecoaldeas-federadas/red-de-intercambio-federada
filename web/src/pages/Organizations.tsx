@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { Users, Plus, HelpCircle, X, Crown, Trash2, Key, Vote as VoteIcon, ArrowRight } from 'lucide-react'
 import { EntitySelector } from '../components/EntitySelector'
@@ -63,7 +63,13 @@ const HELP_SECTIONS = [
 export default function Organizations() {
   const navigate = useNavigate()
   const { currency } = useConfig()
-  const [tab, setTab] = useState<'mine' | 'all'>('mine')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialTab = (searchParams.get('tab') as 'mine' | 'all') || 'mine'
+  const [tab, setTab] = useState<'mine' | 'all'>(initialTab)
+  const changeTab = (t: 'mine' | 'all') => {
+    setTab(t)
+    setSearchParams({ tab: t })
+  }
   const [orgs, setOrgs] = useState<any[]>([])
   const [myOrgs, setMyOrgs] = useState<any[]>([])
   const [orgTypes, setOrgTypes] = useState<string[]>(DEFAULT_ORG_TYPES)
@@ -200,7 +206,7 @@ export default function Organizations() {
       {/* Pestañas Mis Organizaciones / Todas las Organizaciones */}
       <div className="flex gap-1 border-b border-gray-200">
         <button
-          onClick={() => setTab('mine')}
+          onClick={() => changeTab('mine')}
           className={`px-4 py-2 text-sm font-medium flex items-center gap-1 ${
             tab === 'mine' ? 'text-trueque-700 border-b-2 border-trueque-600' : 'text-gray-500 hover:text-gray-700'
           }`}
@@ -209,7 +215,7 @@ export default function Organizations() {
           {myOrgs.length > 0 && <span className="text-xs bg-trueque-100 text-trueque-700 px-1.5 rounded">{myOrgs.length}</span>}
         </button>
         <button
-          onClick={() => setTab('all')}
+          onClick={() => changeTab('all')}
           className={`px-4 py-2 text-sm font-medium flex items-center gap-1 ${
             tab === 'all' ? 'text-trueque-700 border-b-2 border-trueque-600' : 'text-gray-500 hover:text-gray-700'
           }`}

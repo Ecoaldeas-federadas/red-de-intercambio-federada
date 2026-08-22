@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { usePermissions } from '../hooks/usePermissions'
@@ -11,7 +11,13 @@ export default function OrganizationDetail() {
   const navigate = useNavigate()
   const { currency } = useConfig()
   const { hasPermission } = usePermissions()
-  const [tab, setTab] = useState<'info' | 'board' | 'members' | 'departments' | 'services' | 'wallet' | 'assembly' | 'boardmeetings'>('info')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialTab = (searchParams.get('tab') as 'info' | 'board' | 'members' | 'departments' | 'services' | 'wallet' | 'assembly' | 'boardmeetings') || 'info'
+  const [tab, setTab] = useState<'info' | 'board' | 'members' | 'departments' | 'services' | 'wallet' | 'assembly' | 'boardmeetings'>(initialTab)
+  const changeTab = (t: 'info' | 'board' | 'members' | 'departments' | 'services' | 'wallet' | 'assembly' | 'boardmeetings') => {
+    setTab(t)
+    setSearchParams({ tab: t })
+  }
   const [org, setOrg] = useState<any>(null)
   const [boardMembers, setBoardMembers] = useState<any[]>([])
   const [allUsers, setAllUsers] = useState<any[]>([])
@@ -240,7 +246,7 @@ export default function OrganizationDetail() {
         {tabs.map(t => (
           <button
             key={t.key}
-            onClick={() => setTab(t.key as any)}
+            onClick={() => changeTab(t.key as any)}
             className={`px-4 py-2 text-sm font-medium flex items-center gap-1 whitespace-nowrap ${
               tab === t.key ? 'text-trueque-700 border-b-2 border-trueque-600' : 'text-gray-500 hover:text-gray-700'
             }`}

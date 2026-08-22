@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import {
@@ -405,7 +406,13 @@ const BLOCK_DEFINITIONS: {
 export default function WebsiteAdmin() {
   const { hasPermission } = usePermissions()
 
-  const [tab, setTab] = useState<'pages' | 'builder' | 'settings' | 'admission'>('pages')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialTab = (searchParams.get('tab') as 'pages' | 'builder' | 'settings' | 'admission') || 'pages'
+  const [tab, setTab] = useState<'pages' | 'builder' | 'settings' | 'admission'>(initialTab)
+  const changeTab = (t: 'pages' | 'builder' | 'settings' | 'admission') => {
+    setTab(t)
+    setSearchParams({ tab: t })
+  }
   const [admissionSubTab, setAdmissionSubTab] = useState<'requests' | 'form_builder'>('requests')
   const [pages, setPages] = useState<any[]>([])
   const [settings, setSettings] = useState<any>({})
@@ -607,7 +614,7 @@ export default function WebsiteAdmin() {
 
     setBlocks(parsedBlocks)
     setEditingBlockIndex(null)
-    setTab('builder')
+    changeTab('builder')
   }
 
   // Save the page with all modular blocks
@@ -854,7 +861,7 @@ export default function WebsiteAdmin() {
       {/* Top Tabs */}
       <div className="flex gap-2 border-b border-gray-200 pb-2 overflow-x-auto">
         <button
-          onClick={() => setTab('pages')}
+          onClick={() => changeTab('pages')}
           className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${
             tab === 'pages'
               ? 'bg-emerald-900 text-white shadow-sm'
@@ -867,7 +874,7 @@ export default function WebsiteAdmin() {
 
         {selectedPage && (
           <button
-            onClick={() => setTab('builder')}
+            onClick={() => changeTab('builder')}
             className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${
               tab === 'builder'
                 ? 'bg-emerald-900 text-white shadow-sm'
@@ -880,7 +887,7 @@ export default function WebsiteAdmin() {
         )}
 
         <button
-          onClick={() => setTab('settings')}
+          onClick={() => changeTab('settings')}
           className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${
             tab === 'settings'
               ? 'bg-emerald-900 text-white shadow-sm'
@@ -892,7 +899,7 @@ export default function WebsiteAdmin() {
         </button>
 
         <button
-          onClick={() => setTab('admission')}
+          onClick={() => changeTab('admission')}
           className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-2 whitespace-nowrap ${
             tab === 'admission'
               ? 'bg-emerald-900 text-white shadow-sm'
@@ -1023,7 +1030,7 @@ export default function WebsiteAdmin() {
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setTab('pages')}
+                onClick={() => changeTab('pages')}
                 className="p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg text-xs font-semibold"
               >
                 ← Volver a lista
