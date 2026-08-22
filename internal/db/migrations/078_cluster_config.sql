@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS cluster_config (
   nodes JSONB NOT NULL DEFAULT '[]'::jsonb,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT single_row CHECK (id = 1)
-);
+) SPLIT INTO 1 TABLETS;
 
 -- Insertar configuracion por defecto (optimizada para 16GB RAM)
 INSERT INTO cluster_config (id, mode, tablet_limit, min_nodes, alert_threshold, server_ram_gb, memstore_percentage, nodes)

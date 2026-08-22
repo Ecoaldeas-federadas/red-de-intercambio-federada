@@ -1,19 +1,22 @@
-fix: volver a comando original de yugabyted + umbral 75%
+fix: volver al comando EXACTO original de yugabyted (sin tserver_flags)
 
-YugabyteDB:
-- Volver al comando original que funcionaba: --daemon=false
-- Quitar --background=false y --advertise_address que causaban error
-- Mantener --tserver_flags=max_num_tablets=800,global_memstore_size_percentage=10
-- El error era: yugabyted crash con Python TypeError
+El flag --tserver_flags causaba crash de yugabyted con Python TypeError:
+  ProcessManager.wait_until_stop() missing 1 required positional argument: 'pid'
 
-Umbral de aprobacion:
-- Cambiar default de 100% a 75% (mayoria)
-- 75% ya es mayoria, evita que un solo nodo bloquee todo
-- Si un nodo no quiere aprobar, tiene dos opciones:
-  1. Aceptar los cambios
-  2. Retirarse de la federacion
-- El umbral sigue siendo configurable via propuesta federada
-- Se puede cambiar a 100% o cualquier otro valor
+Solucion: volver al comando original que SI funcionaba:
+  bin/yugabyted start --base_dir=/mnt/master --daemon=false
+
+Sin --tserver_flags, sin --background=false, sin --advertise_address.
+
+El limite de tabletas se maneja ahora con SPLIT INTO 1 TABLETS
+en las tablas nuevas (076, 077, 078). Cada tabla usa solo 1 tableta
+en vez de 8-16, reduciendo drasticamente el consumo de tabletas
+sin necesidad de cambiar flags del tserver.
+
+Migraciones con SPLIT INTO 1 TABLETS:
+- 076: federation_constants, federation_proposals, federation_votes
+- 077: federation_expelled_nodes, federation_known_nodes
+- 078: cluster_config
 
 Generated with [Devin](https://devin.ai)
 

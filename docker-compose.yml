@@ -36,13 +36,13 @@ services:
     volumes:
       - firmware_builds:/build-output
 
-  # YugabyteDB: un solo nodo optimizado para 16GB RAM.
-  # --daemon=false: modo foreground (original que funcionaba)
-  # --tserver_flags: max_num_tablets=800 + 10% memoria para DocDB
+  # YugabyteDB: comando original que funcionaba.
+  # Los flags --tserver_flags causaban crash en esta version de yugabyted.
+  # El limite de tabletas se maneja via colocation en la BD, no via flags.
   yugabytedb:
     image: yugabytedb/yugabyte:latest
     hostname: yugabytedb
-    command: ["bin/yugabyted", "start", "--base_dir=/mnt/master", "--daemon=false", "--tserver_flags=max_num_tablets=800,global_memstore_size_percentage=10"]
+    command: ["bin/yugabyted", "start", "--base_dir=/mnt/master", "--daemon=false"]
     ports:
       - "5433:5433"
       - "7000:7000"
