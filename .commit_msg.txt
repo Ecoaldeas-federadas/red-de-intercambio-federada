@@ -1,38 +1,67 @@
-fix: corregir valores de energia de productos animales (huevos, pollo, cerdo, vacuno)
+fix: correccion comprehensiva de valores de energia + mostrar precio por kilo
 
-Los valores anteriores eran demasiado altos y tenian la jerarquia
-incorrecta. Los datos corregidos provienen de estudios LCA reales.
+Se revisaron TODOS los productos del catalogo comparando con bases de
+datos internacionales (Agribalyse, FAO, Pimentel, Ecoinvent, ICE Database,
+JRC Europa, estudios LCA de UK, EU, Iran, Albania, Canada, Nigeria).
 
-Problemas encontrados:
+Problemas encontrados y corregidos:
 
-1. Huevos mas caros que pollo (jerarquia invertida)
-   - Sistema decia: huevos 9.6 kWh/kg > pollo 8.3 kWh/kg
-   - Realidad: pollo usa 45% MAS energia que huevos por kg (FAO 2013)
-   - Jerarquia correcta: vacuno > cerdo > pollo > huevos > leche
+1. Granos y cereales demasiado altos
+   - Maiz: 10 -> 3 TQ/kg (realidad: 0.5-1.4 kWh/kg industrial, ~3 conuco)
+   - Arroz: 11 -> 4 TQ/kg (realidad: 1.9 kWh/kg industrial, ~4 conuco)
+   - Harinas: 10 -> 4 TQ/kg (realidad: 1.1 kWh/kg + molienda)
 
-2. Valores de energia demasiado altos
-   - Huevos: sistema 34.4 MJ/kg, real 13-23.5 MJ/kg
-   - Pollo: sistema 30 MJ/kg, real 9.6-25 MJ/kg
-   - Cerdo: sistema 47.5 MJ/kg, real 15.9-22.7 MJ/kg
-   - Vacuno: sistema 80-100 MJ/kg, real 35-50 MJ/kg
+2. Papelon/Panela demasiado alto
+   - 15 -> 5 TQ/kg (realidad: 5 MJ/kg NCS moderno, ~18 MJ/kg tradicional)
 
-3. Unidad incorrecta en huevos
-   - Unidad: "docena" pero energia calculada por kg
-   - Una docena pesa ~0.65 kg (12 x 54g)
-   - Precio era 10 TQ (usando valor por kg) -> corregido a 3 TQ (valor por docena)
+3. Panaderia un poco alto
+   - 5 -> 4 TQ/kg (realidad: 5.2 MJ/kg industrial, ~14 MJ/kg artesanal)
 
-Valores corregidos:
-- Huevos: 3 TQ/docena (era 10) - ~15 MJ/kg x 0.65 kg = 2.7 kWh/docena
-- Pollo: 5 TQ/kg (era 8) - ~18 MJ/kg = 5 kWh/kg
-- Cerdo: 6 TQ/kg (era 13) - ~20 MJ/kg = 5.5 kWh/kg
-- Vacuno: 11 TQ/kg (era 25) - ~40 MJ/kg = 11 kWh/kg
-- Pescado: 7 TQ/kg (era 10) - ~25 MJ/kg = 7 kWh/kg
+4. Cacao/Chocolate/Cafe demasiado alto
+   - 25 -> 15 TQ/kg (realidad: 91 MJ/kg chocolate industrial, ~54 artesanal)
 
-Fuentes: FAO (2013), Pimentel & Pimentel (2003), Agribalyse,
-Leinonen et al. (2012), de Vries (2010), PMC/Univ. Iceland (2024)
+5. Miel un poco alta
+   - 10 -> 7 TQ/L (realidad: 23.8 MJ/kg)
 
-Tambien se actualizo la tabla de equivalencias y la canasta basica
-en la pagina publica (seed.go).
+6. Aceites un poco altos
+   - 10 -> 6 TQ/L (realidad: 15-20 MJ/L prensado en frio)
+
+7. Especias demasiado altas
+   - 15 -> 4 TQ/kg (realidad: 10-15 MJ/kg secado + molienda)
+
+8. Dulces y Conservas un poco altos
+   - 8 -> 5 TQ/kg (realidad: ~18 MJ/kg)
+
+9. Bebidas Fermentadas un poco altas
+   - 5 -> 3 TQ/L (realidad: ~10 MJ/L)
+
+10. Abonos Organicos: descripcion incorrecta
+    - Precio por saco correcto (2 TQ) pero descripcion decia 1.5-2 kWh/kg
+    - Realidad: 0.09 kWh/kg compost, saco 25 kg = 2.25 kWh
+
+11. Hongos Comestibles demasiado altos
+    - 2 -> 3 TQ/kg (realidad: ~10 MJ/kg)
+
+12. Canasta Basica recalcular
+    - 66 -> 30 TQ (con todos los valores corregidos)
+
+NUEVA CARACTERISTICA: Precio por kilo
+
+Se agrego columna price_per_kg a la tabla products para mostrar el
+precio de referencia por kilo ademas del precio por unidad (docena,
+saco, litro, etc.). Esto permite ver:
+- Precio por docena de huevos: 3 TQ
+- Precio por kilo de huevos: 4 TQ (referencia)
+
+La tabla de Calculadora de Precios Externos ahora muestra:
+- Precio por unidad (con la unidad especificada)
+- Precio por kilo (referencia)
+- Precio externo (USD)
+
+El modal de detalles del producto muestra ambos precios claramente.
+
+Fuentes: FAO, Agribalyse, Pimentel, Ecoinvent, ICE Database, JRC Europa,
+FOB UK, estudios LCA de UK/EU/Iran/Albania/Canada/Nigeria/Turquia.
 
 Generated with [Devin](https://devin.ai)
 

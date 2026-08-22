@@ -624,7 +624,7 @@ func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	rows, err := h.Pool.Query(r.Context(), `
-		SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit, is_approved, origin, badge, image_url, product_code, is_system, is_hidden
+		SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit, COALESCE(price_per_kg,0), is_approved, origin, badge, image_url, product_code, is_system, is_hidden
 		FROM products WHERE node_domain IN ($1, 'localhost', 'default') AND is_approved = true AND is_hidden = false AND COALESCE(is_composite, false) = false ORDER BY parent_category, category, subcategory, name LIMIT 500`, nodeDomain)
 	if err != nil {
 		writeJSON(w, 200, []interface{}{})
@@ -636,10 +636,10 @@ func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var id uuid.UUID
 		var name, description, parentCategory, category, subcategory, unit, origin string
-		var price float64
+		var price, pricePerKg float64
 		var isApproved, isSystem, isHidden bool
 		var badge, imageURL, productCode *string
-		if err := rows.Scan(&id, &name, &description, &parentCategory, &category, &subcategory, &unit, &price, &isApproved, &origin, &badge, &imageURL, &productCode, &isSystem, &isHidden); err != nil {
+		if err := rows.Scan(&id, &name, &description, &parentCategory, &category, &subcategory, &unit, &price, &pricePerKg, &isApproved, &origin, &badge, &imageURL, &productCode, &isSystem, &isHidden); err != nil {
 			continue
 		}
 		bdg := ""
@@ -663,6 +663,7 @@ func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 			"subcategory":     subcategory,
 			"unit":            unit,
 			"price":           price,
+			"price_per_kg":    pricePerKg,
 			"is_approved":     isApproved,
 			"origin":          origin,
 			"badge":           bdg,

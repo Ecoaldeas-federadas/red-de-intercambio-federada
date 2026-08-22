@@ -545,6 +545,7 @@ export default function ExternalBridge() {
                   <tr className="border-b text-left text-gray-500">
                     <th className="py-2 px-3">Producto</th>
                     <th className="py-2 px-3 text-right">Precio ({currency})</th>
+                    <th className="py-2 px-3 text-right">Por kilo</th>
                     <th className="py-2 px-3 text-right">Precio externo ({fc?.external_currency || 'USD'})</th>
                     <th className="py-2 px-3">Categoria</th>
                   </tr>
@@ -571,7 +572,17 @@ export default function ExternalBridge() {
                               {p.name || p.title}
                             </button>
                           </td>
-                          <td className="py-2 px-3 text-right font-mono">{priceTQ.toLocaleString()}</td>
+                          <td className="py-2 px-3 text-right font-mono">
+                            {priceTQ.toLocaleString()}
+                            <div className="text-xs text-gray-400">{p.unit || ''}</div>
+                          </td>
+                          <td className="py-2 px-3 text-right font-mono text-xs">
+                            {(p.price_per_kg || 0) > 0
+                              ? `${p.price_per_kg}`
+                              : (p.unit === 'kg' || p.unit === 'litro' || p.unit === 'L')
+                                ? priceTQ.toLocaleString()
+                                : '-'}
+                          </td>
                           <td className="py-2 px-3 text-right font-mono">
                             {priceExternal > 0 ? priceExternal.toFixed(2) : '-'}
                           </td>
@@ -622,10 +633,20 @@ export default function ExternalBridge() {
               <div className="bg-gray-50 p-2 rounded">
                 <div className="text-xs text-gray-500">Precio</div>
                 <div className="font-mono font-medium">{(selectedProduct.price_tq || selectedProduct.price || 0).toLocaleString()} {currency}</div>
+                <div className="text-xs text-gray-500">por {selectedProduct.unit || 'unidad'}</div>
               </div>
               <div className="bg-gray-50 p-2 rounded">
-                <div className="text-xs text-gray-500">Unidad</div>
-                <div className="font-medium">{selectedProduct.unit || '-'}</div>
+                <div className="text-xs text-gray-500">Precio por kilo</div>
+                <div className="font-mono font-medium">
+                  {(selectedProduct.price_per_kg || 0) > 0
+                    ? `${selectedProduct.price_per_kg} ${currency}/kg`
+                    : (selectedProduct.unit === 'kg' || selectedProduct.unit === 'litro' || selectedProduct.unit === 'L')
+                      ? `${(selectedProduct.price_tq || selectedProduct.price || 0).toLocaleString()} ${currency}/kg`
+                      : 'N/A'}
+                </div>
+                {selectedProduct.unit && selectedProduct.unit !== 'kg' && selectedProduct.unit !== 'litro' && selectedProduct.unit !== 'L' && (selectedProduct.price_per_kg || 0) > 0 && (
+                  <div className="text-xs text-gray-500">referencia por kg</div>
+                )}
               </div>
               <div className="bg-gray-50 p-2 rounded">
                 <div className="text-xs text-gray-500">Categoria</div>
