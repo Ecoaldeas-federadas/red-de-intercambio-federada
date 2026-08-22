@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
-import { Plus, Check, X, HelpCircle, Globe, Calculator, Save, Edit3 } from 'lucide-react'
+import { Plus, Check, X, HelpCircle, Globe, Calculator, Save, Edit3, Info, Package } from 'lucide-react'
 import { EntitySelector } from '../components/EntitySelector'
 
 export default function ExternalBridge() {
@@ -13,6 +13,7 @@ export default function ExternalBridge() {
   const [showHelp, setShowHelp] = useState(false)
   const [subTab, setSubTab] = useState<'operations' | 'fc' | 'calculator'>('operations')
   const [calcSearch, setCalcSearch] = useState('')
+  const [selectedProduct, setSelectedProduct] = useState<any | null>(null)
   const [form, setForm] = useState({ operation_type: 'import', product_id: '', product_name: '', quantity: 0, external_price_usd: 0, local_price_trueque: 0, logistics_pct: 0, external_tax_rate: 0 })
 
   // FC editor state - calculadora de canasta basica
@@ -561,7 +562,15 @@ export default function ExternalBridge() {
                       const priceExternal = factor > 0 ? (priceTQ / factor) : 0
                       return (
                         <tr key={p.id} className="border-b hover:bg-gray-50">
-                          <td className="py-2 px-3">{p.name || p.title}</td>
+                          <td className="py-2 px-3">
+                            <button
+                              onClick={() => setSelectedProduct(p)}
+                              className="text-left flex items-center gap-1.5 hover:text-trueque-600 hover:underline"
+                            >
+                              <Info size={14} className="text-gray-400" />
+                              {p.name || p.title}
+                            </button>
+                          </td>
                           <td className="py-2 px-3 text-right font-mono">{priceTQ.toLocaleString()}</td>
                           <td className="py-2 px-3 text-right font-mono">
                             {priceExternal > 0 ? priceExternal.toFixed(2) : '-'}
@@ -581,6 +590,89 @@ export default function ExternalBridge() {
               cuesta ese producto en el pais externo. Si los precios estan cerca, el FC esta bien
               calibrado. Si estan muy diferentes, considera recalcular el FC desde la canasta basica.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MODAL: Detalles del producto ===== */}
+      {selectedProduct && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedProduct(null)}>
+          <div className="bg-white rounded-xl p-6 max-w-lg w-full space-y-3 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2">
+                <Package size={20} className="text-trueque-600" />
+                <h3 className="font-bold text-lg">{selectedProduct.name || selectedProduct.title}</h3>
+              </div>
+              <button onClick={() => setSelectedProduct(null)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+
+            {selectedProduct.badge && (
+              <span className="inline-block bg-trueque-100 text-trueque-700 text-xs px-2 py-0.5 rounded-full">
+                {selectedProduct.badge}
+              </span>
+            )}
+
+            {selectedProduct.description && (
+              <p className="text-sm text-gray-700">{selectedProduct.description}</p>
+            )}
+
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="bg-gray-50 p-2 rounded">
+                <div className="text-xs text-gray-500">Precio</div>
+                <div className="font-mono font-medium">{(selectedProduct.price_tq || selectedProduct.price || 0).toLocaleString()} {currency}</div>
+              </div>
+              <div className="bg-gray-50 p-2 rounded">
+                <div className="text-xs text-gray-500">Unidad</div>
+                <div className="font-medium">{selectedProduct.unit || '-'}</div>
+              </div>
+              <div className="bg-gray-50 p-2 rounded">
+                <div className="text-xs text-gray-500">Categoria</div>
+                <div className="font-medium">{selectedProduct.category || selectedProduct.type || '-'}</div>
+              </div>
+              <div className="bg-gray-50 p-2 rounded">
+                <div className="text-xs text-gray-500">Subcategoria</div>
+                <div className="font-medium">{selectedProduct.subcategory || '-'}</div>
+              </div>
+              <div className="bg-gray-50 p-2 rounded">
+                <div className="text-xs text-gray-500">Categoria padre</div>
+                <div className="font-medium">{selectedProduct.parent_category || '-'}</div>
+              </div>
+              <div className="bg-gray-50 p-2 rounded">
+                <div className="text-xs text-gray-500">Origen</div>
+                <div className="font-medium">{selectedProduct.origin || '-'}</div>
+              </div>
+              {selectedProduct.product_code && (
+                <div className="bg-gray-50 p-2 rounded">
+                  <div className="text-xs text-gray-500">Codigo de producto</div>
+                  <div className="font-mono font-medium text-xs">{selectedProduct.product_code}</div>
+                </div>
+              )}
+              {fc && (
+                <div className="bg-blue-50 p-2 rounded">
+                  <div className="text-xs text-gray-500">Precio externo</div>
+                  <div className="font-mono font-medium">
+                    {fc.factor > 0
+                      ? ((selectedProduct.price_tq || selectedProduct.price || 0) / fc.factor).toFixed(2)
+                      : '-'} {fc.external_currency || 'USD'}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {selectedProduct.image_url && (
+              <img src={selectedProduct.image_url} alt={selectedProduct.name} className="w-full max-h-48 object-contain rounded-lg border" />
+            )}
+
+            <div className="text-xs text-gray-500 pt-2 border-t">
+              El precio es por unidad de: <strong>{selectedProduct.unit || 'no especificada'}</strong>.
+              {selectedProduct.unit && ` Por ejemplo, si la unidad es "1 kg", el precio corresponde a 1 kilogramo del producto.`}
+            </div>
+
+            <button onClick={() => setSelectedProduct(null)} className="w-full px-4 py-2 bg-gray-200 rounded-lg text-sm">
+              Cerrar
+            </button>
           </div>
         </div>
       )}

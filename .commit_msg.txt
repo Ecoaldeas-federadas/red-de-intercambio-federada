@@ -1,50 +1,21 @@
-fix: correcciones al descubrimiento de nodos (federacion humana + consenso)
+fix: mostrar detalles completos del producto en calculadora de precios externos
 
-Correcciones importantes al sistema de descubrimiento de nodos:
+Problema: La tabla de la Calculadora de Precios Externos en Comercio
+Externo solo mostraba el nombre del producto y los precios, sin informacion
+de unidad, descripcion, categoria, etc. El usuario no podia saber si el
+precio era por 1 kg, 100 g, o una unidad.
 
-1. La federacion NO se hace aceptando/rechazando en el sistema
-   - La clave publica se comparte personalmente entre personas, no por el sistema
-   - El sistema solo muestra info de contacto (pais, ubicacion, gobernanza, web)
-   - Las solicitudes ahora son de "contacto" no de "federacion"
-   - Las respuestas son "interesado" o "no interesado", no "aceptar/rechazar"
-   - Se quito response_public_key de federation_requests
-   - Se agregaron avisos en la UI recordando que la federacion es personal
-
-2. Un nodo inactivo se decide por CONSENSO de toda la red, no por un solo nodo
-   - Si tu no puedes conectar, puede ser que tu no tengas internet
-   - Hay que preguntar a los demas nodos
-   - Solo cuando TODOS los nodos reportan que no pueden conectar, se marca inactivo
-   - Nueva tabla node_health_reports: cada nodo reporta si puede conectar
-   - Nuevo endpoint POST /api/public/health-report: recibir reportes de otros
-   - Nuevo endpoint GET /api/public/health-reports/{target}: consultar reportes
-   - Nuevo endpoint POST /api/nodes/discovered/consensus-check: evaluar consenso
-   - checkNodeHealth ahora registra reporte pero NO marca inactivo automaticamente
-   - consensusCheckInactive marca inactivo solo si todos reportan inalcanzable
-
-3. Nodos inactivos se ocultan de la lista visible pero se mantienen internamente
-   - listDiscoveredNodes filtra is_inactive = false
-   - listInactiveNodes muestra los inactivos (solo para admins)
-   - Se mantienen en la BD para seguir consultando si reaparecen
-
-4. Nodos federados offline no se eliminan
-   - listFederatedNodes muestra estado online/offline en tiempo real
-   - removeDiscoveredNode bloquea eliminacion de peers directos
-   - Los federados solo muestran "En linea" o "Sin conexion"
-
-5. Info de pais y ubicacion
-   - node_config: + country, location
-   - federation_known_nodes: + country, location, governance_url, admission_url,
-     member_count, peer_count
-   - getPublicNodeInfo incluye country, location, governance_url
-   - Las tarjetas de nodos muestran pais, ubicacion, link a gobernanza
-
-Migracion 084:
-- federation_known_nodes: + country, location, governance_url, admission_url,
-  member_count, peer_count
-- node_config: + country, location
-- node_health_reports: tabla de reportes de salud entre nodos (consensus)
-- federation_requests: quita response_public_key, agrega from_country,
-  from_location, from_governance_url
+Solucion: El nombre del producto ahora es un boton con icono de info que
+abre un modal con todos los detalles del producto:
+- Nombre y badge
+- Descripcion completa
+- Precio en TQ y precio externo (USD)
+- Unidad (ej: 1 kg, 100 g, unidad)
+- Categoria, subcategoria y categoria padre
+- Origen
+- Codigo de producto
+- Imagen (si tiene)
+- Aclaracion de que el precio es por la unidad especificada
 
 Generated with [Devin](https://devin.ai)
 
