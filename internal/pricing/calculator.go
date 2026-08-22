@@ -267,6 +267,8 @@ type CreateProductParams struct {
 	EnergyInputs       float64
 	EnergyAmortization float64
 	PricePerUnit       float64
+	PricePerKg         float64
+	WeightKg           float64
 	ExternalPriceUSD   *float64
 	ExternalTaxRate    float64
 	Description        string
@@ -278,15 +280,17 @@ func (p *Pricing) CreateProduct(ctx context.Context, params CreateProductParams)
 	err := p.Pool.QueryRow(ctx, `
 		INSERT INTO products (node_domain, name, category, origin, unit, quantity_per_batch,
 							  energy_direct, energy_human, energy_inputs, energy_amortization,
-							  price_per_unit, external_price_usd, external_tax_rate, description, created_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+							  price_per_unit, price_per_kg, weight_kg,
+							  external_price_usd, external_tax_rate, description, created_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 		RETURNING id, node_domain, name, category, origin, unit, quantity_per_batch,
 				  energy_direct, energy_human, energy_inputs, energy_amortization, energy_total,
 				  price_per_unit, external_price_usd, external_tax_rate, is_approved,
 				  COALESCE(description, ''), is_active, is_system, created_at, updated_at`,
 		params.NodeDomain, params.Name, params.Category, params.Origin, params.Unit, params.QuantityPerBatch,
 		params.EnergyDirect, params.EnergyHuman, params.EnergyInputs, params.EnergyAmortization,
-		params.PricePerUnit, params.ExternalPriceUSD, params.ExternalTaxRate, params.Description, params.CreatedBy,
+		params.PricePerUnit, params.PricePerKg, params.WeightKg,
+		params.ExternalPriceUSD, params.ExternalTaxRate, params.Description, params.CreatedBy,
 	).Scan(&prod.ID, &prod.NodeDomain, &prod.Name, &prod.Category, &prod.Origin,
 		&prod.Unit, &prod.QuantityPerBatch, &prod.EnergyDirect, &prod.EnergyHuman,
 		&prod.EnergyInputs, &prod.EnergyAmortization, &prod.EnergyTotal,

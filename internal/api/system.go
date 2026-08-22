@@ -624,7 +624,9 @@ func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	rows, err := h.Pool.Query(r.Context(), `
-		SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit, COALESCE(price_per_kg,0), is_approved, origin, badge, image_url, product_code, is_system, is_hidden
+		SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit,
+		       COALESCE(price_per_kg,0), COALESCE(weight_kg,0), COALESCE(base_unit,'kg'),
+		       is_approved, origin, badge, image_url, product_code, is_system, is_hidden
 		FROM products WHERE node_domain IN ($1, 'localhost', 'default') AND is_approved = true AND is_hidden = false AND COALESCE(is_composite, false) = false ORDER BY parent_category, category, subcategory, name LIMIT 500`, nodeDomain)
 	if err != nil {
 		writeJSON(w, 200, []interface{}{})
@@ -635,11 +637,11 @@ func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 	var products []map[string]interface{}
 	for rows.Next() {
 		var id uuid.UUID
-		var name, description, parentCategory, category, subcategory, unit, origin string
-		var price, pricePerKg float64
+		var name, description, parentCategory, category, subcategory, unit, origin, baseUnit string
+		var price, pricePerKg, weightKg float64
 		var isApproved, isSystem, isHidden bool
 		var badge, imageURL, productCode *string
-		if err := rows.Scan(&id, &name, &description, &parentCategory, &category, &subcategory, &unit, &price, &pricePerKg, &isApproved, &origin, &badge, &imageURL, &productCode, &isSystem, &isHidden); err != nil {
+		if err := rows.Scan(&id, &name, &description, &parentCategory, &category, &subcategory, &unit, &price, &pricePerKg, &weightKg, &baseUnit, &isApproved, &origin, &badge, &imageURL, &productCode, &isSystem, &isHidden); err != nil {
 			continue
 		}
 		bdg := ""
@@ -654,23 +656,40 @@ func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 		if productCode != nil {
 			pcode = *productCode
 		}
+		// Calcular precio sugerido = base_price * weight
+		suggestedPrice := 0.0
+		calcExplanation := ""
+		if pricePerKg > 0 && weightKg > 0 {
+			suggestedPrice = pricePerKg * weightKg
+			if baseUnit == "L" {
+				calcExplanation = fmt.Sprintf("%.2f TQ/L x %.3f L = %.2f TQ", pricePerKg, weightKg, suggestedPrice)
+			} else if baseUnit == "unidad" {
+				calcExplanation = fmt.Sprintf("%.2f TQ/unidad x %.0f unidades = %.2f TQ", pricePerKg, weightKg, suggestedPrice)
+			} else {
+				calcExplanation = fmt.Sprintf("%.2f TQ/kg x %.3f kg = %.2f TQ", pricePerKg, weightKg, suggestedPrice)
+			}
+		}
 		products = append(products, map[string]interface{}{
-			"id":              id.String(),
-			"name":            name,
-			"description":     description,
-			"parent_category": parentCategory,
-			"category":        category,
-			"subcategory":     subcategory,
-			"unit":            unit,
-			"price":           price,
-			"price_per_kg":    pricePerKg,
-			"is_approved":     isApproved,
-			"origin":          origin,
-			"badge":           bdg,
-			"image_url":       imgURL,
-			"product_code":    pcode,
-			"is_system":       isSystem,
-			"is_hidden":       isHidden,
+			"id":                id.String(),
+			"name":              name,
+			"description":       description,
+			"parent_category":   parentCategory,
+			"category":          category,
+			"subcategory":       subcategory,
+			"unit":              unit,
+			"price":             price,
+			"base_price":        pricePerKg,
+			"base_unit":         baseUnit,
+			"weight_kg":         weightKg,
+			"suggested_price":   suggestedPrice,
+			"price_calculation": calcExplanation,
+			"is_approved":       isApproved,
+			"origin":            origin,
+			"badge":             bdg,
+			"image_url":         imgURL,
+			"product_code":      pcode,
+			"is_system":         isSystem,
+			"is_hidden":         isHidden,
 		})
 	}
 	if products == nil {

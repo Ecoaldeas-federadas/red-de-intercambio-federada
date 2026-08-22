@@ -1,67 +1,52 @@
-fix: correccion comprehensiva de valores de energia + mostrar precio por kilo
+feat: sistema inteligente de precio base + unidad base + calculo explicado
 
-Se revisaron TODOS los productos del catalogo comparando con bases de
-datos internacionales (Agribalyse, FAO, Pimentel, Ecoinvent, ICE Database,
-JRC Europa, estudios LCA de UK, EU, Iran, Albania, Canada, Nigeria).
+El sistema ahora usa la unidad real de la base de datos mundial para
+cada producto (kg, L, unidad) y muestra el calculo completo:
 
-Problemas encontrados y corregidos:
+1. base_price: precio de la base de datos mundial (Agribalyse, FAO, etc.)
+   en su unidad natural (kg para solidos, L para liquidos)
+2. base_unit: unidad del precio base (kg, L, unidad)
+3. weight_kg: peso/cantidad del producto que se ofrece
+4. price_per_unit: precio calculado = base_price * weight_kg
 
-1. Granos y cereales demasiado altos
-   - Maiz: 10 -> 3 TQ/kg (realidad: 0.5-1.4 kWh/kg industrial, ~3 conuco)
-   - Arroz: 11 -> 4 TQ/kg (realidad: 1.9 kWh/kg industrial, ~4 conuco)
-   - Harinas: 10 -> 4 TQ/kg (realidad: 1.1 kWh/kg + molienda)
+Ejemplo huevos:
+- base_price = 4 TQ/kg (base de datos mundial)
+- base_unit = kg
+- weight_kg = 0.65 (una docena pesa 0.65 kg)
+- price_per_unit = 4 * 0.65 = 2.6 -> 3 TQ
+- Calculo mostrado: "4 TQ/kg x 0.65 kg = 2.6 TQ"
 
-2. Papelon/Panela demasiado alto
-   - 15 -> 5 TQ/kg (realidad: 5 MJ/kg NCS moderno, ~18 MJ/kg tradicional)
+Ejemplo leche:
+- base_price = 2 TQ/L (base de datos mundial)
+- base_unit = L
+- weight_kg = 1 (1 litro)
+- price_per_unit = 2 * 1 = 2 TQ
+- Calculo mostrado: "2 TQ/L x 1 L = 2 TQ"
 
-3. Panaderia un poco alto
-   - 5 -> 4 TQ/kg (realidad: 5.2 MJ/kg industrial, ~14 MJ/kg artesanal)
+Ejemplo abonos:
+- base_price = 0.09 TQ/kg (base de datos mundial)
+- base_unit = kg
+- weight_kg = 25 (un saco pesa 25 kg)
+- price_per_unit = 0.09 * 25 = 2.25 -> 2 TQ
+- Calculo mostrado: "0.09 TQ/kg x 25 kg = 2.25 TQ"
 
-4. Cacao/Chocolate/Cafe demasiado alto
-   - 25 -> 15 TQ/kg (realidad: 91 MJ/kg chocolate industrial, ~54 artesanal)
+Cuando alguien crea un producto con diferente cantidad/peso, el sistema
+recalcula automaticamente el precio basado en el precio base.
 
-5. Miel un poco alta
-   - 10 -> 7 TQ/L (realidad: 23.8 MJ/kg)
-
-6. Aceites un poco altos
-   - 10 -> 6 TQ/L (realidad: 15-20 MJ/L prensado en frio)
-
-7. Especias demasiado altas
-   - 15 -> 4 TQ/kg (realidad: 10-15 MJ/kg secado + molienda)
-
-8. Dulces y Conservas un poco altos
-   - 8 -> 5 TQ/kg (realidad: ~18 MJ/kg)
-
-9. Bebidas Fermentadas un poco altas
-   - 5 -> 3 TQ/L (realidad: ~10 MJ/L)
-
-10. Abonos Organicos: descripcion incorrecta
-    - Precio por saco correcto (2 TQ) pero descripcion decia 1.5-2 kWh/kg
-    - Realidad: 0.09 kWh/kg compost, saco 25 kg = 2.25 kWh
-
-11. Hongos Comestibles demasiado altos
-    - 2 -> 3 TQ/kg (realidad: ~10 MJ/kg)
-
-12. Canasta Basica recalcular
-    - 66 -> 30 TQ (con todos los valores corregidos)
-
-NUEVA CARACTERISTICA: Precio por kilo
-
-Se agrego columna price_per_kg a la tabla products para mostrar el
-precio de referencia por kilo ademas del precio por unidad (docena,
-saco, litro, etc.). Esto permite ver:
-- Precio por docena de huevos: 3 TQ
-- Precio por kilo de huevos: 4 TQ (referencia)
+El modal de detalles del producto ahora muestra:
+- Precio del producto (por su unidad: docena, saco, L, kg, etc.)
+- Precio base (base de datos mundial, por kg o L)
+- Peso/cantidad del producto
+- Precio externo (USD)
+- Seccion "Como se calcula el precio" con la formula explicada
 
 La tabla de Calculadora de Precios Externos ahora muestra:
 - Precio por unidad (con la unidad especificada)
-- Precio por kilo (referencia)
+- Base mundial (precio base por kg o L)
 - Precio externo (USD)
 
-El modal de detalles del producto muestra ambos precios claramente.
-
-Fuentes: FAO, Agribalyse, Pimentel, Ecoinvent, ICE Database, JRC Europa,
-FOB UK, estudios LCA de UK/EU/Iran/Albania/Canada/Nigeria/Turquia.
+Migracion 088: agrega columna base_unit, asigna unidades correctas
+(kg para solidos, L para liquidos) y precios base de la base mundial.
 
 Generated with [Devin](https://devin.ai)
 

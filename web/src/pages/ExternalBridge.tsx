@@ -545,7 +545,7 @@ export default function ExternalBridge() {
                   <tr className="border-b text-left text-gray-500">
                     <th className="py-2 px-3">Producto</th>
                     <th className="py-2 px-3 text-right">Precio ({currency})</th>
-                    <th className="py-2 px-3 text-right">Por kilo</th>
+                    <th className="py-2 px-3 text-right">Base mundial</th>
                     <th className="py-2 px-3 text-right">Precio externo ({fc?.external_currency || 'USD'})</th>
                     <th className="py-2 px-3">Categoria</th>
                   </tr>
@@ -577,11 +577,9 @@ export default function ExternalBridge() {
                             <div className="text-xs text-gray-400">{p.unit || ''}</div>
                           </td>
                           <td className="py-2 px-3 text-right font-mono text-xs">
-                            {(p.price_per_kg || 0) > 0
-                              ? `${p.price_per_kg}`
-                              : (p.unit === 'kg' || p.unit === 'litro' || p.unit === 'L')
-                                ? priceTQ.toLocaleString()
-                                : '-'}
+                            {(p.base_price || 0) > 0
+                              ? `${p.base_price}/${p.base_unit || 'kg'}`
+                              : '-'}
                           </td>
                           <td className="py-2 px-3 text-right font-mono">
                             {priceExternal > 0 ? priceExternal.toFixed(2) : '-'}
@@ -635,18 +633,29 @@ export default function ExternalBridge() {
                 <div className="font-mono font-medium">{(selectedProduct.price_tq || selectedProduct.price || 0).toLocaleString()} {currency}</div>
                 <div className="text-xs text-gray-500">por {selectedProduct.unit || 'unidad'}</div>
               </div>
-              <div className="bg-gray-50 p-2 rounded">
-                <div className="text-xs text-gray-500">Precio por kilo</div>
+              <div className="bg-blue-50 p-2 rounded">
+                <div className="text-xs text-gray-500">Precio base (base de datos mundial)</div>
                 <div className="font-mono font-medium">
-                  {(selectedProduct.price_per_kg || 0) > 0
-                    ? `${selectedProduct.price_per_kg} ${currency}/kg`
-                    : (selectedProduct.unit === 'kg' || selectedProduct.unit === 'litro' || selectedProduct.unit === 'L')
-                      ? `${(selectedProduct.price_tq || selectedProduct.price || 0).toLocaleString()} ${currency}/kg`
-                      : 'N/A'}
+                  {(selectedProduct.base_price || 0) > 0
+                    ? `${selectedProduct.base_price} ${currency}/${selectedProduct.base_unit || 'kg'}`
+                    : 'N/A'}
                 </div>
-                {selectedProduct.unit && selectedProduct.unit !== 'kg' && selectedProduct.unit !== 'litro' && selectedProduct.unit !== 'L' && (selectedProduct.price_per_kg || 0) > 0 && (
-                  <div className="text-xs text-gray-500">referencia por kg</div>
-                )}
+              </div>
+              <div className="bg-gray-50 p-2 rounded">
+                <div className="text-xs text-gray-500">Peso/cantidad del producto</div>
+                <div className="font-mono font-medium">
+                  {(selectedProduct.weight_kg || 0) > 0
+                    ? `${selectedProduct.weight_kg} ${selectedProduct.base_unit === 'L' ? 'L' : 'kg'}`
+                    : '-'}
+                </div>
+              </div>
+              <div className="bg-green-50 p-2 rounded">
+                <div className="text-xs text-gray-500">Precio externo</div>
+                <div className="font-mono font-medium">
+                  {fc && fc.factor > 0
+                    ? ((selectedProduct.price_tq || selectedProduct.price || 0) / fc.factor).toFixed(2)
+                    : '-'} {fc?.external_currency || 'USD'}
+                </div>
               </div>
               <div className="bg-gray-50 p-2 rounded">
                 <div className="text-xs text-gray-500">Categoria</div>
@@ -686,9 +695,24 @@ export default function ExternalBridge() {
               <img src={selectedProduct.image_url} alt={selectedProduct.name} className="w-full max-h-48 object-contain rounded-lg border" />
             )}
 
+            {/* Calculo explicado */}
+            {(selectedProduct.base_price || 0) > 0 && (selectedProduct.weight_kg || 0) > 0 && (
+              <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg text-sm">
+                <div className="font-semibold text-amber-800 mb-1">¿Cómo se calcula el precio?</div>
+                <div className="text-amber-700 font-mono text-xs">
+                  {selectedProduct.price_calculation || `${selectedProduct.base_price} ${currency}/${selectedProduct.base_unit || 'kg'} × ${selectedProduct.weight_kg} ${selectedProduct.base_unit === 'L' ? 'L' : 'kg'} = ${(selectedProduct.base_price * selectedProduct.weight_kg).toFixed(2)} ${currency}`}
+                </div>
+                <div className="text-xs text-amber-600 mt-1">
+                  El precio base de <strong>{selectedProduct.base_price} {currency}/{selectedProduct.base_unit || 'kg'}</strong> viene de la base de datos mundial
+                  (Agribalyse, FAO, Pimentel). Este producto pesa <strong>{selectedProduct.weight_kg} {selectedProduct.base_unit === 'L' ? 'litros' : 'kg'}</strong>,
+                  por eso el precio es <strong>{(selectedProduct.price_tq || selectedProduct.price || 0).toLocaleString()} {currency}</strong>.
+                </div>
+              </div>
+            )}
+
             <div className="text-xs text-gray-500 pt-2 border-t">
               El precio es por unidad de: <strong>{selectedProduct.unit || 'no especificada'}</strong>.
-              {selectedProduct.unit && ` Por ejemplo, si la unidad es "1 kg", el precio corresponde a 1 kilogramo del producto.`}
+              {selectedProduct.base_price > 0 && selectedProduct.weight_kg > 0 && ` Este producto contiene ${selectedProduct.weight_kg} ${selectedProduct.base_unit === 'L' ? 'litros' : 'kilos'} aproximadamente.`}
             </div>
 
             <button onClick={() => setSelectedProduct(null)} className="w-full px-4 py-2 bg-gray-200 rounded-lg text-sm">

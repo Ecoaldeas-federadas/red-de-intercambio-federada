@@ -462,6 +462,8 @@ type CreateProductRequest struct {
 	EnergyInputs       float64  `json:"energy_inputs"`
 	EnergyAmortization float64  `json:"energy_amortization"`
 	PricePerUnit       float64  `json:"price_per_unit"`
+	PricePerKg         float64  `json:"price_per_kg"`
+	WeightKg           float64  `json:"weight_kg"`
 	ExternalPriceUSD   *float64 `json:"external_price_usd"`
 	ExternalTaxRate    float64  `json:"external_tax_rate"`
 	Description        string   `json:"description"`
@@ -479,6 +481,20 @@ func (h *Handler) createProduct(w http.ResponseWriter, r *http.Request) {
 	if origin == "" {
 		origin = "internal"
 	}
+
+	// Auto-calcular precio si tiene price_per_kg y weight_kg pero no price_per_unit
+	if req.PricePerUnit == 0 && req.PricePerKg > 0 && req.WeightKg > 0 {
+		req.PricePerUnit = req.PricePerKg * req.WeightKg
+	}
+	// Si es por kg, price_per_kg = price_per_unit
+	if req.PricePerKg == 0 && (req.Unit == "kg" || req.Unit == "litro" || req.Unit == "L") {
+		req.PricePerKg = req.PricePerUnit
+	}
+	// Si no se especifico weight_kg y es por kg/litro, peso = 1
+	if req.WeightKg == 0 && (req.Unit == "kg" || req.Unit == "litro" || req.Unit == "L") {
+		req.WeightKg = 1
+	}
+
 	product, err := h.pricing.CreateProduct(r.Context(), pricing.CreateProductParams{
 		NodeDomain:         h.nodeDomain,
 		Name:               req.Name,
@@ -491,6 +507,8 @@ func (h *Handler) createProduct(w http.ResponseWriter, r *http.Request) {
 		EnergyInputs:       req.EnergyInputs,
 		EnergyAmortization: req.EnergyAmortization,
 		PricePerUnit:       req.PricePerUnit,
+		PricePerKg:         req.PricePerKg,
+		WeightKg:           req.WeightKg,
 		ExternalPriceUSD:   req.ExternalPriceUSD,
 		ExternalTaxRate:    req.ExternalTaxRate,
 		Description:        req.Description,
