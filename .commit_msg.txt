@@ -1,47 +1,48 @@
-feat: configuracion del cluster YugabyteDB desde la pagina
+feat: optimizacion de YugabyteDB segun hardware + global_memstore_size_percentage
 
-Ahora se puede configurar el cluster YugabyteDB desde Configuracion >
-Base de Datos, adaptandolo al hardware disponible.
+Optimiza YugabyteDB automaticamente segun la RAM del servidor para no
+saturar el equipo (especialmente con 16GB RAM como un Core i3).
 
-Migracion 078: tabla cluster_config para guardar la configuracion.
+docker-compose.yml:
+- Agregado --tserver_flags=max_num_tablets=1000,global_memstore_size_percentage=10
+- global_memstore_size_percentage=10: solo usa 1.6GB de 16GB para DocDB
+  (por defecto es 85% = 13.6GB, que saturaria el servidor)
+- El resto (14GB) queda para el backend, frontend y el OS
 
 Backend (cluster_handler.go):
-- GET /api/cluster/hardware: detecta RAM y CPU del servidor
-  - Lee /proc/meminfo en Linux/Docker
-  - Recomienda limite y modo segun hardware:
-    - 32GB+: 2000 tabletas, modo single
-    - 16GB: 1000 tabletas, modo single
-    - 8GB: 600 tabletas, modo single
-    - 4GB: 534 tabletas, modo multi
-    - <4GB: 400 tabletas, modo multi
-- GET /api/cluster/config: devuelve la configuracion guardada
-- PUT /api/cluster/config: actualiza la configuracion
-  - Valida que el limite no exceda la RAM (100 tabletas por GB)
-  - Valida modo (single o multi)
-  - Valida umbral (50-95%)
-  - Notifica a administradores
-  - Avisa que hay que reiniciar YugabyteDB
+- HardwareInfo ahora incluye:
+  - recommended_mem_pct: % recomendado de memoria para DocDB
+  - needs_more_servers: true si la RAM es insuficiente
+  - servers_needed: cuantos servidores adicionales se necesitan
+- Recomendaciones por hardware:
+  - 32GB+: 2000 tabletas, 30% DocDB (9.6GB)
+  - 16GB:  1000 tabletas, 10% DocDB (1.6GB)
+  - 8GB:   600 tabletas, 5% DocDB (0.4GB)
+  - 4GB:   400 tabletas, 5% DocDB -> NECESITA OTRO SERVIDOR
+  - <4GB:  300 tabletas, 5% DocDB -> NECESITA OTRO SERVIDOR
+- ClusterConfigResponse incluye memstore_percentage
+- updateClusterConfig valida y guarda memstore_percentage (5-85%)
+- Respuesta incluye restart_command con los flags exactos
 
-Frontend (NodeSettings.tsx, tab Base de Datos):
-- Panel de configuracion del cluster
-- Info del hardware: RAM y CPU detectados
-- Recomendacion automatica segun hardware
-- Selector de modo:
-  - 1 Nodo (limite alto): mas eficiente, un solo servidor
-  - Multi-nodo (servidores separados): alta disponibilidad
-- Campos ajustables:
-  - Limite de tabletas (con maximo segun RAM)
-  - Minimo de nodos
-  - Umbral de alerta (%)
-  - RAM del servidor (editable)
-- Lista de nodos del cluster (agregar/quitar)
-- Aviso de que hay que reiniciar YugabyteDB despues de guardar
+Migracion 078:
+- Agregado campo memstore_percentage INT NOT NULL DEFAULT 10
+- Default actualizado para 16GB RAM
 
-Regla de validacion: ~100 tabletas por GB de RAM
-- 4GB -> max 400 tabletas
-- 8GB -> max 800 tabletas
-- 16GB -> max 1600 tabletas (recomendado 1000)
-- 32GB -> max 3200 tabletas (recomendado 2000)
+Frontend (NodeSettings.tsx):
+- Panel de hardware ahora muestra advertencia en rojo si needs_more_servers
+- Si la RAM es insuficiente, muestra:
+  "Hardware insuficiente. Necesitas N servidor(es) adicional(es)
+   con minimo 8GB RAM (idealmente 16GB)"
+- Nuevo campo: "Memoria para DocDB (%)"
+  - Muestra cuanto GB usa YugabyteDB vs cuanto queda para el resto
+  - Ejemplo: "10% = 1.6GB de 16GB. El resto (14.4GB) queda para
+    el backend, frontend y el OS"
+- Recomendacion automatica muestra el % recomendado de DocDB
+
+Para tu caso (Core i3, 16GB RAM):
+- Limite: 1000 tabletas
+- MemDocDB: 10% (1.6GB para YugabyteDB, 14.4GB para todo lo demas)
+- No necesitas otro servidor
 
 Generated with [Devin](https://devin.ai)
 

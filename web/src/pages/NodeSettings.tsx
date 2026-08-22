@@ -39,6 +39,7 @@ export default function NodeSettings() {
     min_nodes: 1,
     alert_threshold: 80,
     server_ram_gb: 16,
+    memstore_percentage: 10,
     nodes: [] as Array<{ host: string; port: number; is_local: boolean }>,
   })
 
@@ -168,6 +169,7 @@ export default function NodeSettings() {
         min_nodes: (cfgRes as any).min_nodes || 1,
         alert_threshold: (cfgRes as any).alert_threshold || 80,
         server_ram_gb: (cfgRes as any).server_ram_gb || (hwRes as any).ram_gb || 16,
+        memstore_percentage: (cfgRes as any).memstore_percentage || (hwRes as any).recommended_mem_pct || 10,
         nodes: (cfgRes as any).nodes || [{ host: 'yugabytedb', port: 5433, is_local: true }],
       })
     } catch (e) { console.error('Error loading cluster config:', e) }
@@ -1289,16 +1291,24 @@ export default function NodeSettings() {
               </h3>
 
               {/* Info del hardware */}
-              <div className="bg-blue-50 p-3 rounded-lg text-sm">
+              <div className={`p-3 rounded-lg text-sm ${hardwareInfo.needs_more_servers ? 'bg-red-50 border border-red-300' : 'bg-blue-50'}`}>
                 <div className="flex items-center gap-4 mb-2">
                   <div><strong>RAM:</strong> {hardwareInfo.ram_gb} GB</div>
                   <div><strong>CPU:</strong> {hardwareInfo.cpu_cores} cores</div>
                 </div>
-                <p className="text-xs text-blue-700">{hardwareInfo.recommendation}</p>
+                <p className={`text-xs ${hardwareInfo.needs_more_servers ? 'text-red-700' : 'text-blue-700'}`}>{hardwareInfo.recommendation}</p>
                 <div className="mt-2 text-xs">
                   <strong>Recomendacion:</strong> Modo <strong>{hardwareInfo.recommended_mode === 'single' ? '1 nodo' : 'multi-nodo'}</strong>
-                  con limite <strong>{hardwareInfo.recommended_limit}</strong> tabletas.
+                  con limite <strong>{hardwareInfo.recommended_limit}</strong> tabletas
+                  y <strong>{hardwareInfo.recommended_mem_pct}%</strong> de memoria para DocDB.
                 </div>
+                {hardwareInfo.needs_more_servers && (
+                  <div className="mt-3 p-2 bg-red-100 rounded text-xs text-red-800">
+                    <strong>Hardware insuficiente.</strong> Tu servidor tiene {hardwareInfo.ram_gb}GB RAM.
+                    Necesitas {hardwareInfo.servers_needed} servidor(es) adicional(es) con minimo 8GB RAM
+                    (idealmente 16GB) para instalar YugabyteDB en modo multi-nodo.
+                  </div>
+                )}
               </div>
 
               {/* Formulario de configuracion */}
@@ -1380,6 +1390,23 @@ export default function NodeSettings() {
                     />
                     <p className="text-xs text-gray-400 mt-1">RAM detectada: {hardwareInfo.ram_gb}GB</p>
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Memoria para DocDB (%)</label>
+                  <input
+                    type="number"
+                    className="input"
+                    value={clusterForm.memstore_percentage}
+                    min={5}
+                    max={85}
+                    onChange={(e) => setClusterForm({ ...clusterForm, memstore_percentage: parseInt(e.target.value) || 10 })}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Porcentaje de RAM para escritura de YugabyteDB (global_memstore_size_percentage).
+                    Recomendado: {hardwareInfo.recommended_mem_pct}% = {(clusterForm.server_ram_gb * clusterForm.memstore_percentage / 100).toFixed(1)}GB de {clusterForm.server_ram_gb}GB.
+                    El resto ({(clusterForm.server_ram_gb * (100 - clusterForm.memstore_percentage) / 100).toFixed(1)}GB) queda para el backend, frontend y el OS.
+                  </p>
                 </div>
 
                 {/* Nodos del cluster */}

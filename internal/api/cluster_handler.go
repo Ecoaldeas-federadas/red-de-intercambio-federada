@@ -216,11 +216,14 @@ func (ch *ClusterHandler) estimateTabletCount(ctx context.Context) int {
 
 // HardwareInfo info del hardware del servidor
 type HardwareInfo struct {
-	RAMGB            int    `json:"ram_gb"`
-	CPUCores         int    `json:"cpu_cores"`
-	RecommendedLimit int    `json:"recommended_limit"`
-	RecommendedMode  string `json:"recommended_mode"` // "single" o "multi"
-	Recommendation   string `json:"recommendation"`
+	RAMGB             int    `json:"ram_gb"`
+	CPUCores          int    `json:"cpu_cores"`
+	RecommendedLimit  int    `json:"recommended_limit"`
+	RecommendedMode   string `json:"recommended_mode"`    // "single" o "multi"
+	RecommendedMemPct int    `json:"recommended_mem_pct"` // global_memstore_size_percentage
+	Recommendation    string `json:"recommendation"`
+	NeedsMoreServers  bool   `json:"needs_more_servers"`
+	ServersNeeded     int    `json:"servers_needed"`
 }
 
 // getHardwareInfo devuelve info del hardware y recomendaciones
@@ -229,35 +232,47 @@ func (ch *ClusterHandler) getHardwareInfo(w http.ResponseWriter, r *http.Request
 		CPUCores: runtime.NumCPU(),
 	}
 
-	// Detectar RAM disponible (en bytes, convertir a GB)
-	var memStats runtime.MemStats
-	runtime.ReadMemStats(&memStats)
-	// runtime no da RAM total del sistema, solo la que Go ve
-	// Usar un valor conservador basado en lo que el sistema reporta
-	// En Docker, podemos leer /proc/meminfo
 	info.RAMGB = detectSystemRAM()
 
 	// Recomendaciones basadas en hardware
+	// Regla: ~100 tabletas por GB de RAM
+	// global_memstore_size_percentage: % de RAM para DocDB (escritura)
+	//   - 16GB: 10% = 1.6GB para DocDB, ~14GB para backend/OS
+	//   - 32GB: 30% = 9.6GB para DocDB
+	//   - 8GB:  5%  = 0.4GB para DocDB (muy ajustado)
+	//   - 4GB:  no recomendado para produccion
 	if info.RAMGB >= 32 {
 		info.RecommendedLimit = 2000
 		info.RecommendedMode = "single"
-		info.Recommendation = "Tu servidor tiene suficiente RAM para un solo nodo con limite alto (2000 tabletas). No necesitas multiples nodos."
+		info.RecommendedMemPct = 30
+		info.Recommendation = "Tu servidor tiene suficiente RAM para un solo nodo con limite alto (2000 tabletas) y 30% de memoria para DocDB (9.6GB)."
+		info.NeedsMoreServers = false
 	} else if info.RAMGB >= 16 {
 		info.RecommendedLimit = 1000
 		info.RecommendedMode = "single"
-		info.Recommendation = "Tu servidor tiene 16GB RAM. Un solo nodo con limite 1000 es suficiente. Si la base de datos crece mucho, considera agregar un segundo servidor."
+		info.RecommendedMemPct = 10
+		info.Recommendation = "Tu servidor tiene 16GB RAM. Un solo nodo con limite 1000 y 10% de memoria para DocDB (1.6GB). Esto deja ~14GB para el backend, frontend y el OS. Si la base de datos crece mucho, agrega un segundo servidor."
+		info.NeedsMoreServers = false
 	} else if info.RAMGB >= 8 {
 		info.RecommendedLimit = 600
 		info.RecommendedMode = "single"
-		info.Recommendation = "Tu servidor tiene 8GB RAM. Un solo nodo con limite 600 es recomendado. No subas el limite mas alla de 600 o podrias quedarte sin memoria."
+		info.RecommendedMemPct = 5
+		info.Recommendation = "Tu servidor tiene 8GB RAM. Un solo nodo con limite 600 y solo 5% de memoria para DocDB (0.4GB). Es ajustado pero funciona. Para crecer, necesitas un servidor con mas RAM."
+		info.NeedsMoreServers = false
 	} else if info.RAMGB >= 4 {
-		info.RecommendedLimit = 534
-		info.RecommendedMode = "multi"
-		info.Recommendation = "Tu servidor tiene poca RAM (4GB). Manten el limite por defecto (534). Si necesitas mas capacidad, agrega un segundo nodo en OTRO servidor con mas RAM."
-	} else {
 		info.RecommendedLimit = 400
 		info.RecommendedMode = "multi"
-		info.Recommendation = "Tu servidor tiene muy poca RAM. Usa el limite minimo (400). Para escalar, necesitas agregar nodos en servidores separados con mas RAM."
+		info.RecommendedMemPct = 5
+		info.Recommendation = "Tu servidor tiene poca RAM (4GB). No es suficiente para produccion. Usa limite 400 con 5% de memoria para DocDB. Para escalar, NECESITAS un segundo servidor con mas RAM (minimo 8GB, idealmente 16GB)."
+		info.NeedsMoreServers = true
+		info.ServersNeeded = 1
+	} else {
+		info.RecommendedLimit = 300
+		info.RecommendedMode = "multi"
+		info.RecommendedMemPct = 5
+		info.Recommendation = "Tu servidor tiene muy poca RAM (menos de 4GB). No es suficiente para YugabyteDB. Necesitas al menos un servidor con 8GB RAM, idealmente 16GB."
+		info.NeedsMoreServers = true
+		info.ServersNeeded = 1
 	}
 
 	writeJSON(w, 200, info)
@@ -292,19 +307,20 @@ type ClusterConfigResponse struct {
 	MinNodes       int             `json:"min_nodes"`
 	AlertThreshold int             `json:"alert_threshold"`
 	ServerRAMGB    int             `json:"server_ram_gb"`
+	MemstorePct    int             `json:"memstore_percentage"`
 	Nodes          json.RawMessage `json:"nodes"`
 }
 
 // getClusterConfig devuelve la configuracion guardada del cluster
 func (ch *ClusterHandler) getClusterConfig(w http.ResponseWriter, r *http.Request) {
 	var mode string
-	var tabletLimit, minNodes, alertThreshold, serverRAMGB int
+	var tabletLimit, minNodes, alertThreshold, serverRAMGB, memstorePct int
 	var nodes []byte
 
 	err := ch.Pool.QueryRow(r.Context(), `
-		SELECT mode, tablet_limit, min_nodes, alert_threshold, server_ram_gb, nodes
+		SELECT mode, tablet_limit, min_nodes, alert_threshold, server_ram_gb, memstore_percentage, nodes
 		FROM cluster_config WHERE id = 1`).Scan(
-		&mode, &tabletLimit, &minNodes, &alertThreshold, &serverRAMGB, &nodes)
+		&mode, &tabletLimit, &minNodes, &alertThreshold, &serverRAMGB, &memstorePct, &nodes)
 	if err != nil {
 		// Si no existe la tabla, devolver defaults
 		writeJSON(w, 200, ClusterConfigResponse{
@@ -313,6 +329,7 @@ func (ch *ClusterHandler) getClusterConfig(w http.ResponseWriter, r *http.Reques
 			MinNodes:       1,
 			AlertThreshold: 80,
 			ServerRAMGB:    detectSystemRAM(),
+			MemstorePct:    10,
 			Nodes:          json.RawMessage(`[{"host":"yugabytedb","port":5433,"is_local":true}]`),
 		})
 		return
@@ -324,6 +341,7 @@ func (ch *ClusterHandler) getClusterConfig(w http.ResponseWriter, r *http.Reques
 		MinNodes:       minNodes,
 		AlertThreshold: alertThreshold,
 		ServerRAMGB:    serverRAMGB,
+		MemstorePct:    memstorePct,
 		Nodes:          json.RawMessage(nodes),
 	})
 }
@@ -336,6 +354,7 @@ func (ch *ClusterHandler) updateClusterConfig(w http.ResponseWriter, r *http.Req
 		MinNodes       int             `json:"min_nodes"`
 		AlertThreshold int             `json:"alert_threshold"`
 		ServerRAMGB    int             `json:"server_ram_gb"`
+		MemstorePct    int             `json:"memstore_percentage"`
 		Nodes          json.RawMessage `json:"nodes"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -373,18 +392,27 @@ func (ch *ClusterHandler) updateClusterConfig(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// Validar memstore_percentage
+	if req.MemstorePct == 0 {
+		req.MemstorePct = 10 // default
+	}
+	if req.MemstorePct < 5 || req.MemstorePct > 85 {
+		writeError(w, 400, "memstore_percentage debe estar entre 5 y 85")
+		return
+	}
+
 	// Si los nodes viene vacio, usar default
 	if len(req.Nodes) == 0 || string(req.Nodes) == "null" {
 		req.Nodes = json.RawMessage(`[{"host":"yugabytedb","port":5433,"is_local":true}]`)
 	}
 
 	_, err := ch.Pool.Exec(r.Context(), `
-		INSERT INTO cluster_config (id, mode, tablet_limit, min_nodes, alert_threshold, server_ram_gb, nodes, updated_at)
-		VALUES (1, $1, $2, $3, $4, $5, $6, NOW())
+		INSERT INTO cluster_config (id, mode, tablet_limit, min_nodes, alert_threshold, server_ram_gb, memstore_percentage, nodes, updated_at)
+		VALUES (1, $1, $2, $3, $4, $5, $6, $7, NOW())
 		ON CONFLICT (id) DO UPDATE SET
 			mode = $1, tablet_limit = $2, min_nodes = $3, alert_threshold = $4,
-			server_ram_gb = $5, nodes = $6, updated_at = NOW()`,
-		req.Mode, req.TabletLimit, req.MinNodes, req.AlertThreshold, ramGB, req.Nodes)
+			server_ram_gb = $5, memstore_percentage = $6, nodes = $7, updated_at = NOW()`,
+		req.Mode, req.TabletLimit, req.MinNodes, req.AlertThreshold, ramGB, req.MemstorePct, req.Nodes)
 	if err != nil {
 		writeError(w, 500, fmt.Sprintf("error al guardar config: %v", err))
 		return
@@ -394,17 +422,19 @@ func (ch *ClusterHandler) updateClusterConfig(w http.ResponseWriter, r *http.Req
 	notify := NewNotifyService(ch.Pool)
 	notify.NotifyBoard(r.Context(), ch.Config.Node.Domain, "cluster_config_updated",
 		"Configuracion del cluster actualizada",
-		fmt.Sprintf("Modo: %s, Limite: %d tabletas, Min nodos: %d, RAM: %dGB. Reinicia YugabyteDB para aplicar los cambios.", req.Mode, req.TabletLimit, req.MinNodes, ramGB),
+		fmt.Sprintf("Modo: %s, Limite: %d tabletas, MemDocDB: %d%%, Min nodos: %d, RAM: %dGB. Reinicia YugabyteDB para aplicar los cambios.", req.Mode, req.TabletLimit, req.MemstorePct, req.MinNodes, ramGB),
 		"/app/settings?tab=database",
-		map[string]interface{}{"mode": req.Mode, "tablet_limit": req.TabletLimit})
+		map[string]interface{}{"mode": req.Mode, "tablet_limit": req.TabletLimit, "memstore_pct": req.MemstorePct})
 
 	writeJSON(w, 200, map[string]interface{}{
-		"message":       "Configuracion guardada. Reinicia YugabyteDB para aplicar los cambios.",
-		"mode":          req.Mode,
-		"tablet_limit":  req.TabletLimit,
-		"min_nodes":     req.MinNodes,
-		"server_ram_gb": ramGB,
-		"needs_restart": true,
+		"message":         "Configuracion guardada. Reinicia YugabyteDB para aplicar los cambios.",
+		"mode":            req.Mode,
+		"tablet_limit":    req.TabletLimit,
+		"memstore_pct":    req.MemstorePct,
+		"min_nodes":       req.MinNodes,
+		"server_ram_gb":   ramGB,
+		"needs_restart":   true,
+		"restart_command": fmt.Sprintf("docker compose restart yugabytedb (aplica --tserver_flags=max_num_tablets=%d,global_memstore_size_percentage=%d)", req.TabletLimit, req.MemstorePct),
 	})
 }
 

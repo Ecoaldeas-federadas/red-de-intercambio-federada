@@ -36,14 +36,17 @@ services:
     volumes:
       - firmware_builds:/build-output
 
-  # YugabyteDB: un solo nodo con limite de tabletas aumentado a 1000.
-  # Es mas eficiente que correr 2 nodos en el mismo servidor (desperdician
-  # RAM, CPU y red en sincronizacion Raft entre ellos).
-  # Para produccion con alta disponibilidad: usar 3 nodos en servidores separados.
+  # YugabyteDB: un solo nodo optimizado para servidores con 16GB RAM.
+  # - max_num_tablets=1000: sube el limite de tabletas
+  # - global_memstore_size_percentage=10: reduce memoria de escritura
+  #   (por defecto es 85%, demasiado para 16GB). Con 10% usa ~1.6GB
+  #   en lugar de ~13.6GB, dejando RAM para el backend y el OS.
+  # Para servidores con mas RAM (32GB+): subir global_memstore_size_percentage a 30-50.
+  # Para servidores con poca RAM (4-8GB): usar max_num_tablets=534 y global_memstore_size_percentage=5.
   yugabytedb:
     image: yugabytedb/yugabyte:latest
     hostname: yugabytedb
-    command: ["bin/yugabyted", "start", "--base_dir=/mnt/master", "--background=false", "--advertise_address=yugabytedb", "--tserver_flags=max_num_tablets=1000"]
+    command: ["bin/yugabyted", "start", "--base_dir=/mnt/master", "--background=false", "--advertise_address=yugabytedb", "--tserver_flags=max_num_tablets=1000,global_memstore_size_percentage=10"]
     ports:
       - "5433:5433"
       - "7000:7000"

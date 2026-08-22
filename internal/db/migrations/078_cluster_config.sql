@@ -14,14 +14,17 @@ CREATE TABLE IF NOT EXISTS cluster_config (
   alert_threshold INT NOT NULL DEFAULT 80,     -- % de uso para alertar
   -- RAM del servidor en GB (para recomendaciones)
   server_ram_gb INT NOT NULL DEFAULT 16,
+  -- Porcentaje de RAM para DocDB (global_memstore_size_percentage)
+  -- 16GB: 10% (1.6GB), 32GB: 30% (9.6GB), 8GB: 5% (0.4GB)
+  memstore_percentage INT NOT NULL DEFAULT 10,
   -- Lista de nodos como JSON array: [{"host":"yugabytedb","port":5433,"is_local":true}]
   nodes JSONB NOT NULL DEFAULT '[]'::jsonb,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT single_row CHECK (id = 1)
 );
 
--- Insertar configuracion por defecto
-INSERT INTO cluster_config (id, mode, tablet_limit, min_nodes, alert_threshold, server_ram_gb, nodes)
-VALUES (1, 'single', 1000, 1, 80, 16,
+-- Insertar configuracion por defecto (optimizada para 16GB RAM)
+INSERT INTO cluster_config (id, mode, tablet_limit, min_nodes, alert_threshold, server_ram_gb, memstore_percentage, nodes)
+VALUES (1, 'single', 1000, 1, 80, 16, 10,
   '[{"host":"yugabytedb","port":5433,"is_local":true}]'::jsonb)
 ON CONFLICT (id) DO NOTHING;
