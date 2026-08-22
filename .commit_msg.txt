@@ -1,32 +1,23 @@
-docs: actualizar documentacion y paginas publicas
+fix: usar dominio real del nodo en subdominio sugerido + ayuda en servicios
 
-Documentacion interna (docs/):
-- assembly.md: Junta Directiva del nodo, tipos de propuesta reclasificados
-  (operativas a board, grandes a assembly), quorum de junta, API con
-  meeting_type, migraciones 080-082
-- governance.md: Junta Directiva del nodo, que decisiones delega, quorum
-- federation.md: sincronizacion automatica de red, tabla
-  federation_node_info, endpoints, pagina de federacion con 3 tabs
-- external_bridge.md: FC desde canasta basica, calculadora de precios,
-  quien aprueba el FC, sub-pestanas del frontend
-- INDEX.md: fases 16-16.7, migraciones 076-082, cambios recientes
+Problema 1: Subdominio sugerido hardcodeado como "tu-aldea.com"
+- En FederatedServices.tsx linea 369 se mostraba "{subdomain}.tu-aldea.com"
+  sin importar que dominio hubiera configurado el usuario
+- Ahora se usa useConfig().node_domain para mostrar el dominio real del nodo
+- Si el usuario configuro "localhost", muestra "video.localhost"
+- Si configuro "mi-aldea.com", muestra "video.mi-aldea.com"
+- Tambien se corrigio "tu-aldea.org" en seed.go (pagina publica de servicios)
 
-Paginas publicas (seed.go):
-- gobernanza: actualizada Asamblea General (decisiones grandes, mayoria
-  calificada), Junta Directiva (decisiones operativas, quorum sobre
-  miembros de la junta), Fondo Comunitario (junta aprueba gastos
-  operativos, asamblea aprueba cambios de impuesto)
-- comercio-exterior (NUEVA): explica FC, calculo desde canasta basica,
-  canasta federada, quien actualiza el FC, calculadora de precios,
-  importacion/exportacion
-- servicios-federados (NUEVA): explica los 20+ servicios autohospedados,
-  redes sociales federadas, comunicacion, productividad, multimedia,
-  instalacion con un clic, federacion entre aldeas
-
-Pagina publica del demo (demo_seed.go):
-- gobernanza: actualizada igual que la pagina normal
-- systemPageSlugs: agregadas comercio-exterior, servicios-federados y
-  gobernanza para que el demo las herede con reemplazos de terminos
+Problema 2: Sin ayuda en la pagina de Servicios Federados
+- Agregado boton "Ayuda" junto al boton de Telefonía VoIP
+- Seccion desplegable que explica:
+  * Que es el catalogo
+  * Como instalar un servicio (paso a paso)
+  * Que significa "Descargar Docker"
+  * Que es el subdominio sugerido
+  * Como agregar un servicio nuevo al catalogo (editando services_catalog.go)
+  * Que permiso se necesita (config.manage)
+  * Como funciona la federacion entre aldeas (ActivityPub)
 
 Generated with [Devin](https://devin.ai)
 

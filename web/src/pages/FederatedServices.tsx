@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from 'react'
 import { api } from '../api'
-import { Video, MessageCircle, Image as ImageIcon, Users, MessageSquare, BookOpen, PenTool, Calendar, Phone, Mic, Cloud, FileText, BookMarked, Globe, Film, Music, GitBranch, GraduationCap, Home, Lock, Download, Play, Square, Trash2, RefreshCw, Search, Server, AlertTriangle, CheckCircle, XCircle, Loader, Phone as PhoneIcon } from 'lucide-react'
+import { useConfig } from '../hooks/useConfig'
+import { Video, MessageCircle, Image as ImageIcon, Users, MessageSquare, BookOpen, PenTool, Calendar, Phone, Mic, Cloud, FileText, BookMarked, Globe, Film, Music, GitBranch, GraduationCap, Home, Lock, Download, Play, Square, Trash2, RefreshCw, Search, Server, AlertTriangle, CheckCircle, XCircle, Loader, Phone as PhoneIcon, HelpCircle } from 'lucide-react'
 
 interface ServiceItem {
   id: string
@@ -66,6 +67,7 @@ const categoryColors: Record<string, string> = {
 }
 
 export default function FederatedServices() {
+  const { node_domain: nodeDomain } = useConfig()
   const [services, setServices] = useState<ServiceItem[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -74,6 +76,7 @@ export default function FederatedServices() {
   const [installing, setInstalling] = useState(false)
   const [msg, setMsg] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null)
   const [showVoIP, setShowVoIP] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
 
   useEffect(() => {
     loadServices()
@@ -185,10 +188,77 @@ export default function FederatedServices() {
           <h1 className="text-2xl font-bold">Servicios Federados</h1>
           <p className="text-gray-500 text-sm mt-1">Reemplaza servicios comerciales con alternativas autohospedadas y federadas</p>
         </div>
-        <button onClick={() => setShowVoIP(!showVoIP)} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-2">
-          <PhoneIcon size={16} /> Telefonía VoIP
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowHelp(!showHelp)} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm flex items-center gap-2">
+            <HelpCircle size={16} /> Ayuda
+          </button>
+          <button onClick={() => setShowVoIP(!showVoIP)} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-2">
+            <PhoneIcon size={16} /> Telefonía VoIP
+          </button>
+        </div>
       </div>
+
+      {showHelp && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 space-y-4 text-sm">
+          <div className="flex items-center gap-2 text-blue-700 font-semibold text-base">
+            <HelpCircle size={18} /> Como funcionan los servicios federados
+          </div>
+
+          <div className="space-y-3 text-gray-700">
+            <div>
+              <h4 className="font-semibold text-gray-900">Que es este catalogo?</h4>
+              <p>Es una lista de mas de 20 servicios autohospedados que puedes instalar en el servidor de tu nodo. Cada servicio reemplaza una plataforma comercial (YouTube, WhatsApp, Netflix, etc.) pero sin anuncios, sin vigilancia y sin empresas intermediarias. Los datos se quedan en tu servidor.</p>
+            </div>
+
+            <div>
+              <h4 className="font-semibold text-gray-900">Como instalo un servicio?</h4>
+              <ol className="list-decimal list-inside space-y-1 ml-2">
+                <li>Busca el servicio en el catalogo (usa el buscador o filtra por categoria).</li>
+                <li>Haz clic en <strong>Detalles</strong> para ver requisitos de RAM, disco, puerto y subdominio.</li>
+                <li>Verifica que tu servidor tiene suficiente RAM y disco.</li>
+                <li>Haz clic en <strong>Instalar</strong>. El sistema genera el <code className="bg-gray-200 px-1 rounded">docker-compose.yml</code> y las instrucciones.</li>
+                <li>El servicio aparece como <strong>Corriendo</strong> o <strong>Detenido</strong>. Puedes iniciarlo, detenerlo o desinstalarlo cuando quieras.</li>
+              </ol>
+            </div>
+
+            <div>
+              <h4 className="font-semibold text-gray-900">Que significa "Descargar Docker"?</h4>
+              <p>Si prefieres instalar el servicio manualmente en otro servidor (o revisar la configuracion antes de instalar), haz clic en <strong>Descargar</strong>. Se descarga un archivo con el <code className="bg-gray-200 px-1 rounded">docker-compose.yml</code> y un <code className="bg-gray-200 px-1 rounded">README.md</code> con instrucciones paso a paso. Puedes copiar ese archivo al servidor destino y ejecutar <code className="bg-gray-200 px-1 rounded">docker compose up -d</code>.</p>
+            </div>
+
+            <div>
+              <h4 className="font-semibold text-gray-900">Que es el subdominio sugerido?</h4>
+              <p>Cada servicio tiene un subdominio sugerido (ej: <code className="bg-gray-200 px-1 rounded">video.{nodeDomain}</code>). Si tienes OpenWrt configurado, el subdominio se registra automaticamente en la intranet. Si no tienes OpenWrt, puedes configurar el DNS manualmente apuntando ese subdominio a la IP de tu servidor.</p>
+            </div>
+
+            <div>
+              <h4 className="font-semibold text-gray-900">Como agrego un servicio que no esta en el catalogo?</h4>
+              <p>El catalogo esta definido en el codigo del backend (<code className="bg-gray-200 px-1 rounded">internal/api/services_catalog.go</code>). Para agregar un servicio nuevo:</p>
+              <ol className="list-decimal list-inside space-y-1 ml-2 mt-1">
+                <li>Abre el archivo <code className="bg-gray-200 px-1 rounded">internal/api/services_catalog.go</code>.</li>
+                <li>Agrega una entrada al slice <code className="bg-gray-200 px-1 rounded">catalog</code> con: <code>id</code>, <code>name</code>, <code>category</code>, <code>icon</code>, <code>what_is</code>, <code>replaces</code>, <code>used_for</code>, <code>protocol</code>, <code>docker</code>, <code>min_ram_mb</code>, <code>min_disk_gb</code>, <code>default_port</code> y <code>subdomain</code>.</li>
+                <li>Compila el backend (<code className="bg-gray-200 px-1 rounded">go build ./...</code>).</li>
+                <li>Reinicia el nodo. El servicio nuevo aparece automaticamente en el catalogo.</li>
+              </ol>
+              <p className="mt-1 text-xs text-gray-500">Nota: el instalador con un clic requiere que el servicio tenga una imagen Docker publica. Si el servicio no usa Docker, solo se puede instalar manualmente con "Descargar" y siguiendo las instrucciones.</p>
+            </div>
+
+            <div>
+              <h4 className="font-semibold text-gray-900">Que permiso necesito?</h4>
+              <p>Para instalar, desinstalar, iniciar o detener servicios necesitas el permiso <code className="bg-gray-200 px-1 rounded">config.manage</code>. La Asamblea decide quien tiene este permiso mediante los roles y departamentos del sistema.</p>
+            </div>
+
+            <div>
+              <h4 className="font-semibold text-gray-900">Federacion entre aldeas</h4>
+              <p>Los servicios que soportan ActivityPub (PeerTube, Mastodon, Pixelfed, Friendica, Lemmy, BookWyrm, Funkwhale) pueden federarse con otras aldeas. Esto significa que el contenido publicado en una aldea es visible desde las otras aldeas federadas. Para federar servicios, cada aldea debe instalar el mismo servicio y configurar la federacion entre ellos.</p>
+            </div>
+          </div>
+
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 text-xs hover:underline">
+            Cerrar ayuda
+          </button>
+        </div>
+      )}
 
       {msg && (
         <div className={`p-3 rounded-lg text-sm ${msg.type === 'success' ? 'bg-green-50 text-green-700' : msg.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'}`}>
@@ -366,7 +436,7 @@ export default function FederatedServices() {
               </div>
 
               <div className="bg-blue-50 p-3 rounded-lg text-sm">
-                <strong>Subdominio sugerido:</strong> {selectedService.subdomain}.tu-aldea.com
+                <strong>Subdominio sugerido:</strong> {selectedService.subdomain}.{nodeDomain}
                 <br />
                 <span className="text-xs text-gray-500">Si tienes OpenWrt, este subdominio se registra automaticamente</span>
               </div>

@@ -1734,7 +1734,7 @@ func getSeedPages() []seedPage {
       {"icon":"mic","title":"Mumble","description":"Chat de voz para reuniones y coordinacion. Bajo consumo de ancho de banda. Ideal para conexiones lentas.","badge":"Voz"},
       {"icon":"cloud","title":"Nextcloud","description":"Almacenamiento y colaboracion. Reemplaza Google Drive, Dropbox. Archivos, calendarios, contactos, documentos compartidos.","badge":"Reemplaza GDrive"},
       {"icon":"message-square","title":"Matrix","description":"Mensajeria instantanea descentralizada. Reemplaza WhatsApp, Telegram. Mensajes cifrados de extremo a extremo.","badge":"Reemplaza WhatsApp"},
-      {"icon":"mail","title":"Servidor de Email","description":"Correo electronico propio. Reemplaza Gmail, Outlook. Cada miembro tiene su correo @tu-aldea.org.","badge":"Reemplaza Gmail"}
+      {"icon":"mail","title":"Servidor de Email","description":"Correo electronico propio. Reemplaza Gmail, Outlook. Cada miembro tiene su correo con el dominio de tu nodo.","badge":"Reemplaza Gmail"}
     ]
   },
   {
