@@ -1,42 +1,40 @@
-feat: gobernanza federada - canasta interna compartida y votacion entre nodos
+docs: gobernanza federada + umbral 100% + pagina publica actualizada
 
-La canasta basica interna (500 TQ) ahora es una CONSTANTE FEDERADA:
-- Es el mismo valor en TODOS los nodos
-- No se puede editar por nodo individual
-- Solo se puede cambiar mediante una propuesta federada aprobada por consenso
-- Cuando se alcanza el 75% de aprobacion, el cambio se aplica automaticamente
+Cambios:
+- Umbral por defecto cambiado de 75% a 100% (todos los nodos deben aprobar)
+  Como hay un solo nodo, sus propuestas se auto-aprueban (es el 100%)
+  Cuando se agregue un segundo nodo, se necesitan ambos
+- El umbral se puede cambiar, pero para cambiarlo se necesita el
+  umbral actual. Si el umbral es 100%, cambiarlo requiere 100%.
+  Una vez cambiado, las futuras propuestas usan el nuevo umbral.
+- Nodos nuevos aceptan las politicas existentes al unirse
 
-Migracion 076: tablas federation_constants, federation_proposals, federation_votes
-- federation_constants: valores compartidos por toda la federacion
-- federation_proposals: propuestas de cambio con umbral y expiracion
-- federation_votes: votos de cada nodo (approve/reject)
-- Constantes iniciales: basket_cost_internal_tq=500, fc_approval_threshold=75
+Documentacion nueva:
+- docs/federation_governance.md: guia completa de gobernanza federada
+  - Que valores son federados (canasta, umbral, expiracion)
+  - Como funciona el consenso (100% por defecto)
+  - Como cambiar el umbral (bajo el umbral actual)
+  - Proceso de una propuesta paso a paso
+  - Ejemplos practicos
+  - API y tablas de la base de datos
+- docs/currency_exchange.md: actualizado el calculo del FC
+  - Ahora explica canasta basica comparativa
+  - Nota de que la canasta interna es federada
+  - Selector de moneda externa (20 monedas)
+- docs/INDEX.md: agregada entrada 25 para federation_governance.md
 
-Backend (federation_gov.go):
-- GET /api/federation-gov/constants - listar constantes federadas
-- GET /api/federation-gov/constants/{key} - obtener constante
-- GET /api/federation-gov/proposals - listar propuestas
-- GET /api/federation-gov/proposals/{id} - detalle con votos
-- POST /api/federation-gov/proposals - crear propuesta (auto-aprueba)
-- POST /api/federation-gov/proposals/{id}/vote - votar
-- POST /api/federation-gov/proposals/{id}/remote-vote - recibir voto de otro nodo
-- POST /api/federation-gov/proposals/remote - recibir propuesta de otro nodo
-- checkConsensus: aplica el cambio automaticamente al alcanzar el umbral
-- applyProposal: actualiza la constante federada
+Pagina publica actualizada:
+- Nueva seccion "Gobernanza Federada" con 3 tarjetas:
+  - Canasta Federada (mismo valor en todos los nodos)
+  - Consenso entre Nodos (100% por defecto)
+  - Umbral Configurable (cambiable bajo el umbral actual)
+- Lista de features actualizada con:
+  - Gobernanza federada entre nodos
+  - Canasta basica federada
 
-Backend (external.go):
-- getCurrentFC: la canasta interna viene de federation_constants, no del nodo
-- calculateFCBasket: ignora basket_cost_local_tq del request, usa valor federado
-- storeFCBasket: guarda con la canasta interna federada
-
-Frontend:
-- Nueva pagina FederationGov con 3 pestanas:
-  - Propuestas: lista con estado, barra de progreso, botones aprobar/rechazar
-  - Constantes Federadas: valores actuales (solo lectura)
-  - Nueva Propuesta: formulario para proponer cambios
-- FC en ExternalBridge: canasta interna ahora es solo lectura (gris)
-  con nota de que es valor federado
-- Enlace "Federacion" en el sidebar
+Frontend FederationGov.tsx:
+- Explicacion del 100% y de como cambiar el umbral
+- Proceso actualizado en el formulario de nueva propuesta
 
 Generated with [Devin](https://devin.ai)
 

@@ -26,6 +26,7 @@
 22. [Gobernanza - Ley de la Aldea](governance.md) - Reglas, jerarquia nodo/org/depto, asambleas por scope, admision, FRNE, tenencia de tierra
 23. [Notificaciones](notifications.md) - Sistema unificado, pasarelas federadas (Matrix, Telegram, XMPP), preferencias, scope por usuario
 24. [Plan: Servicios de Organizaciones](PLAN_SERVICIOS_ORGANIZACIONES.md) - Plan de impuestos por nivel, servicios, organizaciones de la Asamblea
+25. [Gobernanza Federada](federation_governance.md) - Constantes federadas, propuestas, votacion entre nodos, consenso, canasta basica compartida
 
 ## Estado de Implementacion
 

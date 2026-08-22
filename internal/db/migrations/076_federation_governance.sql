@@ -58,7 +58,7 @@ VALUES ('basket_cost_internal_tq', '500', 'Costo de la canasta basica interna en
 ON CONFLICT (key) DO NOTHING;
 
 INSERT INTO federation_constants (key, value, description)
-VALUES ('fc_approval_threshold', '75', 'Porcentaje de nodos que deben aprobar un cambio federado para que se aplique automaticamente.')
+VALUES ('fc_approval_threshold', '100', 'Porcentaje de nodos que deben aprobar un cambio federado para que se aplique. Por defecto 100% (todos los nodos). Para cambiar este umbral, se necesita la aprobacion bajo el umbral actual.')
 ON CONFLICT (key) DO NOTHING;
 
 INSERT INTO federation_constants (key, value, description)

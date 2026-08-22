@@ -411,20 +411,38 @@ La migracion `045_split_grouped_products.sql` separo 14 productos agrupados en 1
 
 ### El Problema del Comercio Externo
 
-La red de trueque opera internamente con TQ, pero los miembros a veces necesitan comerciar con el exterior (comprar insumos, vender excedentes). Para esto existe el **Factor de Conversion (FC)** que relaciona el TQ con la moneda local.
+La red de trueque opera internamente con TQ, pero los miembros a veces necesitan comerciar con el exterior (comprar insumos, vender excedentes). Para esto existe el **Factor de Conversion (FC)** que relaciona el TQ con la moneda externa.
 
-### Calculo del FC
+### Calculo del FC con Canasta Basica
 
-El FC se calcula comparando el poder adquisitivo interno (TQ) con el externo (moneda local):
+El FC se calcula comparando el costo de la **misma canasta basica** en moneda externa y en TQ:
 
 ```
-FC = (CPI_externo * Costo_de_vida_local) / (Energia_local_per_capita)
+FC = canasta_local_TQ / canasta_externa
 ```
 
 Donde:
-- **CPI_externo**: Indice de precios al consumidor externo
-- **Costo_de_vida_local**: Costo promedio de la canasta basica local
-- **Energia_local_per_capita**: Energia disponible per capita en la comunidad
+- **canasta_externa**: Costo de la canasta basica en la moneda externa (USD, EUR, COP, etc.)
+- **canasta_local_TQ**: Costo de la misma canasta basica en TQ
+
+**Ejemplo:**
+- Canasta alla: 300 USD
+- Canasta aca: 500 TQ (valor federado, mismo en todos los nodos)
+- FC = 500 / 300 = 1.67 TQ por USD
+
+### La canasta interna es FEDERADA
+
+El costo de la canasta basica interna en TQ **es el mismo en todos los nodos** de la federacion. No se puede editar por nodo individual. Solo se puede cambiar mediante una **propuesta federada aprobada por consenso** (ver documentacion de Gobernanza Federada).
+
+Esto garantiza que el TQ tenga el mismo poder adquisitivo en todas las aldeas de la federacion.
+
+### Selector de moneda externa
+
+El FC soporta 20 monedas externas:
+- USD, EUR, COP, MXN, ARS, VES, BRL, CLP, PEN, BOB
+- UYU, PYG, DOP, CUP, HNL, GTQ, NIO, SVC, CRC, PAB
+
+Cada nodo elige la moneda del pais con el que comercia. La canasta externa se ingresa en esa moneda. La canasta interna es siempre en TQ (valor federado).
 
 ### DEX (Decentralized Exchange)
 

@@ -1,0 +1,190 @@
+# Gobernanza Federada
+
+La red de intercambio federada tiene valores que afectan a **TODA la federacion**, no a un solo nodo. Estos valores no los puede cambiar un nodo por su cuenta. Para cambiarlos, se necesita el **consenso de los nodos federados**.
+
+---
+
+## Que valores son federados
+
+| Constante | Valor por defecto | Descripcion |
+|-----------|-------------------|-------------|
+| `basket_cost_internal_tq` | 500 | Costo de la canasta basica interna en TQ. Es el mismo en todos los nodos. |
+| `fc_approval_threshold` | 100 | Porcentaje de nodos que deben aprobar un cambio. Por defecto 100% (todos). |
+| `proposal_expiry_days` | 30 | Dias para que una propuesta expire si no alcanza consenso. |
+
+### Por que la canasta basica es federada
+
+La canasta basica interna determina cuanto vale 1 TQ en terminos de poder adquisitivo. Si cada nodo tuviera una canasta diferente, el TQ valdria cosas distintas en cada aldea, y el comercio federado se romperia.
+
+Por eso la canasta interna es **la misma en todos los nodos**. Solo se puede cambiar mediante una propuesta federada aprobada por consenso.
+
+---
+
+## Como funciona el consenso
+
+### Umbral por defecto: 100% (todos los nodos)
+
+Por defecto, **todos los nodos federados deben aprobar** un cambio para que se aplique. Esto significa:
+
+- Si hay 1 nodo: sus propuestas se auto-aprueban (es el 100%)
+- Si hay 2 nodos: ambos deben aprobar
+- Si hay 5 nodos: los 5 deben aprobar
+- Si un nodo rechaza, el cambio no se aplica
+
+### Cambiar el umbral
+
+El umbral de aprobacion es una constante federada. Se puede cambiar, pero para cambiarlo se necesita la aprobacion bajo el **umbral actual**:
+
+1. El umbral actual es 100% (todos)
+2. Un nodo propone cambiarlo a 50%+1
+3. Esa propuesta necesita el 100% de aprobacion (umbral actual)
+4. Si todos aprueban, el umbral cambia a 50%+1
+5. A partir de ahi, las futuras propuestas solo necesitan 50%+1
+
+### Nodos nuevos
+
+Cuando un nodo nuevo se une a la federacion, **acepta las politicas existentes**. No puede tener un umbral diferente al resto. Si el umbral es 100% y hay 3 nodos, ahora se necesitan los 3 (sigue siendo 100%).
+
+---
+
+## Proceso de una propuesta
+
+```
+1. Un nodo crea una propuesta
+   ├── Selecciona la constante a cambiar
+   ├── Ingresa el nuevo valor
+   ├── Escribe una descripcion del por que
+   └── El nodo proponente auto-aprueba
+
+2. La propuesta se comparte con todos los nodos federados
+
+3. Cada nodo revisa la propuesta
+   ├── Puede aprobar
+   └── Puede rechazar
+
+4. El sistema verifica el consenso
+   ├── Si aprobaciones >= umbral -> cambio aplicado en todos
+   ├── Si rechazos > (100 - umbral) -> propuesta rechazada
+   └── Si no se alcanza ninguno -> sigue pendiente
+
+5. Si se aprueba:
+   ├── La constante se actualiza
+   ├── El cambio es efectivo en todos los nodos
+   └── La propuesta queda marcada como "approved"
+
+6. Si se rechaza o expira:
+   ├── Se sigue usando el valor actual
+   └── La propuesta queda marcada como "rejected" o "expired"
+```
+
+---
+
+## Ejemplo practico
+
+### Cambiar la canasta de 500 a 600
+
+1. El nodo A crea una propuesta:
+   - Constante: `basket_cost_internal_tq`
+   - Valor actual: 500
+   - Valor propuesto: 600
+   - Descripcion: "Aumentar la canasta debido al aumento del costo de los alimentos"
+
+2. El nodo A auto-aprueba (1/3 = 33%)
+
+3. El nodo B revisa y aprueba (2/3 = 66%)
+
+4. El nodo C revisa y aprueba (3/3 = 100%)
+
+5. Como el umbral es 100% y se alcanzo, el cambio se aplica
+
+6. Ahora todos los nodos tienen `basket_cost_internal_tq = 600`
+
+### Cambiar el umbral de 100% a 50%+1
+
+1. El nodo A crea una propuesta:
+   - Constante: `fc_approval_threshold`
+   - Valor actual: 100
+   - Valor propuesto: 51
+   - Descripcion: "Cambiar a mayoria simple para agilizar decisiones"
+
+2. Como el umbral actual es 100%, **todos los nodos deben aprobar**
+
+3. Si todos aprueban, el umbral cambia a 51%
+
+4. A partir de ahora, las propuestas solo necesitan 51% para aprobarse
+
+---
+
+## API
+
+| Endpoint | Metodo | Descripcion |
+|----------|--------|-------------|
+| `/api/federation-gov/constants` | GET | Listar constantes federadas |
+| `/api/federation-gov/constants/{key}` | GET | Obtener una constante |
+| `/api/federation-gov/proposals` | GET | Listar propuestas |
+| `/api/federation-gov/proposals/{id}` | GET | Detalle de una propuesta con votos |
+| `/api/federation-gov/proposals` | POST | Crear propuesta (requiere permiso) |
+| `/api/federation-gov/proposals/{id}/vote` | POST | Votar (approve/reject) |
+| `/api/federation-gov/proposals/{id}/remote-vote` | POST | Recibir voto de otro nodo |
+| `/api/federation-gov/proposals/remote` | POST | Recibir propuesta de otro nodo |
+
+---
+
+## Tablas de la base de datos
+
+### `federation_constants`
+
+Valores compartidos por toda la federacion.
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| key | VARCHAR(128) PK | Identificador de la constante |
+| value | JSONB | Valor actual |
+| description | TEXT | Descripcion para humanos |
+| approved_proposal_id | UUID | Que propuesta aprobo este valor |
+| updated_at | TIMESTAMPTZ | Ultima actualizacion |
+
+### `federation_proposals`
+
+Propuestas de cambios federados.
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| id | UUID PK | Identificador unico |
+| proposal_type | VARCHAR(64) | Tipo de propuesta |
+| key | VARCHAR(128) | Constante a cambiar |
+| proposed_value | JSONB | Valor propuesto |
+| current_value | JSONB | Valor actual al proponer |
+| description | TEXT | Explicacion del cambio |
+| proposed_by_node | VARCHAR(128) | Nodo que propone |
+| status | VARCHAR(20) | pending, approved, rejected, expired |
+| approval_threshold | INT | Umbral requerido (%) |
+| total_nodes | INT | Total de nodos al crear |
+| approvals | INT | Contador de aprobaciones |
+| rejections | INT | Contador de rechazos |
+| created_at | TIMESTAMPTZ | Fecha de creacion |
+| expires_at | TIMESTAMPTZ | Fecha limite |
+| applied_at | TIMESTAMPTZ | Cuando se aplico |
+
+### `federation_votes`
+
+Votos de cada nodo.
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| proposal_id | UUID FK | Propuesta votada |
+| voter_node | VARCHAR(128) | Nodo que vota |
+| vote | VARCHAR(10) | approve o reject |
+| voted_at | TIMESTAMPTZ | Fecha del voto |
+| notes | TEXT | Notas opcionales |
+
+---
+
+## Seguridad
+
+- Solo usuarios con permiso `federation.change_config` pueden crear propuestas y votar
+- Un nodo solo puede votar una vez por propuesta (UNIQUE constraint)
+- El nodo proponente auto-aprueba su propuesta
+- Las propuestas expiran si no alcanzan consenso en el tiempo definido
+- Los cambios se aplican automaticamente al alcanzar el umbral
+- No se puede cambiar una constante sin propuesta aprobada

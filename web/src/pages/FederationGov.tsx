@@ -153,7 +153,14 @@ export default function FederationGov() {
           <strong>Gobernanza Federada.</strong> Algunos valores afectan a TODA la federacion
           (como la canasta basica interna). No se pueden cambiar por nodo individual.
           Para cambiarlos, se crea una propuesta y todos los nodos federados deben aprobarla.
-          Cuando se alcanza el consenso (default 75%), el cambio se aplica automaticamente en todos.
+          <br /><br />
+          <strong>Por defecto se requiere el 100% de los nodos</strong> (todos deben aprobar).
+          Este umbral se puede cambiar, pero para cambiarlo se necesita la aprobacion bajo el umbral actual.
+          Es decir: si el umbral actual es 100%, cambiarlo a 50%+1 requiere que todos los nodos aprueben.
+          Una vez cambiado, las futuras propuestas se aprueban con el nuevo umbral.
+          <br /><br />
+          Cuando hay un solo nodo, sus propuestas se auto-aprueban (es el 100%).
+          Los nodos nuevos que se unen a la federacion aceptan las politicas existentes.
         </div>
       </div>
 
@@ -357,9 +364,14 @@ export default function FederationGov() {
               <li>Creas la propuesta (tu nodo auto-aprueba)</li>
               <li>La propuesta se comparte con todos los nodos federados</li>
               <li>Cada nodo aprueba o rechaza</li>
-              <li>Cuando se alcanza el 75% de aprobacion, el cambio se aplica en todos</li>
+              <li>Cuando se alcanza el umbral actual (por defecto 100% = todos), el cambio se aplica en todos</li>
               <li>Si no se alcanza el consenso, se sigue usando el valor actual</li>
             </ol>
+            <p className="mt-2"><strong>Cambio del umbral:</strong> Para cambiar el umbral de aprobacion
+            (por ejemplo de 100% a 50%+1), se crea una propuesta como cualquier otra.
+            Esa propuesta se aprueba bajo el umbral <em>actual</em>. Si el umbral actual es 100%,
+            todos los nodos deben aprobar el cambio. Una vez aprobado, las futuras propuestas
+ usan el nuevo umbral.</p>
           </div>
 
           <button

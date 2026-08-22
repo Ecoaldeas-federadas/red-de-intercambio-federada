@@ -228,6 +228,55 @@ export function PublicFederationPage() {
         </div>
       </section>
 
+      {/* Gobernanza Federada */}
+      <section className="max-w-4xl mx-auto px-6 py-16">
+        <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Gobernanza Federada</h2>
+        <p className="text-lg text-gray-600 leading-relaxed mb-4 text-center max-w-2xl mx-auto">
+          Algunos valores afectan a TODA la federacion, no a un solo nodo.
+          La canasta basica interna, por ejemplo, es el mismo valor en todos los nodos.
+          Para cambiarla, todos los nodos deben aprobar.
+        </p>
+        <div className="grid md:grid-cols-3 gap-4 mt-8">
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
+              <Scale className="text-blue-600" size={24} />
+            </div>
+            <h3 className="font-semibold text-gray-800 mb-2">Canasta Federada</h3>
+            <p className="text-sm text-gray-600">
+              El costo de la canasta basica interna (500 TQ) es el mismo en todos los nodos.
+              Esto garantiza que el TQ tenga el mismo poder adquisitivo en todas las aldeas.
+            </p>
+          </div>
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mb-4">
+              <Users className="text-emerald-600" size={24} />
+            </div>
+            <h3 className="font-semibold text-gray-800 mb-2">Consenso entre Nodos</h3>
+            <p className="text-sm text-gray-600">
+              Por defecto, todos los nodos deben aprobar un cambio (100%).
+              Un solo nodo que rechace bloquea el cambio. Asi se protege la estabilidad del sistema.
+            </p>
+          </div>
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4">
+              <Network className="text-purple-600" size={24} />
+            </div>
+            <h3 className="font-semibold text-gray-800 mb-2">Umbral Configurable</h3>
+            <p className="text-sm text-gray-600">
+              El umbral de aprobacion se puede cambiar (por ejemplo a 50%+1), pero para cambiarlo
+              se necesita la aprobacion bajo el umbral actual. Asi nadie impone reglas unilateralmente.
+            </p>
+          </div>
+        </div>
+        <div className="mt-6 bg-emerald-50 rounded-xl p-6 text-center">
+          <p className="text-sm text-gray-700">
+            <strong>Como funciona:</strong> Un nodo propone un cambio. Todos los nodos federados
+            lo revisan y aprueban o rechazan. Cuando se alcanza el consenso, el cambio se aplica
+            automaticamente en todos. Si no se alcanza, se sigue usando el valor actual.
+          </p>
+        </div>
+      </section>
+
       {/* Que incluye el sistema */}
       <section className="max-w-4xl mx-auto px-6 py-16">
         <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Que incluye el sistema actualmente?</h2>
@@ -246,8 +295,10 @@ export function PublicFederationPage() {
             'Federacion entre nodos',
             'Sitio web publico configurable',
             'Gobernanza configurable por nodo',
+            'Gobernanza federada entre nodos',
             'Comercio exterior con puente externo',
             'Calculadora de precios por energia',
+            'Canasta basica federada (mismo valor en todos los nodos)',
           ].map((feature, i) => (
             <div key={i} className="flex items-center gap-2 bg-white rounded-lg p-3 border border-gray-100">
               <Check className="text-emerald-600 flex-shrink-0" size={18} />
