@@ -1,51 +1,40 @@
-feat: reuniones de Junta Directiva para la Asamblea General del nodo
+fix: error al guardar FC desde canasta basica + calculadora de precios
 
-Antes la Asamblea General del nodo solo tenia sesiones de asamblea
-(todos los miembros). Ahora tiene dos tipos de reunion:
+Bug: al guardar el FC calculado desde canasta basica, el INSERT fallaba con:
+  null value in column "internal_cost" of relation "conversion_factor"
+  violates not-null constraint (SQLSTATE 23502)
 
-1. Asamblea (todos los miembros con derecho a voto)
-   - Menos frecuentes
-   - Decisiones grandes (constantes, expulsion, grandes cambios)
-   - Quorum: 50% primer llamado, 30% segundo
+Causa: la tabla conversion_factor tenia internal_cost y external_price_usd
+como NOT NULL (esquema original de 001), pero el metodo StoreFCFromBasket
+no los usa (usa basket_cost_external y basket_cost_local_tq).
 
-2. Junta Directiva (solo miembros de la junta)
-   - Mas frecuentes
-   - Decisiones operativas (presupuesto, nombramientos, decisiones del dia)
-   - Quorum: 50% primer llamado, 30% segundo (configurable)
-   - Solo pueden votar miembros activos de la junta directiva
+Fix: migracion 081 hace nullable internal_cost y external_price_usd.
+Las columnas basket_cost_external y basket_cost_local_tq ya existian
+desde la migracion 075.
 
-Migracion 080:
-- ALTER TABLE assembly_sessions ADD meeting_type ('assembly' o 'board')
-- ALTER TABLE assembly_quorum_config ADD meeting_type
-- UNIQUE actualizado para incluir meeting_type
-- Defaults de quorum para junta directiva (ordinaria, extraordinaria, urgente)
-- Tipos de propuestas para junta: board_operative, board_budget, board_appointment
+Mejoras:
 
-Backend (assembly.go):
-- listSessions: filtra por meeting_type (param ?meeting_type=board)
-- createSession: acepta meeting_type en el request
-- voteProposal: si meeting_type=board, solo miembros de la junta pueden votar
-- verifyQuorum: calcula total de votantes segun meeting_type
-  - board: COUNT(assembly_board_members WHERE is_active)
-  - assembly: COUNT(users con has_vote y counts_in_quorum)
-- getQuorumConfig: devuelve meeting_type en cada config
-- updateQuorumConfig: acepta ?meeting_type=board en la URL
-- rescheduleSession: usa meeting_type en la consulta de quorum
-- Notificaciones: junta directiva notifica solo a miembros de la junta
+1. Calculadora de Precios Externos (nueva sub-pestana):
+   - Tabla con todos los productos del nodo
+   - Muestra precio en TQ y precio equivalente en moneda externa
+   - Usa el FC actual para convertir: precio externo = precio TQ / FC
+   - Buscador por nombre de producto
+   - Es informativo: ayuda a comparar si el FC esta bien calibrado
+   - Si los precios externos calculados estan cerca de los reales,
+     el FC esta bien. Si estan muy diferentes, hay que recalcular.
 
-Frontend (Assembly.tsx):
-- Toggle "Asamblea" vs "Junta Directiva" en la pestana de sesiones
-- Los textos cambian segun el tipo (proximas asambleas / proximas juntas)
-- Al crear sesion, envia meeting_type
-- Info box explicando que la junta directiva es para decisiones operativas
-  y que solo votan miembros de la junta
+2. Sub-pestanas en Comercio Externo:
+   - Operaciones (antes era todo en una pagina)
+   - Factor de Conversion
+   - Calculadora de Precios
 
-Nota: Las organizaciones ya tenian meeting_type desde la migracion 070.
-Esta migracion lo agrega a la Asamblea General del nodo.
-
-Las organizaciones creadas por la Asamblea siguen compartiendo la misma
-Asamblea General del nodo (no tienen su propia asamblea), pero tienen
-su propia Junta Directiva (ya implementado en scoped_assembly.go).
+3. Nota sobre quien puede actualizar el FC:
+   - Explica que lo decide la Asamblea
+   - Puede ser: administrador, junta directiva, persona autorizada,
+     o solo por votacion de asamblea
+   - En paises inestables: asignar una persona que actualice frecuentemente
+   - En paises estables: decidir por asamblea
+   - El permiso external.store_fc ya existe en el sistema
 
 Generated with [Devin](https://devin.ai)
 

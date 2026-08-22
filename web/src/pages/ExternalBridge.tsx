@@ -11,6 +11,8 @@ export default function ExternalBridge() {
   const [products, setProducts] = useState<any[]>([])
   const [showForm, setShowForm] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
+  const [subTab, setSubTab] = useState<'operations' | 'fc' | 'calculator'>('operations')
+  const [calcSearch, setCalcSearch] = useState('')
   const [form, setForm] = useState({ operation_type: 'import', product_id: '', product_name: '', quantity: 0, external_price_usd: 0, local_price_trueque: 0, logistics_pct: 0, external_tax_rate: 0 })
 
   // FC editor state - calculadora de canasta basica
@@ -156,8 +158,17 @@ export default function ExternalBridge() {
           <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
             <HelpCircle size={20} />
           </button>
-          <button onClick={() => setShowForm(!showForm)} className="btn-primary flex items-center gap-2"><Plus size={18} />Nueva Operacion</button>
+          {subTab === 'operations' && (
+            <button onClick={() => setShowForm(!showForm)} className="btn-primary flex items-center gap-2"><Plus size={18} />Nueva Operacion</button>
+          )}
         </div>
+      </div>
+
+      {/* Sub-pestanas */}
+      <div className="flex flex-wrap gap-2 border-b pb-2">
+        <button onClick={() => setSubTab('operations')} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'operations' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Operaciones</button>
+        <button onClick={() => setSubTab('fc')} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'fc' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Factor de Conversion</button>
+        <button onClick={() => setSubTab('calculator')} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'calculator' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Calculadora de Precios</button>
       </div>
 
       {showHelp && (
@@ -172,7 +183,7 @@ export default function ExternalBridge() {
         </div>
       )}
 
-      {fc && (
+      {subTab === 'fc' && fc && (
         <div className="card bg-blue-50">
           <div className="flex items-start justify-between">
             <div className="flex-1">
@@ -317,13 +328,18 @@ export default function ExternalBridge() {
                 alla o aca. No sube ni baja solo - lo actualiza un administrador cuando lo considera necesario.</p>
                 <p className="mt-1"><strong>Por que no es especulativo:</strong> el {currency} no es una moneda financiera.
                 Es una unidad contable comunitaria. El FC solo sirve para saber cuanto vale algo del exterior en terminos locales.</p>
+                <p className="mt-1"><strong>Quien puede actualizarlo:</strong> Lo decide la Asamblea en la
+                pestana <em>Configuracion</em>. Puede ser: un administrador, la junta directiva,
+                una persona autorizada, o solo por votacion de asamblea. En paises con economia
+                inestable (ej: Venezuela), conviene asignar una persona que actualice frecuentemente.
+                En paises estables, puede decidirse por asamblea.</p>
               </div>
             </div>
           )}
         </div>
       )}
 
-      {showForm && (
+      {subTab === 'operations' && showForm && (
         <div className="card space-y-4">
           <h2 className="font-semibold">Nueva Operacion de Comercio Externo</h2>
 
@@ -432,6 +448,7 @@ export default function ExternalBridge() {
         </div>
       )}
 
+      {subTab === 'operations' && (
       <div className="space-y-2">
         {ops.length === 0 && !showForm ? (
           <div className="card text-center text-gray-500 py-8">
@@ -487,6 +504,86 @@ export default function ExternalBridge() {
           )
         })}
       </div>
+      )}
+
+      {/* ===== CALCULADORA DE PRECIOS ===== */}
+      {subTab === 'calculator' && (
+        <div className="space-y-4">
+          <div className="card p-4 bg-blue-50 border-blue-200">
+            <h3 className="font-semibold flex items-center gap-2 mb-2"><Calculator size={18} /> Calculadora de Precios Externos</h3>
+            <p className="text-sm text-gray-600">
+              Esta tabla muestra el precio de cada producto del nodo convertido a la moneda externa
+              usando el FC actual. Es <strong>informativo</strong>: te ayuda a comparar si el FC
+              calculado desde la canasta basica esta cerca del precio real externo.
+            </p>
+            {fc && (
+              <p className="text-sm mt-2">
+                FC actual: <strong>1 {fc.external_currency || 'USD'} = {fc.factor} {currency}</strong>
+                <span className="text-gray-500 text-xs ml-2">
+                  (precio externo = precio {currency} / FC)
+                </span>
+              </p>
+            )}
+          </div>
+
+          {/* Buscador */}
+          <input
+            className="input"
+            placeholder="Buscar producto por nombre..."
+            value={calcSearch}
+            onChange={(e) => setCalcSearch(e.target.value)}
+          />
+
+          {/* Tabla de productos */}
+          {products.length === 0 ? (
+            <div className="card text-center text-gray-500 py-8">No hay productos cargados.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-gray-500">
+                    <th className="py-2 px-3">Producto</th>
+                    <th className="py-2 px-3 text-right">Precio ({currency})</th>
+                    <th className="py-2 px-3 text-right">Precio externo ({fc?.external_currency || 'USD'})</th>
+                    <th className="py-2 px-3">Categoria</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products
+                    .filter((p: any) => {
+                      if (!calcSearch) return true
+                      const name = (p.name || p.title || '').toLowerCase()
+                      return name.includes(calcSearch.toLowerCase())
+                    })
+                    .map((p: any) => {
+                      const priceTQ = p.price_tq || p.price || 0
+                      const factor = fc?.factor || 1
+                      const priceExternal = factor > 0 ? (priceTQ / factor) : 0
+                      return (
+                        <tr key={p.id} className="border-b hover:bg-gray-50">
+                          <td className="py-2 px-3">{p.name || p.title}</td>
+                          <td className="py-2 px-3 text-right font-mono">{priceTQ.toLocaleString()}</td>
+                          <td className="py-2 px-3 text-right font-mono">
+                            {priceExternal > 0 ? priceExternal.toFixed(2) : '-'}
+                          </td>
+                          <td className="py-2 px-3 text-gray-500 text-xs">{p.category || p.type || '-'}</td>
+                        </tr>
+                      )
+                    })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="card p-3 bg-gray-50 text-xs text-gray-500">
+            <p>
+              <strong>Como usar esta tabla:</strong> Compara el "Precio externo" con lo que realmente
+              cuesta ese producto en el pais externo. Si los precios estan cerca, el FC esta bien
+              calibrado. Si estan muy diferentes, considera recalcular el FC desde la canasta basica.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
