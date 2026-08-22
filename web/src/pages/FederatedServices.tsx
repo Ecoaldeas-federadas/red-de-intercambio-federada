@@ -252,6 +252,87 @@ export default function FederatedServices() {
               <h4 className="font-semibold text-gray-900">Federacion entre aldeas</h4>
               <p>Los servicios que soportan ActivityPub (PeerTube, Mastodon, Pixelfed, Friendica, Lemmy, BookWyrm, Funkwhale) pueden federarse con otras aldeas. Esto significa que el contenido publicado en una aldea es visible desde las otras aldeas federadas. Para federar servicios, cada aldea debe instalar el mismo servicio y configurar la federacion entre ellos.</p>
             </div>
+
+            <div className="border-t pt-3">
+              <h4 className="font-semibold text-gray-900">Servicios de Correo: como funcionan</h4>
+              <p className="mb-2">El correo electronico tiene tres componentes que se instalan por separado:</p>
+              <ul className="list-disc list-inside space-y-1 ml-2">
+                <li><strong>Servidor de correo</strong> (Mailu o Mailcow): se instala en el nodo. Recibe y envia correos. Crea cuentas para cada miembro. Configura cuotas de espacio por usuario.</li>
+                <li><strong>Webmail</strong> (SnappyMail): interfaz web para leer correo desde el navegador sin instalar nada. Se conecta al servidor de correo.</li>
+                <li><strong>Cliente de chat</strong> (Delta Chat): app que se instala en el celular/PC de cada miembro. Se ve como WhatsApp pero usa el servidor de correo del nodo. No se instala en el servidor.</li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-semibold text-gray-900">Mailu vs Mailcow: cual elegir?</h4>
+              <div className="grid grid-cols-2 gap-3 mt-2">
+                <div className="bg-white p-3 rounded-lg border">
+                  <div className="font-medium text-sm">Mailu (Ligero)</div>
+                  <ul className="text-xs space-y-1 mt-1 text-gray-600">
+                    <li>1-2 GB RAM</li>
+                    <li>Licencia MIT (sin restricciones)</li>
+                    <li>SMTP + IMAP + webmail</li>
+                    <li>Ideal para hardware limitado</li>
+                    <li>Sin calendario compartido</li>
+                  </ul>
+                </div>
+                <div className="bg-white p-3 rounded-lg border">
+                  <div className="font-medium text-sm">Mailcow (Completo)</div>
+                  <ul className="text-xs space-y-1 mt-1 text-gray-600">
+                    <li>3-4 GB RAM</li>
+                    <li>Licencia GPL</li>
+                    <li>SMTP + IMAP + groupware</li>
+                    <li>Calendario + contactos CalDAV/CardDAV</li>
+                    <li>Ideal para servidor dedicado</li>
+                  </ul>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">Si tu nodo tiene poca RAM, instala Mailu. Si tienes otro servidor con mas RAM, instala Mailcow alli. Ambos federan con cualquier servidor de correo del mundo.</p>
+            </div>
+
+            <div>
+              <h4 className="font-semibold text-gray-900">Como configurar los clientes de correo</h4>
+              <p>Despues de instalar Mailu o Mailcow, los miembros configuran sus clientes de correo asi:</p>
+              <div className="bg-gray-100 p-3 rounded-lg mt-1 text-xs font-mono">
+                <div>Servidor entrante (IMAP): correo.{nodeDomain}</div>
+                <div>Puerto: 993 (SSL/TLS)</div>
+                <div>Servidor saliente (SMTP): correo.{nodeDomain}</div>
+                <div>Puerto: 587 (STARTTLS)</div>
+                <div>Usuario: miembro@{nodeDomain}</div>
+                <div>Contrasena: la que el admin le asigno</div>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Clientes recomendados: Thunderbird (PC), K-9 Mail (Android), Mail (iOS). La mayoria se autoconfiguran via Autoconfig/Autodiscover: solo colocas el correo y la contrasena, y el cliente encuentra el servidor automaticamente.</p>
+            </div>
+
+            <div>
+              <h4 className="font-semibold text-gray-900">Delta Chat: chat estilo WhatsApp via correo</h4>
+              <p>Delta Chat es un CLIENTE (app) que se instala en el celular o PC de cada miembro, no en el servidor. Para usarlo:</p>
+              <ol className="list-decimal list-inside space-y-1 ml-2 mt-1">
+                <li>Instala Mailu o Mailcow en el nodo.</li>
+                <li>El admin crea una cuenta de correo para cada miembro.</li>
+                <li>Cada miembro instala Delta Chat en su celular (Google Play, App Store, F-Droid).</li>
+                <li>En Delta Chat, coloca su correo@{nodeDomain} y contrasena.</li>
+                <li>Delta Chat se conecta automaticamente al servidor IMAP/SMTP del nodo.</li>
+                <li>Para chatear con alguien de otra aldea: agrega su correo@otra-aldea.com.</li>
+              </ol>
+              <p className="text-xs text-gray-500 mt-1">No hay que configurar servidores manualmente en Delta Chat. Solo correo y contrasena. El chat se ve igual que WhatsApp: mensajes, fotos, archivos, grupos, llamadas.</p>
+            </div>
+
+            <div>
+              <h4 className="font-semibold text-gray-900">Reglas y cuotas del servidor de correo</h4>
+              <p>Desde el panel de administracion de Mailu o Mailcow puedes configurar:</p>
+              <ul className="list-disc list-inside space-y-1 ml-2 mt-1">
+                <li><strong>Cuota de espacio</strong> por usuario (ej: 1 GB, 5 GB, ilimitado)</li>
+                <li><strong>Limite de tamano</strong> de archivos adjuntos (ej: 25 MB)</li>
+                <li><strong>Dominios</strong> aceptados para enviar/recibir</li>
+                <li><strong>Aliases</strong> (ej: info@tu-dominio redirige a maria@tu-dominio)</li>
+                <li><strong>Filtros antispam</strong> y nivel de sensibilidad</li>
+                <li><strong>Antivirus</strong> on/off</li>
+                <li><strong>Reglas de reenvio</strong> automatico</li>
+                <li><strong>Bloqueo de remitentes</strong> o dominios externos</li>
+              </ul>
+              <p className="text-xs text-gray-500 mt-1">Estas reglas se configuran desde el panel web del servidor de correo, no desde el sistema de gobernanza. El admin con permiso config.manage decide las reglas segun lo que la Asamblea acuerde.</p>
+            </div>
           </div>
 
           <button onClick={() => setShowHelp(false)} className="text-blue-600 text-xs hover:underline">

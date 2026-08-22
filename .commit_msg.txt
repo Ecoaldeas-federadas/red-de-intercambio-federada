@@ -1,39 +1,33 @@
-feat: agregar servicios de correo (Mailu, Delta Chat, SnappyMail) al catalogo
+feat: agregar Mailcow + mejorar docs de correo (clientes, cuotas, reglas)
 
-Servicios de correo agregados al catalogo de servicios federados:
+Cambios:
 
-1. Mailu (Servidor de Correo)
-   - Licencia MIT (100% libre, sin restricciones)
-   - Todo en uno: SMTP, IMAP, POP3, panel admin, webmail integrado
-   - Antispam, antivirus, SSL automatico con Let's Encrypt
-   - Federacion automatica con cualquier servidor de correo del mundo
-   - Cada miembro tiene su correo @tu-dominio
-   - Solo 1-2 GB RAM (mucho mas liviano que Mailcow que necesita 3-4 GB)
-   - Docker, puerto 25, subdominio correo.{dominio}
+1. Mailcow agregado como segunda opcion de servidor de correo
+   - Suite completa con groupware (calendario, contactos CalDAV/CardDAV)
+   - 3-4 GB RAM (para instalar en servidor dedicado u otro nodo)
+   - GPL, antispam (Rspamd), antivirus (ClamAV), SSL automatico
+   - El usuario decide cual instalar segun su hardware:
+     * Mailu: ligero (1-2 GB), sin calendario
+     * Mailcow: completo (3-4 GB), con groupware
 
-2. Delta Chat (Chat por Correo)
-   - Mensajeria instantanea que funciona sobre servidores de correo
-   - Se ve como WhatsApp pero envia mensajes via email federado
-   - Cifrado extremo a extremo auditable
-   - App para Android, iOS, Windows, macOS, Linux
-   - No requiere servidor propio: usa Mailu como backend
-   - Federacion automatica: usuario@aldea-a.com chatea con amigo@aldea-b.com
-   - Cero datos privados en el servidor
-   - Multi-dispositivo, notificaciones push, llamadas P2P
+2. Delta Chat aclarado como CLIENTE (no servidor)
+   - Descripcion ahora dice explicitamente "CLIENTE" en mayusculas
+   - Explica que REQUIERE Mailu o Mailcow instalado en el nodo
+   - Instrucciones paso a paso: instalar servidor, crear cuenta,
+     instalar app, colocar correo@dominio, se conecta automatico
 
-3. SnappyMail (Webmail)
-   - Webmail rapido y moderno estilo Gmail
-   - Leer y escribir correos desde el navegador sin instalar nada
-   - Se conecta a Mailu via IMAP/SMTP
-   - Adaptable a moviles
-   - Docker, puerto 8888, subdominio webmail.{dominio}
+3. SnappyMail aclarado como cliente web (no servidor)
+   - Se conecta a Mailu o Mailcow
 
-Tambien se actualizo la pagina publica servicios-federados con los
-tres servicios nuevos en la seccion de Comunicacion.
+4. Seccion de ayuda ampliada en FederatedServices.tsx con:
+   - Como funcionan los 3 componentes del correo (servidor, webmail, cliente)
+   - Comparativa Mailu vs Mailcow (RAM, licencia, features)
+   - Configuracion de clientes de correo (IMAP 993, SMTP 587, autoconfig)
+   - Instrucciones de Delta Chat paso a paso
+   - Reglas y cuotas configurables (espacio por usuario, tamano adjuntos,
+     aliases, antispam, antivirus, reenvio, bloqueo de remitentes)
 
-Nota: Stalwart no se incluyo porque tiene licencia AGPL con version
-enterprise (restricciones). Mailcow no se incluyo porque necesita 3-4
-GB RAM. Mailu es el mas liviano y 100% libre MIT.
+5. Pagina publica actualizada con Mailcow y descripciones mejoradas
 
 Generated with [Devin](https://devin.ai)
 
