@@ -33,10 +33,13 @@ func (eh *ExternalHandler) RegisterRoutes(r chi.Router) {
 func (eh *ExternalHandler) RegisterRoutesWithAuth(r chi.Router, am *AuthMiddleware) {
 	r.Get("/api/external/fc", eh.getCurrentFC)
 	r.Post("/api/external/fc/calculate", eh.calculateFC)
+	r.Post("/api/external/fc/calculate-basket", eh.calculateFCBasket)
 	if am != nil {
 		r.With(am.RequirePermission("external.store_fc")).Post("/api/external/fc/store", eh.storeFC)
+		r.With(am.RequirePermission("external.store_fc")).Post("/api/external/fc/store-basket", eh.storeFCBasket)
 	} else {
 		r.Post("/api/external/fc/store", eh.storeFC)
+		r.Post("/api/external/fc/store-basket", eh.storeFCBasket)
 	}
 
 	r.Get("/api/external/operations", eh.listOperations)
@@ -74,11 +77,14 @@ func (eh *ExternalHandler) getCurrentFC(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		// Devolver FC por defecto en vez de 404
 		writeJSON(w, 200, map[string]interface{}{
-			"factor":            5.0,
-			"external_cpi":      300,
-			"local_energy_cost": 60,
-			"calculated_at":     time.Now().UTC(),
-			"is_default":        true,
+			"factor":               5.0,
+			"external_cpi":         300,
+			"local_energy_cost":    60,
+			"external_currency":    "USD",
+			"basket_cost_external": 0,
+			"basket_cost_local_tq": 0,
+			"calculated_at":        time.Now().UTC(),
+			"is_default":           true,
 		})
 		return
 	}
@@ -125,6 +131,64 @@ func (eh *ExternalHandler) storeFC(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cf, err := eh.DEX.StoreFC(r.Context(), req.Factor, req.ExternalCPI, req.LocalEnergyCost, req.ApprovedBy)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	writeJSON(w, 201, cf)
+}
+
+// CalculateFCBasketRequest - calcular FC desde canasta basica
+type CalculateFCBasketRequest struct {
+	ExternalCurrency   string  `json:"external_currency"`
+	BasketCostExternal float64 `json:"basket_cost_external"`
+	BasketCostLocalTQ  int64   `json:"basket_cost_local_tq"`
+}
+
+func (eh *ExternalHandler) calculateFCBasket(w http.ResponseWriter, r *http.Request) {
+	var req CalculateFCBasketRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.ExternalCurrency == "" {
+		req.ExternalCurrency = "USD"
+	}
+
+	fc, err := eh.DEX.CalculateFCFromBasket(r.Context(), req.BasketCostExternal, req.BasketCostLocalTQ)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"factor":               fc,
+		"external_currency":    req.ExternalCurrency,
+		"basket_cost_external": req.BasketCostExternal,
+		"basket_cost_local_tq": req.BasketCostLocalTQ,
+	})
+}
+
+// StoreFCBasketRequest - guardar FC calculado desde canasta basica
+type StoreFCBasketRequest struct {
+	Factor             float64     `json:"factor"`
+	ExternalCurrency   string      `json:"external_currency"`
+	BasketCostExternal float64     `json:"basket_cost_external"`
+	BasketCostLocalTQ  int64       `json:"basket_cost_local_tq"`
+	ApprovedBy         []uuid.UUID `json:"approved_by"`
+}
+
+func (eh *ExternalHandler) storeFCBasket(w http.ResponseWriter, r *http.Request) {
+	var req StoreFCBasketRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.ExternalCurrency == "" {
+		req.ExternalCurrency = "USD"
+	}
+
+	cf, err := eh.DEX.StoreFCFromBasket(r.Context(), req.Factor, req.BasketCostExternal, req.BasketCostLocalTQ, req.ExternalCurrency, req.ApprovedBy)
 	if err != nil {
 		writeError(w, 400, err.Error())
 		return

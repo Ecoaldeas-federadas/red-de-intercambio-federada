@@ -13,12 +13,49 @@ export default function ExternalBridge() {
   const [showHelp, setShowHelp] = useState(false)
   const [form, setForm] = useState({ operation_type: 'import', product_id: '', product_name: '', quantity: 0, external_price_usd: 0, local_price_trueque: 0, logistics_pct: 0, external_tax_rate: 0 })
 
-  // FC editor state
+  // FC editor state - calculadora de canasta basica
   const [showFCForm, setShowFCForm] = useState(false)
-  const [fcForm, setFcForm] = useState({ external_cpi: 0, local_energy_cost: 0 })
+  const [fcForm, setFcForm] = useState({
+    external_currency: 'USD',
+    basket_cost_external: 0,
+    basket_cost_local_tq: 0,
+  })
   const [fcPreview, setFcPreview] = useState<number | null>(null)
   const [fcMsg, setFcMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [fcSaving, setFcSaving] = useState(false)
+
+  const EXTERNAL_CURRENCIES = [
+    { code: 'USD', name: 'Dolar estadounidense', symbol: '$' },
+    { code: 'EUR', name: 'Euro', symbol: '€' },
+    { code: 'COP', name: 'Peso colombiano', symbol: '$' },
+    { code: 'MXN', name: 'Peso mexicano', symbol: '$' },
+    { code: 'ARS', name: 'Peso argentino', symbol: '$' },
+    { code: 'VES', name: 'Bolivar venezolano', symbol: 'Bs' },
+    { code: 'BRL', name: 'Real brasileño', symbol: 'R$' },
+    { code: 'CLP', name: 'Peso chileno', symbol: '$' },
+    { code: 'PEN', name: 'Sol peruano', symbol: 'S/' },
+    { code: 'BOB', name: 'Boliviano', symbol: 'Bs' },
+    { code: 'UYU', name: 'Peso uruguayo', symbol: '$U' },
+    { code: 'PYG', name: 'Guarani paraguayo', symbol: '₲' },
+    { code: 'DOP', name: 'Peso dominicano', symbol: 'RD$' },
+    { code: 'CUP', name: 'Peso cubano', symbol: '$' },
+    { code: 'HNL', name: 'Lempira hondureño', symbol: 'L' },
+    { code: 'GTQ', name: 'Quetzal guatemalteco', symbol: 'Q' },
+    { code: 'NIO', name: 'Cordoba nicaraguense', symbol: 'C$' },
+    { code: 'SVC', name: 'Colon salvadoreño', symbol: '$' },
+    { code: 'CRC', name: 'Colon costarricense', symbol: '₡' },
+    { code: 'PAB', name: 'Balboa panameño', symbol: 'B/.' },
+  ]
+
+  const getCurrencySymbol = (code: string) => {
+    const c = EXTERNAL_CURRENCIES.find((c) => c.code === code)
+    return c?.symbol || code
+  }
+
+  const getCurrencyName = (code: string) => {
+    const c = EXTERNAL_CURRENCIES.find((c) => c.code === code)
+    return c?.name || code
+  }
 
   const load = () => {
     api.get('/external/fc').then(setFc).catch(() => {})
@@ -32,21 +69,23 @@ export default function ExternalBridge() {
   useEffect(() => {
     if (fc) {
       setFcForm({
-        external_cpi: fc.external_cpi ?? 0,
-        local_energy_cost: fc.local_energy_cost ?? 0,
+        external_currency: fc.external_currency || 'USD',
+        basket_cost_external: fc.basket_cost_external || 0,
+        basket_cost_local_tq: fc.basket_cost_local_tq || 0,
       })
     }
   }, [fc])
 
   const calculateFC = async () => {
-    if (fcForm.external_cpi <= 0 || fcForm.local_energy_cost <= 0) {
-      setFcMsg({ type: 'error', text: 'Ambos valores deben ser mayores que cero' })
+    if (fcForm.basket_cost_external <= 0 || fcForm.basket_cost_local_tq <= 0) {
+      setFcMsg({ type: 'error', text: 'Ambos costos de la canasta deben ser mayores que cero' })
       return
     }
     try {
-      const res = await api.post('/external/fc/calculate', {
-        external_cpi: fcForm.external_cpi,
-        local_energy_cost: fcForm.local_energy_cost,
+      const res = await api.post('/external/fc/calculate-basket', {
+        external_currency: fcForm.external_currency,
+        basket_cost_external: fcForm.basket_cost_external,
+        basket_cost_local_tq: fcForm.basket_cost_local_tq,
       })
       setFcPreview(res.factor)
       setFcMsg(null)
@@ -62,10 +101,11 @@ export default function ExternalBridge() {
     }
     setFcSaving(true)
     try {
-      await api.post('/external/fc/store', {
+      await api.post('/external/fc/store-basket', {
         factor: fcPreview,
-        external_cpi: fcForm.external_cpi,
-        local_energy_cost: fcForm.local_energy_cost,
+        external_currency: fcForm.external_currency,
+        basket_cost_external: fcForm.basket_cost_external,
+        basket_cost_local_tq: fcForm.basket_cost_local_tq,
       })
       setFcMsg({ type: 'success', text: 'FC guardado correctamente' })
       setShowFCForm(false)
@@ -137,12 +177,23 @@ export default function ExternalBridge() {
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <h2 className="font-semibold">Factor de Conversion Actual (FC)</h2>
-              <p className="text-2xl font-bold text-blue-700 mt-1">1 USD = {fc.factor} {currency}</p>
-              <div className="grid grid-cols-2 gap-3 mt-2 text-sm">
-                <div><span className="text-gray-500">CPI externo:</span> <b>{fc.external_cpi}</b></div>
-                <div><span className="text-gray-500">Costo energia local:</span> <b>{fc.local_energy_cost} kWh</b></div>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">El FC indica cuantos {currency} equivale 1 dolar externo, basado en el costo de vida y la energia local.</p>
+              <p className="text-2xl font-bold text-blue-700 mt-1">
+                1 {fc.external_currency || 'USD'} = {fc.factor} {currency}
+              </p>
+              {fc.basket_cost_external > 0 && fc.basket_cost_local_tq > 0 ? (
+                <div className="grid grid-cols-2 gap-3 mt-2 text-sm">
+                  <div><span className="text-gray-500">Canasta en {fc.external_currency}:</span> <b>{getCurrencySymbol(fc.external_currency)}{fc.basket_cost_external}</b></div>
+                  <div><span className="text-gray-500">Canasta en {currency}:</span> <b>{fc.basket_cost_local_tq} {currency}</b></div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 mt-2 text-sm">
+                  <div><span className="text-gray-500">CPI externo:</span> <b>{fc.external_cpi}</b></div>
+                  <div><span className="text-gray-500">Costo energia local:</span> <b>{fc.local_energy_cost} kWh</b></div>
+                </div>
+              )}
+              <p className="text-xs text-gray-500 mt-2">
+                El FC indica cuantos {currency} equivale 1 {fc.external_currency || 'USD'}, basado en el costo de la canasta basica.
+              </p>
               {fc.is_default && (
                 <p className="text-xs text-amber-600 mt-1 font-medium">Valor por defecto - presiona "Editar FC" para configurar el real de tu comunidad</p>
               )}
@@ -156,40 +207,81 @@ export default function ExternalBridge() {
 
           {showFCForm && (
             <div className="mt-4 pt-4 border-t border-blue-200 space-y-3">
-              <h3 className="font-medium text-sm flex items-center gap-1"><Calculator size={16} /> Recalcular Factor de Conversion</h3>
+              <h3 className="font-medium text-sm flex items-center gap-1"><Calculator size={16} /> Calcular FC desde Canasta Basica</h3>
               <p className="text-xs text-gray-500">
-                El FC se calcula dividiendo el CPI externo entre el costo de energia local.
-                Ingresa los valores actuales de tu comunidad y del pais/moneda externa de referencia.
+                Compara el costo de la <strong>misma canasta basica</strong> (alimentos basicos, servicios esenciales)
+                en la moneda externa y en {currency}. El sistema calcula automaticamente el FC.
+                No necesitas hacer calculos: solo ingresa los dos precios.
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+              <div className="space-y-3">
+                {/* Paso 1: Elegir moneda */}
                 <div>
-                  <label className="label">CPI externo (indice de precios externo)</label>
-                  <input
-                    type="number"
+                  <label className="label">1. Moneda externa de referencia</label>
+                  <select
                     className="input"
-                    placeholder="Ej: 300"
-                    value={fcForm.external_cpi || ''}
-                    onChange={(e) => { setFcForm({ ...fcForm, external_cpi: parseFloat(e.target.value) || 0 }); setFcPreview(null) }}
-                  />
+                    value={fcForm.external_currency}
+                    onChange={(e) => { setFcForm({ ...fcForm, external_currency: e.target.value }); setFcPreview(null) }}
+                  >
+                    {EXTERNAL_CURRENCIES.map((c) => (
+                      <option key={c.code} value={c.code}>{c.code} - {c.name} ({c.symbol})</option>
+                    ))}
+                  </select>
                   <p className="text-xs text-gray-400 mt-1">
-                    Indice de precios al consumidor del pais/moneda externa. Representa el costo de vida externo.
-                    Busca "CPI" o "indice de precios al consumidor" del pais de referencia.
+                    Elige la moneda del pais con el que vas a comerciar. Ej: USD para dolares, COP para pesos colombianos.
                   </p>
                 </div>
+
+                {/* Paso 2: Costo canasta externa */}
                 <div>
-                  <label className="label">Costo de energia local (kWh)</label>
-                  <input
-                    type="number"
-                    className="input"
-                    placeholder="Ej: 60"
-                    value={fcForm.local_energy_cost || ''}
-                    onChange={(e) => { setFcForm({ ...fcForm, local_energy_cost: parseFloat(e.target.value) || 0 }); setFcPreview(null) }}
-                  />
+                  <label className="label">
+                    2. Costo de la canasta basica alla (en {fcForm.external_currency})
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-500 font-medium">{getCurrencySymbol(fcForm.external_currency)}</span>
+                    <input
+                      type="number"
+                      className="input flex-1"
+                      placeholder="Ej: 300"
+                      value={fcForm.basket_cost_external || ''}
+                      onChange={(e) => { setFcForm({ ...fcForm, basket_cost_external: parseFloat(e.target.value) || 0 }); setFcPreview(null) }}
+                    />
+                  </div>
                   <p className="text-xs text-gray-400 mt-1">
-                    Costo energetico promedio de la comunidad en kWh. Representa cuanto cuesta producir
-                    un kWh localmente (solar, hidraulica, eolica, etc).
+                    Cuanto cuesta una canasta basica de alimentos alla en su moneda.
+                    Ej: si alla cuesta 300 {fcForm.external_currency}, escribe 300.
+                    Puedes buscar "canasta basica {getCurrencyName(fcForm.external_currency)}" en internet.
                   </p>
                 </div>
+
+                {/* Paso 3: Costo canasta local */}
+                <div>
+                  <label className="label">
+                    3. Costo de la misma canasta basica aca (en {currency})
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      className="input flex-1"
+                      placeholder="Ej: 1500"
+                      value={fcForm.basket_cost_local_tq || ''}
+                      onChange={(e) => { setFcForm({ ...fcForm, basket_cost_local_tq: parseInt(e.target.value) || 0 }); setFcPreview(null) }}
+                    />
+                    <span className="text-gray-500 font-medium">{currency}</span>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Cuanto cuesta la misma canasta basica aca en tu comunidad, en {currency}.
+                    Ej: si aca cuesta 1500 {currency}, escribe 1500.
+                  </p>
+                </div>
+              </div>
+
+              {/* Ejemplo visual */}
+              <div className="text-xs bg-white p-3 rounded border border-blue-100">
+                <p className="font-medium text-gray-600 mb-1">Ejemplo de como funciona:</p>
+                <p>Si alla la canasta cuesta <b>300 {fcForm.external_currency}</b> y aca cuesta <b>1500 {currency}</b>:</p>
+                <p className="mt-1">FC = 1500 / 300 = <b className="text-blue-700">5.00 {currency}</b> por cada <b>1 {fcForm.external_currency}</b></p>
+                <p className="mt-1 text-gray-400">Esto significa que 1 {fcForm.external_currency} tiene el mismo poder adquisitivo que 5.00 {currency}.</p>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -199,7 +291,7 @@ export default function ExternalBridge() {
                 {fcPreview !== null && (
                   <>
                     <span className="text-sm text-gray-600">
-                      Nuevo FC: <b className="text-blue-700">1 USD = {fcPreview.toFixed(2)} {currency}</b>
+                      Nuevo FC: <b className="text-blue-700">1 {fcForm.external_currency} = {fcPreview.toFixed(2)} {currency}</b>
                     </span>
                     <button onClick={saveFC} disabled={fcSaving} className="btn-primary flex items-center gap-1 text-sm">
                       <Save size={16} /> {fcSaving ? 'Guardando...' : 'Guardar FC'}
@@ -218,12 +310,13 @@ export default function ExternalBridge() {
               )}
 
               <div className="text-xs text-gray-400 bg-white p-3 rounded border border-gray-100">
-                <p className="font-medium text-gray-600 mb-1">Como funciona el FC:</p>
-                <p><strong>Formula:</strong> FC = CPI externo / Costo energia local</p>
-                <p><strong>Ejemplo:</strong> 300 / 60 = 5.00 TQ por USD</p>
-                <p className="mt-1">El FC es una <strong>referencia contable</strong>, no una tasa de cambio especulativa.
-                Lo decide la asamblea basandose en el costo de vida real. Actualizalo cuando cambien
-                significativamente los precios externos o los costos energeticos locales.</p>
+                <p className="font-medium text-gray-600 mb-1">Sobre el FC:</p>
+                <p>El FC es una <strong>referencia contable</strong>, no una tasa de cambio especulativa.
+                Lo decide la asamblea basandose en el costo de vida real.</p>
+                <p className="mt-1"><strong>Cuando actualizarlo:</strong> cuando cambien significativamente los precios
+                alla o aca. No sube ni baja solo - lo actualiza un administrador cuando lo considera necesario.</p>
+                <p className="mt-1"><strong>Por que no es especulativo:</strong> el {currency} no es una moneda financiera.
+                Es una unidad contable comunitaria. El FC solo sirve para saber cuanto vale algo del exterior en terminos locales.</p>
               </div>
             </div>
           )}

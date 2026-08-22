@@ -1,16 +1,30 @@
-feat: formulario para recalcular y guardar el Factor de Conversion (FC)
+feat: calculadora de FC con canasta basica y selector de moneda externa
 
-Antes el FC solo se mostraba (valor por defecto 5.0) sin forma de
-editarlo desde la interfaz. Ahora la pagina de Comercio Externo tiene:
+Rediseño completo del Factor de Conversion (FC) para que sea facil de
+calcular sin terminos tecnicos. Antes usaba "CPI externo" y "costo
+energetico local" que son conceptos dificiles. Ahora usa canasta basica:
 
-- Boton "Editar FC" junto al FC actual
-- Formulario con campos CPI externo y costo de energia local
-- Boton "Calcular FC" que preview del resultado antes de guardar
-- Boton "Guardar FC" que persiste en la base de datos
-- Aviso amarillo cuando el FC es el valor por defecto (no configurado)
-- Explicacion de la formula y de que el FC es referencia contable
+- Selector de moneda externa (20 monedas: USD, EUR, COP, MXN, VES, etc.)
+- Campo: costo de la canasta basica alla (en moneda externa)
+- Campo: costo de la misma canasta basica aca (en TQ)
+- El sistema calcula automaticamente: FC = canasta_TQ / canasta_externa
+- Ejemplo visual integrado para que se entienda
+- Guarda la moneda externa junto con el FC
 
-Tambien corrige warning de parametro adminID no usado en demoSeedAssemblyVotes.
+Cambios backend:
+- Migracion 075: agrega external_currency, basket_cost_external,
+  basket_cost_local_tq a la tabla conversion_factor
+- Nuevos endpoints: /api/external/fc/calculate-basket y /api/external/fc/store-basket
+- CalculateFCFromBasket y StoreFCFromBasket en dex.go
+- GetCurrentFC ahora devuelve external_currency y datos de canasta
+- Corregido bug: el codigo Go usaba columnas que no existian en la tabla
+
+Cambios frontend:
+- Formulario rediseñado con 3 pasos simples: moneda, canasta alla, canasta aca
+- Lista de 20 monedas latinoamericanas e internacionales
+- Ejemplo visual de como funciona el calculo
+- Explicacion de que el FC es referencia contable, no especulativo
+- Muestra el simbolo de la moneda seleccionada
 
 Generated with [Devin](https://devin.ai)
 

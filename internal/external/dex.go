@@ -19,15 +19,34 @@ func NewDEX(pool *pgxpool.Pool, nodeDomain string) *DEX {
 }
 
 type ConversionFactor struct {
-	ID              int64       `json:"id"`
-	NodeDomain      string      `json:"node_domain"`
-	Factor          float64     `json:"factor"`
-	ExternalCPI     float64     `json:"external_cpi"`
-	LocalEnergyCost float64     `json:"local_energy_cost"`
-	CalculatedAt    time.Time   `json:"calculated_at"`
-	ApprovedBy      []uuid.UUID `json:"approved_by"`
+	ID                 int64       `json:"id"`
+	NodeDomain         string      `json:"node_domain"`
+	Factor             float64     `json:"factor"`
+	ExternalCPI        float64     `json:"external_cpi"`
+	LocalEnergyCost    float64     `json:"local_energy_cost"`
+	ExternalCurrency   string      `json:"external_currency"`
+	BasketCostExternal float64     `json:"basket_cost_external"`
+	BasketCostLocalTQ  int64       `json:"basket_cost_local_tq"`
+	CalculatedAt       time.Time   `json:"calculated_at"`
+	ApprovedBy         []uuid.UUID `json:"approved_by"`
 }
 
+// CalculateFCFromBasket calcula el FC comparando el costo de la misma canasta
+// basica en moneda externa vs en TQ local.
+// FC = basket_local_tq / basket_external
+// Resultado: cuantos TQ equivale 1 unidad de moneda externa.
+func (d *DEX) CalculateFCFromBasket(ctx context.Context, basketCostExternal float64, basketCostLocalTQ int64) (float64, error) {
+	if basketCostExternal <= 0 {
+		return 0, fmt.Errorf("el costo de la canasta externa debe ser mayor que cero")
+	}
+	if basketCostLocalTQ <= 0 {
+		return 0, fmt.Errorf("el costo de la canasta local debe ser mayor que cero")
+	}
+	fc := float64(basketCostLocalTQ) / basketCostExternal
+	return fc, nil
+}
+
+// CalculateFC mantiene compatibilidad con el metodo anterior (CPI / energia)
 func (d *DEX) CalculateFC(ctx context.Context, externalCPI, localEnergyCost float64) (float64, error) {
 	if localEnergyCost <= 0 {
 		return 0, fmt.Errorf("local energy cost must be positive")
@@ -40,14 +59,42 @@ func (d *DEX) CalculateFC(ctx context.Context, externalCPI, localEnergyCost floa
 	return fc, nil
 }
 
+// StoreFCFromBasket guarda un FC calculado desde canasta basica
+func (d *DEX) StoreFCFromBasket(ctx context.Context, factor, basketCostExternal float64, basketCostLocalTQ int64, externalCurrency string, approvedBy []uuid.UUID) (*ConversionFactor, error) {
+	if externalCurrency == "" {
+		externalCurrency = "USD"
+	}
+	var cf ConversionFactor
+	err := d.Pool.QueryRow(ctx, `
+		INSERT INTO conversion_factor (node_domain, factor, external_currency, basket_cost_external, basket_cost_local_tq, approved_by)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, node_domain, factor,
+		          COALESCE(external_cpi, 0), COALESCE(local_energy_cost, 0),
+		          COALESCE(external_currency, 'USD'), COALESCE(basket_cost_external, 0), COALESCE(basket_cost_local_tq, 0),
+		          calculated_at, approved_by`,
+		d.NodeDomain, factor, externalCurrency, basketCostExternal, basketCostLocalTQ, approvedBy,
+	).Scan(&cf.ID, &cf.NodeDomain, &cf.Factor, &cf.ExternalCPI, &cf.LocalEnergyCost,
+		&cf.ExternalCurrency, &cf.BasketCostExternal, &cf.BasketCostLocalTQ,
+		&cf.CalculatedAt, &cf.ApprovedBy)
+	if err != nil {
+		return nil, fmt.Errorf("storing conversion factor: %w", err)
+	}
+	return &cf, nil
+}
+
 func (d *DEX) StoreFC(ctx context.Context, factor, externalCPI, localEnergyCost float64, approvedBy []uuid.UUID) (*ConversionFactor, error) {
 	var cf ConversionFactor
 	err := d.Pool.QueryRow(ctx, `
 		INSERT INTO conversion_factor (node_domain, factor, external_cpi, local_energy_cost, approved_by)
 		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, node_domain, factor, external_cpi, local_energy_cost, calculated_at, approved_by`,
+		RETURNING id, node_domain, factor,
+		          COALESCE(external_cpi, 0), COALESCE(local_energy_cost, 0),
+		          COALESCE(external_currency, 'USD'), COALESCE(basket_cost_external, 0), COALESCE(basket_cost_local_tq, 0),
+		          calculated_at, approved_by`,
 		d.NodeDomain, factor, externalCPI, localEnergyCost, approvedBy,
-	).Scan(&cf.ID, &cf.NodeDomain, &cf.Factor, &cf.ExternalCPI, &cf.LocalEnergyCost, &cf.CalculatedAt, &cf.ApprovedBy)
+	).Scan(&cf.ID, &cf.NodeDomain, &cf.Factor, &cf.ExternalCPI, &cf.LocalEnergyCost,
+		&cf.ExternalCurrency, &cf.BasketCostExternal, &cf.BasketCostLocalTQ,
+		&cf.CalculatedAt, &cf.ApprovedBy)
 	if err != nil {
 		return nil, fmt.Errorf("storing conversion factor: %w", err)
 	}
@@ -57,10 +104,15 @@ func (d *DEX) StoreFC(ctx context.Context, factor, externalCPI, localEnergyCost 
 func (d *DEX) GetCurrentFC(ctx context.Context) (*ConversionFactor, error) {
 	var cf ConversionFactor
 	err := d.Pool.QueryRow(ctx, `
-		SELECT id, node_domain, factor, external_cpi, local_energy_cost, calculated_at, approved_by
+		SELECT id, node_domain, factor,
+		       COALESCE(external_cpi, 0), COALESCE(local_energy_cost, 0),
+		       COALESCE(external_currency, 'USD'), COALESCE(basket_cost_external, 0), COALESCE(basket_cost_local_tq, 0),
+		       calculated_at, approved_by
 		FROM conversion_factor WHERE node_domain = $1 ORDER BY calculated_at DESC LIMIT 1`,
 		d.NodeDomain,
-	).Scan(&cf.ID, &cf.NodeDomain, &cf.Factor, &cf.ExternalCPI, &cf.LocalEnergyCost, &cf.CalculatedAt, &cf.ApprovedBy)
+	).Scan(&cf.ID, &cf.NodeDomain, &cf.Factor, &cf.ExternalCPI, &cf.LocalEnergyCost,
+		&cf.ExternalCurrency, &cf.BasketCostExternal, &cf.BasketCostLocalTQ,
+		&cf.CalculatedAt, &cf.ApprovedBy)
 	if err != nil {
 		return nil, fmt.Errorf("no conversion factor found: %w", err)
 	}
