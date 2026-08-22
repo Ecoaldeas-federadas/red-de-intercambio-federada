@@ -18,9 +18,11 @@ DROP TABLE IF EXISTS federation_constants CASCADE;
 --    el cambio se aplica automaticamente en todos los nodos
 -- 5. Si un nodo no aprueba, se sigue usando el valor anterior
 --
--- NOTA: Estas tablas usan COLOCATION=true porque son tablas pequenas
--- (pocas filas). En YugabyteDB, las tablas colocadas comparten una
--- misma tableta, reduciendo el consumo de tabletas del cluster.
+-- NOTA: Si la base de datos fue creada WITH COLOCATION = true, las tablas
+-- comparten una misma tableta. Si la BD ya existe sin colocation, no se
+-- puede forzar colocation por tabla (error: cannot set colocation true on
+-- a non-colocated database). Por eso no usamos WITH (colocation = true)
+-- aqui y en su lugar subimos el limite de tabletas del tserver.
 
 -- Constantes federadas: valores que afectan a toda la federacion
 CREATE TABLE IF NOT EXISTS federation_constants (
@@ -29,7 +31,7 @@ CREATE TABLE IF NOT EXISTS federation_constants (
   description TEXT,                        -- descripcion para humanos
   approved_proposal_id UUID,               -- que propuesta aprobo este valor
   updated_at TIMESTAMPTZ DEFAULT NOW()
-) WITH (colocation = true);
+);
 
 -- Propuestas de cambios federados
 CREATE TABLE IF NOT EXISTS federation_proposals (
@@ -48,7 +50,7 @@ CREATE TABLE IF NOT EXISTS federation_proposals (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   expires_at TIMESTAMPTZ,                          -- fecha limite para votar
   applied_at TIMESTAMPTZ                           -- cuando se aplico el cambio
-) WITH (colocation = true);
+);
 
 -- Votos de cada nodo en una propuesta
 CREATE TABLE IF NOT EXISTS federation_votes (
@@ -59,7 +61,7 @@ CREATE TABLE IF NOT EXISTS federation_votes (
   voted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   notes TEXT,
   UNIQUE(proposal_id, voter_node)          -- un nodo solo vota una vez por propuesta
-) WITH (colocation = true);
+);
 
 -- Insertar constantes federadas iniciales
 -- La canasta basica interna es 500 TQ en TODOS los nodos (valor fijado)

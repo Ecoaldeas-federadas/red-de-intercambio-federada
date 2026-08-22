@@ -18,16 +18,14 @@ database:
   ssl_mode: "disable"
   ssl_root_cert: ""
 
-# Cluster YugabyteDB: minimo 2 nodos para escalar.
-# En desarrollo: ambos en el mismo servidor.
-# En produccion: cada nodo en un servidor separado.
+# Cluster YugabyteDB: un solo nodo con limite aumentado a 1000 tabletas.
+# Para produccion con alta disponibilidad: 3 nodos en servidores separados.
 cluster:
-  min_nodes: 2
-  tablet_limit_per_node: 534
+  min_nodes: 1
+  tablet_limit_per_node: 1000
   alert_threshold: 80  # alertar al 80% de uso de tabletas
   nodes:
     - "yugabytedb"
-    - "yugabytedb2"
 
 federation:
   listen_port: 9044

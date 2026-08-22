@@ -271,17 +271,17 @@ func Load(path string) (*Config, error) {
 	}
 	// Defaults del cluster YugabyteDB
 	if cfg.Cluster.MinNodes == 0 {
-		cfg.Cluster.MinNodes = 2
+		cfg.Cluster.MinNodes = 1
 	}
 	if cfg.Cluster.TabletLimitPerNode == 0 {
-		cfg.Cluster.TabletLimitPerNode = 534
+		cfg.Cluster.TabletLimitPerNode = 1000
 	}
 	if cfg.Cluster.AlertThreshold == 0 {
 		cfg.Cluster.AlertThreshold = 80
 	}
 	if len(cfg.Cluster.Nodes) == 0 {
-		// Default para desarrollo: 2 nodos en el mismo servidor
-		cfg.Cluster.Nodes = []string{"yugabytedb", "yugabytedb2"}
+		// Default: un solo nodo con limite aumentado
+		cfg.Cluster.Nodes = []string{"yugabytedb"}
 	}
 	if len(cfg.API.CORSOrigins) == 0 {
 		cfg.API.CORSOrigins = []string{"http://localhost:3000", "http://localhost:8080"}

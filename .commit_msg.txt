@@ -1,45 +1,33 @@
-feat: monitoreo de cluster YugabyteDB + alerta de nodos necesarios
+fix: un solo nodo YugabyteDB con limite 1000 + quitar colocation de migraciones
 
-El sistema ahora monitorea automaticamente el cluster YugabyteDB y
-avisa cuando se necesita agregar un nuevo nodo.
+Es mas eficiente subir el limite a 1000 en un solo nodo que correr 2 nodos
+en el mismo servidor (desperdician RAM, CPU y red en sincronizacion Raft).
 
-Configuracion (config.yaml):
-- cluster.min_nodes: minimo de nodos requeridos (default: 2)
-- cluster.tablet_limit_per_node: limite por nodo (default: 534)
-- cluster.alert_threshold: % de uso para alertar (default: 80)
-- cluster.nodes: lista de nodos del cluster
+Cambios:
+- docker-compose.yml: un solo nodo YugabyteDB con --tserver_flags=max_num_tablets=1000
+- Removido yugabytedb2 (segundo nodo en mismo servidor)
+- Removidos volumenes yb_data2, yb_tserver2
+- node-app ya no depende de yugabytedb2
 
-Backend (cluster_handler.go):
-- GET /api/cluster/status: estado del cluster
-  - Nodos activos vs configurados vs minimos
-  - Tabletas usadas vs limite total
-  - Porcentaje de uso
-  - Nodos necesarios
-  - Nivel de alerta (ok, warning, critical)
-- POST /api/cluster/check: verifica y envia notificacion
-  - Notifica a administradores cuando se necesita un nodo
-- Calcula nodos necesarios basado en uso de tabletas
-- Consulta yb_tablet_meta y yb_cluster_info de YugabyteDB
-- Fallback: estima tabletas contando tablas e indices
+- Migracion 076: removido WITH (colocation = true) de las 3 tablas
+  - Error: "cannot set colocation true on a non-colocated database"
+  - La BD ya existe sin colocation, no se puede forzar por tabla
+  - El limite aumentado a 1000 resuelve el problema sin colocation
+- Migracion 077: removido WITH (colocation = true) de las 2 tablas
 
-Frontend (NodeSettings.tsx, tab "Base de Datos"):
-- Panel de estado del cluster al inicio del tab
-- Metricas: nodos activos, tabletas, % uso, nodos necesarios
-- Barra de progreso de capacidad (verde/amarillo/rojo)
-- Boton "Verificar" para forzar verificacion
-- Instrucciones para agregar nodos cuando es necesario
-- Diferencia entre mismo servidor (desarrollo) y separado (produccion)
+- config.go: defaults actualizados
+  - min_nodes: 1 (era 2)
+  - tablet_limit_per_node: 1000 (era 534)
+  - nodes: ["yugabytedb"] (era ["yugabytedb", "yugabytedb2"])
 
-Alertas:
-- ok: uso < 80%
-- warning: uso >= 80% (considerar agregar nodo)
-- critical: uso >= 90% o nodos < minimo (agregar urgentemente)
+- config.demo.yaml: actualizado a 1 nodo con limite 1000
 
-Documentacion (scaling_yugabytedb.md):
-- Seccion de monitoreo automatico
-- Niveles de alerta
-- Configuracion
-- Cuando el sistema avisa
+- docs/scaling_yugabytedb.md: reescrito
+  - Opcion 1: subir limite (recomendado para un solo servidor)
+  - Opcion 2: nodos en servidores separados (alta disponibilidad)
+  - Opcion 3: colocation (solo para bases de datos nuevas)
+  - Tabla de requisitos de hardware por limite
+  - Explicacion de por que NO correr 2 nodos en el mismo servidor
 
 Generated with [Devin](https://devin.ai)
 

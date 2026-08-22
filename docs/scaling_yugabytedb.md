@@ -15,73 +15,77 @@ alcanzar este limite.
 
 ## Solucion: escalar el cluster
 
-### Opcion 1: Agregar mas nodos (recomendado)
+### Opcion 1: Subir el limite de tabletas (recomendado para un solo servidor)
 
-Cada tserver adicional agrega ~534 tabletas al limite:
+YugabyteDB pone un limite conservador de ~534 tabletas por nodo para
+servidores pequenos (2-4 vCPUs). Si tu servidor tiene suficiente RAM y CPU,
+puedes subir el limite a 1000 o mas en un solo nodo.
 
-| Nodos | Limite aproximado |
-|-------|-------------------|
-| 1     | 534               |
-| 2     | 1.068             |
-| 3     | 1.602             |
-| 5     | 2.670             |
+Esto es **mas eficiente** que correr 2 nodos en el mismo servidor, porque:
+- Un solo proceso gestiona la memoria de manera unificada
+- No hay overhead de sincronizacion Raft entre nodos
+- No hay competencia por CPU y tarjeta de red
+- No hay falsa alta disponibilidad (si el servidor falla, ambos nodos caen)
 
-#### Desarrollo (mismo computador)
+#### Como subir el limite
 
-El `docker-compose.yml` ya incluye 2 nodos:
-
-```yaml
-yugabytedb:    # Nodo 1 (master + tserver)
-  ports: 5433, 7000, 9000
-
-yugabytedb2:   # Nodo 2 (tserver, se une al nodo 1)
-  ports: 5434, 7001, 9001
-  command: --join=yugabytedb
-```
-
-Para agregar un tercer nodo en desarrollo:
+En docker-compose.yml:
 
 ```yaml
-yugabytedb3:
+yugabytedb:
   image: yugabytedb/yugabyte:latest
-  hostname: yugabytedb3
-  command: ["bin/yugabyted", "start", "--base_dir=/mnt/master", "--daemon=false", "--join=yugabytedb", "--listen_ip=0.0.0.0"]
-  ports:
-    - "5435:5433"
-    - "7002:7000"
-    - "9002:9000"
-  volumes:
-    - yb_data3:/mnt/master
-    - yb_tserver3:/mnt/tserver
-  depends_on:
-    - yugabytedb
-  restart: unless-stopped
+  command: ["bin/yugabyted", "start",
+    "--base_dir=/mnt/master",
+    "--background=false",
+    "--advertise_address=yugabytedb",
+    "--tserver_flags=max_num_tablets=1000"]
 ```
 
-Y agregar el volumen:
-```yaml
-volumes:
-  yb_data3:
-  yb_tserver3:
-```
+El flag `--tserver_flags=max_num_tablets=1000` sube el limite a 1000.
 
-#### Produccion (servidores separados)
+#### Requisitos de hardware
 
-Para produccion, cada nodo debe estar en un servidor separado con su propia
-RAM y CPU. Minimo recomendado: 3 nodos para alta disponibilidad (RF=3).
+| Limite | RAM minima | vCPUs minimos |
+|--------|-----------|---------------|
+| 534    | 4 GB      | 2             |
+| 1000   | 8 GB      | 4             |
+| 2000   | 16 GB     | 8             |
 
-En cada servidor:
+### Opcion 2: Agregar mas nodos (para alta disponibilidad)
+
+Para **alta disponibilidad real** (tolerancia a fallos de servidor), usa
+nodos en **servidores separados**. NO corras multiples nodos en el mismo
+servidor (desperdicia recursos y no da tolerancia a fallos).
+
+Minimo recomendado: 3 nodos en servidores separados (RF=3).
 
 ```bash
 # Servidor 1 (primer nodo)
-bin/yugabyted start --base_dir=/mnt/master --listen_ip=SERVER1_IP
+bin/yugabyted start --base_dir=/mnt/master --advertise_address=SERVER1_IP
 
 # Servidor 2
-bin/yugabyted start --base_dir=/mnt/master --join=SERVER1_IP --listen_ip=SERVER2_IP
+bin/yugabyted start --base_dir=/mnt/master --advertise_address=SERVER2_IP --join=SERVER1_IP
 
 # Servidor 3
-bin/yugabyted start --base_dir=/mnt/master --join=SERVER1_IP --listen_ip=SERVER3_IP
+bin/yugabyted start --base_dir=/mnt/master --advertise_address=SERVER3_IP --join=SERVER1_IP
 ```
+
+### Opcion 3: Usar colocation (para nuevas instalaciones)
+
+Las tablas pequenas (configuracion, constantes, propuestas) pueden usar
+`COLOCATION = true` para compartir una misma tableta. Esto requiere que
+la base de datos se cree con colocation:
+
+```sql
+CREATE DATABASE mi_base_datos WITH colocated = true;
+```
+
+**Importante:** Solo funciona para bases de datos NUEVAS. Si la BD ya
+existe sin colocation, no se puede forzar colocation por tabla (error:
+"cannot set colocation true on a non-colocated database").
+
+El proyecto ya crea bases de datos nuevas con colocation (connection.go),
+pero las bases de datos existentes no se pueden migrar.
 
 ### Opcion 2: Usar colocation (ya implementado)
 
@@ -134,13 +138,12 @@ UI web: http://localhost:7000 (nodo 1) o http://localhost:7001 (nodo 2)
 ## Configuracion actual
 
 El proyecto usa:
-1. **2 nodos YugabyteDB** en docker-compose (desarrollo)
-2. **Colocation** en tablas pequenas (migracion 076+)
-3. **Base de datos con COLOCATION = true** (connection.go)
-4. **Sin indices secundarios innecesarios** en tablas pequenas
-5. **Monitoreo automatico** del cluster (cluster_handler.go)
+1. **1 nodo YugabyteDB** con `max_num_tablets=1000` (limite aumentado)
+2. **Colocation** en bases de datos nuevas (connection.go)
+3. **Sin indices secundarios innecesarios** en tablas pequenas
+4. **Monitoreo automatico** del cluster (cluster_handler.go)
 
-Para produccion, usar minimo 3 nodos en servidores separados.
+Para produccion con alta disponibilidad: 3 nodos en servidores separados.
 
 ## Monitoreo automatico del cluster
 
