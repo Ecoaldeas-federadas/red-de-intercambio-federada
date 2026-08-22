@@ -1,17 +1,45 @@
-fix: flags correctos de yugabyted start (advertise_address, background)
+feat: monitoreo de cluster YugabyteDB + alerta de nodos necesarios
 
-Los flags --listen_ip y --daemon=false no existen en yugabyted.
-yugabyted mostraba la ayuda y se reiniciaba en bucle.
+El sistema ahora monitorea automaticamente el cluster YugabyteDB y
+avisa cuando se necesita agregar un nuevo nodo.
 
-Flags correctos segun la documentacion de YugabyteDB:
-- --advertise_address (no --listen_ip)
-- --background=false (no --daemon=false)
-- --join=hostname para unirse a un cluster existente
+Configuracion (config.yaml):
+- cluster.min_nodes: minimo de nodos requeridos (default: 2)
+- cluster.tablet_limit_per_node: limite por nodo (default: 534)
+- cluster.alert_threshold: % de uso para alertar (default: 80)
+- cluster.nodes: lista de nodos del cluster
 
-Cambios:
-- yugabytedb: --advertise_address=yugabytedb
-- yugabytedb2: --advertise_address=yugabytedb2 --join=yugabytedb
-- Ambos: --background=false
+Backend (cluster_handler.go):
+- GET /api/cluster/status: estado del cluster
+  - Nodos activos vs configurados vs minimos
+  - Tabletas usadas vs limite total
+  - Porcentaje de uso
+  - Nodos necesarios
+  - Nivel de alerta (ok, warning, critical)
+- POST /api/cluster/check: verifica y envia notificacion
+  - Notifica a administradores cuando se necesita un nodo
+- Calcula nodos necesarios basado en uso de tabletas
+- Consulta yb_tablet_meta y yb_cluster_info de YugabyteDB
+- Fallback: estima tabletas contando tablas e indices
+
+Frontend (NodeSettings.tsx, tab "Base de Datos"):
+- Panel de estado del cluster al inicio del tab
+- Metricas: nodos activos, tabletas, % uso, nodos necesarios
+- Barra de progreso de capacidad (verde/amarillo/rojo)
+- Boton "Verificar" para forzar verificacion
+- Instrucciones para agregar nodos cuando es necesario
+- Diferencia entre mismo servidor (desarrollo) y separado (produccion)
+
+Alertas:
+- ok: uso < 80%
+- warning: uso >= 80% (considerar agregar nodo)
+- critical: uso >= 90% o nodos < minimo (agregar urgentemente)
+
+Documentacion (scaling_yugabytedb.md):
+- Seccion de monitoreo automatico
+- Niveles de alerta
+- Configuracion
+- Cuando el sistema avisa
 
 Generated with [Devin](https://devin.ai)
 

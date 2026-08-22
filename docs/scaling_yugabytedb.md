@@ -138,5 +138,68 @@ El proyecto usa:
 2. **Colocation** en tablas pequenas (migracion 076+)
 3. **Base de datos con COLOCATION = true** (connection.go)
 4. **Sin indices secundarios innecesarios** en tablas pequenas
+5. **Monitoreo automatico** del cluster (cluster_handler.go)
 
 Para produccion, usar minimo 3 nodos en servidores separados.
+
+## Monitoreo automatico del cluster
+
+El sistema monitorea automaticamente el estado del cluster YugabyteDB:
+
+### Que monitorea
+
+- **Nodos activos**: cuantos nodos YugabyteDB estan corriendo
+- **Tabletas usadas**: cuantas tabletas se estan usando
+- **Limite total**: nodos_activos * 534
+- **Porcentaje de uso**: tabletas_usadas / limite_total * 100
+- **Nodos necesarios**: cuantos nodos mas se necesitan
+
+### Niveles de alerta
+
+| Nivel | Condicion | Accion |
+|-------|-----------|--------|
+| ok | Uso < 80% | Ninguna |
+| warning | Uso >= 80% | Considerar agregar nodo |
+| critical | Uso >= 90% o nodos < minimo | Agregar nodo urgentemente |
+
+### Como ver el estado
+
+1. **Frontend**: Configuracion > Base de Datos
+   - Muestra metricas en tiempo real
+   - Barra de progreso de capacidad
+   - Boton "Verificar" para forzar verificacion
+   - Instrucciones para agregar nodos
+
+2. **API**: `GET /api/cluster/status`
+   - Devuelve estado completo del cluster
+
+3. **Notificaciones**: Cuando se necesita un nodo, el sistema envia
+   notificacion a los administradores via `POST /api/cluster/check`
+
+### Configuracion (config.yaml)
+
+```yaml
+cluster:
+  min_nodes: 2                    # minimo de nodos requeridos
+  tablet_limit_per_node: 534      # limite de tabletas por nodo
+  alert_threshold: 80             # alertar al 80% de uso
+  nodes:                          # lista de nodos del cluster
+    - "yugabytedb"                # desarrollo: mismo servidor
+    - "yugabytedb2"
+    # produccion:
+    # - "db1.aldea.com"
+    # - "db2.aldea.com"
+    # - "db3.aldea.com"
+```
+
+### Cuando el sistema avisa que necesita mas nodos
+
+El sistema avisa cuando:
+1. **Nodos activos < min_nodes**: faltan nodos para el minimo configurado
+2. **Uso de tabletas >= 80%**: se esta llenando la base de datos
+3. **Uso de tabletas >= 90%**: necesita nodos urgentemente
+
+El aviso incluye:
+- Cuantos nodos se necesitan
+- Porcentaje de uso actual
+- Instrucciones para agregar nodos (mismo servidor o separado)

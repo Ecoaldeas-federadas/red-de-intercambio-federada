@@ -2,7 +2,7 @@
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
-import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon, Vote as VoteIcon, Database, Download, Upload, AlertTriangle, RefreshCw, Globe, Lock, Unlock, Trash2, FileText, Server, HardDrive } from 'lucide-react'
+import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon, Vote as VoteIcon, Database, Download, Upload, AlertTriangle, RefreshCw, Globe, Lock, Unlock, Trash2, FileText, Server, HardDrive, CheckCircle } from 'lucide-react'
 import NetworkConfig from './NetworkConfig'
 
 // Opciones del 1 al 10 para el numero de nivel (seleccionable, no texto libre)
@@ -28,6 +28,8 @@ export default function NodeSettings() {
   const [searchParams, setSearchParams] = useSearchParams()
   const initialTab = (searchParams.get('tab') as any) || 'general'
   const [tab, setTab] = useState<'general' | 'levels' | 'org_levels' | 'tariff' | 'backup' | 'database' | 'demo' | 'network'>(initialTab)
+  const [clusterStatus, setClusterStatus] = useState<any>(null)
+  const [clusterChecking, setClusterChecking] = useState(false)
 
   // Actualizar URL cuando cambia el tab
   const changeTab = (newTab: typeof tab) => {
@@ -134,9 +136,25 @@ export default function NodeSettings() {
     } catch {}
   }
 
+  const loadClusterStatus = async () => {
+    try {
+      const res = await api.get('/cluster/status')
+      setClusterStatus(res)
+    } catch (e) { console.error('Error loading cluster status:', e) }
+  }
+
+  const checkCluster = async () => {
+    setClusterChecking(true)
+    try {
+      const res = await api.post('/cluster/check', {})
+      setClusterStatus(res)
+    } catch (e) { console.error(e) }
+    finally { setClusterChecking(false) }
+  }
+
   useEffect(() => {
     if (tab === 'backup') { loadAutoBackups(); loadBackupConfig() }
-    if (tab === 'database') { loadYbNodes() }
+    if (tab === 'database') { loadYbNodes(); loadClusterStatus() }
   }, [tab])
 
   const saveConfig = async () => {
@@ -1121,6 +1139,101 @@ export default function NodeSettings() {
       {tab === 'database' && canManage && (
         <div className="card space-y-6">
           <h2 className="font-semibold flex items-center gap-2"><HardDrive size={18} />Base de Datos</h2>
+
+          {/* Monitoreo del cluster YugabyteDB */}
+          {clusterStatus && (
+            <div className={`p-4 rounded-lg border-2 ${
+              clusterStatus.alert_level === 'ok' ? 'border-green-300 bg-green-50' :
+              clusterStatus.alert_level === 'warning' ? 'border-amber-300 bg-amber-50' :
+              'border-red-300 bg-red-50'
+            }`}>
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  {clusterStatus.alert_level === 'ok' ? (
+                    <CheckCircle size={20} className="text-green-600" />
+                  ) : (
+                    <AlertTriangle size={20} className={clusterStatus.alert_level === 'critical' ? 'text-red-600' : 'text-amber-600'} />
+                  )}
+                  <h3 className="font-semibold">
+                    {clusterStatus.alert_level === 'ok' && 'Cluster en buen estado'}
+                    {clusterStatus.alert_level === 'warning' && 'Cluster necesita atencion'}
+                    {clusterStatus.alert_level === 'critical' && 'Cluster necesita nodos urgentemente'}
+                  </h3>
+                </div>
+                <button
+                  onClick={checkCluster}
+                  disabled={clusterChecking}
+                  className="px-3 py-1.5 bg-trueque-600 text-white rounded-lg text-xs flex items-center gap-1 disabled:opacity-50"
+                >
+                  <RefreshCw size={12} className={clusterChecking ? 'animate-spin' : ''} />
+                  Verificar
+                </button>
+              </div>
+
+              {clusterStatus.alert_message && (
+                <p className="text-sm mb-3">{clusterStatus.alert_message}</p>
+              )}
+
+              {/* Metricas */}
+              <div className="grid grid-cols-4 gap-2 text-center">
+                <div className="bg-white p-2 rounded-lg">
+                  <div className="text-lg font-bold">{clusterStatus.current_nodes}</div>
+                  <div className="text-xs text-gray-500">Nodos activos</div>
+                  <div className="text-xs text-gray-400">Min: {clusterStatus.min_nodes}</div>
+                </div>
+                <div className="bg-white p-2 rounded-lg">
+                  <div className="text-lg font-bold">{clusterStatus.tablets_used}</div>
+                  <div className="text-xs text-gray-500">Tabletas</div>
+                  <div className="text-xs text-gray-400">de {clusterStatus.tablet_limit_total}</div>
+                </div>
+                <div className="bg-white p-2 rounded-lg">
+                  <div className="text-lg font-bold">{clusterStatus.tablet_usage_pct?.toFixed(1)}%</div>
+                  <div className="text-xs text-gray-500">Uso</div>
+                  <div className="text-xs text-gray-400">Alerta: {clusterStatus.alert_threshold}%</div>
+                </div>
+                <div className={`p-2 rounded-lg ${clusterStatus.nodes_needed > 0 ? 'bg-red-100' : 'bg-white'}`}>
+                  <div className="text-lg font-bold">{clusterStatus.nodes_needed}</div>
+                  <div className="text-xs text-gray-500">Nodos necesarios</div>
+                  <div className="text-xs text-gray-400">{clusterStatus.nodes_needed > 0 ? 'Agregar' : 'OK'}</div>
+                </div>
+              </div>
+
+              {/* Barra de progreso */}
+              <div className="mt-3">
+                <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                  <div
+                    className={`h-full transition-all ${
+                      clusterStatus.tablet_usage_pct >= 90 ? 'bg-red-600' :
+                      clusterStatus.tablet_usage_pct >= clusterStatus.alert_threshold ? 'bg-amber-500' :
+                      'bg-green-500'
+                    }`}
+                    style={{ width: `${Math.min(clusterStatus.tablet_usage_pct || 0, 100)}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                  <span>{clusterStatus.tablets_used} tabletas</span>
+                  <span>{clusterStatus.tablet_limit_total} total ({clusterStatus.tablet_limit_per_node} por nodo)</span>
+                </div>
+              </div>
+
+              {/* Como agregar un nodo */}
+              {clusterStatus.needs_more_nodes && (
+                <div className="mt-3 p-3 bg-white rounded-lg text-sm">
+                  <strong className="text-blue-700">Como agregar un nodo:</strong>
+                  <div className="mt-2 grid md:grid-cols-2 gap-2 text-xs">
+                    <div className="p-2 bg-blue-50 rounded">
+                      <strong>Mismo servidor (desarrollo):</strong>
+                      <p className="mt-1">Agrega un servicio en docker-compose.yml copiando yugabytedb2 con hostname y puertos diferentes.</p>
+                    </div>
+                    <div className="p-2 bg-blue-50 rounded">
+                      <strong>Servidor separado (produccion):</strong>
+                      <p className="mt-1">Instala YugabyteDB en otro servidor y unelo con --join=IP_DEL_NODO1. Cada servidor agrega ~534 tabletas.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {isDemoNode && (
             <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 text-sm text-amber-800">

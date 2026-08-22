@@ -20,6 +20,7 @@ type Config struct {
 	Fund       FundConfig       `yaml:"fund"`
 	API        APIConfig        `yaml:"api"`
 	Network    NetworkConfig    `yaml:"network"`
+	Cluster    ClusterConfig    `yaml:"cluster"`
 }
 
 type NodeConfig struct {
@@ -39,6 +40,21 @@ type DatabaseConfig struct {
 	Password    string `yaml:"password"`
 	SSLMode     string `yaml:"ssl_mode"`
 	SSLRootCert string `yaml:"ssl_root_cert"`
+}
+
+// ClusterConfig configura el cluster de YugabyteDB.
+// YugabyteDB necesita minimo 2 nodos para escalar.
+// Los nodos pueden estar en el mismo servidor (desarrollo) o en
+// servidores separados (produccion).
+type ClusterConfig struct {
+	MinNodes           int `yaml:"min_nodes"`             // Minimo de nodos requeridos (default: 2)
+	TabletLimitPerNode int `yaml:"tablet_limit_per_node"` // Limite de tabletas por nodo (default: 534)
+	// Lista de nodos del cluster (para monitoreo)
+	// En desarrollo: ["yugabytedb", "yugabytedb2"]
+	// En produccion: ["db1.aldea.com", "db2.aldea.com", "db3.aldea.com"]
+	Nodes []string `yaml:"nodes"`
+	// Umbral para alertar que se necesita un nuevo nodo (default: 80%)
+	AlertThreshold int `yaml:"alert_threshold"`
 }
 
 func (d DatabaseConfig) ConnString() string {
@@ -252,6 +268,20 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.Database.Password == "" {
 		cfg.Database.Password = os.Getenv("DB_PASSWORD")
+	}
+	// Defaults del cluster YugabyteDB
+	if cfg.Cluster.MinNodes == 0 {
+		cfg.Cluster.MinNodes = 2
+	}
+	if cfg.Cluster.TabletLimitPerNode == 0 {
+		cfg.Cluster.TabletLimitPerNode = 534
+	}
+	if cfg.Cluster.AlertThreshold == 0 {
+		cfg.Cluster.AlertThreshold = 80
+	}
+	if len(cfg.Cluster.Nodes) == 0 {
+		// Default para desarrollo: 2 nodos en el mismo servidor
+		cfg.Cluster.Nodes = []string{"yugabytedb", "yugabytedb2"}
 	}
 	if len(cfg.API.CORSOrigins) == 0 {
 		cfg.API.CORSOrigins = []string{"http://localhost:3000", "http://localhost:8080"}

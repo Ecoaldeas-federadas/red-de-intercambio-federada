@@ -219,7 +219,7 @@ func main() {
 	// Services handler (catalogo de servicios federados/autohospedados)
 	federatedServicesHandler := api.NewFederatedServicesHandler(database.Pool, cfg.Node.Domain)
 
-	router := api.NewRouterWithAuthAndBasePath(handler, authHandlers, federationHandler, orgHandler, paymentsHandler, externalHandler, recoveryHandler, departmentsHandler, nfcTerminalHandler, setupHandler, networkHandler, federatedServicesHandler, cfg.API.CORSOrigins, authMiddleware, database.Pool, demoBasePath)
+	router := api.NewRouterWithAuthAndBasePath(handler, authHandlers, federationHandler, orgHandler, paymentsHandler, externalHandler, recoveryHandler, departmentsHandler, nfcTerminalHandler, setupHandler, networkHandler, federatedServicesHandler, cfg.API.CORSOrigins, authMiddleware, database.Pool, demoBasePath, cfg)
 
 	// Iniciar scheduler de notificaciones automaticas (avisos de votacion por cerrar, asambleas proximas)
 	notifScheduler := api.NewNotificationScheduler(database.Pool, cfg.Node.Domain)

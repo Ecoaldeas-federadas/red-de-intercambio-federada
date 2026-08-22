@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"federated-credit-node/internal/config"
 	"fmt"
 	"log"
 	"net/http"
@@ -34,12 +35,12 @@ func NewRouter(h *Handler, corsOrigins []string) http.Handler {
 }
 
 func NewRouterWithAuth(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *OrganizationHandler, ph *PaymentsHandler, eh *ExternalHandler, rh *RecoveryHandler, dh *DepartmentsHandler, nh *NFCTerminalHandler, sh *SetupHandler, corsOrigins []string, am *AuthMiddleware, pool *pgxpool.Pool) http.Handler {
-	return NewRouterWithAuthAndBasePath(h, ah, fh, oh, ph, eh, rh, dh, nh, sh, nil, nil, corsOrigins, am, pool, "")
+	return NewRouterWithAuthAndBasePath(h, ah, fh, oh, ph, eh, rh, dh, nh, sh, nil, nil, corsOrigins, am, pool, "", nil)
 }
 
 // NewRouterWithAuthAndBasePath crea el router con un prefijo de ruta opcional
 // para el frontend (ej: "/demo" para el nodo demo). Las API routes quedan en /api/*.
-func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *OrganizationHandler, ph *PaymentsHandler, eh *ExternalHandler, rh *RecoveryHandler, dh *DepartmentsHandler, nh *NFCTerminalHandler, sh *SetupHandler, nwh *NetworkHandler, fsvh *FederatedServicesHandler, corsOrigins []string, am *AuthMiddleware, pool *pgxpool.Pool, basePath string) http.Handler {
+func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHandler, oh *OrganizationHandler, ph *PaymentsHandler, eh *ExternalHandler, rh *RecoveryHandler, dh *DepartmentsHandler, nh *NFCTerminalHandler, sh *SetupHandler, nwh *NetworkHandler, fsvh *FederatedServicesHandler, corsOrigins []string, am *AuthMiddleware, pool *pgxpool.Pool, basePath string, appCfg *config.Config) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -83,6 +84,10 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 	// Federation governance handler (propuestas y votacion entre nodos)
 	fedGovH := NewFederationGovHandler(pool, fh.NodeDomain)
 	fedGovH.RegisterRoutesWithAuth(r, am)
+
+	// Cluster YugabyteDB handler (monitoreo de tabletas y nodos)
+	clusterH := NewClusterHandler(pool, appCfg)
+	clusterH.RegisterRoutesWithAuth(r, am)
 
 	// Assembly y Tax
 	asmbH := &AssemblyHandler{Pool: pool, Auth: am}
