@@ -1,40 +1,47 @@
-docs: gobernanza federada + umbral 100% + pagina publica actualizada
+fix: limite de tabletas YugabyteDB + colocation + umbral 100%
 
-Cambios:
-- Umbral por defecto cambiado de 75% a 100% (todos los nodos deben aprobar)
-  Como hay un solo nodo, sus propuestas se auto-aprueban (es el 100%)
-  Cuando se agregue un segundo nodo, se necesitan ambos
-- El umbral se puede cambiar, pero para cambiarlo se necesita el
-  umbral actual. Si el umbral es 100%, cambiarlo requiere 100%.
-  Una vez cambiado, las futuras propuestas usan el nuevo umbral.
-- Nodos nuevos aceptan las politicas existentes al unirse
+Error: "The requested number of tablet replicas (1) would cause the
+total running tablet replica count (535) to exceed the safe system
+maximum (534)"
 
-Documentacion nueva:
-- docs/federation_governance.md: guia completa de gobernanza federada
-  - Que valores son federados (canasta, umbral, expiracion)
-  - Como funciona el consenso (100% por defecto)
-  - Como cambiar el umbral (bajo el umbral actual)
-  - Proceso de una propuesta paso a paso
-  - Ejemplos practicos
-  - API y tablas de la base de datos
-- docs/currency_exchange.md: actualizado el calculo del FC
-  - Ahora explica canasta basica comparativa
-  - Nota de que la canasta interna es federada
-  - Selector de moneda externa (20 monedas)
-- docs/INDEX.md: agregada entrada 25 para federation_governance.md
+Causa: YugabyteDB tiene un limite de tabletas basado en la memoria
+del tserver. Cada tabla e indice crea tabletas. Con 76 migraciones,
+se alcanzó el limite de 534 tabletas.
 
-Pagina publica actualizada:
-- Nueva seccion "Gobernanza Federada" con 3 tarjetas:
-  - Canasta Federada (mismo valor en todos los nodos)
-  - Consenso entre Nodos (100% por defecto)
-  - Umbral Configurable (cambiable bajo el umbral actual)
-- Lista de features actualizada con:
-  - Gobernanza federada entre nodos
-  - Canasta basica federada
+Soluciones aplicadas:
 
-Frontend FederationGov.tsx:
-- Explicacion del 100% y de como cambiar el umbral
-- Proceso actualizado en el formulario de nueva propuesta
+1. docker-compose.yml: desactivar enforce_tablet_replica_limits
+   - Flag --master_flags=enforce_tablet_replica_limits=false
+   - Flag --tserver_flags=enforce_tablet_replica_limits=false
+   - Esto permite crear mas tabletas sin el limite automatico
+   - Reiniciar el contenedor yugabytedb para que tome efecto
+
+2. connection.go: crear bases de datos con COLOCATION = true
+   - Las bases de datos colocadas hacen que las tablas compartan
+     una misma tableta, reduciendo drasticamente el numero de tabletas
+   - Solo aplica a nuevas instalaciones (las existentes no se pueden
+     cambiar a colocadas)
+   - Fallback: si COLOCATION no es soportado (PostgreSQL normal),
+     crea la base de datos sin colocation
+
+3. Migracion 076: tablas con COLOCATION = true
+   - federation_constants, federation_proposals, federation_votes
+     usan COLOCATION = true (comparten tableta en bases de datos
+     colocadas)
+   - Removidos los indices secundarios explicitos (idx_federation_*)
+   - El PK y el UNIQUE ya crean indices suficientes
+   - DROP TABLE IF EXISTS al inicio para limpiar estado parcial
+     de intentos fallidos anteriores
+
+4. Umbral por defecto cambiado de 75% a 100% (todos los nodos)
+   - Cuando hay 1 solo nodo, sus propuestas se auto-aprueban
+   - Para cambiar el umbral, se necesita el umbral actual
+
+Para aplicar el fix:
+1. git pull
+2. docker compose down yugabytedb
+3. docker compose up -d yugabytedb (con los nuevos flags)
+4. docker compose up -d node-app (recompila y ejecuta migraciones)
 
 Generated with [Devin](https://devin.ai)
 

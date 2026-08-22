@@ -1,3 +1,9 @@
+-- Limpiar tablas parciales de intentos fallidos anteriores
+-- (La migracion fallo por limite de tabletas, las tablas pueden existir sin colocation)
+DROP TABLE IF EXISTS federation_votes CASCADE;
+DROP TABLE IF EXISTS federation_proposals CASCADE;
+DROP TABLE IF EXISTS federation_constants CASCADE;
+
 -- Migracion 076: Gobernanza federada - propuestas y votacion entre nodos
 --
 -- Permite que cambios que afectan a TODA la federacion (como el valor
@@ -8,9 +14,13 @@
 -- 1. Un nodo propone un cambio (ej: canasta interna de 500 a 600)
 -- 2. La propuesta se comparte con todos los nodos federados
 -- 3. Cada nodo aprueba o rechaza
--- 4. Cuando se alcanza el porcentaje de aprobacion (default 75%),
+-- 4. Cuando se alcanza el porcentaje de aprobacion (default 100%),
 --    el cambio se aplica automaticamente en todos los nodos
 -- 5. Si un nodo no aprueba, se sigue usando el valor anterior
+--
+-- NOTA: Estas tablas usan COLOCATION=true porque son tablas pequenas
+-- (pocas filas). En YugabyteDB, las tablas colocadas comparten una
+-- misma tableta, reduciendo el consumo de tabletas del cluster.
 
 -- Constantes federadas: valores que afectan a toda la federacion
 CREATE TABLE IF NOT EXISTS federation_constants (
@@ -19,7 +29,7 @@ CREATE TABLE IF NOT EXISTS federation_constants (
   description TEXT,                        -- descripcion para humanos
   approved_proposal_id UUID,               -- que propuesta aprobo este valor
   updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+) WITH (colocation = true);
 
 -- Propuestas de cambios federados
 CREATE TABLE IF NOT EXISTS federation_proposals (
@@ -31,14 +41,14 @@ CREATE TABLE IF NOT EXISTS federation_proposals (
   description TEXT,                         -- explicacion del cambio
   proposed_by_node VARCHAR(128) NOT NULL,   -- dominio del nodo que propone
   status VARCHAR(20) NOT NULL DEFAULT 'pending',  -- 'pending', 'approved', 'rejected', 'expired'
-  approval_threshold INT NOT NULL DEFAULT 75,      -- % de nodos que deben aprobar
+  approval_threshold INT NOT NULL DEFAULT 100,     -- % de nodos que deben aprobar
   total_nodes INT NOT NULL DEFAULT 0,              -- total de nodos federados al momento
   approvals INT NOT NULL DEFAULT 0,                -- contador de aprobaciones
   rejections INT NOT NULL DEFAULT 0,               -- contador de rechazos
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   expires_at TIMESTAMPTZ,                          -- fecha limite para votar
   applied_at TIMESTAMPTZ                           -- cuando se aplico el cambio
-);
+) WITH (colocation = true);
 
 -- Votos de cada nodo en una propuesta
 CREATE TABLE IF NOT EXISTS federation_votes (
@@ -49,7 +59,7 @@ CREATE TABLE IF NOT EXISTS federation_votes (
   voted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   notes TEXT,
   UNIQUE(proposal_id, voter_node)          -- un nodo solo vota una vez por propuesta
-);
+) WITH (colocation = true);
 
 -- Insertar constantes federadas iniciales
 -- La canasta basica interna es 500 TQ en TODOS los nodos (valor fijado)
@@ -65,6 +75,6 @@ INSERT INTO federation_constants (key, value, description)
 VALUES ('proposal_expiry_days', '30', 'Dias para que una propuesta expire si no alcanza consenso.')
 ON CONFLICT (key) DO NOTHING;
 
--- Indice para buscar propuestas pendientes rapidamente
-CREATE INDEX IF NOT EXISTS idx_federation_proposals_status ON federation_proposals(status);
-CREATE INDEX IF NOT EXISTS idx_federation_votes_proposal ON federation_votes(proposal_id);
+-- Sin indices secundarios explicitos: el PK y el UNIQUE ya crean indices.
+-- En YugabyteDB cada indice crea tabletas, y estas tablas son pequenas
+-- (pocas filas), asi que los indices del PK y UNIQUE son suficientes.

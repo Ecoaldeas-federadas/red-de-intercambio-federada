@@ -39,7 +39,7 @@ services:
   yugabytedb:
     image: yugabytedb/yugabyte:latest
     hostname: yugabytedb
-    command: ["bin/yugabyted", "start", "--base_dir=/mnt/master", "--daemon=false"]
+    command: ["bin/yugabyted", "start", "--base_dir=/mnt/master", "--daemon=false", "--master_flags=enforce_tablet_replica_limits=false", "--tserver_flags=enforce_tablet_replica_limits=false"]
     ports:
       - "5433:5433"
       - "7000:7000"

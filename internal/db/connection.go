@@ -103,14 +103,21 @@ func ensureDatabaseExists(ctx context.Context, connString string) error {
 		_, _ = adminConn.Exec(ctx, fmt.Sprintf("CREATE ROLE %s WITH LOGIN SUPERUSER PASSWORD '%s';", dbUser, dbPass))
 	}
 
-	// Crear la BD si no existe
+	// Crear la BD si no existe (con colocation para reducir tabletas en YugabyteDB)
 	var dbExists bool
 	err = adminConn.QueryRow(ctx,
 		"SELECT EXISTS(SELECT FROM pg_database WHERE datname = $1)", dbName).Scan(&dbExists)
 	if err == nil && !dbExists {
-		_, err = adminConn.Exec(ctx, fmt.Sprintf("CREATE DATABASE %s;", dbName))
+		// COLOCATION = true hace que las tablas compartan una misma tableta,
+		// reduciendo drasticamente el numero de tabletas del cluster.
+		// Solo tablas grandes deben opt-out con WITH (COLOCATION = false).
+		_, err = adminConn.Exec(ctx, fmt.Sprintf("CREATE DATABASE %s WITH COLOCATION = true;", dbName))
 		if err != nil {
-			return fmt.Errorf("create database: %w", err)
+			// Si COLOCATION no es soportado (PostgreSQL normal), crear sin colocation
+			_, err = adminConn.Exec(ctx, fmt.Sprintf("CREATE DATABASE %s;", dbName))
+			if err != nil {
+				return fmt.Errorf("create database: %w", err)
+			}
 		}
 	}
 
