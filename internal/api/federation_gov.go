@@ -46,6 +46,15 @@ func (fh *FederationGovHandler) RegisterRoutesWithAuth(r chi.Router, am *AuthMid
 	r.Post("/api/federation-gov/proposals/{id}/remote-vote", fh.remoteVote)
 	// Endpoint para recibir propuestas de otros nodos
 	r.Post("/api/federation-gov/proposals/remote", fh.remoteProposal)
+
+	// Expulsion de nodos
+	r.Get("/api/federation-gov/expelled", fh.listExpelledNodes)
+
+	// Nodos conocidos en la red federada (no solo peers directos)
+	r.Get("/api/federation-gov/known-nodes", fh.listKnownNodes)
+
+	// Sincronizar constantes federadas (para nodos nuevos que heredan reglas)
+	r.Get("/api/federation-gov/sync-constants", fh.syncConstants)
 }
 
 // listConstants devuelve todas las constantes federadas
@@ -468,16 +477,40 @@ func (fh *FederationGovHandler) checkConsensus(ctx context.Context, proposalID u
 
 // applyProposal aplica el cambio aprobado a la constante federada
 func (fh *FederationGovHandler) applyProposal(ctx context.Context, proposalID uuid.UUID) bool {
-	var key string
+	var key, proposalType, description string
 	var proposedValue []byte
 	err := fh.Pool.QueryRow(ctx, `
-		SELECT key, proposed_value FROM federation_proposals WHERE id = $1`, proposalID,
-	).Scan(&key, &proposedValue)
+		SELECT key, proposed_value, proposal_type, description
+		FROM federation_proposals WHERE id = $1`, proposalID,
+	).Scan(&key, &proposedValue, &proposalType, &description)
 	if err != nil {
 		return false
 	}
 
-	// Actualizar la constante
+	// Si es una propuesta de expulsion, marcar al nodo como expulsado
+	if proposalType == "expel_node" {
+		// key contiene el dominio del nodo a expulsar
+		_, err = fh.Pool.Exec(ctx, `
+			INSERT INTO federation_expelled_nodes (node_domain, expelled_by_proposal, reason, expelled_at)
+			VALUES ($1, $2, $3, NOW())
+			ON CONFLICT (node_domain) DO UPDATE SET
+				expelled_by_proposal = $2, reason = $3, expelled_at = NOW()`,
+			key, proposalID, description)
+		if err != nil {
+			return false
+		}
+
+		// Marcar al nodo como expulsado en known_nodes
+		_, _ = fh.Pool.Exec(ctx, `
+			UPDATE federation_known_nodes SET is_expelled = true WHERE node_domain = $1`, key)
+
+		// Marcar la propuesta como aprobada
+		_, _ = fh.Pool.Exec(ctx, `
+			UPDATE federation_proposals SET status = 'approved', applied_at = NOW() WHERE id = $1`, proposalID)
+		return true
+	}
+
+	// Para constantes normales: actualizar la constante
 	_, err = fh.Pool.Exec(ctx, `
 		UPDATE federation_constants SET value = $1, approved_proposal_id = $2, updated_at = NOW()
 		WHERE key = $3`,
@@ -583,4 +616,150 @@ func (fh *FederationGovHandler) scanProposalRow(row pgx.Row) map[string]interfac
 	}
 
 	return p
+}
+
+// listExpelledNodes lista los nodos expulsados de la federacion
+func (fh *FederationGovHandler) listExpelledNodes(w http.ResponseWriter, r *http.Request) {
+	rows, err := fh.Pool.Query(r.Context(), `
+		SELECT node_domain, COALESCE(reason, ''), expelled_at,
+		       COALESCE(reentry_allowed_at::TEXT, '')
+		FROM federation_expelled_nodes ORDER BY expelled_at DESC`)
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+
+	nodes := []map[string]interface{}{}
+	for rows.Next() {
+		var domain, reason, expelledAt string
+		var reentryAllowed string
+		if err := rows.Scan(&domain, &reason, &expelledAt, &reentryAllowed); err != nil {
+			continue
+		}
+		node := map[string]interface{}{
+			"node_domain": domain,
+			"reason":      reason,
+			"expelled_at": expelledAt,
+		}
+		if reentryAllowed != "" {
+			node["reentry_allowed_at"] = reentryAllowed
+		}
+		nodes = append(nodes, node)
+	}
+	writeJSON(w, 200, map[string]interface{}{"expelled_nodes": nodes})
+}
+
+// listKnownNodes lista todos los nodos conocidos en la red federada
+// (no solo peers directos, sino todos los descubiertos via propagacion)
+func (fh *FederationGovHandler) listKnownNodes(w http.ResponseWriter, r *http.Request) {
+	// Este nodo siempre es conocido
+	_, _ = fh.Pool.Exec(r.Context(), `
+		INSERT INTO federation_known_nodes (node_domain, is_direct_peer, is_expelled, discovered_at)
+		VALUES ($1, true, false, NOW())
+		ON CONFLICT (node_domain) DO UPDATE SET last_seen = NOW()`,
+		fh.NodeDomain)
+
+	// Peers directos tambien son conocidos
+	_, _ = fh.Pool.Exec(r.Context(), `
+		INSERT INTO federation_known_nodes (node_domain, is_direct_peer, is_expelled, discovered_at)
+		SELECT peer_domain, true, false, NOW()
+		FROM node_federation_keys
+		WHERE status != 'removed'
+		ON CONFLICT (node_domain) DO UPDATE SET is_direct_peer = true, last_seen = NOW()`)
+
+	rows, err := fh.Pool.Query(r.Context(), `
+		SELECT n.node_domain, COALESCE(n.node_name, ''), n.is_direct_peer, n.is_expelled,
+		       COALESCE(n.node_number, 0), COALESCE(n.discovered_via, ''),
+		       COALESCE(n.last_seen::TEXT, ''), n.discovered_at,
+		       CASE WHEN e.node_domain IS NOT NULL THEN true ELSE false END as is_expelled_now
+		FROM federation_known_nodes n
+		LEFT JOIN federation_expelled_nodes e ON e.node_domain = n.node_domain
+		ORDER BY n.is_direct_peer DESC, n.node_domain`)
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+
+	nodes := []map[string]interface{}{}
+	for rows.Next() {
+		var domain, name, discoveredVia, lastSeen, discoveredAt string
+		var isDirectPeer, isExpelled, isExpelledNow bool
+		var nodeNumber int
+		if err := rows.Scan(&domain, &name, &isDirectPeer, &isExpelled, &nodeNumber,
+			&discoveredVia, &lastSeen, &discoveredAt, &isExpelledNow); err != nil {
+			continue
+		}
+		node := map[string]interface{}{
+			"node_domain":    domain,
+			"node_name":      name,
+			"is_direct_peer": isDirectPeer,
+			"is_expelled":    isExpelledNow,
+			"is_this_node":   domain == fh.NodeDomain,
+			"node_number":    nodeNumber,
+			"discovered_via": discoveredVia,
+			"discovered_at":  discoveredAt,
+		}
+		if lastSeen != "" {
+			node["last_seen"] = lastSeen
+		}
+		nodes = append(nodes, node)
+	}
+	writeJSON(w, 200, map[string]interface{}{"known_nodes": nodes})
+}
+
+// syncConstants devuelve todas las constantes federadas para que un nodo
+// nuevo las herede al unirse a la federacion.
+// Los nodos nuevos NO votan sobre reglas existentes: las heredan automaticamente.
+func (fh *FederationGovHandler) syncConstants(w http.ResponseWriter, r *http.Request) {
+	rows, err := fh.Pool.Query(r.Context(), `
+		SELECT key, value, description, updated_at
+		FROM federation_constants ORDER BY key`)
+	if err != nil {
+		writeError(w, 500, "error al sincronizar constantes")
+		return
+	}
+	defer rows.Close()
+
+	constants := []map[string]interface{}{}
+	for rows.Next() {
+		var key, description string
+		var value []byte
+		var updatedAt time.Time
+		if err := rows.Scan(&key, &value, &description, &updatedAt); err != nil {
+			continue
+		}
+		constants = append(constants, map[string]interface{}{
+			"key":         key,
+			"value":       json.RawMessage(value),
+			"description": description,
+			"updated_at":  updatedAt,
+		})
+	}
+
+	// Tambien devolver nodos expulsados para que el nodo nuevo los conozca
+	expelledRows, _ := fh.Pool.Query(r.Context(), `
+		SELECT node_domain, COALESCE(reason, '') FROM federation_expelled_nodes`)
+	expelled := []map[string]interface{}{}
+	if expelledRows != nil {
+		defer expelledRows.Close()
+		for expelledRows.Next() {
+			var domain, reason string
+			if err := expelledRows.Scan(&domain, &reason); err != nil {
+				continue
+			}
+			expelled = append(expelled, map[string]interface{}{
+				"node_domain": domain,
+				"reason":      reason,
+			})
+		}
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"constants":      constants,
+		"expelled_nodes": expelled,
+		"message":        "Constantes federadas para heredar al unirse a la federacion",
+		"note":           "Los nodos nuevos heredan automaticamente todas las reglas existentes. No votan sobre reglas previas.",
+	})
 }

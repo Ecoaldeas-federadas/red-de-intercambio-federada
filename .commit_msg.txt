@@ -1,34 +1,49 @@
-feat: escalar YugabyteDB con segundo nodo + documentacion
+feat: expulsion de nodos + red en cadena + herencia de reglas
 
-En vez de desactivar el limite de tabletas (workaround inseguro),
-se agrega un segundo nodo YugabyteDB al docker-compose.
+Expulsion de nodos:
+- Migracion 077: tablas federation_expelled_nodes y federation_known_nodes
+- Propuesta tipo 'expel_node' para expulsar un nodo por mal comportamiento
+- Cuando se aprueba, el nodo se marca como expulsado
+- El nodo expulsado no puede participar en la federacion
+- Para volver a entrar, debe solicitar ingreso nuevamente
 
-Cambios:
-- docker-compose.yml: agregado yugabytedb2 (segundo tserver)
-  - Se une al nodo 1 via --join=yugabytedb
-  - Puertos: 5434, 7001, 9001
-  - Duplica el limite de tabletas (~534 -> ~1068)
-  - Removido enforce_tablet_replica_limits=false (ya no necesario)
-  - node-app ahora depende de ambos nodos
-  - Volumenes nuevos: yb_data2, yb_tserver2
+Red en cadena:
+- Las decisiones globales aplican a TODOS los nodos de la red
+- Aunque no estes federado directamente con todos
+- Es una cadena: A-B-C-D, las decisiones de A afectan a D
+- Nuevo endpoint /api/federation-gov/known-nodes muestra todos los nodos
+- Los nodos se descubren via peers directos y propagacion
 
-- docs/scaling_yugabytedb.md: documentacion completa
-  - Explicacion del limite de tabletas
-  - Como agregar mas nodos (desarrollo y produccion)
-  - Colocation como optimizacion
-  - Tabla de limites por numero de nodos
-  - Comandos para verificar estado del cluster
-  - Por que NO desactivar el limite
+Herencia de reglas:
+- Los nodos nuevos heredan automaticamente todas las reglas existentes
+- No votan sobre reglas previas (las aceptan al unirse)
+- Nuevo endpoint /api/federation-gov/sync-constants
+- Devuelve constantes federadas + nodos expulsados
 
-- docs/INDEX.md: agregada entrada 26
+Frontend (FederationGov.tsx):
+- Nueva pestana "Nodos de la Red": muestra todos los nodos conocidos
+  - Peer directo vs indirecto
+  - Este nodo vs otros
+  - Nodos expulsados
+- Nueva pestana "Expulsar Nodo": formulario para proponer expulsion
+  - Dominio del nodo a expulsar
+  - Razon de la expulsion
+  - Advertencias sobre el proceso
 
-Para aplicar:
-1. git pull
-2. docker compose down
-3. docker compose up -d (levanta ambos nodos YugabyteDB)
-4. docker compose up -d --build node-app
+Backend (federation_gov.go):
+- listExpelledNodes: lista nodos expulsados
+- listKnownNodes: lista todos los nodos de la red (peers + indirectos)
+- syncConstants: constantes + expulsados para nodos nuevos
+- applyProposal: soporta proposal_type='expel_node'
+  - Marca al nodo como expulsado en federation_expelled_nodes
+  - Actualiza is_expelled en federation_known_nodes
 
-Para produccion: minimo 3 nodos en servidores separados.
+Documentacion (federation_governance.md):
+- Seccion de expulsion de nodos
+- Seccion de estructura de red en cadena
+- Explicacion de por que las decisiones aplican a todos
+- Tablas de la base de datos
+- API de expulsion y nodos
 
 Generated with [Devin](https://devin.ai)
 

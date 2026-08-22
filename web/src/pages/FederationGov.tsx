@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
-import { Globe, Plus, Check, X, RefreshCw, Users, Vote, Lock, Info } from 'lucide-react'
+import { Globe, Plus, Check, X, RefreshCw, Users, Vote, Lock, Info, Ban, Network, AlertTriangle } from 'lucide-react'
 
 interface FederationProposal {
   id: string
@@ -35,10 +35,12 @@ export default function FederationGov() {
   const [constants, setConstants] = useState<FederationConstant[]>([])
   const [proposals, setProposals] = useState<FederationProposal[]>([])
   const [selectedProposal, setSelectedProposal] = useState<FederationProposal | null>(null)
+  const [knownNodes, setKnownNodes] = useState<any[]>([])
+  const [expelledNodes, setExpelledNodes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null)
-  const [subTab, setSubTab] = useState<'constants' | 'proposals' | 'new'>('proposals')
+  const [subTab, setSubTab] = useState<'constants' | 'proposals' | 'new' | 'nodes' | 'expel'>('proposals')
 
   const [newProposal, setNewProposal] = useState({
     key: 'basket_cost_internal_tq',
@@ -46,15 +48,34 @@ export default function FederationGov() {
     description: '',
   })
 
+  const [expelForm, setExpelForm] = useState({
+    node_domain: '',
+    reason: '',
+  })
+
   useEffect(() => { loadAll() }, [])
 
   const loadAll = async () => {
     setLoading(true)
     try {
-      await Promise.all([loadConstants(), loadProposals()])
+      await Promise.all([loadConstants(), loadProposals(), loadKnownNodes(), loadExpelledNodes()])
     } finally {
       setLoading(false)
     }
+  }
+
+  const loadKnownNodes = async () => {
+    try {
+      const res = await api.get('/federation-gov/known-nodes')
+      setKnownNodes((res as any).known_nodes || [])
+    } catch (e) { console.error(e) }
+  }
+
+  const loadExpelledNodes = async () => {
+    try {
+      const res = await api.get('/federation-gov/expelled')
+      setExpelledNodes((res as any).expelled_nodes || [])
+    } catch (e) { console.error(e) }
   }
 
   const loadConstants = async () => {
@@ -127,6 +148,31 @@ export default function FederationGov() {
     }
   }
 
+  const createExpelProposal = async () => {
+    if (!expelForm.node_domain) {
+      setMsg({ type: 'error', text: 'Debes ingresar el dominio del nodo a expulsar' })
+      return
+    }
+    setSaving(true)
+    setMsg(null)
+    try {
+      const res = await api.post('/federation-gov/proposals', {
+        proposal_type: 'expel_node',
+        key: expelForm.node_domain,
+        proposed_value: true,
+        description: expelForm.reason || `Expulsion del nodo ${expelForm.node_domain}`,
+      })
+      setMsg({ type: 'success', text: (res as any).message || 'Propuesta de expulsion creada' })
+      setExpelForm({ node_domain: '', reason: '' })
+      setSubTab('proposals')
+      await loadProposals()
+    } catch (e: any) {
+      setMsg({ type: 'error', text: e.message || 'Error al crear propuesta de expulsion' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
   if (loading) {
     return <div className="flex items-center justify-center py-12"><RefreshCw className="animate-spin text-trueque-600" size={24} /></div>
   }
@@ -173,8 +219,10 @@ export default function FederationGov() {
       {/* Sub-tabs */}
       <div className="flex gap-2 flex-wrap">
         <button onClick={() => setSubTab('proposals')} className={`px-3 py-1.5 rounded-lg text-sm ${subTab === 'proposals' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Propuestas</button>
-        <button onClick={() => setSubTab('constants')} className={`px-3 py-1.5 rounded-lg text-sm ${subTab === 'constants' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Constantes Federadas</button>
+        <button onClick={() => setSubTab('nodes')} className={`px-3 py-1.5 rounded-lg text-sm ${subTab === 'nodes' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Network size={14} className="inline mr-1" />Nodos de la Red</button>
         <button onClick={() => setSubTab('new')} className={`px-3 py-1.5 rounded-lg text-sm ${subTab === 'new' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Plus size={14} className="inline mr-1" />Nueva Propuesta</button>
+        <button onClick={() => setSubTab('expel')} className={`px-3 py-1.5 rounded-lg text-sm ${subTab === 'expel' ? 'bg-red-600 text-white' : 'bg-gray-200'}`}><Ban size={14} className="inline mr-1" />Expulsar Nodo</button>
+        <button onClick={() => setSubTab('constants')} className={`px-3 py-1.5 rounded-lg text-sm ${subTab === 'constants' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Constantes Federadas</button>
       </div>
 
       {/* Propuestas */}
@@ -381,6 +429,152 @@ export default function FederationGov() {
           >
             {saving ? 'Creando...' : <><Plus size={16} /> Crear Propuesta</>}
           </button>
+        </div>
+      )}
+
+      {/* Nodos de la Red */}
+      {subTab === 'nodes' && (
+        <div className="space-y-4">
+          <div className="card bg-blue-50 p-3 text-sm text-blue-700 flex items-start gap-2">
+            <Network size={16} className="flex-shrink-0 mt-0.5" />
+            <div>
+              <strong>Nodos de la Red Federada.</strong> Aqui aparecen todos los nodos que pertenecen
+              a la federacion, aunque no estes federado directamente con todos.
+              Las decisiones globales (votaciones) aplican a <strong>todos</strong> los nodos de la red,
+              porque forman una cadena: si A esta federado con B, y B con C, las decisiones de A
+              afectan a C aunque no esten directamente federados.
+            </div>
+          </div>
+
+          {knownNodes.length === 0 ? (
+            <div className="card text-center text-gray-500 py-8">
+              <Network size={32} className="mx-auto mb-2 text-gray-300" />
+              No hay nodos conocidos. Este es el unico nodo.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {knownNodes.map((n, i) => (
+                <div key={i} className={`card p-3 ${n.is_expelled ? 'border-red-300 bg-red-50' : n.is_this_node ? 'border-green-300 bg-green-50' : ''}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {n.is_this_node ? (
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Este nodo</span>
+                      ) : n.is_direct_peer ? (
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Peer directo</span>
+                      ) : (
+                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">Indirecto</span>
+                      )}
+                      {n.is_expelled && (
+                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded flex items-center gap-1">
+                          <Ban size={10} /> Expulsado
+                        </span>
+                      )}
+                      <span className="font-medium text-sm">{n.node_domain}</span>
+                    </div>
+                    {n.node_number > 0 && (
+                      <span className="text-xs text-gray-400">Nodo #{n.node_number}</span>
+                    )}
+                  </div>
+                  {n.discovered_via && !n.is_direct_peer && !n.is_this_node && (
+                    <p className="text-xs text-gray-400 mt-1">Descubierto via: {n.discovered_via}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Nodos expulsados */}
+          {expelledNodes.length > 0 && (
+            <div className="card p-4 border-red-200 bg-red-50">
+              <h3 className="font-semibold flex items-center gap-2 mb-3 text-red-700">
+                <Ban size={18} /> Nodos Expulsados
+              </h3>
+              <p className="text-xs text-red-600 mb-3">
+                Estos nodos fueron expulsados por votacion de la federacion.
+                Para volver a entrar, deben solicitar ingreso nuevamente y
+                aceptaran automaticamente todas las reglas existentes.
+              </p>
+              <div className="space-y-2">
+                {expelledNodes.map((n, i) => (
+                  <div key={i} className="bg-white p-3 rounded-lg border border-red-200">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm">{n.node_domain}</span>
+                      <span className="text-xs text-gray-400">{new Date(n.expelled_at).toLocaleDateString('es')}</span>
+                    </div>
+                    {n.reason && <p className="text-xs text-gray-600 mt-1">{n.reason}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Expulsar Nodo */}
+      {subTab === 'expel' && (
+        <div className="space-y-4">
+          <div className="card bg-red-50 p-3 text-sm text-red-700 flex items-start gap-2">
+            <AlertTriangle size={16} className="flex-shrink-0 mt-0.5" />
+            <div>
+              <strong>Expulsion de un nodo.</strong> Esta es una accion grave.
+              Se crea una propuesta de expulsion que todos los nodos deben aprobar
+              (bajo el umbral actual, por defecto 100%).
+              Si se aprueba, el nodo expulsado no podra participar en la federacion.
+              Para volver a entrar, debera solicitar ingreso nuevamente y aceptara
+              automaticamente todas las reglas existentes.
+            </div>
+          </div>
+
+          <div className="card p-4 space-y-4">
+            <h3 className="font-semibold flex items-center gap-2"><Ban size={18} className="text-red-600" /> Proponer Expulsion</h3>
+
+            <div>
+              <label className="label">Dominio del nodo a expulsar</label>
+              <input
+                type="text"
+                className="input"
+                placeholder="Ej: aldea-problematica.com"
+                value={expelForm.node_domain}
+                onChange={(e) => setExpelForm({ ...expelForm, node_domain: e.target.value })}
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Ingresa el dominio exacto del nodo que quieres expulsar.
+              </p>
+            </div>
+
+            <div>
+              <label className="label">Razon de la expulsion</label>
+              <textarea
+                className="input"
+                rows={3}
+                placeholder="Ej: El nodo se niega sistemanticamente a votar propuestas, bloqueando cambios que benefician a toda la federacion."
+                value={expelForm.reason}
+                onChange={(e) => setExpelForm({ ...expelForm, reason: e.target.value })}
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Explica por que se debe expulsar este nodo. Todos los nodos veran esta razon al votar.
+              </p>
+            </div>
+
+            <div className="bg-amber-50 p-3 rounded-lg text-xs text-amber-700">
+              <strong>Importante:</strong>
+              <ul className="list-disc list-inside mt-1 space-y-1">
+                <li>La propuesta se crea con el umbral actual (por defecto 100%)</li>
+                <li>Todos los nodos deben aprobar para que se aplique</li>
+                <li>Si se aprueba, el nodo no podra federarse ni comerciar</li>
+                <li>El nodo expulsado puede solicitar reingreso despues</li>
+                <li>Al reingresar, hereda automaticamente todas las reglas existentes</li>
+              </ul>
+            </div>
+
+            <button
+              onClick={createExpelProposal}
+              disabled={saving || !expelForm.node_domain}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
+            >
+              {saving ? 'Creando...' : <><Ban size={16} /> Crear Propuesta de Expulsion</>}
+            </button>
+          </div>
         </div>
       )}
 

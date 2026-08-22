@@ -188,3 +188,135 @@ Votos de cada nodo.
 - Las propuestas expiran si no alcanzan consenso en el tiempo definido
 - Los cambios se aplican automaticamente al alcanzar el umbral
 - No se puede cambiar una constante sin propuesta aprobada
+
+---
+
+## Expulsion de nodos
+
+La federacion puede expulsar un nodo con mal comportamiento (por ejemplo,
+un nodo que se niega a votar y bloquea todos los cambios).
+
+### Proceso de expulsion
+
+1. Un nodo crea una propuesta tipo `expel_node` indicando:
+   - Dominio del nodo a expulsar
+   - Razon de la expulsion
+2. Todos los nodos votan bajo el umbral actual (por defecto 100%)
+3. Si se aprueba:
+   - El nodo se marca como `expelled` en `federation_expelled_nodes`
+   - No puede participar en la federacion
+   - No puede comerciar con nodos federados
+4. El nodo expulsado puede solicitar reingreso despues
+
+### Reingreso despues de expulsion
+
+Cuando un nodo expulsado solicita reingreso:
+- Debe ser aceptado por la federacion (proceso normal de admision)
+- **Hereda automaticamente todas las reglas existentes**
+- No vota sobre reglas previas (las acepta al unirse)
+- Las reglas incluyen: canasta basica, umbral de aprobacion, etc.
+
+### Por que se puede expulsar un nodo
+
+- Se niega sistematicamente a votar propuestas, bloqueando cambios
+- Tiene mal comportamiento comprobado
+- Viola las reglas de la federacion
+- Compromete la seguridad del sistema
+
+### Tablas
+
+#### `federation_expelled_nodes`
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| node_domain | VARCHAR(128) PK | Dominio del nodo expulsado |
+| expelled_by_proposal | UUID | Propuesta que aprobo la expulsion |
+| reason | TEXT | Razon de la expulsion |
+| expelled_at | TIMESTAMPTZ | Fecha de expulsion |
+| reentry_allowed_at | TIMESTAMPTZ | Cuando puede solicitar reingreso |
+
+#### `federation_known_nodes`
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| node_domain | VARCHAR(128) PK | Dominio del nodo |
+| node_name | VARCHAR(128) | Nombre descriptivo |
+| discovered_via | VARCHAR(128) | A traves de que nodo se descubrio |
+| is_direct_peer | BOOLEAN | True si es peer directo |
+| is_expelled | BOOLEAN | True si fue expulsado |
+| node_number | INT | Numero de nodo SIP |
+| last_seen | TIMESTAMPTZ | Ultima vez visto |
+| discovered_at | TIMESTAMPTZ | Cuando se descubrio |
+
+---
+
+## Estructura de la red: cadena de nodos
+
+La federacion no requiere que todos los nodos esten conectados directamente
+con todos. Es una **red en cadena**:
+
+```
+    A --- B --- C --- D
+          |
+          E --- F
+```
+
+- A esta federado directamente con B
+- B esta federado con A, C y E
+- C esta federado con B y D
+- A no esta directamente federado con C, D, E ni F
+
+### Que significa esto
+
+1. **Comercio bilateral**: A solo comercia directamente con B.
+   Para comerciar con C, necesita federarse directamente con C.
+
+2. **Decisiones globales**: Las votaciones de la federacion aplican a
+   TODOS los nodos de la red, aunque no esten directamente federados.
+   Si A propone cambiar la canasta basica, todos votan (A, B, C, D, E, F).
+
+3. **Propagacion de reglas**: Cuando un nodo nuevo se une (por ejemplo, G
+   se feder con D), hereda automaticamente todas las reglas existentes.
+   No vota sobre reglas previas.
+
+4. **Expulsion**: Si un nodo es expulsado, todos los nodos de la red
+   dejan de comerciar con el, aunque no esten directamente federados.
+
+### Por que las decisiones aplican a todos
+
+Aunque A no este directamente federado con C, las decisiones globales
+afectan a A porque:
+- B esta federado con C
+- B esta sujeto a las decisiones globales
+- B cambiara sus parametros segun las decisiones
+- A esta federado con B
+- A necesita tener los mismos parametros que B para que el comercio funcione
+- Por lo tanto, A tambien necesita cambiar
+
+Es una **cadena de dependencia**: las decisiones se propagan a traves
+de los nodos interconectados.
+
+### Nodos conocidos
+
+El endpoint `/api/federation-gov/known-nodes` muestra todos los nodos
+de la red, no solo los peers directos. Los nodos se descubren via:
+- Peers directos (registrados en `node_federation_keys`)
+- Propagacion (un peer directo informa sobre sus propios peers)
+- Propuestas y votaciones (se ven los dominios de quienes votan)
+
+### Sincronizacion de constantes
+
+El endpoint `/api/federation-gov/sync-constants` devuelve todas las
+constantes federadas y los nodos expulsados. Un nodo nuevo lo usa al
+unirse para heredar automaticamente todas las reglas existentes.
+
+---
+
+## API de expulsion y nodos
+
+| Endpoint | Metodo | Descripcion |
+|----------|--------|-------------|
+| `/api/federation-gov/expelled` | GET | Listar nodos expulsados |
+| `/api/federation-gov/known-nodes` | GET | Listar todos los nodos de la red |
+| `/api/federation-gov/sync-constants` | GET | Constantes + expulsados (para nodos nuevos) |
+| `/api/federation-gov/proposals` | POST | Crear propuesta (tipo `expel_node` para expulsion) |
