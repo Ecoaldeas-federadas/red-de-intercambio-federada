@@ -1,21 +1,38 @@
-fix: mostrar detalles completos del producto en calculadora de precios externos
+fix: corregir valores de energia de productos animales (huevos, pollo, cerdo, vacuno)
 
-Problema: La tabla de la Calculadora de Precios Externos en Comercio
-Externo solo mostraba el nombre del producto y los precios, sin informacion
-de unidad, descripcion, categoria, etc. El usuario no podia saber si el
-precio era por 1 kg, 100 g, o una unidad.
+Los valores anteriores eran demasiado altos y tenian la jerarquia
+incorrecta. Los datos corregidos provienen de estudios LCA reales.
 
-Solucion: El nombre del producto ahora es un boton con icono de info que
-abre un modal con todos los detalles del producto:
-- Nombre y badge
-- Descripcion completa
-- Precio en TQ y precio externo (USD)
-- Unidad (ej: 1 kg, 100 g, unidad)
-- Categoria, subcategoria y categoria padre
-- Origen
-- Codigo de producto
-- Imagen (si tiene)
-- Aclaracion de que el precio es por la unidad especificada
+Problemas encontrados:
+
+1. Huevos mas caros que pollo (jerarquia invertida)
+   - Sistema decia: huevos 9.6 kWh/kg > pollo 8.3 kWh/kg
+   - Realidad: pollo usa 45% MAS energia que huevos por kg (FAO 2013)
+   - Jerarquia correcta: vacuno > cerdo > pollo > huevos > leche
+
+2. Valores de energia demasiado altos
+   - Huevos: sistema 34.4 MJ/kg, real 13-23.5 MJ/kg
+   - Pollo: sistema 30 MJ/kg, real 9.6-25 MJ/kg
+   - Cerdo: sistema 47.5 MJ/kg, real 15.9-22.7 MJ/kg
+   - Vacuno: sistema 80-100 MJ/kg, real 35-50 MJ/kg
+
+3. Unidad incorrecta en huevos
+   - Unidad: "docena" pero energia calculada por kg
+   - Una docena pesa ~0.65 kg (12 x 54g)
+   - Precio era 10 TQ (usando valor por kg) -> corregido a 3 TQ (valor por docena)
+
+Valores corregidos:
+- Huevos: 3 TQ/docena (era 10) - ~15 MJ/kg x 0.65 kg = 2.7 kWh/docena
+- Pollo: 5 TQ/kg (era 8) - ~18 MJ/kg = 5 kWh/kg
+- Cerdo: 6 TQ/kg (era 13) - ~20 MJ/kg = 5.5 kWh/kg
+- Vacuno: 11 TQ/kg (era 25) - ~40 MJ/kg = 11 kWh/kg
+- Pescado: 7 TQ/kg (era 10) - ~25 MJ/kg = 7 kWh/kg
+
+Fuentes: FAO (2013), Pimentel & Pimentel (2003), Agribalyse,
+Leinonen et al. (2012), de Vries (2010), PMC/Univ. Iceland (2024)
+
+Tambien se actualizo la tabla de equivalencias y la canasta basica
+en la pagina publica (seed.go).
 
 Generated with [Devin](https://devin.ai)
 
