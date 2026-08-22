@@ -76,6 +76,12 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 		nwh.RegisterRoutesWithAuth(r, am)
 	}
 
+	// Net sync handler (sincronizacion automatica de info de red entre nodos federados)
+	if nwh != nil {
+		netSync := NewNetSyncHandler(pool, nwh.NodeDomain)
+		netSync.RegisterRoutes(r)
+	}
+
 	// Services handler (catalogo de servicios federados/autohospedados)
 	if fsvh != nil {
 		fsvh.RegisterRoutesWithAuth(r, am)

@@ -286,6 +286,12 @@ func (nh *NetworkHandler) updateConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, 200, map[string]interface{}{"success": true})
+
+	// Sincronizar automaticamente con peers federados
+	go func() {
+		netSync := NewNetSyncHandler(nh.Pool, nh.NodeDomain)
+		netSync.pushNetInfoToPeers()
+	}()
 }
 
 // generateULA genera un prefijo IPv6 ULA unico.
@@ -588,6 +594,12 @@ func (nh *NetworkHandler) registerService(w http.ResponseWriter, r *http.Request
 		"message":       message,
 		"is_registered": registered,
 	})
+
+	// Sincronizar servicios con peers federados
+	go func() {
+		netSync := NewNetSyncHandler(nh.Pool, nh.NodeDomain)
+		netSync.pushNetInfoToPeers()
+	}()
 }
 
 // removeService elimina un servicio del DNS de OpenWrt.

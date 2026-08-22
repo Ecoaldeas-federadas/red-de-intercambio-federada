@@ -1,42 +1,46 @@
-feat: unificar Federacion en una sola pagina + explicar datos OpenWrt
+feat: sincronizacion automatica de info de red entre nodos federados
 
-Antes habia 3 lugares separados que se mezclaban y confundian:
-- NetworkConfig (dentro de Configuracion) con sub-tab "Aldeas Federadas"
-- FederationPeers (pagina separada)
-- FederationGov (pagina separada)
+Antes: habia que compartir manualmente los datos de red (dominio, IP,
+WireGuard, servicios) con cada nodo federado.
 
-Ahora todo esta unificado en una sola pagina de Federacion con 3 tabs:
+Ahora: cuando un nodo cambia su config de red o sus servicios, la info
+se comparte automaticamente con todos los peers federados.
 
-1. Red del Nodo (antes NetworkConfig):
-   - General: modo de red, IP, OpenWrt
-   - Mis Datos de Red: info de red del nodo (NO federacion)
-   - Servicios Locales: DNS de OpenWrt
-   - Instalador OpenWrt: con explicacion de donde obtener cada dato
+Migracion 079: tabla federation_node_info
+- Guarda la info de red de cada nodo federado conocido
+- Dominio, nombre, IP publica, IPv6 ULA, WireGuard, servicios
+- Se actualiza automaticamente cuando un peer envia su info
 
-2. Federar Aldeas (antes FederationPeers):
-   - Agregar y gestionar aldeas federadas
-   - Por Internet y por Intranet
+Backend (net_sync.go - nuevo):
+- GET /api/federation/net-info: mi info de red (para que otros nodos la lean)
+- POST /api/federation/net-info/update: recibo info de un peer y la guardo
+- GET /api/federation/peers-info: lista info de red de todos los peers
+- pushNetInfoToPeers(): envia mi info a todos los peers en background
+- pullNetInfoFromPeers(): consulta info de todos los peers
 
-3. Gobernanza (antes FederationGov):
-   - Propuestas, votacion, constantes federadas
+Push automatico:
+- Cuando cambio mi config de red (updateConfig) -> push a peers
+- Cuando registro un servicio nuevo -> push a peers
+- El push es async (goroutine) para no bloquear la respuesta
 
-Cambios:
-- Nueva pagina Federation.tsx que integra los 3 componentes
-- NetworkConfig: quitado sub-tab "Aldeas Federadas" (era duplicado)
-- NetworkConfig: "Mis Datos para Compartir" renombrado a "Mis Datos de Red"
-  - Ya no habla de "como federar" — eso va en "Federar Aldeas"
-  - Ahora explica que es el registro de red del nodo
-  - Al final: nota que dice "para federar, usar pestana Federar Aldeas"
-- NodeSettings: quitado tab "Red Privada" (ahora esta en Federacion)
-- Layout.tsx: "Nodos Federados" → "Federacion" (un solo item de menu)
-- App.tsx: /app/federation/peers y /app/federation → Federation
-- Instalador OpenWrt: agregada explicacion de donde obtener cada dato:
-  - Direccion de OpenWrt: IP del servidor (192.168.1.1 por defecto)
-  - Dominio de la aldea: se configura en OpenWrt
-  - Token API: System → Administration → API Token
-  - IPv6 ULA: se genera automaticamente
-  - Claves WireGuard: se generan automaticamente
-  - Puerto WireGuard: 51820 por defecto
+Que se comparte automaticamente:
+- Dominio del nodo
+- Nombre del nodo
+- Dominio/IP publica
+- IPv6 ULA (intranet)
+- Endpoint WireGuard (direccion:puerto)
+- Clave publica WireGuard
+- Puerto WireGuard
+- Modo de red (internet, intranet, both)
+- Lista de servicios levantados (nombre, URL, descripcion)
+
+Frontend (Federation.tsx):
+- Nuevo tab "Nodos Federados" (4to tab)
+- Muestra la info de red de cada nodo federado
+- Muestra los servicios que tiene levantados cada nodo
+- Boton "Sincronizar ahora" para forzar la sincronizacion
+- Explica que la info se sincroniza automaticamente
+- No hay que compartir nada manualmente
 
 Generated with [Devin](https://devin.ai)
 
