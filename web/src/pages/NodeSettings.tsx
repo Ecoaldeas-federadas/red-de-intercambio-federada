@@ -30,6 +30,17 @@ export default function NodeSettings() {
   const [tab, setTab] = useState<'general' | 'levels' | 'org_levels' | 'tariff' | 'backup' | 'database' | 'demo' | 'network'>(initialTab)
   const [clusterStatus, setClusterStatus] = useState<any>(null)
   const [clusterChecking, setClusterChecking] = useState(false)
+  const [clusterConfig, setClusterConfig] = useState<any>(null)
+  const [hardwareInfo, setHardwareInfo] = useState<any>(null)
+  const [clusterSaving, setClusterSaving] = useState(false)
+  const [clusterForm, setClusterForm] = useState({
+    mode: 'single',
+    tablet_limit: 1000,
+    min_nodes: 1,
+    alert_threshold: 80,
+    server_ram_gb: 16,
+    nodes: [] as Array<{ host: string; port: number; is_local: boolean }>,
+  })
 
   // Actualizar URL cuando cambia el tab
   const changeTab = (newTab: typeof tab) => {
@@ -143,6 +154,40 @@ export default function NodeSettings() {
     } catch (e) { console.error('Error loading cluster status:', e) }
   }
 
+  const loadClusterConfig = async () => {
+    try {
+      const [cfgRes, hwRes] = await Promise.all([
+        api.get('/cluster/config'),
+        api.get('/cluster/hardware'),
+      ])
+      setClusterConfig(cfgRes)
+      setHardwareInfo(hwRes)
+      setClusterForm({
+        mode: (cfgRes as any).mode || 'single',
+        tablet_limit: (cfgRes as any).tablet_limit || 1000,
+        min_nodes: (cfgRes as any).min_nodes || 1,
+        alert_threshold: (cfgRes as any).alert_threshold || 80,
+        server_ram_gb: (cfgRes as any).server_ram_gb || (hwRes as any).ram_gb || 16,
+        nodes: (cfgRes as any).nodes || [{ host: 'yugabytedb', port: 5433, is_local: true }],
+      })
+    } catch (e) { console.error('Error loading cluster config:', e) }
+  }
+
+  const saveClusterConfig = async () => {
+    setClusterSaving(true)
+    setError('')
+    setSuccess('')
+    try {
+      const res = await api.put('/cluster/config', clusterForm)
+      setSuccess((res as any).message || 'Configuracion guardada')
+      await loadClusterConfig()
+    } catch (e: any) {
+      setError(e.message || 'Error al guardar configuracion')
+    } finally {
+      setClusterSaving(false)
+    }
+  }
+
   const checkCluster = async () => {
     setClusterChecking(true)
     try {
@@ -154,7 +199,7 @@ export default function NodeSettings() {
 
   useEffect(() => {
     if (tab === 'backup') { loadAutoBackups(); loadBackupConfig() }
-    if (tab === 'database') { loadYbNodes(); loadClusterStatus() }
+    if (tab === 'database') { loadYbNodes(); loadClusterStatus(); loadClusterConfig() }
   }, [tab])
 
   const saveConfig = async () => {
@@ -1232,6 +1277,176 @@ export default function NodeSettings() {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Configuracion del cluster YugabyteDB */}
+          {hardwareInfo && (
+            <div className="card p-4 space-y-4 border-2 border-blue-200">
+              <h3 className="font-semibold flex items-center gap-2">
+                <Database size={18} className="text-blue-600" />
+                Configuracion del Cluster
+              </h3>
+
+              {/* Info del hardware */}
+              <div className="bg-blue-50 p-3 rounded-lg text-sm">
+                <div className="flex items-center gap-4 mb-2">
+                  <div><strong>RAM:</strong> {hardwareInfo.ram_gb} GB</div>
+                  <div><strong>CPU:</strong> {hardwareInfo.cpu_cores} cores</div>
+                </div>
+                <p className="text-xs text-blue-700">{hardwareInfo.recommendation}</p>
+                <div className="mt-2 text-xs">
+                  <strong>Recomendacion:</strong> Modo <strong>{hardwareInfo.recommended_mode === 'single' ? '1 nodo' : 'multi-nodo'}</strong>
+                  con limite <strong>{hardwareInfo.recommended_limit}</strong> tabletas.
+                </div>
+              </div>
+
+              {/* Formulario de configuracion */}
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Modo del cluster</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setClusterForm({ ...clusterForm, mode: 'single' })}
+                      className={`p-3 rounded-lg border-2 text-left ${clusterForm.mode === 'single' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}
+                    >
+                      <div className="font-medium text-sm">1 Nodo (limite alto)</div>
+                      <div className="text-xs text-gray-500">Un solo servidor. Mas eficiente. Sube el limite de tabletas.</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setClusterForm({ ...clusterForm, mode: 'multi' })}
+                      className={`p-3 rounded-lg border-2 text-left ${clusterForm.mode === 'multi' ? 'border-purple-500 bg-purple-50' : 'border-gray-200'}`}
+                    >
+                      <div className="font-medium text-sm">Multi-nodo (servidores separados)</div>
+                      <div className="text-xs text-gray-500">Varios servidores. Alta disponibilidad. Cada nodo en un servidor distinto.</div>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Limite de tabletas</label>
+                    <input
+                      type="number"
+                      className="input"
+                      value={clusterForm.tablet_limit}
+                      min={100}
+                      max={hardwareInfo.ram_gb * 100}
+                      onChange={(e) => setClusterForm({ ...clusterForm, tablet_limit: parseInt(e.target.value) || 100 })}
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      Maximo recomendado para {hardwareInfo.ram_gb}GB: {hardwareInfo.ram_gb * 100}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Minimo de nodos</label>
+                    <input
+                      type="number"
+                      className="input"
+                      value={clusterForm.min_nodes}
+                      min={1}
+                      max={10}
+                      onChange={(e) => setClusterForm({ ...clusterForm, min_nodes: parseInt(e.target.value) || 1 })}
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      {clusterForm.mode === 'single' ? 'En modo 1 nodo, el minimo es 1' : 'En modo multi-nodo, minimo 2 (o 3 para alta disponibilidad)'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Umbral de alerta (%)</label>
+                    <input
+                      type="number"
+                      className="input"
+                      value={clusterForm.alert_threshold}
+                      min={50}
+                      max={95}
+                      onChange={(e) => setClusterForm({ ...clusterForm, alert_threshold: parseInt(e.target.value) || 80 })}
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Alertar cuando el uso de tabletas llegue a este %</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">RAM del servidor (GB)</label>
+                    <input
+                      type="number"
+                      className="input"
+                      value={clusterForm.server_ram_gb}
+                      min={1}
+                      onChange={(e) => setClusterForm({ ...clusterForm, server_ram_gb: parseInt(e.target.value) || 16 })}
+                    />
+                    <p className="text-xs text-gray-400 mt-1">RAM detectada: {hardwareInfo.ram_gb}GB</p>
+                  </div>
+                </div>
+
+                {/* Nodos del cluster */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">Nodos del cluster</label>
+                  <div className="space-y-2">
+                    {clusterForm.nodes.map((n, i) => (
+                      <div key={i} className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg">
+                        <Server size={14} className="text-gray-400" />
+                        <input
+                          type="text"
+                          className="input flex-1 text-sm"
+                          placeholder="hostname o IP"
+                          value={n.host}
+                          onChange={(e) => {
+                            const nodes = [...clusterForm.nodes]
+                            nodes[i] = { ...nodes[i], host: e.target.value }
+                            setClusterForm({ ...clusterForm, nodes })
+                          }}
+                        />
+                        <input
+                          type="number"
+                          className="input w-20 text-sm"
+                          placeholder="puerto"
+                          value={n.port}
+                          onChange={(e) => {
+                            const nodes = [...clusterForm.nodes]
+                            nodes[i] = { ...nodes[i], port: parseInt(e.target.value) || 5433 }
+                            setClusterForm({ ...clusterForm, nodes })
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setClusterForm({ ...clusterForm, nodes: clusterForm.nodes.filter((_, idx) => idx !== i) })}
+                          className="text-red-500 text-xs"
+                          disabled={clusterForm.nodes.length <= 1}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setClusterForm({ ...clusterForm, nodes: [...clusterForm.nodes, { host: '', port: 5433, is_local: false }] })}
+                      className="text-blue-600 text-xs flex items-center gap-1"
+                    >
+                      <Plus size={12} /> Agregar nodo
+                    </button>
+                  </div>
+                </div>
+
+                {/* Aviso de reinicio */}
+                <div className="bg-amber-50 p-3 rounded-lg text-xs text-amber-700">
+                  <strong>Importante:</strong> Después de guardar, debes reiniciar YugabyteDB
+                  para que los cambios surtan efecto. El flag <code className="bg-white px-1 rounded">--tserver_flags=max_num_tablets=VALOR</code>
+                  {' '}se aplica al reiniciar el contenedor.
+                </div>
+
+                <button
+                  onClick={saveClusterConfig}
+                  disabled={clusterSaving}
+                  className="px-4 py-2 bg-trueque-600 text-white rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
+                >
+                  {clusterSaving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                  Guardar configuracion
+                </button>
+              </div>
             </div>
           )}
 

@@ -1,33 +1,47 @@
-fix: un solo nodo YugabyteDB con limite 1000 + quitar colocation de migraciones
+feat: configuracion del cluster YugabyteDB desde la pagina
 
-Es mas eficiente subir el limite a 1000 en un solo nodo que correr 2 nodos
-en el mismo servidor (desperdician RAM, CPU y red en sincronizacion Raft).
+Ahora se puede configurar el cluster YugabyteDB desde Configuracion >
+Base de Datos, adaptandolo al hardware disponible.
 
-Cambios:
-- docker-compose.yml: un solo nodo YugabyteDB con --tserver_flags=max_num_tablets=1000
-- Removido yugabytedb2 (segundo nodo en mismo servidor)
-- Removidos volumenes yb_data2, yb_tserver2
-- node-app ya no depende de yugabytedb2
+Migracion 078: tabla cluster_config para guardar la configuracion.
 
-- Migracion 076: removido WITH (colocation = true) de las 3 tablas
-  - Error: "cannot set colocation true on a non-colocated database"
-  - La BD ya existe sin colocation, no se puede forzar por tabla
-  - El limite aumentado a 1000 resuelve el problema sin colocation
-- Migracion 077: removido WITH (colocation = true) de las 2 tablas
+Backend (cluster_handler.go):
+- GET /api/cluster/hardware: detecta RAM y CPU del servidor
+  - Lee /proc/meminfo en Linux/Docker
+  - Recomienda limite y modo segun hardware:
+    - 32GB+: 2000 tabletas, modo single
+    - 16GB: 1000 tabletas, modo single
+    - 8GB: 600 tabletas, modo single
+    - 4GB: 534 tabletas, modo multi
+    - <4GB: 400 tabletas, modo multi
+- GET /api/cluster/config: devuelve la configuracion guardada
+- PUT /api/cluster/config: actualiza la configuracion
+  - Valida que el limite no exceda la RAM (100 tabletas por GB)
+  - Valida modo (single o multi)
+  - Valida umbral (50-95%)
+  - Notifica a administradores
+  - Avisa que hay que reiniciar YugabyteDB
 
-- config.go: defaults actualizados
-  - min_nodes: 1 (era 2)
-  - tablet_limit_per_node: 1000 (era 534)
-  - nodes: ["yugabytedb"] (era ["yugabytedb", "yugabytedb2"])
+Frontend (NodeSettings.tsx, tab Base de Datos):
+- Panel de configuracion del cluster
+- Info del hardware: RAM y CPU detectados
+- Recomendacion automatica segun hardware
+- Selector de modo:
+  - 1 Nodo (limite alto): mas eficiente, un solo servidor
+  - Multi-nodo (servidores separados): alta disponibilidad
+- Campos ajustables:
+  - Limite de tabletas (con maximo segun RAM)
+  - Minimo de nodos
+  - Umbral de alerta (%)
+  - RAM del servidor (editable)
+- Lista de nodos del cluster (agregar/quitar)
+- Aviso de que hay que reiniciar YugabyteDB despues de guardar
 
-- config.demo.yaml: actualizado a 1 nodo con limite 1000
-
-- docs/scaling_yugabytedb.md: reescrito
-  - Opcion 1: subir limite (recomendado para un solo servidor)
-  - Opcion 2: nodos en servidores separados (alta disponibilidad)
-  - Opcion 3: colocation (solo para bases de datos nuevas)
-  - Tabla de requisitos de hardware por limite
-  - Explicacion de por que NO correr 2 nodos en el mismo servidor
+Regla de validacion: ~100 tabletas por GB de RAM
+- 4GB -> max 400 tabletas
+- 8GB -> max 800 tabletas
+- 16GB -> max 1600 tabletas (recomendado 1000)
+- 32GB -> max 3200 tabletas (recomendado 2000)
 
 Generated with [Devin](https://devin.ai)
 

@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"runtime"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -12,6 +15,14 @@ import (
 
 	"federated-credit-node/internal/config"
 )
+
+func osReadFile(path string) ([]byte, error) {
+	return os.ReadFile(path)
+}
+
+func splitLines(s string) []string {
+	return strings.Split(s, "\n")
+}
 
 // ClusterHandler monitorea el estado del cluster YugabyteDB.
 // Verifica cuantas tabletas se estan usando, cuantos nodos hay,
@@ -27,10 +38,14 @@ func NewClusterHandler(pool *pgxpool.Pool, cfg *config.Config) *ClusterHandler {
 
 func (ch *ClusterHandler) RegisterRoutesWithAuth(r chi.Router, am *AuthMiddleware) {
 	r.Get("/api/cluster/status", ch.getClusterStatus)
+	r.Get("/api/cluster/config", ch.getClusterConfig)
+	r.Get("/api/cluster/hardware", ch.getHardwareInfo)
 	if am != nil {
 		r.With(am.RequirePermission("config.manage")).Post("/api/cluster/check", ch.checkCluster)
+		r.With(am.RequirePermission("config.manage")).Put("/api/cluster/config", ch.updateClusterConfig)
 	} else {
 		r.Post("/api/cluster/check", ch.checkCluster)
+		r.Put("/api/cluster/config", ch.updateClusterConfig)
 	}
 }
 
@@ -197,6 +212,200 @@ func (ch *ClusterHandler) estimateTabletCount(ctx context.Context) int {
 		SELECT count(*) FROM pg_indexes WHERE schemaname = 'public'`).Scan(&indexCount)
 
 	return tableCount + indexCount
+}
+
+// HardwareInfo info del hardware del servidor
+type HardwareInfo struct {
+	RAMGB            int    `json:"ram_gb"`
+	CPUCores         int    `json:"cpu_cores"`
+	RecommendedLimit int    `json:"recommended_limit"`
+	RecommendedMode  string `json:"recommended_mode"` // "single" o "multi"
+	Recommendation   string `json:"recommendation"`
+}
+
+// getHardwareInfo devuelve info del hardware y recomendaciones
+func (ch *ClusterHandler) getHardwareInfo(w http.ResponseWriter, r *http.Request) {
+	info := HardwareInfo{
+		CPUCores: runtime.NumCPU(),
+	}
+
+	// Detectar RAM disponible (en bytes, convertir a GB)
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
+	// runtime no da RAM total del sistema, solo la que Go ve
+	// Usar un valor conservador basado en lo que el sistema reporta
+	// En Docker, podemos leer /proc/meminfo
+	info.RAMGB = detectSystemRAM()
+
+	// Recomendaciones basadas en hardware
+	if info.RAMGB >= 32 {
+		info.RecommendedLimit = 2000
+		info.RecommendedMode = "single"
+		info.Recommendation = "Tu servidor tiene suficiente RAM para un solo nodo con limite alto (2000 tabletas). No necesitas multiples nodos."
+	} else if info.RAMGB >= 16 {
+		info.RecommendedLimit = 1000
+		info.RecommendedMode = "single"
+		info.Recommendation = "Tu servidor tiene 16GB RAM. Un solo nodo con limite 1000 es suficiente. Si la base de datos crece mucho, considera agregar un segundo servidor."
+	} else if info.RAMGB >= 8 {
+		info.RecommendedLimit = 600
+		info.RecommendedMode = "single"
+		info.Recommendation = "Tu servidor tiene 8GB RAM. Un solo nodo con limite 600 es recomendado. No subas el limite mas alla de 600 o podrias quedarte sin memoria."
+	} else if info.RAMGB >= 4 {
+		info.RecommendedLimit = 534
+		info.RecommendedMode = "multi"
+		info.Recommendation = "Tu servidor tiene poca RAM (4GB). Manten el limite por defecto (534). Si necesitas mas capacidad, agrega un segundo nodo en OTRO servidor con mas RAM."
+	} else {
+		info.RecommendedLimit = 400
+		info.RecommendedMode = "multi"
+		info.Recommendation = "Tu servidor tiene muy poca RAM. Usa el limite minimo (400). Para escalar, necesitas agregar nodos en servidores separados con mas RAM."
+	}
+
+	writeJSON(w, 200, info)
+}
+
+// detectSystemRAM intenta detectar la RAM del sistema en GB
+func detectSystemRAM() int {
+	// En Linux/Docker, leer /proc/meminfo
+	data, err := osReadFile("/proc/meminfo")
+	if err == nil {
+		lines := string(data)
+		// Buscar MemTotal:  16384000 kB
+		for _, line := range splitLines(lines) {
+			if len(line) > 9 && line[:9] == "MemTotal:" {
+				// Parsear el numero
+				var kb int
+				fmt.Sscanf(line[9:], "%d", &kb)
+				if kb > 0 {
+					return kb / 1024 / 1024 // kB -> GB
+				}
+			}
+		}
+	}
+	// Fallback: asumir 16GB
+	return 16
+}
+
+// ClusterConfigResponse configuracion del cluster guardada en BD
+type ClusterConfigResponse struct {
+	Mode           string          `json:"mode"` // "single" o "multi"
+	TabletLimit    int             `json:"tablet_limit"`
+	MinNodes       int             `json:"min_nodes"`
+	AlertThreshold int             `json:"alert_threshold"`
+	ServerRAMGB    int             `json:"server_ram_gb"`
+	Nodes          json.RawMessage `json:"nodes"`
+}
+
+// getClusterConfig devuelve la configuracion guardada del cluster
+func (ch *ClusterHandler) getClusterConfig(w http.ResponseWriter, r *http.Request) {
+	var mode string
+	var tabletLimit, minNodes, alertThreshold, serverRAMGB int
+	var nodes []byte
+
+	err := ch.Pool.QueryRow(r.Context(), `
+		SELECT mode, tablet_limit, min_nodes, alert_threshold, server_ram_gb, nodes
+		FROM cluster_config WHERE id = 1`).Scan(
+		&mode, &tabletLimit, &minNodes, &alertThreshold, &serverRAMGB, &nodes)
+	if err != nil {
+		// Si no existe la tabla, devolver defaults
+		writeJSON(w, 200, ClusterConfigResponse{
+			Mode:           "single",
+			TabletLimit:    1000,
+			MinNodes:       1,
+			AlertThreshold: 80,
+			ServerRAMGB:    detectSystemRAM(),
+			Nodes:          json.RawMessage(`[{"host":"yugabytedb","port":5433,"is_local":true}]`),
+		})
+		return
+	}
+
+	writeJSON(w, 200, ClusterConfigResponse{
+		Mode:           mode,
+		TabletLimit:    tabletLimit,
+		MinNodes:       minNodes,
+		AlertThreshold: alertThreshold,
+		ServerRAMGB:    serverRAMGB,
+		Nodes:          json.RawMessage(nodes),
+	})
+}
+
+// updateClusterConfig actualiza la configuracion del cluster
+func (ch *ClusterHandler) updateClusterConfig(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Mode           string          `json:"mode"`
+		TabletLimit    int             `json:"tablet_limit"`
+		MinNodes       int             `json:"min_nodes"`
+		AlertThreshold int             `json:"alert_threshold"`
+		ServerRAMGB    int             `json:"server_ram_gb"`
+		Nodes          json.RawMessage `json:"nodes"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	// Validar modo
+	if req.Mode != "single" && req.Mode != "multi" {
+		writeError(w, 400, "mode debe ser 'single' o 'multi'")
+		return
+	}
+
+	// Validar limite de tabletas segun RAM
+	ramGB := req.ServerRAMGB
+	if ramGB == 0 {
+		ramGB = detectSystemRAM()
+	}
+	maxLimit := ramGB * 100 // regla: ~100 tabletas por GB de RAM
+	if maxLimit < 400 {
+		maxLimit = 400
+	}
+	if req.TabletLimit > maxLimit {
+		writeError(w, 400, fmt.Sprintf("limite %d es muy alto para %dGB RAM. Maximo recomendado: %d", req.TabletLimit, ramGB, maxLimit))
+		return
+	}
+	if req.TabletLimit < 100 {
+		writeError(w, 400, "limite minimo es 100 tabletas")
+		return
+	}
+
+	// Validar umbral
+	if req.AlertThreshold < 50 || req.AlertThreshold > 95 {
+		writeError(w, 400, "umbral debe estar entre 50 y 95")
+		return
+	}
+
+	// Si los nodes viene vacio, usar default
+	if len(req.Nodes) == 0 || string(req.Nodes) == "null" {
+		req.Nodes = json.RawMessage(`[{"host":"yugabytedb","port":5433,"is_local":true}]`)
+	}
+
+	_, err := ch.Pool.Exec(r.Context(), `
+		INSERT INTO cluster_config (id, mode, tablet_limit, min_nodes, alert_threshold, server_ram_gb, nodes, updated_at)
+		VALUES (1, $1, $2, $3, $4, $5, $6, NOW())
+		ON CONFLICT (id) DO UPDATE SET
+			mode = $1, tablet_limit = $2, min_nodes = $3, alert_threshold = $4,
+			server_ram_gb = $5, nodes = $6, updated_at = NOW()`,
+		req.Mode, req.TabletLimit, req.MinNodes, req.AlertThreshold, ramGB, req.Nodes)
+	if err != nil {
+		writeError(w, 500, fmt.Sprintf("error al guardar config: %v", err))
+		return
+	}
+
+	// Notificar a administradores
+	notify := NewNotifyService(ch.Pool)
+	notify.NotifyBoard(r.Context(), ch.Config.Node.Domain, "cluster_config_updated",
+		"Configuracion del cluster actualizada",
+		fmt.Sprintf("Modo: %s, Limite: %d tabletas, Min nodos: %d, RAM: %dGB. Reinicia YugabyteDB para aplicar los cambios.", req.Mode, req.TabletLimit, req.MinNodes, ramGB),
+		"/app/settings?tab=database",
+		map[string]interface{}{"mode": req.Mode, "tablet_limit": req.TabletLimit})
+
+	writeJSON(w, 200, map[string]interface{}{
+		"message":       "Configuracion guardada. Reinicia YugabyteDB para aplicar los cambios.",
+		"mode":          req.Mode,
+		"tablet_limit":  req.TabletLimit,
+		"min_nodes":     req.MinNodes,
+		"server_ram_gb": ramGB,
+		"needs_restart": true,
+	})
 }
 
 // Context import
