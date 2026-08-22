@@ -139,6 +139,27 @@ var catalog = []ServiceCatalogItem{
 		UsedFor:  "Comunicacion de voz en tiempo real para trabajo en campo, coordinacion de mingas, radio de la aldea. Funciona bien con internet lento. Sin anuncios, sin empresas escuchando.",
 		Protocol: "Mumble", Docker: true, MinRAM: 256, MinDisk: 1, DefaultPort: 64738, Subdomain: "voz",
 	},
+	{
+		ID: "mailu", Name: "Mailu (Servidor de Correo)", Category: "comunicacion", Icon: "Mail",
+		WhatIs:   "Servidor de correo completo 100% libre (licencia MIT, sin restricciones). Todo en uno: SMTP para enviar, IMAP para recibir, panel de administracion web para crear buzones y dominios, y webmail integrado para leer correo desde el navegador. Incluye antispam, antivirus, certificados SSL automaticos con Let's Encrypt y federacion entre servidores de correo. Cada miembro tiene su correo con el dominio del nodo (ej: maria@mi-aldea.com).",
+		Replaces: "Gmail, Outlook, Yahoo Mail, ProtonMail (servidor de correo completo)",
+		UsedFor:  "Correo electronico propio de la aldea. Cada miembro tiene su direccion @tu-dominio. Enviar y recibir correos de cualquier parte del mundo. Federacion automatica con otros servidores de correo via SMTP. Webmail para leer desde el navegador sin instalar nada. Panel admin para crear cuentas. Solo necesita 1-2 GB de RAM.",
+		Protocol: "SMTP/IMAP/POP3", Docker: true, MinRAM: 1024, MinDisk: 20, DefaultPort: 25, Subdomain: "correo",
+	},
+	{
+		ID: "deltachat", Name: "Delta Chat (Chat por Correo)", Category: "comunicacion", Icon: "MessageCircle",
+		WhatIs:   "Mensajeria instantanea descentralizada que funciona 100% sobre servidores de correo estandar. La app se ve y funciona identica a WhatsApp o Telegram, pero envia y recibe mensajes a traves de cuentas de email federadas entre cualquier servidor. Cifrado de extremo a extremo auditable. Clientes para Android, iOS, Windows, macOS y Linux. No requiere un servidor propio: usa cualquier servidor IMAP/SMTP (como Mailu) como backend.",
+		Replaces: "WhatsApp, Telegram, Signal (mensajeria instantanea federada via correo)",
+		UsedFor:  "Chat de la aldea que se ve como WhatsApp pero sin empresas. Mensajes, fotos, archivos, grupos, llamadas de voz P2P. Federacion automatica: usuario@aldea-a.com chatea con amigo@aldea-b.com como si fuera un correo mas. Multi-dispositivo. Notificaciones push. Sin servidor dedicado: funciona con el servidor de correo que ya tienes (Mailu). Cero datos privados en el servidor.",
+		Protocol: "IMAP/SMTP (Chat sobre correo)", Docker: false, MinRAM: 0, MinDisk: 0, DefaultPort: 0, Subdomain: "chat",
+	},
+	{
+		ID: "snappymail", Name: "SnappyMail (Webmail)", Category: "comunicacion", Icon: "Mail",
+		WhatIs:   "Cliente webmail rapido y moderno para leer correo desde el navegador. Interfaz estilo Gmail, adaptable a moviles. Se conecta a cualquier servidor IMAP/SMTP (como Mailu o Stalwart). Soporta multiples cuentas, filtros, busqueda, contactos y calendario. Ligero y rapido.",
+		Replaces: "Gmail (interfaz web), Outlook Web (interfaz web de correo)",
+		UsedFor:  "Dar a los miembros una interfaz web para leer y escribir correos sin instalar ningun programa. Se abre desde el navegador del celular o computadora. Ideal para miembros que no quieren instalar una app de correo. Se conecta al servidor de correo del nodo (Mailu).",
+		Protocol: "IMAP/SMTP (cliente web)", Docker: true, MinRAM: 128, MinDisk: 1, DefaultPort: 8888, Subdomain: "webmail",
+	},
 
 	// === Productividad y Archivos ===
 	{

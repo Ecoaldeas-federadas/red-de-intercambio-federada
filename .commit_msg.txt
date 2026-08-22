@@ -1,27 +1,39 @@
-feat: agregar Sylk Suite (Blink + SylkServer) al catalogo de servicios
+feat: agregar servicios de correo (Mailu, Delta Chat, SnappyMail) al catalogo
 
-Sylk Suite es una suite completa de comunicacion en tiempo real basada
-en estandares abiertos SIP y MSRP, desarrollada por AG Projects.
+Servicios de correo agregados al catalogo de servicios federados:
 
-Caracteristicas:
-- Mensajeria chat individual y grupal (MSRP)
-- Envio de archivos e imagenes sin restricciones
-- Llamadas de voz y video con cifrado extremo a extremo (zRTP)
-- Videoconferencias multiusuario con pantalla compartida
-- Notificaciones push moviles
-- Cifrado OpenPGP para mensajes offline
-- Cliente Sylk para Android, iOS, Windows, macOS, Linux y web
-- Federacion entre aldeas como correo electronico:
-  sip:usuario@aldea-a.com llama a sip:amigo@aldea-b.com
-- DNS SRV para resolucion automatica del servidor destino
-- El cliente se conecta colocando el dominio del nodo
+1. Mailu (Servidor de Correo)
+   - Licencia MIT (100% libre, sin restricciones)
+   - Todo en uno: SMTP, IMAP, POP3, panel admin, webmail integrado
+   - Antispam, antivirus, SSL automatico con Let's Encrypt
+   - Federacion automatica con cualquier servidor de correo del mundo
+   - Cada miembro tiene su correo @tu-dominio
+   - Solo 1-2 GB RAM (mucho mas liviano que Mailcow que necesita 3-4 GB)
+   - Docker, puerto 25, subdominio correo.{dominio}
 
-Cambios:
-- internal/api/services_catalog.go: nueva entrada "sylk" en categoria
-  comunicacion, con informacion detallada de que es, que reemplaza
-  (WhatsApp + Zoom en una app), para que sirve, protocolo SIP/MSRP/WebRTC
-- internal/db/seed.go: pagina publica servicios-federados actualizada
-  con Sylk Suite en la seccion de Comunicacion, marcada como "Recomendado"
+2. Delta Chat (Chat por Correo)
+   - Mensajeria instantanea que funciona sobre servidores de correo
+   - Se ve como WhatsApp pero envia mensajes via email federado
+   - Cifrado extremo a extremo auditable
+   - App para Android, iOS, Windows, macOS, Linux
+   - No requiere servidor propio: usa Mailu como backend
+   - Federacion automatica: usuario@aldea-a.com chatea con amigo@aldea-b.com
+   - Cero datos privados en el servidor
+   - Multi-dispositivo, notificaciones push, llamadas P2P
+
+3. SnappyMail (Webmail)
+   - Webmail rapido y moderno estilo Gmail
+   - Leer y escribir correos desde el navegador sin instalar nada
+   - Se conecta a Mailu via IMAP/SMTP
+   - Adaptable a moviles
+   - Docker, puerto 8888, subdominio webmail.{dominio}
+
+Tambien se actualizo la pagina publica servicios-federados con los
+tres servicios nuevos en la seccion de Comunicacion.
+
+Nota: Stalwart no se incluyo porque tiene licencia AGPL con version
+enterprise (restricciones). Mailcow no se incluyo porque necesita 3-4
+GB RAM. Mailu es el mas liviano y 100% libre MIT.
 
 Generated with [Devin](https://devin.ai)
 

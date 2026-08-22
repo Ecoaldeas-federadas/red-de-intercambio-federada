@@ -1732,10 +1732,12 @@ func getSeedPages() []seedPage {
     "items": [
       {"icon":"phone","title":"VoIP - Telefonía","description":"Sistema telefonico de la aldea. Llamadas internas gratis, llamadas al exterior via pasarela SIP. Cada miembro tiene su extension.","badge":"Telefonia"},
       {"icon":"message-circle","title":"Sylk Suite (Blink + SylkServer)","description":"Mensajeria, llamadas y videoconferencias federadas en una sola app. Cliente para Android, iOS, Windows, macOS, Linux y web. Colocas el dominio del nodo y se conecta automaticamente. Cifrado extremo a extremo. Federacion entre aldeas como correo electronico: usuario@aldea-a.com llama a amigo@aldea-b.com. Reemplaza WhatsApp + Zoom en uno.","badge":"Recomendado"},
+      {"icon":"mail","title":"Mailu (Servidor de Correo)","description":"Servidor de correo completo 100% libre (MIT). Todo en uno: SMTP, IMAP, panel admin, webmail integrado. Cada miembro tiene su correo @tu-dominio. Federacion automatica con cualquier servidor de correo del mundo. Solo 1-2 GB RAM. Reemplaza Gmail, Outlook.","badge":"Reemplaza Gmail"},
+      {"icon":"message-circle","title":"Delta Chat (Chat por Correo)","description":"Mensajeria instantanea que funciona sobre correo. Se ve como WhatsApp pero envia mensajes via email federado. Cifrado extremo a extremo. App para Android, iOS y escritorio. No necesita servidor propio: usa Mailu como backend. Federacion automatica entre aldeas. Cero datos en el servidor.","badge":"Chat federado"},
+      {"icon":"mail","title":"SnappyMail (Webmail)","description":"Webmail rapido y moderno estilo Gmail. Leer y escribir correos desde el navegador sin instalar nada. Se conecta al servidor de correo del nodo (Mailu). Adaptable a moviles.","badge":"Webmail"},
       {"icon":"mic","title":"Mumble","description":"Chat de voz para reuniones y coordinacion. Bajo consumo de ancho de banda. Ideal para conexiones lentas.","badge":"Voz"},
       {"icon":"cloud","title":"Nextcloud","description":"Almacenamiento y colaboracion. Reemplaza Google Drive, Dropbox. Archivos, calendarios, contactos, documentos compartidos.","badge":"Reemplaza GDrive"},
-      {"icon":"message-square","title":"Matrix","description":"Mensajeria instantanea descentralizada. Reemplaza WhatsApp, Telegram. Mensajes cifrados de extremo a extremo.","badge":"Reemplaza WhatsApp"},
-      {"icon":"mail","title":"Servidor de Email","description":"Correo electronico propio. Reemplaza Gmail, Outlook. Cada miembro tiene su correo con el dominio de tu nodo.","badge":"Reemplaza Gmail"}
+      {"icon":"message-square","title":"Matrix","description":"Mensajeria instantanea descentralizada. Reemplaza WhatsApp, Telegram. Mensajes cifrados de extremo a extremo.","badge":"Reemplaza WhatsApp"}
     ]
   },
   {
