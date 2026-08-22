@@ -57,6 +57,7 @@ func (eh *ExternalHandler) RegisterRoutesWithAuth(r chi.Router, am *AuthMiddlewa
 	r.Post("/api/store/items", eh.addStoreItem)
 	r.Get("/api/store/items/{id}", eh.getStoreItem)
 	r.Get("/api/store/all", eh.listAllStores)
+	r.Get("/api/public/store-items", eh.listPublicStoreItems)
 	if am != nil {
 		r.With(am.RequirePermission("store.update_stock")).Put("/api/store/items/{id}/stock", eh.updateStock)
 		r.With(am.RequirePermission("store.update_price")).Put("/api/store/items/{id}/price", eh.updatePrice)
@@ -376,6 +377,18 @@ func (eh *ExternalHandler) listAllStores(w http.ResponseWriter, r *http.Request)
 	items, err := eh.Store.ListItems(r.Context(), "")
 	if err != nil {
 		writeError(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, items)
+}
+
+// listPublicStoreItems devuelve los items publicados en la tienda para mostrar
+// en la pagina publica (lo que realmente hay disponible en la feria)
+func (eh *ExternalHandler) listPublicStoreItems(w http.ResponseWriter, r *http.Request) {
+	category := r.URL.Query().Get("category")
+	items, err := eh.Store.ListItems(r.Context(), category)
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
 		return
 	}
 	writeJSON(w, 200, items)

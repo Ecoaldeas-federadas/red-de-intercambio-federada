@@ -639,15 +639,32 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
   const [selectedParent, setSelectedParent] = useState<string>('all')
   const [selectedCat, setSelectedCat] = useState<string>('all')
   const [backendProducts, setBackendProducts] = useState<any[]>([])
+  const [storeItems, setStoreItems] = useState<any[]>([])
   const [totalCount, setTotalCount] = useState<number>(0)
   const [loading, setLoading] = useState(false)
+  const [viewMode, setViewMode] = useState<'feria' | 'catalogo'>('feria')
 
   // If source is "backend", load real products from the API
   const useBackend = (data as any).source === 'backend'
 
   const PAGE_SIZE = 100
 
-  // Cargar todos los productos en un bucle hasta que no haya mas
+  // Cargar items de la tienda (lo que realmente hay en la feria)
+  useEffect(() => {
+    if (!useBackend) return
+    let cancelled = false
+    fetch('/api/public/store-items')
+      .then(res => res.json())
+      .then(d => {
+        if (cancelled) return
+        const items = Array.isArray(d) ? d : []
+        setStoreItems(items)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [useBackend])
+
+  // Cargar todos los productos aprobados en un bucle hasta que no haya mas
   useEffect(() => {
     if (!useBackend) return
     let cancelled = false
@@ -677,20 +694,37 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
     return () => { cancelled = true }
   }, [useBackend])
 
-  const items = useBackend
-    ? backendProducts.map((p: any) => ({
-        name: p.name,
-        parent_category: p.parent_category || '',
-        category: p.category || 'General',
-        subcategory: p.subcategory || '',
-        description: p.description || '',
-        badge: p.badge || (p.is_approved ? 'Aprobado' : ''),
-        image_url: p.image_url || '',
-        unit: p.unit || '',
-        price_energy: p.price_trueque ? `${p.price_trueque} TQ` : '',
-        price_trueque: p.price_trueque || 0,
-      }))
+  // Items segun el modo de vista
+  const rawItems = useBackend
+    ? viewMode === 'feria'
+      ? storeItems.map((p: any) => ({
+          name: p.product_name || p.name,
+          parent_category: p.parent_category || '',
+          category: p.category || 'General',
+          subcategory: p.subcategory || '',
+          description: p.description || '',
+          badge: p.stock > 0 ? 'Disponible' : 'Agotado',
+          image_url: p.image_url || '',
+          unit: p.unit || '',
+          price_energy: p.final_price ? `${p.final_price} TQ` : (p.price_trueque ? `${p.price_trueque} TQ` : ''),
+          price_trueque: p.final_price || p.price_trueque || 0,
+          stock: p.stock || 0,
+        }))
+      : backendProducts.map((p: any) => ({
+          name: p.name,
+          parent_category: p.parent_category || '',
+          category: p.category || 'General',
+          subcategory: p.subcategory || '',
+          description: p.description || '',
+          badge: p.badge || (p.is_approved ? 'Aprobado' : ''),
+          image_url: p.image_url || '',
+          unit: p.unit || '',
+          price_energy: p.price_trueque ? `${p.price_trueque} TQ` : '',
+          price_trueque: p.price_trueque || 0,
+        }))
     : data.items || []
+
+  const items = rawItems
 
   // Nivel 1: categorias padre
   const parentCategories = useBackend
@@ -716,6 +750,40 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
             <EdText field="title" value={data.title} as="h2" className="text-xl sm:text-3xl font-extrabold text-gray-900" />
           )}
           {data.subtitle && <EdText field="subtitle" value={data.subtitle} as="p" className="text-gray-600 text-xs sm:text-sm" />}
+        </div>
+      )}
+
+      {/* Pestañas: Productos en la Feria vs Catalogo Aprobado */}
+      {useBackend && (
+        <div className="flex flex-wrap gap-2 justify-center pb-2 border-b">
+          <button
+            onClick={() => { setViewMode('feria'); setSelectedParent('all'); setSelectedCat('all') }}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
+              viewMode === 'feria'
+                ? 'bg-emerald-700 text-white shadow'
+                : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+            }`}
+          >
+            Productos en la Feria ({storeItems.length})
+          </button>
+          <button
+            onClick={() => { setViewMode('catalogo'); setSelectedParent('all'); setSelectedCat('all') }}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
+              viewMode === 'catalogo'
+                ? 'bg-emerald-700 text-white shadow'
+                : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+            }`}
+          >
+            Catalogo Aprobado ({totalCount})
+          </button>
+        </div>
+      )}
+
+      {/* Aviso cuando no hay productos en la feria */}
+      {useBackend && viewMode === 'feria' && storeItems.length === 0 && (
+        <div className="text-center py-8 text-gray-500">
+          <p className="text-sm">No hay productos publicados en la feria en este momento.</p>
+          <p className="text-xs mt-1">Los productores pueden publicar productos desde la tienda del nodo.</p>
         </div>
       )}
 
