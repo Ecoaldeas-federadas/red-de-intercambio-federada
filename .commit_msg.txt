@@ -1,28 +1,21 @@
-fix: errores JSON en Red Privada + agregar "Mis Datos para Compartir"
+fix: pagina Servicios Federados en blanco por doble /api
 
-Bug 1: Doble /api en las llamadas del frontend
-- NetworkConfig.tsx llamaba api.get('/api/network/status') pero api.get
-  ya anade /api automaticamente, resultando en /api/api/network/status
-- El servidor devolvia HTML (SPA fallback) en lugar de JSON
-- Esto causaba el error "Unexpected token '<', '<!DOCTYPE'... is not valid JSON"
-- Corregido: todas las llamadas ahora usan /network/... sin /api
+Mismo bug que NetworkConfig: FederatedServices.tsx llamaba
+api.get('/api/services/catalog') pero api.get ya anade /api,
+resultando en /api/api/services/catalog -> 404 -> HTML -> error JSON.
 
-Feature: Pestana "Mis Datos para Compartir"
-- Nuevo endpoint GET /api/network/my-info que devuelve los datos propios
-  del nodo para compartir con otra aldea:
-  - Dominio publico (subdomain.openwrt_domain o node_domain)
-  - IPv6 ULA
-  - Endpoint (dominio:puerto)
-  - Clave publica WireGuard
-  - Puerto WireGuard
-- Nuevo endpoint POST /api/network/generate-wg-keys que genera claves
-  WireGuard automaticamente (usa wg genkey si esta disponible, sino base64)
-- Las claves se guardan en network_config (wireguard_private_key, wireguard_public_key)
-- Frontend: nueva pestana "Mis Datos para Compartir" con:
-  - Cada dato en una tarjeta con boton "Copiar"
-  - Boton "Generar claves WireGuard" si no existen
-  - Resumen completo para copiar y enviar
-  - Instrucciones de como federar dos aldeas (4 pasos)
+Corregidas las 22 llamadas API de la pagina:
+- /api/services/* -> /services/*
+- /api/voip/* -> /voip/*
+
+Ahora la pagina muestra los 22 servicios del catalogo correctamente:
+PeerTube, Mastodon, Pixelfed, Friendica, Lemmy, BookWyrm, WriteFreely,
+Mobilizon, Matrix, Jitsi, Asterisk/FreePBX, Mumble, Nextcloud, Collabora,
+BookStack, MediaWiki, Jellyfin, Funkwhale, Gitea/Forgejo, BigBlueButton,
+Home Assistant, Vaultwarden.
+
+Cada servicio tiene botones para instalar con un clic, descargar,
+iniciar, detener y desinstalar.
 
 Generated with [Devin](https://devin.ai)
 

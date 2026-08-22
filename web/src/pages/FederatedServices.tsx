@@ -82,7 +82,7 @@ export default function FederatedServices() {
   const loadServices = async () => {
     setLoading(true)
     try {
-      const res = await api.get('/api/services/catalog')
+      const res = await api.get('/services/catalog')
       setServices(res.data.services || [])
     } catch (e) {
       console.error(e)
@@ -104,7 +104,7 @@ export default function FederatedServices() {
     setInstalling(true)
     setMsg(null)
     try {
-      const res = await api.post(`/api/services/${svc.id}/install`, {})
+      const res = await api.post(`/services/${svc.id}/install`, {})
       if (res.data.success) {
         setMsg({ type: 'success', text: res.data.message })
       } else {
@@ -121,7 +121,7 @@ export default function FederatedServices() {
   const uninstallService = async (svc: ServiceItem) => {
     if (!confirm(`Desinstalar ${svc.name}?`)) return
     try {
-      await api.post(`/api/services/${svc.id}/uninstall`, {})
+      await api.post(`/services/${svc.id}/uninstall`, {})
       setMsg({ type: 'success', text: `${svc.name} desinstalado` })
       await loadServices()
     } catch (e: any) {
@@ -131,7 +131,7 @@ export default function FederatedServices() {
 
   const startService = async (svc: ServiceItem) => {
     try {
-      await api.post(`/api/services/${svc.id}/start`, {})
+      await api.post(`/services/${svc.id}/start`, {})
       setMsg({ type: 'success', text: `${svc.name} iniciado` })
       await loadServices()
     } catch (e: any) {
@@ -141,7 +141,7 @@ export default function FederatedServices() {
 
   const stopService = async (svc: ServiceItem) => {
     try {
-      await api.post(`/api/services/${svc.id}/stop`, {})
+      await api.post(`/services/${svc.id}/stop`, {})
       setMsg({ type: 'success', text: `${svc.name} detenido` })
       await loadServices()
     } catch (e: any) {
@@ -151,7 +151,7 @@ export default function FederatedServices() {
 
   const downloadService = async (svc: ServiceItem) => {
     try {
-      const res = await api.get(`/api/services/${svc.id}/download`)
+      const res = await api.get(`/services/${svc.id}/download`)
       const content = `# docker-compose.yml\n${res.data.docker_compose}\n\n---\n# README.md\n${res.data.readme}`
       const blob = new Blob([content], { type: 'text/plain' })
       const url = window.URL.createObjectURL(blob)
@@ -426,28 +426,28 @@ function VoIPPanel() {
 
   const loadPSTNGateways = async () => {
     try {
-      const res = await api.get('/api/voip/pstn-gateways')
+      const res = await api.get('/voip/pstn-gateways')
       setPstnGateways(res.data.gateways || [])
     } catch (e) { console.error(e) }
   }
 
   const loadBalance = async () => {
     try {
-      const res = await api.get('/api/voip/balance')
+      const res = await api.get('/voip/balance')
       setBalance(res.data)
     } catch (e) { console.error(e) }
   }
 
   const loadCDR = async () => {
     try {
-      const res = await api.get('/api/voip/cdr')
+      const res = await api.get('/voip/cdr')
       setCdr(res.data.calls || [])
     } catch (e) { console.error(e) }
   }
 
   const autoConfigureRoutes = async () => {
     try {
-      const res = await api.post('/api/voip/auto-configure-routes', {})
+      const res = await api.post('/voip/auto-configure-routes', {})
       setMsg({ type: 'success', text: res.data.message })
       await loadRoutes()
     } catch (e: any) {
@@ -461,7 +461,7 @@ function VoIPPanel() {
       return
     }
     try {
-      const res = await api.post('/api/voip/pstn-gateways', newGateway)
+      const res = await api.post('/voip/pstn-gateways', newGateway)
       setMsg({ type: 'success', text: res.data.message })
       setNewGateway({ name: '', provider: '', sip_server: '', sip_username: '', sip_password: '', inbound_number: '', cost_per_minute: 0, max_concurrent_calls: 2 })
       await loadPSTNGateways()
@@ -473,7 +473,7 @@ function VoIPPanel() {
   const deletePSTNGateway = async (id: string) => {
     if (!confirm('Eliminar pasarela PSTN?')) return
     try {
-      await api.delete(`/api/voip/pstn-gateways/${id}`)
+      await api.delete(`/voip/pstn-gateways/${id}`)
       await loadPSTNGateways()
     } catch (e: any) {
       setMsg({ type: 'error', text: e.response?.data?.error || 'Error' })
@@ -483,7 +483,7 @@ function VoIPPanel() {
   const rechargeVoIP = async () => {
     if (rechargeAmount <= 0) { setMsg({ type: 'error', text: 'Monto debe ser positivo' }); return }
     try {
-      const res = await api.post('/api/voip/recharge', { amount: rechargeAmount, payment_method: rechargeMethod, reference: rechargeRef })
+      const res = await api.post('/voip/recharge', { amount: rechargeAmount, payment_method: rechargeMethod, reference: rechargeRef })
       setMsg({ type: 'success', text: res.data.message })
       setRechargeAmount(0); setRechargeRef('')
     } catch (e: any) {
@@ -493,28 +493,28 @@ function VoIPPanel() {
 
   const loadConfig = async () => {
     try {
-      const res = await api.get('/api/voip/config')
+      const res = await api.get('/voip/config')
       setConfig(res.data)
     } catch (e) { console.error(e) }
   }
 
   const loadExtensions = async () => {
     try {
-      const res = await api.get('/api/voip/extensions')
+      const res = await api.get('/voip/extensions')
       setExtensions(res.data.extensions || [])
     } catch (e) { console.error(e) }
   }
 
   const loadRoutes = async () => {
     try {
-      const res = await api.get('/api/voip/routes')
+      const res = await api.get('/voip/routes')
       setRoutes(res.data.routes || [])
     } catch (e) { console.error(e) }
   }
 
   const generateCode = async () => {
     try {
-      const res = await api.post('/api/voip/generate-code', {})
+      const res = await api.post('/voip/generate-code', {})
       setMsg({ type: 'success', text: res.data.message })
       await loadConfig()
     } catch (e: any) {
@@ -525,7 +525,7 @@ function VoIPPanel() {
   const saveConfig = async () => {
     if (!config) return
     try {
-      await api.put('/api/voip/config', config)
+      await api.put('/voip/config', config)
       setMsg({ type: 'success', text: 'Configuracion VoIP guardada' })
     } catch (e: any) {
       setMsg({ type: 'error', text: e.response?.data?.error || 'Error' })
@@ -535,7 +535,7 @@ function VoIPPanel() {
   const createExt = async () => {
     if (!newExt.extension) { setMsg({ type: 'error', text: 'Extension obligatoria' }); return }
     try {
-      const res = await api.post('/api/voip/extensions', newExt)
+      const res = await api.post('/voip/extensions', newExt)
       setMsg({ type: 'success', text: res.data.message })
       setNewExt({ extension: '', display_name: '', password: '' })
       await loadExtensions()
@@ -547,7 +547,7 @@ function VoIPPanel() {
   const deleteExt = async (ext: string) => {
     if (!confirm(`Eliminar extension ${ext}?`)) return
     try {
-      await api.delete(`/api/voip/extensions/${ext}`)
+      await api.delete(`/voip/extensions/${ext}`)
       await loadExtensions()
     } catch (e: any) {
       setMsg({ type: 'error', text: e.response?.data?.error || 'Error' })
@@ -557,7 +557,7 @@ function VoIPPanel() {
   const createRoute = async () => {
     if (!newRoute.remote_village_code) { setMsg({ type: 'error', text: 'Codigo de aldea remota obligatorio' }); return }
     try {
-      const res = await api.post('/api/voip/routes', newRoute)
+      const res = await api.post('/voip/routes', newRoute)
       setMsg({ type: 'success', text: res.data.message })
       setNewRoute({ remote_village_code: 0, remote_village_name: '', remote_endpoint: '', remote_domain: '' })
       await loadRoutes()
@@ -569,7 +569,7 @@ function VoIPPanel() {
   const deleteRoute = async (code: string) => {
     if (!confirm(`Eliminar ruta a aldea ${code}?`)) return
     try {
-      await api.delete(`/api/voip/routes/${code}`)
+      await api.delete(`/voip/routes/${code}`)
       await loadRoutes()
     } catch (e: any) {
       setMsg({ type: 'error', text: e.response?.data?.error || 'Error' })
