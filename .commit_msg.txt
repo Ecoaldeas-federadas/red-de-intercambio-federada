@@ -1,52 +1,71 @@
-feat: sistema inteligente de precio base + unidad base + calculo explicado
+feat: expandir base de datos mundial de materias primas
 
-El sistema ahora usa la unidad real de la base de datos mundial para
-cada producto (kg, L, unidad) y muestra el calculo completo:
+Se agregaron TODAS las materias primas que faltaban en el catalogo,
+con valores de energia de las bases de datos internacionales:
 
-1. base_price: precio de la base de datos mundial (Agribalyse, FAO, etc.)
-   en su unidad natural (kg para solidos, L para liquidos)
-2. base_unit: unidad del precio base (kg, L, unidad)
-3. weight_kg: peso/cantidad del producto que se ofrece
-4. price_per_unit: precio calculado = base_price * weight_kg
+Nuevas materias primas agregadas (60+ productos):
 
-Ejemplo huevos:
-- base_price = 4 TQ/kg (base de datos mundial)
-- base_unit = kg
-- weight_kg = 0.65 (una docena pesa 0.65 kg)
-- price_per_unit = 4 * 0.65 = 2.6 -> 3 TQ
-- Calculo mostrado: "4 TQ/kg x 0.65 kg = 2.6 TQ"
+ALIMENTOS FRESCOS:
+- Tomate, cebolla, ajo, pimenton/chile, lechuga
+- Yuca, platano, cambur, aguacate, mango, papaya
+- Naranja, limon, patilla, pina
+- Name, auyama, batata
+- Berenjena, zanahoria, remolacha, pepino, calabacin
+- Cilantro/perejil, coco
 
-Ejemplo leche:
-- base_price = 2 TQ/L (base de datos mundial)
-- base_unit = L
-- weight_kg = 1 (1 litro)
-- price_per_unit = 2 * 1 = 2 TQ
-- Calculo mostrado: "2 TQ/L x 1 L = 2 TQ"
+GRANOS Y LEGUMBRES SECOS:
+- Caraota, maiz, arroz, trigo, quinchoncho secos
+- Lentejas, garbanzos
 
-Ejemplo abonos:
-- base_price = 0.09 TQ/kg (base de datos mundial)
-- base_unit = kg
-- weight_kg = 25 (un saco pesa 25 kg)
-- price_per_unit = 0.09 * 25 = 2.25 -> 2 TQ
-- Calculo mostrado: "0.09 TQ/kg x 25 kg = 2.25 TQ"
+MATERIAS PRIMAS INDUSTRIALES:
+- Cafe verde, cacao en grano, cafe tostado, chocolate artesanal
+- Sal marina, vinagre artesanal
 
-Cuando alguien crea un producto con diferente cantidad/peso, el sistema
-recalcula automaticamente el precio basado en el precio base.
+MATERIALES DE CONSTRUCCION:
+- Cemento Portland, cal viva, yeso
+- Cobre, zinc, plomo, bronce, laton, hierro, estano, niquel
+- Plastico PVC, polietileno, polipropileno, poliester, nylon
+- Arena de rio, grava, arcilla
+- Vidrio reciclado, madera estructural, bambu
 
-El modal de detalles del producto ahora muestra:
-- Precio del producto (por su unidad: docena, saco, L, kg, etc.)
-- Precio base (base de datos mundial, por kg o L)
-- Peso/cantidad del producto
-- Precio externo (USD)
-- Seccion "Como se calcula el precio" con la formula explicada
+FIBRAS TEXTILES NATURALES:
+- Algodon en rama, lana en sucio, lino, canamo, yute, sisal
+- Seda cruda, cuero curtido vegetal, caucho natural (latex)
 
-La tabla de Calculadora de Precios Externos ahora muestra:
-- Precio por unidad (con la unidad especificada)
-- Base mundial (precio base por kg o L)
-- Precio externo (USD)
+PAPEL Y DERIVADOS:
+- Papel reciclado, carton reciclado
 
-Migracion 088: agrega columna base_unit, asigna unidades correctas
-(kg para solidos, L para liquidos) y precios base de la base mundial.
+COMBUSTIBLES:
+- Gasolina, gas GLP, kerosen
+
+EXTRACTOS Y PRODUCTOS APICOLAS:
+- Aceite esencial, propoleo crudo, cera de abejas
+
+FRUTOS SECOS Y SEMILLAS:
+- Mani, ajonjoli
+
+AGUA:
+- Agua potable
+
+Fuentes consultadas:
+- Agribalyse (Francia): 200+ productos agricolas
+- FAO: produccion animal y vegetal
+- Pimentel & Pimentel: energia en alimentos
+- ICE Database (University of Bath): 300+ materiales
+- Ecoinvent: materiales industriales
+- OEcotextiles: fibras textiles
+- MDPI LCA studies: fibras naturales
+- Piringer & Steinberg: trigo
+- Estudios LCA de UK, EU, Iran, Albania, Canada, Nigeria, Turquia
+
+Cada producto tiene:
+- base_price: precio base de la base de datos mundial
+- base_unit: unidad del precio base (kg, L)
+- weight_kg: peso del producto
+- price_per_unit: precio calculado = base_price * weight_kg
+
+Los productos compuestos se pueden calcular sumando las materias
+primas que los componen mas la energia del proceso.
 
 Generated with [Devin](https://devin.ai)
 
