@@ -1,22 +1,24 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Network, Globe, Scale, Server, RefreshCw, MapPin, Wifi } from 'lucide-react'
+import { Network, Globe, Scale, Server, RefreshCw, MapPin, Wifi, Compass } from 'lucide-react'
 import { api } from '../api'
 import NetworkConfig from './NetworkConfig'
 import FederationPeers from './FederationPeers'
 import FederationGov from './FederationGov'
+import NodeDiscovery from './NodeDiscovery'
 
-// Pagina unificada de Federacion con 4 tabs:
+// Pagina unificada de Federacion con 5 tabs:
 // 1. Red del Nodo: registro de red (IP, OpenWrt, servicios, instalador)
 // 2. Federar Aldeas: agregar y gestionar aldeas federadas (Internet + Intranet)
 // 3. Nodos Federados: info de red y servicios de nodos federados (auto-sincronizada)
-// 4. Gobernanza: propuestas, votacion, constantes federadas
+// 4. Descubrir Nodos: nodos descubiertos via gossip + solicitudes de federacion
+// 5. Gobernanza: propuestas, votacion, constantes federadas
 export default function Federation() {
   const [searchParams, setSearchParams] = useSearchParams()
   const initialTab = (searchParams.get('tab') as any) || 'network'
-  const [tab, setTab] = useState<'network' | 'peers' | 'nodes' | 'gov'>(initialTab)
+  const [tab, setTab] = useState<'network' | 'peers' | 'nodes' | 'discover' | 'gov'>(initialTab)
 
-  const changeTab = (t: 'network' | 'peers' | 'nodes' | 'gov') => {
+  const changeTab = (t: 'network' | 'peers' | 'nodes' | 'discover' | 'gov') => {
     setTab(t)
     setSearchParams({ tab: t })
   }
@@ -52,6 +54,13 @@ export default function Federation() {
           Nodos Federados
         </button>
         <button
+          onClick={() => changeTab('discover')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 ${tab === 'discover' ? 'bg-trueque-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
+        >
+          <Compass size={14} />
+          Descubrir Nodos
+        </button>
+        <button
           onClick={() => changeTab('gov')}
           className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 ${tab === 'gov' ? 'bg-trueque-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
         >
@@ -68,6 +77,9 @@ export default function Federation() {
 
       {/* Tab: Nodos Federados (info auto-sincronizada) */}
       {tab === 'nodes' && <PeersNetInfo />}
+
+      {/* Tab: Descubrir Nodos (gossip + solicitudes) */}
+      {tab === 'discover' && <NodeDiscovery />}
 
       {/* Tab: Gobernanza */}
       {tab === 'gov' && <FederationGov />}

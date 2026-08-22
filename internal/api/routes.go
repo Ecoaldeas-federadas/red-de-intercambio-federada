@@ -91,6 +91,10 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 	fedGovH := NewFederationGovHandler(pool, fh.NodeDomain)
 	fedGovH.RegisterRoutesWithAuth(r, am)
 
+	// Node discovery handler (descubrimiento de nodos por gossip + solicitudes de federacion)
+	nodeDiscH := NewNodeDiscoveryHandler(pool, fh.NodeDomain)
+	nodeDiscH.RegisterRoutes(r, am)
+
 	// Cluster YugabyteDB handler (monitoreo de tabletas y nodos)
 	clusterH := NewClusterHandler(pool, appCfg)
 	clusterH.RegisterRoutesWithAuth(r, am)
