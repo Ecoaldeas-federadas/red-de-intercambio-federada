@@ -339,7 +339,7 @@ func (h *NodeDiscoveryHandler) respondContactRequest(w http.ResponseWriter, r *h
 
 	writeJSON(w, 200, map[string]interface{}{
 		"success": true,
-		"message": fmt.Sprintf("Respuesta enviada. Recuerda: la federacion se hace personalmente compartiendo las claves publicas, no automaticamente por el sistema."),
+		"message": "Respuesta enviada. Recuerda: la federacion se hace personalmente compartiendo las claves publicas, no automaticamente por el sistema.",
 	})
 }
 
@@ -990,7 +990,7 @@ func (h *NodeDiscoveryHandler) getKnownNodesList(ctx context.Context) []KnownNod
 	return nodes
 }
 
-func (h *NodeDiscoveryHandler) sendKnownNodesToPeer(ctx context.Context, peerDomain string, nodes []KnownNodeInfo) bool {
+func (h *NodeDiscoveryHandler) sendKnownNodesToPeer(_ context.Context, peerDomain string, nodes []KnownNodeInfo) bool {
 	payload := map[string]interface{}{
 		"from_node": h.NodeDomain,
 		"nodes":     nodes,
@@ -1010,7 +1010,7 @@ func (h *NodeDiscoveryHandler) sendKnownNodesToPeer(ctx context.Context, peerDom
 	return false
 }
 
-func (h *NodeDiscoveryHandler) checkNodeActive(ctx context.Context, domain string) bool {
+func (h *NodeDiscoveryHandler) checkNodeActive(_ context.Context, domain string) bool {
 	client := &http.Client{Timeout: 10 * time.Second}
 	for _, scheme := range []string{"https", "http"} {
 		url := fmt.Sprintf("%s://%s/api/public/node-info", scheme, domain)
