@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
-import { Plus, Check, X, HelpCircle, Globe } from 'lucide-react'
+import { Plus, Check, X, HelpCircle, Globe, Calculator, Save, Edit3 } from 'lucide-react'
 import { EntitySelector } from '../components/EntitySelector'
 
 export default function ExternalBridge() {
@@ -13,6 +13,13 @@ export default function ExternalBridge() {
   const [showHelp, setShowHelp] = useState(false)
   const [form, setForm] = useState({ operation_type: 'import', product_id: '', product_name: '', quantity: 0, external_price_usd: 0, local_price_trueque: 0, logistics_pct: 0, external_tax_rate: 0 })
 
+  // FC editor state
+  const [showFCForm, setShowFCForm] = useState(false)
+  const [fcForm, setFcForm] = useState({ external_cpi: 0, local_energy_cost: 0 })
+  const [fcPreview, setFcPreview] = useState<number | null>(null)
+  const [fcMsg, setFcMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  const [fcSaving, setFcSaving] = useState(false)
+
   const load = () => {
     api.get('/external/fc').then(setFc).catch(() => {})
     api.get('/external/operations').then((d: any) => setOps(Array.isArray(d) ? d : [])).catch(() => {})
@@ -20,6 +27,56 @@ export default function ExternalBridge() {
   }
 
   useEffect(() => { load() }, [])
+
+  // Cuando se carga el FC, inicializar el formulario con esos valores
+  useEffect(() => {
+    if (fc) {
+      setFcForm({
+        external_cpi: fc.external_cpi ?? 0,
+        local_energy_cost: fc.local_energy_cost ?? 0,
+      })
+    }
+  }, [fc])
+
+  const calculateFC = async () => {
+    if (fcForm.external_cpi <= 0 || fcForm.local_energy_cost <= 0) {
+      setFcMsg({ type: 'error', text: 'Ambos valores deben ser mayores que cero' })
+      return
+    }
+    try {
+      const res = await api.post('/external/fc/calculate', {
+        external_cpi: fcForm.external_cpi,
+        local_energy_cost: fcForm.local_energy_cost,
+      })
+      setFcPreview(res.factor)
+      setFcMsg(null)
+    } catch (e: any) {
+      setFcMsg({ type: 'error', text: e.message || 'Error al calcular' })
+    }
+  }
+
+  const saveFC = async () => {
+    if (fcPreview === null || fcPreview <= 0) {
+      setFcMsg({ type: 'error', text: 'Primero calcula el FC antes de guardar' })
+      return
+    }
+    setFcSaving(true)
+    try {
+      await api.post('/external/fc/store', {
+        factor: fcPreview,
+        external_cpi: fcForm.external_cpi,
+        local_energy_cost: fcForm.local_energy_cost,
+      })
+      setFcMsg({ type: 'success', text: 'FC guardado correctamente' })
+      setShowFCForm(false)
+      setFcPreview(null)
+      load()
+    } catch (e: any) {
+      setFcMsg({ type: 'error', text: e.message || 'Error al guardar. Necesitas permisos de administrador.' })
+    } finally {
+      setFcSaving(false)
+    }
+  }
 
   const create = async () => {
     // El backend espera product_name; enviamos el nombre resuelto al seleccionar
@@ -77,13 +134,99 @@ export default function ExternalBridge() {
 
       {fc && (
         <div className="card bg-blue-50">
-          <h2 className="font-semibold">Factor de Conversion Actual (FC)</h2>
-          <p className="text-2xl font-bold text-blue-700 mt-1">1 USD = {fc.factor} {currency}</p>
-          <div className="grid grid-cols-2 gap-3 mt-2 text-sm">
-            <div><span className="text-gray-500">CPI externo:</span> <b>{fc.external_cpi}</b></div>
-            <div><span className="text-gray-500">Costo energia local:</span> <b>{fc.local_energy_cost} kWh</b></div>
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <h2 className="font-semibold">Factor de Conversion Actual (FC)</h2>
+              <p className="text-2xl font-bold text-blue-700 mt-1">1 USD = {fc.factor} {currency}</p>
+              <div className="grid grid-cols-2 gap-3 mt-2 text-sm">
+                <div><span className="text-gray-500">CPI externo:</span> <b>{fc.external_cpi}</b></div>
+                <div><span className="text-gray-500">Costo energia local:</span> <b>{fc.local_energy_cost} kWh</b></div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">El FC indica cuantos {currency} equivale 1 dolar externo, basado en el costo de vida y la energia local.</p>
+              {fc.is_default && (
+                <p className="text-xs text-amber-600 mt-1 font-medium">Valor por defecto - presiona "Editar FC" para configurar el real de tu comunidad</p>
+              )}
+            </div>
+            {!showFCForm && (
+              <button onClick={() => setShowFCForm(true)} className="btn-secondary flex items-center gap-1 text-sm">
+                <Edit3 size={16} /> Editar FC
+              </button>
+            )}
           </div>
-          <p className="text-xs text-gray-500 mt-2">El FC indica cuantos {currency} equivale 1 dolar externo, basado en el costo de vida y la energia local.</p>
+
+          {showFCForm && (
+            <div className="mt-4 pt-4 border-t border-blue-200 space-y-3">
+              <h3 className="font-medium text-sm flex items-center gap-1"><Calculator size={16} /> Recalcular Factor de Conversion</h3>
+              <p className="text-xs text-gray-500">
+                El FC se calcula dividiendo el CPI externo entre el costo de energia local.
+                Ingresa los valores actuales de tu comunidad y del pais/moneda externa de referencia.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="label">CPI externo (indice de precios externo)</label>
+                  <input
+                    type="number"
+                    className="input"
+                    placeholder="Ej: 300"
+                    value={fcForm.external_cpi || ''}
+                    onChange={(e) => { setFcForm({ ...fcForm, external_cpi: parseFloat(e.target.value) || 0 }); setFcPreview(null) }}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Indice de precios al consumidor del pais/moneda externa. Representa el costo de vida externo.
+                    Busca "CPI" o "indice de precios al consumidor" del pais de referencia.
+                  </p>
+                </div>
+                <div>
+                  <label className="label">Costo de energia local (kWh)</label>
+                  <input
+                    type="number"
+                    className="input"
+                    placeholder="Ej: 60"
+                    value={fcForm.local_energy_cost || ''}
+                    onChange={(e) => { setFcForm({ ...fcForm, local_energy_cost: parseFloat(e.target.value) || 0 }); setFcPreview(null) }}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Costo energetico promedio de la comunidad en kWh. Representa cuanto cuesta producir
+                    un kWh localmente (solar, hidraulica, eolica, etc).
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button onClick={calculateFC} className="btn-secondary flex items-center gap-1 text-sm">
+                  <Calculator size={16} /> Calcular FC
+                </button>
+                {fcPreview !== null && (
+                  <>
+                    <span className="text-sm text-gray-600">
+                      Nuevo FC: <b className="text-blue-700">1 USD = {fcPreview.toFixed(2)} {currency}</b>
+                    </span>
+                    <button onClick={saveFC} disabled={fcSaving} className="btn-primary flex items-center gap-1 text-sm">
+                      <Save size={16} /> {fcSaving ? 'Guardando...' : 'Guardar FC'}
+                    </button>
+                  </>
+                )}
+                <button onClick={() => { setShowFCForm(false); setFcPreview(null); setFcMsg(null) }} className="text-gray-500 text-sm">
+                  Cancelar
+                </button>
+              </div>
+
+              {fcMsg && (
+                <div className={`text-sm p-2 rounded ${fcMsg.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                  {fcMsg.text}
+                </div>
+              )}
+
+              <div className="text-xs text-gray-400 bg-white p-3 rounded border border-gray-100">
+                <p className="font-medium text-gray-600 mb-1">Como funciona el FC:</p>
+                <p><strong>Formula:</strong> FC = CPI externo / Costo energia local</p>
+                <p><strong>Ejemplo:</strong> 300 / 60 = 5.00 TQ por USD</p>
+                <p className="mt-1">El FC es una <strong>referencia contable</strong>, no una tasa de cambio especulativa.
+                Lo decide la asamblea basandose en el costo de vida real. Actualizalo cuando cambien
+                significativamente los precios externos o los costos energeticos locales.</p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

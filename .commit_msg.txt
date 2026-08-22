@@ -1,4 +1,16 @@
-fix: eliminar parametro adminID no usado en demoSeedAssemblyVotes
+feat: formulario para recalcular y guardar el Factor de Conversion (FC)
+
+Antes el FC solo se mostraba (valor por defecto 5.0) sin forma de
+editarlo desde la interfaz. Ahora la pagina de Comercio Externo tiene:
+
+- Boton "Editar FC" junto al FC actual
+- Formulario con campos CPI externo y costo de energia local
+- Boton "Calcular FC" que preview del resultado antes de guardar
+- Boton "Guardar FC" que persiste en la base de datos
+- Aviso amarillo cuando el FC es el valor por defecto (no configurado)
+- Explicacion de la formula y de que el FC es referencia contable
+
+Tambien corrige warning de parametro adminID no usado en demoSeedAssemblyVotes.
 
 Generated with [Devin](https://devin.ai)
 
