@@ -1,5 +1,49 @@
 # Federacion
 
+## Dos modos de federacion
+
+La federacion entre aldeas puede funcionar de dos formas distintas:
+
+### Modo A: Federacion por Internet (sin OpenWrt)
+
+Las aldeas se comunican por **Internet publico** usando dominios publicos.
+
+- No necesita OpenWrt
+- Cada aldea necesita un dominio o IP publica (ej: `aldea1.com`)
+- La federacion viaja por HTTPS normal
+- Funciona para aldeas en diferentes lugares con Internet normal
+- Solo necesitas compartir: el dominio de tu nodo
+
+### Modo B: Federacion por Intranet (con OpenWrt)
+
+Las aldeas se conectan por **tuneles WireGuard** creando un Internet paralelo
+que **no depende del Internet publico**.
+
+- Necesita OpenWrt instalado en cada aldea
+- Usa direcciones IPv6 ULA propias de la red privada
+- Las aldeas se comunican aunque no tengan Internet publico
+- Necesitas compartir: dominio intranet, IPv6 ULA, endpoint WireGuard, clave publica WireGuard
+- OpenWrt gestiona DNS, dominios, certificados y tuneles
+
+### Modo C: Ambos (Internet + Intranet)
+
+Una aldea puede tener ambos modos activos. Se federan por Internet cuando
+estan lejos y por intranet cuando estan cerca.
+
+### Que datos compartir con otra aldea
+
+| Dato | Modo Internet | Modo Intranet |
+|------|:---:|:---:|
+| Dominio del nodo | Si | Si |
+| Dominio publico (OpenWrt) | Opcional | Si |
+| IPv6 ULA | No | Si |
+| Endpoint WireGuard | No | Si |
+| Clave publica WireGuard | No | Si |
+| Puerto WireGuard | No | Si |
+
+**Importante:** Las direcciones IPv6 ULA y los datos de WireGuard **solo aplican
+para la intranet**. Si federas por Internet normal, no necesitas esos datos.
+
 ## Archivos
 - `internal/federation/server.go` - Servidor federado con mTLS
 - `internal/federation/protocol.go` - Protocolo de mensajes

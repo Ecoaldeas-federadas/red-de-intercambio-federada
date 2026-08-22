@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
-import { Server, Globe, Wifi, Download, Plus, Trash2, RefreshCw, Network as NetworkIcon, AlertTriangle, CheckCircle, XCircle } from 'lucide-react'
+import { Server, Globe, Wifi, Download, Plus, Trash2, RefreshCw, Network as NetworkIcon, AlertTriangle, CheckCircle, XCircle, Info } from 'lucide-react'
 
 interface NetworkStatus {
   mode: string
@@ -317,137 +317,249 @@ export default function NetworkConfig() {
       {/* Mis Datos para Compartir */}
       {subTab === 'myinfo' && myInfo && (
         <div className="space-y-4">
-          <div className="card p-4 bg-green-50 border-green-200">
+          {/* Explicacion de los dos modos */}
+          <div className="card p-4 bg-blue-50 border-blue-200">
             <h3 className="font-semibold flex items-center gap-2 mb-2">
-              <CheckCircle size={18} className="text-green-600" /> Mis Datos para Compartir con Otra Aldea
+              <Info size={18} className="text-blue-600" /> Mis Datos para Compartir con Otra Aldea
+            </h3>
+            <p className="text-sm text-gray-600 mb-3">
+              Hay <strong>dos formas</strong> de federar aldeas. Los datos que necesitas compartir
+              dependen de cual uses:
+            </p>
+            <div className="grid md:grid-cols-2 gap-3">
+              <div className={`p-3 rounded-lg border-2 ${myInfo.mode === 'internet' || myInfo.mode === 'both' ? 'border-green-400 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                <h4 className="font-medium text-sm mb-1">Opcion A: Por Internet</h4>
+                <p className="text-xs text-gray-600">
+                  Las aldeas se comunican por Internet publico usando dominios publicos.
+                  <strong> No necesita OpenWrt</strong>. Solo necesitas el dominio de tu nodo.
+                  Funciona para aldeas que estan en diferentes lugares con Internet normal.
+                </p>
+              </div>
+              <div className={`p-3 rounded-lg border-2 ${myInfo.mode === 'intranet' || myInfo.mode === 'both' ? 'border-purple-400 bg-purple-50' : 'border-gray-200 bg-gray-50'}`}>
+                <h4 className="font-medium text-sm mb-1">Opcion B: Por Intranet (OpenWrt)</h4>
+                <p className="text-xs text-gray-600">
+                  Las aldeas se conectan por <strong>tuneles WireGuard</strong> creando un
+                  Internet paralelo que <strong>no depende del Internet publico</strong>.
+                  Necesita OpenWrt. Usa direcciones IPv6 ULA propias de la red privada.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* DATOS PARA FEDERACION POR INTERNET - siempre aplican */}
+          <div className="card p-4">
+            <h3 className="font-semibold flex items-center gap-2 mb-3">
+              <Globe size={18} className="text-green-600" />
+              Datos para federacion por Internet
+              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Siempre disponible</span>
             </h3>
             <p className="text-sm text-gray-600 mb-4">
-              Estos son los datos de <strong>tu aldea</strong>. Entregaselos al administrador de la otra aldea
-              para que pueda configurarte como aldea federada. Puedes copiar cada dato con el boton de copiar.
+              Estos datos sirven para federar por Internet publico. <strong>No necesitan OpenWrt</strong>.
+              Compartelos con la otra aldea si se van a federar por Internet.
             </p>
 
             <div className="space-y-3">
-              {/* Dominio publico */}
+              {/* Dominio del nodo */}
               <div className="bg-white p-3 rounded-lg border">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <div className="text-xs text-gray-500 mb-1">Dominio publico de la aldea</div>
-                    <div className="font-mono font-medium text-sm">{myInfo.public_domain || myInfo.node_domain || 'No configurado'}</div>
+                    <div className="text-xs text-gray-500 mb-1">Dominio del nodo</div>
+                    <div className="font-mono font-medium text-sm">{myInfo.node_domain || 'No configurado'}</div>
                   </div>
-                  {myInfo.public_domain && (
-                    <button onClick={() => copyToClipboard(myInfo.public_domain, 'Dominio')} className="text-blue-600 text-xs">Copiar</button>
+                  {myInfo.node_domain && (
+                    <button onClick={() => copyToClipboard(myInfo.node_domain, 'Dominio')} className="text-blue-600 text-xs">Copiar</button>
                   )}
                 </div>
                 <p className="text-xs text-gray-400 mt-1">
-                  Este es el dominio que la otra aldea debe poner en "Dominio de la aldea".
-                  {!myInfo.openwrt_domain && ' Si no tienes OpenWrt, se usa el dominio interno del nodo.'}
+                  Este es el dominio o IP publica que la otra aldea usara para conectarse a tu nodo por Internet.
+                  Si tienes un dominio publico (ej: aldea1.com), configuralo en la pestana "General".
                 </p>
               </div>
 
-              {/* IPv6 ULA */}
-              <div className="bg-white p-3 rounded-lg border">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="text-xs text-gray-500 mb-1">IPv6 ULA de la aldea</div>
-                    <div className="font-mono font-medium text-sm">{myInfo.ipv6_ula || 'No generado'}</div>
+              {/* Dominio publico (OpenWrt) - si esta configurado */}
+              {myInfo.openwrt_domain && (
+                <div className="bg-white p-3 rounded-lg border">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="text-xs text-gray-500 mb-1">Dominio publico (OpenWrt)</div>
+                      <div className="font-mono font-medium text-sm">{myInfo.public_domain}</div>
+                    </div>
+                    <button onClick={() => copyToClipboard(myInfo.public_domain, 'Dominio publico')} className="text-blue-600 text-xs">Copiar</button>
                   </div>
-                  {myInfo.ipv6_ula && (
-                    <button onClick={() => copyToClipboard(myInfo.ipv6_ula, 'IPv6 ULA')} className="text-blue-600 text-xs">Copiar</button>
-                  )}
+                  <p className="text-xs text-gray-400 mt-1">
+                    Si tienes OpenWrt configurado, este es el dominio publico mas amigable.
+                  </p>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  Prefijo unico de tu aldea. Generalo en la pestana "General" si no lo tienes.
-                </p>
-              </div>
-
-              {/* Endpoint */}
-              <div className="bg-white p-3 rounded-lg border">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="text-xs text-gray-500 mb-1">Endpoint (direccion:puerto)</div>
-                    <div className="font-mono font-medium text-sm">{myInfo.endpoint || 'No configurado'}</div>
-                  </div>
-                  {myInfo.endpoint && (
-                    <button onClick={() => copyToClipboard(myInfo.endpoint, 'Endpoint')} className="text-blue-600 text-xs">Copiar</button>
-                  )}
-                </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  Direccion y puerto donde la otra aldea debe conectarse por WireGuard.
-                </p>
-              </div>
-
-              {/* Clave publica WireGuard */}
-              <div className="bg-white p-3 rounded-lg border">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="text-xs text-gray-500 mb-1">Clave publica WireGuard</div>
-                    {myInfo.wireguard_public_key ? (
-                      <div className="font-mono font-medium text-sm break-all">{myInfo.wireguard_public_key}</div>
-                    ) : (
-                      <div className="text-amber-600 text-sm">No generada aun</div>
-                    )}
-                  </div>
-                  {myInfo.wireguard_public_key && (
-                    <button onClick={() => copyToClipboard(myInfo.wireguard_public_key, 'Clave publica')} className="text-blue-600 text-xs">Copiar</button>
-                  )}
-                </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  La clave publica es lo que la otra aldea necesita para conectarse contigo por WireGuard.
-                  {!myInfo.has_wg_keys && ' Genera las claves con el boton de abajo.'}
-                </p>
-                {!myInfo.has_wg_keys && (
-                  <button onClick={generateWGKeys} disabled={saving} className="mt-2 px-3 py-1.5 bg-trueque-600 text-white rounded-lg text-sm disabled:opacity-50">
-                    {saving ? 'Generando...' : 'Generar claves WireGuard'}
-                  </button>
-                )}
-              </div>
-
-              {/* Puerto WireGuard */}
-              <div className="bg-white p-3 rounded-lg border">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="text-xs text-gray-500 mb-1">Puerto WireGuard</div>
-                    <div className="font-mono font-medium text-sm">{myInfo.wireguard_port}</div>
-                  </div>
-                  <button onClick={() => copyToClipboard(String(myInfo.wireguard_port), 'Puerto')} className="text-blue-600 text-xs">Copiar</button>
-                </div>
-              </div>
+              )}
             </div>
 
-            {/* Resumen para copiar todo */}
+            {/* Resumen Internet */}
             <div className="mt-4 bg-white p-3 rounded-lg border">
               <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-medium">Resumen completo (para enviar)</h4>
+                <h4 className="text-sm font-medium">Resumen para federacion por Internet</h4>
                 <button
                   onClick={() => copyToClipboard(
-                    `Datos de mi aldea para federacion:
-- Dominio: ${myInfo.public_domain || myInfo.node_domain}
-- IPv6 ULA: ${myInfo.ipv6_ula || 'No generado'}
-- Endpoint: ${myInfo.endpoint || 'No configurado'}
-- Clave publica WireGuard: ${myInfo.wireguard_public_key || 'No generada'}
-- Puerto WireGuard: ${myInfo.wireguard_port}`,
-                    'Resumen completo'
+                    `Datos de mi aldea para federacion por Internet:
+- Dominio: ${myInfo.public_domain || myInfo.node_domain}`,
+                    'Resumen Internet'
                   )}
                   className="text-blue-600 text-xs"
                 >
-                  Copiar todo
+                  Copiar
                 </button>
               </div>
-              <pre className="text-xs text-gray-600 whitespace-pre-wrap font-mono">{`Dominio: ${myInfo.public_domain || myInfo.node_domain}
+              <pre className="text-xs text-gray-600 whitespace-pre-wrap font-mono">{`Dominio: ${myInfo.public_domain || myInfo.node_domain}`}</pre>
+            </div>
+          </div>
+
+          {/* DATOS PARA FEDERACION POR INTRANET - solo si hay OpenWrt */}
+          <div className="card p-4">
+            <h3 className="font-semibold flex items-center gap-2 mb-3">
+              <NetworkIcon size={18} className="text-purple-600" />
+              Datos para federacion por Intranet (OpenWrt)
+              {!myInfo.ipv6_ula && !myInfo.has_wg_keys && (
+                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">Requiere OpenWrt</span>
+              )}
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Estos datos sirven para federar por la <strong>intranet privada</strong> entre aldeas
+              usando WireGuard. <strong>No usan Internet publico</strong> — crean un Internet paralelo
+              entre las aldeas. Solo aplican si tienes OpenWrt instalado o planeas instalarlo.
+            </p>
+
+            {!myInfo.ipv6_ula && !myInfo.has_wg_keys ? (
+              <div className="bg-amber-50 p-3 rounded-lg text-sm text-amber-700">
+                <strong>No tienes OpenWrt configurado.</strong> Los datos de intranet (IPv6 ULA,
+                WireGuard) no aplican para federacion por Internet.
+                <br /><br />
+                Si quieres crear una intranet privada entre aldeas (que funcione sin Internet publico),
+                instala OpenWrt usando la pestana "Instalador OpenWrt".
+                <br /><br />
+                Si solo quieres federar por Internet normal, <strong>ignora esta seccion</strong> y
+                usa solo los datos de arriba.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {/* IPv6 ULA */}
+                <div className="bg-white p-3 rounded-lg border">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="text-xs text-gray-500 mb-1">IPv6 ULA de la aldea (intranet)</div>
+                      <div className="font-mono font-medium text-sm">{myInfo.ipv6_ula || 'No generado'}</div>
+                    </div>
+                    {myInfo.ipv6_ula && (
+                      <button onClick={() => copyToClipboard(myInfo.ipv6_ula, 'IPv6 ULA')} className="text-blue-600 text-xs">Copiar</button>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Direccion privada de tu aldea dentro de la intranet. Solo aplica si usas OpenWrt.
+                  </p>
+                </div>
+
+                {/* Endpoint WireGuard */}
+                <div className="bg-white p-3 rounded-lg border">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="text-xs text-gray-500 mb-1">Endpoint WireGuard (intranet)</div>
+                      <div className="font-mono font-medium text-sm">{myInfo.endpoint || 'No configurado'}</div>
+                    </div>
+                    {myInfo.endpoint && (
+                      <button onClick={() => copyToClipboard(myInfo.endpoint, 'Endpoint')} className="text-blue-600 text-xs">Copiar</button>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Direccion y puerto donde la otra aldea debe conectarse por WireGuard dentro de la intranet.
+                  </p>
+                </div>
+
+                {/* Clave publica WireGuard */}
+                <div className="bg-white p-3 rounded-lg border">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="text-xs text-gray-500 mb-1">Clave publica WireGuard</div>
+                      {myInfo.wireguard_public_key ? (
+                        <div className="font-mono font-medium text-sm break-all">{myInfo.wireguard_public_key}</div>
+                      ) : (
+                        <div className="text-amber-600 text-sm">No generada aun</div>
+                      )}
+                    </div>
+                    {myInfo.wireguard_public_key && (
+                      <button onClick={() => copyToClipboard(myInfo.wireguard_public_key, 'Clave publica')} className="text-blue-600 text-xs">Copiar</button>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Clave para el tunel WireGuard de la intranet. No es necesaria para federacion por Internet.
+                    {!myInfo.has_wg_keys && ' Genera las claves con el boton de abajo.'}
+                  </p>
+                  {!myInfo.has_wg_keys && (
+                    <button onClick={generateWGKeys} disabled={saving} className="mt-2 px-3 py-1.5 bg-trueque-600 text-white rounded-lg text-sm disabled:opacity-50">
+                      {saving ? 'Generando...' : 'Generar claves WireGuard'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Puerto WireGuard */}
+                <div className="bg-white p-3 rounded-lg border">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="text-xs text-gray-500 mb-1">Puerto WireGuard</div>
+                      <div className="font-mono font-medium text-sm">{myInfo.wireguard_port}</div>
+                    </div>
+                    <button onClick={() => copyToClipboard(String(myInfo.wireguard_port), 'Puerto')} className="text-blue-600 text-xs">Copiar</button>
+                  </div>
+                </div>
+
+                {/* Resumen Intranet */}
+                <div className="mt-4 bg-white p-3 rounded-lg border">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-medium">Resumen para federacion por Intranet</h4>
+                    <button
+                      onClick={() => copyToClipboard(
+                        `Datos de mi aldea para federacion por Intranet (OpenWrt):
+- Dominio intranet: ${myInfo.public_domain || myInfo.node_domain}
+- IPv6 ULA: ${myInfo.ipv6_ula || 'No generado'}
+- Endpoint WireGuard: ${myInfo.endpoint || 'No configurado'}
+- Clave publica WireGuard: ${myInfo.wireguard_public_key || 'No generada'}
+- Puerto WireGuard: ${myInfo.wireguard_port}`,
+                        'Resumen Intranet'
+                      )}
+                      className="text-blue-600 text-xs"
+                    >
+                      Copiar
+                    </button>
+                  </div>
+                  <pre className="text-xs text-gray-600 whitespace-pre-wrap font-mono">{`Dominio intranet: ${myInfo.public_domain || myInfo.node_domain}
 IPv6 ULA: ${myInfo.ipv6_ula || 'No generado'}
-Endpoint: ${myInfo.endpoint || 'No configurado'}
+Endpoint WireGuard: ${myInfo.endpoint || 'No configurado'}
 Clave publica WireGuard: ${myInfo.wireguard_public_key || 'No generada'}
 Puerto WireGuard: ${myInfo.wireguard_port}`}</pre>
-            </div>
+                </div>
+              </div>
+            )}
+          </div>
 
-            <div className="mt-4 p-3 bg-blue-50 rounded-lg text-xs text-blue-700">
-              <strong>Como federar dos aldeas:</strong>
-              <ol className="list-decimal list-inside mt-1 space-y-1">
-                <li>Cada aldea genera sus claves WireGuard (boton de arriba)</li>
-                <li>Cada aldea copia sus datos y se los envia a la otra</li>
-                <li>En la pestana "Aldeas Federadas", cada una agrega los datos de la otra</li>
-                <li>Las aldeas se conectan automaticamente por WireGuard</li>
-              </ol>
+          {/* Como federar */}
+          <div className="card p-4">
+            <h3 className="font-semibold mb-3">Como federar dos aldeas</h3>
+            <div className="space-y-3">
+              <div className="bg-green-50 p-3 rounded-lg text-xs text-green-700">
+                <strong>Opcion A: Por Internet (sin OpenWrt)</strong>
+                <ol className="list-decimal list-inside mt-1 space-y-1">
+                  <li>Cada aldea copia su dominio de la seccion "Por Internet" de arriba</li>
+                  <li>Cada aldea se lo envia a la otra</li>
+                  <li>En "Aldeas Federadas", cada una agrega el dominio de la otra</li>
+                  <li>La federacion funciona por Internet publico</li>
+                </ol>
+              </div>
+              <div className="bg-purple-50 p-3 rounded-lg text-xs text-purple-700">
+                <strong>Opcion B: Por Intranet (con OpenWrt)</strong>
+                <ol className="list-decimal list-inside mt-1 space-y-1">
+                  <li>Cada aldea instala OpenWrt y genera sus claves WireGuard</li>
+                  <li>Cada aldea copia sus datos de la seccion "Por Intranet" de arriba</li>
+                  <li>En "Aldeas Federadas", cada una agrega los datos de la otra (IPv6 ULA, endpoint, clave)</li>
+                  <li>Las aldeas se conectan por WireGuard (Internet paralelo, sin depender de Internet publico)</li>
+                </ol>
+              </div>
             </div>
           </div>
         </div>

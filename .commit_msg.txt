@@ -1,47 +1,28 @@
-fix: limite de tabletas YugabyteDB + colocation + umbral 100%
+fix: separar datos de federacion por Internet vs Intranet (OpenWrt)
 
-Error: "The requested number of tablet replicas (1) would cause the
-total running tablet replica count (535) to exceed the safe system
-maximum (534)"
+OpenWrt no es para dar Internet a la aldea. Es para crear un Internet
+paralelo (intranet) entre aldeas que no depende del Internet publico.
 
-Causa: YugabyteDB tiene un limite de tabletas basado en la memoria
-del tserver. Cada tabla e indice crea tabletas. Con 76 migraciones,
-se alcanzó el limite de 534 tabletas.
+La pestaña "Mis Datos para Compartir" ahora separa claramente:
 
-Soluciones aplicadas:
+1. Datos para federacion por Internet (siempre disponibles, sin OpenWrt):
+   - Dominio del nodo
+   - No necesita IPv6 ULA, WireGuard ni OpenWrt
 
-1. docker-compose.yml: desactivar enforce_tablet_replica_limits
-   - Flag --master_flags=enforce_tablet_replica_limits=false
-   - Flag --tserver_flags=enforce_tablet_replica_limits=false
-   - Esto permite crear mas tabletas sin el limite automatico
-   - Reiniciar el contenedor yugabytedb para que tome efecto
+2. Datos para federacion por Intranet (requiere OpenWrt):
+   - IPv6 ULA
+   - Endpoint WireGuard
+   - Clave publica WireGuard
+   - Puerto WireGuard
+   - Solo aplican si se usa OpenWrt para crear la intranet privada
 
-2. connection.go: crear bases de datos con COLOCATION = true
-   - Las bases de datos colocadas hacen que las tablas compartan
-     una misma tableta, reduciendo drasticamente el numero de tabletas
-   - Solo aplica a nuevas instalaciones (las existentes no se pueden
-     cambiar a colocadas)
-   - Fallback: si COLOCATION no es soportado (PostgreSQL normal),
-     crea la base de datos sin colocation
+Si no hay OpenWrt configurado, la seccion de intranet muestra un mensaje
+explicando que esos datos no aplican para federacion por Internet.
 
-3. Migracion 076: tablas con COLOCATION = true
-   - federation_constants, federation_proposals, federation_votes
-     usan COLOCATION = true (comparten tableta en bases de datos
-     colocadas)
-   - Removidos los indices secundarios explicitos (idx_federation_*)
-   - El PK y el UNIQUE ya crean indices suficientes
-   - DROP TABLE IF EXISTS al inicio para limpiar estado parcial
-     de intentos fallidos anteriores
-
-4. Umbral por defecto cambiado de 75% a 100% (todos los nodos)
-   - Cuando hay 1 solo nodo, sus propuestas se auto-aprueban
-   - Para cambiar el umbral, se necesita el umbral actual
-
-Para aplicar el fix:
-1. git pull
-2. docker compose down yugabytedb
-3. docker compose up -d yugabytedb (con los nuevos flags)
-4. docker compose up -d node-app (recompila y ejecuta migraciones)
+Documentacion (federation.md) actualizada con:
+- Explicacion de los dos modos (Internet vs Intranet)
+- Tabla de que datos compartir en cada modo
+- Aclaracion de que IPv6 ULA y WireGuard solo aplican para intranet
 
 Generated with [Devin](https://devin.ai)
 
