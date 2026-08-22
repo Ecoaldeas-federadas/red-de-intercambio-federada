@@ -126,6 +126,13 @@ var catalog = []ServiceCatalogItem{
 		Protocol: "SIP/RTP", Docker: true, MinRAM: 1024, MinDisk: 10, DefaultPort: 5060, Subdomain: "voip",
 	},
 	{
+		ID: "sylk", Name: "Sylk Suite (Blink + SylkServer)", Category: "comunicacion", Icon: "MessageCircle",
+		WhatIs:   "Suite completa de comunicacion en tiempo real basada en estandares abiertos SIP y MSRP. Incluye mensajeria chat individual y grupal, envio de archivos e imagenes, llamadas de voz y video, videoconferencias multiusuario, compartir pantalla y notificaciones push. El cliente Sylk esta disponible para Android, iOS, Windows, macOS y Linux. Tambien funciona desde el navegador web. Cifrado de extremo a extremo con zRTP para audio/video y OpenPGP para mensajes. Se conecta al servidor colocando el dominio del nodo y el cliente se configura automaticamente.",
+		Replaces: "WhatsApp, Telegram, Signal, Zoom, Google Meet, Microsoft Teams (mensajeria + llamadas + video en una sola app)",
+		UsedFor:  "Mensajeria, llamadas y videoconferencias federadas entre aldeas. Cada miembro instala Sylk en su celular o computadora, coloca el dominio del nodo y se conecta automaticamente. Las aldeas federadas pueden llamarse y mensajearse entre si como si fuera correo electronico: sip:usuario@aldea-a.com llama a sip:amigo@aldea-b.com. Las salas grupales soportan chat, archivos, audio, video y pantalla compartida. Funciona con DNS SRV para resolver automaticamente la direccion del servidor destino.",
+		Protocol: "SIP/MSRP/WebRTC", Docker: true, MinRAM: 1024, MinDisk: 10, DefaultPort: 5060, Subdomain: "sylk",
+	},
+	{
 		ID: "mumble", Name: "Mumble", Category: "comunicacion", Icon: "Mic",
 		WhatIs:   "Sistema de voz en grupo de baja latencia. Creas un canal, la gente se conecta, y hablan como en una llamada grupal pero con mejor calidad y menos consumo. Parecido a Discord pero sin anuncios ni vigilancia.",
 		Replaces: "Discord (canal de voz), TeamSpeak",

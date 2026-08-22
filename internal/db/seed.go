@@ -1731,6 +1731,7 @@ func getSeedPages() []seedPage {
     "columns": 3,
     "items": [
       {"icon":"phone","title":"VoIP - Telefonía","description":"Sistema telefonico de la aldea. Llamadas internas gratis, llamadas al exterior via pasarela SIP. Cada miembro tiene su extension.","badge":"Telefonia"},
+      {"icon":"message-circle","title":"Sylk Suite (Blink + SylkServer)","description":"Mensajeria, llamadas y videoconferencias federadas en una sola app. Cliente para Android, iOS, Windows, macOS, Linux y web. Colocas el dominio del nodo y se conecta automaticamente. Cifrado extremo a extremo. Federacion entre aldeas como correo electronico: usuario@aldea-a.com llama a amigo@aldea-b.com. Reemplaza WhatsApp + Zoom en uno.","badge":"Recomendado"},
       {"icon":"mic","title":"Mumble","description":"Chat de voz para reuniones y coordinacion. Bajo consumo de ancho de banda. Ideal para conexiones lentas.","badge":"Voz"},
       {"icon":"cloud","title":"Nextcloud","description":"Almacenamiento y colaboracion. Reemplaza Google Drive, Dropbox. Archivos, calendarios, contactos, documentos compartidos.","badge":"Reemplaza GDrive"},
       {"icon":"message-square","title":"Matrix","description":"Mensajeria instantanea descentralizada. Reemplaza WhatsApp, Telegram. Mensajes cifrados de extremo a extremo.","badge":"Reemplaza WhatsApp"},

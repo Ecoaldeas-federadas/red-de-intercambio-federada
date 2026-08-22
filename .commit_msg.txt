@@ -1,23 +1,27 @@
-fix: usar dominio real del nodo en subdominio sugerido + ayuda en servicios
+feat: agregar Sylk Suite (Blink + SylkServer) al catalogo de servicios
 
-Problema 1: Subdominio sugerido hardcodeado como "tu-aldea.com"
-- En FederatedServices.tsx linea 369 se mostraba "{subdomain}.tu-aldea.com"
-  sin importar que dominio hubiera configurado el usuario
-- Ahora se usa useConfig().node_domain para mostrar el dominio real del nodo
-- Si el usuario configuro "localhost", muestra "video.localhost"
-- Si configuro "mi-aldea.com", muestra "video.mi-aldea.com"
-- Tambien se corrigio "tu-aldea.org" en seed.go (pagina publica de servicios)
+Sylk Suite es una suite completa de comunicacion en tiempo real basada
+en estandares abiertos SIP y MSRP, desarrollada por AG Projects.
 
-Problema 2: Sin ayuda en la pagina de Servicios Federados
-- Agregado boton "Ayuda" junto al boton de Telefonía VoIP
-- Seccion desplegable que explica:
-  * Que es el catalogo
-  * Como instalar un servicio (paso a paso)
-  * Que significa "Descargar Docker"
-  * Que es el subdominio sugerido
-  * Como agregar un servicio nuevo al catalogo (editando services_catalog.go)
-  * Que permiso se necesita (config.manage)
-  * Como funciona la federacion entre aldeas (ActivityPub)
+Caracteristicas:
+- Mensajeria chat individual y grupal (MSRP)
+- Envio de archivos e imagenes sin restricciones
+- Llamadas de voz y video con cifrado extremo a extremo (zRTP)
+- Videoconferencias multiusuario con pantalla compartida
+- Notificaciones push moviles
+- Cifrado OpenPGP para mensajes offline
+- Cliente Sylk para Android, iOS, Windows, macOS, Linux y web
+- Federacion entre aldeas como correo electronico:
+  sip:usuario@aldea-a.com llama a sip:amigo@aldea-b.com
+- DNS SRV para resolucion automatica del servidor destino
+- El cliente se conecta colocando el dominio del nodo
+
+Cambios:
+- internal/api/services_catalog.go: nueva entrada "sylk" en categoria
+  comunicacion, con informacion detallada de que es, que reemplaza
+  (WhatsApp + Zoom en una app), para que sirve, protocolo SIP/MSRP/WebRTC
+- internal/db/seed.go: pagina publica servicios-federados actualizada
+  con Sylk Suite en la seccion de Comunicacion, marcada como "Recomendado"
 
 Generated with [Devin](https://devin.ai)
 
