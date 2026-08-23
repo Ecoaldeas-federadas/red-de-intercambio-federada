@@ -1,4 +1,4 @@
--- Migracion 095: Corregir precios 094 + agregar productos compuestos pendientes
+﻿-- Migracion 095: Corregir precios 094 + agregar productos compuestos pendientes
 --
 -- PARTE 1: Corregir los calculos de la migracion 094.
 --          El metodo correcto es: calcular energia del lote completo,
@@ -362,7 +362,7 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Ajiaco Artesanal' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Carne de Res', 'kg', 0),
@@ -375,7 +375,7 @@ CROSS JOIN (VALUES
   ('Especias', 'kg', 7),
   ('Agua', 'L', 8),
   ('Trabajo Humano (horas)', 'hora', 9)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Ajiaco Artesanal'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -388,7 +388,7 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Hamburguesas Vegetarianas Artesanales' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Granos (Caraota/Frijol)', 'kg', 0),
@@ -397,7 +397,7 @@ CROSS JOIN (VALUES
   ('Condimentos', 'kg', 3),
   ('Aceite Vegetal', 'L', 4),
   ('Trabajo Humano (horas)', 'hora', 5)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Hamburguesas Vegetarianas Artesanales'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -410,7 +410,7 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Tacos de Granos Artesanales' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Granos (Caraota/Frijol)', 'kg', 0),
@@ -418,7 +418,7 @@ CROSS JOIN (VALUES
   ('Encurtidos', 'kg', 2),
   ('Chimichurri de Mango', 'frasco', 3),
   ('Trabajo Humano (horas)', 'hora', 4)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Tacos de Granos Artesanales'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -431,7 +431,7 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Chichas Artesanales' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Arroz', 'kg', 0),
@@ -440,7 +440,7 @@ CROSS JOIN (VALUES
   ('Especias', 'kg', 3),
   ('Agua', 'L', 4),
   ('Trabajo Humano (horas)', 'hora', 5)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Chichas Artesanales'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -453,14 +453,14 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Harina Buen Pan' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Harina de Yuca', 'kg', 0),
   ('Harina de Cambur', 'kg', 1),
   ('Harina de Trigo', 'kg', 2),
   ('Trabajo Humano (horas)', 'hora', 3)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Harina Buen Pan'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -473,7 +473,7 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Frutos Deshidratados Artesanales' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Mango', 'kg', 0),
@@ -481,7 +481,7 @@ CROSS JOIN (VALUES
   ('Papaya', 'kg', 2),
   ('Guayaba', 'kg', 3),
   ('Trabajo Humano (horas)', 'hora', 4)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Frutos Deshidratados Artesanales'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -494,7 +494,7 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Encurtidos Artesanales' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Vegetales (Cebolla/Zanahoria/Pimenton)', 'kg', 0),
@@ -502,7 +502,7 @@ CROSS JOIN (VALUES
   ('Sal', 'kg', 2),
   ('Especias', 'kg', 3),
   ('Trabajo Humano (horas)', 'hora', 4)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Encurtidos Artesanales'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -515,7 +515,7 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Infusiones Naturales Mezcladas' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Moringa', 'kg', 0),
@@ -525,7 +525,7 @@ CROSS JOIN (VALUES
   ('Jengibre', 'kg', 4),
   ('Curcuma', 'kg', 5),
   ('Trabajo Humano (horas)', 'hora', 6)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Infusiones Naturales Mezcladas'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -538,7 +538,7 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Vinos Artesanales de Frutas' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Frutas', 'kg', 0),
@@ -546,7 +546,7 @@ CROSS JOIN (VALUES
   ('Levadura', 'g', 2),
   ('Agua', 'L', 3),
   ('Trabajo Humano (horas)', 'hora', 4)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Vinos Artesanales de Frutas'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -559,7 +559,7 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Licores Artesanales' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Base Alcoholica', 'L', 0),
@@ -567,7 +567,7 @@ CROSS JOIN (VALUES
   ('Especias', 'kg', 2),
   ('Papelon', 'kg', 3),
   ('Trabajo Humano (horas)', 'hora', 4)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Licores Artesanales'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -580,12 +580,12 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Aceite de Coco Cosmetico' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Coco', 'unidad', 0),
   ('Trabajo Humano (horas)', 'hora', 1)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Aceite de Coco Cosmetico'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -598,12 +598,12 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Arcilla para la Piel' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Arcilla Mineral', 'kg', 0),
   ('Trabajo Humano (horas)', 'hora', 1)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Arcilla para la Piel'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -616,7 +616,7 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Cremas y Emulsiones Naturales' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Aceite de Coco', 'L', 0),
@@ -624,7 +624,7 @@ CROSS JOIN (VALUES
   ('Aceites Esenciales', 'ml', 2),
   ('Agua', 'L', 3),
   ('Trabajo Humano (horas)', 'hora', 4)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Cremas y Emulsiones Naturales'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -637,14 +637,14 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Mascarillas Faciales Naturales' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Arcilla Mineral', 'kg', 0),
   ('Aceite de Coco', 'L', 1),
   ('Extractos Vegetales', 'ml', 2),
   ('Trabajo Humano (horas)', 'hora', 3)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Mascarillas Faciales Naturales'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -657,14 +657,14 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Labiales Naturales' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Cera de Abejas', 'kg', 0),
   ('Aceite de Coco', 'L', 1),
   ('Onoto (colorante natural)', 'kg', 2),
   ('Trabajo Humano (horas)', 'hora', 3)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Labiales Naturales'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -677,14 +677,14 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Balsamos y Tinturas Naturales' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Extractos Vegetales', 'ml', 0),
   ('Alcohol', 'L', 1),
   ('Aceites Esenciales', 'ml', 2),
   ('Trabajo Humano (horas)', 'hora', 3)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Balsamos y Tinturas Naturales'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -697,14 +697,14 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Plantas Ornamentales (Maceta)' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Tierra Abonada', 'kg', 0),
   ('Semilla/Estaca', 'unidad', 1),
   ('Maceta', 'unidad', 2),
   ('Trabajo Humano (horas)', 'hora', 3)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Plantas Ornamentales (Maceta)'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -717,14 +717,14 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Plantas Frutales (Maceta)' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Tierra Abonada', 'kg', 0),
   ('Semilla/Estaca', 'unidad', 1),
   ('Maceta', 'unidad', 2),
   ('Trabajo Humano (horas)', 'hora', 3)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Plantas Frutales (Maceta)'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -737,14 +737,14 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Matas de Moringa' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Tierra Abonada', 'kg', 0),
   ('Estaca/Semilla de Moringa', 'unidad', 1),
   ('Maceta', 'unidad', 2),
   ('Trabajo Humano (horas)', 'hora', 3)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Matas de Moringa'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -757,12 +757,12 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Moringa en Polvo' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Hojas de Moringa', 'kg', 0),
   ('Trabajo Humano (horas)', 'hora', 1)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Moringa en Polvo'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -775,14 +775,14 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Gotas de Nin' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Extracto de Nin (Justicia pectoralis)', 'ml', 0),
   ('Alcohol', 'ml', 1),
   ('Agua', 'ml', 2),
   ('Trabajo Humano (horas)', 'hora', 3)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Gotas de Nin'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -795,7 +795,7 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Biofertilizantes Artesanales' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Estiercol', 'kg', 0),
@@ -804,7 +804,7 @@ CROSS JOIN (VALUES
   ('Microorganismos de Montana', 'L', 3),
   ('Agua', 'L', 4),
   ('Trabajo Humano (horas)', 'hora', 5)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Biofertilizantes Artesanales'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -817,14 +817,14 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Controles Biologicos' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Hongos Beneficiosos', 'g', 0),
   ('Bacterias Beneficiosas', 'g', 1),
   ('Agua', 'L', 2),
   ('Trabajo Humano (horas)', 'hora', 3)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Controles Biologicos'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -837,12 +837,12 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Cesteria Artesanal' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Fibras Vegetales (Mimbre/Paja/Bejuco)', 'kg', 0),
   ('Trabajo Humano (horas)', 'hora', 1)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Cesteria Artesanal'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -855,14 +855,14 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Horno de Barro Artesanal' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Barro/Arcilla', 'kg', 0),
   ('Arena', 'kg', 1),
   ('Ladrillos', 'unidad', 2),
   ('Trabajo Humano (horas)', 'hora', 3)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Horno de Barro Artesanal'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -875,14 +875,14 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Lampara de Aceite Reciclado' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Aceite Reciclado', 'L', 0),
   ('Mecha', 'unidad', 1),
   ('Recipiente', 'unidad', 2),
   ('Trabajo Humano (horas)', 'hora', 3)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Lampara de Aceite Reciclado'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -895,13 +895,13 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Panales y Toallas Higienicas de Tela' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Tela de Algodon', 'm', 0),
   ('Botones/Velcros', 'unidad', 1),
   ('Trabajo Humano (horas)', 'hora', 2)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Panales y Toallas Higienicas de Tela'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
 
@@ -914,7 +914,7 @@ FROM (SELECT DISTINCT node_domain FROM products WHERE node_domain IS NOT NULL) n
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = 'Productos de Limpieza Naturales' AND node_domain = nd.node_domain);
 
 INSERT INTO product_compositions (product_id, product_type, component_name, component_unit, component_price, quantity, subtotal, component_category, sort_order)
-SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.order
+SELECT p.id, 'catalog', c.name, c.unit, 0, 0, 0, 'materia_prima', c.sort_order
 FROM products p
 CROSS JOIN (VALUES
   ('Vinagre', 'L', 0),
@@ -923,6 +923,6 @@ CROSS JOIN (VALUES
   ('Jabon Natural', 'unidad', 3),
   ('Agua', 'L', 4),
   ('Trabajo Humano (horas)', 'hora', 5)
-) AS c(name, unit, order)
+) AS c(name, unit, sort_order)
 WHERE p.name = 'Productos de Limpieza Naturales'
 AND NOT EXISTS (SELECT 1 FROM product_compositions pc WHERE pc.product_id = p.id AND pc.component_name = c.name);
