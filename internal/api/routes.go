@@ -91,6 +91,10 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 		fsvh.RegisterRoutesWithAuth(r, am)
 	}
 
+	// Update handler (actualizar nodo y servicios con un clic)
+	updateH := NewUpdateHandler(pool, fh.NodeDomain)
+	updateH.RegisterRoutes(r, am)
+
 	// Federation governance handler (propuestas y votacion entre nodos)
 	fedGovH := NewFederationGovHandler(pool, fh.NodeDomain)
 	fedGovH.RegisterRoutesWithAuth(r, am)

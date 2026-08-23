@@ -14,6 +14,8 @@ services:
       - uploads:/app/uploads
       - db_backups:/backups
       - /var/run/docker.sock:/var/run/docker.sock
+      # Montar el repo del nodo para poder hacer git pull y actualizar
+      - .:/project:rw
     depends_on:
       - yugabytedb
     environment:

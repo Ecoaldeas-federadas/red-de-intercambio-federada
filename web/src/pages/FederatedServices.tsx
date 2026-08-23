@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { Video, MessageCircle, Image as ImageIcon, Users, MessageSquare, BookOpen, PenTool, Calendar, Phone, Mic, Cloud, FileText, BookMarked, Globe, Film, Music, GitBranch, GraduationCap, Home, Lock, Download, Play, Square, Trash2, RefreshCw, Search, Server, AlertTriangle, CheckCircle, XCircle, Loader, Phone as PhoneIcon, HelpCircle } from 'lucide-react'
@@ -169,6 +169,39 @@ export default function FederatedServices() {
     }
   }
 
+  const updateService = async (svc: ServiceItem) => {
+    setInstalling(true)
+    setMsg(null)
+    try {
+      const res: any = await api.post(`/services/${svc.id}/update`, {})
+      if (res.success) {
+        setMsg({ type: 'success', text: res.message })
+      } else {
+        setMsg({ type: 'error', text: res.message || 'Error al actualizar' })
+      }
+      await loadServices()
+    } catch (e: any) {
+      setMsg({ type: 'error', text: 'Error al actualizar' })
+    } finally {
+      setInstalling(false)
+    }
+  }
+
+  const updateAllServices = async () => {
+    if (!confirm('Actualizar todas las aplicaciones instaladas en este servidor?')) return
+    setInstalling(true)
+    setMsg(null)
+    try {
+      const res: any = await api.post('/services/update-all', {})
+      setMsg({ type: res.failed > 0 ? 'info' : 'success', text: res.message })
+      await loadServices()
+    } catch (e: any) {
+      setMsg({ type: 'error', text: 'Error al actualizar' })
+    } finally {
+      setInstalling(false)
+    }
+  }
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'running': return <><CheckCircle size={14} className="text-green-500" /> Corriendo</>
@@ -189,6 +222,14 @@ export default function FederatedServices() {
           <p className="text-gray-500 text-sm mt-1">Reemplaza servicios comerciales con alternativas autohospedadas y federadas</p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={updateAllServices}
+            disabled={installing}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
+            title="Actualizar todas las apps instaladas"
+          >
+            <RefreshCw size={16} /> Actualizar todo
+          </button>
           <button onClick={() => setShowHelp(!showHelp)} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm flex items-center gap-2">
             <HelpCircle size={16} /> Ayuda
           </button>
@@ -431,6 +472,16 @@ export default function FederatedServices() {
                     className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs flex items-center gap-1"
                   >
                     <Play size={12} /> Iniciar
+                  </button>
+                )}
+                {isInstalled && (
+                  <button
+                    onClick={() => updateService(svc)}
+                    disabled={installing}
+                    className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs disabled:opacity-50 flex items-center gap-1"
+                    title="Actualizar a la ultima version"
+                  >
+                    <RefreshCw size={12} /> Actualizar
                   </button>
                 )}
                 <button
