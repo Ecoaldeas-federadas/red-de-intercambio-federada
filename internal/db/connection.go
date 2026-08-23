@@ -3,12 +3,15 @@ package db
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -175,9 +178,27 @@ func (d *DB) RunMigrations(ctx context.Context, migrationsDir string) error {
 			return fmt.Errorf("reading migration %s: %w", file, err)
 		}
 
-		_, err = d.Pool.Exec(ctx, string(content))
-		if err != nil {
-			return fmt.Errorf("executing migration %s: %w", file, err)
+		// Dividir el SQL en sentencias individuales y ejecutarlas una por una.
+		// YugabyteDB no soporta reintentos en transacciones multi-statement
+		// enviadas via el protocolo simple (error SQLSTATE 40001).
+		// Ejecutar sentencia por sentencia permite que YugabyteDB reintente
+		// automaticamente cada sentencia cuando hay conflictos de transaccion.
+		statements := splitSQLStatements(string(content))
+		if len(statements) == 0 {
+			// Si no se pudieron dividir (o solo hay comentarios), ejecutar todo junto
+			if err := execWithRetry(ctx, d.Pool, string(content), file, 0); err != nil {
+				return fmt.Errorf("executing migration %s: %w", file, err)
+			}
+		} else {
+			for i, stmt := range statements {
+				stmt = strings.TrimSpace(stmt)
+				if stmt == "" {
+					continue
+				}
+				if err := execWithRetry(ctx, d.Pool, stmt, file, i); err != nil {
+					return fmt.Errorf("executing migration %s (statement %d): %w", file, i+1, err)
+				}
+			}
 		}
 
 		// Marcar como ejecutada
@@ -185,7 +206,195 @@ func (d *DB) RunMigrations(ctx context.Context, migrationsDir string) error {
 		if err != nil {
 			return fmt.Errorf("marking migration %s as done: %w", file, err)
 		}
+
+		log.Printf("Migration %s completed (%d statements)", file, len(statements))
 	}
 
 	return nil
+}
+
+// execWithRetry ejecuta una sentencia SQL con reintentos para conflictos
+// de transaccion de YugabyteDB (SQLSTATE 40001).
+func execWithRetry(ctx context.Context, pool *pgxpool.Pool, sql string, filename string, stmtNum int) error {
+	maxRetries := 5
+	var lastErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		_, err := pool.Exec(ctx, sql)
+		if err == nil {
+			return nil
+		}
+		lastErr = err
+
+		// Verificar si es un error de conflicto de transaccion (retryable)
+		var pgErr *pgconn.PgError
+		if !errorAs(err, &pgErr) {
+			return err // No es un error de PG, no reintentar
+		}
+
+		// SQLSTATE 40001 = serialization conflict (retryable en YugabyteDB)
+		// SQLSTATE 40P01 = deadlock detected (retryable)
+		if pgErr.Code != "40001" && pgErr.Code != "40P01" {
+			return err // No es retryable
+		}
+
+		// Esperar antes de reintentar (backoff exponencial)
+		wait := time.Duration(attempt+1) * 200 * time.Millisecond
+		time.Sleep(wait)
+	}
+	return fmt.Errorf("after %d retries: %w", maxRetries, lastErr)
+}
+
+// splitSQLStatements divide un archivo SQL en sentencias individuales,
+// respetando strings, dollar-quotes, comentarios y bloques DO $$.
+func splitSQLStatements(sql string) []string {
+	var statements []string
+	var buf strings.Builder
+	var current strings.Builder
+
+	runes := []rune(sql)
+	n := len(runes)
+	i := 0
+
+	for i < n {
+		// Saltar espacios en blanco entre sentencias
+		for i < n && (runes[i] == ' ' || runes[i] == '\t' || runes[i] == '\n' || runes[i] == '\r') {
+			current.WriteRune(runes[i])
+			i++
+		}
+		if i >= n {
+			break
+		}
+
+		// Comentario de linea: -- ... \n
+		if i+1 < n && runes[i] == '-' && runes[i+1] == '-' {
+			for i < n && runes[i] != '\n' {
+				current.WriteRune(runes[i])
+				i++
+			}
+			continue
+		}
+
+		// Comentario de bloque: /* ... */
+		if i+1 < n && runes[i] == '/' && runes[i+1] == '*' {
+			current.WriteRune(runes[i])
+			current.WriteRune(runes[i+1])
+			i += 2
+			for i+1 < n && !(runes[i] == '*' && runes[i+1] == '/') {
+				current.WriteRune(runes[i])
+				i++
+			}
+			if i+1 < n {
+				current.WriteRune(runes[i])
+				current.WriteRune(runes[i+1])
+				i += 2
+			}
+			continue
+		}
+
+		// Dollar-quoted string: $tag$ ... $tag$ (incluye $$ ... $$)
+		if runes[i] == '$' {
+			// Intentar leer el tag completo: $tag$
+			tagStart := i
+			i++
+			tagBuf := strings.Builder{}
+			tagBuf.WriteRune('$')
+			for i < n && runes[i] != '$' && ((runes[i] >= 'a' && runes[i] <= 'z') || (runes[i] >= 'A' && runes[i] <= 'Z') || (runes[i] >= '0' && runes[i] <= '9') || runes[i] == '_') {
+				tagBuf.WriteRune(runes[i])
+				i++
+			}
+			if i < n && runes[i] == '$' {
+				tagBuf.WriteRune('$')
+				tag := tagBuf.String()
+				current.WriteString(tag)
+				i++
+
+				// Buscar el tag de cierre
+				for i < n {
+					if runes[i] == '$' {
+						// Verificar si es el tag de cierre
+						closeBuf := strings.Builder{}
+						closeBuf.WriteRune('$')
+						j := i + 1
+						for j < n && runes[j] != '$' && ((runes[j] >= 'a' && runes[j] <= 'z') || (runes[j] >= 'A' && runes[j] <= 'Z') || (runes[j] >= '0' && runes[j] <= '9') || runes[j] == '_') {
+							closeBuf.WriteRune(runes[j])
+							j++
+						}
+						if j < n && runes[j] == '$' {
+							closeBuf.WriteRune('$')
+							if closeBuf.String() == tag {
+								current.WriteString(closeBuf.String())
+								i = j + 1
+								break
+							}
+						}
+					}
+					current.WriteRune(runes[i])
+					i++
+				}
+				continue
+			}
+			// No era un dollar-quote, restaurar
+			i = tagStart
+		}
+
+		// Single-quoted string: ' ... ' (con '' como escape)
+		if runes[i] == '\'' {
+			current.WriteRune(runes[i])
+			i++
+			for i < n {
+				if runes[i] == '\'' {
+					if i+1 < n && runes[i+1] == '\'' {
+						// Escape ''
+						current.WriteRune('\'')
+						current.WriteRune('\'')
+						i += 2
+						continue
+					}
+					// Cierre del string
+					current.WriteRune('\'')
+					i++
+					break
+				}
+				current.WriteRune(runes[i])
+				i++
+			}
+			continue
+		}
+
+		// Semicolon = fin de sentencia
+		if runes[i] == ';' {
+			stmt := strings.TrimSpace(current.String())
+			if stmt != "" {
+				buf.WriteString(stmt)
+				statements = append(statements, buf.String())
+				buf.Reset()
+			}
+			current.Reset()
+			i++
+			continue
+		}
+
+		current.WriteRune(runes[i])
+		i++
+	}
+
+	// Ultima sentencia sin semicolon (si la hay)
+	stmt := strings.TrimSpace(current.String())
+	if stmt != "" {
+		statements = append(statements, stmt)
+	}
+
+	return statements
+}
+
+// errorAs es un wrapper para errors.As que funciona con pgconn.PgError
+func errorAs(err error, target interface{}) bool {
+	if pgErr, ok := err.(*pgconn.PgError); ok {
+		// target es **pgconn.PgError
+		if t, ok := target.(**pgconn.PgError); ok {
+			*t = pgErr
+			return true
+		}
+	}
+	return false
 }
