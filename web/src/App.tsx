@@ -41,6 +41,7 @@ import CalculatorParams from './pages/CalculatorParams'
 import WebsiteAdmin from './pages/WebsiteAdmin'
 import NotificationSettings from './pages/NotificationSettings'
 import Notifications from './pages/Notifications'
+import Pay from './pages/Pay'
 
 export default function App() {
   return (
@@ -75,6 +76,7 @@ function AppInner() {
     return (
       <Routes>
         <Route path="/setup" element={<Setup />} />
+        <Route path="/pay" element={<Pay />} />
         <Route path="*" element={<Navigate to="/setup" replace />} />
       </Routes>
     )
@@ -139,6 +141,7 @@ function AppInner() {
       <Route path="/p" element={<Navigate to="/p/inicio" replace />} />
       <Route path="/login" element={<Login />} />
       <Route path="/setup" element={<Setup />} />
+      <Route path="/pay" element={<Pay />} />
       <Route path="*" element={<Navigate to="/p/inicio" replace />} />
     </Routes>
   )

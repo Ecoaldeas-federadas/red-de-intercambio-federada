@@ -1,0 +1,147 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:root {
+  --bg: #0a0a0a;
+  --card: #1a1a1a;
+  --card-light: #2a2a2a;
+  --text: #ffffff;
+  --text-dim: #a0a0a0;
+  --accent: #0f766e;
+  --accent-light: #14b8a6;
+  --danger: #dc2626;
+  --success: #16a34a;
+  --warning: #ca8a04;
+  --border: #333333;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+  border: none;
+  outline: none;
+}
+
+input {
+  font-family: inherit;
+  outline: none;
+}
+
+.card {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.btn {
+  padding: 14px 24px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  transition: opacity 0.15s, transform 0.05s;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--accent); color: white; }
+.btn-danger { background: var(--danger); color: white; }
+.btn-success { background: var(--success); color: white; }
+.btn-secondary { background: var(--card-light); color: var(--text); }
+.btn:disabled { opacity: 0.4; }
+
+/* Keypad */
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.key {
+  background: var(--card-light);
+  color: var(--text);
+  border-radius: 16px;
+  font-size: 28px;
+  font-weight: 700;
+  padding: 24px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s, transform 0.05s;
+}
+.key:active {
+  background: var(--accent);
+  transform: scale(0.95);
+}
+.key.wide { grid-column: span 1; }
+
+/* Amount display */
+.amount-display {
+  font-size: 48px;
+  font-weight: 800;
+  font-family: 'Courier New', monospace;
+  text-align: center;
+  padding: 20px;
+  letter-spacing: 2px;
+}
+
+/* QR */
+.qr-container {
+  background: white;
+  padding: 20px;
+  border-radius: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Status */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.status-open { background: rgba(22,163,74,0.2); color: var(--success); }
+.status-closed { background: rgba(220,38,38,0.2); color: var(--danger); }
+.status-pending { background: rgba(202,138,4,0.2); color: var(--warning); }
+
+/* Animations */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.pulse { animation: pulse 1.5s infinite; }
+
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.slide-up { animation: slideUp 0.3s ease-out; }
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.fade-in { animation: fadeIn 0.2s; }
+
+/* Safe area for notched phones */
+.safe-top { padding-top: env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
