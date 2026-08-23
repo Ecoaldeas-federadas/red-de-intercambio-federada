@@ -1,18 +1,25 @@
-fix: Reducir precio Huevos Comerciales (Jaula) de 4 a 3 TQ
+fix: Mover Actualizar Nodo a Servicios Federados y agregar dominio en Ajustes
 
-El precio de los huevos comerciales en jaula se reduce de 4 TQ/docena
-a 3 TQ/docena para servir como referencia mas precisa al comparar con
-precios reales del mercado y validar la canasta basica.
+CAMBIOS:
+1. Ajustes > General:
+   - QUITADO: seccion "Actualizar Nodo" (movida a Servicios Federados)
+   - QUITADO: seccion "Punto de Venta Web (POS)" (ya esta en Servicios Federados)
+   - AGREGADO: campo "Dominio del nodo" para cambiar el dominio
+     Ahora que los datos usan __LOCAL__, cambiar el dominio es seguro:
+     no se pierde ningun dato, solo se actualiza node_config.
 
-Calculo: 3 TQ/docena / 0.65 kg = 4.62 TQ/kg
+2. Servicios Federados:
+   - AGREGADO: seccion "Actualizar Nodo" al inicio de la pagina
+   - Las apps instaladas (POS, PeerTube, etc.) ya tienen boton "Actualizar"
+     individual y boton "Actualizar todo"
 
-Este producto sirve como vara de medicion para comparar precios reales
-de huevos en jaula contra el sistema TQ, aunque la comunidad no use
-este sistema de produccion.
+3. Backend (system.go):
+   - getConfig: usa ActualNodeDomain (node_config guarda el dominio real)
+   - updateConfig: usa ActualNodeDomain, permite cambiar node_domain
+   - Validacion: no permite localhost ni __LOCAL__ como dominio
 
-Cambios:
-- seed.go: precio 4 -> 3, price_per_kg 6.15 -> 4.62, descripcion
-- migracion 099: actualiza nodos existentes
+PRINCIPIO: Ajustes es para configuracion del nodo (nombre, moneda, dominio).
+Servicios Federados es para instalar y actualizar aplicaciones.
 
 Generated with [Devin](https://devin.ai)
 

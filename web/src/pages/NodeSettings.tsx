@@ -76,7 +76,7 @@ export default function NodeSettings() {
   const [ybLoading, setYbLoading] = useState(false)
 
   // Config general
-  const [config, setConfig] = useState({ node_name: '', currency_name: 'TQ', currency_full_name: 'Trueque', app_name: 'Red de Intercambio' })
+  const [config, setConfig] = useState({ node_name: '', currency_name: 'TQ', currency_full_name: 'Trueque', app_name: 'Red de Intercambio', node_domain: '' })
 
   // Niveles de miembro (usuarios individuales)
   const [levels, setLevels] = useState<any[]>([])
@@ -382,48 +382,20 @@ export default function NodeSettings() {
         <div className="card space-y-4">
           <h2 className="font-semibold flex items-center gap-2"><DollarSign size={18} />General</h2>
 
-          {/* Actualizar nodo */}
-          <NodeUpdateSection canManage={canManage} />
-
-          {/* URL del POS Web */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="font-medium text-blue-700 flex items-center gap-2 mb-2">
-              <Server size={16} /> Punto de Venta Web (POS)
-            </h3>
-            <p className="text-sm text-blue-600 mb-3">
-              El POS es una aplicacion instalable (como PeerTube, Nextcloud, etc.).
-              No viene pre-instalado - se instala con un clic desde Servicios Federados.
+          <div>
+            <label className="label">Dominio del nodo</label>
+            <input
+              className="input"
+              value={config.node_domain}
+              onChange={(e) => setConfig({ ...config, node_domain: e.target.value })}
+              disabled={!canManage}
+              placeholder="Ej: mi-aldea.org, comunidad.ejemplo.com"
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              Dominio publico del nodo. Se usa para federacion, URLs publicas e identidad del nodo.
+              Si cambias el dominio, todos los datos locales se conservan (no se pierde nada).
+              Asegurate de que el nuevo dominio apunte a este servidor antes de guardar.
             </p>
-            <div className="bg-white rounded-lg p-3 border border-blue-100 space-y-2">
-              <div>
-                <div className="text-xs text-gray-500 mb-1">Para instalar:</div>
-                <p className="text-sm text-gray-700">
-                  Ve a <strong>Servicios Federados</strong>, busca <strong>Punto de Venta Web</strong>, clic en <strong>Instalar</strong>
-                </p>
-              </div>
-              <div>
-                <div className="text-xs text-gray-500 mb-1">Para descargar e instalar en otro servidor:</div>
-                <p className="text-sm text-gray-700">
-                  Ve a <strong>Servicios Federados</strong>, <strong>Punto de Venta Web</strong>, clic en <strong>Descargar</strong>
-                </p>
-              </div>
-              <div>
-                <div className="text-xs text-gray-500 mb-1">Despues de instalar:</div>
-                <div className="flex items-center gap-2">
-                  <code className="text-sm font-mono text-blue-700 flex-1">
-                    {window.location.protocol}//{window.location.hostname}:3001
-                  </code>
-                  <a
-                    href={`${window.location.protocol}//${window.location.hostname}:3001`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700"
-                  >
-                    Abrir POS
-                  </a>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div>
@@ -1840,138 +1812,3 @@ export default function NodeSettings() {
   )
 }
 
-// ===== Componente: Actualizar nodo =====
-function NodeUpdateSection({ canManage }: { canManage: boolean }) {
-  const [checking, setChecking] = useState(false)
-  const [updating, setUpdating] = useState(false)
-  const [updateInfo, setUpdateInfo] = useState<any>(null)
-  const [updateStatus, setUpdateStatus] = useState<any>(null)
-  const [msg, setMsg] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null)
-  const [pollInterval, setPollInterval] = useState<any>(null)
-
-  const checkUpdates = async () => {
-    setChecking(true)
-    try {
-      const res: any = await api.get('/node/check-updates')
-      setUpdateInfo(res)
-    } catch (e: any) {
-      setMsg({ type: 'error', text: 'Error al verificar actualizaciones' })
-    } finally {
-      setChecking(false)
-    }
-  }
-
-  const updateNode = async () => {
-    if (!confirm('Actualizar el nodo? Se descargara la ultima version, se reconstruira y se reiniciara. Esto puede tardar varios minutos.')) return
-    setUpdating(true)
-    setMsg(null)
-    try {
-      await api.post('/node/update', {})
-      setMsg({ type: 'info', text: 'Actualizacion iniciada. El nodo se reiniciara automaticamente.' })
-      // Poll status
-      const interval = setInterval(async () => {
-        try {
-          const res: any = await api.get('/node/update-status')
-          setUpdateStatus(res)
-          if (res.status === 'completed') {
-            clearInterval(interval)
-            setUpdating(false)
-            setMsg({ type: 'success', text: 'Nodo actualizado correctamente. La pagina se recargara...' })
-            setTimeout(() => window.location.reload(), 3000)
-          } else if (res.status === 'error') {
-            clearInterval(interval)
-            setUpdating(false)
-            setMsg({ type: 'error', text: res.message || 'Error en la actualizacion' })
-          }
-        } catch {
-          // El nodo se esta reiniciando, es normal que falle
-        }
-      }, 3000)
-      setPollInterval(interval)
-    } catch (e: any) {
-      setUpdating(false)
-      setMsg({ type: 'error', text: 'Error al iniciar la actualizacion' })
-    }
-  }
-
-  useEffect(() => {
-    return () => { if (pollInterval) clearInterval(pollInterval) }
-  }, [pollInterval])
-
-  return (
-    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-      <h3 className="font-medium text-green-700 flex items-center gap-2 mb-2">
-        <RefreshCw size={16} /> Actualizar Nodo
-      </h3>
-      <p className="text-sm text-green-600 mb-3">
-        Verifica si hay una version nueva del nodo en el repositorio y actualiza con un clic.
-        Se descarga el codigo, se reconstruye la imagen Docker y se reinicia el nodo.
-      </p>
-
-      {msg && (
-        <div className={`p-3 rounded-lg text-sm mb-3 ${
-          msg.type === 'success' ? 'bg-green-100 text-green-700' :
-          msg.type === 'error' ? 'bg-red-100 text-red-700' :
-          'bg-blue-100 text-blue-700'
-        }`}>
-          {msg.text}
-        </div>
-      )}
-
-      {updateInfo && (
-        <div className="bg-white rounded-lg p-3 border border-green-100 mb-3 text-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-600">Commit actual:</span>
-            <code className="font-mono text-xs">{updateInfo.current_commit || 'desconocido'}</code>
-          </div>
-          {updateInfo.updates_available && (
-            <div className="mt-2">
-              <div className="text-green-700 font-medium mb-1">Actualizacion disponible!</div>
-              <pre className="text-xs text-gray-600 bg-gray-50 p-2 rounded max-h-32 overflow-auto">{updateInfo.new_commits}</pre>
-            </div>
-          )}
-          {!updateInfo.updates_available && (
-            <div className="mt-2 text-gray-500">El nodo esta actualizado.</div>
-          )}
-        </div>
-      )}
-
-      {updateStatus && updateStatus.status === 'running' && (
-        <div className="bg-white rounded-lg p-3 border border-blue-100 mb-3">
-          <div className="flex items-center gap-2 text-blue-600 text-sm mb-2">
-            <RefreshCw size={14} className="animate-spin" /> {updateStatus.message}
-          </div>
-          {updateStatus.log && (
-            <pre className="text-xs text-gray-500 bg-gray-50 p-2 rounded max-h-40 overflow-auto">{updateStatus.log}</pre>
-          )}
-        </div>
-      )}
-
-      <div className="flex gap-2">
-        {canManage && (
-          <>
-            <button
-              onClick={checkUpdates}
-              disabled={checking}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
-            >
-              {checking ? <><RefreshCw size={16} className="animate-spin" /> Verificando...</> : <><RefreshCw size={16} /> Verificar actualizaciones</>
-              }
-            </button>
-            <button
-              onClick={updateNode}
-              disabled={updating || !canManage}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
-            >
-              {updating ? <><RefreshCw size={16} className="animate-spin" /> Actualizando...</> : <><Download size={16} /> Actualizar nodo</>
-              }
-            </button>
-          </>
-        )}
-        {!canManage && (
-          <p className="text-xs text-amber-600">No tienes permiso para actualizar el nodo.</p>
-        )}
-      </div>
-    </div>
-  )
-}

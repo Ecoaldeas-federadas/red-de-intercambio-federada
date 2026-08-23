@@ -230,30 +230,23 @@ func (h *SystemHandler) WriteAudit(ctx context.Context, actorID uuid.UUID, actio
 // ===== CONFIGURACION DEL NODO =====
 
 func (h *SystemHandler) getConfig(w http.ResponseWriter, r *http.Request) {
-	// Usar el node_domain del servidor si esta configurado.
-	// El header X-Node-Domain es para federation entre nodos, no para
-	// sobreescribir el dominio propio del servidor.
-	var nodeDomain string
-	if h.nodeDomain != "" {
-		nodeDomain = h.nodeDomain
-	} else {
-		nodeDomain = r.Header.Get("X-Node-Domain")
-	}
-	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+	// node_config guarda el dominio real, no __LOCAL__
+	// Usar ActualNodeDomain para leer la configuracion
+	actualDomain := db.ActualNodeDomain(r.Context(), h.Pool, h.nodeDomain)
 
 	var nodeName, currencyName, appName, currencyFullName string
 	err := h.Pool.QueryRow(r.Context(), `
 		SELECT node_name, currency_name, app_name, COALESCE(currency_full_name, 'Trueque')
 		FROM node_config WHERE node_domain = $1`,
-		nodeDomain).Scan(&nodeName, &currencyName, &appName, &currencyFullName)
+		actualDomain).Scan(&nodeName, &currencyName, &appName, &currencyFullName)
 	if err != nil {
 		// Defaults
 		writeJSON(w, 200, map[string]interface{}{
-			"node_name":          nodeDomain,
+			"node_name":          actualDomain,
 			"currency_name":      "TQ",
 			"currency_full_name": "Trueque",
 			"app_name":           "Red de Intercambio",
-			"node_domain":        nodeDomain,
+			"node_domain":        actualDomain,
 		})
 		return
 	}
@@ -263,7 +256,7 @@ func (h *SystemHandler) getConfig(w http.ResponseWriter, r *http.Request) {
 		"currency_name":      currencyName,
 		"currency_full_name": currencyFullName,
 		"app_name":           appName,
-		"node_domain":        nodeDomain,
+		"node_domain":        actualDomain,
 	})
 }
 
@@ -272,6 +265,7 @@ type UpdateNodeConfigRequest struct {
 	CurrencyName     string `json:"currency_name"`
 	CurrencyFullName string `json:"currency_full_name"`
 	AppName          string `json:"app_name"`
+	NodeDomain       string `json:"node_domain"`
 }
 
 func (h *SystemHandler) updateConfig(w http.ResponseWriter, r *http.Request) {
@@ -281,15 +275,34 @@ func (h *SystemHandler) updateConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	nodeDomain := r.Header.Get("X-Node-Domain")
-	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+	// node_config guarda el dominio real, no __LOCAL__
+	// Usar ActualNodeDomain para encontrar la fila correcta
+	actualDomain := db.ActualNodeDomain(r.Context(), h.Pool, h.nodeDomain)
 
-	_, err := h.Pool.Exec(r.Context(), `
-		UPDATE node_config SET node_name = $1, currency_name = $2, app_name = $3, currency_full_name = $4 WHERE node_domain = $5`,
-		req.NodeName, req.CurrencyName, req.AppName, req.CurrencyFullName, nodeDomain)
-	if err != nil {
-		writeError(w, 500, err.Error())
-		return
+	// Si se solicita cambiar el dominio, validar y actualizar
+	if req.NodeDomain != "" && req.NodeDomain != actualDomain {
+		// Validar que el nuevo dominio no este vacio ni sea localhost
+		if req.NodeDomain == "localhost" || req.NodeDomain == "__LOCAL__" {
+			writeError(w, 400, "El dominio no puede ser 'localhost' ni '__LOCAL__'")
+			return
+		}
+		// Actualizar el dominio en node_config
+		_, err := h.Pool.Exec(r.Context(), `
+			UPDATE node_config SET node_name = $1, currency_name = $2, app_name = $3, currency_full_name = $4, node_domain = $5 WHERE node_domain = $6`,
+			req.NodeName, req.CurrencyName, req.AppName, req.CurrencyFullName, req.NodeDomain, actualDomain)
+		if err != nil {
+			writeError(w, 500, err.Error())
+			return
+		}
+	} else {
+		// Solo actualizar nombre, moneda y app (sin cambiar dominio)
+		_, err := h.Pool.Exec(r.Context(), `
+			UPDATE node_config SET node_name = $1, currency_name = $2, app_name = $3, currency_full_name = $4 WHERE node_domain = $5`,
+			req.NodeName, req.CurrencyName, req.AppName, req.CurrencyFullName, actualDomain)
+		if err != nil {
+			writeError(w, 500, err.Error())
+			return
+		}
 	}
 
 	writeJSON(w, 200, map[string]interface{}{
