@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useConfig } from '../hooks/useConfig'
-import { Plus, HelpCircle, Package, Pencil, Check, X, Upload, Eye, EyeOff, Loader2, Globe } from 'lucide-react'
+import { Plus, HelpCircle, Package, Pencil, Check, X, Upload, Eye, EyeOff, Loader2, Globe, Search, Layers, ArrowUpCircle } from 'lucide-react'
 import { assetUrl } from '../utils/assetUrl'
 
 interface ProductForm {
@@ -42,6 +42,8 @@ const PARENT_CATEGORIES: Record<string, string[]> = {
   'Educacion': ['Talleres', 'Cursos', 'Tutorias', 'Materiales Educativos'],
 }
 
+type ProductTab = 'federated' | 'mynode' | 'composite'
+
 export default function Products() {
   const { hasPermission } = usePermissions()
   const { currency } = useConfig()
@@ -63,12 +65,21 @@ export default function Products() {
   const [hasMore, setHasMore] = useState(true)
   const sentinelRef = useRef<HTMLDivElement>(null)
 
+  // Nueva: busqueda por nombre
+  const [searchTerm, setSearchTerm] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+
+  // Nueva: pestañas (Federacion, Mi Nodo, Compuestos)
+  const [activeTab, setActiveTab] = useState<ProductTab>('mynode')
+
   const PAGE_SIZE = 24
 
   const load = useCallback((reset = false) => {
     setLoading(true)
     const offset = reset ? 0 : products.length
-    api.get(`/products?limit=${PAGE_SIZE}&offset=${offset}`).then((d: any) => {
+    let url = `/products?limit=${PAGE_SIZE}&offset=${offset}`
+    if (searchTerm) url += `&search=${encodeURIComponent(searchTerm)}`
+    api.get(url).then((d: any) => {
       const newItems = Array.isArray(d) ? d : d?.products ?? []
       if (reset) {
         setProducts(newItems)
@@ -80,9 +91,40 @@ export default function Products() {
     }).catch(() => {
       if (reset) setProducts([])
     }).finally(() => setLoading(false))
-  }, [products.length])
+  }, [products.length, searchTerm])
 
-  useEffect(() => { load(true) }, [])
+  // Cargar productos compuestos
+  const loadComposite = useCallback(() => {
+    setLoading(true)
+    let url = '/products/composite'
+    if (searchTerm) url += `?search=${encodeURIComponent(searchTerm)}`
+    api.get(url).then((d: any) => {
+      setProducts(Array.isArray(d) ? d : [])
+      setHasMore(false)
+    }).catch(() => setProducts([])).finally(() => setLoading(false))
+  }, [searchTerm])
+
+  // Cargar productos federados (todos los nodos)
+  const loadFederated = useCallback(() => {
+    setLoading(true)
+    let url = '/products/federated'
+    if (searchTerm) url += `?search=${encodeURIComponent(searchTerm)}`
+    api.get(url).then((d: any) => {
+      setProducts(Array.isArray(d) ? d : [])
+      setHasMore(false)
+    }).catch(() => setProducts([])).finally(() => setLoading(false))
+  }, [searchTerm])
+
+  // Recargar cuando cambie la pestana o el termino de busqueda
+  useEffect(() => {
+    if (activeTab === 'mynode') {
+      load(true)
+    } else if (activeTab === 'composite') {
+      loadComposite()
+    } else if (activeTab === 'federated') {
+      loadFederated()
+    }
+  }, [activeTab, searchTerm])
 
   // Cargar propuestas de productos federados pendientes
   const loadFedProposals = () => {
@@ -100,7 +142,7 @@ export default function Products() {
     try {
       await api.post(`/federation/products/${id}/approve`, {})
       loadFedProposals()
-      load(true)
+      if (activeTab === 'mynode') load(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al aprobar producto federado')
     }
@@ -110,7 +152,7 @@ export default function Products() {
     try {
       await api.post(`/products/${id}/approve`, {})
       loadPending()
-      load(true)
+      if (activeTab === 'mynode') load(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al aprobar producto')
     }
@@ -134,13 +176,33 @@ export default function Products() {
     }
   }
 
-  // Infinite scroll observer
+  // Promover compuesto a producto base
+  const promoteComposite = async (id: string) => {
+    try {
+      await api.post(`/products/${id}/promote`, {})
+      loadComposite()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al promover producto')
+    }
+  }
+
+  // Buscar al presionar Enter o boton
+  const doSearch = () => {
+    setSearchTerm(searchInput.trim())
+  }
+
+  const clearSearch = () => {
+    setSearchInput('')
+    setSearchTerm('')
+  }
+
+  // Infinite scroll observer (solo para mi nodo sin filtros ni busqueda)
   useEffect(() => {
     const sentinel = sentinelRef.current
     if (!sentinel) return
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loading && !filterParentCategory && !filterCategory && !filterSubcategory) {
+        if (entries[0].isIntersecting && hasMore && !loading && !filterParentCategory && !filterCategory && !filterSubcategory && !searchTerm && activeTab === 'mynode') {
           load(false)
         }
       },
@@ -148,10 +210,9 @@ export default function Products() {
     )
     observer.observe(sentinel)
     return () => observer.disconnect()
-  }, [hasMore, loading, load, filterParentCategory, filterCategory, filterSubcategory])
+  }, [hasMore, loading, load, filterParentCategory, filterCategory, filterSubcategory, searchTerm, activeTab])
 
   // Categorias y subcategorias jerarquicas
-  // Jerarquia: parent_category > category > subcategory
   const parentCategoryMap = products.reduce((acc, p) => {
     const pc = p.parent_category || 'Sin categoría'
     const cat = p.category || ''
@@ -230,7 +291,7 @@ export default function Products() {
       setForm(emptyForm)
       setEditingId(null)
       setShowForm(false)
-      load()
+      if (activeTab === 'mynode') load(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar producto')
     }
@@ -318,7 +379,6 @@ export default function Products() {
             {form.parent_category && PARENT_CATEGORIES[form.parent_category]?.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
-            {/* Permitir categorias existentes que no estan en la lista */}
             {form.parent_category && !PARENT_CATEGORIES[form.parent_category]?.includes(form.category) && form.category && (
               <option value={form.category}>{form.category}</option>
             )}
@@ -400,7 +460,7 @@ export default function Products() {
               )}
             </button>
           )}
-          {canManage && (
+          {canManage && activeTab === 'mynode' && (
             <button onClick={() => { setShowForm(!showForm); setEditingId(null); setForm(emptyForm) }} className="btn-primary flex items-center gap-2"><Plus size={18} />Nuevo</button>
           )}
         </div>
@@ -410,7 +470,7 @@ export default function Products() {
       {showFedPanel && (
         <div className="card space-y-3">
           <h2 className="font-semibold flex items-center gap-2"><Globe size={18} />Productos Federados Pendientes</h2>
-          <p className="text-xs text-gray-500">Productos base aprobados por la asamblea de otros nodos federados. Para que esten disponibles en este nodo, la asamblea local debe aprobarlos individualmente. Si no se aprueban, no se pueden usar para producir, comprar ni como componente de productos compuestos.</p>
+          <p className="text-xs text-gray-500">Productos base aprobados por la asamblea de otros nodos federados. Para que esten disponibles en este nodo, la asamblea local debe aprobarlos individualmente.</p>
           {fedProposals.length === 0 ? (
             <p className="text-sm text-gray-400 py-4 text-center">No hay productos federados pendientes.</p>
           ) : (
@@ -487,10 +547,12 @@ export default function Products() {
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
           <p><strong>Productos del Catálogo Comunitario - Ayuda</strong></p>
-          <p><strong>Qué es esta página:</strong> Este es el registro global de productos y servicios disponibles en la red de intercambio. Aquí se define qué productos existen, sus características y su precio en {currency}.</p>
-          <p><strong>Productos de muestra:</strong> Los productos marcados como "Sistema" son productos de muestra preconfigurados. Puedes editarlos (cambiar nombre, foto, descripción, precio) para adaptarlos a tu comunidad, o eliminarlos y crear nuevos.</p>
-          <p><strong>Cómo se usa:</strong> Navega por la lista. Si tienes permisos de gestión, puedes editar cualquier producto (icono del lápiz) o crear nuevos con "Nuevo". Cada producto tiene nombre, descripción, foto, etiqueta destacada (badge), unidad, categoría y precio.</p>
-          <p><strong>Página pública:</strong> Los productos aprobados aparecen automáticamente en la página pública si usas el bloque "Catálogo desde Backend". Las categorías se generan solas.</p>
+          <p><strong>Tres pestañas:</strong></p>
+          <p><strong>1. Federación:</strong> Todos los productos base que existen en toda la red de nodos federados. Cuando un nodo se federa, sus productos aparecen aquí. Un producto nuevo en cualquier nodo aparece automáticamente en todos.</p>
+          <p><strong>2. Mi Nodo:</strong> Los productos base que pertenecen a tu aldea. Puedes editarlos, crear nuevos y publicarlos en la tienda.</p>
+          <p><strong>3. Compuestos:</strong> Productos creados por la gente de tu aldea combinando productos base (ej: harina + agua = pan). Se pueden vender en la tienda. Un compuesto se puede promover a producto base para que aparezca en toda la federación y pueda usarse como ingrediente de otros compuestos (ej: pan promovido a base, se puede hacer sándwich con pan + queso).</p>
+          <p><strong>Búsqueda:</strong> Escribe parte del nombre en el campo de búsqueda para encontrar productos rápidamente.</p>
+          <p><strong>Página pública:</strong> Los productos aprobados aparecen automáticamente en la página pública si usas el bloque "Catálogo desde Backend".</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
         </div>
       )}
@@ -504,9 +566,70 @@ export default function Products() {
         </div>
       )}
 
+      {/* Pestañas: Federacion / Mi Nodo / Compuestos */}
+      <div className="flex flex-wrap gap-2 border-b">
+        <button
+          onClick={() => { setActiveTab('federated'); setFilterParentCategory(''); setFilterCategory(''); setFilterSubcategory('') }}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 ${
+            activeTab === 'federated'
+              ? 'bg-blue-700 text-white shadow'
+              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+          }`}
+        >
+          <Globe size={16} />
+          Federación
+        </button>
+        <button
+          onClick={() => { setActiveTab('mynode'); setFilterParentCategory(''); setFilterCategory(''); setFilterSubcategory('') }}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 ${
+            activeTab === 'mynode'
+              ? 'bg-emerald-700 text-white shadow'
+              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+          }`}
+        >
+          <Package size={16} />
+          Mi Nodo
+        </button>
+        <button
+          onClick={() => { setActiveTab('composite'); setFilterParentCategory(''); setFilterCategory(''); setFilterSubcategory('') }}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 ${
+            activeTab === 'composite'
+              ? 'bg-purple-700 text-white shadow'
+              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+          }`}
+        >
+          <Layers size={16} />
+          Compuestos
+        </button>
+      </div>
+
+      {/* Campo de busqueda por nombre */}
+      <div className="flex gap-2 items-center">
+        <div className="relative flex-1">
+          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            className="input pl-10"
+            placeholder="Buscar producto por nombre..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') doSearch() }}
+          />
+        </div>
+        <button onClick={doSearch} className="btn-primary flex items-center gap-2">
+          <Search size={16} />
+          Buscar
+        </button>
+        {searchTerm && (
+          <button onClick={clearSearch} className="btn-secondary flex items-center gap-2">
+            <X size={16} />
+            Limpiar
+          </button>
+        )}
+      </div>
+
       {products.length === 0 && !showForm ? (
         <div className="card text-center text-gray-500 py-8">
-          <p>No hay productos registrados.</p>
+          <p>{loading ? 'Cargando productos...' : 'No hay productos registrados.'}</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -598,7 +721,7 @@ export default function Products() {
           {/* Productos filtrados */}
           {filteredProducts.length === 0 ? (
             <div className="card text-center text-gray-500 py-8">
-              <p>No hay productos en esta categoría.</p>
+              <p>{loading ? 'Cargando...' : 'No hay productos en esta categoría.'}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -624,12 +747,12 @@ export default function Products() {
                           <p className="text-sm text-gray-600 mt-1">{p.description}</p>
                         </div>
                         <div className="flex gap-1 flex-shrink-0">
-                          {canManage && (
+                          {canManage && activeTab === 'mynode' && (
                             <>
                               <button
                                 onClick={async () => {
                                   await api.put(`/products/${p.id}`, { ...p, is_hidden: !p.is_hidden })
-                                  load()
+                                  load(true)
                                 }}
                                 className={`transition ${p.is_hidden ? 'text-amber-500 hover:text-amber-700' : 'text-gray-400 hover:text-emerald-600'}`}
                                 title={p.is_hidden ? 'Mostrar en página pública' : 'Ocultar de página pública'}
@@ -641,6 +764,15 @@ export default function Products() {
                               </button>
                             </>
                           )}
+                          {canManage && activeTab === 'composite' && (
+                            <button
+                              onClick={() => promoteComposite(p.id)}
+                              className="text-purple-500 hover:text-purple-700 transition"
+                              title="Promover a producto base (aparece en toda la federacion)"
+                            >
+                              <ArrowUpCircle size={18} />
+                            </button>
+                          )}
                         </div>
                       </div>
                       <div className="mt-3 space-y-1">
@@ -648,12 +780,18 @@ export default function Products() {
                           {p.price} {currency}
                           {p.unit && <span className="text-sm font-normal text-gray-500"> / {p.unit}</span>}
                         </p>
+                        {p.price_calculation && (
+                          <p className="text-[10px] text-gray-400">{p.price_calculation}</p>
+                        )}
                         <p className="text-xs text-gray-400">
                           {p.parent_category && <span className="text-gray-600 font-medium">{p.parent_category}</span>}
                           {p.category && <span> › <span className="text-gray-600 font-medium">{p.category}</span></span>}
                           {p.subcategory && <span> › <span className="text-gray-600 font-medium">{p.subcategory}</span></span>}
                         </p>
                         {p.product_code && <p className="text-xs text-gray-400">Código: {p.product_code}</p>}
+                        {activeTab === 'federated' && p.node_domain && (
+                          <p className="text-xs text-blue-600">Nodo: {p.node_domain}</p>
+                        )}
                         <div className="flex items-center gap-2 pt-1">
                           {p.is_approved ? (
                             <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">Aprobado</span>
@@ -666,6 +804,9 @@ export default function Products() {
                           {p.is_hidden && (
                             <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">Oculto</span>
                           )}
+                          {activeTab === 'composite' && (
+                            <span className="text-[10px] font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">Compuesto</span>
+                          )}
                         </div>
                       </div>
                     </>
@@ -677,8 +818,8 @@ export default function Products() {
         </div>
       )}
 
-      {/* Sentinel para infinite scroll */}
-      {!filterParentCategory && !filterCategory && !filterSubcategory && hasMore && (
+      {/* Sentinel para infinite scroll (solo mi nodo sin filtros ni busqueda) */}
+      {activeTab === 'mynode' && !filterParentCategory && !filterCategory && !filterSubcategory && !searchTerm && hasMore && (
         <div ref={sentinelRef} className="flex justify-center py-6">
           {loading ? (
             <Loader2 className="animate-spin text-emerald-600" size={24} />

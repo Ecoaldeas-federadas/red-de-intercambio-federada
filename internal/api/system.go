@@ -15,6 +15,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -83,12 +84,15 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	// Productos - editar y aprobar
 	r.With(am.RequireAuth).Get("/api/products", h.listProducts)
 	r.With(am.RequireAuth).Get("/api/products/pending", h.listPendingProducts)
+	r.With(am.RequireAuth).Get("/api/products/composite", h.listCompositeProducts)
+	r.With(am.RequireAuth).Get("/api/products/federated", h.listFederatedProducts)
 	r.With(am.RequireAuth).Get("/api/products/categories", h.listProductCategories)
 	r.With(am.RequireAuth).Get("/api/products/{id}", h.getProduct)
 	r.With(am.RequirePermission("products.manage")).Post("/api/products", h.createProduct)
 	r.With(am.RequirePermission("products.manage")).Put("/api/products/{id}", h.updateProduct)
 	r.With(am.RequirePermission("products.manage")).Post("/api/products/{id}/approve", h.approveProduct)
 	r.With(am.RequirePermission("products.manage")).Post("/api/products/{id}/reject", h.rejectProduct)
+	r.With(am.RequirePermission("products.manage")).Post("/api/products/{id}/promote", h.promoteCompositeToBase)
 
 	// Productores
 	r.With(am.RequireAuth).Get("/api/products/{id}/producers", h.listProducers)
@@ -623,75 +627,25 @@ func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 			nodeDomain = "localhost"
 		}
 	}
-	rows, err := h.Pool.Query(r.Context(), `
+	search := r.URL.Query().Get("search")
+	query := `
 		SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit,
 		       COALESCE(price_per_kg,0), COALESCE(weight_kg,0), COALESCE(base_unit,'kg'),
 		       is_approved, origin, badge, image_url, product_code, is_system, is_hidden
-		FROM products WHERE node_domain IN ($1, 'localhost', 'default') AND is_approved = true AND is_hidden = false AND COALESCE(is_composite, false) = false ORDER BY parent_category, category, subcategory, name LIMIT 500`, nodeDomain)
+		FROM products WHERE node_domain IN ($1, 'localhost', 'default') AND is_approved = true AND is_hidden = false AND COALESCE(is_composite, false) = false`
+	args := []interface{}{nodeDomain}
+	if search != "" {
+		query += ` AND LOWER(name) LIKE LOWER($2)`
+		args = append(args, "%"+search+"%")
+	}
+	query += ` ORDER BY parent_category, category, subcategory, name LIMIT 500`
+	rows, err := h.Pool.Query(r.Context(), query, args...)
 	if err != nil {
 		writeJSON(w, 200, []interface{}{})
 		return
 	}
 	defer rows.Close()
-
-	var products []map[string]interface{}
-	for rows.Next() {
-		var id uuid.UUID
-		var name, description, parentCategory, category, subcategory, unit, origin, baseUnit string
-		var price, pricePerKg, weightKg float64
-		var isApproved, isSystem, isHidden bool
-		var badge, imageURL, productCode *string
-		if err := rows.Scan(&id, &name, &description, &parentCategory, &category, &subcategory, &unit, &price, &pricePerKg, &weightKg, &baseUnit, &isApproved, &origin, &badge, &imageURL, &productCode, &isSystem, &isHidden); err != nil {
-			continue
-		}
-		bdg := ""
-		if badge != nil {
-			bdg = *badge
-		}
-		imgURL := ""
-		if imageURL != nil {
-			imgURL = *imageURL
-		}
-		pcode := ""
-		if productCode != nil {
-			pcode = *productCode
-		}
-		// Calcular precio sugerido = base_price * weight
-		suggestedPrice := 0.0
-		calcExplanation := ""
-		if pricePerKg > 0 && weightKg > 0 {
-			suggestedPrice = pricePerKg * weightKg
-			if baseUnit == "L" {
-				calcExplanation = fmt.Sprintf("%.2f TQ/L x %.3f L = %.2f TQ", pricePerKg, weightKg, suggestedPrice)
-			} else if baseUnit == "unidad" {
-				calcExplanation = fmt.Sprintf("%.2f TQ/unidad x %.0f unidades = %.2f TQ", pricePerKg, weightKg, suggestedPrice)
-			} else {
-				calcExplanation = fmt.Sprintf("%.2f TQ/kg x %.3f kg = %.2f TQ", pricePerKg, weightKg, suggestedPrice)
-			}
-		}
-		products = append(products, map[string]interface{}{
-			"id":                id.String(),
-			"name":              name,
-			"description":       description,
-			"parent_category":   parentCategory,
-			"category":          category,
-			"subcategory":       subcategory,
-			"unit":              unit,
-			"price":             price,
-			"base_price":        pricePerKg,
-			"base_unit":         baseUnit,
-			"weight_kg":         weightKg,
-			"suggested_price":   suggestedPrice,
-			"price_calculation": calcExplanation,
-			"is_approved":       isApproved,
-			"origin":            origin,
-			"badge":             bdg,
-			"image_url":         imgURL,
-			"product_code":      pcode,
-			"is_system":         isSystem,
-			"is_hidden":         isHidden,
-		})
-	}
+	products := scanProductRows(rows)
 	if products == nil {
 		products = []map[string]interface{}{}
 	}
@@ -759,6 +713,216 @@ func (h *SystemHandler) listPendingProducts(w http.ResponseWriter, r *http.Reque
 		products = []map[string]interface{}{}
 	}
 	writeJSON(w, 200, products)
+}
+
+// listCompositeProducts devuelve los productos compuestos del nodo actual.
+// Los productos compuestos son creados por la gente del nodo combinando
+// productos base. Se pueden vender en la tienda y se pueden promover
+// a producto base para que aparezcan en toda la federacion.
+func (h *SystemHandler) listCompositeProducts(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = h.nodeDomain
+	}
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+	search := r.URL.Query().Get("search")
+	query := `
+		SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit,
+		       COALESCE(price_per_kg,0), COALESCE(weight_kg,0), COALESCE(base_unit,'kg'),
+		       is_approved, origin, badge, image_url, product_code, is_system, is_hidden
+		FROM products WHERE node_domain = $1 AND COALESCE(is_composite, false) = true`
+	args := []interface{}{nodeDomain}
+	if search != "" {
+		query += ` AND LOWER(name) LIKE LOWER($2)`
+		args = append(args, "%"+search+"%")
+	}
+	query += ` ORDER BY name LIMIT 500`
+	rows, err := h.Pool.Query(r.Context(), query, args...)
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+	products := scanProductRows(rows)
+	if products == nil {
+		products = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, products)
+}
+
+// listFederatedProducts devuelve productos de todos los nodos federados.
+// Incluye productos de todos los node_domain conocidos, no solo el nodo actual.
+func (h *SystemHandler) listFederatedProducts(w http.ResponseWriter, r *http.Request) {
+	search := r.URL.Query().Get("search")
+	query := `
+		SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit,
+		       COALESCE(price_per_kg,0), COALESCE(weight_kg,0), COALESCE(base_unit,'kg'),
+		       is_approved, origin, badge, image_url, product_code, is_system, is_hidden,
+		       node_domain, COALESCE(source_node, '')`
+	var args []interface{}
+	if search != "" {
+		query += ` WHERE LOWER(name) LIKE LOWER($1) AND is_approved = true AND is_hidden = false AND COALESCE(is_composite, false) = false`
+		args = append(args, "%"+search+"%")
+	} else {
+		query += ` WHERE is_approved = true AND is_hidden = false AND COALESCE(is_composite, false) = false`
+	}
+	query += ` ORDER BY node_domain, parent_category, category, name LIMIT 1000`
+	rows, err := h.Pool.Query(r.Context(), query, args...)
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+	var products []map[string]interface{}
+	for rows.Next() {
+		var id uuid.UUID
+		var name, description, parentCategory, category, subcategory, unit, origin, baseUnit, nodeDomain, sourceNode string
+		var price, pricePerKg, weightKg float64
+		var isApproved, isSystem, isHidden bool
+		var badge, imageURL, productCode *string
+		if err := rows.Scan(&id, &name, &description, &parentCategory, &category, &subcategory, &unit, &price, &pricePerKg, &weightKg, &baseUnit, &isApproved, &origin, &badge, &imageURL, &productCode, &isSystem, &isHidden, &nodeDomain, &sourceNode); err != nil {
+			continue
+		}
+		bdg := ""
+		if badge != nil {
+			bdg = *badge
+		}
+		imgURL := ""
+		if imageURL != nil {
+			imgURL = *imageURL
+		}
+		pcode := ""
+		if productCode != nil {
+			pcode = *productCode
+		}
+		suggestedPrice := 0.0
+		calcExplanation := ""
+		if pricePerKg > 0 && weightKg > 0 {
+			suggestedPrice = pricePerKg * weightKg
+			if baseUnit == "L" {
+				calcExplanation = fmt.Sprintf("%.2f TQ/L x %.3f L = %.2f TQ", pricePerKg, weightKg, suggestedPrice)
+			} else if baseUnit == "unidad" {
+				calcExplanation = fmt.Sprintf("%.2f TQ/unidad x %.0f unidades = %.2f TQ", pricePerKg, weightKg, suggestedPrice)
+			} else {
+				calcExplanation = fmt.Sprintf("%.2f TQ/kg x %.3f kg = %.2f TQ", pricePerKg, weightKg, suggestedPrice)
+			}
+		}
+		products = append(products, map[string]interface{}{
+			"id":                id.String(),
+			"name":              name,
+			"description":       description,
+			"parent_category":   parentCategory,
+			"category":          category,
+			"subcategory":       subcategory,
+			"unit":              unit,
+			"price":             price,
+			"base_price":        pricePerKg,
+			"base_unit":         baseUnit,
+			"weight_kg":         weightKg,
+			"suggested_price":   suggestedPrice,
+			"price_calculation": calcExplanation,
+			"is_approved":       isApproved,
+			"origin":            origin,
+			"badge":             bdg,
+			"image_url":         imgURL,
+			"product_code":      pcode,
+			"is_system":         isSystem,
+			"is_hidden":         isHidden,
+			"node_domain":       nodeDomain,
+			"source_node":       sourceNode,
+		})
+	}
+	if products == nil {
+		products = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, products)
+}
+
+// promoteCompositeToBase promueve un producto compuesto a producto base.
+// Esto hace que el producto:
+// 1. is_composite = false (ya no es compuesto, es base)
+// 2. is_system = true (aparece en toda la federacion)
+// 3. Se puede usar como ingrediente para otros compuestos
+func (h *SystemHandler) promoteCompositeToBase(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+	_, err = h.Pool.Exec(r.Context(),
+		`UPDATE products SET is_composite = false, is_system = true, is_approved = true WHERE id = $1`,
+		id)
+	if err != nil {
+		writeError(w, 500, "error al promover producto")
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{
+		"message": "Producto promovido a producto base. Ahora aparece en toda la federacion y puede usarse como ingrediente.",
+	})
+}
+
+// scanProductRows es helper para escanear filas de productos
+func scanProductRows(rows pgx.Rows) []map[string]interface{} {
+	var products []map[string]interface{}
+	for rows.Next() {
+		var id uuid.UUID
+		var name, description, parentCategory, category, subcategory, unit, origin, baseUnit string
+		var price, pricePerKg, weightKg float64
+		var isApproved, isSystem, isHidden bool
+		var badge, imageURL, productCode *string
+		if err := rows.Scan(&id, &name, &description, &parentCategory, &category, &subcategory, &unit, &price, &pricePerKg, &weightKg, &baseUnit, &isApproved, &origin, &badge, &imageURL, &productCode, &isSystem, &isHidden); err != nil {
+			continue
+		}
+		bdg := ""
+		if badge != nil {
+			bdg = *badge
+		}
+		imgURL := ""
+		if imageURL != nil {
+			imgURL = *imageURL
+		}
+		pcode := ""
+		if productCode != nil {
+			pcode = *productCode
+		}
+		suggestedPrice := 0.0
+		calcExplanation := ""
+		if pricePerKg > 0 && weightKg > 0 {
+			suggestedPrice = pricePerKg * weightKg
+			if baseUnit == "L" {
+				calcExplanation = fmt.Sprintf("%.2f TQ/L x %.3f L = %.2f TQ", pricePerKg, weightKg, suggestedPrice)
+			} else if baseUnit == "unidad" {
+				calcExplanation = fmt.Sprintf("%.2f TQ/unidad x %.0f unidades = %.2f TQ", pricePerKg, weightKg, suggestedPrice)
+			} else {
+				calcExplanation = fmt.Sprintf("%.2f TQ/kg x %.3f kg = %.2f TQ", pricePerKg, weightKg, suggestedPrice)
+			}
+		}
+		products = append(products, map[string]interface{}{
+			"id":                id.String(),
+			"name":              name,
+			"description":       description,
+			"parent_category":   parentCategory,
+			"category":          category,
+			"subcategory":       subcategory,
+			"unit":              unit,
+			"price":             price,
+			"base_price":        pricePerKg,
+			"base_unit":         baseUnit,
+			"weight_kg":         weightKg,
+			"suggested_price":   suggestedPrice,
+			"price_calculation": calcExplanation,
+			"is_approved":       isApproved,
+			"origin":            origin,
+			"badge":             bdg,
+			"image_url":         imgURL,
+			"product_code":      pcode,
+			"is_system":         isSystem,
+			"is_hidden":         isHidden,
+		})
+	}
+	return products
 }
 
 func (h *SystemHandler) getProduct(w http.ResponseWriter, r *http.Request) {

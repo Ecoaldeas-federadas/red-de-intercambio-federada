@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
+import { Search } from 'lucide-react'
 import {
   EdText,
   EdArrayText,
@@ -645,6 +646,8 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
   const [viewMode, setViewMode] = useState<'feria' | 'catalogo'>('feria')
   const [fc, setFc] = useState<any>(null)
   const [nodeConfig, setNodeConfig] = useState<any>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [searchInput, setSearchInput] = useState('')
 
   // If source is "backend", load real products from the API
   const useBackend = (data as any).source === 'backend'
@@ -757,6 +760,7 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
   const filtered = items.filter((it: any) => {
     if (selectedParent !== 'all' && it.parent_category !== selectedParent) return false
     if (selectedCat !== 'all' && it.category !== selectedCat) return false
+    if (searchTerm && !it.name?.toLowerCase().includes(searchTerm.toLowerCase())) return false
     return true
   })
 
@@ -773,6 +777,34 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
 
       {/* Pestañas: Productos en la Feria vs Catalogo Aprobado */}
       {useBackend && (
+        <>
+        {/* Campo de busqueda por nombre */}
+        <div className="flex gap-2 items-center justify-center mb-2">
+          <div className="relative flex-1 max-w-md">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              className="w-full pl-10 pr-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-emerald-500"
+              placeholder="Buscar producto por nombre..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') setSearchTerm(searchInput.trim()) }}
+            />
+          </div>
+          <button
+            onClick={() => setSearchTerm(searchInput.trim())}
+            className="px-4 py-2 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 transition"
+          >
+            Buscar
+          </button>
+          {searchTerm && (
+            <button
+              onClick={() => { setSearchInput(''); setSearchTerm('') }}
+              className="px-3 py-2 rounded-lg bg-gray-100 text-gray-600 text-sm font-semibold hover:bg-gray-200 transition"
+            >
+              Limpiar
+            </button>
+          )}
+        </div>
         <div className="flex flex-wrap gap-2 justify-center pb-2 border-b">
           <button
             onClick={() => { setViewMode('feria'); setSelectedParent('all'); setSelectedCat('all') }}
@@ -795,6 +827,7 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
             Catalogo Aprobado ({totalCount})
           </button>
         </div>
+        </>
       )}
 
       {/* Aviso cuando no hay productos en la feria */}
