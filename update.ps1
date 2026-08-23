@@ -46,18 +46,56 @@ if (-not (Test-Path $envPath)) {
     exit 1
 }
 
-# 1. Git pull
+# 1. Git pull (con manejo de cambios locales)
 Write-Host ""
 Write-Step "Bajando ultimos cambios del repositorio..."
 $prevEAP = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
-try {
-    git pull
-} catch {
-    Write-Warn "Aviso durante git pull: $_"
-} finally {
-    $ErrorActionPreference = $prevEAP
+
+# Configurar el remote con token si existe en .env
+$envContent = Get-Content $envPath -ErrorAction SilentlyContinue
+$gitToken = ""
+foreach ($line in $envContent) {
+    if ($line -match "^GIT_TOKEN=(.+)$") {
+        $gitToken = $matches[1].Trim()
+        break
+    }
 }
+if ($gitToken -ne "") {
+    Write-Step "Configurando token de autenticacion..."
+    git remote set-url origin "https://$gitToken@github.com/discapacidad5/red-de-intercambio-federada.git" 2>$null
+    Write-OK "Token configurado"
+}
+
+# Fetch primero
+try {
+    git fetch origin main 2>&1 | Out-Host
+} catch {
+    Write-Warn "Aviso durante git fetch: $_"
+}
+
+# Guardar cambios locales (stash) para no perder nada
+$stashOutput = git stash --include-untracked -m "auto-stash before update" 2>&1
+if ($LASTEXITCODE -eq 0 -and $stashOutput -notmatch "No local changes") {
+    Write-OK "Cambios locales guardados (stash)"
+}
+
+# Reset al origin/main (sobrescribe todo con la version del repo)
+try {
+    git reset --hard origin/main 2>&1 | Out-Host
+} catch {
+    Write-Warn "Aviso durante git reset: $_"
+}
+
+# Restaurar cambios locales del stash
+try {
+    git stash pop --quiet 2>$null
+} catch {
+    # Si el stash pop falla por conflictos, no es critico
+    # Los archivos importantes (.env, config.yaml) estan montados por separado
+}
+
+$ErrorActionPreference = $prevEAP
 Write-OK "Codigo actualizado"
 
 # 2. Detectar docker compose
