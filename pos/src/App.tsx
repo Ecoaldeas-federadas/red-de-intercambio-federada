@@ -9,32 +9,52 @@ import { NFCScreen } from './screens/NFCScreen'
 import { SalesScreen } from './screens/SalesScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
 
-export type Screen = 'login' | 'setup' | 'keypad' | 'qr' | 'nfc' | 'sales' | 'settings'
+export type Screen = 'url' | 'login' | 'setup' | 'keypad' | 'qr' | 'nfc' | 'sales' | 'settings'
 
 export function App() {
-  const [screen, setScreen] = useState<Screen>('login')
+  const [screen, setScreen] = useState<Screen>('url')
   const [amount, setAmount] = useState(0)
   const [qrToken, setQrToken] = useState<string | null>(null)
   const [terminalID, setTerminalID] = useState<string | null>(storage.get('terminalID'))
-  const [sessionToken, setSessionToken] = useState<string | null>(storage.get('sessionToken'))
   const [merchantUser, setMerchantUser] = useState<any>(null)
 
   useEffect(() => {
-    // Check if already logged in and terminal is registered
-    if (api.isLoggedIn()) {
-      setMerchantUser(api.getMerchantUser())
-      if (terminalID && storage.get('privateKey')) {
+    // Determinar pantalla inicial
+    const apiURL = storage.get('apiURL')
+    const termID = storage.get('terminalID')
+    const privKey = storage.get('privateKey')
+    const sessionToken = storage.get('sessionToken')
+    const jwt = storage.get('merchantToken')
+
+    if (!apiURL) {
+      setScreen('url')
+    } else {
+      api.setBaseURL(apiURL)
+      if (termID && privKey && sessionToken && jwt) {
+        // Todo configurado - ir directo al keypad
+        setTerminalID(termID)
+        setMerchantUser(api.getMerchantUser())
         setScreen('keypad')
-      } else {
+      } else if (termID && privKey && !sessionToken) {
+        // Terminal registrado pero no autenticado
+        setTerminalID(termID)
         setScreen('setup')
+      } else {
+        // Empezar desde URL
+        setScreen('url')
       }
     }
   }, [])
 
-  const handleLogin = (user: any) => {
-    setMerchantUser(user)
-    if (terminalID && storage.get('privateKey')) {
-      setScreen('keypad')
+  const handleURLSet = () => {
+    // Después de setear la URL, ir a setup si no hay terminal, o a login si ya hay
+    const termID = storage.get('terminalID')
+    const privKey = storage.get('privateKey')
+    const sessionToken = storage.get('sessionToken')
+
+    if (termID && privKey && sessionToken) {
+      setTerminalID(termID)
+      setScreen('login')
     } else {
       setScreen('setup')
     }
@@ -43,6 +63,12 @@ export function App() {
   const handleSetupComplete = (termID: string) => {
     setTerminalID(termID)
     storage.set('terminalID', termID)
+    // Después de activar el terminal, hacer login del merchant
+    setScreen('login')
+  }
+
+  const handleLogin = (user: any) => {
+    setMerchantUser(user)
     setScreen('keypad')
   }
 
@@ -69,14 +95,14 @@ export function App() {
     api.logout()
     storage.clear()
     setTerminalID(null)
-    setSessionToken(null)
     setMerchantUser(null)
-    setScreen('login')
+    setScreen('url')
   }
 
   return (
     <div className="safe-top safe-bottom" style={{ minHeight: '100dvh' }}>
-      {screen === 'login' && <LoginScreen onLogin={handleLogin} api={api} />}
+      {screen === 'url' && <LoginScreen onURLSet={handleURLSet} api={api} />}
+      {screen === 'login' && <LoginScreen onLogin={handleLogin} api={api} skipURL />}
       {screen === 'setup' && (
         <SetupScreen
           onComplete={handleSetupComplete}
@@ -94,7 +120,7 @@ export function App() {
           onShowSales={() => setScreen('sales')}
           onShowSettings={() => setScreen('settings')}
           terminalID={terminalID}
-          sessionToken={sessionToken}
+          sessionToken={storage.get('sessionToken')}
           api={api}
           merchantUser={merchantUser}
         />

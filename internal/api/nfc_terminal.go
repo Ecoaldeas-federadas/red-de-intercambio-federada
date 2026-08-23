@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 
 	"federated-credit-node/internal/payments"
 )
@@ -37,6 +38,10 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.Post("/api/nfc/terminal/payment", h.processPayment)
 	r.Post("/api/nfc/terminal/payment/community", h.processCommunityPayment)
 	r.Get("/api/nfc/terminal/{id}/session", h.getTerminalSession)
+
+	// Block/unblock from the terminal itself (with local code)
+	r.Post("/api/nfc/terminal/{id}/block", h.blockTerminal)
+	r.Post("/api/nfc/terminal/{id}/unblock", h.unblockTerminal)
 
 	// Management endpoints (JWT + RequirePermission)
 	r.With(am.RequirePermission("nfc.register_terminal")).Post("/api/nfc/terminal/register", h.registerTerminal)
@@ -771,4 +776,91 @@ func (h *NFCTerminalHandler) downloadChipIdReader(w http.ResponseWriter, r *http
 	w.Header().Set("Content-Type", "text/plain")
 	w.Header().Set("Content-Disposition", "attachment; filename=chip-id-reader.ino")
 	http.ServeFile(w, r, foundPath)
+}
+
+// --- Block / Unblock terminal (from the terminal itself, with local code) ---
+
+func (h *NFCTerminalHandler) blockTerminal(w http.ResponseWriter, r *http.Request) {
+	terminalID := chi.URLParam(r, "id")
+	if terminalID == "" {
+		writeError(w, 400, "terminal id is required")
+		return
+	}
+
+	var req struct {
+		Code string `json:"code"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if len(req.Code) < 4 {
+		writeError(w, 400, "code must be at least 4 characters")
+		return
+	}
+
+	// Hash the code and store it as the block code
+	codeHash, err := bcrypt.GenerateFromPassword([]byte(req.Code), bcrypt.DefaultCost)
+	if err != nil {
+		writeError(w, 500, "failed to hash code")
+		return
+	}
+
+	_, err = h.NFC.Pool.Exec(r.Context(), `
+		UPDATE nfc_terminals SET is_active = false, block_code_hash = $2, updated_at = NOW()
+		WHERE terminal_id = $1`,
+		terminalID, string(codeHash),
+	)
+	if err != nil {
+		writeError(w, 500, "failed to block terminal")
+		return
+	}
+	writeJSON(w, 200, map[string]string{"status": "blocked"})
+}
+
+func (h *NFCTerminalHandler) unblockTerminal(w http.ResponseWriter, r *http.Request) {
+	terminalID := chi.URLParam(r, "id")
+	if terminalID == "" {
+		writeError(w, 400, "terminal id is required")
+		return
+	}
+
+	var req struct {
+		Code string `json:"code"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	var codeHash *string
+	err := h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT block_code_hash FROM nfc_terminals WHERE terminal_id = $1`,
+		terminalID,
+	).Scan(&codeHash)
+	if err != nil {
+		writeError(w, 404, "terminal not found")
+		return
+	}
+
+	if codeHash == nil || *codeHash == "" {
+		writeError(w, 400, "terminal is not blocked with a code")
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(*codeHash), []byte(req.Code)); err != nil {
+		writeError(w, 401, "invalid block code")
+		return
+	}
+
+	_, err = h.NFC.Pool.Exec(r.Context(), `
+		UPDATE nfc_terminals SET is_active = true, block_code_hash = NULL, updated_at = NOW()
+		WHERE terminal_id = $1`,
+		terminalID,
+	)
+	if err != nil {
+		writeError(w, 500, "failed to unblock terminal")
+		return
+	}
+	writeJSON(w, 200, map[string]string{"status": "unblocked"})
 }

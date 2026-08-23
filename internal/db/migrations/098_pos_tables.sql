@@ -5,6 +5,10 @@
 -- incluso si alguien copia la caché del navegador a otra maquina
 ALTER TABLE nfc_terminals ADD COLUMN IF NOT EXISTS device_fingerprint TEXT;
 
+-- Codigo de bloqueo local (hash bcrypt) - el usuario puede bloquear/desbloquear
+-- el terminal desde el mismo POS con un codigo, sin necesidad del admin
+ALTER TABLE nfc_terminals ADD COLUMN IF NOT EXISTS block_code_hash TEXT;
+
 -- Tabla de cargos del POS (QR payments)
 -- Cuando el POS crea un cargo, se registra aqui con un token unico.
 -- El QR contiene {apiURL}/pay?t={token}

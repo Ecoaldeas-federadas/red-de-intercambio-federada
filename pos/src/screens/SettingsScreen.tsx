@@ -13,6 +13,9 @@ interface Props {
 export function SettingsScreen({ onBack, onLogout, api, terminalID, merchantUser }: Props) {
   const [showKeys, setShowKeys] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
+  const [blockStep, setBlockStep] = useState<'idle' | 'enter_code' | 'blocked'>('idle')
+  const [blockCode, setBlockCode] = useState('')
+  const [error, setError] = useState('')
 
   const publicKey = storage.get('publicKey')
   const serverPublicKey = storage.get('serverPublicKey')
@@ -21,6 +24,37 @@ export function SettingsScreen({ onBack, onLogout, api, terminalID, merchantUser
   const handleReset = () => {
     storage.clear()
     onLogout()
+  }
+
+  const handleBlock = async () => {
+    if (blockCode.length < 4) {
+      setError('El codigo debe tener al menos 4 digitos')
+      return
+    }
+    setError('')
+    try {
+      // Llamar al backend para bloquear el terminal con el codigo
+      // El backend verifica el codigo y bloquea el terminal
+      await api.blockTerminal(terminalID!, blockCode)
+      setBlockStep('blocked')
+    } catch (e: any) {
+      setError(e.message)
+    }
+  }
+
+  const handleUnblock = async () => {
+    if (blockCode.length < 4) {
+      setError('El codigo debe tener al menos 4 digitos')
+      return
+    }
+    setError('')
+    try {
+      await api.unblockTerminal(terminalID!, blockCode)
+      setBlockStep('idle')
+      setBlockCode('')
+    } catch (e: any) {
+      setError(e.message)
+    }
   }
 
   return (
@@ -57,6 +91,69 @@ export function SettingsScreen({ onBack, onLogout, api, terminalID, merchantUser
         <div style={{ fontSize: 14, fontFamily: 'monospace', wordBreak: 'break-all' }}>
           {apiURL}
         </div>
+      </div>
+
+      {/* Bloquear / Desbloquear */}
+      <div className="card" style={{ marginBottom: 12 }}>
+        <h3 style={{ fontSize: 14, color: 'var(--text-dim)', marginBottom: 8 }}>BLOQUEO LOCAL</h3>
+        <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 12 }}>
+          Bloquea el terminal con un codigo. Solo con el codigo podras desbloquearlo.
+          El administrador tambien puede bloquear/desbloquear desde la plataforma.
+        </p>
+
+        {blockStep === 'idle' && (
+          <button className="btn btn-danger" style={{ width: '100%' }} onClick={() => setBlockStep('enter_code')}>
+            🔒 Bloquear Terminal
+          </button>
+        )}
+
+        {blockStep === 'enter_code' && (
+          <div>
+            <input
+              type="password"
+              placeholder="Codigo de bloqueo (min 4 digitos)"
+              value={blockCode}
+              onChange={(e) => setBlockCode(e.target.value)}
+              style={{
+                width: '100%', padding: 14, borderRadius: 12, marginBottom: 12,
+                background: 'var(--card-light)', border: '1px solid var(--border)',
+                color: 'var(--text)', fontSize: 16, textAlign: 'center', fontFamily: 'monospace'
+              }}
+            />
+            {error && <p style={{ color: 'var(--danger)', fontSize: 14, marginBottom: 8 }}>{error}</p>}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-danger" style={{ flex: 1 }} onClick={handleBlock}>
+                Bloquear
+              </button>
+              <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { setBlockStep('idle'); setBlockCode(''); setError('') }}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {blockStep === 'blocked' && (
+          <div>
+            <p style={{ color: 'var(--danger)', fontSize: 14, marginBottom: 12, textAlign: 'center' }}>
+              🔒 Terminal bloqueado. Ingresa tu codigo para desbloquear.
+            </p>
+            <input
+              type="password"
+              placeholder="Codigo de desbloqueo"
+              value={blockCode}
+              onChange={(e) => setBlockCode(e.target.value)}
+              style={{
+                width: '100%', padding: 14, borderRadius: 12, marginBottom: 12,
+                background: 'var(--card-light)', border: '1px solid var(--border)',
+                color: 'var(--text)', fontSize: 16, textAlign: 'center', fontFamily: 'monospace'
+              }}
+            />
+            {error && <p style={{ color: 'var(--danger)', fontSize: 14, marginBottom: 8 }}>{error}</p>}
+            <button className="btn btn-success" style={{ width: '100%' }} onClick={handleUnblock}>
+              🔓 Desbloquear
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Crypto Keys */}
@@ -98,7 +195,7 @@ export function SettingsScreen({ onBack, onLogout, api, terminalID, merchantUser
         <h3 style={{ fontSize: 14, color: 'var(--danger)', marginBottom: 8 }}>ZONA PELIGROSA</h3>
         <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 12 }}>
           Resetear elimina todas las claves y configuracion de este dispositivo.
-          Tendras que registrar el terminal de nuevo.
+          Tendras que registrar el terminal de nuevo con el administrador.
         </p>
         {!confirmReset ? (
           <button className="btn btn-danger" style={{ width: '100%' }} onClick={() => setConfirmReset(true)}>

@@ -1,59 +1,43 @@
-feat: POS web con huella de dispositivo, claves rotativas y pagos QR seguros
+feat: POS web - flujo de registro correcto, bloqueo local, y Docker separado
 
-Seguridad mejorada del POS web:
+Correcciones al flujo del POS web:
 
-1. HUELLA DE DISPOSITIVO (device fingerprint)
-   - Combina canvas, WebGL/GPU, pantalla, hardware, timezone, codecs
-   - Se genera en el navegador con Web Crypto API (SHA-256)
-   - Se envia al backend al registrar el terminal
-   - El backend verifica la huella en cada autenticacion
-   - Si alguien copia la caché a otro dispositivo, la huella no coincide
+1. FLUJO DE REGISTRO CORRECTO (como terminales fisicos)
+   - El usuario abre el POS en su dispositivo
+   - El POS genera: terminal_id, claves Ed25519, huella del dispositivo
+   - El POS MUESTRA todos los datos (texto + QR) para que el usuario
+     se los dé al administrador encargado
+   - El administrador entra a la plataforma y registra el terminal
+     (POST /api/nfc/terminal/register - requiere permiso nfc.register_terminal)
+   - El administrador le da al usuario el registration_token
+   - El usuario ingresa el registration_token en el POS
+   - El POS completa el registro y se autentica
+   - Los usuarios NO pueden registrar terminales directamente
 
-2. CLAVES ROTATIVAS (HMAC con ventana de tiempo)
-   - Claves de sesion que cambian cada 30 segundos
-   - Derivadas del session_token + ventana de tiempo actual
-   - Cada request del POS va firmada con la clave del momento
-   - Aunque intercepten una clave, expira en 30s
+2. BLOQUEO / DESBLOQUEO LOCAL
+   - El usuario puede bloquear el terminal desde el POS con un codigo
+   - Solo con el codigo puede desbloquearlo
+   - El administrador tambien puede bloquear/desbloquear desde la plataforma
+   - Backend: POST /api/nfc/terminal/{id}/block y /unblock
+   - El codigo se guarda como hash bcrypt (nunca plaintext)
 
-3. DOBLE VERIFICACION (clave + huella)
-   - AuthenticateTerminal ahora verifica:
-     a) Firma Ed25519 del terminal
-     b) Huella del dispositivo
-   - El mensaje firmado incluye el fingerprint: terminal_id:nonce:fingerprint
-   - Sin ambas cosas correctas, el servidor rechaza
+3. DOCKER SEPARADO PARA EL POS
+   - docker/Dockerfile.pos: build Vite + serve con nginx
+   - docker-compose.yml: servicio pos-web en puerto 3001
+   - El POS se sirve como static files (100% frontend)
+   - Se comunica con el nodo via API (no necesita backend propio)
+   - PWA instalable desde el navegador
 
-4. FLUJO DE PAGO QR COMPLETO
-   - POS crea cargo en backend (POST /api/pos/charge)
-   - Backend genera token unico y lo guarda en pos_charges
-   - QR contiene: {apiURL}/pay?t={token}
-   - Cliente escanea, va a /pay
-   - /pay consulta el cargo (GET /api/pos/charge/{token}/info) - sin login
-   - Cliente ve monto y comerciante
-   - Cliente inicia sesion (con clave o huella/passkey)
-   - Cliente acepta pagar (POST /api/pos/charge/{token}/pay)
-   - Backend debita y acredita atomicamente
-   - POS hace polling del estado (GET /api/pos/charge/{id}/status)
-   - POS detecta "paid" y muestra confirmacion verde
-
-Backend:
-- internal/api/pos.go: handler con createCharge, getChargeStatus,
-  getChargeInfo (publico), payCharge (atomico), cancelCharge
-- internal/payments/nfc_terminal.go: RegisterTerminal, CompleteRegistration
-  y AuthenticateTerminal ahora acceptan/verifican device_fingerprint
-- internal/api/nfc_terminal.go: handlers actualizados para pasar fingerprint
-- internal/db/migrations/098_pos_tables.sql: columna device_fingerprint,
-  tabla pos_charges, payment_pin_hash
-- internal/api/routes.go: POSHandler registrado
-
-Frontend POS (pos/):
-- src/crypto.ts: generateDeviceFingerprint, deriveRotatingKey, signWithRotatingKey
-- src/api.ts: envia fingerprint en registro/auth, claves rotativas en cada request
-- src/screens/SetupScreen.tsx: genera fingerprint al registrar
-- src/screens/KeypadScreen.tsx: crea cargo en backend
-- src/screens/QRScreen.tsx: polling al backend
-
-Frontend principal (web/):
-- src/pages/Pay.tsx: consulta cargo, muestra monto, login, confirma pago
+Cambios:
+- pos/src/App.tsx: flujo URL → Setup → Login → Keypad
+- pos/src/screens/SetupScreen.tsx: muestra datos para el admin, ingresa token
+- pos/src/screens/LoginScreen.tsx: soporta modo URL y modo login
+- pos/src/screens/SettingsScreen.tsx: bloquear/desbloquear con codigo
+- pos/src/api.ts: blockTerminal, unblockTerminal
+- internal/api/nfc_terminal.go: handlers blockTerminal, unblockTerminal
+- internal/db/migrations/098_pos_tables.sql: columna block_code_hash
+- docker/Dockerfile.pos: nuevo
+- docker-compose.yml: servicio pos-web
 
 Generated with [Devin](https://devin.ai)
 

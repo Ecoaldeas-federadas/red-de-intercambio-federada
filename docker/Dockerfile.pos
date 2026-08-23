@@ -1,0 +1,42 @@
+# Dockerfile para el POS Web (Punto de Venta separado)
+# Es una app 100% frontend (Vite + React + PWA) que se sirve como static files
+
+# Stage 1: Build POS frontend
+FROM node:20-alpine AS pos-builder
+
+WORKDIR /pos
+
+COPY pos/package.json pos/package-lock.json ./
+RUN npm ci --silent
+
+COPY pos/ .
+RUN npm run build
+
+# Stage 2: Serve with nginx
+FROM nginx:alpine
+
+COPY --from=pos-builder /pos/dist /usr/share/nginx/html
+
+# nginx config para SPA (todas las rutas van a index.html)
+RUN echo 'server { \
+    listen 80; \
+    server_name _; \
+    root /usr/share/nginx/html; \
+    index index.html; \
+    location / { \
+        try_files $uri $uri/ /index.html; \
+    } \
+    # Cache static assets aggressively (PWA) \
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ { \
+        expires 1y; \
+        add_header Cache-Control "public, immutable"; \
+    } \
+    # No cache index.html (always get latest) \
+    location = /index.html { \
+        add_header Cache-Control "no-cache"; \
+    } \
+}' > /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

@@ -36,6 +36,19 @@ services:
     volumes:
       - firmware_builds:/build-output
 
+  # === POS Web (Punto de Venta separado) ===
+  # App 100% frontend (PWA instalable) que se sirve como static files.
+  # Se comunica con el nodo via API (no necesita backend propio).
+  # Puerto 3001 por defecto. Se puede cambiar con POS_PORT.
+  # El POS se conecta al nodo en la URL que el usuario configura al abrirlo.
+  pos-web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.pos
+    ports:
+      - "${POS_PORT:-3001}:80"
+    restart: unless-stopped
+
   # YugabyteDB: comando original que funcionaba.
   # Los flags --tserver_flags causaban crash en esta version de yugabyted.
   # El limite de tabletas se maneja via colocation en la BD, no via flags.

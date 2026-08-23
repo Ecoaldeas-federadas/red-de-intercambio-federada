@@ -3,12 +3,14 @@ import { API } from '../api'
 import { storage } from '../crypto'
 
 interface Props {
-  onLogin: (user: any) => void
+  onLogin?: (user: any) => void
+  onURLSet?: () => void
   api: API
+  skipURL?: boolean // Si true, solo mostrar login (URL ya configurada)
 }
 
-export function LoginScreen({ onLogin, api }: Props) {
-  const [step, setStep] = useState<string>('url')
+export function LoginScreen({ onLogin, onURLSet, api, skipURL }: Props) {
+  const [step, setStep] = useState<string>(skipURL ? 'login' : 'url')
   const [apiURL, setApiURL] = useState(storage.get('apiURL') || '')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -22,7 +24,11 @@ export function LoginScreen({ onLogin, api }: Props) {
     }
     api.setBaseURL(apiURL.trim())
     setError('')
-    setStep('login')
+    if (onURLSet) {
+      onURLSet()
+    } else {
+      setStep('login')
+    }
   }
 
   const handleLogin = async () => {
@@ -31,7 +37,9 @@ export function LoginScreen({ onLogin, api }: Props) {
     try {
       const data = await api.login(username, password)
       if (data.token) {
-        onLogin(data.user || { username })
+        if (onLogin) {
+          onLogin(data.user || { username })
+        }
       } else {
         setError('No se recibio token de autenticacion')
       }
@@ -73,7 +81,7 @@ export function LoginScreen({ onLogin, api }: Props) {
             Continuar
           </button>
           {storage.get('apiURL') && (
-            <button className="btn btn-secondary" style={{ width: '100%', marginTop: 8 }} onClick={() => { api.setBaseURL(storage.get('apiURL')!); setStep('login') }}>
+            <button className="btn btn-secondary" style={{ width: '100%', marginTop: 8 }} onClick={() => { api.setBaseURL(storage.get('apiURL')!); if (onURLSet) onURLSet() }}>
               Usar URL guardada: {storage.get('apiURL')}
             </button>
           )}
@@ -121,13 +129,15 @@ export function LoginScreen({ onLogin, api }: Props) {
           >
             {loading ? 'Conectando...' : 'Entrar'}
           </button>
-          <button
-            className="btn btn-secondary"
-            style={{ width: '100%', marginTop: 8 }}
-            onClick={() => setStep('url')}
-          >
-            Cambiar URL
-          </button>
+          {!skipURL && (
+            <button
+              className="btn btn-secondary"
+              style={{ width: '100%', marginTop: 8 }}
+              onClick={() => setStep('url')}
+            >
+              Cambiar URL
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -251,6 +251,21 @@ export class API {
     }
     return fp
   }
+
+  // ===== BLOCK / UNBLOCK (local, with code) =====
+  async blockTerminal(terminalID: string, code: string): Promise<any> {
+    return this.request(`/api/nfc/terminal/${terminalID}/block`, {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    })
+  }
+
+  async unblockTerminal(terminalID: string, code: string): Promise<any> {
+    return this.request(`/api/nfc/terminal/${terminalID}/unblock`, {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    })
+  }
 }
 
 export const api = new API()
