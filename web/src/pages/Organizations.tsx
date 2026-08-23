@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
-import { Users, Plus, HelpCircle, X, Crown, Trash2, Key, Vote as VoteIcon, ArrowRight } from 'lucide-react'
+import { Users, Plus, HelpCircle, X, Crown, Trash2, Key, Vote as VoteIcon, ArrowRight, Landmark } from 'lucide-react'
 import { EntitySelector } from '../components/EntitySelector'
 import { useConfig } from '../hooks/useConfig'
 import ScopedAssembly from '../components/ScopedAssembly'
@@ -379,103 +379,190 @@ export default function Organizations() {
       )}
 
       {tab === 'mine' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-4">
           {myOrgs.length === 0 && (
-            <div className="col-span-2 card text-center py-8 text-gray-500">
+            <div className="card text-center py-8 text-gray-500">
               <Users size={32} className="mx-auto mb-2 text-gray-300" />
               <p>No eres miembro de ninguna organizacion aun.</p>
               <p className="text-xs mt-1">Cuando te asignen a la junta directiva de una organizacion, aparecera aqui.</p>
             </div>
           )}
-          {myOrgs.map((org, i) => (
-            <div key={i} className="card">
-              <div className="flex items-center gap-2 mb-2">
-                <Users size={20} className="text-trueque-600" />
-                <h3 className="font-semibold">{org.display_name}</h3>
-              </div>
-              <p className="text-sm text-gray-600">@{org.username}</p>
-              <div className="flex items-center gap-2 mt-2 flex-wrap">
-                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">
-                  Tu rol: {org.role}
-                </span>
-                {org.is_board_member && (
-                  <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">Junta Directiva</span>
-                )}
-                {org.can_transfer && (
-                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Puede transferir</span>
-                )}
-              </div>
-              <div className="flex items-center justify-end mt-3">
-                <button
-                  onClick={() => navigate(`/app/organizations/${org.id}`)}
-                  className="text-sm text-trueque-600 hover:underline flex items-center gap-1 font-medium"
-                >
-                  Abrir <ArrowRight size={14} />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {orgs.length === 0 && (
-            <div className="col-span-2 card text-center py-8 text-gray-500">
-              <Users size={32} className="mx-auto mb-2 text-gray-300" />
-              <p>No hay organizaciones en este nodo.</p>
-            </div>
-          )}
-          {orgs.map((org, i) => {
-            const myOrg = myOrgs.find((m: any) => m.id === org.id)
+          {/* Mostrar la Asamblea General primero, con estilo destacado */}
+          {(() => {
+            const assemblyOrg = myOrgs.find((o: any) => o.is_assembly_owned && o.username === 'asamblea')
+            if (!assemblyOrg) return null
             return (
-              <div key={i} className="card">
-                <div className="flex items-center gap-2 mb-2">
-                  <Users size={20} className="text-trueque-600" />
-                  <h3 className="font-semibold">{org.display_name}</h3>
-                  {myOrg && (
-                    <span className="text-xs bg-trueque-100 text-trueque-700 px-2 py-0.5 rounded">Tu org</span>
-                  )}
-                </div>
-                <p className="text-sm text-gray-600">@{org.username}</p>
-                <p className="text-xs text-gray-400 mt-1">Tipo: {org.organization_subtype}</p>
-                <div className="flex items-center justify-between mt-3">
-                  <span
-                    className={`text-xs px-2 py-1 rounded ${
-                      org.membership_status === 'active'
-                        ? 'bg-trueque-100 text-trueque-700'
-                        : 'bg-yellow-100 text-yellow-700'
-                    }`}
-                  >
-                    {org.membership_status}
-                  </span>
-                  <div className="flex gap-2">
+              <div className="card bg-gradient-to-r from-amber-50 to-yellow-50 border-amber-300 border-2">
+                <div className="flex items-center gap-3">
+                  <div className="bg-amber-100 rounded-full p-3">
+                    <Landmark size={24} className="text-amber-700" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-lg">{assemblyOrg.display_name}</h3>
+                    <p className="text-sm text-gray-600">@{assemblyOrg.username}</p>
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      <span className="text-xs bg-amber-200 text-amber-800 px-2 py-0.5 rounded font-semibold">
+                        Organizacion Base
+                      </span>
+                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">
+                        Tu rol: {assemblyOrg.role}
+                      </span>
+                      {assemblyOrg.is_board_member && (
+                        <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">Junta Directiva</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2 items-end">
                     <button
-                      onClick={() => navigate(`/app/organizations/${org.id}`)}
-                      className="text-sm text-trueque-600 hover:underline flex items-center gap-1 font-medium"
+                      onClick={() => navigate('/app/assembly')}
+                      className="text-sm bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-700 flex items-center gap-1 font-medium"
                     >
-                      {myOrg ? 'Abrir' : 'Ver'} <ArrowRight size={14} />
+                      <VoteIcon size={14} /> Asamblea
                     </button>
-                    {myOrg && (
-                      <button
-                        onClick={() => {
-                          if (boardOrgId === org.id) {
-                            setBoardOrgId(null)
-                          } else {
-                            setBoardOrgId(org.id)
-                            api.get(`/organizations/${org.id}/board`).then((d: any) => setBoardMembers(Array.isArray(d) ? d : [])).catch(() => setBoardMembers([]))
-                            api.get('/accounts/list').then((d: any) => setAllUsers(Array.isArray(d) ? d.filter((u: any) => u.account_type === 'individual') : [])).catch(() => setAllUsers([]))
-                          }
-                        }}
-                        className="text-sm text-blue-600 hover:underline flex items-center gap-1"
-                      >
-                        <Crown size={14} />
-                        Junta
-                      </button>
-                    )}
+                    <button
+                      onClick={() => navigate(`/app/organizations/${assemblyOrg.id}`)}
+                      className="text-sm text-amber-700 hover:underline flex items-center gap-1 font-medium"
+                    >
+                      Abrir <ArrowRight size={14} />
+                    </button>
                   </div>
                 </div>
               </div>
             )
-          })}
+          })()}
+          {/* Resto de organizaciones (excluyendo la asamblea) */}
+          {myOrgs.filter((o: any) => !(o.is_assembly_owned && o.username === 'asamblea')).length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {myOrgs.filter((o: any) => !(o.is_assembly_owned && o.username === 'asamblea')).map((org, i) => (
+                <div key={i} className="card">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users size={20} className="text-trueque-600" />
+                    <h3 className="font-semibold">{org.display_name}</h3>
+                  </div>
+                  <p className="text-sm text-gray-600">@{org.username}</p>
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">
+                      Tu rol: {org.role}
+                    </span>
+                    {org.is_board_member && (
+                      <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">Junta Directiva</span>
+                    )}
+                    {org.can_transfer && (
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Puede transferir</span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-end mt-3">
+                    <button
+                      onClick={() => navigate(`/app/organizations/${org.id}`)}
+                      className="text-sm text-trueque-600 hover:underline flex items-center gap-1 font-medium"
+                    >
+                      Abrir <ArrowRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {orgs.length === 0 && (
+            <div className="card text-center py-8 text-gray-500">
+              <Users size={32} className="mx-auto mb-2 text-gray-300" />
+              <p>No hay organizaciones en este nodo.</p>
+            </div>
+          )}
+          {/* Mostrar la Asamblea General primero, con estilo destacado */}
+          {(() => {
+            const assemblyOrg = orgs.find((o: any) => o.is_assembly_owned && o.username === 'asamblea')
+            if (!assemblyOrg) return null
+            const myOrg = myOrgs.find((m: any) => m.id === assemblyOrg.id)
+            return (
+              <div className="card bg-gradient-to-r from-amber-50 to-yellow-50 border-amber-300 border-2">
+                <div className="flex items-center gap-3">
+                  <div className="bg-amber-100 rounded-full p-3">
+                    <Landmark size={24} className="text-amber-700" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-lg">{assemblyOrg.display_name}</h3>
+                    <p className="text-sm text-gray-600">@{assemblyOrg.username}</p>
+                    <p className="text-xs text-amber-700 mt-1 font-semibold">Organizacion Base del Nodo</p>
+                  </div>
+                  <div className="flex flex-col gap-2 items-end">
+                    <button
+                      onClick={() => navigate('/app/assembly')}
+                      className="text-sm bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-700 flex items-center gap-1 font-medium"
+                    >
+                      <VoteIcon size={14} /> Asamblea
+                    </button>
+                    <button
+                      onClick={() => navigate(`/app/organizations/${assemblyOrg.id}`)}
+                      className="text-sm text-amber-700 hover:underline flex items-center gap-1 font-medium"
+                    >
+                      {myOrg ? 'Abrir' : 'Ver'} <ArrowRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+          {/* Resto de organizaciones */}
+          {orgs.filter((o: any) => !(o.is_assembly_owned && o.username === 'asamblea')).length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {orgs.filter((o: any) => !(o.is_assembly_owned && o.username === 'asamblea')).map((org, i) => {
+                const myOrg = myOrgs.find((m: any) => m.id === org.id)
+                return (
+                  <div key={i} className="card">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Users size={20} className="text-trueque-600" />
+                      <h3 className="font-semibold">{org.display_name}</h3>
+                      {myOrg && (
+                        <span className="text-xs bg-trueque-100 text-trueque-700 px-2 py-0.5 rounded">Tu org</span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600">@{org.username}</p>
+                    <p className="text-xs text-gray-400 mt-1">Tipo: {org.organization_subtype}</p>
+                    <div className="flex items-center justify-between mt-3">
+                      <span
+                        className={`text-xs px-2 py-1 rounded ${
+                          org.membership_status === 'active'
+                            ? 'bg-trueque-100 text-trueque-700'
+                            : 'bg-yellow-100 text-yellow-700'
+                        }`}
+                      >
+                        {org.membership_status}
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => navigate(`/app/organizations/${org.id}`)}
+                          className="text-sm text-trueque-600 hover:underline flex items-center gap-1 font-medium"
+                        >
+                          {myOrg ? 'Abrir' : 'Ver'} <ArrowRight size={14} />
+                        </button>
+                        {myOrg && (
+                          <button
+                            onClick={() => {
+                              if (boardOrgId === org.id) {
+                                setBoardOrgId(null)
+                              } else {
+                                setBoardOrgId(org.id)
+                                api.get(`/organizations/${org.id}/board`).then((d: any) => setBoardMembers(Array.isArray(d) ? d : [])).catch(() => setBoardMembers([]))
+                                api.get('/accounts/list').then((d: any) => setAllUsers(Array.isArray(d) ? d.filter((u: any) => u.account_type === 'individual') : [])).catch(() => setAllUsers([]))
+                              }
+                            }}
+                            className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                          >
+                            <Crown size={14} />
+                            Junta
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>
