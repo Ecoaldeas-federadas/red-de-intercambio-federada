@@ -662,7 +662,8 @@ func (eh *ExternalHandler) addCompositeItem(w http.ResponseWriter, r *http.Reque
 	// Calcular precio total sumando componentes
 	var totalPrice float64
 	compositeDesc := ""
-	for _, c := range req.Components {
+	for i := range req.Components {
+		c := &req.Components[i]
 		// Verificar que el componente existe y esta aprobado
 		if c.ComponentProductID != "" {
 			pid, err := uuid.Parse(c.ComponentProductID)

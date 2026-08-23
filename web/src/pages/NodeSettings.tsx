@@ -1914,13 +1914,24 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
         </div>
       )}
 
-      {updateStatus && updateStatus.status === 'running' && (
-        <div className="bg-white rounded-lg p-3 border border-blue-100 mb-3">
-          <div className="flex items-center gap-2 text-blue-600 text-sm mb-2">
-            <RefreshCw size={14} className="animate-spin" /> {updateStatus.message}
+      {updateStatus && (updateStatus.status === 'running' || updateStatus.status === 'error' || updateStatus.status === 'completed') && (
+        <div className={`bg-white rounded-lg p-3 border mb-3 ${
+          updateStatus.status === 'running' ? 'border-blue-100' :
+          updateStatus.status === 'error' ? 'border-red-100' :
+          'border-green-100'
+        }`}>
+          <div className={`flex items-center gap-2 text-sm mb-2 ${
+            updateStatus.status === 'running' ? 'text-blue-600' :
+            updateStatus.status === 'error' ? 'text-red-600' :
+            'text-green-600'
+          }`}>
+            {updateStatus.status === 'running' && <RefreshCw size={14} className="animate-spin" />}
+            {updateStatus.status === 'error' && <AlertTriangle size={14} />}
+            {updateStatus.status === 'completed' && <CheckCircle size={14} />}
+            {updateStatus.message}
           </div>
           {updateStatus.log && (
-            <pre className="text-xs text-gray-500 bg-gray-50 p-2 rounded max-h-40 overflow-auto">{updateStatus.log}</pre>
+            <pre className="text-xs text-gray-600 bg-gray-900 text-gray-100 p-3 rounded max-h-60 overflow-auto whitespace-pre-wrap font-mono">{updateStatus.log}</pre>
           )}
         </div>
       )}

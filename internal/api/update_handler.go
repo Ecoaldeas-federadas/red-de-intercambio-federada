@@ -137,80 +137,96 @@ func (h *UpdateHandler) updateNode(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UpdateHandler) runUpdateNode() {
-	h.setUpdateStatus("running", "Configurando autenticacion...", "")
+	h.setUpdateStatus("running", "Configurando autenticacion con token...", "")
+	h.appendLog("=== INICIO ACTUALIZACION ===")
 
 	projectDir := "/project"
 
 	// Configurar autenticacion con token
 	h.configureGitAuth(projectDir)
+	h.appendLog("Token configurado en remote origin")
+
+	// Verificar que el remote tiene el token
+	checkURLCmd := exec.Command("git", "-C", projectDir, "remote", "get-url", "origin")
+	checkURLOut, _ := checkURLCmd.Output()
+	h.appendLog("Remote URL: " + strings.TrimSpace(string(checkURLOut)))
 
 	// 1. git fetch origin main
-	h.setUpdateStatus("running", "Descargando cambios del repositorio...", "")
-	fetchCmd := exec.Command("git", "-C", projectDir, "fetch", "origin", "main")
+	h.setUpdateStatus("running", "Descargando cambios del repositorio (git fetch)...", "")
+	fetchCmd := exec.Command("git", "-C", projectDir, "fetch", "origin", "main", "--verbose")
 	fetchOut, err := fetchCmd.CombinedOutput()
-	h.appendLog(string(fetchOut))
+	h.appendLog("--- git fetch ---\n" + string(fetchOut))
 	if err != nil {
 		h.setUpdateStatus("error", fmt.Sprintf("Error en git fetch: %v", err), string(fetchOut))
 		return
 	}
+	h.appendLog("git fetch OK")
 
-	// 2. Guardar cambios locales (stash) para no perder configuracion local
+	// 2. Guardar cambios locales (stash)
+	h.setUpdateStatus("running", "Guardando cambios locales (stash)...", "")
 	stashCmd := exec.Command("git", "-C", projectDir, "stash", "--include-untracked", "-m", "auto-stash before update")
-	stashOut, _ := stashCmd.CombinedOutput()
-	h.appendLog("Stash: " + string(stashOut))
+	stashOut, stashErr := stashCmd.CombinedOutput()
+	h.appendLog("--- git stash ---\n" + string(stashOut))
+	if stashErr != nil {
+		h.appendLog("Stash: no habia cambios locales o error menor (no critico)")
+	} else {
+		h.appendLog("Stash OK")
+	}
 
-	// 3. Reset al origin/main (sobrescribe todo con la version del repo)
-	// Esto es necesario porque el repo montado puede tener cambios locales
-	// (config.yaml, .env, builds, etc.) que impiden un pull limpio.
-	// Los archivos locales importantes (.env, config.yaml) estan montados
-	// por separado en docker-compose.yml y no se pierden.
-	h.setUpdateStatus("running", "Aplicando cambios del repositorio...", "")
+	// 3. Reset al origin/main
+	h.setUpdateStatus("running", "Aplicando cambios del repositorio (git reset)...", "")
 	resetCmd := exec.Command("git", "-C", projectDir, "reset", "--hard", "origin/main")
 	resetOut, err := resetCmd.CombinedOutput()
-	h.appendLog(string(resetOut))
+	h.appendLog("--- git reset --hard origin/main ---\n" + string(resetOut))
 	if err != nil {
-		// Si reset falla, intentar merge con estrategia theirs
+		h.appendLog("Reset fallo, intentando merge...")
 		mergeCmd := exec.Command("git", "-C", projectDir, "merge", "origin/main", "-X", "theirs", "--no-edit")
 		mergeOut, mergeErr := mergeCmd.CombinedOutput()
-		h.appendLog(string(mergeOut))
+		h.appendLog("--- git merge ---\n" + string(mergeOut))
 		if mergeErr != nil {
 			h.setUpdateStatus("error", fmt.Sprintf("Error al aplicar cambios: %v", mergeErr), string(mergeOut))
 			return
 		}
 	}
+	h.appendLog("Cambios del repositorio aplicados")
 
-	// 4. Restaurar cambios locales del stash (config.yaml, .env, etc.)
+	// 4. Restaurar cambios locales del stash
 	popCmd := exec.Command("git", "-C", projectDir, "stash", "pop", "--quiet")
 	popOut, _ := popCmd.CombinedOutput()
-	h.appendLog("Stash pop: " + string(popOut))
-	// Si el stash pop falla por conflictos, no es critico: el update
-	// ya se aplico. Los archivos montados por separado (.env, config.yaml)
-	// no se ven afectados por el reset.
+	h.appendLog("--- git stash pop ---\n" + string(popOut))
 
-	h.setUpdateStatus("running", "Cambios aplicados. Reconstruyendo imagen Docker...", "")
+	// Mostrar commit actual
+	newCommitCmd := exec.Command("git", "-C", projectDir, "rev-parse", "--short", "HEAD")
+	newCommitOut, _ := newCommitCmd.Output()
+	h.appendLog("Nuevo commit: " + strings.TrimSpace(string(newCommitOut)))
+
+	h.setUpdateStatus("running", "Reconstruyendo imagen Docker (esto tarda varios minutos)...", "")
 
 	// 5. docker compose build node-app
 	buildCmd := exec.Command("docker", "compose", "-f", filepath.Join(projectDir, "docker-compose.yml"), "build", "node-app")
 	buildOut, err := buildCmd.CombinedOutput()
-	h.appendLog(string(buildOut))
+	h.appendLog("--- docker compose build ---\n" + string(buildOut))
 	if err != nil {
-		h.setUpdateStatus("error", fmt.Sprintf("Error al construir: %v", err), string(buildOut))
+		h.setUpdateStatus("error", fmt.Sprintf("Error al construir imagen: %v", err), string(buildOut))
 		return
 	}
-	h.setUpdateStatus("running", "Imagen construida. Reiniciando nodo...", string(buildOut))
+	h.appendLog("Imagen Docker construida")
+
+	h.setUpdateStatus("running", "Reiniciando nodo...", "")
 
 	// 6. Actualizar servicios instalados (pos-web, etc.)
 	h.updateInstalledServices()
 
-	// 7. docker compose up -d node-app (esto reinicia el nodo)
+	// 7. docker compose up -d node-app
 	upCmd := exec.Command("docker", "compose", "-f", filepath.Join(projectDir, "docker-compose.yml"), "up", "-d", "node-app")
 	upOut, err := upCmd.CombinedOutput()
-	h.appendLog(string(upOut))
+	h.appendLog("--- docker compose up ---\n" + string(upOut))
 	if err != nil {
 		h.setUpdateStatus("error", fmt.Sprintf("Error al reiniciar: %v", err), string(upOut))
 		return
 	}
 
+	h.appendLog("=== ACTUALIZACION COMPLETADA ===")
 	h.setUpdateStatus("completed", "Nodo actualizado y reiniciado correctamente", "")
 }
 

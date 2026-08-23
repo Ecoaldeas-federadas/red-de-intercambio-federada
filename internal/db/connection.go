@@ -241,7 +241,7 @@ func execWithRetry(ctx context.Context, pool *pgxpool.Pool, sql string, filename
 		wait := time.Duration(attempt+1) * 200 * time.Millisecond
 		time.Sleep(wait)
 	}
-	return fmt.Errorf("after %d retries: %w", maxRetries, lastErr)
+	return fmt.Errorf("after %d retries (%s stmt %d): %w", maxRetries, filename, stmtNum, lastErr)
 }
 
 // splitSQLStatements divide un archivo SQL en sentencias individuales,

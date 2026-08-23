@@ -1,16 +1,27 @@
-refactor: Limpiar advertencias del linter (switch tagged, unused writes)
+fix: Limpiar advertencias restantes + logs detallados en actualizacion
 
-Advertencias resueltas:
-- assembly.go: if/else if -> switch en voteStr y status
-- merge_conflicts.go: if/else if -> switch en h.nodeDomain (2 sitios)
-- scoped_assembly.go: if/else if -> switch en filter y scope
-- system.go: if/else if -> switch en baseUnit (2 sitios)
-- nfc_terminal.go: eliminado PaymentsHandler nil sin uso
-- subscription_scheduler.go: parametro nodeDomain marcado como _ (sin uso)
+1. Advertencias del linter resueltas:
+   - external.go: usar indice en range en vez de copia para que
+     la escritura a ComponentUnit sea visible para el linter
+   - connection.go: usar filename y stmtNum en mensaje de error
+     para que no sean parametros sin uso
 
-Advertencia restante (falso positivo):
-- external.go: ComponentUnit - el linter dice "unused write" pero
-  el valor si se usa en la linea 735 dentro del mismo loop
+2. Logs detallados en actualizacion del nodo:
+   - Cada paso del update ahora loguea que esta haciendo
+   - Muestra el remote URL despues de configurar el token
+   - Muestra el output completo de git fetch, stash, reset, build
+   - Muestra el nuevo commit despues del reset
+   - El log se muestra en la UI con consola oscura (fondo negro)
+   - El log se muestra en running, error y completed
+   - Altura mayor (max-h-60) para ver mas contenido
+
+3. Importante: el error "Error en git pull" que ves en la pagina
+   es del codigo VIEJO corriendo en el nodo. El codigo nuevo usa
+   git fetch + git reset --hard (no git pull). Para aplicar este
+   fix necesitas actualizar manualmente una vez mas:
+     git pull origin main
+     docker compose build node-app
+     docker compose up -d node-app
 
 Generated with [Devin](https://devin.ai)
 
