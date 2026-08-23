@@ -1,4 +1,4 @@
-﻿-- Migracion 095: Corregir precios 094 + agregar productos compuestos pendientes
+-- Migracion 095: Corregir precios 094 + agregar productos compuestos pendientes
 --
 -- PARTE 1: Corregir los calculos de la migracion 094.
 --          El metodo correcto es: calcular energia del lote completo,
