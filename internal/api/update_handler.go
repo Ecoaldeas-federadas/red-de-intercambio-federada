@@ -181,8 +181,8 @@ func (h *UpdateHandler) updateInstalledServices(projectDir string) {
 	for rows.Next() {
 		var svcID string
 		rows.Scan(&svcID)
-		composePath := filepath.Join(projectDir, "services", svcID, "docker-compose.yml")
-		if _, err := os.Stat(composePath); err != nil {
+		composePath := findComposeFile(svcID)
+		if composePath == "" {
 			continue
 		}
 		// Rebuild + restart
@@ -213,14 +213,10 @@ func (h *UpdateHandler) updateService(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	composePath := filepath.Join("services", serviceID, "docker-compose.yml")
-	if _, err := os.Stat(composePath); err != nil {
-		// Intentar desde /project
-		composePath = filepath.Join("/project", "services", serviceID, "docker-compose.yml")
-		if _, err := os.Stat(composePath); err != nil {
-			writeError(w, 400, "no se encontro docker-compose.yml para este servicio")
-			return
-		}
+	composePath := findComposeFile(serviceID)
+	if composePath == "" {
+		writeError(w, 400, "no se encontro docker-compose.yml para este servicio")
+		return
 	}
 
 	// Para servicios construidos (como pos-web), hacer build
@@ -276,14 +272,11 @@ func (h *UpdateHandler) updateAllServices(w http.ResponseWriter, r *http.Request
 			continue
 		}
 
-		composePath := filepath.Join("services", svcID, "docker-compose.yml")
-		if _, err := os.Stat(composePath); err != nil {
-			composePath = filepath.Join("/project", "services", svcID, "docker-compose.yml")
-			if _, err := os.Stat(composePath); err != nil {
-				results = append(results, updateResult{svcID, name, false, "docker-compose.yml no encontrado"})
-				failed++
-				continue
-			}
+		composePath := findComposeFile(svcID)
+		if composePath == "" {
+			results = append(results, updateResult{svcID, name, false, "docker-compose.yml no encontrado"})
+			failed++
+			continue
 		}
 
 		cmd := exec.Command("docker", "compose", "-f", composePath, "up", "-d", "--build", "--pull", "always")

@@ -442,9 +442,9 @@ func (sh *FederatedServicesHandler) installService(w http.ResponseWriter, r *htt
 	containerName := fmt.Sprintf("aldea-%s", serviceID)
 
 	// Verificar si docker-compose.yml existe
-	composePath := filepath.Join("services", serviceID, "docker-compose.yml")
-	if _, err := os.Stat(composePath); err != nil {
-		// Si no existe, crear uno basico
+	// Dentro del contenedor el repo esta en /project, en desarrollo esta en el directorio actual
+	composePath := findComposeFile(serviceID)
+	if composePath == "" {
 		writeJSON(w, 200, map[string]interface{}{
 			"success":    false,
 			"message":    fmt.Sprintf("No se encontro docker-compose.yml para %s. Usa 'Descargar' para obtener el paquete e instalarlo manualmente.", svc.Name),
@@ -496,7 +496,7 @@ func (sh *FederatedServicesHandler) uninstallService(w http.ResponseWriter, r *h
 	ctx := r.Context()
 
 	// Detener y eliminar contenedor
-	cmd := exec.Command("docker", "compose", "-f", filepath.Join("services", serviceID, "docker-compose.yml"), "down")
+	cmd := exec.Command("docker", "compose", "-f", findComposeFile(serviceID), "down")
 	cmd.Run()
 
 	// Actualizar BD
@@ -508,7 +508,7 @@ func (sh *FederatedServicesHandler) uninstallService(w http.ResponseWriter, r *h
 // startService inicia un servicio detenido.
 func (sh *FederatedServicesHandler) startService(w http.ResponseWriter, r *http.Request) {
 	serviceID := chi.URLParam(r, "serviceID")
-	cmd := exec.Command("docker", "compose", "-f", filepath.Join("services", serviceID, "docker-compose.yml"), "start")
+	cmd := exec.Command("docker", "compose", "-f", findComposeFile(serviceID), "start")
 	output, err := cmd.CombinedOutput()
 
 	ctx := r.Context()
@@ -524,7 +524,7 @@ func (sh *FederatedServicesHandler) startService(w http.ResponseWriter, r *http.
 // stopService detiene un servicio.
 func (sh *FederatedServicesHandler) stopService(w http.ResponseWriter, r *http.Request) {
 	serviceID := chi.URLParam(r, "serviceID")
-	cmd := exec.Command("docker", "compose", "-f", filepath.Join("services", serviceID, "docker-compose.yml"), "stop")
+	cmd := exec.Command("docker", "compose", "-f", findComposeFile(serviceID), "stop")
 	cmd.Run()
 
 	ctx := r.Context()
@@ -762,6 +762,23 @@ Si tienes OpenWrt instalado, registra el subdominio:
 		"subdomain":      fmt.Sprintf("%s.%s", svc.Subdomain, sh.NodeDomain),
 		"instructions":   fmt.Sprintf("1. Guardar docker-compose.yml\n2. Ejecutar: docker compose up -d\n3. Acceder: http://%s.%s:%d", svc.Subdomain, sh.NodeDomain, svc.DefaultPort),
 	})
+}
+
+// findComposeFile busca docker-compose.yml en multiples ubicaciones.
+// Dentro del contenedor: /project/services/{id}/docker-compose.yml
+// En desarrollo: services/{id}/docker-compose.yml
+func findComposeFile(serviceID string) string {
+	candidates := []string{
+		filepath.Join("/project", "services", serviceID, "docker-compose.yml"),
+		filepath.Join("services", serviceID, "docker-compose.yml"),
+		filepath.Join("..", "services", serviceID, "docker-compose.yml"),
+	}
+	for _, p := range candidates {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return ""
 }
 
 // getServiceImage devuelve la imagen Docker para un servicio.

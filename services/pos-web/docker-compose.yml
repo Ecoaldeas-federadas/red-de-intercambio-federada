@@ -1,19 +1,5 @@
 # Punto de Venta Web (POS) - Terminal de venta instalable
 # Aplicacion web 100% frontend (PWA) que se comunica con el nodo via API
-#
-# Para instalar:
-#   1. Este docker-compose se genera automaticamente al instalar desde el nodo
-#   2. El POS se sirve como static files con nginx
-#   3. El usuario abre la URL del POS en su navegador
-#   4. El POS se instala como PWA (aplicacion instalable)
-#
-# Para instalar manualmente en otro servidor:
-#   1. Copiar la carpeta del nodo completo
-#   2. Ejecutar: docker compose -f services/pos-web/docker-compose.yml up -d --build
-#   3. Acceder en: http://SERVIDOR:3001
-#
-# El POS no tiene backend propio - se comunica con el nodo via API.
-# La URL del nodo se configura al abrir el POS por primera vez.
 
 version: '3.8'
 
@@ -26,9 +12,3 @@ services:
     restart: unless-stopped
     ports:
       - "${POS_PORT:-3001}:80"
-    networks:
-      - aldea-network
-
-networks:
-  aldea-network:
-    external: true
