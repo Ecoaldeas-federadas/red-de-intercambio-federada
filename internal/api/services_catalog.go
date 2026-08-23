@@ -243,12 +243,12 @@ var catalog = []ServiceCatalogItem{
 		UsedFor:  "Que cada miembro tenga un lugar seguro para sus contrasenas. No mas contrasenas escritas en papel o repetidas. Sincroniza entre dispositivos. Sin que empresas de terceros tengan tus contrasenas.",
 		Protocol: "Web", Docker: true, MinRAM: 128, MinDisk: 1, DefaultPort: 80, Subdomain: "claves",
 	},
-	// === Punto de Venta (POS) - EXCLUSIVO DE ESTE NODO ===
+	// === Punto de Venta (POS) - HERRAMIENTA DEL NODO ===
 	{
 		ID: "pos-web", Name: "Punto de Venta Web", Category: "productividad", Icon: "ShoppingBag",
-		WhatIs:   "Terminal de punto de venta EXCLUSIVO de este nodo. Solo funciona con la moneda interna de la comunidad (TQ). No es un POS generico: no sirve para cobrar con dinero tradicional, tarjetas bancarias, criptomonedas ni ningun otro sistema externo. Esta disenado unicamente para cobrar y transferir TQ entre miembros de esta comunidad. Se instala como aplicacion web (PWA) en cualquier dispositivo: celular, tablet o PC. Se registra como un terminal NFC mas del nodo, con claves criptograficas Ed25519 y huella de dispositivo. Soporta pagos por QR y por tarjeta NFC.",
+		WhatIs:   "Terminal de punto de venta para cobrar con TQ (moneda de la red de intercambio federada). Se descarga e instala desde este nodo y se configura automaticamente con la direccion de este nodo. Puede cobrar a miembros de CUALQUIER nodo federado: si alguien de otra comunidad federada visita tu local, puede pagar con su tarjeta NFC o escaneando el QR. No es un POS generico: no sirve para cobrar con dinero tradicional, tarjetas bancarias, criptomonedas ni ningun otro sistema externo. Solo procesa TQ entre nodos federados. Se instala como aplicacion web (PWA) en cualquier dispositivo: celular, tablet o PC. Se registra como un terminal NFC mas del nodo, con claves criptograficas Ed25519 y huella de dispositivo.",
 		Replaces: "Terminales POS comerciales (Solo para TQ, no para dinero tradicional)",
-		UsedFor:  "Cobrar ventas con TQ (moneda de esta comunidad). El comerciante ingresa el monto en TQ, el cliente paga escaneando un QR con su celular o acercando su tarjeta NFC. Las organizaciones pueden asignar terminales a miembros, ver turnos (quien uso el terminal y cuando), ventas por usuario y todas las transacciones. IMPORTANTE: Este POS solo funciona dentro de este nodo. No se puede configurar para usar con otros sistemas. No procesa dinero real ni criptomonedas.",
+		UsedFor:  "Cobrar ventas con TQ. El comerciante ingresa el monto en TQ, el cliente paga escaneando un QR con su celular o acercando su tarjeta NFC. El cliente puede ser de este nodo o de cualquier nodo federado. Las organizaciones pueden asignar terminales a miembros, ver turnos (quien uso el terminal y cuando), ventas por usuario y todas las transacciones. IMPORTANTE: Este POS solo procesa TQ. No procesa dinero real, tarjetas bancarias ni criptomonedas. Se descarga desde cada nodo y se configura con la direccion de ese nodo, pero acepta pagos de cualquier nodo federado.",
 		Protocol: "Web/PWA", Docker: true, MinRAM: 128, MinDisk: 1, DefaultPort: 3001, Subdomain: "pos",
 	},
 }

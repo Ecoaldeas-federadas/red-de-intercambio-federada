@@ -435,7 +435,7 @@ export default function FederatedServices() {
                       {svc.name}
                       {isExclusive && (
                         <span className="text-xs px-2 py-0.5 bg-trueque-600 text-white rounded-full font-medium">
-                          EXCLUSIVO DEL NODO
+                          HERRAMIENTA DEL NODO
                         </span>
                       )}
                     </h3>
@@ -453,8 +453,9 @@ export default function FederatedServices() {
 
               {isExclusive && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 mb-2 text-xs text-amber-700">
-                  <strong>Importante:</strong> Este POS solo funciona con TQ de esta comunidad.
-                  No es un POS generico. No procesa dinero tradicional ni criptomonedas.
+                  <strong>Importante:</strong> Este POS solo procesa TQ (no dinero tradicional ni criptomonedas).
+                  Se descarga desde este nodo y se configura con su direccion, pero acepta pagos
+                  de miembros de cualquier nodo federado.
                 </div>
               )}
 
