@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
@@ -43,7 +43,10 @@ export default function OrganizationDetail() {
   const [fundData, setFundData] = useState<any>(null)
 
   // Detectar si esta organizacion es la Asamblea General del nodo
-  const isAssemblyOrg = org?.is_assembly_owned && org?.username === 'asamblea'
+  // Es una organizacion creada por la Asamblea (no es la Asamblea misma)
+  // Estas organizaciones tienen tratamiento especial: marco amber, link a Asamblea,
+  // sin pestaña de Asamblea propia (la Asamblea es del nodo, no de cada org)
+  const isAssemblyOwned = org?.is_assembly_owned && org?.username !== 'asamblea'
 
   const canManage = hasPermission('org.manage') || myRole?.can_manage
   const canTransfer = hasPermission('org.manage') || myRole?.can_transfer
@@ -112,36 +115,18 @@ export default function OrganizationDetail() {
     load()
   }, [id])
 
-  // Cargar fondo comunitario si es la org Asamblea
-  useEffect(() => {
-    if (isAssemblyOrg) {
-      api.get('/fund/balance').then(setFundData).catch(() => {})
-    }
-  }, [isAssemblyOrg])
-
+  // Las organizaciones creadas por la Asamblea muestran su propio balance
+  // (no el del Fondo Comunitario - el Fondo Comunitario se ve en la pagina de Asamblea)
   useEffect(() => {
     if (org?.id) {
-      if (isAssemblyOrg) {
-        // Para la Asamblea, usar el fondo comunitario como billetera
-        api.get('/fund/balance').then((d: any) => {
-          setBalance(d?.balance ?? 0)
-          setFundData(d)
-          if (d?.fund_account) {
-            api.get(`/ledger/transactions?account_id=${d.fund_account}&limit=100`).then((td: any) => {
-              setTxs(Array.isArray(td) ? td : [])
-            }).catch(() => setTxs([]))
-          }
-        }).catch(() => {})
-      } else {
-        api.get(`/ledger/transactions?account_id=${org.id}&limit=100`).then((d: any) => {
-          setTxs(Array.isArray(d) ? d : [])
-        }).catch(() => {})
-        api.get(`/accounts/${org.id}`).then((d: any) => {
-          setBalance(d?.balance ?? 0)
-        }).catch(() => {})
-      }
+      api.get(`/ledger/transactions?account_id=${org.id}&limit=100`).then((d: any) => {
+        setTxs(Array.isArray(d) ? d : [])
+      }).catch(() => setTxs([]))
+      api.get(`/accounts/${org.id}`).then((d: any) => {
+        setBalance(d?.balance ?? 0)
+      }).catch(() => {})
     }
-  }, [org?.id, isAssemblyOrg])
+  }, [org?.id])
 
   const assignBoard = async () => {
     setError('')
@@ -232,7 +217,7 @@ export default function OrganizationDetail() {
     { key: 'services', label: 'Servicios', icon: <Plug size={16} /> },
     { key: 'wallet', label: 'Billetera', icon: <WalletIcon size={16} /> },
     // La pestana Asamblea solo aparece para orgs que NO son la Asamblea General
-    ...(isAssemblyOrg ? [] : [{ key: 'assembly', label: 'Asamblea', icon: <VoteIcon size={16} /> }]),
+    ...(isAssemblyOwned ? [] : [{ key: 'assembly', label: 'Asamblea', icon: <VoteIcon size={16} /> }]),
     { key: 'boardmeetings', label: 'Reuniones Junta', icon: <VoteIcon size={16} /> },
   ]
 
@@ -242,23 +227,23 @@ export default function OrganizationDetail() {
         <ArrowLeft size={16} /> Volver a organizaciones
       </button>
 
-      <div className={`card ${isAssemblyOrg ? 'bg-gradient-to-r from-amber-50 to-yellow-50 border-amber-300' : ''}`}>
+      <div className={`card ${isAssemblyOwned ? 'bg-gradient-to-r from-amber-50 to-yellow-50 border-amber-300' : ''}`}>
         <div className="flex items-center gap-3">
-          <div className={`rounded-full p-3 ${isAssemblyOrg ? 'bg-amber-100' : 'bg-trueque-100'}`}>
-            {isAssemblyOrg ? <Landmark size={24} className="text-amber-700" /> : <Users size={24} className="text-trueque-700" />}
+          <div className={`rounded-full p-3 ${isAssemblyOwned ? 'bg-amber-100' : 'bg-trueque-100'}`}>
+            {isAssemblyOwned ? <Landmark size={24} className="text-amber-700" /> : <Users size={24} className="text-trueque-700" />}
           </div>
           <div className="flex-1">
             <h1 className="text-2xl font-bold">{org.display_name || org.username}</h1>
             <p className="text-sm text-gray-500">
               @{org.username} | {org.organization_subtype || 'Organizacion'}
-              {isAssemblyOrg && <span className="ml-2 text-amber-700 font-semibold">Organizacion Base del Nodo</span>}
+              {isAssemblyOwned && <span className="ml-2 text-amber-700 font-semibold">Creada por la Asamblea</span>}
             </p>
           </div>
           <span className={`text-xs px-2 py-1 rounded ${org.is_approved ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
             {org.is_approved ? 'Aprobada' : 'Pendiente'}
           </span>
         </div>
-        {isAssemblyOrg && (
+        {isAssemblyOwned && (
           <div className="mt-3 pt-3 border-t border-amber-200">
             <button
               onClick={() => navigate('/app/assembly')}
@@ -320,7 +305,7 @@ export default function OrganizationDetail() {
               <p className="font-medium">{org.organization_subtype || 'N/A'}</p>
             </div>
             <div>
-              <p className="text-gray-500">Balance{isAssemblyOrg ? ' (Fondo Comunitario)' : ''}:</p>
+              <p className="text-gray-500">Balance:</p>
               <p className="font-medium">{fmtAmount(balance)} {currency}</p>
             </div>
             <div>
@@ -332,23 +317,14 @@ export default function OrganizationDetail() {
               <p className="font-medium">{org.debit_limit || 0} {currency}</p>
             </div>
           </div>
-          {isAssemblyOrg ? (
-            <div className="space-y-2">
-              <p className="text-xs text-amber-700 bg-amber-50 p-2 rounded">
-                Esta cuenta es la Asamblea General, el Fondo Comunitario y la cuenta de Impuestos. Es una sola cuenta con 3 nombres.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-mono">@asamblea</span>
-                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-mono">@impuestos</span>
-                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-mono">@fondo_comunitario</span>
-              </div>
-              <p className="text-xs text-gray-400">Los 3 nombres son aliases de la misma cuenta. Puedes usar cualquiera para transferir.</p>
-            </div>
-          ) : (
-            <p className="text-xs text-gray-400">
-              Para transferir a esta organizacion, usa su usuario @{org.username} como destinatario.
+          {isAssemblyOwned && (
+            <p className="text-xs text-amber-700 bg-amber-50 p-2 rounded">
+              Esta organizacion fue creada por la Asamblea. Las decisiones sobre el Fondo Comunitario se toman en la <button onClick={() => navigate('/app/assembly')} className="underline font-semibold">pagina de la Asamblea</button>.
             </p>
           )}
+          <p className="text-xs text-gray-400">
+            Para transferir a esta organizacion, usa su usuario @{org.username} como destinatario.
+          </p>
         </div>
       )}
 
@@ -760,25 +736,18 @@ export default function OrganizationDetail() {
       {tab === 'wallet' && (
         <div className="space-y-4">
           <div className="card">
-            <div className={`text-white rounded-xl p-6 ${isAssemblyOrg ? 'bg-gradient-to-r from-amber-600 to-yellow-700' : 'bg-gradient-to-r from-trueque-600 to-trueque-700'}`}>
+            <div className={`text-white rounded-xl p-6 ${isAssemblyOwned ? 'bg-gradient-to-r from-amber-600 to-yellow-700' : 'bg-gradient-to-r from-trueque-600 to-trueque-700'}`}>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-amber-100 text-sm">
-                    {isAssemblyOrg ? 'Fondo Comunitario (Asamblea General)' : `Saldo de ${org.display_name || org.username}`}
+                    {`Saldo de ${org.display_name || org.username}`}
                   </p>
                   <p className="text-4xl font-bold mt-1">
                     {balance >= 0 ? '+' : ''}{fmtAmount(balance)} {currency}
                   </p>
                   <p className="text-amber-200 text-xs mt-2">
-                    {isAssemblyOrg ? 'Cuenta: Fondo Comunitario' : `Cuenta: @{org.username}`}
+                    {`Cuenta: @{org.username}`}
                   </p>
-                  {isAssemblyOrg && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      <span className="text-xs bg-amber-500/30 text-amber-100 px-2 py-0.5 rounded font-mono">@asamblea</span>
-                      <span className="text-xs bg-amber-500/30 text-amber-100 px-2 py-0.5 rounded font-mono">@impuestos</span>
-                      <span className="text-xs bg-amber-500/30 text-amber-100 px-2 py-0.5 rounded font-mono">@fondo_comunitario</span>
-                    </div>
-                  )}
                 </div>
                 <WalletIcon size={48} className="text-amber-200" />
               </div>
@@ -827,7 +796,7 @@ export default function OrganizationDetail() {
       )}
 
       {/* Tab: Asamblea (solo para orgs que NO son la Asamblea General) */}
-      {tab === 'assembly' && !isAssemblyOrg && (
+      {tab === 'assembly' && !isAssemblyOwned && (
         <ScopedAssembly scope="organization" scopeId={id!} scopeName={org.display_name || org.username} isAssemblyOwned={org?.is_assembly_owned} />
       )}
 

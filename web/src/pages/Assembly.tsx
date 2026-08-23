@@ -341,9 +341,9 @@ export default function Assembly() {
   const canManageTax = hasPermission('tax.manage')
 
   const [searchParams, setSearchParams] = useSearchParams()
-  const initialTab = (searchParams.get('tab') as 'members' | 'board' | 'sessions' | 'proposals' | 'reports' | 'tax' | 'config') || 'proposals'
-  const [tab, setTab] = useState<'members' | 'board' | 'sessions' | 'proposals' | 'reports' | 'tax' | 'config'>(initialTab)
-  const changeTab = (t: 'members' | 'board' | 'sessions' | 'proposals' | 'reports' | 'tax' | 'config') => {
+  const initialTab = (searchParams.get('tab') as 'members' | 'board' | 'sessions' | 'proposals' | 'reports' | 'tax' | 'config' | 'wallet') || 'proposals'
+  const [tab, setTab] = useState<'members' | 'board' | 'sessions' | 'proposals' | 'reports' | 'tax' | 'config' | 'wallet'>(initialTab)
+  const changeTab = (t: 'members' | 'board' | 'sessions' | 'proposals' | 'reports' | 'tax' | 'config' | 'wallet') => {
     setTab(t)
     setSearchParams({ tab: t })
   }
@@ -360,6 +360,8 @@ export default function Assembly() {
   const [taxAccount, setTaxAccount] = useState<any>(null)
   const [assemblyConfigs, setAssemblyConfigs] = useState<any[]>([])
   const [editingConfig, setEditingConfig] = useState<any>(null)
+  const [fundData, setFundData] = useState<any>(null)
+  const [fundTxs, setFundTxs] = useState<any[]>([])
 
   // Formularios
   const [showNewProposal, setShowNewProposal] = useState(false)
@@ -425,6 +427,16 @@ export default function Assembly() {
 
   useEffect(() => {
     if (tab === 'sessions') loadSessions()
+    if (tab === 'wallet') {
+      api.get('/fund/balance').then((d: any) => {
+        setFundData(d)
+        if (d?.fund_account) {
+          api.get(`/ledger/transactions?account_id=${d.fund_account}&limit=100`).then((td: any) => {
+            setFundTxs(Array.isArray(td) ? td : [])
+          }).catch(() => setFundTxs([]))
+        }
+      }).catch(() => {})
+    }
   }, [sessionFilter, tab, meetingType])
 
   useEffect(() => { load(); loadFreqConfig() }, [])
@@ -834,6 +846,7 @@ export default function Assembly() {
       {/* Tabs */}
       <div className="flex gap-2 flex-wrap">
         <button onClick={() => changeTab('proposals')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'proposals' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Propuestas</button>
+        <button onClick={() => changeTab('wallet')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'wallet' ? 'bg-amber-600 text-white' : 'bg-gray-200'}`}>Billetera / Fondo</button>
         <button onClick={() => changeTab('reports')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'reports' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Informes de Votacion</button>
         <button onClick={() => changeTab('members')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'members' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Miembros con voto</button>
         <button onClick={() => changeTab('board')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'board' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Junta Directiva</button>
@@ -843,6 +856,66 @@ export default function Assembly() {
       </div>
 
       {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</div>}
+
+      {/* ===== BILLETERA / FONDO COMUNITARIO ===== */}
+      {tab === 'wallet' && (
+        <div className="space-y-4">
+          <div className="card">
+            <div className="text-white rounded-xl p-6 bg-gradient-to-r from-amber-600 to-yellow-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-amber-100 text-sm">Fondo Comunitario (Asamblea General)</p>
+                  <p className="text-4xl font-bold mt-1">
+                    {fundData?.balance != null ? `${fundData.balance >= 0 ? '+' : ''}${fundData.balance}` : '...'} {currency}
+                  </p>
+                  <p className="text-amber-200 text-xs mt-2">
+                    Cuenta: @{fundData?.username || 'asamblea'}
+                  </p>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <span className="text-xs bg-amber-500/30 text-amber-100 px-2 py-0.5 rounded font-mono">@asamblea</span>
+                    <span className="text-xs bg-amber-500/30 text-amber-100 px-2 py-0.5 rounded font-mono">@impuestos</span>
+                    <span className="text-xs bg-amber-500/30 text-amber-100 px-2 py-0.5 rounded font-mono">@fondo_comunitario</span>
+                  </div>
+                  <p className="text-amber-100 text-xs mt-2">Los 3 nombres son aliases de la misma cuenta. Puedes usar cualquiera para transferir.</p>
+                </div>
+                <DollarSign size={48} className="text-amber-200" />
+              </div>
+            </div>
+          </div>
+
+          {fundData?.fund_account && fundTxs.length > 0 && (
+            <div className="card">
+              <h2 className="font-semibold text-lg mb-3">Movimientos del Fondo</h2>
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {fundTxs.map((t, i) => {
+                  const isDebit = t.direction === 'debit'
+                  const fromName = t.sender_display || t.from_user || t.sender_name || '???'
+                  const toName = t.receiver_display || t.to_user || t.receiver_name || '???'
+                  return (
+                    <div key={i} className={`flex items-center justify-between p-2 rounded ${isDebit ? 'bg-red-50' : 'bg-green-50'}`}>
+                      <div className="text-sm">
+                        <p className="font-medium">{isDebit ? `${fromName} → ${toName}` : `${fromName} → ${toName}`}</p>
+                        <p className="text-xs text-gray-500">{t.description || t.metadata?.description || ''}</p>
+                        <p className="text-xs text-gray-400">{new Date(t.created_at).toLocaleString()}</p>
+                      </div>
+                      <div className={`font-bold ${isDebit ? 'text-red-600' : 'text-green-600'}`}>
+                        {isDebit ? '-' : '+'}{t.amount} {currency}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
+            <p><strong>Fondo Comunitario - Informacion</strong></p>
+            <p>El Fondo Comunitario ES la cuenta de la Asamblea General. No son cuentas separadas: es una sola cuenta que recibe los impuestos y sirve como tesoro comunitario.</p>
+            <p><strong>Como transferirle:</strong> Puedes transferir a esta cuenta usando cualquiera de estos 3 nombres: <b>@asamblea</b>, <b>@impuestos</b> o <b>@fondo_comunitario</b>.</p>
+            <p><strong>Como se distribuye:</strong> Para gastar dinero del fondo, crea una propuesta de "Distribucion de fondos" en la pestana Propuestas. Los miembros votan y, si se aprueba, se ejecuta la transferencia.</p>
+          </div>
+        </div>
+      )}
 
       {/* ===== PROPUESTAS ===== */}
       {tab === 'proposals' && (
