@@ -389,10 +389,13 @@ export default function NodeSettings() {
               value={config.node_domain}
               onChange={(e) => setConfig({ ...config, node_domain: e.target.value })}
               disabled={!canManage}
-              placeholder="Ej: mi-aldea.org, comunidad.ejemplo.com"
+              placeholder="mi-aldea.org"
             />
             <p className="text-xs text-gray-400 mt-1">
-              Dominio publico del nodo. Se usa para federacion, URLs publicas e identidad del nodo.
+              Escribir sin <code>https://</code>, sin <code>www.</code> y sin puerto.
+              Ej: <code>mi-aldea.org</code> &nbsp;|&nbsp; <code>comunidad.ejemplo.com</code> &nbsp;|&nbsp; <code>feria.loanstly.com</code>
+              <br />
+              Se usa para federacion, URLs publicas e identidad del nodo.
               Si cambias el dominio, todos los datos locales se conservan (no se pierde nada).
               Asegurate de que el nuevo dominio apunte a este servidor antes de guardar.
             </p>
@@ -1719,7 +1722,7 @@ export default function NodeSettings() {
             <div className="text-xs text-gray-600 space-y-1">
               <p><strong>Puerto:</strong> 9091 (API) / 9044 (Federacion)</p>
               <p><strong>Base de datos:</strong> fmc_demo (separada de fmc_node)</p>
-              <p><strong>URL:</strong> https://[dominio]/demo/demo</p>
+              <p><strong>URL:</strong> https://[dominio]/demo</p>
               <p><strong>Reset automatico:</strong> Cada 24 horas</p>
             </div>
           </div>

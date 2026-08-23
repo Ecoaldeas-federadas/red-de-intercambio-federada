@@ -73,14 +73,14 @@ export function PublicFederationPage() {
             // Servidor respondio (aunque sea opaco con no-cors)
             setDemoState('running')
             setDemoStarting(false)
-            window.open('/demo/demo', '_blank')
+            window.open('/demo', '_blank')
           })
           .catch(() => {
             if (attempts >= maxAttempts) {
               // Timeout: asumir que ya esta listo (puede tardar mas en arranques lentos)
               setDemoState('running')
               setDemoStarting(false)
-              window.open('/demo/demo', '_blank')
+              window.open('/demo', '_blank')
             } else {
               // Reintentar en 2s
               setTimeout(checkReady, 2000)
@@ -490,7 +490,7 @@ export function PublicFederationPage() {
             {/* Boton principal */}
             {demoState === 'running' ? (
               <a
-                href="/demo/demo"
+                href="/demo"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 bg-white text-emerald-700 font-semibold px-8 py-4 rounded-xl hover:bg-emerald-50 transition text-lg"

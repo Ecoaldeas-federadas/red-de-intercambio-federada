@@ -52,62 +52,82 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 	r.Use(middleware.Timeout(60 * time.Second))
 	r.Use(corsMiddleware(corsOrigins))
 
-	// Proxy reverso dinamico para servicios instalados y nodo demo.
-	// Cada servicio instalado se accede via /<service_id> (ej: /pos, /peertube).
-	// El nodo demo se accede via /demo.
-	// El proxy redirige al puerto interno del servicio.
-	// Solo intercepta paths cuyo primer segmento corresponde a un servicio instalado.
-	// Las rutas /api/*, /uploads/*, /images/* etc. pasan al handler normal.
-	r.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			path := r.URL.Path
-
-			// No interceptar rutas API, uploads, images, robots, sitemap, etc.
-			if strings.HasPrefix(path, "/api/") ||
-				strings.HasPrefix(path, "/uploads/") ||
-				strings.HasPrefix(path, "/images/") ||
-				strings.HasPrefix(path, "/federation/") ||
-				path == "/robots.txt" ||
-				path == "/sitemap.xml" ||
-				path == "/favicon.ico" {
+	// Cuando basePath esta seteado (ej: nodo demo con basePath="/demo"),
+	// el nodo demo NO debe tener proxy reverso (sino crea un bucle).
+	// Adicionalmente, strip basePath de las llamadas API para que funcionen
+	// cuando se accede via el proxy del nodo padre.
+	// Ej: /demo/api/users -> /api/users (para que las rutas API del demo funcionen)
+	if basePath != "" {
+		r.Use(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// Strip basePath de llamadas API para que funcionen via proxy
+				if strings.HasPrefix(r.URL.Path, basePath+"/api/") {
+					r.URL.Path = strings.TrimPrefix(r.URL.Path, basePath)
+				}
 				next.ServeHTTP(w, r)
-				return
-			}
-
-			// Extraer primer segmento
-			trimmed := strings.TrimPrefix(path, "/")
-			firstSeg := trimmed
-			rest := ""
-			if idx := strings.Index(trimmed, "/"); idx >= 0 {
-				firstSeg = trimmed[:idx]
-				rest = trimmed[idx:]
-			}
-			if firstSeg == "" {
-				next.ServeHTTP(w, r)
-				return
-			}
-
-			// Caso especial: /demo -> puerto 9091 (nodo demo)
-			// Solo si NO estamos en el nodo demo (que ya tiene basePath /demo)
-			if firstSeg == "demo" && basePath == "" {
-				serviceProxy(w, r, rest, 9091, "/demo")
-				return
-			}
-
-			// Buscar el servicio en installed_services
-			var port int
-			err := pool.QueryRow(r.Context(),
-				`SELECT port FROM installed_services WHERE service_id = $1 AND status IN ('running', 'stopped')`,
-				firstSeg).Scan(&port)
-			if err == nil {
-				serviceProxy(w, r, rest, port, "/"+firstSeg)
-				return
-			}
-
-			// No es un servicio: dejar que chi maneje el resto (frontend, etc.)
-			next.ServeHTTP(w, r)
+			})
 		})
-	})
+	}
+
+	// Proxy reverso dinamico: solo en el nodo principal (basePath == "").
+	// El nodo demo (basePath="/demo") no necesita proxy porque se accede
+	// a traves del proxy del nodo padre.
+	if basePath == "" {
+		r.Use(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				path := r.URL.Path
+
+				// No interceptar rutas API, uploads, images, robots, sitemap, etc.
+				if strings.HasPrefix(path, "/api/") ||
+					strings.HasPrefix(path, "/uploads/") ||
+					strings.HasPrefix(path, "/images/") ||
+					strings.HasPrefix(path, "/federation/") ||
+					path == "/robots.txt" ||
+					path == "/sitemap.xml" ||
+					path == "/favicon.ico" {
+					next.ServeHTTP(w, r)
+					return
+				}
+
+				// Extraer primer segmento
+				trimmed := strings.TrimPrefix(path, "/")
+				firstSeg := trimmed
+				rest := ""
+				if idx := strings.Index(trimmed, "/"); idx >= 0 {
+					firstSeg = trimmed[:idx]
+					rest = trimmed[idx:]
+				}
+				if firstSeg == "" {
+					next.ServeHTTP(w, r)
+					return
+				}
+
+				// Caso especial: /demo -> demo-app:9091 (nodo demo)
+				// NO strip del prefix: el demo tiene basePath="/demo" y necesita
+				// recibir el path completo (ej: /demo/ -> frontend del demo)
+				// Usa el nombre del contenedor Docker (misma red de docker-compose)
+				if firstSeg == "demo" {
+					serviceProxyNoStrip(w, r, "demo-app:9091")
+					return
+				}
+
+				// Buscar el servicio en installed_services
+				// Los servicios instalados (POS, PeerTube, etc.) exponen puertos
+				// en el host. Usar host.docker.internal para alcanzarlos.
+				var port int
+				err := pool.QueryRow(r.Context(),
+					`SELECT port FROM installed_services WHERE service_id = $1 AND status IN ('running', 'stopped')`,
+					firstSeg).Scan(&port)
+				if err == nil {
+					serviceProxy(w, r, rest, port, "/"+firstSeg)
+					return
+				}
+
+				// No es un servicio: dejar que chi maneje el resto (frontend, etc.)
+				next.ServeHTTP(w, r)
+			})
+		})
+	}
 
 	// Setup routes (no auth required)
 	sh.RegisterRoutes(r)
@@ -866,11 +886,11 @@ func corsMiddleware(allowedOrigins []string) func(http.Handler) http.Handler {
 	}
 }
 
-// serviceProxy es un proxy reverso generico que redirige /<serviceID>/* -> http://localhost:<port>/*
-// Esto permite acceder a cualquier servicio instalado via https://dominio/<serviceID>
-// en lugar de https://dominio:<port>. El servicio sigue corriendo en su puerto internamente.
+// serviceProxy es un proxy reverso para servicios instalados (POS, PeerTube, etc.).
+// Strip el prefijo del path: /<serviceID>/algo -> /algo
+// Usa host.docker.internal para alcanzar el puerto expuesto en el host.
 func serviceProxy(w http.ResponseWriter, r *http.Request, path string, port int, prefix string) {
-	target, err := url.Parse(fmt.Sprintf("http://localhost:%d", port))
+	target, err := url.Parse(fmt.Sprintf("http://host.docker.internal:%d", port))
 	if err != nil {
 		http.Error(w, "proxy error", http.StatusInternalServerError)
 		return
@@ -888,5 +908,22 @@ func serviceProxy(w http.ResponseWriter, r *http.Request, path string, port int,
 	// El servicio necesita saber que esta detras de un proxy
 	r.Header.Set("X-Forwarded-Prefix", prefix)
 
+	proxy.ServeHTTP(w, r)
+}
+
+// serviceProxyNoStrip es un proxy reverso que NO strip el prefijo del path.
+// Se usa para el nodo demo, que tiene su propio basePath="/demo".
+// Ej: /demo/api/users -> demo-app:9091/demo/api/users
+// El demo internamente strip /demo de /demo/api/users -> /api/users
+// Usa el nombre del contenedor Docker (misma red de docker-compose).
+func serviceProxyNoStrip(w http.ResponseWriter, r *http.Request, targetHost string) {
+	target, err := url.Parse("http://" + targetHost)
+	if err != nil {
+		http.Error(w, "proxy error", http.StatusInternalServerError)
+		return
+	}
+
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	// NO modificar r.URL.Path - se envia tal cual al demo
 	proxy.ServeHTTP(w, r)
 }

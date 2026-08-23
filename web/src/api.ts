@@ -1,4 +1,8 @@
-const API_BASE = '/api'
+// API_BASE: usa basePath si existe (ej: nodo demo con basePath="/demo")
+// Esto permite que el frontend del demo llame a /demo/api/... en lugar de /api/...
+// Cuando se accede via el proxy del nodo padre, /demo/api/... llega al demo
+// y el demo strip /demo -> /api/... internamente.
+const API_BASE = (typeof window !== 'undefined' && (window as any).__BASE_PATH__) ? (window as any).__BASE_PATH__ + '/api' : '/api'
 
 function getToken(): string | null {
   return localStorage.getItem('fmc_token')

@@ -1,37 +1,48 @@
-fix: Proxy reverso dinamico para todos los servicios + demo
+fix: Proxy reverso con Docker networking + demo sin bucle + help text
 
-PROBLEMA: Cada servicio instalado (POS, PeerTube, Mastodon, etc.) y el
-nodo demo usaban puertos directos (:3001, :9091, etc.). Esto no funciona
-cuando el dominio base ya usa un puerto (8080) y requiere que el usuario
-recuerde puertos.
+PROBLEMAS:
+1. localhost:9091 no funciona dentro de Docker (cada contenedor tiene
+   su propio localhost). El proxy no podia alcanzar el demo ni los
+   servicios instalados.
+2. El nodo demo es un clon del nodo principal, asi que tambien tenia
+   el middleware de proxy -> bucle infinito.
+3. La URL /demo/demo era confusa.
+4. El help text del dominio no tenia ejemplos claros.
 
-SOLUCION: Proxy reverso dinamico en el backend que redirige
-/<service_id> -> http://localhost:<port> para cada servicio instalado.
+SOLUCIONES:
 
-COMO FUNCIONA:
-- Middleware en chi intercepta todos los requests
-- Si el primer segmento del path es un servicio instalado (en installed_services),
-  redirige al puerto interno de ese servicio
-- /pos -> localhost:3001 (POS Web)
-- /demo -> localhost:9091 (nodo demo)
-- /peertube -> localhost:9006 (PeerTube)
-- /mastodon -> localhost:3000 (Mastodon)
-- etc.
-- Las rutas /api/*, /uploads/*, /images/* no se interceptan
-- Si el primer segmento no es un servicio, pasa al frontend normal
+1. Docker networking:
+   - Demo: usa nombre del contenedor "demo-app:9091" (misma red
+     de docker-compose, no necesita localhost)
+   - Servicios instalados (POS, etc.): usa "host.docker.internal:<port>"
+     para alcanzar puertos expuestos en el host
+   - Agregado extra_hosts: host.docker.internal:host-gateway
+     en docker-compose.yml para compatibilidad con Linux
 
-FRONTEND:
-- buildServiceURL ahora usa /<service_id> en lugar de :<port>
-- Cada tarjeta de servicio instalado muestra la URL de acceso
-- Boton "Abrir" visible cuando el servicio esta corriendo
-- URLs del demo cambiadas de localhost:9091 a /demo
+2. Demo sin bucle:
+   - El proxy middleware solo se activa cuando basePath == "" (nodo
+     principal). El nodo demo (basePath="/demo") no tiene proxy.
+   - Cuando basePath esta seteado, se agrega un middleware que strip
+     basePath de las llamadas API: /demo/api/users -> /api/users
+     Esto permite que el demo reciba llamadas API via el proxy del
+     padre sin cambiar como se registran las rutas API.
 
-VENTAJAS:
-- El usuario no necesita recordar puertos
-- Todo funciona bajo el mismo dominio
-- No hay conflicto de puertos
-- El dominio base (8080) redirige al nodo
-- /pos, /demo, /peertube, etc. redirigen a cada servicio
+3. Demo: proxy NO strip del prefix:
+   - /demo -> demo-app:9091/demo (path completo, no strip)
+   - El demo tiene basePath="/demo" y maneja /demo/ -> frontend
+   - /demo/api/... -> demo-app:9091/demo/api/... -> strip /demo -> /api/...
+   - URL final: https://dominio/demo (no /demo/demo)
+
+4. api.ts: API_BASE usa __BASE_PATH__:
+   - Nodo principal: API_BASE = "/api"
+   - Nodo demo: API_BASE = "/demo/api"
+   - Asi el frontend del demo llama a /demo/api/... que el proxy
+     del padre redirige al demo, y el demo strip /demo -> /api/...
+
+5. Help text del dominio:
+   - Placeholder mas claro: "mi-aldea.org"
+   - Ejemplos debajo del campo con formato code
+   - Indica sin https://, sin www., sin puerto
 
 Generated with [Devin](https://devin.ai)
 
