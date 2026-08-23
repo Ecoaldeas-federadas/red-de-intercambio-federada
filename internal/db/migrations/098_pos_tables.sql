@@ -10,26 +10,21 @@ ALTER TABLE nfc_terminals ADD COLUMN IF NOT EXISTS block_code_hash TEXT;
 -- - El admin (Asamblea) asigna el terminal a una ORGANIZACION
 -- - La organizacion lo asigna a un departamento o a un miembro
 -- - merchant_user_id es el usuario autorizado actual (puede cambiar por turnos)
--- - organization_id es la organizacion duena del terminal
+-- - organization_id es la organizacion duena del terminal (es un users.id con account_type='organization')
 -- - department_id es el departamento al que esta asignado (opcional)
+-- NOTA: Las organizaciones son usuarios con account_type='organization', no una tabla separada.
 ALTER TABLE nfc_terminals ADD COLUMN IF NOT EXISTS merchant_user_id UUID REFERENCES users(id);
-ALTER TABLE nfc_terminals ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL;
+ALTER TABLE nfc_terminals ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES users(id) ON DELETE SET NULL;
 ALTER TABLE nfc_terminals ADD COLUMN IF NOT EXISTS department_id UUID;
 
 -- Tabla de turnos de POS (apertura/cierre)
--- Cada vez que un usuario autorizado abre el terminal, se crea un turno.
--- Cuando cierra, se registra el cierre con el total vendido.
--- Esto permite a la organizacion ver:
--- - Quien uso el terminal y cuando
--- - Cuanto vendio cada usuario en su turno
--- - Cambios de turno
 CREATE TABLE IF NOT EXISTS pos_shifts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     terminal_id UUID NOT NULL REFERENCES nfc_terminals(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id),
-    organization_id UUID REFERENCES organizations(id),
+    organization_id UUID REFERENCES users(id),
     department_id UUID,
-    status TEXT NOT NULL DEFAULT 'open', -- open, closed
+    status TEXT NOT NULL DEFAULT 'open',
     opened_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     closed_at TIMESTAMPTZ,
     opening_amount BIGINT NOT NULL DEFAULT 0,
