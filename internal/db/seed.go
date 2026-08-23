@@ -2007,9 +2007,16 @@ func (d *DB) SeedProductsToNode(ctx context.Context, nodeDomain string) error {
 		{"Pescados y Mariscos", "Alimentacion", "Carnes y Pescados", "Pescados", "kg",
 			"Pescado fresco de rio, salado, carite, cazon, camarones. Energia: ~35 MJ/kg = 10 kWh/kg (captura + cadena de frio).", "Del Rio/Mar",
 			"/images/products/alimentacion/pescados-mariscos.jpg", 10, 0, 0, 10, 0},
-		{"Huevos Frescos", "Alimentacion", "Carnes y Pescados", "Huevos", "docena",
-			"Huevos de gallina criolla, pato, codorniz. Energia: 34.4 MJ/kg = 9.6 kWh/kg (mantenimiento ponedoras + alimento). Fuente: Agribalyse.", "De Patio",
-			"/images/products/alimentacion/huevos-frescos.jpg", 10, 0, 0, 10, 0},
+		// Huevos: 3 categorias segun sistema de produccion (corregido por migraciones 090-092)
+		{"Huevos Comerciales (Jaula)", "Alimentacion", "Cosecha Fresca", "Huevos", "docena",
+			"Huevos de gallinas criadas en jaula (produccion comercial masiva). Sistema mas barato. Energia total: ~22 MJ/kg = 6.15 kWh/kg. Precio base: 6.15 TQ/kg. Una docena pesa ~0.65 kg. Precio por docena: 6.15 x 0.65 = 4.00 TQ.", "Comercial",
+			"", 4, 0, 0, 6, 0},
+		{"Huevos Criollos (Semilibres)", "Alimentacion", "Cosecha Fresca", "Huevos", "docena",
+			"Huevos de gallinas criollas semilibres. Gallinas que caminan en corral o patio, comen del suelo + maiz/legumbres. Energia total: ~33 MJ/kg = 9.23 kWh/kg. Precio base: 9.23 TQ/kg. Una docena pesa ~0.65 kg. Precio por docena: 9.23 x 0.65 = 6.00 TQ.", "Criollo",
+			"", 6, 0, 0, 9, 0},
+		{"Huevos de Gallinas Felices (Pastoreo)", "Alimentacion", "Cosecha Fresca", "Huevos", "docena",
+			"Huevos de gallinas felices en pastoreo rotativo libre. Gallinas con acceso total al exterior, pastoreo organico, sin jaula ni confinamiento. Energia total: ~44 MJ/kg = 12.31 kWh/kg. Precio base: 12.31 TQ/kg. Una docena pesa ~0.65 kg. Precio por docena: 12.31 x 0.65 = 8.00 TQ.", "Gallina Feliz",
+			"", 8, 0, 0, 12, 0},
 
 		// ============ ALIMENTOS: Bebidas y Condimentos ============
 		{"Bebidas Fermentadas", "Alimentacion", "Bebidas", "Fermentadas", "litro",
@@ -2673,6 +2680,51 @@ func (d *DB) SeedProductsToNode(ctx context.Context, nodeDomain string) error {
 			log.Printf("Warning: failed to seed product %s: %v", p.name, err)
 		}
 	}
+
+	// === Correcciones post-seed: campos adicionales que el struct no tiene ===
+	// Estos campos (price_per_kg, base_unit, weight_kg) fueron agregados por
+	// migraciones 088-095 y deben estar en el seed permanente para sobrevivir
+	// reseteos de BD.
+
+	// Huevos: 3 categorias con precio por kg y peso
+	eggCorrections := []struct {
+		name       string
+		pricePerKg float64
+		weightKg   float64
+	}{
+		{"Huevos Comerciales (Jaula)", 6.15, 0.65},
+		{"Huevos Criollos (Semilibres)", 9.23, 0.65},
+		{"Huevos de Gallinas Felices (Pastoreo)", 12.31, 0.65},
+	}
+	for _, e := range eggCorrections {
+		_, _ = d.Pool.Exec(ctx, `
+			UPDATE products SET price_per_kg = $3, base_unit = 'kg', weight_kg = $4
+			WHERE node_domain = $1 AND name = $2`,
+			nodeDomain, e.name, e.pricePerKg, e.weightKg)
+	}
+
+	// Eliminar "Huevos Frescos" viejo si quedo de seeds anteriores
+	_, _ = d.Pool.Exec(ctx, `DELETE FROM products WHERE node_domain = $1 AND name = 'Huevos Frescos'`, nodeDomain)
+
+	// Abonos: 0.09 TQ/kg x 25 kg = 2.25 TQ
+	_, _ = d.Pool.Exec(ctx, `
+		UPDATE products SET price_per_kg = 0.09, base_unit = 'kg', weight_kg = 25, price_per_unit = 2.25
+		WHERE node_domain = $1 AND name = 'Abonos Organicos'`, nodeDomain)
+
+	// Dulces: 5 TQ/kg x 0.5 kg = 2.50 TQ
+	_, _ = d.Pool.Exec(ctx, `
+		UPDATE products SET price_per_kg = 5, base_unit = 'kg', weight_kg = 0.5, price_per_unit = 2.50
+		WHERE node_domain = $1 AND name IN ('Dulces y Conservas Tradicionales', 'La Tradicional Cafunga de Barlovento', 'Encurtidos y Salsas')`, nodeDomain)
+
+	// Sustratos: 0.05 TQ/kg x 20 kg = 1.00 TQ
+	_, _ = d.Pool.Exec(ctx, `
+		UPDATE products SET price_per_kg = 0.05, base_unit = 'kg', weight_kg = 20, price_per_unit = 1.00
+		WHERE node_domain = $1 AND name = 'Tierra Fertil y Sustratos'`, nodeDomain)
+
+	// Coco: 1.4 TQ/kg x 1.5 kg = 2.10 TQ
+	_, _ = d.Pool.Exec(ctx, `
+		UPDATE products SET price_per_kg = 1.4, base_unit = 'kg', weight_kg = 1.5, price_per_unit = 2.10
+		WHERE node_domain = $1 AND name = 'Coco Fresco'`, nodeDomain)
 
 	log.Printf("Seeded %d products to node_domain=%s", len(products), nodeDomain)
 	return nil
