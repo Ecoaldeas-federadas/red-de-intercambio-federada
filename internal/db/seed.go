@@ -3081,3 +3081,128 @@ func (d *DB) SeedProductsToNode(ctx context.Context, nodeDomain string) error {
 	log.Printf("Seeded %d products to node_domain=%s", len(products), nodeDomain)
 	return nil
 }
+
+// SeedAssemblyConfig inserta la configuracion de asamblea para el dominio del nodo.
+// Las migraciones 014, 052, 055, 082 insertan configuracion solo para 'localhost'.
+// Esta funcion asegura que cualquier nodo tenga su configuracion al instalarse.
+func (d *DB) SeedAssemblyConfig(ctx context.Context, nodeDomain string) error {
+	if nodeDomain == "" {
+		nodeDomain = "localhost"
+	}
+
+	// === 1. Configuracion de quorum (assembly_quorum_config) ===
+	// Migracion 052 + 082: quorum por tipo de sesion y tipo de reunion
+	quorumConfigs := []struct {
+		sessionType  string
+		meetingType  string
+		quorumFirst  float64
+		quorumSecond float64
+		gracePeriod  int
+		allowResched bool
+		maxRecall    int
+	}{
+		// Asamblea general (meeting_type = '' o 'assembly')
+		{"ordinaria", "", 50.00, 30.00, 1, true, 1},
+		{"extraordinaria", "", 66.67, 50.00, 1, true, 1},
+		{"urgente", "", 75.00, 50.00, 0, true, 2},
+		// Junta directiva (meeting_type = 'board') - migracion 082
+		{"ordinaria", "board", 50.0, 30.0, 0, true, 1},
+		{"extraordinaria", "board", 50.0, 30.0, 0, true, 1},
+		{"urgente", "board", 40.0, 25.0, 0, false, 0},
+	}
+	for _, qc := range quorumConfigs {
+		_, _ = d.Pool.Exec(ctx, `
+			INSERT INTO assembly_quorum_config (node_domain, session_type, meeting_type, quorum_first_call, quorum_second_call, grace_period_hours, allow_reschedule, max_recall_count, is_active)
+			SELECT $1, $2, $3, $4, $5, $6, $7, $8, true
+			WHERE NOT EXISTS (
+				SELECT 1 FROM assembly_quorum_config
+				WHERE node_domain = $1 AND session_type = $2
+				AND COALESCE(meeting_type, '') = COALESCE($3, '')
+			)`,
+			nodeDomain, qc.sessionType, qc.meetingType, qc.quorumFirst, qc.quorumSecond,
+			qc.gracePeriod, qc.allowResched, qc.maxRecall)
+	}
+
+	// === 2. Configuracion de frecuencia (assembly_frequency_config) ===
+	// Migracion 055: frecuencia de convocatoria automatica
+	_, _ = d.Pool.Exec(ctx, `
+		INSERT INTO assembly_frequency_config (node_domain, scope, scope_id, ordinary_frequency_months, preferred_day_of_month, preferred_hour, assemblies_enabled, notification_days_before, is_active)
+		SELECT $1, 'node', NULL, 3, 15, 15, true, 7, true
+		WHERE NOT EXISTS (
+			SELECT 1 FROM assembly_frequency_config
+			WHERE node_domain = $1 AND scope = 'node' AND scope_id IS NULL
+		)`, nodeDomain)
+
+	// === 3. Configuracion de aprobaciones (assembly_config) ===
+	// Migracion 014 + 082: metodo de aprobacion por tipo de propuesta
+	// 082 reclasifica algunas decisiones operativas a junta directiva
+	assemblyConfigs := []struct {
+		proposalType   string
+		approvalMethod string
+		percentage     float64
+		description    string
+	}{
+		// Decisiones operativas -> junta directiva (migracion 082)
+		{"create_account", "board", 50.00, "Creacion de cuentas - junta directiva (mayoria simple)"},
+		{"limit_change", "board", 50.00, "Cambios de limites de credito/debito - junta directiva (mayoria simple)"},
+		{"product_modification", "board", 50.00, "Modificacion de productos - junta directiva (mayoria simple)"},
+		{"fund_distribution", "board", 50.00, "Distribucion del fondo - junta directiva (mayoria simple)"},
+		{"budget_increase", "board", 50.00, "Aumento de presupuesto - junta directiva (mayoria simple)"},
+		// Decisiones grandes/constitutivas -> asamblea
+		{"admission", "assembly", 50.00, "Admision de nuevos miembros - mayoria simple"},
+		{"expulsion", "assembly", 75.00, "Expulsion de miembro - 75% de la asamblea"},
+		{"member_level", "assembly", 50.00, "Crear/modificar niveles de miembro - mayoria simple"},
+		{"org_level", "assembly", 50.00, "Crear/modificar niveles de organizacion - mayoria simple"},
+		{"tax_change", "assembly", 66.67, "Cambios de impuestos - 2/3 de la asamblea"},
+		{"energy_rate_change", "assembly", 66.67, "Cambio de tarifas energeticas - 2/3 de la asamblea"},
+		{"federation_config", "assembly", 66.67, "Configuracion de federacion - 2/3 de la asamblea"},
+		{"recovery_config", "multisig", 100.00, "Configuracion de recuperacion - multi-firma"},
+		{"policy", "assembly", 50.00, "Politicas generales - mayoria simple"},
+		{"free_proposal", "assembly", 50.00, "Propuesta libre - mayoria simple"},
+	}
+	for _, ac := range assemblyConfigs {
+		_, _ = d.Pool.Exec(ctx, `
+			INSERT INTO assembly_config (node_domain, proposal_type, approval_method, required_percentage, required_quorum, required_signatures, description, is_active)
+			SELECT $1, $2, $3, $4, 0, 1, $5, true
+			WHERE NOT EXISTS (
+				SELECT 1 FROM assembly_config WHERE node_domain = $1 AND proposal_type = $2
+			)`,
+			nodeDomain, ac.proposalType, ac.approvalMethod, ac.percentage, ac.description)
+	}
+
+	// === 4. Tipos de propuestas (assembly_proposal_types) ===
+	// Migracion 055: tipos de propuestas por scope
+	// Estos son globales (no por node_domain) pero los insertamos por si acaso
+	proposalTypes := []struct {
+		scope, proposalType, label, description string
+		sortOrder                               int
+	}{
+		{"node", "limit_change", "Cambio de limites", "Cambiar limites de credito/debito", 1},
+		{"node", "tax_change", "Cambio de impuesto", "Cambiar tasa de impuesto", 2},
+		{"node", "member_level", "Nivel de miembro", "Crear/modificar niveles de miembro", 3},
+		{"node", "admission", "Admision", "Admitir nuevo miembro", 4},
+		{"node", "expulsion", "Expulsion", "Expulsar miembro", 5},
+		{"node", "budget_increase", "Aumento de presupuesto", "Aumentar presupuesto", 6},
+		{"node", "fund_distribution", "Distribucion de fondos", "Distribuir fondos", 7},
+		{"node", "energy_rate_change", "Cambio tarifa energetica", "Cambiar tarifa energetica", 8},
+		{"node", "federation_config", "Config federacion", "Configuracion de federacion", 9},
+		{"node", "recovery_config", "Config recuperacion", "Configuracion de recuperacion", 10},
+		{"node", "policy", "Politica general", "Politica general del nodo", 11},
+		{"node", "create_account", "Creacion de cuenta", "Crear cuenta contable", 12},
+		{"node", "product_modification", "Modificacion de producto", "Modificar producto del catalogo", 13},
+		{"node", "governance_rule", "Regla de gobernanza", "Crear/modificar regla de gobernanza", 14},
+		{"node", "free_proposal", "Propuesta libre", "Propuesta sobre cualquier tema", 15},
+	}
+	for _, pt := range proposalTypes {
+		_, _ = d.Pool.Exec(ctx, `
+			INSERT INTO assembly_proposal_types (scope, proposal_type, label, description, sort_order, is_active)
+			SELECT $1, $2, $3, $4, $5, true
+			WHERE NOT EXISTS (
+				SELECT 1 FROM assembly_proposal_types WHERE scope = $1 AND proposal_type = $2
+			)`,
+			pt.scope, pt.proposalType, pt.label, pt.description, pt.sortOrder)
+	}
+
+	log.Printf("Seeded assembly config for node_domain=%s", nodeDomain)
+	return nil
+}

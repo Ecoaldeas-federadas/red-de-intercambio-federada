@@ -148,6 +148,13 @@ func main() {
 		WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'asamblea' AND node_domain = $1)`,
 		seedDomain)
 
+	// Seed: configuracion de asamblea (quorum, frecuencia, aprobaciones)
+	// Las migraciones insertan esto solo para 'localhost'; esta funcion
+	// asegura que cualquier nodo tenga su configuracion al instalarse.
+	if err := database.SeedAssemblyConfig(ctx, seedDomain); err != nil {
+		log.Printf("Warning: failed to seed assembly config: %v", err)
+	}
+
 	ledgerSvc := ledger.New(database.Pool)
 	accountsSvc := accounts.New(database.Pool)
 	pricingSvc := pricing.New(database.Pool)
