@@ -120,8 +120,12 @@ func main() {
 
 	// Seed: insertar paginas por defecto del sitio publico si no existen
 	// En modo demo, las paginas las crea DemoSeedData (no usar las de Feria Conuquera)
+	seedDomain := cfg.Node.Domain
+	if seedDomain == "" {
+		seedDomain = "localhost"
+	}
 	if !isDemoMode {
-		if err := database.SeedPublicPages(ctx, "localhost"); err != nil {
+		if err := database.SeedPublicPages(ctx, seedDomain); err != nil {
 			log.Printf("Warning: failed to seed public pages: %v", err)
 		}
 	}
@@ -131,24 +135,17 @@ func main() {
 
 	// Seed: copiar productos seed de 'default' al dominio del nodo si no existen
 	// En modo demo, los productos los crea DemoSeedData + el catalogo compartido
-	seedDomain := cfg.Node.Domain
-	if seedDomain == "" {
-		seedDomain = "localhost"
-	}
 	if err := database.SeedProductsToNode(ctx, seedDomain); err != nil {
 		log.Printf("Warning: failed to seed products to node: %v", err)
 	}
 
-	// Asegurar que existe la cuenta de Fondo Comunitario para el dominio del nodo
+	// Asegurar que existe la cuenta de la Asamblea General para el dominio del nodo
+	// La Asamblea = Fondo Comunitario = cuenta de Impuestos (es la misma cuenta)
+	// Se le puede transferir usando: asamblea, impuestos, fondo_comunitario
 	_, _ = database.Pool.Exec(ctx, `
-		INSERT INTO users (id, node_domain, username, display_name, account_type, membership_status, balance, credit_limit, debit_limit)
-		SELECT gen_random_uuid(), $1, 'fondo_comunitario', 'Fondo Comunitario', 'fund', 'active', 0, 0, 999999999
-		WHERE NOT EXISTS (SELECT 1 FROM users WHERE account_type = 'fund' AND node_domain = $1)`,
-		seedDomain)
-	_, _ = database.Pool.Exec(ctx, `
-		INSERT INTO users (id, node_domain, username, display_name, account_type, membership_status, balance, credit_limit, debit_limit)
-		SELECT gen_random_uuid(), $1, 'impuestos', 'Cuenta de Impuestos', 'fund', 'active', 0, 0, 999999999
-		WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'impuestos' AND node_domain = $1)`,
+		INSERT INTO users (id, node_domain, username, display_name, account_type, membership_status, balance, credit_limit, debit_limit, is_assembly_owned, is_approved)
+		SELECT gen_random_uuid(), $1, 'asamblea', 'Asamblea General', 'organization', 'active', 0, 999999999, 999999999, true, true
+		WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'asamblea' AND node_domain = $1)`,
 		seedDomain)
 
 	ledgerSvc := ledger.New(database.Pool)
