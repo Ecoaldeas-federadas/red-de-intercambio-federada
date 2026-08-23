@@ -243,6 +243,14 @@ var catalog = []ServiceCatalogItem{
 		UsedFor:  "Que cada miembro tenga un lugar seguro para sus contrasenas. No mas contrasenas escritas en papel o repetidas. Sincroniza entre dispositivos. Sin que empresas de terceros tengan tus contrasenas.",
 		Protocol: "Web", Docker: true, MinRAM: 128, MinDisk: 1, DefaultPort: 80, Subdomain: "claves",
 	},
+	// === Punto de Venta (POS) ===
+	{
+		ID: "pos-web", Name: "Punto de Venta Web", Category: "productividad", Icon: "ShoppingBag",
+		WhatIs:   "Terminal de punto de venta (POS) que funciona como aplicacion web instalable. Se registra como un terminal NFC mas del nodo, con claves criptograficas Ed25519 y huella de dispositivo. Soporta pagos por QR y NFC. Se instala como PWA en cualquier dispositivo (celular, tablet, PC).",
+		Replaces: "Terminales POS comerciales (Square, Mercado Pago Point, etc.)",
+		UsedFor:  "Cobrar ventas con la moneda interna de la comunidad (TQ). El comerciante ingresa el monto, el cliente paga escaneando un QR o acercando su tarjeta NFC. Las organizaciones pueden asignar terminales a miembros, ver turnos, ventas por usuario y transacciones. Funciona offline despues de instalar.",
+		Protocol: "Web/PWA", Docker: true, MinRAM: 128, MinDisk: 1, DefaultPort: 3001, Subdomain: "pos",
+	},
 }
 
 // RegisterRoutesWithAuth registra las rutas de servicios federados.
@@ -446,8 +454,8 @@ func (sh *FederatedServicesHandler) installService(w http.ResponseWriter, r *htt
 		return
 	}
 
-	// Ejecutar docker compose up -d
-	cmd := exec.Command("docker", "compose", "-f", composePath, "up", "-d")
+	// Ejecutar docker compose up -d (con --build para servicios que se construyen)
+	cmd := exec.Command("docker", "compose", "-f", composePath, "up", "-d", "--build")
 	output, err := cmd.CombinedOutput()
 
 	status := "running"
@@ -552,6 +560,120 @@ func (sh *FederatedServicesHandler) downloadService(w http.ResponseWriter, r *ht
 	svc := findService(serviceID)
 	if svc == nil {
 		writeError(w, 404, "servicio no encontrado")
+		return
+	}
+
+	// Caso especial: POS Web se construye desde el repositorio, no usa imagen pre-construida
+	if serviceID == "pos-web" {
+		composeContent := fmt.Sprintf(`# docker-compose.yml para Punto de Venta Web (POS)
+# Generado por el nodo: %s
+#
+# El POS es una aplicacion 100% frontend (PWA instalable).
+# Se comunica con el nodo via API - no necesita backend propio.
+#
+# Para instalar en este servidor:
+#   docker compose -f services/pos-web/docker-compose.yml up -d --build
+#
+# Para instalar en OTRO servidor:
+#   1. Copia toda la carpeta del nodo a ese servidor
+#   2. Ejecuta: docker compose -f services/pos-web/docker-compose.yml up -d --build
+#   3. Abre http://SERVIDOR:3001 en el navegador
+#   4. Al abrir el POS, ingresa la URL del nodo (ej: https://mi-nodo.com)
+#
+# URL del nodo para configurar en el POS: %s
+
+version: '3.8'
+
+services:
+  pos-web:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile.pos
+    container_name: aldea-pos-web
+    restart: unless-stopped
+    ports:
+      - "%d:80"
+`,
+			sh.NodeDomain,
+			sh.NodeDomain,
+			svc.DefaultPort,
+		)
+
+		readmeContent := fmt.Sprintf(`# Punto de Venta Web (POS)
+
+## Que es
+%s
+
+## Que reemplaza
+%s
+
+## Para que sirve
+%s
+
+## Como funciona
+
+1. El POS es una aplicacion web 100% frontend (PWA instalable)
+2. No tiene backend propio - se comunica con el nodo via API
+3. Al abrirlo por primera vez, ingresas la URL del nodo
+4. El POS genera sus claves criptograficas (Ed25519) y huella de dispositivo
+5. Un administrador registra el terminal en la plataforma
+6. El administrador asigna el terminal a una organizacion
+7. La organizacion asigna el terminal a un miembro o departamento
+8. El miembro abre el POS, inicia sesion y empieza a cobrar
+
+## Formas de pago
+
+- **QR**: El POS muestra un QR, el cliente lo escanea, ve el monto,
+  inicia sesion y confirma el pago
+- **NFC**: El cliente acerca su tarjeta, ingresa su PIN y se debita
+
+## Instalacion
+
+### Opcion 1: Instalar con un clic desde el nodo
+Ve a: Servicios Federados > Punto de Venta Web > Instalar
+
+### Opcion 2: Instalar manualmente
+1. Copia la carpeta del nodo al servidor destino
+2. Ejecuta: docker compose -f services/pos-web/docker-compose.yml up -d --build
+3. Abre http://SERVIDOR:%d en el navegador
+4. Instala como PWA (Menu del navegador > Instalar app)
+
+### Opcion 3: Abrir directamente sin Docker
+1. Construye el frontend: cd pos && npm install && npm run build
+2. Sirve la carpeta pos/dist/ con cualquier servidor web (nginx, python -m http.server, etc)
+3. Abre la URL en el navegador
+
+## Requisitos
+- RAM minima: %d MB (solo sirve static files)
+- Disco minimo: %d GB
+- Docker y Docker Compose (para opcion Docker)
+- El nodo debe estar accesible desde el dispositivo del POS
+
+## URL del nodo
+Configura el POS con la URL de tu nodo: %s
+
+## Puerto
+Puerto por defecto: %d (configurable con POS_PORT)
+
+## Notas
+- El POS funciona offline despues de instalar como PWA
+- Las transacciones se guardan en el servidor del nodo
+- Las organizaciones pueden ver turnos, ventas por usuario y transacciones
+- El POS se registra como un terminal NFC mas del nodo
+`,
+			svc.WhatIs, svc.Replaces, svc.UsedFor,
+			svc.DefaultPort,
+			svc.MinRAM, svc.MinDisk,
+			sh.NodeDomain,
+			svc.DefaultPort,
+		)
+
+		writeJSON(w, 200, map[string]interface{}{
+			"docker_compose": composeContent,
+			"readme":         readmeContent,
+			"service_id":     serviceID,
+			"service_name":   svc.Name,
+		})
 		return
 	}
 

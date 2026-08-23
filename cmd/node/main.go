@@ -240,8 +240,8 @@ func main() {
 		log.Printf("Node %s starting on port %d", cfg.Node.Name, cfg.API.Port)
 		log.Printf("========================================")
 		log.Printf("  Nodo:        http://localhost:%d", cfg.API.Port)
-		log.Printf("  POS Web:     http://localhost:3001")
-		log.Printf("  POS Puerto:  3001 (configurable con POS_PORT)")
+		log.Printf("  POS Web:     Instalar desde Servicios Federados en la plataforma")
+		log.Printf("               (o descargar desde Servicios Federados > Punto de Venta Web)")
 		log.Printf("========================================")
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server error: %v", err)

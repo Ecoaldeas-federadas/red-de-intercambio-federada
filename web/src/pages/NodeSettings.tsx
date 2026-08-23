@@ -388,27 +388,38 @@ export default function NodeSettings() {
               <Server size={16} /> Punto de Venta Web (POS)
             </h3>
             <p className="text-sm text-blue-600 mb-3">
-              El POS web es una aplicacion separada que se sirve en otro puerto.
-              Los usuarios pueden abrirlo desde cualquier dispositivo e instalarlo como PWA.
+              El POS es una aplicacion instalable (como PeerTube, Nextcloud, etc.).
+              No viene pre-instalado - se instala con un clic desde Servicios Federados.
             </p>
-            <div className="bg-white rounded-lg p-3 border border-blue-100">
-              <div className="text-xs text-gray-500 mb-1">URL del POS (en este servidor):</div>
-              <div className="flex items-center gap-2">
-                <code className="text-sm font-mono text-blue-700 flex-1">
-                  {window.location.protocol}//{window.location.hostname}:3001
-                </code>
-                <a
-                  href={`${window.location.protocol}//${window.location.hostname}:3001`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700"
-                >
-                  Abrir POS
-                </a>
+            <div className="bg-white rounded-lg p-3 border border-blue-100 space-y-2">
+              <div>
+                <div className="text-xs text-gray-500 mb-1">Para instalar:</div>
+                <p className="text-sm text-gray-700">
+                  Ve a <strong>Servicios Federados</strong>, busca <strong>Punto de Venta Web</strong>, clic en <strong>Instalar</strong>
+                </p>
               </div>
-              <p className="text-xs text-gray-400 mt-2">
-                Puerto configurable con la variable de entorno POS_PORT en docker-compose.yml
-              </p>
+              <div>
+                <div className="text-xs text-gray-500 mb-1">Para descargar e instalar en otro servidor:</div>
+                <p className="text-sm text-gray-700">
+                  Ve a <strong>Servicios Federados</strong>, <strong>Punto de Venta Web</strong>, clic en <strong>Descargar</strong>
+                </p>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500 mb-1">Despues de instalar:</div>
+                <div className="flex items-center gap-2">
+                  <code className="text-sm font-mono text-blue-700 flex-1">
+                    {window.location.protocol}//{window.location.hostname}:3001
+                  </code>
+                  <a
+                    href={`${window.location.protocol}//${window.location.hostname}:3001`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700"
+                  >
+                    Abrir POS
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
 

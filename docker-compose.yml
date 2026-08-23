@@ -36,18 +36,10 @@ services:
     volumes:
       - firmware_builds:/build-output
 
-  # === POS Web (Punto de Venta separado) ===
-  # App 100% frontend (PWA instalable) que se sirve como static files.
-  # Se comunica con el nodo via API (no necesita backend propio).
-  # Puerto 3001 por defecto. Se puede cambiar con POS_PORT.
-  # El POS se conecta al nodo en la URL que el usuario configura al abrirlo.
-  pos-web:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.pos
-    ports:
-      - "${POS_PORT:-3001}:80"
-    restart: unless-stopped
+  # NOTA: El POS Web NO se incluye aqui porque es una aplicacion instalable.
+  # Se instala desde la plataforma: Servicios Federados > Punto de Venta Web > Instalar
+  # Esto crea el contenedor usando services/pos-web/docker-compose.yml
+  # Tambien se puede descargar e instalar manualmente en otro servidor.
 
   # YugabyteDB: comando original que funcionaba.
   # Los flags --tserver_flags causaban crash en esta version de yugabyted.
