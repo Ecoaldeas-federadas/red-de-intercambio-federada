@@ -60,9 +60,18 @@ func (h *UpdateHandler) checkUpdates(w http.ResponseWriter, r *http.Request) {
 	// Configurar el remote con token si esta disponible
 	h.configureGitAuth(projectDir)
 
-	// git fetch origin
-	fetchCmd := exec.Command("git", "-C", projectDir, "fetch", "origin")
-	fetchCmd.Run()
+	// git fetch origin main
+	fetchCmd := exec.Command("git", "-C", projectDir, "fetch", "origin", "main")
+	fetchOut, fetchErr := fetchCmd.CombinedOutput()
+	if fetchErr != nil {
+		writeJSON(w, 200, map[string]interface{}{
+			"updates_available": false,
+			"current_commit":    "",
+			"message":           "Error al conectar con el repositorio. Verifica el token en .env",
+			"fetch_error":       string(fetchOut),
+		})
+		return
+	}
 
 	// Obtener commit actual
 	currentCmd := exec.Command("git", "-C", projectDir, "rev-parse", "HEAD")
@@ -128,24 +137,59 @@ func (h *UpdateHandler) updateNode(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UpdateHandler) runUpdateNode() {
-	h.setUpdateStatus("running", "Haciendo git pull...", "")
+	h.setUpdateStatus("running", "Configurando autenticacion...", "")
 
 	projectDir := "/project"
 
 	// Configurar autenticacion con token
 	h.configureGitAuth(projectDir)
 
-	// 1. git pull
-	pullCmd := exec.Command("git", "-C", projectDir, "pull", "origin", "main")
-	pullOut, err := pullCmd.CombinedOutput()
-	h.appendLog(string(pullOut))
+	// 1. git fetch origin main
+	h.setUpdateStatus("running", "Descargando cambios del repositorio...", "")
+	fetchCmd := exec.Command("git", "-C", projectDir, "fetch", "origin", "main")
+	fetchOut, err := fetchCmd.CombinedOutput()
+	h.appendLog(string(fetchOut))
 	if err != nil {
-		h.setUpdateStatus("error", fmt.Sprintf("Error en git pull: %v", err), string(pullOut))
+		h.setUpdateStatus("error", fmt.Sprintf("Error en git fetch: %v", err), string(fetchOut))
 		return
 	}
-	h.setUpdateStatus("running", "Git pull OK. Reconstruyendo imagen Docker...", string(pullOut))
 
-	// 2. docker compose build node-app
+	// 2. Guardar cambios locales (stash) para no perder configuracion local
+	stashCmd := exec.Command("git", "-C", projectDir, "stash", "--include-untracked", "-m", "auto-stash before update")
+	stashOut, _ := stashCmd.CombinedOutput()
+	h.appendLog("Stash: " + string(stashOut))
+
+	// 3. Reset al origin/main (sobrescribe todo con la version del repo)
+	// Esto es necesario porque el repo montado puede tener cambios locales
+	// (config.yaml, .env, builds, etc.) que impiden un pull limpio.
+	// Los archivos locales importantes (.env, config.yaml) estan montados
+	// por separado en docker-compose.yml y no se pierden.
+	h.setUpdateStatus("running", "Aplicando cambios del repositorio...", "")
+	resetCmd := exec.Command("git", "-C", projectDir, "reset", "--hard", "origin/main")
+	resetOut, err := resetCmd.CombinedOutput()
+	h.appendLog(string(resetOut))
+	if err != nil {
+		// Si reset falla, intentar merge con estrategia theirs
+		mergeCmd := exec.Command("git", "-C", projectDir, "merge", "origin/main", "-X", "theirs", "--no-edit")
+		mergeOut, mergeErr := mergeCmd.CombinedOutput()
+		h.appendLog(string(mergeOut))
+		if mergeErr != nil {
+			h.setUpdateStatus("error", fmt.Sprintf("Error al aplicar cambios: %v", mergeErr), string(mergeOut))
+			return
+		}
+	}
+
+	// 4. Restaurar cambios locales del stash (config.yaml, .env, etc.)
+	popCmd := exec.Command("git", "-C", projectDir, "stash", "pop", "--quiet")
+	popOut, _ := popCmd.CombinedOutput()
+	h.appendLog("Stash pop: " + string(popOut))
+	// Si el stash pop falla por conflictos, no es critico: el update
+	// ya se aplico. Los archivos montados por separado (.env, config.yaml)
+	// no se ven afectados por el reset.
+
+	h.setUpdateStatus("running", "Cambios aplicados. Reconstruyendo imagen Docker...", "")
+
+	// 5. docker compose build node-app
 	buildCmd := exec.Command("docker", "compose", "-f", filepath.Join(projectDir, "docker-compose.yml"), "build", "node-app")
 	buildOut, err := buildCmd.CombinedOutput()
 	h.appendLog(string(buildOut))
@@ -155,10 +199,10 @@ func (h *UpdateHandler) runUpdateNode() {
 	}
 	h.setUpdateStatus("running", "Imagen construida. Reiniciando nodo...", string(buildOut))
 
-	// 3. Actualizar servicios instalados (pos-web, etc.)
+	// 6. Actualizar servicios instalados (pos-web, etc.)
 	h.updateInstalledServices()
 
-	// 4. docker compose up -d node-app (esto reinicia el nodo)
+	// 7. docker compose up -d node-app (esto reinicia el nodo)
 	upCmd := exec.Command("docker", "compose", "-f", filepath.Join(projectDir, "docker-compose.yml"), "up", "-d", "node-app")
 	upOut, err := upCmd.CombinedOutput()
 	h.appendLog(string(upOut))
@@ -336,25 +380,17 @@ func (h *UpdateHandler) configureGitAuth(projectDir string) {
 		return
 	}
 
-	// Obtener el remote actual
-	getURLCmd := exec.Command("git", "-C", projectDir, "remote", "get-url", "origin")
-	urlOut, err := getURLCmd.Output()
-	if err != nil {
-		return
-	}
-	currentURL := strings.TrimSpace(string(urlOut))
-
-	// Si ya tiene el token, no hacer nada
-	if strings.Contains(currentURL, "ghp_") {
-		return
-	}
-
 	// Construir la URL con token
+	// Siempre actualizar el remote con el token actual (puede haber cambiado)
 	newURL := fmt.Sprintf("https://%s@github.com/discapacidad5/red-de-intercambio-federada.git", token)
 
 	// Actualizar el remote
 	setURLCmd := exec.Command("git", "-C", projectDir, "remote", "set-url", "origin", newURL)
 	setURLCmd.Run()
+
+	// Tambien configurar el helper de credenciales para git
+	// Esto asegura que git use el token en todas las operaciones
+	exec.Command("git", "-C", projectDir, "config", "credential.helper", "store").Run()
 }
 
 // context import workaround
