@@ -2009,8 +2009,8 @@ func (d *DB) SeedProductsToNode(ctx context.Context, nodeDomain string) error {
 			"/images/products/alimentacion/pescados-mariscos.jpg", 10, 0, 0, 10, 0},
 		// Huevos: 3 categorias segun sistema de produccion (corregido por migraciones 090-092)
 		{"Huevos Comerciales (Jaula)", "Alimentacion", "Cosecha Fresca", "Huevos", "docena",
-			"Huevos de gallinas criadas en jaula (produccion comercial masiva). Sistema mas barato. Energia total: ~22 MJ/kg = 6.15 kWh/kg. Precio base: 6.15 TQ/kg. Una docena pesa ~0.65 kg. Precio por docena: 6.15 x 0.65 = 4.00 TQ.", "Comercial",
-			"", 4, 0, 0, 6, 0},
+			"Huevos de gallinas criadas en jaula (produccion comercial masiva). Sistema mas barato. Precio de referencia para comparar con precios reales del mercado y validar la canasta basica. Una docena pesa ~0.65 kg. Precio por docena: 3 TQ.", "Comercial",
+			"", 3, 0, 0, 6, 0},
 		{"Huevos Criollos (Semilibres)", "Alimentacion", "Cosecha Fresca", "Huevos", "docena",
 			"Huevos de gallinas criollas semilibres. Gallinas que caminan en corral o patio, comen del suelo + maiz/legumbres. Energia total: ~33 MJ/kg = 9.23 kWh/kg. Precio base: 9.23 TQ/kg. Una docena pesa ~0.65 kg. Precio por docena: 9.23 x 0.65 = 6.00 TQ.", "Criollo",
 			"", 6, 0, 0, 9, 0},
@@ -2945,7 +2945,7 @@ func (d *DB) SeedProductsToNode(ctx context.Context, nodeDomain string) error {
 	}
 	corrections := []correction{
 		// Huevos (migracion 090-092): 3 categorias
-		{"Huevos Comerciales (Jaula)", 6.15, "kg", 0.65, 4.00, 6.15},
+		{"Huevos Comerciales (Jaula)", 4.62, "kg", 0.65, 3.00, 4.62},
 		{"Huevos Criollos (Semilibres)", 9.23, "kg", 0.65, 6.00, 9.23},
 		{"Huevos de Gallinas Felices (Pastoreo)", 12.31, "kg", 0.65, 8.00, 12.31},
 		// Carnes (migracion 085): corregir energia

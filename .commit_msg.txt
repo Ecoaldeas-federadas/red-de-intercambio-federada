@@ -1,38 +1,18 @@
-fix: Resolver __LOCAL__ en todos los handlers - federacion correcta
+fix: Reducir precio Huevos Comerciales (Jaula) de 4 a 3 TQ
 
-PROBLEMA: Muchos handlers usaban h.NodeDomain (dominio real) para
-buscar datos locales, pero los datos ahora se guardan con __LOCAL__.
+El precio de los huevos comerciales en jaula se reduce de 4 TQ/docena
+a 3 TQ/docena para servir como referencia mas precisa al comparar con
+precios reales del mercado y validar la canasta basica.
 
-SOLUCION: Todos los handlers que buscan datos locales usan
-db.LOCAL_NODE_DOMAIN. El dominio real solo se usa para federacion
-y URLs publicas.
+Calculo: 3 TQ/docena / 0.65 kg = 4.62 TQ/kg
 
-FEDERACION - como funciona:
-- Los datos locales se guardan con __LOCAL__
-- Cuando se envian datos a otro nodo, se usa el dominio real
-  (fh.NodeDomain, cfg.Node.Domain) para identificarse
-- Cuando se reciben datos de otro nodo, se guardan con el dominio
-  del nodo remoto (source_node), no con __LOCAL__
-- __LOCAL__ se resuelve al dominio real antes de enviar
+Este producto sirve como vara de medicion para comparar precios reales
+de huevos en jaula contra el sistema TQ, aunque la comunidad no use
+este sistema de produccion.
 
-CAMBIOS:
-- recovery.go: 5 llamadas a Recovery.UpdateConfig/GetConfig/etc
-  ahora usan db.LOCAL_NODE_DOMAIN
-- node_discovery.go: 4 queries a node_discovery_config usan
-  db.LOCAL_NODE_DOMAIN
-- nfc_terminal.go: ListTerminals y ListTransactions usan
-  db.LOCAL_NODE_DOMAIN
-- external.go: query de productos usa db.LOCAL_NODE_DOMAIN
-- organization.go: Create/List/ListTypes usan db.LOCAL_NODE_DOMAIN
-- departments.go: ListDepartments/CreateDepartment usan
-  db.LOCAL_NODE_DOMAIN
-- pos.go: INSERT pos_charges usa db.LOCAL_NODE_DOMAIN
-- federation.go: productos federados importados se guardan con
-  db.LOCAL_NODE_DOMAIN
-- notifications.go: Notify/NotifyBoard/NotifyVotingMembers resuelven
-  el dominio internamente
-- handlers.go (NewHandler): recibe db.LOCAL_NODE_DOMAIN
-- node_discovery_config agregada a MigrateDomainData
+Cambios:
+- seed.go: precio 4 -> 3, price_per_kg 6.15 -> 4.62, descripcion
+- migracion 099: actualiza nodos existentes
 
 Generated with [Devin](https://devin.ai)
 
