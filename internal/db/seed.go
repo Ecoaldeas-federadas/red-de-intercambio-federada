@@ -2661,6 +2661,250 @@ func (d *DB) SeedProductsToNode(ctx context.Context, nodeDomain string) error {
 		{"Pajitas de Papel", "Embalaje", "Cubiertos", "Papel", "unidad",
 			"Pajitas de papel compostable. Se descomponen en 90 dias. Energia: ~1 MJ/unidad = 0.28 kWh (papel + enrollado).", "Compostable",
 			"/images/products/embalaje/pajitas-papel.jpg", 1, 1, 0, 0, 0},
+
+		// ============ FERIA CONUQUERA: Productos con energia conocida (migracion 093) ============
+		{"Topocho Fresco", "Alimentacion", "Cosecha Fresca", "Frutas", "kg",
+			"Topocho fresco de conuco. Similar al platano burro. Energia: ~2.0 MJ/kg = 0.6 kWh/kg. Fuente: FAO. Documentado en Feria Conuquera.", "De Conuco",
+			"", 1, 0, 0, 1, 0},
+		{"Mapuey Fresco", "Alimentacion", "Cosecha Fresca", "Tuberculos", "kg",
+			"Mapuey (Dioscorea trifida) fresco de conuco. Tuberculo nativo americano. Energia: ~3.0 MJ/kg = 0.8 kWh/kg. Fuente: estudios LCA tuberculos andinos. Documentado en Feria Conuquera (Unidad Docovaca).", "De Conuco",
+			"", 1, 0, 0, 1, 0},
+		{"Name Morado Fresco", "Alimentacion", "Cosecha Fresca", "Tuberculos", "kg",
+			"Name morado fresco de conuco. Variedad de Dioscorea con mayor contenido de minerales. Energia: ~3.0 MJ/kg = 0.8 kWh/kg. Fuente: estudios LCA tuberculos. Documentado en Feria Conuquera (Unidad Docovaca).", "De Conuco",
+			"", 1, 0, 0, 1, 0},
+		{"Verdolaga Fresca", "Alimentacion", "Cosecha Fresca", "Hortalizas", "kg",
+			"Verdolaga (Portulaca oleracea) fresca. Hoja verde comestible rica en omega-3. Energia: ~1.5 MJ/kg = 0.4 kWh/kg. Fuente: Agribalyse (hojas verdes). Documentado en Feria Conuquera (Unidad Docovaca).", "De Conuco",
+			"", 1, 0, 0, 1, 0},
+		{"Pira (Amaranto) Fresca", "Alimentacion", "Cosecha Fresca", "Hortalizas", "kg",
+			"Pira o amaranto (Amaranthus) fresco. Hoja verde nutritiva, equivalente a espinaca. Tambien llamada Yerba Caracas. Energia: ~2.5 MJ/kg = 0.7 kWh/kg. Fuente: FAO. Documentado en Feria Conuquera (Unidad Docovaca).", "De Conuco",
+			"", 1, 0, 0, 1, 0},
+		{"Rucula Fresca", "Alimentacion", "Cosecha Fresca", "Hortalizas", "kg",
+			"Rucula (Eruca vesicaria) fresca. Hoja de ensalada con sabor picante. Energia: ~1.5 MJ/kg = 0.4 kWh/kg. Fuente: Agribalyse (hojas verdes). Documentado en Feria Conuquera (Alfivegetales, El Junquito).", "De Conuco",
+			"", 1, 0, 0, 1, 0},
+		{"Col Rizada (Kale) Fresca", "Alimentacion", "Cosecha Fresca", "Hortalizas", "kg",
+			"Col rizada o kale (Brassica oleracea var. acephala) fresca. Hoja verde nutritiva. Energia: ~1.5 MJ/kg = 0.4 kWh/kg. Fuente: Agribalyse (hojas verdes). Documentado en Feria Conuquera (Alfivegetales, El Junquito).", "De Conuco",
+			"", 1, 0, 0, 1, 0},
+		{"Sauco Fresco", "Alimentacion", "Cosecha Fresca", "Aromaticas", "kg",
+			"Sauco (Sambucus) fresco. Hoja y flor medicinal/comestible. Energia: ~1.5 MJ/kg = 0.4 kWh/kg. Fuente: Agribalyse (hojas aromaticas). Documentado en Feria Conuquera.", "De Conuco",
+			"", 1, 0, 0, 1, 0},
+		{"Aji Picante Fresco", "Alimentacion", "Cosecha Fresca", "Hortalizas", "kg",
+			"Aji picante fresco (Capsicum). Variedades criollas de conuco. Energia: ~3.2 MJ/kg = 0.9 kWh/kg. Fuente: Agribalyse. Documentado en Feria Conuquera (Alfivegetales).", "De Conuco",
+			"", 1, 0, 0, 1, 0},
+		{"Aji Dulce Fresco", "Alimentacion", "Cosecha Fresca", "Hortalizas", "kg",
+			"Aji dulce fresco (Capsicum chinense). Base del sofrito venezolano, sin picante. Energia: ~3.2 MJ/kg = 0.9 kWh/kg. Fuente: Agribalyse. Documentado en Feria Conuquera.", "De Conuco",
+			"", 1, 0, 0, 1, 0},
+		{"Toronjil Fresco", "Alimentacion", "Cosecha Fresca", "Aromaticas", "kg",
+			"Toronjil (Melissa officinalis) fresco. Hierba aromatica medicinal. Energia: ~1.5 MJ/kg = 0.4 kWh/kg. Fuente: Agribalyse (hierbas aromaticas). Documentado en Feria Conuquera.", "De Conuco",
+			"", 1, 0, 0, 1, 0},
+		{"Moras Frescas", "Alimentacion", "Cosecha Fresca", "Frutas", "kg",
+			"Moras (Rubus) frescas. Fruta roja de conuco. Energia: ~3.0 MJ/kg = 0.8 kWh/kg. Fuente: Agribalyse (frutas rojas). Documentado en Feria Conuquera (Alfivegetales, El Junquito).", "De Conuco",
+			"", 1, 0, 0, 1, 0},
+		{"Leche de Cabra Fresca", "Alimentacion", "Lacteos", "Leche", "L",
+			"Leche de cabra fresca. Energia: ~5.0 MJ/kg = 1.4 kWh/kg. Fuente: FAO (produccion animal). Documentado en Feria Conuquera (Silio Sanchez, Lechivita).", "De Patio",
+			"", 2, 0, 0, 2, 0},
+		{"Queso de Cabra Artesanal", "Alimentacion", "Lacteos", "Quesos", "kg",
+			"Queso artesanal de leche de cabra. Energia: ~10 MJ/kg = 2.8 kWh/kg (leche + cuajo + procesamiento). Fuente: LCA productos lacteos. Documentado en Feria Conuquera (Silio Sanchez, Lechivita).", "De Patio",
+			"", 3, 0, 0, 3, 0},
+		{"Queso de Bufala Artesanal", "Alimentacion", "Lacteos", "Quesos", "kg",
+			"Queso artesanal de leche de bufala. Energia: ~12 MJ/kg = 3.3 kWh/kg (leche de bufala + cuajo + procesamiento). Fuente: LCA productos lacteos. Documentado en Feria Conuquera (Lechivita).", "De Patio",
+			"", 4, 0, 0, 4, 0},
+		{"Ricota Artesanal", "Alimentacion", "Lacteos", "Quesos", "kg",
+			"Ricota artesanal. Subproducto del queso, requiere menos energia. Energia: ~8 MJ/kg = 2.2 kWh/kg. Fuente: LCA productos lacteos. Documentado en Feria Conuquera.", "De Patio",
+			"", 2, 0, 0, 2, 0},
+		{"Yogurt Natural Artesanal", "Alimentacion", "Lacteos", "Yogurt", "kg",
+			"Yogurt natural artesanal, sin azucar. Energia: ~4 MJ/kg = 1.1 kWh/kg. Fuente: Agribalyse (yogurt). Documentado en Feria Conuquera (Lechivita).", "De Patio",
+			"", 1, 0, 0, 1, 0},
+		{"Dulce de Leche Artesanal", "Alimentacion", "Dulces", "Dulce de Leche", "kg",
+			"Dulce de leche artesanal. Leche + azucar + coccion prolongada. Energia: ~8 MJ/kg = 2.2 kWh/kg. Fuente: LCA dulce de leche. Documentado en Feria Conuquera (Lechivita).", "De Patio",
+			"", 2, 0, 0, 2, 0},
+		{"Polen de Abejas", "Alimentacion", "Miel y Apicultura", "Polen", "kg",
+			"Polen de abejas. Producto apicola rico en proteinas. Energia: ~3.5 MJ/kg = 1.0 kWh/kg. Fuente: FAO (apicultura). Documentado en Feria Conuquera (Lechivita).", "De Conuco",
+			"", 1, 0, 0, 1, 0},
+		{"Onoto Natural Fresco", "Alimentacion", "Condimentos", "Especias", "kg",
+			"Onoto natural (Bixa orellana) fresco. Condimento tradicional venezolano para hallacas. Energia: ~3.0 MJ/kg = 0.8 kWh/kg. Fuente: Agribalyse (condimentos). Documentado en Feria Conuquera.", "De Conuco",
+			"", 1, 0, 0, 1, 0},
+		{"Curcuma Fresca", "Alimentacion", "Condimentos", "Especias", "kg",
+			"Curcuma (Curcuma longa) fresca. Raiz medicinal y condimentaria. Energia: ~3.0 MJ/kg = 0.8 kWh/kg. Fuente: Agribalyse (raices/condimentos). Documentado en Feria Conuquera (SanaTe).", "De Conuco",
+			"", 1, 0, 0, 1, 0},
+		{"Jengibre Fresco", "Alimentacion", "Condimentos", "Especias", "kg",
+			"Jengibre (Zingiber officinale) fresco. Raiz medicinal y condimentaria. Energia: ~3.0 MJ/kg = 0.8 kWh/kg. Fuente: Agribalyse (raices/condimentos). Documentado en Feria Conuquera (SanaTe).", "De Conuco",
+			"", 1, 0, 0, 1, 0},
+		{"Chocolate Artesanal 80%", "Alimentacion", "Dulces", "Chocolate", "kg",
+			"Chocolate artesanal 80% cacao. Variedades Forastero, Criollo y Porcelana de Barlovento y Paria. Sin conservantes ni lecitina. Energia: ~20 MJ/kg = 5.6 kWh/kg. Fuente: LCA chocolate artesanal. Documentado en Feria Conuquera (Cacao Siborori).", "De Conuco",
+			"", 6, 0, 0, 6, 0},
+		{"Chocolate Artesanal 100%", "Alimentacion", "Dulces", "Chocolate", "kg",
+			"Chocolate artesanal 100% cacao (pasta de cacao pura). Sin azucar, sin conservantes, sin lecitina. Variedades Forastero, Criollo y Porcelana. Energia: ~25 MJ/kg = 6.9 kWh/kg. Fuente: LCA cacao puro. Documentado en Feria Conuquera (Cacao Siborori).", "De Conuco",
+			"", 7, 0, 0, 7, 0},
+		{"Cacao en Polvo Artesanal", "Alimentacion", "Condimentos", "Cacao", "kg",
+			"Cacao en polvo artesanal. Molido a partir de grano tostado. Energia: ~20 MJ/kg = 5.6 kWh/kg. Fuente: LCA cacao procesado. Documentado en Feria Conuquera (Cacao Siborori).", "De Conuco",
+			"", 6, 0, 0, 6, 0},
+		{"Cafe Molido Artesanal", "Alimentacion", "Bebidas", "Cafe", "kg",
+			"Cafe molido artesanal. Tostado y molido a partir de grano de conuco. Energia: ~15 MJ/kg = 4.2 kWh/kg. Fuente: Agribalyse (cafe tostado/molido). Documentado en Feria Conuquera (talleres de cultivo de cafe).", "De Conuco",
+			"", 4, 0, 0, 4, 0},
+
+		// ============ FERIA CONUQUERA: Productos compuestos (migraciones 094-095) ============
+		{"Casabe Artesanal", "Alimentacion", "Gastronomia Artesanal", "Panaderia", "unidad",
+			"Casabe artesanal de yuca amarga. Pan ancestral indigena: yuca rallada, prensada en sebucan, tostada en budare. Lote: 1.2 kg yuca -> 6 tortas de ~100g. Energia lote: yuca (3.6 MJ) + coccion 40 min (4 MJ) = 7.6 MJ. Por kg: 12.7 MJ/kg = 3.5 kWh/kg. Por unidad (100g): 1 TQ. Fuente: recetas tradicionales + LCA yuca. Documentado en Feria Conuquera (Flor de Tilo).", "De Conuco",
+			"", 1, 2, 1, 1, 0},
+		{"Naiboa Artesanal", "Alimentacion", "Gastronomia Artesanal", "Dulces Tradicionales", "unidad",
+			"Naiboa artesanal. Primer dulce netamente venezolano. Dos tortas de casabe rellenas con melado de papelon, queso blanco rallado y semillas de anis, horneadas. Lote: 2 casabe (200g) + 50g papelon + 30g queso -> 1 unidad 280g. Energia lote: 5.55 MJ. Por kg: 19.8 MJ/kg = 5.5 kWh/kg. Por unidad (280g): 2 TQ. Fuente: Wikipedia, EcuRed. Documentado en Feria Conuquera (Flor de Tilo).", "De Conuco",
+			"", 2, 3, 1, 2, 0},
+		{"Catalinas Artesanales", "Alimentacion", "Gastronomia Artesanal", "Dulces Tradicionales", "unidad",
+			"Catalinas (paledonias/cucas negras). Galletas dulces especiadas. Lote: 280g harina + 250g papelon + 100g mantequilla + 1 huevo -> 8 unidades de ~88g. Energia lote: 14.65 MJ. Por kg: 20.9 MJ/kg = 5.8 kWh/kg. Por unidad (88g): 1 TQ. Fuente: recetas tradicionales. Documentado en Feria Conuquera (Flor de Tilo).", "De Conuco",
+			"", 1, 3, 1, 2, 0},
+		{"Besito de Coco Artesanal", "Alimentacion", "Gastronomia Artesanal", "Dulces Tradicionales", "unidad",
+			"Besito de coco artesanal. Dulce tradicional caribeno. Lote: 200g coco + 300g harina + 200g papelon + 2 huevos -> 20 unidades de ~37g. Energia lote: 13.4 MJ. Por kg: 17.9 MJ/kg = 5 kWh/kg. Por unidad (37g): 1 TQ. Fuente: chefspencil.com, 196flavors.com. Documentado en Feria Conuquera.", "De Conuco",
+			"", 1, 2, 1, 2, 0},
+		{"Cafunga de Barlovento", "Alimentacion", "Gastronomia Artesanal", "Dulces Tradicionales", "unidad",
+			"Cafunga de Barlovento. Dulce afrovenezolano ancestral. Lote: 500g cambur + 200g papelon + 100g coco -> 5 unidades de ~160g. Energia lote: 8.5 MJ. Por kg: 10.6 MJ/kg = 2.9 kWh/kg. Por unidad (160g): 1 TQ. Productora: Estilita Ruiz. Fuente: Blog oficial Feria Conuquera, Haiman El Troudi.", "De Conuco",
+			"", 1, 1, 1, 1, 0},
+		{"Pan Artesanal de Masa Madre", "Alimentacion", "Gastronomia Artesanal", "Panaderia", "kg",
+			"Pan artesanal de masa madre. Fermentacion natural 24h, horneado en horno artesanal. Lote: 600g harina + 400g agua -> 1 hogaza 800g. Energia lote: 15.4 MJ. Por kg: 19.3 MJ/kg = 5.4 kWh/kg. Precio: 5 TQ/kg. Fuente: LCA pan artesanal. Documentado en Feria Conuquera (Flor de Tilo).", "Hecho en Casa",
+			"", 5, 2, 1, 2, 0},
+		{"Arepa de Auyama Artesanal", "Alimentacion", "Gastronomia Artesanal", "Panaderia", "unidad",
+			"Arepa de auyama artesanal. Lote: 200g harina + 100g auyama -> 6 arepas de ~100g. Energia lote: 5.1 MJ. Por kg: 8.5 MJ/kg = 2.4 kWh/kg. Por unidad (100g): 1 TQ. Fuente: recetas tradicionales. Documentado en Feria Conuquera.", "Hecho en Casa",
+			"", 1, 1, 1, 1, 0},
+		{"Arepa de Platano Artesanal", "Alimentacion", "Gastronomia Artesanal", "Panaderia", "unidad",
+			"Arepa de platano artesanal. Lote: 200g harina + 100g platano -> 6 arepas de ~100g. Energia lote: 5 MJ. Por kg: 8.3 MJ/kg = 2.3 kWh/kg. Por unidad (100g): 1 TQ. Fuente: recetas tradicionales + Lombriz Roja Urbana. Documentado en Feria Conuquera.", "Hecho en Casa",
+			"", 1, 1, 1, 1, 0},
+		{"Torta de Platano Artesanal", "Alimentacion", "Gastronomia Artesanal", "Postres", "porcion",
+			"Torta de platano artesanal. Lote: 500g platano + 100g papelon -> 4 porciones de ~150g. Energia lote: 5.5 MJ. Por kg: 9.2 MJ/kg = 2.6 kWh/kg. Por porcion (150g): 1 TQ. Fuente: Prensa Rural. Documentado en Feria Conuquera.", "Hecho en Casa",
+			"", 1, 1, 1, 1, 0},
+		{"Papelon con Limon", "Alimentacion", "Bebidas", "Bebidas Naturales", "L",
+			"Papelon con limon (aguapanela). Lote: 200g papelon + 1L agua + 2 limones -> 1L. Energia lote: 4.3 MJ. Por L: 1.2 kWh/L = 1 TQ/L. Fuente: recetas tradicionales + Wikipedia. Documentado en Feria Conuquera.", "Hecho en Casa",
+			"", 1, 1, 0, 1, 0},
+		{"Aguamiel", "Alimentacion", "Bebidas", "Fermentados", "L",
+			"Aguamiel. Lote: 150g miel + 1L agua -> 1L. Energia: miel (0.53 MJ) + fermentacion espontanea (0) = 0.53 MJ/L = 0.15 kWh/L. Precio minimo: 1 TQ/L. Fuente: todohidromiel.com. Documentado en Feria Conuquera (Lechivita).", "De Conuco",
+			"", 1, 0, 1, 0, 0},
+		{"Hidromiel (Vino de Miel)", "Alimentacion", "Bebidas", "Fermentados", "L",
+			"Hidromiel (vino de miel). Lote: 300g miel + 2L agua + levadura -> 2L. Energia: miel (1.05 MJ) + levadura (0.1) = 1.15 MJ / 2L = 0.58 MJ/L = 0.16 kWh/L. Precio minimo: 1 TQ/L. Fermentacion 2-4 semanas. Fuente: todohidromiel.com, FAUBA. Documentado en Feria Conuquera (Lechivita).", "De Conuco",
+			"", 1, 0, 1, 1, 0},
+		{"Cocomiel", "Alimentacion", "Bebidas", "Fermentados", "L",
+			"Cocomiel. Lote: 200g miel + 100g coco + 1L agua -> 1L. Energia: miel (0.7) + coco (0.6) + coccion (1.5) = 2.8 MJ/L = 0.8 kWh/L. Precio: 1 TQ/L. Fuente: Ultimas Noticias. Documentado en Feria Conuquera (Lechivita).", "De Conuco",
+			"", 1, 1, 1, 1, 0},
+		{"Harina de Yuca Artesanal", "Alimentacion", "Gastronomia Artesanal", "Harinas Alternativas", "kg",
+			"Harina de yuca artesanal. Lote: 2.5 kg yuca -> 1 kg harina (rendimiento 40%). Energia: yuca (7.5 MJ) + secado (3) + molienda (1) = 11.5 MJ/kg = 3.2 kWh/kg. Precio: 3 TQ/kg. Fuente: LCA cassava flour Nigeria, CIAT. Documentado en Feria Conuquera (Luis Angel Leisiaga).", "De Conuco",
+			"", 3, 2, 1, 1, 0},
+		{"Harina de Cambur Artesanal", "Alimentacion", "Gastronomia Artesanal", "Harinas Alternativas", "kg",
+			"Harina de cambur artesanal. Lote: 5 kg cambur verde -> 1 kg harina (rendimiento 20%). Energia: cambur (9 MJ) + secado (2) + molienda (1) = 12 MJ/kg = 3.3 kWh/kg. Precio: 3 TQ/kg. Fuente: Desde La Plaza. Documentado en Feria Conuquera (Luis Angel Leisiaga).", "De Conuco",
+			"", 3, 2, 1, 1, 0},
+		{"Jabon Artesanal de Aceite Reciclado", "Salud y Medicina", "Higiene Natural", "Jabones", "unidad",
+			"Jabon artesanal de aceite reciclado. Saponificacion en frio. Lote: 500g aceite -> 5-6 barras de 90g. Energia: LCA WCO soap 10 MJ/kg = 2.8 kWh/kg. Por barra (90g): 1 TQ. Curado 4-6 semanas. Fuente: Springer LCA, MDPI Sustainability. Documentado en Feria Conuquera (Territorio K-ribe).", "Limpieza Natural",
+			"", 1, 1, 1, 1, 0},
+		{"Desodorante Natural Artesanal", "Salud y Medicina", "Higiene Natural", "Cosmetica", "unidad",
+			"Desodorante natural artesanal. Lote: 150g ingredientes -> 3 barras de 50g. Energia: 11.3 MJ/kg = 3.1 kWh/kg. Por barra (50g): 1 TQ. Fuente: Desde La Plaza. Documentado en Feria Conuquera (Territorio K-ribe).", "Limpieza Natural",
+			"", 1, 1, 1, 1, 0},
+		{"Humus de Lombriz Solido", "Agricultura", "Insumos Agroecologicos", "Abonos Organicos", "kg",
+			"Humus de lombriz solido. Vermicompostaje con Eisenia foetida, 2-3 meses. Energia: LCA vermicompostaje 2 MJ/kg = 0.6 kWh/kg. Precio minimo: 1 TQ/kg. Fuente: MDPI, scielo.org.mx. Documentado en Feria Conuquera (Lombriz Roja Urbana).", "Agroecologico",
+			"", 1, 0, 1, 0, 0},
+		{"Humus de Lombriz Liquido", "Agricultura", "Insumos Agroecologicos", "Biofertilizantes", "L",
+			"Humus de lombriz liquido (lixiviado). Energia: 1 MJ/L = 0.3 kWh/L. Precio minimo: 1 TQ/L. Presentaciones: 500cc, 1000cc, 1500cc. Fuente: Lombriz Roja Urbana. Documentado en Feria Conuquera.", "Agroecologico",
+			"", 1, 0, 1, 0, 0},
+		{"Pie de Cria de Lombriz Roja Californiana", "Agricultura", "Insumos Agroecologicos", "Vermicultura", "kg",
+			"Pie de cria de lombriz roja californiana (Eisenia foetida). Energia: 3 MJ/kg = 0.8 kWh/kg. Precio minimo: 1 TQ/kg. Presentaciones: 300g, 400g, 1.5kg, 2kg. Fuente: Lombriz Roja Urbana. Documentado en Feria Conuquera.", "Agroecologico",
+			"", 1, 0, 1, 1, 0},
+		{"Compost Maduro Artesanal", "Agricultura", "Insumos Agroecologicos", "Abonos Organicos", "kg",
+			"Compost maduro artesanal. Compostaje 2-6 meses. Energia: LCA compostaje 1.5 MJ/kg = 0.4 kWh/kg. Precio minimo: 1 TQ/kg. Fuente: MDPI. Documentado en Feria Conuquera.", "Agroecologico",
+			"", 1, 0, 1, 0, 0},
+		{"Microorganismos de Montana", "Agricultura", "Insumos Agroecologicos", "Bioinsumos", "L",
+			"Microorganismos de montana (MM). Fermentacion de lactobacilos y levaduras con melaza. Energia: 2 MJ/L = 0.6 kWh/L. Precio minimo: 1 TQ/L. Fuente: Lombriz Roja Urbana. Documentado en Feria Conuquera.", "Agroecologico",
+			"", 1, 0, 1, 0, 0},
+		{"Croquetas de Soya Artesanales", "Alimentacion", "Gastronomia Artesanal", "Vegetariano", "unidad",
+			"Croquetas de soya artesanales. Lote: 200g soya + 50g harina -> 10 croquetas de ~25g. Energia lote: 5.7 MJ. Por kg: 22.8 MJ/kg = 6.3 kWh/kg. Por unidad (25g): 1 TQ. Fuente: Desde La Plaza. Documentado en Feria Conuquera (Luis Angel Leisiaga).", "Vegetariano",
+			"", 1, 2, 1, 2, 0},
+		{"Torticas Veganas Artesanales", "Alimentacion", "Gastronomia Artesanal", "Vegetariano", "unidad",
+			"Torticas veganas artesanales. Lote: 200g harina + 100g vegetales -> 10 torticas de ~30g. Energia lote: 5.1 MJ. Por kg: 17 MJ/kg = 4.7 kWh/kg. Por unidad (30g): 1 TQ. Fuente: Desde La Plaza. Documentado en Feria Conuquera (Luis Angel Leisiaga).", "Vegano",
+			"", 1, 2, 1, 2, 0},
+		{"Chimichurri de Mango Artesanal", "Alimentacion", "Condimentos", "Salsas", "frasco",
+			"Chimichurri de mango artesanal. Lote: 300g mango + 100g vinagre -> 1 frasco 250g. Energia lote: 3.9 MJ. Por kg: 15.6 MJ/kg = 4.3 kWh/kg. Por frasco (250g): 1 TQ. Fuente: Desde La Plaza. Documentado en Feria Conuquera (Luis Angel Leisiaga).", "Hecho en Casa",
+			"", 1, 1, 1, 2, 0},
+		{"Plantas Medicinales (Maceta)", "Agricultura", "Vivero", "Medicinales", "maceta",
+			"Plantas medicinales vivas en maceta. Energia: tierra + semilla/estaca + riego + manejo 2-6 meses = 3.6 MJ/maceta = 1 kWh. Precio: 1 TQ/maceta. Fuente: Blog oficial Feria Conuquera. Documentado en Feria Conuquera (Dokobaka, Madre Selva).", "Agroecologico",
+			"", 1, 0, 1, 0, 0},
+		{"Semillas Criollas Ancestrales", "Agricultura", "Semillas", "Criollas", "sobre",
+			"Semillas criollas y ancestrales. Energia: cosecha + secado + seleccion + almacenamiento = 3.6 MJ/sobre = 1 kWh. Precio: 1 TQ/sobre. 30 especies de leguminosas ancestrales. Fuente: Blog oficial, Diario VEA. Documentado en Feria Conuquera.", "Agroecologico",
+			"", 1, 0, 1, 0, 0},
+
+		// ============ FERIA CONUQUERA: Productos compuestos pendientes (migracion 095) ============
+		// Estos productos tienen is_composite=true y precio 0 (se calcula por componentes)
+		{"Pastelitos de Vegetales Artesanales", "Alimentacion", "Gastronomia Artesanal", "Empanadas", "unidad",
+			"Pastelitos de vegetales artesanales. Producto compuesto: harina de trigo, auyama, caraota, queso blanco, aceite vegetal. Energia calculada por componentes. Documentado en Feria Conuquera.", "Hecho en Casa",
+			"", 0, 0, 0, 0, 0},
+		{"Ajiaco Artesanal", "Alimentacion", "Gastronomia Artesanal", "Sopas", "porcion",
+			"Ajiaco artesanal. Producto compuesto: carne de res, yuca, name, ocumo, auyama, maiz, caraota, especias. Energia calculada por componentes. Documentado en Feria Conuquera.", "Hecho en Casa",
+			"", 0, 0, 0, 0, 0},
+		{"Hamburguesas Vegetarianas Artesanales", "Alimentacion", "Gastronomia Artesanal", "Vegetariano", "unidad",
+			"Hamburguesas vegetarianas artesanales. Producto compuesto: granos (caraota/frijol), vegetales, harina de trigo, condimentos, aceite vegetal. Energia calculada por componentes. Documentado en Feria Conuquera.", "Vegetariano",
+			"", 0, 0, 0, 0, 0},
+		{"Tacos de Granos Artesanales", "Alimentacion", "Gastronomia Artesanal", "Vegetariano", "unidad",
+			"Tacos de granos artesanales. Producto compuesto: granos (caraota/frijol), harina de maiz, encurtidos, chimichurri de mango. Energia calculada por componentes. Documentado en Feria Conuquera.", "Vegetariano",
+			"", 0, 0, 0, 0, 0},
+		{"Chichas Artesanales", "Alimentacion", "Bebidas", "Fermentados", "L",
+			"Chichas artesanales. Producto compuesto: arroz, maiz, papelon, especias. Energia calculada por componentes. Documentado en Feria Conuquera.", "De Conuco",
+			"", 0, 0, 0, 0, 0},
+		{"Harina Buen Pan", "Alimentacion", "Gastronomia Artesanal", "Harinas Alternativas", "kg",
+			"Harina Buen Pan. Producto compuesto: harina de yuca, harina de cambur, harina de trigo. Energia calculada por componentes. Documentado en Feria Conuquera.", "De Conuco",
+			"", 0, 0, 0, 0, 0},
+		{"Frutos Deshidratados Artesanales", "Alimentacion", "Gastronomia Artesanal", "Snacks", "unidad",
+			"Frutos deshidratados artesanales. Producto compuesto: mango, cambur, papaya, guayaba. Energia calculada por componentes. Documentado en Feria Conuquera.", "De Conuco",
+			"", 0, 0, 0, 0, 0},
+		{"Encurtidos Artesanales", "Alimentacion", "Condimentos", "Salsas", "frasco",
+			"Encurtidos artesanales. Producto compuesto: vegetales (cebolla/zanahoria/pimenton), vinagre, sal, especias. Energia calculada por componentes. Documentado en Feria Conuquera.", "Hecho en Casa",
+			"", 0, 0, 0, 0, 0},
+		{"Infusiones Naturales Mezcladas", "Salud y Medicina", "Medicina Botanica", "Infusiones", "caja",
+			"Infusiones naturales mezcladas. Producto compuesto: moringa, toronjil, manzanilla, malojillo, jengibre, curcuma. Energia calculada por componentes. Documentado en Feria Conuquera (SanaTe).", "Agroecologico",
+			"", 0, 0, 0, 0, 0},
+		{"Vinos Artesanales de Frutas", "Alimentacion", "Bebidas", "Fermentados", "L",
+			"Vinos artesanales de frutas. Producto compuesto: frutas, papelon, levadura. Energia calculada por componentes. Documentado en Feria Conuquera.", "De Conuco",
+			"", 0, 0, 0, 0, 0},
+		{"Licores Artesanales", "Alimentacion", "Bebidas", "Fermentados", "L",
+			"Licores artesanales. Producto compuesto: base alcoholica, frutas, especias, papelon. Energia calculada por componentes. Documentado en Feria Conuquera.", "De Conuco",
+			"", 0, 0, 0, 0, 0},
+		{"Aceite de Coco Cosmetico", "Salud y Medicina", "Higiene Natural", "Cosmetica", "unidad",
+			"Aceite de coco cosmetico. Producto compuesto: coco. Energia calculada por componentes. Documentado en Feria Conuquera (Territorio K-ribe).", "Limpieza Natural",
+			"", 0, 0, 0, 0, 0},
+		{"Arcilla para la Piel", "Salud y Medicina", "Higiene Natural", "Cosmetica", "unidad",
+			"Arcilla para la piel. Producto compuesto: arcilla mineral. Energia calculada por componentes. Documentado en Feria Conuquera.", "Limpieza Natural",
+			"", 0, 0, 0, 0, 0},
+		{"Cremas y Emulsiones Naturales", "Salud y Medicina", "Higiene Natural", "Cosmetica", "unidad",
+			"Cremas y emulsiones naturales. Producto compuesto: aceite de coco, cera de abejas, aceites esenciales, agua. Energia calculada por componentes. Documentado en Feria Conuquera.", "Limpieza Natural",
+			"", 0, 0, 0, 0, 0},
+		{"Mascarillas Faciales Naturales", "Salud y Medicina", "Higiene Natural", "Cosmetica", "unidad",
+			"Mascarillas faciales naturales. Producto compuesto: arcilla mineral, aceite de coco, extractos vegetales. Energia calculada por componentes. Documentado en Feria Conuquera.", "Limpieza Natural",
+			"", 0, 0, 0, 0, 0},
+		{"Labiales Naturales", "Salud y Medicina", "Higiene Natural", "Cosmetica", "unidad",
+			"Labiales naturales. Producto compuesto: cera de abejas, aceite de coco, onoto (colorante natural). Energia calculada por componentes. Documentado en Feria Conuquera.", "Limpieza Natural",
+			"", 0, 0, 0, 0, 0},
+		{"Balsamos y Tinturas Naturales", "Salud y Medicina", "Medicina Botanica", "Tinturas", "frasco",
+			"Balsamos y tinturas naturales. Producto compuesto: extractos vegetales, alcohol, aceites esenciales. Energia calculada por componentes. Documentado en Feria Conuquera (SanaTe).", "Agroecologico",
+			"", 0, 0, 0, 0, 0},
+		{"Plantas Ornamentales (Maceta)", "Agricultura", "Vivero", "Ornamentales", "maceta",
+			"Plantas ornamentales en maceta. Producto compuesto: tierra abonada, semilla/estaca, maceta. Energia calculada por componentes. Documentado en Feria Conuquera.", "Agroecologico",
+			"", 0, 0, 0, 0, 0},
+		{"Plantas Frutales (Maceta)", "Agricultura", "Vivero", "Frutales", "maceta",
+			"Plantas frutales en maceta. Producto compuesto: tierra abonada, semilla/estaca, maceta. Energia calculada por componentes. Documentado en Feria Conuquera.", "Agroecologico",
+			"", 0, 0, 0, 0, 0},
+		{"Matas de Moringa", "Agricultura", "Vivero", "Medicinales", "maceta",
+			"Matas de moringa. Producto compuesto: tierra abonada, estaca/semilla de moringa, maceta. Energia calculada por componentes. Documentado en Feria Conuquera.", "Agroecologico",
+			"", 0, 0, 0, 0, 0},
+		{"Moringa en Polvo", "Salud y Medicina", "Medicina Botanica", "Suplementos", "kg",
+			"Moringa en polvo. Producto compuesto: hojas de moringa. Energia calculada por componentes. Documentado en Feria Conuquera (SanaTe).", "Agroecologico",
+			"", 0, 0, 0, 0, 0},
+		{"Gotas de Nin", "Salud y Medicina", "Medicina Botanica", "Tinturas", "frasco",
+			"Gotas de Nin. Producto compuesto: extracto de Nin (Justicia pectoralis), alcohol, agua. Energia calculada por componentes. Documentado en Feria Conuquera (SanaTe).", "Agroecologico",
+			"", 0, 0, 0, 0, 0},
+		{"Biofertilizantes Artesanales", "Agricultura", "Insumos Agroecologicos", "Biofertilizantes", "L",
+			"Biofertilizantes artesanales. Producto compuesto: estiercol, melaza/papelon, minerales, microorganismos de montana. Energia calculada por componentes. Documentado en Feria Conuquera.", "Agroecologico",
+			"", 0, 0, 0, 0, 0},
+		{"Controles Biologicos", "Agricultura", "Insumos Agroecologicos", "Bioinsumos", "L",
+			"Controles biologicos. Producto compuesto: hongos beneficiosos, bacterias beneficiosas, agua. Energia calculada por componentes. Documentado en Feria Conuquera.", "Agroecologico",
+			"", 0, 0, 0, 0, 0},
+		{"Cesteria Artesanal", "Cultura", "Artesania", "Cesteria", "unidad",
+			"Cesteria artesanal. Producto compuesto: fibras vegetales (mimbre/paja/bejuco). Energia calculada por componentes. Documentado en Feria Conuquera.", "Artesanal",
+			"", 0, 0, 0, 0, 0},
+		{"Horno de Barro Artesanal", "Construccion", "Artesanal", "Hornos", "unidad",
+			"Horno de barro artesanal. Producto compuesto: barro, arena, ladrillos. Energia calculada por componentes. Documentado en Feria Conuquera.", "Artesanal",
+			"", 0, 0, 0, 0, 0},
 	}
 
 	for _, p := range products {
@@ -2683,48 +2927,156 @@ func (d *DB) SeedProductsToNode(ctx context.Context, nodeDomain string) error {
 
 	// === Correcciones post-seed: campos adicionales que el struct no tiene ===
 	// Estos campos (price_per_kg, base_unit, weight_kg) fueron agregados por
-	// migraciones 088-095 y deben estar en el seed permanente para sobrevivir
+	// migraciones 085-095 y deben estar en el seed permanente para sobrevivir
 	// reseteos de BD.
-
-	// Huevos: 3 categorias con precio por kg y peso
-	eggCorrections := []struct {
-		name       string
-		pricePerKg float64
-		weightKg   float64
-	}{
-		{"Huevos Comerciales (Jaula)", 6.15, 0.65},
-		{"Huevos Criollos (Semilibres)", 9.23, 0.65},
-		{"Huevos de Gallinas Felices (Pastoreo)", 12.31, 0.65},
-	}
-	for _, e := range eggCorrections {
-		_, _ = d.Pool.Exec(ctx, `
-			UPDATE products SET price_per_kg = $3, base_unit = 'kg', weight_kg = $4
-			WHERE node_domain = $1 AND name = $2`,
-			nodeDomain, e.name, e.pricePerKg, e.weightKg)
-	}
 
 	// Eliminar "Huevos Frescos" viejo si quedo de seeds anteriores
 	_, _ = d.Pool.Exec(ctx, `DELETE FROM products WHERE node_domain = $1 AND name = 'Huevos Frescos'`, nodeDomain)
 
-	// Abonos: 0.09 TQ/kg x 25 kg = 2.25 TQ
-	_, _ = d.Pool.Exec(ctx, `
-		UPDATE products SET price_per_kg = 0.09, base_unit = 'kg', weight_kg = 25, price_per_unit = 2.25
-		WHERE node_domain = $1 AND name = 'Abonos Organicos'`, nodeDomain)
+	// Tabla de correcciones: name, price_per_kg, base_unit, weight_kg, price_per_unit, energy_inputs
+	// Valores de migraciones 085-092 (correcciones de energia y precios)
+	type correction struct {
+		name         string
+		pricePerKg   float64
+		baseUnit     string
+		weightKg     float64
+		pricePerUnit float64
+		energyInputs float64
+	}
+	corrections := []correction{
+		// Huevos (migracion 090-092): 3 categorias
+		{"Huevos Comerciales (Jaula)", 6.15, "kg", 0.65, 4.00, 6.15},
+		{"Huevos Criollos (Semilibres)", 9.23, "kg", 0.65, 6.00, 9.23},
+		{"Huevos de Gallinas Felices (Pastoreo)", 12.31, "kg", 0.65, 8.00, 12.31},
+		// Carnes (migracion 085): corregir energia
+		{"Carnes de Pollo y Aves", 5, "kg", 1, 5, 5},
+		{"Carnes de Cerdo y Chivo", 6, "kg", 1, 6, 6},
+		{"Carnes de Vacuno", 11, "kg", 1, 11, 11},
+		{"Pescados y Mariscos", 7, "kg", 1, 7, 7},
+		// Granos (migracion 086): bajar de 10/11/10 a 3/4/4
+		{"Granos Basicos Criollos", 3, "kg", 1, 3, 3},
+		{"Arroz y Legumbres", 4, "kg", 1, 4, 4},
+		{"Harinas Integrales", 4, "kg", 1, 4, 4},
+		// Panaderia (migracion 086): bajar de 5 a 4
+		{"Panaderia y Masas Caseras", 4, "kg", 1, 4, 4},
+		// Papelon (migracion 086): bajar de 15 a 5
+		{"Papelon y Panela", 5, "kg", 1, 5, 5},
+		// Aceites (migracion 086): bajar de 10 a 6
+		{"Aceites y Vinagres", 6, "L", 0.92, 6, 6},
+		// Dulces (migracion 086-091): 5 TQ/kg x 0.5 kg = 2.50
+		{"Dulces y Conservas Tradicionales", 5, "kg", 0.5, 2.50, 5},
+		{"La Tradicional Cafunga de Barlovento", 5, "kg", 0.5, 2.50, 5},
+		{"Encurtidos y Salsas", 5, "kg", 0.5, 2.50, 5},
+		// Cacao (migracion 086): bajar de 25 a 15
+		{"Cacao, Chocolate y Cafe", 15, "kg", 1, 15, 15},
+		{"Cacao Puro, Chocolates y Cafe de Montana", 15, "kg", 1, 15, 15},
+		// Miel (migracion 086): bajar de 10 a 7
+		{"Miel Pura de Abejas", 7, "L", 1.42, 7, 7},
+		// Bebidas fermentadas (migracion 086): bajar de 5 a 3
+		{"Bebidas Fermentadas", 3, "L", 1, 3, 3},
+		// Especias (migracion 086): bajar de 15 a 4
+		{"Especias y Condimentos", 4, "kg", 1, 4, 4},
+		// Abonos (migracion 086-088): 0.09 TQ/kg x 25 kg = 2.25
+		{"Abonos Organicos", 0.09, "kg", 25, 2.25, 2},
+		// Bioinsumos
+		{"Bioinsumos y Preparados", 3, "L", 1, 3, 3},
+		// Hongos (migracion 086): bajar a 3
+		{"Hongos Comestibles", 3, "kg", 1, 3, 3},
+		// Plaguicidas (migracion 086): bajar a 2
+		{"Plaguicidas Naturales", 2, "L", 1, 2, 2},
+		// Tierra/Sustratos: 0.05 TQ/kg x 20 kg = 1.00
+		{"Tierra Fertil y Sustratos", 0.05, "kg", 20, 1.00, 1},
+		// Leche: 2 TQ/L
+		{"Leche Fresca", 2, "L", 1.03, 2, 2},
+		// Lena: 4 TQ/kg
+		{"Lena Seca para Cocinar", 4, "kg", 1, 4, 4},
+		// Carbon: 6 TQ/kg
+		{"Carbon Vegetal", 6, "kg", 1, 6, 6},
+		// Diesel: 12 TQ/L
+		{"Diesel Agricola", 12, "L", 0.832, 12, 12},
+		// Infusiones: 3 TQ/kg
+		{"Infusiones y Tes", 3, "kg", 1, 3, 3},
+		// Hierbas medicinales: 3 TQ/kg
+		{"Hierbas Medicinales Secas", 3, "kg", 1, 3, 3},
+		// Detergentes: 5 TQ/L
+		{"Detergentes y Suavizantes Naturales", 5, "L", 1, 5, 5},
+		// Pinturas: 4 TQ/L
+		{"Pinturas y Recubrimientos Naturales", 4, "L", 1, 4, 4},
+		// Coco: 1.4 TQ/kg x 1.5 kg = 2.10
+		{"Coco Fresco", 1.4, "kg", 1.5, 2.10, 2},
+		// Canasta basica (migracion 086): recalcular a 30 TQ (era 66)
+		{"Canasta Basica Familiar Semanal", 0, "canasta", 0, 30, 30},
+	}
+	for _, c := range corrections {
+		_, _ = d.Pool.Exec(ctx, `
+			UPDATE products SET
+				price_per_kg = $3, base_unit = $4, weight_kg = $5,
+				price_per_unit = $6, energy_inputs = $7
+			WHERE node_domain = $1 AND name = $2`,
+			nodeDomain, c.name, c.pricePerKg, c.baseUnit, c.weightKg, c.pricePerUnit, c.energyInputs)
+	}
 
-	// Dulces: 5 TQ/kg x 0.5 kg = 2.50 TQ
-	_, _ = d.Pool.Exec(ctx, `
-		UPDATE products SET price_per_kg = 5, base_unit = 'kg', weight_kg = 0.5, price_per_unit = 2.50
-		WHERE node_domain = $1 AND name IN ('Dulces y Conservas Tradicionales', 'La Tradicional Cafunga de Barlovento', 'Encurtidos y Salsas')`, nodeDomain)
+	// Actualizar descripciones de productos corregidos (migracion 085-086)
+	descUpdates := []struct{ name, desc string }{
+		{"Carnes de Pollo y Aves", "Pollo de patio, gallina, pato, conejo. Energia: ~18 MJ/kg = 5 kWh/kg (rango 9.6-25, conversion 2.0 kg pienso/kg carne). El pollo usa 45% mas energia que los huevos por kg (FAO 2013). Fuente: FAO, Pimentel, Agribalyse, Leinonen et al. (2012)."},
+		{"Carnes de Cerdo y Chivo", "Cerdo criollo, chivo. Energia: ~20 MJ/kg = 5.5 kWh/kg (rango 15.9-22.7, conversion 6.5 kg pienso/kg). Fuente: FAO, Agribalyse, review de Vries (2010)."},
+		{"Carnes de Vacuno", "Carne de res, vacuno pastoreado. Energia: ~40 MJ/kg = 11 kWh/kg (rango 35-50, conversion 25 kg forraje/kg). La carne de vacuno es la que mas energia consume: 7.5x mas que el pollo. Fuente: Pimentel, Cederberg, Ecoinvent, Agribalyse."},
+		{"Pescados y Mariscos", "Pescado fresco de rio, salado, carite, cazon, camarones. Energia estimada: ~25 MJ/kg = 7 kWh/kg (captura + cadena de frio). Fuente: FAO, Ecoinvent."},
+		{"Granos Basicos Criollos", "Maiz criollo blanco y amarillo, cebada, avena, centeno. Energia: ~10 MJ/kg = 3 kWh/kg (conuco: siembra manual, cosecha, secado). Industrial: 1.9-4.9 MJ/kg. Fuente: Agribalyse, Albania LCA, Canada LCA, Iran LCA."},
+		{"Arroz y Legumbres", "Arroz procesado, sorgo, legumbres (caraota, frijol, quinchoncho, lentejas, garbanzos, habas). Energia: ~14 MJ/kg = 4 kWh/kg (conuco). Industrial: 7 MJ/kg. Fuente: Agribalyse, Ecoinvent, FAO."},
+		{"Harinas Integrales", "Harina de maiz, trigo integral, yuca (casabe), platano, quinoa. Energia: ~14 MJ/kg = 4 kWh/kg (grano + molienda artesanal). Industrial: 6 MJ/kg. Fuente: Agribalyse, Piringer & Steinberg 2006."},
+		{"Panaderia y Masas Caseras", "Pan de maiz, trigo integral, arepas, cachapas, bollos, empanadas. Energia: ~14 MJ/kg = 4 kWh/kg (molienda + amasado + horneado artesanal). Industrial: 5.2 MJ/kg. Fuente: JRC Europa, Agribalyse, FOB UK."},
+		{"Papelon y Panela", "Azucar, papelon, panela, rapadura, melaza de cana. Energia: ~18 MJ/kg = 5 kWh/kg (cultivo + coccion con lena). NCS moderno: 5 MJ/kg. Fuente: TechScience NCS study, LCA panela Ecuador."},
+		{"Aceites y Vinagres", "Aceite de coco, ajonjisi, palma, vinagre de cana. Energia: ~20 MJ/L = 6 kWh/L (prensado en frio + extraccion). Refinado industrial: 20-40 MJ/L. Fuente: Agribalyse, IOPscience coconut oil LCA, Sciencedirect sunflower oil LCA."},
+		{"Dulces y Conservas Tradicionales", "Dulce de lechosa, cabello de angel, jalea de guayaba, conservas de coco, bocadillo, encurtidos, salsas. Energia: ~18 MJ/kg = 5 kWh/kg (cocccion + conservacion). Fuente: Agribalyse."},
+		{"Cacao, Chocolate y Cafe", "Cacao fermentado de Barlovento/Chuao, chocolate bean-to-bar 70%, cafe lavado tostado a lena. Energia: ~54 MJ/kg = 15 kWh/kg (fermentacion + secado + torrefaccion artesanal). Chocolate industrial: 91 MJ/kg. Fuente: FOB UK, Agribalyse."},
+		{"Miel Pura de Abejas", "Miel multifleural de montana, bosque, azahar. Energia: ~25 MJ/kg = 7 kWh/kg (apicultura + extraccion + filtrado). Fuente: Energy balance lavender honey, Turquia."},
+		{"Bebidas Fermentadas", "Chicha de maiz, guarapo de cana, vino de palma, pulque, kombucha. Energia: ~10 MJ/L = 3 kWh/L (fermentacion natural). Fuente: Agribalyse."},
+		{"Especias y Condimentos", "Comino, oregano, pimienta, aji dulce/picante, onoto, cilantro seco, laurel. Energia: ~14 MJ/kg = 4 kWh/kg (secado + molienda). Fuente: Agribalyse."},
+		{"Abonos Organicos", "Compost maduro, humus de lombriz, estiercol curado, bokashi, gallinaza. Energia: ~0.3 MJ/kg = 0.09 kWh/kg (proceso de descomposicion controlada). Un saco de ~25 kg = ~2 kWh. Fuente: Nigeria organic fertilizer study, Italy on-farm compost LCA."},
+		{"Hongos Comestibles", "Hongos comestibles (champinones, setas, hongos ostra). Energia: ~10 MJ/kg = 3 kWh/kg (sustrato + climatizacion + cosecha). Fuente: Iran mushroom LCA."},
+		{"Plaguicidas Naturales", "Plaguicidas naturales: extractos de neem, ajo, ajonjoli, repelentes botanicos. Energia: ~7 MJ/L = 2 kWh/L (extraccion + ingredientes). Fuente: Agribalyse."},
+		{"Canasta Basica Familiar Semanal", "Canasta semanal para familia de 4-5 personas. Contenido: 3kg granos basicos (maiz, frijol, arroz) = 9 TQ, 2kg verduras frescas = 4 TQ, 1kg frutas de temporada = 2 TQ, 0.5kg carne de pollo = 2.5 TQ, 1L leche fresca = 2 TQ, 0.5L aceite vegetal = 3 TQ, 0.5kg panela/azucar = 2.5 TQ, 1 docena huevos = 3 TQ, 100g especias = 1 TQ. Energia total: ~29 TQ. Precio redondeado: 30 TQ."},
+	}
+	for _, du := range descUpdates {
+		_, _ = d.Pool.Exec(ctx, `UPDATE products SET description = $3 WHERE node_domain = $1 AND name = $2`,
+			nodeDomain, du.name, du.desc)
+	}
 
-	// Sustratos: 0.05 TQ/kg x 20 kg = 1.00 TQ
-	_, _ = d.Pool.Exec(ctx, `
-		UPDATE products SET price_per_kg = 0.05, base_unit = 'kg', weight_kg = 20, price_per_unit = 1.00
-		WHERE node_domain = $1 AND name = 'Tierra Fertil y Sustratos'`, nodeDomain)
-
-	// Coco: 1.4 TQ/kg x 1.5 kg = 2.10 TQ
-	_, _ = d.Pool.Exec(ctx, `
-		UPDATE products SET price_per_kg = 1.4, base_unit = 'kg', weight_kg = 1.5, price_per_unit = 2.10
-		WHERE node_domain = $1 AND name = 'Coco Fresco'`, nodeDomain)
+	// === Marcar productos compuestos (is_composite=true) ===
+	// Estos productos tienen precio 0 porque su precio se calcula por componentes
+	compositeProducts := []string{
+		"Pastelitos de Vegetales Artesanales",
+		"Ajiaco Artesanal",
+		"Hamburguesas Vegetarianas Artesanales",
+		"Tacos de Granos Artesanales",
+		"Chichas Artesanales",
+		"Harina Buen Pan",
+		"Frutos Deshidratados Artesanales",
+		"Encurtidos Artesanales",
+		"Infusiones Naturales Mezcladas",
+		"Vinos Artesanales de Frutas",
+		"Licores Artesanales",
+		"Aceite de Coco Cosmetico",
+		"Arcilla para la Piel",
+		"Cremas y Emulsiones Naturales",
+		"Mascarillas Faciales Naturales",
+		"Labiales Naturales",
+		"Balsamos y Tinturas Naturales",
+		"Plantas Ornamentales (Maceta)",
+		"Plantas Frutales (Maceta)",
+		"Matas de Moringa",
+		"Moringa en Polvo",
+		"Gotas de Nin",
+		"Biofertilizantes Artesanales",
+		"Controles Biologicos",
+		"Cesteria Artesanal",
+		"Horno de Barro Artesanal",
+	}
+	for _, cp := range compositeProducts {
+		_, _ = d.Pool.Exec(ctx, `UPDATE products SET is_composite = true WHERE node_domain = $1 AND name = $2`,
+			nodeDomain, cp)
+	}
 
 	log.Printf("Seeded %d products to node_domain=%s", len(products), nodeDomain)
 	return nil
