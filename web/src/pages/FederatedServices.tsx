@@ -104,6 +104,18 @@ export default function FederatedServices() {
     return `${base}/${serviceID}`
   }
 
+  const loadServices = async () => {
+    setLoading(true)
+    try {
+      const res: any = await api.get('/services/catalog')
+      setServices(res.services || res || [])
+    } catch (e) {
+      setMsg({ type: 'error', text: 'Error al cargar servicios' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const filtered = services.filter(s => {
     const matchSearch = !search ||
       s.name.toLowerCase().includes(search.toLowerCase()) ||

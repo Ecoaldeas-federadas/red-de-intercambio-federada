@@ -1826,6 +1826,7 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
   const [updateStatus, setUpdateStatus] = useState<any>(null)
   const [msg, setMsg] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null)
   const [pollInterval, setPollInterval] = useState<any>(null)
+  const [showConfirm, setShowConfirm] = useState(false)
 
   const checkUpdates = async () => {
     setChecking(true)
@@ -1840,7 +1841,7 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
   }
 
   const updateNode = async () => {
-    if (!confirm('Actualizar el nodo? Se descargara la ultima version, se reconstruira y se reiniciara. Esto puede tardar varios minutos.')) return
+    setShowConfirm(false)
     setUpdating(true)
     setMsg(null)
     try {
@@ -1935,7 +1936,7 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
               {checking ? <><RefreshCw size={16} className="animate-spin" /> Verificando...</> : <><RefreshCw size={16} /> Verificar actualizaciones</>}
             </button>
             <button
-              onClick={updateNode}
+              onClick={() => setShowConfirm(true)}
               disabled={updating || !canManage}
               className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
             >
@@ -1947,6 +1948,39 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
           <p className="text-xs text-amber-600">No tienes permiso para actualizar el nodo.</p>
         )}
       </div>
+
+      {/* Modal de confirmacion */}
+      {showConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowConfirm(false)}>
+          <div className="bg-white rounded-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-amber-100 rounded-lg">
+                <AlertTriangle size={24} className="text-amber-600" />
+              </div>
+              <h3 className="text-lg font-bold">Actualizar Nodo</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-6">
+              Se descargara la ultima version del repositorio, se reconstruira la imagen Docker
+              y se reiniciara el nodo. Esto puede tardar varios minutos.
+              Durante la actualizacion el nodo no estara disponible.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={updateNode}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm flex items-center gap-2"
+              >
+                <Download size={16} /> Si, actualizar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
