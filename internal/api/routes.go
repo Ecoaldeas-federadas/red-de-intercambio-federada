@@ -52,6 +52,63 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 	r.Use(middleware.Timeout(60 * time.Second))
 	r.Use(corsMiddleware(corsOrigins))
 
+	// Proxy reverso dinamico para servicios instalados y nodo demo.
+	// Cada servicio instalado se accede via /<service_id> (ej: /pos, /peertube).
+	// El nodo demo se accede via /demo.
+	// El proxy redirige al puerto interno del servicio.
+	// Solo intercepta paths cuyo primer segmento corresponde a un servicio instalado.
+	// Las rutas /api/*, /uploads/*, /images/* etc. pasan al handler normal.
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			path := r.URL.Path
+
+			// No interceptar rutas API, uploads, images, robots, sitemap, etc.
+			if strings.HasPrefix(path, "/api/") ||
+				strings.HasPrefix(path, "/uploads/") ||
+				strings.HasPrefix(path, "/images/") ||
+				strings.HasPrefix(path, "/federation/") ||
+				path == "/robots.txt" ||
+				path == "/sitemap.xml" ||
+				path == "/favicon.ico" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Extraer primer segmento
+			trimmed := strings.TrimPrefix(path, "/")
+			firstSeg := trimmed
+			rest := ""
+			if idx := strings.Index(trimmed, "/"); idx >= 0 {
+				firstSeg = trimmed[:idx]
+				rest = trimmed[idx:]
+			}
+			if firstSeg == "" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Caso especial: /demo -> puerto 9091 (nodo demo)
+			// Solo si NO estamos en el nodo demo (que ya tiene basePath /demo)
+			if firstSeg == "demo" && basePath == "" {
+				serviceProxy(w, r, rest, 9091, "/demo")
+				return
+			}
+
+			// Buscar el servicio en installed_services
+			var port int
+			err := pool.QueryRow(r.Context(),
+				`SELECT port FROM installed_services WHERE service_id = $1 AND status IN ('running', 'stopped')`,
+				firstSeg).Scan(&port)
+			if err == nil {
+				serviceProxy(w, r, rest, port, "/"+firstSeg)
+				return
+			}
+
+			// No es un servicio: dejar que chi maneje el resto (frontend, etc.)
+			next.ServeHTTP(w, r)
+		})
+	})
+
 	// Setup routes (no auth required)
 	sh.RegisterRoutes(r)
 
@@ -180,19 +237,6 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 		w.Header().Set("Cache-Control", "public, max-age=86400")
 		http.StripPrefix("/images/", fileServer).ServeHTTP(w, r)
 	})
-
-	// Proxy reverso para el POS Web: /pos -> http://localhost:3001
-	// Esto permite acceder al POS via https://dominio/pos en lugar de
-	// https://dominio:3001. El POS sigue corriendo en el puerto 3001
-	// internamente, pero el nodo lo expone via path /pos.
-	r.Handle("/pos", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		posProxy(w, r, "")
-	}))
-	r.Handle("/pos/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Extraer el path despues de /pos
-		path := strings.TrimPrefix(r.URL.Path, "/pos")
-		posProxy(w, r, path)
-	}))
 
 	// robots.txt: permitir que todos los crawlers indexen el sitio
 	r.Get("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
@@ -822,30 +866,27 @@ func corsMiddleware(allowedOrigins []string) func(http.Handler) http.Handler {
 	}
 }
 
-// posProxy es un proxy reverso que redirige /pos -> http://localhost:3001
-// Esto permite acceder al POS Web via https://dominio/pos en lugar de
-// https://dominio:3001. El POS sigue corriendo en el puerto 3001 internamente.
-func posProxy(w http.ResponseWriter, r *http.Request, path string) {
-	target, err := url.Parse("http://localhost:3001")
+// serviceProxy es un proxy reverso generico que redirige /<serviceID>/* -> http://localhost:<port>/*
+// Esto permite acceder a cualquier servicio instalado via https://dominio/<serviceID>
+// en lugar de https://dominio:<port>. El servicio sigue corriendo en su puerto internamente.
+func serviceProxy(w http.ResponseWriter, r *http.Request, path string, port int, prefix string) {
+	target, err := url.Parse(fmt.Sprintf("http://localhost:%d", port))
 	if err != nil {
-		http.Error(w, "POS proxy error", http.StatusInternalServerError)
+		http.Error(w, "proxy error", http.StatusInternalServerError)
 		return
 	}
 
 	proxy := httputil.NewSingleHostReverseProxy(target)
 
-	// Ajustar el path: /pos/algo -> /algo
+	// Ajustar el path: /<serviceID>/algo -> /algo
 	if path == "" {
 		r.URL.Path = "/"
 	} else {
 		r.URL.Path = path
 	}
 
-	// Preservar query params
-	// r.URL.RawQuery ya se preserva
-
-	// El POS necesita saber que esta detras de un proxy
-	r.Header.Set("X-Forwarded-Prefix", "/pos")
+	// El servicio necesita saber que esta detras de un proxy
+	r.Header.Set("X-Forwarded-Prefix", prefix)
 
 	proxy.ServeHTTP(w, r)
 }

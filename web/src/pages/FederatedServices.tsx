@@ -95,26 +95,13 @@ export default function FederatedServices() {
     }
   }
 
-  // Construye la URL para abrir un servicio instalado
-  const buildServiceURL = (port: number) => {
-    // El POS Web (puerto 3001) se accede via /pos en lugar de :3001
-    // El backend tiene un proxy reverso que redirige /pos -> localhost:3001
-    if (port === 3001) {
-      // Usar el mismo dominio base que el nodo, con path /pos
-      const base = window.location.origin
-      return `${base}/pos`
-    }
-    if (serviceURL) {
-      // Si hay OpenWrt o dominio real, no se necesita puerto (usa subdominios)
-      if (serviceURL.mode === 'openwrt' || (serviceURL.scheme === 'https' && serviceURL.base_domain !== 'localhost')) {
-        // Con OpenWrt/dominio: los servicios usan subdominios, no puertos
-        // Pero por ahora seguimos usando puerto hasta que se configure DNS automatico
-        return `${serviceURL.scheme}://${serviceURL.base_domain}:${port}`
-      }
-      return `${serviceURL.scheme}://${serviceURL.base_domain}:${port}`
-    }
-    // Fallback
-    return `${window.location.protocol}//${window.location.hostname}:${port}`
+  // Construye la URL para abrir un servicio instalado.
+  // Todos los servicios se acceden via /<service_id> (ej: /pos, /peertube).
+  // El backend tiene un proxy reverso que redirige /<service_id> -> localhost:<port>.
+  // Esto evita que el usuario tenga que recordar puertos.
+  const buildServiceURL = (serviceID: string) => {
+    const base = window.location.origin
+    return `${base}/${serviceID}`
   }
 
   const filtered = services.filter(s => {
@@ -480,6 +467,23 @@ export default function FederatedServices() {
 
               <p className="text-sm text-gray-600 mb-2 line-clamp-3">{svc.what_is}</p>
 
+              {isInstalled && isRunning && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-2 mb-2 text-xs">
+                  <div className="text-gray-500 mb-1">URL de acceso:</div>
+                  <div className="flex items-center gap-2">
+                    <code className="font-mono text-green-700 flex-1 truncate">{buildServiceURL(svc.id)}</code>
+                    <a
+                      href={buildServiceURL(svc.id)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2 py-0.5 bg-green-600 text-white rounded text-xs font-medium hover:bg-green-700 flex items-center gap-1"
+                    >
+                      <ExternalLink size={10} /> Abrir
+                    </a>
+                  </div>
+                </div>
+              )}
+
               {isExclusive && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 mb-2 text-xs text-amber-700">
                   <strong>Importante:</strong> Este POS solo procesa TQ (no dinero tradicional ni criptomonedas).
@@ -532,7 +536,7 @@ export default function FederatedServices() {
                 )}
                 {isInstalled && isRunning && (
                   <a
-                    href={buildServiceURL(svc.default_port)}
+                    href={buildServiceURL(svc.id)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs flex items-center gap-1"
@@ -690,7 +694,7 @@ export default function FederatedServices() {
                   <>
                     {selectedService.status === 'running' && (
                       <a
-                        href={buildServiceURL(selectedService.default_port)}
+                        href={buildServiceURL(selectedService.id)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm flex items-center gap-2"

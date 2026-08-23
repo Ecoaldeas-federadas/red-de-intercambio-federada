@@ -68,19 +68,19 @@ export function PublicFederationPage() {
       const maxAttempts = 30 // 30 * 2s = 60s max
       const checkReady = () => {
         attempts++
-        fetch('http://localhost:9091/api/setup/status', { mode: 'no-cors', cache: 'no-store' })
+        fetch('/demo/api/setup/status', { mode: 'no-cors', cache: 'no-store' })
           .then(() => {
             // Servidor respondio (aunque sea opaco con no-cors)
             setDemoState('running')
             setDemoStarting(false)
-            window.open('http://localhost:9091/demo', '_blank')
+            window.open('/demo/demo', '_blank')
           })
           .catch(() => {
             if (attempts >= maxAttempts) {
               // Timeout: asumir que ya esta listo (puede tardar mas en arranques lentos)
               setDemoState('running')
               setDemoStarting(false)
-              window.open('http://localhost:9091/demo', '_blank')
+              window.open('/demo/demo', '_blank')
             } else {
               // Reintentar en 2s
               setTimeout(checkReady, 2000)
@@ -490,7 +490,7 @@ export function PublicFederationPage() {
             {/* Boton principal */}
             {demoState === 'running' ? (
               <a
-                href="http://localhost:9091/demo"
+                href="/demo/demo"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 bg-white text-emerald-700 font-semibold px-8 py-4 rounded-xl hover:bg-emerald-50 transition text-lg"

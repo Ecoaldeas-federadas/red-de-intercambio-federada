@@ -1,21 +1,37 @@
-fix: Restaurar Actualizar Nodo en Ajustes + URL del POS via /pos
+fix: Proxy reverso dinamico para todos los servicios + demo
 
-1. Actualizar Nodo vuelve a Ajustes > General
-   - Se habia movido a Servicios Federados por confusion
-   - Solo la info del POS debia quitarse de Ajustes, no Actualizar Nodo
-   - Actualizar Nodo sigue en Ajustes porque es parte del nodo
+PROBLEMA: Cada servicio instalado (POS, PeerTube, Mastodon, etc.) y el
+nodo demo usaban puertos directos (:3001, :9091, etc.). Esto no funciona
+cuando el dominio base ya usa un puerto (8080) y requiere que el usuario
+recuerde puertos.
 
-2. URL del POS: /pos en lugar de :3001
-   - Proxy reverso en el backend: /pos -> http://localhost:3001
-   - El POS sigue corriendo en puerto 3001 internamente
-   - Pero se accede via https://dominio/pos (sin puerto)
-   - El dominio base redirige al puerto 8080 (nodo)
-   - /pos redirige al puerto 3001 (POS) via proxy reverso
-   - No hay conflicto de puertos
+SOLUCION: Proxy reverso dinamico en el backend que redirige
+/<service_id> -> http://localhost:<port> para cada servicio instalado.
 
-3. Frontend: buildServiceURL usa /pos para el POS
-   - El boton "Abrir" del POS ahora va a https://dominio/pos
-   - Las llamadas API del POS van directamente al nodo (no via /pos)
+COMO FUNCIONA:
+- Middleware en chi intercepta todos los requests
+- Si el primer segmento del path es un servicio instalado (en installed_services),
+  redirige al puerto interno de ese servicio
+- /pos -> localhost:3001 (POS Web)
+- /demo -> localhost:9091 (nodo demo)
+- /peertube -> localhost:9006 (PeerTube)
+- /mastodon -> localhost:3000 (Mastodon)
+- etc.
+- Las rutas /api/*, /uploads/*, /images/* no se interceptan
+- Si el primer segmento no es un servicio, pasa al frontend normal
+
+FRONTEND:
+- buildServiceURL ahora usa /<service_id> en lugar de :<port>
+- Cada tarjeta de servicio instalado muestra la URL de acceso
+- Boton "Abrir" visible cuando el servicio esta corriendo
+- URLs del demo cambiadas de localhost:9091 a /demo
+
+VENTAJAS:
+- El usuario no necesita recordar puertos
+- Todo funciona bajo el mismo dominio
+- No hay conflicto de puertos
+- El dominio base (8080) redirige al nodo
+- /pos, /demo, /peertube, etc. redirigen a cada servicio
 
 Generated with [Devin](https://devin.ai)
 

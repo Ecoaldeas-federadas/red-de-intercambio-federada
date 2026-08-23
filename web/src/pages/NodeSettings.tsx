@@ -1719,7 +1719,7 @@ export default function NodeSettings() {
             <div className="text-xs text-gray-600 space-y-1">
               <p><strong>Puerto:</strong> 9091 (API) / 9044 (Federacion)</p>
               <p><strong>Base de datos:</strong> fmc_demo (separada de fmc_node)</p>
-              <p><strong>URL:</strong> http://localhost:9091/demo</p>
+              <p><strong>URL:</strong> https://[dominio]/demo/demo</p>
               <p><strong>Reset automatico:</strong> Cada 24 horas</p>
             </div>
           </div>
