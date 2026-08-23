@@ -398,3 +398,123 @@ func errorAs(err error, target interface{}) bool {
 	}
 	return false
 }
+
+// ResolveNodeDomain obtiene el dominio real del nodo desde node_config.
+// NUNCA usa 'localhost' como fallback. Si no hay dominio configurado,
+// devuelve string vacio para que el caller lo maneje.
+//
+// Orden de resolucion:
+// 1. headerDomain (X-Node-Domain del request)
+// 2. Tabla node_config (dominio real guardado al instalar el nodo)
+// 3. configDomain (del config.yaml)
+// 4. "" (vacio - el caller debe manejar este caso)
+func ResolveNodeDomain(ctx context.Context, pool *pgxpool.Pool, headerDomain, configDomain string) string {
+	// 1. Header X-Node-Domain
+	if headerDomain != "" {
+		return headerDomain
+	}
+	// 2. node_config - el dominio real del nodo
+	var domain string
+	_ = pool.QueryRow(ctx, `SELECT node_domain FROM node_config WHERE initialized = true LIMIT 1`).Scan(&domain)
+	if domain != "" {
+		return domain
+	}
+	// 3. config.yaml
+	if configDomain != "" {
+		return configDomain
+	}
+	// 4. Vacio - NO usar 'localhost'
+	return ""
+}
+
+// MigrateDomainData actualiza TODAS las tablas que tienen columna node_domain
+// cuando el dominio del nodo cambia. Esto asegura que si se cambia el dominio
+// en los ajustes, todos los datos se mueven al nuevo dominio automaticamente.
+//
+// Tablas migradas:
+// - users, products, transactions, ledger_entries
+// - node_config, tax_config, assembly_config, assembly_quorum_config
+// - assembly_frequency_config, assembly_sessions, assembly_decisions
+// - assembly_attendance, assembly_notifications, assembly_proposal_votes
+// - governance_rules, public_settings, public_pages
+// - energy_tariff, member_levels, organization_levels
+// - notification_gateway_config, assembly_sessions_scoped
+// - subscription_configs, services, departments
+// - product_compositions, product_federation
+// - node_federation_keys (peer_domain NO se mueve, es de nodos remotos)
+func MigrateDomainData(ctx context.Context, pool *pgxpool.Pool, oldDomain, newDomain string) error {
+	if oldDomain == "" || newDomain == "" || oldDomain == newDomain {
+		return nil
+	}
+
+	// Lista de tablas con columna node_domain que pertenecen al nodo local.
+	// NO incluimos tablas de nodos remotos (node_federation_keys, discovered_nodes, etc.)
+	// porque esas tienen dominios de OTROS nodos, no del nuestro.
+	tables := []struct {
+		name   string
+		column string
+	}{
+		{"users", "node_domain"},
+		{"products", "node_domain"},
+		{"transactions", "node_domain"},
+		{"ledger_entries", "node_domain"},
+		{"node_config", "node_domain"},
+		{"tax_config", "node_domain"},
+		{"assembly_config", "node_domain"},
+		{"assembly_quorum_config", "node_domain"},
+		{"assembly_frequency_config", "node_domain"},
+		{"assembly_sessions", "node_domain"},
+		{"assembly_sessions_scoped", "node_domain"},
+		{"assembly_decisions", "node_domain"},
+		{"assembly_attendance", "node_domain"},
+		{"assembly_notifications", "node_domain"},
+		{"assembly_proposal_votes", "node_domain"},
+		{"governance_rules", "node_domain"},
+		{"public_settings", "node_domain"},
+		{"public_pages", "node_domain"},
+		{"energy_tariff", "node_domain"},
+		{"member_levels", "node_domain"},
+		{"organization_levels", "node_domain"},
+		{"notification_gateway_config", "node_domain"},
+		{"subscription_configs", "node_domain"},
+		{"departments", "node_domain"},
+		{"product_compositions", "node_domain"},
+		{"assembly_quorum_config_scoped", "node_domain"},
+		{"energy_tariff_changes", "node_domain"},
+		{"scoped_assembly_proposals", "node_domain"},
+		{"organization_board_members", "node_domain"},
+		{"node_board_members", "node_domain"},
+		{"node_expulsion_votes", "node_domain"},
+		{"recovery_config", "node_domain"},
+		{"external_currency_rates", "node_domain"},
+	}
+
+	migrated := 0
+	for _, t := range tables {
+		// Verificar si la tabla existe antes de intentar actualizar
+		var exists bool
+		err := pool.QueryRow(ctx, `
+			SELECT EXISTS (
+				SELECT 1 FROM information_schema.columns
+				WHERE table_name = $1 AND column_name = $2
+			)`, t.name, t.column).Scan(&exists)
+		if err != nil || !exists {
+			continue
+		}
+
+		ct, err := pool.Exec(ctx,
+			fmt.Sprintf(`UPDATE %s SET %s = $1 WHERE %s = $2`, t.name, t.column, t.column),
+			newDomain, oldDomain)
+		if err != nil {
+			log.Printf("MigrateDomainData: error updating %s: %v", t.name, err)
+			continue
+		}
+		if ct.RowsAffected() > 0 {
+			migrated += int(ct.RowsAffected())
+			log.Printf("MigrateDomainData: %s: %d rows %s -> %s", t.name, ct.RowsAffected(), oldDomain, newDomain)
+		}
+	}
+
+	log.Printf("MigrateDomainData: total %d rows migrated from '%s' to '%s'", migrated, oldDomain, newDomain)
+	return nil
+}

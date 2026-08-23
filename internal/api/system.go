@@ -239,9 +239,7 @@ func (h *SystemHandler) getConfig(w http.ResponseWriter, r *http.Request) {
 	} else {
 		nodeDomain = r.Header.Get("X-Node-Domain")
 	}
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	var nodeName, currencyName, appName, currencyFullName string
 	err := h.Pool.QueryRow(r.Context(), `
@@ -284,13 +282,7 @@ func (h *SystemHandler) updateConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		if h.nodeDomain != "" {
-			nodeDomain = h.nodeDomain
-		} else {
-			nodeDomain = "localhost"
-		}
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	_, err := h.Pool.Exec(r.Context(), `
 		UPDATE node_config SET node_name = $1, currency_name = $2, app_name = $3, currency_full_name = $4 WHERE node_domain = $5`,
@@ -313,13 +305,7 @@ func (h *SystemHandler) updateConfig(w http.ResponseWriter, r *http.Request) {
 
 func (h *SystemHandler) listMemberLevels(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		if h.nodeDomain != "" {
-			nodeDomain = h.nodeDomain
-		} else {
-			nodeDomain = "localhost"
-		}
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	// Intentar usar el node_domain real del usuario autenticado
 	userID, err := h.Auth.GetUserID(r)
@@ -453,13 +439,7 @@ func (h *SystemHandler) createMemberLevel(w http.ResponseWriter, r *http.Request
 	}
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		if h.nodeDomain != "" {
-			nodeDomain = h.nodeDomain
-		} else {
-			nodeDomain = "localhost"
-		}
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	id := req.Name
 	_, err := h.Pool.Exec(r.Context(), `
@@ -519,13 +499,7 @@ func (h *SystemHandler) updateMemberLevel(w http.ResponseWriter, r *http.Request
 
 func (h *SystemHandler) getTariff(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		if h.nodeDomain != "" {
-			nodeDomain = h.nodeDomain
-		} else {
-			nodeDomain = "localhost"
-		}
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	row := h.Pool.QueryRow(r.Context(), `
 		SELECT vital_food, vital_water, vital_domestic, vital_services,
@@ -587,13 +561,7 @@ func (h *SystemHandler) updateTariff(w http.ResponseWriter, r *http.Request) {
 	}
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		if h.nodeDomain != "" {
-			nodeDomain = h.nodeDomain
-		} else {
-			nodeDomain = "localhost"
-		}
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	_, err := h.Pool.Exec(r.Context(), `
 		INSERT INTO energy_tariff (node_domain, vital_food, vital_water, vital_domestic, vital_services,
@@ -620,13 +588,7 @@ func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 	if nodeDomain == "" {
 		nodeDomain = h.nodeDomain
 	}
-	if nodeDomain == "" {
-		if h.nodeDomain != "" {
-			nodeDomain = h.nodeDomain
-		} else {
-			nodeDomain = "localhost"
-		}
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 	search := r.URL.Query().Get("search")
 	query := `
 		SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit,
@@ -657,9 +619,7 @@ func (h *SystemHandler) listPendingProducts(w http.ResponseWriter, r *http.Reque
 	if nodeDomain == "" {
 		nodeDomain = h.nodeDomain
 	}
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit, is_approved, origin, badge, image_url, product_code, is_system, is_hidden
 		FROM products WHERE node_domain = $1 AND is_approved = false AND is_hidden = false AND COALESCE(is_composite, false) = false ORDER BY created_at DESC LIMIT 200`, nodeDomain)
@@ -724,9 +684,7 @@ func (h *SystemHandler) listCompositeProducts(w http.ResponseWriter, r *http.Req
 	if nodeDomain == "" {
 		nodeDomain = h.nodeDomain
 	}
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 	search := r.URL.Query().Get("search")
 	query := `
 		SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit,
@@ -1317,13 +1275,7 @@ func (h *SystemHandler) getPriceHistory(w http.ResponseWriter, r *http.Request) 
 
 func (h *SystemHandler) getFundBalance(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		if h.nodeDomain != "" {
-			nodeDomain = h.nodeDomain
-		} else {
-			nodeDomain = "localhost"
-		}
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	// El Fondo Comunitario ES la cuenta de la Asamblea General
 	var fundID uuid.UUID
@@ -1370,9 +1322,7 @@ func (h *SystemHandler) listLedgerTransactions(w http.ResponseWriter, r *http.Re
 			nodeDomain = node
 		}
 	}
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	userID := r.Header.Get("X-User-ID")
 	// Si no hay header, intentar obtener del context (JWT)
@@ -1487,13 +1437,7 @@ func (h *SystemHandler) autoUpgradeLevel(w http.ResponseWriter, r *http.Request)
 	}
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		if h.nodeDomain != "" {
-			nodeDomain = h.nodeDomain
-		} else {
-			nodeDomain = "localhost"
-		}
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	// Obtener nivel actual del usuario, su node_domain y cuando fue creado
 	var currentLevelID *string
@@ -1998,13 +1942,7 @@ func (h *SystemHandler) createCalcCategory(w http.ResponseWriter, r *http.Reques
 
 func (h *SystemHandler) listOrganizationLevels(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		if h.nodeDomain != "" {
-			nodeDomain = h.nodeDomain
-		} else {
-			nodeDomain = "localhost"
-		}
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id::text, name, COALESCE(description, ''), level, credit_limit, debit_limit, tax_rate,
@@ -2079,13 +2017,7 @@ func (h *SystemHandler) createOrganizationLevel(w http.ResponseWriter, r *http.R
 	}
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		if h.nodeDomain != "" {
-			nodeDomain = h.nodeDomain
-		} else {
-			nodeDomain = "localhost"
-		}
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	var id uuid.UUID
 	err := h.Pool.QueryRow(r.Context(), `
@@ -2134,13 +2066,7 @@ func (h *SystemHandler) updateOrganizationLevel(w http.ResponseWriter, r *http.R
 
 func (h *SystemHandler) getPublicSettings(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.URL.Query().Get("node")
-	if nodeDomain == "" {
-		if h.nodeDomain != "" {
-			nodeDomain = h.nodeDomain
-		} else {
-			nodeDomain = "localhost"
-		}
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	var siteTitle, siteSubtitle, primaryColor, secondaryColor, contactAddress, ig, fb string
 	var logoURL, contactEmail, contactPhone, twitter *string
@@ -2314,13 +2240,7 @@ func (h *SystemHandler) listPublicPages(w http.ResponseWriter, r *http.Request) 
 	if nodeDomain == "" {
 		nodeDomain = h.nodeDomain
 	}
-	if nodeDomain == "" {
-		if h.nodeDomain != "" {
-			nodeDomain = h.nodeDomain
-		} else {
-			nodeDomain = "localhost"
-		}
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT slug, title, subtitle, icon, menu_order
@@ -2357,13 +2277,7 @@ func (h *SystemHandler) listPublicPages(w http.ResponseWriter, r *http.Request) 
 
 func (h *SystemHandler) getPublicPage(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.URL.Query().Get("node")
-	if nodeDomain == "" {
-		if h.nodeDomain != "" {
-			nodeDomain = h.nodeDomain
-		} else {
-			nodeDomain = "localhost"
-		}
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 	slug := chi.URLParam(r, "slug")
 
 	var id, title, content string
@@ -2417,13 +2331,7 @@ func (h *SystemHandler) getPublicPage(w http.ResponseWriter, r *http.Request) {
 // JavaScript. Esto es necesario porque el frontend es una SPA.
 func (h *SystemHandler) renderPublicPageHTML(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.URL.Query().Get("node")
-	if nodeDomain == "" {
-		if h.nodeDomain != "" {
-			nodeDomain = h.nodeDomain
-		} else {
-			nodeDomain = "localhost"
-		}
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 	slug := chi.URLParam(r, "slug")
 
 	var title, content string
@@ -2647,13 +2555,7 @@ type AdmissionRequestReq struct {
 
 func (h *SystemHandler) getPublicAdmissionForm(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.URL.Query().Get("node")
-	if nodeDomain == "" {
-		if h.nodeDomain != "" {
-			nodeDomain = h.nodeDomain
-		} else {
-			nodeDomain = "localhost"
-		}
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	var schema json.RawMessage
 	var formTitle, formSubtitle *string
@@ -2690,13 +2592,7 @@ func (h *SystemHandler) submitAdmissionRequest(w http.ResponseWriter, r *http.Re
 	}
 
 	nodeDomain := r.URL.Query().Get("node")
-	if nodeDomain == "" {
-		if h.nodeDomain != "" {
-			nodeDomain = h.nodeDomain
-		} else {
-			nodeDomain = "localhost"
-		}
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	customJSON := string(req.CustomFields)
 	if customJSON == "" || customJSON == "null" {
@@ -2724,13 +2620,7 @@ func (h *SystemHandler) submitAdmissionRequest(w http.ResponseWriter, r *http.Re
 
 func (h *SystemHandler) listSitePages(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		if h.nodeDomain != "" {
-			nodeDomain = h.nodeDomain
-		} else {
-			nodeDomain = "localhost"
-		}
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id::text, slug, title, subtitle, icon, menu_order, is_published, show_in_menu
@@ -2790,13 +2680,7 @@ func (h *SystemHandler) createSitePage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		if h.nodeDomain != "" {
-			nodeDomain = h.nodeDomain
-		} else {
-			nodeDomain = "localhost"
-		}
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	var id uuid.UUID
 	err := h.Pool.QueryRow(r.Context(), `
@@ -2844,13 +2728,7 @@ func (h *SystemHandler) upsertSitePageBySlug(w http.ResponseWriter, r *http.Requ
 	}
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		if h.nodeDomain != "" {
-			nodeDomain = h.nodeDomain
-		} else {
-			nodeDomain = "localhost"
-		}
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	targetSlug := slug
 	if req.Slug != "" {
@@ -2895,13 +2773,7 @@ func (h *SystemHandler) deleteSitePage(w http.ResponseWriter, r *http.Request) {
 func (h *SystemHandler) resetSitePage(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		if h.nodeDomain != "" {
-			nodeDomain = h.nodeDomain
-		} else {
-			nodeDomain = "localhost"
-		}
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	// Obtener el contenido por defecto del seed
 	db := &db.DB{Pool: h.Pool}
@@ -2996,13 +2868,7 @@ func (h *SystemHandler) updateSiteSettings(w http.ResponseWriter, r *http.Reques
 	}
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		if h.nodeDomain != "" {
-			nodeDomain = h.nodeDomain
-		} else {
-			nodeDomain = "localhost"
-		}
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	if req.HeaderStyle == "" {
 		req.HeaderStyle = "modern_eco"
@@ -3078,13 +2944,7 @@ func (h *SystemHandler) updateSiteSettings(w http.ResponseWriter, r *http.Reques
 
 func (h *SystemHandler) listAdmissionRequests(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		if h.nodeDomain != "" {
-			nodeDomain = h.nodeDomain
-		} else {
-			nodeDomain = "localhost"
-		}
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	status := r.URL.Query().Get("status")
 	query := `SELECT id::text, full_name, email, phone, location, reason, skills, how_heard, status, created_at, COALESCE(custom_fields, '{}'::jsonb)
@@ -3146,13 +3006,7 @@ func (h *SystemHandler) updateSiteAdmissionForm(w http.ResponseWriter, r *http.R
 	}
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		if h.nodeDomain != "" {
-			nodeDomain = h.nodeDomain
-		} else {
-			nodeDomain = "localhost"
-		}
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	schemaJSON := string(req.Schema)
 	if schemaJSON == "" || schemaJSON == "null" {
@@ -3381,7 +3235,7 @@ func (h *SystemHandler) listPublicProducts(w http.ResponseWriter, r *http.Reques
 		WHERE node_domain = $1 AND is_approved = true AND is_hidden = false AND COALESCE(is_composite, false) = false`
 	domain := h.nodeDomain
 	if domain == "" {
-		domain = "localhost"
+		domain = db.ResolveNodeDomain(r.Context(), h.Pool, "", h.nodeDomain)
 	}
 	args := []interface{}{domain}
 	argIdx := 2
@@ -3482,13 +3336,7 @@ func (h *SystemHandler) listProductCategories(w http.ResponseWriter, r *http.Req
 	if nodeDomain == "" {
 		nodeDomain = h.nodeDomain
 	}
-	if nodeDomain == "" {
-		if h.nodeDomain != "" {
-			nodeDomain = h.nodeDomain
-		} else {
-			nodeDomain = "localhost"
-		}
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 	// Obtener todas las combinaciones distintas de (parent_category, category, subcategory)
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT DISTINCT parent_category, category, subcategory
@@ -3770,13 +3618,7 @@ func (h *SystemHandler) listGovernanceRules(w http.ResponseWriter, r *http.Reque
 	if nodeDomain == "" {
 		nodeDomain = h.nodeDomain
 	}
-	if nodeDomain == "" {
-		if h.nodeDomain != "" {
-			nodeDomain = h.nodeDomain
-		} else {
-			nodeDomain = "localhost"
-		}
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	// Cargar valores dinamicos de la configuracion real del nodo
 	dynValues := h.loadGovernanceDynamicValues(r.Context(), nodeDomain)
@@ -3964,9 +3806,10 @@ func (h *SystemHandler) createGovernanceRule(w http.ResponseWriter, r *http.Requ
 		SELECT id FROM assembly_sessions WHERE status IN ('scheduled', 'active') ORDER BY created_at DESC LIMIT 1`).Scan(&sessionID)
 	if err != nil {
 		sessionID = uuid.New()
+		sessDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.nodeDomain)
 		h.Pool.Exec(r.Context(), `
 			INSERT INTO assembly_sessions (id, node_domain, session_type, title, start_time, status)
-			VALUES ($1, 'localhost', 'ordinaria', 'Sesion automatica', NOW(), 'active')`, sessionID)
+			VALUES ($1, $2, 'ordinaria', 'Sesion automatica', NOW(), 'active')`, sessionID, sessDomain)
 	}
 
 	// Serializar parametros
@@ -4038,9 +3881,10 @@ func (h *SystemHandler) updateGovernanceRule(w http.ResponseWriter, r *http.Requ
 		SELECT id FROM assembly_sessions WHERE status IN ('scheduled', 'active') ORDER BY created_at DESC LIMIT 1`).Scan(&sessionID)
 	if err != nil {
 		sessionID = uuid.New()
+		sessDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.nodeDomain)
 		h.Pool.Exec(r.Context(), `
 			INSERT INTO assembly_sessions (id, node_domain, session_type, title, start_time, status)
-			VALUES ($1, 'localhost', 'ordinaria', 'Sesion automatica', NOW(), 'active')`, sessionID)
+			VALUES ($1, $2, 'ordinaria', 'Sesion automatica', NOW(), 'active')`, sessionID, sessDomain)
 	}
 
 	active := true
@@ -4108,9 +3952,10 @@ func (h *SystemHandler) deleteGovernanceRule(w http.ResponseWriter, r *http.Requ
 		SELECT id FROM assembly_sessions WHERE status IN ('scheduled', 'active') ORDER BY created_at DESC LIMIT 1`).Scan(&sessionID)
 	if err != nil {
 		sessionID = uuid.New()
+		sessDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.nodeDomain)
 		h.Pool.Exec(r.Context(), `
 			INSERT INTO assembly_sessions (id, node_domain, session_type, title, start_time, status)
-			VALUES ($1, 'localhost', 'ordinaria', 'Sesion automatica', NOW(), 'active')`, sessionID)
+			VALUES ($1, $2, 'ordinaria', 'Sesion automatica', NOW(), 'active')`, sessionID, sessDomain)
 	}
 
 	params := map[string]interface{}{

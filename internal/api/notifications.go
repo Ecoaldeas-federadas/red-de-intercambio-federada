@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"federated-credit-node/internal/db"
 	"fmt"
 	"net/http"
 	"time"
@@ -14,8 +15,9 @@ import (
 
 // NotificationHandler maneja notificaciones generales del sistema
 type NotificationHandler struct {
-	Pool *pgxpool.Pool
-	Auth *AuthMiddleware
+	Pool       *pgxpool.Pool
+	Auth       *AuthMiddleware
+	nodeDomain string
 }
 
 // RegisterRoutes registra las rutas de notificaciones
@@ -236,9 +238,7 @@ func (h *NotificationHandler) deleteNotification(w http.ResponseWriter, r *http.
 
 func (h *NotificationHandler) listChannels(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT nc.channel_code, nc.name, nc.description, nc.is_enabled, nc.requires_config, nc.sort_order,
@@ -274,9 +274,7 @@ func (h *NotificationHandler) listChannels(w http.ResponseWriter, r *http.Reques
 
 func (h *NotificationHandler) listGateways(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT channel_code, config, is_active, updated_at
 		FROM notification_gateway_config WHERE node_domain = $1`, nodeDomain)
@@ -316,9 +314,7 @@ func (h *NotificationHandler) listGateways(w http.ResponseWriter, r *http.Reques
 
 func (h *NotificationHandler) updateGateway(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 	channel := chi.URLParam(r, "channel")
 
 	var req struct {
@@ -358,9 +354,7 @@ func (h *NotificationHandler) updateGateway(w http.ResponseWriter, r *http.Reque
 
 func (h *NotificationHandler) testGateway(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 	channel := chi.URLParam(r, "channel")
 
 	// Obtener la config del gateway
@@ -570,9 +564,7 @@ func (h *NotificationHandler) unsubscribeWebPush(w http.ResponseWriter, r *http.
 // Si no hay VAPID keys configuradas, las auto-genera y guarda en la config del gateway webpush
 func (h *NotificationHandler) getVapidPublicKey(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	// Buscar config existente de webpush
 	var configBytes []byte

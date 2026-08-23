@@ -108,13 +108,14 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 	clusterH.RegisterRoutesWithAuth(r, am)
 
 	// Assembly y Tax
-	asmbH := &AssemblyHandler{Pool: pool, Auth: am}
+	asmbH := &AssemblyHandler{Pool: pool, Auth: am, nodeDomain: h.nodeDomain}
 	asmbH.RegisterRoutes(r, am)
-	taxH := &TaxHandler{Pool: pool, Auth: am}
+	taxH := &TaxHandler{Pool: pool, Auth: am, nodeDomain: h.nodeDomain}
 	taxH.RegisterRoutes(r, am)
 
 	// Asambleas de organizaciones y departamentos
 	scopedAsmbH := NewScopedAssemblyHandler(pool, am)
+	scopedAsmbH.nodeDomain = h.nodeDomain
 	scopedAsmbH.RegisterRoutes(r, am)
 
 	// Mis organizaciones y departamentos (acceso con sesion personal)
@@ -122,7 +123,7 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 	myH.RegisterRoutes(r, am)
 
 	// Notificaciones
-	notifH := &NotificationHandler{Pool: pool, Auth: am}
+	notifH := &NotificationHandler{Pool: pool, Auth: am, nodeDomain: h.nodeDomain}
 	notifH.RegisterRoutes(r, am)
 
 	// System: auditoria, config, niveles, tarifa, productos

@@ -1,45 +1,34 @@
-feat: Terminales POS asignados a organizaciones con turnos y gestion completa
+fix: Eliminar todos los localhost hardcoded - dominio dinamico
 
-Modelo correcto de asignacion de terminales:
+PROBLEMA: 80 instancias de localhost hardcoded en el codigo Go.
+Cuando un nodo tiene un dominio diferente, el codigo usaba localhost
+como fallback y no encontraba los datos.
 
-JERARQUIA DE ASIGNACION:
-1. Admin (Asamblea) asigna terminal a ORGANIZACION
-2. Organizacion asigna terminal a:
-   - Un miembro de la organizacion (usuario autorizado)
-   - Un departamento de la organizacion
-3. La organizacion puede reasignar, bloquear, desbloquear
-4. La organizacion ve quien uso el terminal, cuanto vendio, turnos
+SOLUCION: Funcion db.ResolveNodeDomain() que SIEMPRE lee el dominio
+real desde node_config. Nunca usa localhost como fallback.
 
-TURNOs (apertura/cierre):
-- Cada vez que un usuario autorizado abre el terminal, se crea un turno
-- Cuando cierra, se registra el total vendido y numero de transacciones
-- La organizacion puede ver:
-  - Quien uso el terminal y cuando
-  - Cuanto vendio cada usuario en su turno
-  - Cambios de turno
-- Permite control de cajeros y rendicion de cuentas
+Orden de resolucion:
+1. Header X-Node-Domain (del frontend)
+2. Tabla node_config (dominio real guardado al instalar)
+3. config.yaml (dominio del archivo de configuracion)
+4. Vacio (el caller maneja el caso)
 
-Backend:
-- POST /api/nfc/terminal/{id}/assign: asignar a organizacion (admin)
-- GET /api/nfc/org-terminals/{orgID}: terminales de la organizacion
-- POST /api/nfc/org-terminals/{orgID}/{terminalID}/assign-user: asignar a miembro
-- POST /api/nfc/org-terminals/{orgID}/{terminalID}/assign-dept: asignar a dept
-- POST /api/nfc/org-terminals/{orgID}/{terminalID}/toggle: activar/desactivar
-- GET /api/nfc/org-terminals/{orgID}/{terminalID}/shifts: ver turnos
-- GET /api/nfc/org-terminals/{orgID}/{terminalID}/transactions: ver transacciones
-- POST /api/nfc/my-terminals/{id}/shift: abrir turno
-- POST /api/nfc/my-terminals/{id}/shift/close: cerrar turno
-- Tabla pos_shifts (turnos con usuario, total ventas, etc)
-- Columnas organization_id y department_id en nfc_terminals
+CAMBIOS:
+- Nueva funcion db.ResolveNodeDomain() en internal/db/connection.go
+- Nueva funcion db.MigrateDomainData() para migrar datos si cambia
+  el dominio (actualiza 33 tablas con columna node_domain)
+- 76 reemplazos en 7 archivos (system, assembly, scoped_assembly,
+  notifications, tax, recovery, external)
+- 3 INSERTs con localhost hardcoded corregidos (creacion de
+  sesiones de asamblea automaticas)
+- Agregado campo nodeDomain a AssemblyHandler, TaxHandler,
+  ScopedAssemblyHandler, NotificationHandler
+- RecoveryHandler ahora recibe Pool para poder resolver dominio
+- routes.go pasa nodeDomain a todos los handlers
 
-Frontend:
-- OrganizationDetail.tsx: nueva pestana "Puntos de Venta"
-  - Lista terminales de la organizacion
-  - Asignar a miembro o departamento
-  - Activar/desactivar terminal
-  - Ver turnos (quien, cuando, cuanto vendio)
-  - Ver transacciones del terminal
-- NFCTerminals.tsx: admin asigna terminal a organizacion (no a usuario)
+PRINCIPIO: El dominio es una variable dinamica que se lee de
+node_config. Si el dominio cambia, la variable automaticamente
+devuelve el nuevo valor. No hay nada hardcoded.
 
 Generated with [Devin](https://devin.ai)
 

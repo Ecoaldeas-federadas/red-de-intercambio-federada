@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"federated-credit-node/internal/db"
 	"fmt"
 	"net/http"
 	"time"
@@ -15,8 +16,9 @@ import (
 
 // AssemblyHandler maneja sesiones, propuestas, votos y junta directiva
 type AssemblyHandler struct {
-	Pool *pgxpool.Pool
-	Auth *AuthMiddleware
+	Pool       *pgxpool.Pool
+	Auth       *AuthMiddleware
+	nodeDomain string
 }
 
 // RegisterRoutes registra las rutas de asamblea
@@ -188,9 +190,7 @@ func (h *AssemblyHandler) createSession(w http.ResponseWriter, r *http.Request) 
 	}
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	// Validar tiempo minimo de anticipacion segun tipo
 	var minAdvanceHours int
@@ -281,9 +281,7 @@ func (h *AssemblyHandler) createSession(w http.ResponseWriter, r *http.Request) 
 
 func (h *AssemblyHandler) listProposals(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	// Total de miembros con derecho a voto para calcular no-votantes
 	var totalVotingMembers int
@@ -411,9 +409,7 @@ func (h *AssemblyHandler) createProposal(w http.ResponseWriter, r *http.Request)
 		// Crear sesion automaticamente
 		sessionID = uuid.New()
 		nodeDomain := r.Header.Get("X-Node-Domain")
-		if nodeDomain == "" {
-			nodeDomain = "localhost"
-		}
+		nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 		_, _ = h.Pool.Exec(r.Context(), `
 			INSERT INTO assembly_sessions (id, node_domain, session_type, title, start_time, status)
 			VALUES ($1, $2, 'ordinaria', 'Sesion automatica', NOW(), 'active')`,
@@ -545,9 +541,7 @@ func (h *AssemblyHandler) openVoting(w http.ResponseWriter, r *http.Request) {
 
 	// Notificar a los miembros con voto
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 	notify := NewNotifyService(h.Pool)
 	notify.NotifyVotingMembers(r.Context(), nodeDomain, "voting_opened",
 		"Votacion abierta",
@@ -652,9 +646,7 @@ func (h *AssemblyHandler) voteProposal(w http.ResponseWriter, r *http.Request) {
 
 	// Total de miembros con derecho a voto
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 	var totalVotingMembers int
 	if sessionMeetingType == "board" {
 		// Junta directiva: solo contar miembros activos de la junta
@@ -726,9 +718,7 @@ func (h *AssemblyHandler) executeProposal(w http.ResponseWriter, r *http.Request
 		FROM assembly_votes WHERE decision_id = $1`, decisionID).Scan(&votesFor, &votesAgainst, &votesAbstain)
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	// Determinar criterio de aprobacion segun assembly_config
 	var approvalMethod string
@@ -912,9 +902,7 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 		// Cambiar tasa de impuesto
 		if rate, ok := params["tasa"].(float64); ok {
 			nodeDomain := r.Header.Get("X-Node-Domain")
-			if nodeDomain == "" {
-				nodeDomain = "localhost"
-			}
+			nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 			h.Pool.Exec(r.Context(), `
 				INSERT INTO tax_config (node_domain, tax_rate, is_active)
 				VALUES ($1, $2, true)
@@ -942,9 +930,7 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 		canReqLimit, _ := params["can_request_limit_increase"].(bool)
 
 		nodeDomain := r.Header.Get("X-Node-Domain")
-		if nodeDomain == "" {
-			nodeDomain = "localhost"
-		}
+		nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 		if levelID != "" {
 			// Actualizar nivel existente
@@ -984,9 +970,7 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 		maxMembers, _ := params["max_members"].(float64)
 
 		nodeDomain := r.Header.Get("X-Node-Domain")
-		if nodeDomain == "" {
-			nodeDomain = "localhost"
-		}
+		nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 		if levelID != "" {
 			h.Pool.Exec(r.Context(), `
@@ -1008,9 +992,7 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 		// Crear, modificar o eliminar regla de gobernanza (aprobado por asamblea)
 		action, _ := params["action"].(string)
 		nodeDomain := r.Header.Get("X-Node-Domain")
-		if nodeDomain == "" {
-			nodeDomain = "localhost"
-		}
+		nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 		switch action {
 		case "create":
@@ -1081,9 +1063,7 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 
 		// Obtener la cuenta de la Asamblea General (que es el Fondo Comunitario)
 		nodeDomain := r.Header.Get("X-Node-Domain")
-		if nodeDomain == "" {
-			nodeDomain = "localhost"
-		}
+		nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 		var fromAccountID uuid.UUID
 		h.Pool.QueryRow(r.Context(), `SELECT id FROM users WHERE node_domain = $1 AND username = 'asamblea' LIMIT 1`, nodeDomain).Scan(&fromAccountID)
 		if fromAccountID == uuid.Nil {
@@ -1121,9 +1101,7 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 			accountType = "assembly_account"
 		}
 		nodeDomain := r.Header.Get("X-Node-Domain")
-		if nodeDomain == "" {
-			nodeDomain = "localhost"
-		}
+		nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 		h.Pool.Exec(r.Context(), `
 			INSERT INTO users (node_domain, username, display_name, account_type, membership_status, is_approved, credit_limit, debit_limit)
 			VALUES ($1, $2, $3, $4, 'active', true, 0, 0)`,
@@ -1134,9 +1112,7 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 
 func (h *AssemblyHandler) listBoard(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT b.id, b.user_id, u.username, u.display_name, b.position, b.term_start, b.term_end, b.is_active
@@ -1205,9 +1181,7 @@ func (h *AssemblyHandler) assignBoardMember(w http.ResponseWriter, r *http.Reque
 	}
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	id := uuid.New()
 	_, err = h.Pool.Exec(r.Context(), `
@@ -1245,9 +1219,7 @@ func (h *AssemblyHandler) removeBoardMember(w http.ResponseWriter, r *http.Reque
 
 func (h *AssemblyHandler) listVotingMembers(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT u.id, u.username, u.display_name, ml.name as level_name, ml.level, ml.has_voice, ml.has_vote, ml.counts_in_quorum
@@ -1293,9 +1265,7 @@ func (h *AssemblyHandler) listVotingMembers(w http.ResponseWriter, r *http.Reque
 
 func (h *AssemblyHandler) listAssemblyConfig(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id, node_domain, proposal_type, approval_method, required_percentage,
@@ -1368,9 +1338,7 @@ func (h *AssemblyHandler) updateAssemblyConfig(w http.ResponseWriter, r *http.Re
 	}
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	var councilID *uuid.UUID
 	if req.CouncilID != "" {
@@ -1456,9 +1424,7 @@ func (h *AssemblyHandler) getProposalReport(w http.ResponseWriter, r *http.Reque
 	}
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	// Datos de la propuesta
 	var assemblyID uuid.UUID
@@ -1612,9 +1578,7 @@ func (h *AssemblyHandler) getProposalReport(w http.ResponseWriter, r *http.Reque
 // Filtros disponibles: ?type=limit_change&from=2024-01-01&to=2024-12-31&status=executed
 func (h *AssemblyHandler) listVotingReports(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	// Filtros
 	filterType := r.URL.Query().Get("type")
@@ -1960,9 +1924,7 @@ func (h *AssemblyHandler) removeAttendance(w http.ResponseWriter, r *http.Reques
 // getAttendanceHistory devuelve el historial de asistencia
 func (h *AssemblyHandler) getAttendanceHistory(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	userIDFilter := r.URL.Query().Get("user_id")
 
@@ -2093,9 +2055,7 @@ func (h *AssemblyHandler) getAttendanceHistory(w http.ResponseWriter, r *http.Re
 
 func (h *AssemblyHandler) getQuorumConfig(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id, session_type, meeting_type, quorum_first_call, quorum_second_call,
@@ -2137,9 +2097,7 @@ func (h *AssemblyHandler) getQuorumConfig(w http.ResponseWriter, r *http.Request
 
 func (h *AssemblyHandler) updateQuorumConfig(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 	sessionType := chi.URLParam(r, "sessionType")
 	if sessionType == "" {
 		writeError(w, 400, "session type is required")
@@ -2209,9 +2167,7 @@ func (h *AssemblyHandler) verifyQuorum(w http.ResponseWriter, r *http.Request) {
 	}
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	// Obtener datos de la sesion
 	var sessionType, status, meetingType string
@@ -2424,9 +2380,7 @@ func (h *AssemblyHandler) rescheduleSession(w http.ResponseWriter, r *http.Reque
 
 	// Verificar que se pueda reprogramar
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 	var allowReschedule bool
 	var maxRecall int
 	h.Pool.QueryRow(r.Context(), `
@@ -2593,9 +2547,7 @@ func (h *AssemblyHandler) confirmAttendance(w http.ResponseWriter, r *http.Reque
 
 func (h *AssemblyHandler) getFrequencyConfig(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	var freqMonths, preferredDay, preferredHour, notifDays, attendanceWindow int
 	var enabled, isActive bool
@@ -2631,9 +2583,7 @@ func (h *AssemblyHandler) getFrequencyConfig(w http.ResponseWriter, r *http.Requ
 
 func (h *AssemblyHandler) updateFrequencyConfig(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	var req struct {
 		OrdinaryFrequencyMonths int  `json:"ordinary_frequency_months"`
@@ -2706,9 +2656,7 @@ func (h *AssemblyHandler) closeSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	// Notificar a los miembros con voto que la asamblea ha cerrado y la minuta esta disponible
 	var sessionTitle string

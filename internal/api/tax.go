@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"federated-credit-node/internal/db"
 	"net/http"
 	"time"
 
@@ -11,8 +12,9 @@ import (
 
 // TaxHandler maneja la configuracion de impuestos
 type TaxHandler struct {
-	Pool *pgxpool.Pool
-	Auth *AuthMiddleware
+	Pool       *pgxpool.Pool
+	Auth       *AuthMiddleware
+	nodeDomain string
 }
 
 func (h *TaxHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
@@ -23,9 +25,7 @@ func (h *TaxHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 
 func (h *TaxHandler) getTaxConfig(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	// Obtener todas las configuraciones de impuestos
 	rows, err := h.Pool.Query(r.Context(), `
@@ -110,9 +110,7 @@ func (h *TaxHandler) setTaxConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 	if req.AppliesTo == "" {
 		req.AppliesTo = "all"
 	}
@@ -144,9 +142,7 @@ func (h *TaxHandler) setTaxConfig(w http.ResponseWriter, r *http.Request) {
 
 func (h *TaxHandler) getTaxAccount(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	// La cuenta de impuestos ES la cuenta de la Asamblea General
 	// (Asamblea = Fondo Comunitario = Impuestos, es la misma cuenta)

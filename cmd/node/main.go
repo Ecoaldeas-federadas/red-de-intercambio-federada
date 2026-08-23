@@ -193,7 +193,7 @@ func main() {
 	storeSvc := external.NewStore(database.Pool, cfg.Node.Domain)
 	externalHandler := api.NewExternalHandler(dexSvc, storeSvc, cfg.Node.Domain, authMiddleware, database.Pool)
 	recoverySvc := accounts.NewRecovery(database.Pool)
-	recoveryHandler := api.NewRecoveryHandler(recoverySvc, cfg.Node.Domain, jwtSecret)
+	recoveryHandler := api.NewRecoveryHandler(recoverySvc, database.Pool, cfg.Node.Domain, jwtSecret)
 	departmentsSvc := accounts.NewDepartments(database.Pool)
 	departmentsHandler := api.NewDepartmentsHandler(departmentsSvc, cfg.Node.Domain, authMiddleware, database.Pool)
 	nfcTerminalsSvc := payments.NewNFCTerminals(database.Pool, cfg.Node.Domain)

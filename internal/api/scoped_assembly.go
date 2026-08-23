@@ -3,6 +3,7 @@
 import (
 	"context"
 	"encoding/json"
+	"federated-credit-node/internal/db"
 	"fmt"
 	"net/http"
 	"time"
@@ -14,8 +15,9 @@ import (
 
 // ScopedAssemblyHandler maneja asambleas de organizaciones y departamentos
 type ScopedAssemblyHandler struct {
-	Pool *pgxpool.Pool
-	Auth *AuthMiddleware
+	Pool       *pgxpool.Pool
+	Auth       *AuthMiddleware
+	nodeDomain string
 }
 
 func NewScopedAssemblyHandler(pool *pgxpool.Pool, auth *AuthMiddleware) *ScopedAssemblyHandler {
@@ -201,9 +203,7 @@ func (h *ScopedAssemblyHandler) listSessions(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 	meetingType := h.getMeetingType(r)
 
 	filter := r.URL.Query().Get("filter")
@@ -268,9 +268,7 @@ func (h *ScopedAssemblyHandler) createSession(w http.ResponseWriter, r *http.Req
 		return
 	}
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	var req struct {
 		SessionType  string `json:"session_type"`
@@ -448,9 +446,7 @@ func (h *ScopedAssemblyHandler) listProposals(w http.ResponseWriter, r *http.Req
 		return
 	}
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	// Obtener sesiones del scope
 	meetingType := h.getMeetingType(r)
@@ -529,9 +525,7 @@ func (h *ScopedAssemblyHandler) createProposal(w http.ResponseWriter, r *http.Re
 		return
 	}
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	var req struct {
 		SessionID             string                 `json:"session_id"`
@@ -830,9 +824,7 @@ func (h *ScopedAssemblyHandler) listReports(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	voters, _ := h.getEligibleVoters(r.Context(), scope, *scopeID, h.getMeetingType(r))
 	totalVotingMembers := len(voters)
@@ -944,9 +936,7 @@ func (h *ScopedAssemblyHandler) getConfig(w http.ResponseWriter, r *http.Request
 		return
 	}
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	// Verificar si tiene asambleas habilitadas
 	hasAssembly := false
@@ -989,9 +979,7 @@ func (h *ScopedAssemblyHandler) updateConfig(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	var req struct {
 		HasAssembly             bool `json:"has_assembly"`
@@ -1046,9 +1034,7 @@ func (h *ScopedAssemblyHandler) closeSession(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
 	_, err = h.Pool.Exec(r.Context(), `UPDATE assembly_sessions_scoped SET status = 'completed', end_time = NOW() WHERE id = $1`, sessionID)
 	if err != nil {
@@ -1264,9 +1250,7 @@ func (h *ScopedAssemblyHandler) executeScopedDecision(r *http.Request, scope str
 			accountName = "Nueva cuenta"
 		}
 		nodeDomain := r.Header.Get("X-Node-Domain")
-		if nodeDomain == "" {
-			nodeDomain = "localhost"
-		}
+		nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 		h.Pool.Exec(r.Context(), `
 			INSERT INTO users (node_domain, username, display_name, account_type, membership_status, is_approved, credit_limit, debit_limit)
 			VALUES ($1, $2, $3, 'assembly_account', 'active', true, 0, 0)`,

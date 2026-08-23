@@ -8,19 +8,22 @@ import (
 	"time"
 
 	"federated-credit-node/internal/accounts"
+	"federated-credit-node/internal/db"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type RecoveryHandler struct {
 	Recovery   *accounts.Recovery
+	Pool       *pgxpool.Pool
 	NodeDomain string
 	JWTSecret  string
 }
 
-func NewRecoveryHandler(r *accounts.Recovery, nodeDomain, jwtSecret string) *RecoveryHandler {
-	return &RecoveryHandler{Recovery: r, NodeDomain: nodeDomain, JWTSecret: jwtSecret}
+func NewRecoveryHandler(r *accounts.Recovery, pool *pgxpool.Pool, nodeDomain, jwtSecret string) *RecoveryHandler {
+	return &RecoveryHandler{Recovery: r, Pool: pool, NodeDomain: nodeDomain, JWTSecret: jwtSecret}
 }
 
 func (h *RecoveryHandler) RegisterRoutes(r chi.Router) {
@@ -57,9 +60,7 @@ func (h *RecoveryHandler) getConfig(w http.ResponseWriter, r *http.Request) {
 	if nodeDomain == "" {
 		nodeDomain = h.NodeDomain
 	}
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.NodeDomain)
 
 	cfg, err := h.Recovery.GetConfig(r.Context(), nodeDomain)
 	if err != nil {
@@ -176,9 +177,7 @@ func (h *RecoveryHandler) listRequests(w http.ResponseWriter, r *http.Request) {
 	if nodeDomain == "" {
 		nodeDomain = h.NodeDomain
 	}
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.NodeDomain)
 	reqs, err := h.Recovery.ListRequests(r.Context(), nodeDomain, status)
 	if err != nil {
 		writeJSON(w, 200, map[string]interface{}{"requests": []interface{}{}})

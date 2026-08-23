@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"federated-credit-node/internal/db"
 	"federated-credit-node/internal/external"
 )
 
@@ -799,9 +800,7 @@ func (eh *ExternalHandler) listComponents(w http.ResponseWriter, r *http.Request
 	if nodeDomain == "" {
 		nodeDomain = eh.NodeDomain
 	}
-	if nodeDomain == "" {
-		nodeDomain = "localhost"
-	}
+	nodeDomain = db.ResolveNodeDomain(r.Context(), eh.Pool, nodeDomain, eh.NodeDomain)
 	// Listar productos que pueden ser usados como componentes
 	// materias primas, productos base aprobados, trabajo, embalaje, envio
 	// Incluye items individuales dentro de grupos (group_id no nulo)
