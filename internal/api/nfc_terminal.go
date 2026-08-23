@@ -53,13 +53,23 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequireAuth).Get("/api/nfc/terminals/types", h.listTerminalTypes)
 	r.With(am.RequirePermission("nfc.deactivate_terminal")).Delete("/api/nfc/terminal/{id}", h.deactivateTerminal)
 
-	// Assign terminal to user (admin assigns terminal to merchant)
-	r.With(am.RequirePermission("nfc.register_terminal")).Post("/api/nfc/terminal/{id}/assign", h.assignTerminal)
+	// Assign terminal to organization (admin/Asamblea assigns)
+	r.With(am.RequirePermission("nfc.register_terminal")).Post("/api/nfc/terminal/{id}/assign", h.assignTerminalToOrg)
+
+	// Organization endpoints: gestionar terminales de la organizacion
+	r.With(am.RequireAuth).Get("/api/nfc/org-terminals/{orgID}", h.listOrgTerminals)
+	r.With(am.RequireAuth).Post("/api/nfc/org-terminals/{orgID}/{terminalID}/assign-user", h.orgAssignTerminalToUser)
+	r.With(am.RequireAuth).Post("/api/nfc/org-terminals/{orgID}/{terminalID}/assign-dept", h.orgAssignTerminalToDept)
+	r.With(am.RequireAuth).Post("/api/nfc/org-terminals/{orgID}/{terminalID}/toggle", h.orgToggleTerminal)
+	r.With(am.RequireAuth).Get("/api/nfc/org-terminals/{orgID}/{terminalID}/shifts", h.listTerminalShifts)
+	r.With(am.RequireAuth).Get("/api/nfc/org-terminals/{orgID}/{terminalID}/transactions", h.listOrgTerminalTransactions)
 
 	// User endpoints: ver y gestionar sus propios terminales asignados
 	r.With(am.RequireAuth).Get("/api/nfc/my-terminals", h.listMyTerminals)
 	r.With(am.RequireAuth).Post("/api/nfc/my-terminals/{id}/toggle", h.toggleMyTerminal)
 	r.With(am.RequireAuth).Get("/api/nfc/my-terminals/{id}/transactions", h.listMyTerminalTransactions)
+	r.With(am.RequireAuth).Post("/api/nfc/my-terminals/{id}/shift", h.openShift)
+	r.With(am.RequireAuth).Post("/api/nfc/my-terminals/{id}/shift/close", h.closeShift)
 
 	r.With(am.RequirePermission("nfc.issue_card")).Post("/api/nfc/cards/issue", h.issueCryptoCard)
 	r.With(am.RequireAuth).Get("/api/nfc/cards", h.listCards)
@@ -873,9 +883,9 @@ func (h *NFCTerminalHandler) unblockTerminal(w http.ResponseWriter, r *http.Requ
 	writeJSON(w, 200, map[string]string{"status": "unblocked"})
 }
 
-// --- Assign terminal to user (admin assigns terminal to merchant) ---
+// --- Assign terminal to organization (admin/Asamblea assigns) ---
 
-func (h *NFCTerminalHandler) assignTerminal(w http.ResponseWriter, r *http.Request) {
+func (h *NFCTerminalHandler) assignTerminalToOrg(w http.ResponseWriter, r *http.Request) {
 	terminalID := chi.URLParam(r, "id")
 	if terminalID == "" {
 		writeError(w, 400, "terminal id is required")
@@ -883,33 +893,477 @@ func (h *NFCTerminalHandler) assignTerminal(w http.ResponseWriter, r *http.Reque
 	}
 
 	var req struct {
-		MerchantUserID string `json:"merchant_user_id"`
+		OrganizationID string `json:"organization_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")
 		return
 	}
-	if req.MerchantUserID == "" {
-		writeError(w, 400, "merchant_user_id is required")
+	if req.OrganizationID == "" {
+		writeError(w, 400, "organization_id is required")
 		return
 	}
 
-	merchantID, err := uuid.Parse(req.MerchantUserID)
+	orgID, err := uuid.Parse(req.OrganizationID)
 	if err != nil {
-		writeError(w, 400, "invalid merchant_user_id")
+		writeError(w, 400, "invalid organization_id")
 		return
 	}
 
 	_, err = h.NFC.Pool.Exec(r.Context(), `
-		UPDATE nfc_terminals SET merchant_user_id = $2, updated_at = NOW()
+		UPDATE nfc_terminals
+		SET organization_id = $2, department_id = NULL, merchant_user_id = NULL, updated_at = NOW()
 		WHERE terminal_id = $1`,
-		terminalID, merchantID,
+		terminalID, orgID,
 	)
 	if err != nil {
-		writeError(w, 500, "failed to assign terminal")
+		writeError(w, 500, "failed to assign terminal to organization")
 		return
 	}
-	writeJSON(w, 200, map[string]string{"status": "assigned"})
+	writeJSON(w, 200, map[string]string{"status": "assigned_to_org"})
+}
+
+// --- Organization: list their terminals ---
+
+func (h *NFCTerminalHandler) listOrgTerminals(w http.ResponseWriter, r *http.Request) {
+	orgIDStr := chi.URLParam(r, "orgID")
+	orgID, err := uuid.Parse(orgIDStr)
+	if err != nil {
+		writeError(w, 400, "invalid org id")
+		return
+	}
+
+	rows, err := h.NFC.Pool.Query(r.Context(), `
+		SELECT t.id, t.terminal_id, t.label, t.terminal_type, t.location,
+		       t.is_active, t.is_registered, t.last_seen, t.created_at,
+		       t.merchant_user_id, t.department_id,
+		       t.block_code_hash IS NOT NULL as is_blocked,
+		       u.display_name as merchant_name,
+		       d.name as dept_name
+		FROM nfc_terminals t
+		LEFT JOIN users u ON u.id = t.merchant_user_id
+		LEFT JOIN departments d ON d.id = t.department_id
+		WHERE t.organization_id = $1
+		ORDER BY t.created_at DESC`,
+		orgID,
+	)
+	if err != nil {
+		writeError(w, 500, "failed to list terminals")
+		return
+	}
+	defer rows.Close()
+
+	var terminals []map[string]interface{}
+	for rows.Next() {
+		var id uuid.UUID
+		var termID, label, termType, location string
+		var isActive, isRegistered, isBlocked bool
+		var lastSeen *time.Time
+		var createdAt time.Time
+		var merchantID *uuid.UUID
+		var deptID *uuid.UUID
+		var merchantName, deptName *string
+
+		if err := rows.Scan(&id, &termID, &label, &termType, &location,
+			&isActive, &isRegistered, &lastSeen, &createdAt,
+			&merchantID, &deptID, &isBlocked, &merchantName, &deptName); err != nil {
+			continue
+		}
+
+		t := map[string]interface{}{
+			"id":            id,
+			"terminal_id":   termID,
+			"label":         label,
+			"terminal_type": termType,
+			"location":      location,
+			"is_active":     isActive,
+			"is_registered": isRegistered,
+			"is_blocked":    isBlocked,
+			"created_at":    createdAt,
+		}
+		if lastSeen != nil {
+			t["last_seen"] = *lastSeen
+		}
+		if merchantID != nil {
+			t["merchant_user_id"] = *merchantID
+		}
+		if merchantName != nil {
+			t["merchant_name"] = *merchantName
+		}
+		if deptID != nil {
+			t["department_id"] = *deptID
+		}
+		if deptName != nil {
+			t["dept_name"] = *deptName
+		}
+		terminals = append(terminals, t)
+	}
+	if terminals == nil {
+		terminals = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, terminals)
+}
+
+// --- Organization: assign terminal to a user (member of org) ---
+
+func (h *NFCTerminalHandler) orgAssignTerminalToUser(w http.ResponseWriter, r *http.Request) {
+	orgIDStr := chi.URLParam(r, "orgID")
+	terminalID := chi.URLParam(r, "terminalID")
+	orgID, err := uuid.Parse(orgIDStr)
+	if err != nil {
+		writeError(w, 400, "invalid org id")
+		return
+	}
+
+	var req struct {
+		UserID string `json:"user_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	userID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		writeError(w, 400, "invalid user_id")
+		return
+	}
+
+	// Verify the terminal belongs to this org
+	var count int
+	err = h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT COUNT(*) FROM nfc_terminals
+		WHERE terminal_id = $1 AND organization_id = $2`,
+		terminalID, orgID,
+	).Scan(&count)
+	if err != nil || count == 0 {
+		writeError(w, 404, "terminal not found or not assigned to this organization")
+		return
+	}
+
+	_, err = h.NFC.Pool.Exec(r.Context(), `
+		UPDATE nfc_terminals SET merchant_user_id = $2, department_id = NULL, updated_at = NOW()
+		WHERE terminal_id = $1 AND organization_id = $3`,
+		terminalID, userID, orgID,
+	)
+	if err != nil {
+		writeError(w, 500, "failed to assign terminal to user")
+		return
+	}
+	writeJSON(w, 200, map[string]string{"status": "assigned_to_user"})
+}
+
+// --- Organization: assign terminal to a department ---
+
+func (h *NFCTerminalHandler) orgAssignTerminalToDept(w http.ResponseWriter, r *http.Request) {
+	orgIDStr := chi.URLParam(r, "orgID")
+	terminalID := chi.URLParam(r, "terminalID")
+	orgID, err := uuid.Parse(orgIDStr)
+	if err != nil {
+		writeError(w, 400, "invalid org id")
+		return
+	}
+
+	var req struct {
+		DepartmentID string `json:"department_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	deptID, err := uuid.Parse(req.DepartmentID)
+	if err != nil {
+		writeError(w, 400, "invalid department_id")
+		return
+	}
+
+	_, err = h.NFC.Pool.Exec(r.Context(), `
+		UPDATE nfc_terminals SET department_id = $2, updated_at = NOW()
+		WHERE terminal_id = $1 AND organization_id = $3`,
+		terminalID, deptID, orgID,
+	)
+	if err != nil {
+		writeError(w, 500, "failed to assign terminal to department")
+		return
+	}
+	writeJSON(w, 200, map[string]string{"status": "assigned_to_dept"})
+}
+
+// --- Organization: toggle terminal active/inactive ---
+
+func (h *NFCTerminalHandler) orgToggleTerminal(w http.ResponseWriter, r *http.Request) {
+	orgIDStr := chi.URLParam(r, "orgID")
+	terminalID := chi.URLParam(r, "terminalID")
+	orgID, err := uuid.Parse(orgIDStr)
+	if err != nil {
+		writeError(w, 400, "invalid org id")
+		return
+	}
+
+	var isActive bool
+	err = h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT is_active FROM nfc_terminals
+		WHERE terminal_id = $1 AND organization_id = $2`,
+		terminalID, orgID,
+	).Scan(&isActive)
+	if err != nil {
+		writeError(w, 404, "terminal not found or not assigned to this organization")
+		return
+	}
+
+	_, err = h.NFC.Pool.Exec(r.Context(), `
+		UPDATE nfc_terminals SET is_active = $2, updated_at = NOW()
+		WHERE terminal_id = $1 AND organization_id = $3`,
+		terminalID, !isActive, orgID,
+	)
+	if err != nil {
+		writeError(w, 500, "failed to toggle terminal")
+		return
+	}
+
+	status := "activated"
+	if isActive {
+		status = "deactivated"
+	}
+	writeJSON(w, 200, map[string]string{"status": status})
+}
+
+// --- Organization: list shifts for a terminal ---
+
+func (h *NFCTerminalHandler) listTerminalShifts(w http.ResponseWriter, r *http.Request) {
+	orgIDStr := chi.URLParam(r, "orgID")
+	terminalID := chi.URLParam(r, "terminalID")
+	orgID, err := uuid.Parse(orgIDStr)
+	if err != nil {
+		writeError(w, 400, "invalid org id")
+		return
+	}
+
+	// Verify terminal belongs to org
+	var termDBID uuid.UUID
+	err = h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT id FROM nfc_terminals
+		WHERE terminal_id = $1 AND organization_id = $2`,
+		terminalID, orgID,
+	).Scan(&termDBID)
+	if err != nil {
+		writeError(w, 404, "terminal not found or not assigned to this organization")
+		return
+	}
+
+	rows, err := h.NFC.Pool.Query(r.Context(), `
+		SELECT s.id, s.user_id, u.display_name, s.status,
+		       s.opened_at, s.closed_at, s.total_sales, s.transactions_count, s.notes
+		FROM pos_shifts s
+		JOIN users u ON u.id = s.user_id
+		WHERE s.terminal_id = $1
+		ORDER BY s.opened_at DESC
+		LIMIT 100`,
+		termDBID,
+	)
+	if err != nil {
+		writeError(w, 500, "failed to list shifts")
+		return
+	}
+	defer rows.Close()
+
+	var shifts []map[string]interface{}
+	for rows.Next() {
+		var id, userID uuid.UUID
+		var userName, status string
+		var openedAt time.Time
+		var closedAt *time.Time
+		var totalSales int64
+		var txCount int
+		var notes *string
+
+		if err := rows.Scan(&id, &userID, &userName, &status, &openedAt, &closedAt,
+			&totalSales, &txCount, &notes); err != nil {
+			continue
+		}
+
+		s := map[string]interface{}{
+			"id":                 id,
+			"user_id":            userID,
+			"user_name":          userName,
+			"status":             status,
+			"opened_at":          openedAt,
+			"total_sales":        totalSales,
+			"transactions_count": txCount,
+		}
+		if closedAt != nil {
+			s["closed_at"] = *closedAt
+		}
+		if notes != nil {
+			s["notes"] = *notes
+		}
+		shifts = append(shifts, s)
+	}
+	if shifts == nil {
+		shifts = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, shifts)
+}
+
+// --- Organization: list transactions for a terminal ---
+
+func (h *NFCTerminalHandler) listOrgTerminalTransactions(w http.ResponseWriter, r *http.Request) {
+	orgIDStr := chi.URLParam(r, "orgID")
+	terminalID := chi.URLParam(r, "terminalID")
+	orgID, err := uuid.Parse(orgIDStr)
+	if err != nil {
+		writeError(w, 400, "invalid org id")
+		return
+	}
+
+	var termDBID uuid.UUID
+	err = h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT id FROM nfc_terminals
+		WHERE terminal_id = $1 AND organization_id = $2`,
+		terminalID, orgID,
+	).Scan(&termDBID)
+	if err != nil {
+		writeError(w, 404, "terminal not found or not assigned to this organization")
+		return
+	}
+
+	rows, err := h.NFC.Pool.Query(r.Context(), `
+		SELECT id, card_uid, amount, status, pin_verified, transaction_type,
+		       error_message, created_at
+		FROM nfc_transactions
+		WHERE terminal_id = $1
+		ORDER BY created_at DESC
+		LIMIT 100`,
+		termDBID,
+	)
+	if err != nil {
+		writeError(w, 500, "failed to list transactions")
+		return
+	}
+	defer rows.Close()
+
+	type Tx struct {
+		ID              uuid.UUID `json:"id"`
+		CardUID         string    `json:"card_uid"`
+		Amount          int64     `json:"amount"`
+		Status          string    `json:"status"`
+		PinVerified     bool      `json:"pin_verified"`
+		TransactionType string    `json:"transaction_type"`
+		ErrorMessage    string    `json:"error_message,omitempty"`
+		CreatedAt       time.Time `json:"created_at"`
+	}
+
+	var txs []Tx
+	for rows.Next() {
+		var t Tx
+		if err := rows.Scan(&t.ID, &t.CardUID, &t.Amount, &t.Status,
+			&t.PinVerified, &t.TransactionType, &t.ErrorMessage, &t.CreatedAt); err != nil {
+			continue
+		}
+		txs = append(txs, t)
+	}
+	if txs == nil {
+		txs = []Tx{}
+	}
+	writeJSON(w, 200, txs)
+}
+
+// --- Shift management (open/close) ---
+
+func (h *NFCTerminalHandler) openShift(w http.ResponseWriter, r *http.Request) {
+	terminalID := chi.URLParam(r, "id")
+	userID, err := getUserID(r)
+	if err != nil {
+		writeError(w, 401, "not authenticated")
+		return
+	}
+
+	// Get terminal DB id and org
+	var termDBID uuid.UUID
+	var orgID *uuid.UUID
+	err = h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT id, organization_id FROM nfc_terminals
+		WHERE terminal_id = $1 AND (merchant_user_id = $2 OR organization_id IS NOT NULL)`,
+		terminalID, userID,
+	).Scan(&termDBID, &orgID)
+	if err != nil {
+		writeError(w, 404, "terminal not found or not authorized")
+		return
+	}
+
+	// Check if there's already an open shift
+	var openCount int
+	h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT COUNT(*) FROM pos_shifts WHERE terminal_id = $1 AND status = 'open'`,
+		termDBID,
+	).Scan(&openCount)
+	if openCount > 0 {
+		writeError(w, 400, "there is already an open shift - close it first")
+		return
+	}
+
+	var shiftID uuid.UUID
+	err = h.NFC.Pool.QueryRow(r.Context(), `
+		INSERT INTO pos_shifts (terminal_id, user_id, organization_id, status)
+		VALUES ($1, $2, $3, 'open')
+		RETURNING id`,
+		termDBID, userID, orgID,
+	).Scan(&shiftID)
+	if err != nil {
+		writeError(w, 500, "failed to open shift")
+		return
+	}
+
+	writeJSON(w, 201, map[string]interface{}{
+		"shift_id": shiftID,
+		"status":   "open",
+	})
+}
+
+func (h *NFCTerminalHandler) closeShift(w http.ResponseWriter, r *http.Request) {
+	terminalID := chi.URLParam(r, "id")
+	userID, err := getUserID(r)
+	if err != nil {
+		writeError(w, 401, "not authenticated")
+		return
+	}
+
+	var termDBID uuid.UUID
+	err = h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT id FROM nfc_terminals WHERE terminal_id = $1`,
+		terminalID,
+	).Scan(&termDBID)
+	if err != nil {
+		writeError(w, 404, "terminal not found")
+		return
+	}
+
+	// Calculate total sales for this shift
+	var totalSales int64
+	var txCount int
+	h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT COALESCE(SUM(amount), 0), COUNT(*)
+		FROM nfc_transactions
+		WHERE terminal_id = $1 AND status = 'approved'
+		  AND created_at >= (SELECT opened_at FROM pos_shifts WHERE terminal_id = $1 AND status = 'open' ORDER BY opened_at DESC LIMIT 1)`,
+		termDBID,
+	).Scan(&totalSales, &txCount)
+
+	_, err = h.NFC.Pool.Exec(r.Context(), `
+		UPDATE pos_shifts
+		SET status = 'closed', closed_at = NOW(), total_sales = $3, transactions_count = $4
+		WHERE terminal_id = $1 AND user_id = $2 AND status = 'open'`,
+		termDBID, userID, totalSales, txCount,
+	)
+	if err != nil {
+		writeError(w, 500, "failed to close shift")
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"status":             "closed",
+		"total_sales":        totalSales,
+		"transactions_count": txCount,
+	})
 }
 
 // --- User: list their assigned terminals ---

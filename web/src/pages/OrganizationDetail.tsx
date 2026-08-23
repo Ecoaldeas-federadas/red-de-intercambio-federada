@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { usePermissions } from '../hooks/usePermissions'
-import { ArrowLeft, Users, Wallet as WalletIcon, Vote as VoteIcon, Settings, Crown, Plus, Trash2, ArrowUpCircle, ArrowDownCircle, FileText, Building2, Plug, Landmark, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Users, Wallet as WalletIcon, Vote as VoteIcon, Settings, Crown, Plus, Trash2, ArrowUpCircle, ArrowDownCircle, FileText, Building2, Plug, Landmark, ExternalLink, ShoppingBag, UserCheck, Power, Eye, Clock } from 'lucide-react'
 import ScopedAssembly from '../components/ScopedAssembly'
 
 export default function OrganizationDetail() {
@@ -12,9 +12,9 @@ export default function OrganizationDetail() {
   const { currency } = useConfig()
   const { hasPermission } = usePermissions()
   const [searchParams, setSearchParams] = useSearchParams()
-  const initialTab = (searchParams.get('tab') as 'info' | 'board' | 'members' | 'departments' | 'services' | 'wallet' | 'assembly' | 'boardmeetings') || 'info'
-  const [tab, setTab] = useState<'info' | 'board' | 'members' | 'departments' | 'services' | 'wallet' | 'assembly' | 'boardmeetings'>(initialTab)
-  const changeTab = (t: 'info' | 'board' | 'members' | 'departments' | 'services' | 'wallet' | 'assembly' | 'boardmeetings') => {
+  const initialTab = (searchParams.get('tab') as 'info' | 'board' | 'members' | 'departments' | 'services' | 'wallet' | 'assembly' | 'boardmeetings' | 'terminals') || 'info'
+  const [tab, setTab] = useState<'info' | 'board' | 'members' | 'departments' | 'services' | 'wallet' | 'assembly' | 'boardmeetings' | 'terminals'>(initialTab)
+  const changeTab = (t: 'info' | 'board' | 'members' | 'departments' | 'services' | 'wallet' | 'assembly' | 'boardmeetings' | 'terminals') => {
     setTab(t)
     setSearchParams({ tab: t })
   }
@@ -215,6 +215,7 @@ export default function OrganizationDetail() {
     { key: 'members', label: 'Miembros', icon: <Users size={16} /> },
     { key: 'departments', label: 'Departamentos', icon: <Building2 size={16} /> },
     { key: 'services', label: 'Servicios', icon: <Plug size={16} /> },
+    { key: 'terminals', label: 'Puntos de Venta', icon: <ShoppingBag size={16} /> },
     { key: 'wallet', label: 'Billetera', icon: <WalletIcon size={16} /> },
     // La pestana Asamblea solo aparece para orgs que NO son la Asamblea General
     ...(isAssemblyOwned ? [] : [{ key: 'assembly', label: 'Asamblea', icon: <VoteIcon size={16} /> }]),
@@ -803,6 +804,241 @@ export default function OrganizationDetail() {
       {/* Tab: Reuniones de Junta Directiva */}
       {tab === 'boardmeetings' && (
         <ScopedAssembly scope="organization" scopeId={id!} scopeName={org.display_name || org.username} meetingType="board" />
+      )}
+
+      {/* Tab: Puntos de Venta (Terminales POS) */}
+      {tab === 'terminals' && <OrgTerminals orgID={id!} />}
+    </div>
+  )
+}
+
+// ===== Componente: Terminales POS de la organizacion =====
+
+function OrgTerminals({ orgID }: { orgID: string }) {
+  const [terminals, setTerminals] = useState<any[]>([])
+  const [members, setMembers] = useState<any[]>([])
+  const [departments, setDepartments] = useState<any[]>([])
+  const [selectedTerminal, setSelectedTerminal] = useState<any | null>(null)
+  const [shifts, setShifts] = useState<any[]>([])
+  const [transactions, setTransactions] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [subView, setSubView] = useState<'list' | 'shifts' | 'transactions'>('list')
+
+  useEffect(() => {
+    loadTerminals()
+    loadMembers()
+    loadDepartments()
+  }, [orgID])
+
+  const loadTerminals = async () => {
+    setLoading(true)
+    try {
+      const res = await api.get<any[]>(`/nfc/org-terminals/${orgID}`)
+      setTerminals(res || [])
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadMembers = async () => {
+    try {
+      const res = await api.get<any[]>(`/organizations/${orgID}/members`)
+      setMembers(res || [])
+    } catch {}
+  }
+
+  const loadDepartments = async () => {
+    try {
+      const res = await api.get<any[]>(`/organizations/${orgID}/departments`)
+      setDepartments(res || [])
+    } catch {}
+  }
+
+  const handleAssignUser = async (terminalID: string) => {
+    const options = members.map(m => `${m.display_name || m.username} (${m.id})`).join('\n')
+    const userID = prompt(`Asignar a miembro de la organizacion:\n\n${options}\n\nIngresa el ID del usuario:`)
+    if (!userID) return
+    try {
+      await api.post(`/nfc/org-terminals/${orgID}/${terminalID}/assign-user`, { user_id: userID })
+      loadTerminals()
+    } catch (e: any) {
+      setError(e.message)
+    }
+  }
+
+  const handleAssignDept = async (terminalID: string) => {
+    const options = departments.map(d => `${d.name} (${d.id})`).join('\n')
+    const deptID = prompt(`Asignar a departamento:\n\n${options}\n\nIngresa el ID del departamento:`)
+    if (!deptID) return
+    try {
+      await api.post(`/nfc/org-terminals/${orgID}/${terminalID}/assign-dept`, { department_id: deptID })
+      loadTerminals()
+    } catch (e: any) {
+      setError(e.message)
+    }
+  }
+
+  const handleToggle = async (terminalID: string) => {
+    try {
+      await api.post(`/nfc/org-terminals/${orgID}/${terminalID}/toggle`, {})
+      loadTerminals()
+    } catch (e: any) {
+      setError(e.message)
+    }
+  }
+
+  const handleViewShifts = async (terminal: any) => {
+    setSelectedTerminal(terminal)
+    setSubView('shifts')
+    try {
+      const res = await api.get<any[]>(`/nfc/org-terminals/${orgID}/${terminal.terminal_id}/shifts`)
+      setShifts(res || [])
+    } catch (e: any) {
+      setError(e.message)
+    }
+  }
+
+  const handleViewTransactions = async (terminal: any) => {
+    setSelectedTerminal(terminal)
+    setSubView('transactions')
+    try {
+      const res = await api.get<any[]>(`/nfc/org-terminals/${orgID}/${terminal.terminal_id}/transactions`)
+      setTransactions(res || [])
+    } catch (e: any) {
+      setError(e.message)
+    }
+  }
+
+  const formatTime = (ts: string | null) => {
+    if (!ts) return 'Nunca'
+    return new Date(ts).toLocaleString('es', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+  }
+
+  // Vista de turnos
+  if (subView === 'shifts' && selectedTerminal) {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold">Turnos: {selectedTerminal.label}</h2>
+          <button onClick={() => { setSubView('list'); setSelectedTerminal(null) }} className="px-4 py-2 bg-gray-100 rounded-lg">← Volver</button>
+        </div>
+        {shifts.length === 0 ? (
+          <div className="card text-center py-8 text-gray-500">
+            <Clock className="mx-auto mb-2" size={32} /> No hay turnos registrados
+          </div>
+        ) : (
+          <div className="card divide-y">
+            {shifts.map((s: any) => (
+              <div key={s.id} className="py-3 flex items-center justify-between">
+                <div>
+                  <div className="font-medium">{s.user_name}</div>
+                  <div className="text-xs text-gray-500">
+                    Abierto: {formatTime(s.opened_at)}
+                    {s.closed_at && ` · Cerrado: ${formatTime(s.closed_at)}`}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-bold text-green-600">{s.total_sales?.toLocaleString('es')} TQ</div>
+                  <div className="text-xs text-gray-500">{s.transactions_count} tx · {s.status}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Vista de transacciones
+  if (subView === 'transactions' && selectedTerminal) {
+    const total = transactions.filter((t: any) => t.status === 'approved').reduce((s: number, t: any) => s + t.amount, 0)
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold">Transacciones: {selectedTerminal.label}</h2>
+          <button onClick={() => { setSubView('list'); setSelectedTerminal(null) }} className="px-4 py-2 bg-gray-100 rounded-lg">← Volver</button>
+        </div>
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="card"><div className="text-xs text-gray-500">TOTAL</div><div className="text-2xl font-bold text-green-600">{total.toLocaleString('es')} TQ</div></div>
+          <div className="card"><div className="text-xs text-gray-500">TRANSACCIONES</div><div className="text-2xl font-bold">{transactions.length}</div></div>
+        </div>
+        <div className="card divide-y">
+          {transactions.map((t: any) => (
+            <div key={t.id} className="py-3 flex items-center justify-between">
+              <div>
+                <div className="font-medium">{t.card_uid === 'qr_payment' ? '📱 QR' : `💳 ${t.card_uid?.slice(0, 12)}...`}</div>
+                <div className="text-xs text-gray-500">{formatTime(t.created_at)}{t.error_message && ` · ${t.error_message}`}</div>
+              </div>
+              <div className={`font-bold ${t.status === 'approved' ? 'text-green-600' : 'text-red-600'}`}>
+                {t.status === 'approved' ? '+' : ''}{t.amount.toLocaleString('es')} TQ
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Vista principal: lista de terminales
+  return (
+    <div>
+      <h2 className="text-xl font-bold mb-4">Puntos de Venta de la Organizacion</h2>
+      {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm">{error}</div>}
+      {loading ? (
+        <div className="text-center py-8 text-gray-500">Cargando...</div>
+      ) : terminals.length === 0 ? (
+        <div className="card text-center py-8">
+          <ShoppingBag className="mx-auto mb-3 text-gray-300" size={48} />
+          <p className="text-gray-500">Esta organizacion no tiene terminales asignados.</p>
+          <p className="text-gray-400 text-sm mt-2">El administrador (Asamblea) debe asignar terminales a esta organizacion.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {terminals.map((t: any) => (
+            <div key={t.id} className="card">
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <h3 className="font-semibold">{t.label || 'Sin nombre'}</h3>
+                  <p className="text-xs text-gray-500 font-mono">{t.terminal_id?.slice(0, 24)}...</p>
+                </div>
+                <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                  t.is_blocked ? 'bg-red-100 text-red-700' :
+                  t.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {t.is_blocked ? '🔒 Bloqueado' : t.is_active ? '● Activo' : '○ Inactivo'}
+                </span>
+              </div>
+              <div className="text-sm text-gray-500 mb-3">
+                <p>📍 {t.location || 'Sin ubicacion'}</p>
+                <p>👤 {t.merchant_name || 'Sin usuario asignado'}</p>
+                {t.dept_name && <p>🏢 {t.dept_name}</p>}
+                <p>🕐 {formatTime(t.last_seen)}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => handleViewTransactions(t)} className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium flex items-center gap-1">
+                  <Eye size={14} /> Transacciones
+                </button>
+                <button onClick={() => handleViewShifts(t)} className="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-medium flex items-center gap-1">
+                  <Clock size={14} /> Turnos
+                </button>
+                <button onClick={() => handleAssignUser(t.terminal_id)} className="px-3 py-1.5 bg-green-50 text-green-600 rounded-lg text-xs font-medium flex items-center gap-1">
+                  <UserCheck size={14} /> Asignar usuario
+                </button>
+                <button onClick={() => handleAssignDept(t.terminal_id)} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-medium flex items-center gap-1">
+                  <Building2 size={14} /> Asignar dept.
+                </button>
+                <button onClick={() => handleToggle(t.terminal_id)} className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 ${
+                  t.is_active ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
+                }`}>
+                  <Power size={14} /> {t.is_active ? 'Desactivar' : 'Activar'}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   )

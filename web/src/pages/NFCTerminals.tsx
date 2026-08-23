@@ -128,12 +128,12 @@ export default function NFCTerminals() {
   }
 
   const assignTerminal = async (terminalId: string) => {
-    const merchantUserID = prompt('Ingresa el ID del usuario al que se le asignara este terminal:')
-    if (!merchantUserID) return
+    const orgID = prompt('Ingresa el ID de la organizacion a la que se le asignara este terminal:')
+    if (!orgID) return
     try {
       await apiFetch(`/nfc/terminal/${terminalId}/assign`, {
         method: 'POST',
-        body: JSON.stringify({ merchant_user_id: merchantUserID }),
+        body: JSON.stringify({ organization_id: orgID }),
       })
       loadTerminals()
     } catch (err) {
@@ -536,7 +536,7 @@ export default function NFCTerminals() {
                   <button
                     onClick={() => assignTerminal(t.terminal_id)}
                     className="text-blue-500 hover:text-blue-700"
-                    title="Asignar a usuario"
+                    title="Asignar a organizacion"
                   >
                     <UserPlus size={16} />
                   </button>

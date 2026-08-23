@@ -1,32 +1,45 @@
-feat: Usuarios gestionan sus terminales POS + admin asigna terminales
+feat: Terminales POS asignados a organizaciones con turnos y gestion completa
 
-Ahora los usuarios pueden ver y gestionar sus terminales asignados,
-no solo el administrador.
+Modelo correcto de asignacion de terminales:
+
+JERARQUIA DE ASIGNACION:
+1. Admin (Asamblea) asigna terminal a ORGANIZACION
+2. Organizacion asigna terminal a:
+   - Un miembro de la organizacion (usuario autorizado)
+   - Un departamento de la organizacion
+3. La organizacion puede reasignar, bloquear, desbloquear
+4. La organizacion ve quien uso el terminal, cuanto vendio, turnos
+
+TURNOs (apertura/cierre):
+- Cada vez que un usuario autorizado abre el terminal, se crea un turno
+- Cuando cierra, se registra el total vendido y numero de transacciones
+- La organizacion puede ver:
+  - Quien uso el terminal y cuando
+  - Cuanto vendio cada usuario en su turno
+  - Cambios de turno
+- Permite control de cajeros y rendicion de cuentas
 
 Backend:
-- POST /api/nfc/terminal/{id}/assign: admin asigna terminal a un usuario
-- GET /api/nfc/my-terminals: usuario ve sus terminales asignados
-- POST /api/nfc/my-terminals/{id}/toggle: usuario activa/desactiva
-- GET /api/nfc/my-terminals/{id}/transactions: usuario ve transacciones
-- Columna merchant_user_id en nfc_terminals (migracion 098)
+- POST /api/nfc/terminal/{id}/assign: asignar a organizacion (admin)
+- GET /api/nfc/org-terminals/{orgID}: terminales de la organizacion
+- POST /api/nfc/org-terminals/{orgID}/{terminalID}/assign-user: asignar a miembro
+- POST /api/nfc/org-terminals/{orgID}/{terminalID}/assign-dept: asignar a dept
+- POST /api/nfc/org-terminals/{orgID}/{terminalID}/toggle: activar/desactivar
+- GET /api/nfc/org-terminals/{orgID}/{terminalID}/shifts: ver turnos
+- GET /api/nfc/org-terminals/{orgID}/{terminalID}/transactions: ver transacciones
+- POST /api/nfc/my-terminals/{id}/shift: abrir turno
+- POST /api/nfc/my-terminals/{id}/shift/close: cerrar turno
+- Tabla pos_shifts (turnos con usuario, total ventas, etc)
+- Columnas organization_id y department_id en nfc_terminals
 
 Frontend:
-- web/src/pages/MyTerminals.tsx: pagina "Mis Puntos de Venta"
-  - Lista terminales asignados al usuario
-  - Ver transacciones de cada terminal (total ventas, aprobadas, etc)
+- OrganizationDetail.tsx: nueva pestana "Puntos de Venta"
+  - Lista terminales de la organizacion
+  - Asignar a miembro o departamento
   - Activar/desactivar terminal
-  - Info de ultima actividad
-- web/src/components/Layout.tsx: link "Mis Puntos de Venta" en sidebar
-- web/src/pages/NFCTerminals.tsx: boton de asignar terminal a usuario
-
-Flujo completo:
-1. Admin registra terminal (con permisos nfc.register_terminal)
-2. Admin asigna terminal a un usuario (POST /assign)
-3. Usuario ve el terminal en "Mis Puntos de Venta"
-4. Usuario puede activar/desactivar, ver transacciones
-5. Usuario abre el POS en su dispositivo, usa el terminal
-6. Todas las transacciones pasan por el servidor (se guardan en nfc_transactions)
-7. Usuario ve el historial tanto en el POS como en la plataforma
+  - Ver turnos (quien, cuando, cuanto vendio)
+  - Ver transacciones del terminal
+- NFCTerminals.tsx: admin asigna terminal a organizacion (no a usuario)
 
 Generated with [Devin](https://devin.ai)
 
