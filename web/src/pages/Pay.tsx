@@ -7,6 +7,8 @@ import Login from './Login'
 
 // Esta pagina la ve el cliente cuando escanea el QR del POS
 // URL: /pay?t={token}
+// El token es un charge_token registrado en el backend.
+// El cliente ve el monto primero (sin login), luego inicia sesion y acepta pagar.
 export default function Pay() {
   const [searchParams] = useSearchParams()
   const token = searchParams.get('t') || ''
@@ -24,19 +26,31 @@ export default function Pay() {
       return
     }
 
-    // Decode the token (base64 JSON)
-    try {
-      const decoded = JSON.parse(atob(token))
-      setCharge({
-        terminal_id: decoded.t,
-        amount: decoded.a,
-        timestamp: decoded.ts,
+    // Consultar el cargo al backend (no requiere login - el cliente ve el monto primero)
+    api.get(`/api/pos/charge/${token}/info`)
+      .then((data: any) => {
+        if (data.status === 'expired') {
+          setError('Este codigo QR ha expirado')
+          setStatus('error')
+          return
+        }
+        if (data.status === 'paid') {
+          setError('Este pago ya fue realizado')
+          setStatus('error')
+          return
+        }
+        if (data.status === 'cancelled') {
+          setError('Este pago fue cancelado')
+          setStatus('error')
+          return
+        }
+        setCharge(data)
+        setStatus('ready')
       })
-      setStatus('ready')
-    } catch {
-      setError('No se pudo leer el codigo QR')
-      setStatus('error')
-    }
+      .catch((e: any) => {
+        setError(e.message || 'No se pudo leer el codigo QR')
+        setStatus('error')
+      })
   }, [token])
 
   const handlePay = async () => {
@@ -45,19 +59,10 @@ export default function Pay() {
     setError('')
 
     try {
-      // Realizar transferencia al merchant del terminal
-      // Primero necesitamos saber quien es el merchant
-      const termStatus = await api.get(`/api/nfc/terminal/${charge.terminal_id}/status`)
-
-      if (!termStatus || !termStatus.merchant_user_id) {
-        throw new Error('No se pudo identificar el comerciante')
-      }
-
-      // Transferir al merchant
-      await api.post('/api/transfer', {
-        receiver_id: termStatus.merchant_user_id,
-        amount: charge.amount,
-        description: `Pago POS - Terminal ${charge.terminal_id}`,
+      // Confirmar el pago en el backend
+      // El backend debita del pagador y acredita al merchant atomicamente
+      const result = await api.post(`/api/pos/charge/${token}/pay`, {
+        payment_method: 'qr',
       })
 
       setStatus('paid')
@@ -104,7 +109,7 @@ export default function Pay() {
         <div style={{ textAlign: 'center', maxWidth: 400, padding: 24 }}>
           <div style={{ fontSize: 80, marginBottom: 16 }}>✅</div>
           <h1 style={{ fontSize: 28, color: '#16a34a', marginBottom: 8 }}>Pago Completado</h1>
-          <p style={{ fontSize: 20, marginBottom: 4 }}>{charge.amount.toLocaleString('es')} TQ</p>
+          <p style={{ fontSize: 20, marginBottom: 4 }}>{charge?.amount?.toLocaleString('es')} TQ</p>
           <p style={{ color: '#a0a0a0', marginBottom: 24 }}>Pago realizado con exito</p>
           <button onClick={() => navigate('/app/wallet')} style={{ padding: '14px 24px', borderRadius: 12, background: '#0f766e', color: 'white', border: 'none', fontSize: 16, fontWeight: 600 }}>
             Ver mi billetera
@@ -114,7 +119,7 @@ export default function Pay() {
     )
   }
 
-  // Ready to pay
+  // Ready to pay - mostrar monto y boton de aceptar
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0a0a0a', color: 'white', padding: 24 }}>
       <div style={{ maxWidth: 400, width: '100%' }}>
@@ -127,15 +132,21 @@ export default function Pay() {
           <div style={{ textAlign: 'center', marginBottom: 24 }}>
             <p style={{ color: '#a0a0a0', fontSize: 14, marginBottom: 4 }}>MONTO A PAGAR</p>
             <p style={{ fontSize: 48, fontWeight: 800, color: '#14b8a6' }}>
-              {charge.amount.toLocaleString('es')} TQ
+              {charge?.amount?.toLocaleString('es')} TQ
             </p>
           </div>
 
           <div style={{ borderTop: '1px solid #333', paddingTop: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ color: '#a0a0a0', fontSize: 14 }}>Terminal</span>
-              <span style={{ fontSize: 14, fontFamily: 'monospace' }}>{charge.terminal_id?.slice(0, 16)}...</span>
+              <span style={{ color: '#a0a0a0', fontSize: 14 }}>Comerciante</span>
+              <span style={{ fontSize: 14 }}>{charge?.merchant_name || 'POS'}</span>
             </div>
+            {charge?.description && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ color: '#a0a0a0', fontSize: 14 }}>Concepto</span>
+                <span style={{ fontSize: 14 }}>{charge.description}</span>
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: '#a0a0a0', fontSize: 14 }}>Tu cuenta</span>
               <span style={{ fontSize: 14 }}>@{user?.username}</span>

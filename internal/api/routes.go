@@ -71,6 +71,10 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 	dh.RegisterRoutes(r, am)
 	nh.RegisterRoutes(r, am)
 
+	// POS Web handler (cargos QR para punto de venta web)
+	posH := NewPOSHandler(pool, nh.NFC, nh.NodeDomain)
+	posH.RegisterRoutes(r, am)
+
 	// Network handler (red privada federada con OpenWrt - opcional)
 	if nwh != nil {
 		nwh.RegisterRoutesWithAuth(r, am)

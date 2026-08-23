@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { API } from '../api'
-import { storage } from '../crypto'
+import { storage, generateDeviceFingerprint } from '../crypto'
 
 interface Props {
   onComplete: (terminalID: string) => void
@@ -10,7 +10,7 @@ interface Props {
 }
 
 export function SetupScreen({ onComplete, api, generateKeyPair, generateTerminalID }: Props) {
-  const [step, setStep] = useState<'intro' | 'register' | 'keys' | 'auth' | 'done'>('intro')
+  const [step, setStep] = useState<string>('intro')
   const [label, setLabel] = useState('')
   const [location, setLocation] = useState('')
   const [terminalID, setTerminalID] = useState('')
@@ -18,20 +18,35 @@ export function SetupScreen({ onComplete, api, generateKeyPair, generateTerminal
   const [publicKey, setPublicKey] = useState('')
   const [privateKey, setPrivateKey] = useState('')
   const [serverPublicKey, setServerPublicKey] = useState('')
+  const [fingerprint, setFingerprint] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const handleStart = () => {
-    const termID = generateTerminalID()
-    setTerminalID(termID)
-    setStep('register')
+  const handleStart = async () => {
+    setError('')
+    setLoading(true)
+    try {
+      // Generar fingerprint del dispositivo
+      const fp = await generateDeviceFingerprint()
+      setFingerprint(fp)
+      storage.set('deviceFingerprint', fp)
+
+      const termID = generateTerminalID()
+      setTerminalID(termID)
+      setStep('register')
+    } catch (e: any) {
+      setError('Error generando huella del dispositivo: ' + e.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleRegister = async () => {
     setError('')
     setLoading(true)
     try {
-      const data = await api.registerTerminal(terminalID, label || 'POS Web', location || 'Web')
+      // Registrar con fingerprint + credenciales
+      const data = await api.registerTerminal(terminalID, label || 'POS Web', location || 'Web', fingerprint)
       if (data.registration_token) {
         setRegistrationToken(data.registration_token)
         setStep('keys')
@@ -53,8 +68,8 @@ export function SetupScreen({ onComplete, api, generateKeyPair, generateTerminal
       setPublicKey(kp.publicKey)
       setPrivateKey(kp.privateKey)
 
-      // Complete registration with public key
-      const data = await api.completeRegistration(terminalID, registrationToken, kp.publicKey)
+      // Complete registration with public key + fingerprint
+      const data = await api.completeRegistration(terminalID, registrationToken, kp.publicKey, fingerprint)
       if (data.server_public_key) {
         setServerPublicKey(data.server_public_key)
         storage.set('privateKey', kp.privateKey)
@@ -76,7 +91,8 @@ export function SetupScreen({ onComplete, api, generateKeyPair, generateTerminal
     setError('')
     setLoading(true)
     try {
-      const data = await api.terminalAuth(terminalID, privateKey)
+      // Autenticar con clave + fingerprint (doble verificacion)
+      const data = await api.terminalAuth(terminalID, privateKey, fingerprint)
       if (data.session_token) {
         storage.set('sessionToken', data.session_token)
         setStep('done')
@@ -100,15 +116,19 @@ export function SetupScreen({ onComplete, api, generateKeyPair, generateTerminal
         <div className="card fade-in">
           <p style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 16 }}>
             Este dispositivo se registrara como un terminal de punto de venta.
-            Se generaran claves criptograficas unicas para este dispositivo.
+            Se generaran:
           </p>
           <ul style={{ color: 'var(--text-dim)', fontSize: 14, paddingLeft: 20, marginBottom: 16 }}>
-            <li>El terminal tendra su propia identidad (Ed25519)</li>
-            <li>Se comunicara de forma segura con el nodo</li>
-            <li>Podras desactivarlo o bloquearlo desde la app principal</li>
+            <li><strong>Huella del dispositivo</strong> (canvas, GPU, pantalla, hardware)</li>
+            <li><strong>Claves criptograficas Ed25519</strong> unicas para este dispositivo</li>
+            <li><strong>Claves rotativas</strong> que cambian cada 30 segundos</li>
           </ul>
-          <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleStart}>
-            Registrar este dispositivo
+          <p style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 16 }}>
+            El servidor verificara la huella Y las claves en cada peticion.
+            Si alguien copia la caché en otro dispositivo, la huella no coincidira.
+          </p>
+          <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleStart} disabled={loading}>
+            {loading ? 'Generando huella...' : 'Registrar este dispositivo'}
           </button>
         </div>
       )}

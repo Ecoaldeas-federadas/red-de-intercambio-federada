@@ -66,6 +66,7 @@ type CompleteRegistrationRequest struct {
 	TerminalID        string `json:"terminal_id"`
 	RegistrationToken string `json:"registration_token"`
 	TerminalPublicKey string `json:"terminal_public_key"`
+	DeviceFingerprint string `json:"device_fingerprint"`
 }
 
 func (h *NFCTerminalHandler) completeRegistration(w http.ResponseWriter, r *http.Request) {
@@ -79,7 +80,7 @@ func (h *NFCTerminalHandler) completeRegistration(w http.ResponseWriter, r *http
 		return
 	}
 
-	serverPubKey, err := h.NFC.CompleteRegistration(r.Context(), req.TerminalID, req.RegistrationToken, req.TerminalPublicKey)
+	serverPubKey, err := h.NFC.CompleteRegistration(r.Context(), req.TerminalID, req.RegistrationToken, req.TerminalPublicKey, req.DeviceFingerprint)
 	if err != nil {
 		writeError(w, 400, err.Error())
 		return
@@ -91,9 +92,10 @@ func (h *NFCTerminalHandler) completeRegistration(w http.ResponseWriter, r *http
 }
 
 type TerminalAuthRequest struct {
-	TerminalID string `json:"terminal_id"`
-	Signature  string `json:"signature"`
-	Nonce      string `json:"nonce"`
+	TerminalID        string `json:"terminal_id"`
+	Signature         string `json:"signature"`
+	Nonce             string `json:"nonce"`
+	DeviceFingerprint string `json:"device_fingerprint"`
 }
 
 func (h *NFCTerminalHandler) terminalAuth(w http.ResponseWriter, r *http.Request) {
@@ -115,7 +117,7 @@ func (h *NFCTerminalHandler) terminalAuth(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	sessionToken, err := h.NFC.AuthenticateTerminal(r.Context(), req.TerminalID, sig, req.Nonce, serverPriv)
+	sessionToken, err := h.NFC.AuthenticateTerminal(r.Context(), req.TerminalID, sig, req.Nonce, req.DeviceFingerprint, serverPriv)
 	if err != nil {
 		writeError(w, 401, err.Error())
 		return
@@ -310,11 +312,12 @@ func (h *NFCTerminalHandler) getTerminalSession(w http.ResponseWriter, r *http.R
 // --- Management endpoints ---
 
 type RegisterTerminalRequest struct {
-	TerminalID   string `json:"terminal_id"`
-	Label        string `json:"label"`
-	TerminalType string `json:"terminal_type"`
-	Location     string `json:"location"`
-	WifiSSID     string `json:"wifi_ssid"`
+	TerminalID        string `json:"terminal_id"`
+	Label             string `json:"label"`
+	TerminalType      string `json:"terminal_type"`
+	Location          string `json:"location"`
+	WifiSSID          string `json:"wifi_ssid"`
+	DeviceFingerprint string `json:"device_fingerprint"`
 }
 
 func (h *NFCTerminalHandler) registerTerminal(w http.ResponseWriter, r *http.Request) {
@@ -331,7 +334,7 @@ func (h *NFCTerminalHandler) registerTerminal(w http.ResponseWriter, r *http.Req
 		req.TerminalType = "keypad"
 	}
 
-	terminal, token, err := h.NFC.RegisterTerminal(r.Context(), req.TerminalID, req.Label, req.TerminalType, req.Location, req.WifiSSID)
+	terminal, token, err := h.NFC.RegisterTerminal(r.Context(), req.TerminalID, req.Label, req.TerminalType, req.Location, req.WifiSSID, req.DeviceFingerprint)
 	if err != nil {
 		writeError(w, 400, err.Error())
 		return

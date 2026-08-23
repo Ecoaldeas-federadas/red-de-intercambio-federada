@@ -31,27 +31,28 @@ export function QRScreen({ amount, qrToken, apiURL, onBack, onPaid, api, termina
     }
   }, [payURL])
 
-  // Poll for payment status
+  // Poll for payment status - consulta al backend si el cargo fue pagado
   useEffect(() => {
     if (!qrToken) return
 
     const poll = async () => {
       try {
-        // Check terminal session for payment status
-        if (terminalID) {
-          const session = await api.getTerminalSession(terminalID)
-          if (session.status === 'paid' || session.current_amount === 0) {
-            setStatus('paid')
-            clearInterval(pollRef.current)
-            setTimeout(onPaid, 2000)
-          }
+        // Consultar el estado del cargo en el backend
+        const status = await api.getChargeStatus(qrToken)
+        if (status.status === 'paid') {
+          setStatus('paid')
+          clearInterval(pollRef.current)
+          setTimeout(onPaid, 2000)
+        } else if (status.status === 'expired' || status.status === 'cancelled') {
+          setStatus('expired')
+          clearInterval(pollRef.current)
         }
       } catch {}
     }
 
-    pollRef.current = setInterval(poll, 3000)
+    pollRef.current = setInterval(poll, 2000)
     return () => clearInterval(pollRef.current)
-  }, [qrToken, terminalID])
+  }, [qrToken])
 
   // Countdown
   useEffect(() => {

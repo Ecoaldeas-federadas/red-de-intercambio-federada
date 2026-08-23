@@ -1,5 +1,6 @@
 // API client - communicates with the backend node via REST API
-import { storage, signMessage, generateNonce } from './crypto'
+// Uses Ed25519 for terminal identity + device fingerprint + rotating session keys
+import { storage, signMessage, generateNonce, generateDeviceFingerprint, signWithRotatingKey } from './crypto'
 
 export class API {
   private baseURL: string
@@ -9,7 +10,6 @@ export class API {
   }
 
   setBaseURL(url: string) {
-    // Normalize: remove trailing slash
     this.baseURL = url.replace(/\/$/, '')
     storage.set('apiURL', this.baseURL)
   }
@@ -25,10 +25,28 @@ export class API {
       ...((options.headers as Record<string, string>) || {}),
     }
 
-    // Attach JWT if available
+    // Attach JWT if available (for merchant endpoints)
     const jwt = storage.get('merchantToken')
     if (jwt) {
       headers['Authorization'] = `Bearer ${jwt}`
+    }
+
+    // Attach terminal auth headers if we have a terminal session
+    const terminalID = storage.get('terminalID')
+    const sessionToken = storage.get('sessionToken')
+    if (terminalID && sessionToken && !headers['X-Terminal-ID']) {
+      headers['X-Terminal-ID'] = terminalID
+      headers['X-Session-Token'] = sessionToken
+      // Rotating key signature for this request
+      const method = (options.method || 'GET').toUpperCase()
+      const body = options.body ? await this.hashBody(options.body as string) : ''
+      const reqSignature = `${method}:${path}:${body}:${generateNonce()}`
+      try {
+        const { signature, window } = await signWithRotatingKey(sessionToken, reqSignature)
+        headers['X-Request-Sig'] = signature
+        headers['X-Request-Window'] = String(window)
+        headers['X-Request-Nonce'] = generateNonce()
+      } catch {}
     }
 
     const resp = await fetch(url, { ...options, headers })
@@ -40,10 +58,13 @@ export class API {
     return data
   }
 
+  private async hashBody(body: string): Promise<string> {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(body))
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
+  }
+
   // ===== AUTH (merchant login) =====
   async login(username: string, password: string): Promise<any> {
-    // Use passkey auth or simple login - depends on backend
-    // For now, use the challenge-response or simple JWT login
     const data = await this.request('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
@@ -71,7 +92,8 @@ export class API {
 
   // ===== TERMINAL REGISTRATION =====
   // Step 1: Register terminal (requires JWT with nfc.register_terminal permission)
-  async registerTerminal(terminalID: string, label: string, location: string): Promise<any> {
+  // Sends device fingerprint so server can verify it on every future request
+  async registerTerminal(terminalID: string, label: string, location: string, fingerprint: string): Promise<any> {
     return this.request('/api/nfc/terminal/register', {
       method: 'POST',
       body: JSON.stringify({
@@ -79,26 +101,29 @@ export class API {
         label,
         terminal_type: 'web_pos',
         location,
+        device_fingerprint: fingerprint,
       }),
     })
   }
 
-  // Step 2: Complete registration with terminal's public key
-  async completeRegistration(terminalID: string, registrationToken: string, publicKey: string): Promise<any> {
+  // Step 2: Complete registration with terminal's public key + fingerprint
+  async completeRegistration(terminalID: string, registrationToken: string, publicKey: string, fingerprint: string): Promise<any> {
     return this.request('/api/nfc/terminal/complete-registration', {
       method: 'POST',
       body: JSON.stringify({
         terminal_id: terminalID,
         registration_token: registrationToken,
         terminal_public_key: publicKey,
+        device_fingerprint: fingerprint,
       }),
     })
   }
 
-  // ===== TERMINAL AUTH (Ed25519 mutual auth) =====
-  async terminalAuth(terminalID: string, privateKeyHex: string): Promise<any> {
+  // ===== TERMINAL AUTH (Ed25519 mutual auth + fingerprint) =====
+  async terminalAuth(terminalID: string, privateKeyHex: string, fingerprint: string): Promise<any> {
     const nonce = generateNonce()
-    const message = `${terminalID}:${nonce}`
+    // Sign: terminal_id:nonce:fingerprint (includes fingerprint so server verifies both)
+    const message = `${terminalID}:${nonce}:${fingerprint}`
     const signature = await signMessage(privateKeyHex, message)
 
     const data = await this.request('/api/nfc/terminal/auth', {
@@ -107,6 +132,7 @@ export class API {
         terminal_id: terminalID,
         signature,
         nonce,
+        device_fingerprint: fingerprint,
       }),
     })
 
@@ -119,11 +145,14 @@ export class API {
     return data
   }
 
-  // ===== HEARTBEAT =====
-  async heartbeat(terminalID: string): Promise<any> {
+  // ===== HEARTBEAT (with fingerprint verification) =====
+  async heartbeat(terminalID: string, fingerprint: string): Promise<any> {
     return this.request('/api/nfc/terminal/heartbeat', {
       method: 'POST',
-      body: JSON.stringify({ terminal_id: terminalID }),
+      body: JSON.stringify({
+        terminal_id: terminalID,
+        device_fingerprint: fingerprint,
+      }),
     })
   }
 
@@ -150,6 +179,27 @@ export class API {
 
   async getTerminalSession(terminalID: string): Promise<any> {
     return this.request(`/api/nfc/terminal/${terminalID}/session`)
+  }
+
+  // ===== POS CHARGE (create QR payment) =====
+  // Crea un cargo registrado en el backend. El QR contiene un token unico
+  // que el backend conoce. Cuando el cliente paga, el backend marca el cargo
+  // como pagado y el POS lo detecta via polling.
+  async createCharge(amount: number, description?: string): Promise<any> {
+    return this.request('/api/pos/charge', {
+      method: 'POST',
+      body: JSON.stringify({ amount, description }),
+    })
+  }
+
+  // Consultar estado de un cargo (para polling)
+  async getChargeStatus(chargeID: string): Promise<any> {
+    return this.request(`/api/pos/charge/${chargeID}/status`)
+  }
+
+  // Cancelar cargo
+  async cancelCharge(chargeID: string): Promise<any> {
+    return this.request(`/api/pos/charge/${chargeID}/cancel`, { method: 'POST' })
   }
 
   // ===== NFC PAYMENT (from physical NFC card) =====
@@ -190,6 +240,16 @@ export class API {
   async listTransactions(terminalID?: string): Promise<any> {
     const params = terminalID ? `?terminal_id=${terminalID}` : ''
     return this.request(`/api/nfc/transactions${params}`)
+  }
+
+  // ===== DEVICE FINGERPRINT =====
+  async getDeviceFingerprint(): Promise<string> {
+    let fp = storage.get('deviceFingerprint')
+    if (!fp) {
+      fp = await generateDeviceFingerprint()
+      storage.set('deviceFingerprint', fp)
+    }
+    return fp
   }
 }
 

@@ -30,6 +30,7 @@ type NFCTerminal struct {
 	TerminalPublicKey  string     `json:"terminal_public_key,omitempty"`
 	ServerPublicKey    string     `json:"server_public_key,omitempty"`
 	RegistrationToken  string     `json:"registration_token,omitempty"`
+	DeviceFingerprint  string     `json:"device_fingerprint,omitempty"`
 	IsActive           bool       `json:"is_active"`
 	IsRegistered       bool       `json:"is_registered"`
 	LastSeen           *time.Time `json:"last_seen"`
@@ -77,16 +78,16 @@ func NewNFCTerminals(pool *pgxpool.Pool, nodeDomain string) *NFCTerminals {
 	return &NFCTerminals{Pool: pool, NodeDomain: nodeDomain}
 }
 
-func (nt *NFCTerminals) RegisterTerminal(ctx context.Context, terminalID, label, terminalType, location, wifiSSID string) (*NFCTerminal, string, error) {
+func (nt *NFCTerminals) RegisterTerminal(ctx context.Context, terminalID, label, terminalType, location, wifiSSID, deviceFingerprint string) (*NFCTerminal, string, error) {
 	token := uuid.New().String()
 
 	var t NFCTerminal
 	err := nt.Pool.QueryRow(ctx, `
-		INSERT INTO nfc_terminals (node_domain, terminal_id, label, terminal_type, location, wifi_ssid, registration_token)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO nfc_terminals (node_domain, terminal_id, label, terminal_type, location, wifi_ssid, registration_token, device_fingerprint)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id, node_domain, terminal_id, label, terminal_type, location, wifi_ssid,
 			registration_token, is_active, is_registered, last_seen, firmware_version, created_at, updated_at`,
-		nt.NodeDomain, terminalID, label, terminalType, location, wifiSSID, token,
+		nt.NodeDomain, terminalID, label, terminalType, location, wifiSSID, token, deviceFingerprint,
 	).Scan(&t.ID, &t.NodeDomain, &t.TerminalID, &t.Label, &t.TerminalType,
 		&t.Location, &t.WifiSSID, &t.RegistrationToken, &t.IsActive, &t.IsRegistered,
 		&t.LastSeen, &t.FirmwareVersion, &t.CreatedAt, &t.UpdatedAt)
@@ -143,16 +144,18 @@ func (nt *NFCTerminals) GetTerminalForProvisioning(ctx context.Context, terminal
 	return &t, *token, nil
 }
 
-func (nt *NFCTerminals) CompleteRegistration(ctx context.Context, terminalID, registrationToken, terminalPublicKey string) (string, error) {
+func (nt *NFCTerminals) CompleteRegistration(ctx context.Context, terminalID, registrationToken, terminalPublicKey, deviceFingerprint string) (string, error) {
 	var serverPubKey string
 	var t NFCTerminal
 	err := nt.Pool.QueryRow(ctx, `
 		UPDATE nfc_terminals
-		SET terminal_public_key = $3, is_registered = true, registration_token = NULL, updated_at = NOW()
+		SET terminal_public_key = $3, is_registered = true, registration_token = NULL,
+		    device_fingerprint = COALESCE(NULLIF($4, ''), device_fingerprint),
+		    updated_at = NOW()
 		WHERE terminal_id = $1 AND registration_token = $2 AND is_active = true
 		RETURNING id, node_domain, terminal_id, label, terminal_type, location, wifi_ssid,
 			terminal_public_key, is_active, is_registered, last_seen, firmware_version, created_at, updated_at`,
-		terminalID, registrationToken, terminalPublicKey,
+		terminalID, registrationToken, terminalPublicKey, deviceFingerprint,
 	).Scan(&t.ID, &t.NodeDomain, &t.TerminalID, &t.Label, &t.TerminalType,
 		&t.Location, &t.WifiSSID, &t.TerminalPublicKey, &t.IsActive, &t.IsRegistered,
 		&t.LastSeen, &t.FirmwareVersion, &t.CreatedAt, &t.UpdatedAt)
@@ -175,24 +178,47 @@ func (nt *NFCTerminals) CompleteRegistration(ctx context.Context, terminalID, re
 	return serverPubKey, nil
 }
 
-func (nt *NFCTerminals) AuthenticateTerminal(ctx context.Context, terminalID string, signature []byte, nonce string, serverPrivKey ed25519.PrivateKey) (string, error) {
+// AuthenticateTerminal verifica la firma Ed25519 del terminal Y la huella del dispositivo.
+// El mensaje firmado por el terminal es: terminal_id:nonce:device_fingerprint
+// Esto asegura que incluso si alguien copia la clave privada, no puede autenticar
+// desde otro dispositivo porque el fingerprint no coincidira.
+func (nt *NFCTerminals) AuthenticateTerminal(ctx context.Context, terminalID string, signature []byte, nonce, deviceFingerprint string, serverPrivKey ed25519.PrivateKey) (string, error) {
 	var t NFCTerminal
-	var pubKeyStr string
+	var pubKeyStr, storedFingerprint *string
 	err := nt.Pool.QueryRow(ctx, `
-		SELECT id, terminal_public_key FROM nfc_terminals
+		SELECT id, terminal_public_key, device_fingerprint FROM nfc_terminals
 		WHERE terminal_id = $1 AND is_active = true AND is_registered = true`,
 		terminalID,
-	).Scan(&t.ID, &pubKeyStr)
+	).Scan(&t.ID, &pubKeyStr, &storedFingerprint)
 	if err != nil {
 		return "", fmt.Errorf("terminal not found or not registered")
 	}
 
-	pubKey, err := hex.DecodeString(pubKeyStr)
+	if pubKeyStr == nil || *pubKeyStr == "" {
+		return "", fmt.Errorf("terminal has no public key")
+	}
+
+	pubKey, err := hex.DecodeString(*pubKeyStr)
 	if err != nil {
 		return "", fmt.Errorf("invalid terminal public key")
 	}
 
-	if !ed25519.Verify(ed25519.PublicKey(pubKey), []byte(nonce), signature) {
+	// Verificar fingerprint si el terminal tiene uno registrado
+	// (terminales web_pos siempre tienen fingerprint; terminales fisicos pueden no tenerlo)
+	if storedFingerprint != nil && *storedFingerprint != "" && deviceFingerprint != "" {
+		if *storedFingerprint != deviceFingerprint {
+			return "", fmt.Errorf("device fingerprint mismatch - terminal may have been cloned")
+		}
+	}
+
+	// El mensaje firmado es: terminal_id:nonce:fingerprint
+	// Si no hay fingerprint, el mensaje es: terminal_id:nonce
+	signedMessage := terminalID + ":" + nonce
+	if deviceFingerprint != "" {
+		signedMessage += ":" + deviceFingerprint
+	}
+
+	if !ed25519.Verify(ed25519.PublicKey(pubKey), []byte(signedMessage), signature) {
 		return "", fmt.Errorf("terminal signature verification failed")
 	}
 

@@ -1,71 +1,59 @@
-feat: expandir base de datos mundial de materias primas
+feat: POS web con huella de dispositivo, claves rotativas y pagos QR seguros
 
-Se agregaron TODAS las materias primas que faltaban en el catalogo,
-con valores de energia de las bases de datos internacionales:
+Seguridad mejorada del POS web:
 
-Nuevas materias primas agregadas (60+ productos):
+1. HUELLA DE DISPOSITIVO (device fingerprint)
+   - Combina canvas, WebGL/GPU, pantalla, hardware, timezone, codecs
+   - Se genera en el navegador con Web Crypto API (SHA-256)
+   - Se envia al backend al registrar el terminal
+   - El backend verifica la huella en cada autenticacion
+   - Si alguien copia la caché a otro dispositivo, la huella no coincide
 
-ALIMENTOS FRESCOS:
-- Tomate, cebolla, ajo, pimenton/chile, lechuga
-- Yuca, platano, cambur, aguacate, mango, papaya
-- Naranja, limon, patilla, pina
-- Name, auyama, batata
-- Berenjena, zanahoria, remolacha, pepino, calabacin
-- Cilantro/perejil, coco
+2. CLAVES ROTATIVAS (HMAC con ventana de tiempo)
+   - Claves de sesion que cambian cada 30 segundos
+   - Derivadas del session_token + ventana de tiempo actual
+   - Cada request del POS va firmada con la clave del momento
+   - Aunque intercepten una clave, expira en 30s
 
-GRANOS Y LEGUMBRES SECOS:
-- Caraota, maiz, arroz, trigo, quinchoncho secos
-- Lentejas, garbanzos
+3. DOBLE VERIFICACION (clave + huella)
+   - AuthenticateTerminal ahora verifica:
+     a) Firma Ed25519 del terminal
+     b) Huella del dispositivo
+   - El mensaje firmado incluye el fingerprint: terminal_id:nonce:fingerprint
+   - Sin ambas cosas correctas, el servidor rechaza
 
-MATERIAS PRIMAS INDUSTRIALES:
-- Cafe verde, cacao en grano, cafe tostado, chocolate artesanal
-- Sal marina, vinagre artesanal
+4. FLUJO DE PAGO QR COMPLETO
+   - POS crea cargo en backend (POST /api/pos/charge)
+   - Backend genera token unico y lo guarda en pos_charges
+   - QR contiene: {apiURL}/pay?t={token}
+   - Cliente escanea, va a /pay
+   - /pay consulta el cargo (GET /api/pos/charge/{token}/info) - sin login
+   - Cliente ve monto y comerciante
+   - Cliente inicia sesion (con clave o huella/passkey)
+   - Cliente acepta pagar (POST /api/pos/charge/{token}/pay)
+   - Backend debita y acredita atomicamente
+   - POS hace polling del estado (GET /api/pos/charge/{id}/status)
+   - POS detecta "paid" y muestra confirmacion verde
 
-MATERIALES DE CONSTRUCCION:
-- Cemento Portland, cal viva, yeso
-- Cobre, zinc, plomo, bronce, laton, hierro, estano, niquel
-- Plastico PVC, polietileno, polipropileno, poliester, nylon
-- Arena de rio, grava, arcilla
-- Vidrio reciclado, madera estructural, bambu
+Backend:
+- internal/api/pos.go: handler con createCharge, getChargeStatus,
+  getChargeInfo (publico), payCharge (atomico), cancelCharge
+- internal/payments/nfc_terminal.go: RegisterTerminal, CompleteRegistration
+  y AuthenticateTerminal ahora acceptan/verifican device_fingerprint
+- internal/api/nfc_terminal.go: handlers actualizados para pasar fingerprint
+- internal/db/migrations/098_pos_tables.sql: columna device_fingerprint,
+  tabla pos_charges, payment_pin_hash
+- internal/api/routes.go: POSHandler registrado
 
-FIBRAS TEXTILES NATURALES:
-- Algodon en rama, lana en sucio, lino, canamo, yute, sisal
-- Seda cruda, cuero curtido vegetal, caucho natural (latex)
+Frontend POS (pos/):
+- src/crypto.ts: generateDeviceFingerprint, deriveRotatingKey, signWithRotatingKey
+- src/api.ts: envia fingerprint en registro/auth, claves rotativas en cada request
+- src/screens/SetupScreen.tsx: genera fingerprint al registrar
+- src/screens/KeypadScreen.tsx: crea cargo en backend
+- src/screens/QRScreen.tsx: polling al backend
 
-PAPEL Y DERIVADOS:
-- Papel reciclado, carton reciclado
-
-COMBUSTIBLES:
-- Gasolina, gas GLP, kerosen
-
-EXTRACTOS Y PRODUCTOS APICOLAS:
-- Aceite esencial, propoleo crudo, cera de abejas
-
-FRUTOS SECOS Y SEMILLAS:
-- Mani, ajonjoli
-
-AGUA:
-- Agua potable
-
-Fuentes consultadas:
-- Agribalyse (Francia): 200+ productos agricolas
-- FAO: produccion animal y vegetal
-- Pimentel & Pimentel: energia en alimentos
-- ICE Database (University of Bath): 300+ materiales
-- Ecoinvent: materiales industriales
-- OEcotextiles: fibras textiles
-- MDPI LCA studies: fibras naturales
-- Piringer & Steinberg: trigo
-- Estudios LCA de UK, EU, Iran, Albania, Canada, Nigeria, Turquia
-
-Cada producto tiene:
-- base_price: precio base de la base de datos mundial
-- base_unit: unidad del precio base (kg, L)
-- weight_kg: peso del producto
-- price_per_unit: precio calculado = base_price * weight_kg
-
-Los productos compuestos se pueden calcular sumando las materias
-primas que los componen mas la energia del proceso.
+Frontend principal (web/):
+- src/pages/Pay.tsx: consulta cargo, muestra monto, login, confirma pago
 
 Generated with [Devin](https://devin.ai)
 

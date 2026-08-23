@@ -66,16 +66,15 @@ export function KeypadScreen({
         await api.setSessionAmount(sessionToken, amount)
       }
 
-      // Generate QR token: encode the charge info
-      // The QR URL will be: {apiURL}/pay?t={token}&m={merchantID}&a={amount}
-      // The token is a signed payload
-      const token = btoa(JSON.stringify({
-        t: terminalID,
-        a: amount,
-        ts: Date.now(),
-      }))
+      // Crear cargo en el backend - el backend genera un token unico
+      // que el cliente usara para pagar. El backend sabe que este cargo
+      // pertenece a este terminal, asi que cuando el cliente paga,
+      // el backend marca el cargo como pagado y el POS lo detecta.
+      const charge = await api.createCharge(amount)
 
-      onShowQR(token)
+      // El QR contiene el token del cargo + la URL del nodo
+      // El cliente escanea, va a /pay?t={token}, el backend resuelve el cargo
+      onShowQR(charge.charge_id || charge.token)
     } catch (e: any) {
       setError(e.message)
     } finally {
