@@ -355,18 +355,13 @@ func (sh *SetupHandler) initNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Crear cuenta de Fondo Comunitario si no existe
+	// Crear cuenta de la Asamblea General si no existe
+	// La Asamblea = Fondo Comunitario = cuenta de Impuestos (es la misma cuenta)
+	// Se le puede transferir usando: asamblea, impuestos, fondo_comunitario
 	_, _ = sh.Pool.Exec(ctx, `
-		INSERT INTO users (id, node_domain, username, display_name, account_type, membership_status, balance, credit_limit, debit_limit)
-		SELECT gen_random_uuid(), $1, 'fondo_comunitario', 'Fondo Comunitario', 'fund', 'active', 0, 999999999, 999999999
-		WHERE NOT EXISTS (SELECT 1 FROM users WHERE account_type = 'fund' AND node_domain = $1)`,
-		nodeDomain)
-
-	// Crear cuenta de Impuestos si no existe
-	_, _ = sh.Pool.Exec(ctx, `
-		INSERT INTO users (id, node_domain, username, display_name, account_type, membership_status, balance, credit_limit, debit_limit)
-		SELECT gen_random_uuid(), $1, 'impuestos', 'Cuenta de Impuestos', 'fund', 'active', 0, 999999999, 999999999
-		WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'impuestos' AND node_domain = $1)`,
+		INSERT INTO users (id, node_domain, username, display_name, account_type, membership_status, balance, credit_limit, debit_limit, is_assembly_owned, is_approved)
+		SELECT gen_random_uuid(), $1, 'asamblea', 'Asamblea General', 'organization', 'active', 0, 999999999, 999999999, true, true
+		WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'asamblea' AND node_domain = $1)`,
 		nodeDomain)
 
 	writeJSON(w, 201, map[string]interface{}{

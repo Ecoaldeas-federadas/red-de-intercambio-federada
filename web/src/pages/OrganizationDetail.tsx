@@ -333,9 +333,17 @@ export default function OrganizationDetail() {
             </div>
           </div>
           {isAssemblyOrg ? (
-            <p className="text-xs text-amber-700 bg-amber-50 p-2 rounded">
-              Esta organizacion usa el Fondo Comunitario como su billetera. El saldo que ves aqui es el mismo que aparece en la pagina Fondo Comunitario.
-            </p>
+            <div className="space-y-2">
+              <p className="text-xs text-amber-700 bg-amber-50 p-2 rounded">
+                Esta cuenta es la Asamblea General, el Fondo Comunitario y la cuenta de Impuestos. Es una sola cuenta con 3 nombres.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-mono">@asamblea</span>
+                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-mono">@impuestos</span>
+                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-mono">@fondo_comunitario</span>
+              </div>
+              <p className="text-xs text-gray-400">Los 3 nombres son aliases de la misma cuenta. Puedes usar cualquiera para transferir.</p>
+            </div>
           ) : (
             <p className="text-xs text-gray-400">
               Para transferir a esta organizacion, usa su usuario @{org.username} como destinatario.
@@ -764,6 +772,13 @@ export default function OrganizationDetail() {
                   <p className="text-amber-200 text-xs mt-2">
                     {isAssemblyOrg ? 'Cuenta: Fondo Comunitario' : `Cuenta: @{org.username}`}
                   </p>
+                  {isAssemblyOrg && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <span className="text-xs bg-amber-500/30 text-amber-100 px-2 py-0.5 rounded font-mono">@asamblea</span>
+                      <span className="text-xs bg-amber-500/30 text-amber-100 px-2 py-0.5 rounded font-mono">@impuestos</span>
+                      <span className="text-xs bg-amber-500/30 text-amber-100 px-2 py-0.5 rounded font-mono">@fondo_comunitario</span>
+                    </div>
+                  )}
                 </div>
                 <WalletIcon size={48} className="text-amber-200" />
               </div>

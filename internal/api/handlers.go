@@ -216,21 +216,14 @@ func (h *Handler) transfer(w http.ResponseWriter, r *http.Request) {
 			taxAmount = int64(float64(req.Amount) * effectiveRate)
 		}
 
-		// Si no se ha definido cuenta destino, buscar la cuenta de la Asamblea
+		// Si no se ha definido cuenta destino, usar la cuenta de la Asamblea
+		// (la Asamblea = Fondo Comunitario = cuenta de impuestos, es la misma cuenta)
 		if taxAmount > 0 && taxTargetAccount == nil {
 			var assemblyAcctID uuid.UUID
 			_ = h.Pool.QueryRow(r.Context(), `
 				SELECT id FROM users WHERE node_domain = $1 AND username = 'asamblea' LIMIT 1`, h.nodeDomain).Scan(&assemblyAcctID)
 			if assemblyAcctID != uuid.Nil {
 				taxTargetAccount = &assemblyAcctID
-			} else {
-				// Fallback: cuenta de impuestos
-				var taxAcctID uuid.UUID
-				_ = h.Pool.QueryRow(r.Context(), `
-					SELECT id FROM users WHERE node_domain = $1 AND username = 'impuestos' LIMIT 1`, h.nodeDomain).Scan(&taxAcctID)
-				if taxAcctID != uuid.Nil {
-					taxTargetAccount = &taxAcctID
-				}
 			}
 		}
 	}

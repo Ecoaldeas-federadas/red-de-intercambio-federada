@@ -1313,7 +1313,7 @@ func (h *SystemHandler) getPriceHistory(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, 200, history)
 }
 
-// ===== FONDO COMUNITARIO =====
+// ===== FONDO COMUNITARIO (Asamblea General) =====
 
 func (h *SystemHandler) getFundBalance(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
@@ -1325,20 +1325,20 @@ func (h *SystemHandler) getFundBalance(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Buscar cuenta del fondo comunitario (excluir cuenta de impuestos)
+	// El Fondo Comunitario ES la cuenta de la Asamblea General
 	var fundID uuid.UUID
 	var balance int64
 	var username, displayName string
 	err := h.Pool.QueryRow(r.Context(), `
 		SELECT id, balance, username, COALESCE(display_name, username)
-		FROM users WHERE node_domain = $1 AND account_type = 'fund' AND username != 'impuestos'
-		ORDER BY username LIMIT 1`,
+		FROM users WHERE node_domain = $1 AND username = 'asamblea'
+		LIMIT 1`,
 		nodeDomain).Scan(&fundID, &balance, &username, &displayName)
 	if err != nil {
 		writeJSON(w, 200, map[string]interface{}{
 			"fund_account": nil,
 			"balance":      0,
-			"message":      "No hay cuenta de fondo comunitario. Crea una cuenta tipo 'fund' para acumular impuestos.",
+			"message":      "No hay cuenta de Asamblea General. El Fondo Comunitario es la cuenta de la Asamblea.",
 		})
 		return
 	}
@@ -1353,6 +1353,7 @@ func (h *SystemHandler) getFundBalance(w http.ResponseWriter, r *http.Request) {
 		"display_name":      displayName,
 		"balance":           balance,
 		"transaction_count": txCount,
+		"aliases":           []string{"asamblea", "impuestos", "fondo_comunitario"},
 	})
 }
 

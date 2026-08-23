@@ -85,12 +85,12 @@ export default function CommunityFund() {
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
           <p><strong>Fondo Comunitario - Ayuda</strong></p>
-          <p><strong>Que es:</strong> El fondo comunitario es una cuenta especial que acumula dinero colectivo del nodo. Es el "tesoro" compartido que se usa para el bien comun.</p>
-          <p><strong>De donde viene el dinero:</strong> Cada vez que alguien hace una transferencia, el sistema aplica un porcentaje de impuesto automatico que va a parar al fondo. Por ejemplo, si el impuesto es 2% y se transfieren 100 unidades, 2 unidades van al fondo. Nadie necesita depositar manualmente: se acumula solo con el uso.</p>
+          <p><strong>Que es:</strong> El Fondo Comunitario ES la cuenta de la Asamblea General. No son cuentas separadas: es una sola cuenta que recibe los impuestos y sirve como tesoro comunitario.</p>
+          <p><strong>Como transferirle:</strong> Puedes transferir a esta cuenta usando cualquiera de estos 3 nombres (todos llegan a la misma cuenta): <b>@asamblea</b>, <b>@impuestos</b> o <b>@fondo_comunitario</b>.</p>
+          <p><strong>De donde viene el dinero:</strong> Cada vez que alguien hace una transferencia, el sistema aplica un porcentaje de impuesto automatico que va a parar a esta cuenta. Por ejemplo, si el impuesto es 2% y se transfieren 100 unidades, 2 unidades van al fondo. Nadie necesita depositar manualmente: se acumula solo con el uso.</p>
           <p><strong>Para que se usa:</strong> El dinero del fondo se destina a infraestructura del nodo, servicios publicos, ayuda mutua entre miembros, y proyectos aprobados por la asamblea. No puede gastarse libremente: cada gasto requiere aprobacion colectiva.</p>
           <p><strong>Como se distribuye:</strong> Para gastar dinero del fondo hay que crear una propuesta de distribucion indicando el destinatario, el monto y la razon. Luego los miembros votan a favor o en contra. Si la propuesta se aprueba, se puede ejecutar y el dinero se transfiere al destinatario.</p>
           <p><strong>Quien lo administra:</strong> Nadie individualmente. El balance es visible para todos, pero los gastos solo se realizan mediante votacion de la asamblea. Esto garantiza que el fondo no pueda ser mal utilizado por una sola persona.</p>
-          <p><strong>Como usar esta pagina:</strong> Revisa el balance disponible en la parte superior. Si quieres proponer un gasto, pulsa "Nueva Propuesta", completa los campos y espera los votos de los demas miembros.</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
         </div>
       )}
@@ -103,8 +103,14 @@ export default function CommunityFund() {
         {fund ? (
           fund.fund_account ? (
             <div className="space-y-2">
-              <div className="text-3xl font-bold text-trueque-700">{fund.balance || 0} {currency}</div>
-              <p className="text-sm text-gray-500">Cuenta: <b>{fund.display_name || fund.username || 'fondo_comunitario'}</b></p>
+              <div className="text-3xl font-bold text-trueque-700">{fund.balance >= 0 ? '+' : ''}{fund.balance || 0} {currency}</div>
+              <p className="text-sm text-gray-500">Cuenta: <b>{fund.display_name || fund.username || 'asamblea'}</b></p>
+              <div className="flex flex-wrap gap-2 mt-2">
+                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-mono">@asamblea</span>
+                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-mono">@impuestos</span>
+                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-mono">@fondo_comunitario</span>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Los 3 nombres son aliases de la misma cuenta. Puedes usar cualquiera para transferir.</p>
               {fund.transaction_count > 0 && (
                 <p className="text-xs text-gray-400">{fund.transaction_count} transacciones registradas</p>
               )}
@@ -112,7 +118,7 @@ export default function CommunityFund() {
           ) : (
             <div>
               <p className="text-amber-600 text-sm">{fund.message}</p>
-              <p className="text-xs text-gray-400 mt-2">Para que los impuestos se acumulen, necesita una cuenta tipo 'fund'. Contacta al administrador.</p>
+              <p className="text-xs text-gray-400 mt-2">El Fondo Comunitario es la cuenta de la Asamblea General. Si no existe, crea una cuenta con username 'asamblea'.</p>
             </div>
           )
         ) : (

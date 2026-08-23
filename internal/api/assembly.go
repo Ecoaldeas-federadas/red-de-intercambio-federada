@@ -1079,15 +1079,15 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 			return fmt.Errorf("la asamblea del nodo no puede transferir dinero directamente a personas. Transfiere a un departamento u organizacion, y ellos deciden como distribuirlo")
 		}
 
-		// Obtener la cuenta de la asamblea (cuenta de impuestos)
+		// Obtener la cuenta de la Asamblea General (que es el Fondo Comunitario)
 		nodeDomain := r.Header.Get("X-Node-Domain")
 		if nodeDomain == "" {
 			nodeDomain = "localhost"
 		}
 		var fromAccountID uuid.UUID
-		h.Pool.QueryRow(r.Context(), `SELECT tax_account_id FROM tax_config WHERE node_domain = $1`, nodeDomain).Scan(&fromAccountID)
+		h.Pool.QueryRow(r.Context(), `SELECT id FROM users WHERE node_domain = $1 AND username = 'asamblea' LIMIT 1`, nodeDomain).Scan(&fromAccountID)
 		if fromAccountID == uuid.Nil {
-			return fmt.Errorf("no hay cuenta de asamblea configurada")
+			return fmt.Errorf("no hay cuenta de Asamblea General configurada")
 		}
 
 		// Realizar la transferencia

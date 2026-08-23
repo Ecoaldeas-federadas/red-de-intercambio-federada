@@ -46,11 +46,11 @@ func (c *Calculator) CalculateTax(amount int64, rate float64) int64 {
 func (c *Calculator) GetFundAccount(ctx context.Context, nodeDomain string) (*uuid.UUID, error) {
 	var fundID uuid.UUID
 	err := c.Pool.QueryRow(ctx,
-		`SELECT id FROM users WHERE node_domain = $1 AND username = 'fund' AND account_type = 'fund'`,
+		`SELECT id FROM users WHERE node_domain = $1 AND username = 'asamblea'`,
 		nodeDomain,
 	).Scan(&fundID)
 	if err != nil {
-		return nil, fmt.Errorf("getting fund account: %w", err)
+		return nil, fmt.Errorf("getting fund account (asamblea): %w", err)
 	}
 	return &fundID, nil
 }

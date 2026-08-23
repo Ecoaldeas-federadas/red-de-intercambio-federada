@@ -148,20 +148,27 @@ func (h *TaxHandler) getTaxAccount(w http.ResponseWriter, r *http.Request) {
 		nodeDomain = "localhost"
 	}
 
+	// La cuenta de impuestos ES la cuenta de la Asamblea General
+	// (Asamblea = Fondo Comunitario = Impuestos, es la misma cuenta)
 	var taxAccountID *string
 	err := h.Pool.QueryRow(r.Context(), `
-		SELECT tax_account_id::text FROM tax_config WHERE node_domain = $1`, nodeDomain).Scan(&taxAccountID)
+		SELECT id::text FROM users WHERE node_domain = $1 AND username = 'asamblea' LIMIT 1`, nodeDomain).Scan(&taxAccountID)
 	if err != nil || taxAccountID == nil {
+		// Fallback: usar tax_config si existe
+		h.Pool.QueryRow(r.Context(), `
+			SELECT tax_account_id::text FROM tax_config WHERE node_domain = $1`, nodeDomain).Scan(&taxAccountID)
+	}
+	if taxAccountID == nil {
 		writeJSON(w, 200, map[string]interface{}{
 			"tax_account":      nil,
 			"tax_account_name": nil,
 			"balance":          0,
-			"message":          "No hay cuenta de impuestos configurada. La asamblea debe asignar una cuenta.",
+			"message":          "No hay cuenta de Asamblea configurada. La cuenta de la Asamblea es la misma que recibe impuestos y el Fondo Comunitario.",
 		})
 		return
 	}
 
-	// Obtener balance y nombre de la cuenta de impuestos
+	// Obtener balance y nombre de la cuenta de la Asamblea
 	var balance int64
 	var username, displayName string
 	h.Pool.QueryRow(r.Context(), `
@@ -173,6 +180,8 @@ func (h *TaxHandler) getTaxAccount(w http.ResponseWriter, r *http.Request) {
 		"tax_account_name":    username,
 		"tax_account_display": displayName,
 		"balance":             balance,
+		"aliases":             []string{"asamblea", "impuestos", "fondo_comunitario"},
+		"message":             "La cuenta de impuestos es la Asamblea General. Se le puede transferir usando: asamblea, impuestos o fondo_comunitario.",
 	})
 }
 

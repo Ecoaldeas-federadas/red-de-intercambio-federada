@@ -1955,8 +1955,8 @@ func demoSeedTransactions(ctx context.Context, d *DB, nodeDomain string) error {
 	herreria := getUserID("herreria")
 	taller := getUserID("taller_textil")
 	coop := getUserID("coop_agricola")
-	impuestos := getUserID("impuestos")
-	fondo := getUserID("fondo_comunitario")
+	// La Asamblea = Fondo Comunitario = Impuestos (es la misma cuenta)
+	asamblea := getUserID("asamblea")
 	escuela := getUserID("escuela")
 	centroSalud := getUserID("centro_salud")
 
@@ -2024,30 +2024,28 @@ func demoSeedTransactions(ctx context.Context, d *DB, nodeDomain string) error {
 		{tomas, panaderia, 33, "Pan y galletas", 24 * 3},
 		{carmen, coop, 140, "Canasta de verduras", 24 * 2},
 		{marcos, taller, 65, "Gorro de lana", 24 * 1},
-		// Transacciones con impuesto (org -> individual)
-		{tienda, impuestos, 8, "Impuesto 1% sobre venta 80", 24 * 90},
-		{panaderia, impuestos, 5, "Impuesto 1% sobre venta 50", 24 * 85},
-		{taller, impuestos, 12, "Impuesto 1% sobre venta 120", 24 * 65},
-		{herreria, impuestos, 9, "Impuesto 1% sobre venta 90", 24 * 60},
-		{coop, impuestos, 20, "Impuesto 1% sobre venta 200", 24 * 58},
-		// Distribución del fondo a proyectos
-		{impuestos, fondo, 54, "Transferencia a fondo comunitario", 24 * 30},
+		// Transacciones con impuesto (org -> asamblea, que es la cuenta de impuestos)
+		{tienda, asamblea, 8, "Impuesto 1% sobre venta 80", 24 * 90},
+		{panaderia, asamblea, 5, "Impuesto 1% sobre venta 50", 24 * 85},
+		{taller, asamblea, 12, "Impuesto 1% sobre venta 120", 24 * 65},
+		{herreria, asamblea, 9, "Impuesto 1% sobre venta 90", 24 * 60},
+		{coop, asamblea, 20, "Impuesto 1% sobre venta 200", 24 * 58},
 		// Transacciones federadas (entre nodos)
 		{carmen, jose, 100, "Compra de quinua andina (federada)", 24 * 20},
 		{tienda, coop, 300, "Compra mayorista de semillas", 24 * 15},
 		// Transacciones con organizaciones (para que tengan saldo)
-		{tienda, fondo, 100, "Donacion al fondo comunitario", 24 * 25},
-		{coop, fondo, 80, "Aporte al fondo comunitario", 24 * 22},
-		{fondo, escuela, 150, "Materiales educativos para escuela", 24 * 18},
-		{fondo, coop, 100, "Compra de semillas para banco comunitario", 24 * 12},
+		{tienda, asamblea, 100, "Donacion al fondo comunitario", 24 * 25},
+		{coop, asamblea, 80, "Aporte al fondo comunitario", 24 * 22},
+		{asamblea, escuela, 150, "Materiales educativos para escuela", 24 * 18},
+		{asamblea, coop, 100, "Compra de semillas para banco comunitario", 24 * 12},
 		{escuela, tienda, 60, "Compra de utiles y materiales", 24 * 10},
 		{centroSalud, tienda, 45, "Compra de medicamentos naturales", 24 * 8},
 		{tienda, panaderia, 90, "Pago por panaderia semanal", 24 * 6},
 		{coop, herreria, 120, "Compra de herramientas agricolas", 24 * 4},
 		// Transacciones con cuentas de departamentos
-		{fondo, getUserID("dept_comision_de_economia"), 200, "Presupuesto trimestral Comision de Economia", 24 * 15},
-		{fondo, getUserID("dept_comision_de_ambiente"), 100, "Presupuesto para reforestacion", 24 * 14},
-		{fondo, getUserID("dept_comision_de_construccion"), 150, "Materiales para reparaciones", 24 * 10},
+		{asamblea, getUserID("dept_comision_de_economia"), 200, "Presupuesto trimestral Comision de Economia", 24 * 15},
+		{asamblea, getUserID("dept_comision_de_ambiente"), 100, "Presupuesto para reforestacion", 24 * 14},
+		{asamblea, getUserID("dept_comision_de_construccion"), 150, "Materiales para reparaciones", 24 * 10},
 		{getUserID("dept_comision_de_economia"), tienda, 80, "Compra de suministros para evento", 24 * 8},
 		{getUserID("dept_comision_de_ambiente"), coop, 50, "Compra de arbolitos", 24 * 5},
 		{getUserID("dept_comision_de_construccion"), herreria, 70, "Herramientas de construccion", 24 * 3},
@@ -2064,9 +2062,9 @@ func demoSeedTransactions(ctx context.Context, d *DB, nodeDomain string) error {
 		var taxTarget *uuid.UUID
 		var senderType string
 		d.Pool.QueryRow(ctx, `SELECT account_type FROM users WHERE id = $1`, t.sender).Scan(&senderType)
-		if senderType == "organization" && impuestos != uuid.Nil {
+		if senderType == "organization" && asamblea != uuid.Nil {
 			taxAmount = t.amount * taxRate / 100
-			taxTarget = &impuestos
+			taxTarget = &asamblea
 		}
 
 		txID := uuid.New()
@@ -2090,12 +2088,12 @@ func demoSeedTransactions(ctx context.Context, d *DB, nodeDomain string) error {
 			VALUES ($1, $2, 'credit', $3, 'user_balance', $4, NOW() - make_interval(hours => $5))`,
 			txID, t.receiver, t.amount, nodeDomain, t.hoursAgo)
 
-		// Si hay impuesto, crear ledger entry para la cuenta de impuestos
-		if taxAmount > 0 && impuestos != uuid.Nil {
+		// Si hay impuesto, crear ledger entry para la cuenta de la Asamblea
+		if taxAmount > 0 && asamblea != uuid.Nil {
 			d.Pool.Exec(ctx, `
 				INSERT INTO ledger_entries (transaction_id, account_id, entry_type, amount, account_category, counterpart_node, created_at)
-				VALUES ($1, $2, 'credit', $3, 'fund', $4, NOW() - make_interval(hours => $5))`,
-				txID, impuestos, taxAmount, nodeDomain, t.hoursAgo)
+				VALUES ($1, $2, 'credit', $3, 'organization', $4, NOW() - make_interval(hours => $5))`,
+				txID, asamblea, taxAmount, nodeDomain, t.hoursAgo)
 		}
 
 		// Crear audit log
@@ -2289,8 +2287,9 @@ func demoSeedExternalOps(ctx context.Context, d *DB, nodeDomain string) {
 
 func demoSeedFundProposals(ctx context.Context, d *DB, nodeDomain string) {
 	// Crear propuestas de distribución del fondo en tax_distributions
+	// El Fondo Comunitario ES la cuenta de la Asamblea General
 	var fondoID uuid.UUID
-	d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE node_domain = $1 AND username = 'fondo_comunitario' LIMIT 1`, nodeDomain).Scan(&fondoID)
+	d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE node_domain = $1 AND username = 'asamblea' LIMIT 1`, nodeDomain).Scan(&fondoID)
 	if fondoID == uuid.Nil {
 		return
 	}
@@ -2876,8 +2875,9 @@ func demoSeedBoardMembers(ctx context.Context, d *DB, nodeDomain string) {
 	}
 
 	// Configurar tax_config con tasas de impuesto por tipo de cuenta
+	// La cuenta de impuestos ES la cuenta de la Asamblea General
 	var taxAccountID uuid.UUID
-	d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE node_domain = $1 AND username = 'impuestos' LIMIT 1`, nodeDomain).Scan(&taxAccountID)
+	d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE node_domain = $1 AND username = 'asamblea' LIMIT 1`, nodeDomain).Scan(&taxAccountID)
 	if taxAccountID != uuid.Nil {
 		// Tasas diferentes por tipo de cuenta
 		taxConfigs := []struct {
