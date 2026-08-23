@@ -1,43 +1,32 @@
-feat: POS web - flujo de registro correcto, bloqueo local, y Docker separado
+feat: Usuarios gestionan sus terminales POS + admin asigna terminales
 
-Correcciones al flujo del POS web:
+Ahora los usuarios pueden ver y gestionar sus terminales asignados,
+no solo el administrador.
 
-1. FLUJO DE REGISTRO CORRECTO (como terminales fisicos)
-   - El usuario abre el POS en su dispositivo
-   - El POS genera: terminal_id, claves Ed25519, huella del dispositivo
-   - El POS MUESTRA todos los datos (texto + QR) para que el usuario
-     se los dé al administrador encargado
-   - El administrador entra a la plataforma y registra el terminal
-     (POST /api/nfc/terminal/register - requiere permiso nfc.register_terminal)
-   - El administrador le da al usuario el registration_token
-   - El usuario ingresa el registration_token en el POS
-   - El POS completa el registro y se autentica
-   - Los usuarios NO pueden registrar terminales directamente
+Backend:
+- POST /api/nfc/terminal/{id}/assign: admin asigna terminal a un usuario
+- GET /api/nfc/my-terminals: usuario ve sus terminales asignados
+- POST /api/nfc/my-terminals/{id}/toggle: usuario activa/desactiva
+- GET /api/nfc/my-terminals/{id}/transactions: usuario ve transacciones
+- Columna merchant_user_id en nfc_terminals (migracion 098)
 
-2. BLOQUEO / DESBLOQUEO LOCAL
-   - El usuario puede bloquear el terminal desde el POS con un codigo
-   - Solo con el codigo puede desbloquearlo
-   - El administrador tambien puede bloquear/desbloquear desde la plataforma
-   - Backend: POST /api/nfc/terminal/{id}/block y /unblock
-   - El codigo se guarda como hash bcrypt (nunca plaintext)
+Frontend:
+- web/src/pages/MyTerminals.tsx: pagina "Mis Puntos de Venta"
+  - Lista terminales asignados al usuario
+  - Ver transacciones de cada terminal (total ventas, aprobadas, etc)
+  - Activar/desactivar terminal
+  - Info de ultima actividad
+- web/src/components/Layout.tsx: link "Mis Puntos de Venta" en sidebar
+- web/src/pages/NFCTerminals.tsx: boton de asignar terminal a usuario
 
-3. DOCKER SEPARADO PARA EL POS
-   - docker/Dockerfile.pos: build Vite + serve con nginx
-   - docker-compose.yml: servicio pos-web en puerto 3001
-   - El POS se sirve como static files (100% frontend)
-   - Se comunica con el nodo via API (no necesita backend propio)
-   - PWA instalable desde el navegador
-
-Cambios:
-- pos/src/App.tsx: flujo URL → Setup → Login → Keypad
-- pos/src/screens/SetupScreen.tsx: muestra datos para el admin, ingresa token
-- pos/src/screens/LoginScreen.tsx: soporta modo URL y modo login
-- pos/src/screens/SettingsScreen.tsx: bloquear/desbloquear con codigo
-- pos/src/api.ts: blockTerminal, unblockTerminal
-- internal/api/nfc_terminal.go: handlers blockTerminal, unblockTerminal
-- internal/db/migrations/098_pos_tables.sql: columna block_code_hash
-- docker/Dockerfile.pos: nuevo
-- docker-compose.yml: servicio pos-web
+Flujo completo:
+1. Admin registra terminal (con permisos nfc.register_terminal)
+2. Admin asigna terminal a un usuario (POST /assign)
+3. Usuario ve el terminal en "Mis Puntos de Venta"
+4. Usuario puede activar/desactivar, ver transacciones
+5. Usuario abre el POS en su dispositivo, usa el terminal
+6. Todas las transacciones pasan por el servidor (se guardan en nfc_transactions)
+7. Usuario ve el historial tanto en el POS como en la plataforma
 
 Generated with [Devin](https://devin.ai)
 

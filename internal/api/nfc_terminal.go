@@ -53,6 +53,14 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequireAuth).Get("/api/nfc/terminals/types", h.listTerminalTypes)
 	r.With(am.RequirePermission("nfc.deactivate_terminal")).Delete("/api/nfc/terminal/{id}", h.deactivateTerminal)
 
+	// Assign terminal to user (admin assigns terminal to merchant)
+	r.With(am.RequirePermission("nfc.register_terminal")).Post("/api/nfc/terminal/{id}/assign", h.assignTerminal)
+
+	// User endpoints: ver y gestionar sus propios terminales asignados
+	r.With(am.RequireAuth).Get("/api/nfc/my-terminals", h.listMyTerminals)
+	r.With(am.RequireAuth).Post("/api/nfc/my-terminals/{id}/toggle", h.toggleMyTerminal)
+	r.With(am.RequireAuth).Get("/api/nfc/my-terminals/{id}/transactions", h.listMyTerminalTransactions)
+
 	r.With(am.RequirePermission("nfc.issue_card")).Post("/api/nfc/cards/issue", h.issueCryptoCard)
 	r.With(am.RequireAuth).Get("/api/nfc/cards", h.listCards)
 	r.With(am.RequirePermission("nfc.deactivate_card")).Delete("/api/nfc/cards/{uid}", h.deactivateCard)
@@ -863,4 +871,211 @@ func (h *NFCTerminalHandler) unblockTerminal(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	writeJSON(w, 200, map[string]string{"status": "unblocked"})
+}
+
+// --- Assign terminal to user (admin assigns terminal to merchant) ---
+
+func (h *NFCTerminalHandler) assignTerminal(w http.ResponseWriter, r *http.Request) {
+	terminalID := chi.URLParam(r, "id")
+	if terminalID == "" {
+		writeError(w, 400, "terminal id is required")
+		return
+	}
+
+	var req struct {
+		MerchantUserID string `json:"merchant_user_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.MerchantUserID == "" {
+		writeError(w, 400, "merchant_user_id is required")
+		return
+	}
+
+	merchantID, err := uuid.Parse(req.MerchantUserID)
+	if err != nil {
+		writeError(w, 400, "invalid merchant_user_id")
+		return
+	}
+
+	_, err = h.NFC.Pool.Exec(r.Context(), `
+		UPDATE nfc_terminals SET merchant_user_id = $2, updated_at = NOW()
+		WHERE terminal_id = $1`,
+		terminalID, merchantID,
+	)
+	if err != nil {
+		writeError(w, 500, "failed to assign terminal")
+		return
+	}
+	writeJSON(w, 200, map[string]string{"status": "assigned"})
+}
+
+// --- User: list their assigned terminals ---
+
+func (h *NFCTerminalHandler) listMyTerminals(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserID(r)
+	if err != nil {
+		writeError(w, 401, "not authenticated")
+		return
+	}
+
+	rows, err := h.NFC.Pool.Query(r.Context(), `
+		SELECT id, node_domain, terminal_id, label, terminal_type, location,
+		       is_active, is_registered, last_seen, firmware_version, created_at, updated_at,
+		       block_code_hash IS NOT NULL as is_blocked
+		FROM nfc_terminals
+		WHERE merchant_user_id = $1
+		ORDER BY created_at DESC`,
+		userID,
+	)
+	if err != nil {
+		writeError(w, 500, "failed to list terminals")
+		return
+	}
+	defer rows.Close()
+
+	type MyTerminal struct {
+		ID           uuid.UUID  `json:"id"`
+		NodeDomain   string     `json:"node_domain"`
+		TerminalID   string     `json:"terminal_id"`
+		Label        string     `json:"label"`
+		TerminalType string     `json:"terminal_type"`
+		Location     string     `json:"location"`
+		IsActive     bool       `json:"is_active"`
+		IsRegistered bool       `json:"is_registered"`
+		IsBlocked    bool       `json:"is_blocked"`
+		LastSeen     *time.Time `json:"last_seen"`
+		CreatedAt    time.Time  `json:"created_at"`
+		UpdatedAt    time.Time  `json:"updated_at"`
+	}
+
+	var terminals []MyTerminal
+	for rows.Next() {
+		var t MyTerminal
+		if err := rows.Scan(&t.ID, &t.NodeDomain, &t.TerminalID, &t.Label, &t.TerminalType,
+			&t.Location, &t.IsActive, &t.IsRegistered, &t.LastSeen,
+			&t.CreatedAt, &t.UpdatedAt, &t.IsBlocked); err != nil {
+			continue
+		}
+		terminals = append(terminals, t)
+	}
+	if terminals == nil {
+		terminals = []MyTerminal{}
+	}
+	writeJSON(w, 200, terminals)
+}
+
+// --- User: toggle terminal active/inactive ---
+
+func (h *NFCTerminalHandler) toggleMyTerminal(w http.ResponseWriter, r *http.Request) {
+	terminalID := chi.URLParam(r, "id")
+	if terminalID == "" {
+		writeError(w, 400, "terminal id is required")
+		return
+	}
+
+	userID, err := getUserID(r)
+	if err != nil {
+		writeError(w, 401, "not authenticated")
+		return
+	}
+
+	// Verify the terminal belongs to this user
+	var isActive bool
+	err = h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT is_active FROM nfc_terminals
+		WHERE terminal_id = $1 AND merchant_user_id = $2`,
+		terminalID, userID,
+	).Scan(&isActive)
+	if err != nil {
+		writeError(w, 404, "terminal not found or not assigned to you")
+		return
+	}
+
+	// Toggle
+	_, err = h.NFC.Pool.Exec(r.Context(), `
+		UPDATE nfc_terminals SET is_active = $2, updated_at = NOW()
+		WHERE terminal_id = $1 AND merchant_user_id = $3`,
+		terminalID, !isActive, userID,
+	)
+	if err != nil {
+		writeError(w, 500, "failed to toggle terminal")
+		return
+	}
+
+	status := "activated"
+	if isActive {
+		status = "deactivated"
+	}
+	writeJSON(w, 200, map[string]string{"status": status})
+}
+
+// --- User: list transactions for their terminal ---
+
+func (h *NFCTerminalHandler) listMyTerminalTransactions(w http.ResponseWriter, r *http.Request) {
+	terminalID := chi.URLParam(r, "id")
+	if terminalID == "" {
+		writeError(w, 400, "terminal id is required")
+		return
+	}
+
+	userID, err := getUserID(r)
+	if err != nil {
+		writeError(w, 401, "not authenticated")
+		return
+	}
+
+	// Verify the terminal belongs to this user
+	var termDBID uuid.UUID
+	err = h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT id FROM nfc_terminals
+		WHERE terminal_id = $1 AND merchant_user_id = $2`,
+		terminalID, userID,
+	).Scan(&termDBID)
+	if err != nil {
+		writeError(w, 404, "terminal not found or not assigned to you")
+		return
+	}
+
+	rows, err := h.NFC.Pool.Query(r.Context(), `
+		SELECT id, card_uid, amount, status, pin_verified, transaction_type,
+		       error_message, created_at
+		FROM nfc_transactions
+		WHERE terminal_id = $1
+		ORDER BY created_at DESC
+		LIMIT 100`,
+		termDBID,
+	)
+	if err != nil {
+		writeError(w, 500, "failed to list transactions")
+		return
+	}
+	defer rows.Close()
+
+	type Tx struct {
+		ID              uuid.UUID `json:"id"`
+		CardUID         string    `json:"card_uid"`
+		Amount          int64     `json:"amount"`
+		Status          string    `json:"status"`
+		PinVerified     bool      `json:"pin_verified"`
+		TransactionType string    `json:"transaction_type"`
+		ErrorMessage    string    `json:"error_message,omitempty"`
+		CreatedAt       time.Time `json:"created_at"`
+	}
+
+	var txs []Tx
+	for rows.Next() {
+		var t Tx
+		if err := rows.Scan(&t.ID, &t.CardUID, &t.Amount, &t.Status,
+			&t.PinVerified, &t.TransactionType, &t.ErrorMessage, &t.CreatedAt); err != nil {
+			continue
+		}
+		txs = append(txs, t)
+	}
+	if txs == nil {
+		txs = []Tx{}
+	}
+	writeJSON(w, 200, txs)
 }

@@ -42,6 +42,7 @@ import WebsiteAdmin from './pages/WebsiteAdmin'
 import NotificationSettings from './pages/NotificationSettings'
 import Notifications from './pages/Notifications'
 import Pay from './pages/Pay'
+import MyTerminals from './pages/MyTerminals'
 
 export default function App() {
   return (
@@ -109,6 +110,7 @@ function AppInner() {
         <Route path="/app/departments/:id" element={<Layout><DepartmentDetail /></Layout>} />
         <Route path="/app/governance" element={<Layout><Governance /></Layout>} />
         <Route path="/app/nfc-terminals" element={<Layout><NFCTerminals /></Layout>} />
+      <Route path="/app/my-terminals" element={<Layout><MyTerminals /></Layout>} />
         <Route path="/app/federation/peers" element={<Layout><Federation /></Layout>} />
         <Route path="/app/federation/conflicts" element={<Layout><MergeConflicts /></Layout>} />
         <Route path="/app/settings" element={<Layout><NodeSettings /></Layout>} />

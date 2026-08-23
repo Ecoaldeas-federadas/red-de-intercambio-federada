@@ -127,6 +127,20 @@ export default function NFCTerminals() {
     }
   }
 
+  const assignTerminal = async (terminalId: string) => {
+    const merchantUserID = prompt('Ingresa el ID del usuario al que se le asignara este terminal:')
+    if (!merchantUserID) return
+    try {
+      await apiFetch(`/nfc/terminal/${terminalId}/assign`, {
+        method: 'POST',
+        body: JSON.stringify({ merchant_user_id: merchantUserID }),
+      })
+      loadTerminals()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error')
+    }
+  }
+
   const [newCard, setNewCard] = useState({ user_id: '', card_uid: '', card_type: 'uid_only', initial_pin: '' })
   const issueCard = async () => {
     setError('')
@@ -518,6 +532,15 @@ export default function NFCTerminals() {
                 <span className={`text-xs px-2 py-1 rounded ${t.is_registered ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
                   {t.is_registered ? 'Registrado' : 'Pendiente'}
                 </span>
+                {canRegisterTerminal && t.is_registered && (
+                  <button
+                    onClick={() => assignTerminal(t.terminal_id)}
+                    className="text-blue-500 hover:text-blue-700"
+                    title="Asignar a usuario"
+                  >
+                    <UserPlus size={16} />
+                  </button>
+                )}
                 {canDeactivateTerminal && t.is_active && (
                   <button onClick={() => deactivateTerminal(t.terminal_id)} className="text-red-500 hover:text-red-700">
                     <Trash2 size={16} />

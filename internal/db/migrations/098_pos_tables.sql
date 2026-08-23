@@ -9,6 +9,14 @@ ALTER TABLE nfc_terminals ADD COLUMN IF NOT EXISTS device_fingerprint TEXT;
 -- el terminal desde el mismo POS con un codigo, sin necesidad del admin
 ALTER TABLE nfc_terminals ADD COLUMN IF NOT EXISTS block_code_hash TEXT;
 
+-- Asignar terminal a un usuario (merchant) - el admin asigna el terminal
+-- a un usuario despues de registrarlo. El usuario puede entonces:
+-- - ver el terminal en su cuenta
+-- - abrir/cerrar sesiones
+-- - bloquear/desbloquear
+-- - ver transacciones del terminal
+ALTER TABLE nfc_terminals ADD COLUMN IF NOT EXISTS merchant_user_id UUID REFERENCES users(id);
+
 -- Tabla de cargos del POS (QR payments)
 -- Cuando el POS crea un cargo, se registra aqui con un token unico.
 -- El QR contiene {apiURL}/pay?t={token}

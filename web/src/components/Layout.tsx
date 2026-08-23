@@ -7,7 +7,7 @@ import {
   Network, Scale, Users, Gavel, FileSearch, Globe, UserPlus, Wallet, Shield,
   Building2, Nfc, Settings, User, PiggyBank, Zap, Plug,
   LogOut, Menu, X, ExternalLink, Bell, ChevronLeft, ChevronRight, AlertTriangle,
-  Server,
+  Server, ShoppingBag,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -18,6 +18,7 @@ const navItems = [
   { to: '/app/my-services', label: 'Mis Servicios', icon: Plug },
   { to: '/app/payments', label: 'Pagos', icon: Wallet },
   { to: '/app/nfc-terminals', label: 'Terminales NFC', icon: Nfc },
+  { to: '/app/my-terminals', label: 'Mis Puntos de Venta', icon: ShoppingBag },
   { to: '/app/products', label: 'Productos', icon: Package },
   { to: '/app/calculator', label: 'Calculadora', icon: Calculator },
   { to: '/app/calculator/params', label: 'Parametros Calc.', icon: Zap },
