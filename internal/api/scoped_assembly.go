@@ -212,11 +212,12 @@ func (h *ScopedAssemblyHandler) listSessions(w http.ResponseWriter, r *http.Requ
 		FROM assembly_sessions_scoped
 		WHERE node_domain = $1 AND scope = $2 AND scope_id = $3 AND meeting_type = $4`
 	args := []interface{}{nodeDomain, scope, scopeID, meetingType}
-	if filter == "upcoming" {
+	switch filter {
+	case "upcoming":
 		query += ` AND status IN ('scheduled', 'waiting_quorum', 'active') ORDER BY start_time ASC LIMIT 50`
-	} else if filter == "past" {
+	case "past":
 		query += ` AND status IN ('completed', 'cancelled', 'expired') ORDER BY start_time DESC LIMIT 50`
-	} else {
+	default:
 		query += ` ORDER BY created_at DESC LIMIT 50`
 	}
 	rows, err := h.Pool.Query(r.Context(), query, args...)
@@ -1199,7 +1200,8 @@ func (h *ScopedAssemblyHandler) executeScopedDecision(r *http.Request, scope str
 			return fmt.Errorf("user_id invalido")
 		}
 
-		if scope == "organization" {
+		switch scope {
+		case "organization":
 			// Anadir a la junta directiva como miembro
 			position, _ := params["cargo"].(string)
 			if position == "" {
@@ -1210,7 +1212,7 @@ func (h *ScopedAssemblyHandler) executeScopedDecision(r *http.Request, scope str
 				VALUES ($1, $2, $3, true)
 				ON CONFLICT (organization_id, user_id, position) DO NOTHING`,
 				scopeID, userID, position)
-		} else if scope == "department" {
+		case "department":
 			// Anadir al departamento como miembro
 			// Buscar un rol por defecto
 			var roleID uuid.UUID

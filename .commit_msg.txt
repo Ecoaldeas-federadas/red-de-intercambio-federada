@@ -1,28 +1,16 @@
-fix: git pull falla por cambios locales + token siempre actualizado
+refactor: Limpiar advertencias del linter (switch tagged, unused writes)
 
-PROBLEMA: git pull fallaba (exit status 1) porque el repo montado en
-/project tenia cambios locales (builds, .env, config.yaml, etc.) que
-impedian un pull limpio. Ademas, el token solo se aplicaba si la URL
-no tenia ghp_, pero si el token cambiaba no se actualizaba.
+Advertencias resueltas:
+- assembly.go: if/else if -> switch en voteStr y status
+- merge_conflicts.go: if/else if -> switch en h.nodeDomain (2 sitios)
+- scoped_assembly.go: if/else if -> switch en filter y scope
+- system.go: if/else if -> switch en baseUnit (2 sitios)
+- nfc_terminal.go: eliminado PaymentsHandler nil sin uso
+- subscription_scheduler.go: parametro nodeDomain marcado como _ (sin uso)
 
-SOLUCION:
-1. runUpdateNode ahora hace:
-   a. configureGitAuth (siempre actualiza el token)
-   b. git fetch origin main (descarga cambios)
-   c. git stash (guarda cambios locales)
-   d. git reset --hard origin/main (sobrescribe con la version del repo)
-   e. git stash pop (restaura cambios locales como .env, config.yaml)
-   f. docker compose build node-app
-   g. docker compose up -d node-app
-
-2. configureGitAuth siempre actualiza el remote con el token actual,
-   sin importar si ya tenia uno. Esto permite rotar tokens.
-
-3. checkUpdates ahora maneja errores de fetch y muestra mensaje claro
-   si el token no funciona.
-
-NOTA: Los archivos importantes (.env, config.yaml) estan montados por
-separado en docker-compose.yml y no se pierden con el reset.
+Advertencia restante (falso positivo):
+- external.go: ComponentUnit - el linter dice "unused write" pero
+  el valor si se usa en la linea 735 dentro del mismo loop
 
 Generated with [Devin](https://devin.ai)
 

@@ -174,7 +174,7 @@ func (s *SubscriptionScheduler) createChargeTransaction(
 	toID uuid.UUID,
 	amount int64,
 	description string,
-	nodeDomain string,
+	_ string,
 ) (uuid.UUID, error) {
 	tx, err := s.ledger.InternalTransfer(ctx, ledger.InternalTransferParams{
 		SenderID:      fromID,

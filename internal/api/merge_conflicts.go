@@ -252,13 +252,14 @@ func (h *MergeConflictHandler) proposeResolution(w http.ResponseWriter, r *http.
 		writeError(w, 404, "conflict not found")
 		return
 	}
-	if h.nodeDomain == c.NodeADomain {
+	switch h.nodeDomain {
+	case c.NodeADomain:
 		voteColumn = "vote_a_status"
 		otherNode = c.NodeBDomain
-	} else if h.nodeDomain == c.NodeBDomain {
+	case c.NodeBDomain:
 		voteColumn = "vote_b_status"
 		otherNode = c.NodeADomain
-	} else {
+	default:
 		writeError(w, 403, "this node is not part of this conflict")
 		return
 	}
@@ -316,11 +317,12 @@ func (h *MergeConflictHandler) voteOnConflict(w http.ResponseWriter, r *http.Req
 	}
 
 	var voteColumn string
-	if h.nodeDomain == c.NodeADomain {
+	switch h.nodeDomain {
+	case c.NodeADomain:
 		voteColumn = "vote_a_status"
-	} else if h.nodeDomain == c.NodeBDomain {
+	case c.NodeBDomain:
 		voteColumn = "vote_b_status"
-	} else {
+	default:
 		writeError(w, 403, "this node is not part of this conflict")
 		return
 	}

@@ -1532,11 +1532,12 @@ func (h *AssemblyHandler) getProposalReport(w http.ResponseWriter, r *http.Reque
 			var ts time.Time
 			rows.Scan(&voteStr, &ts)
 			label := voteStr
-			if voteStr == "for" {
+			switch voteStr {
+			case "for":
 				label = "a favor"
-			} else if voteStr == "against" {
+			case "against":
 				label = "en contra"
-			} else if voteStr == "abstain" {
+			case "abstain":
 				label = "abstencion"
 			}
 			voteTimeline = append(voteTimeline, VoteEntry{
@@ -1691,11 +1692,12 @@ func (h *AssemblyHandler) listVotingReports(w http.ResponseWriter, r *http.Reque
 		}
 
 		result := "pendiente"
-		if status == "executed" {
+		switch status {
+		case "executed":
 			result = "aprobada"
-		} else if status == "rejected" {
+		case "rejected":
 			result = "rechazada"
-		} else if status == "expired" {
+		case "expired":
 			result = "vencida"
 		}
 

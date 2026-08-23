@@ -437,11 +437,6 @@ func (h *NFCTerminalHandler) listCards(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use the existing payments handler's listNFCCards
-	ph := &PaymentsHandler{Payments: nil}
-	_ = ph
-	_ = userID
-
 	// Query directly
 	cards, err := h.listCardsDirect(r, userID)
 	if err != nil {
