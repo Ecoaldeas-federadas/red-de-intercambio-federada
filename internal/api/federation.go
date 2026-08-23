@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"federated-credit-node/internal/db"
 	"federated-credit-node/internal/federation"
 )
 
@@ -757,11 +758,12 @@ func (fh *FederationHandler) approveProductProposal(w http.ResponseWriter, r *ht
 	}
 
 	// Insertar el producto en el catalogo local como aprobado
+	// Los datos locales se guardan con LOCAL_NODE_DOMAIN
 	_, err = fh.Pool.Exec(r.Context(), `
 		INSERT INTO products (node_domain, name, parent_category, category, subcategory, origin, unit, description, badge, image_url, price_per_unit, is_approved, is_system, is_composite, source_node, source_product_id)
 		VALUES ($1, $2, $3, $4, $5, 'federated', $6, $7, $8, $9, $10, true, false, $11, $12, $13)
 		ON CONFLICT DO NOTHING`,
-		fh.NodeDomain, name, parentCat, cat, subcat, unit, description, badge, imageURL, price, isComposite, sourceNode, sourcePID)
+		db.LOCAL_NODE_DOMAIN, name, parentCat, cat, subcat, unit, description, badge, imageURL, price, isComposite, sourceNode, sourcePID)
 	if err != nil {
 		writeError(w, 500, "error al insertar producto federado")
 		return

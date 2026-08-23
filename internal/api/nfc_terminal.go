@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
+	"federated-credit-node/internal/db"
 	"federated-credit-node/internal/payments"
 )
 
@@ -369,7 +370,7 @@ func (h *NFCTerminalHandler) registerTerminal(w http.ResponseWriter, r *http.Req
 }
 
 func (h *NFCTerminalHandler) listTerminals(w http.ResponseWriter, r *http.Request) {
-	terminals, err := h.NFC.ListTerminals(r.Context(), h.NodeDomain)
+	terminals, err := h.NFC.ListTerminals(r.Context(), db.LOCAL_NODE_DOMAIN)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -565,7 +566,7 @@ func (h *NFCTerminalHandler) listTransactions(w http.ResponseWriter, r *http.Req
 		}
 	}
 
-	txs, err := h.NFC.ListTransactions(r.Context(), h.NodeDomain, limit)
+	txs, err := h.NFC.ListTransactions(r.Context(), db.LOCAL_NODE_DOMAIN, limit)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return

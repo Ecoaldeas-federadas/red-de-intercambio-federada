@@ -188,7 +188,7 @@ func main() {
 		Pool:           database.Pool,
 	}
 
-	handler := api.NewHandler(ledgerSvc, accountsSvc, pricingSvc, cryptoSvc, cfg.Node.Domain, database.Pool)
+	handler := api.NewHandler(ledgerSvc, accountsSvc, pricingSvc, cryptoSvc, db.LOCAL_NODE_DOMAIN, database.Pool)
 	federationHandler := api.NewFederationHandler(database.Pool, cfg.Node.Domain)
 	orgsSvc := accounts.NewOrganizations(database.Pool)
 	orgHandler := api.NewOrganizationHandler(orgsSvc, cfg.Node.Domain)

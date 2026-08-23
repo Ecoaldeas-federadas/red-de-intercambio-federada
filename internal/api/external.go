@@ -673,7 +673,7 @@ func (eh *ExternalHandler) addCompositeItem(w http.ResponseWriter, r *http.Reque
 				err := eh.Pool.QueryRow(r.Context(),
 					`SELECT name, unit, price_per_unit, is_approved
 					 FROM products WHERE id = $1 AND node_domain = $2`,
-					pid, eh.NodeDomain).Scan(&pname, &punit, &pprice, &pApproved)
+					pid, db.LOCAL_NODE_DOMAIN).Scan(&pname, &punit, &pprice, &pApproved)
 				if err != nil {
 					writeError(w, 400, "componente no encontrado: "+c.ComponentName)
 					return

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"federated-credit-node/internal/db"
 	"federated-credit-node/internal/payments"
 
 	"github.com/go-chi/chi/v5"
@@ -95,7 +96,7 @@ func (h *POSHandler) createCharge(w http.ResponseWriter, r *http.Request) {
 		INSERT INTO pos_charges (node_domain, terminal_id, merchant_id, charge_token, amount, status, description, expires_at)
 		VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7)
 		RETURNING id::text`,
-		h.NodeDomain, termDBID, userID, chargeToken, req.Amount, req.Description, expiresAt,
+		db.LOCAL_NODE_DOMAIN, termDBID, userID, chargeToken, req.Amount, req.Description, expiresAt,
 	).Scan(&chargeID)
 	if err != nil {
 		writeError(w, 500, "failed to create charge: "+err.Error())

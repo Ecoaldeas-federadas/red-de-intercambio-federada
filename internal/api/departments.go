@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"federated-credit-node/internal/accounts"
+	"federated-credit-node/internal/db"
 )
 
 type DepartmentsHandler struct {
@@ -43,7 +44,7 @@ func (dh *DepartmentsHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 }
 
 func (dh *DepartmentsHandler) listDepartments(w http.ResponseWriter, r *http.Request) {
-	depts, err := dh.Departments.ListDepartments(r.Context(), dh.NodeDomain)
+	depts, err := dh.Departments.ListDepartments(r.Context(), db.LOCAL_NODE_DOMAIN)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -88,7 +89,7 @@ func (dh *DepartmentsHandler) createDepartment(w http.ResponseWriter, r *http.Re
 	}
 	// Si parent_organization_id es NULL, el departamento pertenece al nodo/asamblea directamente
 
-	dept, err := dh.Departments.CreateDepartment(r.Context(), dh.NodeDomain, req.Name, req.Description, req.GroupType, req.HeadUserID, req.ParentOrganizationID)
+	dept, err := dh.Departments.CreateDepartment(r.Context(), db.LOCAL_NODE_DOMAIN, req.Name, req.Description, req.GroupType, req.HeadUserID, req.ParentOrganizationID)
 	if err != nil {
 		writeError(w, 400, err.Error())
 		return

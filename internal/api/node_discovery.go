@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"federated-credit-node/internal/db"
 	"fmt"
 	"io"
 	"net/http"
@@ -505,7 +506,7 @@ func (h *NodeDiscoveryHandler) getDiscoveryConfig(w http.ResponseWriter, r *http
 		SELECT discovery_interval_hours, health_check_interval_hours,
 		       inactive_cleanup_interval_days, max_failed_checks,
 		       last_discovery_sync, last_health_check, last_inactive_cleanup
-		FROM node_discovery_config WHERE node_domain = $1`, h.NodeDomain,
+		FROM node_discovery_config WHERE node_domain = $1`, db.LOCAL_NODE_DOMAIN,
 	).Scan(&discoveryInt, &healthInt, &cleanupInt, &maxFailed, &lastSync, &lastCheck, &lastCleanup)
 	if err == nil {
 		cfg["discovery_interval_hours"] = discoveryInt
@@ -566,7 +567,7 @@ func (h *NodeDiscoveryHandler) updateDiscoveryConfig(w http.ResponseWriter, r *h
 		  inactive_cleanup_interval_days = EXCLUDED.inactive_cleanup_interval_days,
 		  max_failed_checks = EXCLUDED.max_failed_checks,
 		  updated_at = NOW()`,
-		h.NodeDomain, discoveryInt, healthInt, cleanupInt, maxFailed)
+		db.LOCAL_NODE_DOMAIN, discoveryInt, healthInt, cleanupInt, maxFailed)
 	if err != nil {
 		writeError(w, 500, fmt.Sprintf("actualizando config: %v", err))
 		return
@@ -665,7 +666,7 @@ func (h *NodeDiscoveryHandler) syncDiscoveryNow(w http.ResponseWriter, r *http.R
 
 	_, _ = h.Pool.Exec(ctx, `
 		UPDATE node_discovery_config SET last_discovery_sync = NOW()
-		WHERE node_domain = $1`, h.NodeDomain)
+		WHERE node_domain = $1`, db.LOCAL_NODE_DOMAIN)
 
 	writeJSON(w, 200, map[string]interface{}{
 		"success":     true,
@@ -747,7 +748,7 @@ func (h *NodeDiscoveryHandler) consensusCheckInactive(w http.ResponseWriter, r *
 
 	// Obtener config
 	var healthCheckHours int
-	_ = h.Pool.QueryRow(ctx, `SELECT health_check_interval_hours FROM node_discovery_config WHERE node_domain = $1`, h.NodeDomain).Scan(&healthCheckHours)
+	_ = h.Pool.QueryRow(ctx, `SELECT health_check_interval_hours FROM node_discovery_config WHERE node_domain = $1`, db.LOCAL_NODE_DOMAIN).Scan(&healthCheckHours)
 	if healthCheckHours == 0 {
 		healthCheckHours = 168 // 7 dias default
 	}
@@ -824,7 +825,7 @@ func (h *NodeDiscoveryHandler) consensusCheckInactive(w http.ResponseWriter, r *
 	// Actualizar timestamp
 	_, _ = h.Pool.Exec(ctx, `
 		UPDATE node_discovery_config SET last_health_check = NOW()
-		WHERE node_domain = $1`, h.NodeDomain)
+		WHERE node_domain = $1`, db.LOCAL_NODE_DOMAIN)
 
 	writeJSON(w, 200, map[string]interface{}{
 		"success":         true,

@@ -112,7 +112,7 @@ func (h *RecoveryHandler) updateConfig(w http.ResponseWriter, r *http.Request) {
 		req.AutoExpireHours = 72
 	}
 
-	err = h.Recovery.UpdateConfig(r.Context(), h.NodeDomain, req.ApprovalMode,
+	err = h.Recovery.UpdateConfig(r.Context(), db.LOCAL_NODE_DOMAIN, req.ApprovalMode,
 		req.RequiredApprovals, req.CouncilGroupID, req.AutoExpireHours,
 		req.RequiresIdentityVerification, userID)
 	if err != nil {
@@ -120,7 +120,7 @@ func (h *RecoveryHandler) updateConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg, _ := h.Recovery.GetConfig(r.Context(), h.NodeDomain)
+	cfg, _ := h.Recovery.GetConfig(r.Context(), db.LOCAL_NODE_DOMAIN)
 	writeJSON(w, 200, cfg)
 }
 
@@ -153,7 +153,7 @@ func (h *RecoveryHandler) createRequest(w http.ResponseWriter, r *http.Request) 
 		requesterID = &userID
 	}
 
-	recoveryReq, err := h.Recovery.CreateRequest(r.Context(), h.NodeDomain,
+	recoveryReq, err := h.Recovery.CreateRequest(r.Context(), db.LOCAL_NODE_DOMAIN,
 		req.TargetUsername, requesterID, req.Reason, req.IdentityVerification)
 	if err != nil {
 		writeError(w, 500, err.Error())
@@ -378,7 +378,7 @@ func (h *RecoveryHandler) createInvitation(w http.ResponseWriter, r *http.Reques
 		expiresAt = &t
 	}
 
-	code, err := h.Recovery.CreateInvitationCode(r.Context(), h.NodeDomain, userID, req.MaxUses, req.ProposedLevel, expiresAt)
+	code, err := h.Recovery.CreateInvitationCode(r.Context(), db.LOCAL_NODE_DOMAIN, userID, req.MaxUses, req.ProposedLevel, expiresAt)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -401,7 +401,7 @@ func (h *RecoveryHandler) validateInvitation(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	inv, err := h.Recovery.ValidateInvitationCode(r.Context(), h.NodeDomain, req.Code)
+	inv, err := h.Recovery.ValidateInvitationCode(r.Context(), db.LOCAL_NODE_DOMAIN, req.Code)
 	if err != nil {
 		writeError(w, 400, err.Error())
 		return

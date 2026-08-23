@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"federated-credit-node/internal/accounts"
+	"federated-credit-node/internal/db"
 )
 
 type OrganizationHandler struct {
@@ -73,7 +74,7 @@ func (oh *OrganizationHandler) createOrganization(w http.ResponseWriter, r *http
 	}
 
 	org, err := oh.Orgs.Create(r.Context(), accounts.CreateOrganizationParams{
-		NodeDomain:          oh.NodeDomain,
+		NodeDomain:          db.LOCAL_NODE_DOMAIN,
 		Username:            req.Username,
 		DisplayName:         req.DisplayName,
 		OrganizationSubtype: req.OrganizationSubtype,
@@ -92,7 +93,7 @@ func (oh *OrganizationHandler) createOrganization(w http.ResponseWriter, r *http
 
 func (oh *OrganizationHandler) listOrganizations(w http.ResponseWriter, r *http.Request) {
 	subtype := r.URL.Query().Get("subtype")
-	orgs, err := oh.Orgs.List(r.Context(), oh.NodeDomain, subtype)
+	orgs, err := oh.Orgs.List(r.Context(), db.LOCAL_NODE_DOMAIN, subtype)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -104,7 +105,7 @@ func (oh *OrganizationHandler) listOrganizationTypes(w http.ResponseWriter, r *h
 	// Devolver tipos de organizacion desde organization_levels
 	rows, err := oh.Orgs.Pool.Query(r.Context(), `
 		SELECT name, description FROM organization_levels WHERE node_domain = $1 AND is_active = true ORDER BY level, name`,
-		oh.NodeDomain)
+		db.LOCAL_NODE_DOMAIN)
 	if err != nil {
 		// Si no hay organization_levels, devolver tipos por defecto
 		writeJSON(w, 200, []map[string]string{
@@ -199,7 +200,7 @@ func (oh *OrganizationHandler) createInstitution(w http.ResponseWriter, r *http.
 	}
 
 	org, err := oh.Orgs.CreatePublicInstitution(r.Context(), accounts.CreateOrganizationParams{
-		NodeDomain:          oh.NodeDomain,
+		NodeDomain:          db.LOCAL_NODE_DOMAIN,
 		Username:            req.Username,
 		DisplayName:         req.DisplayName,
 		OrganizationSubtype: req.OrganizationSubtype,

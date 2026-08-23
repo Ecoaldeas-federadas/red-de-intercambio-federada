@@ -59,13 +59,18 @@ func NewNotifyService(pool *pgxpool.Pool) *NotifyService {
 }
 
 // Notify crea una notificacion para un usuario y dispara la entrega por pasarelas
+// Notify crea una notificacion para un usuario.
+// nodeDomain puede ser el dominio real o __LOCAL__; se resuelve internamente
+// para que los datos se guarden siempre con el valor correcto.
 func (s *NotifyService) Notify(ctx context.Context, nodeDomain string, userID uuid.UUID, notifType, title, message, link string, metadata map[string]interface{}) {
+	// Resolver el dominio: si es el dominio real del nodo, usar __LOCAL__
+	resolvedDomain := db.ResolveNodeDomain(ctx, s.Pool, nodeDomain, "")
 	var notifID uuid.UUID
 	err := s.Pool.QueryRow(ctx, `
 		INSERT INTO notifications (node_domain, user_id, notification_type, title, message, link, metadata, channels_delivered)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, ARRAY['in_app'])
 		RETURNING id`,
-		nodeDomain, userID, notifType, title, message, link, metadata).Scan(&notifID)
+		resolvedDomain, userID, notifType, title, message, link, metadata).Scan(&notifID)
 	if err != nil {
 		// Log pero no fallar la operacion principal
 		fmt.Printf("Error creando notificacion: %v\n", err)
@@ -73,7 +78,7 @@ func (s *NotifyService) Notify(ctx context.Context, nodeDomain string, userID uu
 	}
 	// Entregar en background por los canales configurados (email, telegram, matrix, etc.)
 	if s.gateway != nil {
-		s.gateway.DeliverInBackground(nodeDomain, userID, notifID, notifType, title, message, link)
+		s.gateway.DeliverInBackground(resolvedDomain, userID, notifID, notifType, title, message, link)
 	}
 }
 
@@ -85,12 +90,15 @@ func (s *NotifyService) NotifyMany(ctx context.Context, nodeDomain string, userI
 }
 
 // NotifyVotingMembers notifica a todos los miembros con derecho a voto del nodo
+// nodeDomain puede ser el dominio real o __LOCAL__; se resuelve internamente
 func (s *NotifyService) NotifyVotingMembers(ctx context.Context, nodeDomain, notifType, title, message, link string, metadata map[string]interface{}) {
+	// Resolver el dominio: si es el dominio real del nodo, usar __LOCAL__
+	resolvedDomain := db.ResolveNodeDomain(ctx, s.Pool, nodeDomain, "")
 	rows, err := s.Pool.Query(ctx, `
 		SELECT u.id FROM users u
 		JOIN member_levels ml ON ml.id = u.member_level_id
 		WHERE u.node_domain = $1 AND u.membership_status = 'active'
-		AND ml.has_vote = true`, nodeDomain)
+		AND ml.has_vote = true`, resolvedDomain)
 	if err != nil {
 		return
 	}
@@ -98,14 +106,17 @@ func (s *NotifyService) NotifyVotingMembers(ctx context.Context, nodeDomain, not
 	for rows.Next() {
 		var uid uuid.UUID
 		rows.Scan(&uid)
-		s.Notify(ctx, nodeDomain, uid, notifType, title, message, link, metadata)
+		s.Notify(ctx, resolvedDomain, uid, notifType, title, message, link, metadata)
 	}
 }
 
 // NotifyBoard notifica a la junta directiva del nodo
+// nodeDomain puede ser el dominio real o __LOCAL__; se resuelve internamente
 func (s *NotifyService) NotifyBoard(ctx context.Context, nodeDomain, notifType, title, message, link string, metadata map[string]interface{}) {
+	// Resolver el dominio: si es el dominio real del nodo, usar __LOCAL__
+	resolvedDomain := db.ResolveNodeDomain(ctx, s.Pool, nodeDomain, "")
 	rows, err := s.Pool.Query(ctx, `
-		SELECT user_id FROM assembly_board_members WHERE node_domain = $1`, nodeDomain)
+		SELECT user_id FROM assembly_board_members WHERE node_domain = $1`, resolvedDomain)
 	if err != nil {
 		return
 	}
@@ -113,7 +124,7 @@ func (s *NotifyService) NotifyBoard(ctx context.Context, nodeDomain, notifType, 
 	for rows.Next() {
 		var uid uuid.UUID
 		rows.Scan(&uid)
-		s.Notify(ctx, nodeDomain, uid, notifType, title, message, link, metadata)
+		s.Notify(ctx, resolvedDomain, uid, notifType, title, message, link, metadata)
 	}
 }
 
