@@ -27,6 +27,7 @@ services:
       - FIRMWARE_DIR=/app/firmware
       - FIRMWARE_BUILD_DIR=/tmp/firmware-builds
       - FIRMWARE_DOCKER_IMAGE=fmc-arduino-compiler:latest
+      - GIT_TOKEN=${GIT_TOKEN:-}
     restart: unless-stopped
 
   arduino-compiler:

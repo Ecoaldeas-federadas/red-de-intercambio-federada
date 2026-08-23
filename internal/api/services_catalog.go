@@ -243,12 +243,12 @@ var catalog = []ServiceCatalogItem{
 		UsedFor:  "Que cada miembro tenga un lugar seguro para sus contrasenas. No mas contrasenas escritas en papel o repetidas. Sincroniza entre dispositivos. Sin que empresas de terceros tengan tus contrasenas.",
 		Protocol: "Web", Docker: true, MinRAM: 128, MinDisk: 1, DefaultPort: 80, Subdomain: "claves",
 	},
-	// === Punto de Venta (POS) ===
+	// === Punto de Venta (POS) - EXCLUSIVO DE ESTE NODO ===
 	{
 		ID: "pos-web", Name: "Punto de Venta Web", Category: "productividad", Icon: "ShoppingBag",
-		WhatIs:   "Terminal de punto de venta (POS) que funciona como aplicacion web instalable. Se registra como un terminal NFC mas del nodo, con claves criptograficas Ed25519 y huella de dispositivo. Soporta pagos por QR y NFC. Se instala como PWA en cualquier dispositivo (celular, tablet, PC).",
-		Replaces: "Terminales POS comerciales (Square, Mercado Pago Point, etc.)",
-		UsedFor:  "Cobrar ventas con la moneda interna de la comunidad (TQ). El comerciante ingresa el monto, el cliente paga escaneando un QR o acercando su tarjeta NFC. Las organizaciones pueden asignar terminales a miembros, ver turnos, ventas por usuario y transacciones. Funciona offline despues de instalar.",
+		WhatIs:   "Terminal de punto de venta EXCLUSIVO de este nodo. Solo funciona con la moneda interna de la comunidad (TQ). No es un POS generico: no sirve para cobrar con dinero tradicional, tarjetas bancarias, criptomonedas ni ningun otro sistema externo. Esta disenado unicamente para cobrar y transferir TQ entre miembros de esta comunidad. Se instala como aplicacion web (PWA) en cualquier dispositivo: celular, tablet o PC. Se registra como un terminal NFC mas del nodo, con claves criptograficas Ed25519 y huella de dispositivo. Soporta pagos por QR y por tarjeta NFC.",
+		Replaces: "Terminales POS comerciales (Solo para TQ, no para dinero tradicional)",
+		UsedFor:  "Cobrar ventas con TQ (moneda de esta comunidad). El comerciante ingresa el monto en TQ, el cliente paga escaneando un QR con su celular o acercando su tarjeta NFC. Las organizaciones pueden asignar terminales a miembros, ver turnos (quien uso el terminal y cuando), ventas por usuario y todas las transacciones. IMPORTANTE: Este POS solo funciona dentro de este nodo. No se puede configurar para usar con otros sistemas. No procesa dinero real ni criptomonedas.",
 		Protocol: "Web/PWA", Docker: true, MinRAM: 128, MinDisk: 1, DefaultPort: 3001, Subdomain: "pos",
 	},
 }

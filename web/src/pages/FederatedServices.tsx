@@ -101,6 +101,11 @@ export default function FederatedServices() {
       s.what_is.toLowerCase().includes(search.toLowerCase())
     const matchCategory = categoryFilter === 'all' || s.category === categoryFilter
     return matchSearch && matchCategory
+  }).sort((a, b) => {
+    // POS Web siempre arriba (es exclusivo del nodo)
+    if (a.id === 'pos-web') return -1
+    if (b.id === 'pos-web') return 1
+    return 0
   })
 
   const installService = async (svc: ServiceItem) => {
@@ -417,15 +422,23 @@ export default function FederatedServices() {
           const Icon = iconMap[svc.icon] || Server
           const isInstalled = svc.status === 'running' || svc.status === 'stopped' || svc.status === 'error'
           const isRunning = svc.status === 'running'
+          const isExclusive = svc.id === 'pos-web'
           return (
-            <div key={svc.id} className="card p-4 flex flex-col">
+            <div key={svc.id} className={`card p-4 flex flex-col ${isExclusive ? 'border-2 border-trueque-400 ring-2 ring-trueque-100' : ''}`}>
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${categoryColors[svc.category] || 'bg-gray-100'}`}>
+                  <div className={`p-2 rounded-lg ${isExclusive ? 'bg-trueque-600 text-white' : categoryColors[svc.category] || 'bg-gray-100'}`}>
                     <Icon size={24} />
                   </div>
                   <div>
-                    <h3 className="font-semibold">{svc.name}</h3>
+                    <h3 className="font-semibold flex items-center gap-2">
+                      {svc.name}
+                      {isExclusive && (
+                        <span className="text-xs px-2 py-0.5 bg-trueque-600 text-white rounded-full font-medium">
+                          EXCLUSIVO DEL NODO
+                        </span>
+                      )}
+                    </h3>
                     <span className={`text-xs px-2 py-0.5 rounded ${categoryColors[svc.category] || 'bg-gray-100 text-gray-600'}`}>
                       {categoryLabels[svc.category] || svc.category}
                     </span>
@@ -434,6 +447,19 @@ export default function FederatedServices() {
                 <div className="text-xs flex items-center gap-1">
                   {getStatusIcon(svc.status)}
                 </div>
+              </div>
+
+              <p className="text-sm text-gray-600 mb-2 line-clamp-3">{svc.what_is}</p>
+
+              {isExclusive && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 mb-2 text-xs text-amber-700">
+                  <strong>Importante:</strong> Este POS solo funciona con TQ de esta comunidad.
+                  No es un POS generico. No procesa dinero tradicional ni criptomonedas.
+                </div>
+              )}
+
+              <div className="text-xs text-gray-500 mb-2">
+                <strong>Reemplaza:</strong> {svc.replaces}
               </div>
 
               <p className="text-sm text-gray-600 mb-2 line-clamp-3">{svc.what_is}</p>

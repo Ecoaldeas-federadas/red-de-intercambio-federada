@@ -57,6 +57,9 @@ func (h *UpdateHandler) checkUpdates(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Configurar el remote con token si esta disponible
+	h.configureGitAuth(projectDir)
+
 	// git fetch origin
 	fetchCmd := exec.Command("git", "-C", projectDir, "fetch", "origin")
 	fetchCmd.Run()
@@ -128,6 +131,9 @@ func (h *UpdateHandler) runUpdateNode() {
 	h.setUpdateStatus("running", "Haciendo git pull...", "")
 
 	projectDir := "/project"
+
+	// Configurar autenticacion con token
+	h.configureGitAuth(projectDir)
 
 	// 1. git pull
 	pullCmd := exec.Command("git", "-C", projectDir, "pull", "origin", "main")
@@ -328,6 +334,34 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// configureGitAuth configura el remote origin con el token si esta disponible.
+func (h *UpdateHandler) configureGitAuth(projectDir string) {
+	token := os.Getenv("GIT_TOKEN")
+	if token == "" {
+		return
+	}
+
+	// Obtener el remote actual
+	getURLCmd := exec.Command("git", "-C", projectDir, "remote", "get-url", "origin")
+	urlOut, err := getURLCmd.Output()
+	if err != nil {
+		return
+	}
+	currentURL := strings.TrimSpace(string(urlOut))
+
+	// Si ya tiene el token, no hacer nada
+	if strings.Contains(currentURL, "ghp_") {
+		return
+	}
+
+	// Construir la URL con token
+	newURL := fmt.Sprintf("https://%s@github.com/discapacidad5/red-de-intercambio-federada.git", token)
+
+	// Actualizar el remote
+	setURLCmd := exec.Command("git", "-C", projectDir, "remote", "set-url", "origin", newURL)
+	setURLCmd.Run()
 }
 
 // context import workaround
