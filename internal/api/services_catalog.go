@@ -458,19 +458,8 @@ func (sh *FederatedServicesHandler) installService(w http.ResponseWriter, r *htt
 	cmd := exec.Command("docker", "compose", "-f", composePath, "up", "-d", "--build")
 	output, err := cmd.CombinedOutput()
 
-	status := "running"
 	if err != nil {
-		status = "error"
-	}
-
-	// Guardar en BD
-	_, _ = sh.Pool.Exec(ctx, `
-		INSERT INTO installed_services (service_id, service_name, category, subdomain, container_name, docker_compose_path, status, port, installed_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
-		ON CONFLICT (service_id) DO UPDATE SET status = $7, updated_at = NOW()`,
-		serviceID, svc.Name, svc.Category, svc.Subdomain, containerName, composePath, status, svc.DefaultPort)
-
-	if err != nil {
+		// Si falla, NO marcar como instalado
 		writeJSON(w, 200, map[string]interface{}{
 			"success":    false,
 			"service_id": serviceID,
@@ -479,6 +468,13 @@ func (sh *FederatedServicesHandler) installService(w http.ResponseWriter, r *htt
 		})
 		return
 	}
+
+	// Solo guardar en BD si la instalacion fue exitosa
+	_, _ = sh.Pool.Exec(ctx, `
+		INSERT INTO installed_services (service_id, service_name, category, subdomain, container_name, docker_compose_path, status, port, installed_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, 'running', $7, NOW(), NOW())
+		ON CONFLICT (service_id) DO UPDATE SET status = 'running', updated_at = NOW()`,
+		serviceID, svc.Name, svc.Category, svc.Subdomain, containerName, composePath, svc.DefaultPort)
 
 	writeJSON(w, 200, map[string]interface{}{
 		"success":    true,

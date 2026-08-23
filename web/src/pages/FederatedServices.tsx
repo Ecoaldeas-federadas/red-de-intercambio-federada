@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
-import { Video, MessageCircle, Image as ImageIcon, Users, MessageSquare, BookOpen, PenTool, Calendar, Phone, Mic, Cloud, FileText, BookMarked, Globe, Film, Music, GitBranch, GraduationCap, Home, Lock, Download, Play, Square, Trash2, RefreshCw, Search, Server, AlertTriangle, CheckCircle, XCircle, Loader, Phone as PhoneIcon, HelpCircle } from 'lucide-react'
+import { Video, MessageCircle, Image as ImageIcon, Users, MessageSquare, BookOpen, PenTool, Calendar, Phone, Mic, Cloud, FileText, BookMarked, Globe, Film, Music, GitBranch, GraduationCap, Home, Lock, Download, Play, Square, Trash2, RefreshCw, Search, Server, AlertTriangle, CheckCircle, XCircle, Loader, Phone as PhoneIcon, HelpCircle, ExternalLink } from 'lucide-react'
 
 interface ServiceItem {
   id: string
@@ -77,6 +77,7 @@ export default function FederatedServices() {
   const [msg, setMsg] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null)
   const [showVoIP, setShowVoIP] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
+  const [confirmUninstall, setConfirmUninstall] = useState<ServiceItem | null>(null)
 
   useEffect(() => {
     loadServices()
@@ -127,13 +128,19 @@ export default function FederatedServices() {
   }
 
   const uninstallService = async (svc: ServiceItem) => {
-    if (!confirm(`Desinstalar ${svc.name}?`)) return
+    setConfirmUninstall(svc)
+  }
+
+  const doUninstall = async () => {
+    if (!confirmUninstall) return
     try {
-      await api.post(`/services/${svc.id}/uninstall`, {})
-      setMsg({ type: 'success', text: `${svc.name} desinstalado` })
+      await api.post(`/services/${confirmUninstall.id}/uninstall`, {})
+      setMsg({ type: 'success', text: `${confirmUninstall.name} desinstalado` })
+      setConfirmUninstall(null)
       await loadServices()
     } catch (e: any) {
       setMsg({ type: 'error', text: 'Error al desinstalar' })
+      setConfirmUninstall(null)
     }
   }
 
@@ -501,6 +508,16 @@ export default function FederatedServices() {
                     <Play size={12} /> Iniciar
                   </button>
                 )}
+                {isInstalled && isRunning && (
+                  <a
+                    href={`${window.location.protocol}//${window.location.hostname}:${svc.default_port}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs flex items-center gap-1"
+                  >
+                    <ExternalLink size={12} /> Abrir
+                  </a>
+                )}
                 {isInstalled && (
                   <button
                     onClick={() => updateService(svc)}
@@ -540,6 +557,40 @@ export default function FederatedServices() {
       {filtered.length === 0 && (
         <div className="text-center py-8 text-gray-500">
           No se encontraron servicios. Intenta con otra busqueda.
+        </div>
+      )}
+
+      {/* Modal de confirmacion de desinstalacion */}
+      {confirmUninstall && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setConfirmUninstall(null)}>
+          <div className="bg-white rounded-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <Trash2 size={24} className="text-red-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold">Desinstalar {confirmUninstall.name}?</h2>
+                <p className="text-sm text-gray-500">Esta accion no se puede deshacer.</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Se detendra y eliminara el contenedor Docker. Los datos del servicio podrian perderse.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setConfirmUninstall(null)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={doUninstall}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm flex items-center gap-2"
+              >
+                <Trash2 size={14} /> Si, desinstalar
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -600,14 +651,63 @@ export default function FederatedServices() {
                 <span className="text-xs text-gray-500">Si tienes OpenWrt, este subdominio se registra automaticamente</span>
               </div>
 
-              <div className="flex gap-2 pt-3 border-t">
-                <button
-                  onClick={() => { installService(selectedService); setSelectedService(null) }}
-                  disabled={installing}
-                  className="px-4 py-2 bg-trueque-600 text-white rounded-lg text-sm disabled:opacity-50 flex items-center gap-2"
-                >
-                  <Download size={14} /> Instalar aqui
-                </button>
+              <div className="flex gap-2 pt-3 border-t flex-wrap">
+                {/* Si no esta instalado: mostrar Instalar */}
+                {selectedService.status === 'not_installed' && (
+                  <button
+                    onClick={() => { installService(selectedService); setSelectedService(null) }}
+                    disabled={installing}
+                    className="px-4 py-2 bg-trueque-600 text-white rounded-lg text-sm disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <Download size={14} /> Instalar aqui
+                  </button>
+                )}
+
+                {/* Si esta instalado: mostrar Abrir, Actualizar, Detener/Iniciar, Desinstalar */}
+                {selectedService.status !== 'not_installed' && (
+                  <>
+                    {selectedService.status === 'running' && (
+                      <a
+                        href={`${window.location.protocol}//${window.location.hostname}:${selectedService.default_port}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm flex items-center gap-2"
+                      >
+                        <ExternalLink size={14} /> Abrir
+                      </a>
+                    )}
+                    <button
+                      onClick={() => { updateService(selectedService); setSelectedService(null) }}
+                      disabled={installing}
+                      className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm disabled:opacity-50 flex items-center gap-2"
+                    >
+                      <RefreshCw size={14} /> Actualizar
+                    </button>
+                    {selectedService.status === 'running' ? (
+                      <button
+                        onClick={() => { stopService(selectedService); setSelectedService(null) }}
+                        className="px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm flex items-center gap-2"
+                      >
+                        <Square size={14} /> Detener
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => { startService(selectedService); setSelectedService(null) }}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm flex items-center gap-2"
+                      >
+                        <Play size={14} /> Iniciar
+                      </button>
+                    )}
+                    <button
+                      onClick={() => { uninstallService(selectedService); setSelectedService(null) }}
+                      className="px-4 py-2 bg-red-100 text-red-600 rounded-lg text-sm flex items-center gap-2"
+                    >
+                      <Trash2 size={14} /> Desinstalar
+                    </button>
+                  </>
+                )}
+
+                {/* Descargar siempre disponible */}
                 <button
                   onClick={() => { downloadService(selectedService); setSelectedService(null) }}
                   className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm flex items-center gap-2"
