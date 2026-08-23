@@ -156,7 +156,7 @@ func (h *UpdateHandler) runUpdateNode() {
 	h.setUpdateStatus("running", "Imagen construida. Reiniciando nodo...", string(buildOut))
 
 	// 3. Actualizar servicios instalados (pos-web, etc.)
-	h.updateInstalledServices(projectDir)
+	h.updateInstalledServices()
 
 	// 4. docker compose up -d node-app (esto reinicia el nodo)
 	upCmd := exec.Command("docker", "compose", "-f", filepath.Join(projectDir, "docker-compose.yml"), "up", "-d", "node-app")
@@ -171,7 +171,7 @@ func (h *UpdateHandler) runUpdateNode() {
 }
 
 // updateInstalledServices actualiza los servicios instalados despues de un git pull.
-func (h *UpdateHandler) updateInstalledServices(projectDir string) {
+func (h *UpdateHandler) updateInstalledServices() {
 	rows, err := h.Pool.Query(context.Background(), `SELECT service_id FROM installed_services WHERE status IN ('running', 'stopped', 'error')`)
 	if err != nil {
 		return

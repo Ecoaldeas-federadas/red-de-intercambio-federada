@@ -33,6 +33,7 @@ func NewNetworkHandler(pool *pgxpool.Pool, nodeDomain string) *NetworkHandler {
 func (nh *NetworkHandler) RegisterRoutesWithAuth(r chi.Router, am *AuthMiddleware) {
 	r.Get("/api/network/status", nh.getStatus)
 	r.Get("/api/network/config", nh.getConfig)
+	r.Get("/api/network/service-url", nh.getServiceURL)
 	if am != nil {
 		r.With(am.RequirePermission("config.manage")).Put("/api/network/config", nh.updateConfig)
 		r.With(am.RequirePermission("config.manage")).Post("/api/network/register-openwrt", nh.registerOpenWrt)
@@ -104,6 +105,71 @@ func (nh *NetworkHandler) getMyInfo(w http.ResponseWriter, r *http.Request) {
 		"has_wg_keys":          wgPublicKey != "",
 		"mode":                 mode,
 	})
+}
+
+// getServiceURL devuelve la URL base para acceder a servicios instalados.
+// Segun el modo de red:
+//   - openwrt: https://subdomain.openwrt_domain (sin puerto, usa dominio)
+//   - internet con dominio real (tiene TLD): https://domain:puerto
+//   - local (sin TLD): http://localhost:puerto
+func (nh *NetworkHandler) getServiceURL(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var mode, ipv6ULA, subdomain, openwrtDomain string
+	err := nh.Pool.QueryRow(ctx, `
+		SELECT mode, COALESCE(ipv6_ula, ''), COALESCE(subdomain, ''),
+		       COALESCE(openwrt_domain, '')
+		FROM network_config ORDER BY id DESC LIMIT 1`,
+	).Scan(&mode, &ipv6ULA, &subdomain, &openwrtDomain)
+	if err != nil {
+		mode = "internet"
+	}
+
+	// Determinar el esquema y dominio base
+	scheme := "http"
+	baseDomain := nh.NodeDomain
+
+	if openwrtDomain != "" {
+		// Modo OpenWrt: usar dominio de OpenWrt
+		scheme = "https"
+		if subdomain != "" {
+			baseDomain = subdomain + "." + openwrtDomain
+		} else {
+			baseDomain = "nodo." + openwrtDomain
+		}
+	} else if hasTLD(nh.NodeDomain) {
+		// Modo internet con dominio real (tiene TLD como .org, .com, etc.)
+		scheme = "https"
+		baseDomain = nh.NodeDomain
+	} else {
+		// Modo local: no hay TLD, usar localhost
+		scheme = "http"
+		baseDomain = "localhost"
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"scheme":         scheme,
+		"base_domain":    baseDomain,
+		"mode":           mode,
+		"has_openwrt":    openwrtDomain != "",
+		"has_tld":        hasTLD(nh.NodeDomain),
+		"node_domain":    nh.NodeDomain,
+		"openwrt_domain": openwrtDomain,
+		"subdomain":      subdomain,
+	})
+}
+
+// hasTLD verifica si un dominio tiene un TLD (terminacion como .org, .com, .net).
+// Si no tiene punto o el ultimo segmento despues del punto es muy largo o vacio,
+// se considera local.
+func hasTLD(domain string) bool {
+	if domain == "" || !strings.Contains(domain, ".") {
+		return false
+	}
+	parts := strings.Split(domain, ".")
+	tld := parts[len(parts)-1]
+	// TLDs reales tienen entre 2 y 24 caracteres
+	return len(tld) >= 2 && len(tld) <= 24
 }
 
 // generateWGKeys genera claves WireGuard para el nodo y las guarda.

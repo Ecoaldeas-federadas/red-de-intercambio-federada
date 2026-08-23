@@ -564,7 +564,7 @@ func (sh *FederatedServicesHandler) downloadService(w http.ResponseWriter, r *ht
 		composeContent := fmt.Sprintf(`# docker-compose.yml para Punto de Venta Web (POS)
 # Generado por el nodo: %s
 #
-# El POS es una aplicacion 100% frontend (PWA instalable).
+# El POS es una aplicacion 100%% frontend (PWA instalable).
 # Se comunica con el nodo via API - no necesita backend propio.
 #
 # Para instalar en este servidor:
@@ -608,7 +608,7 @@ services:
 
 ## Como funciona
 
-1. El POS es una aplicacion web 100% frontend (PWA instalable)
+1. El POS es una aplicacion web 100%% frontend (PWA instalable)
 2. No tiene backend propio - se comunica con el nodo via API
 3. Al abrirlo por primera vez, ingresas la URL del nodo
 4. El POS genera sus claves criptograficas (Ed25519) y huella de dispositivo

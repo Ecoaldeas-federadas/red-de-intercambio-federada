@@ -92,11 +92,11 @@ func (h *AssemblyHandler) listSessions(w http.ResponseWriter, r *http.Request) {
 
 	switch filter {
 	case "upcoming":
-		query += fmt.Sprintf(` AND status IN ('scheduled', 'waiting_quorum', 'active') ORDER BY start_time ASC LIMIT 50`)
+		query += ` AND status IN ('scheduled', 'waiting_quorum', 'active') ORDER BY start_time ASC LIMIT 50`
 	case "past":
-		query += fmt.Sprintf(` AND status IN ('completed', 'cancelled', 'expired') ORDER BY start_time DESC LIMIT 50`)
+		query += ` AND status IN ('completed', 'cancelled', 'expired') ORDER BY start_time DESC LIMIT 50`
 	default:
-		query += fmt.Sprintf(` ORDER BY created_at DESC LIMIT 50`)
+		query += ` ORDER BY created_at DESC LIMIT 50`
 	}
 	rows, err := h.Pool.Query(r.Context(), query, meetingType)
 	if err != nil {

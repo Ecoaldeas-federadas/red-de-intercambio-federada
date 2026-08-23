@@ -466,9 +466,7 @@ func injectBasePath(html, basePath string) string {
 
 	// Inyectar <base href> al inicio del <head>
 	baseTag := `<base href="` + basePath + `/">`
-	if strings.Contains(html, "<head>") {
-		html = strings.Replace(html, "<head>", "<head>"+baseTag, 1)
-	}
+	html = strings.Replace(html, "<head>", "<head>"+baseTag, 1)
 
 	// Inyectar script con window.__BASE_PATH__ antes de </head>
 	scriptTag := `<script>window.__BASE_PATH__="` + basePath + `";</script>`

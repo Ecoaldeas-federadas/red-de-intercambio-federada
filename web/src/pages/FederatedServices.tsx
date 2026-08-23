@@ -78,21 +78,36 @@ export default function FederatedServices() {
   const [showVoIP, setShowVoIP] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [confirmUninstall, setConfirmUninstall] = useState<ServiceItem | null>(null)
+  const [serviceURL, setServiceURL] = useState<{ scheme: string, base_domain: string, mode: string } | null>(null)
 
   useEffect(() => {
     loadServices()
+    loadServiceURL()
   }, [])
 
-  const loadServices = async () => {
-    setLoading(true)
+  const loadServiceURL = async () => {
     try {
-      const res: any = await api.get('/services/catalog')
-      setServices(res?.services || [])
+      const res: any = await api.get('/network/service-url')
+      setServiceURL(res)
     } catch (e) {
-      console.error(e)
-    } finally {
-      setLoading(false)
+      // Fallback: usar hostname local
+      setServiceURL({ scheme: 'http', base_domain: window.location.hostname, mode: 'local' })
     }
+  }
+
+  // Construye la URL para abrir un servicio instalado
+  const buildServiceURL = (port: number) => {
+    if (serviceURL) {
+      // Si hay OpenWrt o dominio real, no se necesita puerto (usa subdominios)
+      if (serviceURL.mode === 'openwrt' || (serviceURL.scheme === 'https' && serviceURL.base_domain !== 'localhost')) {
+        // Con OpenWrt/dominio: los servicios usan subdominios, no puertos
+        // Pero por ahora seguimos usando puerto hasta que se configure DNS automatico
+        return `${serviceURL.scheme}://${serviceURL.base_domain}:${port}`
+      }
+      return `${serviceURL.scheme}://${serviceURL.base_domain}:${port}`
+    }
+    // Fallback
+    return `${window.location.protocol}//${window.location.hostname}:${port}`
   }
 
   const filtered = services.filter(s => {
@@ -510,7 +525,7 @@ export default function FederatedServices() {
                 )}
                 {isInstalled && isRunning && (
                   <a
-                    href={`${window.location.protocol}//${window.location.hostname}:${svc.default_port}`}
+                    href={buildServiceURL(svc.default_port)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs flex items-center gap-1"
@@ -668,7 +683,7 @@ export default function FederatedServices() {
                   <>
                     {selectedService.status === 'running' && (
                       <a
-                        href={`${window.location.protocol}//${window.location.hostname}:${selectedService.default_port}`}
+                        href={buildServiceURL(selectedService.default_port)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm flex items-center gap-2"
