@@ -1,25 +1,21 @@
-fix: Mover Actualizar Nodo a Servicios Federados y agregar dominio en Ajustes
+fix: Restaurar Actualizar Nodo en Ajustes + URL del POS via /pos
 
-CAMBIOS:
-1. Ajustes > General:
-   - QUITADO: seccion "Actualizar Nodo" (movida a Servicios Federados)
-   - QUITADO: seccion "Punto de Venta Web (POS)" (ya esta en Servicios Federados)
-   - AGREGADO: campo "Dominio del nodo" para cambiar el dominio
-     Ahora que los datos usan __LOCAL__, cambiar el dominio es seguro:
-     no se pierde ningun dato, solo se actualiza node_config.
+1. Actualizar Nodo vuelve a Ajustes > General
+   - Se habia movido a Servicios Federados por confusion
+   - Solo la info del POS debia quitarse de Ajustes, no Actualizar Nodo
+   - Actualizar Nodo sigue en Ajustes porque es parte del nodo
 
-2. Servicios Federados:
-   - AGREGADO: seccion "Actualizar Nodo" al inicio de la pagina
-   - Las apps instaladas (POS, PeerTube, etc.) ya tienen boton "Actualizar"
-     individual y boton "Actualizar todo"
+2. URL del POS: /pos en lugar de :3001
+   - Proxy reverso en el backend: /pos -> http://localhost:3001
+   - El POS sigue corriendo en puerto 3001 internamente
+   - Pero se accede via https://dominio/pos (sin puerto)
+   - El dominio base redirige al puerto 8080 (nodo)
+   - /pos redirige al puerto 3001 (POS) via proxy reverso
+   - No hay conflicto de puertos
 
-3. Backend (system.go):
-   - getConfig: usa ActualNodeDomain (node_config guarda el dominio real)
-   - updateConfig: usa ActualNodeDomain, permite cambiar node_domain
-   - Validacion: no permite localhost ni __LOCAL__ como dominio
-
-PRINCIPIO: Ajustes es para configuracion del nodo (nombre, moneda, dominio).
-Servicios Federados es para instalar y actualizar aplicaciones.
+3. Frontend: buildServiceURL usa /pos para el POS
+   - El boton "Abrir" del POS ahora va a https://dominio/pos
+   - Las llamadas API del POS van directamente al nodo (no via /pos)
 
 Generated with [Devin](https://devin.ai)
 

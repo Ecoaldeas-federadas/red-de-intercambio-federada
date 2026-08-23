@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -178,6 +180,19 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 		w.Header().Set("Cache-Control", "public, max-age=86400")
 		http.StripPrefix("/images/", fileServer).ServeHTTP(w, r)
 	})
+
+	// Proxy reverso para el POS Web: /pos -> http://localhost:3001
+	// Esto permite acceder al POS via https://dominio/pos en lugar de
+	// https://dominio:3001. El POS sigue corriendo en el puerto 3001
+	// internamente, pero el nodo lo expone via path /pos.
+	r.Handle("/pos", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		posProxy(w, r, "")
+	}))
+	r.Handle("/pos/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Extraer el path despues de /pos
+		path := strings.TrimPrefix(r.URL.Path, "/pos")
+		posProxy(w, r, path)
+	}))
 
 	// robots.txt: permitir que todos los crawlers indexen el sitio
 	r.Get("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
@@ -805,4 +820,32 @@ func corsMiddleware(allowedOrigins []string) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// posProxy es un proxy reverso que redirige /pos -> http://localhost:3001
+// Esto permite acceder al POS Web via https://dominio/pos en lugar de
+// https://dominio:3001. El POS sigue corriendo en el puerto 3001 internamente.
+func posProxy(w http.ResponseWriter, r *http.Request, path string) {
+	target, err := url.Parse("http://localhost:3001")
+	if err != nil {
+		http.Error(w, "POS proxy error", http.StatusInternalServerError)
+		return
+	}
+
+	proxy := httputil.NewSingleHostReverseProxy(target)
+
+	// Ajustar el path: /pos/algo -> /algo
+	if path == "" {
+		r.URL.Path = "/"
+	} else {
+		r.URL.Path = path
+	}
+
+	// Preservar query params
+	// r.URL.RawQuery ya se preserva
+
+	// El POS necesita saber que esta detras de un proxy
+	r.Header.Set("X-Forwarded-Prefix", "/pos")
+
+	proxy.ServeHTTP(w, r)
 }

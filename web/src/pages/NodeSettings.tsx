@@ -428,6 +428,9 @@ export default function NodeSettings() {
           {!canManage && (
             <p className="text-xs text-amber-600">No tienes permiso para cambiar la configuracion.</p>
           )}
+
+          {/* Actualizar nodo */}
+          <NodeUpdateSection canManage={canManage} />
         </div>
       )}
 
@@ -1808,6 +1811,139 @@ export default function NodeSettings() {
         </div>
       )}
 
+    </div>
+  )
+}
+
+// ===== Componente: Actualizar nodo =====
+function NodeUpdateSection({ canManage }: { canManage: boolean }) {
+  const [checking, setChecking] = useState(false)
+  const [updating, setUpdating] = useState(false)
+  const [updateInfo, setUpdateInfo] = useState<any>(null)
+  const [updateStatus, setUpdateStatus] = useState<any>(null)
+  const [msg, setMsg] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null)
+  const [pollInterval, setPollInterval] = useState<any>(null)
+
+  const checkUpdates = async () => {
+    setChecking(true)
+    try {
+      const res: any = await api.get('/node/check-updates')
+      setUpdateInfo(res)
+    } catch (e: any) {
+      setMsg({ type: 'error', text: 'Error al verificar actualizaciones' })
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  const updateNode = async () => {
+    if (!confirm('Actualizar el nodo? Se descargara la ultima version, se reconstruira y se reiniciara. Esto puede tardar varios minutos.')) return
+    setUpdating(true)
+    setMsg(null)
+    try {
+      await api.post('/node/update', {})
+      setMsg({ type: 'info', text: 'Actualizacion iniciada. El nodo se reiniciara automaticamente.' })
+      const interval = setInterval(async () => {
+        try {
+          const res: any = await api.get('/node/update-status')
+          setUpdateStatus(res)
+          if (res.status === 'completed') {
+            clearInterval(interval)
+            setUpdating(false)
+            setMsg({ type: 'success', text: 'Nodo actualizado correctamente. La pagina se recargara...' })
+            setTimeout(() => window.location.reload(), 3000)
+          } else if (res.status === 'error') {
+            clearInterval(interval)
+            setUpdating(false)
+            setMsg({ type: 'error', text: res.message || 'Error en la actualizacion' })
+          }
+        } catch {
+          // El nodo se esta reiniciando, es normal que falle
+        }
+      }, 3000)
+      setPollInterval(interval)
+    } catch (e: any) {
+      setUpdating(false)
+      setMsg({ type: 'error', text: 'Error al iniciar la actualizacion' })
+    }
+  }
+
+  useEffect(() => {
+    return () => { if (pollInterval) clearInterval(pollInterval) }
+  }, [pollInterval])
+
+  return (
+    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-6">
+      <h3 className="font-medium text-green-700 flex items-center gap-2 mb-2">
+        <RefreshCw size={16} /> Actualizar Nodo
+      </h3>
+      <p className="text-sm text-green-600 mb-3">
+        Verifica si hay una version nueva del nodo en el repositorio y actualiza con un clic.
+        Se descarga el codigo, se reconstruye la imagen Docker y se reinicia el nodo.
+      </p>
+
+      {msg && (
+        <div className={`p-3 rounded-lg text-sm mb-3 ${
+          msg.type === 'success' ? 'bg-green-100 text-green-700' :
+          msg.type === 'error' ? 'bg-red-100 text-red-700' :
+          'bg-blue-100 text-blue-700'
+        }`}>
+          {msg.text}
+        </div>
+      )}
+
+      {updateInfo && (
+        <div className="bg-white rounded-lg p-3 border border-green-100 mb-3 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-600">Commit actual:</span>
+            <code className="font-mono text-xs">{updateInfo.current_commit || 'desconocido'}</code>
+          </div>
+          {updateInfo.updates_available && (
+            <div className="mt-2">
+              <div className="text-green-700 font-medium mb-1">Actualizacion disponible!</div>
+              <pre className="text-xs text-gray-600 bg-gray-50 p-2 rounded max-h-32 overflow-auto">{updateInfo.new_commits}</pre>
+            </div>
+          )}
+          {!updateInfo.updates_available && (
+            <div className="mt-2 text-gray-500">El nodo esta actualizado.</div>
+          )}
+        </div>
+      )}
+
+      {updateStatus && updateStatus.status === 'running' && (
+        <div className="bg-white rounded-lg p-3 border border-blue-100 mb-3">
+          <div className="flex items-center gap-2 text-blue-600 text-sm mb-2">
+            <RefreshCw size={14} className="animate-spin" /> {updateStatus.message}
+          </div>
+          {updateStatus.log && (
+            <pre className="text-xs text-gray-500 bg-gray-50 p-2 rounded max-h-40 overflow-auto">{updateStatus.log}</pre>
+          )}
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        {canManage && (
+          <>
+            <button
+              onClick={checkUpdates}
+              disabled={checking}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
+            >
+              {checking ? <><RefreshCw size={16} className="animate-spin" /> Verificando...</> : <><RefreshCw size={16} /> Verificar actualizaciones</>}
+            </button>
+            <button
+              onClick={updateNode}
+              disabled={updating || !canManage}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
+            >
+              {updating ? <><RefreshCw size={16} className="animate-spin" /> Actualizando...</> : <><Download size={16} /> Actualizar nodo</>}
+            </button>
+          </>
+        )}
+        {!canManage && (
+          <p className="text-xs text-amber-600">No tienes permiso para actualizar el nodo.</p>
+        )}
+      </div>
     </div>
   )
 }

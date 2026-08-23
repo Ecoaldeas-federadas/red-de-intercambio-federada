@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
-import { usePermissions } from '../hooks/usePermissions'
 import { Video, MessageCircle, Image as ImageIcon, Users, MessageSquare, BookOpen, PenTool, Calendar, Phone, Mic, Cloud, FileText, BookMarked, Globe, Film, Music, GitBranch, GraduationCap, Home, Lock, Download, Play, Square, Trash2, RefreshCw, Search, Server, AlertTriangle, CheckCircle, XCircle, Loader, Phone as PhoneIcon, HelpCircle, ExternalLink } from 'lucide-react'
 
 interface ServiceItem {
@@ -69,8 +68,6 @@ const categoryColors: Record<string, string> = {
 
 export default function FederatedServices() {
   const { node_domain: nodeDomain } = useConfig()
-  const { hasPermission } = usePermissions()
-  const canManage = hasPermission('config.manage')
   const [services, setServices] = useState<ServiceItem[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -100,6 +97,13 @@ export default function FederatedServices() {
 
   // Construye la URL para abrir un servicio instalado
   const buildServiceURL = (port: number) => {
+    // El POS Web (puerto 3001) se accede via /pos en lugar de :3001
+    // El backend tiene un proxy reverso que redirige /pos -> localhost:3001
+    if (port === 3001) {
+      // Usar el mismo dominio base que el nodo, con path /pos
+      const base = window.location.origin
+      return `${base}/pos`
+    }
     if (serviceURL) {
       // Si hay OpenWrt o dominio real, no se necesita puerto (usa subdominios)
       if (serviceURL.mode === 'openwrt' || (serviceURL.scheme === 'https' && serviceURL.base_domain !== 'localhost')) {
@@ -440,9 +444,6 @@ export default function FederatedServices() {
           <option value="desarrollo">Desarrollo y Otros</option>
         </select>
       </div>
-
-      {/* Actualizar Nodo - seccion especial */}
-      <NodeUpdateSection canManage={canManage} />
 
       {/* Catalogo */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1111,141 +1112,6 @@ function VoIPPanel() {
               </div>
             ))}
           </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ===== Componente: Actualizar Nodo =====
-function NodeUpdateSection({ canManage }: { canManage: boolean }) {
-  const [checking, setChecking] = useState(false)
-  const [updating, setUpdating] = useState(false)
-  const [updateInfo, setUpdateInfo] = useState<any>(null)
-  const [updateStatus, setUpdateStatus] = useState<any>(null)
-  const [msg, setMsg] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null)
-  const [pollInterval, setPollInterval] = useState<any>(null)
-
-  const checkUpdates = async () => {
-    setChecking(true)
-    try {
-      const res: any = await api.get('/node/check-updates')
-      setUpdateInfo(res)
-    } catch (e: any) {
-      setMsg({ type: 'error', text: 'Error al verificar actualizaciones' })
-    } finally {
-      setChecking(false)
-    }
-  }
-
-  const updateNode = async () => {
-    if (!confirm('Actualizar el nodo? Se descargara la ultima version, se reconstruira y se reiniciara. Esto puede tardar varios minutos.')) return
-    setUpdating(true)
-    setMsg(null)
-    try {
-      await api.post('/node/update', {})
-      setMsg({ type: 'info', text: 'Actualizacion iniciada. El nodo se reiniciara automaticamente.' })
-      const interval = setInterval(async () => {
-        try {
-          const res: any = await api.get('/node/update-status')
-          setUpdateStatus(res)
-          if (res.status === 'completed') {
-            clearInterval(interval)
-            setUpdating(false)
-            setMsg({ type: 'success', text: 'Nodo actualizado correctamente. La pagina se recargara...' })
-            setTimeout(() => window.location.reload(), 3000)
-          } else if (res.status === 'error') {
-            clearInterval(interval)
-            setUpdating(false)
-            setMsg({ type: 'error', text: res.message || 'Error en la actualizacion' })
-          }
-        } catch {
-          // El nodo se esta reiniciando, es normal que falle
-        }
-      }, 3000)
-      setPollInterval(interval)
-    } catch (e: any) {
-      setUpdating(false)
-      setMsg({ type: 'error', text: 'Error al iniciar la actualizacion' })
-    }
-  }
-
-  useEffect(() => {
-    return () => { if (pollInterval) clearInterval(pollInterval) }
-  }, [pollInterval])
-
-  return (
-    <div className="bg-green-50 border border-green-200 rounded-xl p-5 space-y-3">
-      <div className="flex items-center gap-2">
-        <RefreshCw size={20} className="text-green-600" />
-        <h2 className="text-lg font-bold text-green-700">Actualizar Nodo</h2>
-      </div>
-      <p className="text-sm text-green-600">
-        Verifica si hay una version nueva del nodo en el repositorio y actualiza con un clic.
-        Se descarga el codigo, se reconstruye la imagen Docker y se reinicia el nodo.
-        Las aplicaciones instaladas (POS, PeerTube, etc.) se actualizan por separado con su boton "Actualizar".
-      </p>
-
-      {msg && (
-        <div className={`p-3 rounded-lg text-sm ${
-          msg.type === 'success' ? 'bg-green-100 text-green-700' :
-          msg.type === 'error' ? 'bg-red-100 text-red-700' :
-          'bg-blue-100 text-blue-700'
-        }`}>
-          {msg.text}
-        </div>
-      )}
-
-      {updateInfo && (
-        <div className="bg-white rounded-lg p-3 border border-green-100 text-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-600">Commit actual:</span>
-            <code className="font-mono text-xs">{updateInfo.current_commit || 'desconocido'}</code>
-          </div>
-          {updateInfo.updates_available && (
-            <div className="mt-2">
-              <div className="text-green-700 font-medium mb-1">Actualizacion disponible!</div>
-              <pre className="text-xs text-gray-600 bg-gray-50 p-2 rounded max-h-32 overflow-auto">{updateInfo.new_commits}</pre>
-            </div>
-          )}
-          {!updateInfo.updates_available && (
-            <div className="mt-2 text-gray-500">El nodo esta actualizado.</div>
-          )}
-        </div>
-      )}
-
-      {updateStatus && updateStatus.status === 'running' && (
-        <div className="bg-white rounded-lg p-3 border border-blue-100">
-          <div className="flex items-center gap-2 text-blue-600 text-sm mb-2">
-            <RefreshCw size={14} className="animate-spin" /> {updateStatus.message}
-          </div>
-          {updateStatus.log && (
-            <pre className="text-xs text-gray-500 bg-gray-50 p-2 rounded max-h-40 overflow-auto">{updateStatus.log}</pre>
-          )}
-        </div>
-      )}
-
-      <div className="flex gap-2">
-        {canManage && (
-          <>
-            <button
-              onClick={checkUpdates}
-              disabled={checking}
-              className="px-4 py-2 bg-white border border-green-300 text-green-700 rounded-lg text-sm flex items-center gap-2 disabled:opacity-50 hover:bg-green-100"
-            >
-              {checking ? <><RefreshCw size={16} className="animate-spin" /> Verificando...</> : <><RefreshCw size={16} /> Verificar actualizaciones</>}
-            </button>
-            <button
-              onClick={updateNode}
-              disabled={updating || !canManage}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm flex items-center gap-2 disabled:opacity-50 hover:bg-green-700"
-            >
-              {updating ? <><RefreshCw size={16} className="animate-spin" /> Actualizando...</> : <><Download size={16} /> Actualizar nodo</>}
-            </button>
-          </>
-        )}
-        {!canManage && (
-          <p className="text-xs text-amber-600">No tienes permiso para actualizar el nodo.</p>
         )}
       </div>
     </div>
