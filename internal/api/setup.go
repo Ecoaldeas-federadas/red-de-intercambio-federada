@@ -17,6 +17,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"federated-credit-node/internal/accounts"
+	"federated-credit-node/internal/db"
 )
 
 type SetupHandler struct {
@@ -162,6 +163,12 @@ func (sh *SetupHandler) initNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// El dominio real se guarda en node_config (para federacion, URLs, etc.)
+	// Pero los datos locales (users, products, etc.) se guardan con
+	// LOCAL_NODE_DOMAIN ("__LOCAL__") para que si cambia el dominio,
+	// no haya que migrar ningun dato.
+	localDomain := db.LOCAL_NODE_DOMAIN
+
 	pubKey, privKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		writeError(w, 500, "failed to generate keypair")
@@ -186,9 +193,9 @@ func (sh *SetupHandler) initNode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Asegurar que existen niveles de miembro para este node_domain.
-	// Si no existen, copiarlos desde 'default' o 'localhost'.
+	// Los datos locales se guardan con LOCAL_NODE_DOMAIN.
 	var levelCount int
-	_ = sh.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM member_levels WHERE node_domain = $1`, nodeDomain).Scan(&levelCount)
+	_ = sh.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM member_levels WHERE node_domain = $1`, localDomain).Scan(&levelCount)
 	if levelCount == 0 {
 		// Copiar niveles desde otro node_domain existente (preferir 'default', luego 'localhost')
 		sourceDomain := ""
@@ -213,31 +220,31 @@ func (sh *SetupHandler) initNode(w http.ResponseWriter, r *http.Request) {
 					can_receive_nfc_card, can_view_audit, can_use_external_bridge, max_organizations,
 					can_request_limit_increase, is_system, is_active
 				FROM member_levels WHERE node_domain = $2`,
-				nodeDomain, sourceDomain)
+				localDomain, sourceDomain)
 		}
 	}
 
-	// Seleccionar el nivel mas alto para el admin, filtrando por el node_domain del nodo
+	// Seleccionar el nivel mas alto para el admin
 	var memberLevelID string
-	err = sh.Pool.QueryRow(ctx, `SELECT id FROM member_levels WHERE node_domain = $1 ORDER BY level DESC LIMIT 1`, nodeDomain).Scan(&memberLevelID)
+	err = sh.Pool.QueryRow(ctx, `SELECT id FROM member_levels WHERE node_domain = $1 ORDER BY level DESC LIMIT 1`, localDomain).Scan(&memberLevelID)
 	if err != nil {
 		// Fallback: buscar el nivel mas alto de cualquier node_domain
 		err = sh.Pool.QueryRow(ctx, `SELECT id FROM member_levels WHERE level = (SELECT MAX(level) FROM member_levels) LIMIT 1`).Scan(&memberLevelID)
 	}
 	if err != nil || memberLevelID == "" {
-		// Ultimo recurso: crear un nivel Admin para este node_domain
+		// Ultimo recurso: crear un nivel Admin
 		memberLevelID = uuid.New().String()
 		_, _ = sh.Pool.Exec(ctx, `
 			INSERT INTO member_levels (id, node_domain, name, description, level, has_voice, has_vote, counts_in_quorum, credit_limit, debit_limit)
 			VALUES ($1, $2, 'Admin', 'Administrator', 99, true, true, true, 1000000, 1000000)`,
-			memberLevelID, nodeDomain)
+			memberLevelID, localDomain)
 	}
 
 	// Admin tiene limites pequenos para pruebas (100 Trueques)
 	// Esto le permite transferir y probar el sistema sin tener poder ilimitado
 	var creditLimit, debitLimit int64 = 100, 100
 	adminUser, err := sh.Accounts.CreateUser(ctx, accounts.CreateUserParams{
-		NodeDomain:       nodeDomain,
+		NodeDomain:       localDomain,
 		Username:         req.AdminUsername,
 		DisplayName:      req.AdminDisplayName,
 		AccountType:      "individual",
@@ -362,7 +369,7 @@ func (sh *SetupHandler) initNode(w http.ResponseWriter, r *http.Request) {
 		INSERT INTO users (id, node_domain, username, display_name, account_type, membership_status, balance, credit_limit, debit_limit, is_assembly_owned, is_approved)
 		SELECT gen_random_uuid(), $1, 'asamblea', 'Asamblea General', 'organization', 'active', 0, 999999999, 999999999, true, true
 		WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'asamblea' AND node_domain = $1)`,
-		nodeDomain)
+		localDomain)
 
 	writeJSON(w, 201, map[string]interface{}{
 		"message":         "Node initialized successfully",

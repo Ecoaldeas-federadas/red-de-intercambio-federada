@@ -118,12 +118,18 @@ func main() {
 		cfg.Node.Domain = demoDom
 	}
 
+	// Migrar datos legacy: convertir cualquier dominio real/localhost/default
+	// a LOCAL_NODE_DOMAIN ("__LOCAL__"). Esto se hace UNA SOLA VEZ.
+	// Despues de esto, todos los datos locales usan __LOCAL__ y si cambia
+	// el dominio del nodo, no hay que migrar nada.
+	if err := db.MigrateDomainData(ctx, database.Pool); err != nil {
+		log.Printf("Warning: failed to migrate domain data to __LOCAL__: %v", err)
+	}
+
 	// Seed: insertar paginas por defecto del sitio publico si no existen
 	// En modo demo, las paginas las crea DemoSeedData (no usar las de Feria Conuquera)
-	seedDomain := cfg.Node.Domain
-	if seedDomain == "" {
-		seedDomain = "localhost"
-	}
+	// Los datos locales se guardan con LOCAL_NODE_DOMAIN, no con el dominio real
+	seedDomain := db.LOCAL_NODE_DOMAIN
 	if !isDemoMode {
 		if err := database.SeedPublicPages(ctx, seedDomain); err != nil {
 			log.Printf("Warning: failed to seed public pages: %v", err)
@@ -149,8 +155,7 @@ func main() {
 		seedDomain)
 
 	// Seed: configuracion de asamblea (quorum, frecuencia, aprobaciones)
-	// Las migraciones insertan esto solo para 'localhost'; esta funcion
-	// asegura que cualquier nodo tenga su configuracion al instalarse.
+	// Los datos se guardan con LOCAL_NODE_DOMAIN
 	if err := database.SeedAssemblyConfig(ctx, seedDomain); err != nil {
 		log.Printf("Warning: failed to seed assembly config: %v", err)
 	}

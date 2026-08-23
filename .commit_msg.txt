@@ -1,34 +1,38 @@
-fix: Eliminar todos los localhost hardcoded - dominio dinamico
+fix: Datos locales con variable __LOCAL__ - dominio dinamico real
 
-PROBLEMA: 80 instancias de localhost hardcoded en el codigo Go.
-Cuando un nodo tiene un dominio diferente, el codigo usaba localhost
-como fallback y no encontraba los datos.
+PROBLEMA: Los datos se guardaban con el nombre literal del dominio.
+Si cambiabas el dominio del nodo, habia que migrar todos los datos.
 
-SOLUCION: Funcion db.ResolveNodeDomain() que SIEMPRE lee el dominio
-real desde node_config. Nunca usa localhost como fallback.
+SOLUCION: Los datos locales se guardan con la constante __LOCAL__
+(LOCAL_NODE_DOMAIN), no con el nombre real del dominio.
 
-Orden de resolucion:
-1. Header X-Node-Domain (del frontend)
-2. Tabla node_config (dominio real guardado al instalar)
-3. config.yaml (dominio del archivo de configuracion)
-4. Vacio (el caller maneja el caso)
+COMO FUNCIONA:
+- db.LOCAL_NODE_DOMAIN = "__LOCAL__" (constante fija)
+- db.ResolveNodeDomain() devuelve "__LOCAL__" para datos locales
+- db.ActualNodeDomain() devuelve el dominio real (para federacion)
+- El dominio real solo se guarda en node_config (una fila)
+- Si cambias el dominio, cero migracion: los datos siguen en __LOCAL__
+
+MIGRACION UNA SOLA VEZ:
+- db.MigrateDomainData() convierte todos los datos legacy
+  (dominio real, localhost, default) a __LOCAL__
+- Se ejecuta automaticamente al iniciar el nodo
+- No toca node_config (que guarda el dominio real)
+- No toca tablas de nodos remotos (node_federation_keys, etc.)
 
 CAMBIOS:
-- Nueva funcion db.ResolveNodeDomain() en internal/db/connection.go
-- Nueva funcion db.MigrateDomainData() para migrar datos si cambia
-  el dominio (actualiza 33 tablas con columna node_domain)
-- 76 reemplazos en 7 archivos (system, assembly, scoped_assembly,
-  notifications, tax, recovery, external)
-- 3 INSERTs con localhost hardcoded corregidos (creacion de
-  sesiones de asamblea automaticas)
-- Agregado campo nodeDomain a AssemblyHandler, TaxHandler,
-  ScopedAssemblyHandler, NotificationHandler
-- RecoveryHandler ahora recibe Pool para poder resolver dominio
-- routes.go pasa nodeDomain a todos los handlers
+- connection.go: LOCAL_NODE_DOMAIN, ResolveNodeDomain, ActualNodeDomain,
+  MigrateDomainData reescritos
+- cmd/node/main.go: ejecuta MigrateDomainData al iniciar, usa
+  LOCAL_NODE_DOMAIN para seeds
+- setup.go: crea usuarios y datos locales con LOCAL_NODE_DOMAIN,
+  guarda dominio real solo en node_config
+- auth.go: resolveNodeDomain usa ResolveNodeDomain para login,
+  token JWT usa ActualNodeDomain para federacion
 
-PRINCIPIO: El dominio es una variable dinamica que se lee de
-node_config. Si el dominio cambia, la variable automaticamente
-devuelve el nuevo valor. No hay nada hardcoded.
+PRINCIPIO: El dominio es una variable. Los datos locales se guardan
+con un valor fijo (__LOCAL__). El dominio real solo se usa para
+federacion y URLs. Si cambias el dominio, no hay que migrar nada.
 
 Generated with [Devin](https://devin.ai)
 

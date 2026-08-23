@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"federated-credit-node/internal/crypto"
+	"federated-credit-node/internal/db"
 	"fmt"
 	"net/http"
 	"strings"
@@ -72,29 +73,29 @@ func parseUsernameDomain(fullUsername string) (username, nodeDomain string) {
 
 // resolveNodeDomain determina el node_domain efectivo para un login.
 // Orden de prioridad:
-//  1. Dominio extraido del username (formato usuario@dominio)
-//  2. Header X-Node-Domain (enviado por el frontend)
-//  3. Tabla node_config (dominio real guardado al crear el nodo)
-//  4. ah.NodeDomain (del config.yaml, puede estar vacio)
+// resolveNodeDomain determina el node_domain efectivo para un login.
+// Para usuarios del nodo local, devuelve LOCAL_NODE_DOMAIN ("__LOCAL__")
+// que es como se guardan en la base de datos.
+// Para usuarios de otros nodos (federacion), devuelve el dominio remoto.
+//
+// Orden de resolucion:
+// 1. Dominio extraido del username (formato usuario@dominio)
+// 2. Header X-Node-Domain (enviado por el frontend)
+// 3. Si es el nodo local, usar LOCAL_NODE_DOMAIN
+// 4. ah.NodeDomain (del config.yaml, puede estar vacio)
 func (ah *AuthHandlers) resolveNodeDomain(r *http.Request, usernameWithDomain string) string {
 	// 1. Si el username trae @dominio, usar ese
 	if _, domain := parseUsernameDomain(usernameWithDomain); domain != "" {
+		// Verificar si es nuestro dominio
+		actual := db.ActualNodeDomain(r.Context(), ah.Pool, ah.NodeDomain)
+		if domain == actual || (domain == "localhost" && (actual == "" || actual == "localhost")) {
+			return db.LOCAL_NODE_DOMAIN
+		}
 		return domain
 	}
-	// 2. Header X-Node-Domain
-	if domain := r.Header.Get("X-Node-Domain"); domain != "" {
-		return domain
-	}
-	// 3. node_config
-	var domain string
-	_ = ah.Pool.QueryRow(r.Context(), `
-		SELECT node_domain FROM node_config WHERE initialized = true LIMIT 1`,
-	).Scan(&domain)
-	if domain != "" {
-		return domain
-	}
-	// 4. config.yaml
-	return ah.NodeDomain
+	// 2. Header X-Node-Domain - usar ResolveNodeDomain que maneja local vs remoto
+	headerDomain := r.Header.Get("X-Node-Domain")
+	return db.ResolveNodeDomain(r.Context(), ah.Pool, headerDomain, ah.NodeDomain)
 }
 func deriveOrigin(r *http.Request) string {
 	origin := r.Header.Get("Origin")
@@ -670,14 +671,17 @@ func (ah *AuthHandlers) finishLogin(w http.ResponseWriter, r *http.Request) {
 		newSignCount, passkeyID)
 
 	// Obtener el username real del usuario
-	var username, nodeDomain string
-	_ = ah.Pool.QueryRow(r.Context(), `SELECT username, node_domain FROM users WHERE id = $1`, userID).Scan(&username, &nodeDomain)
-	if nodeDomain == "" {
-		nodeDomain = ah.NodeDomain
+	var username, storedDomain string
+	_ = ah.Pool.QueryRow(r.Context(), `SELECT username, node_domain FROM users WHERE id = $1`, userID).Scan(&username, &storedDomain)
+	// El token JWT usa el dominio real del nodo (para federacion),
+	// no LOCAL_NODE_DOMAIN que es solo para datos internos
+	jwtDomain := db.ActualNodeDomain(r.Context(), ah.Pool, ah.NodeDomain)
+	if jwtDomain == "" {
+		jwtDomain = ah.NodeDomain
 	}
 
 	am := NewAuthMiddleware(ah.JWTSecret)
-	token, err := am.GenerateToken(userID, username, nodeDomain)
+	token, err := am.GenerateToken(userID, username, jwtDomain)
 	if err != nil {
 		writeError(w, 500, "failed to generate token")
 		return
@@ -686,7 +690,7 @@ func (ah *AuthHandlers) finishLogin(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]interface{}{
 		"token":    token,
 		"username": username,
-		"node":     nodeDomain,
+		"node":     jwtDomain,
 	})
 }
 
@@ -1083,9 +1087,11 @@ func (ah *AuthHandlers) passwordLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Usar el node_domain real del usuario para el token
-	if userNodeDomain != "" {
-		nodeDomain = userNodeDomain
+	// El token JWT usa el dominio real del nodo (para federacion),
+	// no LOCAL_NODE_DOMAIN que es solo para datos internos
+	jwtDomain := db.ActualNodeDomain(r.Context(), ah.Pool, ah.NodeDomain)
+	if jwtDomain == "" {
+		jwtDomain = ah.NodeDomain
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(req.Password)); err != nil {
@@ -1094,7 +1100,7 @@ func (ah *AuthHandlers) passwordLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	am := NewAuthMiddleware(ah.JWTSecret)
-	token, err := am.GenerateToken(userID, username, nodeDomain)
+	token, err := am.GenerateToken(userID, username, jwtDomain)
 	if err != nil {
 		writeError(w, 500, "failed to generate token")
 		return

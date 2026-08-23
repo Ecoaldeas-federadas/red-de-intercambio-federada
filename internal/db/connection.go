@@ -399,57 +399,94 @@ func errorAs(err error, target interface{}) bool {
 	return false
 }
 
-// ResolveNodeDomain obtiene el dominio real del nodo desde node_config.
-// NUNCA usa 'localhost' como fallback. Si no hay dominio configurado,
-// devuelve string vacio para que el caller lo maneje.
+// LOCAL_NODE_DOMAIN es el valor fijo que se guarda en la base de datos
+// para identificar los datos del nodo local. NUNCA se guarda el nombre
+// real del dominio en las tablas de datos locales.
+//
+// Esto significa que si cambias el dominio del nodo, NO hay que migrar
+// ningun dato: todos los datos locales siguen apuntando a __LOCAL__.
+//
+// El dominio real solo se guarda en node_config.node_domain (una sola
+// fila) y se usa para federacion, URLs publicas, e identificarse ante
+// otros nodos.
+const LOCAL_NODE_DOMAIN = "__LOCAL__"
+
+// ResolveNodeDomain devuelve el valor que se debe usar para guardar y
+// buscar datos del nodo local en la base de datos.
+//
+// SIEMPRE devuelve LOCAL_NODE_DOMAIN ("__LOCAL__") para datos locales.
+// No importa cual sea el dominio real del nodo, los datos locales se
+// guardan con este valor fijo.
+//
+// Si el header trae un dominio de OTRO nodo (federacion), se devuelve
+// ese dominio para que los datos federados se guarden con el dominio
+// del nodo remoto correcto.
 //
 // Orden de resolucion:
-// 1. headerDomain (X-Node-Domain del request)
-// 2. Tabla node_config (dominio real guardado al instalar el nodo)
-// 3. configDomain (del config.yaml)
-// 4. "" (vacio - el caller debe manejar este caso)
+//  1. Si headerDomain es un dominio remoto (no vacio y no el nuestro),
+//     devolverlo tal cual (datos federados de otro nodo)
+//  2. Para datos locales: devolver LOCAL_NODE_DOMAIN
 func ResolveNodeDomain(ctx context.Context, pool *pgxpool.Pool, headerDomain, configDomain string) string {
-	// 1. Header X-Node-Domain
+	// Si el header trae un dominio, verificar si es el nuestro o un remoto
 	if headerDomain != "" {
+		// Obtener nuestro dominio real
+		actual := ActualNodeDomain(ctx, pool, configDomain)
+		// Si el header es nuestro dominio real, usar LOCAL
+		if headerDomain == actual {
+			return LOCAL_NODE_DOMAIN
+		}
+		// Si el header es localhost y no tenemos dominio configurado,
+		// tambien es local
+		if headerDomain == "localhost" && (actual == "" || actual == "localhost") {
+			return LOCAL_NODE_DOMAIN
+		}
+		// Si es un dominio diferente, es de otro nodo (federacion)
+		// Devolverlo tal cual para guardar datos federados
 		return headerDomain
 	}
-	// 2. node_config - el dominio real del nodo
+	// Sin header: es una operacion local
+	return LOCAL_NODE_DOMAIN
+}
+
+// ActualNodeDomain devuelve el dominio REAL del nodo (ej: mi-aldea.org).
+// Se usa para federacion, URLs publicas, e identificarse ante otros nodos.
+// NO se usa para guardar datos locales (para eso se usa ResolveNodeDomain).
+//
+// Orden:
+// 1. node_config (dominio real guardado al instalar)
+// 2. configDomain (del config.yaml)
+// 3. "" (vacio)
+func ActualNodeDomain(ctx context.Context, pool *pgxpool.Pool, configDomain string) string {
 	var domain string
 	_ = pool.QueryRow(ctx, `SELECT node_domain FROM node_config WHERE initialized = true LIMIT 1`).Scan(&domain)
 	if domain != "" {
 		return domain
 	}
-	// 3. config.yaml
-	if configDomain != "" {
-		return configDomain
-	}
-	// 4. Vacio - NO usar 'localhost'
-	return ""
+	return configDomain
 }
 
-// MigrateDomainData actualiza TODAS las tablas que tienen columna node_domain
-// cuando el dominio del nodo cambia. Esto asegura que si se cambia el dominio
-// en los ajustes, todos los datos se mueven al nuevo dominio automaticamente.
+// MigrateDomainData convierte todos los datos que tienen el dominio real
+// (o 'localhost') guardado en node_domain al valor fijo LOCAL_NODE_DOMAIN.
 //
-// Tablas migradas:
-// - users, products, transactions, ledger_entries
-// - node_config, tax_config, assembly_config, assembly_quorum_config
-// - assembly_frequency_config, assembly_sessions, assembly_decisions
-// - assembly_attendance, assembly_notifications, assembly_proposal_votes
-// - governance_rules, public_settings, public_pages
-// - energy_tariff, member_levels, organization_levels
-// - notification_gateway_config, assembly_sessions_scoped
-// - subscription_configs, services, departments
-// - product_compositions, product_federation
-// - node_federation_keys (peer_domain NO se mueve, es de nodos remotos)
-func MigrateDomainData(ctx context.Context, pool *pgxpool.Pool, oldDomain, newDomain string) error {
-	if oldDomain == "" || newDomain == "" || oldDomain == newDomain {
-		return nil
+// Esta funcion se ejecuta UNA SOLA VEZ al actualizar el nodo, para
+// corregir datos antiguos que se guardaron con el nombre literal del
+// dominio. Despues de esta migracion, todos los datos locales usan
+// __LOCAL__ y nunca mas habra que migrar nada si cambia el dominio.
+//
+// NO toca tablas de nodos remotos (node_federation_keys, discovered_nodes,
+// etc.) porque esas tienen dominios de OTROS nodos.
+func MigrateDomainData(ctx context.Context, pool *pgxpool.Pool) error {
+	// Obtener el dominio real actual para saber que convertir
+	actualDomain := ActualNodeDomain(ctx, pool, "")
+	domainsToConvert := []string{}
+	if actualDomain != "" && actualDomain != LOCAL_NODE_DOMAIN {
+		domainsToConvert = append(domainsToConvert, actualDomain)
 	}
+	// Tambien convertir 'localhost' y 'default' que son dominios legacy
+	domainsToConvert = append(domainsToConvert, "localhost", "default")
 
-	// Lista de tablas con columna node_domain que pertenecen al nodo local.
-	// NO incluimos tablas de nodos remotos (node_federation_keys, discovered_nodes, etc.)
-	// porque esas tienen dominios de OTROS nodos, no del nuestro.
+	// Tablas con columna node_domain que pertenecen al nodo local.
+	// NO incluimos tablas de nodos remotos.
 	tables := []struct {
 		name   string
 		column string
@@ -458,7 +495,7 @@ func MigrateDomainData(ctx context.Context, pool *pgxpool.Pool, oldDomain, newDo
 		{"products", "node_domain"},
 		{"transactions", "node_domain"},
 		{"ledger_entries", "node_domain"},
-		{"node_config", "node_domain"},
+		// NO incluimos node_config: esa tabla guarda el dominio real
 		{"tax_config", "node_domain"},
 		{"assembly_config", "node_domain"},
 		{"assembly_quorum_config", "node_domain"},
@@ -491,7 +528,7 @@ func MigrateDomainData(ctx context.Context, pool *pgxpool.Pool, oldDomain, newDo
 
 	migrated := 0
 	for _, t := range tables {
-		// Verificar si la tabla existe antes de intentar actualizar
+		// Verificar si la tabla existe
 		var exists bool
 		err := pool.QueryRow(ctx, `
 			SELECT EXISTS (
@@ -502,19 +539,22 @@ func MigrateDomainData(ctx context.Context, pool *pgxpool.Pool, oldDomain, newDo
 			continue
 		}
 
-		ct, err := pool.Exec(ctx,
-			fmt.Sprintf(`UPDATE %s SET %s = $1 WHERE %s = $2`, t.name, t.column, t.column),
-			newDomain, oldDomain)
-		if err != nil {
-			log.Printf("MigrateDomainData: error updating %s: %v", t.name, err)
-			continue
-		}
-		if ct.RowsAffected() > 0 {
-			migrated += int(ct.RowsAffected())
-			log.Printf("MigrateDomainData: %s: %d rows %s -> %s", t.name, ct.RowsAffected(), oldDomain, newDomain)
+		// Convertir cada dominio legacy a LOCAL_NODE_DOMAIN
+		for _, oldDomain := range domainsToConvert {
+			ct, err := pool.Exec(ctx,
+				fmt.Sprintf(`UPDATE %s SET %s = $1 WHERE %s = $2`, t.name, t.column, t.column),
+				LOCAL_NODE_DOMAIN, oldDomain)
+			if err != nil {
+				log.Printf("MigrateDomainData: error updating %s: %v", t.name, err)
+				continue
+			}
+			if ct.RowsAffected() > 0 {
+				migrated += int(ct.RowsAffected())
+				log.Printf("MigrateDomainData: %s: %d rows '%s' -> '%s'", t.name, ct.RowsAffected(), oldDomain, LOCAL_NODE_DOMAIN)
+			}
 		}
 	}
 
-	log.Printf("MigrateDomainData: total %d rows migrated from '%s' to '%s'", migrated, oldDomain, newDomain)
+	log.Printf("MigrateDomainData: total %d rows converted to '%s'", migrated, LOCAL_NODE_DOMAIN)
 	return nil
 }
