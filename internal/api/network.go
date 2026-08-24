@@ -302,6 +302,10 @@ func (nh *NetworkHandler) getConfig(w http.ResponseWriter, r *http.Request) {
 
 // updateConfig actualiza la configuracion de red.
 func (nh *NetworkHandler) updateConfig(w http.ResponseWriter, r *http.Request) {
+	if os.Getenv("DEMO_MODE") == "true" {
+		writeError(w, 403, "No se puede modificar la configuracion de red en el nodo demo.")
+		return
+	}
 	ctx := r.Context()
 	var req struct {
 		Mode           string `json:"mode"`

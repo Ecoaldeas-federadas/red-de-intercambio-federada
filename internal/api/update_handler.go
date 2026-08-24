@@ -117,6 +117,12 @@ func (h *UpdateHandler) checkUpdates(w http.ResponseWriter, r *http.Request) {
 
 // updateNode hace git pull + rebuild + restart del nodo (async).
 func (h *UpdateHandler) updateNode(w http.ResponseWriter, r *http.Request) {
+	// Bloquear actualizacion en nodo demo - se actualiza desde el padre
+	if os.Getenv("DEMO_MODE") == "true" {
+		writeError(w, 403, "No se puede actualizar el nodo demo directamente. Se actualiza automaticamente cuando se actualiza el nodo padre.")
+		return
+	}
+
 	h.mu.Lock()
 	if h.updateStatus == "running" {
 		h.mu.Unlock()

@@ -431,6 +431,10 @@ func findService(id string) *ServiceCatalogItem {
 
 // installService instala un servicio via Docker.
 func (sh *FederatedServicesHandler) installService(w http.ResponseWriter, r *http.Request) {
+	if os.Getenv("DEMO_MODE") == "true" {
+		writeError(w, 403, "No se pueden instalar servicios en el nodo demo. Los servicios se instalan desde el nodo padre.")
+		return
+	}
 	serviceID := chi.URLParam(r, "serviceID")
 	svc := findService(serviceID)
 	if svc == nil {
@@ -488,6 +492,10 @@ func (sh *FederatedServicesHandler) installService(w http.ResponseWriter, r *htt
 
 // uninstallService desinstala un servicio.
 func (sh *FederatedServicesHandler) uninstallService(w http.ResponseWriter, r *http.Request) {
+	if os.Getenv("DEMO_MODE") == "true" {
+		writeError(w, 403, "No se pueden desinstalar servicios en el nodo demo.")
+		return
+	}
 	serviceID := chi.URLParam(r, "serviceID")
 	ctx := r.Context()
 
@@ -503,6 +511,10 @@ func (sh *FederatedServicesHandler) uninstallService(w http.ResponseWriter, r *h
 
 // startService inicia un servicio detenido.
 func (sh *FederatedServicesHandler) startService(w http.ResponseWriter, r *http.Request) {
+	if os.Getenv("DEMO_MODE") == "true" {
+		writeError(w, 403, "No se pueden iniciar servicios en el nodo demo.")
+		return
+	}
 	serviceID := chi.URLParam(r, "serviceID")
 	cmd := exec.Command("docker", "compose", "-f", findComposeFile(serviceID), "start")
 	output, err := cmd.CombinedOutput()
@@ -519,6 +531,10 @@ func (sh *FederatedServicesHandler) startService(w http.ResponseWriter, r *http.
 
 // stopService detiene un servicio.
 func (sh *FederatedServicesHandler) stopService(w http.ResponseWriter, r *http.Request) {
+	if os.Getenv("DEMO_MODE") == "true" {
+		writeError(w, 403, "No se pueden detener servicios en el nodo demo.")
+		return
+	}
 	serviceID := chi.URLParam(r, "serviceID")
 	cmd := exec.Command("docker", "compose", "-f", findComposeFile(serviceID), "stop")
 	cmd.Run()
@@ -873,6 +889,10 @@ func (sh *FederatedServicesHandler) generateVillageCode(w http.ResponseWriter, r
 
 // updateVoIPConfig actualiza la configuracion VoIP.
 func (sh *FederatedServicesHandler) updateVoIPConfig(w http.ResponseWriter, r *http.Request) {
+	if os.Getenv("DEMO_MODE") == "true" {
+		writeError(w, 403, "No se puede configurar VoIP en el nodo demo.")
+		return
+	}
 	ctx := r.Context()
 	var req struct {
 		VillageCode int    `json:"village_code"`

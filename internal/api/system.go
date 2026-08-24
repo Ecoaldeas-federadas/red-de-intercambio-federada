@@ -269,6 +269,12 @@ type UpdateNodeConfigRequest struct {
 }
 
 func (h *SystemHandler) updateConfig(w http.ResponseWriter, r *http.Request) {
+	// Bloquear cambios de configuracion en nodo demo
+	if os.Getenv("DEMO_MODE") == "true" {
+		writeError(w, 403, "No se puede modificar la configuracion en el nodo demo. Se hereda del nodo padre.")
+		return
+	}
+
 	var req UpdateNodeConfigRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -567,6 +573,12 @@ type UpdateTariffRequest struct {
 }
 
 func (h *SystemHandler) updateTariff(w http.ResponseWriter, r *http.Request) {
+	// Bloquear cambios de tarifa en nodo demo
+	if os.Getenv("DEMO_MODE") == "true" {
+		writeError(w, 403, "No se puede modificar la tarifa energetica en el nodo demo. Se hereda del nodo padre.")
+		return
+	}
+
 	var req UpdateTariffRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")

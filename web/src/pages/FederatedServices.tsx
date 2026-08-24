@@ -68,6 +68,7 @@ const categoryColors: Record<string, string> = {
 
 export default function FederatedServices() {
   const { node_domain: nodeDomain } = useConfig()
+  const isDemoNode = (window as any).__BASE_PATH__ === '/demo'
   const [services, setServices] = useState<ServiceItem[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -262,22 +263,38 @@ export default function FederatedServices() {
           <p className="text-gray-500 text-sm mt-1">Reemplaza servicios comerciales con alternativas autohospedadas y federadas</p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={updateAllServices}
-            disabled={installing}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
-            title="Actualizar todas las apps instaladas"
-          >
-            <RefreshCw size={16} /> Actualizar todo
-          </button>
+          {!isDemoNode && (
+            <button
+              onClick={updateAllServices}
+              disabled={installing}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
+              title="Actualizar todas las apps instaladas"
+            >
+              <RefreshCw size={16} /> Actualizar todo
+            </button>
+          )}
           <button onClick={() => setShowHelp(!showHelp)} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm flex items-center gap-2">
             <HelpCircle size={16} /> Ayuda
           </button>
-          <button onClick={() => setShowVoIP(!showVoIP)} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-2">
-            <PhoneIcon size={16} /> Telefonía VoIP
-          </button>
+          {!isDemoNode && (
+            <button onClick={() => setShowVoIP(!showVoIP)} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-2">
+              <PhoneIcon size={16} /> Telefonía VoIP
+            </button>
+          )}
         </div>
       </div>
+
+      {isDemoNode && (
+        <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 text-sm text-amber-800 flex items-start gap-2">
+          <Lock size={16} className="mt-0.5 flex-shrink-0" />
+          <div>
+            <strong>Nodo Demo:</strong> Los servicios federados son solo para visualizacion en el demo.
+            No se pueden instalar, desinstalar ni gestionar servicios desde el nodo demo.
+            Los servicios se instalan desde el nodo padre. Esto protege el servidor demo
+            de sobrecarga por instalacion de servicios pesados.
+          </div>
+        </div>
+      )}
 
       {showHelp && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 space-y-4 text-sm">
@@ -528,7 +545,7 @@ export default function FederatedServices() {
               </div>
 
               <div className="mt-auto flex gap-2 flex-wrap">
-                {!isInstalled && (
+                {!isInstalled && !isDemoNode && (
                   <button
                     onClick={() => installService(svc)}
                     disabled={installing}
@@ -540,6 +557,11 @@ export default function FederatedServices() {
                       <><Download size={12} /> Instalar</>
                     )}
                   </button>
+                )}
+                {!isInstalled && isDemoNode && (
+                  <span className="px-3 py-1.5 bg-gray-100 text-gray-400 rounded-lg text-xs flex items-center gap-1 cursor-not-allowed">
+                    <Lock size={12} /> Instalar (demo: no disponible)
+                  </span>
                 )}
                 {/* Mensaje de instalacion al lado del boton */}
                 {installMsgs[svc.id] && (
@@ -557,7 +579,7 @@ export default function FederatedServices() {
                     )}
                   </div>
                 )}
-                {isInstalled && isRunning && (
+                {isInstalled && isRunning && !isDemoNode && (
                   <button
                     onClick={() => stopService(svc)}
                     className="px-3 py-1.5 bg-yellow-500 text-white rounded-lg text-xs flex items-center gap-1"
@@ -565,7 +587,7 @@ export default function FederatedServices() {
                     <Square size={12} /> Detener
                   </button>
                 )}
-                {isInstalled && !isRunning && (
+                {isInstalled && !isRunning && !isDemoNode && (
                   <button
                     onClick={() => startService(svc)}
                     className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs flex items-center gap-1"
@@ -583,7 +605,7 @@ export default function FederatedServices() {
                     <ExternalLink size={12} /> Abrir
                   </a>
                 )}
-                {isInstalled && (
+                {isInstalled && !isDemoNode && (
                   <button
                     onClick={() => updateService(svc)}
                     disabled={installing}
@@ -593,19 +615,21 @@ export default function FederatedServices() {
                     <RefreshCw size={12} /> Actualizar
                   </button>
                 )}
-                <button
-                  onClick={() => downloadService(svc)}
-                  className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg text-xs flex items-center gap-1"
-                >
-                  <Download size={12} /> Descargar
-                </button>
+                {!isDemoNode && (
+                  <button
+                    onClick={() => downloadService(svc)}
+                    className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg text-xs flex items-center gap-1"
+                  >
+                    <Download size={12} /> Descargar
+                  </button>
+                )}
                 <button
                   onClick={() => setSelectedService(svc)}
                   className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg text-xs"
                 >
                   Detalles
                 </button>
-                {isInstalled && (
+                {isInstalled && !isDemoNode && (
                   <button
                     onClick={() => uninstallService(svc)}
                     className="px-3 py-1.5 bg-red-100 text-red-600 rounded-lg text-xs flex items-center gap-1"
