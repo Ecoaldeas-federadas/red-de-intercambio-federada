@@ -174,14 +174,14 @@ export default function Parity() {
                         <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                           <div className="bg-amber-500 h-2 rounded-full" style={{ width: `${Math.min(r.import_pct_of_limit, 100)}%` }} />
                         </div>
-                        <p className="text-xs text-gray-600 mt-1">{fmtNum(r.import_pct_of_limit)}%</p>
+                        <p className="text-xs text-gray-600 mt-1">{fmtNum(r.import_pct_of_limit)}% de {fmtNum(r.credit_limit)} {currency}</p>
                       </div>
                       <div>
                         <p className="text-xs text-gray-500">Uso del limite (export):</p>
                         <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                           <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${Math.min(r.export_pct_of_limit, 100)}%` }} />
                         </div>
-                        <p className="text-xs text-gray-600 mt-1">{fmtNum(r.export_pct_of_limit)}%</p>
+                        <p className="text-xs text-gray-600 mt-1">{fmtNum(r.export_pct_of_limit)}% de {fmtNum(r.credit_limit)} {currency}</p>
                       </div>
                     </div>
                   )}

@@ -106,6 +106,9 @@ func DemoSeedData(ctx context.Context, d *DB, nodeDomain string) error {
 	// 10f. Reportes de paridad federada
 	demoSeedParityReports(ctx, d, dataDomain)
 
+	// 10g. Datos de la calculadora (categorias y parametros)
+	demoSeedCalculatorData(ctx, d, dataDomain)
+
 	// 11. Nodos federados simulados
 	if err := demoSeedFederationPeers(ctx, d, dataDomain); err != nil {
 		log.Printf("Demo: warning seeding federation peers: %v", err)
@@ -1594,6 +1597,40 @@ func demoSeedAssemblyOrganizations(ctx context.Context, d *DB, nodeDomain string
 		}
 	}
 
+	// Organizaciones NO creadas por la Asamblea (organizaciones independientes)
+	// Estas tienen su propia junta directiva y la pestaña Asamblea las lleva
+	// a la Asamblea General. El usuario demo NO es miembro de todas,
+	// para poder probar el flujo de solicitud de membresia.
+	independentOrgs := []struct {
+		username, displayName, orgType string
+		credit, debit                  int
+	}{
+		{"cooperativa-cafe", "Cooperativa Cafe de Altura", "cooperative", 15000, 15000},
+		{"taller-textil", "Taller Textil Artesanal", "production", 8000, 8000},
+		{"panaderia", "Panaderia Comunitaria", "production", 6000, 6000},
+	}
+
+	for _, org := range independentOrgs {
+		var existing int
+		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM users WHERE username = $1 AND node_domain = $2`, org.username, nodeDomain).Scan(&existing)
+		if existing > 0 {
+			continue
+		}
+
+		pubKey, privKey, _ := ed25519.GenerateKey(rand.Reader)
+		pubKeyHex := hex.EncodeToString(pubKey)
+		encryptedPrivKey := encryptPrivateKeyDemo(privKey, "demo1234")
+		salt := make([]byte, 16)
+		rand.Read(salt)
+
+		var orgID uuid.UUID
+		_ = d.Pool.QueryRow(ctx, `
+			INSERT INTO users (node_domain, username, display_name, account_type, organization_subtype, membership_status, is_approved, is_assembly_owned, credit_limit, debit_limit, public_key, encrypted_private_key, encryption_key_salt)
+			VALUES ($1, $2, $3, 'organization', $4, 'active', true, false, $5, $6, $7, $8, $9)
+			RETURNING id`,
+			nodeDomain, org.username, org.displayName, org.orgType, org.credit, org.debit, pubKeyHex, encryptedPrivKey, salt).Scan(&orgID)
+	}
+
 	// Crear servicios para las organizaciones de la Asamblea
 	type serviceDef struct {
 		orgUsername, name, description, serviceType, frequency string
@@ -2996,4 +3033,107 @@ func demoSeedFederationPeers(ctx context.Context, d *DB, nodeDomain string) erro
 
 	log.Println("Demo: federation peers seeded")
 	return nil
+}
+
+// demoSeedCalculatorData siembra categorias y parametros de la calculadora
+// para que los desplegables no esten vacios en el demo.
+func demoSeedCalculatorData(ctx context.Context, d *DB, nodeDomain string) {
+	// Categorias de trabajo
+	workCats := []struct{ name, desc string }{
+		{"Agricultura", "Trabajos relacionados con la agricultura y ganaderia"},
+		{"Produccion de alimentos", "Elaboracion de alimentos y bebidas"},
+		{"Artesania y manufactura", "Trabajos manuales y artesanales"},
+		{"Construccion", "Construccion y reparaciones"},
+		{"Servicios", "Servicios diversos"},
+		{"Trabajo intelectual", "Trabajo intelectual y administrativo"},
+	}
+	for _, c := range workCats {
+		d.Pool.Exec(ctx, `
+			INSERT INTO calculator_categories (node_domain, parameter_type, name, description)
+			VALUES ($1, 'work', $2, $3)
+			ON CONFLICT (node_domain, parameter_type, name) DO NOTHING`,
+			LOCAL_NODE_DOMAIN, c.name, c.desc)
+	}
+
+	// Categorias de materiales
+	materialCats := []struct{ name, desc string }{
+		{"Energia", "Fuentes de energia"},
+		{"Alimentos basicos", "Insumos alimentarios basicos"},
+		{"Materiales de construccion", "Materiales para construccion"},
+		{"Textiles", "Materiales textiles"},
+	}
+	for _, c := range materialCats {
+		d.Pool.Exec(ctx, `
+			INSERT INTO calculator_categories (node_domain, parameter_type, name, description)
+			VALUES ($1, 'material', $2, $3)
+			ON CONFLICT (node_domain, parameter_type, name) DO NOTHING`,
+			LOCAL_NODE_DOMAIN, c.name, c.desc)
+	}
+
+	// Parametros de trabajo
+	workParams := []struct {
+		category, name, desc string
+		kwh                  float64
+	}{
+		{"Agricultura", "Siembra manual", "Sembrar semillas a mano en el campo", 0.15},
+		{"Agricultura", "Cosecha manual", "Recolectar frutos, verduras o granos a mano", 0.18},
+		{"Agricultura", "Cavado de tierra", "Cavar o arar la tierra con pala/azadon", 0.22},
+		{"Agricultura", "Riego manual", "Regar plantas con regadera o manguera", 0.12},
+		{"Agricultura", "Cuidado de animales", "Alimentar, limpiar y cuidar animales", 0.10},
+		{"Produccion de alimentos", "Cocina a leña", "Cocinar usando fogon o leña", 0.08},
+		{"Produccion de alimentos", "Cocina a gas", "Cocinar usando estufa de gas", 0.06},
+		{"Produccion de alimentos", "Panaderia manual", "Amasar, formar y hornear pan a mano", 0.12},
+		{"Produccion de alimentos", "Conservas y envasado", "Preparar conservas, mermeladas, encurtidos", 0.10},
+		{"Artesania y manufactura", "Costura a mano", "Coser, bordar o tejer a mano", 0.07},
+		{"Artesania y manufactura", "Carpinteria manual", "Trabajar madera con herramientas manuales", 0.17},
+		{"Artesania y manufactura", "Ceramica/alfareria", "Modelar y cocer ceramica", 0.13},
+		{"Construccion", "Albañileria", "Levantar muros, mezclar cemento", 0.19},
+		{"Construccion", "Pintura", "Pintar paredes o superficies", 0.09},
+		{"Construccion", "Plomeria", "Instalar o reparar tuberias", 0.11},
+		{"Construccion", "Electricidad", "Instalar o reparar cableado electrico", 0.10},
+		{"Servicios", "Limpieza", "Limpieza de espacios o viviendas", 0.06},
+		{"Servicios", "Cuidado de personas", "Cuidar niños, ancianos o enfermos", 0.07},
+		{"Servicios", "Enseñanza", "Dar clases o talleres", 0.05},
+		{"Trabajo intelectual", "Oficina/administracion", "Trabajo de oficina, contabilidad, gestion", 0.03},
+		{"Trabajo intelectual", "Computacion/programacion", "Trabajo con computadora", 0.04},
+	}
+	for _, p := range workParams {
+		d.Pool.Exec(ctx, `
+			INSERT INTO calculator_parameters (node_domain, parameter_type, category, name, description, unit, kwh_per_unit, effort_factor, approved)
+			VALUES ($1, 'work', $2, $3, $4, 'horas', $5, 1.0, true)
+			ON CONFLICT DO NOTHING`,
+			LOCAL_NODE_DOMAIN, p.category, p.name, p.desc, p.kwh)
+	}
+
+	// Parametros de materiales
+	materialParams := []struct {
+		category, name, desc, unit string
+		kwh                        float64
+	}{
+		{"Energia", "Agua potable", "Agua para consumo o proceso", "litros", 0.0003},
+		{"Energia", "Electricidad", "Energia electrica de la red", "kWh", 1.0},
+		{"Energia", "Gas de cilindro", "Gas en cilindro/GLP", "kg", 13.9},
+		{"Energia", "Leña", "Madera para combustion", "kg", 4.0},
+		{"Alimentos basicos", "Sal", "Sal de mesa", "kg", 0.7},
+		{"Alimentos basicos", "Azúcar", "Azucar refinada o cruda", "kg", 1.5},
+		{"Alimentos basicos", "Harina de trigo", "Harina de trigo", "kg", 1.8},
+		{"Alimentos basicos", "Harina de maiz", "Harina de maiz", "kg", 1.6},
+		{"Alimentos basicos", "Arroz", "Arroz", "kg", 2.0},
+		{"Alimentos basicos", "Frijoles", "Frijoles o porotos", "kg", 2.2},
+		{"Alimentos basicos", "Aceite vegetal", "Aceite para cocinar", "litros", 5.0},
+		{"Alimentos basicos", "Leche", "Leche fresca", "litros", 0.8},
+		{"Materiales de construccion", "Madera", "Madera aserrada", "kg", 2.5},
+		{"Materiales de construccion", "Cemento", "Cemento portland", "kg", 1.4},
+		{"Textiles", "Tela de algodon", "Tela de algodon", "metros", 3.0},
+		{"Textiles", "Hilo", "Hilo para coser", "rollos", 0.5},
+	}
+	for _, p := range materialParams {
+		d.Pool.Exec(ctx, `
+			INSERT INTO calculator_parameters (node_domain, parameter_type, category, name, description, unit, kwh_per_unit, effort_factor, approved)
+			VALUES ($1, 'material', $2, $3, $4, $5, $6, 1.0, true)
+			ON CONFLICT DO NOTHING`,
+			LOCAL_NODE_DOMAIN, p.category, p.name, p.desc, p.unit, p.kwh)
+	}
+
+	log.Println("Demo: calculator data seeded")
 }

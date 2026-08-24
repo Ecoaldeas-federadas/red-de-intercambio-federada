@@ -525,6 +525,8 @@ func MigrateDomainData(ctx context.Context, pool *pgxpool.Pool) error {
 		{"recovery_config", "node_domain"},
 		{"external_currency_rates", "node_domain"},
 		{"node_discovery_config", "node_domain"},
+		{"calculator_categories", "node_domain"},
+		{"calculator_parameters", "node_domain"},
 	}
 
 	migrated := 0

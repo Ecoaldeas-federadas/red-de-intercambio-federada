@@ -82,6 +82,7 @@ type ParityReport struct {
 	RemoteFC         float64 `json:"remote_fc"`
 	ImportPctOfLimit float64 `json:"import_pct_of_limit"`
 	ExportPctOfLimit float64 `json:"export_pct_of_limit"`
+	CreditLimit      int64   `json:"credit_limit"`
 	HasParity        bool    `json:"has_parity"`
 	Suggestion       string  `json:"suggestion"`
 	CreatedAt        string  `json:"created_at"`
@@ -131,17 +132,11 @@ func (g *Gossip) GetParityReport(ctx context.Context, remoteNode string) (*Parit
 		}
 	}
 
-	// Obtener balance desde node_balance
-	var nodeBalance int64
-	_ = g.Pool.QueryRow(ctx,
-		`SELECT COALESCE(balance, 0) FROM node_balance WHERE remote_node = $1`,
-		remoteNode,
-	).Scan(&nodeBalance)
-
-	// Si no hay balance en node_balance, usar exports - imports
-	if nodeBalance == 0 && (imports > 0 || exports > 0) {
-		nodeBalance = exports - imports
-	}
+	// Balance = imports - exports (mecanica de saldo cero, no acumulacion bancaria)
+	// Si importas mas de lo que exportas, el balance es positivo (te deben).
+	// Si exportas mas de lo que importas, el balance es negativo (debes).
+	// El objetivo es tender a 0 (equilibrio).
+	nodeBalance := imports - exports
 
 	var creditLimit int64
 	err = g.Pool.QueryRow(ctx,
@@ -222,6 +217,7 @@ func (g *Gossip) GetParityReport(ctx context.Context, remoteNode string) (*Parit
 		RemoteFC:         remoteFC,
 		ImportPctOfLimit: importPct,
 		ExportPctOfLimit: exportPct,
+		CreditLimit:      creditLimit,
 		HasParity:        hasParity,
 		Suggestion:       suggestion,
 		CreatedAt:        time.Now().UTC().Format("2006-01-02"),

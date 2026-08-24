@@ -108,7 +108,8 @@ func (o *Organizations) List(ctx context.Context, nodeDomain, subtype string) ([
 			  credit_limit, debit_limit, annual_budget_limit, COALESCE(tax_rate, 0)::float8,
 			  required_signatures, COALESCE(authorized_signers, ARRAY[]::uuid[]), COALESCE(public_key, ''),
 			  COALESCE(is_assembly_owned, false), created_at
-			  FROM users WHERE node_domain = $1 AND account_type = 'organization'`
+			  FROM users WHERE node_domain = $1 AND account_type = 'organization'
+			  AND COALESCE(is_assembly_owned, false) = false`
 	args := []interface{}{nodeDomain}
 	if subtype != "" {
 		query += ` AND organization_subtype = $2`

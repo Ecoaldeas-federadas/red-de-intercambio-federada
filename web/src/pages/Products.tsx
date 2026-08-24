@@ -52,6 +52,7 @@ export default function Products() {
   const [showForm, setShowForm] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<ProductForm>(emptyForm)
   const [filterParentCategory, setFilterParentCategory] = useState('')
@@ -183,6 +184,65 @@ export default function Products() {
       loadComposite()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al promover producto')
+    }
+  }
+
+  // Proponer importar un producto federado a la Asamblea
+  const proposeProductToAssembly = async (p: any) => {
+    try {
+      await api.post('/assembly/proposals', {
+        proposal_type: 'product_import',
+        title: `Importar producto: ${p.name}`,
+        description: `Proponer importar el producto "${p.name}" del nodo ${p.node_domain} al catalogo local. Categoria: ${p.parent_category} > ${p.category}. Precio referencial: ${p.price} ${currency || 'TQ'}.`,
+        parameters: {
+          product_name: p.name,
+          source_node: p.node_domain,
+          source_product_id: p.id,
+          category: p.parent_category,
+          subcategory: p.category,
+          price: p.price,
+          image_url: p.image_url,
+        },
+      })
+      setSuccess(`Propuesta creada en la Asamblea para importar "${p.name}". La Asamblea decidira si se aprueba.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al crear propuesta')
+    }
+  }
+
+  // Proponer remover un producto del nodo (desaprobar)
+  const proposeProductRemoval = async (p: any) => {
+    try {
+      await api.post('/assembly/proposals', {
+        proposal_type: 'product_remove',
+        title: `Remover producto: ${p.name}`,
+        description: `Proponer remover/desaprobar el producto "${p.name}" del catalogo local.`,
+        parameters: {
+          product_id: p.id,
+          product_name: p.name,
+        },
+      })
+      setSuccess(`Propuesta creada en la Asamblea para remover "${p.name}".`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al crear propuesta')
+    }
+  }
+
+  // Proponer convertir un compuesto a producto base
+  const proposeCompositeToBase = async (p: any) => {
+    try {
+      await api.post('/assembly/proposals', {
+        proposal_type: 'product_to_base',
+        title: `Convertir a producto base: ${p.name}`,
+        description: `Proponer convertir el producto compuesto "${p.name}" en producto base/materia prima para que pueda ser usado como ingrediente de otros productos compuestos.`,
+        parameters: {
+          product_id: p.id,
+          product_name: p.name,
+        },
+      })
+      setSuccess(`Propuesta creada en la Asamblea para convertir "${p.name}" a producto base.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al crear propuesta')
     }
   }
 
@@ -558,6 +618,7 @@ export default function Products() {
       )}
 
       {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</div>}
+      {success && <div className="text-green-600 text-sm bg-green-50 p-3 rounded-lg">{success}</div>}
 
       {showForm && canManage && (
         <div className="card">
@@ -773,6 +834,24 @@ export default function Products() {
                               <ArrowUpCircle size={18} />
                             </button>
                           )}
+                          {activeTab === 'composite' && (
+                            <button
+                              onClick={() => proposeCompositeToBase(p)}
+                              className="text-amber-500 hover:text-amber-700 transition"
+                              title="Proponer en Asamblea convertir a producto base"
+                            >
+                              <ArrowUpCircle size={18} />
+                            </button>
+                          )}
+                          {activeTab === 'mynode' && p.is_approved && canManage && (
+                            <button
+                              onClick={() => proposeProductRemoval(p)}
+                              className="text-red-500 hover:text-red-700 transition"
+                              title="Proponer remover/desaprobar este producto"
+                            >
+                              <X size={18} />
+                            </button>
+                          )}
                         </div>
                       </div>
                       <div className="mt-3 space-y-1">
@@ -790,7 +869,26 @@ export default function Products() {
                         </p>
                         {p.product_code && <p className="text-xs text-gray-400">Código: {p.product_code}</p>}
                         {activeTab === 'federated' && p.node_domain && (
-                          <p className="text-xs text-blue-600">Nodo: {p.node_domain}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-xs text-blue-600">Nodo: {p.node_domain}</p>
+                            {p.available_locally ? (
+                              <span className="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <Check size={10} /> Disponible en mi nodo
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <X size={10} /> No disponible en mi nodo
+                              </span>
+                            )}
+                            {!p.available_locally && (
+                              <button
+                                onClick={() => proposeProductToAssembly(p)}
+                                className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full hover:bg-amber-200 transition flex items-center gap-1"
+                              >
+                                <ArrowUpCircle size={10} /> Proponer en Asamblea
+                              </button>
+                            )}
+                          </div>
                         )}
                         <div className="flex items-center gap-2 pt-1">
                           {p.is_approved ? (

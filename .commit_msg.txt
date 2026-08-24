@@ -1,28 +1,43 @@
-fix: startDemoNode no reconstruye imagen (es la misma del node-app) + solo reset/seed
+feat: permisos en sidebar, calculadora funcional, paridad correcta, productos federados, organizaciones no-assembly
 
-PROBLEMA:
-startDemoNode verificaba si la imagen existia y la reconstrui si no
-existia. Pero la imagen del demo-app es la MISMA que la del node-app
-(mismo docker/Dockerfile en docker-compose.yml). No tiene sentido
-reconstruir nada:
+FASE 1 - Permisos y Roles:
+- Layout.tsx ahora filtra las pestañas del sidebar segun los permisos
+  del usuario usando usePermissions (que ya existia pero no se usaba)
+- Items sin permiso requerido = visibles para todos
+- Items con permiso = solo visibles si el usuario tiene ese permiso
+- Fix bug: dos pestañas marcadas simultaneamente (NavLink end en /app/federation)
 
-- Si hay cambios nuevos, el update del node-app ya reconstruyo la imagen.
-- El demo-app usa esa misma imagen.
-- Lo unico que debe pasar cada vez que se arranca el demo es que los
-  datos se reseteen y se siembren frescos.
+FASE 2 - Calculadora:
+- Migracion 010 cambiada para usar __LOCAL__ en vez de 'localhost'
+- Migracion 100 convierte datos existentes de 'localhost' a '__LOCAL__'
+- system.go: queries de calculadora ahora usan db.LOCAL_NODE_DOMAIN
+- MigrateDomainData ahora incluye calculator_categories y calculator_parameters
+- demo_seed.go: nueva funcion demoSeedCalculatorData siembra categorias
+  y parametros para que los desplegables no esten vacios en el demo
 
-SOLUCION:
-startDemoNode ahora solo hace docker compose up --force-recreate.
-Al arrancar, el demo automaticamente (cmd/node/main.go):
-  1. DemoReset() - borra datos viejos de usuarios
-  2. DemoAutoSetup() - configura node_config con el dominio del demo
-  3. DemoSeedData() - siembra datos frescos de muestra
+FASE 3 - Productos:
+- Tab Federacion: muestra productos de otros nodos con indicador
+  verde (disponible en mi nodo) o rojo (no disponible)
+- Boton "Proponer en Asamblea" para productos no disponibles
+- Tab Mi Nodo: boton "Desaprobar" para proponer remocion
+- Tab Compuestos: boton "Proponer como base" para convertir a base
+- Migracion 101: nuevos tipos de propuesta product_import,
+  product_remove, product_to_base
+- Cualquier usuario puede proponer; la Asamblea decide
 
-Resultado:
-- Arranque rapido (segundos, no minutos)
-- Datos siempre frescos (los cambios de usuarios se pierden al reiniciar)
-- Misma imagen que el node-app (siempre codigo actualizado)
-- Feedback en tiempo real en la consola de la pagina
+FASE 4 - Paridad:
+- Balance ahora es imports - exports (mecanica de saldo cero)
+- Antes leia de node_balance que tenia valores fijos que no coincidian
+- ParityReport ahora incluye credit_limit para mostrar el limite real
+- Frontend muestra "X% de Y TQ" en vez de solo el porcentaje
+
+FASE 5 - Organizaciones:
+- organization.go: List ahora excluye is_assembly_owned = true
+  (la Asamblea no aparece en la lista de organizaciones)
+- demo_seed.go: agregadas 3 organizaciones no-assembly donde el
+  usuario demo no es miembro, para probar el flujo de membresia
+- OrganizationDetail.tsx: tabs con flex-wrap en vez de overflow-x-auto
+  (los tabs pasan a la siguiente linea en vez de scroll horizontal)
 
 Generated with [Devin](https://devin.ai)
 

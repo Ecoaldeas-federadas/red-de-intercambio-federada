@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { usePermissions } from '../hooks/usePermissions'
 import { api } from '../api'
 import { getNotifIcon, relativeTime } from '../lib/notifications'
 import {
@@ -11,46 +12,51 @@ import {
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
-const navItems = [
-  { to: '/app/dashboard', label: 'Inicio', icon: Home },
+// perm = permiso requerido para ver la pestaña.
+// Si perm no esta definido, la pestaña es visible para todos.
+const navItems: { to: string; label: string; icon: any; perm?: string; end?: boolean }[] = [
+  { to: '/app/dashboard', label: 'Inicio', icon: Home, end: true },
   { to: '/app/transfer', label: 'Transferir', icon: ArrowLeftRight },
   { to: '/app/wallet', label: 'Billetera', icon: Wallet },
   { to: '/app/my-services', label: 'Mis Servicios', icon: Plug },
   { to: '/app/payments', label: 'Pagos', icon: Wallet },
-  { to: '/app/nfc-terminals', label: 'Terminales NFC', icon: Nfc },
+  { to: '/app/nfc-terminals', label: 'Terminales NFC', icon: Nfc, perm: 'nfc.register_terminal' },
   { to: '/app/my-terminals', label: 'Mis Puntos de Venta', icon: ShoppingBag },
   { to: '/app/products', label: 'Productos', icon: Package },
   { to: '/app/calculator', label: 'Calculadora', icon: Calculator },
-  { to: '/app/calculator/params', label: 'Parametros Calc.', icon: Zap },
+  { to: '/app/calculator/params', label: 'Parametros Calc.', icon: Zap, perm: 'calculator.manage_params' },
   { to: '/app/store', label: 'Tienda', icon: Store },
-  { to: '/app/federation', label: 'Federacion', icon: Network },
-  { to: '/app/federation/limits', label: 'Limites Federacion', icon: Network },
+  { to: '/app/federation', label: 'Federacion', icon: Network, perm: 'federation.manage', end: true },
+  { to: '/app/federation/limits', label: 'Limites Federacion', icon: Network, perm: 'federation.set_limits' },
   { to: '/app/federation/parity', label: 'Paridad', icon: Scale },
-  { to: '/app/federation/conflicts', label: 'Conflictos Fusion', icon: AlertTriangle },
+  { to: '/app/federation/conflicts', label: 'Conflictos Fusion', icon: AlertTriangle, perm: 'federation.manage' },
   { to: '/app/organizations', label: 'Organizaciones', icon: Users },
-  { to: '/app/governance', label: 'Gobernanza', icon: Scale },
+  { to: '/app/governance', label: 'Gobernanza', icon: Scale, perm: 'governance.manage' },
   { to: '/app/assembly', label: 'Asamblea', icon: Gavel },
-  { to: '/app/audit', label: 'Auditoria', icon: FileSearch },
-  { to: '/app/external', label: 'Comercio Externo', icon: Globe },
-  { to: '/app/admission', label: 'Admision', icon: UserPlus },
-  { to: '/app/recovery', label: 'Recuperacion', icon: Shield },
+  { to: '/app/audit', label: 'Auditoria', icon: FileSearch, perm: 'config.manage' },
+  { to: '/app/external', label: 'Comercio Externo', icon: Globe, perm: 'external.approve_operation' },
+  { to: '/app/admission', label: 'Admision', icon: UserPlus, perm: 'admission.manage' },
+  { to: '/app/recovery', label: 'Recuperacion', icon: Shield, perm: 'recovery.approve' },
   { to: '/app/fund', label: 'Fondo Comunitario', icon: PiggyBank },
   { to: '/app/profile', label: 'Mi Perfil', icon: User },
   { to: '/app/notifications/settings', label: 'Notificaciones', icon: Bell },
-  { to: '/app/settings', label: 'Configuracion', icon: Settings },
-  { to: '/app/services', label: 'Servicios Federados', icon: Server },
-  { to: '/app/federation', label: 'Federacion', icon: Globe },
-  { to: '/app/website', label: 'Sitio Web Publico', icon: Globe },
+  { to: '/app/settings', label: 'Configuracion', icon: Settings, perm: 'config.manage' },
+  { to: '/app/services', label: 'Servicios Federados', icon: Server, perm: 'config.manage' },
+  { to: '/app/website', label: 'Sitio Web Publico', icon: Globe, perm: 'config.manage' },
 ]
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { username, logout } = useAuth()
+  const { hasPermission } = usePermissions()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [showNotif, setShowNotif] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [notifications, setNotifications] = useState<any[]>([])
+
+  // Filtrar items segun permisos del usuario
+  const visibleItems = navItems.filter(item => !item.perm || hasPermission(item.perm))
 
   // Cargar contador de notificaciones no leidas (polling cada 30s)
   useEffect(() => {
@@ -106,11 +112,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
         <nav className="sidebar-scroll px-2 py-4 space-y-1 overflow-y-auto h-[calc(100vh-120px)]">
-          {navItems.map(({ to, label, icon: Icon }) => (
+          {visibleItems.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
-              end={to === '/app/dashboard'}
+              end={end}
               onClick={() => setSidebarOpen(false)}
               title={sidebarCollapsed ? label : undefined}
               className={({ isActive }) =>

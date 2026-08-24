@@ -804,6 +804,7 @@ func (h *SystemHandler) listFederatedProducts(w http.ResponseWriter, r *http.Req
 			"is_hidden":         isHidden,
 			"node_domain":       nodeDomain,
 			"source_node":       sourceNode,
+			"available_locally": nodeDomain == db.LOCAL_NODE_DOMAIN,
 		})
 	}
 	if products == nil {
@@ -1666,7 +1667,7 @@ func (h *SystemHandler) listCalcParams(w http.ResponseWriter, r *http.Request) {
 
 	query := `SELECT id, parameter_type, category, subcategory, name, description, unit, kwh_per_unit, effort_factor, is_active, approved, created_at
 		FROM calculator_parameters WHERE node_domain = $1`
-	args := []interface{}{h.nodeDomain}
+	args := []interface{}{db.LOCAL_NODE_DOMAIN}
 	argIdx := 2
 
 	if paramType != "" {
@@ -1727,7 +1728,7 @@ func (h *SystemHandler) listCalcCategories(w http.ResponseWriter, r *http.Reques
 	paramType := r.URL.Query().Get("type")
 
 	query := `SELECT id, parameter_type, name, description, is_active FROM calculator_categories WHERE node_domain = $1`
-	args := []interface{}{h.nodeDomain}
+	args := []interface{}{db.LOCAL_NODE_DOMAIN}
 	if paramType != "" {
 		query += " AND parameter_type = $2"
 		args = append(args, paramType)
@@ -1818,7 +1819,7 @@ func (h *SystemHandler) createCalcParam(w http.ResponseWriter, r *http.Request) 
 	_, err := h.Pool.Exec(r.Context(), `
 		INSERT INTO calculator_parameters (id, node_domain, parameter_type, category, subcategory, name, description, unit, kwh_per_unit, effort_factor, approved, created_by)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false, $11)`,
-		id, h.nodeDomain, req.Type, req.Category, subcategory, req.Name, description, req.Unit, req.KwhPerUnit, req.EffortFactor, userID)
+		id, db.LOCAL_NODE_DOMAIN, req.Type, req.Category, subcategory, req.Name, description, req.Unit, req.KwhPerUnit, req.EffortFactor, userID)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -1940,7 +1941,7 @@ func (h *SystemHandler) createCalcCategory(w http.ResponseWriter, r *http.Reques
 		INSERT INTO calculator_categories (id, node_domain, parameter_type, name, description)
 		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (node_domain, parameter_type, name) DO NOTHING`,
-		id, h.nodeDomain, req.Type, req.Name, description)
+		id, db.LOCAL_NODE_DOMAIN, req.Type, req.Name, description)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return

@@ -39,7 +39,7 @@ CREATE INDEX IF NOT EXISTS idx_calc_params_search
 
 -- Datos iniciales: tipos de trabajo
 INSERT INTO calculator_parameters (node_domain, parameter_type, category, name, description, unit, kwh_per_unit, effort_factor, approved)
-SELECT 'localhost', 'work', category, name, description, 'horas', kwh_per_unit, 1.0, true
+SELECT '__LOCAL__', 'work', category, name, description, 'horas', kwh_per_unit, 1.0, true
 FROM (VALUES
   ('Agricultura', 'Siembra manual', 'Sembrar semillas a mano en el campo', 0.15),
   ('Agricultura', 'Cosecha manual', 'Recolectar frutos, verduras o granos a mano', 0.18),
@@ -77,7 +77,7 @@ WHERE NOT EXISTS (SELECT 1 FROM calculator_parameters WHERE parameter_type = 'wo
 
 -- Datos iniciales: insumos/materiales
 INSERT INTO calculator_parameters (node_domain, parameter_type, category, name, description, unit, kwh_per_unit, effort_factor, approved)
-SELECT 'localhost', 'material', category, name, description, unit, kwh_per_unit, 1.0, true
+SELECT '__LOCAL__', 'material', category, name, description, unit, kwh_per_unit, 1.0, true
 FROM (VALUES
   ('Energia', 'Agua potable', 'Agua para consumo o proceso', 'litros', 0.0003),
   ('Energia', 'Electricidad', 'Energia electrica de la red', 'kWh', 1.0),
@@ -104,7 +104,7 @@ WHERE NOT EXISTS (SELECT 1 FROM calculator_parameters WHERE parameter_type = 'ma
 
 -- Categorias iniciales
 INSERT INTO calculator_categories (node_domain, parameter_type, name, description)
-SELECT 'localhost', 'work', name, desc_text
+SELECT '__LOCAL__', 'work', name, desc_text
 FROM (VALUES
   ('Agricultura', 'Trabajos relacionados con la agricultura y ganaderia'),
   ('Produccion de alimentos', 'Elaboracion de alimentos y bebidas'),
@@ -116,7 +116,7 @@ FROM (VALUES
 WHERE NOT EXISTS (SELECT 1 FROM calculator_categories WHERE parameter_type = 'work' LIMIT 1);
 
 INSERT INTO calculator_categories (node_domain, parameter_type, name, description)
-SELECT 'localhost', 'material', name, desc_text
+SELECT '__LOCAL__', 'material', name, desc_text
 FROM (VALUES
   ('Energia', 'Fuentes de energia'),
   ('Alimentos basicos', 'Insumos alimentarios basicos'),

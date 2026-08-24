@@ -271,7 +271,7 @@ export default function OrganizationDetail() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200 overflow-x-auto">
+      <div className="flex flex-wrap gap-1 border-b border-gray-200">
         {tabs.map(t => (
           <button
             key={t.key}
