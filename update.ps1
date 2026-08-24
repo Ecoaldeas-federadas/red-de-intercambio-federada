@@ -4,7 +4,7 @@
 #   .\update.ps1
 #
 # Este script:
-#   1. Hace git pull (baja los ultimos cambios)
+#   1. Descarga el codigo del repositorio (el remoto SIEMPRE tiene prioridad)
 #   2. Reconstruye las imagenes Docker
 #   3. Reinicia los servicios
 #
@@ -12,6 +12,7 @@
 # NO regenera secrets.
 # NO pide reconfigurar nada.
 # Los datos existentes se conservan.
+# Los cambios locales al codigo se descartan (el remoto siempre gana).
 
 $ErrorActionPreference = "Stop"
 
@@ -46,7 +47,7 @@ if (-not (Test-Path $envPath)) {
     exit 1
 }
 
-# 1. Git pull (con manejo de cambios locales)
+# 1. Descargar codigo del repositorio (el remoto SIEMPRE tiene prioridad)
 Write-Host ""
 Write-Step "Bajando ultimos cambios del repositorio..."
 $prevEAP = $ErrorActionPreference
@@ -67,36 +68,33 @@ if ($gitToken -ne "") {
     Write-OK "Token configurado"
 }
 
-# Fetch primero
+# Abortar cualquier merge/rebase/cherry-pick pendiente (por si quedo de un update fallido)
+git merge --abort 2>$null
+git rebase --abort 2>$null
+git cherry-pick --abort 2>$null
+
+# Limpiar stash viejo si existe (por updates anteriores fallidos)
+git stash clear 2>$null
+
+# Fetch: bajar los ultimos cambios del remoto
 try {
     git fetch origin main 2>&1 | Out-Host
 } catch {
     Write-Warn "Aviso durante git fetch: $_"
 }
 
-# Guardar cambios locales (stash) para no perder nada
-$stashOutput = git stash --include-untracked -m "auto-stash before update" 2>&1
-if ($LASTEXITCODE -eq 0 -and $stashOutput -notmatch "No local changes") {
-    Write-OK "Cambios locales guardados (stash)"
-}
-
-# Reset al origin/main (sobrescribe todo con la version del repo)
+# Reset hard al origin/main: el remoto SIEMPRE gana.
+# No hacemos stash ni stash pop. Los datos importantes (.env, BD)
+# estan fuera del repo y no se ven afectados.
 try {
     git reset --hard origin/main 2>&1 | Out-Host
+    git clean -fd 2>&1 | Out-Host
 } catch {
     Write-Warn "Aviso durante git reset: $_"
 }
 
-# Restaurar cambios locales del stash
-try {
-    git stash pop --quiet 2>$null
-} catch {
-    # Si el stash pop falla por conflictos, no es critico
-    # Los archivos importantes (.env, config.yaml) estan montados por separado
-}
-
 $ErrorActionPreference = $prevEAP
-Write-OK "Codigo actualizado"
+Write-OK "Codigo actualizado (version del repositorio)"
 
 # 2. Detectar docker compose
 $composeExe = "docker-compose"

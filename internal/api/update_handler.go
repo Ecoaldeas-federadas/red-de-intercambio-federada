@@ -162,63 +162,32 @@ func (h *UpdateHandler) runUpdateNode() {
 	}
 	h.appendLog("git fetch OK")
 
-	// 2. Guardar cambios locales (stash)
-	h.setUpdateStatus("running", "Guardando cambios locales (stash)...", "")
-	stashCmd := exec.Command("git", "-C", projectDir, "stash", "--include-untracked", "-m", "auto-stash before update")
-	stashOut, stashErr := stashCmd.CombinedOutput()
-	h.appendLog("--- git stash ---\n" + string(stashOut))
-	if stashErr != nil {
-		h.appendLog("Stash: no habia cambios locales o error menor (no critico)")
-	} else {
-		h.appendLog("Stash OK")
-	}
+	// 2. Abortar cualquier merge/rebase pendiente (por si quedo de un update fallido)
+	abortCmd := exec.Command("git", "-C", projectDir, "merge", "--abort")
+	abortCmd.Run()
+	abortCmd2 := exec.Command("git", "-C", projectDir, "rebase", "--abort")
+	abortCmd2.Run()
 
-	// 3. Reset al origin/main
+	// 3. Limpiar stash viejo si existe
+	clearCmd := exec.Command("git", "-C", projectDir, "stash", "clear")
+	clearCmd.Run()
+
+	// 4. Reset hard al origin/main: el remoto SIEMPRE gana.
+	// No hacemos stash ni stash pop. Los datos importantes (.env, BD)
+	// estan fuera del repo y no se ven afectados.
 	h.setUpdateStatus("running", "Aplicando cambios del repositorio (git reset)...", "")
 	resetCmd := exec.Command("git", "-C", projectDir, "reset", "--hard", "origin/main")
 	resetOut, err := resetCmd.CombinedOutput()
 	h.appendLog("--- git reset --hard origin/main ---\n" + string(resetOut))
 	if err != nil {
-		h.appendLog("Reset fallo, intentando merge...")
-		mergeCmd := exec.Command("git", "-C", projectDir, "merge", "origin/main", "-X", "theirs", "--no-edit")
-		mergeOut, mergeErr := mergeCmd.CombinedOutput()
-		h.appendLog("--- git merge ---\n" + string(mergeOut))
-		if mergeErr != nil {
-			h.setUpdateStatus("error", fmt.Sprintf("Error al aplicar cambios: %v", mergeErr), string(mergeOut))
-			return
-		}
+		h.setUpdateStatus("error", fmt.Sprintf("Error al aplicar cambios: %v", err), string(resetOut))
+		return
 	}
-	h.appendLog("Cambios del repositorio aplicados")
-
-	// 4. Restaurar cambios locales del stash
-	// Si hay conflictos, resolverlos quedandonos con la version del repo (theirs)
-	// porque los cambios locales del contenedor son generados automaticamente
-	// (ej: .commit_msg.txt) y no deben bloquear la actualizacion.
-	popCmd := exec.Command("git", "-C", projectDir, "stash", "pop", "--quiet")
-	popOut, popErr := popCmd.CombinedOutput()
-	h.appendLog("--- git stash pop ---\n" + string(popOut))
-	if popErr != nil {
-		// Hay conflictos: resolver con --theirs (version del repo)
-		h.appendLog("Stash pop con conflictos, resolviendo con --theirs...")
-		// Checkout --theirs en todos los archivos en conflicto
-		statusCmd := exec.Command("git", "-C", projectDir, "diff", "--name-only", "--diff-filter=U")
-		statusOut, _ := statusCmd.Output()
-		conflictFiles := strings.Split(strings.TrimSpace(string(statusOut)), "\n")
-		for _, cf := range conflictFiles {
-			if cf == "" {
-				continue
-			}
-			checkoutCmd := exec.Command("git", "-C", projectDir, "checkout", "--theirs", "--", cf)
-			checkoutCmd.CombinedOutput()
-			addCmd := exec.Command("git", "-C", projectDir, "add", "--", cf)
-			addCmd.CombinedOutput()
-			h.appendLog("Resuelto conflicto en: " + cf)
-		}
-		// Drop el stash ya que los cambios locales no son necesarios
-		dropCmd := exec.Command("git", "-C", projectDir, "stash", "drop", "--quiet")
-		dropCmd.Run()
-		h.appendLog("Stash descartado (cambios locales no criticos)")
-	}
+	// Limpiar archivos no trackeados (ej: .commit_msg.txt)
+	cleanCmd := exec.Command("git", "-C", projectDir, "clean", "-fd")
+	cleanOut, _ := cleanCmd.CombinedOutput()
+	h.appendLog("--- git clean -fd ---\n" + string(cleanOut))
+	h.appendLog("Cambios del repositorio aplicados (version del repositorio)")
 
 	// Mostrar commit actual
 	newCommitCmd := exec.Command("git", "-C", projectDir, "rev-parse", "--short", "HEAD")

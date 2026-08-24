@@ -1,19 +1,24 @@
-fix: Resolver conflictos de stash pop en update handler
+fix: update.ps1 y update_handler priorizan el remoto (sin stash)
 
-El update handler hacia git stash pop pero ignoraba los conflictos.
-Si habia cambios locales en el contenedor (ej: .commit_msg.txt),
-el stash pop generaba conflictos que dejaban marcadores <<<<<<< en
-los archivos, lo que rompia el docker-compose.yml y causaba:
+PROBLEMA:
+El update.ps1 y el update_handler.go hacian git stash + git reset --hard
++ git stash pop. El stash pop restauraba cambios locales que ya no
+importan (el remoto tiene la version nueva) y si habia conflictos,
+dejaba marcadores <<<<<<< en los archivos, rompiendo el docker-compose.yml:
 
   yaml: line 2: mapping values are not allowed in this context
   Error al construir imagen: exit status 15
 
-Ahora el handler detecta conflictos despues del stash pop y los
-resuelve con --theirs (version del repo), porque los cambios locales
-del contenedor son generados automaticamente y no son criticos.
+SOLUCION:
+Cuando actualizas, el remoto SIEMPRE gana. No hay que hacer stash ni
+stash pop. Los datos importantes (.env, base de datos) estan fuera del
+repo y no se ven afectados.
 
-Tambien se agrego .commit_msg.txt al .gitignore para evitar que
-genere conflictos en futuras actualizaciones.
+Cambios:
+- update.ps1: abortar merge/rebase pendiente, limpiar stash viejo,
+  fetch + reset --hard + clean -fd (sin stash, sin stash pop)
+- update_handler.go: mismo flujo simplificado (sin stash, sin stash pop)
+- .gitignore: agregar .commit_msg.txt para evitar conflictos futuros
 
 Generated with [Devin](https://devin.ai)
 
