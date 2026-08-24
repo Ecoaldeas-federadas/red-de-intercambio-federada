@@ -1832,90 +1832,90 @@ export default function Assembly() {
       {/* ===== IMPUESTOS ===== */}
       {tab === 'tax' && (
         <div className="space-y-4">
-          <h2 className="font-semibold flex items-center gap-2"><DollarSign size={18} />Configuracion de Impuestos</h2>
+          <h2 className="font-semibold flex items-center gap-2"><DollarSign size={18} />Impuestos</h2>
 
+          {/* Explicacion */}
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
             <p><strong>Impuestos - Como funciona</strong></p>
-            <p>Los impuestos sobre las transacciones llegan automaticamente a la <strong>cuenta de la asamblea</strong>. Esta cuenta ya existe, no hay que configurarla.</p>
-            <p>Lo que se decide en asamblea es <strong>a donde distribuir</strong> ese dinero: transferir a una organizacion, departamento, responsable o proyecto.</p>
-            <p>Para cambiar la tasa de impuesto, crea una propuesta de tipo "Cambio de impuestos" en la pestana Propuestas.</p>
+            <p>Los impuestos sobre las transacciones llegan automaticamente a la <strong>cuenta de la Asamblea General</strong>. No hay una cuenta separada de impuestos: la Asamblea es la que recibe los impuestos y administra el Fondo Comunitario. Es una sola cuenta con tres nombres: <b>@asamblea</b>, <b>@impuestos</b> y <b>@fondo_comunitario</b>.</p>
+            <p><strong>Como se calcula el impuesto:</strong> Cada nivel de miembro tiene su propia tasa de impuesto. Cuando un miembro hace una transaccion, se aplica la tasa de su nivel. Por ejemplo, un miembro "pleno" puede tener 2% y un miembro "aspirante" 0%. Las organizaciones y cooperativas tambien pueden tener tasas diferentes.</p>
+            <p><strong>Como cambiar las tasas:</strong> Los cambios se hacen por votacion en la Asamblea. Crea una propuesta de tipo <b>"Cambio de impuestos"</b> en la pestana <b>Propuestas</b>, indicando el nivel de miembro y la nueva tasa. La Asamblea decide segun su configuracion de aprobacion (voto de toda la asamblea, junta directiva, o persona designada).</p>
+            <p><strong>Como usar el dinero recaudado:</strong> Para distribuir los fondos, crea una propuesta de <b>"Distribucion de fondos"</b> indicando la cuenta destino (organizacion, departamento, responsable o proyecto) y el monto.</p>
           </div>
 
-          {taxConfig && (
+          {/* Tasas por nivel de miembro */}
+          {taxConfig?.level_taxes && taxConfig.level_taxes.length > 0 && (
             <div className="card">
-              <h3 className="font-medium mb-3">Configuracion de Impuestos</h3>
-              {taxConfig.configs && taxConfig.configs.length > 0 ? (
-                <div className="space-y-2">
-                  <table className="w-full text-sm">
-                    <thead><tr className="border-b text-left text-gray-600">
-                      <th className="py-2">Tipo de cuenta</th>
-                      <th>Tasa</th>
-                      <th>Estado</th>
-                      <th>Monto minimo</th>
-                    </tr></thead>
-                    <tbody>
-                      {taxConfig.configs.map((c: any, i: number) => {
-                        const labels: Record<string, string> = {
-                          'individual': 'Personas',
-                          'organization': 'Organizaciones',
-                          'department': 'Departamentos',
-                          'fund': 'Fondo (exento)',
-                          'commerce': 'Tiendas comerciales',
-                          'public_service': 'Servicios publicos',
-                          'cooperative': 'Cooperativas',
-                          'all': 'General',
-                        }
-                        return (
-                          <tr key={i} className="border-b border-gray-100">
-                            <td className="py-2 font-medium">{labels[c.applies_to] || c.applies_to}</td>
-                            <td className={c.tax_rate > 0 ? 'text-amber-600 font-bold' : 'text-green-600'}>
-                              {c.tax_rate > 0 ? `${(c.tax_rate * 100).toFixed(2)}%` : 'Exento'}
-                            </td>
-                            <td>{c.is_active ? 'Activo' : 'Inactivo'}</td>
-                            <td>{c.min_amount || 0} {currency}</td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Cada tipo de cuenta tiene su propia tasa de impuesto. Las organizaciones comerciales pagan mas, los servicios publicos menos, y el fondo comunitario esta exento.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <label className="label">Tasa de impuesto</label>
-                    <b>{taxConfig.tax_rate ? `${(taxConfig.tax_rate * 100).toFixed(2)}%` : '0%'}</b>
-                  </div>
-                  <div>
-                    <label className="label">Estado</label>
-                    <b>{taxConfig.is_active ? 'Activo' : 'Inactivo'}</b>
-                  </div>
-                  <div>
-                    <label className="label">Aplica a</label>
-                    <b>{taxConfig.applies_to || 'Todas las transacciones'}</b>
-                  </div>
-                  <div>
-                    <label className="label">Monto minimo</label>
-                    <b>{taxConfig.min_amount || 0} {currency}</b>
-                  </div>
-                </div>
-              )}
+              <h3 className="font-medium mb-3">Tasas de Impuesto por Nivel de Miembro</h3>
+              <table className="w-full text-sm">
+                <thead><tr className="border-b text-left text-gray-600">
+                  <th className="py-2">Nivel</th>
+                  <th>Descripcion</th>
+                  <th>Tasa de impuesto</th>
+                </tr></thead>
+                <tbody>
+                  {taxConfig.level_taxes.map((lt: any, i: number) => (
+                    <tr key={i} className="border-b border-gray-100">
+                      <td className="py-2 font-medium">{lt.name} (Nivel {lt.level})</td>
+                      <td className="text-gray-500">{lt.description}</td>
+                      <td className={lt.tax_rate > 0 ? 'text-amber-600 font-bold' : 'text-green-600'}>
+                        {lt.tax_rate > 0 ? `${(lt.tax_rate * 100).toFixed(2)}%` : 'Exento'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="text-xs text-gray-500 mt-2">
+                Cada nivel de miembro tiene su propia tasa. Para cambiar una tasa, crea una propuesta de "Cambio de impuestos" en la pestana Propuestas.
+              </p>
             </div>
           )}
 
+          {/* Configuracion global */}
+          {taxConfig && (
+            <div className="card">
+              <h3 className="font-medium mb-3">Configuracion Global de Impuestos</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <label className="label">Tasa global por defecto</label>
+                  <b>{taxConfig.tax_rate ? `${(taxConfig.tax_rate * 100).toFixed(2)}%` : '0%'}</b>
+                  <p className="text-xs text-gray-400">Se aplica si el nivel del miembro no tiene tasa propia</p>
+                </div>
+                <div>
+                  <label className="label">Estado</label>
+                  <b>{taxConfig.is_active ? 'Activo' : 'Inactivo'}</b>
+                </div>
+                <div>
+                  <label className="label">Monto minimo</label>
+                  <b>{taxConfig.min_amount || 0} {currency}</b>
+                  <p className="text-xs text-gray-400">Transacciones menores a este monto no pagan impuesto</p>
+                </div>
+                <div>
+                  <label className="label">Aplica a</label>
+                  <b>{taxConfig.applies_to === 'all' ? 'Todas las transacciones' : taxConfig.applies_to}</b>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Cuenta de la Asamblea */}
           {taxAccount && (
             <div className="card">
-              <h3 className="font-medium mb-3">Cuenta de la Asamblea (Impuestos)</h3>
+              <h3 className="font-medium mb-3">Cuenta de la Asamblea (donde llegan los impuestos)</h3>
               {taxAccount.tax_account ? (
                 <div className="text-sm">
                   <p><span className="text-gray-500">Cuenta:</span> <b>{taxAccount.tax_account_display || taxAccount.tax_account_name || taxAccount.tax_account}</b></p>
-                  <p className="mt-1"><span className="text-gray-500">Balance recaudado:</span> <b className="text-trueque-700">{taxAccount.balance} {currency}</b></p>
-                  <p className="mt-2 text-xs text-gray-500">Los impuestos llegan automaticamente a esta cuenta. Para gastar este dinero, crea una propuesta de "Distribucion de fondos" en asamblea.</p>
+                  <p className="mt-1"><span className="text-gray-500">Balance:</span> <b className="text-trueque-700">{taxAccount.balance} {currency}</b></p>
+                  <p className="mt-2 text-xs text-gray-500">
+                    Los impuestos llegan automaticamente a esta cuenta. Es la misma cuenta de la Asamblea General y del Fondo Comunitario.
+                    Para gastar este dinero, crea una propuesta de "Distribucion de fondos" en asamblea.
+                  </p>
                 </div>
               ) : (
-                <p className="text-sm text-amber-600">La cuenta de la asamblea se crea automaticamente al instalar el nodo. Si no aparece, contacta al administrador.</p>
+                <p className="text-sm text-amber-600">
+                  No se encontro la cuenta de la Asamblea. Los impuestos se envian a la cuenta de la Asamblea General (@asamblea).
+                  Si no aparece, verifica que la Asamblea General exista en el sistema.
+                </p>
               )}
             </div>
           )}
@@ -1923,8 +1923,14 @@ export default function Assembly() {
           {canManageTax && (
             <div className="card border-amber-200">
               <h3 className="font-medium mb-2">Administracion de Impuestos</h3>
-              <p className="text-xs text-gray-500 mb-3">El administrador puede cambiar la tasa de impuesto directamente durante la configuracion inicial del sistema. Una vez que la asamblea este funcionando, los cambios se hacen por votacion.</p>
-              <p className="text-xs text-gray-500">Para distribuir los fondos recaudados, crea una propuesta de "Distribucion de fondos" indicando la cuenta destino y el monto.</p>
+              <p className="text-xs text-gray-500 mb-3">
+                El administrador puede cambiar la tasa de impuesto global directamente durante la configuracion inicial del sistema.
+                Una vez que la asamblea este funcionando, los cambios se hacen por votacion.
+                Las tasas por nivel de miembro se cambian con propuestas de "Cambio de impuestos" en la pestana Propuestas.
+              </p>
+              <p className="text-xs text-gray-500">
+                Para distribuir los fondos recaudados, crea una propuesta de "Distribucion de fondos" indicando la cuenta destino y el monto.
+              </p>
             </div>
           )}
         </div>

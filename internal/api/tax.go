@@ -82,6 +82,31 @@ func (h *TaxHandler) getTaxConfig(w http.ResponseWriter, r *http.Request) {
 
 	// Devolver la primera config como principal + lista completa
 	first := configs[0]
+
+	// Tambien obtener las tasas de impuesto por nivel de miembro
+	type memberLevelTax struct {
+		Name        string  `json:"name"`
+		Level       int     `json:"level"`
+		TaxRate     float64 `json:"tax_rate"`
+		Description string  `json:"description"`
+	}
+	var levelTaxes []memberLevelTax
+	levelRows, _ := h.Pool.Query(r.Context(), `
+		SELECT name, level, COALESCE(tax_rate, 0), COALESCE(description, '')
+		FROM member_levels WHERE node_domain = $1 AND is_active = true
+		ORDER BY level`, nodeDomain)
+	if levelRows != nil {
+		for levelRows.Next() {
+			var lt memberLevelTax
+			levelRows.Scan(&lt.Name, &lt.Level, &lt.TaxRate, &lt.Description)
+			levelTaxes = append(levelTaxes, lt)
+		}
+		levelRows.Close()
+	}
+	if levelTaxes == nil {
+		levelTaxes = []memberLevelTax{}
+	}
+
 	writeJSON(w, 200, map[string]interface{}{
 		"tax_rate":    first.TaxRate,
 		"is_active":   first.IsActive,
@@ -91,6 +116,7 @@ func (h *TaxHandler) getTaxConfig(w http.ResponseWriter, r *http.Request) {
 		"tax_account": derefStr(first.TaxAccount),
 		"updated_at":  first.UpdatedAt,
 		"configs":     configs,
+		"level_taxes": levelTaxes,
 	})
 }
 
