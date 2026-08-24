@@ -3192,6 +3192,12 @@ func (d *DB) SeedAssemblyConfig(ctx context.Context, nodeDomain string) error {
 		{"node", "product_modification", "Modificacion de producto", "Modificar producto del catalogo", 13},
 		{"node", "governance_rule", "Regla de gobernanza", "Crear/modificar regla de gobernanza", 14},
 		{"node", "free_proposal", "Propuesta libre", "Propuesta sobre cualquier tema", 15},
+		{"node", "product_import", "Importar producto federado", "Proponer importar un producto de otro nodo federado", 16},
+		{"node", "product_remove", "Remover producto", "Proponer remover/desaprobar un producto del catalogo local", 17},
+		{"node", "product_to_base", "Convertir a producto base", "Proponer convertir un producto compuesto en producto base/materia prima", 18},
+		{"node", "fund_external_commerce", "Fondear Comercio Exterior", "Transferir TQ a la cuenta de Comercio Exterior para compras externas", 19},
+		{"node", "external_bank_account", "Cuenta bancaria externa", "Agregar o modificar cuenta bancaria del Comercio Exterior", 20},
+		{"node", "external_commerce_config", "Config DEX", "Cambiar configuracion del Comercio Exterior (multi-firma, firmantes)", 21},
 	}
 	for _, pt := range proposalTypes {
 		_, _ = d.Pool.Exec(ctx, `

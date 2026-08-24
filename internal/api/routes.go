@@ -154,6 +154,10 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 	oh.RegisterRoutesWithAuth(r, am)
 	ph.RegisterRoutes(r, am)
 	eh.RegisterRoutesWithAuth(r, am)
+
+	// Comercio Exterior detallado (cuentas bancarias, compras, ventas)
+	extCommH := NewExternalCommerceHandler(pool, am, h.nodeDomain)
+	extCommH.RegisterRoutesWithAuth(r, am)
 	rh.RegisterRoutesWithAuth(r, am)
 	dh.RegisterRoutes(r, am)
 	nh.RegisterRoutes(r, am)

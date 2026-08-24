@@ -1,24 +1,64 @@
-fix: configuracion de aprobaciones vacia en demo - separar de demoSeedBoardMembers
+feat: Comercio Exterior rediseñado - cuenta DEX, bancos externos, compras/ventas detalladas
 
-PROBLEMA:
-La pestana "Configuracion de Aprobaciones" de la Asamblea estaba vacia
-en el nodo demo. La causa era que la insercion de assembly_config
-estaba dentro de demoSeedBoardMembers, que tiene un early return si
-ya existen board_members. Si la funcion retornaba temprano, la
-configuracion de aprobaciones nunca se insertaba.
+REDISEÑO COMPLETO DEL COMERCIO EXTERIOR (DEX):
 
-SOLUCION:
-- Extraida la logica de assembly_config, quorum_config y tax_config
-  a una nueva funcion demoSeedAssemblyConfig que se llama
-  independientemente desde el orquestador principal
-- demoSeedBoardMembers ahora solo inserta board_members y quorum
-- demoSeedAssemblyConfig se ejecuta siempre, incluso si
-  demoSeedBoardMembers retorna temprano
-- Agregados los nuevos tipos de propuesta (product_import,
-  product_remove, product_to_base, governance_rule) a la config
-- Corregido tax_config: ahora usa ON CONFLICT (node_domain) DO UPDATE
-  porque tax_config tiene UNIQUE en node_domain (antes intentaba
-  insertar 8 filas con el mismo dominio y solo la primera funcionaba)
+Antes el DEX solo tenia operaciones simples sin control de dinero real.
+Ahora el Comercio Exterior es una organizacion con cuenta TQ, cuentas
+bancarias externas en multiples monedas, y registro detallado de
+compras y ventas.
+
+NUEVAS TABLAS (migracion 102):
+- external_bank_accounts: cuentas bancarias externas (banco o efectivo)
+  con moneda, saldo, numero de cuenta
+- external_commerce_config: configuracion del DEX (multi-firma, firmas)
+- external_purchases: compras detalladas con precio real, banco, FC,
+  precio interno sugerido
+- external_sales: ventas detalladas con precio real, banco, FC
+- external_basket_recalculation: recalculo de canasta desde compras reales
+
+NUEVOS TIPOS DE PROPUESTA (migracion 103):
+- fund_external_commerce: transferir TQ al DEX
+- external_bank_account: agregar/modificar cuenta bancaria
+- external_commerce_config: cambiar configuracion del DEX
+
+BACKEND (external_commerce.go):
+- CRUD de cuentas bancarias externas
+- Crear y aprobar compras (descuenta del banco automaticamente)
+- Crear y aprobar ventas (suma al banco automaticamente)
+- Recalculo de canasta sugerido desde compras reales
+- Resumen del DEX con saldos TQ, saldos bancarios, FC, operaciones
+- Configuracion del DEX (multi-firma)
+
+FRONTEND (ExternalBridge.tsx):
+- Nueva pestana "Resumen": saldo TQ del DEX, saldos bancarios por
+  moneda, FC actual, operaciones pendientes/completadas, recalculo
+  de canasta sugerido
+- Nueva pestana "Cuentas Bancarias": lista de cuentas con banco,
+  moneda, saldo. Formulario para crear cuentas bancarias o de efectivo
+- Nueva pestana "Compras (Import)": registro detallado de compras con
+  producto, cantidad, precio externo, banco, proveedor. El sistema
+  calcula el precio interno sugerido usando el FC
+- Nueva pestana "Ventas (Export)": registro detallado de ventas con
+  producto, cantidad, precio externo, banco, comprador
+- Texto de ayuda reescrito explicando todo el flujo
+
+DEMO SEED:
+- Crea organizacion "Comercio Exterior" (is_assembly_owned)
+- Configura DEX con multi-firma (2 firmas)
+- Crea 4 cuentas bancarias (USD banco, EUR banco, COP efectivo, USD efectivo)
+- Crea 4 compras de ejemplo (harina, sal, aceite, medicamentos)
+- Crea 3 ventas de ejemplo (cafe, miel, artesania)
+- Crea recalculo de canasta sugerido
+
+FLUJO DE TRABAJO:
+1. La Asamblea crea la organizacion DEX y le transfiere TQ
+2. Se configuran cuentas bancarias externas (banco o efectivo)
+3. Se registran compras: producto, precio externo, banco
+4. Al aprobar compra: se descuenta del banco, se calcula precio interno
+5. Se registran ventas: producto, precio externo, banco
+6. Al aprobar venta: se suma al banco
+7. El sistema sugiere recalculo de FC desde precios reales pagados
+8. La Asamblea aprueba o no el nuevo FC
 
 Generated with [Devin](https://devin.ai)
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
-import { Plus, Check, X, HelpCircle, Globe, Calculator, Save, Edit3, Info, Package } from 'lucide-react'
+import { Plus, Check, X, HelpCircle, Globe, Calculator, Save, Edit3, Info, Package, Building2, Wallet, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react'
 import { EntitySelector } from '../components/EntitySelector'
 
 export default function ExternalBridge() {
@@ -13,11 +13,24 @@ export default function ExternalBridge() {
   const [products, setProducts] = useState<any[]>([])
   const [showForm, setShowForm] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
-  const initialSubTab = (searchParams.get('tab') as 'operations' | 'fc' | 'calculator') || 'operations'
-  const [subTab, setSubTab] = useState<'operations' | 'fc' | 'calculator'>(initialSubTab)
+  const initialSubTab = (searchParams.get('tab') as 'summary' | 'bank' | 'purchases' | 'sales' | 'operations' | 'fc' | 'calculator') || 'summary'
+  const [subTab, setSubTab] = useState<'summary' | 'bank' | 'purchases' | 'sales' | 'operations' | 'fc' | 'calculator'>(initialSubTab)
   const [calcSearch, setCalcSearch] = useState('')
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null)
   const [form, setForm] = useState({ operation_type: 'import', product_id: '', product_name: '', quantity: 0, external_price_usd: 0, local_price_trueque: 0, logistics_pct: 0, external_tax_rate: 0 })
+
+  // DEX summary y cuentas bancarias
+  const [summary, setSummary] = useState<any>(null)
+  const [bankAccounts, setBankAccounts] = useState<any[]>([])
+  const [purchases, setPurchases] = useState<any[]>([])
+  const [sales, setSales] = useState<any[]>([])
+  const [recalcs, setRecalcs] = useState<any[]>([])
+  const [showBankForm, setShowBankForm] = useState(false)
+  const [showPurchaseForm, setShowPurchaseForm] = useState(false)
+  const [showSaleForm, setShowSaleForm] = useState(false)
+  const [bankForm, setBankForm] = useState({ account_name: '', bank_name: '', account_number: '', currency: 'USD', balance: 0, is_cash: false })
+  const [purchaseForm, setPurchaseForm] = useState({ product_name: '', quantity: 0, unit: 'kg', unit_cost_external: 0, currency: 'USD', bank_account_id: '', supplier: '', invoice_number: '', notes: '' })
+  const [saleForm, setSaleForm] = useState({ product_name: '', quantity: 0, unit: 'kg', unit_price_external: 0, currency: 'USD', bank_account_id: '', buyer: '', notes: '' })
 
   // FC editor state - calculadora de canasta basica
   const [showFCForm, setShowFCForm] = useState(false)
@@ -67,9 +80,59 @@ export default function ExternalBridge() {
     api.get('/external/fc').then(setFc).catch(() => {})
     api.get('/external/operations').then((d: any) => setOps(Array.isArray(d) ? d : [])).catch(() => {})
     api.get('/products').then((d: any) => setProducts(Array.isArray(d) ? d : d?.products ?? [])).catch(() => {})
+    api.get('/external/summary').then(setSummary).catch(() => {})
+    api.get('/external/bank-accounts').then((d: any) => setBankAccounts(Array.isArray(d) ? d : [])).catch(() => {})
+    api.get('/external/purchases').then((d: any) => setPurchases(Array.isArray(d) ? d : [])).catch(() => {})
+    api.get('/external/sales').then((d: any) => setSales(Array.isArray(d) ? d : [])).catch(() => {})
+    api.get('/external/basket-recalculations').then((d: any) => setRecalcs(Array.isArray(d) ? d : [])).catch(() => {})
   }
 
   useEffect(() => { load() }, [])
+
+  const createBankAccount = async () => {
+    try {
+      await api.post('/external/bank-accounts', bankForm)
+      setShowBankForm(false)
+      setBankForm({ account_name: '', bank_name: '', account_number: '', currency: 'USD', balance: 0, is_cash: false })
+      load()
+    } catch (e: any) {
+      alert(e.message || 'Error al crear cuenta bancaria')
+    }
+  }
+
+  const createPurchase = async () => {
+    try {
+      await api.post('/external/purchases', purchaseForm)
+      setShowPurchaseForm(false)
+      setPurchaseForm({ product_name: '', quantity: 0, unit: 'kg', unit_cost_external: 0, currency: 'USD', bank_account_id: '', supplier: '', invoice_number: '', notes: '' })
+      load()
+    } catch (e: any) {
+      alert(e.message || 'Error al registrar compra')
+    }
+  }
+
+  const approvePurchase = async (id: string) => {
+    try { await api.post(`/external/purchases/${id}/approve`, {}); load() } catch (e: any) { alert(e.message) }
+  }
+
+  const createSale = async () => {
+    try {
+      await api.post('/external/sales', saleForm)
+      setShowSaleForm(false)
+      setSaleForm({ product_name: '', quantity: 0, unit: 'kg', unit_price_external: 0, currency: 'USD', bank_account_id: '', buyer: '', notes: '' })
+      load()
+    } catch (e: any) {
+      alert(e.message || 'Error al registrar venta')
+    }
+  }
+
+  const approveSale = async (id: string) => {
+    try { await api.post(`/external/sales/${id}/approve`, {}); load() } catch (e: any) { alert(e.message) }
+  }
+
+  const approveRecalc = async (id: string) => {
+    try { await api.post(`/external/basket-recalculations/${id}/approve`, {}); load() } catch (e: any) { alert(e.message) }
+  }
 
   // Cuando se carga el FC, inicializar el formulario con esos valores
   useEffect(() => {
@@ -170,6 +233,10 @@ export default function ExternalBridge() {
 
       {/* Sub-pestanas */}
       <div className="flex flex-wrap gap-2 border-b pb-2">
+        <button onClick={() => { setSubTab('summary'); setSearchParams({ tab: 'summary' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'summary' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Resumen</button>
+        <button onClick={() => { setSubTab('bank'); setSearchParams({ tab: 'bank' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'bank' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Cuentas Bancarias</button>
+        <button onClick={() => { setSubTab('purchases'); setSearchParams({ tab: 'purchases' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'purchases' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Compras (Import)</button>
+        <button onClick={() => { setSubTab('sales'); setSearchParams({ tab: 'sales' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'sales' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Ventas (Export)</button>
         <button onClick={() => { setSubTab('operations'); setSearchParams({ tab: 'operations' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'operations' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Operaciones</button>
         <button onClick={() => { setSubTab('fc'); setSearchParams({ tab: 'fc' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'fc' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Factor de Conversion</button>
         <button onClick={() => { setSubTab('calculator'); setSearchParams({ tab: 'calculator' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'calculator' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Calculadora de Precios</button>
@@ -177,13 +244,377 @@ export default function ExternalBridge() {
 
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
-          <p><strong>Comercio Externo (DEX) - Ayuda</strong></p>
-          <p><strong>Que es:</strong> El DEX (Decentralized Exchange) permite comprar y vender productos con el exterior de la red federada, usando monedas externas (USD, etc).</p>
-          <p><strong>Factor de Conversion (FC):</strong> Relacion entre la moneda externa (USD) y el {currency}. Se calcula comparando el costo de vida externo (CPI) con el costo energetico local.</p>
-          <p><strong>Importacion:</strong> Traer productos de fuera. Paga en {currency}, el sistema convierte al precio externo usando el FC.</p>
-          <p><strong>Exportacion:</strong> Vender productos al exterior. Recibes {currency}, el externo paga en su moneda.</p>
-          <p><strong>Logistica e impuestos:</strong> Se agregan al costo total como porcentajes. La logistica cubre transporte, los impuestos son aranceles externos.</p>
+          <p><strong>Comercio Exterior (DEX) - Como funciona</strong></p>
+          <p><strong>Que es:</strong> El Comercio Exterior permite comprar productos de fuera de la red y vender productos al exterior. Es la unica parte del sistema que maneja dinero REAL (USD, EUR, COP, etc.).</p>
+          <p><strong>Cuenta del DEX:</strong> El Comercio Exterior tiene su propia cuenta en {currency} (como una organizacion). La Asamblea le transfiere {currency} para que pueda comprar afuera. Para fondear el DEX, crea una propuesta de "Fondear Comercio Exterior" en la Asamblea.</p>
+          <p><strong>Cuentas bancarias externas:</strong> El DEX tiene cuentas en bancos reales o en efectivo (caja). Cada cuenta tiene una moneda (USD, EUR, COP...) y un saldo. Cuando se compra afuera, se descuenta del banco. Cuando se vende afuera, se suma al banco.</p>
+          <p><strong>Compras (Import):</strong> Se registra que producto se compro, cuanto, a que precio en moneda externa, y de que banco salio el dinero. El sistema calcula el precio interno sugerido usando el FC.</p>
+          <p><strong>Ventas (Export):</strong> Se registra que producto se vendio, cuanto, a que precio, y a que banco entro el dinero.</p>
+          <p><strong>Factor de Conversion (FC):</strong> Relacion entre la moneda externa y el {currency}. Se calcula comparando el costo de la canasta basica alla y aca. Despues de compras reales, el sistema sugiere un recalculo del FC basado en los precios reales pagados.</p>
+          <p><strong>Junta Directiva:</strong> El DEX puede requerir multi-firma para aprobar compras/ventas (ej: 2 firmas). Se configura en la pestana Cuentas Bancarias.</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
+        </div>
+      )}
+
+      {/* ===== RESUMEN ===== */}
+      {subTab === 'summary' && summary && (
+        <div className="space-y-4">
+          <div className="card bg-blue-50">
+            <h2 className="font-semibold flex items-center gap-2 mb-3"><Wallet size={18} />Resumen del Comercio Exterior</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Saldo TQ del DEX */}
+              <div className="bg-white rounded-lg p-4 border">
+                <p className="text-xs text-gray-500">Saldo en {currency} del DEX</p>
+                <p className="text-2xl font-bold text-trueque-700">{(summary.dex_balance_tq || 0).toLocaleString()} {currency}</p>
+                <p className="text-xs text-gray-400 mt-1">Dinero interno disponible para compras</p>
+              </div>
+              {/* FC actual */}
+              <div className="bg-white rounded-lg p-4 border">
+                <p className="text-xs text-gray-500">Factor de Conversion (FC)</p>
+                <p className="text-2xl font-bold text-blue-700">1 {summary.fc_currency || 'USD'} = {summary.current_fc || 5} {currency}</p>
+                <p className="text-xs text-gray-400 mt-1">Cambio actual moneda externa a {currency}</p>
+              </div>
+              {/* Operaciones */}
+              <div className="bg-white rounded-lg p-4 border">
+                <p className="text-xs text-gray-500">Operaciones</p>
+                <div className="flex gap-4 mt-1">
+                  <div>
+                    <p className="text-sm font-bold text-amber-600">{summary.pending_purchases || 0}</p>
+                    <p className="text-xs text-gray-400">Compras pend.</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-green-600">{summary.completed_purchases || 0}</p>
+                    <p className="text-xs text-gray-400">Compras hechas</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-blue-600">{summary.completed_sales || 0}</p>
+                    <p className="text-xs text-gray-400">Ventas hechas</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Saldos bancarios por moneda */}
+          <div className="card">
+            <h3 className="font-medium mb-3 flex items-center gap-2"><Building2 size={16} />Saldos en Bancos Externos</h3>
+            {summary.bank_balances && summary.bank_balances.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {summary.bank_balances.map((b: any, i: number) => (
+                  <div key={i} className="border rounded-lg p-3 text-center">
+                    <p className="text-xs text-gray-500">{b.currency}</p>
+                    <p className="text-xl font-bold text-green-700">{b.balance.toLocaleString(undefined, { maximumFractionDigits: 2 })} {b.currency}</p>
+                    <p className="text-xs text-gray-400">{b.accounts} cuenta(s)</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">No hay cuentas bancarias configuradas. Ve a "Cuentas Bancarias" para agregar.</p>
+            )}
+          </div>
+
+          {/* Recalculo de canasta sugerido */}
+          {recalcs.length > 0 && (
+            <div className="card border-amber-200">
+              <h3 className="font-medium mb-3 flex items-center gap-2"><RefreshCw size={16} />Recalculo de Canasta Sugerido</h3>
+              {recalcs.slice(0, 3).map((rc: any, i: number) => (
+                <div key={i} className={`border rounded-lg p-3 mb-2 ${rc.is_approved ? 'bg-green-50' : 'bg-amber-50'}`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">
+                        Canasta real: <b>{rc.currency} {rc.basket_cost_external_real}</b> | Canasta local: <b>{rc.basket_cost_local_tq} {currency}</b>
+                      </p>
+                      <p className="text-sm">FC sugerido: <b className="text-blue-700">1 {rc.currency} = {rc.suggested_fc} {currency}</b>
+                        {rc.previous_fc && <span className="text-gray-500"> (anterior: {rc.previous_fc})</span>}
+                      </p>
+                      {rc.notes && <p className="text-xs text-gray-500 mt-1">{rc.notes}</p>}
+                    </div>
+                    <div>
+                      {rc.is_approved ? (
+                        <span className="text-xs font-bold text-green-700 bg-green-100 px-2 py-1 rounded">Aprobado</span>
+                      ) : (
+                        <button onClick={() => approveRecalc(rc.id)} className="btn-primary text-xs">Aprobar FC</button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== CUENTAS BANCARIAS ===== */}
+      {subTab === 'bank' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="font-semibold flex items-center gap-2"><Building2 size={18} />Cuentas Bancarias Externas</h2>
+            <button onClick={() => setShowBankForm(!showBankForm)} className="btn-primary flex items-center gap-2 text-sm"><Plus size={16} />Nueva Cuenta</button>
+          </div>
+
+          <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
+            <p>El Comercio Exterior maneja dinero <strong>real</strong> (USD, EUR, COP, etc.). Cada cuenta puede ser:</p>
+            <ul className="list-disc list-inside ml-2 mt-1">
+              <li><strong>Cuenta bancaria:</strong> dinero en un banco real. Registrar nombre del banco y numero de cuenta.</li>
+              <li><strong>Efectivo en caja:</strong> dinero fisico guardado en la caja fuerte. No tiene banco ni numero.</li>
+            </ul>
+            <p className="mt-1">Cada vez que se aprueba una compra o venta, el saldo se actualiza automaticamente.</p>
+          </div>
+
+          {showBankForm && (
+            <div className="card space-y-3">
+              <h3 className="font-medium">Nueva Cuenta Bancaria</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Nombre descriptivo</label>
+                  <input className="input" placeholder="Ej: Banco Nacional USD" value={bankForm.account_name} onChange={(e) => setBankForm({ ...bankForm, account_name: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">Moneda</label>
+                  <select className="input" value={bankForm.currency} onChange={(e) => setBankForm({ ...bankForm, currency: e.target.value })}>
+                    {EXTERNAL_CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code} - {c.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Banco (dejar vacio si es efectivo)</label>
+                  <input className="input" placeholder="Ej: Banco Nacional" value={bankForm.bank_name} onChange={(e) => setBankForm({ ...bankForm, bank_name: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">Numero de cuenta (dejar vacio si es efectivo)</label>
+                  <input className="input" placeholder="Ej: 1234-5678-90" value={bankForm.account_number} onChange={(e) => setBankForm({ ...bankForm, account_number: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">Saldo inicial</label>
+                  <input type="number" className="input" placeholder="0" value={bankForm.balance} onChange={(e) => setBankForm({ ...bankForm, balance: parseFloat(e.target.value) || 0 })} />
+                </div>
+                <div className="flex items-center gap-2 pt-6">
+                  <input type="checkbox" id="is_cash" checked={bankForm.is_cash} onChange={(e) => setBankForm({ ...bankForm, is_cash: e.target.checked })} />
+                  <label htmlFor="is_cash" className="text-sm">Efectivo en caja (no es cuenta bancaria)</label>
+                </div>
+              </div>
+              <button onClick={createBankAccount} className="btn-primary">Crear Cuenta</button>
+            </div>
+          )}
+
+          {bankAccounts.length === 0 ? (
+            <div className="card text-center text-gray-500 py-8">
+              No hay cuentas bancarias configuradas.
+              <br />
+              <span className="text-sm">Crea una cuenta para empezar a registrar compras y ventas externas.</span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {bankAccounts.map((ba: any, i: number) => (
+                <div key={i} className="card">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium flex items-center gap-2">
+                        {ba.is_cash ? <Wallet size={16} /> : <Building2 size={16} />}
+                        {ba.account_name}
+                      </p>
+                      {ba.bank_name && <p className="text-xs text-gray-500">{ba.bank_name} - {ba.account_number}</p>}
+                    </div>
+                    <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded">{ba.currency}</span>
+                  </div>
+                  <p className="text-2xl font-bold text-green-700 mt-2">{ba.balance.toLocaleString(undefined, { maximumFractionDigits: 2 })} {ba.currency}</p>
+                  <p className="text-xs text-gray-400">{ba.is_cash ? 'Efectivo en caja' : 'Cuenta bancaria'}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== COMPRAS (IMPORT) ===== */}
+      {subTab === 'purchases' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="font-semibold flex items-center gap-2"><TrendingDown size={18} />Compras Externas (Import)</h2>
+            <button onClick={() => setShowPurchaseForm(!showPurchaseForm)} className="btn-primary flex items-center gap-2 text-sm"><Plus size={16} />Nueva Compra</button>
+          </div>
+
+          <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
+            <p><strong>Como funciona:</strong> Cuando compras productos afuera, registras que compraste, cuanto, a que precio en moneda externa, y de que banco salio el dinero.</p>
+            <p className="mt-1">El sistema calcula automaticamente el <strong>precio interno sugerido</strong> usando el FC: <code>precio_interno = precio_externo x FC</code>. Esto te dice a cuanto puedes vender el producto internamente.</p>
+          </div>
+
+          {showPurchaseForm && (
+            <div className="card space-y-3">
+              <h3 className="font-medium">Registrar Nueva Compra</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Producto</label>
+                  <input className="input" placeholder="Ej: Harina de trigo" value={purchaseForm.product_name} onChange={(e) => setPurchaseForm({ ...purchaseForm, product_name: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">Cantidad</label>
+                  <input type="number" className="input" placeholder="Ej: 100" value={purchaseForm.quantity} onChange={(e) => setPurchaseForm({ ...purchaseForm, quantity: parseInt(e.target.value) || 0 })} />
+                </div>
+                <div>
+                  <label className="label">Unidad</label>
+                  <input className="input" placeholder="kg, litros, unidades..." value={purchaseForm.unit} onChange={(e) => setPurchaseForm({ ...purchaseForm, unit: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">Precio unitario externo</label>
+                  <input type="number" className="input" placeholder="Ej: 0.80" value={purchaseForm.unit_cost_external} onChange={(e) => setPurchaseForm({ ...purchaseForm, unit_cost_external: parseFloat(e.target.value) || 0 })} />
+                </div>
+                <div>
+                  <label className="label">Moneda</label>
+                  <select className="input" value={purchaseForm.currency} onChange={(e) => setPurchaseForm({ ...purchaseForm, currency: e.target.value })}>
+                    {EXTERNAL_CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Cuenta bancaria (de donde sale)</label>
+                  <select className="input" value={purchaseForm.bank_account_id} onChange={(e) => setPurchaseForm({ ...purchaseForm, bank_account_id: e.target.value })}>
+                    <option value="">Seleccionar...</option>
+                    {bankAccounts.filter((ba: any) => ba.currency === purchaseForm.currency).map((ba: any) => (
+                      <option key={ba.id} value={ba.id}>{ba.account_name} ({ba.balance} {ba.currency})</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Proveedor</label>
+                  <input className="input" placeholder="Ej: Distribuidora Andina" value={purchaseForm.supplier} onChange={(e) => setPurchaseForm({ ...purchaseForm, supplier: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">Numero de factura</label>
+                  <input className="input" placeholder="Opcional" value={purchaseForm.invoice_number} onChange={(e) => setPurchaseForm({ ...purchaseForm, invoice_number: e.target.value })} />
+                </div>
+              </div>
+              <button onClick={createPurchase} className="btn-primary">Registrar Compra</button>
+            </div>
+          )}
+
+          {purchases.length === 0 ? (
+            <div className="card text-center text-gray-500 py-8">No hay compras registradas.</div>
+          ) : (
+            <div className="space-y-2">
+              {purchases.map((p: any, i: number) => (
+                <div key={i} className="card">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <span className="font-medium">{p.product_name}</span>
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-2 text-sm">
+                        <div><span className="text-gray-500">Cant:</span> <b>{p.quantity} {p.unit}</b></div>
+                        <div><span className="text-gray-500">Costo ext:</span> <b>{p.currency} {p.unit_cost_external}</b></div>
+                        <div><span className="text-gray-500">Total ext:</span> <b>{p.currency} {p.total_external}</b></div>
+                        <div><span className="text-gray-500">Total {currency}:</span> <b className="text-trueque-700">{p.total_local_tq} {currency}</b></div>
+                        <div><span className="text-gray-500">Precio sug.:</span> <b className="text-amber-600">{p.suggested_internal_price} {currency}/{p.unit}</b></div>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {p.supplier && `Proveedor: ${p.supplier} | `}
+                        {p.bank_account_name && `Banco: ${p.bank_account_name} | `}
+                        Fecha: {String(p.purchase_date).slice(0, 10)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs px-2 py-1 rounded ${p.status === 'completed' ? 'bg-green-100 text-green-700' : p.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                        {p.status === 'completed' ? 'Completado' : p.status === 'rejected' ? 'Rechazado' : 'Pendiente'}
+                      </span>
+                      {p.status === 'pending' && (
+                        <button onClick={() => approvePurchase(p.id)} className="btn-secondary flex items-center gap-1 text-sm"><Check size={14} /> Aprobar</button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== VENTAS (EXPORT) ===== */}
+      {subTab === 'sales' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="font-semibold flex items-center gap-2"><TrendingUp size={18} />Ventas Externas (Export)</h2>
+            <button onClick={() => setShowSaleForm(!showSaleForm)} className="btn-primary flex items-center gap-2 text-sm"><Plus size={16} />Nueva Venta</button>
+          </div>
+
+          <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
+            <p><strong>Como funciona:</strong> Cuando vendes productos al exterior, registras que vendiste, cuanto, a que precio en moneda externa, y a que banco entro el dinero.</p>
+            <p className="mt-1">El dinero recibido se suma automaticamente al saldo del banco seleccionado al aprobar la venta.</p>
+          </div>
+
+          {showSaleForm && (
+            <div className="card space-y-3">
+              <h3 className="font-medium">Registrar Nueva Venta</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Producto</label>
+                  <input className="input" placeholder="Ej: Cafe organico" value={saleForm.product_name} onChange={(e) => setSaleForm({ ...saleForm, product_name: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">Cantidad</label>
+                  <input type="number" className="input" placeholder="Ej: 20" value={saleForm.quantity} onChange={(e) => setSaleForm({ ...saleForm, quantity: parseInt(e.target.value) || 0 })} />
+                </div>
+                <div>
+                  <label className="label">Unidad</label>
+                  <input className="input" placeholder="kg, litros..." value={saleForm.unit} onChange={(e) => setSaleForm({ ...saleForm, unit: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">Precio unitario externo</label>
+                  <input type="number" className="input" placeholder="Ej: 8.00" value={saleForm.unit_price_external} onChange={(e) => setSaleForm({ ...saleForm, unit_price_external: parseFloat(e.target.value) || 0 })} />
+                </div>
+                <div>
+                  <label className="label">Moneda</label>
+                  <select className="input" value={saleForm.currency} onChange={(e) => setSaleForm({ ...saleForm, currency: e.target.value })}>
+                    {EXTERNAL_CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Cuenta bancaria (a donde entra)</label>
+                  <select className="input" value={saleForm.bank_account_id} onChange={(e) => setSaleForm({ ...saleForm, bank_account_id: e.target.value })}>
+                    <option value="">Seleccionar...</option>
+                    {bankAccounts.filter((ba: any) => ba.currency === saleForm.currency).map((ba: any) => (
+                      <option key={ba.id} value={ba.id}>{ba.account_name} ({ba.balance} {ba.currency})</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Comprador</label>
+                  <input className="input" placeholder="Ej: Cooperativa de Exportacion" value={saleForm.buyer} onChange={(e) => setSaleForm({ ...saleForm, buyer: e.target.value })} />
+                </div>
+              </div>
+              <button onClick={createSale} className="btn-primary">Registrar Venta</button>
+            </div>
+          )}
+
+          {sales.length === 0 ? (
+            <div className="card text-center text-gray-500 py-8">No hay ventas registradas.</div>
+          ) : (
+            <div className="space-y-2">
+              {sales.map((s: any, i: number) => (
+                <div key={i} className="card">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <span className="font-medium">{s.product_name}</span>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2 text-sm">
+                        <div><span className="text-gray-500">Cant:</span> <b>{s.quantity} {s.unit}</b></div>
+                        <div><span className="text-gray-500">Precio ext:</span> <b>{s.currency} {s.unit_price_external}</b></div>
+                        <div><span className="text-gray-500">Total ext:</span> <b>{s.currency} {s.total_external}</b></div>
+                        <div><span className="text-gray-500">Total {currency}:</span> <b className="text-trueque-700">{s.total_local_tq} {currency}</b></div>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {s.buyer && `Comprador: ${s.buyer} | `}
+                        {s.bank_account_name && `Banco: ${s.bank_account_name} | `}
+                        Fecha: {String(s.sale_date).slice(0, 10)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs px-2 py-1 rounded ${s.status === 'completed' ? 'bg-green-100 text-green-700' : s.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                        {s.status === 'completed' ? 'Completado' : s.status === 'rejected' ? 'Rechazado' : 'Pendiente'}
+                      </span>
+                      {s.status === 'pending' && (
+                        <button onClick={() => approveSale(s.id)} className="btn-secondary flex items-center gap-1 text-sm"><Check size={14} /> Aprobar</button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

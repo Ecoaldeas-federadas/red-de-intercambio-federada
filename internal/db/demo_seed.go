@@ -114,6 +114,9 @@ func DemoSeedData(ctx context.Context, d *DB, nodeDomain string) error {
 	// 10g. Datos de la calculadora (categorias y parametros)
 	demoSeedCalculatorData(ctx, d, dataDomain)
 
+	// 10h. Comercio Exterior (organizacion + cuentas bancarias + operaciones)
+	demoSeedExternalCommerce(ctx, d, dataDomain)
+
 	// 11. Nodos federados simulados
 	if err := demoSeedFederationPeers(ctx, d, dataDomain); err != nil {
 		log.Printf("Demo: warning seeding federation peers: %v", err)
@@ -3153,4 +3156,141 @@ func demoSeedCalculatorData(ctx context.Context, d *DB, nodeDomain string) {
 	}
 
 	log.Println("Demo: calculator data seeded")
+}
+
+// demoSeedExternalCommerce crea la organizacion de Comercio Exterior,
+// sus cuentas bancarias externas y operaciones de ejemplo.
+func demoSeedExternalCommerce(ctx context.Context, d *DB, nodeDomain string) {
+	// 1. Crear la organizacion "Comercio Exterior" (is_assembly_owned = true)
+	var dexOrgID uuid.UUID
+	var existing int
+	d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM users WHERE username = 'comercio-exterior' AND node_domain = $1`, nodeDomain).Scan(&existing)
+	if existing == 0 {
+		pubKey, privKey, _ := ed25519.GenerateKey(rand.Reader)
+		pubKeyHex := hex.EncodeToString(pubKey)
+		encryptedPrivKey := encryptPrivateKeyDemo(privKey, "demo1234")
+		salt := make([]byte, 16)
+		rand.Read(salt)
+
+		d.Pool.QueryRow(ctx, `
+			INSERT INTO users (node_domain, username, display_name, account_type, organization_subtype, membership_status, is_approved, is_assembly_owned, credit_limit, debit_limit, public_key, encrypted_private_key, encryption_key_salt)
+			VALUES ($1, 'comercio-exterior', 'Comercio Exterior', 'organization', 'commerce', 'active', true, true, 50000, 50000, $2, $3, $4)
+			RETURNING id`,
+			nodeDomain, pubKeyHex, encryptedPrivKey, salt).Scan(&dexOrgID)
+	} else {
+		d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE username = 'comercio-exterior' AND node_domain = $1`, nodeDomain).Scan(&dexOrgID)
+	}
+
+	if dexOrgID == uuid.Nil {
+		log.Println("Demo: warning - no se pudo crear la organizacion de Comercio Exterior")
+		return
+	}
+
+	// 2. Configurar el DEX (multi-firma con 2 firmas)
+	d.Pool.Exec(ctx, `
+		INSERT INTO external_commerce_config (node_domain, organization_id, requires_multisig, required_signatures, is_active)
+		VALUES ($1, $2, true, 2, true)
+		ON CONFLICT (node_domain) DO UPDATE SET organization_id = $2, requires_multisig = true, required_signatures = 2`,
+		nodeDomain, dexOrgID)
+
+	// 3. Crear cuentas bancarias externas
+	bankAccounts := []struct {
+		name, bank, number, currency string
+		balance                      float64
+		isCash                       bool
+	}{
+		{"Banco Nacional USD", "Banco Nacional", "1234-5678-90", "USD", 1500.00, false},
+		{"Banco Nacional EUR", "Banco Nacional", "1234-5678-91", "EUR", 300.00, false},
+		{"Caja efectivo COP", "", "", "COP", 250000.00, true},
+		{"Caja efectivo USD", "", "", "USD", 200.00, true},
+	}
+	for _, ba := range bankAccounts {
+		d.Pool.Exec(ctx, `
+			INSERT INTO external_bank_accounts (node_domain, account_name, bank_name, account_number, currency, balance, is_cash, is_active)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+			ON CONFLICT DO NOTHING`,
+			nodeDomain, ba.name, ba.bank, ba.number, ba.currency, ba.balance, ba.isCash)
+	}
+
+	// 4. Crear operaciones de compra (import) de ejemplo
+	// Obtener el FC actual
+	var fcFactor float64
+	d.Pool.QueryRow(ctx, `SELECT COALESCE(factor, 5.0) FROM conversion_factor WHERE node_domain = $1 ORDER BY calculated_at DESC LIMIT 1`, nodeDomain).Scan(&fcFactor)
+	if fcFactor == 0 {
+		fcFactor = 5.0
+	}
+
+	// Obtener IDs de cuentas bancarias
+	bankIDs := map[string]uuid.UUID{}
+	rows, _ := d.Pool.Query(ctx, `SELECT account_name, id FROM external_bank_accounts WHERE node_domain = $1`, nodeDomain)
+	if rows != nil {
+		for rows.Next() {
+			var name string
+			var id uuid.UUID
+			rows.Scan(&name, &id)
+			bankIDs[name] = id
+		}
+		rows.Close()
+	}
+
+	purchases := []struct {
+		productName, supplier, currency string
+		quantity                        int
+		unitCost                        float64
+		bankAccount                     string
+	}{
+		{"Harina de trigo", "Distribuidora Andina", "USD", 100, 0.80, "Banco Nacional USD"},
+		{"Sal industrial", "Distribuidora Andina", "USD", 50, 0.30, "Banco Nacional USD"},
+		{"Aceite vegetal", "Importadora del Sur", "USD", 30, 1.50, "Banco Nacional USD"},
+		{"Medicamentos basicos", "Farmacia Central", "USD", 10, 5.00, "Caja efectivo USD"},
+	}
+	for _, p := range purchases {
+		totalExternal := p.unitCost * float64(p.quantity)
+		totalTQ := int64(totalExternal * fcFactor)
+		suggestedPrice := float64(totalTQ) / float64(p.quantity)
+		bankID := bankIDs[p.bankAccount]
+		if bankID == uuid.Nil {
+			continue
+		}
+		d.Pool.Exec(ctx, `
+			INSERT INTO external_purchases (node_domain, product_name, quantity, unit, unit_cost_external, currency, total_external, bank_account_id, exchange_rate_used, total_local_tq, suggested_internal_price, purchase_date, supplier, status, approved_at)
+			VALUES ($1, $2, $3, 'kg', $4, $5, $6, $7, $8, $9, $10, NOW() - interval '15 days', $11, 'completed', NOW() - interval '15 days')
+			ON CONFLICT DO NOTHING`,
+			nodeDomain, p.productName, p.quantity, p.unitCost, p.currency, totalExternal, bankID, fcFactor, totalTQ, suggestedPrice, p.supplier)
+	}
+
+	// 5. Crear operaciones de venta (export) de ejemplo
+	sales := []struct {
+		productName, buyer, currency string
+		quantity                     int
+		unitPrice                    float64
+		bankAccount                  string
+	}{
+		{"Cafe organico", "Cooperativa de Exportacion", "USD", 20, 8.00, "Banco Nacional USD"},
+		{"Miel de abejas", "Cooperativa de Exportacion", "EUR", 15, 12.00, "Banco Nacional EUR"},
+		{"Artesania textil", "Feria Internacional", "USD", 5, 25.00, "Caja efectivo USD"},
+	}
+	for _, s := range sales {
+		totalExternal := s.unitPrice * float64(s.quantity)
+		totalTQ := int64(totalExternal * fcFactor)
+		bankID := bankIDs[s.bankAccount]
+		if bankID == uuid.Nil {
+			continue
+		}
+		d.Pool.Exec(ctx, `
+			INSERT INTO external_sales (node_domain, product_name, quantity, unit, unit_price_external, currency, total_external, bank_account_id, exchange_rate_used, total_local_tq, sale_date, buyer, status, approved_at)
+			VALUES ($1, $2, $3, 'kg', $4, $5, $6, $7, $8, $9, NOW() - interval '10 days', $10, 'completed', NOW() - interval '10 days')
+			ON CONFLICT DO NOTHING`,
+			nodeDomain, s.productName, s.quantity, s.unitPrice, s.currency, totalExternal, bankID, fcFactor, totalTQ, s.buyer)
+	}
+
+	// 6. Recalculo de canasta sugerido desde compras reales
+	// Promedio de costos reales de la canasta basica
+	d.Pool.Exec(ctx, `
+		INSERT INTO external_basket_recalculation (node_domain, calculation_date, basket_cost_external_real, currency, basket_cost_local_tq, suggested_fc, previous_fc, is_approved, notes)
+		VALUES ($1, NOW() - interval '5 days', 320.00, 'USD', 500, 1.5625, $2, false, 'Sugerencia basada en compras reales de los ultimos 15 dias. La canasta real cuesta $320 USD vs $300 USD del FC actual. Se sugiere actualizar el FC.',
+		ON CONFLICT DO NOTHING`,
+		nodeDomain, fcFactor)
+
+	log.Println("Demo: external commerce seeded (organizacion, cuentas bancarias, compras, ventas)")
 }
