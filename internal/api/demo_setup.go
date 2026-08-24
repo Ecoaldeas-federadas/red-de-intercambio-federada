@@ -11,6 +11,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
+
+	database "federated-credit-node/internal/db"
 )
 
 // DemoAutoSetup configura automaticamente un nodo demo sin necesidad del wizard.
@@ -23,8 +25,9 @@ func DemoAutoSetup(ctx context.Context, db *pgxpool.Pool, jwtSecret, nodeDomain,
 	// Aqui solo creamos la configuracion base del nodo.
 
 	// 1. Copiar niveles de miembro desde default/localhost
+	// Los datos usan __LOCAL__ (igual que el padre), node_config usa nodeDomain
 	var levelCount int
-	db.QueryRow(ctx, `SELECT COUNT(*) FROM member_levels WHERE node_domain = $1`, nodeDomain).Scan(&levelCount)
+	db.QueryRow(ctx, `SELECT COUNT(*) FROM member_levels WHERE node_domain = $1`, database.LOCAL_NODE_DOMAIN).Scan(&levelCount)
 	if levelCount == 0 {
 		sourceDomain := ""
 		for _, candidate := range []string{"default", "localhost"} {
@@ -48,7 +51,7 @@ func DemoAutoSetup(ctx context.Context, db *pgxpool.Pool, jwtSecret, nodeDomain,
 					can_receive_nfc_card, can_view_audit, can_use_external_bridge, max_organizations,
 					can_request_limit_increase, is_system, is_active
 				FROM member_levels WHERE node_domain = $2`,
-				nodeDomain, sourceDomain)
+				database.LOCAL_NODE_DOMAIN, sourceDomain)
 		}
 	}
 
@@ -70,7 +73,7 @@ func DemoAutoSetup(ctx context.Context, db *pgxpool.Pool, jwtSecret, nodeDomain,
 	// 3. Obtener nivel mas alto para el admin y sus limites
 	var memberLevelID string
 	var levelCredit, levelDebit int64
-	db.QueryRow(ctx, `SELECT id::text, COALESCE(credit_limit, 5000), COALESCE(debit_limit, 5000) FROM member_levels WHERE node_domain = $1 ORDER BY level DESC LIMIT 1`, nodeDomain).Scan(&memberLevelID, &levelCredit, &levelDebit)
+	db.QueryRow(ctx, `SELECT id::text, COALESCE(credit_limit, 5000), COALESCE(debit_limit, 5000) FROM member_levels WHERE node_domain = $1 ORDER BY level DESC LIMIT 1`, database.LOCAL_NODE_DOMAIN).Scan(&memberLevelID, &levelCredit, &levelDebit)
 	if memberLevelID == "" {
 		memberLevelID = uuid.New().String()
 		levelCredit = 5000
@@ -78,20 +81,21 @@ func DemoAutoSetup(ctx context.Context, db *pgxpool.Pool, jwtSecret, nodeDomain,
 		db.Exec(ctx, `
 			INSERT INTO member_levels (id, node_domain, name, description, level, has_voice, has_vote, counts_in_quorum, credit_limit, debit_limit)
 			VALUES ($1, $2, 'Admin', 'Administrator', 99, true, true, true, $3, $4)`,
-			memberLevelID, nodeDomain, levelCredit, levelDebit)
+			memberLevelID, database.LOCAL_NODE_DOMAIN, levelCredit, levelDebit)
 	}
 
 	// 4. Crear usuario admin demo con limites del nivel (no hardcodeados)
+	// Los datos usan __LOCAL__, no el dominio del demo
 	var adminUserID uuid.UUID
 	err = db.QueryRow(ctx, `
 		INSERT INTO users (node_domain, username, display_name, account_type, member_level_id, membership_status, credit_limit, debit_limit, public_key, encrypted_private_key, encryption_key_salt)
 		VALUES ($1, 'demo', 'Usuario Demo', 'individual', $2, 'active', $3, $4, $5, $6, $7)
 		ON CONFLICT DO NOTHING
 		RETURNING id`,
-		nodeDomain, memberLevelID, levelCredit, levelDebit, pubKeyHex, encryptedPrivKey, salt).Scan(&adminUserID)
+		database.LOCAL_NODE_DOMAIN, memberLevelID, levelCredit, levelDebit, pubKeyHex, encryptedPrivKey, salt).Scan(&adminUserID)
 	if err != nil {
 		// Ya existe, obtener el ID
-		db.QueryRow(ctx, `SELECT id FROM users WHERE username = 'demo' AND node_domain = $1`, nodeDomain).Scan(&adminUserID)
+		db.QueryRow(ctx, `SELECT id FROM users WHERE username = 'demo' AND node_domain = $1`, database.LOCAL_NODE_DOMAIN).Scan(&adminUserID)
 	}
 	if adminUserID == uuid.Nil {
 		return fmt.Errorf("demo: could not create or find demo user")
@@ -107,7 +111,7 @@ func DemoAutoSetup(ctx context.Context, db *pgxpool.Pool, jwtSecret, nodeDomain,
 		INSERT INTO users (id, node_domain, username, display_name, account_type, membership_status, balance, credit_limit, debit_limit, is_assembly_owned, is_approved)
 		SELECT gen_random_uuid(), $1, 'asamblea', 'Asamblea General', 'organization', 'active', 0, 999999999, 999999999, true, true
 		WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'asamblea' AND node_domain = $1)`,
-		nodeDomain)
+		database.LOCAL_NODE_DOMAIN)
 
 	// 5. Crear credencial (password)
 	pinHash, _ := bcrypt.GenerateFromPassword([]byte("demo1234"), bcrypt.DefaultCost)
@@ -122,7 +126,7 @@ func DemoAutoSetup(ctx context.Context, db *pgxpool.Pool, jwtSecret, nodeDomain,
 	db.Exec(ctx, `
 		INSERT INTO departments (id, node_domain, name, description, group_type, is_active, created_at)
 		VALUES ($1, $2, 'Administracion Demo', 'Departamento demo', 'department', true, NOW())
-		ON CONFLICT DO NOTHING`, deptID, nodeDomain)
+		ON CONFLICT DO NOTHING`, deptID, database.LOCAL_NODE_DOMAIN)
 
 	roleID := uuid.New()
 	db.Exec(ctx, `

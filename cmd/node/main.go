@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -87,34 +88,53 @@ func main() {
 	}
 
 	// Modo demo: auto-setup si DEMO_MODE=true
+	// El padre se sirve bajo /main, el demo bajo /demo.
+	// La raiz / sirve un HTML estatico de redirect (no el SPA).
 	isDemoMode := os.Getenv("DEMO_MODE") == "true"
-	demoBasePath := ""
+	demoBasePath := "/main"
 	if isDemoMode {
 		demoBasePath = "/demo"
 	}
 	if isDemoMode {
-		demoDom := os.Getenv("DEMO_DOMAIN")
+		// Leer el dominio del padre desde .demo-shared/parent-domain.txt
+		// El padre lo escribe antes de iniciar el demo.
+		// El dominio del demo es {parent_domain}/demo.
+		demoDom := ""
+		if data, err := os.ReadFile("/app/.demo-shared/parent-domain.txt"); err == nil {
+			parentDomain := strings.TrimSpace(string(data))
+			if parentDomain != "" {
+				demoDom = parentDomain + "/demo"
+			}
+		}
 		if demoDom == "" {
-			demoDom = "demo"
+			// Fallback: usar DEMO_DOMAIN env o "localhost/demo"
+			demoDom = os.Getenv("DEMO_DOMAIN")
+			if demoDom == "" || demoDom == "demo" {
+				demoDom = "localhost/demo"
+			}
 		}
 		jwtSecret := os.Getenv("JWT_SECRET")
 		if jwtSecret == "" {
 			jwtSecret = "demo-jwt-secret"
 		}
-		log.Println("Demo mode: resetting demo data for domain", demoDom)
-		// Siempre resetear datos demo al arrancar (es demo, no debe persistir cambios)
+		log.Println("Demo mode: parent domain detected, demo domain:", demoDom)
+		log.Println("Demo mode: resetting demo data (using __LOCAL__)")
+		// Resetear datos demo: borrar datos con __LOCAL__ y node_config con demoDom
+		// Tambien borrar datos viejos con node_domain='demo' (one-time cleanup)
 		if err := db.DemoReset(ctx, database, demoDom); err != nil {
 			log.Printf("Warning: demo reset failed: %v", err)
 		}
 		log.Println("Demo mode: running auto-setup for domain", demoDom)
+		// DemoAutoSetup configura node_config con demoDom y datos con __LOCAL__
 		if err := api.DemoAutoSetup(ctx, database.Pool, jwtSecret, demoDom, "Nodo Demo - Red Federada"); err != nil {
 			log.Printf("Warning: demo auto-setup failed: %v", err)
 		}
-		// Seed datos demo genericos (no Feria Conuquera)
+		// Seed datos demo: todos los datos usan __LOCAL__, node_config usa demoDom
+		log.Println("Demo mode: seeding demo data (using __LOCAL__)")
 		if err := db.DemoSeedData(ctx, database, demoDom); err != nil {
 			log.Printf("Warning: demo seed failed: %v", err)
 		}
-		// En modo demo, usar el dominio demo para seeds
+		// En modo demo, usar el dominio del demo (para federacion e identidad)
 		cfg.Node.Domain = demoDom
 	}
 

@@ -1328,7 +1328,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                   <button
                     onClick={() => {
                       logout()
-                      window.location.href = '/'
+                      // No redirigir. Solo limpiar token.
+                      // App.tsx mostrara el sitio publico cuando isAuthenticated sea false.
                     }}
                     className="p-1 rounded text-xs text-white/80 hover:text-white hover:bg-white/10 transition"
                     title="Cerrar sesión"

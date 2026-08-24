@@ -4,8 +4,20 @@
 // y el demo strip /demo -> /api/... internamente.
 const API_BASE = (typeof window !== 'undefined' && (window as any).__BASE_PATH__) ? (window as any).__BASE_PATH__ + '/api' : '/api'
 
+// Claves de localStorage separadas por ruta base (padre vs demo)
+function getStorageKeys() {
+  const basePath = typeof window !== 'undefined' ? ((window as any).__BASE_PATH__ || '') : ''
+  let prefix = 'fmc'
+  if (basePath === '/demo') prefix = 'fmc_demo'
+  else if (basePath === '/main') prefix = 'fmc_main'
+  return {
+    tokenKey: `${prefix}_token`,
+    usernameKey: `${prefix}_username`,
+  }
+}
+
 function getToken(): string | null {
-  return localStorage.getItem('fmc_token')
+  return localStorage.getItem(getStorageKeys().tokenKey)
 }
 
 // Session expiration handling: show a re-login modal instead of redirecting
@@ -18,12 +30,13 @@ export function setSessionExpiredHandler(handler: (() => void) | null) {
 function handleUnauthorized() {
   // Only act if the user HAD a token (was authenticated)
   // Public site visitors don't have a token, so don't redirect them
-  const hadToken = !!localStorage.getItem('fmc_token')
+  const keys = getStorageKeys()
+  const hadToken = !!localStorage.getItem(keys.tokenKey)
   if (!hadToken) return
 
   // Clear token but DON'T redirect - let the modal handle re-login
-  localStorage.removeItem('fmc_token')
-  localStorage.removeItem('fmc_username')
+  localStorage.removeItem(keys.tokenKey)
+  localStorage.removeItem(keys.usernameKey)
   // Dispatch event so useAuth hook updates
   window.dispatchEvent(new Event('storage'))
 
@@ -33,7 +46,8 @@ function handleUnauthorized() {
   } else {
     // Fallback: redirect to login if no handler registered
     if (!window.location.pathname.includes('/login')) {
-      window.location.href = '/login?expired=1'
+      const basePath = (window as any).__BASE_PATH__ || ''
+      window.location.href = basePath + '/login?expired=1'
     }
   }
 }

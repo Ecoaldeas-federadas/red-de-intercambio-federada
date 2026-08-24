@@ -91,7 +91,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const handleLogout = () => {
     logout()
-    window.location.href = '/login'
+    // No redirigir. App.tsx muestra el login cuando isAuthenticated es false.
   }
 
   return (

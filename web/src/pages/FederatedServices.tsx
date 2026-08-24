@@ -79,6 +79,9 @@ export default function FederatedServices() {
   const [showHelp, setShowHelp] = useState(false)
   const [confirmUninstall, setConfirmUninstall] = useState<ServiceItem | null>(null)
   const [serviceURL, setServiceURL] = useState<{ scheme: string, base_domain: string, mode: string } | null>(null)
+  // Estado de instalacion por servicio: mensaje y logs al lado del boton
+  const [installMsgs, setInstallMsgs] = useState<Record<string, { type: 'success' | 'error' | 'info', text: string, logs?: string }>>({})
+  const [installingService, setInstallingService] = useState<string | null>(null)
 
   useEffect(() => {
     loadServices()
@@ -132,19 +135,23 @@ export default function FederatedServices() {
 
   const installService = async (svc: ServiceItem) => {
     setInstalling(true)
+    setInstallingService(svc.id)
     setMsg(null)
+    // Limpiar mensaje anterior de este servicio
+    setInstallMsgs(prev => { const n = { ...prev }; delete n[svc.id]; return n })
     try {
       const res: any = await api.post(`/services/${svc.id}/install`, {})
       if (res.success) {
-        setMsg({ type: 'success', text: res.message })
+        setInstallMsgs(prev => ({ ...prev, [svc.id]: { type: 'success', text: res.message, logs: res.logs } }))
       } else {
-        setMsg({ type: 'info', text: res.message })
+        setInstallMsgs(prev => ({ ...prev, [svc.id]: { type: 'error', text: res.message, logs: res.logs } }))
       }
       await loadServices()
     } catch (e: any) {
-      setMsg({ type: 'error', text: 'Error al instalar' })
+      setInstallMsgs(prev => ({ ...prev, [svc.id]: { type: 'error', text: 'Error al instalar: ' + (e?.message || 'sin respuesta del servidor') } }))
     } finally {
       setInstalling(false)
+      setInstallingService(null)
     }
   }
 
@@ -527,8 +534,28 @@ export default function FederatedServices() {
                     disabled={installing}
                     className="px-3 py-1.5 bg-trueque-600 text-white rounded-lg text-xs disabled:opacity-50 flex items-center gap-1"
                   >
-                    <Download size={12} /> Instalar
+                    {installingService === svc.id ? (
+                      <><Loader size={12} className="animate-spin" /> Instalando...</>
+                    ) : (
+                      <><Download size={12} /> Instalar</>
+                    )}
                   </button>
+                )}
+                {/* Mensaje de instalacion al lado del boton */}
+                {installMsgs[svc.id] && (
+                  <div className={`w-full mt-2 p-2 rounded text-xs ${
+                    installMsgs[svc.id].type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' :
+                    installMsgs[svc.id].type === 'error' ? 'bg-red-50 text-red-700 border border-red-200' :
+                    'bg-blue-50 text-blue-700 border border-blue-200'
+                  }`}>
+                    <div className="font-medium">{installMsgs[svc.id].text}</div>
+                    {installMsgs[svc.id].logs && (
+                      <details className="mt-1">
+                        <summary className="cursor-pointer text-xs opacity-70">Ver logs de instalacion</summary>
+                        <pre className="text-xs mt-1 bg-gray-900 text-gray-100 p-2 rounded max-h-40 overflow-auto whitespace-pre-wrap font-mono">{installMsgs[svc.id].logs}</pre>
+                      </details>
+                    )}
+                  </div>
                 )}
                 {isInstalled && isRunning && (
                   <button
@@ -697,8 +724,28 @@ export default function FederatedServices() {
                     disabled={installing}
                     className="px-4 py-2 bg-trueque-600 text-white rounded-lg text-sm disabled:opacity-50 flex items-center gap-2"
                   >
-                    <Download size={14} /> Instalar aqui
+                    {installingService === selectedService.id ? (
+                      <><Loader size={14} className="animate-spin" /> Instalando...</>
+                    ) : (
+                      <><Download size={14} /> Instalar aqui</>
+                    )}
                   </button>
+                )}
+                {/* Mensaje de instalacion en el modal */}
+                {installMsgs[selectedService.id] && (
+                  <div className={`w-full mt-2 p-3 rounded text-sm ${
+                    installMsgs[selectedService.id].type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' :
+                    installMsgs[selectedService.id].type === 'error' ? 'bg-red-50 text-red-700 border border-red-200' :
+                    'bg-blue-50 text-blue-700 border border-blue-200'
+                  }`}>
+                    <div className="font-medium">{installMsgs[selectedService.id].text}</div>
+                    {installMsgs[selectedService.id].logs && (
+                      <details className="mt-1">
+                        <summary className="cursor-pointer text-xs opacity-70">Ver logs de instalacion</summary>
+                        <pre className="text-xs mt-1 bg-gray-900 text-gray-100 p-2 rounded max-h-40 overflow-auto whitespace-pre-wrap font-mono">{installMsgs[selectedService.id].logs}</pre>
+                      </details>
+                    )}
+                  </div>
                 )}
 
                 {/* Si esta instalado: mostrar Abrir, Actualizar, Detener/Iniciar, Desinstalar */}

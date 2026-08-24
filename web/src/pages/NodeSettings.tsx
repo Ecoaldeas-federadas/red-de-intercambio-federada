@@ -388,16 +388,27 @@ export default function NodeSettings() {
               className="input"
               value={config.node_domain}
               onChange={(e) => setConfig({ ...config, node_domain: e.target.value })}
-              disabled={!canManage}
+              disabled={!canManage || isDemoNode}
+              readOnly={isDemoNode}
               placeholder="mi-aldea.org"
             />
             <p className="text-xs text-gray-400 mt-1">
-              Escribir sin <code>https://</code>, sin <code>www.</code> y sin puerto.
-              Ej: <code>mi-aldea.org</code> &nbsp;|&nbsp; <code>comunidad.ejemplo.com</code> &nbsp;|&nbsp; <code>feria.loanstly.com</code>
-              <br />
-              Se usa para federacion, URLs publicas e identidad del nodo.
-              Si cambias el dominio, todos los datos locales se conservan (no se pierde nada).
-              Asegurate de que el nuevo dominio apunte a este servidor antes de guardar.
+              {isDemoNode ? (
+                <>
+                  <Lock size={12} className="inline" /> Este dominio se hereda automaticamente del nodo padre.
+                  No se puede modificar. Si el padre cambia de dominio, este nodo demo se actualizara
+                  automaticamente la proxima vez que se reinicie.
+                </>
+              ) : (
+                <>
+                  Escribir sin <code>https://</code>, sin <code>www.</code> y sin puerto.
+                  Ej: <code>mi-aldea.org</code> &nbsp;|&nbsp; <code>comunidad.ejemplo.com</code> &nbsp;|&nbsp; <code>feria.loanstly.com</code>
+                  <br />
+                  Se usa para federacion, URLs publicas e identidad del nodo.
+                  Si cambias el dominio, todos los datos locales se conservan (no se pierde nada).
+                  Asegurate de que el nuevo dominio apunte a este servidor antes de guardar.
+                </>
+              )}
             </p>
           </div>
 

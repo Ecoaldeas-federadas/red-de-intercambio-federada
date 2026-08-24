@@ -175,6 +175,7 @@ services:
     volumes:
       - ./firmware:/app/firmware:ro
       - demo_uploads:/app/uploads
+      - ./.demo-shared:/app/.demo-shared:ro
     depends_on:
       - yugabytedb
     environment:

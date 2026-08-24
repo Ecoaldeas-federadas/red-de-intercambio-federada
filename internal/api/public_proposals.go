@@ -2,8 +2,11 @@
 
 import (
 	"encoding/json"
+	"federated-credit-node/internal/db"
 	"net/http"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -268,6 +271,20 @@ func (h *PublicProposalsHandler) getDemoStatus(w http.ResponseWriter, r *http.Re
 // startDemoNode arranca el contenedor demo-app bajo demanda.
 // Es PUBLICO: cualquier visitante puede iniciarlo desde el boton en la pagina.
 func (h *PublicProposalsHandler) startDemoNode(w http.ResponseWriter, r *http.Request) {
+	// Escribir el dominio del padre en .demo-shared/parent-domain.txt
+	// para que el demo lo lea al arrancar y configure su node_config.
+	parentDomain := ""
+	_ = h.Pool.QueryRow(r.Context(), `SELECT node_domain FROM node_config WHERE initialized = true LIMIT 1`).Scan(&parentDomain)
+	if parentDomain == "" {
+		parentDomain = "localhost"
+	}
+	sharedDir := ".demo-shared"
+	if projectDir := os.Getenv("PROJECT_DIR"); projectDir != "" {
+		sharedDir = filepath.Join(projectDir, ".demo-shared")
+	}
+	_ = os.MkdirAll(sharedDir, 0755)
+	_ = os.WriteFile(filepath.Join(sharedDir, "parent-domain.txt"), []byte(parentDomain), 0644)
+
 	// Intentar docker start del contenedor demo-app
 	cmd := exec.Command("docker", "start", "red-de-intercambio-federada-demo-app-1")
 	err := cmd.Run()
@@ -291,12 +308,15 @@ func (h *PublicProposalsHandler) startDemoNode(w http.ResponseWriter, r *http.Re
 // listDemoUsers devuelve la lista de usuarios demo para login con botones
 // Solo disponible en nodo demo
 func (h *PublicProposalsHandler) listDemoUsers(w http.ResponseWriter, r *http.Request) {
-	// Verificar que es nodo demo
-	var nodeDomain string
-	h.Pool.QueryRow(r.Context(), `SELECT node_domain FROM node_config LIMIT 1`).Scan(&nodeDomain)
-	if nodeDomain != "demo" {
-		writeError(w, 403, "not a demo node")
-		return
+	// Verificar que es nodo demo (DEMO_MODE=true o dominio termina en /demo)
+	isDemo := os.Getenv("DEMO_MODE") == "true"
+	if !isDemo {
+		var nodeDomain string
+		h.Pool.QueryRow(r.Context(), `SELECT node_domain FROM node_config LIMIT 1`).Scan(&nodeDomain)
+		if !strings.HasSuffix(nodeDomain, "/demo") && nodeDomain != "demo" {
+			writeError(w, 403, "not a demo node")
+			return
+		}
 	}
 
 	rows, err := h.Pool.Query(r.Context(), `
@@ -306,7 +326,8 @@ func (h *PublicProposalsHandler) listDemoUsers(w http.ResponseWriter, r *http.Re
 		LEFT JOIN member_levels ml ON u.member_level_id = ml.id
 		WHERE u.membership_status = 'active'
 		  AND u.account_type = 'individual'
-		ORDER BY u.is_super_admin DESC, u.account_type, u.username`)
+		  AND u.node_domain = $1
+		ORDER BY u.is_super_admin DESC, u.account_type, u.username`, db.LOCAL_NODE_DOMAIN)
 	if err != nil {
 		writeJSON(w, 200, []interface{}{})
 		return
@@ -364,16 +385,19 @@ func (h *PublicProposalsHandler) demoLogin(w http.ResponseWriter, r *http.Reques
 		req.Password = "demo1234"
 	}
 
-	// Verificar que es nodo demo
-	var nodeDomain string
-	h.Pool.QueryRow(r.Context(), `SELECT node_domain FROM node_config LIMIT 1`).Scan(&nodeDomain)
-	if nodeDomain != "demo" {
-		// En nodo no-demo, verificar si demo esta habilitado
-		var isEnabled bool
-		h.Pool.QueryRow(r.Context(), `SELECT is_enabled FROM demo_user_config LIMIT 1`).Scan(&isEnabled)
-		if !isEnabled {
-			writeError(w, 403, "usuario demo no disponible actualmente")
-			return
+	// Verificar que es nodo demo (DEMO_MODE=true o dominio termina en /demo)
+	isDemo := os.Getenv("DEMO_MODE") == "true"
+	if !isDemo {
+		var nodeDomain string
+		h.Pool.QueryRow(r.Context(), `SELECT node_domain FROM node_config LIMIT 1`).Scan(&nodeDomain)
+		if !strings.HasSuffix(nodeDomain, "/demo") && nodeDomain != "demo" {
+			// En nodo no-demo, verificar si demo esta habilitado
+			var isEnabled bool
+			h.Pool.QueryRow(r.Context(), `SELECT is_enabled FROM demo_user_config LIMIT 1`).Scan(&isEnabled)
+			if !isEnabled {
+				writeError(w, 403, "usuario demo no disponible actualmente")
+				return
+			}
 		}
 	}
 
@@ -391,7 +415,8 @@ func (h *PublicProposalsHandler) demoLogin(w http.ResponseWriter, r *http.Reques
 	var dbUsername, displayName, dbNodeDomain string
 	err := h.Pool.QueryRow(r.Context(), `
 		SELECT id, username, display_name, node_domain
-		FROM users WHERE username = $1 AND membership_status = 'active' LIMIT 1`, username).Scan(&userID, &dbUsername, &displayName, &dbNodeDomain)
+		FROM users WHERE username = $1 AND membership_status = 'active' AND node_domain = $2 LIMIT 1`,
+		username, db.LOCAL_NODE_DOMAIN).Scan(&userID, &dbUsername, &displayName, &dbNodeDomain)
 	if err != nil {
 		writeError(w, 404, "usuario no encontrado")
 		return
@@ -413,7 +438,7 @@ func (h *PublicProposalsHandler) demoLogin(w http.ResponseWriter, r *http.Reques
 	// En nodo demo, token normal (pueden modificar libremente)
 	// En nodo no-demo, token demo (read-only)
 	var token string
-	if nodeDomain == "demo" {
+	if isDemo {
 		token, err = am.GenerateToken(userID, dbUsername, dbNodeDomain)
 	} else {
 		token, err = am.GenerateDemoToken(userID, dbUsername, dbNodeDomain)

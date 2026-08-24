@@ -52,11 +52,10 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 	r.Use(middleware.Timeout(60 * time.Second))
 	r.Use(corsMiddleware(corsOrigins))
 
-	// Cuando basePath esta seteado (ej: nodo demo con basePath="/demo"),
-	// el nodo demo NO debe tener proxy reverso (sino crea un bucle).
-	// Adicionalmente, strip basePath de las llamadas API para que funcionen
-	// cuando se accede via el proxy del nodo padre.
-	// Ej: /demo/api/users -> /api/users (para que las rutas API del demo funcionen)
+	// Cuando basePath esta seteado (ej: nodo padre con basePath="/main"
+	// o nodo demo con basePath="/demo"), strip basePath de las llamadas API
+	// para que funcionen las rutas internas.
+	// Ej: /main/api/users -> /api/users, /demo/api/users -> /api/users
 	if basePath != "" {
 		r.Use(func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -69,10 +68,12 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 		})
 	}
 
-	// Proxy reverso dinamico: solo en el nodo principal (basePath == "").
+	// Proxy reverso dinamico: en el nodo principal (basePath="/main").
 	// El nodo demo (basePath="/demo") no necesita proxy porque se accede
 	// a traves del proxy del nodo padre.
-	if basePath == "" {
+	if basePath != "/demo" {
+		// basePathPrefix es el prefijo del padre sin la barra final (ej: "/main")
+		basePathPrefix := strings.TrimSuffix(basePath, "/")
 		r.Use(func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				path := r.URL.Path
@@ -98,6 +99,13 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 					rest = trimmed[idx:]
 				}
 				if firstSeg == "" {
+					next.ServeHTTP(w, r)
+					return
+				}
+
+				// Ignorar el basePath del padre como primer segmento (ej: "main")
+				// No es un servicio, es la ruta base del padre.
+				if "/"+firstSeg == basePathPrefix {
 					next.ServeHTTP(w, r)
 					return
 				}
@@ -439,20 +447,37 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 		frontendDir = "./web/dist"
 	}
 	if _, err := os.Stat(frontendDir); err == nil {
-		// Si hay basePath (ej: "/demo"), servir el frontend bajo ese prefijo
-		// y redirigir / al basePath. Las API routes quedan en /api/* sin prefijo.
+		// Si hay basePath (ej: "/main" o "/demo"), servir el frontend bajo ese prefijo.
+		// La raiz "/" sirve un HTML estatico de redirect (NO el SPA) para que el
+		// navegador cargue una pagina real antes de navegar al basePath.
+		// Esto asegura que el SPA en /main y /demo sean aplicaciones completamente
+		// separadas y no compartan estado ni sesiones.
 		if basePath != "" {
-			// Redirect / -> /demo/
+			// Raiz "/" sirve HTML estatico (NO el SPA, NO http.Redirect)
+			// El navegador carga esta pagina real y luego navega al basePath.
 			r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-				http.Redirect(w, r, basePath+"/", http.StatusFound)
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				fmt.Fprintf(w, `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="refresh" content="0;url=%s/">
+<title>Red de Intercambio Federada</title>
+<style>body{font-family:sans-serif;text-align:center;padding:2rem}</style>
+</head>
+<body>
+<p>Redirigiendo al nodo...</p>
+<p><a href="%s/">Entrar al nodo</a></p>
+</body>
+</html>`, basePath, basePath)
 			})
 
-			// Redirect /demo -> /demo/ (chi no coincide /demo con /demo/*)
+			// Redirect /main -> /main/ (chi no coincide /main con /main/*)
 			r.Get(basePath, func(w http.ResponseWriter, r *http.Request) {
 				http.Redirect(w, r, basePath+"/", http.StatusFound)
 			})
 
-			// Servir frontend bajo /demo/* (incluye /demo/ que sirve index.html)
+			// Servir frontend bajo /main/* o /demo/* (incluye index.html)
 			r.Get(basePath+"/*", func(w http.ResponseWriter, r *http.Request) {
 				serveFrontendFile(w, r, frontendDir, pool, basePath)
 			})

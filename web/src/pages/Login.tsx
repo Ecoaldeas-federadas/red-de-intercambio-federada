@@ -98,7 +98,8 @@ export default function Login() {
         password,
       })
       login(result.token, result.username)
-      window.location.href = '/'
+      // No redirigir a '/'. Recargar para mantener la URL actual (ej: /demo/ o /main/)
+      window.location.reload()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al iniciar sesion')
     } finally {
@@ -116,7 +117,8 @@ export default function Login() {
         password: 'demo1234',
       })
       login(result.token, result.username)
-      window.location.href = '/'
+      // No redirigir a '/'. Recargar para mantener la URL del demo
+      window.location.reload()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al iniciar sesion demo')
     } finally {
@@ -181,7 +183,8 @@ export default function Login() {
       })
 
       login(result.token, result.username)
-      window.location.href = '/'
+      // No redirigir a '/'. Recargar para mantener la URL actual
+      window.location.reload()
     } catch (err: any) {
       if (err.name === 'NotAllowedError') {
         setError('Autenticacion cancelada o no autorizada.')

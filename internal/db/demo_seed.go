@@ -22,87 +22,92 @@ import (
 // NO incluye nada de Feria Conuquera ni del nodo principal.
 func DemoSeedData(ctx context.Context, d *DB, nodeDomain string) error {
 	if nodeDomain == "" {
-		nodeDomain = "demo"
+		nodeDomain = "localhost/demo"
 	}
 
 	log.Println("Demo: seeding Ecoaldea Raices del Monte for domain:", nodeDomain)
+	log.Println("Demo: data will use __LOCAL__, node_config uses:", nodeDomain)
 
-	// 1. Configuracion del nodo
+	// 1. Configuracion del nodo (usa el dominio real, no __LOCAL__)
 	if err := demoSeedNodeConfig(ctx, d, nodeDomain); err != nil {
 		log.Printf("Demo: warning seeding node config: %v", err)
 	}
 
+	// Todas las demas funciones seed usan __LOCAL__ para los datos
+	// (igual que el padre, BD separada fmc_demo)
+	dataDomain := LOCAL_NODE_DOMAIN
+
 	// 2. Paginas publicas de la ecoaldea
-	if err := demoSeedPages(ctx, d, nodeDomain); err != nil {
+	if err := demoSeedPages(ctx, d, dataDomain); err != nil {
 		log.Printf("Demo: warning seeding pages: %v", err)
 	}
 
 	// 2b. Configuracion del sitio publico (header, footer, colores)
-	if err := demoSeedPublicSettings(ctx, d, nodeDomain); err != nil {
+	if err := demoSeedPublicSettings(ctx, d, dataDomain); err != nil {
 		log.Printf("Demo: warning seeding public settings: %v", err)
 	}
 
 	// 3. Niveles de miembro
-	if err := demoSeedMemberLevels(ctx, d, nodeDomain); err != nil {
+	if err := demoSeedMemberLevels(ctx, d, dataDomain); err != nil {
 		log.Printf("Demo: warning seeding member levels: %v", err)
 	}
 
 	// 3b. Niveles de organizacion
-	if err := demoSeedOrgLevels(ctx, d, nodeDomain); err != nil {
+	if err := demoSeedOrgLevels(ctx, d, dataDomain); err != nil {
 		log.Printf("Demo: warning seeding org levels: %v", err)
 	}
 
 	// 4. Productos de la ecoaldea
-	if err := demoSeedProducts(ctx, d, nodeDomain); err != nil {
+	if err := demoSeedProducts(ctx, d, dataDomain); err != nil {
 		log.Printf("Demo: warning seeding products: %v", err)
 	}
 
 	// 5. Usuarios y organizaciones
-	if err := demoSeedUsers(ctx, d, nodeDomain); err != nil {
+	if err := demoSeedUsers(ctx, d, dataDomain); err != nil {
 		log.Printf("Demo: warning seeding users: %v", err)
 	}
 
 	// 5b. Organizaciones de la Asamblea con servicios obligatorios
-	demoSeedAssemblyOrganizations(ctx, d, nodeDomain)
+	demoSeedAssemblyOrganizations(ctx, d, dataDomain)
 
 	// 6. Departamentos y comisiones
-	demoSeedDepartments(ctx, d, nodeDomain)
+	demoSeedDepartments(ctx, d, dataDomain)
 
 	// 7. Reglas de gobernanza
-	demoSeedGovernance(ctx, d, nodeDomain)
+	demoSeedGovernance(ctx, d, dataDomain)
 
 	// 8. Transacciones simuladas
-	if err := demoSeedTransactions(ctx, d, nodeDomain); err != nil {
+	if err := demoSeedTransactions(ctx, d, dataDomain); err != nil {
 		log.Printf("Demo: warning seeding transactions: %v", err)
 	}
 
 	// 9. Items de tienda (para que haya productos en la tienda)
-	if err := demoSeedStoreItems(ctx, d, nodeDomain); err != nil {
+	if err := demoSeedStoreItems(ctx, d, dataDomain); err != nil {
 		log.Printf("Demo: warning seeding store items: %v", err)
 	}
 
 	// 10. Propuestas de asamblea simuladas
-	if err := demoSeedAssemblyProposals(ctx, d, nodeDomain); err != nil {
+	if err := demoSeedAssemblyProposals(ctx, d, dataDomain); err != nil {
 		log.Printf("Demo: warning seeding assembly proposals: %v", err)
 	}
 
 	// 10b. Junta directiva
-	demoSeedBoardMembers(ctx, d, nodeDomain)
+	demoSeedBoardMembers(ctx, d, dataDomain)
 
 	// 10c. Solicitudes de admision
-	demoSeedAdmissionRequests(ctx, d, nodeDomain)
+	demoSeedAdmissionRequests(ctx, d, dataDomain)
 
 	// 10d. Comercio externo (DEX)
-	demoSeedExternalOps(ctx, d, nodeDomain)
+	demoSeedExternalOps(ctx, d, dataDomain)
 
 	// 10e. Propuestas de distribucion del fondo
-	demoSeedFundProposals(ctx, d, nodeDomain)
+	demoSeedFundProposals(ctx, d, dataDomain)
 
 	// 10f. Reportes de paridad federada
-	demoSeedParityReports(ctx, d, nodeDomain)
+	demoSeedParityReports(ctx, d, dataDomain)
 
 	// 11. Nodos federados simulados
-	if err := demoSeedFederationPeers(ctx, d, nodeDomain); err != nil {
+	if err := demoSeedFederationPeers(ctx, d, dataDomain); err != nil {
 		log.Printf("Demo: warning seeding federation peers: %v", err)
 	}
 
@@ -2424,12 +2429,31 @@ func demoSeedParityReports(ctx context.Context, d *DB, nodeDomain string) {
 	log.Println("Demo: parity reports + federation balances seeded")
 }
 
-// DemoReset borra todos los datos del dominio demo y los re-seedea
+// DemoReset borra todos los datos del dominio demo y los re-seedea.
+// nodeDomain es el dominio real del demo (ej: "mi-aldea.org/demo").
+// Los datos se guardan con __LOCAL__, pero node_config usa nodeDomain.
+// Tambien hace cleanup one-time de datos viejos con node_domain='demo'.
 func DemoReset(ctx context.Context, d *DB, nodeDomain string) error {
 	if nodeDomain == "" {
-		nodeDomain = "demo"
+		nodeDomain = "localhost/demo"
 	}
-	log.Println("DemoReset: borrando datos del dominio", nodeDomain)
+	log.Println("DemoReset: borrando datos demo (data uses __LOCAL__, node_config uses", nodeDomain, ")")
+
+	// 0. One-time cleanup: borrar datos viejos con node_domain='demo'
+	// (de versiones anteriores que usaban 'demo' como dominio de datos)
+	oldDemoDomains := []string{"demo"}
+	for _, oldDom := range oldDemoDomains {
+		// Borrar users viejos con node_domain='demo'
+		_, _ = d.Pool.Exec(ctx, `DELETE FROM user_credentials WHERE user_id IN (SELECT id FROM users WHERE node_domain = $1)`, oldDom)
+		_, _ = d.Pool.Exec(ctx, `DELETE FROM users WHERE node_domain = $1`, oldDom)
+		// Borrar otras tablas con node_domain='demo'
+		for _, t := range []string{"member_levels", "organization_levels", "products", "departments", "public_pages", "public_settings", "node_config"} {
+			_, _ = d.Pool.Exec(ctx, fmt.Sprintf("DELETE FROM %s WHERE node_domain = $1", t), oldDom)
+		}
+	}
+
+	// Usar __LOCAL__ para borrar datos (igual que el padre)
+	dataDomain := LOCAL_NODE_DOMAIN
 
 	// 1. Borrar tablas que referencian users via FK (antes de borrar users)
 	// Estas tablas no tienen node_domain, asi que filtramos por user_id IN (SELECT ...)
@@ -2465,7 +2489,7 @@ func DemoReset(ctx context.Context, d *DB, nodeDomain string) error {
 		{"uploaded_images", "uploaded_by"},
 	}
 	for _, tc := range userDepTables {
-		_, err := d.Pool.Exec(ctx, fmt.Sprintf("DELETE FROM %s WHERE %s IN (SELECT id FROM users WHERE node_domain = $1)", tc.table, tc.col), nodeDomain)
+		_, err := d.Pool.Exec(ctx, fmt.Sprintf("DELETE FROM %s WHERE %s IN (SELECT id FROM users WHERE node_domain = $1)", tc.table, tc.col), dataDomain)
 		if err != nil {
 			// Ignorar errores (tabla o columna puede no existir en esta version)
 			log.Printf("DemoReset: warning borrando %s.%s: %v", tc.table, tc.col, err)
@@ -2473,15 +2497,16 @@ func DemoReset(ctx context.Context, d *DB, nodeDomain string) error {
 	}
 
 	// 2. Borrar node_federation_keys (referencia users via added_by)
-	_, _ = d.Pool.Exec(ctx, "DELETE FROM node_federation_keys WHERE added_by IN (SELECT id FROM users WHERE node_domain = $1)", nodeDomain)
+	_, _ = d.Pool.Exec(ctx, "DELETE FROM node_federation_keys WHERE added_by IN (SELECT id FROM users WHERE node_domain = $1)", dataDomain)
 
 	// 3. Borrar assembly_votes y assembly_attendance (referencian assembly_sessions/decisions)
-	_, _ = d.Pool.Exec(ctx, "DELETE FROM assembly_votes WHERE decision_id IN (SELECT id FROM assembly_decisions WHERE assembly_id IN (SELECT id FROM assembly_sessions WHERE node_domain = $1))", nodeDomain)
-	_, _ = d.Pool.Exec(ctx, "DELETE FROM assembly_attendance WHERE session_id IN (SELECT id FROM assembly_sessions WHERE node_domain = $1)", nodeDomain)
-	_, _ = d.Pool.Exec(ctx, "DELETE FROM assembly_votes_scoped WHERE decision_id IN (SELECT id FROM assembly_decisions_scoped WHERE session_id IN (SELECT id FROM assembly_sessions_scoped WHERE node_domain = $1))", nodeDomain)
-	_, _ = d.Pool.Exec(ctx, "DELETE FROM assembly_attendance_scoped WHERE session_id IN (SELECT id FROM assembly_sessions_scoped WHERE node_domain = $1)", nodeDomain)
+	_, _ = d.Pool.Exec(ctx, "DELETE FROM assembly_votes WHERE decision_id IN (SELECT id FROM assembly_decisions WHERE assembly_id IN (SELECT id FROM assembly_sessions WHERE node_domain = $1))", dataDomain)
+	_, _ = d.Pool.Exec(ctx, "DELETE FROM assembly_attendance WHERE session_id IN (SELECT id FROM assembly_sessions WHERE node_domain = $1)", dataDomain)
+	_, _ = d.Pool.Exec(ctx, "DELETE FROM assembly_votes_scoped WHERE decision_id IN (SELECT id FROM assembly_decisions_scoped WHERE session_id IN (SELECT id FROM assembly_sessions_scoped WHERE node_domain = $1))", dataDomain)
+	_, _ = d.Pool.Exec(ctx, "DELETE FROM assembly_attendance_scoped WHERE session_id IN (SELECT id FROM assembly_sessions_scoped WHERE node_domain = $1)", dataDomain)
 
 	// 4. Borrar tablas con node_domain (orden por FK)
+	// Estas tablas usan __LOCAL__ para los datos del demo
 	ndTables := []string{
 		"assembly_decisions",
 		"assembly_decisions_scoped",
@@ -2510,29 +2535,31 @@ func DemoReset(ctx context.Context, d *DB, nodeDomain string) error {
 		"user_credentials",
 		"public_pages",
 		"public_settings",
-		"node_config",
 		"subscription_charge_failures",
 		"organization_subscriptions",
 		"organization_services",
 		"conversion_factor",
 	}
 	for _, t := range ndTables {
-		_, err := d.Pool.Exec(ctx, fmt.Sprintf("DELETE FROM %s WHERE node_domain = $1", t), nodeDomain)
+		_, err := d.Pool.Exec(ctx, fmt.Sprintf("DELETE FROM %s WHERE node_domain = $1", t), dataDomain)
 		if err != nil {
 			log.Printf("DemoReset: warning borrando %s: %v", t, err)
 		}
 	}
 
 	// 5. Borrar tablas sin node_domain que dependen de users
-	_, _ = d.Pool.Exec(ctx, "DELETE FROM ledger_entries WHERE account_id IN (SELECT id FROM users WHERE node_domain = $1)", nodeDomain)
-	_, _ = d.Pool.Exec(ctx, "DELETE FROM transactions WHERE sender_node = $1 OR receiver_node = $1", nodeDomain)
-	_, _ = d.Pool.Exec(ctx, "DELETE FROM audit_log WHERE actor_id IN (SELECT id FROM users WHERE node_domain = $1)", nodeDomain)
+	_, _ = d.Pool.Exec(ctx, "DELETE FROM ledger_entries WHERE account_id IN (SELECT id FROM users WHERE node_domain = $1)", dataDomain)
+	_, _ = d.Pool.Exec(ctx, "DELETE FROM transactions WHERE sender_node = $1 OR receiver_node = $1", dataDomain)
+	_, _ = d.Pool.Exec(ctx, "DELETE FROM audit_log WHERE actor_id IN (SELECT id FROM users WHERE node_domain = $1)", dataDomain)
 
 	// 6. Borrar users (ahora si, sin FKs que lo bloqueen)
-	_, err := d.Pool.Exec(ctx, "DELETE FROM users WHERE node_domain = $1", nodeDomain)
+	_, err := d.Pool.Exec(ctx, "DELETE FROM users WHERE node_domain = $1", dataDomain)
 	if err != nil {
 		log.Printf("DemoReset: warning borrando users: %v", err)
 	}
+
+	// 6b. Borrar node_config por el dominio real (no __LOCAL__)
+	_, _ = d.Pool.Exec(ctx, "DELETE FROM node_config WHERE node_domain = $1", nodeDomain)
 
 	// 7. Borrar tablas globales de federacion
 	_, _ = d.Pool.Exec(ctx, "DELETE FROM node_balance WHERE remote_node IN ('aldea-semilla-viva', 'comunidad-rio-claro', 'ecoaldea-cerro-verde', 'cooperativa-pueblo-nuevo')")
