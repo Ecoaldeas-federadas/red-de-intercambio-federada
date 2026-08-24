@@ -94,6 +94,11 @@ func DemoSeedData(ctx context.Context, d *DB, nodeDomain string) error {
 	// 10b. Junta directiva
 	demoSeedBoardMembers(ctx, d, dataDomain)
 
+	// 10b2. Configuracion de asamblea (quorum, aprobaciones, impuestos)
+	// Separado de demoSeedBoardMembers para que se ejecute siempre,
+	// incluso si board_members ya existe y demoSeedBoardMembers retorna temprano.
+	demoSeedAssemblyConfig(ctx, d, dataDomain)
+
 	// 10c. Solicitudes de admision
 	demoSeedAdmissionRequests(ctx, d, dataDomain)
 
@@ -2904,6 +2909,24 @@ func demoSeedBoardMembers(ctx context.Context, d *DB, nodeDomain string) {
 		VALUES (gen_random_uuid(), $1, 'extraordinary', 66.67, 50.0, 1, true, 1, true, NOW(), NOW())
 		ON CONFLICT DO NOTHING`,
 		nodeDomain)
+}
+
+// demoSeedAssemblyConfig inserta la configuracion de aprobaciones (assembly_config),
+// quorum, y tax_config de forma independiente.
+// Separada de demoSeedBoardMembers para que se ejecute siempre,
+// incluso si board_members ya existe y demoSeedBoardMembers retorna temprano.
+func demoSeedAssemblyConfig(ctx context.Context, d *DB, nodeDomain string) {
+	// Quorum de junta directiva
+	d.Pool.Exec(ctx, `
+		INSERT INTO assembly_quorum_config (id, node_domain, session_type, quorum_first_call, quorum_second_call, grace_period_hours, allow_reschedule, max_recall_count, is_active, created_at, updated_at)
+		VALUES (gen_random_uuid(), $1, 'ordinary', 50.0, 30.0, 2, true, 2, true, NOW(), NOW())
+		ON CONFLICT DO NOTHING`,
+		nodeDomain)
+	d.Pool.Exec(ctx, `
+		INSERT INTO assembly_quorum_config (id, node_domain, session_type, quorum_first_call, quorum_second_call, grace_period_hours, allow_reschedule, max_recall_count, is_active, created_at, updated_at)
+		VALUES (gen_random_uuid(), $1, 'extraordinary', 66.67, 50.0, 1, true, 1, true, NOW(), NOW())
+		ON CONFLICT DO NOTHING`,
+		nodeDomain)
 
 	// Configurar assembly_config (metodo de aprobacion por tipo de propuesta)
 	assemblyConfigs := []struct {
@@ -2928,6 +2951,10 @@ func demoSeedBoardMembers(ctx context.Context, d *DB, nodeDomain string) {
 		{"energy_rate_change", "assembly", 66.67, 15, 0, "Cambio de tarifa energetica - 2/3 de la asamblea"},
 		{"product_modification", "assembly", 50.0, 10, 0, "Modificacion de productos del catalogo - mayoria simple"},
 		{"free_proposal", "assembly", 50.0, 10, 0, "Propuesta libre - mayoria simple"},
+		{"governance_rule", "assembly", 50.0, 10, 0, "Reglas de gobernanza - mayoria simple"},
+		{"product_import", "assembly", 50.0, 10, 0, "Importar producto federado - mayoria simple"},
+		{"product_remove", "assembly", 66.67, 15, 0, "Remover producto - 2/3 de la asamblea"},
+		{"product_to_base", "assembly", 66.67, 15, 0, "Convertir compuesto a base - 2/3 de la asamblea"},
 	}
 	for _, ac := range assemblyConfigs {
 		d.Pool.Exec(ctx, `
@@ -2938,34 +2965,24 @@ func demoSeedBoardMembers(ctx context.Context, d *DB, nodeDomain string) {
 			ac.requiredQuorum, ac.requiredSignatures, ac.description)
 	}
 
-	// Configurar tax_config con tasas de impuesto por tipo de cuenta
+	// Configurar tax_config con tasas de impuesto
 	// La cuenta de impuestos ES la cuenta de la Asamblea General
 	var taxAccountID uuid.UUID
 	d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE node_domain = $1 AND username = 'asamblea' LIMIT 1`, nodeDomain).Scan(&taxAccountID)
 	if taxAccountID != uuid.Nil {
-		// Tasas diferentes por tipo de cuenta
-		taxConfigs := []struct {
-			rate      float64
-			appliesTo string
-			minAmount int64
-		}{
-			{0.005, "individual", 0},     // 0.5% para personas
-			{0.01, "organization", 0},    // 1% para organizaciones comerciales
-			{0.005, "department", 0},     // 0.5% para departamentos
-			{0.0, "fund", 0},             // 0% para cuentas del fondo (exentas)
-			{0.015, "commerce", 0},       // 1.5% para tiendas comerciales
-			{0.008, "public_service", 0}, // 0.8% para servicios publicos
-			{0.012, "cooperative", 0},    // 1.2% para cooperativas
-			{0.0, "all", 0},              // 0% general (no se usa, las especificas prevalecen)
-		}
-		for _, tc := range taxConfigs {
-			d.Pool.Exec(ctx, `
-				INSERT INTO tax_config (id, node_domain, tax_rate, tax_account_id, applies_to, min_amount, is_active, created_at, updated_at)
-				VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, true, NOW(), NOW())
-				ON CONFLICT DO NOTHING`,
-				nodeDomain, tc.rate, taxAccountID, tc.appliesTo, tc.minAmount)
-		}
+		// tax_config tiene UNIQUE en node_domain, asi que solo una fila por dominio.
+		// Usar la tasa global que aplica por defecto. Las tasas por nivel de miembro
+		// se configuran en member_levels.tax_rate.
+		d.Pool.Exec(ctx, `
+			INSERT INTO tax_config (id, node_domain, tax_rate, tax_account_id, applies_to, min_amount, is_active, created_at, updated_at)
+			VALUES (gen_random_uuid(), $1, 0.005, $2, 'all', 0, true, NOW(), NOW())
+			ON CONFLICT (node_domain) DO UPDATE SET
+				tax_rate = EXCLUDED.tax_rate, tax_account_id = EXCLUDED.tax_account_id,
+				is_active = true, updated_at = NOW()`,
+			nodeDomain, taxAccountID)
 	}
+
+	log.Println("Demo: assembly config seeded (quorum, aprobaciones, impuestos)")
 }
 
 func demoSeedFederationPeers(ctx context.Context, d *DB, nodeDomain string) error {

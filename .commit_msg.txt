@@ -1,33 +1,24 @@
-fix: pestaña Impuestos de la Asamblea - mostrar tasas por nivel, corregir textos
+fix: configuracion de aprobaciones vacia en demo - separar de demoSeedBoardMembers
 
-PROBLEMAS:
-1. La pestaña Impuestos mostraba una sola tasa global (0%) sin explicar
-   que hay distintas tasas por nivel de miembro (member_levels.tax_rate)
-2. El texto deca "La cuenta de la asamblea se crea automaticamente al
-   instalar el nodo" - confuso, deberia decir que los impuestos van a
-   la cuenta de la Asamblea General (no hay cuenta separada de impuestos)
-3. No explicaba donde ni como cambiar las tasas de impuesto
-4. No mostraba las tasas por nivel de miembro
+PROBLEMA:
+La pestana "Configuracion de Aprobaciones" de la Asamblea estaba vacia
+en el nodo demo. La causa era que la insercion de assembly_config
+estaba dentro de demoSeedBoardMembers, que tiene un early return si
+ya existen board_members. Si la funcion retornaba temprano, la
+configuracion de aprobaciones nunca se insertaba.
 
 SOLUCION:
-Backend (tax.go):
-- getTaxConfig ahora tambien devuelve level_taxes con las tasas
-  de impuesto de cada nivel de miembro (member_levels)
-
-Frontend (Assembly.tsx):
-- Nueva seccion "Tasas de Impuesto por Nivel de Miembro" que muestra
-  una tabla con cada nivel, su descripcion y su tasa
-- Texto explicativo reescrito:
-  - Los impuestos van a la cuenta de la Asamblea General (no hay
-    cuenta separada)
-  - La Asamblea = Impuestos = Fondo Comunitario (una sola cuenta)
-  - Cada nivel tiene su propia tasa
-  - Para cambiar tasas: propuesta "Cambio de impuestos" en Asamblea
-  - Para usar el dinero: propuesta "Distribucion de fondos"
-- Seccion "Configuracion Global" muestra la tasa por defecto, estado,
-  monto minimo y a que aplica
-- Seccion "Cuenta de la Asamblea" muestra el balance y explica que
-  es la misma cuenta de la Asamblea y del Fondo Comunitario
+- Extraida la logica de assembly_config, quorum_config y tax_config
+  a una nueva funcion demoSeedAssemblyConfig que se llama
+  independientemente desde el orquestador principal
+- demoSeedBoardMembers ahora solo inserta board_members y quorum
+- demoSeedAssemblyConfig se ejecuta siempre, incluso si
+  demoSeedBoardMembers retorna temprano
+- Agregados los nuevos tipos de propuesta (product_import,
+  product_remove, product_to_base, governance_rule) a la config
+- Corregido tax_config: ahora usa ON CONFLICT (node_domain) DO UPDATE
+  porque tax_config tiene UNIQUE en node_domain (antes intentaba
+  insertar 8 filas con el mismo dominio y solo la primera funcionaba)
 
 Generated with [Devin](https://devin.ai)
 
