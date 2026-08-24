@@ -273,6 +273,9 @@ func (h *PublicProposalsHandler) getDemoStatus(w http.ResponseWriter, r *http.Re
 
 // startDemoNode arranca el contenedor demo-app bajo demanda.
 // Es PUBLICO: cualquier visitante puede iniciarlo desde el boton en la pagina.
+// SIEMPRE reconstruye la imagen demo-app antes de arrancar, para garantizar
+// que el demo tenga el codigo mas reciente. Al arrancar, el demo hace
+// reset + seed automaticamente (datos frescos cada vez).
 func (h *PublicProposalsHandler) startDemoNode(w http.ResponseWriter, r *http.Request) {
 	// Escribir el dominio del padre en .demo-shared/parent-domain.txt
 	// para que el demo lo lea al arrancar y configure su node_config.
@@ -288,22 +291,34 @@ func (h *PublicProposalsHandler) startDemoNode(w http.ResponseWriter, r *http.Re
 	_ = os.MkdirAll(sharedDir, 0755)
 	_ = os.WriteFile(filepath.Join(sharedDir, "parent-domain.txt"), []byte(parentDomain), 0644)
 
-	// Intentar docker start del contenedor demo-app
-	cmd := exec.Command("docker", "start", "red-de-intercambio-federada-demo-app-1")
-	err := cmd.Run()
-	if err != nil {
-		// Si no existe, crearlo con docker compose --profile demo --no-deps
-		cmd2 := exec.Command("docker", "compose", "--profile", "demo", "up", "-d", "--no-deps", "demo-app")
-		err2 := cmd2.Run()
-		if err2 != nil {
-			writeError(w, 500, "no se pudo iniciar el nodo demo: "+err.Error())
-			return
-		}
+	// 1. Detener y eliminar el contenedor demo-app viejo (si existe)
+	exec.Command("docker", "stop", "red-de-intercambio-federada-demo-app-1").Run()
+	exec.Command("docker", "rm", "-f", "red-de-intercambio-federada-demo-app-1").Run()
+
+	// 2. Reconstruir la imagen demo-app con el codigo mas reciente
+	// Esto garantiza que el demo siempre tenga los ultimos cambios.
+	composeFile := "docker-compose.yml"
+	if projectDir := os.Getenv("PROJECT_DIR"); projectDir != "" {
+		composeFile = filepath.Join(projectDir, "docker-compose.yml")
+	}
+	buildCmd := exec.Command("docker", "compose", "-f", composeFile, "--profile", "demo", "build", "demo-app")
+	buildOut, buildErr := buildCmd.CombinedOutput()
+	if buildErr != nil {
+		writeError(w, 500, "no se pudo construir la imagen demo-app: "+string(buildOut))
+		return
+	}
+
+	// 3. Crear y arrancar el contenedor demo-app con la imagen nueva
+	upCmd := exec.Command("docker", "compose", "-f", composeFile, "--profile", "demo", "up", "-d", "--no-deps", "demo-app")
+	upOut, upErr := upCmd.CombinedOutput()
+	if upErr != nil {
+		writeError(w, 500, "no se pudo iniciar el nodo demo: "+string(upOut))
+		return
 	}
 
 	writeJSON(w, 200, map[string]interface{}{
 		"running":  true,
-		"message":  "Nodo demo iniciando. Estara listo en unos segundos.",
+		"message":  "Nodo demo iniciando. Se reconstruyo con el codigo mas reciente y se resetearan los datos.",
 		"demo_url": "http://localhost:9091/demo",
 	})
 }
