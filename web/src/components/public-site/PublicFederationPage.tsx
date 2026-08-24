@@ -36,6 +36,8 @@ export function PublicFederationPage() {
   const [copiedMsg, setCopiedMsg] = useState(false)
   const [demoState, setDemoState] = useState<'unknown' | 'stopped' | 'starting' | 'running'>('unknown')
   const [demoStarting, setDemoStarting] = useState(false)
+  const [demoStartLog, setDemoStartLog] = useState('')
+  const [demoStartMsg, setDemoStartMsg] = useState('')
 
   useEffect(() => {
     api.get('/public/proposals').then((d: any) => {
@@ -59,40 +61,49 @@ export function PublicFederationPage() {
   const startDemo = async () => {
     setDemoStarting(true)
     setDemoState('starting')
+    setDemoStartLog('Iniciando proceso de arranque...\n')
+    setDemoStartMsg('Enviando solicitud...')
     try {
       await api.post('/demo/start', {})
-      // Esperar a que el nodo demo este listo
-      // Usar fetch con no-cors: el navegador puede loguear ERR_EMPTY_RESPONSE
-      // mientras el contenedor arranca, pero es esperado y no afecta al usuario.
+      // Consultar el progreso periodicamente
       let attempts = 0
-      const maxAttempts = 30 // 30 * 2s = 60s max
-      const checkReady = () => {
+      const maxAttempts = 120 // 120 * 2s = 4 min max
+      const pollStatus = () => {
         attempts++
-        fetch('/demo/api/setup/status', { mode: 'no-cors', cache: 'no-store' })
-          .then(() => {
-            // Servidor respondio (aunque sea opaco con no-cors)
+        api.get('/demo/start/status').then((d: any) => {
+          if (d?.log) setDemoStartLog(d.log)
+          if (d?.message) setDemoStartMsg(d.message)
+          if (d?.status === 'running') {
             setDemoState('running')
             setDemoStarting(false)
-            window.open('/demo', '_blank')
-          })
-          .catch(() => {
-            if (attempts >= maxAttempts) {
-              // Timeout: asumir que ya esta listo (puede tardar mas en arranques lentos)
-              setDemoState('running')
-              setDemoStarting(false)
-              window.open('/demo', '_blank')
-            } else {
-              // Reintentar en 2s
-              setTimeout(checkReady, 2000)
-            }
-          })
+            // Esperar un poco y abrir el demo
+            setTimeout(() => window.open('/demo', '_blank'), 2000)
+          } else if (d?.status === 'error') {
+            setDemoState('stopped')
+            setDemoStarting(false)
+          } else if (attempts >= maxAttempts) {
+            // Timeout: verificar si el demo esta corriendo
+            checkDemoStatus()
+            setDemoStarting(false)
+          } else {
+            // Continuar consultando
+            setTimeout(pollStatus, 2000)
+          }
+        }).catch(() => {
+          if (attempts >= maxAttempts) {
+            checkDemoStatus()
+            setDemoStarting(false)
+          } else {
+            setTimeout(pollStatus, 2000)
+          }
+        })
       }
-      // Primer intento despues de 8s (dar tiempo al contenedor a arrancar)
-      // El contenedor tarda varios segundos en iniciar YugabyteDB + migraciones + seed
-      setTimeout(checkReady, 8000)
+      // Primer consulta despues de 1s
+      setTimeout(pollStatus, 1000)
     } catch (e: any) {
       setDemoState('stopped')
       setDemoStarting(false)
+      setDemoStartMsg('Error: ' + (e?.message || 'no se pudo iniciar'))
     }
   }
 
@@ -519,6 +530,21 @@ export function PublicFederationPage() {
             <p className="text-xs text-emerald-200 mt-2">
               Se detiene automaticamente cada 24 horas. Cada vez que reinicia, parte de cero con datos frescos.
             </p>
+
+            {/* Consola de progreso en tiempo real */}
+            {demoStarting && (
+              <div className="mt-4 text-left">
+                <div className="bg-emerald-950/80 border border-emerald-700/50 rounded-lg p-3">
+                  <div className="flex items-center gap-2 text-emerald-300 text-xs font-semibold mb-2">
+                    <Loader2 size={12} className="animate-spin" />
+                    {demoStartMsg || 'Procesando...'}
+                  </div>
+                  <pre className="text-emerald-200/80 text-[10px] font-mono whitespace-pre-wrap max-h-40 overflow-y-auto">
+                    {demoStartLog}
+                  </pre>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="text-sm text-emerald-200 max-w-2xl mx-auto">

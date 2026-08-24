@@ -1,22 +1,27 @@
-fix: startDemoNode eliminaba el contenedor antes de construir (lo borraba)
+feat: progreso en tiempo real al arrancar nodo demo + no reconstruir si la imagen ya existe
 
-PROBLEMA:
-startDemoNode hacia:
-1. docker stop + docker rm (eliminaba el contenedor viejo)
-2. docker compose build (construir imagen nueva)
-3. docker compose up (crear contenedor nuevo)
+PROBLEMAS:
+1. Al pulsar "Iniciar Nodo Demo", la pagina se quedaba dando vueltas
+   sin ningun feedback. El usuario no sabia si estaba funcionando o
+   si habia un error. La construccion de la imagen tarda varios
+   minutos y la gente pensaba que no funcionaba.
+2. Se reconstrua la imagen cada vez que se arrancaba el demo,
+   incluso si la imagen ya existia. Eso era innecesariamente lento.
 
-Si el paso 2 fallaba, el contenedor viejo ya estaba eliminado
-y el nuevo nunca se creaba. Resultado: el demo desaparecia.
+SOLUCIONES:
+1. startDemoNode ahora es ASINCRONO:
+   - Responde inmediatamente y el trabajo pesado corre en background
+   - Nuevo endpoint GET /api/demo/start/status devuelve el progreso
+   - El frontend consulta el estado cada 2s y muestra:
+     - Mensaje de estado ("Construyendo imagen...", "Arrancando...")
+     - Log en tiempo real en una consola embebida
+   - La consola muestra exactamente que esta pasando atras
 
-SOLUCION:
-Ahora hace:
-1. docker compose build PRIMERO (construir imagen nueva)
-2. docker compose up --force-recreate (recrea el contenedor con
-   la imagen nueva, eliminando el viejo automaticamente)
-
-Si el build falla, el contenedor viejo sigue existiendo.
-El demo nunca desaparece.
+2. Solo reconstruye la imagen si NO existe:
+   - docker image inspect para verificar si la imagen ya existe
+   - Si existe, solo arranca el contenedor (rapido, segundos)
+   - Si no existe (primera vez), la construye (puede tardar minutos)
+   - --force-recreate sigue garantizando datos frescos cada vez
 
 Generated with [Devin](https://devin.ai)
 

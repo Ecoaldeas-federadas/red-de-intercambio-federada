@@ -1,6 +1,7 @@
 ﻿package api
 
 import (
+	"context"
 	"encoding/json"
 	"federated-credit-node/internal/db"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -41,8 +43,9 @@ func (h *PublicProposalsHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware
 	// Demo user
 	r.Get("/api/demo/status", h.getDemoStatus)
 	r.Post("/api/demo/login", h.demoLogin)
-	r.Get("/api/demo/users", h.listDemoUsers)  // Lista de usuarios demo para login con botones
-	r.Post("/api/demo/start", h.startDemoNode) // PUBLICO: arrancar nodo demo desde boton web
+	r.Get("/api/demo/users", h.listDemoUsers)             // Lista de usuarios demo para login con botones
+	r.Post("/api/demo/start", h.startDemoNode)            // PUBLICO: arrancar nodo demo desde boton web
+	r.Get("/api/demo/start/status", h.getDemoStartStatus) // PUBLICO: progreso del arranque del demo
 	r.Group(func(r chi.Router) {
 		r.Use(am.RequireAuth)
 		r.With(am.RequirePermission("system.manage")).Put("/api/demo/toggle", h.toggleDemoUser)
@@ -274,56 +277,124 @@ func (h *PublicProposalsHandler) getDemoStatus(w http.ResponseWriter, r *http.Re
 	})
 }
 
+// Estado del arranque del demo (para feedback en tiempo real)
+var demoStartStatus = struct {
+	sync.Mutex
+	status  string // "idle", "building", "starting", "running", "error"
+	message string
+	log     string
+}{status: "idle"}
+
 // startDemoNode arranca el contenedor demo-app bajo demanda.
 // Es PUBLICO: cualquier visitante puede iniciarlo desde el boton en la pagina.
-// SIEMPRE reconstruye la imagen demo-app antes de arrancar, para garantizar
-// que el demo tenga el codigo mas reciente. Al arrancar, el demo hace
-// reset + seed automaticamente (datos frescos cada vez).
+// Es ASINCRONO: responde inmediatamente y el progreso se consulta con
+// GET /api/demo/start/status
 func (h *PublicProposalsHandler) startDemoNode(w http.ResponseWriter, r *http.Request) {
-	// El repo esta montado en /project dentro del contenedor node-app.
+	demoStartStatus.Lock()
+	if demoStartStatus.status == "building" || demoStartStatus.status == "starting" {
+		demoStartStatus.Unlock()
+		writeJSON(w, 200, map[string]interface{}{
+			"success": true,
+			"message": "Ya hay un arranque en curso",
+			"status":  demoStartStatus.status,
+		})
+		return
+	}
+	demoStartStatus.Unlock()
+
+	// Iniciar el arranque en background
+	go h.runDemoStart()
+
+	writeJSON(w, 200, map[string]interface{}{
+		"success": true,
+		"message": "Iniciando arranque del nodo demo. Consulta /api/demo/start/status para ver el progreso.",
+		"status":  "building",
+	})
+}
+
+// runDemoStart hace el trabajo real de construir y arrancar el demo.
+func (h *PublicProposalsHandler) runDemoStart() {
+	demoStartStatus.Lock()
+	demoStartStatus.status = "building"
+	demoStartStatus.message = "Preparando..."
+	demoStartStatus.log = "=== INICIO ARRANQUE DEMO ===\n"
+	demoStartStatus.Unlock()
+
+	appendDemoLog := func(msg string) {
+		demoStartStatus.Lock()
+		demoStartStatus.log += msg + "\n"
+		demoStartStatus.Unlock()
+	}
+
+	setDemoStatus := func(status, message string) {
+		demoStartStatus.Lock()
+		demoStartStatus.status = status
+		demoStartStatus.message = message
+		demoStartStatus.Unlock()
+	}
+
 	projectDir := "/project"
 	composeFile := filepath.Join(projectDir, "docker-compose.yml")
+	projectName := detectComposeProjectName()
 
-	// Escribir el dominio del padre en .demo-shared/parent-domain.txt
-	// para que el demo lo lea al arrancar y configure su node_config.
+	// Escribir el dominio del padre
 	parentDomain := ""
-	_ = h.Pool.QueryRow(r.Context(), `SELECT node_domain FROM node_config WHERE initialized = true LIMIT 1`).Scan(&parentDomain)
+	_ = h.Pool.QueryRow(context.Background(), `SELECT node_domain FROM node_config WHERE initialized = true LIMIT 1`).Scan(&parentDomain)
 	if parentDomain == "" {
 		parentDomain = "localhost"
 	}
 	sharedDir := filepath.Join(projectDir, ".demo-shared")
 	_ = os.MkdirAll(sharedDir, 0755)
 	_ = os.WriteFile(filepath.Join(sharedDir, "parent-domain.txt"), []byte(parentDomain), 0644)
+	appendDemoLog("Dominio del padre: " + parentDomain)
+	appendDemoLog("Proyecto: " + projectName)
 
-	// Detectar el nombre del proyecto de docker compose actual
-	// para que el demo-app se cree con el mismo prefijo que el node-app.
-	projectName := detectComposeProjectName()
+	// 1. Verificar si la imagen demo-app ya existe.
+	// Si existe, NO reconstruir (es lento). Solo reconstruir si no existe.
+	imageName := projectName + "-demo-app"
+	inspectCmd := exec.Command("docker", "image", "inspect", imageName)
+	_, imageErr := inspectCmd.Output()
 
-	// 1. PRIMERO reconstruir la imagen demo-app.
-	// Si esto falla, NO eliminamos el contenedor viejo (si existe),
-	// para no dejar al usuario sin demo.
-	buildCmd := exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName, "--profile", "demo", "build", "demo-app")
-	buildOut, buildErr := buildCmd.CombinedOutput()
-	if buildErr != nil {
-		writeError(w, 500, "no se pudo construir la imagen demo-app: "+string(buildOut))
-		return
+	if imageErr != nil {
+		// La imagen no existe, hay que construirla
+		setDemoStatus("building", "Construyendo imagen del nodo demo (primera vez, puede tardar varios minutos)...")
+		appendDemoLog("La imagen no existe, construyendo...")
+		buildCmd := exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName, "--profile", "demo", "build", "demo-app")
+		buildOut, buildErr := buildCmd.CombinedOutput()
+		if buildErr != nil {
+			appendDemoLog("Error construyendo imagen:\n" + string(buildOut))
+			setDemoStatus("error", "Error al construir la imagen del demo")
+			return
+		}
+		appendDemoLog("Imagen construida correctamente")
+	} else {
+		appendDemoLog("La imagen ya existe, no es necesario reconstruir")
 	}
 
-	// 2. Ahora que la imagen nueva existe, eliminar el contenedor viejo
-	// y crear uno nuevo con la imagen nueva.
-	// Usar --force-recreate para que docker compose recrea el contenedor
-	// con la imagen nueva, incluso si ya existe.
+	// 2. Arrancar el contenedor con --force-recreate para que use datos frescos
+	setDemoStatus("starting", "Arrancando contenedor del nodo demo...")
+	appendDemoLog("Arrancando contenedor...")
 	upCmd := exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName, "--profile", "demo", "up", "-d", "--no-deps", "--force-recreate", "demo-app")
 	upOut, upErr := upCmd.CombinedOutput()
 	if upErr != nil {
-		writeError(w, 500, "no se pudo iniciar el nodo demo: "+string(upOut))
+		appendDemoLog("Error arrancando contenedor:\n" + string(upOut))
+		setDemoStatus("error", "Error al arrancar el nodo demo")
 		return
 	}
+	appendDemoLog("Contenedor arrancado. El demo hara reset + seed automaticamente.")
 
+	setDemoStatus("running", "Nodo demo arrancado. Listo en unos segundos.")
+	appendDemoLog("=== ARRANQUE COMPLETADO ===")
+}
+
+// getDemoStartStatus devuelve el progreso del arranque del demo en tiempo real.
+func (h *PublicProposalsHandler) getDemoStartStatus(w http.ResponseWriter, r *http.Request) {
+	demoStartStatus.Lock()
+	defer demoStartStatus.Unlock()
 	writeJSON(w, 200, map[string]interface{}{
-		"running":  true,
-		"message":  "Nodo demo iniciando. Se reconstruyo con el codigo mas reciente y se resetearan los datos.",
-		"demo_url": "http://localhost:9091/demo",
+		"status":  demoStartStatus.status,
+		"message": demoStartStatus.message,
+		"log":     demoStartStatus.log,
 	})
 }
 
