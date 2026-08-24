@@ -1,24 +1,15 @@
-fix: update.ps1 y update_handler priorizan el remoto (sin stash)
+fix: getDemoStatus detecta demo por DEMO_MODE o sufijo /demo
 
-PROBLEMA:
-El update.ps1 y el update_handler.go hacian git stash + git reset --hard
-+ git stash pop. El stash pop restauraba cambios locales que ya no
-importan (el remoto tiene la version nueva) y si habia conflictos,
-dejaba marcadores <<<<<<< en los archivos, rompiendo el docker-compose.yml:
+El endpoint /demo/status verificaba is_demo_node comparando
+node_domain == "demo", pero ahora el dominio del demo es
+{parent}/demo (ej: feria.loanstly.com/demo).
 
-  yaml: line 2: mapping values are not allowed in this context
-  Error al construir imagen: exit status 15
+Ahora detecta el modo demo de dos formas:
+1. DEMO_MODE=true (variable de entorno del contenedor demo)
+2. El dominio termina en /demo
 
-SOLUCION:
-Cuando actualizas, el remoto SIEMPRE gana. No hay que hacer stash ni
-stash pop. Los datos importantes (.env, base de datos) estan fuera del
-repo y no se ven afectados.
-
-Cambios:
-- update.ps1: abortar merge/rebase pendiente, limpiar stash viejo,
-  fetch + reset --hard + clean -fd (sin stash, sin stash pop)
-- update_handler.go: mismo flujo simplificado (sin stash, sin stash pop)
-- .gitignore: agregar .commit_msg.txt para evitar conflictos futuros
+Sin este fix, el frontend del demo no cargaba los usuarios demo
+y mostraba el login normal en vez de los botones de un clic.
 
 Generated with [Devin](https://devin.ai)
 

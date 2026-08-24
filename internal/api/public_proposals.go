@@ -248,15 +248,18 @@ func (h *PublicProposalsHandler) getDemoStatus(w http.ResponseWriter, r *http.Re
 		running = strings.TrimSpace(string(output)) == "true"
 	}
 
-	// Verificar si es nodo demo (dominio "demo")
-	isDemoNode := false
+	// Verificar si es nodo demo.
+	// DEMO_MODE=true (variable de entorno del contenedor demo) o
+	// el dominio termina en /demo (ej: feria.loanstly.com/demo)
+	isDemoNode := os.Getenv("DEMO_MODE") == "true"
 	nodeDomain := ""
 	var cfgDomain string
 	err = h.Pool.QueryRow(r.Context(), `SELECT node_domain FROM node_config LIMIT 1`).Scan(&cfgDomain)
 	if err == nil {
 		nodeDomain = cfgDomain
-		if cfgDomain == "demo" {
-			isDemoNode = true
+		if !isDemoNode {
+			// Tambien detectar por dominio: termina en /demo
+			isDemoNode = strings.HasSuffix(cfgDomain, "/demo") || cfgDomain == "demo"
 		}
 	}
 
