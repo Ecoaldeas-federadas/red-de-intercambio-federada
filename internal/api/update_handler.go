@@ -1,15 +1,14 @@
 package api
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -17,23 +16,17 @@ import (
 )
 
 // UpdateHandler maneja la actualizacion del nodo y los servicios.
+// La actualizacion del nodo se delega al updater-controller (contenedor separado
+// que no se reinicia) para que el estado sobreviva el reinicio del node-app.
 type UpdateHandler struct {
 	Pool       *pgxpool.Pool
 	NodeDomain string
-
-	// Estado de la actualizacion (en memoria, no persiste entre reinicios)
-	mu            sync.Mutex
-	updateStatus  string // "idle", "running", "completed", "error"
-	updateMessage string
-	updateLog     string
-	updatedAt     time.Time
 }
 
 func NewUpdateHandler(pool *pgxpool.Pool, nodeDomain string) *UpdateHandler {
 	return &UpdateHandler{
-		Pool:         pool,
-		NodeDomain:   nodeDomain,
-		updateStatus: "idle",
+		Pool:       pool,
+		NodeDomain: nodeDomain,
 	}
 }
 
@@ -45,7 +38,11 @@ func (h *UpdateHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequirePermission("config.manage")).Post("/api/services/update-all", h.updateAllServices)
 }
 
+// updaterControllerURL es la URL del updater-controller en la red docker.
+const updaterControllerURL = "http://updater-controller:9110"
+
 // checkUpdates verifica si hay actualizaciones disponibles en el repo git.
+// Esto se ejecuta localmente en node-app (no reinicia nada, es seguro).
 func (h *UpdateHandler) checkUpdates(w http.ResponseWriter, r *http.Request) {
 	projectDir := "/project"
 	if _, err := os.Stat(filepath.Join(projectDir, ".git")); err != nil {
@@ -115,7 +112,9 @@ func (h *UpdateHandler) checkUpdates(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// updateNode hace git pull + rebuild + restart del nodo (async).
+// updateNode delega la actualizacion al updater-controller.
+// El updater-controller es un contenedor separado que no se reinicia,
+// por lo que puede reportar el estado incluso despues de que node-app se reinicie.
 func (h *UpdateHandler) updateNode(w http.ResponseWriter, r *http.Request) {
 	// Bloquear actualizacion en nodo demo - se actualiza desde el padre
 	if os.Getenv("DEMO_MODE") == "true" {
@@ -123,194 +122,59 @@ func (h *UpdateHandler) updateNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.mu.Lock()
-	if h.updateStatus == "running" {
-		h.mu.Unlock()
-		writeError(w, 409, "ya hay una actualizacion en curso")
+	// Enviar peticion al updater-controller
+	resp, err := http.Post(updaterControllerURL+"/update", "application/json", nil)
+	if err != nil {
+		writeError(w, 500, "No se puede conectar con el updater-controller (puerto 9110). ¿Esta corriendo? Ejecuta: docker compose up -d updater-controller")
 		return
 	}
-	h.updateStatus = "running"
-	h.updateMessage = "Iniciando actualizacion..."
-	h.updateLog = ""
-	h.mu.Unlock()
+	defer resp.Body.Close()
 
-	go h.runUpdateNode()
+	body, _ := io.ReadAll(resp.Body)
+	var result map[string]interface{}
+	json.Unmarshal(body, &result)
 
-	writeJSON(w, 200, map[string]interface{}{
-		"success": true,
-		"message": "Actualizacion iniciada. El nodo se reiniciara automaticamente.",
-	})
+	if resp.StatusCode != 200 {
+		writeJSON(w, resp.StatusCode, result)
+		return
+	}
+
+	writeJSON(w, 200, result)
 }
 
-func (h *UpdateHandler) runUpdateNode() {
-	h.setUpdateStatus("running", "Configurando autenticacion con token...", "")
-	h.appendLog("=== INICIO ACTUALIZACION ===")
-
-	projectDir := "/project"
-	composeFile := filepath.Join(projectDir, "docker-compose.yml")
-
-	// Detectar el nombre del proyecto de docker compose actual.
-	// El update handler corre dentro del contenedor node-app. Docker compose
-	// setea el label "com.docker.compose.project" con el nombre del proyecto.
-	// Si no lo encontramos, usar "project" como fallback (directorio /project).
-	projectName := h.detectComposeProject()
-	h.appendLog("Project name detectado: " + projectName)
-
-	// Configurar autenticacion con token
-	h.configureGitAuth(projectDir)
-	h.appendLog("Token configurado en remote origin")
-
-	// Verificar que el remote tiene el token
-	checkURLCmd := exec.Command("git", "-C", projectDir, "remote", "get-url", "origin")
-	checkURLOut, _ := checkURLCmd.Output()
-	h.appendLog("Remote URL: " + strings.TrimSpace(string(checkURLOut)))
-
-	// 1. git fetch origin main
-	h.setUpdateStatus("running", "Descargando cambios del repositorio (git fetch)...", "")
-	fetchCmd := exec.Command("git", "-C", projectDir, "fetch", "origin", "main", "--verbose")
-	fetchOut, err := fetchCmd.CombinedOutput()
-	h.appendLog("--- git fetch ---\n" + string(fetchOut))
-	if err != nil {
-		h.setUpdateStatus("error", fmt.Sprintf("Error en git fetch: %v", err), string(fetchOut))
-		return
-	}
-	h.appendLog("git fetch OK")
-
-	// 2. Abortar cualquier merge/rebase pendiente (por si quedo de un update fallido)
-	abortCmd := exec.Command("git", "-C", projectDir, "merge", "--abort")
-	abortCmd.Run()
-	abortCmd2 := exec.Command("git", "-C", projectDir, "rebase", "--abort")
-	abortCmd2.Run()
-
-	// 3. Limpiar stash viejo si existe
-	clearCmd := exec.Command("git", "-C", projectDir, "stash", "clear")
-	clearCmd.Run()
-
-	// 4. Reset hard al origin/main: el remoto SIEMPRE gana.
-	// No hacemos stash ni stash pop. Los datos importantes (.env, BD)
-	// estan fuera del repo y no se ven afectados.
-	h.setUpdateStatus("running", "Aplicando cambios del repositorio (git reset)...", "")
-	resetCmd := exec.Command("git", "-C", projectDir, "reset", "--hard", "origin/main")
-	resetOut, err := resetCmd.CombinedOutput()
-	h.appendLog("--- git reset --hard origin/main ---\n" + string(resetOut))
-	if err != nil {
-		h.setUpdateStatus("error", fmt.Sprintf("Error al aplicar cambios: %v", err), string(resetOut))
-		return
-	}
-	// Limpiar archivos no trackeados (ej: .commit_msg.txt)
-	cleanCmd := exec.Command("git", "-C", projectDir, "clean", "-fd")
-	cleanOut, _ := cleanCmd.CombinedOutput()
-	h.appendLog("--- git clean -fd ---\n" + string(cleanOut))
-	h.appendLog("Cambios del repositorio aplicados (version del repositorio)")
-
-	// Mostrar commit actual
-	newCommitCmd := exec.Command("git", "-C", projectDir, "rev-parse", "--short", "HEAD")
-	newCommitOut, _ := newCommitCmd.Output()
-	h.appendLog("Nuevo commit: " + strings.TrimSpace(string(newCommitOut)))
-
-	h.setUpdateStatus("running", "Reconstruyendo imagen Docker (esto tarda varios minutos)...", "")
-
-	// 5. docker compose build node-app
-	buildCmd := exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName, "build", "node-app")
-	buildOut, err := buildCmd.CombinedOutput()
-	h.appendLog("--- docker compose build ---\n" + string(buildOut))
-	if err != nil {
-		h.setUpdateStatus("error", fmt.Sprintf("Error al construir imagen: %v", err), string(buildOut))
-		return
-	}
-	h.appendLog("Imagen Docker construida")
-
-	h.setUpdateStatus("running", "Reconstruyendo imagen demo-app...", "")
-
-	// 5b. docker compose build demo-app (tiene profile, no se construye solo)
-	demoBuildCmd := exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName, "--profile", "demo", "build", "demo-app")
-	demoBuildOut, demoBuildErr := demoBuildCmd.CombinedOutput()
-	h.appendLog("--- docker compose build demo-app ---\n" + string(demoBuildOut))
-	if demoBuildErr != nil {
-		h.appendLog("Warning: no se pudo construir demo-app (no es critico)")
-	}
-
-	h.setUpdateStatus("running", "Reiniciando nodo...", "")
-
-	// 6. Actualizar servicios instalados (pos-web, etc.)
-	h.updateInstalledServices()
-
-	// 7. docker compose up -d --no-deps node-app
-	// --no-deps: NO tocar yugabytedb (sigue corriendo con el puerto 5433).
-	// --project-name: usar el mismo nombre de proyecto que el deployment original
-	// para que recrea el contenedor correcto, no uno nuevo.
-	upCmd := exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName, "up", "-d", "--no-deps", "node-app")
-	upOut, err := upCmd.CombinedOutput()
-	h.appendLog("--- docker compose up ---\n" + string(upOut))
-	if err != nil {
-		h.setUpdateStatus("error", fmt.Sprintf("Error al reiniciar: %v", err), string(upOut))
-		return
-	}
-
-	// 7b. Si el demo-app estaba corriendo, recrearlo con la nueva imagen
-	// y detenerlo (no arrancarlo automaticamente, se arranca desde la web)
-	demoContainerName := projectName + "-demo-app-1"
-	demoInspectCmd := exec.Command("docker", "inspect", "-f", "{{.State.Running}}", demoContainerName)
-	demoInspectOut, _ := demoInspectCmd.Output()
-	demoWasRunning := strings.TrimSpace(string(demoInspectOut)) == "true"
-	if demoWasRunning {
-		h.appendLog("Demo-app estaba corriendo, recreando con nueva imagen...")
-		// Detener y eliminar el contenedor viejo
-		exec.Command("docker", "stop", demoContainerName).Run()
-		exec.Command("docker", "rm", "-f", demoContainerName).Run()
-		// Crear el nuevo con la imagen nueva (detenido)
-		demoUpCmd := exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName, "--profile", "demo", "up", "-d", "--no-deps", "demo-app")
-		demoUpOut, _ := demoUpCmd.CombinedOutput()
-		h.appendLog("--- docker compose up demo-app ---\n" + string(demoUpOut))
-		// Detenerlo inmediatamente para que no arranque solo
-		exec.Command("docker", "stop", demoContainerName).Run()
-		h.appendLog("Demo-app recreado (detenido, listo para arrancar desde la web)")
-	}
-
-	h.appendLog("=== ACTUALIZACION COMPLETADA ===")
-	h.setUpdateStatus("completed", "Nodo actualizado y reiniciado correctamente", "")
-}
-
-// detectComposeProject detecta el nombre del proyecto de docker compose
-// leyendo el label "com.docker.compose.project" del contenedor actual.
-// Esto es necesario porque el update handler corre dentro del contenedor
-// y usa /project como directorio, lo que generaria contenedores con prefijo
-// "project-" en vez del nombre real del deployment (ej: "red-de-intercambio-federada-").
-func (h *UpdateHandler) detectComposeProject() string {
-	return detectComposeProjectName()
-}
-
-// updateInstalledServices actualiza los servicios instalados despues de un git pull.
-func (h *UpdateHandler) updateInstalledServices() {
-	rows, err := h.Pool.Query(context.Background(), `SELECT service_id FROM installed_services WHERE status IN ('running', 'stopped', 'error')`)
-	if err != nil {
-		return
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var svcID string
-		rows.Scan(&svcID)
-		composePath := findComposeFile(svcID)
-		if composePath == "" {
-			continue
-		}
-		// Rebuild + restart
-		cmd := exec.Command("docker", "compose", "-f", composePath, "up", "-d", "--build", "--pull", "always")
-		cmd.Run()
-	}
-}
-
-// getUpdateStatus devuelve el estado de la actualizacion.
+// getUpdateStatus lee el estado de actualizacion desde el volumen compartido.
+// El updater-controller escribe a /update-state/update.json.
+// Como el archivo esta en un volumen compartido, sobrevive el reinicio de node-app.
 func (h *UpdateHandler) getUpdateStatus(w http.ResponseWriter, r *http.Request) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	writeJSON(w, 200, map[string]interface{}{
-		"status":     h.updateStatus,
-		"message":    h.updateMessage,
-		"log":        h.updateLog,
-		"updated_at": h.updatedAt,
-	})
+	// Leer archivo de estado del volumen compartido
+	data, err := os.ReadFile("/update-state/update.json")
+	if err != nil {
+		// El archivo no existe = no hay actualizacion en curso ni reciente
+		writeJSON(w, 200, map[string]interface{}{
+			"status":     "idle",
+			"message":    "",
+			"log":        "",
+			"commit":     "",
+			"updated_at": time.Time{},
+		})
+		return
+	}
+
+	var status map[string]interface{}
+	if err := json.Unmarshal(data, &status); err != nil {
+		writeJSON(w, 200, map[string]interface{}{
+			"status":  "idle",
+			"message": "Error leyendo estado de actualizacion",
+			"log":     "",
+		})
+		return
+	}
+
+	// Tambien leer el archivo de log
+	logData, _ := os.ReadFile("/update-state/update.log")
+	status["log"] = string(logData)
+
+	writeJSON(w, 200, status)
 }
 
 // updateService actualiza un servicio especifico.
@@ -411,32 +275,6 @@ func (h *UpdateHandler) updateAllServices(w http.ResponseWriter, r *http.Request
 		"results": results,
 		"message": fmt.Sprintf("%d servicios actualizados, %d errores", updated, failed),
 	})
-}
-
-// Helpers
-
-func (h *UpdateHandler) setUpdateStatus(status, message, log string) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.updateStatus = status
-	h.updateMessage = message
-	h.updatedAt = time.Now()
-	if log != "" {
-		h.updateLog += log + "\n"
-	}
-}
-
-func (h *UpdateHandler) appendLog(log string) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.updateLog += log + "\n"
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 // configureGitAuth configura el remote origin con el token si esta disponible.

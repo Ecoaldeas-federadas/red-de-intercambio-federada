@@ -34,6 +34,29 @@ services:
       - FIRMWARE_BUILD_DIR=/tmp/firmware-builds
       - FIRMWARE_DOCKER_IMAGE=fmc-arduino-compiler:latest
       - GIT_TOKEN=${GIT_TOKEN:-}
+      # Volumen compartido con updater-controller para leer el estado de actualizacion
+      - update_state:/update-state
+    restart: unless-stopped
+
+  # === Updater Controller ===
+  # Contenedor ligero que SIEMPRE esta corriendo (no se reinicia).
+  # Maneja la actualizacion del nodo: git pull + build + restart.
+  # El estado se escribe a un volumen compartido (update_state) que node-app
+  # puede leer incluso despues de reiniciarse (el estado sobrevive el reinicio).
+  # Esto resuelve el bug donde el frontend se quedaba en "Actualizando..." para
+  # siempre porque el estado en memoria se perdia al reiniciar el nodo.
+  updater-controller:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.updater-controller
+    ports:
+      - "9110:9110"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/project:rw
+      - update_state:/update-state
+    environment:
+      - GIT_TOKEN=${GIT_TOKEN:-}
     restart: unless-stopped
 
   arduino-compiler:
@@ -274,3 +297,4 @@ volumes:
   firmware_builds:
   uploads:
   demo_uploads:
+  update_state:

@@ -1,31 +1,50 @@
-fix: desbloquear ajustes internos del nodo demo, mantener bloqueado lo externo
+feat: updater-controller - contenedor externo para actualizar el nodo
 
-El nodo demo tiene su propia base de datos que se reinicia cada 24h.
-Las decisiones internas SI deben poder modificarse para que la gente
-vea como funciona. Lo que no debe funcionar es lo que afecta al
-exterior o al nodo padre.
+PROBLEMA:
+Cuando se actualiza el nodo desde el frontend, el node-app hace git pull +
+build + restart. Al reiniciarse, pierde el estado en memoria y el frontend
+se queda en "Actualizando..." para siempre. Ademas, si el restart falla,
+el nodo queda detenido y no hay forma de saber que paso.
 
-DESBLOQUEADO (interno, propia BD, se reinicia cada 24h):
-- Niveles de Miembro: crear/editar niveles
-- Niveles de Organizacion: crear/editar niveles
-- Tarifa Energetica: editar todos los campos
-- General: nombre del nodo, moneda, nombre de la app
-  (el dominio sigue bloqueado, se hereda del padre)
+SOLUCION:
+Contenedor separado (updater-controller) que SIEMPRE esta corriendo y
+maneja la actualizacion. Es el mismo patron que demo-controller.
 
-MANTENIDO BLOQUEADO (afecta al exterior):
-- Actualizar Nodo: se actualiza desde el padre
-- Dominio del nodo: se hereda del padre
-- Servicios Federados: instalar/desinstalar (puede sobrecargar)
-- Configuracion de red: afecta la red
-- VoIP: afecta telefonía externa
-- Federacion con otros nodos: no federar realmente
+Arquitectura:
+  Frontend → POST /api/node/update → node-app delega a updater-controller:9110
+                                                ↓
+                                      updater-controller hace:
+                                      1. git fetch + reset (repo completo)
+                                      2. docker compose build node-app
+                                      3. docker compose build demo-app
+                                      4. docker compose up -d node-app
+                                      5. Escribe estado a volumen compartido
+                                                ↓
+                                      node-app se reinicia
+                                      (updater-controller sigue corriendo)
+                                                ↓
+  Frontend → GET /api/node/update-status → lee /update-state/update.json → "completed"
+
+Archivos nuevos:
+- docker/Dockerfile.updater-controller: imagen ligera con git, docker-cli, socat
+- docker/updater-controller.sh: HTTP server en puerto 9110 (/update, /status, /check)
+- docker/do_update.sh: script que hace git pull + build + restart en background
 
 Cambios:
-- Frontend: quitados readOnly/disabled de niveles, tarifa y general
-  (excepto dominio). Quitados banners amarillos de "solo lectura".
-  Anadido banner azul explicativo en General del demo.
-- Backend updateConfig: en demo permite cambios excepto dominio
-- Backend updateTariff: quitado bloqueo de demo
+- docker-compose.yml: agregado servicio updater-controller + volumen update_state
+- docker-compose.yml: node-app monta update_state en /update-state
+- internal/api/update_handler.go: updateNode delega a updater-controller via HTTP
+- internal/api/update_handler.go: getUpdateStatus lee de /update-state/update.json
+- internal/api/update_handler.go: checkUpdates sigue ejecutandose localmente (no reinicia)
+- internal/api/update_handler.go: eliminado estado en memoria (sync.Mutex, etc)
+
+El updater-controller:
+- No se reinicia cuando se actualiza el nodo (siempre disponible)
+- Escribe estado a volumen compartido (sobrevive el reinicio de node-app)
+- Usa socat para HTTP (ligero, sin necesidad de nginx/python)
+- Tiene acceso a docker.sock para build/up
+- Tiene acceso al repo (/project) para git pull
+- Recibe GIT_TOKEN del .env
 
 Generated with [Devin](https://devin.ai)
 
