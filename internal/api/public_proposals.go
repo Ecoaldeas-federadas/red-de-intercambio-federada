@@ -312,11 +312,17 @@ func (h *PublicProposalsHandler) startDemoNode(w http.ResponseWriter, r *http.Re
 	})
 }
 
-// runDemoStart hace el trabajo real de construir y arrancar el demo.
+// runDemoStart hace el trabajo real de arrancar el demo.
+// La imagen del demo-app es la MISMA que la del node-app (mismo Dockerfile).
+// Si hay cambios nuevos, el update del node-app ya reconstruyo la imagen.
+// Asi que aqui solo arrancamos el contenedor con --force-recreate.
+// Al arrancar, el demo hace DemoReset + DemoAutoSetup + DemoSeedData
+// automaticamente (ver cmd/node/main.go), asi que los datos siempre
+// quedan frescos con los datos sembrados, sin cambios de usuarios.
 func (h *PublicProposalsHandler) runDemoStart() {
 	demoStartStatus.Lock()
-	demoStartStatus.status = "building"
-	demoStartStatus.message = "Preparando..."
+	demoStartStatus.status = "starting"
+	demoStartStatus.message = "Preparando arranque del nodo demo..."
 	demoStartStatus.log = "=== INICIO ARRANQUE DEMO ===\n"
 	demoStartStatus.Unlock()
 
@@ -347,33 +353,17 @@ func (h *PublicProposalsHandler) runDemoStart() {
 	_ = os.MkdirAll(sharedDir, 0755)
 	_ = os.WriteFile(filepath.Join(sharedDir, "parent-domain.txt"), []byte(parentDomain), 0644)
 	appendDemoLog("Dominio del padre: " + parentDomain)
-	appendDemoLog("Proyecto: " + projectName)
+	appendDemoLog("Proyecto Docker Compose: " + projectName)
 
-	// 1. Verificar si la imagen demo-app ya existe.
-	// Si existe, NO reconstruir (es lento). Solo reconstruir si no existe.
-	imageName := projectName + "-demo-app"
-	inspectCmd := exec.Command("docker", "image", "inspect", imageName)
-	_, imageErr := inspectCmd.Output()
-
-	if imageErr != nil {
-		// La imagen no existe, hay que construirla
-		setDemoStatus("building", "Construyendo imagen del nodo demo (primera vez, puede tardar varios minutos)...")
-		appendDemoLog("La imagen no existe, construyendo...")
-		buildCmd := exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName, "--profile", "demo", "build", "demo-app")
-		buildOut, buildErr := buildCmd.CombinedOutput()
-		if buildErr != nil {
-			appendDemoLog("Error construyendo imagen:\n" + string(buildOut))
-			setDemoStatus("error", "Error al construir la imagen del demo")
-			return
-		}
-		appendDemoLog("Imagen construida correctamente")
-	} else {
-		appendDemoLog("La imagen ya existe, no es necesario reconstruir")
-	}
-
-	// 2. Arrancar el contenedor con --force-recreate para que use datos frescos
-	setDemoStatus("starting", "Arrancando contenedor del nodo demo...")
-	appendDemoLog("Arrancando contenedor...")
+	// Arrancar el contenedor con --force-recreate.
+	// Esto recrea el contenedor (borra el viejo, crea uno nuevo).
+	// Al arrancar, el demo automaticamente:
+	//   1. DemoReset() - borra datos viejos
+	//   2. DemoAutoSetup() - configura node_config
+	//   3. DemoSeedData() - siembra datos frescos
+	// No hay que reconstruir la imagen: es la misma del node-app.
+	setDemoStatus("starting", "Arrancando contenedor del nodo demo (reset + seed automatico)...")
+	appendDemoLog("Arrancando contenedor con --force-recreate...")
 	upCmd := exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName, "--profile", "demo", "up", "-d", "--no-deps", "--force-recreate", "demo-app")
 	upOut, upErr := upCmd.CombinedOutput()
 	if upErr != nil {
@@ -381,7 +371,8 @@ func (h *PublicProposalsHandler) runDemoStart() {
 		setDemoStatus("error", "Error al arrancar el nodo demo")
 		return
 	}
-	appendDemoLog("Contenedor arrancado. El demo hara reset + seed automaticamente.")
+	appendDemoLog("Contenedor arrancado correctamente.")
+	appendDemoLog("El demo esta haciendo reset + seed automaticamente (datos frescos).")
 
 	setDemoStatus("running", "Nodo demo arrancado. Listo en unos segundos.")
 	appendDemoLog("=== ARRANQUE COMPLETADO ===")

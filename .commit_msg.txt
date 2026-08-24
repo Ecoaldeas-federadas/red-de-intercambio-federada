@@ -1,27 +1,28 @@
-feat: progreso en tiempo real al arrancar nodo demo + no reconstruir si la imagen ya existe
+fix: startDemoNode no reconstruye imagen (es la misma del node-app) + solo reset/seed
 
-PROBLEMAS:
-1. Al pulsar "Iniciar Nodo Demo", la pagina se quedaba dando vueltas
-   sin ningun feedback. El usuario no sabia si estaba funcionando o
-   si habia un error. La construccion de la imagen tarda varios
-   minutos y la gente pensaba que no funcionaba.
-2. Se reconstrua la imagen cada vez que se arrancaba el demo,
-   incluso si la imagen ya existia. Eso era innecesariamente lento.
+PROBLEMA:
+startDemoNode verificaba si la imagen existia y la reconstrui si no
+existia. Pero la imagen del demo-app es la MISMA que la del node-app
+(mismo docker/Dockerfile en docker-compose.yml). No tiene sentido
+reconstruir nada:
 
-SOLUCIONES:
-1. startDemoNode ahora es ASINCRONO:
-   - Responde inmediatamente y el trabajo pesado corre en background
-   - Nuevo endpoint GET /api/demo/start/status devuelve el progreso
-   - El frontend consulta el estado cada 2s y muestra:
-     - Mensaje de estado ("Construyendo imagen...", "Arrancando...")
-     - Log en tiempo real en una consola embebida
-   - La consola muestra exactamente que esta pasando atras
+- Si hay cambios nuevos, el update del node-app ya reconstruyo la imagen.
+- El demo-app usa esa misma imagen.
+- Lo unico que debe pasar cada vez que se arranca el demo es que los
+  datos se reseteen y se siembren frescos.
 
-2. Solo reconstruye la imagen si NO existe:
-   - docker image inspect para verificar si la imagen ya existe
-   - Si existe, solo arranca el contenedor (rapido, segundos)
-   - Si no existe (primera vez), la construye (puede tardar minutos)
-   - --force-recreate sigue garantizando datos frescos cada vez
+SOLUCION:
+startDemoNode ahora solo hace docker compose up --force-recreate.
+Al arrancar, el demo automaticamente (cmd/node/main.go):
+  1. DemoReset() - borra datos viejos de usuarios
+  2. DemoAutoSetup() - configura node_config con el dominio del demo
+  3. DemoSeedData() - siembra datos frescos de muestra
+
+Resultado:
+- Arranque rapido (segundos, no minutos)
+- Datos siempre frescos (los cambios de usuarios se pierden al reiniciar)
+- Misma imagen que el node-app (siempre codigo actualizado)
+- Feedback en tiempo real en la consola de la pagina
 
 Generated with [Devin](https://devin.ai)
 
