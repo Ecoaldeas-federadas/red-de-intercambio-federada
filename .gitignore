@@ -51,3 +51,5 @@ desktop.ini
 # ---- Docker volúmenes locales ----
 data/
 volumes/
+
+.commit_msg.txt

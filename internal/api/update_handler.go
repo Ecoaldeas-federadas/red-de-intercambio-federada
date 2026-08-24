@@ -191,9 +191,34 @@ func (h *UpdateHandler) runUpdateNode() {
 	h.appendLog("Cambios del repositorio aplicados")
 
 	// 4. Restaurar cambios locales del stash
+	// Si hay conflictos, resolverlos quedandonos con la version del repo (theirs)
+	// porque los cambios locales del contenedor son generados automaticamente
+	// (ej: .commit_msg.txt) y no deben bloquear la actualizacion.
 	popCmd := exec.Command("git", "-C", projectDir, "stash", "pop", "--quiet")
-	popOut, _ := popCmd.CombinedOutput()
+	popOut, popErr := popCmd.CombinedOutput()
 	h.appendLog("--- git stash pop ---\n" + string(popOut))
+	if popErr != nil {
+		// Hay conflictos: resolver con --theirs (version del repo)
+		h.appendLog("Stash pop con conflictos, resolviendo con --theirs...")
+		// Checkout --theirs en todos los archivos en conflicto
+		statusCmd := exec.Command("git", "-C", projectDir, "diff", "--name-only", "--diff-filter=U")
+		statusOut, _ := statusCmd.Output()
+		conflictFiles := strings.Split(strings.TrimSpace(string(statusOut)), "\n")
+		for _, cf := range conflictFiles {
+			if cf == "" {
+				continue
+			}
+			checkoutCmd := exec.Command("git", "-C", projectDir, "checkout", "--theirs", "--", cf)
+			checkoutCmd.CombinedOutput()
+			addCmd := exec.Command("git", "-C", projectDir, "add", "--", cf)
+			addCmd.CombinedOutput()
+			h.appendLog("Resuelto conflicto en: " + cf)
+		}
+		// Drop el stash ya que los cambios locales no son necesarios
+		dropCmd := exec.Command("git", "-C", projectDir, "stash", "drop", "--quiet")
+		dropCmd.Run()
+		h.appendLog("Stash descartado (cambios locales no criticos)")
+	}
 
 	// Mostrar commit actual
 	newCommitCmd := exec.Command("git", "-C", projectDir, "rev-parse", "--short", "HEAD")
