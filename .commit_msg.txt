@@ -1,15 +1,20 @@
-fix: getDemoStatus detecta demo por DEMO_MODE o sufijo /demo
+fix: Reiniciar solo node-app con --no-deps (no tocar yugabytedb)
 
-El endpoint /demo/status verificaba is_demo_node comparando
-node_domain == "demo", pero ahora el dominio del demo es
-{parent}/demo (ej: feria.loanstly.com/demo).
+PROBLEMA:
+Al actualizar, docker compose up -d node-app intentaba tambien
+levantar yugabytedb (por el depends_on). Si yugabytedb ya estaba
+corriendo, el puerto 5433 chocaba:
 
-Ahora detecta el modo demo de dos formas:
-1. DEMO_MODE=true (variable de entorno del contenedor demo)
-2. El dominio termina en /demo
+  Bind for 0.0.0.0:5433 failed: port is already allocated
+  Error al reiniciar: exit status 1
 
-Sin este fix, el frontend del demo no cargaba los usuarios demo
-y mostraba el login normal en vez de los botones de un clic.
+SOLUCION:
+Usar --no-deps para que solo se reinicie node-app sin tocar
+yugabytedb. La base de datos sigue corriendo sin interrupcion.
+
+Aplicado a:
+- internal/api/update_handler.go (boton web)
+- update.ps1 (actualizacion manual)
 
 Generated with [Devin](https://devin.ai)
 

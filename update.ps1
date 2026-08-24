@@ -154,14 +154,14 @@ if ($demoCreateCode -eq 0) {
     Write-Warn "No se pudo recrear el nodo demo (no es critico)"
 }
 
-# 6. Reiniciar servicios (sin borrar volumenes)
-Write-Step "Reiniciando servicios (sin tocar la base de datos)..."
-$upCode = Invoke-Compose @("up", "-d")
+# 6. Reiniciar node-app (sin tocar yugabytedb para evitar conflicto de puerto)
+Write-Step "Reiniciando nodo-app (sin tocar la base de datos)..."
+$upCode = Invoke-Compose @("up", "-d", "--no-deps", "node-app")
 if ($upCode -ne 0) {
-    Write-Err "Error arrancando los servicios (codigo $upCode)"
+    Write-Err "Error arrancando node-app (codigo $upCode)"
     exit 1
 }
-Write-OK "Servicios reiniciados"
+Write-OK "Nodo reiniciado"
 
 # 7. Esperar al servidor
 Write-Step "Esperando al servidor..."

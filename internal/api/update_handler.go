@@ -211,8 +211,10 @@ func (h *UpdateHandler) runUpdateNode() {
 	// 6. Actualizar servicios instalados (pos-web, etc.)
 	h.updateInstalledServices()
 
-	// 7. docker compose up -d node-app
-	upCmd := exec.Command("docker", "compose", "-f", filepath.Join(projectDir, "docker-compose.yml"), "up", "-d", "node-app")
+	// 7. docker compose up -d --no-deps node-app
+	// --no-deps: NO tocar yugabytedb (sigue corriendo con el puerto 5433).
+	// Si intentamos recrear yugabytedb, el puerto choca con el que ya esta corriendo.
+	upCmd := exec.Command("docker", "compose", "-f", filepath.Join(projectDir, "docker-compose.yml"), "up", "-d", "--no-deps", "node-app")
 	upOut, err := upCmd.CombinedOutput()
 	h.appendLog("--- docker compose up ---\n" + string(upOut))
 	if err != nil {
