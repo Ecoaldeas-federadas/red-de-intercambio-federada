@@ -31,7 +31,7 @@ Cada nodo opera de forma independiente y se federa con otros nodos via protocolo
 - **Go** 1.21+ (solo si compilas manualmente, no necesario con Docker)
 - **Git**
 
-## Instalacion rapida (recomendado)
+## Instalac Alion rapida (recomendado)
 
 ### Opcion A — Script de instalacion (1 comando)
 
@@ -40,6 +40,8 @@ Cada nodo opera de forma independiente y se federa con otros nodos via protocolo
 git clone https://github.com/discapacidad5/red-de-intercambio-federada.git
 cd red-de-intercambio-federada
 .\install.ps1
+o  
+powershell -ExecutionPolicy Bypass -File install.ps1
 ```
 
 **Linux/Mac:**

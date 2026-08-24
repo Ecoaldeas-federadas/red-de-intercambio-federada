@@ -1,19 +1,22 @@
-fix: startDemoNode usaba ruta relativa, no encontraba docker-compose.yml
+fix: startDemoNode eliminaba el contenedor antes de construir (lo borraba)
 
-PROBLEMA RAIZ:
-El startDemoNode (boton "Arrancar demo" en la web) usaba os.Getenv("PROJECT_DIR")
-que NO esta definido en el docker-compose.yml del node-app. Por eso usaba
-"docker-compose.yml" (ruta relativa), que se resuelve a /app/docker-compose.yml
-(que no existe). El repo esta montado en /project, no en /app.
+PROBLEMA:
+startDemoNode hacia:
+1. docker stop + docker rm (eliminaba el contenedor viejo)
+2. docker compose build (construir imagen nueva)
+3. docker compose up (crear contenedor nuevo)
 
-Resultado: el boton "Arrancar demo" NUNCA funcionaba desde dentro del contenedor
-porque no encontraba el docker-compose.yml. El demo-app nunca se creaba.
+Si el paso 2 fallaba, el contenedor viejo ya estaba eliminado
+y el nuevo nunca se creaba. Resultado: el demo desaparecia.
 
 SOLUCION:
-- startDemoNode: usar /project/docker-compose.yml directamente (no PROJECT_DIR)
-- getDemoStatus: usar detectComposeProjectName() para el nombre del contenedor
-- update.ps1: NO crear demo-app en el script (solo construir la imagen).
-  El demo-app se crea solo al pulsar "Arrancar demo" en la web.
+Ahora hace:
+1. docker compose build PRIMERO (construir imagen nueva)
+2. docker compose up --force-recreate (recrea el contenedor con
+   la imagen nueva, eliminando el viejo automaticamente)
+
+Si el build falla, el contenedor viejo sigue existiendo.
+El demo nunca desaparece.
 
 Generated with [Devin](https://devin.ai)
 

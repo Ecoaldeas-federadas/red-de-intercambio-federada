@@ -299,13 +299,9 @@ func (h *PublicProposalsHandler) startDemoNode(w http.ResponseWriter, r *http.Re
 	// para que el demo-app se cree con el mismo prefijo que el node-app.
 	projectName := detectComposeProjectName()
 
-	// 1. Detener y eliminar el contenedor demo-app viejo (si existe)
-	demoContainerName := projectName + "-demo-app-1"
-	exec.Command("docker", "stop", demoContainerName).Run()
-	exec.Command("docker", "rm", "-f", demoContainerName).Run()
-
-	// 2. Reconstruir la imagen demo-app con el codigo mas reciente
-	// Esto garantiza que el demo siempre tenga los ultimos cambios.
+	// 1. PRIMERO reconstruir la imagen demo-app.
+	// Si esto falla, NO eliminamos el contenedor viejo (si existe),
+	// para no dejar al usuario sin demo.
 	buildCmd := exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName, "--profile", "demo", "build", "demo-app")
 	buildOut, buildErr := buildCmd.CombinedOutput()
 	if buildErr != nil {
@@ -313,8 +309,11 @@ func (h *PublicProposalsHandler) startDemoNode(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// 3. Crear y arrancar el contenedor demo-app con la imagen nueva
-	upCmd := exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName, "--profile", "demo", "up", "-d", "--no-deps", "demo-app")
+	// 2. Ahora que la imagen nueva existe, eliminar el contenedor viejo
+	// y crear uno nuevo con la imagen nueva.
+	// Usar --force-recreate para que docker compose recrea el contenedor
+	// con la imagen nueva, incluso si ya existe.
+	upCmd := exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName, "--profile", "demo", "up", "-d", "--no-deps", "--force-recreate", "demo-app")
 	upOut, upErr := upCmd.CombinedOutput()
 	if upErr != nil {
 		writeError(w, 500, "no se pudo iniciar el nodo demo: "+string(upOut))
