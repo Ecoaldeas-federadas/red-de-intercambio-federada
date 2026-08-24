@@ -1922,6 +1922,16 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
           {!updateInfo.updates_available && (
             <div className="mt-2 text-gray-500">El nodo esta actualizado.</div>
           )}
+          {updateInfo.error && (
+            <div className="mt-2 p-2 rounded bg-amber-50 border border-amber-200 text-amber-700 text-xs">
+              <strong>Aviso:</strong> {updateInfo.message || 'No se pudo verificar el repositorio remoto.'}
+              {updateInfo.error === 'no_git' && ' (no se encontro .git en /project)'}
+              {updateInfo.error === 'fetch_failed' && ' (git fetch fallo - revisa GIT_TOKEN en .env)'}
+              {updateInfo.fetch_error && (
+                <pre className="mt-1 text-xs bg-gray-100 p-1 rounded max-h-20 overflow-auto whitespace-pre-wrap">{updateInfo.fetch_error}</pre>
+              )}
+            </div>
+          )}
         </div>
       )}
 

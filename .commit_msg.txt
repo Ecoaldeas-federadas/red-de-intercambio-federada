@@ -1,64 +1,23 @@
-feat: Comercio Exterior rediseñado - cuenta DEX, bancos externos, compras/ventas detalladas
+fix: mostrar commit actual y errores reales en Actualizar Nodo
 
-REDISEÑO COMPLETO DEL COMERCIO EXTERIOR (DEX):
+PROBLEMA:
+El nodo mostraba "Commit actual: desconocido" y "El nodo esta
+actualizado" incluso cuando git fetch fallaba. El usuario no podia
+saber si habia un error de autenticacion o de red.
 
-Antes el DEX solo tenia operaciones simples sin control de dinero real.
-Ahora el Comercio Exterior es una organizacion con cuenta TQ, cuentas
-bancarias externas en multiples monedas, y registro detallado de
-compras y ventas.
+CAUSAS:
+1. El backend devolvia current_commit="" cuando git fetch fallaba,
+   aunque el commit local SI se podia leer
+2. El frontend no mostraba el mensaje de error ni el fetch_error
+   que devolvia el backend - solo mostraba "El nodo esta actualizado"
 
-NUEVAS TABLAS (migracion 102):
-- external_bank_accounts: cuentas bancarias externas (banco o efectivo)
-  con moneda, saldo, numero de cuenta
-- external_commerce_config: configuracion del DEX (multi-firma, firmas)
-- external_purchases: compras detalladas con precio real, banco, FC,
-  precio interno sugerido
-- external_sales: ventas detalladas con precio real, banco, FC
-- external_basket_recalculation: recalculo de canasta desde compras reales
-
-NUEVOS TIPOS DE PROPUESTA (migracion 103):
-- fund_external_commerce: transferir TQ al DEX
-- external_bank_account: agregar/modificar cuenta bancaria
-- external_commerce_config: cambiar configuracion del DEX
-
-BACKEND (external_commerce.go):
-- CRUD de cuentas bancarias externas
-- Crear y aprobar compras (descuenta del banco automaticamente)
-- Crear y aprobar ventas (suma al banco automaticamente)
-- Recalculo de canasta sugerido desde compras reales
-- Resumen del DEX con saldos TQ, saldos bancarios, FC, operaciones
-- Configuracion del DEX (multi-firma)
-
-FRONTEND (ExternalBridge.tsx):
-- Nueva pestana "Resumen": saldo TQ del DEX, saldos bancarios por
-  moneda, FC actual, operaciones pendientes/completadas, recalculo
-  de canasta sugerido
-- Nueva pestana "Cuentas Bancarias": lista de cuentas con banco,
-  moneda, saldo. Formulario para crear cuentas bancarias o de efectivo
-- Nueva pestana "Compras (Import)": registro detallado de compras con
-  producto, cantidad, precio externo, banco, proveedor. El sistema
-  calcula el precio interno sugerido usando el FC
-- Nueva pestana "Ventas (Export)": registro detallado de ventas con
-  producto, cantidad, precio externo, banco, comprador
-- Texto de ayuda reescrito explicando todo el flujo
-
-DEMO SEED:
-- Crea organizacion "Comercio Exterior" (is_assembly_owned)
-- Configura DEX con multi-firma (2 firmas)
-- Crea 4 cuentas bancarias (USD banco, EUR banco, COP efectivo, USD efectivo)
-- Crea 4 compras de ejemplo (harina, sal, aceite, medicamentos)
-- Crea 3 ventas de ejemplo (cafe, miel, artesania)
-- Crea recalculo de canasta sugerido
-
-FLUJO DE TRABAJO:
-1. La Asamblea crea la organizacion DEX y le transfiere TQ
-2. Se configuran cuentas bancarias externas (banco o efectivo)
-3. Se registran compras: producto, precio externo, banco
-4. Al aprobar compra: se descuenta del banco, se calcula precio interno
-5. Se registran ventas: producto, precio externo, banco
-6. Al aprobar venta: se suma al banco
-7. El sistema sugiere recalculo de FC desde precios reales pagados
-8. La Asamblea aprueba o no el nuevo FC
+FIX:
+- Backend: siempre obtener el commit actual con git rev-parse --short HEAD
+  antes de intentar fetch. Aunque fetch falle, el commit local se devuelve.
+- Backend: anadir campo "error" con tipo de error (no_git, fetch_failed)
+  para que el frontend pueda mostrar un mensaje especifico.
+- Frontend: mostrar el mensaje real del backend cuando hay error,
+  incluyendo el tipo de error y el output de git fetch para debug.
 
 Generated with [Devin](https://devin.ai)
 

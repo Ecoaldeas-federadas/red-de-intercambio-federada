@@ -53,9 +53,15 @@ func (h *UpdateHandler) checkUpdates(w http.ResponseWriter, r *http.Request) {
 			"updates_available": false,
 			"message":           "no se encontro repo git en /project",
 			"current_commit":    "",
+			"error":             "no_git",
 		})
 		return
 	}
+
+	// Obtener commit actual SIEMPRE (incluso si fetch falla)
+	currentCmd := exec.Command("git", "-C", projectDir, "rev-parse", "--short", "HEAD")
+	currentOut, _ := currentCmd.Output()
+	currentCommit := strings.TrimSpace(string(currentOut))
 
 	// Configurar el remote con token si esta disponible
 	h.configureGitAuth(projectDir)
@@ -66,17 +72,13 @@ func (h *UpdateHandler) checkUpdates(w http.ResponseWriter, r *http.Request) {
 	if fetchErr != nil {
 		writeJSON(w, 200, map[string]interface{}{
 			"updates_available": false,
-			"current_commit":    "",
-			"message":           "Error al conectar con el repositorio. Verifica el token en .env",
+			"current_commit":    currentCommit,
+			"message":           "Error al conectar con el repositorio. Verifica GIT_TOKEN en .env",
 			"fetch_error":       string(fetchOut),
+			"error":             "fetch_failed",
 		})
 		return
 	}
-
-	// Obtener commit actual
-	currentCmd := exec.Command("git", "-C", projectDir, "rev-parse", "HEAD")
-	currentOut, _ := currentCmd.Output()
-	currentCommit := strings.TrimSpace(string(currentOut))
 
 	// Obtener commits disponibles (HEAD..origin/main)
 	logCmd := exec.Command("git", "-C", projectDir, "log", "--oneline", "HEAD..origin/main")
@@ -93,8 +95,6 @@ func (h *UpdateHandler) checkUpdates(w http.ResponseWriter, r *http.Request) {
 		for rows.Next() {
 			var svcID, name string
 			rows.Scan(&svcID, &name)
-			// Para servicios con imagen pre-construida, siempre puede haber update
-			// Para servicios construidos (como pos-web), depende del git pull
 			servicesUpdate = append(servicesUpdate, map[string]interface{}{
 				"service_id": svcID,
 				"name":       name,
@@ -105,7 +105,7 @@ func (h *UpdateHandler) checkUpdates(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, 200, map[string]interface{}{
 		"updates_available":   updatesAvailable,
-		"current_commit":      currentCommit[:min(7, len(currentCommit))],
+		"current_commit":      currentCommit,
 		"new_commits":         newCommits,
 		"services_can_update": servicesUpdate,
 		"message": map[bool]string{
