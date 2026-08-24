@@ -1,19 +1,26 @@
-fix: Boton de arrancar demo SIEMPRE reconstruye la imagen
+fix: Detectar nombre del proyecto docker compose correctamente
 
-PROBLEMA:
-El boton "Arrancar demo" solo hacia docker start del contenedor
-viejo. Si el codigo habia cambiado, el demo segua con la imagen vieja.
+PROBLEMA RAIZ:
+El update handler corre dentro del contenedor y usa /project como
+directorio. Docker compose genera nombres de contenedor basados en
+el directorio: "project-node-app-1", "project-yugabytedb-1".
+
+Pero el deployment real usa "red-de-intercambio-federada-node-app-1"
+porque se desplego desde C:\Users\usuario\Downloads\red-de-intercambio-federada\.
+
+Al hacer docker compose up, se creaban contenedores "project-*" que
+chocaban con los "red-de-intercambio-federada-*" existentes por los
+puertos (5433, 8080, etc).
 
 SOLUCION:
-Ahora el boton "Arrancar demo" SIEMPRE:
-1. Detiene y elimina el contenedor demo-app viejo
-2. Reconstruye la imagen demo-app con docker compose build
-3. Crea y arranca el contenedor con la imagen nueva
+Ahora el update handler y startDemoNode detectan el nombre del
+proyecto actual leyendo el label "com.docker.compose.project" del
+contenedor en el que estan corriendo. Usan ese nombre con
+--project-name en todos los comandos docker compose.
 
-Al arrancar, el demo hace reset + seed automaticamente
-(datos frescos cada vez, como debe ser).
-
-Esto ya lo hacia update.ps1 pero faltaba en el boton web.
+Asi, docker compose up recrea el contenedor correcto
+(red-de-intercambio-federada-node-app-1) en vez de crear uno nuevo
+(project-node-app-1).
 
 Generated with [Devin](https://devin.ai)
 

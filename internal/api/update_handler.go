@@ -141,6 +141,14 @@ func (h *UpdateHandler) runUpdateNode() {
 	h.appendLog("=== INICIO ACTUALIZACION ===")
 
 	projectDir := "/project"
+	composeFile := filepath.Join(projectDir, "docker-compose.yml")
+
+	// Detectar el nombre del proyecto de docker compose actual.
+	// El update handler corre dentro del contenedor node-app. Docker compose
+	// setea el label "com.docker.compose.project" con el nombre del proyecto.
+	// Si no lo encontramos, usar "project" como fallback (directorio /project).
+	projectName := h.detectComposeProject()
+	h.appendLog("Project name detectado: " + projectName)
 
 	// Configurar autenticacion con token
 	h.configureGitAuth(projectDir)
@@ -197,7 +205,7 @@ func (h *UpdateHandler) runUpdateNode() {
 	h.setUpdateStatus("running", "Reconstruyendo imagen Docker (esto tarda varios minutos)...", "")
 
 	// 5. docker compose build node-app
-	buildCmd := exec.Command("docker", "compose", "-f", filepath.Join(projectDir, "docker-compose.yml"), "build", "node-app")
+	buildCmd := exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName, "build", "node-app")
 	buildOut, err := buildCmd.CombinedOutput()
 	h.appendLog("--- docker compose build ---\n" + string(buildOut))
 	if err != nil {
@@ -209,7 +217,7 @@ func (h *UpdateHandler) runUpdateNode() {
 	h.setUpdateStatus("running", "Reconstruyendo imagen demo-app...", "")
 
 	// 5b. docker compose build demo-app (tiene profile, no se construye solo)
-	demoBuildCmd := exec.Command("docker", "compose", "-f", filepath.Join(projectDir, "docker-compose.yml"), "--profile", "demo", "build", "demo-app")
+	demoBuildCmd := exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName, "--profile", "demo", "build", "demo-app")
 	demoBuildOut, demoBuildErr := demoBuildCmd.CombinedOutput()
 	h.appendLog("--- docker compose build demo-app ---\n" + string(demoBuildOut))
 	if demoBuildErr != nil {
@@ -223,8 +231,9 @@ func (h *UpdateHandler) runUpdateNode() {
 
 	// 7. docker compose up -d --no-deps node-app
 	// --no-deps: NO tocar yugabytedb (sigue corriendo con el puerto 5433).
-	// Si intentamos recrear yugabytedb, el puerto choca con el que ya esta corriendo.
-	upCmd := exec.Command("docker", "compose", "-f", filepath.Join(projectDir, "docker-compose.yml"), "up", "-d", "--no-deps", "node-app")
+	// --project-name: usar el mismo nombre de proyecto que el deployment original
+	// para que recrea el contenedor correcto, no uno nuevo.
+	upCmd := exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName, "up", "-d", "--no-deps", "node-app")
 	upOut, err := upCmd.CombinedOutput()
 	h.appendLog("--- docker compose up ---\n" + string(upOut))
 	if err != nil {
@@ -234,25 +243,35 @@ func (h *UpdateHandler) runUpdateNode() {
 
 	// 7b. Si el demo-app estaba corriendo, recrearlo con la nueva imagen
 	// y detenerlo (no arrancarlo automaticamente, se arranca desde la web)
-	demoInspectCmd := exec.Command("docker", "inspect", "-f", "{{.State.Running}}", "red-de-intercambio-federada-demo-app-1")
+	demoContainerName := projectName + "-demo-app-1"
+	demoInspectCmd := exec.Command("docker", "inspect", "-f", "{{.State.Running}}", demoContainerName)
 	demoInspectOut, _ := demoInspectCmd.Output()
 	demoWasRunning := strings.TrimSpace(string(demoInspectOut)) == "true"
 	if demoWasRunning {
 		h.appendLog("Demo-app estaba corriendo, recreando con nueva imagen...")
 		// Detener y eliminar el contenedor viejo
-		exec.Command("docker", "stop", "red-de-intercambio-federada-demo-app-1").Run()
-		exec.Command("docker", "rm", "-f", "red-de-intercambio-federada-demo-app-1").Run()
+		exec.Command("docker", "stop", demoContainerName).Run()
+		exec.Command("docker", "rm", "-f", demoContainerName).Run()
 		// Crear el nuevo con la imagen nueva (detenido)
-		demoUpCmd := exec.Command("docker", "compose", "-f", filepath.Join(projectDir, "docker-compose.yml"), "--profile", "demo", "up", "-d", "--no-deps", "demo-app")
+		demoUpCmd := exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName, "--profile", "demo", "up", "-d", "--no-deps", "demo-app")
 		demoUpOut, _ := demoUpCmd.CombinedOutput()
 		h.appendLog("--- docker compose up demo-app ---\n" + string(demoUpOut))
 		// Detenerlo inmediatamente para que no arranque solo
-		exec.Command("docker", "stop", "red-de-intercambio-federada-demo-app-1").Run()
+		exec.Command("docker", "stop", demoContainerName).Run()
 		h.appendLog("Demo-app recreado (detenido, listo para arrancar desde la web)")
 	}
 
 	h.appendLog("=== ACTUALIZACION COMPLETADA ===")
 	h.setUpdateStatus("completed", "Nodo actualizado y reiniciado correctamente", "")
+}
+
+// detectComposeProject detecta el nombre del proyecto de docker compose
+// leyendo el label "com.docker.compose.project" del contenedor actual.
+// Esto es necesario porque el update handler corre dentro del contenedor
+// y usa /project como directorio, lo que generaria contenedores con prefijo
+// "project-" en vez del nombre real del deployment (ej: "red-de-intercambio-federada-").
+func (h *UpdateHandler) detectComposeProject() string {
+	return detectComposeProjectName()
 }
 
 // updateInstalledServices actualiza los servicios instalados despues de un git pull.
