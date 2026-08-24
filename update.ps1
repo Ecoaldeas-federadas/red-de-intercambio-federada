@@ -130,31 +130,20 @@ if ($demoBuildCode -ne 0) {
 }
 Write-OK "Imagenes reconstruidas"
 
-# 4. Detener y eliminar demo-app viejo (si esta corriendo)
-Write-Step "Actualizando nodo demo..."
+# 4. Eliminar demo-app viejo (si existe) para que al arrancar desde la web
+#    se cree con la imagen nueva. NO lo creamos aqui: se crea al pulsar
+#    "Arrancar demo" en la pagina web.
+Write-Step "Limpiando nodo demo viejo..."
 $demoContainer = docker ps -a --filter "name=demo-app" --format "{{.Names}}" 2>$null
 if ($demoContainer) {
     docker stop $demoContainer 2>$null
     docker rm -f $demoContainer 2>$null
-    Write-OK "Nodo demo viejo eliminado"
+    Write-OK "Nodo demo viejo eliminado (se creara de nuevo al arrancar desde la web)"
 } else {
-    Write-OK "No habia nodo demo corriendo"
+    Write-OK "No habia nodo demo que limpiar"
 }
 
-# 5. Recrear demo-app con la nueva imagen (sin arrancarlo)
-$demoCreateCode = Invoke-Compose @("--profile", "demo", "up", "-d", "--no-deps", "demo-app")
-if ($demoCreateCode -eq 0) {
-    # Detenerlo inmediatamente para que no arranque solo
-    $demoContainer2 = docker ps -a --filter "name=demo-app" --format "{{.Names}}" 2>$null
-    if ($demoContainer2) {
-        docker stop $demoContainer2 2>$null
-    }
-    Write-OK "Nodo demo recreado (detenido, listo para arrancar desde la web)"
-} else {
-    Write-Warn "No se pudo recrear el nodo demo (no es critico)"
-}
-
-# 6. Reiniciar node-app (sin tocar yugabytedb para evitar conflicto de puerto)
+# 5. Reiniciar node-app (sin tocar yugabytedb para evitar conflicto de puerto)
 Write-Step "Reiniciando nodo-app (sin tocar la base de datos)..."
 $upCode = Invoke-Compose @("up", "-d", "--no-deps", "node-app")
 if ($upCode -ne 0) {

@@ -241,8 +241,11 @@ func (h *PublicProposalsHandler) updateProposalStatus(w http.ResponseWriter, r *
 func (h *PublicProposalsHandler) getDemoStatus(w http.ResponseWriter, r *http.Request) {
 	running := false
 
-	// Verificar si el contenedor demo-app esta corriendo usando docker CLI
-	cmd := exec.Command("docker", "inspect", "-f", "{{.State.Running}}", "red-de-intercambio-federada-demo-app-1")
+	// Verificar si el contenedor demo-app esta corriendo usando docker CLI.
+	// Usar el nombre dinamico del proyecto (ej: red-de-intercambio-federada-demo-app-1).
+	projectName := detectComposeProjectName()
+	demoContainerName := projectName + "-demo-app-1"
+	cmd := exec.Command("docker", "inspect", "-f", "{{.State.Running}}", demoContainerName)
 	output, err := cmd.Output()
 	if err == nil {
 		running = strings.TrimSpace(string(output)) == "true"
@@ -277,6 +280,10 @@ func (h *PublicProposalsHandler) getDemoStatus(w http.ResponseWriter, r *http.Re
 // que el demo tenga el codigo mas reciente. Al arrancar, el demo hace
 // reset + seed automaticamente (datos frescos cada vez).
 func (h *PublicProposalsHandler) startDemoNode(w http.ResponseWriter, r *http.Request) {
+	// El repo esta montado en /project dentro del contenedor node-app.
+	projectDir := "/project"
+	composeFile := filepath.Join(projectDir, "docker-compose.yml")
+
 	// Escribir el dominio del padre en .demo-shared/parent-domain.txt
 	// para que el demo lo lea al arrancar y configure su node_config.
 	parentDomain := ""
@@ -284,10 +291,7 @@ func (h *PublicProposalsHandler) startDemoNode(w http.ResponseWriter, r *http.Re
 	if parentDomain == "" {
 		parentDomain = "localhost"
 	}
-	sharedDir := ".demo-shared"
-	if projectDir := os.Getenv("PROJECT_DIR"); projectDir != "" {
-		sharedDir = filepath.Join(projectDir, ".demo-shared")
-	}
+	sharedDir := filepath.Join(projectDir, ".demo-shared")
 	_ = os.MkdirAll(sharedDir, 0755)
 	_ = os.WriteFile(filepath.Join(sharedDir, "parent-domain.txt"), []byte(parentDomain), 0644)
 
@@ -302,10 +306,6 @@ func (h *PublicProposalsHandler) startDemoNode(w http.ResponseWriter, r *http.Re
 
 	// 2. Reconstruir la imagen demo-app con el codigo mas reciente
 	// Esto garantiza que el demo siempre tenga los ultimos cambios.
-	composeFile := "docker-compose.yml"
-	if projectDir := os.Getenv("PROJECT_DIR"); projectDir != "" {
-		composeFile = filepath.Join(projectDir, "docker-compose.yml")
-	}
 	buildCmd := exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName, "--profile", "demo", "build", "demo-app")
 	buildOut, buildErr := buildCmd.CombinedOutput()
 	if buildErr != nil {

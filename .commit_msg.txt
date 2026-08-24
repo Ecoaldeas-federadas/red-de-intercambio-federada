@@ -1,26 +1,19 @@
-fix: Detectar nombre del proyecto docker compose correctamente
+fix: startDemoNode usaba ruta relativa, no encontraba docker-compose.yml
 
 PROBLEMA RAIZ:
-El update handler corre dentro del contenedor y usa /project como
-directorio. Docker compose genera nombres de contenedor basados en
-el directorio: "project-node-app-1", "project-yugabytedb-1".
+El startDemoNode (boton "Arrancar demo" en la web) usaba os.Getenv("PROJECT_DIR")
+que NO esta definido en el docker-compose.yml del node-app. Por eso usaba
+"docker-compose.yml" (ruta relativa), que se resuelve a /app/docker-compose.yml
+(que no existe). El repo esta montado en /project, no en /app.
 
-Pero el deployment real usa "red-de-intercambio-federada-node-app-1"
-porque se desplego desde C:\Users\usuario\Downloads\red-de-intercambio-federada\.
-
-Al hacer docker compose up, se creaban contenedores "project-*" que
-chocaban con los "red-de-intercambio-federada-*" existentes por los
-puertos (5433, 8080, etc).
+Resultado: el boton "Arrancar demo" NUNCA funcionaba desde dentro del contenedor
+porque no encontraba el docker-compose.yml. El demo-app nunca se creaba.
 
 SOLUCION:
-Ahora el update handler y startDemoNode detectan el nombre del
-proyecto actual leyendo el label "com.docker.compose.project" del
-contenedor en el que estan corriendo. Usan ese nombre con
---project-name en todos los comandos docker compose.
-
-Asi, docker compose up recrea el contenedor correcto
-(red-de-intercambio-federada-node-app-1) en vez de crear uno nuevo
-(project-node-app-1).
+- startDemoNode: usar /project/docker-compose.yml directamente (no PROJECT_DIR)
+- getDemoStatus: usar detectComposeProjectName() para el nombre del contenedor
+- update.ps1: NO crear demo-app en el script (solo construir la imagen).
+  El demo-app se crea solo al pulsar "Arrancar demo" en la web.
 
 Generated with [Devin](https://devin.ai)
 
