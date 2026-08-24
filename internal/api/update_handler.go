@@ -206,6 +206,16 @@ func (h *UpdateHandler) runUpdateNode() {
 	}
 	h.appendLog("Imagen Docker construida")
 
+	h.setUpdateStatus("running", "Reconstruyendo imagen demo-app...", "")
+
+	// 5b. docker compose build demo-app (tiene profile, no se construye solo)
+	demoBuildCmd := exec.Command("docker", "compose", "-f", filepath.Join(projectDir, "docker-compose.yml"), "--profile", "demo", "build", "demo-app")
+	demoBuildOut, demoBuildErr := demoBuildCmd.CombinedOutput()
+	h.appendLog("--- docker compose build demo-app ---\n" + string(demoBuildOut))
+	if demoBuildErr != nil {
+		h.appendLog("Warning: no se pudo construir demo-app (no es critico)")
+	}
+
 	h.setUpdateStatus("running", "Reiniciando nodo...", "")
 
 	// 6. Actualizar servicios instalados (pos-web, etc.)
@@ -220,6 +230,25 @@ func (h *UpdateHandler) runUpdateNode() {
 	if err != nil {
 		h.setUpdateStatus("error", fmt.Sprintf("Error al reiniciar: %v", err), string(upOut))
 		return
+	}
+
+	// 7b. Si el demo-app estaba corriendo, recrearlo con la nueva imagen
+	// y detenerlo (no arrancarlo automaticamente, se arranca desde la web)
+	demoInspectCmd := exec.Command("docker", "inspect", "-f", "{{.State.Running}}", "red-de-intercambio-federada-demo-app-1")
+	demoInspectOut, _ := demoInspectCmd.Output()
+	demoWasRunning := strings.TrimSpace(string(demoInspectOut)) == "true"
+	if demoWasRunning {
+		h.appendLog("Demo-app estaba corriendo, recreando con nueva imagen...")
+		// Detener y eliminar el contenedor viejo
+		exec.Command("docker", "stop", "red-de-intercambio-federada-demo-app-1").Run()
+		exec.Command("docker", "rm", "-f", "red-de-intercambio-federada-demo-app-1").Run()
+		// Crear el nuevo con la imagen nueva (detenido)
+		demoUpCmd := exec.Command("docker", "compose", "-f", filepath.Join(projectDir, "docker-compose.yml"), "--profile", "demo", "up", "-d", "--no-deps", "demo-app")
+		demoUpOut, _ := demoUpCmd.CombinedOutput()
+		h.appendLog("--- docker compose up demo-app ---\n" + string(demoUpOut))
+		// Detenerlo inmediatamente para que no arranque solo
+		exec.Command("docker", "stop", "red-de-intercambio-federada-demo-app-1").Run()
+		h.appendLog("Demo-app recreado (detenido, listo para arrancar desde la web)")
 	}
 
 	h.appendLog("=== ACTUALIZACION COMPLETADA ===")

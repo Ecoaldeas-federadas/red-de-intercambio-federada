@@ -1,20 +1,18 @@
-fix: Reiniciar solo node-app con --no-deps (no tocar yugabytedb)
+fix: Boton web de actualizar tambien reconstruye y recrea demo-app
 
 PROBLEMA:
-Al actualizar, docker compose up -d node-app intentaba tambien
-levantar yugabytedb (por el depends_on). Si yugabytedb ya estaba
-corriendo, el puerto 5433 chocaba:
-
-  Bind for 0.0.0.0:5433 failed: port is already allocated
-  Error al reiniciar: exit status 1
+El update_handler.go (boton web "Actualizar Nodo") solo construa y
+reiniciaba node-app. El demo-app segua corriendo con la imagen vieja,
+por lo que los fixes al demo nunca tomaban efecto.
 
 SOLUCION:
-Usar --no-deps para que solo se reinicie node-app sin tocar
-yugabytedb. La base de datos sigue corriendo sin interrupcion.
+Ahora el boton web tambien:
+1. Construye la imagen demo-app (docker compose --profile demo build demo-app)
+2. Si el demo-app estaba corriendo, lo recrea con la nueva imagen
+   y lo detiene (no arranca solo, se arranca desde la web)
 
-Aplicado a:
-- internal/api/update_handler.go (boton web)
-- update.ps1 (actualizacion manual)
+Esto ya lo hacia update.ps1 (actualizacion manual) pero faltaba
+en el boton web.
 
 Generated with [Devin](https://devin.ai)
 
