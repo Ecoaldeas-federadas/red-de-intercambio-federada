@@ -269,12 +269,6 @@ type UpdateNodeConfigRequest struct {
 }
 
 func (h *SystemHandler) updateConfig(w http.ResponseWriter, r *http.Request) {
-	// Bloquear cambios de configuracion en nodo demo
-	if os.Getenv("DEMO_MODE") == "true" {
-		writeError(w, 403, "No se puede modificar la configuracion en el nodo demo. Se hereda del nodo padre.")
-		return
-	}
-
 	var req UpdateNodeConfigRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -285,8 +279,16 @@ func (h *SystemHandler) updateConfig(w http.ResponseWriter, r *http.Request) {
 	// Usar ActualNodeDomain para encontrar la fila correcta
 	actualDomain := db.ActualNodeDomain(r.Context(), h.Pool, h.nodeDomain)
 
+	// En nodo demo, bloquear cambio de dominio (se hereda del padre)
+	// pero permitir cambios de nombre, moneda, etc.
+	isDemo := os.Getenv("DEMO_MODE") == "true"
+	if isDemo && req.NodeDomain != "" && req.NodeDomain != actualDomain {
+		writeError(w, 403, "El dominio no se puede cambiar en el nodo demo. Se hereda del nodo padre.")
+		return
+	}
+
 	// Si se solicita cambiar el dominio, validar y actualizar
-	if req.NodeDomain != "" && req.NodeDomain != actualDomain {
+	if !isDemo && req.NodeDomain != "" && req.NodeDomain != actualDomain {
 		// Validar que el nuevo dominio no este vacio ni sea localhost
 		if req.NodeDomain == "localhost" || req.NodeDomain == "__LOCAL__" {
 			writeError(w, 400, "El dominio no puede ser 'localhost' ni '__LOCAL__'")
@@ -573,12 +575,6 @@ type UpdateTariffRequest struct {
 }
 
 func (h *SystemHandler) updateTariff(w http.ResponseWriter, r *http.Request) {
-	// Bloquear cambios de tarifa en nodo demo
-	if os.Getenv("DEMO_MODE") == "true" {
-		writeError(w, 403, "No se puede modificar la tarifa energetica en el nodo demo. Se hereda del nodo padre.")
-		return
-	}
-
 	var req UpdateTariffRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")

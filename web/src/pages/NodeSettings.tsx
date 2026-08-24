@@ -414,40 +414,39 @@ export default function NodeSettings() {
 
           <div>
             <label className="label">Nombre del nodo</label>
-            <input className="input" value={config.node_name} onChange={(e) => setConfig({ ...config, node_name: e.target.value })} disabled={!canManage || isDemoNode} readOnly={isDemoNode} />
+            <input className="input" value={config.node_name} onChange={(e) => setConfig({ ...config, node_name: e.target.value })} disabled={!canManage} />
             <p className="text-xs text-gray-400 mt-1">Nombre de esta comunidad.</p>
           </div>
 
           <div>
             <label className="label">Nombre completo de la moneda</label>
-            <input className="input" value={config.currency_full_name} onChange={(e) => setConfig({ ...config, currency_full_name: e.target.value })} disabled={!canManage || isDemoNode} readOnly={isDemoNode} placeholder="Ej: Trueque, Hora, Punto, Sol" />
+            <input className="input" value={config.currency_full_name} onChange={(e) => setConfig({ ...config, currency_full_name: e.target.value })} disabled={!canManage} placeholder="Ej: Trueque, Hora, Punto, Sol" />
             <p className="text-xs text-gray-400 mt-1">Nombre completo de la moneda interna. Ej: Trueque, Hora, Punto. Aparece en textos explicativos y en el sitio publico.</p>
           </div>
 
           <div>
             <label className="label">Abreviatura de la moneda</label>
-            <input className="input" value={config.currency_name} onChange={(e) => setConfig({ ...config, currency_name: e.target.value })} disabled={!canManage || isDemoNode} readOnly={isDemoNode} placeholder="Ej: TQ, HR, PT, SOL" />
+            <input className="input" value={config.currency_name} onChange={(e) => setConfig({ ...config, currency_name: e.target.value })} disabled={!canManage} placeholder="Ej: TQ, HR, PT, SOL" />
             <p className="text-xs text-gray-400 mt-1">Abreviatura corta de la moneda. Aparece en balances, transferencias y precios. Ej: TQ para Trueque, HR para Hora.</p>
           </div>
 
           <div>
             <label className="label">Nombre de la aplicacion</label>
-            <input className="input" value={config.app_name} onChange={(e) => setConfig({ ...config, app_name: e.target.value })} disabled={!canManage || isDemoNode} readOnly={isDemoNode} />
+            <input className="input" value={config.app_name} onChange={(e) => setConfig({ ...config, app_name: e.target.value })} disabled={!canManage} />
             <p className="text-xs text-gray-400 mt-1">Nombre que ven los usuarios en la interfaz.</p>
           </div>
 
           {isDemoNode && (
-            <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 text-sm text-amber-800 flex items-start gap-2">
-              <Lock size={16} className="mt-0.5 flex-shrink-0" />
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700 flex items-start gap-2">
+              <Info size={16} className="mt-0.5 flex-shrink-0" />
               <div>
-                <strong>Nodo Demo:</strong> La configuracion general se hereda del nodo padre.
-                No se puede modificar ni actualizar desde aqui. El nodo demo se actualiza
-                automaticamente cuando se actualiza el nodo padre.
+                <strong>Nodo Demo:</strong> Puedes modificar el nombre, la moneda y otros ajustes internos.
+                El dominio esta bloqueado porque se hereda del nodo padre. Los cambios se reinician cada 24h.
               </div>
             </div>
           )}
 
-          {canManage && !isDemoNode && (
+          {canManage && (
             <button onClick={saveConfig} className="btn-primary flex items-center gap-2"><Save size={18} />Guardar</button>
           )}
           {!canManage && (
@@ -462,18 +461,9 @@ export default function NodeSettings() {
       {/* ===== NIVELES DE MIEMBRO ===== */}
       {tab === 'levels' && (
         <div className="space-y-4">
-          {isDemoNode && (
-            <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 text-sm text-amber-800 flex items-start gap-2">
-              <Lock size={16} className="mt-0.5 flex-shrink-0" />
-              <div>
-                <strong>Nodo Demo:</strong> Los niveles de miembro son solo lectura en el demo.
-                Se configuran en el nodo padre.
-              </div>
-            </div>
-          )}
           <div className="flex justify-between items-center">
             <h2 className="font-semibold flex items-center gap-2"><UsersIcon size={18} />Niveles de Miembro</h2>
-            {canManage && !isDemoNode && (
+            {canManage && (
               <button onClick={() => { setShowLevelForm(!showLevelForm); setEditingLevel(null) }} className="btn-primary flex items-center gap-2"><Plus size={18} />Solicitar Nuevo Nivel</button>
             )}
           </div>
@@ -623,18 +613,9 @@ export default function NodeSettings() {
       {/* ===== NIVELES DE ORGANIZACION ===== */}
       {tab === 'org_levels' && (
         <div className="space-y-4">
-          {isDemoNode && (
-            <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 text-sm text-amber-800 flex items-start gap-2">
-              <Lock size={16} className="mt-0.5 flex-shrink-0" />
-              <div>
-                <strong>Nodo Demo:</strong> Los niveles de organizacion son solo lectura en el demo.
-                Se configuran en el nodo padre.
-              </div>
-            </div>
-          )}
           <div className="flex justify-between items-center">
             <h2 className="font-semibold flex items-center gap-2"><Building2 size={18} />Niveles de Organizacion</h2>
-            {canManage && !isDemoNode && (
+            {canManage && (
               <button onClick={() => { setShowOrgLevelForm(!showOrgLevelForm); setEditingOrgLevel(null) }} className="btn-primary flex items-center gap-2"><Plus size={18} />Solicitar Nuevo Nivel</button>
             )}
           </div>
@@ -757,16 +738,6 @@ export default function NodeSettings() {
         <div className="card space-y-4">
           <h2 className="font-semibold flex items-center gap-2"><Zap size={18} />Tarifa Energetica</h2>
 
-          {isDemoNode && (
-            <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 text-sm text-amber-800 flex items-start gap-2">
-              <Lock size={16} className="mt-0.5 flex-shrink-0" />
-              <div>
-                <strong>Nodo Demo:</strong> La tarifa energetica es solo lectura en el demo.
-                Se configura en el nodo padre.
-              </div>
-            </div>
-          )}
-
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
             <p><strong>Que es la tarifa energetica:</strong> Es la base para calcular precios justos. La idea es que 1 {config.currency_name} = 1 kWh de energia. Con esto, todo producto o servicio tiene un precio objetivo: la energia total que costo producirlo.</p>
             <p><strong>Como funciona:</strong> Primero se calcula cuanto cuesta mantener vivo a una persona por dia (canasta vital). Luego se divide entre las horas de trabajo de un dia para obtener la tarifa por hora. Los factores de esfuerzo ajustan el precio segun la dificultad del trabajo.</p>
@@ -779,22 +750,22 @@ export default function NodeSettings() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Alimentacion</label>
-              <input type="number" className="input" value={tariff.vital_food} onChange={(e) => setTariff({ ...tariff, vital_food: parseFloat(e.target.value) || 0 })} disabled={!canManage || isDemoNode} readOnly={isDemoNode} />
+              <input type="number" className="input" value={tariff.vital_food} onChange={(e) => setTariff({ ...tariff, vital_food: parseFloat(e.target.value) || 0 })} disabled={!canManage} />
               <p className="text-xs text-gray-400 mt-1">Costo diario de comida basica (granos, verduras, frutas). Ej: 800</p>
             </div>
             <div>
               <label className="label">Agua</label>
-              <input type="number" className="input" value={tariff.vital_water} onChange={(e) => setTariff({ ...tariff, vital_water: parseFloat(e.target.value) || 0 })} disabled={!canManage || isDemoNode} readOnly={isDemoNode} />
+              <input type="number" className="input" value={tariff.vital_water} onChange={(e) => setTariff({ ...tariff, vital_water: parseFloat(e.target.value) || 0 })} disabled={!canManage} />
               <p className="text-xs text-gray-400 mt-1">Costo diario de agua potable para consumo e higiene. Ej: 150</p>
             </div>
             <div>
               <label className="label">Vivienda/domestico</label>
-              <input type="number" className="input" value={tariff.vital_domestic} onChange={(e) => setTariff({ ...tariff, vital_domestic: parseFloat(e.target.value) || 0 })} disabled={!canManage || isDemoNode} readOnly={isDemoNode} />
+              <input type="number" className="input" value={tariff.vital_domestic} onChange={(e) => setTariff({ ...tariff, vital_domestic: parseFloat(e.target.value) || 0 })} disabled={!canManage} />
               <p className="text-xs text-gray-400 mt-1">Costo diario de vivienda (alquiler, mantenimiento, energia domestica). Ej: 350</p>
             </div>
             <div>
               <label className="label">Servicios</label>
-              <input type="number" className="input" value={tariff.vital_services} onChange={(e) => setTariff({ ...tariff, vital_services: parseFloat(e.target.value) || 0 })} disabled={!canManage || isDemoNode} readOnly={isDemoNode} />
+              <input type="number" className="input" value={tariff.vital_services} onChange={(e) => setTariff({ ...tariff, vital_services: parseFloat(e.target.value) || 0 })} disabled={!canManage} />
               <p className="text-xs text-gray-400 mt-1">Costo diario de servicios basicos (salud, transporte, comunicaciones). Ej: 200</p>
             </div>
           </div>
@@ -809,17 +780,17 @@ export default function NodeSettings() {
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="label">Administrativo</label>
-              <input type="number" step="0.05" className="input" value={tariff.effort_admin} onChange={(e) => setTariff({ ...tariff, effort_admin: parseFloat(e.target.value) || 1 })} disabled={!canManage || isDemoNode} readOnly={isDemoNode} />
+              <input type="number" step="0.05" className="input" value={tariff.effort_admin} onChange={(e) => setTariff({ ...tariff, effort_admin: parseFloat(e.target.value) || 1 })} disabled={!canManage} />
               <p className="text-xs text-gray-400 mt-1">1.0 = base. Trabajo de oficina, gestion, administracion. Esfuerzo fisico minimo.</p>
             </div>
             <div>
               <label className="label">Tecnico</label>
-              <input type="number" step="0.05" className="input" value={tariff.effort_technical} onChange={(e) => setTariff({ ...tariff, effort_technical: parseFloat(e.target.value) || 1 })} disabled={!canManage || isDemoNode} readOnly={isDemoNode} />
+              <input type="number" step="0.05" className="input" value={tariff.effort_technical} onChange={(e) => setTariff({ ...tariff, effort_technical: parseFloat(e.target.value) || 1 })} disabled={!canManage} />
               <p className="text-xs text-gray-400 mt-1">1.15 = 15% mas. Trabajo tecnico especializado: electricidad, plomeria, mecanica. Requiere conocimiento y esfuerzo moderado.</p>
             </div>
             <div>
               <label className="label">Agricola</label>
-              <input type="number" step="0.05" className="input" value={tariff.effort_agricultural} onChange={(e) => setTariff({ ...tariff, effort_agricultural: parseFloat(e.target.value) || 1 })} disabled={!canManage || isDemoNode} readOnly={isDemoNode} />
+              <input type="number" step="0.05" className="input" value={tariff.effort_agricultural} onChange={(e) => setTariff({ ...tariff, effort_agricultural: parseFloat(e.target.value) || 1 })} disabled={!canManage} />
               <p className="text-xs text-gray-400 mt-1">1.3 = 30% mas. Trabajo agricola, construccion, carga. Esfuerzo fisico intenso.</p>
             </div>
           </div>
@@ -829,17 +800,17 @@ export default function NodeSettings() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Horas por dia</label>
-              <input type="number" className="input" value={tariff.work_hours_per_day} onChange={(e) => setTariff({ ...tariff, work_hours_per_day: parseInt(e.target.value) || 6 })} disabled={!canManage || isDemoNode} readOnly={isDemoNode} />
+              <input type="number" className="input" value={tariff.work_hours_per_day} onChange={(e) => setTariff({ ...tariff, work_hours_per_day: parseInt(e.target.value) || 6 })} disabled={!canManage} />
               <p className="text-xs text-gray-400 mt-1">Horas de trabajo estandar por dia. Tipico: 6-8. Menos horas = tarifa por hora mas alta.</p>
             </div>
             <div>
               <label className="label">Dias por mes</label>
-              <input type="number" className="input" value={tariff.work_days_per_month} onChange={(e) => setTariff({ ...tariff, work_days_per_month: parseInt(e.target.value) || 24 })} disabled={!canManage || isDemoNode} readOnly={isDemoNode} />
+              <input type="number" className="input" value={tariff.work_days_per_month} onChange={(e) => setTariff({ ...tariff, work_days_per_month: parseInt(e.target.value) || 24 })} disabled={!canManage} />
               <p className="text-xs text-gray-400 mt-1">Dias de trabajo por mes. Tipico: 20-24. Se usa para calcular ingresos mensuales base.</p>
             </div>
           </div>
 
-          {canManage && !isDemoNode && (
+          {canManage && (
             <button onClick={saveTariff} className="btn-primary flex items-center gap-2"><Save size={18} />Guardar Tarifa</button>
           )}
         </div>

@@ -1,48 +1,31 @@
-fix: bloquear configuracion, actualizacion y servicios en nodo demo
+fix: desbloquear ajustes internos del nodo demo, mantener bloqueado lo externo
 
-PROBLEMA:
-El nodo demo tenia habilitadas opciones que no deben funcionar ahi:
-- Actualizar Nodo (git pull + rebuild) - el demo se actualiza desde el padre
-- Configuracion General (dominio, moneda, nombre) - se hereda del padre
-- Niveles de Miembro/Organizacion - se configuran en el padre
-- Tarifa Energetica - se configura en el padre
-- Servicios Federados (instalar/desinstalar) - puede sobrecargar el servidor
-- Configuracion de red - se hereda del padre
-- VoIP - no se configura en el demo
+El nodo demo tiene su propia base de datos que se reinicia cada 24h.
+Las decisiones internas SI deben poder modificarse para que la gente
+vea como funciona. Lo que no debe funcionar es lo que afecta al
+exterior o al nodo padre.
 
-El usuario intentaba actualizar desde el demo y no funcionaba porque
-el demo no tiene acceso al repo git de la misma forma que el padre.
+DESBLOQUEADO (interno, propia BD, se reinicia cada 24h):
+- Niveles de Miembro: crear/editar niveles
+- Niveles de Organizacion: crear/editar niveles
+- Tarifa Energetica: editar todos los campos
+- General: nombre del nodo, moneda, nombre de la app
+  (el dominio sigue bloqueado, se hereda del padre)
 
-SOLUCION:
+MANTENIDO BLOQUEADO (afecta al exterior):
+- Actualizar Nodo: se actualiza desde el padre
+- Dominio del nodo: se hereda del padre
+- Servicios Federados: instalar/desinstalar (puede sobrecargar)
+- Configuracion de red: afecta la red
+- VoIP: afecta telefonía externa
+- Federacion con otros nodos: no federar realmente
 
-Frontend (NodeSettings.tsx):
-- General: todos los inputs readOnly + disabled en demo, sin boton Guardar
-- General: seccion "Actualizar Nodo" oculta en demo
-- Niveles de Miembro: boton "Nuevo Nivel" oculto en demo
-- Niveles de Organizacion: boton "Nuevo Nivel" oculto en demo
-- Tarifa Energetica: todos los inputs readOnly + disabled en demo,
-  sin boton Guardar
-- Banner amarillo explicativo en cada pestana bloqueada
-
-Frontend (FederatedServices.tsx):
-- Banner amarillo: servicios solo para visualizacion en demo
-- Boton "Instalar" reemplazado por texto bloqueado con icono de candado
-- Botones Detener, Iniciar, Actualizar, Desinstalar ocultos en demo
-- Boton "Descargar" oculto en demo
-- Boton "Actualizar todo" oculto en demo
-- Boton "Telefonia VoIP" oculto en demo
-- Boton "Detalles" sigue visible (es solo informacion)
-
-Backend (bloqueo con 403 en DEMO_MODE=true):
-- updateConfig (system.go): configuracion general del nodo
-- updateTariff (system.go): tarifa energetica
-- updateNode (update_handler.go): git pull + rebuild
-- installService (services_catalog.go): instalar servicio federado
-- uninstallService (services_catalog.go): desinstalar servicio
-- startService (services_catalog.go): iniciar servicio
-- stopService (services_catalog.go): detener servicio
-- updateVoIPConfig (services_catalog.go): configurar VoIP
-- updateConfig (network.go): configuracion de red
+Cambios:
+- Frontend: quitados readOnly/disabled de niveles, tarifa y general
+  (excepto dominio). Quitados banners amarillos de "solo lectura".
+  Anadido banner azul explicativo en General del demo.
+- Backend updateConfig: en demo permite cambios excepto dominio
+- Backend updateTariff: quitado bloqueo de demo
 
 Generated with [Devin](https://devin.ai)
 
