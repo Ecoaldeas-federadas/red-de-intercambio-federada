@@ -1,50 +1,28 @@
-feat: updater-controller - contenedor externo para actualizar el nodo
+feat: update.ps1 auto-actualizable + arranca updater-controller
 
-PROBLEMA:
-Cuando se actualiza el nodo desde el frontend, el node-app hace git pull +
-build + restart. Al reiniciarse, pierde el estado en memoria y el frontend
-se queda en "Actualizando..." para siempre. Ademas, si el restart falla,
-el nodo queda detenido y no hay forma de saber que paso.
+MEJORAS A update.ps1:
+- Auto-actualizacion: si el propio script cambia tras git pull, se
+  re-ejecuta con la nueva version (el usuario nunca necesita hacer nada extra)
+- Limpieza de contenedores huerfanos de actualizaciones fallidas
+  (contenedores sin nombre o con sufijo _red-de-intercambio-federada-)
+- Detiene demo-app si quedo corriendo por error (debe arrancarse desde la web)
+- Construye updater-controller (nuevo servicio)
+- Arranca TODOS los servicios que deben estar siempre corriendo:
+  yugabytedb, db-backup, demo-controller, demo-stopper, updater-controller, node-app
+- NO arranca demo-app (se arranca desde la web con un boton)
+- Verifica que Docker Desktop este respondiendo antes de continuar
+- Muestra el commit actual al final
+- Tiempo de espera del servidor aumentado a 90s (era 60s)
 
-SOLUCION:
-Contenedor separado (updater-controller) que SIEMPRE esta corriendo y
-maneja la actualizacion. Es el mismo patron que demo-controller.
+MEJORAS A install.ps1:
+- Construye updater-controller junto con node-app
+- Arranca todos los servicios excepto demo-app
 
-Arquitectura:
-  Frontend → POST /api/node/update → node-app delega a updater-controller:9110
-                                                ↓
-                                      updater-controller hace:
-                                      1. git fetch + reset (repo completo)
-                                      2. docker compose build node-app
-                                      3. docker compose build demo-app
-                                      4. docker compose up -d node-app
-                                      5. Escribe estado a volumen compartido
-                                                ↓
-                                      node-app se reinicia
-                                      (updater-controller sigue corriendo)
-                                                ↓
-  Frontend → GET /api/node/update-status → lee /update-state/update.json → "completed"
+El usuario solo necesita correr:
+  powershell -ExecutionPolicy Bypass -File update.ps1
 
-Archivos nuevos:
-- docker/Dockerfile.updater-controller: imagen ligera con git, docker-cli, socat
-- docker/updater-controller.sh: HTTP server en puerto 9110 (/update, /status, /check)
-- docker/do_update.sh: script que hace git pull + build + restart en background
-
-Cambios:
-- docker-compose.yml: agregado servicio updater-controller + volumen update_state
-- docker-compose.yml: node-app monta update_state en /update-state
-- internal/api/update_handler.go: updateNode delega a updater-controller via HTTP
-- internal/api/update_handler.go: getUpdateStatus lee de /update-state/update.json
-- internal/api/update_handler.go: checkUpdates sigue ejecutandose localmente (no reinicia)
-- internal/api/update_handler.go: eliminado estado en memoria (sync.Mutex, etc)
-
-El updater-controller:
-- No se reinicia cuando se actualiza el nodo (siempre disponible)
-- Escribe estado a volumen compartido (sobrevive el reinicio de node-app)
-- Usa socat para HTTP (ligero, sin necesidad de nginx/python)
-- Tiene acceso a docker.sock para build/up
-- Tiene acceso al repo (/project) para git pull
-- Recibe GIT_TOKEN del .env
+Y todo se actualiza: codigo, imagenes, servicios nuevos, limpieza.
+Si el propio update.ps1 cambio, se re-ejecuta solo con la nueva version.
 
 Generated with [Devin](https://devin.ai)
 

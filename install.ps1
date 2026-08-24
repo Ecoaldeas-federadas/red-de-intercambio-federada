@@ -332,7 +332,7 @@ function Invoke-Compose($subArgs) {
 }
 
 # Construir
-$buildCode = Invoke-Compose @("build")
+$buildCode = Invoke-Compose @("build", "node-app", "updater-controller")
 if ($buildCode -ne 0) {
     Write-Err "Error construyendo las imagenes Docker (codigo $buildCode)"
     exit 1
@@ -340,7 +340,16 @@ if ($buildCode -ne 0) {
 Write-OK "Imagenes construidas"
 
 Write-Step "Arrancando servicios..."
-$upCode = Invoke-Compose @("up", "-d")
+# Arrancar todos los servicios excepto demo-app (se arranca desde la web)
+$servicesToStart = @("yugabytedb", "db-backup", "demo-controller", "demo-stopper", "updater-controller", "node-app")
+$allUpArgs = $composeArgs + @("up", "-d") + $servicesToStart
+$outFile = Join-Path $env:TEMP "compose-up_$([guid]::NewGuid()).log"
+$errFile = Join-Path $env:TEMP "compose-up-err_$([guid]::NewGuid()).log"
+$p = Start-Process -FilePath $composeExe -ArgumentList $allUpArgs -NoNewWindow -Wait -PassThru -RedirectStandardError $errFile -RedirectStandardOutput $outFile
+Get-Content $outFile -ErrorAction SilentlyContinue | Out-Host
+Get-Content $errFile -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_ -ForegroundColor Yellow }
+Remove-Item $outFile, $errFile -Force -ErrorAction SilentlyContinue
+$upCode = $p.ExitCode
 if ($upCode -ne 0) {
     Write-Err "Error arrancando los servicios (codigo $upCode)"
     exit 1
