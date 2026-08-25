@@ -44,6 +44,23 @@ import Notifications from './pages/Notifications'
 import Pay from './pages/Pay'
 import MyTerminals from './pages/MyTerminals'
 
+// updateFavicon cambia el favicon del navegador dinamicamente.
+// Si se pasa una URL de logo, lo usa como favicon.
+// Si se pasa null, restaura el favicon por defecto.
+function updateFavicon(logoUrl: string | null) {
+  // Remover favicons existentes
+  document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]').forEach(el => el.remove())
+
+  const link = document.createElement('link')
+  link.rel = 'icon'
+  if (logoUrl) {
+    link.href = logoUrl
+  } else {
+    link.href = '/icon.svg'
+  }
+  document.head.appendChild(link)
+}
+
 export default function App() {
   return (
     <SessionExpiredProvider>
@@ -57,6 +74,18 @@ function AppInner() {
   useSessionTimeout()
   const [setupChecked, setSetupChecked] = useState(false)
   const [needsSetup, setNeedsSetup] = useState(false)
+
+  // Actualizar favicon dinamicamente con el logo del nodo
+  useEffect(() => {
+    api.get('/public/settings').then((s: any) => {
+      if (s?.logo_url) {
+        updateFavicon(s.logo_url)
+      }
+      if (s?.site_title) {
+        document.title = s.site_title
+      }
+    }).catch(() => {})
+  }, [])
 
   useEffect(() => {
     api.get<{ initialized: boolean }>('/setup/status')

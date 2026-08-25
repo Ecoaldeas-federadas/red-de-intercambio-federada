@@ -1,52 +1,33 @@
-fix: actualizacion del nodo sobrevive recarga de pagina + boton cancelar
+feat: favicon dinamico usa el logo del nodo automaticamente
 
-PROBLEMAS:
-1. Al recargar la pagina, la consola de actualizacion desaparecia
-   porque el estado solo vivia en React state, no se consultaba al backend
-2. No habia boton para cancelar una actualizacion atascada
-3. El backend no escribia estado inicial antes de delegar al
-   updater-controller, asi que si el controller no respondia, el
-   estado quedaba vacio y el frontend mostraba "Esperando..." para siempre
-4. No habia logging de errores de conexion al updater-controller
-5. Si el updater-controller no recibia la instruccion, no habia forma
-   de saber por que
+PROBLEMA:
+El favicon (la fotico chiquitica en la pestana del navegador) era
+siempre el mismo icon.svg estatico. Si el usuario cambiaba el logo
+del nodo, el favicon no cambiaba.
 
 SOLUCION:
 
-1. Backend update_handler.go:
-   - Nuevo writeUpdateState(): escribe estado a /update-state/update.json
-     ANTES de delegar al updater-controller
-   - Nuevo appendUpdateLog(): agrega lineas al log compartido
-   - updateNode() ahora:
-     * Verifica si ya hay update en curso (409 si ya hay)
-     * Escribe estado "running" inicial antes de cualquier cosa
-     * Loggea cada intento de conexion al updater-controller
-     * Loggea errores de rebuild del controller
-   - Nuevo endpoint POST /api/node/cancel-update:
-     * Ecribe estado "cancelled" al archivo de estado
-     * Mata contenedores desechables fmc-updater-*
-   - Nuevo handler cancelUpdate()
+1. Backend system.go:
+   - Nuevo endpoint GET /api/favicon
+   - Consulta public_settings.logo_url del nodo
+   - Si hay logo configurado: redirige a la URL del logo
+   - Si no hay logo: sirve el icon.svg por defecto
+   - Cache de 1 hora para no consultar la BD en cada request
 
-2. do_update.sh:
-   - Nuevo check_cancelled(): verifica si el estado es "cancelled"
-     antes de cada paso y se detiene si fue cancelado
-   - Verificaciones de cancelacion antes de:
-     * git fetch
-     * git reset
-     * docker build node-app
-     * docker up node-app (reiniciar)
+2. Frontend App.tsx:
+   - Al cargar la app, consulta /public/settings
+   - Si hay logo_url, actualiza el favicon dinamicamente
+   - Tambien actualiza el <title> con site_title del nodo
+   - Funcion updateFavicon(): remueve favicons existentes y
+     agrega uno nuevo con la URL del logo
 
-3. Frontend NodeSettings.tsx NodeUpdateSection:
-   - Al cargar (useEffect), consulta /node/update-status
-   - Si el estado es "running", restaura la consola automaticamente
-     y reinicia el polling
-   - Esto significa que al recargar la pagina, la consola vuelve a aparecer
-   - Nuevo boton "Cancelar actualizacion" (rojo, con icono X)
-   - El boton llama a POST /node/cancel-update
-   - Desaparece cuando el estado es completed/error/cancelled
-   - Detecta estado "cancelled" y detiene el polling
-   - Refactor: startPolling() extraido como funcion reutilizable
-     (usado tanto por updateNode como por la restauracion al cargar)
+3. Frontend WebsiteAdmin.tsx:
+   - Al guardar los settings del sitio, actualiza el favicon
+     inmediatamente si el logo cambio
+   - No necesita recargar la pagina para ver el nuevo favicon
+
+Resultado: Cuando cambias el logo en Ajustes del Sitio, el favicon
+de la pestana del navegador cambia automaticamente.
 
 Generated with [Devin](https://devin.ai)
 

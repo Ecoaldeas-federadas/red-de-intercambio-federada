@@ -29,6 +29,8 @@ type SystemHandler struct {
 func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	// ===== ENDPOINTS PUBLICOS (sin auth) - Sitio web del nodo =====
 	r.Get("/api/public/settings", h.getPublicSettings)
+	// Favicon dinamico: sirve el logo del nodo como favicon
+	r.Get("/api/favicon", h.getFavicon)
 	r.Get("/api/public/pages", h.listPublicPages)
 	r.Get("/api/public/pages/{slug}", h.getPublicPage)
 	r.Get("/api/public/page/{slug}/html", h.renderPublicPageHTML)
@@ -2290,6 +2292,45 @@ func (h *SystemHandler) getPublicSettings(w http.ResponseWriter, r *http.Request
 		"header_bottom_bg_color":    headerBottomBgColor,
 		"header_bottom_text_color":  headerBottomTextColor,
 	})
+}
+
+// getFavicon sirve el logo del nodo como favicon dinamico.
+// Si el nodo tiene un logo_url configurado en public_settings, redirige a esa URL.
+// Si no tiene logo, sirve el icon.svg por defecto del frontend.
+// Esto hace que el favicon cambie automaticamente cuando se cambia el logo.
+func (h *SystemHandler) getFavicon(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.URL.Query().Get("node")
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+
+	var logoURL string
+	err := h.Pool.QueryRow(r.Context(), `
+		SELECT COALESCE(logo_url, '') FROM public_settings WHERE node_domain = $1`, nodeDomain).Scan(&logoURL)
+
+	if err == nil && logoURL != "" {
+		// El nodo tiene logo configurado - redirigir a la URL del logo
+		// Cache por 1 hora para no consultar la BD en cada request del navegador
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		http.Redirect(w, r, logoURL, http.StatusFound)
+		return
+	}
+
+	// No hay logo configurado - servir el icon.svg por defecto
+	// Buscar en el directorio del frontend
+	frontendDir := "/app/frontend"
+	if _, err := os.Stat(frontendDir + "/icon.svg"); err != nil {
+		frontendDir = "/app/dist"
+	}
+	iconPath := frontendDir + "/icon.svg"
+	if _, err := os.Stat(iconPath); err != nil {
+		// Ultimo recurso: icono SVG inline
+		w.Header().Set("Content-Type", "image/svg+xml")
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		w.Write([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-5"/></svg>`))
+		return
+	}
+	w.Header().Set("Content-Type", "image/svg+xml")
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+	http.ServeFile(w, r, iconPath)
 }
 
 func (h *SystemHandler) listPublicPages(w http.ResponseWriter, r *http.Request) {

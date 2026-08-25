@@ -734,6 +734,17 @@ export default function WebsiteAdmin() {
     try {
       await api.put('/site/settings', settingsForm)
       setSuccess('¡Ajustes del sitio y estilo de menú guardados con éxito!')
+      // Actualizar favicon dinamicamente si el logo cambio
+      if (settingsForm.logo_url) {
+        document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]').forEach(el => el.remove())
+        const link = document.createElement('link')
+        link.rel = 'icon'
+        link.href = settingsForm.logo_url
+        document.head.appendChild(link)
+      }
+      if (settingsForm.site_title) {
+        document.title = settingsForm.site_title
+      }
       load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar')
