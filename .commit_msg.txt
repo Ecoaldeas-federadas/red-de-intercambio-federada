@@ -1,46 +1,35 @@
-fix: consola de actualizacion persistente que sobrevive reinicio del nodo
+fix: CRLF en scripts shell rompe updater-controller dentro de Docker
 
 PROBLEMA:
-La consola de estado de actualizacion desaparecia despues de 1 segundo
-porque:
-1. El polling a /node/update-status fallaba cuando node-app se reiniciaba
-2. El catch era vacio - no mostraba nada al usuario
-3. El estado solo se mostraba si era running/error/completed, no idle
-4. El usuario se quedaba viendo "Actualizando..." sin saber que pasaba
-5. No habia feedback visual de que se estaba esperando reconexion
+El updater-controller fallaba con:
+  socat E execvp("/updater-controller.sh"): No such file or directory
 
-SOLUCION:
-Rediseñado NodeUpdateSection con consola de estado persistente:
+Causa: git autocrlf=true en Windows convierte LF a CRLF en los scripts .sh.
+Cuando Docker COPY los mete al contenedor Linux, el shebang #!/bin/sh\r
+no encuentra el interprete /bin/sh\r (con \r al final) y falla.
 
-1. Consola estilo terminal siempre visible durante updating:
-   - Fondo negro, texto monoespaciado
-   - Muestra el log en tiempo real del updater-controller
-   - Se actualiza cada 2s (antes era 3s)
+Esto pasa especialmente despues de git reset --hard origin/main dentro
+de do_update.sh, que re-checkoutea los archivos con CRLF.
 
-2. Polling resiliente que NO para cuando el nodo se reinicia:
-   - Antes: catch vacio, seguia sin mostrar nada
-   - Ahora: cuenta fallos consecutivos, muestra "Nodo reiniciandose"
-   - Sigue reintentando hasta que el nodo vuelve
-   - Muestra numero de intento de reconexion
+SOLUCION (3 niveles):
 
-3. Estados visuales claros:
-   - idle: "Esperando inicio de actualizacion..."
-   - running: mensaje del updater + log + barra progreso 50%
-   - nodeRestarting: "Nodo reiniciandose... esperando reconexion"
-     + barra progreso 70% + mensaje explicativo
-   - completed: "Nodo actualizado correctamente" + barra 100%
-   - error: mensaje de error + barra roja
+1. .gitattributes (nuevo):
+   *.sh text eol=lf  -> fuerza LF en scripts shell
+   *.ps1 text eol=crlf -> mantiene CRLF en PowerShell
 
-4. Barra de progreso visual que cambia segun el estado:
-   - Azul pulsante: actualizando
-   - Amber: nodo reiniciandose
-   - Verde: completado
-   - Rojo: error
+2. Dockerfile.updater-controller:
+   Agregado: RUN sed -i 's/\r$//' /updater-controller.sh /do_update.sh
+   despues de COPY. Esto strip CRLF si git los introdujo.
+   Tambien agregado ls -la para debug.
 
-5. Mensaje explicativo durante reinicio:
-   "El nodo se esta reiniciando. Esto es normal durante la actualizacion.
-    El updater-controller sigue trabajando en segundo plano.
-    Reintentando conexion... (intento N)"
+3. do_update.sh:
+   Auto-fix al inicio: si detecta \r en si mismo, hace sed y re-exec.
+   Esto maneja el caso donde git reset --hard re-checkoutea con CRLF
+   y do_update.sh ya esta corriendo.
+
+4. update_handler.go (contenedor desechable):
+   Agregado sed -i antes de ejecutar do_update.sh en el contenedor
+   alpine desechable, por si los scripts montados tienen CRLF.
 
 Generated with [Devin](https://devin.ai)
 

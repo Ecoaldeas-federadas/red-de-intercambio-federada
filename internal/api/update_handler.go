@@ -201,7 +201,10 @@ func (h *UpdateHandler) updateWithDetachedContainer(w http.ResponseWriter, r *ht
 		"--entrypoint", "sh",
 		"alpine:3.20",
 		"-c",
-		"apk add --no-cache git docker-cli docker-cli-compose ca-certificates > /dev/null 2>&1 && sh /project/docker/do_update.sh",
+		// sed: strip CRLF de los scripts shell por si git autocrlf los convirtio
+		"apk add --no-cache git docker-cli docker-cli-compose ca-certificates > /dev/null 2>&1 && "+
+			"sed -i 's/\\r$//' /project/docker/do_update.sh /project/docker/updater-controller.sh 2>/dev/null; "+
+			"sh /project/docker/do_update.sh",
 	)
 
 	output, err := cmd.CombinedOutput()

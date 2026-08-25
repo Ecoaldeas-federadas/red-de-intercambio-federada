@@ -2,5 +2,8 @@ FROM alpine:3.20
 RUN apk --no-cache add git docker-cli docker-cli-compose socat ca-certificates
 COPY docker/updater-controller.sh /updater-controller.sh
 COPY docker/do_update.sh /do_update.sh
-RUN chmod +x /updater-controller.sh /do_update.sh
+# Strip CRLF line endings (Windows) que rompen los scripts shell en Linux
+RUN sed -i 's/\r$//' /updater-controller.sh /do_update.sh && \
+    chmod +x /updater-controller.sh /do_update.sh && \
+    ls -la /updater-controller.sh /do_update.sh
 ENTRYPOINT ["socat", "TCP-LISTEN:9110,reuseaddr,fork", "EXEC:/updater-controller.sh"]

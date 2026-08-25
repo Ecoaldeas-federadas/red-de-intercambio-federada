@@ -3,6 +3,13 @@
 # Does: git fetch + reset + docker build + restart node-app
 # Writes status to /update-state/update.json, logs to /update-state/update.log
 
+# Auto-fix CRLF line endings si este script fue checkouteado por git con autocrlf=true
+# Esto es necesario porque el script se ejecuta en Linux pero puede venir de Windows
+if grep -q $'\r' "$0" 2>/dev/null; then
+  sed -i 's/\r$//' "$0" /project/docker/updater-controller.sh 2>/dev/null
+  exec sh "$0" "$@"
+fi
+
 STATE_DIR=/update-state
 STATE_FILE=$STATE_DIR/update.json
 LOG_FILE=$STATE_DIR/update.log
