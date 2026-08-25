@@ -1,38 +1,46 @@
-fix: navegacion SPA entre sitio publico, login y app interna
+fix: consola de actualizacion persistente que sobrevive reinicio del nodo
 
-PROBLEMAS:
-1. Boton 'Ver sitio publico' en la app interna abria nueva pestana
-   (target=_blank) en lugar de navegar en la misma ventana
-2. Login abria como pagina completa sin boton para volver atras
-   - El usuario se quedaba preso en el login sin poder regresar
-3. No se podia navegar entre sitio publico y app interna en la misma
-   ventana
+PROBLEMA:
+La consola de estado de actualizacion desaparecia despues de 1 segundo
+porque:
+1. El polling a /node/update-status fallaba cuando node-app se reiniciaba
+2. El catch era vacio - no mostraba nada al usuario
+3. El estado solo se mostraba si era running/error/completed, no idle
+4. El usuario se quedaba viendo "Actualizando..." sin saber que pasaba
+5. No habia feedback visual de que se estaba esperando reconexion
 
-SOLUCIONES:
+SOLUCION:
+Rediseñado NodeUpdateSection con consola de estado persistente:
 
-1. Layout.tsx: cambiado enlace target=_blank por Link SPA
-   - Ahora 'Ver sitio publico' navega dentro de la misma ventana
-   - Cambiado en sidebar y en header
+1. Consola estilo terminal siempre visible durante updating:
+   - Fondo negro, texto monoespaciado
+   - Muestra el log en tiempo real del updater-controller
+   - Se actualiza cada 2s (antes era 3s)
 
-2. LoginModal.tsx (nuevo componente):
-   - Login emergente tipo popup/modal como el de detalles de servicios
-   - Se abre sobre la pagina actual sin navegar a otra ruta
-   - Boton X para cerrar y volver a la pagina donde estabas
-   - Soporta password, passkey y login demo
-   - Mismo estilo y funcionalidad que el Login anterior
+2. Polling resiliente que NO para cuando el nodo se reinicia:
+   - Antes: catch vacio, seguia sin mostrar nada
+   - Ahora: cuenta fallos consecutivos, muestra "Nodo reiniciandose"
+   - Sigue reintentando hasta que el nodo vuelve
+   - Muestra numero de intento de reconexion
 
-3. PublicSite.tsx:
-   - Todos los botones 'Acceso' / 'Iniciar sesion miembros' ahora abren
-     el LoginModal en lugar de navegar a /login
-   - Agregado estado showLoginModal al PublicLayout
-   - 14 enlaces convertidos de Link a button onClick
+3. Estados visuales claros:
+   - idle: "Esperando inicio de actualizacion..."
+   - running: mensaje del updater + log + barra progreso 50%
+   - nodeRestarting: "Nodo reiniciandose... esperando reconexion"
+     + barra progreso 70% + mensaje explicativo
+   - completed: "Nodo actualizado correctamente" + barra 100%
+   - error: mensaje de error + barra roja
 
-4. Login.tsx (pagina /login sigue existiendo):
-   - Agregado boton 'Volver al sitio publico'
-   - Por si alguien accede directamente a /login
+4. Barra de progreso visual que cambia segun el estado:
+   - Azul pulsante: actualizando
+   - Amber: nodo reiniciandose
+   - Verde: completado
+   - Rojo: error
 
-Resultado: toda la navegacion entre sitio publico, login y app interna
-se hace en la misma ventana sin abrir pestanas nuevas.
+5. Mensaje explicativo durante reinicio:
+   "El nodo se esta reiniciando. Esto es normal durante la actualizacion.
+    El updater-controller sigue trabajando en segundo plano.
+    Reintentando conexion... (intento N)"
 
 Generated with [Devin](https://devin.ai)
 

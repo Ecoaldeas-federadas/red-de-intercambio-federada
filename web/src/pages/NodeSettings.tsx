@@ -1848,6 +1848,8 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
   const [msg, setMsg] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null)
   const [pollInterval, setPollInterval] = useState<any>(null)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [reconnectAttempts, setReconnectAttempts] = useState(0)
+  const [nodeRestarting, setNodeRestarting] = useState(false)
 
   const checkUpdates = async () => {
     setChecking(true)
@@ -1865,13 +1867,22 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
     setShowConfirm(false)
     setUpdating(true)
     setMsg(null)
+    setUpdateStatus(null)
+    setReconnectAttempts(0)
+    setNodeRestarting(false)
     try {
       await api.post('/node/update', {})
       setMsg({ type: 'info', text: 'Actualizacion iniciada. El nodo se reiniciara automaticamente.' })
+      let attempts = 0
+      let consecutiveFailures = 0
       const interval = setInterval(async () => {
+        attempts++
         try {
           const res: any = await api.get('/node/update-status')
           setUpdateStatus(res)
+          consecutiveFailures = 0
+          setNodeRestarting(false)
+          setReconnectAttempts(0)
           if (res.status === 'completed') {
             clearInterval(interval)
             setUpdating(false)
@@ -1884,8 +1895,16 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
           }
         } catch {
           // El nodo se esta reiniciando, es normal que falle
+          consecutiveFailures++
+          setReconnectAttempts(consecutiveFailures)
+          if (consecutiveFailures >= 2) {
+            setNodeRestarting(true)
+          }
+          // No parar el polling - seguir reintentando hasta que el nodo vuelva
+          // El updater-controller (o contenedor desechable) sigue trabajando
+          // incluso mientras node-app se reinicia
         }
-      }, 3000)
+      }, 2000)
       setPollInterval(interval)
     } catch (e: any) {
       setUpdating(false)
@@ -1945,7 +1964,91 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
         </div>
       )}
 
-      {updateStatus && (updateStatus.status === 'running' || updateStatus.status === 'error' || updateStatus.status === 'completed') && (
+      {/* Consola de estado de actualizacion - siempre visible durante updating */}
+      {updating && (
+        <div className="bg-gray-900 rounded-lg p-4 mb-3 border border-gray-700">
+          <div className="flex items-center gap-2 mb-3">
+            {nodeRestarting ? (
+              <>
+                <RefreshCw size={16} className="animate-spin text-amber-400" />
+                <span className="text-amber-400 text-sm font-medium">
+                  Nodo reiniciandose... esperando reconexion (intento {reconnectAttempts})
+                </span>
+              </>
+            ) : updateStatus?.status === 'running' ? (
+              <>
+                <RefreshCw size={16} className="animate-spin text-blue-400" />
+                <span className="text-blue-400 text-sm font-medium">{updateStatus.message || 'Actualizando...'}</span>
+              </>
+            ) : updateStatus?.status === 'completed' ? (
+              <>
+                <CheckCircle size={16} className="text-green-400" />
+                <span className="text-green-400 text-sm font-medium">{updateStatus.message}</span>
+              </>
+            ) : updateStatus?.status === 'error' ? (
+              <>
+                <AlertTriangle size={16} className="text-red-400" />
+                <span className="text-red-400 text-sm font-medium">{updateStatus.message}</span>
+              </>
+            ) : (
+              <>
+                <RefreshCw size={16} className="animate-spin text-blue-400" />
+                <span className="text-blue-400 text-sm font-medium">
+                  {updateStatus?.status === 'idle' ? 'Esperando inicio de actualizacion...' : 'Iniciando...'}
+                </span>
+              </>
+            )}
+          </div>
+          {/* Log en tiempo real - consola estilo terminal */}
+          {updateStatus?.log && (
+            <pre className="text-xs text-gray-300 bg-black p-3 rounded max-h-60 overflow-auto whitespace-pre-wrap font-mono border border-gray-800">
+              {updateStatus.log}
+            </pre>
+          )}
+          {!updateStatus?.log && !nodeRestarting && (
+            <div className="text-xs text-gray-500 bg-black p-3 rounded font-mono border border-gray-800">
+              {updateStatus?.status === 'idle'
+                ? '$ Esperando que el updater-controller inicie la actualizacion...'
+                : '$ Conectando con el updater-controller...'}
+            </div>
+          )}
+          {nodeRestarting && (
+            <div className="text-xs text-amber-500 bg-black p-3 rounded font-mono border border-gray-800">
+              {'$ El nodo se esta reiniciando. Esto es normal durante la actualizacion.\n'}
+              {'$ El updater-controller sigue trabajando en segundo plano.\n'}
+              {'$ Reintentando conexion... (intento ' + reconnectAttempts + ')'}
+            </div>
+          )}
+          {/* Barra de progreso visual */}
+          <div className="mt-3 flex items-center gap-2">
+            <div className="flex-1 bg-gray-700 rounded-full h-2 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  nodeRestarting ? 'bg-amber-500' :
+                  updateStatus?.status === 'completed' ? 'bg-green-500' :
+                  updateStatus?.status === 'error' ? 'bg-red-500' :
+                  'bg-blue-500 animate-pulse'
+                }`}
+                style={{
+                  width: updateStatus?.status === 'completed' ? '100%' :
+                         nodeRestarting ? '70%' :
+                         updateStatus?.status === 'running' ? '50%' :
+                         '10%'
+                }}
+              />
+            </div>
+            <span className="text-xs text-gray-400 font-mono">
+              {updateStatus?.status === 'completed' ? '100%' :
+               nodeRestarting ? '70%' :
+               updateStatus?.status === 'running' ? '50%' :
+               '...'}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Estado anterior (no durante updating) */}
+      {!updating && updateStatus && (updateStatus.status === 'running' || updateStatus.status === 'error' || updateStatus.status === 'completed') && (
         <div className={`bg-white rounded-lg p-3 border mb-3 ${
           updateStatus.status === 'running' ? 'border-blue-100' :
           updateStatus.status === 'error' ? 'border-red-100' :
