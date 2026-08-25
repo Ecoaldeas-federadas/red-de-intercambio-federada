@@ -2282,12 +2282,14 @@ func demoSeedAdmissionRequests(ctx context.Context, d *DB, nodeDomain string) {
 	}
 
 	// Crear audit log para admisiones
+	var demoAdminID uuid.UUID
+	d.Pool.QueryRow(ctx, `SELECT id FROM users WHERE node_domain = $1 AND username = 'demo' LIMIT 1`, nodeDomain).Scan(&demoAdminID)
 	for _, r := range requests {
 		if r.status == "approved" {
 			d.Pool.Exec(ctx, `
-				INSERT INTO audit_log (action, details, created_at)
-				VALUES ('admission_approved', $1, NOW() - interval '25 days')`,
-				fmt.Sprintf(`{"username": "%s", "level": "%s"}`, r.username, r.level))
+				INSERT INTO audit_log (actor_id, action, details, created_at)
+				VALUES ($1, 'admission_approved', $2, NOW() - interval '25 days')`,
+				demoAdminID, fmt.Sprintf(`{"username": "%s", "level": "%s"}`, r.username, r.level))
 		}
 	}
 
@@ -2584,6 +2586,11 @@ func DemoReset(ctx context.Context, d *DB, nodeDomain string) error {
 		"organization_subscriptions",
 		"organization_services",
 		"conversion_factor",
+		"external_sales",
+		"external_purchases",
+		"external_bank_accounts",
+		"external_commerce_config",
+		"external_basket_recalculation",
 	}
 	for _, t := range ndTables {
 		_, err := d.Pool.Exec(ctx, fmt.Sprintf("DELETE FROM %s WHERE node_domain = $1", t), dataDomain)

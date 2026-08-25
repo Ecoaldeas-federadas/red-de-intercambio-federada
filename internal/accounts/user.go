@@ -258,7 +258,7 @@ func (a *Accounts) CreateAdmissionRequest(ctx context.Context, nodeDomain, usern
 }
 
 func (a *Accounts) ListAdmissionRequests(ctx context.Context, nodeDomain, status string) ([]AdmissionRequest, error) {
-	query := `SELECT id, node_domain, proposed_username, display_name, proposed_level, status, submitted_at, reviewed_at, approved_at, rejected_at, rejection_reason FROM admission_requests WHERE node_domain = $1`
+	query := `SELECT id, node_domain, proposed_username, display_name, proposed_level, status, submitted_at, reviewed_at, approved_at, rejected_at, COALESCE(rejection_reason, '') FROM admission_requests WHERE node_domain = $1`
 	args := []interface{}{nodeDomain}
 	if status != "" {
 		query += ` AND status = $2`

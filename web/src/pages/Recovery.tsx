@@ -153,6 +153,7 @@ export default function Recovery() {
             Requiere verificacion de identidad
           </label>
           <button onClick={saveConfig} className="btn-primary">Guardar Configuracion</button>
+          <button onClick={() => setShowConfig(false)} className="btn-secondary ml-2">Cancelar</button>
         </div>
       )}
 
@@ -169,7 +170,10 @@ export default function Recovery() {
             </select>
           </div>
           <textarea className="input" rows={3} placeholder="Razon de la solicitud" value={newReq.reason} onChange={(e) => setNewReq({ ...newReq, reason: e.target.value })} />
-          <button onClick={createReq} className="btn-primary">Crear Solicitud</button>
+          <div className="flex gap-2">
+            <button onClick={createReq} className="btn-primary">Crear Solicitud</button>
+            <button onClick={() => setShowNewReq(false)} className="btn-secondary">Cancelar</button>
+          </div>
         </div>
       )}
 

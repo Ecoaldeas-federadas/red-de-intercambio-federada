@@ -29,6 +29,7 @@ func (h *ExternalCommerceHandler) RegisterRoutesWithAuth(r chi.Router, am *AuthM
 	r.With(am.RequirePermission("external.manage")).Post("/api/external/bank-accounts", h.createBankAccount)
 	r.With(am.RequirePermission("external.manage")).Put("/api/external/bank-accounts/{id}", h.updateBankAccount)
 	r.With(am.RequirePermission("external.manage")).Delete("/api/external/bank-accounts/{id}", h.deactivateBankAccount)
+	r.With(am.RequireAuth).Get("/api/external/bank-accounts/{id}/movements", h.listBankAccountMovements)
 
 	// Configuracion del DEX
 	r.With(am.RequireAuth).Get("/api/external/config", h.getDEXConfig)
@@ -57,7 +58,7 @@ func (h *ExternalCommerceHandler) RegisterRoutesWithAuth(r chi.Router, am *AuthM
 func (h *ExternalCommerceHandler) listBankAccounts(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.nodeDomain)
 	rows, err := h.Pool.Query(r.Context(), `
-		SELECT id, account_name, COALESCE(bank_name, ''), COALESCE(account_number, ''), currency, balance, is_cash, is_active, created_at, updated_at
+		SELECT id, account_name, COALESCE(bank_name, ''), COALESCE(account_number, ''), currency, balance, is_cash, is_active, COALESCE(account_type, ''), COALESCE(country, ''), created_at, updated_at
 		FROM external_bank_accounts WHERE node_domain = $1 AND is_active = true ORDER BY is_cash, currency, account_name`,
 		nodeDomain)
 	if err != nil {
@@ -74,13 +75,15 @@ func (h *ExternalCommerceHandler) listBankAccounts(w http.ResponseWriter, r *htt
 		Balance       float64   `json:"balance"`
 		IsCash        bool      `json:"is_cash"`
 		IsActive      bool      `json:"is_active"`
+		AccountType   string    `json:"account_type"`
+		Country       string    `json:"country"`
 		CreatedAt     time.Time `json:"created_at"`
 		UpdatedAt     time.Time `json:"updated_at"`
 	}
 	accounts := []BankAccount{}
 	for rows.Next() {
 		var a BankAccount
-		rows.Scan(&a.ID, &a.AccountName, &a.BankName, &a.AccountNumber, &a.Currency, &a.Balance, &a.IsCash, &a.IsActive, &a.CreatedAt, &a.UpdatedAt)
+		rows.Scan(&a.ID, &a.AccountName, &a.BankName, &a.AccountNumber, &a.Currency, &a.Balance, &a.IsCash, &a.IsActive, &a.AccountType, &a.Country, &a.CreatedAt, &a.UpdatedAt)
 		accounts = append(accounts, a)
 	}
 	writeJSON(w, 200, accounts)
@@ -93,6 +96,8 @@ type CreateBankAccountRequest struct {
 	Currency      string  `json:"currency"`
 	Balance       float64 `json:"balance"`
 	IsCash        bool    `json:"is_cash"`
+	AccountType   string  `json:"account_type"`
+	Country       string  `json:"country"`
 }
 
 func (h *ExternalCommerceHandler) createBankAccount(w http.ResponseWriter, r *http.Request) {
@@ -109,12 +114,15 @@ func (h *ExternalCommerceHandler) createBankAccount(w http.ResponseWriter, r *ht
 	if req.Currency == "" {
 		req.Currency = "USD"
 	}
+	if req.AccountType == "" {
+		req.AccountType = "corriente"
+	}
 	var id uuid.UUID
 	err := h.Pool.QueryRow(r.Context(), `
-		INSERT INTO external_bank_accounts (node_domain, account_name, bank_name, account_number, currency, balance, is_cash, is_active)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+		INSERT INTO external_bank_accounts (node_domain, account_name, bank_name, account_number, currency, balance, is_cash, is_active, account_type, country)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, true, $8, $9)
 		RETURNING id`,
-		nodeDomain, req.AccountName, req.BankName, req.AccountNumber, req.Currency, req.Balance, req.IsCash).Scan(&id)
+		nodeDomain, req.AccountName, req.BankName, req.AccountNumber, req.Currency, req.Balance, req.IsCash, req.AccountType, req.Country).Scan(&id)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -134,14 +142,72 @@ func (h *ExternalCommerceHandler) updateBankAccount(w http.ResponseWriter, r *ht
 		return
 	}
 	_, err = h.Pool.Exec(r.Context(), `
-		UPDATE external_bank_accounts SET account_name = $2, bank_name = $3, account_number = $4, currency = $5, is_cash = $6, updated_at = NOW()
+		UPDATE external_bank_accounts SET account_name = $2, bank_name = $3, account_number = $4, currency = $5, is_cash = $6, account_type = $7, country = $8, updated_at = NOW()
 		WHERE id = $1`,
-		id, req.AccountName, req.BankName, req.AccountNumber, req.Currency, req.IsCash)
+		id, req.AccountName, req.BankName, req.AccountNumber, req.Currency, req.IsCash, req.AccountType, req.Country)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
 	}
 	writeJSON(w, 200, map[string]string{"status": "updated"})
+}
+
+// listBankAccountMovements devuelve los movimientos (compras y ventas) de una cuenta
+func (h *ExternalCommerceHandler) listBankAccountMovements(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+
+	type Movement struct {
+		Date         time.Time `json:"date"`
+		Type         string    `json:"type"`
+		ProductName  string    `json:"product_name"`
+		Amount       float64   `json:"amount"`
+		Currency     string    `json:"currency"`
+		Status       string    `json:"status"`
+		Counterparty string    `json:"counterparty"`
+	}
+
+	var movements []Movement
+
+	// Compras (salida de dinero)
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT purchase_date, product_name, total_external, currency, status, COALESCE(supplier, '')
+		FROM external_purchases WHERE bank_account_id = $1 ORDER BY purchase_date DESC`, id)
+	if err == nil {
+		for rows.Next() {
+			var m Movement
+			var d time.Time
+			rows.Scan(&d, &m.ProductName, &m.Amount, &m.Currency, &m.Status, &m.Counterparty)
+			m.Date = d
+			m.Type = "compra"
+			movements = append(movements, m)
+		}
+		rows.Close()
+	}
+
+	// Ventas (entrada de dinero)
+	rows, err = h.Pool.Query(r.Context(), `
+		SELECT sale_date, product_name, total_external, currency, status, COALESCE(buyer, '')
+		FROM external_sales WHERE bank_account_id = $1 ORDER BY sale_date DESC`, id)
+	if err == nil {
+		for rows.Next() {
+			var m Movement
+			var d time.Time
+			rows.Scan(&d, &m.ProductName, &m.Amount, &m.Currency, &m.Status, &m.Counterparty)
+			m.Date = d
+			m.Type = "venta"
+			movements = append(movements, m)
+		}
+		rows.Close()
+	}
+
+	if movements == nil {
+		movements = []Movement{}
+	}
+	writeJSON(w, 200, movements)
 }
 
 func (h *ExternalCommerceHandler) deactivateBankAccount(w http.ResponseWriter, r *http.Request) {

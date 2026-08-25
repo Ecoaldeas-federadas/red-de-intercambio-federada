@@ -244,8 +244,15 @@ func (h *Handler) transfer(w http.ResponseWriter, r *http.Request) {
 
 	// Audit log
 	if h.Pool != nil {
+		// Obtener nombres del remitente y receptor para el audit log
+		var senderName, receiverName string
+		h.Pool.QueryRow(r.Context(), `SELECT COALESCE(display_name, username) FROM users WHERE id = $1`, senderID).Scan(&senderName)
+		h.Pool.QueryRow(r.Context(), `SELECT COALESCE(display_name, username) FROM users WHERE id = $1`, receiverID).Scan(&receiverName)
+
 		details, _ := json.Marshal(map[string]interface{}{
 			"amount":      req.Amount,
+			"from":        senderName,
+			"to":          receiverName,
 			"receiver_id": receiverID.String(),
 			"tax_amount":  taxAmount,
 		})
@@ -254,9 +261,6 @@ func (h *Handler) transfer(w http.ResponseWriter, r *http.Request) {
 
 		// Notificar al receptor
 		notify := NewNotifyService(h.Pool)
-		// Obtener nombre del remitente
-		var senderName string
-		h.Pool.QueryRow(r.Context(), `SELECT COALESCE(display_name, username) FROM users WHERE id = $1`, senderID).Scan(&senderName)
 		notify.Notify(r.Context(), h.nodeDomain, receiverID, "payment_received",
 			"Pago recibido",
 			fmt.Sprintf("Recibiste %d %s de %s", req.Amount, "TQ", senderName),

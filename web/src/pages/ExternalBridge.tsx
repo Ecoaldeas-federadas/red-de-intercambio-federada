@@ -28,7 +28,10 @@ export default function ExternalBridge() {
   const [showBankForm, setShowBankForm] = useState(false)
   const [showPurchaseForm, setShowPurchaseForm] = useState(false)
   const [showSaleForm, setShowSaleForm] = useState(false)
-  const [bankForm, setBankForm] = useState({ account_name: '', bank_name: '', account_number: '', currency: 'USD', balance: 0, is_cash: false })
+  const [bankForm, setBankForm] = useState({ account_name: '', bank_name: '', account_number: '', currency: 'USD', balance: 0, is_cash: false, account_type: 'corriente', country: '' })
+  const [editingBankId, setEditingBankId] = useState<string | null>(null)
+  const [viewingMovements, setViewingMovements] = useState<string | null>(null)
+  const [movements, setMovements] = useState<any[]>([])
   const [purchaseForm, setPurchaseForm] = useState({ product_name: '', quantity: 0, unit: 'kg', unit_cost_external: 0, currency: 'USD', bank_account_id: '', supplier: '', invoice_number: '', notes: '' })
   const [saleForm, setSaleForm] = useState({ product_name: '', quantity: 0, unit: 'kg', unit_price_external: 0, currency: 'USD', bank_account_id: '', buyer: '', notes: '' })
 
@@ -91,12 +94,56 @@ export default function ExternalBridge() {
 
   const createBankAccount = async () => {
     try {
-      await api.post('/external/bank-accounts', bankForm)
+      if (editingBankId) {
+        await api.put(`/external/bank-accounts/${editingBankId}`, bankForm)
+      } else {
+        await api.post('/external/bank-accounts', bankForm)
+      }
       setShowBankForm(false)
-      setBankForm({ account_name: '', bank_name: '', account_number: '', currency: 'USD', balance: 0, is_cash: false })
+      setEditingBankId(null)
+      setBankForm({ account_name: '', bank_name: '', account_number: '', currency: 'USD', balance: 0, is_cash: false, account_type: 'corriente', country: '' })
       load()
     } catch (e: any) {
-      alert(e.message || 'Error al crear cuenta bancaria')
+      alert(e.message || 'Error al guardar cuenta bancaria')
+    }
+  }
+
+  const editBankAccount = (ba: any) => {
+    setEditingBankId(ba.id)
+    setBankForm({
+      account_name: ba.account_name || '',
+      bank_name: ba.bank_name || '',
+      account_number: ba.account_number || '',
+      currency: ba.currency || 'USD',
+      balance: ba.balance || 0,
+      is_cash: ba.is_cash || false,
+      account_type: ba.account_type || 'corriente',
+      country: ba.country || '',
+    })
+    setShowBankForm(true)
+  }
+
+  const deleteBankAccount = async (id: string) => {
+    if (!confirm('¿Eliminar esta cuenta? Se desactivara pero no se borrara el historial.')) return
+    try {
+      await api.delete(`/external/bank-accounts/${id}`)
+      load()
+    } catch (e: any) {
+      alert(e.message || 'Error al eliminar cuenta')
+    }
+  }
+
+  const viewMovements = async (id: string) => {
+    if (viewingMovements === id) {
+      setViewingMovements(null)
+      return
+    }
+    setViewingMovements(id)
+    try {
+      const d = await api.get<any[]>(`/external/bank-accounts/${id}/movements`)
+      setMovements(Array.isArray(d) ? d : [])
+    } catch {
+      setMovements([])
     }
   }
 
@@ -259,6 +306,39 @@ export default function ExternalBridge() {
       {/* ===== RESUMEN ===== */}
       {subTab === 'summary' && summary && (
         <div className="space-y-4">
+          {/* Tutorial del modelo economico */}
+          <div className="card bg-blue-50 border-blue-200">
+            <h2 className="font-semibold flex items-center gap-2 mb-3"><Info size={18} />Como funciona el Comercio Exterior (DEX)</h2>
+            <div className="text-sm text-gray-700 space-y-3">
+              <p><strong>El DEX es el departamento de Comercio Exterior de la comunidad.</strong> Su funcion es conectar la economia interna (TQ) con la economia externa (dinero real: USD, EUR, COP, etc.).</p>
+              <div className="bg-white rounded-lg p-3 border">
+                <p className="font-medium mb-2">Flujo del comercio exterior:</p>
+                <ol className="list-decimal list-inside ml-2 space-y-1">
+                  <li><strong>Productor interno vende al DEX:</strong> Un productor de la comunidad le vende su producto al departamento de Comercio Exterior. El DEX le paga en TQ (moneda interna).</li>
+                  <li><strong>DEX vende afuera (Export):</strong> El DEX vende ese producto en el mercado externo y recibe dinero real (USD, EUR, etc.) en una cuenta bancaria externa.</li>
+                  <li><strong>DEX compra afuera (Import):</strong> Con ese dinero real, el DEX compra los productos que la comunidad necesita pero no produce (medicinas, herramientas, insumos, etc.).</li>
+                  <li><strong>DEX vende internamente:</strong> El DEX trae esos productos y los vende dentro de la comunidad en TQ. Los miembros pueden comprarlos con su saldo interno.</li>
+                  <li><strong>El ciclo se repite:</strong> El dinero de las ventas internas se usa para comprar mas productos a los productores, y asi sigue el ciclo.</li>
+                </ol>
+              </div>
+              <div className="bg-white rounded-lg p-3 border">
+                <p className="font-medium mb-2">Doble contabilidad:</p>
+                <ul className="list-disc list-inside ml-2 space-y-1">
+                  <li><strong>Cuentas bancarias externas:</strong> Reflejan el dinero REAL disponible (USD, EUR, COP). Se actualizan con cada compra y venta externa.</li>
+                  <li><strong>Saldo TQ del DEX:</strong> Refleja la deuda/crédito interno del departamento. Cuando compra productos a un productor, le paga en TQ. Cuando vende productos internamente, recibe TQ.</li>
+                </ul>
+              </div>
+              <div className="bg-white rounded-lg p-3 border">
+                <p className="font-medium mb-2">Factor de Conversion (FC):</p>
+                <p>El FC es el tipo de cambio entre moneda externa y TQ. Por ejemplo, si FC = 5, entonces 1 USD = 5 TQ. El FC se calcula comparando el costo de una canasta basica en moneda externa vs en TQ local. El FC sugerido se recalcula automaticamente desde las compras reales registradas.</p>
+              </div>
+              <div className="bg-white rounded-lg p-3 border">
+                <p className="font-medium mb-2">Aprobaciones:</p>
+                <p>Las compras y ventas externas pueden requerir aprobacion multiple (multi-firma). Esto significa que varias personas autorizadas deben aprobar antes de que el dinero se mueva. Esto evita que una sola persona tenga control total sobre el dinero real.</p>
+              </div>
+            </div>
+          </div>
+
           <div className="card bg-blue-50">
             <h2 className="font-semibold flex items-center gap-2 mb-3"><Wallet size={18} />Resumen del Comercio Exterior</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -349,21 +429,21 @@ export default function ExternalBridge() {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="font-semibold flex items-center gap-2"><Building2 size={18} />Cuentas Bancarias Externas</h2>
-            <button onClick={() => setShowBankForm(!showBankForm)} className="btn-primary flex items-center gap-2 text-sm"><Plus size={16} />Nueva Cuenta</button>
+            <button onClick={() => { setShowBankForm(!showBankForm); setEditingBankId(null); setBankForm({ account_name: '', bank_name: '', account_number: '', currency: 'USD', balance: 0, is_cash: false, account_type: 'corriente', country: '' }) }} className="btn-primary flex items-center gap-2 text-sm"><Plus size={16} />Nueva Cuenta</button>
           </div>
 
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
             <p>El Comercio Exterior maneja dinero <strong>real</strong> (USD, EUR, COP, etc.). Cada cuenta puede ser:</p>
             <ul className="list-disc list-inside ml-2 mt-1">
-              <li><strong>Cuenta bancaria:</strong> dinero en un banco real. Registrar nombre del banco y numero de cuenta.</li>
+              <li><strong>Cuenta bancaria:</strong> dinero en un banco real. Registrar nombre del banco, numero de cuenta, tipo y pais.</li>
               <li><strong>Efectivo en caja:</strong> dinero fisico guardado en la caja fuerte. No tiene banco ni numero.</li>
             </ul>
-            <p className="mt-1">Cada vez que se aprueba una compra o venta, el saldo se actualiza automaticamente.</p>
+            <p className="mt-1">Cada vez que se aprueba una compra o venta, el saldo se actualiza automaticamente. Puedes editar o eliminar cualquier cuenta, y ver sus movimientos.</p>
           </div>
 
           {showBankForm && (
             <div className="card space-y-3">
-              <h3 className="font-medium">Nueva Cuenta Bancaria</h3>
+              <h3 className="font-medium">{editingBankId ? 'Editar Cuenta Bancaria' : 'Nueva Cuenta Bancaria'}</h3>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label">Nombre descriptivo</label>
@@ -377,22 +457,37 @@ export default function ExternalBridge() {
                 </div>
                 <div>
                   <label className="label">Banco (dejar vacio si es efectivo)</label>
-                  <input className="input" placeholder="Ej: Banco Nacional" value={bankForm.bank_name} onChange={(e) => setBankForm({ ...bankForm, bank_name: e.target.value })} />
+                  <input className="input" placeholder="Ej: Banco Nacional" value={bankForm.bank_name} onChange={(e) => setBankForm({ ...bankForm, bank_name: e.target.value })} disabled={bankForm.is_cash} />
                 </div>
                 <div>
                   <label className="label">Numero de cuenta (dejar vacio si es efectivo)</label>
-                  <input className="input" placeholder="Ej: 1234-5678-90" value={bankForm.account_number} onChange={(e) => setBankForm({ ...bankForm, account_number: e.target.value })} />
+                  <input className="input" placeholder="Ej: 1234-5678-90" value={bankForm.account_number} onChange={(e) => setBankForm({ ...bankForm, account_number: e.target.value })} disabled={bankForm.is_cash} />
+                </div>
+                <div>
+                  <label className="label">Tipo de cuenta</label>
+                  <select className="input" value={bankForm.account_type} onChange={(e) => setBankForm({ ...bankForm, account_type: e.target.value })} disabled={bankForm.is_cash}>
+                    <option value="corriente">Cuenta corriente</option>
+                    <option value="ahorro">Cuenta de ahorro</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Pais del banco</label>
+                  <input className="input" placeholder="Ej: VE, CO, US" value={bankForm.country} onChange={(e) => setBankForm({ ...bankForm, country: e.target.value })} disabled={bankForm.is_cash} />
                 </div>
                 <div>
                   <label className="label">Saldo inicial</label>
-                  <input type="number" className="input" placeholder="0" value={bankForm.balance} onChange={(e) => setBankForm({ ...bankForm, balance: parseFloat(e.target.value) || 0 })} />
+                  <input type="number" className="input" placeholder="0" value={bankForm.balance} onChange={(e) => setBankForm({ ...bankForm, balance: parseFloat(e.target.value) || 0 })} disabled={!!editingBankId} />
+                  {editingBankId && <p className="text-xs text-gray-400 mt-1">El saldo no se edita aqui. Se actualiza automaticamente con compras y ventas.</p>}
                 </div>
                 <div className="flex items-center gap-2 pt-6">
-                  <input type="checkbox" id="is_cash" checked={bankForm.is_cash} onChange={(e) => setBankForm({ ...bankForm, is_cash: e.target.checked })} />
+                  <input type="checkbox" id="is_cash" checked={bankForm.is_cash} onChange={(e) => setBankForm({ ...bankForm, is_cash: e.target.checked, bank_name: '', account_number: '', account_type: '', country: '' })} />
                   <label htmlFor="is_cash" className="text-sm">Efectivo en caja (no es cuenta bancaria)</label>
                 </div>
               </div>
-              <button onClick={createBankAccount} className="btn-primary">Crear Cuenta</button>
+              <div className="flex gap-2">
+                <button onClick={createBankAccount} className="btn-primary">{editingBankId ? 'Guardar Cambios' : 'Crear Cuenta'}</button>
+                <button onClick={() => { setShowBankForm(false); setEditingBankId(null) }} className="btn-secondary">Cancelar</button>
+              </div>
             </div>
           )}
 
@@ -403,21 +498,67 @@ export default function ExternalBridge() {
               <span className="text-sm">Crea una cuenta para empezar a registrar compras y ventas externas.</span>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-3">
               {bankAccounts.map((ba: any, i: number) => (
                 <div key={i} className="card">
                   <div className="flex items-center justify-between">
-                    <div>
+                    <div className="flex-1">
                       <p className="font-medium flex items-center gap-2">
                         {ba.is_cash ? <Wallet size={16} /> : <Building2 size={16} />}
                         {ba.account_name}
                       </p>
-                      {ba.bank_name && <p className="text-xs text-gray-500">{ba.bank_name} - {ba.account_number}</p>}
+                      {!ba.is_cash && (
+                        <div className="text-xs text-gray-500 mt-1 space-y-0.5">
+                          <p><strong>Banco:</strong> {ba.bank_name || 'N/A'}</p>
+                          <p><strong>Numero:</strong> {ba.account_number || 'N/A'}</p>
+                          <p><strong>Tipo:</strong> {ba.account_type === 'ahorro' ? 'Cuenta de ahorro' : 'Cuenta corriente'}</p>
+                          {ba.country && <p><strong>Pais:</strong> {ba.country}</p>}
+                        </div>
+                      )}
                     </div>
-                    <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded">{ba.currency}</span>
+                    <div className="text-right">
+                      <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded">{ba.currency}</span>
+                      <p className="text-2xl font-bold text-green-700 mt-1">{ba.balance.toLocaleString(undefined, { maximumFractionDigits: 2 })} {ba.currency}</p>
+                      <p className="text-xs text-gray-400">{ba.is_cash ? 'Efectivo en caja' : 'Cuenta bancaria'}</p>
+                    </div>
                   </div>
-                  <p className="text-2xl font-bold text-green-700 mt-2">{ba.balance.toLocaleString(undefined, { maximumFractionDigits: 2 })} {ba.currency}</p>
-                  <p className="text-xs text-gray-400">{ba.is_cash ? 'Efectivo en caja' : 'Cuenta bancaria'}</p>
+                  <div className="flex gap-2 mt-3 pt-3 border-t">
+                    <button onClick={() => viewMovements(ba.id)} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                      <Info size={14} /> {viewingMovements === ba.id ? 'Ocultar movimientos' : 'Ver movimientos'}
+                    </button>
+                    <button onClick={() => editBankAccount(ba)} className="text-sm text-gray-600 hover:text-gray-800 flex items-center gap-1">
+                      <Edit3 size={14} /> Editar
+                    </button>
+                    <button onClick={() => deleteBankAccount(ba.id)} className="text-sm text-red-500 hover:text-red-700 flex items-center gap-1">
+                      <X size={14} /> Eliminar
+                    </button>
+                  </div>
+                  {viewingMovements === ba.id && (
+                    <div className="mt-3 pt-3 border-t">
+                      <h4 className="text-sm font-medium mb-2">Movimientos de la cuenta</h4>
+                      {movements.length === 0 ? (
+                        <p className="text-sm text-gray-500">No hay movimientos registrados en esta cuenta.</p>
+                      ) : (
+                        <table className="w-full text-xs">
+                          <thead><tr className="border-b text-left text-gray-600">
+                            <th className="py-1">Fecha</th><th>Tipo</th><th>Producto</th><th>Monto</th><th>Estado</th><th>Contraparte</th>
+                          </tr></thead>
+                          <tbody>
+                            {movements.map((m, mi) => (
+                              <tr key={mi} className="border-b border-gray-100">
+                                <td className="py-1">{m.date?.slice(0, 10)}</td>
+                                <td><span className={`px-1.5 py-0.5 rounded ${m.type === 'compra' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{m.type}</span></td>
+                                <td>{m.product_name}</td>
+                                <td className={m.type === 'compra' ? 'text-red-600' : 'text-green-600'}>{m.type === 'compra' ? '-' : '+'}{m.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })} {m.currency}</td>
+                                <td>{m.status}</td>
+                                <td className="text-gray-500">{m.counterparty || '-'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

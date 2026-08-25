@@ -145,8 +145,10 @@ func (h *SystemHandler) listAudit(w http.ResponseWriter, r *http.Request) {
 	toDate := r.URL.Query().Get("to")
 	limit := 100
 
-	query := `SELECT id, actor_id, action, target_id, details, ip_address, user_agent, created_at
-		FROM audit_log WHERE 1=1`
+	query := `SELECT a.id, a.actor_id, COALESCE(u.username, ''), COALESCE(u.display_name, ''), a.action, a.target_id, a.details, a.ip_address, a.user_agent, a.created_at
+		FROM audit_log a
+		LEFT JOIN users u ON a.actor_id = u.id
+		WHERE 1=1`
 	args := []interface{}{}
 	argIdx := 1
 
@@ -183,13 +185,15 @@ func (h *SystemHandler) listAudit(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var id int64
 		var actorID *uuid.UUID
+		var actorUsername string
+		var actorDisplayName string
 		var action string
 		var targetID *uuid.UUID
 		var details []byte
 		var ipAddress *string
 		var userAgent *string
 		var createdAt time.Time
-		if err := rows.Scan(&id, &actorID, &action, &targetID, &details, &ipAddress, &userAgent, &createdAt); err != nil {
+		if err := rows.Scan(&id, &actorID, &actorUsername, &actorDisplayName, &action, &targetID, &details, &ipAddress, &userAgent, &createdAt); err != nil {
 			continue
 		}
 
@@ -199,14 +203,16 @@ func (h *SystemHandler) listAudit(w http.ResponseWriter, r *http.Request) {
 		}
 
 		entries = append(entries, map[string]interface{}{
-			"id":         id,
-			"actor_id":   derefUUID(actorID),
-			"action":     action,
-			"target_id":  derefUUID(targetID),
-			"details":    detailObj,
-			"ip_address": deref(ipAddress),
-			"user_agent": deref(userAgent),
-			"created_at": createdAt,
+			"id":                 id,
+			"actor_id":           derefUUID(actorID),
+			"actor_username":     actorUsername,
+			"actor_display_name": actorDisplayName,
+			"action":             action,
+			"target_id":          derefUUID(targetID),
+			"details":            detailObj,
+			"ip_address":         deref(ipAddress),
+			"user_agent":         deref(userAgent),
+			"created_at":         createdAt,
 		})
 	}
 	if entries == nil {

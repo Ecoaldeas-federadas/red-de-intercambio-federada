@@ -214,7 +214,10 @@ export default function Admission() {
             <button type="button" onClick={addDocument} className="btn-secondary text-sm mt-2">Agregar documento</button>
           </div>
 
-          <button onClick={submitRequest} className="btn-primary">Enviar Solicitud</button>
+          <div className="flex gap-2">
+            <button onClick={submitRequest} className="btn-primary">Enviar Solicitud</button>
+            <button onClick={() => setShowForm(false)} className="btn-secondary">Cancelar</button>
+          </div>
         </div>
       )}
 

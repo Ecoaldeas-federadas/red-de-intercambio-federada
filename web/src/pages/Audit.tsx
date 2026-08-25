@@ -18,8 +18,43 @@ export default function Audit() {
     '': 'Todos',
     transfer: 'Transferencias',
     admission: 'Admisiones',
+    admission_approved: 'Admisiones',
+    admission_reject: 'Admisiones',
     federation: 'Federacion',
     assembly: 'Asamblea',
+    assembly_decision: 'Asamblea',
+    assembly_execute: 'Asamblea',
+    level_upgrade: 'Niveles',
+    super_admin_toggle: 'Admin',
+    calc_param_approve: 'Calculadora',
+    governance_proposal: 'Gobernanza',
+  }
+
+  const actionLabels: Record<string, string> = {
+    transfer: 'Transferencia',
+    admission_approved: 'Admision aprobada',
+    admission_approve: 'Admision aprobada',
+    admission_reject: 'Admision rechazada',
+    federation: 'Federacion',
+    assembly_decision: 'Decision de asamblea',
+    assembly_execute: 'Ejecucion de asamblea',
+    level_upgrade: 'Cambio de nivel',
+    super_admin_toggle: 'Cambio de super admin',
+    calc_param_approve: 'Aprobacion de calculo',
+    governance_proposal: 'Propuesta de gobernanza',
+  }
+
+  const detailKeyLabels: Record<string, string> = {
+    amount: 'Monto',
+    description: 'Descripcion',
+    peer: 'Nodo peer',
+    tx_id: 'TX',
+    from: 'Origen',
+    to: 'Destino',
+    username: 'Usuario',
+    level: 'Nivel',
+    receiver_id: 'Receptor',
+    tax_amount: 'Impuesto',
   }
 
   const formatDetails = (d: any): string => {
@@ -29,12 +64,28 @@ export default function Audit() {
       const parts: string[] = []
       for (const [k, v] of Object.entries(d)) {
         if (v !== null && v !== undefined && v !== '') {
-          parts.push(`${k}: ${v}`)
+          const label = detailKeyLabels[k] || k
+          parts.push(`${label}: ${v}`)
         }
       }
       return parts.join(' | ')
     }
     return String(d)
+  }
+
+  const formatDate = (d: string): string => {
+    if (!d) return ''
+    return d.slice(0, 19).replace('T', ' ')
+  }
+
+  const getActorName = (e: any): string => {
+    if (e.actor_display_name) return e.actor_display_name
+    if (e.actor_username) return e.actor_username
+    return 'Sistema'
+  }
+
+  const getActionLabel = (action: string): string => {
+    return actionLabels[action] || action
   }
 
   return (
@@ -49,32 +100,32 @@ export default function Audit() {
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
           <p><strong>Auditoria - Ayuda</strong></p>
-          <p><strong>Que es:</strong> El log de auditoria es un registro inmutable y chronological de todas las acciones importantes que ocurren en el nodo. Es la fuente de verdad para saber que paso en el sistema.</p>
+          <p><strong>Que es:</strong> El log de auditoria es un registro inmutable y cronologico de todas las acciones importantes que ocurren en el nodo. Es la fuente de verdad para saber que paso en el sistema.</p>
           <p><strong>Para que sirve:</strong> Permite verificar que paso, quien lo hizo y cuando. Es la base de la transparencia del sistema: cualquier miembro puede revisar el historial completo y auditar que no haya irregularidades.</p>
           <p><strong>Que acciones se auditan:</strong></p>
           <ul className="list-disc list-inside ml-4">
-            <li><strong>Transferencias:</strong> Envio y recepcion de unidades entre cuentas</li>
+            <li><strong>Transferencias:</strong> Envio y recepcion de unidades entre cuentas. Muestra origen y destino.</li>
             <li><strong>Admisiones:</strong> Ingreso de nuevos miembros al nodo</li>
-            <li><strong>Federacion:</strong> Conexiones y transacciones con otros nodos</li>
+            <li><strong>Federacion:</strong> Transacciones con otros nodos (importaciones y exportaciones)</li>
             <li><strong>Asamblea:</strong> Decisiones colectivas, propuestas y votaciones</li>
           </ul>
           <p><strong>Que significa cada columna:</strong></p>
           <ul className="list-disc list-inside ml-4">
-            <li><strong>Fecha:</strong> Momento exacto en que ocurrio la accion (formato AAAA-MM-DD HH:MM:SS)</li>
-            <li><strong>Actor:</strong> Identificador de quien realizo la accion. Puede ser un usuario (ej: "maria") o el sistema (ej: "system")</li>
-            <li><strong>Accion:</strong> Tipo de accion realizada (transfer, admission, federation, assembly, etc.)</li>
-            <li><strong>Detalles:</strong> Informacion adicional especifica de la accion, como montos, cuentas origen/destino, parametros cambiados, etc.</li>
+            <li><strong>Fecha:</strong> Momento exacto en que ocurrio la accion</li>
+            <li><strong>Actor:</strong> Quien realizo la accion. Puede ser un usuario o "Sistema" para acciones automaticas.</li>
+            <li><strong>Accion:</strong> Tipo de accion realizada</li>
+            <li><strong>Detalles:</strong> Informacion adicional: monto, origen, destino, descripcion, etc.</li>
           </ul>
-          <p><strong>Como se usa:</strong> Selecciona un filtro de tipo de accion para ver solo los registros que te interesan. Por ejemplo, pulsa "Transferencias" para ver solo movimientos de dinero. La tabla se actualiza automaticamente al cambiar el filtro.</p>
+          <p><strong>Como se usa:</strong> Selecciona un filtro de tipo de accion para ver solo los registros que te interesan. Por ejemplo, pulsa "Transferencias" para ver solo envios y recepciones de unidades.</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
         </div>
       )}
 
       <div>
         <label className="label">Filtrar por tipo de accion</label>
-        <p className="text-xs text-gray-400 mt-1 mb-2">Selecciona el tipo de accion que quieres ver. Ej: pulsa "Transferencias" para ver solo envios y recepciones de unidades.</p>
+        <p className="text-xs text-gray-400 mt-1 mb-2">Selecciona el tipo de accion que quieres ver.</p>
         <div className="flex gap-2 flex-wrap">
-          {['', 'transfer', 'admission', 'federation', 'assembly'].map((a) => (
+          {['', 'transfer', 'admission_approved', 'federation', 'assembly_decision', 'level_upgrade'].map((a) => (
             <button key={a} onClick={() => setFilter(a)} className={`px-3 py-1 rounded-lg text-sm ${filter === a ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>
               {filterLabels[a] || a}
             </button>
@@ -96,10 +147,10 @@ export default function Audit() {
             <tbody>
               {entries.map((e, i) => (
                 <tr key={i} className="border-b border-gray-100">
-                  <td className="py-2">{e.created_at?.slice(0, 19)}</td>
-                  <td>{e.actor}</td>
-                  <td><span className="bg-gray-100 px-2 py-0.5 rounded text-xs">{e.action}</span></td>
-                  <td className="text-gray-600 max-w-xs truncate">{formatDetails(e.details)}</td>
+                  <td className="py-2 text-gray-600">{formatDate(e.created_at)}</td>
+                  <td className="font-medium">{getActorName(e)}</td>
+                  <td><span className="bg-gray-100 px-2 py-0.5 rounded text-xs">{getActionLabel(e.action)}</span></td>
+                  <td className="text-gray-600 max-w-md truncate">{formatDetails(e.details)}</td>
                 </tr>
               ))}
             </tbody>
