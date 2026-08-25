@@ -122,7 +122,6 @@ export default function Admission() {
         </div>
       )}
 
-      {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</div>}
       {success && <div className="text-trueque-700 text-sm bg-trueque-50 p-3 rounded-lg">{success}</div>}
 
       {showForm && (
@@ -218,6 +217,7 @@ export default function Admission() {
             <button onClick={submitRequest} className="btn-primary">Enviar Solicitud</button>
             <button onClick={() => setShowForm(false)} className="btn-secondary">Cancelar</button>
           </div>
+          {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</div>}
         </div>
       )}
 

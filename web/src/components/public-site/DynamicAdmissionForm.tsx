@@ -11,6 +11,7 @@ import {
   MapPin,
   Leaf,
   Check,
+  AlertCircle,
 } from 'lucide-react'
 import { FormFieldSchema, FormFieldType } from '../../types/publicSite'
 
@@ -238,12 +239,6 @@ export function DynamicAdmissionForm() {
 
       {/* Dynamic Form Card */}
       <form onSubmit={submitForm} className="bg-white rounded-3xl p-5 sm:p-8 shadow-sm border border-gray-200 space-y-4">
-        {error && (
-          <div className="p-3.5 rounded-xl bg-red-50 text-red-700 text-xs border border-red-200 font-medium">
-            {error}
-          </div>
-        )}
-
         {fields.map((field) => {
           const val = answers[field.id] || ''
 
@@ -441,6 +436,12 @@ export function DynamicAdmissionForm() {
             {loading ? 'Enviando postulación...' : 'Enviar Solicitud a la Asamblea'}
             <ArrowRight size={15} />
           </button>
+          {error && (
+            <div className="mt-3 p-3.5 rounded-xl bg-red-50 text-red-700 text-xs border border-red-200 font-medium flex items-start gap-2">
+              <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
+          )}
         </div>
       </form>
     </div>
