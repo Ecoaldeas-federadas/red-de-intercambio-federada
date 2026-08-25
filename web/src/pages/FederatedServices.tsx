@@ -744,9 +744,10 @@ export default function FederatedServices() {
                 {/* Si no esta instalado: mostrar Instalar */}
                 {selectedService.status === 'not_installed' && (
                   <button
-                    onClick={() => { installService(selectedService); setSelectedService(null) }}
-                    disabled={installing}
-                    className="px-4 py-2 bg-trueque-600 text-white rounded-lg text-sm disabled:opacity-50 flex items-center gap-2"
+                    onClick={() => { if (!isDemoNode) { installService(selectedService); setSelectedService(null) } }}
+                    disabled={installing || isDemoNode}
+                    className="px-4 py-2 bg-trueque-600 text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    title={isDemoNode ? 'No disponible en nodo demo' : ''}
                   >
                     {installingService === selectedService.id ? (
                       <><Loader size={14} className="animate-spin" /> Instalando...</>
@@ -786,43 +787,58 @@ export default function FederatedServices() {
                       </a>
                     )}
                     <button
-                      onClick={() => { updateService(selectedService); setSelectedService(null) }}
-                      disabled={installing}
-                      className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm disabled:opacity-50 flex items-center gap-2"
+                      onClick={() => { if (!isDemoNode) { updateService(selectedService); setSelectedService(null) } }}
+                      disabled={installing || isDemoNode}
+                      className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      title={isDemoNode ? 'No disponible en nodo demo' : ''}
                     >
                       <RefreshCw size={14} /> Actualizar
                     </button>
                     {selectedService.status === 'running' ? (
                       <button
-                        onClick={() => { stopService(selectedService); setSelectedService(null) }}
-                        className="px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm flex items-center gap-2"
+                        onClick={() => { if (!isDemoNode) { stopService(selectedService); setSelectedService(null) } }}
+                        disabled={isDemoNode}
+                        className="px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        title={isDemoNode ? 'No disponible en nodo demo' : ''}
                       >
                         <Square size={14} /> Detener
                       </button>
                     ) : (
                       <button
-                        onClick={() => { startService(selectedService); setSelectedService(null) }}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm flex items-center gap-2"
+                        onClick={() => { if (!isDemoNode) { startService(selectedService); setSelectedService(null) } }}
+                        disabled={isDemoNode}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        title={isDemoNode ? 'No disponible en nodo demo' : ''}
                       >
                         <Play size={14} /> Iniciar
                       </button>
                     )}
                     <button
-                      onClick={() => { uninstallService(selectedService); setSelectedService(null) }}
-                      className="px-4 py-2 bg-red-100 text-red-600 rounded-lg text-sm flex items-center gap-2"
+                      onClick={() => { if (!isDemoNode) { uninstallService(selectedService); setSelectedService(null) } }}
+                      disabled={isDemoNode}
+                      className="px-4 py-2 bg-red-100 text-red-600 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      title={isDemoNode ? 'No disponible en nodo demo' : ''}
                     >
                       <Trash2 size={14} /> Desinstalar
                     </button>
                   </>
                 )}
 
-                {/* Descargar siempre disponible */}
+                {/* Descargar siempre disponible (excepto en demo) */}
                 <button
-                  onClick={() => { downloadService(selectedService); setSelectedService(null) }}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm flex items-center gap-2"
+                  onClick={() => { if (!isDemoNode) { downloadService(selectedService); setSelectedService(null) } }}
+                  disabled={isDemoNode}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  title={isDemoNode ? 'No disponible en nodo demo' : ''}
                 >
                   <Download size={14} /> Descargar Docker
                 </button>
+
+                {isDemoNode && (
+                  <div className="w-full mt-2 p-3 rounded text-sm bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-2">
+                    <Lock size={14} /> Los botones de instalacion y descarga estan deshabilitados en el nodo demo.
+                  </div>
+                )}
               </div>
             </div>
           </div>
