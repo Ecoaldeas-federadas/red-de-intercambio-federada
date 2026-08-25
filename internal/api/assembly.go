@@ -1451,7 +1451,7 @@ func (h *AssemblyHandler) listAssemblyConfig(w http.ResponseWriter, r *http.Requ
 		}
 		orgName := ""
 		if organizationID != nil {
-			h.Pool.QueryRow(r.Context(), `SELECT name FROM organizations WHERE id = $1`, organizationID).Scan(&orgName)
+			h.Pool.QueryRow(r.Context(), `SELECT display_name FROM users WHERE id = $1 AND account_type = 'organization'`, organizationID).Scan(&orgName)
 		}
 		signers := h.loadConfigSigners(r.Context(), id)
 		configs = append(configs, map[string]interface{}{
@@ -1611,10 +1611,10 @@ func (h *AssemblyHandler) loadConfigSigners(ctx context.Context, configID uuid.U
 	rows, err := h.Pool.Query(ctx, `
 		SELECT s.id, s.signer_type, s.user_id, s.organization_id,
 		       COALESCE(u.display_name, u.username, '') as user_name,
-		       COALESCE(o.name, '') as org_name
+		       COALESCE(o.display_name, o.username, '') as org_name
 		FROM assembly_config_signers s
 		LEFT JOIN users u ON u.id = s.user_id
-		LEFT JOIN organizations o ON o.id = s.organization_id
+		LEFT JOIN users o ON o.id = s.organization_id AND o.account_type = 'organization'
 		WHERE s.config_id = $1
 		ORDER BY s.created_at`, configID)
 	if err != nil {

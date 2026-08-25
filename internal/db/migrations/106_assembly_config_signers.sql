@@ -15,8 +15,9 @@
 -- 4. Nuevo metodo "organization": una organizacion decide internamente
 
 -- Agregar columnas a assembly_config
+-- Las organizaciones se guardan en users(id) con account_type='organization'
 ALTER TABLE assembly_config ADD COLUMN IF NOT EXISTS authorized_person_id UUID REFERENCES users(id);
-ALTER TABLE assembly_config ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id);
+ALTER TABLE assembly_config ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES users(id);
 
 -- Tabla de signers autorizados para multisig
 -- Cada fila es una persona u organizacion autorizada para firmar
@@ -24,7 +25,7 @@ CREATE TABLE IF NOT EXISTS assembly_config_signers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   config_id UUID NOT NULL REFERENCES assembly_config(id) ON DELETE CASCADE,
   user_id UUID REFERENCES users(id),
-  organization_id UUID REFERENCES organizations(id),
+  organization_id UUID REFERENCES users(id),
   signer_type VARCHAR(20) NOT NULL DEFAULT 'person', -- 'person' o 'organization'
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CHECK ((signer_type = 'person' AND user_id IS NOT NULL) OR (signer_type = 'organization' AND organization_id IS NOT NULL))
