@@ -218,16 +218,19 @@ elif echo "$PATH_REQ" | grep -q '^/status$'; then
   STATUS="idle"
   MESSAGE=""
   COMMIT=""
+  PROGRESS="0"
   if [ -f "$STATE_FILE" ]; then
     STATUS=$(grep -o '"status":"[^"]*"' "$STATE_FILE" | head -1 | sed 's/"status":"//;s/"//')
     MESSAGE=$(grep -o '"message":"[^"]*"' "$STATE_FILE" | head -1 | sed 's/"message":"//;s/"//')
     COMMIT=$(grep -o '"commit":"[^"]*"' "$STATE_FILE" | head -1 | sed 's/"commit":"//;s/"//')
+    PROGRESS=$(grep -o '"progress":[0-9]*' "$STATE_FILE" | head -1 | sed 's/"progress"://' )
+    if [ -z "$PROGRESS" ]; then PROGRESS="0"; fi
   fi
   LOG=""
   if [ -f "$LOG_FILE" ]; then
     LOG=$(json_escape "$(cat "$LOG_FILE")")
   fi
-  send_response "{\"status\":\"$STATUS\",\"message\":\"$MESSAGE\",\"commit\":\"$COMMIT\",\"log\":\"$LOG\"}"
+  send_response "{\"status\":\"$STATUS\",\"message\":\"$MESSAGE\",\"commit\":\"$COMMIT\",\"progress\":$PROGRESS,\"log\":\"$LOG\"}"
 
 elif echo "$PATH_REQ" | grep -q '^/node-status$'; then
   RESULT=$(check_node_status)

@@ -2389,10 +2389,11 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
         setReconnectAttempts(consecutiveFailures)
         if (consecutiveFailures >= 2) {
           setNodeRestarting(true)
-          setMsg({ type: 'info', text: `El nodo se esta reiniciando... reintentando (${consecutiveFailures})` })
+          setMsg({ type: 'info', text: `El nodo se esta reiniciando... obteniendo log del updater-controller (${consecutiveFailures})` })
         }
-        // Despues de 5 fallos, intentar obtener estado directamente del updater-controller
-        if (consecutiveFailures === 5) {
+        // Despues de 2 fallos, intentar obtener estado Y LOG directamente del updater-controller
+        // El updater-controller NUNCA se apaga durante la actualizacion, asi que siempre tiene el log
+        if (consecutiveFailures >= 2) {
           try {
             const host = window.location.hostname
             const resp = await fetch(`http://${host}:9110/status`)
@@ -2424,13 +2425,13 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
             // updater-controller tambien inaccesible, continuar reintentando
           }
         }
-        // Despues de 30 fallos (60 seg), mostrar error mas grave
-        if (consecutiveFailures >= 30) {
+        // Despues de 60 fallos (120 seg), mostrar error mas grave
+        if (consecutiveFailures >= 60) {
           clearInterval(interval)
           setPollInterval(null)
           setUpdating(false)
           setNodeRestarting(false)
-          setMsg({ type: 'error', text: 'No se pudo reconectar con el nodo despues de 60 segundos. Verifica el estado del nodo manualmente con: docker compose ps' })
+          setMsg({ type: 'error', text: 'No se pudo reconectar despues de 120 segundos. Verifica el estado con: docker compose ps' })
         }
       }
     }, 2000)
@@ -2644,7 +2645,7 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
               {'$ Reintentando conexion... (intento ' + reconnectAttempts + ')'}
             </div>
           )}
-          {/* Barra de progreso visual */}
+          {/* Barra de progreso visual - usa el progress real del backend */}
           <div className="mt-3 flex items-center gap-2">
             <div className="flex-1 bg-gray-700 rounded-full h-2 overflow-hidden">
               <div
@@ -2656,16 +2657,17 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
                 }`}
                 style={{
                   width: updateStatus?.status === 'completed' ? '100%' :
-                         nodeRestarting ? '70%' :
-                         updateStatus?.status === 'running' ? '50%' :
-                         '10%'
+                         typeof updateStatus?.progress === 'number' && updateStatus.progress > 0 ? `${updateStatus.progress}%` :
+                         nodeRestarting ? '85%' :
+                         updateStatus?.status === 'running' ? '10%' :
+                         '5%'
                 }}
               />
             </div>
             <span className="text-xs text-gray-400 font-mono">
               {updateStatus?.status === 'completed' ? '100%' :
-               nodeRestarting ? '70%' :
-               updateStatus?.status === 'running' ? '50%' :
+               typeof updateStatus?.progress === 'number' && updateStatus.progress > 0 ? `${updateStatus.progress}%` :
+               nodeRestarting ? '85%' :
                '...'}
             </span>
           </div>
