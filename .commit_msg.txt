@@ -1,34 +1,38 @@
-fix: votos de asamblea demo + traducir estados a español
+fix: navegacion SPA entre sitio publico, login y app interna
 
-PROBLEMA 1: Votos de asamblea demo no se insertaban
-- demoSeedAssemblyVotes buscaba decisiones con:
-  SELECT id FROM assembly_decisions WHERE status = 'approved'
-  Sin filtrar por node_domain (assembly_decisions no tiene node_domain)
-- Fix: JOIN con assembly_sessions para filtrar por node_domain:
-  SELECT d.id FROM assembly_decisions d
-  JOIN assembly_sessions s ON d.assembly_id = s.id
-  WHERE s.node_domain = $1 AND d.status = 'approved'
-- Agregado logging para diagnosticar
+PROBLEMAS:
+1. Boton 'Ver sitio publico' en la app interna abria nueva pestana
+   (target=_blank) en lugar de navegar en la misma ventana
+2. Login abria como pagina completa sin boton para volver atras
+   - El usuario se quedaba preso en el login sin poder regresar
+3. No se podia navegar entre sitio publico y app interna en la misma
+   ventana
 
-PROBLEMA 2: Estados de asamblea en inglés
-- approved, rejected, executed, proposed, expired se mostraban en inglés
-- Fix: traducidos en Assembly.tsx
-  approved -> aprobada
-  rejected -> rechazada
-  executed -> ejecutada
-  proposed -> pendiente de revision
-  expired -> vencida
-- result tambien traducido: approved -> aprobada, rejected -> rechazada
+SOLUCIONES:
 
-PROBLEMA 3: Tipos de propuesta sin traducir
-- budget, election, product_approval, federation no estaban en PROPOSAL_LABELS
-- Fix: agregados al diccionario
-  budget -> Presupuesto
-  election -> Eleccion
-  product_approval -> Aprobacion de producto
-  federation -> Federacion
-- PROPOSAL_LABELS cambiado de Record<ProposalType, string> a Record<string, string>
-  para soportar tipos adicionales sin errores de TypeScript
+1. Layout.tsx: cambiado enlace target=_blank por Link SPA
+   - Ahora 'Ver sitio publico' navega dentro de la misma ventana
+   - Cambiado en sidebar y en header
+
+2. LoginModal.tsx (nuevo componente):
+   - Login emergente tipo popup/modal como el de detalles de servicios
+   - Se abre sobre la pagina actual sin navegar a otra ruta
+   - Boton X para cerrar y volver a la pagina donde estabas
+   - Soporta password, passkey y login demo
+   - Mismo estilo y funcionalidad que el Login anterior
+
+3. PublicSite.tsx:
+   - Todos los botones 'Acceso' / 'Iniciar sesion miembros' ahora abren
+     el LoginModal en lugar de navegar a /login
+   - Agregado estado showLoginModal al PublicLayout
+   - 14 enlaces convertidos de Link a button onClick
+
+4. Login.tsx (pagina /login sigue existiendo):
+   - Agregado boton 'Volver al sitio publico'
+   - Por si alguien accede directamente a /login
+
+Resultado: toda la navegacion entre sitio publico, login y app interna
+se hace en la misma ventana sin abrir pestanas nuevas.
 
 Generated with [Devin](https://devin.ai)
 

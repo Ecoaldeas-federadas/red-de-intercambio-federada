@@ -33,6 +33,7 @@ import {
 import { PageBlocksRenderer } from './public-site/PublicBlocks'
 import { LivePageEditor } from './public-site/LivePageEditor'
 import { DynamicAdmissionForm } from './public-site/DynamicAdmissionForm'
+import { LoginModal } from './LoginModal'
 import { ThemeCustomizer, ThemeDraft, PageMenuItem } from './public-site/ThemeCustomizer'
 import { FERIA_CONUQUERA_TEMPLATES } from './public-site/defaultSiteData'
 import { PublicPageData, HeaderStyleType, SiteBlock } from '../types/publicSite'
@@ -124,6 +125,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
   const [draftSettings, setDraftSettings] = useState<ThemeDraft | null>(null)
   const [draftPages, setDraftPages] = useState<PageMenuItem[]>([])
   const [showAdminMenu, setShowAdminMenu] = useState(false)
+  const [showLoginModal, setShowLoginModal] = useState(false)
 
   useEffect(() => {
     api.get('/public/settings').then((s: any) => setSettings(s)).catch(() => {})
@@ -371,9 +373,9 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                     Escritorio
                   </Link>
                 ) : (
-                  <Link to="/login" className="hidden sm:inline-block px-3 py-2 rounded-lg text-xs font-bold border-2 transition hover:bg-gray-50" style={{ color: primaryColor, borderColor: primaryColor }}>
+                  <button onClick={() => setShowLoginModal(true)} className="hidden sm:inline-block px-3 py-2 rounded-lg text-xs font-bold border-2 transition hover:bg-gray-50" style={{ color: primaryColor, borderColor: primaryColor }}>
                     Acceso
-                  </Link>
+                  </button>
                 )}
                 <button className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100" style={{ color: (settings as any)?.text_color || '#1a1a1a' }} onClick={() => setMenuOpen(!menuOpen)}>
                   {menuOpen ? <X size={18} /> : <Menu size={18} />}
@@ -965,9 +967,9 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               </Link>
             )}
             {!isAuthenticated ? (
-              <Link to="/login" className="block w-full text-center px-3 py-1.5 rounded-lg text-xs text-white/80 hover:bg-white/10 border border-white/20">
+              <button onClick={() => setShowLoginModal(true)} className="block w-full text-center px-3 py-1.5 rounded-lg text-xs text-white/80 hover:bg-white/10 border border-white/20">
                 Acceso
-              </Link>
+              </button>
             ) : (
               <Link to="/app/dashboard" className="block w-full text-center px-3 py-2 rounded-lg text-xs font-bold text-white shadow" style={{ backgroundColor: secondaryColor }}>
                 Escritorio
@@ -1395,9 +1397,9 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               </Link>
             )}
             {!isAuthenticated && (
-              <Link to="/login" onClick={() => setMenuOpen(false)} className="block text-center px-3 py-1.5 rounded-lg text-xs text-white/90 hover:bg-white/10">
+              <button onClick={() => { setMenuOpen(false); setShowLoginModal(true) }} className="block text-center px-3 py-1.5 rounded-lg text-xs text-white/90 hover:bg-white/10">
                 Iniciar sesión miembros
-              </Link>
+              </button>
             )}
           </div>
         </div>
@@ -1431,9 +1433,9 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               </Link>
             )}
             {!isAuthenticated && (
-              <Link to="/login" onClick={() => setMenuOpen(false)} className="block text-center px-3 py-1.5 rounded-lg text-xs font-medium border" style={{ color: primaryColor, borderColor: primaryColor }}>
+              <button onClick={() => { setMenuOpen(false); setShowLoginModal(true) }} className="block text-center px-3 py-1.5 rounded-lg text-xs font-medium border" style={{ color: primaryColor, borderColor: primaryColor }}>
                 Acceso Miembros
-              </Link>
+              </button>
             )}
           </div>
         </div>
@@ -1465,9 +1467,9 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               </Link>
             )}
             {!isAuthenticated && (
-              <Link to="/login" onClick={() => setMenuOpen(false)} className="block text-center px-3 py-1.5 rounded-lg text-xs text-amber-300 hover:bg-white/10">
+              <button onClick={() => { setMenuOpen(false); setShowLoginModal(true) }} className="block text-center px-3 py-1.5 rounded-lg text-xs text-amber-300 hover:bg-white/10">
                 Iniciar sesión miembros
-              </Link>
+              </button>
             )}
           </div>
         </div>
@@ -1525,9 +1527,9 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               </Link>
             )}
             {!isAuthenticated && (
-              <Link to="/login" onClick={() => setMenuOpen(false)} className="block text-center px-3 py-1.5 rounded-lg text-xs text-white/90 hover:bg-white/10">
+              <button onClick={() => { setMenuOpen(false); setShowLoginModal(true) }} className="block text-center px-3 py-1.5 rounded-lg text-xs text-white/90 hover:bg-white/10">
                 Iniciar sesión miembros
-              </Link>
+              </button>
             )}
           </div>
         </div>
@@ -1559,9 +1561,9 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               </Link>
             )}
             {!isAuthenticated && (
-              <Link to="/login" onClick={() => setMenuOpen(false)} className="block text-center px-3 py-1.5 rounded-lg text-xs font-medium border" style={{ color: primaryColor, borderColor: primaryColor }}>
+              <button onClick={() => { setMenuOpen(false); setShowLoginModal(true) }} className="block text-center px-3 py-1.5 rounded-lg text-xs font-medium border" style={{ color: primaryColor, borderColor: primaryColor }}>
                 Acceso Miembros
-              </Link>
+              </button>
             )}
           </div>
         </div>
@@ -1600,9 +1602,9 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               </Link>
             )}
             {!isAuthenticated && (
-              <Link to="/login" onClick={() => setMenuOpen(false)} className="block text-center px-3 py-1.5 rounded-lg text-xs text-white/90 hover:bg-white/10 border border-white/30">
+              <button onClick={() => { setMenuOpen(false); setShowLoginModal(true) }} className="block text-center px-3 py-1.5 rounded-lg text-xs text-white/90 hover:bg-white/10 border border-white/30">
                 Acceso Miembros
-              </Link>
+              </button>
             )}
           </div>
         </div>
@@ -1630,7 +1632,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 <Link to="/p/unirse" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-2 rounded-lg text-xs font-bold text-white" style={{ backgroundColor: secondaryColor }}>Unirse</Link>
               )}
               {!isAuthenticated && (
-                <Link to="/login" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-1.5 rounded-lg text-xs text-white/80 border border-white/20">Acceso</Link>
+                <button onClick={() => { setMenuOpen(false); setShowLoginModal(true) }} className="block w-full text-center px-3 py-1.5 rounded-lg text-xs text-white/80 border border-white/20">Acceso</button>
               )}
             </div>
           </div>
@@ -1654,7 +1656,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               <Link to="/p/unirse" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-2 rounded-lg text-xs font-bold text-white shadow" style={{ backgroundColor: secondaryColor }}>Unirse</Link>
             )}
             {!isAuthenticated && (
-              <Link to="/login" onClick={() => setMenuOpen(false)} className="block text-center px-3 py-1.5 rounded-lg text-xs text-white/90 hover:bg-white/10">Acceso Miembros</Link>
+              <button onClick={() => { setMenuOpen(false); setShowLoginModal(true) }} className="block text-center px-3 py-1.5 rounded-lg text-xs text-white/90 hover:bg-white/10">Acceso Miembros</button>
             )}
           </div>
         </div>
@@ -1676,7 +1678,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               <Link to="/p/unirse" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-2 rounded-full text-xs font-bold text-white" style={{ backgroundColor: primaryColor }}>Unirse</Link>
             )}
             {!isAuthenticated && (
-              <Link to="/login" onClick={() => setMenuOpen(false)} className="block text-center px-3 py-1.5 rounded-full text-xs font-medium border" style={{ color: primaryColor, borderColor: primaryColor }}>Acceso</Link>
+              <button onClick={() => { setMenuOpen(false); setShowLoginModal(true) }} className="block text-center px-3 py-1.5 rounded-full text-xs font-medium border" style={{ color: primaryColor, borderColor: primaryColor }}>Acceso</button>
             )}
           </div>
         </div>
@@ -1704,7 +1706,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               <Link to="/p/unirse" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-2.5 rounded-xl text-sm font-bold text-white" style={{ backgroundColor: secondaryColor }}>Unirse a la Red</Link>
             )}
             {!isAuthenticated && (
-              <Link to="/login" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-2 rounded-xl text-sm text-white/90 border border-white/30">Acceso Miembros</Link>
+              <button onClick={() => { setMenuOpen(false); setShowLoginModal(true) }} className="block w-full text-center px-3 py-2 rounded-xl text-sm text-white/90 border border-white/30">Acceso Miembros</button>
             )}
           </div>
         </div>
@@ -1731,7 +1733,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 <Link to="/p/unirse" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-2 rounded-full text-xs font-bold text-white" style={{ backgroundColor: secondaryColor }}>Unirse</Link>
               )}
               {!isAuthenticated && (
-                <Link to="/login" onClick={() => setMenuOpen(false)} className="block w-full text-center px-3 py-1.5 rounded-full text-xs font-medium border" style={{ color: primaryColor, borderColor: primaryColor }}>Acceso</Link>
+                <button onClick={() => { setMenuOpen(false); setShowLoginModal(true) }} className="block w-full text-center px-3 py-1.5 rounded-full text-xs font-medium border" style={{ color: primaryColor, borderColor: primaryColor }}>Acceso</button>
               )}
             </div>
           </div>
@@ -1856,9 +1858,9 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                   Ir al escritorio administrativo
                 </Link>
               ) : (
-                <Link to="/login" className="text-gray-400 hover:text-white transition">
+                <button onClick={() => setShowLoginModal(true)} className="text-gray-400 hover:text-white transition">
                   Acceso exclusivo miembros y productores
-                </Link>
+                </button>
               )}
             </div>
           </div>
@@ -2032,6 +2034,9 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           })
         }}
       />
+
+      {/* Modal de login emergente */}
+      <LoginModal open={showLoginModal} onClose={() => setShowLoginModal(false)} />
     </div>
   )
 }

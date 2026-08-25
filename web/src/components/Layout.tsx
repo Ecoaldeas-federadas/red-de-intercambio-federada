@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { usePermissions } from '../hooks/usePermissions'
 import { api } from '../api'
@@ -129,16 +129,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               {!sidebarCollapsed && label}
             </NavLink>
           ))}
-          <a
-            href="/"
-            target="_blank"
-            rel="noopener"
+          <Link
+            to="/p/inicio"
             title={sidebarCollapsed ? 'Ver sitio publico' : undefined}
             className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-trueque-100 hover:bg-trueque-700 mt-4 border-t border-trueque-700 pt-4 ${sidebarCollapsed ? 'justify-center' : ''}`}
           >
             <ExternalLink size={18} className="flex-shrink-0" />
             {!sidebarCollapsed && 'Ver sitio publico'}
-          </a>
+          </Link>
         </nav>
         {/* Boton contraer/expander */}
         <div className="absolute bottom-0 left-0 right-0 border-t border-trueque-700 p-2 hidden lg:flex justify-center">
@@ -223,10 +221,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </>
               )}
             </div>
-            <a href="/" target="_blank" rel="noopener" className="text-sm text-trueque-600 hover:text-trueque-800 flex items-center gap-1">
+            <Link to="/p/inicio" className="text-sm text-trueque-600 hover:text-trueque-800 flex items-center gap-1">
               <ExternalLink size={16} />
               <span className="hidden sm:inline">Sitio publico</span>
-            </a>
+            </Link>
             <span className="text-sm text-gray-600">{username}</span>
             <button onClick={handleLogout} className="text-gray-500 hover:text-red-600">
               <LogOut size={20} />
