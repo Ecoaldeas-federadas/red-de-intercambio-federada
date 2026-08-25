@@ -2192,10 +2192,18 @@ func demoSeedAssemblyVotes(ctx context.Context, d *DB, nodeDomain string) {
 		rows.Scan(&id)
 		voters = append(voters, id)
 	}
+	if len(voters) == 0 {
+		log.Println("Demo: no voters found for assembly votes")
+		return
+	}
 
-	// Obtener decisiones aprobadas
-	decRows, err := d.Pool.Query(ctx, `SELECT id FROM assembly_decisions WHERE status = 'approved'`)
+	// Obtener decisiones aprobadas de ESTE nodo (via JOIN con assembly_sessions)
+	decRows, err := d.Pool.Query(ctx, `
+		SELECT d.id FROM assembly_decisions d
+		JOIN assembly_sessions s ON d.assembly_id = s.id
+		WHERE s.node_domain = $1 AND d.status = 'approved'`, nodeDomain)
 	if err != nil {
+		log.Printf("Demo: error getting approved decisions: %v", err)
 		return
 	}
 	defer decRows.Close()
@@ -2205,6 +2213,7 @@ func demoSeedAssemblyVotes(ctx context.Context, d *DB, nodeDomain string) {
 		decRows.Scan(&id)
 		decisions = append(decisions, id)
 	}
+	log.Printf("Demo: seeding votes for %d approved decisions with %d voters", len(decisions), len(voters))
 
 	// Crear votos (70% a favor, 20% en contra, 10% abstencion)
 	for _, decID := range decisions {

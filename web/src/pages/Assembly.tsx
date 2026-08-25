@@ -10,8 +10,9 @@ type ProposalType =
   | 'limit_change' | 'admission' | 'expulsion' | 'budget_increase'
   | 'federation_config' | 'recovery_config' | 'tax_change' | 'member_level' | 'policy'
   | 'create_account' | 'fund_distribution' | 'energy_rate_change' | 'product_modification' | 'free_proposal'
+  | 'budget' | 'election' | 'product_approval' | 'federation'
 
-const PROPOSAL_LABELS: Record<ProposalType, string> = {
+const PROPOSAL_LABELS: Record<string, string> = {
   limit_change: 'Cambio de limites',
   admission: 'Admision de miembro',
   expulsion: 'Expulsion de miembro',
@@ -26,6 +27,10 @@ const PROPOSAL_LABELS: Record<ProposalType, string> = {
   energy_rate_change: 'Cambio de tarifa energetica',
   product_modification: 'Modificacion de producto',
   free_proposal: 'Propuesta libre',
+  budget: 'Presupuesto',
+  election: 'Eleccion',
+  product_approval: 'Aprobacion de producto',
+  federation: 'Federacion',
 }
 
 const PROPOSAL_HELP: Record<ProposalType, string> = {
@@ -1005,7 +1010,7 @@ export default function Assembly() {
                         p.status === 'expired' ? 'bg-orange-100 text-orange-700' :
                         p.status === 'approved' ? 'bg-blue-100 text-blue-700' :
                         'bg-yellow-100 text-yellow-700'
-                      }`}>{p.status === 'expired' ? 'vencida' : p.status === 'pending' ? 'en votacion' : p.status}</span>
+                      }`}>{p.status === 'expired' ? 'vencida' : p.status === 'pending' ? 'en votacion' : p.status === 'approved' ? 'aprobada' : p.status === 'executed' ? 'ejecutada' : p.status === 'rejected' ? 'rechazada' : p.status === 'proposed' ? 'pendiente de revision' : p.status}</span>
                     </div>
                     <span className="text-xs text-gray-400">{p.created_at?.slice(0, 10)}</span>
                   </div>
@@ -1197,7 +1202,7 @@ export default function Assembly() {
                           rp.status === 'rejected' ? 'bg-red-100 text-red-700' :
                           rp.status === 'expired' ? 'bg-orange-100 text-orange-700' :
                           'bg-yellow-100 text-yellow-700'
-                        }`}>{rp.result}</span>
+                        }`}>{rp.result === 'approved' ? 'aprobada' : rp.result === 'rejected' ? 'rechazada' : rp.result === 'expired' ? 'vencida' : rp.result}</span>
                       </div>
                       <p className="text-xs text-gray-600 mb-2">{rp.description}</p>
                       <div className="flex flex-wrap gap-3 text-xs">

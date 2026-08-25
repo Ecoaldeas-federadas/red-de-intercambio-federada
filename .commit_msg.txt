@@ -1,52 +1,34 @@
-fix: 8 bugs - Settings crash, admission 500, DEX dupes, modales, DEX CRUD, audit log
+fix: votos de asamblea demo + traducir estados a español
 
-1. CRITICAL: Fix Info is not defined en NodeSettings.tsx
-   - Info se usaba pero no estaba importado de lucide-react
-   - Causaba crash total de la pagina de ajustes en demo y normal
+PROBLEMA 1: Votos de asamblea demo no se insertaban
+- demoSeedAssemblyVotes buscaba decisiones con:
+  SELECT id FROM assembly_decisions WHERE status = 'approved'
+  Sin filtrar por node_domain (assembly_decisions no tiene node_domain)
+- Fix: JOIN con assembly_sessions para filtrar por node_domain:
+  SELECT d.id FROM assembly_decisions d
+  JOIN assembly_sessions s ON d.assembly_id = s.id
+  WHERE s.node_domain = $1 AND d.status = 'approved'
+- Agregado logging para diagnosticar
 
-2. HIGH: Fix error 500 en GET /api/admission/requests
-   - rejection_reason es NULLABLE pero se escaneaba como string
-   - Fix: COALESCE(rejection_reason, '') en el query
+PROBLEMA 2: Estados de asamblea en inglés
+- approved, rejected, executed, proposed, expired se mostraban en inglés
+- Fix: traducidos en Assembly.tsx
+  approved -> aprobada
+  rejected -> rechazada
+  executed -> ejecutada
+  proposed -> pendiente de revision
+  expired -> vencida
+- result tambien traducido: approved -> aprobada, rejected -> rechazada
 
-3. HIGH: Fix cuentas DEX duplicadas en demo
-   - DemoReset no borraba external_bank_accounts, external_purchases,
-     external_sales, external_commerce_config, external_basket_recalculation
-   - Cada reset del demo duplicaba todas las cuentas bancarias
-   - Fix: agregadas al array de tablas a borrar en DemoReset
-
-4. MEDIUM: Botones Cancelar en modales
-   - Recovery.tsx: showConfig y showNewReq ahora tienen boton Cancelar
-   - Admission.tsx: showForm ahora tiene boton Cancelar
-
-5. MEDIUM: DEX - CRUD completo de cuentas bancarias
-   - Agregado boton Editar en cada tarjeta de cuenta
-   - Agregado boton Eliminar (desactivar) en cada tarjeta
-   - Agregados campos: account_type (corriente/ahorro), country
-   - Migracion 104: ALTER TABLE external_bank_accounts ADD account_type, country
-   - Backend: list/create/update ahora incluyen account_type y country
-
-6. MEDIUM: DEX - Ver movimientos por cuenta
-   - Nuevo endpoint: GET /api/external/bank-accounts/{id}/movements
-   - Devuelve UNION de compras y ventas de esa cuenta
-   - Frontend: boton "Ver movimientos" expande tabla con detalles
-
-7. MEDIUM: DEX - Tutorial del modelo economico
-   - Agregado al tab Resumen del Comercio Exterior
-   - Explica el flujo: productor -> DEX -> venta externa -> compra externa -> venta interna
-   - Explica doble contabilidad (cuentas externas + TQ interno)
-   - Explica Factor de Conversion (FC) y aprobaciones multi-firma
-
-8. HIGH: Fix audit log - actor vacio, sin origen/destino, en ingles
-   - Backend: listAudit ahora hace LEFT JOIN con users para obtener
-     actor_username y actor_display_name
-   - Backend: audit log de transfer ahora incluye from y to (nombres)
-   - Frontend: Audit.tsx reescrito
-     * Actor muestra nombre (no UUID vacio)
-     * Acciones traducidas: transfer -> Transferencia, etc.
-     * Detalles traducidos: amount -> Monto, from -> Origen, to -> Destino
-     * Filtros ampliados con etiquetas en espanol
-     * Fechas formateadas legibles
-   - Demo seed: audit logs de admision ahora usan demoAdminID como actor
+PROBLEMA 3: Tipos de propuesta sin traducir
+- budget, election, product_approval, federation no estaban en PROPOSAL_LABELS
+- Fix: agregados al diccionario
+  budget -> Presupuesto
+  election -> Eleccion
+  product_approval -> Aprobacion de producto
+  federation -> Federacion
+- PROPOSAL_LABELS cambiado de Record<ProposalType, string> a Record<string, string>
+  para soportar tipos adicionales sin errores de TypeScript
 
 Generated with [Devin](https://devin.ai)
 
