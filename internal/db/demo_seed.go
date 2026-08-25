@@ -1934,40 +1934,44 @@ func demoSeedDepartments(ctx context.Context, d *DB, nodeDomain string) {
 
 func demoSeedGovernance(ctx context.Context, d *DB, nodeDomain string) {
 	rules := []struct {
-		title, category, desc, body string
+		title, category, desc, body, severity, icon, ruleType string
+		sortOrder                                             int
 	}{
-		{"Principio de Consentimiento", "Toma de decisiones", "Las decisiones se toman por consentimiento", "Las decisiones se toman por consentimiento: una propuesta se aprueba cuando nadie tiene una objection fundamentada. No votamos a favor o en contra, preguntamos si alguien tiene una razon para que no se haga."},
-		{"Admision de Miembros", "Membresia", "Proceso de admision de nuevos miembros", "Los nuevos miembros pasan por un periodo de prueba de 6 meses como Brote. Despues, la Comision de Admision evalua y la Asamblea decide por consentimiento. Se requiere patrocinio de un miembro Tronco o Raiz."},
-		{"Trabajo Comunitario", "Obligaciones", "Aportes de trabajo comunitario", "Cada miembro contribuye con 8 horas mensuales de trabajo comunitario: mantenimiento, bosque, construccion, o tareas asignadas por comisiones. Se registra en TQ."},
-		{"Uso del TQ", "Economia", "Normas del Trueque Comunitario", "El TQ es la unica moneda para intercambios internos. No se acepta dinero externo dentro de la ecoaldea. Los intercambios con el exterior se gestionan a traves de la Comision de Economia."},
-		{"Credito Comunitario", "Economia", "Creditos en TQ", "Los creditos en TQ los aprueba la Asamblea. No hay interes. El plazo y condiciones los decide la asamblea caso por caso. El fondo comunitario respalda los creditos."},
-		{"Cuidado del Bosque", "Ambiente", "Normas de manejo del bosque", "El 60% del territorio es bosque protegido. Solo se extrae madera muerta o con permiso de la Comision de Ambiente. Cada miembro planta 10 arboles al ano."},
-		{"Asamblea Mensual", "Gobernanza", "Frecuencia y obligatoriedad", "La asamblea se realiza el primer domingo de cada mes. Es obligatoria para miembros Raiz y Tronco. Miembros Rama y Brote tienen voz pero su asistencia es voluntaria."},
-		{"Organizaciones de la Asamblea", "estructura", "La Asamblea puede crear organizaciones que le pertenecen", "La Asamblea puede crear organizaciones que le pertenecen. Todos los miembros del nodo son automaticamente miembros de estas organizaciones. Sus decisiones se votan en la Asamblea General. Ejemplos: servicio electrico, transporte, agua."},
-		{"Junta Directiva de Organizaciones", "estructura", "Cada organizacion tiene su propia junta directiva", "Cada organizacion tiene su propia junta directiva con reuniones, votaciones y actas separadas. La junta toma decisiones operativas que no requieren aprobacion de la asamblea."},
-		{"Dos Espacios de Decision", "estructura", "Asamblea y Junta Directiva", "Cada organizacion tiene dos espacios de decision: la Asamblea (todos los miembros) y la Junta Directiva (solo directivos). Ambos tienen sesiones, propuestas, votaciones, actas y asistencia."},
-		{"Servicios de Organizaciones", "unidades_productivas", "Mensualidades, cobros y pagos", "Las organizaciones pueden ofrecer servicios: mensualidades, cobros, pagos a miembros, o servicios gratuitos. Cada servicio define obligaciones, derechos y deberes."},
-		{"Servicios Obligatorios", "unidades_productivas", "Aplican a todos los miembros", "Los servicios obligatorios aplican a todos los miembros. En organizaciones de la Asamblea, todos los miembros del nodo deben pagar. En organizaciones regulares, requieren votacion de los miembros."},
-		{"Servicios Voluntarios", "unidades_productivas", "Suscripcion libre", "Los servicios voluntarios permiten a cada miembro suscribirse o cancelar libremente. Ningun miembro esta obligado a usar un servicio voluntario."},
-		{"Servicios que Pagan al Miembro", "unidades_productivas", "Organizaciones que pagan", "Algunas organizaciones pagan a sus miembros mensualmente por trabajo o servicios prestados. El monto se transfiere automaticamente cada mes."},
-		{"Servicios Gratuitos", "unidades_productivas", "Monto cero", "Los servicios pueden ser gratuitos (monto cero). En ese caso, solo se registra la membresia sin cobro."},
-		{"Cobro Automatico Mensual", "unidades_productivas", "Scheduler de cobros", "El sistema cobra o paga automaticamente los servicios activos segun la frecuencia configurada. Los miembros reciben notificaciones de cada cobro."},
-		{"Impuestos por Nivel de Miembro", "impuestos", "Cada nivel tiene su tasa", "Cada nivel de miembro tiene su propia tasa de impuesto. Los miembros nuevos (brote) pagan 2%, los fundadores (raiz) pagan 0.5%, como incentivo para ascender."},
-		{"Impuestos por Nivel de Organizacion", "impuestos", "Tasa segun tipo de organizacion", "Las organizaciones pagan impuestos segun su nivel. Las instituciones publicas estan exentas (0%). Las de produccion pagan 2%, las de consumo 1%."},
-		{"Destino de los Impuestos", "impuestos", "Cuenta de la Asamblea", "Todos los impuestos llegan automaticamente a la cuenta de la Asamblea. La Asamblea decide a donde distribuir ese dinero mediante propuestas de distribucion de fondos."},
+		{"Principio de Consentimiento", "Toma de decisiones", "Las decisiones se toman por consentimiento: una propuesta se aprueba cuando nadie tiene una objection fundamentada. No votamos a favor o en contra, preguntamos si alguien tiene una razon para que no se haga.", "", "info", "users", "informativo", 0},
+		{"Admision de Miembros", "Membresia", "Los nuevos miembros pasan por un periodo de prueba de 6 meses como Brote. Despues, la Comision de Admision evalua y la Asamblea decide por consentimiento. Se requiere patrocinio de un miembro Tronco o Raiz.", "", "info", "user-plus", "proceso", 1},
+		{"Trabajo Comunitario", "Obligaciones", "Cada miembro contribuye con 8 horas mensuales de trabajo comunitario: mantenimiento, bosque, construccion, o tareas asignadas por comisiones. Se registra en TQ.", "", "info", "hammer", "deber", 2},
+		{"Uso del TQ", "Economia", "El TQ es la unica moneda para intercambios internos. No se acepta dinero externo dentro de la ecoaldea. Los intercambios con el exterior se gestionan a traves de la Comision de Economia.", "", "info", "coins", "informativo", 3},
+		{"Credito Comunitario", "Economia", "Los creditos en TQ los aprueba la Asamblea. No hay interes. El plazo y condiciones los decide la asamblea caso por caso. El fondo comunitario respalda los creditos.", "", "info", "banknote", "informativo", 4},
+		{"Cuidado del Bosque", "Ambiente", "El 60% del territorio es bosque protegido. Solo se extrae madera muerta o con permiso de la Comision de Ambiente. Cada miembro planta 10 arboles al ano.", "", "info", "tree", "deber", 5},
+		{"Asamblea Mensual", "Gobernanza", "La asamblea se realiza el primer domingo de cada mes. Es obligatoria para miembros Raiz y Tronco. Miembros Rama y Brote tienen voz pero su asistencia es voluntaria.", "", "info", "calendar", "informativo", 6},
+		{"Organizaciones de la Asamblea", "estructura", "La Asamblea puede crear organizaciones que le pertenecen. Todos los miembros del nodo son automaticamente miembros de estas organizaciones. Sus decisiones se votan en la Asamblea General. Ejemplos: servicio electrico, transporte, agua.", "", "info", "building", "informativo", 7},
+		{"Junta Directiva de Organizaciones", "estructura", "Cada organizacion tiene su propia junta directiva con reuniones, votaciones y actas separadas. La junta toma decisiones operativas que no requieren aprobacion de la asamblea.", "", "info", "users", "informativo", 8},
+		{"Dos Espacios de Decision", "estructura", "Cada organizacion tiene dos espacios de decision: la Asamblea (todos los miembros) y la Junta Directiva (solo directivos). Ambos tienen sesiones, propuestas, votaciones, actas y asistencia.", "", "info", "git-branch", "informativo", 9},
+		{"Servicios de Organizaciones", "unidades_productivas", "Las organizaciones pueden ofrecer servicios: mensualidades, cobros, pagos a miembros, o servicios gratuitos. Cada servicio define obligaciones, derechos y deberes.", "", "info", "package", "informativo", 10},
+		{"Servicios Obligatorios", "unidades_productivas", "Los servicios obligatorios aplican a todos los miembros. En organizaciones de la Asamblea, todos los miembros del nodo deben pagar. En organizaciones regulares, requieren votacion de los miembros.", "", "info", "package", "informativo", 11},
+		{"Servicios Voluntarios", "unidades_productivas", "Los servicios voluntarios permiten a cada miembro suscribirse o cancelar libremente. Ningun miembro esta obligado a usar un servicio voluntario.", "", "info", "package", "informativo", 12},
+		{"Servicios que Pagan al Miembro", "unidades_productivas", "Algunas organizaciones pagan a sus miembros mensualmente por trabajo o servicios prestados. El monto se transfiere automaticamente cada mes.", "", "info", "package", "informativo", 13},
+		{"Servicios Gratuitos", "unidades_productivas", "Los servicios pueden ser gratuitos (monto cero). En ese caso, solo se registra la membresia sin cobro.", "", "info", "package", "informativo", 14},
+		{"Cobro Automatico Mensual", "unidades_productivas", "El sistema cobra o paga automaticamente los servicios activos segun la frecuencia configurada. Los miembros reciben notificaciones de cada cobro.", "", "info", "repeat", "informativo", 15},
+		{"Impuestos por Nivel de Miembro", "impuestos", "Cada nivel de miembro tiene su propia tasa de impuesto. Los miembros nuevos (brote) pagan 2%, los fundadores (raiz) pagan 0.5%, como incentivo para ascender.", "", "info", "percent", "informativo", 16},
+		{"Impuestos por Nivel de Organizacion", "impuestos", "Las organizaciones pagan impuestos segun su nivel. Las instituciones publicas estan exentas (0%). Las de produccion pagan 2%, las de consumo 1%.", "", "info", "percent", "informativo", 17},
+		{"Destino de los Impuestos", "impuestos", "Todos los impuestos llegan automaticamente a la cuenta de la Asamblea. La Asamblea decide a donde distribuir ese dinero mediante propuestas de distribucion de fondos.", "", "info", "percent", "informativo", 18},
 	}
 
-	for _, rule := range rules {
+	for i, rule := range rules {
 		var existing int
 		d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM governance_rules WHERE node_domain = $1 AND title = $2`, nodeDomain, rule.title).Scan(&existing)
 		if existing > 0 {
 			continue
 		}
-		d.Pool.Exec(ctx, `
-			INSERT INTO governance_rules (id, node_domain, title, description, category, body, is_active, created_at)
-			VALUES ($1, $2, $3, $4, $5, $6, true, NOW())
+		_, err := d.Pool.Exec(ctx, `
+			INSERT INTO governance_rules (id, node_domain, title, description, category, severity, icon, sort_order, rule_type, is_active, created_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, NOW())
 			ON CONFLICT DO NOTHING`,
-			uuid.New(), nodeDomain, rule.title, rule.desc, rule.category, rule.body)
+			uuid.New(), nodeDomain, rule.title, rule.desc, rule.category, rule.severity, rule.icon, i, rule.ruleType)
+		if err != nil {
+			log.Printf("Demo: error seeding governance rule %s: %v", rule.title, err)
+		}
 	}
 }
 
