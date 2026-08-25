@@ -1106,6 +1106,46 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 			INSERT INTO users (node_domain, username, display_name, account_type, membership_status, is_approved, credit_limit, debit_limit)
 			VALUES ($1, $2, $3, $4, 'active', true, 0, 0)`,
 			nodeDomain, accountName, accountName, accountType)
+
+	case "product_approval":
+		// Aprobar un producto en el catalogo (aprobado por Asamblea/Junta/Consejo)
+		productID, _ := params["product_id"].(string)
+		if productID != "" {
+			h.Pool.Exec(r.Context(), `UPDATE products SET is_approved = true WHERE id = $1::uuid`, productID)
+		}
+
+	case "product_disapproval":
+		// Desaprobar un producto (no lo elimina, solo cambia is_approved = false)
+		productID, _ := params["product_id"].(string)
+		if productID != "" {
+			h.Pool.Exec(r.Context(), `UPDATE products SET is_approved = false WHERE id = $1::uuid`, productID)
+		}
+
+	case "product_remove":
+		// Eliminar un producto del catalogo (diferente de desaprobar: lo borra)
+		productID, _ := params["product_id"].(string)
+		if productID != "" {
+			h.Pool.Exec(r.Context(), `DELETE FROM products WHERE id = $1::uuid`, productID)
+		}
+
+	case "product_import":
+		// Importar un producto de otro nodo federado
+		// Crea una copia local del producto con source_node y source_product_id
+		productName, _ := params["product_name"].(string)
+		sourceNode, _ := params["source_node"].(string)
+		sourceProductID, _ := params["source_product_id"].(string)
+		category, _ := params["category"].(string)
+		subcategory, _ := params["subcategory"].(string)
+		price, _ := params["price"].(float64)
+		imageURL, _ := params["image_url"].(string)
+		if productName != "" && sourceNode != "" {
+			nodeDomain := r.Header.Get("X-Node-Domain")
+			nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+			h.Pool.Exec(r.Context(), `
+				INSERT INTO products (node_domain, name, parent_category, category, origin, price_per_unit, image_url, is_approved, is_system, source_node, source_product_id)
+				VALUES ($1, $2, $3, $4, 'federated', $5, $6, true, true, $7, $8::uuid)`,
+				nodeDomain, productName, category, subcategory, price, imageURL, sourceNode, sourceProductID)
+		}
 	}
 	return nil
 }

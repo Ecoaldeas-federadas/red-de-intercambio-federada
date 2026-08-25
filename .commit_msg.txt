@@ -1,38 +1,65 @@
-fix: pestaña Federacion muestra todos los productos + aprobar/desaprobar
+feat: aprobar/desaprobar/eliminar productos pasa por Asamblea con gobernanza configurable
 
-PROBLEMAS:
-1. Pestaña Federacion mostraba "No hay productos registrados"
-   - El query filtraba is_approved = true AND is_hidden = false
-   - Si no habia productos aprobados, no mostraba nada
-   - Los productos del propio nodo aprobados tampoco aparecian
-2. No habia botones para aprobar/desaprobar desde la pestaña Federacion
-3. rejectProduct ocultaba el producto (is_hidden = true) en lugar
-   de solo desaprobarlo - el usuario quiere desaprobar sin ocultar
-4. Desaprobar un producto lo eliminaba de la Federacion en lugar
-   de solo cambiar su estado
+PROBLEMA:
+Los botones de aprobar/desaprobar productos hacian cambios directos
+sin pasar por la Asamblea. El usuario quiere que todas las acciones
+sobre productos pasen por la Asamblea, y que la Asamblea configure
+QUIEN decide cada accion (Asamblea, Junta Directiva, Comision, etc).
 
-SOLUCIONES:
+SOLUCION:
 
-1. Backend listFederatedProducts (system.go):
-   - Removido filtro is_approved = true
-   - Ahora muestra TODOS los productos (aprobados y no aprobados)
-   - Mantiene filtro is_hidden = false (ocultos no aparecen)
-   - Ordena por is_approved DESC (aprobados primero)
+1. Migracion 105_product_approval_governance.sql:
+   Agrega 4 tipos de propuesta a assembly_config:
+   - product_approval: Junta Directiva, 50% (rapido)
+   - product_disapproval: Junta Directiva, 50% (rapido)
+   - product_remove: Asamblea, 66.67% (2/3 - mas dificil)
+   - product_import: Asamblea, 50% (mayoria simple)
 
-2. Backend nuevo endpoint disapproveProduct (system.go):
-   - POST /api/products/{id}/disapprove
-   - Solo cambia is_approved = false
-   - NO cambia is_hidden (el producto sigue visible)
-   - Diferente de rejectProduct que si oculta (is_hidden = true)
+   Cada nodo puede cambiar quien aprueba cada accion en los
+   ajustes de la Asamblea: Asamblea, Junta, Consejo, o Multi-firma.
+
+2. Backend assembly.go executeDecision:
+   Agregados 4 casos nuevos que se ejecutan automaticamente
+   cuando la Asamblea/Junta aprueba la propuesta:
+   - product_approval: UPDATE products SET is_approved = true
+   - product_disapproval: UPDATE products SET is_approved = false
+     (NO elimina, solo desaprueba)
+   - product_remove: DELETE FROM products (permanente)
+   - product_import: INSERT INTO products con source_node
 
 3. Frontend Products.tsx:
-   - Agregadas funciones disapproveProduct y approveFromFederated
-   - Botones en pestaña Federacion para productos del propio nodo:
-     * Si aprobado: boton rojo "Desaprobar"
-     * Si no aprobado: boton verde "Aprobar"
-   - Desaprobar NO elimina el producto de la Federacion
-   - Solo cambia el estado (aprobado <-> pendiente)
-   - El producto permanece visible para re-aprobar despues
+   Los botones ahora crean propuestas en la Asamblea en lugar
+   de hacer cambios directos:
+   - Aprobar: crea propuesta product_approval
+   - Desaprobar: crea propuesta product_disapproval
+   - Eliminar: crea propuesta product_remove (con icono Trash2)
+
+   En pestaña Federacion y Mi Nodo:
+   - Producto aprobado: boton desaprobar (amber) + eliminar (rojo)
+   - Producto no aprobado: boton aprobar (verde) + eliminar (rojo)
+
+   Mensaje al usuario: "Propuesta creada en la Asamblea.
+   La Asamblea o Junta Directiva decidira."
+
+4. Frontend Assembly.tsx:
+   Agregados labels y help para los nuevos tipos:
+   - product_disapproval: "Desaprobacion de producto"
+   - product_remove: "Eliminacion de producto"
+   - product_import: "Importar producto federado"
+   - product_to_base: "Convertir a producto base"
+
+   Agregados al filtro de propuestas.
+
+FLUJO COMPLETO:
+1. Usuario clic "Desaprobar" en producto
+2. Se crea propuesta en Asamblea (product_disapproval)
+3. Segun assembly_config, la decide:
+   - Asamblea: votacion con porcentaje configurado
+   - Junta Directiva: votacion de la junta
+   - Consejo: votacion del consejo asignado
+   - Multi-firma: firmas de personas especificas
+4. Al aprobarse, executeDecision ejecuta el cambio
+5. El producto queda desapprobado pero NO eliminado
 
 Generated with [Devin](https://devin.ai)
 

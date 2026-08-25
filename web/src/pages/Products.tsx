@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useConfig } from '../hooks/useConfig'
-import { Plus, HelpCircle, Package, Pencil, Check, X, Upload, Eye, EyeOff, Loader2, Globe, Search, Layers, ArrowUpCircle } from 'lucide-react'
+import { Plus, HelpCircle, Package, Pencil, Check, X, Upload, Eye, EyeOff, Loader2, Globe, Search, Layers, ArrowUpCircle, Trash2 } from 'lucide-react'
 import { assetUrl } from '../utils/assetUrl'
 
 interface ProductForm {
@@ -168,23 +168,54 @@ export default function Products() {
     }
   }
 
-  const disapproveProduct = async (id: string) => {
+  const disapproveProduct = async (p: any) => {
     try {
-      await api.post(`/products/${id}/disapprove`, {})
-      if (activeTab === 'federated') loadFederated()
-      if (activeTab === 'mynode') load(true)
+      await api.post('/assembly/proposals', {
+        proposal_type: 'product_disapproval',
+        title: `Desaprobar producto: ${p.name}`,
+        description: `Proponer desaprobar el producto "${p.name}" del catalogo. El producto no se elimina, solo cambia su estado a no aprobado.`,
+        parameters: {
+          product_id: p.id,
+          product_name: p.name,
+        },
+      })
+      setSuccess(`Propuesta creada en la Asamblea para desaprobar "${p.name}". La Asamblea o Junta Directiva decidira.`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al desaprobar producto')
+      setError(err instanceof Error ? err.message : 'Error al crear propuesta')
     }
   }
 
-  const approveFromFederated = async (id: string) => {
+  const approveFromFederated = async (p: any) => {
     try {
-      await api.post(`/products/${id}/approve`, {})
-      if (activeTab === 'federated') loadFederated()
-      if (activeTab === 'mynode') load(true)
+      await api.post('/assembly/proposals', {
+        proposal_type: 'product_approval',
+        title: `Aprobar producto: ${p.name}`,
+        description: `Proponer aprobar el producto "${p.name}" para el catalogo del nodo.`,
+        parameters: {
+          product_id: p.id,
+          product_name: p.name,
+        },
+      })
+      setSuccess(`Propuesta creada en la Asamblea para aprobar "${p.name}". La Asamblea o Junta Directiva decidira.`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al aprobar producto')
+      setError(err instanceof Error ? err.message : 'Error al crear propuesta')
+    }
+  }
+
+  const removeProduct = async (p: any) => {
+    try {
+      await api.post('/assembly/proposals', {
+        proposal_type: 'product_remove',
+        title: `Eliminar producto: ${p.name}`,
+        description: `Proponer ELIMINAR el producto "${p.name}" del catalogo. Esta accion es permanente y no se puede deshacer.`,
+        parameters: {
+          product_id: p.id,
+          product_name: p.name,
+        },
+      })
+      setSuccess(`Propuesta creada en la Asamblea para eliminar "${p.name}". Requiere aprobacion de la Asamblea.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al crear propuesta')
     }
   }
 
@@ -865,11 +896,29 @@ export default function Products() {
                           )}
                           {activeTab === 'mynode' && p.is_approved && canManage && (
                             <button
-                              onClick={() => proposeProductRemoval(p)}
-                              className="text-red-500 hover:text-red-700 transition"
-                              title="Proponer remover/desaprobar este producto"
+                              onClick={() => disapproveProduct(p)}
+                              className="text-amber-500 hover:text-amber-700 transition"
+                              title="Proponer desaprobar este producto en la Asamblea"
                             >
-                              <X size={18} />
+                              <EyeOff size={16} />
+                            </button>
+                          )}
+                          {activeTab === 'mynode' && !p.is_approved && canManage && (
+                            <button
+                              onClick={() => approveFromFederated(p)}
+                              className="text-green-500 hover:text-green-700 transition"
+                              title="Proponer aprobar este producto en la Asamblea"
+                            >
+                              <Check size={16} />
+                            </button>
+                          )}
+                          {activeTab === 'mynode' && canManage && (
+                            <button
+                              onClick={() => removeProduct(p)}
+                              className="text-red-500 hover:text-red-700 transition"
+                              title="Proponer ELIMINAR este producto en la Asamblea (permanente)"
+                            >
+                              <Trash2 size={16} />
                             </button>
                           )}
                         </div>
@@ -908,25 +957,34 @@ export default function Products() {
                                 <ArrowUpCircle size={10} /> Proponer en Asamblea
                               </button>
                             )}
-                            {/* Botones aprobar/desaprobar para productos del propio nodo */}
+                            {/* Botones aprobar/desaprobar/eliminar para productos del propio nodo */}
                             {p.available_locally && canManage && (
                               p.is_approved ? (
                                 <button
-                                  onClick={() => disapproveProduct(p.id)}
+                                  onClick={() => disapproveProduct(p)}
                                   className="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full hover:bg-red-200 transition flex items-center gap-1"
-                                  title="Desaprobar producto (no se elimina, solo cambia estado)"
+                                  title="Proponer desaprobar producto en la Asamblea"
                                 >
                                   <X size={10} /> Desaprobar
                                 </button>
                               ) : (
                                 <button
-                                  onClick={() => approveFromFederated(p.id)}
+                                  onClick={() => approveFromFederated(p)}
                                   className="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full hover:bg-green-200 transition flex items-center gap-1"
-                                  title="Aprobar producto para la federacion"
+                                  title="Proponer aprobar producto en la Asamblea"
                                 >
                                   <Check size={10} /> Aprobar
                                 </button>
                               )
+                            )}
+                            {p.available_locally && canManage && (
+                              <button
+                                onClick={() => removeProduct(p)}
+                                className="text-[10px] font-bold text-red-900 bg-red-200 px-2 py-0.5 rounded-full hover:bg-red-300 transition flex items-center gap-1"
+                                title="Proponer ELIMINAR producto en la Asamblea (permanente)"
+                              >
+                                <Trash2 size={10} /> Eliminar
+                              </button>
                             )}
                           </div>
                         )}

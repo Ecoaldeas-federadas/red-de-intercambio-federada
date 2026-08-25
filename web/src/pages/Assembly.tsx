@@ -10,7 +10,7 @@ type ProposalType =
   | 'limit_change' | 'admission' | 'expulsion' | 'budget_increase'
   | 'federation_config' | 'recovery_config' | 'tax_change' | 'member_level' | 'policy'
   | 'create_account' | 'fund_distribution' | 'energy_rate_change' | 'product_modification' | 'free_proposal'
-  | 'budget' | 'election' | 'product_approval' | 'federation'
+  | 'budget' | 'election' | 'product_approval' | 'product_disapproval' | 'product_remove' | 'product_import' | 'product_to_base' | 'federation'
 
 const PROPOSAL_LABELS: Record<string, string> = {
   limit_change: 'Cambio de limites',
@@ -30,6 +30,10 @@ const PROPOSAL_LABELS: Record<string, string> = {
   budget: 'Presupuesto',
   election: 'Eleccion',
   product_approval: 'Aprobacion de producto',
+  product_disapproval: 'Desaprobacion de producto',
+  product_remove: 'Eliminacion de producto',
+  product_import: 'Importar producto federado',
+  product_to_base: 'Convertir a producto base',
   federation: 'Federacion',
 }
 
@@ -47,6 +51,11 @@ const PROPOSAL_HELP: Record<ProposalType, string> = {
   fund_distribution: 'Distribuye fondos de una cuenta/organizacion a otra. Ej: transferir 200 de "coop_norte" para pago de servicios.',
   energy_rate_change: 'Cambia un parametro de la tarifa energetica. Ej: cambiar el precio por kWh a 0.15.',
   product_modification: 'Modifica el precio o datos de un producto existente. Ej: cambiar el precio del "pan_integral" a 5.',
+  product_approval: 'Aprueba un producto para que aparezca en el catalogo del nodo. Por defecto lo decide la Junta Directiva.',
+  product_disapproval: 'Desaprueba un producto (no lo elimina, solo cambia su estado). Por defecto lo decide la Junta Directiva.',
+  product_remove: 'Elimina permanentemente un producto del catalogo. Requiere 2/3 de la Asamblea por defecto.',
+  product_import: 'Importa un producto de otro nodo federado al catalogo local. Requiere mayoria simple.',
+  product_to_base: 'Convierte un producto compuesto en producto base/materia prima.',
   free_proposal: 'Propuesta libre sobre cualquier tema no cubierto por los otros tipos. Ej: crear un comite de bienvenida.',
 }
 
@@ -1135,6 +1144,11 @@ export default function Assembly() {
                     <option value="policy">Politica general</option>
                     <option value="create_account">Creacion de cuenta</option>
                     <option value="product_modification">Modificacion de producto</option>
+                    <option value="product_approval">Aprobacion de producto</option>
+                    <option value="product_disapproval">Desaprobacion de producto</option>
+                    <option value="product_remove">Eliminacion de producto</option>
+                    <option value="product_import">Importar producto federado</option>
+                    <option value="product_to_base">Convertir a producto base</option>
                     <option value="governance_rule">Regla de gobernanza</option>
                     <option value="free_proposal">Propuesta libre</option>
                   </select>
