@@ -26,7 +26,7 @@ export default function NodeSettings() {
 
   const [searchParams, setSearchParams] = useSearchParams()
   const initialTab = (searchParams.get('tab') as any) || 'general'
-  const [tab, setTab] = useState<'general' | 'levels' | 'org_levels' | 'tariff' | 'commerce' | 'catalog' | 'work' | 'backup' | 'database' | 'demo'>(initialTab)
+  const [tab, setTab] = useState<'general' | 'levels' | 'org_levels' | 'tariff' | 'commerce' | 'catalog' | 'orgs' | 'work' | 'backup' | 'database' | 'demo'>(initialTab)
   const [clusterStatus, setClusterStatus] = useState<any>(null)
   const [clusterChecking, setClusterChecking] = useState(false)
   const [clusterConfig, setClusterConfig] = useState<any>(null)
@@ -66,6 +66,11 @@ export default function NodeSettings() {
   const [workSessionsLoading, setWorkSessionsLoading] = useState(false)
   const [newSession, setNewSession] = useState({ name: '', work_type: 'cayapa', session_date: '', valuation_type: 'hours_only', description: '' })
   const [workMsg, setWorkMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+
+  // Organization profiles (reglas por organizacion)
+  const [orgProfiles, setOrgProfiles] = useState<any[]>([])
+  const [orgProfilesLoading, setOrgProfilesLoading] = useState(false)
+  const [orgMsg, setOrgMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
   // Backup
   const [backupLoading, setBackupLoading] = useState(false)
@@ -174,6 +179,19 @@ export default function NodeSettings() {
     }
   }
 
+  // Cargar perfiles de organizaciones
+  const loadOrgProfiles = async () => {
+    setOrgProfilesLoading(true)
+    try {
+      const data = await api.get<{ profiles: any[] }>('/organizations/profiles')
+      setOrgProfiles(data.profiles || [])
+    } catch (e) {
+      // silencioso
+    } finally {
+      setOrgProfilesLoading(false)
+    }
+  }
+
   // Cargar backups automaticos y nodos YugabyteDB cuando se abren esos tabs
   const loadAutoBackups = async () => {
     try {
@@ -260,6 +278,7 @@ export default function NodeSettings() {
     if (tab === 'backup') { loadAutoBackups(); loadBackupConfig() }
     if (tab === 'database') { loadYbNodes(); loadClusterStatus(); loadClusterConfig() }
     if (tab === 'catalog') { loadCatalogRules() }
+    if (tab === 'orgs') { loadOrgProfiles() }
     if (tab === 'work') { loadWorkSessions() }
   }, [tab])
 
@@ -486,6 +505,7 @@ export default function NodeSettings() {
         <button onClick={() => changeTab('tariff')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'tariff' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Tarifa Energetica</button>
         <button onClick={() => changeTab('commerce')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'commerce' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Horarios</button>
         <button onClick={() => changeTab('catalog')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'catalog' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Reglas Catalogo</button>
+        <button onClick={() => changeTab('orgs')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'orgs' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Building2 size={14} className="inline mr-1" />Orgs y Religion</button>
         <button onClick={() => changeTab('work')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'work' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Trabajo Comunitario</button>
         {canManage && (
           <button onClick={() => changeTab('backup')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'backup' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Database size={14} className="inline mr-1" />Copia de Seguridad</button>
@@ -1110,6 +1130,81 @@ export default function NodeSettings() {
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== ORGANIZACIONES Y RELIGION ===== */}
+      {tab === 'orgs' && (
+        <div className="card space-y-6">
+          <h2 className="font-semibold flex items-center gap-2"><Building2 size={18} />Organizaciones y Perfil Religioso</h2>
+          <p className="text-sm text-gray-600">
+            Cada organizacion dentro del nodo puede tener su propio perfil religioso/filosofico.
+            Esto determina que productos puede o no puede ofrecer en el catalogo.
+            Las reglas del nodo son el limite superior: si el nodo prohibe alcohol,
+            ninguna organizacion puede vender alcohol. Las reglas de la organizacion
+            son adicionales: la organizacion puede ser mas restrictiva pero no menos.
+          </p>
+
+          {/* Lista de organizaciones con perfil */}
+          {orgProfilesLoading && <p className="text-sm text-gray-500">Cargando organizaciones...</p>}
+          {!orgProfilesLoading && orgProfiles.length === 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+              <Info size={16} className="inline mr-1" />
+              No hay organizaciones con perfil religioso configurado.
+              Para asignar un perfil a una organizacion, ve a la pagina de la organizacion
+              y selecciona su perfil filosofico/religioso.
+            </div>
+          )}
+          {orgProfiles.length > 0 && (
+            <div className="space-y-3">
+              {orgProfiles.map((org: any) => (
+                <div key={org.organization_id} className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-medium">{org.display_name || org.username}</span>
+                      {org.faith_profile && (
+                        <span className="ml-2 text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700">
+                          {org.faith_profile}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {org.description && <p className="text-xs text-gray-600 mt-1">{org.description}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Perfiles disponibles */}
+          <div className="border-t pt-4">
+            <h3 className="font-medium text-sm mb-2">Perfiles religiosos/filosoficos disponibles</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              Estos perfiles se pueden asignar a organizaciones. Cada perfil trae
+              reglas preconfiguradas sobre que productos puede ofrecer la organizacion.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+              {[
+                { id: 'adventista', name: 'Adventista', rules: 'Sin alcohol, tabaco, cerdo, cafe' },
+                { id: 'iskcon', name: 'ISKCON', rules: 'Sin carne, huevo, ajo, cebolla, cafe, alcohol' },
+                { id: 'plum_village', name: 'Plum Village', rules: 'Sin carne, pescado, alcohol' },
+                { id: 'halal', name: 'Halal Islamico', rules: 'Sin alcohol, cerdo, carne no-halal' },
+                { id: 'kosher', name: 'Kosher Judio', rules: 'Sin cerdo, mariscos, mezcla carne+leche' },
+                { id: 'jain', name: 'Jain', rules: 'Sin carne, huevo, raices, ajo, cebolla' },
+                { id: 'vegano', name: 'Vegano secular', rules: 'Sin carne, lacteos, huevos, miel' },
+                { id: 'ital', name: 'Ital Rastafari', rules: 'Sin carne, sal, quimicos procesados' },
+              ].map(p => (
+                <div key={p.id} className="border rounded-lg p-2 bg-gray-50">
+                  <div className="font-medium">{p.name}</div>
+                  <div className="text-gray-500 mt-1">{p.rules}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {orgMsg && (
+            <div className={`text-xs p-2 rounded-lg ${orgMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+              {orgMsg.text}
             </div>
           )}
         </div>

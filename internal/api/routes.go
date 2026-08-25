@@ -233,6 +233,10 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 	catalogFiltersH := &CatalogFiltersHandler{Pool: pool, NodeDomain: h.nodeDomain}
 	catalogFiltersH.RegisterRoutes(r, am)
 
+	// Organization catalog rules: reglas de catalogo por organizacion
+	orgCatalogH := &OrganizationCatalogHandler{Pool: pool, NodeDomain: h.nodeDomain}
+	orgCatalogH.RegisterRoutes(r, am)
+
 	// Departmental accounting: contabilidad por departamento/comision
 	deptAcctH := &DepartmentalAccountingHandler{Pool: pool, NodeDomain: h.nodeDomain}
 	deptAcctH.RegisterRoutes(r, am)

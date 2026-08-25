@@ -1,33 +1,29 @@
-fix: updater-controller nunca se apaga durante actualizacion + progreso real + log en vivo
+feat: reglas de catalogo por organizacion + perfil religioso por organizacion
 
-3 bugs criticos corregidos en el sistema de actualizacion:
+Antes las reglas de catalogo (carne, alcohol, ajo, etc.) eran solo por NODO.
+Ahora cada organizacion dentro del nodo puede tener sus propias reglas
+adicionales segun su religion/filosofia.
 
-Bug 1 (CRITICO): updater-controller se apagaba durante la actualizacion
-- do_update.sh SIEMPRE constria la imagen del updater-controller aunque
-  no hubiera cambios, y luego hacia `docker compose up -d` que RECREABA
-  el contenedor, matando el proceso do_update.sh que corre DENTRO de el.
-- Sintoma: "Sin cambios en updater-controller. No es necesario reiniciarlo."
-  seguido de "Container ... Recreate" y "exiting on signal 15" (exit 143)
-- Fix: Solo construir si hay cambios reales (git diff). Si hay cambios,
-  reiniciar al FINAL (despues de que todo lo demas este completo), no
-  en medio. Si no hay cambios, no construir ni reiniciar.
-- El updater-controller NUNCA se apaga durante la actualizacion.
+Migracion 115:
+- organization_catalog_rules: reglas por organizacion
+  Las reglas del nodo son el limite superior (si el nodo prohibe alcohol,
+  ninguna organizacion puede vender alcohol).
+  Las reglas de la organizacion son adicionales (mas restrictivas).
+- organization_profiles: perfil religioso/filosofico por organizacion
+  Campo faith_profile (ej: iskcon, adventista, halal, kosher, jain, vegano, ital)
 
-Bug 2: Barra de progreso hardcodeada en 50%
-- La barra mostraba 10% -> 50% -> 70% -> 100% sin reflejar el progreso real
-- Fix: do_update.sh ahora escribe un campo "progress" (0-100) en update.json
-  con valores reales por paso: 5% inicio, 10% fetch, 15% reset, 20% build
-  updater, 30% build node, 60% build demo, 70% restart node, 85% demo,
-  90-95% restart updater, 100% completado
-- El frontend usa updateStatus.progress para la barra y el porcentaje
+Handler org_catalog_rules.go:
+- GET /api/organizations/{id}/catalog-rules - listar reglas
+- POST /api/organizations/{id}/catalog-rules - crear/actualizar regla
+- DELETE /api/organizations/{id}/catalog-rules/{category} - eliminar
+- GET /api/organizations/{id}/profile - ver perfil
+- POST /api/organizations/{id}/profile - asignar perfil
+- GET /api/organizations/profiles - listar todas con perfil
 
-Bug 3: Frontend no mostraba log del updater-controller cuando nodo estaba caido
-- Cuando el nodo se reinicia, el frontend perdia el log de la consola
-- Solo intentaba el updater-controller despues de 5 fallos (10 segundos)
-- Fix: Ahora intenta el updater-controller despues de 2 fallos (4 segundos)
-  y muestra el log en vivo. El updater-controller siempre tiene el log
-  porque nunca se apaga.
-- Timeout aumentado de 60s a 120s (el build puede tardar varios minutos)
+NodeSettings:
+- Nuevo tab "Orgs y Religion" con lista de organizaciones y sus perfiles
+- Muestra los 8 perfiles disponibles con sus reglas:
+  Adventista, ISKCON, Plum Village, Halal, Kosher, Jain, Vegano, Ital
 
 Generated with [Devin](https://devin.ai)
 
