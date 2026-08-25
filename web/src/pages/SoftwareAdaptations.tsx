@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Sprout, Sun, Heart, BookOpen, Clock, Users, Globe, Zap, Leaf, Shield,
   ArrowRight, ChevronDown, ChevronUp, Search, Home, Wheat, Star,
   Moon, TreePine, HandHeart, Scale, Flower, Mountain, Sparkles,
   CheckCircle, AlertCircle, Circle, type LucideIcon,
 } from 'lucide-react'
+import { api } from '../api'
 
 type FeatureStatus = 'exists' | 'partial' | 'missing'
 
@@ -240,9 +241,9 @@ const groups: CommunityGroup[] = [
       {
         icon: Sprout,
         title: 'Agricultura Biodinámica',
-        description: 'El sistema gestiona la planificación de cultivos biodinámicos regidos por preparados naturales y ciclos estelares. Registro de siembras según el calendario biodinámico.',
+        description: 'Calendario biodinámico con dias de raiz, flor, hoja y fruto segun constelaciones. Configurable por nodo, visible en pagina publica si se activa.',
         feature: 'Planificación Biodinámica',
-        status: 'missing',
+        status: 'exists',
         sourceRef: 'camphill.org/biodynamic-farming — "Camphill communities have been practicing biodynamic agriculture for decades"',
       },
       {
@@ -985,9 +986,9 @@ const groups: CommunityGroup[] = [
       {
         icon: Scale,
         title: 'FRNE — Salida Justa al Retirarse',
-        description: 'Módulo contable que resuelve cómo liquidar de forma no especulativa la vivienda de un socio que se retira, sin descapitalizar el fondo común.',
+        description: 'Módulo contable que resuelve cómo liquidar de forma no especulativa la vivienda de un socio que se retira, sin descapitalizar el fondo común. Pago unico, en cuotas, o transferir a nuevo socio.',
         feature: 'Liquidación de Vivienda (FRNE)',
-        status: 'missing',
+        status: 'exists',
       },
     ],
   },
@@ -1085,6 +1086,29 @@ export default function SoftwareAdaptations() {
   const [selectedCategory, setSelectedCategory] = useState('Todas')
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null)
   const [expandedAdaptation, setExpandedAdaptation] = useState<number | null>(null)
+  const [pageEnabled, setPageEnabled] = useState<boolean | null>(null)
+
+  // Verificar si la pagina esta activa para este nodo
+  useEffect(() => {
+    api.get<{ adaptations_page_active: boolean }>('/public-pages/settings')
+      .then((res) => setPageEnabled(res.adaptations_page_active !== false))
+      .catch(() => setPageEnabled(true)) // Por defecto activa
+  }, [])
+
+  // Si la pagina esta desactivada, mostrar mensaje
+  if (pageEnabled === false) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="max-w-md text-center">
+          <Globe size={48} className="mx-auto text-gray-400 mb-4" />
+          <h1 className="text-xl font-semibold text-gray-700 mb-2">Pagina no disponible</h1>
+          <p className="text-sm text-gray-500">
+            Esta pagina ha sido desactivada por el administrador del nodo.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   const filteredGroups = useMemo(() => {
     return groups.filter((g) => {

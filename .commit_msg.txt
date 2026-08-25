@@ -1,29 +1,32 @@
-feat: reglas de catalogo por organizacion + perfil religioso por organizacion
+feat: FRNE + calendario biodinamico + toggle pagina adaptaciones
 
-Antes las reglas de catalogo (carne, alcohol, ajo, etc.) eran solo por NODO.
-Ahora cada organizacion dentro del nodo puede tener sus propias reglas
-adicionales segun su religion/filosofia.
+3 funcionalidades que faltaban, ahora implementadas:
 
-Migracion 115:
-- organization_catalog_rules: reglas por organizacion
-  Las reglas del nodo son el limite superior (si el nodo prohibe alcohol,
-  ninguna organizacion puede vender alcohol).
-  Las reglas de la organizacion son adicionales (mas restrictivas).
-- organization_profiles: perfil religioso/filosofico por organizacion
-  Campo faith_profile (ej: iskcon, adventista, halal, kosher, jain, vegano, ital)
+1. FRNE - Salida Justa al Retirarse (migracion 116 + frne.go)
+   - Modulo de liquidacion para socios que se retiran de la comunidad
+   - Total a pagar = aporte original + mejoras (no especulativo)
+   - Metodos: pago unico, cuotas, o transferir a nuevo socio
+   - Aprobacion por asamblea
+   - Tab "FRNE" en NodeSettings con lista de solicitudes
+   - Endpoints: GET/POST /api/frne/requests, approve, pay-installment
+   - Marcado como 'exists' en SoftwareAdaptations.tsx
 
-Handler org_catalog_rules.go:
-- GET /api/organizations/{id}/catalog-rules - listar reglas
-- POST /api/organizations/{id}/catalog-rules - crear/actualizar regla
-- DELETE /api/organizations/{id}/catalog-rules/{category} - eliminar
-- GET /api/organizations/{id}/profile - ver perfil
-- POST /api/organizations/{id}/profile - asignar perfil
-- GET /api/organizations/profiles - listar todas con perfil
+2. Calendario Biodinamico (migracion 116 + biodynamic.go)
+   - Planificacion agricola segun Rudolf Steiner
+   - Dias de raiz, flor, hoja, fruto segun constelaciones
+   - Dias nodo (no trabajar la tierra)
+   - Configurable por nodo, visible en pagina publica si se activa
+   - Tab "Biodinamica" en NodeSettings con config y calendario
+   - Endpoints: GET/POST /api/biodynamic/calendar, /api/biodynamic/config
+   - Marcado como 'exists' en SoftwareAdaptations.tsx (Camphill)
 
-NodeSettings:
-- Nuevo tab "Orgs y Religion" con lista de organizaciones y sus perfiles
-- Muestra los 8 perfiles disponibles con sus reglas:
-  Adventista, ISKCON, Plum Village, Halal, Kosher, Jain, Vegano, Ital
+3. Toggle pagina de adaptaciones (migracion 116 + biodynamic.go)
+   - Cada nodo puede activar/desactivar /p/adaptaciones
+   - Tab "Paginas Publicas" en NodeSettings con checkbox
+   - SoftwareAdaptations.tsx verifica el toggle antes de mostrar
+   - Si esta desactivada, muestra "Pagina no disponible"
+   - Por defecto activa (no rompe nodos existentes)
+   - Endpoints: GET/POST /api/public-pages/settings
 
 Generated with [Devin](https://devin.ai)
 

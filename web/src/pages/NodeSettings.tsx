@@ -2,7 +2,7 @@
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
-import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon, Vote as VoteIcon, Database, Download, Upload, AlertTriangle, RefreshCw, Globe, Lock, Unlock, Trash2, FileText, Server, HardDrive, CheckCircle, Info, X, Power, Play, Square, Sparkles, Clock, Shield } from 'lucide-react'
+import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon, Vote as VoteIcon, Database, Download, Upload, AlertTriangle, RefreshCw, Globe, Lock, Unlock, Trash2, FileText, Server, HardDrive, CheckCircle, Info, X, Power, Play, Square, Sparkles, Clock, Shield, Scale, Flower } from 'lucide-react'
 
 // Opciones del 1 al 10 para el numero de nivel (seleccionable, no texto libre)
 const LEVEL_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1)
@@ -26,7 +26,7 @@ export default function NodeSettings() {
 
   const [searchParams, setSearchParams] = useSearchParams()
   const initialTab = (searchParams.get('tab') as any) || 'general'
-  const [tab, setTab] = useState<'general' | 'levels' | 'org_levels' | 'tariff' | 'commerce' | 'catalog' | 'orgs' | 'work' | 'backup' | 'database' | 'demo'>(initialTab)
+  const [tab, setTab] = useState<'general' | 'levels' | 'org_levels' | 'tariff' | 'commerce' | 'catalog' | 'orgs' | 'work' | 'frne' | 'biodynamic' | 'pages' | 'backup' | 'database' | 'demo'>(initialTab)
   const [clusterStatus, setClusterStatus] = useState<any>(null)
   const [clusterChecking, setClusterChecking] = useState(false)
   const [clusterConfig, setClusterConfig] = useState<any>(null)
@@ -71,6 +71,22 @@ export default function NodeSettings() {
   const [orgProfiles, setOrgProfiles] = useState<any[]>([])
   const [orgProfilesLoading, setOrgProfilesLoading] = useState(false)
   const [orgMsg, setOrgMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+
+  // FRNE (Salida Justa)
+  const [frneRequests, setFrneRequests] = useState<any[]>([])
+  const [frneLoading, setFrneLoading] = useState(false)
+  const [frneMsg, setFrneMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+
+  // Biodinamica
+  const [bioConfig, setBioConfig] = useState<any>(null)
+  const [bioEntries, setBioEntries] = useState<any[]>([])
+  const [bioLoading, setBioLoading] = useState(false)
+  const [bioMsg, setBioMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+
+  // Public pages toggle
+  const [pageSettings, setPageSettings] = useState<any>(null)
+  const [pageSettingsLoading, setPageSettingsLoading] = useState(false)
+  const [pageMsg, setPageMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
   // Backup
   const [backupLoading, setBackupLoading] = useState(false)
@@ -192,6 +208,49 @@ export default function NodeSettings() {
     }
   }
 
+  // Cargar solicitudes FRNE
+  const loadFrneRequests = async () => {
+    setFrneLoading(true)
+    try {
+      const data = await api.get<{ requests: any[] }>('/frne/requests')
+      setFrneRequests(data.requests || [])
+    } catch (e) {
+      // silencioso
+    } finally {
+      setFrneLoading(false)
+    }
+  }
+
+  // Cargar config biodinamica
+  const loadBioConfig = async () => {
+    setBioLoading(true)
+    try {
+      const [cfg, cal] = await Promise.all([
+        api.get<any>('/biodynamic/config'),
+        api.get<{ entries: any[] }>('/biodynamic/calendar'),
+      ])
+      setBioConfig(cfg)
+      setBioEntries(cal.entries || [])
+    } catch (e) {
+      // silencioso
+    } finally {
+      setBioLoading(false)
+    }
+  }
+
+  // Cargar settings de paginas publicas
+  const loadPageSettings = async () => {
+    setPageSettingsLoading(true)
+    try {
+      const data = await api.get<any>('/public-pages/settings')
+      setPageSettings(data)
+    } catch (e) {
+      // silencioso
+    } finally {
+      setPageSettingsLoading(false)
+    }
+  }
+
   // Cargar backups automaticos y nodos YugabyteDB cuando se abren esos tabs
   const loadAutoBackups = async () => {
     try {
@@ -280,6 +339,9 @@ export default function NodeSettings() {
     if (tab === 'catalog') { loadCatalogRules() }
     if (tab === 'orgs') { loadOrgProfiles() }
     if (tab === 'work') { loadWorkSessions() }
+    if (tab === 'frne') { loadFrneRequests() }
+    if (tab === 'biodynamic') { loadBioConfig() }
+    if (tab === 'pages') { loadPageSettings() }
   }, [tab])
 
   // Verificar permisos de Asamblea para cada tipo de cambio
@@ -507,6 +569,9 @@ export default function NodeSettings() {
         <button onClick={() => changeTab('catalog')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'catalog' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Reglas Catalogo</button>
         <button onClick={() => changeTab('orgs')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'orgs' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Building2 size={14} className="inline mr-1" />Orgs y Religion</button>
         <button onClick={() => changeTab('work')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'work' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Trabajo Comunitario</button>
+        <button onClick={() => changeTab('frne')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'frne' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>FRNE</button>
+        <button onClick={() => changeTab('biodynamic')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'biodynamic' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Biodinamica</button>
+        <button onClick={() => changeTab('pages')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'pages' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Paginas Publicas</button>
         {canManage && (
           <button onClick={() => changeTab('backup')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'backup' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Database size={14} className="inline mr-1" />Copia de Seguridad</button>
         )}
@@ -1316,6 +1381,219 @@ export default function NodeSettings() {
                   {s.description && <p className="text-xs text-gray-500 mt-1">{s.description}</p>}
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== FRNE - SALIDA JUSTA ===== */}
+      {tab === 'frne' && (
+        <div className="card space-y-6">
+          <h2 className="font-semibold flex items-center gap-2"><Scale size={18} />FRNE - Salida Justa al Retirarse</h2>
+          <p className="text-sm text-gray-600">
+            Fair exit: resuelve como liquidar de forma no especulativa la vivienda de un socio
+            que decide retirarse de la comunidad, sin descapitalizar el fondo comun.
+            El socio recibe el valor de su aporte original + mejoras, pero NO el valor
+            especulativo de la propiedad (que pertenece a la comunidad).
+          </p>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+            <Info size={16} className="inline mr-1" />
+            Total a pagar = Aporte original + Valor de mejoras (valorado por asamblea).
+            El valor especulativo NO se paga. Metodos: pago unico, cuotas, o transferir a nuevo socio.
+          </div>
+
+          {frneLoading && <p className="text-sm text-gray-500">Cargando solicitudes...</p>}
+          {!frneLoading && frneRequests.length === 0 && (
+            <p className="text-sm text-gray-500">No hay solicitudes de salida registradas.</p>
+          )}
+          {frneRequests.length > 0 && (
+            <div className="space-y-3">
+              {frneRequests.map((req: any) => (
+                <div key={req.id} className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-medium">{req.display_name || req.username}</span>
+                      {req.status && (
+                        <span className={`ml-2 text-xs px-2 py-0.5 rounded ${
+                          req.status === 'approved' ? 'bg-green-100 text-green-700' :
+                          req.status === 'paid' ? 'bg-blue-100 text-blue-700' :
+                          req.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                          req.status === 'disputed' ? 'bg-red-100 text-red-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>{req.status}</span>
+                      )}
+                    </div>
+                    {req.status === 'pending' && canManage && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await api.post(`/frne/requests/${req.id}/approve`, {})
+                            setFrneMsg({ type: 'success', text: 'Solicitud aprobada' })
+                            loadFrneRequests()
+                          } catch (e: any) {
+                            setFrneMsg({ type: 'error', text: e?.message || 'Error al aprobar' })
+                          }
+                        }}
+                        className="px-3 py-1 bg-green-600 text-white rounded text-xs"
+                      >Aprobar</button>
+                    )}
+                  </div>
+                  {req.property_description && <p className="text-xs text-gray-600 mt-1">{req.property_description}</p>}
+                  <div className="text-xs text-gray-500 mt-2 grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <div>Aporte original: {req.original_contribution || 0} TQ</div>
+                    <div>Mejoras: {req.improvements_value || 0} TQ</div>
+                    <div>Especulativo (no se paga): {req.speculative_value || 0} TQ</div>
+                    <div className="font-medium text-green-700">Total a pagar: {req.total_payout || 0} TQ</div>
+                  </div>
+                  {req.payout_method === 'installments' && <p className="text-xs text-gray-500 mt-1">Pago en {req.installments_count} cuotas</p>}
+                  {req.assembly_notes && <p className="text-xs text-gray-400 mt-1 italic">Notas: {req.assembly_notes}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+          {frneMsg && (
+            <div className={`text-xs p-2 rounded-lg ${frneMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+              {frneMsg.text}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== BIODINAMICA ===== */}
+      {tab === 'biodynamic' && (
+        <div className="card space-y-6">
+          <h2 className="font-semibold flex items-center gap-2"><Flower size={18} />Calendario Biodinamico</h2>
+          <p className="text-sm text-gray-600">
+            Planificacion agricola basada en el calendario biodinamico de Rudolf Steiner.
+            Dias de raiz, flor, hoja y fruto segun la posicion de la luna en constelaciones.
+            Util para comunidades Camphill, Findhorn y otras que practican agricultura biodinamica.
+          </p>
+
+          {/* Configuracion */}
+          <div className="border rounded-lg p-4 bg-gray-50 space-y-3">
+            <h3 className="font-medium text-sm">Configuracion</h3>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={bioConfig?.is_active || false}
+                onChange={async (e) => {
+                  const newCfg = { ...bioConfig, is_active: e.target.checked }
+                  setBioConfig(newCfg)
+                  try {
+                    await api.post('/biodynamic/config', newCfg)
+                    setBioMsg({ type: 'success', text: 'Configuracion guardada' })
+                  } catch (e: any) {
+                    setBioMsg({ type: 'error', text: e?.message || 'Error' })
+                  }
+                }}
+              />
+              Calendario biodinamico activo
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={bioConfig?.show_in_public_page || false}
+                onChange={async (e) => {
+                  const newCfg = { ...bioConfig, show_in_public_page: e.target.checked }
+                  setBioConfig(newCfg)
+                  try {
+                    await api.post('/biodynamic/config', newCfg)
+                    setBioMsg({ type: 'success', text: 'Configuracion guardada' })
+                  } catch (e: any) {
+                    setBioMsg({ type: 'error', text: e?.message || 'Error' })
+                  }
+                }}
+              />
+              Mostrar calendario en pagina publica
+            </label>
+            <textarea
+              className="input"
+              placeholder="Notas sobre la practica biodinamica del nodo"
+              value={bioConfig?.practice_notes || ''}
+              onChange={(e) => setBioConfig({ ...bioConfig, practice_notes: e.target.value })}
+              rows={2}
+            />
+          </div>
+
+          {/* Calendario */}
+          {bioLoading && <p className="text-sm text-gray-500">Cargando calendario...</p>}
+          {!bioLoading && bioEntries.length === 0 && (
+            <p className="text-sm text-gray-500">No hay entradas en el calendario. Anade dias manualmente o se generaran automaticamente.</p>
+          )}
+          {bioEntries.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="font-medium text-sm">Proximos dias biodinamicos</h3>
+              {bioEntries.map((entry: any) => (
+                <div key={entry.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <span className="font-medium text-sm">{entry.date ? new Date(entry.date).toLocaleDateString() : ''}</span>
+                    <span className={`ml-2 text-xs px-2 py-0.5 rounded ${
+                      entry.day_type === 'root' ? 'bg-amber-100 text-amber-700' :
+                      entry.day_type === 'flower' ? 'bg-pink-100 text-pink-700' :
+                      entry.day_type === 'leaf' ? 'bg-green-100 text-green-700' :
+                      entry.day_type === 'fruit' ? 'bg-orange-100 text-orange-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>{entry.day_type}</span>
+                    {entry.is_node_day && <span className="ml-2 text-xs px-2 py-0.5 rounded bg-red-100 text-red-700">Dia nodo</span>}
+                    {entry.constellation && <span className="ml-2 text-xs text-gray-500">{entry.constellation}</span>}
+                  </div>
+                  {entry.notes && <span className="text-xs text-gray-400">{entry.notes}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+            <Info size={16} className="inline mr-1" />
+            Tipos de dia: <strong>raiz</strong> (zanahoria, papa, rabano), <strong>flor</strong> (manzanilla, calendula),
+            <strong> hoja</strong> (lechuga, espinaca), <strong>fruto</strong> (tomate, pimenton).
+            Los dias nodo no se trabaja la tierra.
+          </div>
+          {bioMsg && (
+            <div className={`text-xs p-2 rounded-lg ${bioMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+              {bioMsg.text}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== PAGINAS PUBLICAS ===== */}
+      {tab === 'pages' && (
+        <div className="card space-y-6">
+          <h2 className="font-semibold flex items-center gap-2"><Globe size={18} />Paginas Publicas</h2>
+          <p className="text-sm text-gray-600">
+            Activa o desactiva las paginas publicas de este nodo. Las paginas desactivadas
+            no son accesibles ni aparecen en el menu publico.
+          </p>
+
+          {pageSettingsLoading && <p className="text-sm text-gray-500">Cargando...</p>}
+          {!pageSettingsLoading && pageSettings && (
+            <div className="space-y-3">
+              <label className="flex items-center justify-between p-3 border rounded-lg">
+                <div>
+                  <span className="font-medium text-sm">Pagina de Adaptaciones</span>
+                  <p className="text-xs text-gray-500">/p/adaptaciones - Catalogo de comunidades productoras y como el software se adapta a cada una</p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={pageSettings.adaptations_page_active !== false}
+                  onChange={async (e) => {
+                    const newSettings = { ...pageSettings, adaptations_page_active: e.target.checked }
+                    setPageSettings(newSettings)
+                    try {
+                      await api.post('/public-pages/settings', { adaptations_page_active: e.target.checked })
+                      setPageMsg({ type: 'success', text: e.target.checked ? 'Pagina activada' : 'Pagina desactivada' })
+                    } catch (e: any) {
+                      setPageMsg({ type: 'error', text: e?.message || 'Error' })
+                    }
+                  }}
+                  className="w-5 h-5"
+                />
+              </label>
+            </div>
+          )}
+          {pageMsg && (
+            <div className={`text-xs p-2 rounded-lg ${pageMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+              {pageMsg.text}
             </div>
           )}
         </div>

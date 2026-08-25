@@ -237,6 +237,14 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 	orgCatalogH := &OrganizationCatalogHandler{Pool: pool, NodeDomain: h.nodeDomain}
 	orgCatalogH.RegisterRoutes(r, am)
 
+	// FRNE: Fair exit / Salida Justa al Retirarse
+	frneH := &FRNEHandler{Pool: pool, NodeDomain: h.nodeDomain}
+	frneH.RegisterRoutes(r, am)
+
+	// Biodynamic calendar + public page toggle
+	bioH := &BiodynamicHandler{Pool: pool, NodeDomain: h.nodeDomain}
+	bioH.RegisterRoutes(r, am)
+
 	// Departmental accounting: contabilidad por departamento/comision
 	deptAcctH := &DepartmentalAccountingHandler{Pool: pool, NodeDomain: h.nodeDomain}
 	deptAcctH.RegisterRoutes(r, am)
