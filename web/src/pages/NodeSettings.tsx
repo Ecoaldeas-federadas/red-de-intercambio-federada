@@ -26,7 +26,7 @@ export default function NodeSettings() {
 
   const [searchParams, setSearchParams] = useSearchParams()
   const initialTab = (searchParams.get('tab') as any) || 'general'
-  const [tab, setTab] = useState<'general' | 'levels' | 'org_levels' | 'tariff' | 'commerce' | 'catalog' | 'orgs' | 'work' | 'seeds' | 'cayapa' | 'frne' | 'biodynamic' | 'pages' | 'backup' | 'database' | 'demo'>(initialTab)
+  const [tab, setTab] = useState<'general' | 'levels' | 'org_levels' | 'tariff' | 'commerce' | 'catalog' | 'orgs' | 'work' | 'seeds' | 'cayapa' | 'cards' | 'frne' | 'biodynamic' | 'pages' | 'backup' | 'database' | 'demo'>(initialTab)
   const [clusterStatus, setClusterStatus] = useState<any>(null)
   const [clusterChecking, setClusterChecking] = useState(false)
   const [clusterConfig, setClusterConfig] = useState<any>(null)
@@ -98,6 +98,13 @@ export default function NodeSettings() {
   const [attConfig, setAttConfig] = useState<any>(null)
   const [attConfigLoading, setAttConfigLoading] = useState(false)
   const [attMsg, setAttMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+
+  // Card crypto
+  const [cardCryptoMsg, setCardCryptoMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  const [newCard, setNewCard] = useState({ card_uid: '', user_id: '', card_type: 'ntag424' })
+  const [provisionedKey, setProvisionedKey] = useState<any>(null)
+  const [cryptoStatus, setCryptoStatus] = useState<any>(null)
+  const [statusUid, setStatusUid] = useState('')
 
   // Backup
   const [backupLoading, setBackupLoading] = useState(false)
@@ -610,6 +617,7 @@ export default function NodeSettings() {
         <button onClick={() => changeTab('work')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'work' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Trabajo Comunitario</button>
         <button onClick={() => changeTab('seeds')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'seeds' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Banco Semillas</button>
         <button onClick={() => changeTab('cayapa')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'cayapa' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Asistencia Cayapa</button>
+        <button onClick={() => changeTab('cards')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'cards' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Tarjetas Crypto</button>
         <button onClick={() => changeTab('frne')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'frne' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>FRNE</button>
         <button onClick={() => changeTab('biodynamic')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'biodynamic' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Biodinamica</button>
         <button onClick={() => changeTab('pages')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'pages' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Paginas Publicas</button>
@@ -1514,6 +1522,109 @@ export default function NodeSettings() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ===== TARJETAS CRIPTOGRAFICAS ===== */}
+      {tab === 'cards' && (
+        <div className="card space-y-6">
+          <h2 className="font-semibold flex items-center gap-2"><Lock size={18} />Tarjetas NFC Criptograficas</h2>
+          <p className="text-sm text-gray-600">
+            Las tarjetas NFC tienen claves AES-128 embebidas que prueban criptograficamente
+            que son legitimas. Nadie puede clonar una tarjeta solo copiando el UID.
+            La tarjeta debe responder a un challenge criptografico con su clave.
+          </p>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+            <Info size={16} className="inline mr-1" />
+            Como funciona: El servidor genera una clave AES-128 por tarjeta. La clave se escribe
+            en la tarjeta (DESFire EV3 o NTAG424) y se guarda cifrada en el servidor. Cuando una
+            terminal lee la tarjeta, pide la clave al servidor (canal cifrado), hace challenge-response
+            con la tarjeta, y solo si la tarjeta responde correctamente se procesa el pago.
+          </div>
+
+          {/* Provisionar nueva tarjeta */}
+          <div className="space-y-3 border rounded-lg p-4 bg-gray-50">
+            <h3 className="font-medium text-sm">Provisionar nueva tarjeta criptografica</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <input type="text" className="input" placeholder="UID de la tarjeta (ej: 04A3B2C1D0E5F6)"
+                value={newCard.card_uid} onChange={(e) => setNewCard({ ...newCard, card_uid: e.target.value })} />
+              <input type="text" className="input" placeholder="ID del usuario"
+                value={newCard.user_id} onChange={(e) => setNewCard({ ...newCard, user_id: e.target.value })} />
+              <select className="input" value={newCard.card_type} onChange={(e) => setNewCard({ ...newCard, card_type: e.target.value })}>
+                <option value="ntag424">NTAG424 SUN (recomendado)</option>
+                <option value="desfire">DESFire EV3 (mas seguro)</option>
+                <option value="mifare_classic">MIFARE Classic (legacy)</option>
+              </select>
+            </div>
+            <button onClick={async () => {
+              if (!newCard.card_uid.trim() || !newCard.user_id.trim()) {
+                setCardCryptoMsg({ type: 'error', text: 'UID y user_id son obligatorios' }); return
+              }
+              try {
+                const res = await api.post('/nfc/cards/provision-crypto', newCard)
+                setProvisionedKey(res)
+                setCardCryptoMsg({ type: 'success', text: 'Clave generada. Escribela en la tarjeta ahora.' })
+              } catch (e: any) { setCardCryptoMsg({ type: 'error', text: e?.message || 'Error' }) }
+            }} className="btn-primary text-sm flex items-center gap-2"><Plus size={16} /> Generar clave AES</button>
+
+            {provisionedKey && (
+              <div className="bg-red-50 border border-red-300 rounded-lg p-4 space-y-2">
+                <h4 className="font-bold text-red-800 text-sm">CLAVE DE LA TARJETA - Guardar de forma segura</h4>
+                <p className="text-xs text-red-700">Escribe esta clave en la tarjeta usando tu herramienta NFC. No se volvera a mostrar.</p>
+                <div className="bg-white rounded p-2 font-mono text-xs break-all">
+                  <div><strong>AES Key (hex):</strong> {provisionedKey.aes_key_hex}</div>
+                  <div className="mt-1"><strong>AES Key (base64):</strong> {provisionedKey.aes_key_b64}</div>
+                </div>
+                <button onClick={() => {
+                  navigator.clipboard.writeText(provisionedKey.aes_key_hex)
+                  setCardCryptoMsg({ type: 'success', text: 'Clave copiada al portapapeles' })
+                }} className="px-3 py-1 bg-gray-200 rounded text-xs">Copiar hex</button>
+              </div>
+            )}
+            {cardCryptoMsg && <div className={`text-xs p-2 rounded-lg ${cardCryptoMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{cardCryptoMsg.text}</div>}
+          </div>
+
+          {/* Consultar estado criptografico */}
+          <div className="space-y-3 border rounded-lg p-4">
+            <h3 className="font-medium text-sm">Consultar estado de una tarjeta</h3>
+            <div className="flex gap-2">
+              <input type="text" className="input" placeholder="UID de la tarjeta"
+                value={statusUid} onChange={(e) => setStatusUid(e.target.value)} />
+              <button onClick={async () => {
+                if (!statusUid.trim()) return
+                try {
+                  const res = await api.get<any>(`/nfc/cards/${statusUid}/crypto-status`)
+                  setCryptoStatus(res)
+                } catch (e: any) { setCardCryptoMsg({ type: 'error', text: e?.message || 'Error' }) }
+              }} className="btn-primary text-sm">Consultar</button>
+            </div>
+            {cryptoStatus && (
+              <div className="bg-gray-50 rounded p-3 text-sm space-y-1">
+                <div><strong>UID:</strong> {cryptoStatus.card_uid}</div>
+                <div><strong>Crypto habilitado:</strong> {cryptoStatus.crypto_enabled ? 'Si' : 'No (modo uid_only)'}</div>
+                {cryptoStatus.crypto_enabled && (
+                  <>
+                    <div><strong>Tipo:</strong> {cryptoStatus.card_type}</div>
+                    <div><strong>Version de clave:</strong> {cryptoStatus.key_version}</div>
+                    <div><strong>Activa:</strong> {cryptoStatus.is_active ? 'Si' : 'No'}</div>
+                    <div><strong>Bloqueada:</strong> {cryptoStatus.blocked ? 'Si' : 'No'}</div>
+                    <div><strong>Fallos de auth:</strong> {cryptoStatus.auth_fail_count}</div>
+                    <div><strong>Ultima auth:</strong> {cryptoStatus.last_auth_at || 'Nunca'}</div>
+                    <div><strong>Counter SUN:</strong> {cryptoStatus.sun_counter}</div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+            <Info size={16} className="inline mr-1" />
+            <strong>Para la app Android + lector Bluetooth:</strong> La app pedira la clave AES al
+            servidor (canal cifrado Ed25519+AES), la descifrara en memoria, hara challenge-response
+            con la tarjeta via el lector Bluetooth, y enviara la prueba al servidor. La clave nunca
+            se guarda en disco en el celular. Si la app se cierra, la clave se borra de memoria.
+          </div>
         </div>
       )}
 

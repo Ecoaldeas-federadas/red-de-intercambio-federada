@@ -257,6 +257,10 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 	actaPDFH := &ActaPDFHandler{Pool: pool, NodeDomain: h.nodeDomain}
 	actaPDFH.RegisterRoutes(r, am)
 
+	// Card crypto: modelo criptografico completo para tarjetas NFC
+	cardCryptoH := &CardCryptoHandler{Pool: pool, NodeDomain: h.nodeDomain}
+	cardCryptoH.RegisterRoutes(r, am)
+
 	// Departmental accounting: contabilidad por departamento/comision
 	deptAcctH := &DepartmentalAccountingHandler{Pool: pool, NodeDomain: h.nodeDomain}
 	deptAcctH.RegisterRoutes(r, am)

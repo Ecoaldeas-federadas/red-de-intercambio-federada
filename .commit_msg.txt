@@ -1,50 +1,66 @@
-feat: banco de semillas + asistencia cayapa NFC/QR + actas PDF + comisiones Feria Conuquera
+feat: modelo criptografico completo para tarjetas NFC (AES-128 + challenge-response)
 
-Adaptaciones especificas para la Feria Conuquera de Caracas (Parque Los Caobos):
+Las tarjetas NFC ya no son "tontas" (solo UID clonable). Ahora tienen
+claves AES-128 embebidas que prueban criptograficamente que son legitimas.
 
-1. BANCO DE SEMILLAS CRIOLLAS (migracion 117 + seed_bank.go)
-   - Prestamo con retorno fisico: el agricultor retira semillas,
-     las siembra, y devuelve la misma cantidad + porcentaje adicional
-   - Ej: retirar 10 sobres, devolver 12 (20% mas) para que el banco crezca
-   - Tablas: seed_loans + seed_returns (devoluciones parciales)
-   - Endpoints: /api/seeds/loans, /api/seeds/loan, /api/seeds/loans/{id}/return
-   - Inventario del banco: /api/seeds/inventory
-   - Tab "Banco Semillas" en NodeSettings con formulario y lista
+MODELO CRIPTOGRAFICO:
 
-2. ASISTENCIA A CAYAPAS VIA NFC/QR (migracion 117 + cayapa_attendance.go)
-   - El coordinador abre el check-in desde la app
-   - Los participantes se registran con NFC (tarjeta criptografica)
-     o QR (el encargado escanea el QR del participante)
-   - Check-in y check-out con calculo automatico de horas
-   - Al cerrar la cayapa: acredita TQ con factor de esfuerzo agricola
-   - Toggle QR/NFC: cuando hay NFC, se puede desactivar QR
-   - Tabla: cayapa_attendance + attendance_config
-   - Endpoints: /api/community-work/sessions/{id}/check-in/open,
-     /attend, /attend/qr, /checkout, /close-cayapa
-   - Config: /api/attendance/config (qr_enabled, nfc_enabled, effort_factor)
-   - Tab "Asistencia Cayapa" en NodeSettings con configuracion
+1. PROVISIONAMIENTO (migracion 118 + card_crypto.go)
+   - Servidor genera clave AES-128 unica por tarjeta
+   - Clave se escribe en la tarjeta (DESFire EV3 o NTAG424)
+   - Clave se guarda cifrada en la BD (cifrada con clave maestra del nodo)
+   - Tabla nfc_card_keys extendida con aes_key_encrypted, key_version,
+     sun_counter, auth_fail_count, crypto_blocked_until
+   - Endpoint: POST /api/nfc/cards/provision-crypto
 
-3. ACTAS DE ASAMBLEA EN PDF (acta_pdf.go + gofpdf)
-   - Export de actas en PDF con folio, asistentes, propuestas, votaciones
-   - Hash criptografico de auditoria al final del PDF
-   - Para validez legal ante registradores civiles en Venezuela
-   - Endpoint: GET /api/assembly/sessions/{id}/acta-pdf
-   - Boton "Descargar Acta PDF" en Assembly.tsx (sesiones completadas)
+2. DISTRIBUCION DE CLAVES A TERMINALES/APPS
+   - Terminal/app autenticada pide la clave AES de una tarjeta
+   - Clave se entrega sobre canal cifrado (Ed25519 + AES-256-GCM)
+   - Terminal descifra en memoria, NUNCA en disco
+   - Sesion de distribucion registrada para auditoria
+   - Tabla card_key_sessions
+   - Endpoint: POST /api/nfc/cards/{uid}/request-key
 
-4. COMISIONES DE LA FERIA CONUQUERA (migracion 117 seed data)
-   - 5 comisiones reales creadas automaticamente:
-     * Comision de Logistica (montaje, transporte, Los Caobos)
-     * Comision de Comunicacion (redes, prensa)
-     * Comision de Bioinsumos (calidad agroecologica, banco semillas)
-     * Comision de Cultura (musica, tarima, tradiciones)
-     * Comision de Articulacion (Pueblo a Pueblo, Cecosesola)
-   - Creadas como group_type='committee' en departments
-   - No sobreescribe comisiones existentes
+3. CHALLENGE-RESPONSE (DESFire EV3)
+   - Servidor genera challenge (nonce aleatorio de 16 bytes)
+   - Terminal envia challenge a la tarjeta
+   - Tarjeta responde con AES(challenge, key)
+   - Servidor verifica la respuesta
+   - Anti-replay: challenge se marca como usado
+   - Tabla nfc_card_challenges con expiracion de 60s
+   - Endpoints: POST /challenge, POST /verify-response
 
-NO se implementa POS dual (el usuario confirmo que no es necesario):
-- Las ventas al publico se hacen con puntos de venta externos
-- La plataforma no se conecta a bancos reales
-- El comercio externo es solo metrica informativa
+4. NTAG424 SUN (Secure Unique Number)
+   - NTAG424 genera MAC(AES, UID|counter) en cada tap
+   - Servidor verifica el MAC con la misma clave AES
+   - Counter anti-replay: cada tap incrementa el counter
+   - Si counter <= almacenado = replay attack detectado
+   - Endpoint: POST /api/nfc/cards/{uid}/verify-sun
+
+5. SEGURIDAD
+   - 5 fallos de auth = tarjeta bloqueada 30 minutos
+   - Clave maestra del nodo cifrada con NODE_MASTER_KEY (env var)
+   - Tabla node_master_keys para rotacion de clave maestra
+   - Rotacion de claves por tarjeta: POST /rotate-key
+   - Bloqueo de tarjeta: POST /block-crypto
+   - Estado criptografico: GET /crypto-status
+
+FLUJO PARA APP ANDROID + LECTOR BLUETOOTH:
+1. App se autentica con el servidor (Ed25519 mutual auth)
+2. App lee UID de la tarjeta via lector Bluetooth
+3. App pide clave AES al servidor (canal cifrado)
+4. App descifra clave en memoria
+5. App envia challenge a la tarjeta via Bluetooth
+6. Tarjeta responde con AES(challenge, key)
+7. App envia respuesta al servidor
+8. Servidor verifica y procesa el pago
+9. App borra la clave de memoria
+
+Frontend: Tab "Tarjetas Crypto" en NodeSettings con:
+- Provisionamiento de nuevas tarjetas
+- Muestra clave AES para escribir en la tarjeta
+- Consulta de estado criptografico
+- Bloqueo de tarjetas
 
 Generated with [Devin](https://devin.ai)
 
