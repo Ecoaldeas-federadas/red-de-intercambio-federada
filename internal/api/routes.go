@@ -221,6 +221,10 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 	sysH := &SystemHandler{Pool: pool, Auth: am, nodeDomain: h.nodeDomain}
 	sysH.RegisterRoutes(r, am)
 
+	// Commerce schedule: horarios de comercio configurables (ej: bloqueo de Sabado)
+	commerceSchedH := &CommerceScheduleHandler{Pool: pool, NodeDomain: h.nodeDomain}
+	commerceSchedH.RegisterRoutes(r, am)
+
 	// Merge conflicts: conflictos de fusion entre nodos
 	mergeH := &MergeConflictHandler{Pool: pool, Auth: am, nodeDomain: h.nodeDomain}
 	mergeH.RegisterRoutes(r, am)

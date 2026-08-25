@@ -170,6 +170,18 @@ func (h *Handler) transfer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Verificar si las transacciones comerciales estan bloqueadas (horarios configurables)
+	if h.Pool != nil {
+		nodeDomain := r.Header.Get("X-Node-Domain")
+		if nodeDomain == "" {
+			nodeDomain = h.nodeDomain
+		}
+		if blocked, msg := IsCommerceBlocked(h.Pool, nodeDomain); blocked {
+			writeError(w, 403, msg)
+			return
+		}
+	}
+
 	// Calcular impuesto basado en el nivel del emisor
 	// 1. Buscar tax_rate del usuario (override personal)
 	// 2. Si es 0, buscar tax_rate del member_level u organization_level

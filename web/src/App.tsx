@@ -43,6 +43,7 @@ import NotificationSettings from './pages/NotificationSettings'
 import Notifications from './pages/Notifications'
 import Pay from './pages/Pay'
 import MyTerminals from './pages/MyTerminals'
+import SoftwareAdaptations from './pages/SoftwareAdaptations'
 
 // updateFavicon cambia el favicon del navegador dinamicamente.
 // Si se pasa una URL de logo, lo usa como favicon.
@@ -155,6 +156,7 @@ function AppInner() {
         {/* Sitio publico tambien accesible cuando estas logueado */}
         <Route path="/" element={<Navigate to="/p/inicio" replace />} />
         <Route path="/p/unirse" element={<PublicLayout><PublicJoinForm /></PublicLayout>} />
+        <Route path="/p/adaptaciones" element={<SoftwareAdaptations />} />
         <Route path="/p/:slug" element={<PublicLayout><PublicPageView /></PublicLayout>} />
         <Route path="/p" element={<Navigate to="/p/inicio" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
