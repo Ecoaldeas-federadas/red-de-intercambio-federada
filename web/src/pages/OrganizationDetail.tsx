@@ -54,17 +54,19 @@ export default function OrganizationDetail() {
 
   const load = () => {
     if (!id) return
-    api.get(`/organizations`).then((d: any) => {
-      const list = Array.isArray(d) ? d : []
-      const found = list.find((o: any) => o.id === id)
+    // Buscar la organizacion en ambas listas:
+    // /organizations (excluye asamblea y sus orgs)
+    // /my/organizations (incluye todas, con is_assembly_owned)
+    Promise.all([
+      api.get('/organizations').catch(() => []),
+      api.get('/my/organizations').catch(() => []),
+    ]).then(([allOrgs, myOrgs]: any) => {
+      const allList = Array.isArray(allOrgs) ? allOrgs : []
+      const myList = Array.isArray(myOrgs) ? myOrgs : []
+      const found = allList.find((o: any) => o.id === id) || myList.find((o: any) => o.id === id)
       setOrg(found || null)
-    }).catch(() => {})
-
-    // Cargar mi rol en esta organizacion
-    api.get(`/my/organizations`).then((d: any) => {
-      const list = Array.isArray(d) ? d : []
-      const found = list.find((o: any) => o.id === id)
-      setMyRole(found || null)
+      const myFound = myList.find((o: any) => o.id === id)
+      setMyRole(myFound || null)
     }).catch(() => {})
 
     api.get(`/organizations/${id}/board`).then((d: any) => {

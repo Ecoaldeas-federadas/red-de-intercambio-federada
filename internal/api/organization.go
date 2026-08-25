@@ -36,6 +36,7 @@ func (oh *OrganizationHandler) RegisterRoutesWithAuth(r chi.Router, am *AuthMidd
 		r.Post("/api/organizations/{id}/approve", oh.approveOrganization)
 	}
 	r.Put("/api/organizations/{id}/multisig", oh.setMultiSig)
+	r.Get("/api/organizations/{id}/multisig", oh.getMultiSig)
 
 	// Junta directiva de organizacion
 	r.Get("/api/organizations/{id}/board", oh.listOrganizationBoard)
@@ -190,6 +191,45 @@ func (oh *OrganizationHandler) setMultiSig(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	writeJSON(w, 200, map[string]string{"status": "updated"})
+}
+
+// getMultiSig devuelve la configuracion multi-firma de una organizacion
+func (oh *OrganizationHandler) getMultiSig(w http.ResponseWriter, r *http.Request) {
+	orgID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid organization id")
+		return
+	}
+
+	var requiredSignatures int
+	var authorizedSigners []uuid.UUID
+	err = oh.Orgs.Pool.QueryRow(r.Context(), `
+		SELECT required_signatures, COALESCE(authorized_signers, ARRAY[]::uuid[])
+		FROM users WHERE id = $1 AND account_type IN ('organization', 'public_institution')`,
+		orgID).Scan(&requiredSignatures, &authorizedSigners)
+	if err != nil {
+		writeJSON(w, 200, map[string]interface{}{
+			"required_signatures": 1,
+			"authorized_signers":  []interface{}{},
+		})
+		return
+	}
+
+	signers := []map[string]interface{}{}
+	for _, s := range authorizedSigners {
+		var username, displayName string
+		oh.Orgs.Pool.QueryRow(r.Context(), `SELECT COALESCE(username, ''), COALESCE(display_name, '') FROM users WHERE id = $1`, s).Scan(&username, &displayName)
+		signers = append(signers, map[string]interface{}{
+			"user_id":      s.String(),
+			"username":     username,
+			"display_name": displayName,
+		})
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"required_signatures": requiredSignatures,
+		"authorized_signers":  signers,
+	})
 }
 
 func (oh *OrganizationHandler) createInstitution(w http.ResponseWriter, r *http.Request) {

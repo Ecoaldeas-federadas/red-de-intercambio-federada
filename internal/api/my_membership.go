@@ -39,16 +39,19 @@ func (h *MyMembershipHandler) myOrganizations(w http.ResponseWriter, r *http.Req
 	}
 
 	// Organizaciones donde el usuario es parte de la junta directiva
+	// Excluir la Asamblea General (username='asamblea') - tiene su propia pestana
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT
 			o.id, o.username, o.display_name, o.organization_subtype,
 			o.balance, o.credit_limit, o.debit_limit,
 			obm.position, obm.term_start,
-			CASE WHEN obm.user_id IS NOT NULL THEN true ELSE false END as is_board_member
+			CASE WHEN obm.user_id IS NOT NULL THEN true ELSE false END as is_board_member,
+			COALESCE(o.is_assembly_owned, false) as is_assembly_owned
 		FROM users o
 		LEFT JOIN organization_board_members obm ON obm.organization_id = o.id AND obm.user_id = $1
 		WHERE o.account_type = 'organization'
 		  AND o.membership_status = 'active'
+		  AND o.username != 'asamblea'
 		  AND o.node_domain = (SELECT node_domain FROM users WHERE id = $1)
 		ORDER BY
 			CASE WHEN obm.user_id IS NOT NULL THEN 0 ELSE 1 END,
@@ -69,8 +72,9 @@ func (h *MyMembershipHandler) myOrganizations(w http.ResponseWriter, r *http.Req
 		var position *string
 		var termStart *interface{}
 		var isBoardMember bool
+		var isAssemblyOwned bool
 
-		if err := rows.Scan(&id, &username, &displayName, &subtype, &balance, &creditLimit, &debitLimit, &position, &termStart, &isBoardMember); err != nil {
+		if err := rows.Scan(&id, &username, &displayName, &subtype, &balance, &creditLimit, &debitLimit, &position, &termStart, &isBoardMember, &isAssemblyOwned); err != nil {
 			continue
 		}
 
@@ -102,18 +106,19 @@ func (h *MyMembershipHandler) myOrganizations(w http.ResponseWriter, r *http.Req
 		}
 
 		orgs = append(orgs, map[string]interface{}{
-			"id":              id.String(),
-			"username":        username,
-			"display_name":    displayName,
-			"subtype":         st,
-			"balance":         balance,
-			"role":            role,
-			"is_board_member": isBoardMember,
-			"can_manage":      canManage,
-			"can_transfer":    canTransfer,
-			"can_view_wallet": canViewWallet,
-			"can_view_history": canViewHistory,
-			"can_config":      canConfig,
+			"id":                id.String(),
+			"username":          username,
+			"display_name":      displayName,
+			"subtype":           st,
+			"balance":           balance,
+			"role":              role,
+			"is_board_member":   isBoardMember,
+			"is_assembly_owned": isAssemblyOwned,
+			"can_manage":        canManage,
+			"can_transfer":      canTransfer,
+			"can_view_wallet":   canViewWallet,
+			"can_view_history":  canViewHistory,
+			"can_config":        canConfig,
 		})
 	}
 	if orgs == nil {
@@ -176,12 +181,12 @@ func (h *MyMembershipHandler) myDepartments(w http.ResponseWriter, r *http.Reque
 		}
 
 		dept := map[string]interface{}{
-			"id":          id.String(),
-			"name":        name,
-			"description": desc,
-			"group_type":  groupType,
-			"role":        role,
-			"can_manage":  canManage,
+			"id":           id.String(),
+			"name":         name,
+			"description":  desc,
+			"group_type":   groupType,
+			"role":         role,
+			"can_manage":   canManage,
 			"can_transfer": canTransfer,
 		}
 		if deptAccount != nil {
@@ -264,10 +269,10 @@ func (h *MyMembershipHandler) myAssembly(w http.ResponseWriter, r *http.Request)
 			var scheduledAt *interface{}
 			rows.Scan(&id, &title, &status, &scheduledAt, &desc)
 			sessions = append(sessions, map[string]interface{}{
-				"id":           id.String(),
-				"title":        title,
-				"status":       status,
-				"description":  desc,
+				"id":          id.String(),
+				"title":       title,
+				"status":      status,
+				"description": desc,
 			})
 		}
 	}
@@ -277,17 +282,17 @@ func (h *MyMembershipHandler) myAssembly(w http.ResponseWriter, r *http.Request)
 
 	writeJSON(w, 200, map[string]interface{}{
 		"user": map[string]interface{}{
-			"username":      username,
-			"display_name":  displayName,
-			"account_type":  accountType,
-			"level_name":    levelName,
+			"username":       username,
+			"display_name":   displayName,
+			"account_type":   accountType,
+			"level_name":     levelName,
 			"is_super_admin": isSuperAdmin,
 		},
 		"permissions": map[string]interface{}{
-			"can_vote":         canVote,
-			"can_propose":      canPropose,
+			"can_vote":          canVote,
+			"can_propose":       canPropose,
 			"can_start_session": canStartSession,
-			"can_config":       canConfig,
+			"can_config":        canConfig,
 		},
 		"upcoming_sessions": sessions,
 	})
