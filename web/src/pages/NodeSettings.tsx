@@ -2,7 +2,7 @@
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
-import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon, Vote as VoteIcon, Database, Download, Upload, AlertTriangle, RefreshCw, Globe, Lock, Unlock, Trash2, FileText, Server, HardDrive, CheckCircle, Info, X } from 'lucide-react'
+import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon, Vote as VoteIcon, Database, Download, Upload, AlertTriangle, RefreshCw, Globe, Lock, Unlock, Trash2, FileText, Server, HardDrive, CheckCircle, Info, X, Power, Play, Square } from 'lucide-react'
 
 // Opciones del 1 al 10 para el numero de nivel (seleccionable, no texto libre)
 const LEVEL_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1)
@@ -1965,6 +1965,41 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
   const [reconnectAttempts, setReconnectAttempts] = useState(0)
   const [nodeRestarting, setNodeRestarting] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+  const [nodePowerAction, setNodePowerAction] = useState('')
+
+  // Llamar al updater-controller directamente (puerto 9110)
+  const updaterApi = async (endpoint: string, method: string = 'POST') => {
+    const host = window.location.hostname
+    const resp = await fetch(`http://${host}:9110${endpoint}`, { method })
+    return resp.json()
+  }
+
+  const controlNode = async (action: 'start' | 'stop' | 'restart') => {
+    const labels = { start: 'Arrancar', stop: 'Detener', restart: 'Reiniciar' }
+    if (action === 'stop' && !confirm('Confirmas que quieres detener el nodo?')) return
+    if (action === 'restart' && !confirm('Confirmas que quieres reiniciar el nodo?')) return
+    setNodePowerAction(action)
+    setMsg(null)
+    try {
+      // Intentar via API del nodo primero
+      try {
+        await api.post(`/node/${action === 'start' ? 'start' : action === 'stop' ? 'stop' : 'restart'}`, {})
+        setMsg({ type: 'success', text: `${labels[action]}: solicitud enviada.` })
+      } catch {
+        // Si el nodo no responde, usar updater-controller directamente
+        const result = await updaterApi(`/${action}`)
+        if (result.success) {
+          setMsg({ type: 'success', text: `${labels[action]}: ${result.message || 'OK'}` })
+        } else {
+          setMsg({ type: 'error', text: `${labels[action]} fallo: ${result.message || 'error'}` })
+        }
+      }
+    } catch (err) {
+      setMsg({ type: 'error', text: `No se pudo ${action} el nodo.` })
+    } finally {
+      setNodePowerAction('')
+    }
+  }
 
   // Al cargar, verificar si ya hay una actualizacion en curso.
   // Esto permite restaurar la consola despues de una recarga de pagina.
@@ -2339,9 +2374,31 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
         </div>
       )}
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {canManage && (
           <>
+            <button
+              onClick={() => controlNode('start')}
+              disabled={nodePowerAction === 'start'}
+              className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
+            >
+              {nodePowerAction === 'start' ? <><RefreshCw size={16} className="animate-spin" /> Iniciando...</> : <><Play size={16} /> Arrancar</>}
+            </button>
+            <button
+              onClick={() => controlNode('stop')}
+              disabled={nodePowerAction === 'stop'}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
+            >
+              {nodePowerAction === 'stop' ? <><RefreshCw size={16} className="animate-spin" /> Deteniendo...</> : <><Square size={16} /> Detener</>}
+            </button>
+            <button
+              onClick={() => controlNode('restart')}
+              disabled={nodePowerAction === 'restart'}
+              className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
+            >
+              {nodePowerAction === 'restart' ? <><RefreshCw size={16} className="animate-spin" /> Reiniciando...</> : <><RefreshCw size={16} /> Reiniciar</>}
+            </button>
+            <div className="w-px h-8 bg-gray-300 mx-1" />
             <button
               onClick={checkUpdates}
               disabled={checking}
@@ -2352,7 +2409,7 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
             <button
               onClick={() => setShowConfirm(true)}
               disabled={updating || !canManage}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
             >
               {updating ? <><RefreshCw size={16} className="animate-spin" /> Actualizando...</> : <><Download size={16} /> Actualizar nodo</>}
             </button>

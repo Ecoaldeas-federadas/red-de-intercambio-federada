@@ -35,6 +35,9 @@ func (h *UpdateHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequireAuth).Get("/api/node/update-status", h.getUpdateStatus)
 	r.With(am.RequireAuth).Get("/api/node/check-updates", h.checkUpdates)
 	r.With(am.RequirePermission("config.manage")).Post("/api/node/cancel-update", h.cancelUpdate)
+	r.With(am.RequirePermission("config.manage")).Post("/api/node/start", h.startNode)
+	r.With(am.RequirePermission("config.manage")).Post("/api/node/stop", h.stopNode)
+	r.With(am.RequirePermission("config.manage")).Post("/api/node/restart", h.restartNode)
 	r.With(am.RequirePermission("config.manage")).Post("/api/services/{serviceID}/update", h.updateService)
 	r.With(am.RequirePermission("config.manage")).Post("/api/services/update-all", h.updateAllServices)
 }
@@ -387,6 +390,45 @@ func (h *UpdateHandler) getUpdateStatus(w http.ResponseWriter, r *http.Request) 
 	status["log"] = string(logData)
 
 	writeJSON(w, 200, status)
+}
+
+// startNode arranca el contenedor node-app via docker compose.
+func (h *UpdateHandler) startNode(w http.ResponseWriter, _ *http.Request) {
+	projectName := detectComposeProjectName()
+	composeFile := "/project/docker-compose.yml"
+	out, err := exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName,
+		"up", "-d", "--no-deps", "node-app").CombinedOutput()
+	if err != nil {
+		writeError(w, 500, "error al arrancar nodo: "+string(out))
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{"success": true, "message": "Nodo arrancado"})
+}
+
+// stopNode detiene el contenedor node-app via docker compose.
+func (h *UpdateHandler) stopNode(w http.ResponseWriter, _ *http.Request) {
+	projectName := detectComposeProjectName()
+	composeFile := "/project/docker-compose.yml"
+	out, err := exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName,
+		"stop", "node-app").CombinedOutput()
+	if err != nil {
+		writeError(w, 500, "error al detener nodo: "+string(out))
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{"success": true, "message": "Nodo detenido"})
+}
+
+// restartNode reinicia el contenedor node-app via docker compose.
+func (h *UpdateHandler) restartNode(w http.ResponseWriter, _ *http.Request) {
+	projectName := detectComposeProjectName()
+	composeFile := "/project/docker-compose.yml"
+	out, err := exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName,
+		"restart", "node-app").CombinedOutput()
+	if err != nil {
+		writeError(w, 500, "error al reiniciar nodo: "+string(out))
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{"success": true, "message": "Nodo reiniciado"})
 }
 
 // updateService actualiza un servicio especifico.
