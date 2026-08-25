@@ -13,6 +13,8 @@ import {
   ArrowRight,
   Shield,
   Key,
+  Sparkles,
+  Search,
 } from 'lucide-react'
 
 interface SetupStatus {
@@ -44,16 +46,38 @@ export default function Setup() {
     admin_password_confirm: '',
   })
 
+  // Preconfiguraciones (presets)
+  const [presets, setPresets] = useState<any[]>([])
+  const [selectedPreset, setSelectedPreset] = useState('vacio')
+  const [presetSearch, setPresetSearch] = useState('')
+  const [presetsLoading, setPresetsLoading] = useState(false)
+
   useEffect(() => {
     checkStatus()
+    loadPresets()
   }, [])
+
+  const loadPresets = async () => {
+    setPresetsLoading(true)
+    try {
+      const res = await fetch('/api/presets')
+      if (res.ok) {
+        const data = await res.json()
+        setPresets(data.presets || [])
+      }
+    } catch (e) {
+      // silencioso - el preset es opcional
+    } finally {
+      setPresetsLoading(false)
+    }
+  }
 
   const checkStatus = async () => {
     try {
       const s = await api.get<SetupStatus>('/setup/status')
       setStatus(s)
       if (s.initialized) {
-        setStep(4)
+        setStep(5)
       } else {
         setForm((prev) => ({
           ...prev,
@@ -85,6 +109,9 @@ export default function Setup() {
       }
       setStep(1)
     } else if (step === 1) {
+      // Paso de preconfiguracion - siempre pasa (preset "vacio" es valido)
+      setStep(2)
+    } else if (step === 2) {
       if (!form.admin_username.trim()) {
         setError('El nombre de usuario es obligatorio')
         return
@@ -93,8 +120,8 @@ export default function Setup() {
         setError('El nombre de usuario debe tener al menos 3 caracteres')
         return
       }
-      setStep(2)
-    } else if (step === 2) {
+      setStep(3)
+    } else if (step === 3) {
       if (!form.admin_password || form.admin_password.length < 8) {
         setError('La contrasena debe tener al menos 8 caracteres')
         return
@@ -103,7 +130,7 @@ export default function Setup() {
         setError('Las contrasenas no coinciden')
         return
       }
-      setStep(3)
+      setStep(4)
     }
   }
 
@@ -130,10 +157,20 @@ export default function Setup() {
         admin_password: form.admin_password,
       })
 
+      // Aplicar preset seleccionado (si no es "vacio")
+      if (selectedPreset && selectedPreset !== 'vacio') {
+        try {
+          await api.post('/setup/apply-preset', { preset_id: selectedPreset })
+        } catch (e) {
+          // No fallar la inicializacion si el preset falla
+          console.warn('Preset application failed:', e)
+        }
+      }
+
       login(result.token, result.username)
       setSuccess('Nodo inicializado correctamente')
       setNodePublicKey(result.node_public_key || '')
-      setStep(4)
+      setStep(5)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al inicializar el nodo')
     } finally {
@@ -172,6 +209,7 @@ export default function Setup() {
 
   const steps = [
     { label: 'Nodo', icon: Server },
+    { label: 'Perfil', icon: Sparkles },
     { label: 'Administrador', icon: User },
     { label: 'Seguridad', icon: Lock },
     { label: 'Revisar', icon: CheckCircle },
@@ -270,8 +308,89 @@ export default function Setup() {
           </div>
         )}
 
-        {/* Step 1: Admin user */}
+        {/* Step 1: Preconfiguracion (preset) */}
         {step === 1 && (
+          <div className="space-y-4">
+            <div>
+              <label className="label flex items-center gap-2">
+                <Sparkles size={16} /> Preconfiguracion del nodo
+              </label>
+              <p className="text-xs text-gray-500 mt-1 mb-3">
+                Elige un perfil preconfigurado segun la filosofia de tu comunidad.
+                Esto aplicara horarios, reglas de catalogo, textos y colores iniciales.
+                Puedes elegir "Vacio" para configurar todo manualmente despues.
+              </p>
+            </div>
+
+            {/* Buscador */}
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                className="input pl-9"
+                placeholder="Buscar preconfiguracion..."
+                value={presetSearch}
+                onChange={(e) => setPresetSearch(e.target.value)}
+              />
+            </div>
+
+            {presetsLoading && (
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Loader2 size={16} className="animate-spin" /> Cargando preconfiguraciones...
+              </div>
+            )}
+
+            {/* Lista de presets */}
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {presets
+                .filter((p: any) => {
+                  if (!presetSearch) return true
+                  const q = presetSearch.toLowerCase()
+                  return p.name?.toLowerCase().includes(q) ||
+                    p.description?.toLowerCase().includes(q) ||
+                    p.category?.toLowerCase().includes(q)
+                })
+                .map((p: any) => (
+                  <label
+                    key={p.id}
+                    className={`block p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                      selectedPreset === p.id
+                        ? 'border-trueque-600 bg-trueque-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <input
+                        type="radio"
+                        name="preset"
+                        value={p.id}
+                        checked={selectedPreset === p.id}
+                        onChange={(e) => setSelectedPreset(e.target.value)}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm">{p.name}</span>
+                          <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600">{p.category}</span>
+                        </div>
+                        <p className="text-xs text-gray-600 mt-1">{p.description}</p>
+                      </div>
+                    </div>
+                  </label>
+                ))}
+            </div>
+
+            {presets.length === 0 && !presetsLoading && (
+              <p className="text-xs text-gray-500">
+                No se pudieron cargar las preconfiguraciones. Puedes continuar sin preconfiguracion
+                y ajustar todo manualmente despues.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Step 2: Admin user */}
+        {step === 2 && (
           <div className="space-y-4">
             <div>
               <label className="label flex items-center gap-2">
@@ -302,8 +421,8 @@ export default function Setup() {
           </div>
         )}
 
-        {/* Step 2: Password */}
-        {step === 2 && (
+        {/* Step 3: Password */}
+        {step === 3 && (
           <div className="space-y-4">
             <div>
               <label className="label flex items-center gap-2">
@@ -337,8 +456,8 @@ export default function Setup() {
           </div>
         )}
 
-        {/* Step 3: Review */}
-        {step === 3 && (
+        {/* Step 4: Review */}
+        {step === 4 && (
           <div className="space-y-4">
             <h3 className="font-semibold text-gray-900">Resumen de configuracion</h3>
             <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
@@ -349,6 +468,12 @@ export default function Setup() {
               <div className="flex justify-between">
                 <span className="text-gray-500">Dominio:</span>
                 <span className="font-medium">{form.node_domain}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Preconfiguracion:</span>
+                <span className="font-medium">
+                  {selectedPreset === 'vacio' ? 'Vacio (manual)' : presets.find((p) => p.id === selectedPreset)?.name || selectedPreset}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Usuario admin:</span>
@@ -382,8 +507,8 @@ export default function Setup() {
           </div>
         )}
 
-        {/* Step 4: Already initialized */}
-        {step === 4 && (
+        {/* Step 5: Already initialized */}
+        {step === 5 && (
           <div className="space-y-4">
             <div className="text-center py-4">
               <CheckCircle className="mx-auto text-green-600 mb-4" size={48} />
@@ -422,7 +547,7 @@ export default function Setup() {
         )}
 
         {/* Navigation */}
-        {step < 4 && (
+        {step < 5 && (
           <div className="flex items-center justify-between mt-6">
             <button
               onClick={handleBack}
@@ -432,7 +557,7 @@ export default function Setup() {
               Atras
             </button>
 
-            {step < 3 ? (
+            {step < 4 ? (
               <button
                 onClick={handleNext}
                 className="btn-primary flex items-center gap-2"

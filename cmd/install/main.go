@@ -54,9 +54,10 @@ func warn(msg string) { fmt.Printf("%s[!]%s %s\n", yellow, nc, msg) }
 
 func main() {
 	// Flags para modo no-interactivo
-	var nodeName, nodeDomain string
+	var nodeName, nodeDomain, presetID string
 	flag.StringVar(&nodeName, "name", "", "Nombre del nodo")
 	flag.StringVar(&nodeDomain, "domain", "", "Dominio del nodo")
+	flag.StringVar(&presetID, "preset", "", "Preconfiguracion del nodo (ej: adventista, amish, iskcon, vacio)")
 	flag.Parse()
 
 	fmt.Println()
@@ -115,6 +116,46 @@ func main() {
 	nodeDomain = strings.TrimPrefix(nodeDomain, "https://")
 	nodeDomain = strings.TrimSuffix(nodeDomain, "/")
 
+	// Preguntar preconfiguracion (preset)
+	if presetID == "" {
+		fmt.Println()
+		fmt.Printf("%sPreconfiguracion del nodo:%s\n", white, nc)
+		fmt.Printf("%sElige un perfil preconfigurado segun la filosofia de tu comunidad.%s\n", gray, nc)
+		fmt.Printf("%sEsto aplicara horarios, reglas y textos iniciales. Puedes cambiarlo despues.%s\n", gray, nc)
+		fmt.Println()
+		fmt.Printf("%sOpciones:%s\n", white, nc)
+		fmt.Printf("  %svacio%s           - Sin preconfiguracion (configurar todo manualmente)\n", gray, nc)
+		fmt.Printf("  %sadventista%s      - Adventistas del Septimo Dia (Sabbath Lock)\n", gray, nc)
+		fmt.Printf("  %samish%s           - Amish / Menonitas (traccion animal)\n", gray, nc)
+		fmt.Printf("  %shutterita%s       - Hutteritas (bienes comunes)\n", gray, nc)
+		fmt.Printf("  %sbruderhof%s       - Bruderhof (bienes comunes + regenerativa)\n", gray, nc)
+		fmt.Printf("  %scuakero%s         - Cuakeros (consenso espiritual)\n", gray, nc)
+		fmt.Printf("  %scatholic_land%s   - Catholic Land Movement (descanso dominical)\n", gray, nc)
+		fmt.Printf("  %smonasterio%s      - Monasterios (agricultura liturgica)\n", gray, nc)
+		fmt.Printf("  %stwelve_tribes%s   - Twelve Tribes (Ital, Sabbath)\n", gray, nc)
+		fmt.Printf("  %sbaye_fall%s       - Muridiyya / Baye Fall (trabajo = oracion)\n", gray, nc)
+		fmt.Printf("  %skibbutz%s         - Kibbutz Lotan (eco-judaismo, Shabbat)\n", gray, nc)
+		fmt.Printf("  %siskcon%s          - ISKCON / Hare Krishna (filtros dieteticos)\n", gray, nc)
+		fmt.Printf("  %splum_village%s    - Plum Village (budismo, veganismo)\n", gray, nc)
+		fmt.Printf("  %ssikh%s            - Sikh - Khalsa Garden (langar, seva)\n", gray, nc)
+		fmt.Printf("  %sbahai%s           - Bahai - Adasiyyih (agricultura como base)\n", gray, nc)
+		fmt.Printf("  %sandino%s          - Andinos - Ayllu/Ayni/Minka\n", gray, nc)
+		fmt.Printf("  %smesoamericano%s   - Mesoamericanos - Milpa\n", gray, nc)
+		fmt.Printf("  %subuntu%s          - Ubuntu / Ujamaa (communalismo africano)\n", gray, nc)
+		fmt.Printf("  %sfindhorn%s        - Findhorn (co-creacion con naturaleza)\n", gray, nc)
+		fmt.Printf("  %secoosalde_espiritual%s - Ecoaldeas Espirituales (yoga, permacultura)\n", gray, nc)
+		fmt.Printf("  %spagano%s          - Wiccan / Druida (Wheel of the Year)\n", gray, nc)
+		fmt.Printf("  %stransition_town%s - Transition Towns (permacultura, moneda local)\n", gray, nc)
+		fmt.Printf("  %sgen_ecoaldea%s    - GEN - Ecoaldea Secular (sociocracia)\n", gray, nc)
+		fmt.Println()
+		fmt.Printf("Preconfiguracion (presiona Enter para %svacio%s): ", cyan, nc)
+		presetID, _ = reader.ReadString('\n')
+		presetID = strings.TrimSpace(presetID)
+		if presetID == "" {
+			presetID = "vacio"
+		}
+	}
+
 	fmt.Println()
 	step("Generando configuracion segura...")
 
@@ -140,8 +181,9 @@ DB_PASSWORD=%s
 JWT_SECRET=%s
 NODE_DOMAIN=%s
 NODE_NAME=%s
+NODE_PRESET=%s
 `, time.Now().Format("2006-01-02 15:04:05"), nodeName, nodeDomain,
-		dbPassword, jwtSecret, nodeDomain, nodeName)
+		dbPassword, jwtSecret, nodeDomain, nodeName, presetID)
 
 	if err := os.WriteFile(filepath.Join(root, ".env"), []byte(envContent), 0600); err != nil {
 		errExit(fmt.Sprintf("Error escribiendo .env: %v", err))

@@ -131,8 +131,27 @@ func main() {
 		}
 		// Seed datos demo: todos los datos usan __LOCAL__, node_config usa demoDom
 		log.Println("Demo mode: seeding demo data (using __LOCAL__)")
+		demoPreset := os.Getenv("DEMO_PRESET")
+		// Tambien leer desde archivo .demo-shared/preset.txt (escrito por el padre)
+		if demoPreset == "" {
+			if data, err := os.ReadFile("/app/.demo-shared/preset.txt"); err == nil {
+				demoPreset = strings.TrimSpace(string(data))
+			}
+		}
+		if demoPreset == "" {
+			demoPreset = "gen_ecoaldea" // preset por defecto
+		}
+		log.Println("Demo mode: using preset:", demoPreset)
 		if err := db.DemoSeedData(ctx, database, demoDom); err != nil {
 			log.Printf("Warning: demo seed failed: %v", err)
+		}
+		// Aplicar configuracion del preset (horarios, reglas, nombre, footer)
+		if demoPreset != "vacio" && demoPreset != "gen_ecoaldea" {
+			if err := db.ApplyPreset(ctx, database.Pool, demoDom, demoPreset); err != nil {
+				log.Printf("Warning: apply preset %s failed: %v", demoPreset, err)
+			} else {
+				log.Printf("Demo mode: preset %s applied successfully", demoPreset)
+			}
 		}
 		// En modo demo, usar el dominio del demo (para federacion e identidad)
 		cfg.Node.Domain = demoDom
@@ -153,6 +172,22 @@ func main() {
 	if !isDemoMode {
 		if err := database.SeedPublicPages(ctx, seedDomain); err != nil {
 			log.Printf("Warning: failed to seed public pages: %v", err)
+		}
+
+		// Aplicar preset del nodo si esta configurado en .env (NODE_PRESET)
+		// y el nodo no esta inicializado (no hay admin). Esto es para instalacion nueva.
+		nodePreset := os.Getenv("NODE_PRESET")
+		if nodePreset != "" && nodePreset != "vacio" {
+			var hasAdmin bool
+			err := database.Pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM users WHERE is_admin = true OR is_super_admin = true)`).Scan(&hasAdmin)
+			if err == nil && !hasAdmin {
+				log.Printf("Applying node preset: %s", nodePreset)
+				if err := db.ApplyPreset(ctx, database.Pool, cfg.Node.Domain, nodePreset); err != nil {
+					log.Printf("Warning: apply node preset %s failed: %v", nodePreset, err)
+				} else {
+					log.Printf("Node preset %s applied successfully", nodePreset)
+				}
+			}
 		}
 	}
 

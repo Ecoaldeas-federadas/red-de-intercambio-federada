@@ -225,6 +225,22 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 	commerceSchedH := &CommerceScheduleHandler{Pool: pool, NodeDomain: h.nodeDomain}
 	commerceSchedH.RegisterRoutes(r, am)
 
+	// Presets: preconfiguraciones de nodo (adventista, amish, iskcon, etc.)
+	presetsH := &PresetsHandler{Pool: pool, NodeDomain: h.nodeDomain}
+	presetsH.RegisterRoutes(r, am)
+
+	// Catalog filters: reglas eticas/dietarias/culturales del catalogo
+	catalogFiltersH := &CatalogFiltersHandler{Pool: pool, NodeDomain: h.nodeDomain}
+	catalogFiltersH.RegisterRoutes(r, am)
+
+	// Departmental accounting: contabilidad por departamento/comision
+	deptAcctH := &DepartmentalAccountingHandler{Pool: pool, NodeDomain: h.nodeDomain}
+	deptAcctH.RegisterRoutes(r, am)
+
+	// Community work: registro de trabajo comunitario (cayapa/minga)
+	communityWorkH := &CommunityWorkHandler{Pool: pool, NodeDomain: h.nodeDomain}
+	communityWorkH.RegisterRoutes(r, am)
+
 	// Merge conflicts: conflictos de fusion entre nodos
 	mergeH := &MergeConflictHandler{Pool: pool, Auth: am, nodeDomain: h.nodeDomain}
 	mergeH.RegisterRoutes(r, am)

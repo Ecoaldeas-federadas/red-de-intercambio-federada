@@ -2,7 +2,7 @@
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
-import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon, Vote as VoteIcon, Database, Download, Upload, AlertTriangle, RefreshCw, Globe, Lock, Unlock, Trash2, FileText, Server, HardDrive, CheckCircle, Info, X, Power, Play, Square } from 'lucide-react'
+import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon, Vote as VoteIcon, Database, Download, Upload, AlertTriangle, RefreshCw, Globe, Lock, Unlock, Trash2, FileText, Server, HardDrive, CheckCircle, Info, X, Power, Play, Square, Sparkles, Clock, Shield } from 'lucide-react'
 
 // Opciones del 1 al 10 para el numero de nivel (seleccionable, no texto libre)
 const LEVEL_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1)
@@ -26,7 +26,7 @@ export default function NodeSettings() {
 
   const [searchParams, setSearchParams] = useSearchParams()
   const initialTab = (searchParams.get('tab') as any) || 'general'
-  const [tab, setTab] = useState<'general' | 'levels' | 'org_levels' | 'tariff' | 'backup' | 'database' | 'demo'>(initialTab)
+  const [tab, setTab] = useState<'general' | 'levels' | 'org_levels' | 'tariff' | 'commerce' | 'catalog' | 'work' | 'backup' | 'database' | 'demo'>(initialTab)
   const [clusterStatus, setClusterStatus] = useState<any>(null)
   const [clusterChecking, setClusterChecking] = useState(false)
   const [clusterConfig, setClusterConfig] = useState<any>(null)
@@ -51,6 +51,21 @@ export default function NodeSettings() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [demoResetting, setDemoResetting] = useState(false)
+  const [demoPresets, setDemoPresets] = useState<any[]>([])
+  const [demoPresetSel, setDemoPresetSel] = useState('gen_ecoaldea')
+  const [demoPresetsLoading, setDemoPresetsLoading] = useState(false)
+
+  // Catalog rules
+  const [catalogRules, setCatalogRules] = useState<any[]>([])
+  const [catalogRulesLoading, setCatalogRulesLoading] = useState(false)
+  const [newRule, setNewRule] = useState({ category_name: '', is_prohibited: true, reason: '' })
+  const [catalogMsg, setCatalogMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+
+  // Community work
+  const [workSessions, setWorkSessions] = useState<any[]>([])
+  const [workSessionsLoading, setWorkSessionsLoading] = useState(false)
+  const [newSession, setNewSession] = useState({ name: '', work_type: 'cayapa', session_date: '', valuation_type: 'hours_only', description: '' })
+  const [workMsg, setWorkMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
   // Backup
   const [backupLoading, setBackupLoading] = useState(false)
@@ -116,6 +131,48 @@ export default function NodeSettings() {
   }
 
   useEffect(() => { load() }, [])
+
+  // Cargar presets disponibles para el demo
+  const loadDemoPresets = async () => {
+    setDemoPresetsLoading(true)
+    try {
+      const res = await fetch('/api/presets')
+      if (res.ok) {
+        const data = await res.json()
+        setDemoPresets(data.presets || [])
+      }
+    } catch (e) {
+      // silencioso
+    } finally {
+      setDemoPresetsLoading(false)
+    }
+  }
+
+  // Cargar reglas de catalogo
+  const loadCatalogRules = async () => {
+    setCatalogRulesLoading(true)
+    try {
+      const data = await api.get<{ rules: any[] }>('/catalog/rules')
+      setCatalogRules(data.rules || [])
+    } catch (e) {
+      // silencioso
+    } finally {
+      setCatalogRulesLoading(false)
+    }
+  }
+
+  // Cargar sesiones de trabajo comunitario
+  const loadWorkSessions = async () => {
+    setWorkSessionsLoading(true)
+    try {
+      const data = await api.get<{ sessions: any[] }>('/community-work/sessions')
+      setWorkSessions(data.sessions || [])
+    } catch (e) {
+      // silencioso
+    } finally {
+      setWorkSessionsLoading(false)
+    }
+  }
 
   // Cargar backups automaticos y nodos YugabyteDB cuando se abren esos tabs
   const loadAutoBackups = async () => {
@@ -202,6 +259,8 @@ export default function NodeSettings() {
   useEffect(() => {
     if (tab === 'backup') { loadAutoBackups(); loadBackupConfig() }
     if (tab === 'database') { loadYbNodes(); loadClusterStatus(); loadClusterConfig() }
+    if (tab === 'catalog') { loadCatalogRules() }
+    if (tab === 'work') { loadWorkSessions() }
   }, [tab])
 
   // Verificar permisos de Asamblea para cada tipo de cambio
@@ -425,6 +484,9 @@ export default function NodeSettings() {
         <button onClick={() => changeTab('levels')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'levels' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><UsersIcon size={14} className="inline mr-1" />Niveles de Miembro</button>
         <button onClick={() => changeTab('org_levels')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'org_levels' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Building2 size={14} className="inline mr-1" />Niveles de Organizacion</button>
         <button onClick={() => changeTab('tariff')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'tariff' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Tarifa Energetica</button>
+        <button onClick={() => changeTab('commerce')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'commerce' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Horarios</button>
+        <button onClick={() => changeTab('catalog')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'catalog' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Reglas Catalogo</button>
+        <button onClick={() => changeTab('work')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'work' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Trabajo Comunitario</button>
         {canManage && (
           <button onClick={() => changeTab('backup')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'backup' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Database size={14} className="inline mr-1" />Copia de Seguridad</button>
         )}
@@ -926,6 +988,240 @@ export default function NodeSettings() {
                 </div>
               )}
             </>
+          )}
+        </div>
+      )}
+
+      {/* ===== HORARIOS DE COMERCIO ===== */}
+      {tab === 'commerce' && (
+        <div className="card space-y-6">
+          <h2 className="font-semibold flex items-center gap-2"><Clock size={18} />Horarios de Comercio</h2>
+          <p className="text-sm text-gray-600">
+            Configura los horarios en que se permiten transacciones en el nodo.
+            Puedes bloquear dias completos (ej: Sabado), rangos horarios, o ventanas
+            que cruzan medianoche (ej: viernes al ponerse el sol hasta sabado al ponerse el sol).
+          </p>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+            <Info size={16} className="inline mr-1" />
+            Las reglas desactivadas no afectan el comportamiento del nodo.
+            Si no hay reglas activas, todas las transacciones estan permitidas.
+          </div>
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+            <AlertTriangle size={16} className="inline mr-1" />
+            Los cambios en horarios pueden requerir aprobacion de la Asamblea segun la configuracion de gobernanza.
+          </div>
+          <p className="text-xs text-gray-500">
+            Para crear y editar reglas de horario, usa la seccion de Horarios en el panel principal.
+            Esta seccion muestra el estado actual de la configuracion.
+          </p>
+        </div>
+      )}
+
+      {/* ===== REGLAS DE CATALOGO ===== */}
+      {tab === 'catalog' && (
+        <div className="card space-y-6">
+          <h2 className="font-semibold flex items-center gap-2"><Shield size={18} />Reglas de Catalogo</h2>
+          <p className="text-sm text-gray-600">
+            Configura que productos pueden o no pueden estar en el catalogo segun la filosofia
+            de tu comunidad. Ej: prohibir carne, alcohol, ajo, cebolla, tabaco, etc.
+            Estas reglas son especificas de este nodo y no afectan a otros nodos federados.
+          </p>
+
+          {/* Formulario para nueva regla */}
+          <div className="space-y-3 border rounded-lg p-4 bg-gray-50">
+            <h3 className="font-medium text-sm">Nueva regla</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <input
+                type="text"
+                className="input"
+                placeholder="Categoria (ej: carne, alcohol, ajo)"
+                value={newRule.category_name}
+                onChange={(e) => setNewRule({ ...newRule, category_name: e.target.value })}
+              />
+              <select
+                className="input"
+                value={newRule.is_prohibited ? 'prohibited' : 'label'}
+                onChange={(e) => setNewRule({ ...newRule, is_prohibited: e.target.value === 'prohibited' })}
+              >
+                <option value="prohibited">Prohibido</option>
+                <option value="label">Requiere etiqueta</option>
+              </select>
+              <input
+                type="text"
+                className="input"
+                placeholder="Razon (ej: No se consume en ISKCON)"
+                value={newRule.reason}
+                onChange={(e) => setNewRule({ ...newRule, reason: e.target.value })}
+              />
+            </div>
+            <button
+              onClick={async () => {
+                if (!newRule.category_name.trim()) {
+                  setCatalogMsg({ type: 'error', text: 'La categoria es obligatoria' })
+                  return
+                }
+                try {
+                  await api.post('/catalog/rules', newRule)
+                  setCatalogMsg({ type: 'success', text: 'Regla guardada' })
+                  setNewRule({ category_name: '', is_prohibited: true, reason: '' })
+                  loadCatalogRules()
+                } catch (e: any) {
+                  setCatalogMsg({ type: 'error', text: e?.message || 'Error al guardar regla' })
+                }
+              }}
+              className="btn-primary text-sm flex items-center gap-2"
+            >
+              <Plus size={16} /> Anadir regla
+            </button>
+            {catalogMsg && (
+              <div className={`text-xs p-2 rounded-lg ${catalogMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                {catalogMsg.text}
+              </div>
+            )}
+          </div>
+
+          {/* Lista de reglas */}
+          {catalogRulesLoading && <p className="text-sm text-gray-500">Cargando reglas...</p>}
+          {!catalogRulesLoading && catalogRules.length === 0 && (
+            <p className="text-sm text-gray-500">No hay reglas configuradas. Todas las categorias estan permitidas.</p>
+          )}
+          {catalogRules.length > 0 && (
+            <div className="space-y-2">
+              {catalogRules.map((rule: any) => (
+                <div key={rule.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <span className="font-medium text-sm">{rule.category_name}</span>
+                    {rule.is_prohibited && <span className="ml-2 text-xs px-2 py-0.5 rounded bg-red-100 text-red-700">Prohibido</span>}
+                    {rule.requires_label && <span className="ml-2 text-xs px-2 py-0.5 rounded bg-yellow-100 text-yellow-700">Etiqueta</span>}
+                    {rule.reason && <p className="text-xs text-gray-600 mt-1">{rule.reason}</p>}
+                  </div>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await api.delete(`/catalog/rules/${encodeURIComponent(rule.category_name)}`)
+                        loadCatalogRules()
+                      } catch (e: any) {
+                        setCatalogMsg({ type: 'error', text: e?.message || 'Error al eliminar' })
+                      }
+                    }}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== TRABAJO COMUNITARIO ===== */}
+      {tab === 'work' && (
+        <div className="card space-y-6">
+          <h2 className="font-semibold flex items-center gap-2"><UsersIcon size={18} />Trabajo Comunitario</h2>
+          <p className="text-sm text-gray-600">
+            Registra sesiones de trabajo comunitario (cayapas, mingas, voluntariados).
+            Soporta valoracion en horas, TQ, o sin valoracion. Las sesiones pueden requerir
+            aprobacion para evitar inflacion unilateral de creditos.
+          </p>
+
+          {/* Formulario para nueva sesion */}
+          <div className="space-y-3 border rounded-lg p-4 bg-gray-50">
+            <h3 className="font-medium text-sm">Nueva sesion de trabajo</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <input
+                type="text"
+                className="input"
+                placeholder="Nombre (ej: Cayapa de cosecha)"
+                value={newSession.name}
+                onChange={(e) => setNewSession({ ...newSession, name: e.target.value })}
+              />
+              <select
+                className="input"
+                value={newSession.work_type}
+                onChange={(e) => setNewSession({ ...newSession, work_type: e.target.value })}
+              >
+                <option value="cayapa">Cayapa</option>
+                <option value="minga">Minga</option>
+                <option value="volunteer">Voluntariado</option>
+                <option value="work_party">Work Party</option>
+                <option value="seva">Seva</option>
+              </select>
+              <input
+                type="datetime-local"
+                className="input"
+                value={newSession.session_date}
+                onChange={(e) => setNewSession({ ...newSession, session_date: e.target.value })}
+              />
+              <select
+                className="input"
+                value={newSession.valuation_type}
+                onChange={(e) => setNewSession({ ...newSession, valuation_type: e.target.value })}
+              >
+                <option value="hours_only">Solo horas</option>
+                <option value="tq">TQ (credito mutuo)</option>
+                <option value="no_valuation">Sin valoracion</option>
+                <option value="departmental">Contabilidad departamental</option>
+              </select>
+            </div>
+            <textarea
+              className="input"
+              placeholder="Descripcion (opcional)"
+              value={newSession.description}
+              onChange={(e) => setNewSession({ ...newSession, description: e.target.value })}
+              rows={2}
+            />
+            <button
+              onClick={async () => {
+                if (!newSession.name.trim() || !newSession.session_date) {
+                  setWorkMsg({ type: 'error', text: 'Nombre y fecha son obligatorios' })
+                  return
+                }
+                try {
+                  await api.post('/community-work/sessions', newSession)
+                  setWorkMsg({ type: 'success', text: 'Sesion creada' })
+                  setNewSession({ name: '', work_type: 'cayapa', session_date: '', valuation_type: 'hours_only', description: '' })
+                  loadWorkSessions()
+                } catch (e: any) {
+                  setWorkMsg({ type: 'error', text: e?.message || 'Error al crear sesion' })
+                }
+              }}
+              className="btn-primary text-sm flex items-center gap-2"
+            >
+              <Plus size={16} /> Crear sesion
+            </button>
+            {workMsg && (
+              <div className={`text-xs p-2 rounded-lg ${workMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                {workMsg.text}
+              </div>
+            )}
+          </div>
+
+          {/* Lista de sesiones */}
+          {workSessionsLoading && <p className="text-sm text-gray-500">Cargando sesiones...</p>}
+          {!workSessionsLoading && workSessions.length === 0 && (
+            <p className="text-sm text-gray-500">No hay sesiones de trabajo comunitario registradas.</p>
+          )}
+          {workSessions.length > 0 && (
+            <div className="space-y-2">
+              {workSessions.map((s: any) => (
+                <div key={s.id} className="p-3 border rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-sm">{s.name}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded ${
+                      s.status === 'approved' ? 'bg-green-100 text-green-700' :
+                      s.status === 'completed' ? 'bg-blue-100 text-blue-700' :
+                      s.status === 'planned' ? 'bg-gray-100 text-gray-700' :
+                      'bg-yellow-100 text-yellow-700'
+                    }`}>{s.status}</span>
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    {s.work_type} · {s.valuation_type} · {s.session_date ? new Date(s.session_date).toLocaleDateString() : ''}
+                  </div>
+                  {s.description && <p className="text-xs text-gray-500 mt-1">{s.description}</p>}
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}
@@ -1869,17 +2165,54 @@ export default function NodeSettings() {
               y los recreara desde cero. Util cuando hay actualizaciones del sistema y quieres que el
               nodo demo refleje los cambios inmediatamente.
             </p>
+
+            {/* Selector de preconfiguracion para el demo */}
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-gray-700 flex items-center gap-1">
+                <Sparkles size={14} /> Preconfiguracion del demo
+              </label>
+              <p className="text-xs text-gray-500">
+                Elige el perfil con el que se inicializara el demo. Cada perfil carga datos, horarios
+                y reglas distintos segun la filosofia de la comunidad.
+              </p>
+              <button
+                onClick={loadDemoPresets}
+                disabled={demoPresetsLoading}
+                className="text-xs text-blue-600 hover:underline"
+              >
+                {demoPresetsLoading ? 'Cargando...' : demoPresets.length > 0 ? 'Recargar preconfiguraciones' : 'Cargar preconfiguraciones disponibles'}
+              </button>
+              {demoPresets.length > 0 && (
+                <select
+                  value={demoPresetSel}
+                  onChange={(e) => setDemoPresetSel(e.target.value)}
+                  className="input text-sm"
+                >
+                  {demoPresets.map((p: any) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({p.category})
+                    </option>
+                  ))}
+                </select>
+              )}
+              {demoPresetSel && demoPresets.find((p) => p.id === demoPresetSel) && (
+                <p className="text-xs text-gray-600 italic bg-white/60 p-2 rounded">
+                  {demoPresets.find((p) => p.id === demoPresetSel)?.description}
+                </p>
+              )}
+            </div>
+
             <button
               onClick={() => {
                 setConfirmModal({
                   open: true,
-                  text: 'Seguro que quieres resetear el nodo demo? Se borraran todos los datos demo y se recrearan.',
+                  text: `Seguro que quieres resetear el nodo demo${demoPresetSel && demoPresetSel !== 'gen_ecoaldea' ? ` con la preconfiguracion "${demoPresets.find((p) => p.id === demoPresetSel)?.name || demoPresetSel}"` : ''}? Se borraran todos los datos demo y se recrearan.`,
                   action: async () => {
                     setDemoResetting(true)
                     setDemoMsg(null)
                     try {
-                      await api.post('/admin/demo/reset', {})
-                      setDemoMsg({ type: 'success', text: 'Nodo demo reiniciado. Los datos se estan recreando.' })
+                      await api.post('/admin/demo/reset', { preset_id: demoPresetSel || 'gen_ecoaldea' })
+                      setDemoMsg({ type: 'success', text: 'Nodo demo reiniciado. Los datos se estan recreando con la preconfiguracion seleccionada.' })
                     } catch (e: any) {
                       setDemoMsg({ type: 'error', text: e?.message || 'Error al resetear nodo demo' })
                     } finally {

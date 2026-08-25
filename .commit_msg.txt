@@ -1,37 +1,47 @@
-fix: verificacion de actualizaciones no detectaba commits nuevos
+feat: preconfiguraciones de nodo + catalogo de 24 comunidades + capacidades nuevas
 
-PROBLEMA:
-El boton "Verificar actualizaciones" siempre decia "El nodo esta
-actualizado" incluso cuando habia commits nuevos en el repo.
-El usuario hizo git pull manual y descargo commits 9793a07..a5d38d8
-que la verificacion no habia detectado.
+Fase 1 - Catalogo de adaptaciones (SoftwareAdaptations.tsx):
+- 24 grupos productores con buscador y filtros por categoria
+- Adventistas, Amish, Hutteritas, Bruderhof, Cuakeros, Catholic Land,
+  Monasterios, Twelve Tribes, Baye Fall, Kibbutz, ISKCON, Plum Village,
+  Sikh, Bahai, Andinos, Mesoamericanos, Ubuntu, Findhorn, Ecoaldeas
+  espirituales, Wiccan/Druida, Transition Towns, GEN, Feria Conuquera
+  (referencia), Vacio
+- Cada grupo muestra funcionalidades existentes vs en desarrollo
+- Sin citas religiosas inventadas, solo referencias localizadas
 
-CAUSA:
-`git fetch origin main` actualiza FETCH_HEAD pero en algunas
-configuraciones de git NO actualiza refs/remotes/origin/main.
-Entonces `git log HEAD..origin/main` comparaba contra el ref viejo
-y no encontraba nada nuevo.
+Fase 2 - Sistema de preconfiguraciones (presets):
+- Migracion 109: tabla node_presets con 24 perfiles predefinidos
+- presets.go: listar, obtener y aplicar preconfiguraciones
+- API /api/presets para listar y /api/setup/apply-preset para aplicar
+- Demo seed lee DEMO_PRESET o .demo-shared/preset.txt
+- Selector de preset en NodeSettings para resetear demo con perfil
+- Paso de preconfiguracion en Setup.tsx (instalacion web)
+- Flag --preset en instalador CLI (cmd/install/main.go)
+- NODE_PRESET en .env para aplicacion automatica en nodo nuevo
+- Preset por defecto: gen_ecoaldea (demo) / vacio (instalacion)
 
-SOLUCION:
+Fase 3 - Capacidades nuevas:
+- Migracion 110: catalog_dietary_rules + catalog_labels + product_labels
+  Filtros eticos/dietarios/culturales por nodo (carne, alcohol, ajo, etc.)
+- Migracion 111: department_accounts + department_transactions + budgets
+  Contabilidad departamental para economias compartidas (hutteritas, etc.)
+- Migracion 112: community_work_sessions + tasks + participants + skills
+  Registro de cayapas/mingas con valoracion configurable
+- Migracion 113: parametros de traccion animal en calculadora
+  Bueyes, caballos, mulas, asnos + insumos (forraje, agua, sal)
+  Valores estimados configurables, no afirmaciones cientificas
 
-1. Backend checkUpdates():
-   - Cambio: `git fetch origin main` -> `git fetch origin --prune`
-     (fetch completo que actualiza TODOS los refs, no solo main)
-   - Fallback: si origin/main no encuentra commits nuevos, probar
-     con FETCH_HEAD como comparacion
-   - Nuevo: obtener commit remoto (origin/main) para mostrarlo
-   - Nuevo: enmascarar token en remote URL para debug
-   - Nuevo: incluir remote_url y fetch_output en la respuesta
+Fase 4 - UI de administracion:
+- NodeSettings: tabs Horarios, Reglas Catalogo, Trabajo Comunitario
+- Selector de preset para demo con descripcion de cada perfil
+- Endpoints nuevos accesibles via api.ts existente
 
-2. Frontend NodeSettings.tsx:
-   - Mostrar "Commit remoto" ademas de "Commit actual"
-     (si son diferentes, hay actualizacion)
-   - Mostrar remote URL y fetch output como info de debug
-   - Solo mostrar "El nodo esta actualizado" si NO hay error
-
-Resultado: Ahora la verificacion hace fetch completo de todos los
-refs y compara contra origin/main actualizado. Si por alguna razon
-origin/main no se actualiza, usa FETCH_HEAD como fallback.
+Seguridad:
+- No modifica Feria Conuquera (datos, horarios, productos, paginas)
+- Presets son opt-in, vacio disponible por defecto
+- Reglas de catalogo son nodo-especificas
+- Migraciones seguras con IF NOT EXISTS y ON CONFLICT DO NOTHING
 
 Generated with [Devin](https://devin.ai)
 

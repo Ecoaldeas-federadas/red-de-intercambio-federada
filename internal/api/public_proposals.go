@@ -584,13 +584,33 @@ func (h *PublicProposalsHandler) toggleDemoUser(w http.ResponseWriter, r *http.R
 
 // resetDemoNode resetea el nodo demo: detiene, borra y recrea el contenedor
 // con la imagen actualizada. Esto asegura que el demo siempre use el codigo mas reciente.
+// Acepta un body opcional { "preset_id": "adventista" } para elegir la preconfiguracion.
 func (h *PublicProposalsHandler) resetDemoNode(w http.ResponseWriter, r *http.Request) {
+	// Leer preset_id del body (opcional)
+	presetID := ""
+	if r.Body != nil {
+		var req struct {
+			PresetID string `json:"preset_id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err == nil && req.PresetID != "" {
+			presetID = req.PresetID
+		}
+	}
+
 	// 1. Detener y borrar el contenedor demo-app
 	exec.Command("docker", "stop", "red-de-intercambio-federada-demo-app-1").Run()
 	exec.Command("docker", "rm", "-f", "red-de-intercambio-federada-demo-app-1").Run()
 
 	// 2. Recrear con la imagen actualizada (sin dependencias para no tocar yugabytedb)
+	// Si se especifico preset, pasarlo como variable de entorno al contenedor demo
 	cmd := exec.Command("docker", "compose", "--profile", "demo", "up", "-d", "--no-deps", "--force-recreate", "demo-app")
+	if presetID != "" {
+		// Pasar DEMO_PRESET via -e al contenedor demo-app
+		// docker compose no permite -e facilmente, usamos --env-file temporal o
+		// mejor: escribir el preset en el archivo .demo-shared/preset.txt que el nodo lee al arrancar
+		os.MkdirAll("/app/.demo-shared", 0755)
+		os.WriteFile("/app/.demo-shared/preset.txt", []byte(presetID), 0644)
+	}
 	err := cmd.Run()
 	if err != nil {
 		writeError(w, 500, "no se pudo recrear el nodo demo: "+err.Error())
@@ -598,6 +618,7 @@ func (h *PublicProposalsHandler) resetDemoNode(w http.ResponseWriter, r *http.Re
 	}
 
 	writeJSON(w, 200, map[string]interface{}{
-		"message": "Nodo demo recreado con la ultima version. Los datos se estan regenerando.",
+		"message":   "Nodo demo recreado con la ultima version. Los datos se estan regenerando.",
+		"preset_id": presetID,
 	})
 }
