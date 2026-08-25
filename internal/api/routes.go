@@ -245,6 +245,18 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 	bioH := &BiodynamicHandler{Pool: pool, NodeDomain: h.nodeDomain}
 	bioH.RegisterRoutes(r, am)
 
+	// Seed bank: banco de semillas criollas (prestamo con retorno)
+	seedBankH := &SeedBankHandler{Pool: pool, NodeDomain: h.nodeDomain}
+	seedBankH.RegisterRoutes(r, am)
+
+	// Cayapa attendance: asistencia masiva via NFC/QR
+	cayapaH := &CayapaAttendanceHandler{Pool: pool, NodeDomain: h.nodeDomain}
+	cayapaH.RegisterRoutes(r, am)
+
+	// Acta PDF: export de actas de asamblea en PDF con hash
+	actaPDFH := &ActaPDFHandler{Pool: pool, NodeDomain: h.nodeDomain}
+	actaPDFH.RegisterRoutes(r, am)
+
 	// Departmental accounting: contabilidad por departamento/comision
 	deptAcctH := &DepartmentalAccountingHandler{Pool: pool, NodeDomain: h.nodeDomain}
 	deptAcctH.RegisterRoutes(r, am)

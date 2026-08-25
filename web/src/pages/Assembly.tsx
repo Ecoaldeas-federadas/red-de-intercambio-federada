@@ -1821,6 +1821,16 @@ export default function Assembly() {
                   )}
                   <div className="flex gap-2 justify-end">
                     <button onClick={() => setSelectedSessionForMinutes(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cerrar</button>
+                    {selectedSessionForMinutes && sessions.find(s => s.id === selectedSessionForMinutes)?.status === 'completed' && (
+                      <a
+                        href={`${(window as any).__BASE_PATH__ ? (window as any).__BASE_PATH__ + '/api' : '/api'}/assembly/sessions/${selectedSessionForMinutes}/acta-pdf`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                      >
+                        <FileText size={16} /> Descargar Acta PDF
+                      </a>
+                    )}
                     {minutesEditMode ? (
                       <>
                         <button onClick={() => { setMinutesEditMode(false) }} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar edicion</button>

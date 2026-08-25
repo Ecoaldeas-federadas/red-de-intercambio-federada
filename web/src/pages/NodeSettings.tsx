@@ -2,7 +2,7 @@
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
-import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon, Vote as VoteIcon, Database, Download, Upload, AlertTriangle, RefreshCw, Globe, Lock, Unlock, Trash2, FileText, Server, HardDrive, CheckCircle, Info, X, Power, Play, Square, Sparkles, Clock, Shield, Scale, Flower } from 'lucide-react'
+import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon, Vote as VoteIcon, Database, Download, Upload, AlertTriangle, RefreshCw, Globe, Lock, Unlock, Trash2, FileText, Server, HardDrive, CheckCircle, Info, X, Power, Play, Square, Sparkles, Clock, Shield, Scale, Flower, Sprout } from 'lucide-react'
 
 // Opciones del 1 al 10 para el numero de nivel (seleccionable, no texto libre)
 const LEVEL_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1)
@@ -26,7 +26,7 @@ export default function NodeSettings() {
 
   const [searchParams, setSearchParams] = useSearchParams()
   const initialTab = (searchParams.get('tab') as any) || 'general'
-  const [tab, setTab] = useState<'general' | 'levels' | 'org_levels' | 'tariff' | 'commerce' | 'catalog' | 'orgs' | 'work' | 'frne' | 'biodynamic' | 'pages' | 'backup' | 'database' | 'demo'>(initialTab)
+  const [tab, setTab] = useState<'general' | 'levels' | 'org_levels' | 'tariff' | 'commerce' | 'catalog' | 'orgs' | 'work' | 'seeds' | 'cayapa' | 'frne' | 'biodynamic' | 'pages' | 'backup' | 'database' | 'demo'>(initialTab)
   const [clusterStatus, setClusterStatus] = useState<any>(null)
   const [clusterChecking, setClusterChecking] = useState(false)
   const [clusterConfig, setClusterConfig] = useState<any>(null)
@@ -87,6 +87,17 @@ export default function NodeSettings() {
   const [pageSettings, setPageSettings] = useState<any>(null)
   const [pageSettingsLoading, setPageSettingsLoading] = useState(false)
   const [pageMsg, setPageMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+
+  // Banco de semillas
+  const [seedLoans, setSeedLoans] = useState<any[]>([])
+  const [seedLoansLoading, setSeedLoansLoading] = useState(false)
+  const [seedMsg, setSeedMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  const [newSeedLoan, setNewSeedLoan] = useState({ seed_name: '', quantity_borrowed: 0, unit: 'sobres', return_percentage: 20, due_date: '', notes: '' })
+
+  // Cayapa attendance config
+  const [attConfig, setAttConfig] = useState<any>(null)
+  const [attConfigLoading, setAttConfigLoading] = useState(false)
+  const [attMsg, setAttMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
   // Backup
   const [backupLoading, setBackupLoading] = useState(false)
@@ -251,6 +262,32 @@ export default function NodeSettings() {
     }
   }
 
+  // Cargar prestamos de semillas
+  const loadSeedLoans = async () => {
+    setSeedLoansLoading(true)
+    try {
+      const data = await api.get<{ loans: any[] }>('/seeds/loans')
+      setSeedLoans(data.loans || [])
+    } catch (e) {
+      // silencioso
+    } finally {
+      setSeedLoansLoading(false)
+    }
+  }
+
+  // Cargar config de asistencia
+  const loadAttConfig = async () => {
+    setAttConfigLoading(true)
+    try {
+      const data = await api.get<any>('/attendance/config')
+      setAttConfig(data)
+    } catch (e) {
+      // silencioso
+    } finally {
+      setAttConfigLoading(false)
+    }
+  }
+
   // Cargar backups automaticos y nodos YugabyteDB cuando se abren esos tabs
   const loadAutoBackups = async () => {
     try {
@@ -342,6 +379,8 @@ export default function NodeSettings() {
     if (tab === 'frne') { loadFrneRequests() }
     if (tab === 'biodynamic') { loadBioConfig() }
     if (tab === 'pages') { loadPageSettings() }
+    if (tab === 'seeds') { loadSeedLoans() }
+    if (tab === 'cayapa') { loadAttConfig() }
   }, [tab])
 
   // Verificar permisos de Asamblea para cada tipo de cambio
@@ -569,6 +608,8 @@ export default function NodeSettings() {
         <button onClick={() => changeTab('catalog')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'catalog' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Reglas Catalogo</button>
         <button onClick={() => changeTab('orgs')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'orgs' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Building2 size={14} className="inline mr-1" />Orgs y Religion</button>
         <button onClick={() => changeTab('work')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'work' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Trabajo Comunitario</button>
+        <button onClick={() => changeTab('seeds')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'seeds' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Banco Semillas</button>
+        <button onClick={() => changeTab('cayapa')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'cayapa' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Asistencia Cayapa</button>
         <button onClick={() => changeTab('frne')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'frne' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>FRNE</button>
         <button onClick={() => changeTab('biodynamic')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'biodynamic' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Biodinamica</button>
         <button onClick={() => changeTab('pages')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'pages' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Paginas Publicas</button>
@@ -1383,6 +1424,174 @@ export default function NodeSettings() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ===== BANCO DE SEMILLAS ===== */}
+      {tab === 'seeds' && (
+        <div className="card space-y-6">
+          <h2 className="font-semibold flex items-center gap-2"><Sprout size={18} />Banco de Semillas Criollas</h2>
+          <p className="text-sm text-gray-600">
+            El banco de semillas funciona con prestamo y devolucion: el agricultor retira semillas,
+            las siembra, y al cosechar devuelve la misma cantidad mas un porcentaje adicional
+            (ej: 20% mas) para que el banco crezca comunitariamente.
+          </p>
+
+          {/* Formulario nuevo prestamo */}
+          <div className="space-y-3 border rounded-lg p-4 bg-gray-50">
+            <h3 className="font-medium text-sm">Nuevo prestamo de semillas</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <input type="text" className="input" placeholder="Nombre semilla (ej: Maiz cariaco)"
+                value={newSeedLoan.seed_name} onChange={(e) => setNewSeedLoan({ ...newSeedLoan, seed_name: e.target.value })} />
+              <input type="number" className="input" placeholder="Cantidad" step="0.01"
+                value={newSeedLoan.quantity_borrowed || ''} onChange={(e) => setNewSeedLoan({ ...newSeedLoan, quantity_borrowed: parseFloat(e.target.value) || 0 })} />
+              <select className="input" value={newSeedLoan.unit} onChange={(e) => setNewSeedLoan({ ...newSeedLoan, unit: e.target.value })}>
+                <option value="sobres">Sobres</option>
+                <option value="kg">Kg</option>
+                <option value="gramos">Gramos</option>
+                <option value="unidades">Unidades</option>
+              </select>
+              <input type="number" className="input" placeholder="% retorno (ej: 20)" step="0.1"
+                value={newSeedLoan.return_percentage || ''} onChange={(e) => setNewSeedLoan({ ...newSeedLoan, return_percentage: parseFloat(e.target.value) || 20 })} />
+              <input type="date" className="input" value={newSeedLoan.due_date} onChange={(e) => setNewSeedLoan({ ...newSeedLoan, due_date: e.target.value })} />
+              <input type="text" className="input" placeholder="Notas (opcional)"
+                value={newSeedLoan.notes} onChange={(e) => setNewSeedLoan({ ...newSeedLoan, notes: e.target.value })} />
+            </div>
+            <button onClick={async () => {
+              if (!newSeedLoan.seed_name.trim() || newSeedLoan.quantity_borrowed <= 0) {
+                setSeedMsg({ type: 'error', text: 'Nombre y cantidad son obligatorios' }); return
+              }
+              try {
+                await api.post('/seeds/loan', newSeedLoan)
+                setSeedMsg({ type: 'success', text: 'Prestamo registrado' })
+                setNewSeedLoan({ seed_name: '', quantity_borrowed: 0, unit: 'sobres', return_percentage: 20, due_date: '', notes: '' })
+                loadSeedLoans()
+              } catch (e: any) { setSeedMsg({ type: 'error', text: e?.message || 'Error' }) }
+            }} className="btn-primary text-sm flex items-center gap-2"><Plus size={16} /> Registrar prestamo</button>
+            {seedMsg && <div className={`text-xs p-2 rounded-lg ${seedMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{seedMsg.text}</div>}
+          </div>
+
+          {/* Lista de prestamos */}
+          {seedLoansLoading && <p className="text-sm text-gray-500">Cargando...</p>}
+          {!seedLoansLoading && seedLoans.length === 0 && <p className="text-sm text-gray-500">No hay prestamos registrados.</p>}
+          {seedLoans.length > 0 && (
+            <div className="space-y-2">
+              {seedLoans.map((loan: any) => (
+                <div key={loan.id} className="border rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-medium text-sm">{loan.seed_name}</span>
+                      <span className="ml-2 text-xs text-gray-500">{loan.quantity_borrowed} {loan.unit}</span>
+                      <span className={`ml-2 text-xs px-2 py-0.5 rounded ${
+                        loan.status === 'returned' ? 'bg-green-100 text-green-700' :
+                        loan.status === 'overdue' ? 'bg-red-100 text-red-700' :
+                        loan.status === 'defaulted' ? 'bg-gray-100 text-gray-700' :
+                        'bg-yellow-100 text-yellow-700'
+                      }`}>{loan.status}</span>
+                    </div>
+                    <span className="text-xs text-gray-500">{loan.display_name || loan.username}</span>
+                  </div>
+                  <div className="text-xs text-gray-600 mt-2 grid grid-cols-3 gap-2">
+                    <div>Prestado: {loan.quantity_borrowed} {loan.unit}</div>
+                    <div>Devuelto: {loan.returned_qty || 0} {loan.unit}</div>
+                    <div className="font-medium text-green-700">Esperado: {loan.expected_return} {loan.unit} ({loan.return_percentage}% mas)</div>
+                  </div>
+                  {loan.status === 'active' && canManage && (
+                    <div className="mt-2 flex gap-2">
+                      <input type="number" placeholder="Cantidad a devolver" step="0.01" className="input text-xs flex-1" id={`return-${loan.id}`} />
+                      <button onClick={async () => {
+                        const qty = parseFloat((document.getElementById(`return-${loan.id}`) as HTMLInputElement)?.value || '0')
+                        if (qty <= 0) return
+                        try {
+                          const res = await api.post(`/seeds/loans/${loan.id}/return`, { quantity_returned: qty })
+                          setSeedMsg({ type: 'success', text: res.message || 'Devolucion registrada' })
+                          loadSeedLoans()
+                        } catch (e: any) { setSeedMsg({ type: 'error', text: e?.message || 'Error' }) }
+                      }} className="px-3 py-1 bg-green-600 text-white rounded text-xs">Registrar devolucion</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== ASISTENCIA CAYAPA (NFC/QR) ===== */}
+      {tab === 'cayapa' && (
+        <div className="card space-y-6">
+          <h2 className="font-semibold flex items-center gap-2"><UsersIcon size={18} />Asistencia a Cayapas (NFC/QR)</h2>
+          <p className="text-sm text-gray-600">
+            Configura como se registra la asistencia a las cayapas (jornadas de trabajo comunitario).
+            Puedes usar NFC (tarjetas criptograficas), codigo QR (alternativa sin NFC), o ambos.
+            Cuando tengas NFC disponible, puedes desactivar el QR.
+          </p>
+
+          {attConfigLoading && <p className="text-sm text-gray-500">Cargando...</p>}
+          {!attConfigLoading && attConfig && (
+            <div className="space-y-3 border rounded-lg p-4 bg-gray-50">
+              <h3 className="font-medium text-sm">Configuracion de asistencia</h3>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={attConfig.nfc_enabled !== false}
+                  onChange={async (e) => {
+                    const newCfg = { ...attConfig, nfc_enabled: e.target.checked }
+                    setAttConfig(newCfg)
+                    try { await api.post('/attendance/config', newCfg); setAttMsg({ type: 'success', text: 'Guardado' }) }
+                    catch (e: any) { setAttMsg({ type: 'error', text: e?.message || 'Error' }) }
+                  }} />
+                NFC habilitado (tarjetas criptograficas)
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={attConfig.qr_enabled !== false}
+                  onChange={async (e) => {
+                    const newCfg = { ...attConfig, qr_enabled: e.target.checked }
+                    setAttConfig(newCfg)
+                    try { await api.post('/attendance/config', newCfg); setAttMsg({ type: 'success', text: 'Guardado' }) }
+                    catch (e: any) { setAttMsg({ type: 'error', text: e?.message || 'Error' }) }
+                  }} />
+                Codigo QR habilitado (alternativa sin NFC)
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={attConfig.require_check_out === true}
+                  onChange={async (e) => {
+                    const newCfg = { ...attConfig, require_check_out: e.target.checked }
+                    setAttConfig(newCfg)
+                    try { await api.post('/attendance/config', newCfg); setAttMsg({ type: 'success', text: 'Guardado' }) }
+                    catch (e: any) { setAttMsg({ type: 'error', text: e?.message || 'Error' }) }
+                  }} />
+                Requiere check-out (no solo check-in)
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={attConfig.auto_credit_on_close !== false}
+                  onChange={async (e) => {
+                    const newCfg = { ...attConfig, auto_credit_on_close: e.target.checked }
+                    setAttConfig(newCfg)
+                    try { await api.post('/attendance/config', newCfg); setAttMsg({ type: 'success', text: 'Guardado' }) }
+                    catch (e: any) { setAttMsg({ type: 'error', text: e?.message || 'Error' }) }
+                  }} />
+                Acreditar TQ automaticamente al cerrar la cayapa
+              </label>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Factor de esfuerzo agricola</label>
+                <input type="number" className="input" step="0.1" placeholder="1.0 (normal), 1.3 (30% mas por trabajo fisico)"
+                  value={attConfig.effort_factor || 1.0}
+                  onChange={(e) => setAttConfig({ ...attConfig, effort_factor: parseFloat(e.target.value) || 1.0 })} />
+                <p className="text-xs text-gray-500">Ej: 1.3 = 30% mas TQ por trabajo fisico agrícola</p>
+              </div>
+              <button onClick={async () => {
+                try { await api.post('/attendance/config', attConfig); setAttMsg({ type: 'success', text: 'Configuracion guardada' }) }
+                catch (e: any) { setAttMsg({ type: 'error', text: e?.message || 'Error' }) }
+              }} className="btn-primary text-sm">Guardar configuracion</button>
+            </div>
+          )}
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+            <Info size={16} className="inline mr-1" />
+            Como funciona: El coordinador abre el check-in desde la app. Los participantes se registran
+            acercando su tarjeta NFC o mostrando su codigo QR al encargado. Al cerrar la cayapa,
+            el sistema calcula las horas y acredita TQ automaticamente con el factor de esfuerzo.
+          </div>
+          {attMsg && <div className={`text-xs p-2 rounded-lg ${attMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{attMsg.text}</div>}
         </div>
       )}
 

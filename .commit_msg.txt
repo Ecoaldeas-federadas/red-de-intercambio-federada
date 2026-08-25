@@ -1,32 +1,50 @@
-feat: FRNE + calendario biodinamico + toggle pagina adaptaciones
+feat: banco de semillas + asistencia cayapa NFC/QR + actas PDF + comisiones Feria Conuquera
 
-3 funcionalidades que faltaban, ahora implementadas:
+Adaptaciones especificas para la Feria Conuquera de Caracas (Parque Los Caobos):
 
-1. FRNE - Salida Justa al Retirarse (migracion 116 + frne.go)
-   - Modulo de liquidacion para socios que se retiran de la comunidad
-   - Total a pagar = aporte original + mejoras (no especulativo)
-   - Metodos: pago unico, cuotas, o transferir a nuevo socio
-   - Aprobacion por asamblea
-   - Tab "FRNE" en NodeSettings con lista de solicitudes
-   - Endpoints: GET/POST /api/frne/requests, approve, pay-installment
-   - Marcado como 'exists' en SoftwareAdaptations.tsx
+1. BANCO DE SEMILLAS CRIOLLAS (migracion 117 + seed_bank.go)
+   - Prestamo con retorno fisico: el agricultor retira semillas,
+     las siembra, y devuelve la misma cantidad + porcentaje adicional
+   - Ej: retirar 10 sobres, devolver 12 (20% mas) para que el banco crezca
+   - Tablas: seed_loans + seed_returns (devoluciones parciales)
+   - Endpoints: /api/seeds/loans, /api/seeds/loan, /api/seeds/loans/{id}/return
+   - Inventario del banco: /api/seeds/inventory
+   - Tab "Banco Semillas" en NodeSettings con formulario y lista
 
-2. Calendario Biodinamico (migracion 116 + biodynamic.go)
-   - Planificacion agricola segun Rudolf Steiner
-   - Dias de raiz, flor, hoja, fruto segun constelaciones
-   - Dias nodo (no trabajar la tierra)
-   - Configurable por nodo, visible en pagina publica si se activa
-   - Tab "Biodinamica" en NodeSettings con config y calendario
-   - Endpoints: GET/POST /api/biodynamic/calendar, /api/biodynamic/config
-   - Marcado como 'exists' en SoftwareAdaptations.tsx (Camphill)
+2. ASISTENCIA A CAYAPAS VIA NFC/QR (migracion 117 + cayapa_attendance.go)
+   - El coordinador abre el check-in desde la app
+   - Los participantes se registran con NFC (tarjeta criptografica)
+     o QR (el encargado escanea el QR del participante)
+   - Check-in y check-out con calculo automatico de horas
+   - Al cerrar la cayapa: acredita TQ con factor de esfuerzo agricola
+   - Toggle QR/NFC: cuando hay NFC, se puede desactivar QR
+   - Tabla: cayapa_attendance + attendance_config
+   - Endpoints: /api/community-work/sessions/{id}/check-in/open,
+     /attend, /attend/qr, /checkout, /close-cayapa
+   - Config: /api/attendance/config (qr_enabled, nfc_enabled, effort_factor)
+   - Tab "Asistencia Cayapa" en NodeSettings con configuracion
 
-3. Toggle pagina de adaptaciones (migracion 116 + biodynamic.go)
-   - Cada nodo puede activar/desactivar /p/adaptaciones
-   - Tab "Paginas Publicas" en NodeSettings con checkbox
-   - SoftwareAdaptations.tsx verifica el toggle antes de mostrar
-   - Si esta desactivada, muestra "Pagina no disponible"
-   - Por defecto activa (no rompe nodos existentes)
-   - Endpoints: GET/POST /api/public-pages/settings
+3. ACTAS DE ASAMBLEA EN PDF (acta_pdf.go + gofpdf)
+   - Export de actas en PDF con folio, asistentes, propuestas, votaciones
+   - Hash criptografico de auditoria al final del PDF
+   - Para validez legal ante registradores civiles en Venezuela
+   - Endpoint: GET /api/assembly/sessions/{id}/acta-pdf
+   - Boton "Descargar Acta PDF" en Assembly.tsx (sesiones completadas)
+
+4. COMISIONES DE LA FERIA CONUQUERA (migracion 117 seed data)
+   - 5 comisiones reales creadas automaticamente:
+     * Comision de Logistica (montaje, transporte, Los Caobos)
+     * Comision de Comunicacion (redes, prensa)
+     * Comision de Bioinsumos (calidad agroecologica, banco semillas)
+     * Comision de Cultura (musica, tarima, tradiciones)
+     * Comision de Articulacion (Pueblo a Pueblo, Cecosesola)
+   - Creadas como group_type='committee' en departments
+   - No sobreescribe comisiones existentes
+
+NO se implementa POS dual (el usuario confirmo que no es necesario):
+- Las ventas al publico se hacen con puntos de venta externos
+- La plataforma no se conecta a bancos reales
+- El comercio externo es solo metrica informativa
 
 Generated with [Devin](https://devin.ai)
 
