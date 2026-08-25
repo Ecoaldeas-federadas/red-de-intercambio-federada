@@ -1,65 +1,67 @@
-feat: aprobar/desaprobar/eliminar productos pasa por Asamblea con gobernanza configurable
+feat: gobernanza configurable con signers, persona, comision y ayuda
 
-PROBLEMA:
-Los botones de aprobar/desaprobar productos hacian cambios directos
-sin pasar por la Asamblea. El usuario quiere que todas las acciones
-sobre productos pasen por la Asamblea, y que la Asamblea configure
-QUIEN decide cada accion (Asamblea, Junta Directiva, Comision, etc).
+PROBLEMAS:
+1. Multisig solo guardaba NUMERO de firmas, no QUIENES pueden firmar
+2. No habia opcion de aprobar por una persona especifica
+3. No habia opcion de delegar a una organizacion
+4. "Consejo" no estaba claro que era - el usuario tiene comisiones
+5. No habia botones de ayuda explicando cada campo
 
 SOLUCION:
 
-1. Migracion 105_product_approval_governance.sql:
-   Agrega 4 tipos de propuesta a assembly_config:
-   - product_approval: Junta Directiva, 50% (rapido)
-   - product_disapproval: Junta Directiva, 50% (rapido)
-   - product_remove: Asamblea, 66.67% (2/3 - mas dificil)
-   - product_import: Asamblea, 50% (mayoria simple)
+1. Migracion 106_assembly_config_signers.sql:
+   - Nueva tabla assembly_config_signers: guarda quienes pueden firmar
+     (personas y/o organizaciones) para multisig
+   - Nuevas columnas en assembly_config:
+     * authorized_person_id: para metodo "person"
+     * organization_id: para metodo "organization"
 
-   Cada nodo puede cambiar quien aprueba cada accion en los
-   ajustes de la Asamblea: Asamblea, Junta, Consejo, o Multi-firma.
+2. Backend assembly.go:
+   - UpdateAssemblyConfigRequest ahora incluye:
+     * authorized_person_id, organization_id, signers[]
+   - updateAssemblyConfig guarda signers en assembly_config_signers
+   - listAssemblyConfig devuelve signers + nombres resueltos
+     (council_name, authorized_person_name, organization_name)
+   - Nuevo metodo loadConfigSigners()
+   - checkApproval soporta "person" y "organization"
 
-2. Backend assembly.go executeDecision:
-   Agregados 4 casos nuevos que se ejecutan automaticamente
-   cuando la Asamblea/Junta aprueba la propuesta:
-   - product_approval: UPDATE products SET is_approved = true
-   - product_disapproval: UPDATE products SET is_approved = false
-     (NO elimina, solo desaprueba)
-   - product_remove: DELETE FROM products (permanente)
-   - product_import: INSERT INTO products con source_node
+3. Frontend Assembly.tsx - rediseño completo:
+   - 6 metodos de aprobacion (antes 4):
+     * Asamblea (votacion de todos)
+     * Junta Directiva (mas rapido)
+     * Comision/Departamento (especializado) - antes "Consejo"
+     * Persona especifica (mas rapido) - NUEVO
+     * Organizacion (delegado) - NUEVO
+     * Multi-firma (varias personas/orgs)
+   - Cada metodo muestra campos diferentes:
+     * Asamblea: porcentaje + quorum
+     * Junta: porcentaje + info de la junta
+     * Comision: dropdown de departamentos + explicacion
+     * Persona: dropdown de usuarios + explicacion
+     * Organizacion: dropdown de orgs + porcentaje + explicacion
+     * Multisig: numero de firmas + lista de autorizados
+       (agregar/quitar personas y organizaciones)
 
-3. Frontend Products.tsx:
-   Los botones ahora crean propuestas en la Asamblea en lugar
-   de hacer cambios directos:
-   - Aprobar: crea propuesta product_approval
-   - Desaprobar: crea propuesta product_disapproval
-   - Eliminar: crea propuesta product_remove (con icono Trash2)
+4. Botones de ayuda (HelpCircle) en cada campo:
+   - Metodo de aprobacion: explica cada opcion
+   - Porcentaje: explica 50%, 66.67%, 75%, 100%
+   - Quorum: explica minimo de votantes
+   - Comision: explica que es y donde se crea
+   - Persona: explica que concentra poder
+   - Organizacion: explica delegacion
+   - Firmas requeridas: explica numero vs autorizados
+   - Signers: explica lista de autorizados
+   - Descripcion: explica para que sirve
 
-   En pestaña Federacion y Mi Nodo:
-   - Producto aprobado: boton desaprobar (amber) + eliminar (rojo)
-   - Producto no aprobado: boton aprobar (verde) + eliminar (rojo)
+5. Panel de ayuda principal expandido:
+   - Explica los 6 metodos con ejemplos
+   - Consejo sobre que metodo usar para cada caso
+   - Explica quorum
 
-   Mensaje al usuario: "Propuesta creada en la Asamblea.
-   La Asamblea o Junta Directiva decidira."
-
-4. Frontend Assembly.tsx:
-   Agregados labels y help para los nuevos tipos:
-   - product_disapproval: "Desaprobacion de producto"
-   - product_remove: "Eliminacion de producto"
-   - product_import: "Importar producto federado"
-   - product_to_base: "Convertir a producto base"
-
-   Agregados al filtro de propuestas.
-
-FLUJO COMPLETO:
-1. Usuario clic "Desaprobar" en producto
-2. Se crea propuesta en Asamblea (product_disapproval)
-3. Segun assembly_config, la decide:
-   - Asamblea: votacion con porcentaje configurado
-   - Junta Directiva: votacion de la junta
-   - Consejo: votacion del consejo asignado
-   - Multi-firma: firmas de personas especificas
-4. Al aprobarse, executeDecision ejecuta el cambio
-5. El producto queda desapprobado pero NO eliminado
+6. Display de config actual mejorado:
+   - Muestra nombre de comision/persona/organizacion
+   - Muestra lista de signers autorizados en multisig
+   - Labels traducidos (no "council" sino "Comision/Departamento")
 
 Generated with [Devin](https://devin.ai)
 

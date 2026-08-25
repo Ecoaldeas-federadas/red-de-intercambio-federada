@@ -374,6 +374,11 @@ export default function Assembly() {
   const [taxAccount, setTaxAccount] = useState<any>(null)
   const [assemblyConfigs, setAssemblyConfigs] = useState<any[]>([])
   const [editingConfig, setEditingConfig] = useState<any>(null)
+  const [departments, setDepartments] = useState<any[]>([])
+  const [orgList, setOrgList] = useState<any[]>([])
+  const [userList, setUserList] = useState<any[]>([])
+  const [newSignerType, setNewSignerType] = useState<'person' | 'organization'>('person')
+  const [newSignerId, setNewSignerId] = useState('')
   const [fundData, setFundData] = useState<any>(null)
   const [fundTxs, setFundTxs] = useState<any[]>([])
 
@@ -433,6 +438,9 @@ export default function Assembly() {
     api.get('/tax/config').then(setTaxConfig).catch(() => {})
     api.get('/tax/account').then(setTaxAccount).catch(() => {})
     api.get('/assembly/config').then((d: any) => setAssemblyConfigs(Array.isArray(d) ? d : [])).catch(() => {})
+    api.get('/departments').then((d: any) => setDepartments(Array.isArray(d) ? d : [])).catch(() => {})
+    api.get('/organizations').then((d: any) => setOrgList(Array.isArray(d) ? d : [])).catch(() => {})
+    api.get('/users').then((d: any) => { const arr = Array.isArray(d) ? d : (d?.users ?? d?.members ?? []); setUserList(arr) }).catch(() => {})
   }
 
   const loadSessions = () => {
@@ -2125,15 +2133,19 @@ export default function Assembly() {
           <h3 className="font-semibold flex items-center gap-2 mt-6"><Shield size={18} />Configuracion de Aprobaciones</h3>
 
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
-            <p><strong>Configuracion de Aprobaciones - Ayuda</strong></p>
-            <p>Aqui se define como se aprueba cada tipo de decision de la comunidad. Cada tipo de propuesta puede tener un metodo de aprobacion diferente:</p>
+            <p><strong>Como funciona la configuracion de aprobaciones</strong></p>
+            <p>Aqui se define <b>quien aprueba</b> cada tipo de decision de la comunidad. Cada tipo de propuesta puede tener un metodo de aprobacion diferente. Por ejemplo, puedes configurar que aprobar productos lo decida la Junta Directiva rapidamente, pero eliminar productos requiera votacion de toda la Asamblea con 2/3 de mayoria.</p>
+            <p><strong>Metodos de aprobacion disponibles:</strong></p>
             <ul className="list-disc list-inside space-y-1">
-              <li><b>Asamblea</b>: Los miembros votan. Se aprueba si el porcentaje de votos a favor supera el umbral configurado (ej: 50% = mayoria simple, 66.67% = 2/3).</li>
-              <li><b>Junta Directiva</b>: La junta directiva del nodo decide.</li>
-              <li><b>Consejo</b>: Un consejo especifico decide (selecciona cual).</li>
-              <li><b>Multi-firma</b>: Personas especificas deben firmar. Se aprueba cuando se alcanza el numero de firmas requeridas.</li>
+              <li><b>Asamblea (votacion)</b>: Todos los miembros con derecho a voto votan a favor o en contra. Se aprueba si el porcentaje de votos a favor supera el umbral. Ej: 50% = mayoria simple, 66.67% = 2/3, 75% = 3/4, 100% = unanimidad.</li>
+              <li><b>Junta Directiva</b>: Solo los miembros de la junta directiva del nodo votan. Mas rapido que la Asamblea completa. Ideal para decisiones administrativas del dia a dia.</li>
+              <li><b>Comision/Departamento</b>: Una comision o departamento especifico decide. Selecciona cual comision. Las comisiones se crean en la seccion de Departamentos. Ideal para decisiones tecnicas que requieren conocimiento especializado.</li>
+              <li><b>Persona especifica</b>: Una sola persona autorizada aprueba. Util para decisiones rutinarias que no requieren debate. Selecciona quien es la persona autorizada.</li>
+              <li><b>Organizacion</b>: Delega la aprobacion a una organizacion (cooperativa, comite, etc). La organizacion tendra sus propios ajustes internos para decidir quien firma por ella.</li>
+              <li><b>Multi-firma</b>: Varias personas u organizaciones especificas deben firmar. Se aprueba cuando se alcanza el numero de firmas requerido. Selecciona exactamente QUIENES pueden firmar (personas y/o organizaciones).</li>
             </ul>
             <p>El <b>quorum</b> es el numero minimo de miembros que deben votar para que la decision sea valida. Si es 0, no hay minimo.</p>
+            <p><strong>Consejo sobre que metodo usar:</strong> Para cosas rutinarias (aprobar/desaprobar productos) usa Junta Directiva o Persona especifica. Para cosas graves (eliminar productos, expulsar miembros, cambiar impuestos) usa Asamblea con umbral alto (66.67% o mas).</p>
           </div>
 
           {assemblyConfigs.length === 0 ? (
@@ -2142,23 +2154,49 @@ export default function Assembly() {
             </div>
           ) : (
             <div className="space-y-2">
-              {assemblyConfigs.map((cfg: any) => (
+              {assemblyConfigs.map((cfg: any) => {
+                const methodLabels: Record<string, string> = {
+                  assembly: 'Asamblea',
+                  board: 'Junta Directiva',
+                  council: 'Comision/Departamento',
+                  multisig: 'Multi-firma',
+                  person: 'Persona especifica',
+                  organization: 'Organizacion',
+                }
+                const methodLabel = methodLabels[cfg.approval_method] || cfg.approval_method
+                return (
                 <div key={cfg.id} className="card">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <b className="text-sm">{PROPOSAL_LABELS[cfg.proposal_type as ProposalType] || cfg.proposal_type}</b>
-                        <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">{cfg.approval_method}</span>
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{methodLabel}</span>
                       </div>
                       {cfg.description && <p className="text-xs text-gray-500 mt-1">{cfg.description}</p>}
-                      <div className="flex gap-4 mt-2 text-xs text-gray-600">
-                        <span>Porcentaje: <b>{cfg.required_percentage}%</b></span>
-                        <span>Quorum: <b>{cfg.required_quorum}</b></span>
-                        {cfg.approval_method === 'multisig' && <span>Firmas: <b>{cfg.required_signatures}</b></span>}
+                      <div className="flex gap-4 mt-2 text-xs text-gray-600 flex-wrap">
+                        {(cfg.approval_method === 'assembly' || cfg.approval_method === 'board' || cfg.approval_method === 'organization') && (
+                          <span>Porcentaje: <b>{cfg.required_percentage}%</b></span>
+                        )}
+                        {(cfg.approval_method === 'assembly' || cfg.approval_method === 'board' || cfg.approval_method === 'organization') && (
+                          <span>Quorum: <b>{cfg.required_quorum}</b></span>
+                        )}
+                        {cfg.approval_method === 'multisig' && <span>Firmas requeridas: <b>{cfg.required_signatures}</b></span>}
+                        {cfg.approval_method === 'council' && cfg.council_name && (
+                          <span>Comision: <b>{cfg.council_name}</b></span>
+                        )}
+                        {cfg.approval_method === 'person' && cfg.authorized_person_name && (
+                          <span>Persona: <b>{cfg.authorized_person_name}</b></span>
+                        )}
+                        {cfg.approval_method === 'organization' && cfg.organization_name && (
+                          <span>Organizacion: <b>{cfg.organization_name}</b></span>
+                        )}
+                        {cfg.approval_method === 'multisig' && cfg.signers && cfg.signers.length > 0 && (
+                          <span>Autorizados: <b>{cfg.signers.map((s: any) => s.user_name || s.org_name).join(', ')}</b></span>
+                        )}
                       </div>
                     </div>
                     <button
-                      onClick={() => setEditingConfig(editingConfig?.id === cfg.id ? null : cfg)}
+                      onClick={() => setEditingConfig(editingConfig?.id === cfg.id ? null : { ...cfg, signers: cfg.signers || [] })}
                       className="text-blue-500 hover:bg-blue-50 p-2 rounded text-sm"
                     >
                       Editar
@@ -2166,23 +2204,46 @@ export default function Assembly() {
                   </div>
                   {editingConfig?.id === cfg.id && (
                     <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
+                      {/* Metodo de aprobacion con ayuda */}
                       <div>
-                        <label className="label">Metodo de aprobacion</label>
+                        <label className="label flex items-center gap-1">
+                          Metodo de aprobacion
+                          <span className="text-blue-500 cursor-help" title="Define quien toma la decision para este tipo de propuesta. Cada metodo tiene diferentes caracteristicas de velocidad y seguridad.">
+                            <HelpCircle size={14} />
+                          </span>
+                        </label>
                         <select
                           className="input"
                           value={editingConfig.approval_method}
                           onChange={(e) => setEditingConfig({ ...editingConfig, approval_method: e.target.value })}
                         >
-                          <option value="assembly">Asamblea (votacion)</option>
-                          <option value="board">Junta Directiva</option>
-                          <option value="council">Consejo</option>
-                          <option value="multisig">Multi-firma</option>
+                          <option value="assembly">Asamblea (votacion de todos)</option>
+                          <option value="board">Junta Directiva (mas rapido)</option>
+                          <option value="council">Comision/Departamento (especializado)</option>
+                          <option value="person">Persona especifica (mas rapido)</option>
+                          <option value="organization">Organizacion (delegado)</option>
+                          <option value="multisig">Multi-firma (varias personas/orgs)</option>
                         </select>
+                        <div className="text-xs text-gray-500 mt-1 bg-blue-50 p-2 rounded">
+                          {editingConfig.approval_method === 'assembly' && 'Asamblea: Todos los miembros con derecho a voto votan. Es el metodo mas democratico pero el mas lento. Ideal para decisiones graves como cambiar impuestos o expulsar miembros.'}
+                          {editingConfig.approval_method === 'board' && 'Junta Directiva: Solo los miembros de la junta directiva votan. Mas rapido que la asamblea. Ideal para decisiones administrativas del dia a dia como aprobar productos.'}
+                          {editingConfig.approval_method === 'council' && 'Comision/Departamento: Una comision o departamento especifico decide. Ideal para decisiones tecnicas que requieren conocimiento especializado. Selecciona cual comision abajo.'}
+                          {editingConfig.approval_method === 'person' && 'Persona especifica: Una sola persona autorizada aprueba. Es el metodo mas rapido. Ideal para decisiones rutinarias. Selecciona quien es la persona abajo.'}
+                          {editingConfig.approval_method === 'organization' && 'Organizacion: Delega la aprobacion a una organizacion (cooperativa, comite). La organizacion tendra sus propios ajustes internos para decidir quien firma por ella.'}
+                          {editingConfig.approval_method === 'multisig' && 'Multi-firma: Varias personas u organizaciones especificas deben firmar. Se aprueba cuando se alcanza el numero de firmas requerido. Selecciona quienes pueden firmar abajo.'}
+                        </div>
                       </div>
+
+                      {/* Campos para Asamblea */}
                       {editingConfig.approval_method === 'assembly' && (
                         <>
                           <div>
-                            <label className="label">Porcentaje requerido (%)</label>
+                            <label className="label flex items-center gap-1">
+                              Porcentaje requerido (%)
+                              <span className="text-blue-500 cursor-help" title="Porcentaje de votos a favor necesarios para aprobar. 50% = mayoria simple (mas de la mitad). 66.67% = dos tercios. 75% = tres cuartos. 100% = unanimidad (todos deben estar de acuerdo).">
+                                <HelpCircle size={14} />
+                              </span>
+                            </label>
                             <input
                               type="number"
                               step="0.01"
@@ -2193,7 +2254,12 @@ export default function Assembly() {
                             <p className="text-xs text-gray-400 mt-1">50 = mayoria simple. 66.67 = 2/3. 75 = 3/4. 100 = unanimidad.</p>
                           </div>
                           <div>
-                            <label className="label">Quorum minimo (numero de votantes)</label>
+                            <label className="label flex items-center gap-1">
+                              Quorum minimo (numero de votantes)
+                              <span className="text-blue-500 cursor-help" title="Numero minimo de miembros que deben votar para que la decision sea valida. Si ponen 0, no hay minimo y basta con que vote una sola persona. Si ponen 10, al menos 10 miembros deben votar.">
+                                <HelpCircle size={14} />
+                              </span>
+                            </label>
                             <input
                               type="number"
                               className="input"
@@ -2204,20 +2270,243 @@ export default function Assembly() {
                           </div>
                         </>
                       )}
-                      {editingConfig.approval_method === 'multisig' && (
+
+                      {/* Campos para Junta Directiva */}
+                      {editingConfig.approval_method === 'board' && (
+                        <>
+                          <div>
+                            <label className="label flex items-center gap-1">
+                              Porcentaje requerido (%)
+                              <span className="text-blue-500 cursor-help" title="Porcentaje de votos a favor de la junta directiva necesarios para aprobar. 50% = mayoria simple de la junta.">
+                                <HelpCircle size={14} />
+                              </span>
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="input"
+                              value={editingConfig.required_percentage}
+                              onChange={(e) => setEditingConfig({ ...editingConfig, required_percentage: parseFloat(e.target.value) || 0 })}
+                            />
+                            <p className="text-xs text-gray-400 mt-1">50 = mayoria simple de la junta. 66.67 = 2/3 de la junta.</p>
+                          </div>
+                          <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded">
+                            La junta directiva se configura en la seccion "Junta Directiva" de esta pagina. Los miembros activos de la junta podran votar.
+                          </div>
+                        </>
+                      )}
+
+                      {/* Campos para Comision/Departamento */}
+                      {editingConfig.approval_method === 'council' && (
                         <div>
-                          <label className="label">Firmas requeridas</label>
-                          <input
-                            type="number"
+                          <label className="label flex items-center gap-1">
+                            Comision/Departamento que decide
+                            <span className="text-blue-500 cursor-help" title="Selecciona cual comision o departamento sera responsable de aprobar este tipo de propuesta. Las comisiones se crean en la seccion de Departamentos. Solo los miembros de la comision podran votar.">
+                              <HelpCircle size={14} />
+                            </span>
+                          </label>
+                          <select
                             className="input"
-                            value={editingConfig.required_signatures}
-                            onChange={(e) => setEditingConfig({ ...editingConfig, required_signatures: parseInt(e.target.value) || 1 })}
-                          />
-                          <p className="text-xs text-gray-400 mt-1">Numero de personas que deben firmar para aprobar.</p>
+                            value={editingConfig.council_id || ''}
+                            onChange={(e) => setEditingConfig({ ...editingConfig, council_id: e.target.value })}
+                          >
+                            <option value="">Seleccionar comision...</option>
+                            {departments.map((d: any) => (
+                              <option key={d.id} value={d.id}>{d.name}</option>
+                            ))}
+                          </select>
+                          {departments.length === 0 && (
+                            <p className="text-xs text-amber-600 mt-1">No hay comisiones/departamentos creados. Crea uno en la seccion de Departamentos primero.</p>
+                          )}
+                          <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded mt-2">
+                            Una comision es un grupo de personas con conocimiento especializado en un area. Por ejemplo, una "Comision de Economia" podria aprobar cambios de precios, o una "Comision de Admisiones" podria aprobar nuevos miembros.
+                          </div>
                         </div>
                       )}
+
+                      {/* Campos para Persona especifica */}
+                      {editingConfig.approval_method === 'person' && (
+                        <div>
+                          <label className="label flex items-center gap-1">
+                            Persona autorizada
+                            <span className="text-blue-500 cursor-help" title="Selecciona la persona que tendra autoridad para aprobar o rechazar este tipo de propuesta por si sola, sin necesidad de votacion.">
+                              <HelpCircle size={14} />
+                            </span>
+                          </label>
+                          <select
+                            className="input"
+                            value={editingConfig.authorized_person_id || ''}
+                            onChange={(e) => setEditingConfig({ ...editingConfig, authorized_person_id: e.target.value })}
+                          >
+                            <option value="">Seleccionar persona...</option>
+                            {userList.map((u: any) => (
+                              <option key={u.id} value={u.id}>{u.display_name || u.username}</option>
+                            ))}
+                          </select>
+                          <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded mt-2">
+                            Esta persona podra aprobar o rechazar propuestas de este tipo por si sola. Es el metodo mas rapido pero concentra poder en una sola persona. Usalo solo para decisiones rutinarias de baja riesgo.
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Campos para Organizacion */}
+                      {editingConfig.approval_method === 'organization' && (
+                        <>
+                          <div>
+                            <label className="label flex items-center gap-1">
+                              Organizacion que decide
+                              <span className="text-blue-500 cursor-help" title="Selecciona la organizacion a la que se delegara la aprobacion. La organizacion tendra sus propios ajustes para decidir internamente quien firma por ella.">
+                                <HelpCircle size={14} />
+                              </span>
+                            </label>
+                            <select
+                              className="input"
+                              value={editingConfig.organization_id || ''}
+                              onChange={(e) => setEditingConfig({ ...editingConfig, organization_id: e.target.value })}
+                            >
+                              <option value="">Seleccionar organizacion...</option>
+                              {orgList.map((o: any) => (
+                                <option key={o.id} value={o.id}>{o.name}</option>
+                              ))}
+                            </select>
+                            {orgList.length === 0 && (
+                              <p className="text-xs text-amber-600 mt-1">No hay organizaciones creadas.</p>
+                            )}
+                          </div>
+                          <div>
+                            <label className="label flex items-center gap-1">
+                              Porcentaje requerido dentro de la organizacion (%)
+                              <span className="text-blue-500 cursor-help" title="Porcentaje de votos a favor dentro de la organizacion para que la aprobacion sea valida.">
+                                <HelpCircle size={14} />
+                              </span>
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="input"
+                              value={editingConfig.required_percentage}
+                              onChange={(e) => setEditingConfig({ ...editingConfig, required_percentage: parseFloat(e.target.value) || 0 })}
+                            />
+                            <p className="text-xs text-gray-400 mt-1">50 = mayoria simple de la organizacion.</p>
+                          </div>
+                          <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded">
+                            La organizacion tendra sus propios ajustes internos para decidir quien puede firmar por ella. Esto se configura dentro de la organizacion.
+                          </div>
+                        </>
+                      )}
+
+                      {/* Campos para Multi-firma */}
+                      {editingConfig.approval_method === 'multisig' && (
+                        <>
+                          <div>
+                            <label className="label flex items-center gap-1">
+                              Firmas requeridas
+                              <span className="text-blue-500 cursor-help" title="Numero de firmas necesarias para aprobar. Si pones 3, se necesitan 3 firmas de las personas/organizaciones autorizadas abajo. No puede ser mayor que el numero de autorizados.">
+                                <HelpCircle size={14} />
+                              </span>
+                            </label>
+                            <input
+                              type="number"
+                              className="input"
+                              value={editingConfig.required_signatures}
+                              onChange={(e) => setEditingConfig({ ...editingConfig, required_signatures: parseInt(e.target.value) || 1 })}
+                            />
+                            <p className="text-xs text-gray-400 mt-1">Cuantas firmas se necesitan de las personas/organizaciones autorizadas.</p>
+                          </div>
+                          <div>
+                            <label className="label flex items-center gap-1">
+                              Personas/Organizaciones autorizadas para firmar
+                              <span className="text-blue-500 cursor-help" title="Lista de personas y/o organizaciones que tienen autoridad para firmar. Solo las personas/organizaciones de esta lista pueden firmar. Agrega o quita con los botones.">
+                                <HelpCircle size={14} />
+                              </span>
+                            </label>
+                            {/* Lista de signers actuales */}
+                            {editingConfig.signers && editingConfig.signers.length > 0 && (
+                              <div className="space-y-1 mb-2">
+                                {editingConfig.signers.map((s: any, i: number) => (
+                                  <div key={s.id || i} className="flex items-center justify-between bg-gray-50 rounded p-2 text-sm">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                                        {s.signer_type === 'organization' ? 'Organizacion' : 'Persona'}
+                                      </span>
+                                      <span>{s.user_name || s.org_name || 'Desconocido'}</span>
+                                    </div>
+                                    <button
+                                      onClick={() => setEditingConfig({
+                                        ...editingConfig,
+                                        signers: editingConfig.signers.filter((_: any, idx: number) => idx !== i),
+                                      })}
+                                      className="text-red-500 hover:text-red-700"
+                                    >
+                                      <X size={14} />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {/* Agregar nuevo signer */}
+                            <div className="flex gap-2">
+                              <select
+                                className="input flex-shrink-0"
+                                value={newSignerType}
+                                onChange={(e) => { setNewSignerType(e.target.value as 'person' | 'organization'); setNewSignerId('') }}
+                              >
+                                <option value="person">Persona</option>
+                                <option value="organization">Organizacion</option>
+                              </select>
+                              <select
+                                className="input flex-1"
+                                value={newSignerId}
+                                onChange={(e) => setNewSignerId(e.target.value)}
+                              >
+                                <option value="">Seleccionar...</option>
+                                {newSignerType === 'person'
+                                  ? userList.map((u: any) => (
+                                      <option key={u.id} value={u.id}>{u.display_name || u.username}</option>
+                                    ))
+                                  : orgList.map((o: any) => (
+                                      <option key={o.id} value={o.id}>{o.name}</option>
+                                    ))
+                                }
+                              </select>
+                              <button
+                                onClick={() => {
+                                  if (!newSignerId) return
+                                  const name = newSignerType === 'person'
+                                    ? userList.find((u: any) => u.id === newSignerId)?.display_name || userList.find((u: any) => u.id === newSignerId)?.username
+                                    : orgList.find((o: any) => o.id === newSignerId)?.name
+                                  setEditingConfig({
+                                    ...editingConfig,
+                                    signers: [...(editingConfig.signers || []), {
+                                      signer_type: newSignerType,
+                                      user_id: newSignerType === 'person' ? newSignerId : '',
+                                      organization_id: newSignerType === 'organization' ? newSignerId : '',
+                                      user_name: newSignerType === 'person' ? name : '',
+                                      org_name: newSignerType === 'organization' ? name : '',
+                                    }],
+                                  })
+                                  setNewSignerId('')
+                                }}
+                                className="btn-secondary text-sm flex-shrink-0"
+                              >
+                                <Plus size={14} /> Agregar
+                              </button>
+                            </div>
+                            {(!editingConfig.signers || editingConfig.signers.length === 0) && (
+                              <p className="text-xs text-amber-600 mt-1">No has agregado ningun firmante autorizado. Agrega al menos uno.</p>
+                            )}
+                          </div>
+                        </>
+                      )}
+
+                      {/* Descripcion */}
                       <div>
-                        <label className="label">Descripcion</label>
+                        <label className="label flex items-center gap-1">
+                          Descripcion
+                          <span className="text-blue-500 cursor-help" title="Texto descriptivo que explica que hace este tipo de propuesta. Aparece debajo del titulo para ayudar a entender de que se trata.">
+                            <HelpCircle size={14} />
+                          </span>
+                        </label>
                         <input
                           className="input"
                           value={editingConfig.description || ''}
@@ -2233,9 +2522,18 @@ export default function Assembly() {
                                 required_percentage: editingConfig.required_percentage,
                                 required_quorum: editingConfig.required_quorum,
                                 required_signatures: editingConfig.required_signatures,
+                                council_id: editingConfig.council_id || '',
+                                authorized_person_id: editingConfig.authorized_person_id || '',
+                                organization_id: editingConfig.organization_id || '',
                                 description: editingConfig.description,
+                                signers: (editingConfig.signers || []).map((s: any) => ({
+                                  signer_type: s.signer_type,
+                                  user_id: s.user_id || '',
+                                  organization_id: s.organization_id || '',
+                                })),
                               })
                               setEditingConfig(null)
+                              setNewSignerId('')
                               load()
                             } catch (err) {
                               setError(err instanceof Error ? err.message : 'Error')
@@ -2245,12 +2543,12 @@ export default function Assembly() {
                         >
                           Guardar
                         </button>
-                        <button onClick={() => setEditingConfig(null)} className="btn-secondary text-sm">Cancelar</button>
+                        <button onClick={() => { setEditingConfig(null); setNewSignerId('') }} className="btn-secondary text-sm">Cancelar</button>
                       </div>
                     </div>
                   )}
                 </div>
-              ))}
+              )})}
             </div>
           )}
         </div>

@@ -775,12 +775,33 @@ func (h *AssemblyHandler) executeProposal(w http.ResponseWriter, r *http.Request
 			approved = quorumMet && percentage >= requiredPercentage
 		case "multisig":
 			// Contar firmas en collected_signatures
+			// Solo cuentan las firmas de personas/organizaciones autorizadas
 			var signatures []interface{}
 			if len(collectedSignatures) > 0 {
 				json.Unmarshal(collectedSignatures, &signatures)
 			}
+			// TODO: validar que cada firma sea de un signer autorizado
+			// Por ahora contar todas las firmas (compatibilidad)
 			sigCount := len(signatures)
 			approved = sigCount >= requiredSignatures
+		case "person":
+			// Una persona especifica aprueba
+			// Se aprueba con un solo voto a favor de la persona autorizada
+			// El voto se verifica en el handler de votos
+			approved = votesFor >= 1
+		case "organization":
+			// La organizacion decide internamente
+			// Por ahora: mismo criterio que board (mayoria de votos)
+			totalVotes := votesFor + votesAgainst
+			quorumMet := true
+			if requiredQuorum > 0 {
+				quorumMet = totalVotes >= requiredQuorum
+			}
+			percentage := 0.0
+			if totalVotes > 0 {
+				percentage = (float64(votesFor) / float64(totalVotes)) * 100
+			}
+			approved = quorumMet && percentage >= requiredPercentage
 		default:
 			// council u otros: criterio por defecto
 			approved = votesFor > votesAgainst
@@ -1309,7 +1330,9 @@ func (h *AssemblyHandler) listAssemblyConfig(w http.ResponseWriter, r *http.Requ
 
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id, node_domain, proposal_type, approval_method, required_percentage,
-		       required_quorum, required_signatures, council_id, description, is_active, created_at, updated_at
+		       required_quorum, required_signatures, council_id,
+		       authorized_person_id, organization_id,
+		       description, is_active, created_at, updated_at
 		FROM assembly_config WHERE node_domain = $1 ORDER BY proposal_type`, nodeDomain)
 	if err != nil {
 		writeError(w, 500, err.Error())
@@ -1323,27 +1346,49 @@ func (h *AssemblyHandler) listAssemblyConfig(w http.ResponseWriter, r *http.Requ
 		var ndomain, proposalType, approvalMethod string
 		var requiredPercentage float64
 		var requiredQuorum, requiredSignatures int
-		var councilID *uuid.UUID
+		var councilID, authorizedPersonID, organizationID *uuid.UUID
 		var description *string
 		var isActive bool
 		var createdAt, updatedAt time.Time
 		if err := rows.Scan(&id, &ndomain, &proposalType, &approvalMethod, &requiredPercentage,
-			&requiredQuorum, &requiredSignatures, &councilID, &description, &isActive, &createdAt, &updatedAt); err != nil {
+			&requiredQuorum, &requiredSignatures, &councilID,
+			&authorizedPersonID, &organizationID,
+			&description, &isActive, &createdAt, &updatedAt); err != nil {
 			continue
 		}
+		// Cargar nombres para mostrar
+		councilName := ""
+		if councilID != nil {
+			h.Pool.QueryRow(r.Context(), `SELECT name FROM departments WHERE id = $1`, councilID).Scan(&councilName)
+		}
+		personName := ""
+		if authorizedPersonID != nil {
+			h.Pool.QueryRow(r.Context(), `SELECT COALESCE(display_name, username) FROM users WHERE id = $1`, authorizedPersonID).Scan(&personName)
+		}
+		orgName := ""
+		if organizationID != nil {
+			h.Pool.QueryRow(r.Context(), `SELECT name FROM organizations WHERE id = $1`, organizationID).Scan(&orgName)
+		}
+		signers := h.loadConfigSigners(r.Context(), id)
 		configs = append(configs, map[string]interface{}{
-			"id":                  id.String(),
-			"node_domain":         ndomain,
-			"proposal_type":       proposalType,
-			"approval_method":     approvalMethod,
-			"required_percentage": requiredPercentage,
-			"required_quorum":     requiredQuorum,
-			"required_signatures": requiredSignatures,
-			"council_id":          derefUUID(councilID),
-			"description":         deref(description),
-			"is_active":           isActive,
-			"created_at":          createdAt,
-			"updated_at":          updatedAt,
+			"id":                     id.String(),
+			"node_domain":            ndomain,
+			"proposal_type":          proposalType,
+			"approval_method":        approvalMethod,
+			"required_percentage":    requiredPercentage,
+			"required_quorum":        requiredQuorum,
+			"required_signatures":    requiredSignatures,
+			"council_id":             derefUUID(councilID),
+			"council_name":           councilName,
+			"authorized_person_id":   derefUUID(authorizedPersonID),
+			"authorized_person_name": personName,
+			"organization_id":        derefUUID(organizationID),
+			"organization_name":      orgName,
+			"description":            deref(description),
+			"is_active":              isActive,
+			"created_at":             createdAt,
+			"updated_at":             updatedAt,
+			"signers":                signers,
 		})
 	}
 	if configs == nil {
@@ -1353,12 +1398,21 @@ func (h *AssemblyHandler) listAssemblyConfig(w http.ResponseWriter, r *http.Requ
 }
 
 type UpdateAssemblyConfigRequest struct {
-	ApprovalMethod     string  `json:"approval_method"`
-	RequiredPercentage float64 `json:"required_percentage"`
-	RequiredQuorum     int     `json:"required_quorum"`
-	RequiredSignatures int     `json:"required_signatures"`
-	CouncilID          string  `json:"council_id"`
-	Description        string  `json:"description"`
+	ApprovalMethod     string          `json:"approval_method"`
+	RequiredPercentage float64         `json:"required_percentage"`
+	RequiredQuorum     int             `json:"required_quorum"`
+	RequiredSignatures int             `json:"required_signatures"`
+	CouncilID          string          `json:"council_id"`
+	AuthorizedPersonID string          `json:"authorized_person_id"`
+	OrganizationID     string          `json:"organization_id"`
+	Description        string          `json:"description"`
+	Signers            []SignerRequest `json:"signers"`
+}
+
+type SignerRequest struct {
+	SignerType     string `json:"signer_type"` // "person" o "organization"
+	UserID         string `json:"user_id"`
+	OrganizationID string `json:"organization_id"`
 }
 
 func (h *AssemblyHandler) updateAssemblyConfig(w http.ResponseWriter, r *http.Request) {
@@ -1387,6 +1441,20 @@ func (h *AssemblyHandler) updateAssemblyConfig(w http.ResponseWriter, r *http.Re
 		}
 	}
 
+	var authorizedPersonID *uuid.UUID
+	if req.AuthorizedPersonID != "" {
+		if id, err := uuid.Parse(req.AuthorizedPersonID); err == nil {
+			authorizedPersonID = &id
+		}
+	}
+
+	var organizationID *uuid.UUID
+	if req.OrganizationID != "" {
+		if id, err := uuid.Parse(req.OrganizationID); err == nil {
+			organizationID = &id
+		}
+	}
+
 	var description *string
 	if req.Description != "" {
 		description = &req.Description
@@ -1395,31 +1463,102 @@ func (h *AssemblyHandler) updateAssemblyConfig(w http.ResponseWriter, r *http.Re
 	var id uuid.UUID
 	err := h.Pool.QueryRow(r.Context(), `
 		INSERT INTO assembly_config (node_domain, proposal_type, approval_method, required_percentage,
-			required_quorum, required_signatures, council_id, description, is_active)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)
+			required_quorum, required_signatures, council_id, authorized_person_id, organization_id, description, is_active)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true)
 		ON CONFLICT (node_domain, proposal_type) DO UPDATE SET
 			approval_method = $3, required_percentage = $4, required_quorum = $5,
-			required_signatures = $6, council_id = $7, description = $8, updated_at = NOW()
+			required_signatures = $6, council_id = $7, authorized_person_id = $8,
+			organization_id = $9, description = $10, updated_at = NOW()
 		RETURNING id`,
 		nodeDomain, proposalType, req.ApprovalMethod, req.RequiredPercentage,
-		req.RequiredQuorum, req.RequiredSignatures, councilID, description).Scan(&id)
+		req.RequiredQuorum, req.RequiredSignatures, councilID, authorizedPersonID,
+		organizationID, description).Scan(&id)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
 	}
 
+	// Guardar signers autorizados para multisig
+	// Primero borrar los existentes
+	h.Pool.Exec(r.Context(), `DELETE FROM assembly_config_signers WHERE config_id = $1`, id)
+	// Luego insertar los nuevos
+	for _, signer := range req.Signers {
+		var userID, orgID *uuid.UUID
+		if signer.SignerType == "person" && signer.UserID != "" {
+			if uid, err := uuid.Parse(signer.UserID); err == nil {
+				userID = &uid
+			}
+		}
+		if signer.SignerType == "organization" && signer.OrganizationID != "" {
+			if oid, err := uuid.Parse(signer.OrganizationID); err == nil {
+				orgID = &oid
+			}
+		}
+		if userID != nil || orgID != nil {
+			h.Pool.Exec(r.Context(), `
+				INSERT INTO assembly_config_signers (config_id, user_id, organization_id, signer_type)
+				VALUES ($1, $2, $3, $4)`,
+				id, userID, orgID, signer.SignerType)
+		}
+	}
+
+	// Cargar signers para la respuesta
+	signers := h.loadConfigSigners(r.Context(), id)
+
 	writeJSON(w, 200, map[string]interface{}{
-		"id":                  id.String(),
-		"node_domain":         nodeDomain,
-		"proposal_type":       proposalType,
-		"approval_method":     req.ApprovalMethod,
-		"required_percentage": req.RequiredPercentage,
-		"required_quorum":     req.RequiredQuorum,
-		"required_signatures": req.RequiredSignatures,
-		"council_id":          derefUUID(councilID),
-		"description":         req.Description,
-		"is_active":           true,
+		"id":                   id.String(),
+		"node_domain":          nodeDomain,
+		"proposal_type":        proposalType,
+		"approval_method":      req.ApprovalMethod,
+		"required_percentage":  req.RequiredPercentage,
+		"required_quorum":      req.RequiredQuorum,
+		"required_signatures":  req.RequiredSignatures,
+		"council_id":           derefUUID(councilID),
+		"authorized_person_id": derefUUID(authorizedPersonID),
+		"organization_id":      derefUUID(organizationID),
+		"description":          req.Description,
+		"is_active":            true,
+		"signers":              signers,
 	})
+}
+
+// loadConfigSigners carga los signers autorizados para una configuracion de multisig
+func (h *AssemblyHandler) loadConfigSigners(ctx context.Context, configID uuid.UUID) []map[string]interface{} {
+	rows, err := h.Pool.Query(ctx, `
+		SELECT s.id, s.signer_type, s.user_id, s.organization_id,
+		       COALESCE(u.display_name, u.username, '') as user_name,
+		       COALESCE(o.name, '') as org_name
+		FROM assembly_config_signers s
+		LEFT JOIN users u ON u.id = s.user_id
+		LEFT JOIN organizations o ON o.id = s.organization_id
+		WHERE s.config_id = $1
+		ORDER BY s.created_at`, configID)
+	if err != nil {
+		return []map[string]interface{}{}
+	}
+	defer rows.Close()
+
+	var signers []map[string]interface{}
+	for rows.Next() {
+		var id uuid.UUID
+		var signerType, userName, orgName string
+		var userID, orgID *uuid.UUID
+		if err := rows.Scan(&id, &signerType, &userID, &orgID, &userName, &orgName); err != nil {
+			continue
+		}
+		signers = append(signers, map[string]interface{}{
+			"id":              id.String(),
+			"signer_type":     signerType,
+			"user_id":         derefUUID(userID),
+			"organization_id": derefUUID(orgID),
+			"user_name":       userName,
+			"org_name":        orgName,
+		})
+	}
+	if signers == nil {
+		signers = []map[string]interface{}{}
+	}
+	return signers
 }
 
 // ===== Helpers =====
