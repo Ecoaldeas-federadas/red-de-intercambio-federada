@@ -91,6 +91,7 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequirePermission("products.manage")).Post("/api/products", h.createProduct)
 	r.With(am.RequirePermission("products.manage")).Put("/api/products/{id}", h.updateProduct)
 	r.With(am.RequirePermission("products.manage")).Post("/api/products/{id}/approve", h.approveProduct)
+	r.With(am.RequirePermission("products.manage")).Post("/api/products/{id}/disapprove", h.disapproveProduct)
 	r.With(am.RequirePermission("products.manage")).Post("/api/products/{id}/reject", h.rejectProduct)
 	r.With(am.RequirePermission("products.manage")).Post("/api/products/{id}/promote", h.promoteCompositeToBase)
 
@@ -739,6 +740,8 @@ func (h *SystemHandler) listCompositeProducts(w http.ResponseWriter, r *http.Req
 
 // listFederatedProducts devuelve productos de todos los nodos federados.
 // Incluye productos de todos los node_domain conocidos, no solo el nodo actual.
+// Muestra TODOS los productos (aprobados y no aprobados) para que cada nodo
+// pueda aprobar/desaprobar individualmente. No muestra ocultos ni compuestos.
 func (h *SystemHandler) listFederatedProducts(w http.ResponseWriter, r *http.Request) {
 	search := r.URL.Query().Get("search")
 	query := `
@@ -748,12 +751,12 @@ func (h *SystemHandler) listFederatedProducts(w http.ResponseWriter, r *http.Req
 		       node_domain, COALESCE(source_node, '')`
 	var args []interface{}
 	if search != "" {
-		query += ` WHERE LOWER(name) LIKE LOWER($1) AND is_approved = true AND is_hidden = false AND COALESCE(is_composite, false) = false`
+		query += ` WHERE LOWER(name) LIKE LOWER($1) AND is_hidden = false AND COALESCE(is_composite, false) = false`
 		args = append(args, "%"+search+"%")
 	} else {
-		query += ` WHERE is_approved = true AND is_hidden = false AND COALESCE(is_composite, false) = false`
+		query += ` WHERE is_hidden = false AND COALESCE(is_composite, false) = false`
 	}
-	query += ` ORDER BY node_domain, parent_category, category, name LIMIT 1000`
+	query += ` ORDER BY is_approved DESC, node_domain, parent_category, category, name LIMIT 1000`
 	rows, err := h.Pool.Query(r.Context(), query, args...)
 	if err != nil {
 		writeJSON(w, 200, []interface{}{})
@@ -1091,6 +1094,30 @@ func (h *SystemHandler) rejectProduct(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, 200, map[string]interface{}{
 		"message": "Producto rechazado y ocultado del catalogo.",
+	})
+}
+
+// disapproveProduct marca un producto como no aprobado (is_approved = false)
+// pero NO lo oculta (is_hidden = false). El producto sigue visible en la
+// pestaña Federacion para poder re-aprobarlo despues.
+// Esto es diferente de rejectProduct que ademas oculta el producto.
+func (h *SystemHandler) disapproveProduct(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+
+	userID, _ := h.Auth.GetUserID(r)
+	_, err = h.Pool.Exec(r.Context(), `UPDATE products SET is_approved = false, approved_by = $1 WHERE id = $2`,
+		userID, id)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"message": "Producto desaprobado. Sigue visible en la Federacion pero no esta aprobado.",
 	})
 }
 

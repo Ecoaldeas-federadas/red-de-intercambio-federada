@@ -168,6 +168,26 @@ export default function Products() {
     }
   }
 
+  const disapproveProduct = async (id: string) => {
+    try {
+      await api.post(`/products/${id}/disapprove`, {})
+      if (activeTab === 'federated') loadFederated()
+      if (activeTab === 'mynode') load(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al desaprobar producto')
+    }
+  }
+
+  const approveFromFederated = async (id: string) => {
+    try {
+      await api.post(`/products/${id}/approve`, {})
+      if (activeTab === 'federated') loadFederated()
+      if (activeTab === 'mynode') load(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al aprobar producto')
+    }
+  }
+
   const rejectFedProduct = async (id: string) => {
     try {
       await api.post(`/federation/products/${id}/reject`, { notes: 'Rechazado por el nodo' })
@@ -887,6 +907,26 @@ export default function Products() {
                               >
                                 <ArrowUpCircle size={10} /> Proponer en Asamblea
                               </button>
+                            )}
+                            {/* Botones aprobar/desaprobar para productos del propio nodo */}
+                            {p.available_locally && canManage && (
+                              p.is_approved ? (
+                                <button
+                                  onClick={() => disapproveProduct(p.id)}
+                                  className="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full hover:bg-red-200 transition flex items-center gap-1"
+                                  title="Desaprobar producto (no se elimina, solo cambia estado)"
+                                >
+                                  <X size={10} /> Desaprobar
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => approveFromFederated(p.id)}
+                                  className="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full hover:bg-green-200 transition flex items-center gap-1"
+                                  title="Aprobar producto para la federacion"
+                                >
+                                  <Check size={10} /> Aprobar
+                                </button>
+                              )
                             )}
                           </div>
                         )}

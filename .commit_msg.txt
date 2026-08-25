@@ -1,35 +1,38 @@
-fix: CRLF en scripts shell rompe updater-controller dentro de Docker
+fix: pestaña Federacion muestra todos los productos + aprobar/desaprobar
 
-PROBLEMA:
-El updater-controller fallaba con:
-  socat E execvp("/updater-controller.sh"): No such file or directory
+PROBLEMAS:
+1. Pestaña Federacion mostraba "No hay productos registrados"
+   - El query filtraba is_approved = true AND is_hidden = false
+   - Si no habia productos aprobados, no mostraba nada
+   - Los productos del propio nodo aprobados tampoco aparecian
+2. No habia botones para aprobar/desaprobar desde la pestaña Federacion
+3. rejectProduct ocultaba el producto (is_hidden = true) en lugar
+   de solo desaprobarlo - el usuario quiere desaprobar sin ocultar
+4. Desaprobar un producto lo eliminaba de la Federacion en lugar
+   de solo cambiar su estado
 
-Causa: git autocrlf=true en Windows convierte LF a CRLF en los scripts .sh.
-Cuando Docker COPY los mete al contenedor Linux, el shebang #!/bin/sh\r
-no encuentra el interprete /bin/sh\r (con \r al final) y falla.
+SOLUCIONES:
 
-Esto pasa especialmente despues de git reset --hard origin/main dentro
-de do_update.sh, que re-checkoutea los archivos con CRLF.
+1. Backend listFederatedProducts (system.go):
+   - Removido filtro is_approved = true
+   - Ahora muestra TODOS los productos (aprobados y no aprobados)
+   - Mantiene filtro is_hidden = false (ocultos no aparecen)
+   - Ordena por is_approved DESC (aprobados primero)
 
-SOLUCION (3 niveles):
+2. Backend nuevo endpoint disapproveProduct (system.go):
+   - POST /api/products/{id}/disapprove
+   - Solo cambia is_approved = false
+   - NO cambia is_hidden (el producto sigue visible)
+   - Diferente de rejectProduct que si oculta (is_hidden = true)
 
-1. .gitattributes (nuevo):
-   *.sh text eol=lf  -> fuerza LF en scripts shell
-   *.ps1 text eol=crlf -> mantiene CRLF en PowerShell
-
-2. Dockerfile.updater-controller:
-   Agregado: RUN sed -i 's/\r$//' /updater-controller.sh /do_update.sh
-   despues de COPY. Esto strip CRLF si git los introdujo.
-   Tambien agregado ls -la para debug.
-
-3. do_update.sh:
-   Auto-fix al inicio: si detecta \r en si mismo, hace sed y re-exec.
-   Esto maneja el caso donde git reset --hard re-checkoutea con CRLF
-   y do_update.sh ya esta corriendo.
-
-4. update_handler.go (contenedor desechable):
-   Agregado sed -i antes de ejecutar do_update.sh en el contenedor
-   alpine desechable, por si los scripts montados tienen CRLF.
+3. Frontend Products.tsx:
+   - Agregadas funciones disapproveProduct y approveFromFederated
+   - Botones en pestaña Federacion para productos del propio nodo:
+     * Si aprobado: boton rojo "Desaprobar"
+     * Si no aprobado: boton verde "Aprobar"
+   - Desaprobar NO elimina el producto de la Federacion
+   - Solo cambia el estado (aprobado <-> pendiente)
+   - El producto permanece visible para re-aprobar despues
 
 Generated with [Devin](https://devin.ai)
 
