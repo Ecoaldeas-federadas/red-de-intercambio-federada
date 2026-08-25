@@ -42,11 +42,24 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
 }
 
 # Verificar que Docker Desktop este respondiendo
+# Nota: docker info escribe a stderr incluso cuando funciona correctamente,
+# y con $ErrorActionPreference = "Stop" eso causa una excepcion.
+# Por eso temporalmente cambiamos a "Continue" y usamos Start-Process.
 $dockerOk = $false
+$prevEAP = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
 try {
-    $null = docker info 2>&1
+    $dockerOut = docker info 2>&1 | Out-String
     if ($LASTEXITCODE -eq 0) { $dockerOk = $true }
-} catch { }
+} catch {
+    # Reintentar con Start-Process que no lanza excepciones
+    $tmpOut = Join-Path $env:TEMP "docker_info_out.txt"
+    $tmpErr = Join-Path $env:TEMP "docker_info_err.txt"
+    $p = Start-Process -FilePath "docker" -ArgumentList @("info") -NoNewWindow -Wait -PassThru -RedirectStandardOutput $tmpOut -RedirectStandardError $tmpErr
+    if ($p.ExitCode -eq 0) { $dockerOk = $true }
+    Remove-Item $tmpOut, $tmpErr -Force -ErrorAction SilentlyContinue
+}
+$ErrorActionPreference = $prevEAP
 if (-not $dockerOk) {
     Write-Err "Docker no esta corriendo. Inicia Docker Desktop y vuelve a intentar."
     exit 1
