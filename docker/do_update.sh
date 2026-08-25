@@ -26,6 +26,17 @@ log() {
   echo "$1"
 }
 
+# Verificar si la actualizacion fue cancelada
+check_cancelled() {
+  if [ -f "$STATE_FILE" ]; then
+    CANCEL_STATUS=$(grep -o '"status":"[^"]*"' "$STATE_FILE" | head -1 | sed 's/"status":"//;s/"//')
+    if [ "$CANCEL_STATUS" = "cancelled" ]; then
+      log "=== ACTUALIZACION CANCELADA - DETENIENDO ==="
+      exit 0
+    fi
+  fi
+}
+
 STARTED=$(date -Iseconds 2>/dev/null || date)
 : > "$LOG_FILE"
 write_state "running" "Iniciando actualizacion..." "" "$STARTED" ""
@@ -63,6 +74,7 @@ REMOTE_URL=$(git -C "$PROJECT_DIR" remote get-url origin 2>/dev/null)
 log "Remote URL configurado"
 
 # 1. git fetch origin main
+check_cancelled
 write_state "running" "Descargando cambios del repositorio (git fetch)..." "" "$STARTED" ""
 log "--- git fetch ---"
 if ! git -C "$PROJECT_DIR" fetch origin main 2>&1; then
@@ -77,6 +89,7 @@ git -C "$PROJECT_DIR" merge --abort 2>/dev/null || true
 git -C "$PROJECT_DIR" rebase --abort 2>/dev/null || true
 
 # 3. git reset --hard origin/main
+check_cancelled
 write_state "running" "Aplicando cambios del repositorio (git reset)..." "" "$STARTED" ""
 log "--- git reset --hard origin/main ---"
 if ! git -C "$PROJECT_DIR" reset --hard origin/main 2>&1; then
@@ -94,6 +107,7 @@ NEW_COMMIT=$(git -C "$PROJECT_DIR" rev-parse --short HEAD 2>/dev/null || echo ""
 log "Nuevo commit: $NEW_COMMIT"
 
 # 5. docker compose build node-app
+check_cancelled
 write_state "running" "Construyendo imagen Docker (esto tarda varios minutos)..." "$NEW_COMMIT" "$STARTED" ""
 log "--- docker compose build node-app ---"
 if ! docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" build node-app 2>&1; then
@@ -110,6 +124,7 @@ docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" --profile demo 
 log "Imagen demo-app construida (o cacheada)"
 
 # 7. Restart node-app
+check_cancelled
 write_state "running" "Reiniciando nodo..." "$NEW_COMMIT" "$STARTED" ""
 log "--- docker compose up -d node-app ---"
 if ! docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" up -d --no-deps node-app 2>&1; then

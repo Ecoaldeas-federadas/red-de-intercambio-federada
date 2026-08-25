@@ -2,7 +2,7 @@
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
-import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon, Vote as VoteIcon, Database, Download, Upload, AlertTriangle, RefreshCw, Globe, Lock, Unlock, Trash2, FileText, Server, HardDrive, CheckCircle, Info } from 'lucide-react'
+import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon, Vote as VoteIcon, Database, Download, Upload, AlertTriangle, RefreshCw, Globe, Lock, Unlock, Trash2, FileText, Server, HardDrive, CheckCircle, Info, X } from 'lucide-react'
 
 // Opciones del 1 al 10 para el numero de nivel (seleccionable, no texto libre)
 const LEVEL_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1)
@@ -1947,6 +1947,55 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
   const [showConfirm, setShowConfirm] = useState(false)
   const [reconnectAttempts, setReconnectAttempts] = useState(0)
   const [nodeRestarting, setNodeRestarting] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
+
+  // Al cargar, verificar si ya hay una actualizacion en curso.
+  // Esto permite restaurar la consola despues de una recarga de pagina.
+  useEffect(() => {
+    api.get('/node/update-status').then((res: any) => {
+      if (res && res.status === 'running') {
+        setUpdating(true)
+        setUpdateStatus(res)
+        setMsg({ type: 'info', text: 'Actualizacion en curso (restaurada despues de recargar).' })
+        // Iniciar polling para continuar monitoreando
+        startPolling()
+      }
+    }).catch(() => {})
+  }, [])
+
+  const startPolling = () => {
+    let consecutiveFailures = 0
+    const interval = setInterval(async () => {
+      try {
+        const res: any = await api.get('/node/update-status')
+        setUpdateStatus(res)
+        consecutiveFailures = 0
+        setNodeRestarting(false)
+        setReconnectAttempts(0)
+        if (res.status === 'completed') {
+          clearInterval(interval)
+          setUpdating(false)
+          setMsg({ type: 'success', text: 'Nodo actualizado correctamente. La pagina se recargara...' })
+          setTimeout(() => window.location.reload(), 3000)
+        } else if (res.status === 'error') {
+          clearInterval(interval)
+          setUpdating(false)
+          setMsg({ type: 'error', text: res.message || 'Error en la actualizacion' })
+        } else if (res.status === 'cancelled') {
+          clearInterval(interval)
+          setUpdating(false)
+          setMsg({ type: 'info', text: 'Actualizacion cancelada.' })
+        }
+      } catch {
+        consecutiveFailures++
+        setReconnectAttempts(consecutiveFailures)
+        if (consecutiveFailures >= 2) {
+          setNodeRestarting(true)
+        }
+      }
+    }, 2000)
+    setPollInterval(interval)
+  }
 
   const checkUpdates = async () => {
     setChecking(true)
@@ -1960,6 +2009,23 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
     }
   }
 
+  const cancelUpdate = async () => {
+    setCancelling(true)
+    try {
+      await api.post('/node/cancel-update', {})
+      setMsg({ type: 'info', text: 'Solicitud de cancelacion enviada.' })
+      if (pollInterval) {
+        clearInterval(pollInterval)
+        setPollInterval(null)
+      }
+      setUpdating(false)
+    } catch (err) {
+      setMsg({ type: 'error', text: 'Error al cancelar actualizacion' })
+    } finally {
+      setCancelling(false)
+    }
+  }
+
   const updateNode = async () => {
     setShowConfirm(false)
     setUpdating(true)
@@ -1970,42 +2036,11 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
     try {
       await api.post('/node/update', {})
       setMsg({ type: 'info', text: 'Actualizacion iniciada. El nodo se reiniciara automaticamente.' })
-      let attempts = 0
-      let consecutiveFailures = 0
-      const interval = setInterval(async () => {
-        attempts++
-        try {
-          const res: any = await api.get('/node/update-status')
-          setUpdateStatus(res)
-          consecutiveFailures = 0
-          setNodeRestarting(false)
-          setReconnectAttempts(0)
-          if (res.status === 'completed') {
-            clearInterval(interval)
-            setUpdating(false)
-            setMsg({ type: 'success', text: 'Nodo actualizado correctamente. La pagina se recargara...' })
-            setTimeout(() => window.location.reload(), 3000)
-          } else if (res.status === 'error') {
-            clearInterval(interval)
-            setUpdating(false)
-            setMsg({ type: 'error', text: res.message || 'Error en la actualizacion' })
-          }
-        } catch {
-          // El nodo se esta reiniciando, es normal que falle
-          consecutiveFailures++
-          setReconnectAttempts(consecutiveFailures)
-          if (consecutiveFailures >= 2) {
-            setNodeRestarting(true)
-          }
-          // No parar el polling - seguir reintentando hasta que el nodo vuelva
-          // El updater-controller (o contenedor desechable) sigue trabajando
-          // incluso mientras node-app se reinicia
-        }
-      }, 2000)
-      setPollInterval(interval)
+      startPolling()
     } catch (e: any) {
       setUpdating(false)
-      setMsg({ type: 'error', text: 'Error al iniciar la actualizacion' })
+      const errMsg = e instanceof Error ? e.message : 'Error al iniciar la actualizacion'
+      setMsg({ type: 'error', text: errMsg })
     }
   }
 
@@ -2141,6 +2176,18 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
                '...'}
             </span>
           </div>
+          {/* Boton de cancelar actualizacion */}
+          {updateStatus?.status !== 'completed' && updateStatus?.status !== 'error' && updateStatus?.status !== 'cancelled' && (
+            <div className="mt-3 flex justify-end">
+              <button
+                onClick={cancelUpdate}
+                disabled={cancelling || nodeRestarting}
+                className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs flex items-center gap-2 disabled:opacity-50"
+              >
+                {cancelling ? <><RefreshCw size={14} className="animate-spin" /> Cancelando...</> : <><X size={14} /> Cancelar actualizacion</>}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

@@ -1,64 +1,52 @@
-feat: TODOS los cambios del nodo pasan por configuracion de Asamblea
+fix: actualizacion del nodo sobrevive recarga de pagina + boton cancelar
 
-PRINCIPIO:
-Todo cambio de ajustes del nodo debe tener una entrada en
-assembly_config que defina COMO se decide ese cambio. La Asamblea
-decide para cada tipo de cambio si requiere:
-- votacion de asamblea
-- junta directiva
-- comision/departamento
-- persona especifica
-- cualquiera de los autorizados (NUEVO)
-- organizacion
-- multi-firma (todas deben firmar)
+PROBLEMAS:
+1. Al recargar la pagina, la consola de actualizacion desaparecia
+   porque el estado solo vivia en React state, no se consultaba al backend
+2. No habia boton para cancelar una actualizacion atascada
+3. El backend no escribia estado inicial antes de delegar al
+   updater-controller, asi que si el controller no respondia, el
+   estado quedaba vacio y el frontend mostraba "Esperando..." para siempre
+4. No habia logging de errores de conexion al updater-controller
+5. Si el updater-controller no recibia la instruccion, no habia forma
+   de saber por que
 
-NUEVO METODO: authorized_any
-Cualquiera de las personas autorizadas puede aprobar por si sola.
-Diferente de multisig donde TODAS deben firmar.
-Ej: 3 personas autorizadas, cualquiera de las 3 puede aprobar sola.
+SOLUCION:
 
-CAMBIOS:
+1. Backend update_handler.go:
+   - Nuevo writeUpdateState(): escribe estado a /update-state/update.json
+     ANTES de delegar al updater-controller
+   - Nuevo appendUpdateLog(): agrega lineas al log compartido
+   - updateNode() ahora:
+     * Verifica si ya hay update en curso (409 si ya hay)
+     * Escribe estado "running" inicial antes de cualquier cosa
+     * Loggea cada intento de conexion al updater-controller
+     * Loggea errores de rebuild del controller
+   - Nuevo endpoint POST /api/node/cancel-update:
+     * Ecribe estado "cancelled" al archivo de estado
+     * Mata contenedores desechables fmc-updater-*
+   - Nuevo handler cancelUpdate()
 
-1. Migracion 107_all_settings_through_assembly.sql:
-   Nuevos tipos de propuesta en assembly_config:
-   - node_config: nombre, moneda, dominio (por defecto: persona)
-   - backup_config: backups automaticos (por defecto: persona)
-   - cluster_config: cluster de DB (por defecto: persona)
-   - permission_assignment: asignar permisos (por defecto: asamblea 2/3)
-   - federation_treaty: tratados de federacion (por defecto: asamblea 2/3)
+2. do_update.sh:
+   - Nuevo check_cancelled(): verifica si el estado es "cancelled"
+     antes de cada paso y se detiene si fue cancelado
+   - Verificaciones de cancelacion antes de:
+     * git fetch
+     * git reset
+     * docker build node-app
+     * docker up node-app (reiniciar)
 
-2. Backend assembly.go executeDecision:
-   Nuevos casos para ejecutar cambios aprobados:
-   - node_config: UPDATE node_config
-   - backup_config: UPDATE backup_config
-   - cluster_config: UPDATE cluster_config
-   - permission_assignment: UPDATE users SET member_level_id
-   - federation_treaty: INSERT/UPDATE federation_peers
-
-3. Backend nuevo endpoint:
-   GET /api/assembly/check-permission/{proposalType}
-   Verifica si el usuario actual puede hacer cambio directo o
-   necesita crear propuesta. Retorna {can_direct, method, reason}
-
-4. Backend checkApproval:
-   Nuevo caso "authorized_any": se aprueba con un solo voto
-   de una persona autorizada.
-
-5. Frontend NodeSettings.tsx:
-   - Al cargar, verifica permisos para cada tipo de cambio
-   - Si el cambio requiere Asamblea: muestra aviso amber +
-     boton "Proponer cambio" en lugar de "Guardar"
-   - Si el cambio es directo autorizado: muestra aviso green
-   - saveConfig y saveTariff crean propuestas si es necesario
-
-6. Frontend Assembly.tsx:
-   - 7 metodos de aprobacion (antes 6):
-     * Asamblea, Junta, Comision, Persona
-     * Cualquiera autorizado (NUEVO)
-     * Organizacion, Multi-firma
-   - Panel de ayuda con los 7 metodos explicados
-   - UI para authorized_any: lista de personas autorizadas
-   - Nuevos tipos en PROPOSAL_LABELS y filtro
+3. Frontend NodeSettings.tsx NodeUpdateSection:
+   - Al cargar (useEffect), consulta /node/update-status
+   - Si el estado es "running", restaura la consola automaticamente
+     y reinicia el polling
+   - Esto significa que al recargar la pagina, la consola vuelve a aparecer
+   - Nuevo boton "Cancelar actualizacion" (rojo, con icono X)
+   - El boton llama a POST /node/cancel-update
+   - Desaparece cuando el estado es completed/error/cancelled
+   - Detecta estado "cancelled" y detiene el polling
+   - Refactor: startPolling() extraido como funcion reutilizable
+     (usado tanto por updateNode como por la restauracion al cargar)
 
 Generated with [Devin](https://devin.ai)
 

@@ -34,8 +34,32 @@ func (h *UpdateHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequirePermission("config.manage")).Post("/api/node/update", h.updateNode)
 	r.With(am.RequireAuth).Get("/api/node/update-status", h.getUpdateStatus)
 	r.With(am.RequireAuth).Get("/api/node/check-updates", h.checkUpdates)
+	r.With(am.RequirePermission("config.manage")).Post("/api/node/cancel-update", h.cancelUpdate)
 	r.With(am.RequirePermission("config.manage")).Post("/api/services/{serviceID}/update", h.updateService)
 	r.With(am.RequirePermission("config.manage")).Post("/api/services/update-all", h.updateAllServices)
+}
+
+// writeUpdateState escribe el estado de actualizacion al volumen compartido.
+// Esto asegura que el estado sobreviva reinicios de node-app y recargas de pagina.
+func (h *UpdateHandler) writeUpdateState(status, message, commit string) {
+	stateDir := "/update-state"
+	stateFile := stateDir + "/update.json"
+	os.MkdirAll(stateDir, 0755)
+	now := time.Now().Format(time.RFC3339)
+	state := fmt.Sprintf(`{"status":"%s","message":"%s","commit":"%s","started_at":"%s","completed_at":""}`,
+		status, message, commit, now)
+	os.WriteFile(stateFile, []byte(state), 0644)
+}
+
+// appendUpdateLog agrega una linea al log de actualizacion.
+func (h *UpdateHandler) appendUpdateLog(line string) {
+	logFile := "/update-state/update.log"
+	f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	fmt.Fprintln(f, line)
 }
 
 // updaterControllerURL es la URL del updater-controller en la red docker.
@@ -130,6 +154,24 @@ func (h *UpdateHandler) updateNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Verificar si ya hay una actualizacion en curso
+	data, _ := os.ReadFile("/update-state/update.json")
+	if len(data) > 0 {
+		var existing map[string]interface{}
+		if json.Unmarshal(data, &existing) == nil {
+			if status, ok := existing["status"].(string); ok && status == "running" {
+				writeError(w, 409, "Ya hay una actualizacion en curso. Espera a que termine o cancelala.")
+				return
+			}
+		}
+	}
+
+	// Escribir estado inicial ANTES de delegar al updater-controller.
+	// Esto asegura que el frontend sepa que la actualizacion comenzo,
+	// incluso si el updater-controller no responde.
+	h.writeUpdateState("running", "Iniciando actualizacion...", "")
+	h.appendUpdateLog("=== SOLICITUD DE ACTUALIZACION RECIBIDA ===")
+
 	// 1. Intentar delegar al updater-controller
 	resp, err := http.Post(updaterControllerURL+"/update", "application/json", nil)
 	if err == nil {
@@ -138,12 +180,15 @@ func (h *UpdateHandler) updateNode(w http.ResponseWriter, r *http.Request) {
 		var result map[string]interface{}
 		json.Unmarshal(body, &result)
 		if resp.StatusCode != 200 {
+			// El updater-controller respondio pero con error (ej: ya hay update en curso)
 			writeJSON(w, resp.StatusCode, result)
 			return
 		}
+		h.appendUpdateLog("Updater-controller acepto la solicitud")
 		writeJSON(w, 200, result)
 		return
 	}
+	h.appendUpdateLog(fmt.Sprintf("WARN: updater-controller no responde: %v", err))
 
 	// 2. Updater-controller no responde. Intentar construirlo e iniciarlo.
 	projectDir := "/project"
@@ -153,9 +198,10 @@ func (h *UpdateHandler) updateNode(w http.ResponseWriter, r *http.Request) {
 	// Verificar que el Dockerfile existe
 	dockerfile := filepath.Join(projectDir, "docker", "Dockerfile.updater-controller")
 	if _, err := os.Stat(dockerfile); err == nil {
+		h.appendUpdateLog("Intentando construir e iniciar updater-controller...")
 		// Construir el updater-controller
-		exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName,
-			"build", "updater-controller").Run()
+		buildOut, _ := exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName,
+			"build", "updater-controller").CombinedOutput()
 		// Iniciarlo
 		exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName,
 			"up", "-d", "--no-deps", "updater-controller").Run()
@@ -172,12 +218,16 @@ func (h *UpdateHandler) updateNode(w http.ResponseWriter, r *http.Request) {
 				writeJSON(w, resp.StatusCode, result)
 				return
 			}
+			h.appendUpdateLog("Updater-controller reconstruido y acepto la solicitud")
 			writeJSON(w, 200, result)
 			return
 		}
+		h.appendUpdateLog(fmt.Sprintf("WARN: updater-controller sigue sin responder despues de rebuild: %v", err))
+		h.appendUpdateLog(fmt.Sprintf("Build output: %s", string(buildOut)))
 	}
 
 	// 3. Updater-controller no disponible. Lanzar contenedor desechable.
+	h.appendUpdateLog("Fallback: lanzando contenedor desechable...")
 	h.updateWithDetachedContainer(w, r, projectName)
 }
 
@@ -223,6 +273,45 @@ func (h *UpdateHandler) updateWithDetachedContainer(w http.ResponseWriter, r *ht
 		"message":          "Actualizacion iniciada. El nodo se reiniciara automaticamente cuando termine.",
 		"container":        containerName,
 		"updater_fallback": true,
+	})
+}
+
+// cancelUpdate cancela una actualizacion en curso.
+// Escribe status "cancelled" al archivo de estado y intenta matar el contenedor desechable.
+func (h *UpdateHandler) cancelUpdate(w http.ResponseWriter, r *http.Request) {
+	// Leer estado actual
+	data, err := os.ReadFile("/update-state/update.json")
+	if err != nil {
+		writeJSON(w, 200, map[string]interface{}{
+			"success": true,
+			"message": "No hay actualizacion en curso.",
+		})
+		return
+	}
+
+	var existing map[string]interface{}
+	if json.Unmarshal(data, &existing) == nil {
+		if status, ok := existing["status"].(string); ok && status != "running" {
+			writeJSON(w, 200, map[string]interface{}{
+				"success": true,
+				"message": "La actualizacion no esta en curso (estado: " + status + ").",
+			})
+			return
+		}
+	}
+
+	// Escribir estado cancelado
+	h.writeUpdateState("cancelled", "Actualizacion cancelada por el usuario", "")
+	h.appendUpdateLog("=== ACTUALIZACION CANCELADA POR EL USUARIO ===")
+
+	// Intentar matar contenedores desechables (fmc-updater-*)
+	exec.Command("sh", "-c", "docker ps --format '{{.Names}}' | grep 'fmc-updater-' | xargs -r docker kill").Run()
+
+	// Intentar cancelar en el updater-controller (no tiene endpoint de cancel,
+	// pero al menos el do_update.sh verificara el estado y se detendra)
+	writeJSON(w, 200, map[string]interface{}{
+		"success": true,
+		"message": "Actualizacion cancelada. El proceso en segundo plano se detendra.",
 	})
 }
 
