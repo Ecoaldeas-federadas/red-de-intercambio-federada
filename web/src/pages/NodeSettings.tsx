@@ -2074,13 +2074,19 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
             <span className="text-gray-600">Commit actual:</span>
             <code className="font-mono text-xs">{updateInfo.current_commit || 'desconocido'}</code>
           </div>
+          {updateInfo.remote_commit && (
+            <div className="flex items-center justify-between mt-1">
+              <span className="text-gray-600">Commit remoto:</span>
+              <code className="font-mono text-xs">{updateInfo.remote_commit}</code>
+            </div>
+          )}
           {updateInfo.updates_available && (
             <div className="mt-2">
               <div className="text-green-700 font-medium mb-1">Actualizacion disponible!</div>
               <pre className="text-xs text-gray-600 bg-gray-50 p-2 rounded max-h-32 overflow-auto">{updateInfo.new_commits}</pre>
             </div>
           )}
-          {!updateInfo.updates_available && (
+          {!updateInfo.updates_available && !updateInfo.error && (
             <div className="mt-2 text-gray-500">El nodo esta actualizado.</div>
           )}
           {updateInfo.error && (
@@ -2091,6 +2097,13 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
               {updateInfo.fetch_error && (
                 <pre className="mt-1 text-xs bg-gray-100 p-1 rounded max-h-20 overflow-auto whitespace-pre-wrap">{updateInfo.fetch_error}</pre>
               )}
+            </div>
+          )}
+          {/* Info de debug - siempre visible para diagnostico */}
+          {updateInfo.remote_url && (
+            <div className="mt-2 text-xs text-gray-400 border-t border-gray-100 pt-2">
+              <span>Remote: {updateInfo.remote_url}</span>
+              {updateInfo.fetch_output && <span> | Fetch: {updateInfo.fetch_output}</span>}
             </div>
           )}
         </div>

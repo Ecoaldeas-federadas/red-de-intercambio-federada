@@ -1,33 +1,37 @@
-feat: favicon dinamico usa el logo del nodo automaticamente
+fix: verificacion de actualizaciones no detectaba commits nuevos
 
 PROBLEMA:
-El favicon (la fotico chiquitica en la pestana del navegador) era
-siempre el mismo icon.svg estatico. Si el usuario cambiaba el logo
-del nodo, el favicon no cambiaba.
+El boton "Verificar actualizaciones" siempre decia "El nodo esta
+actualizado" incluso cuando habia commits nuevos en el repo.
+El usuario hizo git pull manual y descargo commits 9793a07..a5d38d8
+que la verificacion no habia detectado.
+
+CAUSA:
+`git fetch origin main` actualiza FETCH_HEAD pero en algunas
+configuraciones de git NO actualiza refs/remotes/origin/main.
+Entonces `git log HEAD..origin/main` comparaba contra el ref viejo
+y no encontraba nada nuevo.
 
 SOLUCION:
 
-1. Backend system.go:
-   - Nuevo endpoint GET /api/favicon
-   - Consulta public_settings.logo_url del nodo
-   - Si hay logo configurado: redirige a la URL del logo
-   - Si no hay logo: sirve el icon.svg por defecto
-   - Cache de 1 hora para no consultar la BD en cada request
+1. Backend checkUpdates():
+   - Cambio: `git fetch origin main` -> `git fetch origin --prune`
+     (fetch completo que actualiza TODOS los refs, no solo main)
+   - Fallback: si origin/main no encuentra commits nuevos, probar
+     con FETCH_HEAD como comparacion
+   - Nuevo: obtener commit remoto (origin/main) para mostrarlo
+   - Nuevo: enmascarar token en remote URL para debug
+   - Nuevo: incluir remote_url y fetch_output en la respuesta
 
-2. Frontend App.tsx:
-   - Al cargar la app, consulta /public/settings
-   - Si hay logo_url, actualiza el favicon dinamicamente
-   - Tambien actualiza el <title> con site_title del nodo
-   - Funcion updateFavicon(): remueve favicons existentes y
-     agrega uno nuevo con la URL del logo
+2. Frontend NodeSettings.tsx:
+   - Mostrar "Commit remoto" ademas de "Commit actual"
+     (si son diferentes, hay actualizacion)
+   - Mostrar remote URL y fetch output como info de debug
+   - Solo mostrar "El nodo esta actualizado" si NO hay error
 
-3. Frontend WebsiteAdmin.tsx:
-   - Al guardar los settings del sitio, actualiza el favicon
-     inmediatamente si el logo cambio
-   - No necesita recargar la pagina para ver el nuevo favicon
-
-Resultado: Cuando cambias el logo en Ajustes del Sitio, el favicon
-de la pestana del navegador cambia automaticamente.
+Resultado: Ahora la verificacion hace fetch completo de todos los
+refs y compara contra origin/main actualizado. Si por alguna razon
+origin/main no se actualiza, usa FETCH_HEAD como fallback.
 
 Generated with [Devin](https://devin.ai)
 

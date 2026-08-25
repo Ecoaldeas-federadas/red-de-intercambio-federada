@@ -84,27 +84,62 @@ func (h *UpdateHandler) checkUpdates(w http.ResponseWriter, r *http.Request) {
 	currentOut, _ := currentCmd.Output()
 	currentCommit := strings.TrimSpace(string(currentOut))
 
+	// Obtener URL del remote (para debug, con token enmascarado)
+	remoteCmd := exec.Command("git", "-C", projectDir, "remote", "get-url", "origin")
+	remoteOut, _ := remoteCmd.Output()
+	remoteURL := strings.TrimSpace(string(remoteOut))
+	// Enmascarar token si esta en la URL
+	if strings.Contains(remoteURL, "@") {
+		parts := strings.SplitN(remoteURL, "://", 2)
+		if len(parts) == 2 {
+			authParts := strings.SplitN(parts[1], "@", 2)
+			if len(authParts) == 2 {
+				remoteURL = parts[0] + "://***@" + authParts[1]
+			}
+		}
+	}
+
 	// Configurar el remote con token si esta disponible
 	h.configureGitAuth(projectDir)
 
-	// git fetch origin main
-	fetchCmd := exec.Command("git", "-C", projectDir, "fetch", "origin", "main")
+	// git fetch origin (fetch completo, no solo main, para actualizar todos los refs)
+	// Usar --prune para limpiar refs que ya no existen
+	fetchCmd := exec.Command("git", "-C", projectDir, "fetch", "origin", "--prune")
 	fetchOut, fetchErr := fetchCmd.CombinedOutput()
+	fetchOutput := strings.TrimSpace(string(fetchOut))
+
 	if fetchErr != nil {
 		writeJSON(w, 200, map[string]interface{}{
 			"updates_available": false,
 			"current_commit":    currentCommit,
+			"remote_url":        remoteURL,
 			"message":           "Error al conectar con el repositorio. Verifica GIT_TOKEN en .env",
-			"fetch_error":       string(fetchOut),
+			"fetch_error":       fetchOutput,
+			"fetch_exit_code":   fetchErr.Error(),
 			"error":             "fetch_failed",
 		})
 		return
 	}
 
-	// Obtener commits disponibles (HEAD..origin/main)
+	// Obtener commits disponibles.
+	// Usar origin/main (que deberia estar actualizado despues del fetch completo).
+	// Como fallback, tambien probar con FETCH_HEAD por si origin/main no se actualizo.
 	logCmd := exec.Command("git", "-C", projectDir, "log", "--oneline", "HEAD..origin/main")
 	logOut, _ := logCmd.Output()
 	newCommits := strings.TrimSpace(string(logOut))
+
+	// Si origin/main no encontro nada, probar con FETCH_HEAD
+	// (git fetch origin main actualiza FETCH_HEAD pero a veces no origin/main)
+	if newCommits == "" {
+		logCmd2 := exec.Command("git", "-C", projectDir, "log", "--oneline", "HEAD..FETCH_HEAD")
+		logOut2, _ := logCmd2.Output()
+		newCommits = strings.TrimSpace(string(logOut2))
+	}
+
+	// Tambien obtener el commit remoto para comparar
+	remoteCommitCmd := exec.Command("git", "-C", projectDir, "rev-parse", "--short", "origin/main")
+	remoteCommitOut, _ := remoteCommitCmd.Output()
+	remoteCommit := strings.TrimSpace(string(remoteCommitOut))
 
 	updatesAvailable := newCommits != ""
 
@@ -127,8 +162,11 @@ func (h *UpdateHandler) checkUpdates(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]interface{}{
 		"updates_available":   updatesAvailable,
 		"current_commit":      currentCommit,
+		"remote_commit":       remoteCommit,
 		"new_commits":         newCommits,
 		"services_can_update": servicesUpdate,
+		"remote_url":          remoteURL,
+		"fetch_output":        fetchOutput,
 		"message": map[bool]string{
 			true:  "Hay actualizaciones disponibles del nodo",
 			false: "El nodo esta actualizado",
