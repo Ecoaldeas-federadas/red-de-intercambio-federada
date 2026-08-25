@@ -109,10 +109,10 @@ export default function NodeSettings() {
   })
 
   const load = () => {
-    api.get('/config').then(setConfig).catch(() => {})
+    api.get('/config').then((d: any) => setConfig(d)).catch(() => {})
     api.get('/member-levels').then((d: any) => setLevels(Array.isArray(d) ? d : [])).catch(() => {})
     api.get('/organization-levels').then((d: any) => setOrgLevels(Array.isArray(d) ? d : [])).catch(() => {})
-    api.get('/calculator/tariff').then(setTariff).catch(() => {})
+    api.get('/calculator/tariff').then((d: any) => setTariff(d)).catch(() => {})
   }
 
   useEffect(() => { load() }, [])
@@ -1093,7 +1093,7 @@ export default function NodeSettings() {
                 <div>
                   <label className="label flex items-center gap-1">
                     Frecuencia (horas)
-                    <HelpCircle size={12} className="text-gray-400" title="Cada cuantas horas se crea un backup automatico. Minimo 1." />
+                    <HelpCircle size={12} className="text-gray-400" />
                   </label>
                   <input
                     type="number"
@@ -1106,7 +1106,7 @@ export default function NodeSettings() {
                 <div>
                   <label className="label flex items-center gap-1">
                     Retencion (dias)
-                    <HelpCircle size={12} className="text-gray-400" title="Cuantos dias se mantiene un backup antes de borrarlo automaticamente. Los bloqueados no se borran." />
+                    <HelpCircle size={12} className="text-gray-400" />
                   </label>
                   <input
                     type="number"
@@ -1119,7 +1119,7 @@ export default function NodeSettings() {
                 <div>
                   <label className="label flex items-center gap-1">
                     Estado
-                    <HelpCircle size={12} className="text-gray-400" title="Activa o desactiva los backups automaticos." />
+                    <HelpCircle size={12} className="text-gray-400" />
                   </label>
                   <button
                     onClick={() => setBackupConfig({ ...backupConfig, enabled: !backupConfig.enabled })}
@@ -1726,7 +1726,7 @@ export default function NodeSettings() {
               <div>
                 <label className="label flex items-center gap-1">
                   Nombre del nodo
-                  <HelpCircle size={12} className="text-gray-400" title="Nombre identificatorio. Ej: nodo-backup-1, nodo-caracas, etc." />
+                  <HelpCircle size={12} className="text-gray-400" />
                 </label>
                 <input
                   type="text"
@@ -1739,7 +1739,7 @@ export default function NodeSettings() {
               <div>
                 <label className="label flex items-center gap-1">
                   IP del servidor remoto
-                  <HelpCircle size={12} className="text-gray-400" title="Direccion IP del servidor donde se instalara el nodo. Ej: 192.168.1.100" />
+                  <HelpCircle size={12} className="text-gray-400" />
                 </label>
                 <input
                   type="text"
@@ -1752,7 +1752,7 @@ export default function NodeSettings() {
               <div>
                 <label className="label flex items-center gap-1">
                   Puerto
-                  <HelpCircle size={12} className="text-gray-400" title="Puerto para comunicacion entre nodos. Por defecto 7100." />
+                  <HelpCircle size={12} className="text-gray-400" />
                 </label>
                 <input
                   type="number"
@@ -1764,7 +1764,7 @@ export default function NodeSettings() {
               <div>
                 <label className="label flex items-center gap-1">
                   Region
-                  <HelpCircle size={12} className="text-gray-400" title="Region geografica. Ej: caracas, maracay, valencia. Opcional." />
+                  <HelpCircle size={12} className="text-gray-400" />
                 </label>
                 <input
                   type="text"

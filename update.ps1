@@ -49,7 +49,7 @@ $dockerOk = $false
 $prevEAP = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
 try {
-    $dockerOut = docker info 2>&1 | Out-String
+    docker info 2>&1 | Out-String | Out-Null
     if ($LASTEXITCODE -eq 0) { $dockerOk = $true }
 } catch {
     # Reintentar con Start-Process que no lanza excepciones
@@ -218,7 +218,6 @@ Write-OK "Imagenes reconstruidas"
 Write-Host ""
 Write-Step "Arrancando servicios principales..."
 $servicesToStart = @("yugabytedb", "db-backup", "demo-controller", "demo-stopper", "updater-controller", "node-app")
-$upCode = Invoke-Compose @("up", "-d", "--no-deps") + $servicesToStart
 # Invoke-Compose no maneja arrays bien, usar ejecucion directa
 $allUpArgs = $composeArgs + @("up", "-d", "--no-deps") + $servicesToStart
 $outFile = Join-Path $env:TEMP "compose-up_$([guid]::NewGuid()).log"

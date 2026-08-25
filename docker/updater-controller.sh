@@ -2,10 +2,16 @@
 # updater-controller.sh - Handles one HTTP request per invocation.
 # Called by socat for each incoming connection on port 9110.
 # stdin = request from client, stdout = response to client.
+# Los logs van a stderr para que aparezcan en `docker logs updater-controller`
 
 STATE_DIR=/update-state
 STATE_FILE=$STATE_DIR/update.json
 LOG_FILE=$STATE_DIR/update.log
+
+# Funcion de log a stderr (aparece en docker logs)
+log_msg() {
+  echo "[$(date '+%H:%M:%S')] $1" >&2
+}
 
 # Read entire HTTP request from stdin
 REQUEST=""
@@ -39,26 +45,34 @@ json_escape() {
 }
 
 if echo "$PATH_REQ" | grep -q '^/update$'; then
+  log_msg "Peticion /update recibida"
   # Check if already running
   CURRENT_STATUS=""
   if [ -f "$STATE_FILE" ]; then
     CURRENT_STATUS=$(grep -o '"status":"[^"]*"' "$STATE_FILE" | head -1 | sed 's/"status":"//;s/"//')
   fi
   if [ "$CURRENT_STATUS" = "running" ]; then
+    log_msg "Rechazado: ya hay actualizacion en curso"
     send_response '{"success":false,"message":"Ya hay una actualizacion en curso"}'
   else
     # Start update in background. Usar nohup para que el proceso sobreviva
     # cuando socat cierre esta conexion. Sin nohup, socat enviaria SIGHUP
     # al proceso hijo al cerrar, matando do_update.sh.
+    # El output va al log file. Tambien hacemos tail -f para que aparezca
+    # en docker logs (stderr del contenedor).
     nohup /do_update.sh >> "$LOG_FILE" 2>&1 &
-    # Guardar el PID para poder cancelar si es necesario
-    echo "$!" > "$STATE_DIR/update.pid"
+    UPDATE_PID=$!
+    echo "$UPDATE_PID" > "$STATE_DIR/update.pid"
+    # tail -f en background para que los logs aparezcan en docker logs
+    nohup tail -f "$LOG_FILE" >&2 &
+    log_msg "do_update.sh iniciado en background (PID=$UPDATE_PID)"
     # Darle un momento para que empiece y escriba el estado inicial
     sleep 2
     send_response '{"success":true,"message":"Actualizacion iniciada. El nodo se reiniciara automaticamente."}'
   fi
 
 elif echo "$PATH_REQ" | grep -q '^/status$'; then
+  log_msg "Peticion /status"
   STATUS="idle"
   MESSAGE=""
   COMMIT=""
@@ -74,6 +88,7 @@ elif echo "$PATH_REQ" | grep -q '^/status$'; then
   send_response "{\"status\":\"$STATUS\",\"message\":\"$MESSAGE\",\"commit\":\"$COMMIT\",\"log\":\"$LOG\"}"
 
 elif echo "$PATH_REQ" | grep -q '^/cancel$'; then
+  log_msg "Peticion /cancel recibida"
   # Marcar como cancelada. do_update.sh verifica el estado antes de cada paso.
   if [ -f "$STATE_FILE" ]; then
     STARTED=$(grep -o '"started_at":"[^"]*"' "$STATE_FILE" | head -1 | sed 's/"started_at":"//;s/"//')
@@ -97,6 +112,7 @@ elif echo "$PATH_REQ" | grep -q '^/cancel$'; then
   fi
 
 elif echo "$PATH_REQ" | grep -q '^/check$'; then
+  log_msg "Peticion /check (verificar actualizaciones)"
   PROJECT_DIR=/project
   CURRENT=$(git -C "$PROJECT_DIR" rev-parse --short HEAD 2>/dev/null || echo "")
   if [ -n "$GIT_TOKEN" ]; then

@@ -106,9 +106,47 @@ log "Cambios del repositorio aplicados"
 NEW_COMMIT=$(git -C "$PROJECT_DIR" rev-parse --short HEAD 2>/dev/null || echo "")
 log "Nuevo commit: $NEW_COMMIT"
 
-# 5. docker compose build node-app
+# 5. docker compose build updater-controller PRIMERO
+# Esto es critico: si hay cambios en el updater-controller, se actualiza primero.
+# Si solo hay cambios en el updater-controller y no en node-app, se actualiza
+# el updater-controller y se reinicia, luego continúa con node-app.
+# Si hay cambios en ambos, se actualiza updater-controller primero, se reinicia,
+# y luego continua con node-app (el proceso do_update.sh se pierde al reiniciar
+# updater-controller, pero el estado ya queda guardado).
 check_cancelled
-write_state "running" "Construyendo imagen Docker (esto tarda varios minutos)..." "$NEW_COMMIT" "$STARTED" ""
+write_state "running" "Construyendo imagen updater-controller..." "$NEW_COMMIT" "$STARTED" ""
+log "--- docker compose build updater-controller ---"
+if ! docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" build updater-controller 2>&1; then
+  write_state "error" "Error al construir imagen updater-controller" "$NEW_COMMIT" "$STARTED" "$(date -Iseconds 2>/dev/null || date)"
+  log "ERROR: docker build updater-controller fallo"
+  exit 1
+fi
+log "Imagen updater-controller construida"
+
+# Reiniciar updater-controller con la nueva imagen
+# Nota: al reiniciar updater-controller, este proceso (do_update.sh) puede
+# ser asesinado. Pero el estado ya esta guardado en el volumen compartido.
+# Si el updater-controller se reinicia, el proceso do_update.sh se pierde
+# y la actualizacion se interrumpe. Para manejar esto, verificamos si hay
+# cambios en los archivos del updater-controller antes de reiniciarlo.
+UPDATER_CHANGED=$(git -C "$PROJECT_DIR" diff --name-only HEAD~1 HEAD 2>/dev/null | grep -E 'updater-controller|do_update\.sh|Dockerfile\.updater' || echo "")
+if [ -n "$UPDATER_CHANGED" ]; then
+  log "Cambios detectados en updater-controller. Reiniciando..."
+  write_state "running" "Reiniciando updater-controller con nueva imagen..." "$NEW_COMMIT" "$STARTED" ""
+  docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" up -d --no-deps --force-recreate updater-controller 2>&1 || true
+  log "Updater-controller reiniciado. Esperando 3 segundos..."
+  sleep 3
+  # Continuar con la actualizacion - el proceso puede haber sobrevivido
+  # si el updater-controller se reinicio rapidamente
+else
+  log "Sin cambios en updater-controller. No es necesario reiniciarlo."
+  # Asegurarse de que este corriendo
+  docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" up -d --no-deps updater-controller 2>&1 || true
+fi
+
+# 6. docker compose build node-app
+check_cancelled
+write_state "running" "Construyendo imagen Docker del nodo (esto tarda varios minutos)..." "$NEW_COMMIT" "$STARTED" ""
 log "--- docker compose build node-app ---"
 if ! docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" build node-app 2>&1; then
   write_state "error" "Error al construir imagen node-app" "$NEW_COMMIT" "$STARTED" "$(date -Iseconds 2>/dev/null || date)"
@@ -117,13 +155,13 @@ if ! docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" build node
 fi
 log "Imagen node-app construida"
 
-# 6. docker compose build demo-app (has profile, doesn't build alone)
+# 7. docker compose build demo-app (has profile, doesn't build alone)
 write_state "running" "Construyendo imagen demo-app..." "$NEW_COMMIT" "$STARTED" ""
 log "--- docker compose build demo-app ---"
 docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" --profile demo build demo-app 2>&1 || true
 log "Imagen demo-app construida (o cacheada)"
 
-# 7. Restart node-app
+# 8. Restart node-app
 check_cancelled
 write_state "running" "Reiniciando nodo..." "$NEW_COMMIT" "$STARTED" ""
 log "--- docker compose up -d node-app ---"
@@ -134,7 +172,7 @@ if ! docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" up -d --no
 fi
 log "Nodo reiniciado"
 
-# 8. Recreate demo-app if it was running (leave it stopped)
+# 9. Recreate demo-app if it was running (leave it stopped)
 DEMO_CONTAINER="${PROJECT_NAME}-demo-app-1"
 DEMO_RUNNING=$(docker inspect -f '{{.State.Running}}' "$DEMO_CONTAINER" 2>/dev/null || echo "false")
 if [ "$DEMO_RUNNING" = "true" ]; then
@@ -145,13 +183,6 @@ if [ "$DEMO_RUNNING" = "true" ]; then
   docker stop "$DEMO_CONTAINER" 2>/dev/null || true
   log "Demo-app recreado (detenido, listo para arrancar desde la web)"
 fi
-
-# 9. Construir e iniciar updater-controller (para que la proxima actualizacion
-#    use el camino principal en lugar del contenedor desechable)
-log "--- docker compose build updater-controller ---"
-docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" build updater-controller 2>&1 || true
-docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" up -d --no-deps updater-controller 2>&1 || true
-log "Updater-controller construido e iniciado"
 
 log "=== ACTUALIZACION COMPLETADA ==="
 write_state "completed" "Nodo actualizado y reiniciado correctamente" "$NEW_COMMIT" "$STARTED" "$(date -Iseconds 2>/dev/null || date)"

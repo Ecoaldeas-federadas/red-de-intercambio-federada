@@ -273,7 +273,7 @@ func (h *UpdateHandler) updateNode(w http.ResponseWriter, r *http.Request) {
 // ejecuta do_update.sh. Este contenedor es independiente de node-app,
 // por lo que sobrevive cuando node-app se reinicia durante la actualizacion.
 // El contenedor escribe el estado a /update-state/update.json (volumen compartido).
-func (h *UpdateHandler) updateWithDetachedContainer(w http.ResponseWriter, r *http.Request, projectName string) {
+func (h *UpdateHandler) updateWithDetachedContainer(w http.ResponseWriter, _ *http.Request, projectName string) {
 	// Nombre unico para el contenedor
 	containerName := fmt.Sprintf("fmc-updater-%d", time.Now().Unix())
 
