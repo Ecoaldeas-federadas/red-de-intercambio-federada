@@ -58,6 +58,7 @@ func (h *AssemblyHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	// Propuestas / decisiones
 	r.With(am.RequireAuth).Get("/api/assembly/proposals", h.listProposals)
 	r.With(am.RequireAuth).Post("/api/assembly/proposals", h.createProposal)
+	r.With(am.RequireAuth).Delete("/api/assembly/proposals/{id}", h.deleteProposal)
 	r.With(am.RequirePermission("assembly.open_voting")).Post("/api/assembly/proposals/{id}/open-voting", h.openVoting)
 	r.With(am.RequireAuth).Post("/api/assembly/proposals/{id}/vote", h.voteProposal)
 	r.With(am.RequireAuth).Post("/api/assembly/proposals/{id}/execute", h.executeProposal)
@@ -395,6 +396,18 @@ func (h *AssemblyHandler) createProposal(w http.ResponseWriter, r *http.Request)
 		writeError(w, 400, "proposal_type is required")
 		return
 	}
+
+	// Prevenir propuestas duplicadas: si el usuario ya tiene una propuesta
+	// pendiente del mismo tipo, reemplazarla en lugar de crear otra.
+	userID, _ := h.Auth.GetUserID(r)
+	var existingID *uuid.UUID
+	h.Pool.QueryRow(r.Context(), `
+		SELECT id FROM assembly_decisions
+		WHERE decision_type = $1 AND status = 'proposed'
+		AND id IN (SELECT target_id FROM audit_log WHERE actor_id = $2 AND action = 'assembly_decision')
+		ORDER BY created_at DESC LIMIT 1`,
+		req.ProposalType, userID).Scan(&existingID)
+
 	if req.RequiredSignatures == 0 {
 		req.RequiredSignatures = 1
 	}
@@ -435,23 +448,35 @@ func (h *AssemblyHandler) createProposal(w http.ResponseWriter, r *http.Request)
 	}
 
 	id := uuid.New()
-	_, err = h.Pool.Exec(r.Context(), `
-		INSERT INTO assembly_decisions (id, assembly_id, decision_type, target_account, description, new_value, required_signatures, status, voting_duration_minutes)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, 'proposed', $8)`,
-		id, sessionID, req.ProposalType, targetAccount, req.Description, newValue, req.RequiredSignatures, req.VotingDurationMinutes)
+	if existingID != nil {
+		// Reemplazar la propuesta existente del mismo usuario y tipo
+		_, err = h.Pool.Exec(r.Context(), `
+			UPDATE assembly_decisions
+			SET description = $1, new_value = $2, required_signatures = $3,
+			    voting_duration_minutes = $4, status = 'proposed', created_at = NOW()
+			WHERE id = $5`,
+			req.Description, newValue, req.RequiredSignatures, req.VotingDurationMinutes, *existingID)
+		id = *existingID
+	} else {
+		_, err = h.Pool.Exec(r.Context(), `
+			INSERT INTO assembly_decisions (id, assembly_id, decision_type, target_account, description, new_value, required_signatures, status, voting_duration_minutes)
+			VALUES ($1, $2, $3, $4::uuid, $5, $6, $7, 'proposed', $8)`,
+			id, sessionID, req.ProposalType, targetAccount, req.Description, newValue, req.RequiredSignatures, req.VotingDurationMinutes)
+	}
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
 	}
 
 	// Audit log
-	userID, _ := h.Auth.GetUserID(r)
 	auditDetails, _ := json.Marshal(map[string]interface{}{"proposal_type": req.ProposalType, "description": req.Description})
 	h.Pool.Exec(r.Context(), `INSERT INTO audit_log (actor_id, action, target_id, details) VALUES ($1, 'assembly_decision', $2, $3)`,
 		userID, id, auditDetails)
 
-	// Auto-agregar a la minuta
-	appendToMinutes(h.Pool, sessionID, fmt.Sprintf("- [Propuesta] %s: %s", req.ProposalType, req.Description))
+	// Auto-agregar a la minuta solo si es nueva (no reemplazo)
+	if existingID == nil {
+		appendToMinutes(h.Pool, sessionID, fmt.Sprintf("- [Propuesta] %s: %s", req.ProposalType, req.Description))
+	}
 
 	writeJSON(w, 201, map[string]interface{}{
 		"id":                      id.String(),
@@ -462,6 +487,68 @@ func (h *AssemblyHandler) createProposal(w http.ResponseWriter, r *http.Request)
 		"voting_duration_minutes": req.VotingDurationMinutes,
 		"message":                 "Propuesta creada. La asamblea debe aprobarla para abrir la votacion.",
 	})
+}
+
+// deleteProposal permite al propietario eliminar su propuesta si aun esta pendiente (proposed)
+func (h *AssemblyHandler) deleteProposal(w http.ResponseWriter, r *http.Request) {
+	decisionID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+	userID, err := h.Auth.GetUserID(r)
+	if err != nil {
+		writeError(w, 401, "authentication required")
+		return
+	}
+
+	// Verificar que la propuesta existe y esta pendiente
+	var status string
+	var actorID *uuid.UUID
+	h.Pool.QueryRow(r.Context(), `
+		SELECT d.status, a.actor_id
+		FROM assembly_decisions d
+		LEFT JOIN audit_log a ON a.target_id = d.id AND a.action = 'assembly_decision'
+		WHERE d.id = $1
+		ORDER BY a.created_at DESC LIMIT 1`,
+		decisionID).Scan(&status, &actorID)
+
+	if status == "" {
+		writeError(w, 404, "propuesta no encontrada")
+		return
+	}
+	if status != "proposed" {
+		writeError(w, 400, "no se puede eliminar una propuesta que ya fue aprobada o esta en votacion")
+		return
+	}
+
+	// El propietario puede eliminar, o alguien con permiso de gestion
+	isOwner := actorID != nil && *actorID == userID
+	canManage := false
+	if !isOwner {
+		var hasPerm bool
+		h.Pool.QueryRow(r.Context(), `
+			SELECT EXISTS(
+				SELECT 1 FROM user_permissions up
+				JOIN permissions p ON p.id = up.permission_id
+				WHERE up.user_id = $1 AND p.name IN ('assembly.manage', 'assembly.manage_board', 'config.manage')
+			)`, userID).Scan(&hasPerm)
+		canManage = hasPerm
+	}
+	if !isOwner && !canManage {
+		writeError(w, 403, "solo el autor o un administrador puede eliminar esta propuesta")
+		return
+	}
+
+	_, err = h.Pool.Exec(r.Context(), `DELETE FROM assembly_decisions WHERE id = $1 AND status = 'proposed'`, decisionID)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	// Tambien borrar el audit log relacionado
+	h.Pool.Exec(r.Context(), `DELETE FROM audit_log WHERE target_id = $1 AND action = 'assembly_decision'`, decisionID)
+
+	writeJSON(w, 200, map[string]interface{}{"message": "Propuesta eliminada"})
 }
 
 // appendToMinutes agrega una linea a la minuta de la sesion automaticamente
@@ -528,7 +615,7 @@ func (h *AssemblyHandler) openVoting(w http.ResponseWriter, r *http.Request) {
 		UPDATE assembly_decisions
 		SET status = 'pending',
 		    voting_duration_minutes = $1,
-		    voting_deadline = NOW() + ($1 || ' minutes')::INTERVAL,
+		    voting_deadline = NOW() + make_interval(mins => $1),
 		    approved_for_voting_by = $2,
 		    approved_for_voting_at = NOW()
 		WHERE id = $3`,

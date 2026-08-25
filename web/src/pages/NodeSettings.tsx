@@ -61,6 +61,7 @@ export default function NodeSettings() {
   // Mensajes locales junto a botones
   const [backupMsg, setBackupMsg] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null)
   const [configMsg, setConfigMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  const [tariffMsg, setTariffMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [demoMsg, setDemoMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [confirmModal, setConfirmModal] = useState<{ open: boolean, action: () => void, text: string }>({ open: false, action: () => {}, text: '' })
 
@@ -229,7 +230,7 @@ export default function NodeSettings() {
   }, [])
 
   const saveConfig = async () => {
-    setError(''); setSuccess('')
+    setConfigMsg(null)
     const perm = permChecks['node_config']
     if (perm && !perm.can_direct) {
       // Necesita propuesta de Asamblea
@@ -245,22 +246,22 @@ export default function NodeSettings() {
             app_name: config.app_name,
           },
         })
-        setSuccess('Propuesta enviada a la Asamblea. Los cambios se aplicaran cuando se apruebe.')
+        setConfigMsg({ type: 'success', text: 'Propuesta enviada a la Asamblea. Los cambios se aplicaran cuando se apruebe.' })
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error al crear propuesta')
+        setConfigMsg({ type: 'error', text: err instanceof Error ? err.message : 'Error al crear propuesta' })
       }
       return
     }
     try {
       await api.put('/config', config)
-      setSuccess('Configuracion guardada')
+      setConfigMsg({ type: 'success', text: 'Configuracion guardada' })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error')
+      setConfigMsg({ type: 'error', text: err instanceof Error ? err.message : 'Error' })
     }
   }
 
   const saveTariff = async () => {
-    setError(''); setSuccess('')
+    setTariffMsg(null)
     const perm = permChecks['energy_rate_change']
     if (perm && !perm.can_direct) {
       try {
@@ -270,17 +271,17 @@ export default function NodeSettings() {
           description: `Proponer cambiar las tarifas energeticas del nodo. Esto afecta como se calcula el valor del trabajo en TQ.`,
           parameters: tariff,
         })
-        setSuccess('Propuesta enviada a la Asamblea. Las tarifas se aplicaran cuando se apruebe.')
+        setTariffMsg({ type: 'success', text: 'Propuesta enviada a la Asamblea. Las tarifas se aplicaran cuando se apruebe.' })
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error al crear propuesta')
+        setTariffMsg({ type: 'error', text: err instanceof Error ? err.message : 'Error al crear propuesta' })
       }
       return
     }
     try {
       await api.put('/calculator/tariff', tariff)
-      setSuccess('Tarifa energetica guardada')
+      setTariffMsg({ type: 'success', text: 'Tarifa energetica guardada' })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error')
+      setTariffMsg({ type: 'error', text: err instanceof Error ? err.message : 'Error' })
     }
   }
 
@@ -530,6 +531,14 @@ export default function NodeSettings() {
                 <Save size={18} />
                 {permChecks['node_config'] && !permChecks['node_config'].can_direct ? 'Proponer cambio' : 'Guardar'}
               </button>
+              {configMsg && (
+                <div className={`p-3 rounded-lg text-sm flex items-center gap-2 ${
+                  configMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                }`}>
+                  {configMsg.type === 'success' ? <CheckCircle size={14} /> : <AlertTriangle size={14} />}
+                  {configMsg.text}
+                </div>
+              )}
             </>
           )}
           {!canManage && (
@@ -908,6 +917,14 @@ export default function NodeSettings() {
                 <Save size={18} />
                 {permChecks['energy_rate_change'] && !permChecks['energy_rate_change'].can_direct ? 'Proponer cambio' : 'Guardar Tarifa'}
               </button>
+              {tariffMsg && (
+                <div className={`p-3 rounded-lg text-sm flex items-center gap-2 ${
+                  tariffMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                }`}>
+                  {tariffMsg.type === 'success' ? <CheckCircle size={14} /> : <AlertTriangle size={14} />}
+                  {tariffMsg.text}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -1115,7 +1132,7 @@ export default function NodeSettings() {
               <button
                 onClick={async () => {
                   setBackupConfigLoading(true)
-                  setConfigMsg(null)
+                  setBackupMsg(null)
                   try {
                     const token = localStorage.getItem('fmc_token')
                     const res = await fetch('/api/admin/backup-config', {
@@ -1124,9 +1141,9 @@ export default function NodeSettings() {
                       body: JSON.stringify(backupConfig),
                     })
                     if (!res.ok) throw new Error('Error al guardar configuracion')
-                    setConfigMsg({ type: 'success', text: 'Configuracion guardada correctamente.' })
+                    setBackupMsg({ type: 'success', text: 'Configuracion guardada correctamente.' })
                   } catch (err) {
-                    setConfigMsg({ type: 'error', text: err instanceof Error ? err.message : 'Error al guardar' })
+                    setBackupMsg({ type: 'error', text: err instanceof Error ? err.message : 'Error al guardar' })
                   } finally {
                     setBackupConfigLoading(false)
                   }
@@ -1137,12 +1154,12 @@ export default function NodeSettings() {
                 <Save size={16} />
                 {backupConfigLoading ? 'Guardando...' : 'Guardar Configuracion'}
               </button>
-              {configMsg && (
+              {backupMsg && (
                 <div className={`text-xs p-2 rounded-lg flex items-center gap-2 ${
-                  configMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                  backupMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
                 }`}>
-                  {configMsg.type === 'success' ? <RefreshCw size={14} /> : <AlertTriangle size={14} />}
-                  {configMsg.text}
+                  {backupMsg.type === 'success' ? <RefreshCw size={14} /> : <AlertTriangle size={14} />}
+                  {backupMsg.text}
                 </div>
               )}
             </div>

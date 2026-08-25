@@ -23,7 +23,7 @@ const PROPOSAL_LABELS: Record<string, string> = {
   tax_change: 'Cambio de impuestos',
   member_level: 'Nivel de miembro',
   policy: 'Politica general',
-  create_account: 'Crear cuenta',
+  create_account: 'Crear cuenta contable',
   fund_distribution: 'Distribucion de fondo',
   energy_rate_change: 'Cambio de tarifa energetica',
   product_modification: 'Modificacion de producto',
@@ -53,7 +53,7 @@ const PROPOSAL_HELP: Record<ProposalType, string> = {
   tax_change: 'Cambia la tasa de impuesto sobre transacciones. El dinero va a la cuenta de impuestos. Se puede aplicar a un nivel de miembro o de organizacion. Ej: 2% para nivel "pleno".',
   member_level: 'Crea o modifica un nivel de miembro con sus permisos y limites. Ej: crear nivel "pleno" con limite 500.',
   policy: 'Cualquier decision de politica general de la comunidad. Ej: aprobar el reglamento interno.',
-  create_account: 'Crea una nueva cuenta contable en la red. Ej: cuenta "fondo_social" de tipo "expense" con responsables.',
+  create_account: 'Crea una nueva cuenta contable en el nodo (no es un usuario). Sirve para separar fondos por proposito: fondo_social, caja_chica, inventario, etc. La cuenta se crea con saldo 0; para asignarle saldo se necesita una transferencia aprobada por la Asamblea.',
   fund_distribution: 'Distribuye fondos de una cuenta/organizacion a otra. Ej: transferir 200 de "coop_norte" para pago de servicios.',
   energy_rate_change: 'Cambia un parametro de la tarifa energetica. Ej: cambiar el precio por kWh a 0.15.',
   product_modification: 'Modifica el precio o datos de un producto existente. Ej: cambiar el precio del "pan_integral" a 5.',
@@ -101,11 +101,11 @@ const APPROVAL_MODE_OPTIONS = [
 ]
 
 const ACCOUNT_TYPE_OPTIONS = [
-  { value: 'asset', label: 'Activo - Recursos/bienes disponibles' },
-  { value: 'liability', label: 'Pasivo - Obligaciones/deudas' },
-  { value: 'equity', label: 'Patrimonio - Fondos propios de la comunidad' },
-  { value: 'income', label: 'Ingreso - Entradas de dinero' },
-  { value: 'expense', label: 'Egreso - Salidas de dinero' },
+  { value: 'asset', label: 'Activo - Recursos y bienes disponibles (efectivo, inventario, equipos)' },
+  { value: 'liability', label: 'Pasivo - Deudas y obligaciones con terceros (prestamos, cuentas por pagar)' },
+  { value: 'equity', label: 'Patrimonio - Fondos propios de la comunidad (capital inicial, reservas)' },
+  { value: 'income', label: 'Ingreso - Entradas de dinero (ventas, donaciones, cuotas, aportes)' },
+  { value: 'expense', label: 'Egreso - Salidas de dinero (compras, gastos operativos, pagos)' },
 ]
 
 const ENERGY_PARAM_OPTIONS = [
@@ -269,19 +269,19 @@ const PROPOSAL_FIELDS = (currency: string): Record<ProposalType, ProposalField[]
     { key: 'detalle', label: 'Detalle de la politica', help: 'Describe la decision de politica general. Ej: "Aprobar el reglamento interno version 2".', placeholder: 'Descripcion de la decision', type: 'textarea' },
   ],
   create_account: [
-    { key: 'nombre', label: 'Nombre de la cuenta', help: 'Nombre identificatorio de la cuenta. Ej: fondo_social.', placeholder: 'ej: fondo_social', type: 'text' },
+    { key: 'nombre', label: 'Nombre de la cuenta contable', help: 'Nombre identificatorio de la cuenta contable (no es un usuario). Ej: fondo_social, caja_chica, inventario_ferria. Se usara para identificar esta cuenta en la contabilidad del nodo.', placeholder: 'ej: fondo_social', type: 'text' },
     {
       key: 'tipo',
-      label: 'Tipo de cuenta',
-      help: 'Tipo contable de la cuenta. Activo = recursos, Pasivo = deudas, Patrimonio = fondos propios, Ingreso = entradas, Egreso = salidas.',
+      label: 'Tipo de cuenta contable',
+      help: 'Define la naturaleza contable de la cuenta:\n• Activo: Recursos y bienes que el nodo posee (efectivo en caja, inventario de productos, equipos, terrenos).\n• Pasivo: Deudas y obligaciones con terceros (prestamos pendientes, cuentas por pagar a proveedores).\n• Patrimonio: Fondos propios de la comunidad (capital inicial, reservas, acumulacion de excedentes).\n• Ingreso: Entradas de dinero al nodo (ventas, donaciones recibidas, cuotas de miembros, aportes).\n• Egreso: Salidas de dinero del nodo (compras, gastos operativos, pagos a proveedores, mantenimiento).\nLa cuenta se creara con saldo 0. Para asignarle saldo, se debe hacer una transferencia desde otra cuenta o un deposito inicial aprobado por la Asamblea.',
       type: 'select',
       options: ACCOUNT_TYPE_OPTIONS,
     },
-    { key: 'descripcion', label: 'Descripcion', help: 'Describe el proposito de la cuenta. Ej: "Fondo para actividades sociales de la comunidad".', placeholder: 'Descripcion de la cuenta', type: 'textarea' },
+    { key: 'descripcion', label: 'Descripcion de la cuenta', help: 'Describe para que sirve esta cuenta y como se usara. Ej: "Fondo para actividades sociales de la comunidad - se recarga con el 10% de los excedentes mensuales".', placeholder: 'Descripcion de la cuenta contable', type: 'textarea' },
     {
       key: 'responsables',
-      label: 'Responsables',
-      help: 'Selecciona el usuario o organizacion responsable de la cuenta. Ej: maria o coop_admin.',
+      label: 'Responsable de la cuenta',
+      help: 'Persona u organizacion que administrara esta cuenta. El responsable podra ver el saldo y autorizar movimientos. Ej: maria (tesorera) o coop_admin (cooperativa).',
       placeholder: 'ej: maria',
       type: 'entity_toggle',
       entityModes: [
@@ -359,6 +359,13 @@ export default function Assembly() {
   const { currency } = useConfig()
   const canManageBoard = hasPermission('assembly.manage_board')
   const canManageTax = hasPermission('tax.manage')
+  // El secretario o quien tenga permiso de gestion de asamblea puede aprobar propuestas
+  const canApproveProposals = canManageBoard || hasPermission('assembly.manage')
+  const [currentUser, setCurrentUser] = useState<any>(null)
+
+  useEffect(() => {
+    api.get('/auth/me').then((d: any) => setCurrentUser(d)).catch(() => {})
+  }, [])
 
   const [searchParams, setSearchParams] = useSearchParams()
   const initialTab = (searchParams.get('tab') as 'members' | 'board' | 'sessions' | 'proposals' | 'reports' | 'tax' | 'config' | 'wallet') || 'proposals'
@@ -446,7 +453,7 @@ export default function Assembly() {
     api.get('/assembly/config').then((d: any) => setAssemblyConfigs(Array.isArray(d) ? d : [])).catch(() => {})
     api.get('/departments').then((d: any) => setDepartments(Array.isArray(d) ? d : [])).catch(() => {})
     api.get('/organizations').then((d: any) => setOrgList(Array.isArray(d) ? d : [])).catch(() => {})
-    api.get('/users').then((d: any) => { const arr = Array.isArray(d) ? d : (d?.users ?? d?.members ?? []); setUserList(arr) }).catch(() => {})
+    api.get('/assembly/voting-members').then((d: any) => { const arr = Array.isArray(d) ? d : (d?.users ?? d?.members ?? []); setUserList(arr) }).catch(() => {})
   }
 
   const loadSessions = () => {
@@ -992,24 +999,45 @@ export default function Assembly() {
                   <h3 className="font-medium text-sm text-purple-700 flex items-center gap-2">
                     <Clock size={16} />Pendientes de revision por la asamblea ({proposals.filter((p: any) => p.status === 'proposed').length})
                   </h3>
-                  <p className="text-xs text-gray-500">Estas propuestas fueron creadas pero la asamblea todavia no las ha aprobado para votacion.</p>
+                  <p className="text-xs text-gray-500">Estas propuestas fueron creadas pero el Secretario o persona autorizada todavia no las ha aprobado para incluir en la minuta y abrir votacion.</p>
                   {proposals.filter((p: any) => p.status === 'proposed').map((p: any, i: number) => (
                     <div key={i} className="card border-purple-200">
                       <div className="flex items-center justify-between">
                         <div>
                           <span className="font-medium">{PROPOSAL_LABELS[p.proposal_type as ProposalType] || p.proposal_type}</span>
-                          <span className="ml-2 text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700">pendiente de revision</span>
+                          <span className="ml-2 text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700">pendiente de aprobacion</span>
                         </div>
                         <span className="text-xs text-gray-400">{p.created_at?.slice(0, 10)}</span>
                       </div>
                       <p className="text-sm text-gray-600 mt-1">{p.description}</p>
                       <div className="flex gap-2 mt-3">
-                        <button
-                          onClick={() => { setVotingModal({ id: p.id, title: p.description }); setVotingDuration(1440); setVotingMode('remoto') }}
-                          className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
-                        >
-                          Abrir votacion
-                        </button>
+                        {/* El propietario puede editar o eliminar mientras este pendiente */}
+                        {p.created_by === currentUser?.id && (
+                          <>
+                            <button
+                              onClick={() => {
+                                if (confirm('Eliminar esta propuesta?')) {
+                                  api.delete(`/assembly/proposals/${p.id}`).then(() => loadProposals()).catch(() => {})
+                                }
+                              }}
+                              className="text-xs px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                            >
+                              Eliminar
+                            </button>
+                          </>
+                        )}
+                        {/* Solo el secretario/autorizado puede abrir votacion */}
+                        {canApproveProposals && (
+                          <button
+                            onClick={() => { setVotingModal({ id: p.id, title: p.description }); setVotingDuration(1440); setVotingMode('remoto') }}
+                            className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                          >
+                            Aprobar y abrir votacion
+                          </button>
+                        )}
+                        {!canApproveProposals && !p.created_by && (
+                          <span className="text-xs text-gray-400 italic">Esperando aprobacion del Secretario</span>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -1156,7 +1184,7 @@ export default function Assembly() {
                     <option value="federation_config">Configuracion federacion</option>
                     <option value="recovery_config">Configuracion recuperacion</option>
                     <option value="policy">Politica general</option>
-                    <option value="create_account">Creacion de cuenta</option>
+                    <option value="create_account">Creacion de cuenta contable</option>
                     <option value="product_modification">Modificacion de producto</option>
                     <option value="product_approval">Aprobacion de producto</option>
                     <option value="product_disapproval">Desaprobacion de producto</option>
