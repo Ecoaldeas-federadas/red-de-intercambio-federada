@@ -304,30 +304,45 @@ export function EdButton({
         </button>
       )}
       {showLinkEditor && linkField && (
-        <div className="absolute top-full left-0 mt-1 z-50 bg-white rounded-lg shadow-xl border border-gray-200 p-2 flex items-center gap-1.5 min-w-[220px]">
-          <input
-            type="text"
-            value={tempLink}
+        <div className="absolute top-full left-0 mt-1 z-50 bg-white rounded-lg shadow-xl border border-gray-200 p-2 space-y-1.5 min-w-[260px]">
+          {/* Dropdown de paginas internas */}
+          <select
+            value={tempLink.startsWith('/p/') ? tempLink : ''}
             onChange={(e) => setTempLink(e.target.value)}
-            placeholder="/p/..."
-            className="flex-1 px-2 py-1 text-[11px] border border-gray-300 rounded outline-none focus:border-emerald-500"
-            autoFocus
-          />
-          <button
-            onClick={() => {
-              updateField(linkField, tempLink || defaultLink)
-              setShowLinkEditor(false)
-            }}
-            className="px-2 py-1 bg-emerald-600 text-white text-[10px] font-bold rounded hover:bg-emerald-700"
+            className="w-full px-2 py-1 text-[11px] border border-gray-300 rounded outline-none focus:border-emerald-500"
           >
-            <Check size={11} />
-          </button>
-          <button
-            onClick={() => setShowLinkEditor(false)}
-            className="px-1.5 py-1 bg-gray-200 text-gray-700 text-[10px] font-bold rounded hover:bg-gray-300"
-          >
-            <X size={11} />
-          </button>
+            <option value="">-- Pagina interna --</option>
+            <option value="/p/productos">Productos</option>
+            <option value="/p/unirse">Unirse</option>
+            <option value="/p/federacion">Federacion</option>
+            <option value="/p/gobernanza">Gobernanza</option>
+          </select>
+          {/* Input para URL externa o ancla */}
+          <div className="flex items-center gap-1.5">
+            <input
+              type="text"
+              value={tempLink}
+              onChange={(e) => setTempLink(e.target.value)}
+              placeholder="/p/... o https://... o #ancla"
+              className="flex-1 px-2 py-1 text-[11px] border border-gray-300 rounded outline-none focus:border-emerald-500"
+            />
+            <button
+              onClick={() => {
+                updateField(linkField, tempLink || defaultLink)
+                setShowLinkEditor(false)
+              }}
+              className="px-2 py-1 bg-emerald-600 text-white text-[10px] font-bold rounded hover:bg-emerald-700"
+            >
+              <Check size={11} />
+            </button>
+            <button
+              onClick={() => setShowLinkEditor(false)}
+              className="px-1.5 py-1 bg-gray-200 text-gray-700 text-[10px] font-bold rounded hover:bg-gray-300"
+            >
+              <X size={11} />
+            </button>
+          </div>
+          <p className="text-[9px] text-gray-400">Selecciona una pagina interna o escribe una URL externa o ancla (#seccion)</p>
         </div>
       )}
     </span>

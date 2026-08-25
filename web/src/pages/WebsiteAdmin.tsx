@@ -46,6 +46,9 @@ import {
   List,
   FormInput,
   AlignLeft,
+  ChevronUp,
+  ChevronDown,
+  Menu,
 } from 'lucide-react'
 import { SiteBlock, BlockType, HeaderStyleType, FormFieldSchema, FormFieldType } from '../types/publicSite'
 import { FERIA_CONUQUERA_TEMPLATES } from '../components/public-site/defaultSiteData'
@@ -962,6 +965,65 @@ export default function WebsiteAdmin() {
               </button>
             </div>
           </div>
+
+          {/* ===== ORDENAR MENU VISUAL ===== */}
+          {pages.filter(p => p.show_in_menu).length > 0 && (
+            <div className="mb-6 bg-white rounded-2xl p-4 shadow-sm border border-gray-200">
+              <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <Menu size={16} className="text-emerald-700" />
+                Orden del Menú
+                <span className="text-xs font-normal text-gray-400">(usa las flechas para reordenar)</span>
+              </h3>
+              <div className="space-y-1">
+                {[...pages]
+                  .filter(p => p.show_in_menu)
+                  .sort((a, b) => (a.menu_order || 0) - (b.menu_order || 0))
+                  .map((p, idx, arr) => (
+                  <div key={p.id} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 group hover:bg-emerald-50 transition">
+                    <span className="text-xs font-mono text-gray-400 w-6 text-center">{idx + 1}</span>
+                    <span className="text-xs font-mono px-2 py-0.5 rounded bg-gray-200 text-gray-700 flex-shrink-0">/p/{p.slug}</span>
+                    <span className="text-sm text-gray-800 flex-1 truncate">{p.title}</span>
+                    <div className="flex gap-1 opacity-60 group-hover:opacity-100 transition">
+                      <button
+                        disabled={idx === 0}
+                        onClick={async () => {
+                          // Subir: intercambiar menu_order con el anterior
+                          const prev = arr[idx - 1]
+                          if (!prev) return
+                          try {
+                            await api.put(`/site/pages/${p.id}`, { ...p, menu_order: prev.menu_order })
+                            await api.put(`/site/pages/${prev.id}`, { ...prev, menu_order: p.menu_order })
+                            load()
+                          } catch (err) { setError('Error al reordenar') }
+                        }}
+                        className="p-1 rounded hover:bg-emerald-200 text-emerald-700 disabled:opacity-20 disabled:cursor-not-allowed"
+                        title="Subir"
+                      >
+                        <ChevronUp size={16} />
+                      </button>
+                      <button
+                        disabled={idx === arr.length - 1}
+                        onClick={async () => {
+                          // Bajar: intercambiar menu_order con el siguiente
+                          const next = arr[idx + 1]
+                          if (!next) return
+                          try {
+                            await api.put(`/site/pages/${p.id}`, { ...p, menu_order: next.menu_order })
+                            await api.put(`/site/pages/${next.id}`, { ...next, menu_order: p.menu_order })
+                            load()
+                          } catch (err) { setError('Error al reordenar') }
+                        }}
+                        className="p-1 rounded hover:bg-emerald-200 text-emerald-700 disabled:opacity-20 disabled:cursor-not-allowed"
+                        title="Bajar"
+                      >
+                        <ChevronDown size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {pages.map((p) => {
@@ -2060,6 +2122,115 @@ export default function WebsiteAdmin() {
 }
 
 // -------------------------------------------------------------
+// LINK PICKER - Selector de enlaces con paginas internas, externas y anclas
+// -------------------------------------------------------------
+function LinkPicker({ value, onChange, label }: { value: string; onChange: (v: string) => void; label?: string }) {
+  const [pages, setPages] = useState<any[]>([])
+  const [mode, setMode] = useState<'internal' | 'external' | 'anchor'>('internal')
+
+  useEffect(() => {
+    api.get('/site/pages').then((d: any) => {
+      setPages(Array.isArray(d) ? d : [])
+    }).catch(() => {})
+  }, [])
+
+  // Detectar modo basado en el valor actual
+  useEffect(() => {
+    if (!value) { setMode('internal'); return }
+    if (value.startsWith('#')) { setMode('anchor'); return }
+    if (value.startsWith('http://') || value.startsWith('https://')) { setMode('external'); return }
+    setMode('internal')
+  }, [value])
+
+  return (
+    <div className="space-y-1.5">
+      {label && <label className="label text-xs font-semibold">{label}</label>}
+      {/* Selector de modo */}
+      <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
+        <button
+          onClick={() => setMode('internal')}
+          className={`flex-1 px-2 py-1 text-[11px] rounded ${mode === 'internal' ? 'bg-white shadow text-emerald-700 font-medium' : 'text-gray-500'}`}
+        >
+          Pagina interna
+        </button>
+        <button
+          onClick={() => setMode('external')}
+          className={`flex-1 px-2 py-1 text-[11px] rounded ${mode === 'external' ? 'bg-white shadow text-blue-700 font-medium' : 'text-gray-500'}`}
+        >
+          URL externa
+        </button>
+        <button
+          onClick={() => setMode('anchor')}
+          className={`flex-1 px-2 py-1 text-[11px] rounded ${mode === 'anchor' ? 'bg-white shadow text-purple-700 font-medium' : 'text-gray-500'}`}
+        >
+          Ancla (#)
+        </button>
+      </div>
+
+      {mode === 'internal' && (
+        <select
+          className="input text-sm"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          <option value="">Seleccionar pagina...</option>
+          {pages.map((p: any) => (
+            <option key={p.id} value={`/p/${p.slug}`}>{p.title} (/p/{p.slug})</option>
+          ))}
+          {/* Opciones especiales del sistema */}
+          <option value="/p/federacion">Federacion (/p/federacion)</option>
+          <option value="/p/gobernanza">Gobernanza (/p/gobernanza)</option>
+          <option value="/p/unirse">Unirse (/p/unirse)</option>
+        </select>
+      )}
+
+      {mode === 'external' && (
+        <input
+          type="url"
+          className="input text-sm"
+          placeholder="https://ejemplo.com"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      )}
+
+      {mode === 'anchor' && (
+        <div className="flex gap-1.5">
+          <select
+            className="input text-sm flex-1"
+            value={value.startsWith('#') ? '' : (value.split('#')[0] || '')}
+            onChange={(e) => {
+              const anchor = value.split('#')[1] || ''
+              onChange(e.target.value + (anchor ? `#${anchor}` : ''))
+            }}
+          >
+            <option value="">Misma pagina</option>
+            {pages.map((p: any) => (
+              <option key={p.id} value={`/p/${p.slug}`}>{p.title}</option>
+            ))}
+          </select>
+          <input
+            className="input text-sm w-24"
+            placeholder="#seccion"
+            value={value.startsWith('#') ? value : (value.split('#')[1] ? '#' + value.split('#')[1] : '')}
+            onChange={(e) => {
+              const anchor = e.target.value.startsWith('#') ? e.target.value : '#' + e.target.value
+              const page = value.split('#')[0]
+              onChange(page + anchor)
+            }}
+          />
+        </div>
+      )}
+      <p className="text-[10px] text-gray-400">
+        {mode === 'internal' && 'Enlace a una pagina dentro del nodo.'}
+        {mode === 'external' && 'Enlace a otra pagina web (abre en nueva pestana).'}
+        {mode === 'anchor' && 'Salta a una seccion especifica dentro de una pagina (ej: #contacto).'}
+      </p>
+    </div>
+  )
+}
+
+// -------------------------------------------------------------
 // DYNAMIC BLOCK CUSTOMIZER
 // -------------------------------------------------------------
 function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (updated: SiteBlock) => void }) {
@@ -2139,13 +2310,10 @@ function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (upd
             />
           </div>
           <div>
-            <label className="label text-xs font-semibold">Enlace Botón Primario</label>
-            <input
-              className="input text-sm"
+            <LinkPicker
+              label="Enlace Botón Primario"
               value={block.primary_cta?.link || ''}
-              onChange={(e) =>
-                updateField('primary_cta', { ...block.primary_cta, link: e.target.value, text: block.primary_cta?.text || 'Ver Más' })
-              }
+              onChange={(v) => updateField('primary_cta', { ...block.primary_cta, link: v, text: block.primary_cta?.text || 'Ver Más' })}
             />
           </div>
         </div>

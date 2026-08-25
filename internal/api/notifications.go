@@ -139,8 +139,13 @@ func (h *NotificationHandler) listNotifications(w http.ResponseWriter, r *http.R
 
 	rows, err := h.Pool.Query(r.Context(), `
 		SELECT id, notification_type, title, message, metadata, link, is_read, created_at, read_at
-		FROM notifications
-		WHERE user_id = $1
+		FROM (
+			SELECT id, notification_type, title, message, metadata, link, is_read, created_at, read_at
+			FROM notifications WHERE user_id = $1
+			UNION ALL
+			SELECT id, 'assembly' AS notification_type, title, message, NULL AS metadata, link, is_read, created_at, read_at
+			FROM assembly_notifications WHERE user_id = $1
+		) AS combined
 		ORDER BY created_at DESC
 		LIMIT 50`, userID)
 	if err != nil {
@@ -217,7 +222,9 @@ func (h *NotificationHandler) markRead(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, "invalid id")
 		return
 	}
+	// Intentar marcar en ambas tablas (notifications y assembly_notifications)
 	h.Pool.Exec(r.Context(), `UPDATE notifications SET is_read = true, read_at = NOW() WHERE id = $1 AND user_id = $2`, notifID, userID)
+	h.Pool.Exec(r.Context(), `UPDATE assembly_notifications SET is_read = true, read_at = NOW() WHERE id = $1 AND user_id = $2`, notifID, userID)
 	writeJSON(w, 200, map[string]interface{}{"message": "ok"})
 }
 
@@ -244,6 +251,7 @@ func (h *NotificationHandler) deleteNotification(w http.ResponseWriter, r *http.
 		return
 	}
 	h.Pool.Exec(r.Context(), `DELETE FROM notifications WHERE id = $1 AND user_id = $2`, notifID, userID)
+	h.Pool.Exec(r.Context(), `DELETE FROM assembly_notifications WHERE id = $1 AND user_id = $2`, notifID, userID)
 	writeJSON(w, 200, map[string]interface{}{"message": "ok"})
 }
 
