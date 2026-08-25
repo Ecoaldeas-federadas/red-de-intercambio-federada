@@ -345,8 +345,9 @@ func (h *UpdateHandler) cancelUpdate(w http.ResponseWriter, r *http.Request) {
 	// Intentar matar contenedores desechables (fmc-updater-*)
 	exec.Command("sh", "-c", "docker ps --format '{{.Names}}' | grep 'fmc-updater-' | xargs -r docker kill").Run()
 
-	// Intentar cancelar en el updater-controller (no tiene endpoint de cancel,
-	// pero al menos el do_update.sh verificara el estado y se detendra)
+	// Intentar cancelar en el updater-controller via endpoint /cancel
+	http.Post(updaterControllerURL+"/cancel", "application/json", nil)
+
 	writeJSON(w, 200, map[string]interface{}{
 		"success": true,
 		"message": "Actualizacion cancelada. El proceso en segundo plano se detendra.",

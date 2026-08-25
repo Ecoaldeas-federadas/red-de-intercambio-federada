@@ -1974,10 +1974,20 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
         setUpdating(true)
         setUpdateStatus(res)
         setMsg({ type: 'info', text: 'Actualizacion en curso (restaurada despues de recargar).' })
-        // Iniciar polling para continuar monitoreando
         startPolling()
       }
-    }).catch(() => {})
+    }).catch(() => {
+      // Si el nodo no responde, intentar via updater-controller
+      const host = window.location.hostname
+      fetch(`http://${host}:9110/status`).then(resp => resp.json()).then((res: any) => {
+        if (res && res.status === 'running') {
+          setUpdating(true)
+          setUpdateStatus(res)
+          setMsg({ type: 'info', text: 'Actualizacion en curso (detectada via updater-controller - nodo posiblemente reiniciando).' })
+          startPolling()
+        }
+      }).catch(() => {})
+    })
   }, [])
 
   const startPolling = () => {
@@ -1991,15 +2001,18 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
         setReconnectAttempts(0)
         if (res.status === 'completed') {
           clearInterval(interval)
+          setPollInterval(null)
           setUpdating(false)
           setMsg({ type: 'success', text: 'Nodo actualizado correctamente. La pagina se recargara...' })
           setTimeout(() => window.location.reload(), 3000)
         } else if (res.status === 'error') {
           clearInterval(interval)
+          setPollInterval(null)
           setUpdating(false)
           setMsg({ type: 'error', text: res.message || 'Error en la actualizacion' })
         } else if (res.status === 'cancelled') {
           clearInterval(interval)
+          setPollInterval(null)
           setUpdating(false)
           setMsg({ type: 'info', text: 'Actualizacion cancelada.' })
         }
@@ -2008,6 +2021,48 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
         setReconnectAttempts(consecutiveFailures)
         if (consecutiveFailures >= 2) {
           setNodeRestarting(true)
+          setMsg({ type: 'info', text: `El nodo se esta reiniciando... reintentando (${consecutiveFailures})` })
+        }
+        // Despues de 5 fallos, intentar obtener estado directamente del updater-controller
+        if (consecutiveFailures === 5) {
+          try {
+            const host = window.location.hostname
+            const resp = await fetch(`http://${host}:9110/status`)
+            const status = await resp.json()
+            if (status && status.status) {
+              setUpdateStatus(status)
+              if (status.status === 'completed') {
+                clearInterval(interval)
+                setPollInterval(null)
+                setUpdating(false)
+                setNodeRestarting(false)
+                setMsg({ type: 'success', text: 'Nodo actualizado correctamente. La pagina se recargara...' })
+                setTimeout(() => window.location.reload(), 3000)
+              } else if (status.status === 'error') {
+                clearInterval(interval)
+                setPollInterval(null)
+                setUpdating(false)
+                setNodeRestarting(false)
+                setMsg({ type: 'error', text: status.message || 'Error en la actualizacion' })
+              } else if (status.status === 'cancelled') {
+                clearInterval(interval)
+                setPollInterval(null)
+                setUpdating(false)
+                setNodeRestarting(false)
+                setMsg({ type: 'info', text: 'Actualizacion cancelada.' })
+              }
+            }
+          } catch {
+            // updater-controller tambien inaccesible, continuar reintentando
+          }
+        }
+        // Despues de 30 fallos (60 seg), mostrar error mas grave
+        if (consecutiveFailures >= 30) {
+          clearInterval(interval)
+          setPollInterval(null)
+          setUpdating(false)
+          setNodeRestarting(false)
+          setMsg({ type: 'error', text: 'No se pudo reconectar con el nodo despues de 60 segundos. Verifica el estado del nodo manualmente con: docker compose ps' })
         }
       }
     }, 2000)
@@ -2019,8 +2074,27 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
     try {
       const res: any = await api.get('/node/check-updates')
       setUpdateInfo(res)
+      setMsg(null)
     } catch (e: any) {
-      setMsg({ type: 'error', text: 'Error al verificar actualizaciones' })
+      // Si el nodo no responde, intentar via updater-controller directamente
+      try {
+        const host = window.location.hostname
+        const resp = await fetch(`http://${host}:9110/check`)
+        const result = await resp.json()
+        if (result) {
+          setUpdateInfo({
+            updates_available: result.updates_available === true,
+            current_commit: result.current_commit || '',
+            new_commits: result.new_commits || '',
+            remote_url: 'via updater-controller (nodo caido)',
+          })
+          setMsg({ type: 'info', text: 'Nodo no responde. Verificacion hecha via updater-controller.' })
+        }
+      } catch (err2) {
+        // Limpiar info anterior - no mostrar datos stale
+        setUpdateInfo(null)
+        setMsg({ type: 'error', text: 'No se puede conectar con el nodo ni con el updater-controller. Verifica que los contenedores esten corriendo.' })
+      }
     } finally {
       setChecking(false)
     }
@@ -2031,14 +2105,22 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
     try {
       await api.post('/node/cancel-update', {})
       setMsg({ type: 'info', text: 'Solicitud de cancelacion enviada.' })
+    } catch (err) {
+      // Si el nodo esta caido, intentar cancelar directamente via updater-controller
+      // El puerto 9110 esta expuesto en el host
+      try {
+        const host = window.location.hostname
+        await fetch(`http://${host}:9110/cancel`, { method: 'POST' })
+        setMsg({ type: 'info', text: 'Cancelacion enviada directamente al updater-controller.' })
+      } catch (err2) {
+        setMsg({ type: 'error', text: 'No se pudo cancelar. El nodo y el updater-controller no responden.' })
+      }
+    } finally {
       if (pollInterval) {
         clearInterval(pollInterval)
         setPollInterval(null)
       }
       setUpdating(false)
-    } catch (err) {
-      setMsg({ type: 'error', text: 'Error al cancelar actualizacion' })
-    } finally {
       setCancelling(false)
     }
   }
@@ -2055,9 +2137,22 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
       setMsg({ type: 'info', text: 'Actualizacion iniciada. El nodo se reiniciara automaticamente.' })
       startPolling()
     } catch (e: any) {
-      setUpdating(false)
-      const errMsg = e instanceof Error ? e.message : 'Error al iniciar la actualizacion'
-      setMsg({ type: 'error', text: errMsg })
+      // Si el nodo no responde, intentar directamente via updater-controller
+      try {
+        const host = window.location.hostname
+        const resp = await fetch(`http://${host}:9110/update`, { method: 'POST' })
+        const result = await resp.json()
+        if (result.success) {
+          setMsg({ type: 'info', text: 'Actualizacion iniciada via updater-controller. El nodo se reiniciara automaticamente.' })
+          startPolling()
+        } else {
+          setUpdating(false)
+          setMsg({ type: 'error', text: result.message || 'El updater-controller rechazo la solicitud' })
+        }
+      } catch (err2) {
+        setUpdating(false)
+        setMsg({ type: 'error', text: 'No se puede iniciar la actualizacion. Ni el nodo ni el updater-controller responden. Verifica que los contenedores esten corriendo.' })
+      }
     }
   }
 

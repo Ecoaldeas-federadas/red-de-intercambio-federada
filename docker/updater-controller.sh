@@ -47,8 +47,14 @@ if echo "$PATH_REQ" | grep -q '^/update$'; then
   if [ "$CURRENT_STATUS" = "running" ]; then
     send_response '{"success":false,"message":"Ya hay una actualizacion en curso"}'
   else
-    # Start update in background (output goes to log, not to socket)
-    /do_update.sh >> "$LOG_FILE" 2>&1 &
+    # Start update in background. Usar nohup para que el proceso sobreviva
+    # cuando socat cierre esta conexion. Sin nohup, socat enviaria SIGHUP
+    # al proceso hijo al cerrar, matando do_update.sh.
+    nohup /do_update.sh >> "$LOG_FILE" 2>&1 &
+    # Guardar el PID para poder cancelar si es necesario
+    echo "$!" > "$STATE_DIR/update.pid"
+    # Darle un momento para que empiece y escriba el estado inicial
+    sleep 2
     send_response '{"success":true,"message":"Actualizacion iniciada. El nodo se reiniciara automaticamente."}'
   fi
 
@@ -66,6 +72,29 @@ elif echo "$PATH_REQ" | grep -q '^/status$'; then
     LOG=$(json_escape "$(cat "$LOG_FILE")")
   fi
   send_response "{\"status\":\"$STATUS\",\"message\":\"$MESSAGE\",\"commit\":\"$COMMIT\",\"log\":\"$LOG\"}"
+
+elif echo "$PATH_REQ" | grep -q '^/cancel$'; then
+  # Marcar como cancelada. do_update.sh verifica el estado antes de cada paso.
+  if [ -f "$STATE_FILE" ]; then
+    STARTED=$(grep -o '"started_at":"[^"]*"' "$STATE_FILE" | head -1 | sed 's/"started_at":"//;s/"//')
+    COMMIT=$(grep -o '"commit":"[^"]*"' "$STATE_FILE" | head -1 | sed 's/"commit":"//;s/"//')
+    printf '{"status":"cancelled","message":"Actualizacion cancelada por el usuario","commit":"%s","started_at":"%s","completed_at":""}' \
+      "$COMMIT" "$STARTED" > "$STATE_FILE"
+    echo "=== CANCELACION SOLICITADA ===" >> "$LOG_FILE"
+    # Matar el proceso do_update.sh si tenemos el PID
+    if [ -f "$STATE_DIR/update.pid" ]; then
+      PID=$(cat "$STATE_DIR/update.pid" 2>/dev/null)
+      if [ -n "$PID" ]; then
+        kill "$PID" 2>/dev/null || true
+        # Matar procesos hijo tambien
+        kill -9 "$PID" 2>/dev/null || true
+      fi
+      rm -f "$STATE_DIR/update.pid"
+    fi
+    send_response '{"success":true,"message":"Actualizacion cancelada"}'
+  else
+    send_response '{"success":false,"message":"No hay actualizacion en curso"}'
+  fi
 
 elif echo "$PATH_REQ" | grep -q '^/check$'; then
   PROJECT_DIR=/project
