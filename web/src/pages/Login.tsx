@@ -366,7 +366,7 @@ export default function Login() {
                     type="text"
                     className="flex-1 px-3 py-2 rounded-l-lg bg-transparent outline-none"
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e) => setUsername(e.target.value.toLowerCase())}
                     placeholder="admin"
                     onKeyDown={(e) => e.key === 'Enter' && (mode === 'password' ? handlePasswordLogin() : handlePasskeyLogin())}
                   />

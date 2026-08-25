@@ -66,7 +66,7 @@ export function SessionExpiredProvider({ children }: { children: React.ReactNode
                 <input
                   className="input"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={(e) => setUsername(e.target.value.toLowerCase())}
                   placeholder="Tu usuario"
                   autoFocus
                   required

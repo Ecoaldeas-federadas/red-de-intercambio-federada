@@ -526,7 +526,10 @@ func (ah *AuthHandlers) beginLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Separar username@domain y resolver el dominio efectivo
+	// El username se convierte a minusculas para ser case-insensitive
+	// (los moviles suelen poner la primera letra en mayuscula automaticamente)
 	username, _ := parseUsernameDomain(req.Username)
+	username = strings.ToLower(username)
 	nodeDomain := ah.resolveNodeDomain(r, req.Username)
 
 	// Buscar el usuario por username y node_domain
@@ -1070,7 +1073,10 @@ func (ah *AuthHandlers) passwordLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Separar username@domain y resolver el dominio efectivo
+	// El username se convierte a minusculas para ser case-insensitive
+	// (los moviles suelen poner la primera letra en mayuscula automaticamente)
 	username, _ := parseUsernameDomain(req.Username)
+	username = strings.ToLower(username)
 	nodeDomain := ah.resolveNodeDomain(r, req.Username)
 
 	var userID uuid.UUID
