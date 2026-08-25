@@ -203,8 +203,54 @@ export default function NodeSettings() {
     if (tab === 'database') { loadYbNodes(); loadClusterStatus(); loadClusterConfig() }
   }, [tab])
 
+  // Verificar permisos de Asamblea para cada tipo de cambio
+  const [permChecks, setPermChecks] = useState<Record<string, { can_direct: boolean, method: string, reason: string }>>({})
+
+  const checkPermission = async (proposalType: string) => {
+    try {
+      const res: any = await api.get(`/assembly/check-permission/${proposalType}`)
+      setPermChecks(prev => ({ ...prev, [proposalType]: res }))
+      return res
+    } catch {
+      // Si falla, permitir por compatibilidad
+      return { can_direct: true, method: 'legacy', reason: '' }
+    }
+  }
+
+  useEffect(() => {
+    // Verificar permisos para todos los tipos de cambio al cargar
+    checkPermission('node_config')
+    checkPermission('backup_config')
+    checkPermission('cluster_config')
+    checkPermission('energy_rate_change')
+    checkPermission('member_level')
+    checkPermission('org_level')
+    checkPermission('tax_change')
+  }, [])
+
   const saveConfig = async () => {
     setError(''); setSuccess('')
+    const perm = permChecks['node_config']
+    if (perm && !perm.can_direct) {
+      // Necesita propuesta de Asamblea
+      try {
+        await api.post('/assembly/proposals', {
+          proposal_type: 'node_config',
+          title: `Cambiar configuracion del nodo: ${config.node_name}`,
+          description: `Proponer cambiar la configuracion del nodo. Nombre: ${config.node_name}, Moneda: ${config.currency_name}, App: ${config.app_name}`,
+          parameters: {
+            node_name: config.node_name,
+            currency_name: config.currency_name,
+            currency_full_name: config.currency_full_name,
+            app_name: config.app_name,
+          },
+        })
+        setSuccess('Propuesta enviada a la Asamblea. Los cambios se aplicaran cuando se apruebe.')
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error al crear propuesta')
+      }
+      return
+    }
     try {
       await api.put('/config', config)
       setSuccess('Configuracion guardada')
@@ -215,6 +261,21 @@ export default function NodeSettings() {
 
   const saveTariff = async () => {
     setError(''); setSuccess('')
+    const perm = permChecks['energy_rate_change']
+    if (perm && !perm.can_direct) {
+      try {
+        await api.post('/assembly/proposals', {
+          proposal_type: 'energy_rate_change',
+          title: `Cambiar tarifas energeticas`,
+          description: `Proponer cambiar las tarifas energeticas del nodo. Esto afecta como se calcula el valor del trabajo en TQ.`,
+          parameters: tariff,
+        })
+        setSuccess('Propuesta enviada a la Asamblea. Las tarifas se aplicaran cuando se apruebe.')
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error al crear propuesta')
+      }
+      return
+    }
     try {
       await api.put('/calculator/tariff', tariff)
       setSuccess('Tarifa energetica guardada')
@@ -447,7 +508,29 @@ export default function NodeSettings() {
           )}
 
           {canManage && (
-            <button onClick={saveConfig} className="btn-primary flex items-center gap-2"><Save size={18} />Guardar</button>
+            <>
+              {permChecks['node_config'] && !permChecks['node_config'].can_direct && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700 flex items-start gap-2 mb-3">
+                  <VoteIcon size={16} className="mt-0.5 flex-shrink-0" />
+                  <div>
+                    <strong>Requiere aprobacion de Asamblea.</strong> {permChecks['node_config'].reason}
+                    Al guardar se creara una propuesta para que la Asamblea decida.
+                  </div>
+                </div>
+              )}
+              {permChecks['node_config'] && permChecks['node_config'].can_direct && permChecks['node_config'].method !== 'legacy' && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700 flex items-start gap-2 mb-3">
+                  <CheckCircle size={16} className="mt-0.5 flex-shrink-0" />
+                  <div>
+                    <strong>Cambio directo autorizado.</strong> {permChecks['node_config'].reason}
+                  </div>
+                </div>
+              )}
+              <button onClick={saveConfig} className="btn-primary flex items-center gap-2">
+                <Save size={18} />
+                {permChecks['node_config'] && !permChecks['node_config'].can_direct ? 'Proponer cambio' : 'Guardar'}
+              </button>
+            </>
           )}
           {!canManage && (
             <p className="text-xs text-amber-600">No tienes permiso para cambiar la configuracion.</p>
@@ -811,7 +894,21 @@ export default function NodeSettings() {
           </div>
 
           {canManage && (
-            <button onClick={saveTariff} className="btn-primary flex items-center gap-2"><Save size={18} />Guardar Tarifa</button>
+            <>
+              {permChecks['energy_rate_change'] && !permChecks['energy_rate_change'].can_direct && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700 flex items-start gap-2 mb-3">
+                  <VoteIcon size={16} className="mt-0.5 flex-shrink-0" />
+                  <div>
+                    <strong>Requiere aprobacion de Asamblea.</strong> {permChecks['energy_rate_change'].reason}
+                    Al guardar se creara una propuesta.
+                  </div>
+                </div>
+              )}
+              <button onClick={saveTariff} className="btn-primary flex items-center gap-2">
+                <Save size={18} />
+                {permChecks['energy_rate_change'] && !permChecks['energy_rate_change'].can_direct ? 'Proponer cambio' : 'Guardar Tarifa'}
+              </button>
+            </>
           )}
         </div>
       )}

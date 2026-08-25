@@ -1,67 +1,64 @@
-feat: gobernanza configurable con signers, persona, comision y ayuda
+feat: TODOS los cambios del nodo pasan por configuracion de Asamblea
 
-PROBLEMAS:
-1. Multisig solo guardaba NUMERO de firmas, no QUIENES pueden firmar
-2. No habia opcion de aprobar por una persona especifica
-3. No habia opcion de delegar a una organizacion
-4. "Consejo" no estaba claro que era - el usuario tiene comisiones
-5. No habia botones de ayuda explicando cada campo
+PRINCIPIO:
+Todo cambio de ajustes del nodo debe tener una entrada en
+assembly_config que defina COMO se decide ese cambio. La Asamblea
+decide para cada tipo de cambio si requiere:
+- votacion de asamblea
+- junta directiva
+- comision/departamento
+- persona especifica
+- cualquiera de los autorizados (NUEVO)
+- organizacion
+- multi-firma (todas deben firmar)
 
-SOLUCION:
+NUEVO METODO: authorized_any
+Cualquiera de las personas autorizadas puede aprobar por si sola.
+Diferente de multisig donde TODAS deben firmar.
+Ej: 3 personas autorizadas, cualquiera de las 3 puede aprobar sola.
 
-1. Migracion 106_assembly_config_signers.sql:
-   - Nueva tabla assembly_config_signers: guarda quienes pueden firmar
-     (personas y/o organizaciones) para multisig
-   - Nuevas columnas en assembly_config:
-     * authorized_person_id: para metodo "person"
-     * organization_id: para metodo "organization"
+CAMBIOS:
 
-2. Backend assembly.go:
-   - UpdateAssemblyConfigRequest ahora incluye:
-     * authorized_person_id, organization_id, signers[]
-   - updateAssemblyConfig guarda signers en assembly_config_signers
-   - listAssemblyConfig devuelve signers + nombres resueltos
-     (council_name, authorized_person_name, organization_name)
-   - Nuevo metodo loadConfigSigners()
-   - checkApproval soporta "person" y "organization"
+1. Migracion 107_all_settings_through_assembly.sql:
+   Nuevos tipos de propuesta en assembly_config:
+   - node_config: nombre, moneda, dominio (por defecto: persona)
+   - backup_config: backups automaticos (por defecto: persona)
+   - cluster_config: cluster de DB (por defecto: persona)
+   - permission_assignment: asignar permisos (por defecto: asamblea 2/3)
+   - federation_treaty: tratados de federacion (por defecto: asamblea 2/3)
 
-3. Frontend Assembly.tsx - rediseño completo:
-   - 6 metodos de aprobacion (antes 4):
-     * Asamblea (votacion de todos)
-     * Junta Directiva (mas rapido)
-     * Comision/Departamento (especializado) - antes "Consejo"
-     * Persona especifica (mas rapido) - NUEVO
-     * Organizacion (delegado) - NUEVO
-     * Multi-firma (varias personas/orgs)
-   - Cada metodo muestra campos diferentes:
-     * Asamblea: porcentaje + quorum
-     * Junta: porcentaje + info de la junta
-     * Comision: dropdown de departamentos + explicacion
-     * Persona: dropdown de usuarios + explicacion
-     * Organizacion: dropdown de orgs + porcentaje + explicacion
-     * Multisig: numero de firmas + lista de autorizados
-       (agregar/quitar personas y organizaciones)
+2. Backend assembly.go executeDecision:
+   Nuevos casos para ejecutar cambios aprobados:
+   - node_config: UPDATE node_config
+   - backup_config: UPDATE backup_config
+   - cluster_config: UPDATE cluster_config
+   - permission_assignment: UPDATE users SET member_level_id
+   - federation_treaty: INSERT/UPDATE federation_peers
 
-4. Botones de ayuda (HelpCircle) en cada campo:
-   - Metodo de aprobacion: explica cada opcion
-   - Porcentaje: explica 50%, 66.67%, 75%, 100%
-   - Quorum: explica minimo de votantes
-   - Comision: explica que es y donde se crea
-   - Persona: explica que concentra poder
-   - Organizacion: explica delegacion
-   - Firmas requeridas: explica numero vs autorizados
-   - Signers: explica lista de autorizados
-   - Descripcion: explica para que sirve
+3. Backend nuevo endpoint:
+   GET /api/assembly/check-permission/{proposalType}
+   Verifica si el usuario actual puede hacer cambio directo o
+   necesita crear propuesta. Retorna {can_direct, method, reason}
 
-5. Panel de ayuda principal expandido:
-   - Explica los 6 metodos con ejemplos
-   - Consejo sobre que metodo usar para cada caso
-   - Explica quorum
+4. Backend checkApproval:
+   Nuevo caso "authorized_any": se aprueba con un solo voto
+   de una persona autorizada.
 
-6. Display de config actual mejorado:
-   - Muestra nombre de comision/persona/organizacion
-   - Muestra lista de signers autorizados en multisig
-   - Labels traducidos (no "council" sino "Comision/Departamento")
+5. Frontend NodeSettings.tsx:
+   - Al cargar, verifica permisos para cada tipo de cambio
+   - Si el cambio requiere Asamblea: muestra aviso amber +
+     boton "Proponer cambio" en lugar de "Guardar"
+   - Si el cambio es directo autorizado: muestra aviso green
+   - saveConfig y saveTariff crean propuestas si es necesario
+
+6. Frontend Assembly.tsx:
+   - 7 metodos de aprobacion (antes 6):
+     * Asamblea, Junta, Comision, Persona
+     * Cualquiera autorizado (NUEVO)
+     * Organizacion, Multi-firma
+   - Panel de ayuda con los 7 metodos explicados
+   - UI para authorized_any: lista de personas autorizadas
+   - Nuevos tipos en PROPOSAL_LABELS y filtro
 
 Generated with [Devin](https://devin.ai)
 

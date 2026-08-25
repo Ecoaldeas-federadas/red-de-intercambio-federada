@@ -77,6 +77,8 @@ func (h *AssemblyHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	// Configuracion de umbrales por tipo de propuesta
 	r.With(am.RequireAuth).Get("/api/assembly/config", h.listAssemblyConfig)
 	r.With(am.RequireAuth).Put("/api/assembly/config/{proposalType}", h.updateAssemblyConfig)
+	// Verifica si el usuario actual puede hacer un cambio directo o necesita propuesta
+	r.With(am.RequireAuth).Get("/api/assembly/check-permission/{proposalType}", h.checkDirectPermission)
 }
 
 // ===== Sesiones =====
@@ -784,6 +786,10 @@ func (h *AssemblyHandler) executeProposal(w http.ResponseWriter, r *http.Request
 			// Por ahora contar todas las firmas (compatibilidad)
 			sigCount := len(signatures)
 			approved = sigCount >= requiredSignatures
+		case "authorized_any":
+			// Cualquiera de las personas autorizadas puede aprobar con un solo voto
+			// Se aprueba con un solo voto a favor de una persona autorizada
+			approved = votesFor >= 1
 		case "person":
 			// Una persona especifica aprueba
 			// Se aprueba con un solo voto a favor de la persona autorizada
@@ -1166,6 +1172,84 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 				INSERT INTO products (node_domain, name, parent_category, category, origin, price_per_unit, image_url, is_approved, is_system, source_node, source_product_id)
 				VALUES ($1, $2, $3, $4, 'federated', $5, $6, true, true, $7, $8::uuid)`,
 				nodeDomain, productName, category, subcategory, price, imageURL, sourceNode, sourceProductID)
+		}
+
+	case "node_config":
+		// Cambiar configuracion del nodo (nombre, moneda, dominio)
+		nodeName, _ := params["node_name"].(string)
+		currencyName, _ := params["currency_name"].(string)
+		currencyFullName, _ := params["currency_full_name"].(string)
+		appName, _ := params["app_name"].(string)
+		nodeDomain := r.Header.Get("X-Node-Domain")
+		nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+		if nodeName != "" {
+			h.Pool.Exec(r.Context(), `UPDATE node_config SET node_name = $1 WHERE node_domain = $2`, nodeName, nodeDomain)
+		}
+		if currencyName != "" {
+			h.Pool.Exec(r.Context(), `UPDATE node_config SET currency_name = $1 WHERE node_domain = $2`, currencyName, nodeDomain)
+		}
+		if currencyFullName != "" {
+			h.Pool.Exec(r.Context(), `UPDATE node_config SET currency_full_name = $1 WHERE node_domain = $2`, currencyFullName, nodeDomain)
+		}
+		if appName != "" {
+			h.Pool.Exec(r.Context(), `UPDATE node_config SET app_name = $1 WHERE node_domain = $2`, appName, nodeDomain)
+		}
+
+	case "backup_config":
+		// Cambiar configuracion de backups automaticos
+		intervalHours, _ := params["interval_hours"].(float64)
+		retentionDays, _ := params["retention_days"].(float64)
+		enabled, _ := params["enabled"].(bool)
+		nodeDomain := r.Header.Get("X-Node-Domain")
+		nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+		h.Pool.Exec(r.Context(), `
+			UPDATE backup_config SET interval_hours = $1, retention_days = $2, enabled = $3, updated_at = NOW()
+			WHERE node_domain = $4`,
+			int(intervalHours), int(retentionDays), enabled, nodeDomain)
+
+	case "cluster_config":
+		// Cambiar configuracion del cluster de base de datos
+		// Por seguridad, solo se guarda la configuracion - el reinicio requiere accion manual
+		mode, _ := params["mode"].(string)
+		tabletLimit, _ := params["tablet_limit"].(float64)
+		minNodes, _ := params["min_nodes"].(float64)
+		alertThreshold, _ := params["alert_threshold"].(float64)
+		nodeDomain := r.Header.Get("X-Node-Domain")
+		nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+		h.Pool.Exec(r.Context(), `
+			UPDATE cluster_config SET mode = $1, tablet_limit = $2, min_nodes = $3, alert_threshold = $4, updated_at = NOW()
+			WHERE node_domain = $5`,
+			mode, int(tabletLimit), int(minNodes), int(alertThreshold), nodeDomain)
+
+	case "permission_assignment":
+		// Asignar o revocar permisos a una persona
+		// Esto cambia el member_level del usuario o sus permisos especificos
+		userIDStr, _ := params["user_id"].(string)
+		levelID, _ := params["level_id"].(string)
+		action, _ := params["action"].(string) // "assign" o "revoke"
+		if userIDStr != "" && levelID != "" && action == "assign" {
+			h.Pool.Exec(r.Context(), `UPDATE users SET member_level_id = $1::uuid WHERE id = $2::uuid`,
+				levelID, userIDStr)
+		}
+
+	case "federation_treaty":
+		// Firmar o revocar un tratado de federacion con otro nodo
+		// Esto se maneja en el sistema de federacion
+		otherNodeDomain, _ := params["other_node_domain"].(string)
+		action, _ := params["action"].(string) // "sign" o "revoke"
+		nodeDomain := r.Header.Get("X-Node-Domain")
+		nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+		if otherNodeDomain != "" && action == "sign" {
+			h.Pool.Exec(r.Context(), `
+				INSERT INTO federation_peers (node_domain, peer_domain, status, created_at)
+				VALUES ($1, $2, 'active', NOW())
+				ON CONFLICT (node_domain, peer_domain) DO UPDATE SET status = 'active', updated_at = NOW()`,
+				nodeDomain, otherNodeDomain)
+		} else if otherNodeDomain != "" && action == "revoke" {
+			h.Pool.Exec(r.Context(), `
+				UPDATE federation_peers SET status = 'revoked', updated_at = NOW()
+				WHERE node_domain = $1 AND peer_domain = $2`,
+				nodeDomain, otherNodeDomain)
 		}
 	}
 	return nil
@@ -1559,6 +1643,75 @@ func (h *AssemblyHandler) loadConfigSigners(ctx context.Context, configID uuid.U
 		signers = []map[string]interface{}{}
 	}
 	return signers
+}
+
+// checkDirectPermission verifica si el usuario actual puede hacer un cambio
+// directo o si necesita crear una propuesta en la Asamblea.
+// Retorna: { can_direct: bool, method: string, reason: string }
+func (h *AssemblyHandler) checkDirectPermission(w http.ResponseWriter, r *http.Request) {
+	proposalType := chi.URLParam(r, "proposalType")
+	if proposalType == "" {
+		writeError(w, 400, "proposal_type is required")
+		return
+	}
+
+	userID, _ := h.Auth.GetUserID(r)
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+
+	var approvalMethod string
+	var authorizedPersonID *uuid.UUID
+	err := h.Pool.QueryRow(r.Context(), `
+		SELECT approval_method, authorized_person_id
+		FROM assembly_config WHERE node_domain = $1 AND proposal_type = $2 AND is_active = true`,
+		nodeDomain, proposalType).Scan(&approvalMethod, &authorizedPersonID)
+
+	if err != nil {
+		// No hay config para este tipo - permitir si tiene config.manage (compatibilidad)
+		writeJSON(w, 200, map[string]interface{}{
+			"can_direct": true,
+			"method":     "legacy",
+			"reason":     "No hay configuracion de Asamblea para este tipo de cambio. Se permite cambio directo.",
+		})
+		return
+	}
+
+	canDirect := false
+	reason := ""
+
+	switch approvalMethod {
+	case "person":
+		if authorizedPersonID != nil && *authorizedPersonID == userID {
+			canDirect = true
+			reason = "Eres la persona autorizada para este cambio."
+		} else {
+			reason = "Este cambio requiere la persona autorizada. Crea una propuesta."
+		}
+	case "authorized_any":
+		// Cualquiera de las personas autorizadas en signers puede hacer el cambio
+		var signerUserID *uuid.UUID
+		err := h.Pool.QueryRow(r.Context(), `
+			SELECT user_id FROM assembly_config_signers
+			WHERE config_id = (SELECT id FROM assembly_config WHERE node_domain = $1 AND proposal_type = $2)
+			AND user_id = $3 AND signer_type = 'person' LIMIT 1`,
+			nodeDomain, proposalType, userID).Scan(&signerUserID)
+		if err == nil {
+			canDirect = true
+			reason = "Eres una de las personas autorizadas para este cambio."
+		} else {
+			reason = "Este cambio requiere una de las personas autorizadas. Crea una propuesta."
+		}
+	case "assembly", "board", "council", "multisig", "organization":
+		reason = "Este cambio requiere aprobacion por " + approvalMethod + ". Crea una propuesta."
+	default:
+		reason = "Metodo de aprobacion desconocido."
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"can_direct": canDirect,
+		"method":     approvalMethod,
+		"reason":     reason,
+	})
 }
 
 // ===== Helpers =====

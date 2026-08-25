@@ -11,6 +11,7 @@ type ProposalType =
   | 'federation_config' | 'recovery_config' | 'tax_change' | 'member_level' | 'policy'
   | 'create_account' | 'fund_distribution' | 'energy_rate_change' | 'product_modification' | 'free_proposal'
   | 'budget' | 'election' | 'product_approval' | 'product_disapproval' | 'product_remove' | 'product_import' | 'product_to_base' | 'federation'
+  | 'node_config' | 'backup_config' | 'cluster_config' | 'permission_assignment' | 'federation_treaty'
 
 const PROPOSAL_LABELS: Record<string, string> = {
   limit_change: 'Cambio de limites',
@@ -35,6 +36,11 @@ const PROPOSAL_LABELS: Record<string, string> = {
   product_import: 'Importar producto federado',
   product_to_base: 'Convertir a producto base',
   federation: 'Federacion',
+  node_config: 'Configuracion del nodo',
+  backup_config: 'Configuracion de backups',
+  cluster_config: 'Configuracion de base de datos',
+  permission_assignment: 'Asignacion de permisos',
+  federation_treaty: 'Tratado de federacion',
 }
 
 const PROPOSAL_HELP: Record<ProposalType, string> = {
@@ -2141,8 +2147,9 @@ export default function Assembly() {
               <li><b>Junta Directiva</b>: Solo los miembros de la junta directiva del nodo votan. Mas rapido que la Asamblea completa. Ideal para decisiones administrativas del dia a dia.</li>
               <li><b>Comision/Departamento</b>: Una comision o departamento especifico decide. Selecciona cual comision. Las comisiones se crean en la seccion de Departamentos. Ideal para decisiones tecnicas que requieren conocimiento especializado.</li>
               <li><b>Persona especifica</b>: Una sola persona autorizada aprueba. Util para decisiones rutinarias que no requieren debate. Selecciona quien es la persona autorizada.</li>
+              <li><b>Cualquiera de los autorizados</b>: Varias personas estan autorizadas pero CUALQUIERA de ellas puede aprobar por si sola. No necesitan firmar todos. Diferente de multi-firma donde todos deben firmar.</li>
               <li><b>Organizacion</b>: Delega la aprobacion a una organizacion (cooperativa, comite, etc). La organizacion tendra sus propios ajustes internos para decidir quien firma por ella.</li>
-              <li><b>Multi-firma</b>: Varias personas u organizaciones especificas deben firmar. Se aprueba cuando se alcanza el numero de firmas requerido. Selecciona exactamente QUIENES pueden firmar (personas y/o organizaciones).</li>
+              <li><b>Multi-firma</b>: Varias personas u organizaciones especificas deben firmar TODAS. Se aprueba solo cuando se alcanza el numero de firmas requerido. Selecciona exactamente QUIENES pueden firmar (personas y/o organizaciones).</li>
             </ul>
             <p>El <b>quorum</b> es el numero minimo de miembros que deben votar para que la decision sea valida. Si es 0, no hay minimo.</p>
             <p><strong>Consejo sobre que metodo usar:</strong> Para cosas rutinarias (aprobar/desaprobar productos) usa Junta Directiva o Persona especifica. Para cosas graves (eliminar productos, expulsar miembros, cambiar impuestos) usa Asamblea con umbral alto (66.67% o mas).</p>
@@ -2159,8 +2166,9 @@ export default function Assembly() {
                   assembly: 'Asamblea',
                   board: 'Junta Directiva',
                   council: 'Comision/Departamento',
-                  multisig: 'Multi-firma',
+                  multisig: 'Multi-firma (todas)',
                   person: 'Persona especifica',
+                  authorized_any: 'Cualquiera autorizado',
                   organization: 'Organizacion',
                 }
                 const methodLabel = methodLabels[cfg.approval_method] || cfg.approval_method
@@ -2221,16 +2229,18 @@ export default function Assembly() {
                           <option value="board">Junta Directiva (mas rapido)</option>
                           <option value="council">Comision/Departamento (especializado)</option>
                           <option value="person">Persona especifica (mas rapido)</option>
+                          <option value="authorized_any">Cualquiera de los autorizados (rapido)</option>
                           <option value="organization">Organizacion (delegado)</option>
-                          <option value="multisig">Multi-firma (varias personas/orgs)</option>
+                          <option value="multisig">Multi-firma (todas deben firmar)</option>
                         </select>
                         <div className="text-xs text-gray-500 mt-1 bg-blue-50 p-2 rounded">
                           {editingConfig.approval_method === 'assembly' && 'Asamblea: Todos los miembros con derecho a voto votan. Es el metodo mas democratico pero el mas lento. Ideal para decisiones graves como cambiar impuestos o expulsar miembros.'}
                           {editingConfig.approval_method === 'board' && 'Junta Directiva: Solo los miembros de la junta directiva votan. Mas rapido que la asamblea. Ideal para decisiones administrativas del dia a dia como aprobar productos.'}
                           {editingConfig.approval_method === 'council' && 'Comision/Departamento: Una comision o departamento especifico decide. Ideal para decisiones tecnicas que requieren conocimiento especializado. Selecciona cual comision abajo.'}
                           {editingConfig.approval_method === 'person' && 'Persona especifica: Una sola persona autorizada aprueba. Es el metodo mas rapido. Ideal para decisiones rutinarias. Selecciona quien es la persona abajo.'}
+                          {editingConfig.approval_method === 'authorized_any' && 'Cualquiera de los autorizados: Varias personas estan autorizadas pero CUALQUIERA de ellas puede aprobar por si sola. No necesitan firmar todos. Ideal cuando quieres delegar a varias personas pero basta con que una actue.'}
                           {editingConfig.approval_method === 'organization' && 'Organizacion: Delega la aprobacion a una organizacion (cooperativa, comite). La organizacion tendra sus propios ajustes internos para decidir quien firma por ella.'}
-                          {editingConfig.approval_method === 'multisig' && 'Multi-firma: Varias personas u organizaciones especificas deben firmar. Se aprueba cuando se alcanza el numero de firmas requerido. Selecciona quienes pueden firmar abajo.'}
+                          {editingConfig.approval_method === 'multisig' && 'Multi-firma: Varias personas u organizaciones especificas deben firmar TODAS. Se aprueba solo cuando se alcanza el numero de firmas requerido. Diferente de "cualquiera autorizado" porque aqui TODOS deben firmar.'}
                         </div>
                       </div>
 
@@ -2411,7 +2421,7 @@ export default function Assembly() {
                               value={editingConfig.required_signatures}
                               onChange={(e) => setEditingConfig({ ...editingConfig, required_signatures: parseInt(e.target.value) || 1 })}
                             />
-                            <p className="text-xs text-gray-400 mt-1">Cuantas firmas se necesitan de las personas/organizaciones autorizadas.</p>
+                            <p className="text-xs text-gray-400 mt-1">Cuantas firmas se necesitan de las personas/organizaciones autorizadas. Todas deben firmar.</p>
                           </div>
                           <div>
                             <label className="label flex items-center gap-1">
@@ -2494,6 +2504,98 @@ export default function Assembly() {
                             </div>
                             {(!editingConfig.signers || editingConfig.signers.length === 0) && (
                               <p className="text-xs text-amber-600 mt-1">No has agregado ningun firmante autorizado. Agrega al menos uno.</p>
+                            )}
+                          </div>
+                        </>
+                      )}
+
+                      {/* Campos para Cualquiera autorizado (authorized_any) */}
+                      {editingConfig.approval_method === 'authorized_any' && (
+                        <>
+                          <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded">
+                            Cualquiera de las personas autorizadas abajo puede aprobar este cambio por si sola. No necesitan firmar todos, basta con que una persona autorizada actue.
+                          </div>
+                          <div>
+                            <label className="label flex items-center gap-1">
+                              Personas autorizadas (cualquiera puede aprobar)
+                              <span className="text-blue-500 cursor-help" title="Lista de personas autorizadas. CUALQUIERA de ellas puede aprobar por si sola. No necesitan firmar todas. Diferente de multi-firma donde TODAS deben firmar.">
+                                <HelpCircle size={14} />
+                              </span>
+                            </label>
+                            {/* Lista de signers actuales */}
+                            {editingConfig.signers && editingConfig.signers.length > 0 && (
+                              <div className="space-y-1 mb-2">
+                                {editingConfig.signers.map((s: any, i: number) => (
+                                  <div key={s.id || i} className="flex items-center justify-between bg-gray-50 rounded p-2 text-sm">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                                        {s.signer_type === 'organization' ? 'Organizacion' : 'Persona'}
+                                      </span>
+                                      <span>{s.user_name || s.org_name || 'Desconocido'}</span>
+                                    </div>
+                                    <button
+                                      onClick={() => setEditingConfig({
+                                        ...editingConfig,
+                                        signers: editingConfig.signers.filter((_: any, idx: number) => idx !== i),
+                                      })}
+                                      className="text-red-500 hover:text-red-700"
+                                    >
+                                      <X size={14} />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {/* Agregar nuevo signer */}
+                            <div className="flex gap-2">
+                              <select
+                                className="input flex-shrink-0"
+                                value={newSignerType}
+                                onChange={(e) => { setNewSignerType(e.target.value as 'person' | 'organization'); setNewSignerId('') }}
+                              >
+                                <option value="person">Persona</option>
+                                <option value="organization">Organizacion</option>
+                              </select>
+                              <select
+                                className="input flex-1"
+                                value={newSignerId}
+                                onChange={(e) => setNewSignerId(e.target.value)}
+                              >
+                                <option value="">Seleccionar...</option>
+                                {newSignerType === 'person'
+                                  ? userList.map((u: any) => (
+                                      <option key={u.id} value={u.id}>{u.display_name || u.username}</option>
+                                    ))
+                                  : orgList.map((o: any) => (
+                                      <option key={o.id} value={o.id}>{o.name}</option>
+                                    ))
+                                }
+                              </select>
+                              <button
+                                onClick={() => {
+                                  if (!newSignerId) return
+                                  const name = newSignerType === 'person'
+                                    ? userList.find((u: any) => u.id === newSignerId)?.display_name || userList.find((u: any) => u.id === newSignerId)?.username
+                                    : orgList.find((o: any) => o.id === newSignerId)?.name
+                                  setEditingConfig({
+                                    ...editingConfig,
+                                    signers: [...(editingConfig.signers || []), {
+                                      signer_type: newSignerType,
+                                      user_id: newSignerType === 'person' ? newSignerId : '',
+                                      organization_id: newSignerType === 'organization' ? newSignerId : '',
+                                      user_name: newSignerType === 'person' ? name : '',
+                                      org_name: newSignerType === 'organization' ? name : '',
+                                    }],
+                                  })
+                                  setNewSignerId('')
+                                }}
+                                className="btn-secondary text-sm flex-shrink-0"
+                              >
+                                <Plus size={14} /> Agregar
+                              </button>
+                            </div>
+                            {(!editingConfig.signers || editingConfig.signers.length === 0) && (
+                              <p className="text-xs text-amber-600 mt-1">No has agregado ninguna persona autorizada. Agrega al menos una.</p>
                             )}
                           </div>
                         </>
