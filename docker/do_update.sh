@@ -33,8 +33,12 @@ if [ -n "$GIT_TOKEN" ]; then
   log "Token configurado en remote origin"
 fi
 
-# Detect compose project name from own container labels
-PROJECT_NAME=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' "$(hostname)" 2>/dev/null)
+# Detect compose project name
+# Priority: COMPOSE_PROJECT_NAME env var > container label > node-app label > default
+PROJECT_NAME="${COMPOSE_PROJECT_NAME:-}"
+if [ -z "$PROJECT_NAME" ]; then
+  PROJECT_NAME=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' "$(hostname)" 2>/dev/null)
+fi
 if [ -z "$PROJECT_NAME" ] || [ "$PROJECT_NAME" = "project" ]; then
   # Fallback: detect from node-app container name
   NODE_APP=$(docker ps --format '{{.Names}}' 2>/dev/null | grep 'node-app' | head -1)
@@ -119,6 +123,13 @@ if [ "$DEMO_RUNNING" = "true" ]; then
   docker stop "$DEMO_CONTAINER" 2>/dev/null || true
   log "Demo-app recreado (detenido, listo para arrancar desde la web)"
 fi
+
+# 9. Construir e iniciar updater-controller (para que la proxima actualizacion
+#    use el camino principal en lugar del contenedor desechable)
+log "--- docker compose build updater-controller ---"
+docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" build updater-controller 2>&1 || true
+docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" up -d --no-deps updater-controller 2>&1 || true
+log "Updater-controller construido e iniciado"
 
 log "=== ACTUALIZACION COMPLETADA ==="
 write_state "completed" "Nodo actualizado y reiniciado correctamente" "$NEW_COMMIT" "$STARTED" "$(date -Iseconds 2>/dev/null || date)"

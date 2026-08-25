@@ -112,20 +112,25 @@ func (h *UpdateHandler) checkUpdates(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// updateNode delega la actualizacion al updater-controller.
-// El updater-controller es un contenedor separado que no se reinicia,
-// por lo que puede reportar el estado incluso despues de que node-app se reinicie.
-// Si el updater-controller no esta disponible (ej: nodo recien actualizado pero
-// el contenedor updater-controller aun no se ha creado), hace fallback al
-// metodo local anterior.
+// updateNode maneja la actualizacion del nodo desde la web.
+//
+// Estrategia (en orden de preferencia):
+//  1. Delegar al updater-controller si esta corriendo (mejor opcion,
+//     sobrevive el reinicio de node-app)
+//  2. Si no esta corriendo, intentar construirlo e iniciarlo con
+//     docker compose, luego reintentar
+//  3. Si no se puede iniciar, lanzar un contenedor desechable que
+//     ejecuta do_update.sh (este contenedor sobrevive el reinicio
+//     de node-app porque es independiente)
+//  4. Si nada funciona, devolver error claro
 func (h *UpdateHandler) updateNode(w http.ResponseWriter, r *http.Request) {
-	// Bloquear actualizacion en nodo demo - se actualiza desde el padre
+	// Bloquear actualizacion en nodo demo
 	if os.Getenv("DEMO_MODE") == "true" {
-		writeError(w, 403, "No se puede actualizar el nodo demo directamente. Se actualiza automaticamente cuando se actualiza el nodo padre.")
+		writeError(w, 403, "No se puede actualizar el nodo demo directamente.")
 		return
 	}
 
-	// Intentar delegar al updater-controller
+	// 1. Intentar delegar al updater-controller
 	resp, err := http.Post(updaterControllerURL+"/update", "application/json", nil)
 	if err == nil {
 		defer resp.Body.Close()
@@ -140,64 +145,81 @@ func (h *UpdateHandler) updateNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// FALLBACK: updater-controller no disponible, hacer actualizacion local
-	// Esto pasa cuando el nodo se actualizo por primera vez con update.ps1
-	// pero el contenedor updater-controller aun no se ha construido/iniciado.
-	// La actualizacion local funciona pero el estado se pierde al reiniciar.
-	h.updateNodeLocal(w, r)
-}
-
-// updateNodeLocal hace la actualizacion directamente desde node-app.
-// Es el metodo anterior que funciona pero pierde el estado al reiniciar.
-// Se usa como fallback cuando el updater-controller no esta disponible.
-func (h *UpdateHandler) updateNodeLocal(w http.ResponseWriter, r *http.Request) {
+	// 2. Updater-controller no responde. Intentar construirlo e iniciarlo.
 	projectDir := "/project"
 	composeFile := filepath.Join(projectDir, "docker-compose.yml")
 	projectName := detectComposeProjectName()
 
-	// Configurar git auth
-	h.configureGitAuth(projectDir)
-
-	// Ejecutar en background
-	go func() {
-		// 1. git fetch
-		exec.Command("git", "-C", projectDir, "fetch", "origin", "main").Run()
-
-		// 2. Abortar merge/rebase pendientes
-		exec.Command("git", "-C", projectDir, "merge", "--abort").Run()
-		exec.Command("git", "-C", projectDir, "rebase", "--abort").Run()
-
-		// 3. git reset --hard origin/main
-		exec.Command("git", "-C", projectDir, "reset", "--hard", "origin/main").Run()
-		exec.Command("git", "-C", projectDir, "clean", "-fd").Run()
-
-		// 4. docker compose build node-app
-		exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName, "build", "node-app").Run()
-
-		// 5. docker compose build demo-app (con profile)
-		exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName, "--profile", "demo", "build", "demo-app").Run()
-
-		// 6. docker compose up -d node-app
-		exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName, "up", "-d", "--no-deps", "node-app").Run()
-
-		// 7. Recrear demo-app si estaba corriendo
-		demoContainer := projectName + "-demo-app-1"
-		out, _ := exec.Command("docker", "inspect", "-f", "{{.State.Running}}", demoContainer).Output()
-		if strings.TrimSpace(string(out)) == "true" {
-			exec.Command("docker", "stop", demoContainer).Run()
-			exec.Command("docker", "rm", "-f", demoContainer).Run()
-			exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName, "--profile", "demo", "up", "-d", "--no-deps", "demo-app").Run()
-			exec.Command("docker", "stop", demoContainer).Run()
+	// Verificar que el Dockerfile existe
+	dockerfile := filepath.Join(projectDir, "docker", "Dockerfile.updater-controller")
+	if _, err := os.Stat(dockerfile); err == nil {
+		// Construir el updater-controller
+		exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName,
+			"build", "updater-controller").Run()
+		// Iniciarlo
+		exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName,
+			"up", "-d", "--no-deps", "updater-controller").Run()
+		// Esperar a que arranque
+		time.Sleep(5 * time.Second)
+		// Reintentar conexion
+		resp, err = http.Post(updaterControllerURL+"/update", "application/json", nil)
+		if err == nil {
+			defer resp.Body.Close()
+			body, _ := io.ReadAll(resp.Body)
+			var result map[string]interface{}
+			json.Unmarshal(body, &result)
+			if resp.StatusCode != 200 {
+				writeJSON(w, resp.StatusCode, result)
+				return
+			}
+			writeJSON(w, 200, result)
+			return
 		}
+	}
 
-		// 8. Tambien construir e iniciar updater-controller si existe en compose
-		exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName, "build", "updater-controller").Run()
-		exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName, "up", "-d", "--no-deps", "updater-controller").Run()
-	}()
+	// 3. Updater-controller no disponible. Lanzar contenedor desechable.
+	h.updateWithDetachedContainer(w, r, projectName)
+}
+
+// updateWithDetachedContainer inicia un contenedor Docker desechable que
+// ejecuta do_update.sh. Este contenedor es independiente de node-app,
+// por lo que sobrevive cuando node-app se reinicia durante la actualizacion.
+// El contenedor escribe el estado a /update-state/update.json (volumen compartido).
+func (h *UpdateHandler) updateWithDetachedContainer(w http.ResponseWriter, r *http.Request, projectName string) {
+	// Nombre unico para el contenedor
+	containerName := fmt.Sprintf("fmc-updater-%d", time.Now().Unix())
+
+	// Lanzar contenedor desechable con alpine + git + docker-cli
+	// Monta: docker socket, repo, volumen de estado
+	cmd := exec.Command("docker", "run", "-d", "--rm",
+		"--name", containerName,
+		"-v", "/var/run/docker.sock:/var/run/docker.sock",
+		"-v", "/project:/project:rw",
+		"-v", "update_state:/update-state",
+		"-e", "GIT_TOKEN="+os.Getenv("GIT_TOKEN"),
+		"-e", "COMPOSE_PROJECT_NAME="+projectName,
+		"--entrypoint", "sh",
+		"alpine:3.20",
+		"-c",
+		"apk add --no-cache git docker-cli docker-cli-compose ca-certificates > /dev/null 2>&1 && sh /project/docker/do_update.sh",
+	)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// Ultimo recurso: no se puede iniciar ningun contenedor
+		writeError(w, 500, fmt.Sprintf(
+			"No se pudo iniciar la actualizacion. Ni el updater-controller ni un contenedor desechable pudieron iniciarse. "+
+				"Error: %v. Output: %s. "+
+				"Actualiza manualmente con: powershell -ExecutionPolicy Bypass -File update.ps1",
+			err, string(output)))
+		return
+	}
 
 	writeJSON(w, 200, map[string]interface{}{
-		"success": true,
-		"message": "Actualizacion iniciada (modo local). El nodo se reiniciara automaticamente. Nota: el updater-controller se iniciara despues de esta actualizacion.",
+		"success":          true,
+		"message":          "Actualizacion iniciada. El nodo se reiniciara automaticamente cuando termine.",
+		"container":        containerName,
+		"updater_fallback": true,
 	})
 }
 
