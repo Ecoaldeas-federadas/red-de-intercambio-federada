@@ -193,12 +193,19 @@ if ($demoRunning) {
 }
 
 # 5. Reconstruir todas las imagenes
+# Usar --no-cache para garantizar que migraciones y assets se copien frescos.
+# Sin --no-cache, Docker puede reutilizar capas cacheadas con archivos viejos
+# (ej: migraciones SQL corregidas) y el nodo arrancaria con codigo stale.
 Write-Host ""
 Write-Step "Reconstruyendo imagenes Docker (puede tardar varios minutos)..."
-$buildCode = Invoke-Compose @("build", "node-app")
+$buildCode = Invoke-Compose @("build", "--no-cache", "node-app")
 if ($buildCode -ne 0) {
-    Write-Err "Error construyendo node-app (codigo $buildCode)"
-    exit 1
+    Write-Warn "Build con --no-cache fallo (codigo $buildCode), reintentando con cache..."
+    $buildCode = Invoke-Compose @("build", "node-app")
+    if ($buildCode -ne 0) {
+        Write-Err "Error construyendo node-app (codigo $buildCode)"
+        exit 1
+    }
 }
 # Construir updater-controller (nuevo servicio)
 $updaterBuildCode = Invoke-Compose @("build", "updater-controller")
