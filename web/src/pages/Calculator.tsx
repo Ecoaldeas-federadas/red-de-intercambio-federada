@@ -149,6 +149,13 @@ export default function Calculator() {
     return acc
   }, {})
 
+  // Insumos filtrados por la categoria de trabajo seleccionada
+  // Si hay categoria seleccionada, mostrar solo insumos de esa categoria
+  // Si no, mostrar todos
+  const filteredMaterialParams = selectedWorkCategory
+    ? materialParams.filter((m: any) => m.category === selectedWorkCategory)
+    : materialParams
+
   // Calcular base_rate dinamico desde la tarifa energetica (canasta vital)
   // base_rate = (vital_food + vital_water + vital_domestic + vital_services) / work_hours_per_day
   const baseRate = tariff
@@ -167,13 +174,19 @@ export default function Calculator() {
   }
 
   // Calcular kWh por hora para un parametro de trabajo
-  // Si tiene tariff_category, usa base_rate * effort_factor_from_tariff (dinamico)
-  // Si no, usa kwh_per_unit * effort_factor (estatico, comportamiento anterior)
+  // SIEMPRE usa la tarifa base (canasta vital / horas por dia) como minimo.
+  // El effort_factor de la tarifa AJUSTA hacia arriba (trabajo mas dificil).
+  // Si el effort_factor < 1.0, se usa 1.0 como minimo (nunca paga menos que la base).
+  // El kwh_per_unit manual se SUMA al base, no lo reemplaza.
   const getKwhPerHour = (param: any): number => {
-    if (param.tariff_category) {
-      return baseRate * getTariffEffortFactor(param.tariff_category)
-    }
-    return param.kwh_per_unit * (param.effort_factor || 1.0)
+    const effortFromTariff = param.tariff_category ? getTariffEffortFactor(param.tariff_category) : 1.0
+    const amplification = param.effort_factor || 1.0
+    // Base: tarifa base × max(1.0, esfuerzo) × amplificacion
+    // max(1.0, esfuerzo) asegura que el pago nunca sea menor que la tarifa base
+    const base = baseRate * Math.max(1.0, effortFromTariff) * amplification
+    // Adicional: kwh_per_unit manual se SUMA al base, no lo reemplaza
+    const additional = param.kwh_per_unit > 0 ? param.kwh_per_unit : 0
+    return base + additional
   }
 
   const addWork = () => {
@@ -271,7 +284,7 @@ export default function Calculator() {
           <p><strong>Para que sirve:</strong> Sirve para determinar el precio energetico de cualquier producto o servicio antes de proponerlo a la asamblea. Asi todos los precios son justos, transparentes y comparables. El resultado lo llevas a la asamblea para que lo aprueben y lo agreguen al catalogo.</p>
           <p><strong>Como funciona:</strong> Tienes dos modos. El <strong>Modo facil</strong> te guia con un cuestionario: seleccionas el tipo de trabajo, las horas, y los materiales usaste; el sistema calcula todo. El <strong>Modo avanzado</strong> permite ingresar los valores energeticos directamente en kWh si los conoces.</p>
           <p><strong>Que es la energia directa:</strong> Es la energia consumida directamente en el proceso: electricidad, gas o combustible usado en la produccion. <strong>Ejemplo:</strong> 2 kWh de electricidad para hornear pan.</p>
-          <p><strong>Que es la energia humana:</strong> Es la energia del trabajo humano invertido. Se calcula multiplicando las horas trabajadas por el costo energetico del tipo de trabajo. <strong>Ejemplo:</strong> 3 horas de panaderia manual x 0.12 kWh/hora = 0.36 kWh.</p>
+          <p><strong>Que es la energia humana:</strong> Es la energia del trabajo humano invertido. Se calcula multiplicando las horas trabajadas por la tarifa energetica (canasta vital / horas por dia). <strong>Ejemplo:</strong> 3 horas de trabajo x 1.0 TQ/hora (tarifa base) = 3.0 TQ. Los factores de esfuerzo ajustan hacia arriba para trabajos mas dificiles.</p>
           <p><strong>Que es la energia de insumos:</strong> Es la energia incorporada en los materiales y materias primas usadas. Cada insumo tiene un costo energetico por unidad. <strong>Ejemplo:</strong> 1 kg de harina = 1.8 kWh, 0.5 kg de sal = 0.35 kWh.</p>
           <p><strong>Que es el factor de esfuerzo:</strong> Es un multiplicador que ajusta el costo si el trabajo es especialmente dificil o facil. 1.0 = normal, 1.5 = 50% mas esfuerzo, 0.8 = 20% menos. <strong>Ejemplo:</strong> Cavar tierra a 40°C tiene factor 1.5.</p>
           <p><strong>Como se calcula el precio final:</strong> Precio = (Energia directa + Energia humana + Energia de insumos + Amortizacion) x Factor de esfuerzo x Tarifa. El resultado es el precio sugerido en {currency}.</p>
@@ -315,10 +328,10 @@ export default function Calculator() {
                       const p = workParams.find((pp: any) => pp.name === selectedWorkType)
                       if (!p) return '?'
                       const kwh = getKwhPerHour(p)
-                      if (p.tariff_category) {
-                        return `${kwh.toFixed(2)} kWh/hora (dinamico: ${baseRate.toFixed(1)} base x ${getTariffEffortFactor(p.tariff_category)} esfuerzo ${p.tariff_category})`
-                      }
-                      return `${kwh.toFixed(2)} kWh por hora`
+                      const effort = p.tariff_category ? getTariffEffortFactor(p.tariff_category) : 1.0
+                      const effortUsed = Math.max(1.0, effort)
+                      const additional = p.kwh_per_unit > 0 ? ` + ${p.kwh_per_unit} adicional` : ''
+                      return `${kwh.toFixed(2)} kWh/hora (base ${baseRate.toFixed(1)} x esfuerzo ${effortUsed}${additional})`
                     })()}
                   </p>
                 )}
@@ -360,14 +373,18 @@ export default function Calculator() {
             <p className="text-xs text-gray-500">Agrega los materiales que usaste. Puedes seleccionar de la lista comun o de los productos ya registrados en la plataforma.</p>
 
             <div>
-              <label className="label">Insumo comun</label>
+              <label className="label">Insumo comun {selectedWorkCategory && `(categoria: ${selectedWorkCategory})`}</label>
               <select className="input" value={selectedInput} onChange={(e) => setSelectedInput(e.target.value)}>
                 <option value="">Seleccionar insumo...</option>
-                {materialParams.map((i: any) => (
+                {filteredMaterialParams.map((i: any) => (
                   <option key={i.name} value={i.name}>{i.name} (por {i.unit}) — {i.kwh_per_unit} kWh</option>
                 ))}
               </select>
-              <p className="text-xs text-gray-400 mt-1">Los insumos se gestionan en Parametros de Calculadora.</p>
+              <p className="text-xs text-gray-400 mt-1">
+                {selectedWorkCategory
+                  ? `Mostrando insumos de la categoria "${selectedWorkCategory}". Los insumos se filtran segun el trabajo seleccionado.`
+                  : 'Los insumos se gestionan en Parametros de Calculadora. Selecciona un trabajo para filtrar.'}
+              </p>
             </div>
 
             {selectedInput && (
