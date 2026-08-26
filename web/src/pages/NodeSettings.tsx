@@ -1039,9 +1039,10 @@ export default function NodeSettings() {
           ) : (
           <>
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
-            <p><strong>Que es la tarifa energetica:</strong> Es la base para calcular precios justos. La idea es que 1 {config.currency_name} = 1 kWh de energia. Con esto, todo producto o servicio tiene un precio objetivo: la energia total que costo producirlo.</p>
-            <p><strong>Como funciona:</strong> Primero se calcula cuanto cuesta mantener vivo a una persona por dia (canasta vital). Luego se divide entre las horas de trabajo de un dia para obtener la tarifa por hora. Los factores de esfuerzo ajustan el precio segun la dificultad del trabajo.</p>
-            <p><strong>Ejemplo:</strong> Si la canasta vital diaria es 8 {config.currency_name} (8 kWh) y se trabajan 8 horas por dia, la tarifa base por hora es 1.0 {config.currency_name}. Un trabajo agricola (factor 0.61) pagaria 0.61 {config.currency_name} por hora.</p>
+            <p><strong>Que es la tarifa energetica:</strong> Es la base para calcular precios justos. 1 {config.currency_name} = 1 kWh de energia incorporada. Todo producto o servicio tiene un precio objetivo: la energia total que costo producirlo.</p>
+            <p><strong>Como funciona:</strong> Se calcula la energia necesaria para mantener viva a una persona por dia (canasta vital en kWh). Luego se divide entre las horas de trabajo para obtener la tarifa por hora. Los factores de esfuerzo ajustan segun el tipo de trabajo.</p>
+            <p><strong>Valores reales (basados en ICE Database, Agribalyse, Ecoinvent, Pimentel):</strong> Una persona en una comunidad agroecologica necesita ~8 kWh/dia (alimentacion 3 + agua 1 + vivienda 2 + servicios 2). Con 8 horas de trabajo, la tarifa base es 1.0 {config.currency_name}/hora.</p>
+            <p><strong>Factores de esfuerzo reales:</strong> Administrativo = 1.0 (base metabolica). Tecnico = 3.0 (metabolico + herramientas electricas). Agricola = 0.61 (consumo metabolico real ~525 kcal/h).</p>
             <p><strong>Quien la configura:</strong> La asamblea. Cambiar estos valores afecta todos los calculos de precios.</p>
           </div>
 
@@ -1051,22 +1052,22 @@ export default function NodeSettings() {
             <div>
               <label className="label">Alimentacion</label>
               <input type="number" className="input" value={tariff.vital_food} onChange={(e) => setTariff({ ...tariff, vital_food: parseFloat(e.target.value) || 0 })} disabled={!canManage} />
-              <p className="text-xs text-gray-400 mt-1">Costo diario de comida basica (granos, verduras, frutas). Ej: 800</p>
+              <p className="text-xs text-gray-400 mt-1">Energia para producir comida diaria (agroecologico). Ej: 3 kWh</p>
             </div>
             <div>
               <label className="label">Agua</label>
               <input type="number" className="input" value={tariff.vital_water} onChange={(e) => setTariff({ ...tariff, vital_water: parseFloat(e.target.value) || 0 })} disabled={!canManage} />
-              <p className="text-xs text-gray-400 mt-1">Costo diario de agua potable para consumo e higiene. Ej: 150</p>
+              <p className="text-xs text-gray-400 mt-1">Energia para bombear y tratar agua diaria. Ej: 1 kWh</p>
             </div>
             <div>
               <label className="label">Vivienda/domestico</label>
               <input type="number" className="input" value={tariff.vital_domestic} onChange={(e) => setTariff({ ...tariff, vital_domestic: parseFloat(e.target.value) || 0 })} disabled={!canManage} />
-              <p className="text-xs text-gray-400 mt-1">Costo diario de vivienda (alquiler, mantenimiento, energia domestica). Ej: 350</p>
+              <p className="text-xs text-gray-400 mt-1">Energia amortizada de vivienda y cocina. Ej: 2 kWh</p>
             </div>
             <div>
               <label className="label">Servicios</label>
               <input type="number" className="input" value={tariff.vital_services} onChange={(e) => setTariff({ ...tariff, vital_services: parseFloat(e.target.value) || 0 })} disabled={!canManage} />
-              <p className="text-xs text-gray-400 mt-1">Costo diario de servicios basicos (salud, transporte, comunicaciones). Ej: 200</p>
+              <p className="text-xs text-gray-400 mt-1">Energia para servicios basicos (salud, transporte, comunicaciones). Ej: 2 kWh</p>
             </div>
           </div>
 
@@ -1081,17 +1082,17 @@ export default function NodeSettings() {
             <div>
               <label className="label">Administrativo</label>
               <input type="number" step="0.05" className="input" value={tariff.effort_admin} onChange={(e) => setTariff({ ...tariff, effort_admin: parseFloat(e.target.value) || 1 })} disabled={!canManage} />
-              <p className="text-xs text-gray-400 mt-1">1.0 = base. Trabajo de oficina, gestion, administracion. Esfuerzo fisico minimo.</p>
+              <p className="text-xs text-gray-400 mt-1">1.0 = base (metabolismo basal + herramientas manuales). Trabajo de oficina, gestion, administracion.</p>
             </div>
             <div>
               <label className="label">Tecnico</label>
               <input type="number" step="0.05" className="input" value={tariff.effort_technical} onChange={(e) => setTariff({ ...tariff, effort_technical: parseFloat(e.target.value) || 1 })} disabled={!canManage} />
-              <p className="text-xs text-gray-400 mt-1">1.15 = 15% mas. Trabajo tecnico especializado: electricidad, plomeria, mecanica. Requiere conocimiento y esfuerzo moderado.</p>
+              <p className="text-xs text-gray-400 mt-1">3.0 = triple de energia. Trabajo tecnico especializado con herramientas electricas: electricidad, plomeria, mecanica. Metabolico + equipos.</p>
             </div>
             <div>
               <label className="label">Agricola</label>
               <input type="number" step="0.05" className="input" value={tariff.effort_agricultural} onChange={(e) => setTariff({ ...tariff, effort_agricultural: parseFloat(e.target.value) || 1 })} disabled={!canManage} />
-              <p className="text-xs text-gray-400 mt-1">1.3 = 30% mas. Trabajo agricola, construccion, carga. Esfuerzo fisico intenso.</p>
+              <p className="text-xs text-gray-400 mt-1">0.61 = consumo metabolico real (~525 kcal/h). Trabajo agricola manual, construccion, carga. Esfuerzo fisico sostenido.</p>
             </div>
           </div>
 
@@ -1101,12 +1102,12 @@ export default function NodeSettings() {
             <div>
               <label className="label">Horas por dia</label>
               <input type="number" className="input" value={tariff.work_hours_per_day} onChange={(e) => setTariff({ ...tariff, work_hours_per_day: parseInt(e.target.value) || 6 })} disabled={!canManage} />
-              <p className="text-xs text-gray-400 mt-1">Horas de trabajo estandar por dia. Tipico: 6-8. Menos horas = tarifa por hora mas alta.</p>
+              <p className="text-xs text-gray-400 mt-1">Horas de trabajo estandar por dia. Tipico: 6-8. Con 8h y canasta de 8 kWh, la tarifa base es 1.0 TQ/hora.</p>
             </div>
             <div>
               <label className="label">Dias por mes</label>
               <input type="number" className="input" value={tariff.work_days_per_month} onChange={(e) => setTariff({ ...tariff, work_days_per_month: parseInt(e.target.value) || 24 })} disabled={!canManage} />
-              <p className="text-xs text-gray-400 mt-1">Dias de trabajo por mes. Tipico: 20-24. Se usa para calcular ingresos mensuales base.</p>
+              <p className="text-xs text-gray-400 mt-1">Dias de trabajo por mes. Tipico: 20-24. Con 22 dias x 8 TQ/dia = 176 TQ/mes de ingreso base.</p>
             </div>
           </div>
 
@@ -1801,7 +1802,7 @@ export default function NodeSettings() {
                 <input type="number" className="input" step="0.1" placeholder="1.0 (normal), 1.3 (30% mas por trabajo fisico)"
                   value={attConfig.effort_factor || 1.0}
                   onChange={(e) => setAttConfig({ ...attConfig, effort_factor: parseFloat(e.target.value) || 1.0 })} />
-                <p className="text-xs text-gray-500">Ej: 1.3 = 30% mas TQ por trabajo fisico agrícola</p>
+                <p className="text-xs text-gray-500">Ej: 0.61 = consumo metabolico agricola (kWh/h)</p>
               </div>
               <button onClick={async () => {
                 try { await api.post('/attendance/config', attConfig); setAttMsg({ type: 'success', text: 'Configuracion guardada' }) }
