@@ -5,7 +5,12 @@ import (
 	"encoding/json"
 	"federated-credit-node/internal/db"
 	"fmt"
+	"image"
+	_ "image/gif"
+	"image/jpeg"
+	_ "image/png"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -96,6 +101,12 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequirePermission("products.manage")).Post("/api/products/{id}/disapprove", h.disapproveProduct)
 	r.With(am.RequirePermission("products.manage")).Post("/api/products/{id}/reject", h.rejectProduct)
 	r.With(am.RequirePermission("products.manage")).Post("/api/products/{id}/promote", h.promoteCompositeToBase)
+
+	// Allowlist de productos (permitir / no permitir)
+	r.With(am.RequirePermission("products.manage")).Post("/api/products/{id}/allow", h.allowProduct)
+	r.With(am.RequirePermission("products.manage")).Post("/api/products/{id}/disallow", h.disallowProduct)
+	r.With(am.RequireAuth).Get("/api/products/allowed", h.listAllowedProducts)
+	r.With(am.RequireAuth).Get("/api/products/disallowed", h.listDisallowedProducts)
 
 	// Productores
 	r.With(am.RequireAuth).Get("/api/products/{id}/producers", h.listProducers)
@@ -620,17 +631,21 @@ func (h *SystemHandler) listProducts(w http.ResponseWriter, r *http.Request) {
 	}
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 	search := r.URL.Query().Get("search")
+	// Mostrar productos del nodo local (aprobados y no aprobados) para que el admin
+	// pueda ver permitidos y no permitidos. is_allowed distingue permitido/no-permitido.
 	query := `
-		SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit,
+		SELECT id, name, COALESCE(description,''), COALESCE(parent_category,''),
+		       COALESCE(category,''), COALESCE(subcategory,''), unit, price_per_unit,
 		       COALESCE(price_per_kg,0), COALESCE(weight_kg,0), COALESCE(base_unit,'kg'),
-		       is_approved, origin, badge, image_url, product_code, is_system, is_hidden
-		FROM products WHERE node_domain IN ($1, 'localhost', 'default') AND is_approved = true AND is_hidden = false AND COALESCE(is_composite, false) = false`
+		       is_approved, origin, badge, image_url, product_code, is_system, is_hidden,
+		       COALESCE(image_thumb_url,''), COALESCE(is_allowed, NULL)
+		FROM products WHERE node_domain IN ($1, 'localhost', 'default') AND is_hidden = false AND COALESCE(is_composite, false) = false`
 	args := []interface{}{nodeDomain}
 	if search != "" {
 		query += ` AND LOWER(name) LIKE LOWER($2)`
 		args = append(args, "%"+search+"%")
 	}
-	query += ` ORDER BY parent_category, category, subcategory, name LIMIT 500`
+	query += ` ORDER BY COALESCE(parent_category,''), COALESCE(category,''), COALESCE(subcategory,''), name LIMIT 500`
 	rows, err := h.Pool.Query(r.Context(), query, args...)
 	if err != nil {
 		writeJSON(w, 200, []interface{}{})
@@ -717,9 +732,11 @@ func (h *SystemHandler) listCompositeProducts(w http.ResponseWriter, r *http.Req
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 	search := r.URL.Query().Get("search")
 	query := `
-		SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit,
+		SELECT id, name, COALESCE(description,''), COALESCE(parent_category,''),
+		       COALESCE(category,''), COALESCE(subcategory,''), unit, price_per_unit,
 		       COALESCE(price_per_kg,0), COALESCE(weight_kg,0), COALESCE(base_unit,'kg'),
-		       is_approved, origin, badge, image_url, product_code, is_system, is_hidden
+		       is_approved, origin, badge, image_url, product_code, is_system, is_hidden,
+		       COALESCE(image_thumb_url,''), COALESCE(is_allowed, NULL)
 		FROM products WHERE node_domain = $1 AND COALESCE(is_composite, false) = true`
 	args := []interface{}{nodeDomain}
 	if search != "" {
@@ -747,10 +764,11 @@ func (h *SystemHandler) listCompositeProducts(w http.ResponseWriter, r *http.Req
 func (h *SystemHandler) listFederatedProducts(w http.ResponseWriter, r *http.Request) {
 	search := r.URL.Query().Get("search")
 	query := `
-		SELECT id, name, description, parent_category, category, subcategory, unit, price_per_unit,
+		SELECT id, name, COALESCE(description,''), COALESCE(parent_category,''), COALESCE(category,''),
+		       COALESCE(subcategory,''), unit, price_per_unit,
 		       COALESCE(price_per_kg,0), COALESCE(weight_kg,0), COALESCE(base_unit,'kg'),
 		       is_approved, origin, badge, image_url, product_code, is_system, is_hidden,
-		       node_domain, COALESCE(source_node, '')`
+		       node_domain, COALESCE(source_node, ''), COALESCE(image_thumb_url,''), COALESCE(is_allowed, NULL)`
 	var args []interface{}
 	if search != "" {
 		query += ` WHERE LOWER(name) LIKE LOWER($1) AND is_hidden = false AND COALESCE(is_composite, false) = false`
@@ -758,7 +776,7 @@ func (h *SystemHandler) listFederatedProducts(w http.ResponseWriter, r *http.Req
 	} else {
 		query += ` WHERE is_hidden = false AND COALESCE(is_composite, false) = false`
 	}
-	query += ` ORDER BY is_approved DESC, node_domain, parent_category, category, name LIMIT 1000`
+	query += ` ORDER BY is_approved DESC, node_domain, COALESCE(parent_category,''), COALESCE(category,''), name LIMIT 1000`
 	rows, err := h.Pool.Query(r.Context(), query, args...)
 	if err != nil {
 		writeJSON(w, 200, []interface{}{})
@@ -768,11 +786,12 @@ func (h *SystemHandler) listFederatedProducts(w http.ResponseWriter, r *http.Req
 	var products []map[string]interface{}
 	for rows.Next() {
 		var id uuid.UUID
-		var name, description, parentCategory, category, subcategory, unit, origin, baseUnit, nodeDomain, sourceNode string
+		var name, description, parentCategory, category, subcategory, unit, origin, baseUnit, nodeDomain, sourceNode, thumbURL string
 		var price, pricePerKg, weightKg float64
 		var isApproved, isSystem, isHidden bool
 		var badge, imageURL, productCode *string
-		if err := rows.Scan(&id, &name, &description, &parentCategory, &category, &subcategory, &unit, &price, &pricePerKg, &weightKg, &baseUnit, &isApproved, &origin, &badge, &imageURL, &productCode, &isSystem, &isHidden, &nodeDomain, &sourceNode); err != nil {
+		var isAllowed *bool
+		if err := rows.Scan(&id, &name, &description, &parentCategory, &category, &subcategory, &unit, &price, &pricePerKg, &weightKg, &baseUnit, &isApproved, &origin, &badge, &imageURL, &productCode, &isSystem, &isHidden, &nodeDomain, &sourceNode, &thumbURL, &isAllowed); err != nil {
 			continue
 		}
 		bdg := ""
@@ -818,12 +837,14 @@ func (h *SystemHandler) listFederatedProducts(w http.ResponseWriter, r *http.Req
 			"origin":            origin,
 			"badge":             bdg,
 			"image_url":         imgURL,
+			"image_thumb_url":   thumbURL,
 			"product_code":      pcode,
 			"is_system":         isSystem,
 			"is_hidden":         isHidden,
 			"node_domain":       nodeDomain,
 			"source_node":       sourceNode,
 			"available_locally": nodeDomain == db.LOCAL_NODE_DOMAIN,
+			"is_allowed":        isAllowed,
 		})
 	}
 	if products == nil {
@@ -864,7 +885,9 @@ func scanProductRows(rows pgx.Rows) []map[string]interface{} {
 		var price, pricePerKg, weightKg float64
 		var isApproved, isSystem, isHidden bool
 		var badge, imageURL, productCode *string
-		if err := rows.Scan(&id, &name, &description, &parentCategory, &category, &subcategory, &unit, &price, &pricePerKg, &weightKg, &baseUnit, &isApproved, &origin, &badge, &imageURL, &productCode, &isSystem, &isHidden); err != nil {
+		var thumbURL string
+		var isAllowed *bool
+		if err := rows.Scan(&id, &name, &description, &parentCategory, &category, &subcategory, &unit, &price, &pricePerKg, &weightKg, &baseUnit, &isApproved, &origin, &badge, &imageURL, &productCode, &isSystem, &isHidden, &thumbURL, &isAllowed); err != nil {
 			continue
 		}
 		bdg := ""
@@ -910,9 +933,11 @@ func scanProductRows(rows pgx.Rows) []map[string]interface{} {
 			"origin":            origin,
 			"badge":             bdg,
 			"image_url":         imgURL,
+			"image_thumb_url":   thumbURL,
 			"product_code":      pcode,
 			"is_system":         isSystem,
 			"is_hidden":         isHidden,
+			"is_allowed":        isAllowed,
 		})
 	}
 	return products
@@ -3198,7 +3223,86 @@ func (h *SystemHandler) uploadImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate unique filename
+	// Decode the image
+	srcImg, _, err := image.Decode(file)
+	if err != nil {
+		// Si no se puede decodificar, guardar el original sin comprimir
+		file.Seek(0, io.SeekStart)
+		saveRawImage(w, r, h, file, header, mimeType)
+		return
+	}
+
+	// Save to /app/uploads/ (Docker volume)
+	uploadDir := "/app/uploads"
+	if _, err := os.Stat(uploadDir); err != nil {
+		uploadDir = "./uploads"
+	}
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		writeError(w, 500, "failed to create upload directory")
+		return
+	}
+
+	// 1. Guardar imagen original (max 1200px, JPEG calidad 85)
+	maxOriginal := 1200
+	origImg := resizeIfNeeded(srcImg, maxOriginal)
+	origFilename := fmt.Sprintf("img_%d_%s.jpg", time.Now().UnixNano(), randomString(6))
+	origPath := filepath.Join(uploadDir, origFilename)
+	origFile, err := os.Create(origPath)
+	if err != nil {
+		writeError(w, 500, "failed to save original")
+		return
+	}
+	jpeg.Encode(origFile, origImg, &jpeg.Options{Quality: 85})
+	origFile.Close()
+	origSize := getFileSize(origPath)
+	origURL := "/uploads/" + origFilename
+
+	// 2. Crear thumbnail (max 300px, JPEG calidad 75) para listas
+	maxThumb := 300
+	thumbImg := resizeIfNeeded(srcImg, maxThumb)
+	thumbFilename := fmt.Sprintf("thumb_%d_%s.jpg", time.Now().UnixNano(), randomString(6))
+	thumbPath := filepath.Join(uploadDir, thumbFilename)
+	thumbFile, err := os.Create(thumbPath)
+	if err != nil {
+		// Si falla el thumb, al menos devolver la original
+		writeJSON(w, 201, map[string]interface{}{
+			"url":       origURL,
+			"filename":  origFilename,
+			"original":  header.Filename,
+			"size":      origSize,
+			"mime_type": "image/jpeg",
+		})
+		return
+	}
+	jpeg.Encode(thumbFile, thumbImg, &jpeg.Options{Quality: 75})
+	thumbFile.Close()
+	thumbSize := getFileSize(thumbPath)
+	thumbURL := "/uploads/" + thumbFilename
+
+	// Save metadata in DB
+	userID, _ := h.Auth.GetUserID(r)
+	bounds := origImg.Bounds()
+	_, _ = h.Pool.Exec(r.Context(), `
+		INSERT INTO uploaded_images (id, filename, original_name, mime_type, file_size, url, thumb_url, width, height, uploaded_by, created_at)
+		VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`,
+		origFilename, header.Filename, "image/jpeg", origSize, origURL, thumbURL,
+		bounds.Dx(), bounds.Dy(), userID)
+
+	writeJSON(w, 201, map[string]interface{}{
+		"url":        origURL,
+		"thumb_url":  thumbURL,
+		"filename":   origFilename,
+		"original":   header.Filename,
+		"size":       origSize,
+		"thumb_size": thumbSize,
+		"mime_type":  "image/jpeg",
+		"width":      bounds.Dx(),
+		"height":     bounds.Dy(),
+	})
+}
+
+// saveRawImage guarda una imagen sin comprimir (fallback si decode falla)
+func saveRawImage(w http.ResponseWriter, r *http.Request, h *SystemHandler, file io.Reader, header *multipart.FileHeader, mimeType string) {
 	ext := ".jpg"
 	switch mimeType {
 	case "image/png":
@@ -3208,20 +3312,12 @@ func (h *SystemHandler) uploadImage(w http.ResponseWriter, r *http.Request) {
 	case "image/webp":
 		ext = ".webp"
 	}
-
 	filename := fmt.Sprintf("img_%d_%s%s", time.Now().UnixNano(), randomString(6), ext)
-
-	// Save to /app/uploads/ (Docker volume)
 	uploadDir := "/app/uploads"
 	if _, err := os.Stat(uploadDir); err != nil {
-		// Fallback for local dev
 		uploadDir = "./uploads"
 	}
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
-		writeError(w, 500, "failed to create upload directory")
-		return
-	}
-
+	os.MkdirAll(uploadDir, 0755)
 	filePath := filepath.Join(uploadDir, filename)
 	dst, err := os.Create(filePath)
 	if err != nil {
@@ -3229,22 +3325,13 @@ func (h *SystemHandler) uploadImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer dst.Close()
-
-	if _, err := io.Copy(dst, file); err != nil {
-		writeError(w, 500, "failed to write file")
-		return
-	}
-
-	// URL to access the image
+	io.Copy(dst, file)
 	url := "/uploads/" + filename
-
-	// Save metadata in DB
 	userID, _ := h.Auth.GetUserID(r)
 	_, _ = h.Pool.Exec(r.Context(), `
 		INSERT INTO uploaded_images (id, filename, original_name, mime_type, file_size, url, uploaded_by, created_at)
 		VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, NOW())`,
 		filename, header.Filename, mimeType, header.Size, url, userID)
-
 	writeJSON(w, 201, map[string]interface{}{
 		"url":       url,
 		"filename":  filename,
@@ -3252,6 +3339,51 @@ func (h *SystemHandler) uploadImage(w http.ResponseWriter, r *http.Request) {
 		"size":      header.Size,
 		"mime_type": mimeType,
 	})
+}
+
+// resizeIfNeeded redimensiona una imagen si excede maxDim pixeles en cualquier lado.
+// Mantiene el aspect ratio. Si ya es mas pequena, la devuelve sin cambios.
+func resizeIfNeeded(src image.Image, maxDim int) image.Image {
+	bounds := src.Bounds()
+	w, h := bounds.Dx(), bounds.Dy()
+	if w <= maxDim && h <= maxDim {
+		return src
+	}
+	var newW, newH int
+	if w > h {
+		newW = maxDim
+		newH = h * maxDim / w
+	} else {
+		newH = maxDim
+		newW = w * maxDim / h
+	}
+	// Usar nearest-neighbor simple (rapido, sin dependencias externas)
+	dst := image.NewRGBA(image.Rect(0, 0, newW, newH))
+	scaleX := float64(w) / float64(newW)
+	scaleY := float64(h) / float64(newH)
+	for y := 0; y < newH; y++ {
+		for x := 0; x < newW; x++ {
+			srcX := int(float64(x) * scaleX)
+			srcY := int(float64(y) * scaleY)
+			if srcX >= w {
+				srcX = w - 1
+			}
+			if srcY >= h {
+				srcY = h - 1
+			}
+			dst.Set(x, y, src.At(bounds.Min.X+srcX, bounds.Min.Y+srcY))
+		}
+	}
+	return dst
+}
+
+// getFileSize devuelve el tamano de un archivo en bytes
+func getFileSize(path string) int64 {
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0
+	}
+	return info.Size()
 }
 
 func (h *SystemHandler) listUploadedImages(w http.ResponseWriter, r *http.Request) {
@@ -4086,4 +4218,175 @@ func (h *SystemHandler) deleteGovernanceRule(w http.ResponseWriter, r *http.Requ
 		"voting_duration_minutes": votingMinutes,
 		"proposal":                "/app/assembly",
 	})
+}
+
+// ===== ALLOWLIST DE PRODUCTOS (permitir / no permitir) =====
+
+// allowProduct marca un producto como permitido en el nodo actual.
+// Para productos locales: actualiza is_allowed = true.
+// Para productos federados: inserta en product_node_allowlist.
+func (h *SystemHandler) allowProduct(w http.ResponseWriter, r *http.Request) {
+	productID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid product id")
+		return
+	}
+	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.nodeDomain)
+	userID, _ := h.Auth.GetUserID(r)
+
+	// Verificar si el producto es local
+	var productNode string
+	err = h.Pool.QueryRow(r.Context(), `SELECT node_domain FROM products WHERE id = $1`, productID).Scan(&productNode)
+	if err != nil {
+		writeError(w, 404, "producto no encontrado")
+		return
+	}
+
+	if productNode == db.LOCAL_NODE_DOMAIN || productNode == nodeDomain {
+		// Producto local: actualizar is_allowed directamente
+		_, err = h.Pool.Exec(r.Context(), `UPDATE products SET is_allowed = true WHERE id = $1`, productID)
+	} else {
+		// Producto federado: upsert en allowlist
+		_, err = h.Pool.Exec(r.Context(), `
+			INSERT INTO product_node_allowlist (product_id, node_domain, is_allowed, decided_by)
+			VALUES ($1, $2, true, $3)
+			ON CONFLICT (product_id, node_domain) DO UPDATE SET is_allowed = true, decided_by = $3, decided_at = NOW()`,
+			productID, nodeDomain, userID)
+	}
+	if err != nil {
+		writeError(w, 500, "error al permitir producto")
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{"status": "allowed"})
+}
+
+// disallowProduct marca un producto como NO permitido en el nodo actual.
+func (h *SystemHandler) disallowProduct(w http.ResponseWriter, r *http.Request) {
+	productID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid product id")
+		return
+	}
+	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.nodeDomain)
+	userID, _ := h.Auth.GetUserID(r)
+
+	var productNode string
+	err = h.Pool.QueryRow(r.Context(), `SELECT node_domain FROM products WHERE id = $1`, productID).Scan(&productNode)
+	if err != nil {
+		writeError(w, 404, "producto no encontrado")
+		return
+	}
+
+	if productNode == db.LOCAL_NODE_DOMAIN || productNode == nodeDomain {
+		_, err = h.Pool.Exec(r.Context(), `UPDATE products SET is_allowed = false WHERE id = $1`, productID)
+	} else {
+		_, err = h.Pool.Exec(r.Context(), `
+			INSERT INTO product_node_allowlist (product_id, node_domain, is_allowed, decided_by)
+			VALUES ($1, $2, false, $3)
+			ON CONFLICT (product_id, node_domain) DO UPDATE SET is_allowed = false, decided_by = $3, decided_at = NOW()`,
+			productID, nodeDomain, userID)
+	}
+	if err != nil {
+		writeError(w, 500, "error al no permitir producto")
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{"status": "disallowed"})
+}
+
+// listAllowedProducts devuelve productos permitidos en el nodo actual.
+func (h *SystemHandler) listAllowedProducts(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.nodeDomain)
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT p.id, p.name, COALESCE(p.description,''), COALESCE(p.parent_category,''),
+		       COALESCE(p.category,''), COALESCE(p.subcategory,''), p.unit, p.price_per_unit,
+		       p.is_approved, COALESCE(p.badge,''), COALESCE(p.image_url,''),
+		       COALESCE(p.image_thumb_url,''), COALESCE(p.product_code,''),
+		       p.is_system, p.is_hidden, p.node_domain,
+		       COALESCE(p.is_allowed, true) AS allowed
+		FROM products p
+		WHERE p.is_hidden = false AND COALESCE(p.is_composite, false) = false
+		  AND (
+		    (p.node_domain = $1 AND COALESCE(p.is_allowed, p.is_approved) = true)
+		    OR
+		    (p.node_domain != $1 AND EXISTS (
+		      SELECT 1 FROM product_node_allowlist a
+		      WHERE a.product_id = p.id AND a.node_domain = $1 AND a.is_allowed = true
+		    ))
+		  )
+		ORDER BY p.name LIMIT 500`, nodeDomain)
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+	products := scanProductRowsWithThumb(rows)
+	writeJSON(w, 200, products)
+}
+
+// listDisallowedProducts devuelve productos NO permitidos en el nodo actual.
+func (h *SystemHandler) listDisallowedProducts(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.nodeDomain)
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT p.id, p.name, COALESCE(p.description,''), COALESCE(p.parent_category,''),
+		       COALESCE(p.category,''), COALESCE(p.subcategory,''), p.unit, p.price_per_unit,
+		       p.is_approved, COALESCE(p.badge,''), COALESCE(p.image_url,''),
+		       COALESCE(p.image_thumb_url,''), COALESCE(p.product_code,''),
+		       p.is_system, p.is_hidden, p.node_domain,
+		       false AS allowed
+		FROM products p
+		WHERE p.is_hidden = false AND COALESCE(p.is_composite, false) = false
+		  AND (
+		    (p.node_domain = $1 AND p.is_allowed = false)
+		    OR
+		    (p.node_domain != $1 AND EXISTS (
+		      SELECT 1 FROM product_node_allowlist a
+		      WHERE a.product_id = p.id AND a.node_domain = $1 AND a.is_allowed = false
+		    ))
+		  )
+		ORDER BY p.name LIMIT 500`, nodeDomain)
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+	products := scanProductRowsWithThumb(rows)
+	writeJSON(w, 200, products)
+}
+
+// scanProductRowsWithThumb escanea rows con el formato extendido (incluye thumb_url)
+func scanProductRowsWithThumb(rows pgx.Rows) []map[string]interface{} {
+	var products []map[string]interface{}
+	for rows.Next() {
+		var id uuid.UUID
+		var name, description, parentCategory, category, subcategory, unit string
+		var price float64
+		var isApproved, isSystem, isHidden, allowed bool
+		var badge, imageURL, thumbURL, productCode, nodeDomain string
+		if err := rows.Scan(&id, &name, &description, &parentCategory, &category, &subcategory, &unit, &price, &isApproved, &badge, &imageURL, &thumbURL, &productCode, &isSystem, &isHidden, &nodeDomain, &allowed); err != nil {
+			continue
+		}
+		products = append(products, map[string]interface{}{
+			"id":              id.String(),
+			"name":            name,
+			"description":     description,
+			"parent_category": parentCategory,
+			"category":        category,
+			"subcategory":     subcategory,
+			"unit":            unit,
+			"price":           price,
+			"is_approved":     isApproved,
+			"badge":           badge,
+			"image_url":       imageURL,
+			"image_thumb_url": thumbURL,
+			"product_code":    productCode,
+			"is_system":       isSystem,
+			"is_hidden":       isHidden,
+			"node_domain":     nodeDomain,
+			"is_allowed":      allowed,
+		})
+	}
+	if products == nil {
+		products = []map[string]interface{}{}
+	}
+	return products
 }

@@ -43,6 +43,7 @@ const PARENT_CATEGORIES: Record<string, string[]> = {
 }
 
 type ProductTab = 'federated' | 'mynode' | 'composite'
+type MyNodeSubTab = 'allowed' | 'disallowed'
 
 export default function Products() {
   const { hasPermission } = usePermissions()
@@ -72,6 +73,8 @@ export default function Products() {
 
   // Nueva: pestañas (Federacion, Mi Nodo, Compuestos)
   const [activeTab, setActiveTab] = useState<ProductTab>('mynode')
+  // Sub-tabs dentro de Mi Nodo: Permitidos / No Permitidos
+  const [mynodeSubTab, setMynodeSubTab] = useState<MyNodeSubTab>('allowed')
 
   const PAGE_SIZE = 24
 
@@ -82,17 +85,22 @@ export default function Products() {
     if (searchTerm) url += `&search=${encodeURIComponent(searchTerm)}`
     api.get(url).then((d: any) => {
       const newItems = Array.isArray(d) ? d : d?.products ?? []
+      // Filtrar por sub-tab (permitido / no permitido)
+      const filtered = newItems.filter((p: any) => {
+        if (mynodeSubTab === 'allowed') return p.is_allowed !== false
+        return p.is_allowed === false
+      })
       if (reset) {
-        setProducts(newItems)
+        setProducts(filtered)
         setHasMore(newItems.length >= PAGE_SIZE)
       } else {
-        setProducts(prev => [...prev, ...newItems])
+        setProducts(prev => [...prev, ...filtered])
         setHasMore(newItems.length >= PAGE_SIZE)
       }
     }).catch(() => {
       if (reset) setProducts([])
     }).finally(() => setLoading(false))
-  }, [products.length, searchTerm])
+  }, [products.length, searchTerm, mynodeSubTab])
 
   // Cargar productos compuestos
   const loadComposite = useCallback(() => {
@@ -116,7 +124,7 @@ export default function Products() {
     }).catch(() => setProducts([])).finally(() => setLoading(false))
   }, [searchTerm])
 
-  // Recargar cuando cambie la pestana o el termino de busqueda
+  // Recargar cuando cambie la pestana, sub-tab o el termino de busqueda
   useEffect(() => {
     if (activeTab === 'mynode') {
       load(true)
@@ -125,7 +133,7 @@ export default function Products() {
     } else if (activeTab === 'federated') {
       loadFederated()
     }
-  }, [activeTab, searchTerm])
+  }, [activeTab, searchTerm, mynodeSubTab])
 
   // Cargar propuestas de productos federados pendientes
   const loadFedProposals = () => {
@@ -294,6 +302,30 @@ export default function Products() {
       setSuccess(`Propuesta creada en la Asamblea para convertir "${p.name}" a producto base.`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear propuesta')
+    }
+  }
+
+  // Permitir producto en el nodo
+  const allowProduct = async (p: any) => {
+    try {
+      await api.post(`/products/${p.id}/allow`, {})
+      setSuccess(`"${p.name}" marcado como permitido en el nodo.`)
+      if (activeTab === 'mynode') load(true)
+      if (activeTab === 'federated') loadFederated()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al permitir producto')
+    }
+  }
+
+  // No permitir producto en el nodo
+  const disallowProduct = async (p: any) => {
+    try {
+      await api.post(`/products/${p.id}/disallow`, {})
+      setSuccess(`"${p.name}" marcado como NO permitido en el nodo.`)
+      if (activeTab === 'mynode') load(true)
+      if (activeTab === 'federated') loadFederated()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al no permitir producto')
     }
   }
 
@@ -659,9 +691,9 @@ export default function Products() {
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
           <p><strong>Productos del Catálogo Comunitario - Ayuda</strong></p>
           <p><strong>Tres pestañas:</strong></p>
-          <p><strong>1. Federación:</strong> Todos los productos base que existen en toda la red de nodos federados. Cuando un nodo se federa, sus productos aparecen aquí. Un producto nuevo en cualquier nodo aparece automáticamente en todos.</p>
-          <p><strong>2. Mi Nodo:</strong> Los productos base que pertenecen a tu aldea. Puedes editarlos, crear nuevos y publicarlos en la tienda.</p>
-          <p><strong>3. Compuestos:</strong> Productos creados por la gente de tu aldea combinando productos base (ej: harina + agua = pan). Se pueden vender en la tienda. Un compuesto se puede promover a producto base para que aparezca en toda la federación y pueda usarse como ingrediente de otros compuestos (ej: pan promovido a base, se puede hacer sándwich con pan + queso).</p>
+          <p><strong>1. Federación:</strong> Todos los productos base que existen en toda la red de nodos federados, INCLUYENDO los de tu propio nodo (porque tu nodo es parte de la federación). Aquí puedes ver todos los productos y decidir cuáles están permitidos o no permitidos en tu nodo usando los botones "Permitir" y "No Permitir".</p>
+          <p><strong>2. Mi Nodo:</strong> Los productos base que pertenecen a tu aldea. Tiene dos sub-pestañas: <strong>Permitidos</strong> (productos que se pueden vender/usar) y <strong>No Permitidos</strong> (productos explícitamente prohibidos). Puedes editarlos, crear nuevos, y moverlos entre permitido y no permitido.</p>
+          <p><strong>3. Compuestos:</strong> Productos creados por la gente de tu aldea combinando productos base (ej: harina + agua = pan). Si todos los ingredientes ya están permitidos, el compuesto aparece directamente aquí sin necesidad de aprobación. Si algún ingrediente es nuevo o no está aprobado, el compuesto pasa a "Pendientes de Aprobación". Un compuesto se puede promover a producto base con el botón "Solicitar como base" para que aparezca en toda la federación y pueda usarse como ingrediente de otros compuestos.</p>
           <p><strong>Búsqueda:</strong> Escribe parte del nombre en el campo de búsqueda para encontrar productos rápidamente.</p>
           <p><strong>Página pública:</strong> Los productos aprobados aparecen automáticamente en la página pública si usas el bloque "Catálogo desde Backend".</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
@@ -702,6 +734,30 @@ export default function Products() {
           <Package size={16} />
           Mi Nodo
         </button>
+        {activeTab === 'mynode' && (
+          <div className="flex gap-1 ml-2">
+            <button
+              onClick={() => { setMynodeSubTab('allowed'); setFilterParentCategory(''); setFilterCategory(''); setFilterSubcategory('') }}
+              className={`px-3 py-2 rounded-lg text-xs font-semibold transition ${
+                mynodeSubTab === 'allowed'
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                  : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+              }`}
+            >
+              Permitidos
+            </button>
+            <button
+              onClick={() => { setMynodeSubTab('disallowed'); setFilterParentCategory(''); setFilterCategory(''); setFilterSubcategory('') }}
+              className={`px-3 py-2 rounded-lg text-xs font-semibold transition ${
+                mynodeSubTab === 'disallowed'
+                  ? 'bg-red-100 text-red-800 border border-red-300'
+                  : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+              }`}
+            >
+              No Permitidos
+            </button>
+          </div>
+        )}
         <button
           onClick={() => { setActiveTab('composite'); setFilterParentCategory(''); setFilterCategory(''); setFilterSubcategory('') }}
           className={`px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 ${
@@ -845,7 +901,14 @@ export default function Products() {
                     <>
                       {p.image_url && (
                         <div className="relative -mx-4 -mt-4 mb-3 h-32 overflow-hidden">
-                          <img src={assetUrl(p.image_url)} alt={p.name} className="w-full h-full object-cover" />
+                          <img
+                            src={assetUrl(p.image_thumb_url || p.image_url)}
+                            alt={p.name}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                            onClick={() => window.open(assetUrl(p.image_url), '_blank')}
+                            style={{ cursor: 'pointer' }}
+                          />
                           {p.badge && (
                             <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-amber-950 shadow">
                               {p.badge}
@@ -874,6 +937,24 @@ export default function Products() {
                               <button onClick={() => startEdit(p)} className="text-gray-400 hover:text-emerald-600 transition">
                                 <Pencil size={16} />
                               </button>
+                              {/* Boton permitir/no permitir */}
+                              {p.is_allowed === false ? (
+                                <button
+                                  onClick={() => allowProduct(p)}
+                                  className="text-green-500 hover:text-green-700 transition"
+                                  title="Permitir este producto en el nodo"
+                                >
+                                  <Check size={16} />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => disallowProduct(p)}
+                                  className="text-red-400 hover:text-red-600 transition"
+                                  title="No permitir este producto en el nodo"
+                                >
+                                  <X size={16} />
+                                </button>
+                              )}
                             </>
                           )}
                           {canManage && activeTab === 'composite' && (
@@ -948,6 +1029,41 @@ export default function Products() {
                               <span className="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full flex items-center gap-1">
                                 <X size={10} /> No disponible en mi nodo
                               </span>
+                            )}
+                            {/* Estado de permitido/no-permitido */}
+                            {p.is_allowed === true && (
+                              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                                Permitido
+                              </span>
+                            )}
+                            {p.is_allowed === false && (
+                              <span className="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full">
+                                No Permitido
+                              </span>
+                            )}
+                            {p.is_allowed == null && canManage && (
+                              <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                                Sin decidir
+                              </span>
+                            )}
+                            {/* Botones permitir/no permitir */}
+                            {canManage && p.is_allowed !== true && (
+                              <button
+                                onClick={() => allowProduct(p)}
+                                className="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full hover:bg-green-200 transition flex items-center gap-1"
+                                title="Permitir este producto en el nodo"
+                              >
+                                <Check size={10} /> Permitir
+                              </button>
+                            )}
+                            {canManage && p.is_allowed !== false && (
+                              <button
+                                onClick={() => disallowProduct(p)}
+                                className="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full hover:bg-red-200 transition flex items-center gap-1"
+                                title="No permitir este producto en el nodo"
+                              >
+                                <X size={10} /> No Permitir
+                              </button>
                             )}
                             {!p.available_locally && (
                               <button

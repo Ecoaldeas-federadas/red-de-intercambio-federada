@@ -1,88 +1,48 @@
-feat: sistema NFC dual (DESFire EV3 + MIFARE Classic) con rotacion de clave
+fix: productos federados, allowlist permitido/no-permitido, compresion de imagenes
 
-Soporta DOS tipos de tarjetas NFC:
-1. DESFire EV3 (segura, AES-128, challenge-response, rotacion de clave)
-2. MIFARE Classic / UID normal (UID + PIN, disponible en Venezuela)
+PROBLEMAS ARREGLADOS:
 
-El nodo configura que tipo de tarjeta aceptar:
-- uid_only: solo tarjetas normales (UID + PIN)
-- desfire: solo tarjetas seguras (DESFire EV3)
-- dual: ambas (detecta automaticamente, recomendado para transicion)
+1. Boton Federacion no mostraba productos
+   - Causa: query usaba columnas nullable sin COALESCE (parent_category,
+     category, subcategory, description pueden ser NULL o vacios)
+   - Fix: COALESCE en todas las columnas nullable del query federado
+   - Ahora Federacion muestra TODOS los productos incluyendo los del nodo
+     local (porque el nodo es parte de la federacion)
 
-ROTACION DE CLAVE POR TRANSACCION (solo DESFire):
-1. Terminal autentica tarjeta con clave K
-2. Servidor valida transaccion (saldo, PIN)
-3. Servidor genera nueva clave K'
-4. Terminal escribe K' en la tarjeta (DESFire ChangeKey)
-5. Terminal verifica K' re-autenticando
-6. Si OK: confirma rotacion → ejecuta transaccion → borra claves
-7. Si falla 3x: marca tarjeta con error, clave vieja sigue activa
-8. Recovery: si rotacion se interrumpe, probar K' o K en proximo tap
+2. Mi Nodo: sub-tabs Permitidos / No Permitidos
+   - Nueva tabla product_node_allowlist (migracion 120)
+   - Campo is_allowed en products (true=permitido, false=no permitido, NULL=sin decidir)
+   - Endpoints: POST /products/{id}/allow, /products/{id}/disallow
+   - Endpoints: GET /products/allowed, /products/disallowed
+   - Frontend: sub-tabs dentro de Mi Nodo para separar permitidos y no permitidos
+   - Botones permitir/no-permitir en cada producto
 
-CAMBIOS:
+3. Federacion: botones Permitir / No Permitir
+   - Al ver productos federados, el admin puede decidir cual permite en su nodo
+   - Estado visible: Permitido, No Permitido, Sin decidir
+   - Funciona para productos locales y de otros nodos
 
-Migracion 119 (key_rotation_dual_cards.sql):
-- Tabla card_key_rotations (historial de rotaciones)
-- Campos: pending_key_encrypted, rotation_status, write_fail_count
-- Tabla nfc_card_type_config (config dual por nodo)
-- Campos card_error, error_at en nfc_cards
+4. Compuestos: aparecen directamente si ingredientes estan aprobados
+   - listProducts ya no filtra is_approved=true (muestra todos los del nodo)
+   - Compuestos con ingredientes permitidos van directo a la pestana Compuestos
+   - Compuestos con ingredientes nuevos van a Pendientes de Aprobacion
+   - Boton "Solicitar como base" para promover compuesto a producto base
 
-Backend (card_crypto.go):
-- POST /prepare-rotation: genera K', guarda como pendiente
-- POST /confirm-rotation: promueve K' a activa
-- POST /fail-rotation: reporta fallo (3 intentos)
-- POST /recover: recovery de rotacion interrumpida
-- GET /pending-rotation: verifica si hay pendiente
-- GET/POST /card-type/config: config dual de tarjetas
-- GET /cards/{uid}/rotations: historial de rotaciones
+5. Compresion de imagenes al subir
+   - Antes: se guardaba la imagen original sin comprimir (fotos enormes)
+   - Ahora: se redimensiona a max 1200px y se comprime a JPEG calidad 85
+   - Ademas: se genera un thumbnail de max 300px JPEG calidad 75
+   - La lista de productos usa el thumbnail (carga rapida)
+   - Al hacer clic en la foto se abre la original en grande
+   - Atributo loading="lazy" para carga diferida
+   - Migracion: campos image_thumb_url en products, thumb_url en uploaded_images
 
-Firmware (desfire_crypto.h - nuevo):
-- APDUs ISO14443-4 via PN532 inDataExchange
-- authenticateAES(): challenge-response AES-128 de DESFire EV3
-- changeKey(): rotar clave AES en la tarjeta
-- verifyKeyWorks(): re-autenticar con nueva clave
-- selectApplication(), readData(), writeData()
-
-Firmware (card_rotation.h - nuevo):
-- performRotation(): flujo completo de rotacion
-- requestRotation(), confirmRotation(), reportRotationFail()
-- clearKeyFromMemory(): zeroization de claves
-
-Firmware (nfc_reader.h - corregido):
-- Deteccion automaticatica de tipo de tarjeta (DESFire vs normal)
-- authenticateDESFire(): autenticacion real con AES
-- readDESFireData(): leer datos de tarjeta autenticada
-- CardType enum: CARD_UID_ONLY, CARD_DESFIRE_EV3, CARD_NTAG424
-
-Firmware (5 terminales .ino):
-- terminal-keypad: flujo dual con rotacion
-- terminal-touch: flujo dual con rotacion
-- terminal-web: flujo dual con rotacion
-- terminal-community: soporte dual (vendedor + comprador)
-- terminal-ble-reader: comandos BLE para DESFire (auth, change_key, verify_key)
-
-POS web (NFCScreen.tsx + api.ts):
-- Deteccion de tipo de tarjeta
-- UI muestra tipo detectado (segura vs normal)
-- Estado "Rotando clave" durante rotacion
-- Endpoints: requestCardKey, prepareRotation, confirmRotation, failRotation
-- Endpoints: getCardTypeConfig, setCardTypeConfig, listRotations
-
-Frontend (NodeSettings.tsx):
-- Tab "Tarjetas Crypto" con config dual
-- Selector: uid_only, desfire, dual
-- Toggle: require_crypto, auto_rotate_key
-- Historial de rotaciones por tarjeta
-- Estados: confirmed, failed, recovered, pending
-
-Documento (docs/android-app-spec.md):
-- Especificacion completa de la app Android
-- Arquitectura React Native
-- Comunicacion BLE con lector ESP32
-- Endpoints del backend
-- Flujo de pago dual
-- Permisos necesarios
-- Librerias recomendadas
+MIGRACION 120:
+- Tabla product_node_allowlist (product_id, node_domain, is_allowed, decided_by)
+- Campo is_allowed en products
+- Campo image_thumb_url en products
+- Campos thumb_url, width, height en uploaded_images
+- Migracion automatica: productos aprobados -> is_allowed=true
 
 Generated with [Devin](https://devin.ai)
 
