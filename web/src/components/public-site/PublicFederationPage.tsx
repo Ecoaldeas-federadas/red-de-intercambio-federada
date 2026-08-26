@@ -3,7 +3,7 @@ import { api } from '../../api'
 import {
   Globe, Users, Network, Leaf, Heart, Scale, ArrowRight, Check,
   Sparkles, MessageSquare, ThumbsUp, Send, Menu, X, Home, Copy, Share2,
-  Power, Loader2, ExternalLink
+  Power, Loader2, ExternalLink, AlertCircle, CheckCircle
 } from 'lucide-react'
 
 const SHARE_MESSAGE = `¿El mayor reto de crear una ecoaldea? No es comprar el terreno... es ponerse de acuerdo. 🏡🤝
@@ -41,6 +41,7 @@ export function PublicFederationPage() {
   const [demoPresets, setDemoPresets] = useState<any[]>([])
   const [demoPresetSel, setDemoPresetSel] = useState('gen_ecoaldea')
   const [demoPresetsLoaded, setDemoPresetsLoaded] = useState(false)
+  const [demoError, setDemoError] = useState(false)
 
   useEffect(() => {
     api.get('/public/proposals').then((d: any) => {
@@ -73,6 +74,7 @@ export function PublicFederationPage() {
 
   const startDemo = async () => {
     setDemoStarting(true)
+    setDemoError(false)
     setDemoState('starting')
     setDemoStartLog('Iniciando proceso de arranque...\n')
     if (demoPresetSel) {
@@ -97,10 +99,13 @@ export function PublicFederationPage() {
           } else if (d?.status === 'error') {
             setDemoState('stopped')
             setDemoStarting(false)
+            setDemoError(true)
           } else if (attempts >= maxAttempts) {
             // Timeout: verificar si el demo esta corriendo
             checkDemoStatus()
             setDemoStarting(false)
+            setDemoError(true)
+            setDemoStartMsg('Timeout: el demo no respondio en 4 minutos')
           } else {
             // Continuar consultando
             setTimeout(pollStatus, 2000)
@@ -109,6 +114,8 @@ export function PublicFederationPage() {
           if (attempts >= maxAttempts) {
             checkDemoStatus()
             setDemoStarting(false)
+            setDemoError(true)
+            setDemoStartMsg('No se pudo conectar con el nodo para verificar el estado')
           } else {
             setTimeout(pollStatus, 2000)
           }
@@ -119,6 +126,7 @@ export function PublicFederationPage() {
     } catch (e: any) {
       setDemoState('stopped')
       setDemoStarting(false)
+      setDemoError(true)
       setDemoStartMsg('Error: ' + (e?.message || 'no se pudo iniciar'))
     }
   }
@@ -587,16 +595,30 @@ export function PublicFederationPage() {
             </p>
 
             {/* Consola de progreso en tiempo real */}
-            {demoStarting && (
+            {(demoStarting || demoError) && (
               <div className="mt-4 text-left">
-                <div className="bg-emerald-950/80 border border-emerald-700/50 rounded-lg p-3">
-                  <div className="flex items-center gap-2 text-emerald-300 text-xs font-semibold mb-2">
-                    <Loader2 size={12} className="animate-spin" />
+                <div className={`rounded-lg p-3 ${demoError ? 'bg-red-950/80 border border-red-700/50' : 'bg-emerald-950/80 border border-emerald-700/50'}`}>
+                  <div className={`flex items-center gap-2 text-xs font-semibold mb-2 ${demoError ? 'text-red-300' : 'text-emerald-300'}`}>
+                    {demoStarting ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : demoError ? (
+                      <AlertCircle size={12} />
+                    ) : (
+                      <CheckCircle size={12} />
+                    )}
                     {demoStartMsg || 'Procesando...'}
                   </div>
-                  <pre className="text-emerald-200/80 text-[10px] font-mono whitespace-pre-wrap max-h-40 overflow-y-auto">
+                  <pre className={`text-[10px] font-mono whitespace-pre-wrap max-h-60 overflow-y-auto ${demoError ? 'text-red-200/80' : 'text-emerald-200/80'}`}>
                     {demoStartLog}
                   </pre>
+                  {demoError && (
+                    <button
+                      onClick={() => { setDemoError(false); setDemoStartLog(''); setDemoStartMsg('') }}
+                      className="mt-2 text-xs bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded transition"
+                    >
+                      Cerrar
+                    </button>
+                  )}
                 </div>
               </div>
             )}
