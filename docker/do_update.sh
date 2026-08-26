@@ -110,34 +110,63 @@ log "Compose file: $COMPOSE_FILE"
 # CRITICO: Detectar la ruta REAL del proyecto en el host.
 # docker compose corre dentro del updater-controller donde el repo esta en /project,
 # pero el Docker daemon esta en el HOST donde /project no existe.
-# Las rutas relativas en docker-compose.yml (ej: ./config.yaml:/app/config.yaml:ro)
-# se resuelven relativas al compose file, y se envian al daemon.
-# Si enviamos /project/config.yaml al daemon, no lo encuentra, crea un directorio,
-# y falla con "not a directory" al montarlo como archivo.
 #
-# Solucion: detectar la ruta host real de /project inspeccionando nuestros propios mounts,
-# y usar --project-directory para que docker compose resuelva las rutas relativas
-# correctamente en el host.
+# PROBLEMA: docker compose hace stat() del compose file y project-directory
+# DENTRO del contenedor. Si pasamos una ruta Windows (C:\Users\...), no existe
+# dentro del contenedor Linux y falla con "no such file or directory".
+#
+# SOLUCION: Usar /project (ruta del contenedor) para leer el compose file,
+# y generar un docker-compose.override.yml con las rutas del host (con barras
+# normales) para los volume mounts. El daemon recibe las rutas del host y
+# puede encontrarlas.
 HOST_PROJECT_DIR=$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/project"}}{{.Source}}{{end}}{{end}}' "$(hostname)" 2>/dev/null)
 if [ -z "$HOST_PROJECT_DIR" ]; then
-  # Fallback: intentar con el primer mount que apunte a /project
   HOST_PROJECT_DIR=$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/project"}}{{.Source}}{{end}}{{end}}' "${PROJECT_NAME}-updater-controller-1" 2>/dev/null)
 fi
-if [ -n "$HOST_PROJECT_DIR" ]; then
-  log "Host project dir detectado: $HOST_PROJECT_DIR"
-  HOST_COMPOSE_FILE="$HOST_PROJECT_DIR/docker-compose.yml"
+
+# Convertir ruta Windows a formato con barras normales (C:\Users\... -> C:/Users/...)
+HOST_DIR_FWD=$(echo "$HOST_PROJECT_DIR" | sed 's|\\|/|g')
+log "Host project dir: $HOST_PROJECT_DIR"
+log "Host dir (forward slashes): $HOST_DIR_FWD"
+
+# Generar docker-compose.override.yml con rutas del host para volume mounts
+# Esto reemplaza los volumes de node-app que usan rutas relativas (./config.yaml)
+# con rutas absolutas del host (C:/Users/.../config.yaml) que el daemon puede encontrar
+if [ -n "$HOST_DIR_FWD" ] && [ "$HOST_DIR_FWD" != "/project" ]; then
+  log "Generando docker-compose.override.yml con rutas del host..."
+  cat > /tmp/docker-compose.override.yml << YAMLEOF
+services:
+  node-app:
+    volumes:
+      - ${HOST_DIR_FWD}/secrets:/secrets:ro
+      - ${HOST_DIR_FWD}/config.yaml:/app/config.yaml:ro
+      - ${HOST_DIR_FWD}/firmware:/app/firmware:ro
+      - firmware_builds:/tmp/firmware-builds
+      - uploads:/app/uploads
+      - db_backups:/backups
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOST_DIR_FWD}:/project:rw
+      - update_state:/update-state
+YAMLEOF
+  log "Override generado: $(cat /tmp/docker-compose.override.yml | head -3)"
 else
-  log "WARNING: No se pudo detectar host project dir. Usando /project (puede fallar)."
-  HOST_PROJECT_DIR="/project"
-  HOST_COMPOSE_FILE="$COMPOSE_FILE"
+  log "No se detecto host path o es /project. Sin override."
+  rm -f /tmp/docker-compose.override.yml
 fi
 
 # Helper para docker compose
-# Usa --project-directory con la ruta host para que las rutas relativas
-# en docker-compose.yml (./config.yaml, ./secrets, etc.) se resuelvan
-# correctamente en el host donde el Docker daemon las puede encontrar.
-dc() {
-  docker compose --project-directory "$HOST_PROJECT_DIR" -f "$HOST_COMPOSE_FILE" --project-name "$PROJECT_NAME" "$@"
+# Usa /project como project-directory (existe dentro del contenedor)
+# Para 'up', anade el override con rutas del host
+dc_build() {
+  docker compose --project-directory /project -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" "$@"
+}
+
+dc_up() {
+  if [ -f /tmp/docker-compose.override.yml ]; then
+    docker compose --project-directory /project -f "$COMPOSE_FILE" -f /tmp/docker-compose.override.yml --project-name "$PROJECT_NAME" "$@"
+  else
+    docker compose --project-directory /project -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" "$@"
+  fi
 }
 
 # ============================================================
@@ -197,7 +226,7 @@ if [ -n "$UPDATER_CHANGED" ]; then
   log "Cambios detectados en archivos del updater-controller: $UPDATER_CHANGED"
   check_cancelled
   write_state "running" "Construyendo nueva imagen updater-controller..." "$NEW_COMMIT" "$STARTED" "" 20
-  if dc build --progress plain updater-controller >> "$LOG_FILE" 2>&1; then
+  if dc_build build --progress plain updater-controller >> "$LOG_FILE" 2>&1; then
     log "Nueva imagen updater-controller construida"
     UPDATER_NEEDS_UPDATE=true
   else
@@ -219,13 +248,13 @@ log "NOTA: Esto puede tardar 10-20 minutos. El output aparece linea por linea."
 log "Si no ves output por unos minutos, es normal (descargando dependencias)."
 
 BUILD_OK=false
-if dc build --no-cache --progress plain node-app >> "$LOG_FILE" 2>&1; then
+if dc_build build --no-cache --progress plain node-app >> "$LOG_FILE" 2>&1; then
   log "Imagen node-app construida con --no-cache OK"
   BUILD_OK=true
 else
   log "WARNING: build --no-cache fallo, reintentando con cache..."
   write_state "running" "Reintentando build con cache..." "$NEW_COMMIT" "$STARTED" "" 35
-  if dc build --progress plain node-app >> "$LOG_FILE" 2>&1; then
+  if dc_build build --progress plain node-app >> "$LOG_FILE" 2>&1; then
     log "Imagen node-app construida con cache OK"
     BUILD_OK=true
   else
@@ -246,7 +275,7 @@ write_state "running" "Imagen del nodo construida. Construyendo demo-app..." "$N
 # ============================================================
 write_state "running" "Construyendo imagen demo-app..." "$NEW_COMMIT" "$STARTED" "" 65
 log "--- docker compose build demo-app ---"
-dc --profile demo build --progress plain demo-app >> "$LOG_FILE" 2>&1 || true
+dc_build --profile demo build --progress plain demo-app >> "$LOG_FILE" 2>&1 || true
 log "Imagen demo-app construida (o cacheada)"
 
 # ============================================================
@@ -260,7 +289,7 @@ check_cancelled
 write_state "running" "Reiniciando nodo con nueva imagen..." "$NEW_COMMIT" "$STARTED" "" 70
 log "--- docker compose up -d --no-deps --force-recreate node-app ---"
 log "CRITICO: --force-recreate asegura que el contenedor viejo se reemplace"
-if ! dc up -d --no-deps --force-recreate node-app >> "$LOG_FILE" 2>&1; then
+if ! dc_up up -d --no-deps --force-recreate node-app >> "$LOG_FILE" 2>&1; then
   write_state "error" "Error al reiniciar nodo" "$NEW_COMMIT" "$STARTED" "$(date -Iseconds 2>/dev/null || date)" 70
   log "ERROR: docker up node-app fallo"
   # Mostrar logs del nodo para diagnostico
@@ -327,7 +356,7 @@ if [ "$DEMO_RUNNING" = "true" ]; then
   log "Demo-app estaba corriendo, recreando con nueva imagen..."
   docker stop "$DEMO_CONTAINER" 2>/dev/null || true
   docker rm -f "$DEMO_CONTAINER" 2>/dev/null || true
-  dc --profile demo up -d --no-deps demo-app >> "$LOG_FILE" 2>&1 || true
+  dc_up --profile demo up -d --no-deps demo-app >> "$LOG_FILE" 2>&1 || true
   docker stop "$DEMO_CONTAINER" 2>/dev/null || true
   log "Demo-app recreado (detenido, listo para arrancar desde la web)"
 fi
@@ -342,7 +371,7 @@ if [ "$UPDATER_NEEDS_UPDATE" = "true" ]; then
   log "NOTA: Este proceso se detendra porque el updater-controller se reinicia."
   log "La actualizacion ya esta completa."
   write_state "completed" "Nodo actualizado. Updater-controller reiniciandose." "$NEW_COMMIT" "$STARTED" "$(date -Iseconds 2>/dev/null || date)" 95
-  dc up -d --no-deps --force-recreate updater-controller >> "$LOG_FILE" 2>&1 || true
+  dc_up up -d --no-deps --force-recreate updater-controller >> "$LOG_FILE" 2>&1 || true
   exit 0
 fi
 
@@ -352,7 +381,7 @@ fi
 UPDATER_RUNNING=$(docker inspect -f '{{.State.Running}}' "${PROJECT_NAME}-updater-controller-1" 2>/dev/null || echo "false")
 if [ "$UPDATER_RUNNING" != "true" ]; then
   log "Updater-controller no estaba corriendo. Arrancandolo..."
-  dc up -d --no-deps updater-controller >> "$LOG_FILE" 2>&1 || true
+  dc_up up -d --no-deps updater-controller >> "$LOG_FILE" 2>&1 || true
 fi
 
 log "=== ACTUALIZACION COMPLETADA ==="
