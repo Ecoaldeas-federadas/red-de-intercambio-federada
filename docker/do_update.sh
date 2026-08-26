@@ -102,9 +102,37 @@ fi
 log "Project name: $PROJECT_NAME"
 log "Compose file: $COMPOSE_FILE"
 
+# CRITICO: Detectar la ruta REAL del proyecto en el host.
+# docker compose corre dentro del updater-controller donde el repo esta en /project,
+# pero el Docker daemon esta en el HOST donde /project no existe.
+# Las rutas relativas en docker-compose.yml (ej: ./config.yaml:/app/config.yaml:ro)
+# se resuelven relativas al compose file, y se envian al daemon.
+# Si enviamos /project/config.yaml al daemon, no lo encuentra, crea un directorio,
+# y falla con "not a directory" al montarlo como archivo.
+#
+# Solucion: detectar la ruta host real de /project inspeccionando nuestros propios mounts,
+# y usar --project-directory para que docker compose resuelva las rutas relativas
+# correctamente en el host.
+HOST_PROJECT_DIR=$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/project"}}{{.Source}}{{end}}{{end}}' "$(hostname)" 2>/dev/null)
+if [ -z "$HOST_PROJECT_DIR" ]; then
+  # Fallback: intentar con el primer mount que apunte a /project
+  HOST_PROJECT_DIR=$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/project"}}{{.Source}}{{end}}{{end}}' "${PROJECT_NAME}-updater-controller-1" 2>/dev/null)
+fi
+if [ -n "$HOST_PROJECT_DIR" ]; then
+  log "Host project dir detectado: $HOST_PROJECT_DIR"
+  HOST_COMPOSE_FILE="$HOST_PROJECT_DIR/docker-compose.yml"
+else
+  log "WARNING: No se pudo detectar host project dir. Usando /project (puede fallar)."
+  HOST_PROJECT_DIR="/project"
+  HOST_COMPOSE_FILE="$COMPOSE_FILE"
+fi
+
 # Helper para docker compose
+# Usa --project-directory con la ruta host para que las rutas relativas
+# en docker-compose.yml (./config.yaml, ./secrets, etc.) se resuelvan
+# correctamente en el host donde el Docker daemon las puede encontrar.
 dc() {
-  docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" "$@"
+  docker compose --project-directory "$HOST_PROJECT_DIR" -f "$HOST_COMPOSE_FILE" --project-name "$PROJECT_NAME" "$@"
 }
 
 # ============================================================
