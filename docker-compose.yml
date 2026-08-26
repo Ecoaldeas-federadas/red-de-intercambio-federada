@@ -16,6 +16,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       # Montar el repo del nodo para poder hacer git pull y actualizar
       - .:/project:rw
+      # Volumen compartido con updater-controller para leer el estado de actualizacion
+      - update_state:/update-state
     # host.docker.internal: necesario para que el proxy reverso alcance
       # los puertos de los servicios instalados (POS, PeerTube, etc.)
       # que se exponen en el host. En Docker Desktop ya funciona, pero
@@ -34,8 +36,6 @@ services:
       - FIRMWARE_BUILD_DIR=/tmp/firmware-builds
       - FIRMWARE_DOCKER_IMAGE=fmc-arduino-compiler:latest
       - GIT_TOKEN=${GIT_TOKEN:-}
-      # Volumen compartido con updater-controller para leer el estado de actualizacion
-      - update_state:/update-state
     restart: unless-stopped
 
   # === Updater Controller ===

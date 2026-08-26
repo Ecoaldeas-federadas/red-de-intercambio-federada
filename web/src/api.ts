@@ -75,7 +75,10 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
     headers['Authorization'] = `Bearer ${token}`
   }
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers })
+  // cache: 'no-store' evita que el browser cachee las respuestas
+  // Critico para polling de estado de actualizacion
+  const fetchOptions: RequestInit = { ...options, headers, cache: 'no-store' }
+  const res = await fetch(`${API_BASE}${path}`, fetchOptions)
   if (res.status === 401) {
     handleUnauthorized()
     const err = await res.json().catch(() => ({ error: 'Sesión expirada' }))
