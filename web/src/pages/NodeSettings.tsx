@@ -165,17 +165,14 @@ export default function NodeSettings() {
   })
 
   // Tarifa
-  const [tariff, setTariff] = useState({
-    vital_food: 800, vital_water: 150, vital_domestic: 350, vital_services: 200,
-    effort_admin: 1.0, effort_technical: 1.15, effort_agricultural: 1.3,
-    work_hours_per_day: 6, work_days_per_month: 24,
-  })
+  const [tariff, setTariff] = useState<any>(null)
+  const [tariffLoading, setTariffLoading] = useState(true)
 
   const load = () => {
     api.get('/config').then((d: any) => setConfig(d)).catch(() => {})
     api.get('/member-levels').then((d: any) => setLevels(Array.isArray(d) ? d : [])).catch(() => {})
     api.get('/organization-levels').then((d: any) => setOrgLevels(Array.isArray(d) ? d : [])).catch(() => {})
-    api.get('/calculator/tariff').then((d: any) => setTariff(d)).catch(() => {})
+    api.get('/calculator/tariff').then((d: any) => { setTariff(d); setTariffLoading(false) }).catch(() => setTariffLoading(false))
   }
 
   useEffect(() => { load() }, [])
@@ -1035,10 +1032,16 @@ export default function NodeSettings() {
         <div className="card space-y-4">
           <h2 className="font-semibold flex items-center gap-2"><Zap size={18} />Tarifa Energetica</h2>
 
+          {tariffLoading ? (
+            <div className="card text-center py-8 text-gray-500">Cargando tarifa energetica...</div>
+          ) : !tariff ? (
+            <div className="card text-center py-8 text-gray-500">No se pudo cargar la tarifa energetica.</div>
+          ) : (
+          <>
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
             <p><strong>Que es la tarifa energetica:</strong> Es la base para calcular precios justos. La idea es que 1 {config.currency_name} = 1 kWh de energia. Con esto, todo producto o servicio tiene un precio objetivo: la energia total que costo producirlo.</p>
             <p><strong>Como funciona:</strong> Primero se calcula cuanto cuesta mantener vivo a una persona por dia (canasta vital). Luego se divide entre las horas de trabajo de un dia para obtener la tarifa por hora. Los factores de esfuerzo ajustan el precio segun la dificultad del trabajo.</p>
-            <p><strong>Ejemplo:</strong> Si la canasta vital diaria es 1500 {config.currency_name} y se trabajan 6 horas por dia, la tarifa base por hora es 250 {config.currency_name}. Un trabajo agricola (factor 1.3) pagaria 325 {config.currency_name} por hora.</p>
+            <p><strong>Ejemplo:</strong> Si la canasta vital diaria es 8 {config.currency_name} (8 kWh) y se trabajan 8 horas por dia, la tarifa base por hora es 1.0 {config.currency_name}. Un trabajo agricola (factor 0.61) pagaria 0.61 {config.currency_name} por hora.</p>
             <p><strong>Quien la configura:</strong> La asamblea. Cambiar estos valores afecta todos los calculos de precios.</p>
           </div>
 
@@ -1130,7 +1133,9 @@ export default function NodeSettings() {
                   {tariffMsg.text}
                 </div>
               )}
-            </>
+          </>
+          )}
+          </>
           )}
         </div>
       )}

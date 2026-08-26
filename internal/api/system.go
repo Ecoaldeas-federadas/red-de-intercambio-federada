@@ -554,17 +554,18 @@ func (h *SystemHandler) getTariff(w http.ResponseWriter, r *http.Request) {
 	err := row.Scan(&vitalFood, &vitalWater, &vitalDomestic, &vitalServices,
 		&effortAdmin, &effortTech, &effortAgri, &workHours, &workDays)
 	if err != nil {
-		// Defaults
+		// Defaults basados en migracion 038: 1 TQ = 1 kWh
+		// Canasta vital: 8 kWh/dia para mantener viva a una persona
 		writeJSON(w, 200, map[string]interface{}{
-			"vital_food":          800,
-			"vital_water":         150,
-			"vital_domestic":      350,
-			"vital_services":      200,
+			"vital_food":          3,
+			"vital_water":         1,
+			"vital_domestic":      2,
+			"vital_services":      2,
 			"effort_admin":        1.0,
-			"effort_technical":    1.15,
-			"effort_agricultural": 1.3,
-			"work_hours_per_day":  6,
-			"work_days_per_month": 24,
+			"effort_technical":    3.0,
+			"effort_agricultural": 0.61,
+			"work_hours_per_day":  8,
+			"work_days_per_month": 22,
 		})
 		return
 	}

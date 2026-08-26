@@ -117,6 +117,9 @@ func DemoSeedData(ctx context.Context, d *DB, nodeDomain string) error {
 	// 10h. Comercio Exterior (organizacion + cuentas bancarias + operaciones)
 	demoSeedExternalCommerce(ctx, d, dataDomain)
 
+	// 10i. Tarifa energetica (canasta vital + factores de esfuerzo)
+	demoSeedEnergyTariff(ctx, d, dataDomain)
+
 	// 11. Nodos federados simulados
 	if err := demoSeedFederationPeers(ctx, d, dataDomain); err != nil {
 		log.Printf("Demo: warning seeding federation peers: %v", err)
@@ -2604,6 +2607,7 @@ func DemoReset(ctx context.Context, d *DB, nodeDomain string) error {
 		"external_bank_accounts",
 		"external_commerce_config",
 		"external_basket_recalculation",
+		"energy_tariff",
 	}
 	for _, t := range ndTables {
 		_, err := d.Pool.Exec(ctx, fmt.Sprintf("DELETE FROM %s WHERE node_domain = $1", t), dataDomain)
@@ -3133,6 +3137,26 @@ func demoSeedFederationPeers(ctx context.Context, d *DB, nodeDomain string) erro
 
 	log.Println("Demo: federation peers seeded")
 	return nil
+}
+
+// demoSeedEnergyTariff siembra la tarifa energetica con valores realistas
+// basados en 1 TQ = 1 kWh (migracion 038).
+// Canasta vital: 8 kWh/dia para mantener viva a una persona.
+// Factores de esfuerzo basados en consumo metabolico real.
+func demoSeedEnergyTariff(ctx context.Context, d *DB, nodeDomain string) {
+	_, err := d.Pool.Exec(ctx, `
+		INSERT INTO energy_tariff (node_domain, vital_food, vital_water, vital_domestic, vital_services,
+			effort_admin, effort_technical, effort_agricultural, work_hours_per_day, work_days_per_month)
+		VALUES ($1, 3, 1, 2, 2, 1.0, 3.0, 0.61, 8, 22)
+		ON CONFLICT (node_domain) DO UPDATE SET
+			vital_food = 3, vital_water = 1, vital_domestic = 2, vital_services = 2,
+			effort_admin = 1.0, effort_technical = 3.0, effort_agricultural = 0.61,
+			work_hours_per_day = 8, work_days_per_month = 22`,
+		nodeDomain)
+	if err != nil {
+		log.Printf("Demo: error seeding energy tariff: %v", err)
+	}
+	log.Println("Demo: energy tariff seeded (8 TQ/day, 1.0 TQ/hour base)")
 }
 
 // demoSeedCalculatorData siembra categorias y parametros de la calculadora
