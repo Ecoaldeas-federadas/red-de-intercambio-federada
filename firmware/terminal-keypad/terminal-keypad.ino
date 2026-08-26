@@ -9,6 +9,8 @@
 #include "../shared/wifi_provisioning.h"
 #include "../shared/crypto_helper.h"
 #include "../shared/nfc_reader.h"
+#include "../shared/desfire_crypto.h"
+#include "../shared/card_rotation.h"
 #include "../shared/display_helper.h"
 #include "../shared/server_client.h"
 #include "../shared/pin_helper.h"
@@ -172,6 +174,16 @@ void loop() {
   delay(100);
   digitalWrite(BUZZER_PIN, LOW);
 
+  // Mostrar tipo de tarjeta detectada
+  if (card.isSecure) {
+    showText("Tarjeta segura", 1, 16);
+    showText("(DESFire EV3)", 1, 32);
+  } else {
+    showText("Tarjeta normal", 1, 16);
+    showText("(UID + PIN)", 1, 32);
+  }
+  delay(800);
+
   // Step 3: Input PIN
   showPINPrompt("usuario");
   String pin = inputPIN("Ingrese PIN");
@@ -179,9 +191,65 @@ void loop() {
   // Step 4: Build payload and send
   showProcessing();
 
+  // Variables para flujo criptografico
+  uint8_t cardAESKey[16] = {0};
+  bool hasCardKey = false;
+  String cryptoToken = "";
+
+  // Si es tarjeta segura (DESFire), pedir clave AES al servidor
+  if (card.isSecure) {
+    showText("Autenticando", 1, 16);
+    showText("tarjeta...", 1, 32);
+
+    // Pedir clave AES al servidor (canal cifrado)
+    StaticJsonDocument<256> keyReq;
+    keyReq["terminal_id"] = config.terminalId;
+    String keyReqStr;
+    serializeJson(keyReq, keyReqStr);
+
+    String keyUrl = config.serverUrl + "/api/nfc/cards/" + card.uid + "/request-key?terminal_id=" + config.terminalId;
+    String keyResponse = sendPayment(&config, sharedKey, keyReqStr, terminalKeys.private_key, keyUrl);
+
+    if (keyResponse.length() > 0) {
+      String keyDecrypted = decryptServerResponse(sharedKey, keyResponse, serverPubKey);
+      if (keyDecrypted.length() > 0) {
+        StaticJsonDocument<512> keyResult;
+        deserializeJson(keyResult, keyDecrypted);
+        String keyB64 = keyResult["aes_key_b64"] | "";
+
+        if (keyB64.length() > 0) {
+          // Decodificar base64 a bytes (simplificado: hex si viene en hex)
+          String keyHex = keyResult["aes_key_hex"] | "";
+          if (keyHex.length() == 32) {
+            size_t len;
+            hexToBytes(keyHex, cardAESKey, &len);
+            hasCardKey = true;
+
+            // Autenticar DESFire con la clave
+            if (authenticateDESFire(cardAESKey)) {
+              cryptoToken = "desfire_auth_ok";
+              showText("Auth OK", 1, 40);
+            } else {
+              showText("Auth fallo", 1, 40);
+              showText("Tarjeta falsa?", 1, 56);
+              delay(2000);
+              showReady();
+              continue;
+            }
+          }
+        }
+      }
+    }
+  } else {
+    // Tarjeta normal: usar UID como token (modo legacy)
+    cryptoToken = card.uid;
+  }
+
+  // Construir payload del pago
   StaticJsonDocument<256> payload;
   payload["card_uid"] = card.uid;
-  payload["crypto_token"] = card.uid; // Simplified: use UID as token
+  payload["crypto_token"] = cryptoToken;
+  payload["card_type"] = card.isSecure ? "desfire" : "uid_only";
   payload["pin"] = pin;
   payload["amount"] = amount;
   payload["timestamp"] = millis();
@@ -198,10 +266,36 @@ void loop() {
   if (response.length() > 0) {
     String decrypted = decryptServerResponse(sharedKey, response, serverPubKey);
     if (decrypted.length() > 0) {
-      StaticJsonDocument<256> result;
+      StaticJsonDocument<512> result;
       deserializeJson(result, decrypted);
       String status = result["status"] | "error";
       String message = result["message"] | "Error desconocido";
+
+      // Si el pago fue aprobado y la tarjeta es segura, hacer rotacion de clave
+      if (status == "approved" && card.isSecure && hasCardKey) {
+        showText("Rotando clave", 1, 16);
+        showText("de seguridad...", 1, 32);
+
+        RotationResult rotResult = performRotation(
+          &config, sharedKey, terminalKeys.private_key,
+          card.uid, config.terminalId, cardAESKey);
+
+        if (rotResult.success) {
+          showText("Clave rotada OK", 1, 40);
+        } else {
+          // La transaccion ya fue aprobada pero la rotacion fallo
+          // No es critico: la clave vieja sigue funcionando
+          showText("Rotacion fallo", 1, 40);
+          showText("(no critico)", 1, 56);
+        }
+        delay(1000);
+      }
+
+      // Limpiar clave de memoria (zeroization)
+      if (hasCardKey) {
+        clearKeyFromMemory(cardAESKey, 16);
+        hasCardKey = false;
+      }
 
       showResult(status, message);
 
@@ -221,6 +315,11 @@ void loop() {
     }
   } else {
     showText("Error red", 2, 24);
+  }
+
+  // Limpiar clave de memoria por seguridad
+  if (hasCardKey) {
+    clearKeyFromMemory(cardAESKey, 16);
   }
 
   delay(3000);

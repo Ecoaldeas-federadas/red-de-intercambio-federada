@@ -46,6 +46,9 @@ export default function NodeSettings() {
   const changeTab = (newTab: typeof tab) => {
     setTab(newTab)
     setSearchParams({ tab: newTab }, { replace: true })
+    if (newTab === 'cards') {
+      api.get<any>('/nfc/card-type/config').then((cfg: any) => setCardTypeCfg(cfg)).catch(() => {})
+    }
   }
   const [showHelp, setShowHelp] = useState(false)
   const [error, setError] = useState('')
@@ -101,10 +104,16 @@ export default function NodeSettings() {
 
   // Card crypto
   const [cardCryptoMsg, setCardCryptoMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
-  const [newCard, setNewCard] = useState({ card_uid: '', user_id: '', card_type: 'ntag424' })
+  const [newCard, setNewCard] = useState({ card_uid: '', user_id: '', card_type: 'desfire' })
   const [provisionedKey, setProvisionedKey] = useState<any>(null)
   const [cryptoStatus, setCryptoStatus] = useState<any>(null)
   const [statusUid, setStatusUid] = useState('')
+
+  // Card type config (dual mode)
+  const [cardTypeCfg, setCardTypeCfg] = useState<any>(null)
+  const [cardTypeCfgLoading, setCardTypeCfgLoading] = useState(false)
+  const [rotations, setRotations] = useState<any[]>([])
+  const [rotationsUid, setRotationsUid] = useState('')
 
   // Backup
   const [backupLoading, setBackupLoading] = useState(false)
@@ -1624,6 +1633,106 @@ export default function NodeSettings() {
             servidor (canal cifrado Ed25519+AES), la descifrara en memoria, hara challenge-response
             con la tarjeta via el lector Bluetooth, y enviara la prueba al servidor. La clave nunca
             se guarda en disco en el celular. Si la app se cierra, la clave se borra de memoria.
+          </div>
+
+          {/* CONFIG DUAL DE TARJETAS */}
+          <div className="space-y-3 border rounded-lg p-4 bg-gray-50">
+            <h3 className="font-medium text-sm">Configuracion de tipo de tarjeta</h3>
+            <p className="text-xs text-gray-600">
+              Configura que tipos de tarjeta acepta este nodo. En Venezuela las tarjetas normales
+              (MIFARE Classic) son mas faciles de conseguir. Las tarjetas seguras (DESFire EV3)
+              ofrecen proteccion contra clonacion.
+            </p>
+            <div className="grid grid-cols-1 gap-3">
+              <div>
+                <label className="text-xs font-medium">Modo de tarjeta</label>
+                <select className="input mt-1" value={cardTypeCfg?.card_type_mode || 'dual'}
+                  onChange={async (e) => {
+                    const newCfg = { ...cardTypeCfg, card_type_mode: e.target.value }
+                    setCardTypeCfg(newCfg)
+                    setCardTypeCfgLoading(true)
+                    try {
+                      await api.post('/nfc/card-type/config', {
+                        card_type_mode: e.target.value,
+                        require_crypto: newCfg.require_crypto || false,
+                        auto_rotate_key: newCfg.auto_rotate_key ?? true,
+                        max_write_fails: newCfg.max_write_fails || 3,
+                      })
+                      setCardCryptoMsg({ type: 'success', text: 'Configuracion actualizada' })
+                    } catch (e: any) { setCardCryptoMsg({ type: 'error', text: e?.message || 'Error' }) }
+                    setCardTypeCfgLoading(false)
+                  }}>
+                  <option value="dual">Dual (tarjetas normales y seguras) - Recomendado</option>
+                  <option value="uid_only">Solo tarjetas normales (UID + PIN)</option>
+                  <option value="desfire">Solo tarjetas seguras (DESFire EV3)</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="require_crypto" checked={cardTypeCfg?.require_crypto || false}
+                  onChange={async (e) => {
+                    const newCfg = { ...cardTypeCfg, require_crypto: e.target.checked }
+                    setCardTypeCfg(newCfg)
+                    await api.post('/nfc/card-type/config', {
+                      card_type_mode: newCfg.card_type_mode || 'dual',
+                      require_crypto: e.target.checked,
+                      auto_rotate_key: newCfg.auto_rotate_key ?? true,
+                      max_write_fails: newCfg.max_write_fails || 3,
+                    })
+                  }} />
+                <label htmlFor="require_crypto" className="text-sm">Rechazar tarjetas sin crypto (solo seguras)</label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="auto_rotate" checked={cardTypeCfg?.auto_rotate_key ?? true}
+                  onChange={async (e) => {
+                    const newCfg = { ...cardTypeCfg, auto_rotate_key: e.target.checked }
+                    setCardTypeCfg(newCfg)
+                    await api.post('/nfc/card-type/config', {
+                      card_type_mode: newCfg.card_type_mode || 'dual',
+                      require_crypto: newCfg.require_crypto || false,
+                      auto_rotate_key: e.target.checked,
+                      max_write_fails: newCfg.max_write_fails || 3,
+                    })
+                  }} />
+                <label htmlFor="auto_rotate" className="text-sm">Rotar clave automaticamente en cada transaccion (solo DESFire)</label>
+              </div>
+            </div>
+            {cardTypeCfgLoading && <p className="text-xs text-gray-500">Guardando...</p>}
+          </div>
+
+          {/* HISTORIAL DE ROTACIONES */}
+          <div className="space-y-3 border rounded-lg p-4">
+            <h3 className="font-medium text-sm">Historial de rotaciones de clave</h3>
+            <div className="flex gap-2">
+              <input type="text" className="input" placeholder="UID de la tarjeta"
+                value={rotationsUid} onChange={(e) => setRotationsUid(e.target.value)} />
+              <button onClick={async () => {
+                if (!rotationsUid.trim()) return
+                try {
+                  const res = await api.get<any>(`/nfc/cards/${rotationsUid}/rotations`)
+                  setRotations(res.rotations || [])
+                } catch (e: any) { setCardCryptoMsg({ type: 'error', text: e?.message || 'Error' }) }
+              }} className="btn-primary text-sm">Ver historial</button>
+            </div>
+            {rotations.length > 0 && (
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {rotations.map((r: any, i: number) => (
+                  <div key={i} className="bg-gray-50 rounded p-2 text-xs">
+                    <div className="flex justify-between">
+                      <span className="font-medium">v{r.old_key_version} → v{r.new_key_version}</span>
+                      <span className={`px-2 rounded ${
+                        r.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                        r.status === 'failed' ? 'bg-red-100 text-red-700' :
+                        r.status === 'recovered' ? 'bg-blue-100 text-blue-700' :
+                        'bg-yellow-100 text-yellow-700'
+                      }`}>{r.status}</span>
+                    </div>
+                    {r.duration_ms && <div className="text-gray-500">Duracion: {r.duration_ms}ms</div>}
+                    {r.error_message && <div className="text-red-600">Error: {r.error_message}</div>}
+                    <div className="text-gray-500">{r.started_at}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

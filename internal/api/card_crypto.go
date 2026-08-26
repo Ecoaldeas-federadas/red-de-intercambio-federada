@@ -62,6 +62,20 @@ func (h *CardCryptoHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	// Estado criptografico de una tarjeta
 	r.Get("/api/nfc/cards/{uid}/crypto-status", h.getCryptoStatus)
 	r.With(am.RequirePermission("nfc.register_terminal")).Post("/api/nfc/cards/{uid}/block-crypto", h.blockCardCrypto)
+
+	// === ROTACION DE CLAVE POR TRANSACCION ===
+	r.Post("/api/nfc/cards/{uid}/prepare-rotation", h.prepareRotation)
+	r.Post("/api/nfc/cards/{uid}/confirm-rotation", h.confirmRotation)
+	r.Post("/api/nfc/cards/{uid}/fail-rotation", h.failRotation)
+	r.Post("/api/nfc/cards/{uid}/recover", h.recoverRotation)
+	r.Get("/api/nfc/cards/{uid}/pending-rotation", h.getPendingRotation)
+
+	// === CONFIG DUAL DE TARJETAS POR NODO ===
+	r.Get("/api/nfc/card-type/config", h.getCardTypeConfig)
+	r.With(am.RequirePermission("config.manage")).Post("/api/nfc/card-type/config", h.updateCardTypeConfig)
+
+	// === HISTORIAL DE ROTACIONES ===
+	r.Get("/api/nfc/cards/{uid}/rotations", h.listRotations)
 }
 
 // === CLAVE MAESTRA DEL NODO ===
@@ -211,9 +225,9 @@ func (h *CardCryptoHandler) provisionCryptoCard(w http.ResponseWriter, r *http.R
 	}
 
 	var body struct {
-		CardUID   string `json:"card_uid"`
-		UserID    string `json:"user_id"`
-		CardType  string `json:"card_type"` // ntag424, desfire, mifare_classic
+		CardUID  string `json:"card_uid"`
+		UserID   string `json:"user_id"`
+		CardType string `json:"card_type"` // ntag424, desfire, mifare_classic
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -278,13 +292,13 @@ func (h *CardCryptoHandler) provisionCryptoCard(w http.ResponseWriter, r *http.R
 	// Devolver la clave AES en base64 para que el admin la escriba en la tarjeta
 	// TAMBIEN devolver en hex para compatibilidad con herramientas NFC
 	writeJSON(w, 201, map[string]interface{}{
-		"id":         id,
-		"card_uid":   body.CardUID,
-		"card_type":  body.CardType,
+		"id":          id,
+		"card_uid":    body.CardUID,
+		"card_type":   body.CardType,
 		"aes_key_b64": base64.StdEncoding.EncodeToString(aesKey),
 		"aes_key_hex": hex.EncodeToString(aesKey),
-		"message":    "Clave generada. Escribe esta clave en la tarjeta usando tu herramienta NFC (DESFire o NTAG424). La clave se guarda cifrada en el servidor.",
-		"warning":    "GUARDA ESTA CLAVE DE FORMA SEGURA. No se volvera a mostrar. Si la pierdes, usa rotate-key para generar una nueva.",
+		"message":     "Clave generada. Escribe esta clave en la tarjeta usando tu herramienta NFC (DESFire o NTAG424). La clave se guarda cifrada en el servidor.",
+		"warning":     "GUARDA ESTA CLAVE DE FORMA SEGURA. No se volvera a mostrar. Si la pierdes, usa rotate-key para generar una nueva.",
 	})
 }
 
@@ -329,10 +343,10 @@ func (h *CardCryptoHandler) rotateCardKey(w http.ResponseWriter, r *http.Request
 	}
 
 	writeJSON(w, 200, map[string]interface{}{
-		"card_uid":   uid,
+		"card_uid":    uid,
 		"aes_key_b64": base64.StdEncoding.EncodeToString(newKey),
 		"aes_key_hex": hex.EncodeToString(newKey),
-		"message":    "Nueva clave generada. Escribe esta clave en la tarjeta. El contador SUN se reinicio.",
+		"message":     "Nueva clave generada. Escribe esta clave en la tarjeta. El contador SUN se reinicio.",
 	})
 }
 
@@ -581,9 +595,9 @@ func (h *CardCryptoHandler) verifySUN(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var body struct {
-		SUNMAC    string `json:"sun_mac"`     // MAC leido de la tarjeta (hex)
-		Counter   int64  `json:"counter"`     // Counter leido de la tarjeta
-		UID       string `json:"uid"`         // UID leido (debe coincidir)
+		SUNMAC  string `json:"sun_mac"` // MAC leido de la tarjeta (hex)
+		Counter int64  `json:"counter"` // Counter leido de la tarjeta
+		UID     string `json:"uid"`     // UID leido (debe coincidir)
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -691,26 +705,26 @@ func (h *CardCryptoHandler) getCryptoStatus(w http.ResponseWriter, r *http.Reque
 		&authFailCount, &cryptoBlockedUntil, &sunCounter, &provisionedAt)
 	if err != nil {
 		writeJSON(w, 200, map[string]interface{}{
-			"card_uid":        uid,
-			"crypto_enabled":  false,
-			"message":         "Tarjeta sin clave criptografica (modo uid_only)",
+			"card_uid":       uid,
+			"crypto_enabled": false,
+			"message":        "Tarjeta sin clave criptografica (modo uid_only)",
 		})
 		return
 	}
 
 	blocked := cryptoBlockedUntil != nil && cryptoBlockedUntil.After(time.Now())
 	writeJSON(w, 200, map[string]interface{}{
-		"card_uid":          uid,
-		"crypto_enabled":    true,
-		"card_type":         cardType,
-		"key_version":       keyVersion,
-		"is_active":         isActive,
-		"last_auth_at":      lastAuthAt,
-		"auth_fail_count":   authFailCount,
-		"blocked":           blocked,
+		"card_uid":             uid,
+		"crypto_enabled":       true,
+		"card_type":            cardType,
+		"key_version":          keyVersion,
+		"is_active":            isActive,
+		"last_auth_at":         lastAuthAt,
+		"auth_fail_count":      authFailCount,
+		"blocked":              blocked,
 		"crypto_blocked_until": cryptoBlockedUntil,
-		"sun_counter":       sunCounter,
-		"provisioned_at":    provisionedAt,
+		"sun_counter":          sunCounter,
+		"provisioned_at":       provisionedAt,
 	})
 }
 
@@ -731,10 +745,443 @@ func (h *CardCryptoHandler) blockCardCrypto(w http.ResponseWriter, r *http.Reque
 	}
 
 	writeJSON(w, 200, map[string]interface{}{
-		"success": true,
+		"success":  true,
 		"card_uid": uid,
 		"message":  "Tarjeta bloqueada criptograficamente. No podra usarse para pagos.",
 	})
+}
+
+// === ROTACION DE CLAVE POR TRANSACCION ===
+
+// prepareRotation: genera una nueva clave K', la guarda como pendiente
+// El terminal la usara para escribir en la tarjeta y luego confirmar
+func (h *CardCryptoHandler) prepareRotation(w http.ResponseWriter, r *http.Request) {
+	uid := chi.URLParam(r, "uid")
+	if uid == "" {
+		writeError(w, 400, "uid requerido")
+		return
+	}
+
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = h.NodeDomain
+	}
+
+	// Verificar que la tarjeta existe y esta activa
+	var aesKeyEncrypted []byte
+	var keyVersion int
+	var rotationStatus string
+	err := h.Pool.QueryRow(r.Context(), `
+		SELECT aes_key_encrypted, key_version, rotation_status
+		FROM nfc_card_keys WHERE card_uid = $1 AND node_domain = $2 AND is_active = true`,
+		uid, nodeDomain).Scan(&aesKeyEncrypted, &keyVersion, &rotationStatus)
+	if err != nil {
+		writeError(w, 404, "tarjeta no encontrada")
+		return
+	}
+
+	// Si ya hay una rotacion pendiente, devolver esa clave
+	if rotationStatus == "pending" {
+		var pendingKey []byte
+		h.Pool.QueryRow(r.Context(), `SELECT pending_key_encrypted FROM nfc_card_keys WHERE card_uid = $1`, uid).Scan(&pendingKey)
+		if pendingKey != nil {
+			masterKey, _ := h.getOrCreateMasterKey(nodeDomain)
+			pendingAES, _ := decryptAESKey(pendingKey, masterKey)
+			writeJSON(w, 200, map[string]interface{}{
+				"card_uid":    uid,
+				"new_key_b64": base64.StdEncoding.EncodeToString(pendingAES),
+				"new_key_hex": hex.EncodeToString(pendingAES),
+				"key_version": keyVersion + 1,
+				"status":      "pending",
+				"message":     "Rotacion ya pendiente. Usa esta clave para escribir en la tarjeta.",
+			})
+			return
+		}
+	}
+
+	// Generar nueva clave K'
+	newKey := make([]byte, 16)
+	rand.Read(newKey)
+
+	masterKey, err := h.getOrCreateMasterKey(nodeDomain)
+	if err != nil {
+		writeError(w, 500, "error getting master key")
+		return
+	}
+
+	encryptedNewKey, err := encryptAESKey(newKey, masterKey)
+	if err != nil {
+		writeError(w, 500, "error encrypting new key")
+		return
+	}
+
+	// Guardar como pendiente
+	_, err = h.Pool.Exec(r.Context(), `
+		UPDATE nfc_card_keys
+		SET pending_key_encrypted = $2, rotation_status = 'pending'
+		WHERE card_uid = $1`, uid, encryptedNewKey)
+	if err != nil {
+		writeError(w, 500, "error saving pending key")
+		return
+	}
+
+	// Registrar en historial
+	terminalID := r.URL.Query().Get("terminal_id")
+	h.Pool.Exec(r.Context(), `
+		INSERT INTO card_key_rotations (card_uid, node_domain, old_key_version, new_key_version, status, terminal_id)
+		VALUES ($1, $2, $3, $4, 'pending', $5)`,
+		uid, nodeDomain, keyVersion, keyVersion+1, terminalID)
+
+	writeJSON(w, 200, map[string]interface{}{
+		"card_uid":    uid,
+		"new_key_b64": base64.StdEncoding.EncodeToString(newKey),
+		"new_key_hex": hex.EncodeToString(newKey),
+		"key_version": keyVersion + 1,
+		"status":      "pending",
+		"message":     "Nueva clave generada. Escribela en la tarjeta y confirma con /confirm-rotation.",
+	})
+}
+
+// confirmRotation: el terminal confirma que K' se escribio en la tarjeta
+// K' pasa a ser la clave activa, K se descarta
+func (h *CardCryptoHandler) confirmRotation(w http.ResponseWriter, r *http.Request) {
+	uid := chi.URLParam(r, "uid")
+	if uid == "" {
+		writeError(w, 400, "uid requerido")
+		return
+	}
+
+	var body struct {
+		DurationMS int `json:"duration_ms"`
+	}
+	json.NewDecoder(r.Body).Decode(&body)
+
+	// Verificar que hay una rotacion pendiente
+	var pendingKey []byte
+	var keyVersion int
+	err := h.Pool.QueryRow(r.Context(), `
+		SELECT pending_key_encrypted, key_version FROM nfc_card_keys
+		WHERE card_uid = $1 AND rotation_status = 'pending'`, uid).Scan(&pendingKey, &keyVersion)
+	if err != nil || pendingKey == nil {
+		writeError(w, 400, "no hay rotacion pendiente para esta tarjeta")
+		return
+	}
+
+	// Promover K' a clave activa
+	_, err = h.Pool.Exec(r.Context(), `
+		UPDATE nfc_card_keys
+		SET aes_key_encrypted = pending_key_encrypted,
+		    secret_key_encrypted = pending_key_encrypted,
+		    pending_key_encrypted = NULL,
+		    key_version = key_version + 1,
+		    rotation_status = 'active',
+		    write_fail_count = 0,
+		    last_rotation_at = NOW(),
+		    sun_counter = 0
+		WHERE card_uid = $1`, uid)
+	if err != nil {
+		writeError(w, 500, "error confirming rotation")
+		return
+	}
+
+	// Actualizar historial
+	h.Pool.Exec(r.Context(), `
+		UPDATE card_key_rotations
+		SET status = 'confirmed', completed_at = NOW(), duration_ms = $3
+		WHERE card_uid = $1 AND status = 'pending'
+		ORDER BY started_at DESC LIMIT 1`, uid, nil, body.DurationMS)
+
+	// Limpiar error de la tarjeta si lo tenia
+	h.Pool.Exec(r.Context(), `
+		UPDATE nfc_cards SET card_error = NULL, error_at = NULL WHERE card_uid = $1`, uid)
+
+	writeJSON(w, 200, map[string]interface{}{
+		"success":     true,
+		"card_uid":    uid,
+		"key_version": keyVersion + 1,
+		"message":     "Rotacion confirmada. Nueva clave activa. Transaccion puede proceder.",
+	})
+}
+
+// failRotation: el terminal reporta que no pudo escribir K' en la tarjeta
+func (h *CardCryptoHandler) failRotation(w http.ResponseWriter, r *http.Request) {
+	uid := chi.URLParam(r, "uid")
+	if uid == "" {
+		writeError(w, 400, "uid requerido")
+		return
+	}
+
+	var body struct {
+		ErrorMessage string `json:"error_message"`
+	}
+	json.NewDecoder(r.Body).Decode(&body)
+
+	// Incrementar contador de fallos
+	var failCount int
+	var maxFails int
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = h.NodeDomain
+	}
+
+	h.Pool.QueryRow(r.Context(), `
+		UPDATE nfc_card_keys
+		SET write_fail_count = write_fail_count + 1
+		WHERE card_uid = $1
+		RETURNING write_fail_count`, uid).Scan(&failCount)
+
+	// Obtener max_write_fails de la config
+	h.Pool.QueryRow(r.Context(), `SELECT max_write_fails FROM nfc_card_type_config WHERE node_domain = $1`, nodeDomain).Scan(&maxFails)
+	if maxFails == 0 {
+		maxFails = 3
+	}
+
+	// Actualizar historial
+	h.Pool.Exec(r.Context(), `
+		UPDATE card_key_rotations
+		SET status = 'failed', completed_at = NOW(), error_message = $3
+		WHERE card_uid = $1 AND status = 'pending'`, uid, nil, body.ErrorMessage)
+
+	if failCount >= maxFails {
+		// Marcar tarjeta con error
+		h.Pool.Exec(r.Context(), `
+			UPDATE nfc_card_keys SET rotation_status = 'error'
+			WHERE card_uid = $1`, uid)
+		h.Pool.Exec(r.Context(), `
+			UPDATE nfc_cards SET card_error = 'write_fail', error_at = NOW()
+			WHERE card_uid = $1`, uid)
+
+		// Descartar clave pendiente
+		h.Pool.Exec(r.Context(), `UPDATE nfc_card_keys SET pending_key_encrypted = NULL WHERE card_uid = $1`, uid)
+
+		writeJSON(w, 200, map[string]interface{}{
+			"success":  false,
+			"card_uid": uid,
+			"status":   "error",
+			"message":  "Tarjeta marcada con error de escritura despues de " + fmt.Sprintf("%d", failCount) + " fallos. La clave vieja sigue activa.",
+		})
+		return
+	}
+
+	// Descartar clave pendiente, mantener clave vieja
+	h.Pool.Exec(r.Context(), `
+		UPDATE nfc_card_keys
+		SET pending_key_encrypted = NULL, rotation_status = 'active'
+		WHERE card_uid = $1`, uid)
+
+	writeJSON(w, 200, map[string]interface{}{
+		"success":    false,
+		"card_uid":   uid,
+		"status":     "active",
+		"fail_count": failCount,
+		"max_fails":  maxFails,
+		"message":    "Escritura fallo (" + fmt.Sprintf("%d", failCount) + "/" + fmt.Sprintf("%d", maxFails) + "). Clave vieja sigue activa. Transaccion abortada.",
+	})
+}
+
+// recoverRotation: si una rotacion quedo pendiente, intentar recovery
+// Probar K' primero (por si se escribio en la tarjeta), si no, mantener K
+func (h *CardCryptoHandler) recoverRotation(w http.ResponseWriter, r *http.Request) {
+	uid := chi.URLParam(r, "uid")
+	if uid == "" {
+		writeError(w, 400, "uid requerido")
+		return
+	}
+
+	var body struct {
+		NewKeyWorked bool `json:"new_key_worked"` // La terminal probo K' y funciono
+	}
+	json.NewDecoder(r.Body).Decode(&body)
+
+	if body.NewKeyWorked {
+		// K' se escribio en la tarjeta pero no se confirmo. Promover K'.
+		_, err := h.Pool.Exec(r.Context(), `
+			UPDATE nfc_card_keys
+			SET aes_key_encrypted = pending_key_encrypted,
+			    secret_key_encrypted = pending_key_encrypted,
+			    pending_key_encrypted = NULL,
+			    key_version = key_version + 1,
+			    rotation_status = 'active',
+			    write_fail_count = 0,
+			    last_rotation_at = NOW(),
+			    sun_counter = 0
+			WHERE card_uid = $1 AND rotation_status = 'pending'`, uid)
+		if err != nil {
+			writeError(w, 500, "error recovering rotation")
+			return
+		}
+
+		h.Pool.Exec(r.Context(), `
+			UPDATE card_key_rotations
+			SET status = 'recovered', completed_at = NOW()
+			WHERE card_uid = $1 AND status = 'pending'`, uid)
+
+		writeJSON(w, 200, map[string]interface{}{
+			"success":  true,
+			"card_uid": uid,
+			"status":   "recovered",
+			"message":  "Rotacion recuperada. K' es ahora la clave activa.",
+		})
+		return
+	}
+
+	// K' no funciono. Mantener K como activa, descartar K'
+	h.Pool.Exec(r.Context(), `
+		UPDATE nfc_card_keys
+		SET pending_key_encrypted = NULL, rotation_status = 'active'
+		WHERE card_uid = $1`, uid)
+
+	writeJSON(w, 200, map[string]interface{}{
+		"success":  true,
+		"card_uid": uid,
+		"status":   "active",
+		"message":  "Rotacion descartada. Clave vieja K sigue activa.",
+	})
+}
+
+// getPendingRotation: verifica si hay una rotacion pendiente
+func (h *CardCryptoHandler) getPendingRotation(w http.ResponseWriter, r *http.Request) {
+	uid := chi.URLParam(r, "uid")
+	if uid == "" {
+		writeError(w, 400, "uid requerido")
+		return
+	}
+
+	var rotationStatus string
+	var keyVersion int
+	err := h.Pool.QueryRow(r.Context(), `
+		SELECT rotation_status, key_version FROM nfc_card_keys WHERE card_uid = $1`, uid).Scan(&rotationStatus, &keyVersion)
+	if err != nil {
+		writeJSON(w, 200, map[string]interface{}{"pending": false})
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"pending":         rotationStatus == "pending",
+		"status":          rotationStatus,
+		"key_version":     keyVersion,
+		"has_pending_key": rotationStatus == "pending",
+	})
+}
+
+// === CONFIG DUAL DE TARJETAS ===
+
+func (h *CardCryptoHandler) getCardTypeConfig(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = h.NodeDomain
+	}
+
+	var mode string
+	var requireCrypto, autoRotate bool
+	var maxFails int
+	var uidMsg string
+	err := h.Pool.QueryRow(r.Context(), `
+		SELECT card_type_mode, require_crypto, auto_rotate_key, max_write_fails, uid_only_message
+		FROM nfc_card_type_config WHERE node_domain = $1`, nodeDomain).Scan(
+		&mode, &requireCrypto, &autoRotate, &maxFails, &uidMsg)
+	if err != nil {
+		writeJSON(w, 200, map[string]interface{}{
+			"card_type_mode":   "dual",
+			"require_crypto":   false,
+			"auto_rotate_key":  true,
+			"max_write_fails":  3,
+			"uid_only_message": "Esta tarjeta no tiene seguridad criptografica. Usa PIN para proteger.",
+		})
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{
+		"card_type_mode":   mode,
+		"require_crypto":   requireCrypto,
+		"auto_rotate_key":  autoRotate,
+		"max_write_fails":  maxFails,
+		"uid_only_message": uidMsg,
+	})
+}
+
+func (h *CardCryptoHandler) updateCardTypeConfig(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = h.NodeDomain
+	}
+
+	var body struct {
+		CardTypeMode  string `json:"card_type_mode"`
+		RequireCrypto bool   `json:"require_crypto"`
+		AutoRotateKey bool   `json:"auto_rotate_key"`
+		MaxWriteFails int    `json:"max_write_fails"`
+		UidOnlyMsg    string `json:"uid_only_message"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if body.CardTypeMode == "" {
+		body.CardTypeMode = "dual"
+	}
+	if body.MaxWriteFails <= 0 {
+		body.MaxWriteFails = 3
+	}
+	if body.UidOnlyMsg == "" {
+		body.UidOnlyMsg = "Esta tarjeta no tiene seguridad criptografica. Usa PIN para proteger."
+	}
+
+	_, err := h.Pool.Exec(r.Context(), `
+		INSERT INTO nfc_card_type_config (node_domain, card_type_mode, require_crypto, auto_rotate_key, max_write_fails, uid_only_message)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		ON CONFLICT (node_domain) DO UPDATE
+		SET card_type_mode = $2, require_crypto = $3, auto_rotate_key = $4,
+		    max_write_fails = $5, uid_only_message = $6, updated_at = NOW()`,
+		nodeDomain, body.CardTypeMode, body.RequireCrypto, body.AutoRotateKey, body.MaxWriteFails, body.UidOnlyMsg)
+	if err != nil {
+		writeError(w, 500, "error saving card type config")
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{"success": true})
+}
+
+// listRotations: historial de rotaciones de una tarjeta
+func (h *CardCryptoHandler) listRotations(w http.ResponseWriter, r *http.Request) {
+	uid := chi.URLParam(r, "uid")
+	if uid == "" {
+		writeError(w, 400, "uid requerido")
+		return
+	}
+
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT id, old_key_version, new_key_version, status, terminal_id,
+		       error_message, duration_ms, started_at, completed_at
+		FROM card_key_rotations WHERE card_uid = $1
+		ORDER BY started_at DESC LIMIT 50`, uid)
+	if err != nil {
+		writeJSON(w, 200, map[string]interface{}{"rotations": []map[string]interface{}{}})
+		return
+	}
+	defer rows.Close()
+
+	var rotations []map[string]interface{}
+	for rows.Next() {
+		var id, status, terminalID, errMsg *string
+		var oldVer, newVer, durationMS *int
+		var startedAt, completedAt interface{}
+		rows.Scan(&id, &oldVer, &newVer, &status, &terminalID, &errMsg, &durationMS, &startedAt, &completedAt)
+		r := map[string]interface{}{
+			"id":              id,
+			"old_key_version": oldVer,
+			"new_key_version": newVer,
+			"status":          status,
+			"terminal_id":     terminalID,
+			"error_message":   errMsg,
+			"duration_ms":     durationMS,
+			"started_at":      startedAt,
+			"completed_at":    completedAt,
+		}
+		rotations = append(rotations, r)
+	}
+	if rotations == nil {
+		rotations = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, map[string]interface{}{"rotations": rotations})
 }
 
 // Suppress unused import warnings

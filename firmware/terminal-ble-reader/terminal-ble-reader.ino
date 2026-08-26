@@ -32,6 +32,7 @@
 #include "config.h"
 #include "../shared/hardware_binding.h"
 #include "../shared/nfc_reader.h"
+#include "../shared/desfire_crypto.h"
 
 BLEServer* bleServer = NULL;
 BLECharacteristic* cardChar = NULL;
@@ -70,6 +71,73 @@ class CommandCallbacks : public BLECharacteristicCallbacks {
                       "\",\"connected\":true}";
       statusChar->setValue(status.c_str());
       statusChar->notify();
+    } else if (cmd == "detect_type") {
+      // Detectar tipo de tarjeta (DESFire vs normal)
+      NFCCard card = readNFCCard(500);
+      if (card.valid) {
+        String typeResp = "{\"card_uid\":\"" + card.uid +
+                          "\",\"is_secure\":" + (card.isSecure ? "true" : "false") +
+                          ",\"card_type\":\"" + (card.isSecure ? "desfire" : "uid_only") + "\"}";
+        cardChar->setValue(typeResp.c_str());
+        cardChar->notify();
+      }
+    } else if (cmd.startsWith("auth_desfire:")) {
+      // Comando: auth_desfire:<aes_key_hex>
+      // El celular envia la clave AES y el ESP32 autentica la tarjeta
+      String keyHex = cmd.substring(13);
+      if (keyHex.length() == 32) {
+        uint8_t aesKey[16];
+        size_t len;
+        hexToBytes(keyHex, aesKey, &len);
+
+        bool authOk = authenticateDESFire(aesKey);
+        String resp = "{\"auth_result\":" + String(authOk ? "true" : "false") + "}";
+        cardChar->setValue(resp.c_str());
+        cardChar->notify();
+
+        // Limpiar clave de memoria
+        clearKeyFromMemory(aesKey, 16);
+      }
+    } else if (cmd.startsWith("change_key:")) {
+      // Comando: change_key:<old_key_hex>:<new_key_hex>
+      // El celular pide al ESP32 rotar la clave de la tarjeta
+      String params = cmd.substring(11);
+      int sep = params.indexOf(':');
+      if (sep > 0) {
+        String oldHex = params.substring(0, sep);
+        String newHex = params.substring(sep + 1);
+        if (oldHex.length() == 32 && newHex.length() == 32) {
+          uint8_t oldKey[16], newKey[16];
+          size_t len;
+          hexToBytes(oldHex, oldKey, &len);
+          hexToBytes(newHex, newKey, &len);
+
+          DESFireResult res = changeKey(0x00, newKey, oldKey);
+          String resp = "{\"change_key_result\":" + String(res.success ? "true" : "false") +
+                        ",\"error\":\"" + res.error + "\"}";
+          cardChar->setValue(resp.c_str());
+          cardChar->notify();
+
+          clearKeyFromMemory(oldKey, 16);
+          clearKeyFromMemory(newKey, 16);
+        }
+      }
+    } else if (cmd.startsWith("verify_key:")) {
+      // Comando: verify_key:<new_key_hex>
+      // Verificar que la nueva clave funciona
+      String keyHex = cmd.substring(11);
+      if (keyHex.length() == 32) {
+        uint8_t aesKey[16];
+        size_t len;
+        hexToBytes(keyHex, aesKey, &len);
+
+        bool ok = verifyKeyWorks(0x00, aesKey);
+        String resp = "{\"verify_result\":" + String(ok ? "true" : "false") + "}";
+        cardChar->setValue(resp.c_str());
+        cardChar->notify();
+
+        clearKeyFromMemory(aesKey, 16);
+      }
     }
   }
 };

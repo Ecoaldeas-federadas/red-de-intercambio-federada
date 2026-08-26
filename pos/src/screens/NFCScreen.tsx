@@ -10,32 +10,37 @@ interface Props {
 }
 
 export function NFCScreen({ amount, onBack, onPaid, api, terminalID }: Props) {
-  const [status, setStatus] = useState<'waiting' | 'reading' | 'pin' | 'processing' | 'approved' | 'rejected'>('waiting')
+  const [status, setStatus] = useState<'waiting' | 'reading' | 'pin' | 'processing' | 'rotating' | 'approved' | 'rejected'>('waiting')
   const [pin, setPin] = useState('')
   const [cardUID, setCardUID] = useState('')
+  const [cardType, setCardType] = useState<'uid_only' | 'desfire' | 'unknown'>('unknown')
   const [error, setError] = useState('')
   const [result, setResult] = useState<any>(null)
+  const [cardConfig, setCardConfig] = useState<any>(null)
   const pollRef = useRef<any>(null)
+
+  // Cargar configuracion de tipo de tarjeta del nodo
+  useEffect(() => {
+    api.getCardTypeConfig().then((cfg: any) => {
+      setCardConfig(cfg)
+    }).catch(() => {})
+  }, [])
 
   // Try Web NFC API if available
   useEffect(() => {
     if (!('NDEFReader' in window)) {
-      // No Web NFC - show manual card entry
       return
     }
 
     const reader = new (window as any).NDEFReader()
     reader.scan().then(() => {
       reader.onreading = (event: any) => {
-        // Extract card UID from NDEF record
         const uid = event.serialNumber || ''
         if (uid) {
           handleCardRead(uid)
         }
       }
-    }).catch(() => {
-      // NFC not available or permission denied
-    })
+    }).catch(() => {})
 
     return () => {
       if (pollRef.current) clearInterval(pollRef.current)
@@ -44,11 +49,13 @@ export function NFCScreen({ amount, onBack, onPaid, api, terminalID }: Props) {
 
   const handleCardRead = (uid: string) => {
     setCardUID(uid)
+    // Web NFC no puede detectar DESFire vs normal (solo lee NDEF)
+    // Asumimos uid_only para Web NFC. Para DESFire real se necesita lector USB/BLE.
+    setCardType('uid_only')
     setStatus('pin')
   }
 
   const handleManualCard = () => {
-    // Manual card entry for testing
     const uid = prompt('Ingresa el UID de la tarjeta:')
     if (uid) handleCardRead(uid)
   }
@@ -62,10 +69,12 @@ export function NFCScreen({ amount, onBack, onPaid, api, terminalID }: Props) {
     setStatus('processing')
 
     try {
-      // Build the payment payload (same as physical NFC terminal)
+      // Para tarjetas normales (uid_only): UID + PIN
+      // Para DESFire real: se necesita lector USB/BLE (no soportado en Web NFC)
       const payload = {
         card_uid: cardUID,
-        crypto_token: '', // Web POS doesn't have crypto card token
+        crypto_token: cardUID, // Web POS usa UID como token (modo legacy)
+        card_type: cardType,
         pin,
         amount,
         timestamp: Date.now(),
@@ -76,6 +85,18 @@ export function NFCScreen({ amount, onBack, onPaid, api, terminalID }: Props) {
       setResult(result)
 
       if (result.status === 'approved') {
+        // Si la tarjeta es segura y auto_rotate esta activado, mostrar rotacion
+        if (cardType === 'desfire' && cardConfig?.auto_rotate_key) {
+          setStatus('rotating')
+          try {
+            await api.prepareRotation(cardUID, terminalID || undefined)
+            // En Web POS no podemos escribir la clave en la tarjeta (no hay APDU)
+            // Esto requiere el lector BLE o USB
+            // Por ahora, la rotacion la hace el terminal fisico
+          } catch (e) {
+            // Rotacion falla en Web POS - no es critico
+          }
+        }
         setStatus('approved')
         setTimeout(onPaid, 2000)
       } else {
@@ -107,6 +128,16 @@ export function NFCScreen({ amount, onBack, onPaid, api, terminalID }: Props) {
         </div>
       </div>
 
+      {/* Card type indicator */}
+      {cardConfig && (
+        <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 12, textAlign: 'center' }}>
+          Modo: {cardConfig.card_type_mode === 'dual' ? 'Dual (tarjetas normales y seguras)' :
+                 cardConfig.card_type_mode === 'desfire' ? 'Solo tarjetas seguras (DESFire)' :
+                 'Solo tarjetas normales (UID+PIN)'}
+          {cardConfig.auto_rotate_key && cardConfig.card_type_mode !== 'uid_only' && ' | Rotacion automatica ON'}
+        </div>
+      )}
+
       {/* Waiting for NFC */}
       {status === 'waiting' && (
         <div className="fade-in" style={{ textAlign: 'center', marginTop: 40 }}>
@@ -124,6 +155,14 @@ export function NFCScreen({ amount, onBack, onPaid, api, terminalID }: Props) {
             </div>
           )}
 
+          {cardConfig?.require_crypto && (
+            <div style={{ background: 'rgba(220,38,38,0.15)', padding: 12, borderRadius: 12, marginBottom: 16 }}>
+              <p style={{ color: 'var(--danger)', fontSize: 12 }}>
+                ⚠️ Este nodo requiere tarjetas seguras (DESFire). Las tarjetas normales seran rechazadas.
+              </p>
+            </div>
+          )}
+
           <button className="btn btn-secondary" style={{ width: '100%', maxWidth: 300 }} onClick={handleManualCard}>
             Ingresar UID manualmente
           </button>
@@ -137,6 +176,12 @@ export function NFCScreen({ amount, onBack, onPaid, api, terminalID }: Props) {
             <div style={{ fontSize: 48, marginBottom: 8 }}>🔐</div>
             <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Ingresa el PIN</h2>
             <p style={{ color: 'var(--text-dim)', fontSize: 12 }}>Tarjeta: {cardUID.slice(0, 16)}...</p>
+            {cardType === 'desfire' && (
+              <p style={{ color: 'var(--success)', fontSize: 11, marginTop: 4 }}>✓ Tarjeta segura (DESFire)</p>
+            )}
+            {cardType === 'uid_only' && (
+              <p style={{ color: 'var(--warning)', fontSize: 11, marginTop: 4 }}>Tarjeta normal (UID+PIN)</p>
+            )}
           </div>
 
           {/* PIN display */}
@@ -182,6 +227,15 @@ export function NFCScreen({ amount, onBack, onPaid, api, terminalID }: Props) {
         <div className="fade-in" style={{ textAlign: 'center', marginTop: 60 }}>
           <div style={{ fontSize: 60, marginBottom: 16 }} className="pulse">⏳</div>
           <h2 style={{ fontSize: 20, fontWeight: 700 }}>Procesando pago...</h2>
+        </div>
+      )}
+
+      {/* Rotating key */}
+      {status === 'rotating' && (
+        <div className="fade-in" style={{ textAlign: 'center', marginTop: 60 }}>
+          <div style={{ fontSize: 60, marginBottom: 16 }} className="pulse">🔄</div>
+          <h2 style={{ fontSize: 20, fontWeight: 700 }}>Rotando clave de seguridad...</h2>
+          <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>Protegiendo contra clonacion</p>
         </div>
       )}
 

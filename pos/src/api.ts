@@ -266,6 +266,63 @@ export class API {
       body: JSON.stringify({ code }),
     })
   }
+
+  // ===== CARD CRYPTO (DESFire EV3 + dual mode) =====
+  async requestCardKey(cardUID: string, terminalID?: string): Promise<any> {
+    const params = terminalID ? `?terminal_id=${terminalID}` : ''
+    return this.request(`/api/nfc/cards/${cardUID}/request-key${params}`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    })
+  }
+
+  async verifyCardResponse(cardUID: string, challengeID: string, response: string): Promise<any> {
+    return this.request(`/api/nfc/cards/${cardUID}/verify-response`, {
+      method: 'POST',
+      body: JSON.stringify({ challenge_id: challengeID, response }),
+    })
+  }
+
+  async prepareRotation(cardUID: string, terminalID?: string): Promise<any> {
+    const params = terminalID ? `?terminal_id=${terminalID}` : ''
+    return this.request(`/api/nfc/cards/${cardUID}/prepare-rotation${params}`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    })
+  }
+
+  async confirmRotation(cardUID: string, durationMS?: number): Promise<any> {
+    return this.request(`/api/nfc/cards/${cardUID}/confirm-rotation`, {
+      method: 'POST',
+      body: JSON.stringify({ duration_ms: durationMS || 0 }),
+    })
+  }
+
+  async failRotation(cardUID: string, errorMessage: string): Promise<any> {
+    return this.request(`/api/nfc/cards/${cardUID}/fail-rotation`, {
+      method: 'POST',
+      body: JSON.stringify({ error_message: errorMessage }),
+    })
+  }
+
+  async getCardTypeConfig(): Promise<any> {
+    return this.request('/api/nfc/card-type/config')
+  }
+
+  async setCardTypeConfig(config: { card_type_mode: string; require_crypto: boolean; auto_rotate_key: boolean; max_write_fails?: number }): Promise<any> {
+    return this.request('/api/nfc/card-type/config', {
+      method: 'POST',
+      body: JSON.stringify(config),
+    })
+  }
+
+  async getCardCryptoStatus(cardUID: string): Promise<any> {
+    return this.request(`/api/nfc/cards/${cardUID}/crypto-status`)
+  }
+
+  async listRotations(cardUID: string): Promise<any> {
+    return this.request(`/api/nfc/cards/${cardUID}/rotations`)
+  }
 }
 
 export const api = new API()

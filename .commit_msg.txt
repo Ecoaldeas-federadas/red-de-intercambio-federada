@@ -1,66 +1,88 @@
-feat: modelo criptografico completo para tarjetas NFC (AES-128 + challenge-response)
+feat: sistema NFC dual (DESFire EV3 + MIFARE Classic) con rotacion de clave
 
-Las tarjetas NFC ya no son "tontas" (solo UID clonable). Ahora tienen
-claves AES-128 embebidas que prueban criptograficamente que son legitimas.
+Soporta DOS tipos de tarjetas NFC:
+1. DESFire EV3 (segura, AES-128, challenge-response, rotacion de clave)
+2. MIFARE Classic / UID normal (UID + PIN, disponible en Venezuela)
 
-MODELO CRIPTOGRAFICO:
+El nodo configura que tipo de tarjeta aceptar:
+- uid_only: solo tarjetas normales (UID + PIN)
+- desfire: solo tarjetas seguras (DESFire EV3)
+- dual: ambas (detecta automaticamente, recomendado para transicion)
 
-1. PROVISIONAMIENTO (migracion 118 + card_crypto.go)
-   - Servidor genera clave AES-128 unica por tarjeta
-   - Clave se escribe en la tarjeta (DESFire EV3 o NTAG424)
-   - Clave se guarda cifrada en la BD (cifrada con clave maestra del nodo)
-   - Tabla nfc_card_keys extendida con aes_key_encrypted, key_version,
-     sun_counter, auth_fail_count, crypto_blocked_until
-   - Endpoint: POST /api/nfc/cards/provision-crypto
+ROTACION DE CLAVE POR TRANSACCION (solo DESFire):
+1. Terminal autentica tarjeta con clave K
+2. Servidor valida transaccion (saldo, PIN)
+3. Servidor genera nueva clave K'
+4. Terminal escribe K' en la tarjeta (DESFire ChangeKey)
+5. Terminal verifica K' re-autenticando
+6. Si OK: confirma rotacion → ejecuta transaccion → borra claves
+7. Si falla 3x: marca tarjeta con error, clave vieja sigue activa
+8. Recovery: si rotacion se interrumpe, probar K' o K en proximo tap
 
-2. DISTRIBUCION DE CLAVES A TERMINALES/APPS
-   - Terminal/app autenticada pide la clave AES de una tarjeta
-   - Clave se entrega sobre canal cifrado (Ed25519 + AES-256-GCM)
-   - Terminal descifra en memoria, NUNCA en disco
-   - Sesion de distribucion registrada para auditoria
-   - Tabla card_key_sessions
-   - Endpoint: POST /api/nfc/cards/{uid}/request-key
+CAMBIOS:
 
-3. CHALLENGE-RESPONSE (DESFire EV3)
-   - Servidor genera challenge (nonce aleatorio de 16 bytes)
-   - Terminal envia challenge a la tarjeta
-   - Tarjeta responde con AES(challenge, key)
-   - Servidor verifica la respuesta
-   - Anti-replay: challenge se marca como usado
-   - Tabla nfc_card_challenges con expiracion de 60s
-   - Endpoints: POST /challenge, POST /verify-response
+Migracion 119 (key_rotation_dual_cards.sql):
+- Tabla card_key_rotations (historial de rotaciones)
+- Campos: pending_key_encrypted, rotation_status, write_fail_count
+- Tabla nfc_card_type_config (config dual por nodo)
+- Campos card_error, error_at en nfc_cards
 
-4. NTAG424 SUN (Secure Unique Number)
-   - NTAG424 genera MAC(AES, UID|counter) en cada tap
-   - Servidor verifica el MAC con la misma clave AES
-   - Counter anti-replay: cada tap incrementa el counter
-   - Si counter <= almacenado = replay attack detectado
-   - Endpoint: POST /api/nfc/cards/{uid}/verify-sun
+Backend (card_crypto.go):
+- POST /prepare-rotation: genera K', guarda como pendiente
+- POST /confirm-rotation: promueve K' a activa
+- POST /fail-rotation: reporta fallo (3 intentos)
+- POST /recover: recovery de rotacion interrumpida
+- GET /pending-rotation: verifica si hay pendiente
+- GET/POST /card-type/config: config dual de tarjetas
+- GET /cards/{uid}/rotations: historial de rotaciones
 
-5. SEGURIDAD
-   - 5 fallos de auth = tarjeta bloqueada 30 minutos
-   - Clave maestra del nodo cifrada con NODE_MASTER_KEY (env var)
-   - Tabla node_master_keys para rotacion de clave maestra
-   - Rotacion de claves por tarjeta: POST /rotate-key
-   - Bloqueo de tarjeta: POST /block-crypto
-   - Estado criptografico: GET /crypto-status
+Firmware (desfire_crypto.h - nuevo):
+- APDUs ISO14443-4 via PN532 inDataExchange
+- authenticateAES(): challenge-response AES-128 de DESFire EV3
+- changeKey(): rotar clave AES en la tarjeta
+- verifyKeyWorks(): re-autenticar con nueva clave
+- selectApplication(), readData(), writeData()
 
-FLUJO PARA APP ANDROID + LECTOR BLUETOOTH:
-1. App se autentica con el servidor (Ed25519 mutual auth)
-2. App lee UID de la tarjeta via lector Bluetooth
-3. App pide clave AES al servidor (canal cifrado)
-4. App descifra clave en memoria
-5. App envia challenge a la tarjeta via Bluetooth
-6. Tarjeta responde con AES(challenge, key)
-7. App envia respuesta al servidor
-8. Servidor verifica y procesa el pago
-9. App borra la clave de memoria
+Firmware (card_rotation.h - nuevo):
+- performRotation(): flujo completo de rotacion
+- requestRotation(), confirmRotation(), reportRotationFail()
+- clearKeyFromMemory(): zeroization de claves
 
-Frontend: Tab "Tarjetas Crypto" en NodeSettings con:
-- Provisionamiento de nuevas tarjetas
-- Muestra clave AES para escribir en la tarjeta
-- Consulta de estado criptografico
-- Bloqueo de tarjetas
+Firmware (nfc_reader.h - corregido):
+- Deteccion automaticatica de tipo de tarjeta (DESFire vs normal)
+- authenticateDESFire(): autenticacion real con AES
+- readDESFireData(): leer datos de tarjeta autenticada
+- CardType enum: CARD_UID_ONLY, CARD_DESFIRE_EV3, CARD_NTAG424
+
+Firmware (5 terminales .ino):
+- terminal-keypad: flujo dual con rotacion
+- terminal-touch: flujo dual con rotacion
+- terminal-web: flujo dual con rotacion
+- terminal-community: soporte dual (vendedor + comprador)
+- terminal-ble-reader: comandos BLE para DESFire (auth, change_key, verify_key)
+
+POS web (NFCScreen.tsx + api.ts):
+- Deteccion de tipo de tarjeta
+- UI muestra tipo detectado (segura vs normal)
+- Estado "Rotando clave" durante rotacion
+- Endpoints: requestCardKey, prepareRotation, confirmRotation, failRotation
+- Endpoints: getCardTypeConfig, setCardTypeConfig, listRotations
+
+Frontend (NodeSettings.tsx):
+- Tab "Tarjetas Crypto" con config dual
+- Selector: uid_only, desfire, dual
+- Toggle: require_crypto, auto_rotate_key
+- Historial de rotaciones por tarjeta
+- Estados: confirmed, failed, recovered, pending
+
+Documento (docs/android-app-spec.md):
+- Especificacion completa de la app Android
+- Arquitectura React Native
+- Comunicacion BLE con lector ESP32
+- Endpoints del backend
+- Flujo de pago dual
+- Permisos necesarios
+- Librerias recomendadas
 
 Generated with [Devin](https://devin.ai)
 

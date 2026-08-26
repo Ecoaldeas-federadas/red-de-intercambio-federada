@@ -9,6 +9,8 @@
 #include "../shared/wifi_provisioning.h"
 #include "../shared/crypto_helper.h"
 #include "../shared/nfc_reader.h"
+#include "../shared/desfire_crypto.h"
+#include "../shared/card_rotation.h"
 #include "../shared/display_helper.h"
 #include "../shared/server_client.h"
 
@@ -133,13 +135,64 @@ void loop() {
   digitalWrite(BUZZER_PIN, HIGH); delay(100);
   digitalWrite(BUZZER_PIN, LOW);
 
+  // Mostrar tipo de tarjeta
+  if (card.isSecure) {
+    showText("Tarjeta segura", 1, 16);
+  } else {
+    showText("Tarjeta normal", 1, 16);
+  }
+
   // For web terminal: PIN is entered in the web app
   // The server already has the PIN from the web session
   showProcessing();
 
+  // Variables para flujo criptografico
+  uint8_t cardAESKey[16] = {0};
+  bool hasCardKey = false;
+  String cryptoToken = "";
+
+  // Si es tarjeta segura, pedir clave AES y autenticar
+  if (card.isSecure) {
+    showText("Auth tarjeta...", 1, 24);
+    StaticJsonDocument<256> keyReq;
+    keyReq["terminal_id"] = config.terminalId;
+    String keyReqStr;
+    serializeJson(keyReq, keyReqStr);
+
+    String keyUrl = config.serverUrl + "/api/nfc/cards/" + card.uid + "/request-key?terminal_id=" + config.terminalId;
+    String keyResponse = sendPayment(&config, sharedKey, keyReqStr, terminalKeys.private_key, keyUrl);
+
+    if (keyResponse.length() > 0) {
+      String keyDecrypted = decryptServerResponse(sharedKey, keyResponse, serverPubKey);
+      if (keyDecrypted.length() > 0) {
+        StaticJsonDocument<512> keyResult;
+        deserializeJson(keyResult, keyDecrypted);
+        String keyHex = keyResult["aes_key_hex"] | "";
+        if (keyHex.length() == 32) {
+          size_t len;
+          hexToBytes(keyHex, cardAESKey, &len);
+          hasCardKey = true;
+          if (authenticateDESFire(cardAESKey)) {
+            cryptoToken = "desfire_auth_ok";
+          } else {
+            showText("Auth fallo", 2, 24);
+            if (hasCardKey) clearKeyFromMemory(cardAESKey, 16);
+            delay(2000);
+            hasPendingAmount = false;
+            showText("Esperando monto", 1, 16);
+            continue;
+          }
+        }
+      }
+    }
+  } else {
+    cryptoToken = card.uid;
+  }
+
   StaticJsonDocument<256> payload;
   payload["card_uid"] = card.uid;
-  payload["crypto_token"] = card.uid;
+  payload["crypto_token"] = cryptoToken;
+  payload["card_type"] = card.isSecure ? "desfire" : "uid_only";
   payload["pin"] = ""; // PIN comes from web app session
   payload["amount"] = pendingAmount;
   payload["timestamp"] = millis();
@@ -163,6 +216,15 @@ void loop() {
       showResult(status, message);
 
       if (status == "approved") {
+        // Rotacion de clave si es tarjeta segura
+        if (card.isSecure && hasCardKey) {
+          showText("Rotando clave...", 1, 24);
+          RotationResult rotResult = performRotation(
+            &config, sharedKey, terminalKeys.private_key,
+            card.uid, config.terminalId, cardAESKey);
+          showText(rotResult.success ? "Clave rotada OK" : "Rotacion fallo", 1, 24);
+          delay(800);
+        }
         digitalWrite(BUZZER_PIN, HIGH); delay(100);
         digitalWrite(BUZZER_PIN, LOW); delay(100);
         digitalWrite(BUZZER_PIN, HIGH); delay(100);
@@ -171,12 +233,18 @@ void loop() {
         digitalWrite(BUZZER_PIN, HIGH); delay(300);
         digitalWrite(BUZZER_PIN, LOW);
       }
+      // Limpiar clave de memoria
+      if (hasCardKey) {
+        clearKeyFromMemory(cardAESKey, 16);
+        hasCardKey = false;
+      }
     } else {
       showText("Error decrypt", 1, 24);
     }
   } else {
     showText("Error red", 2, 24);
   }
+  if (hasCardKey) clearKeyFromMemory(cardAESKey, 16);
 
   // Reset
   hasPendingAmount = false;

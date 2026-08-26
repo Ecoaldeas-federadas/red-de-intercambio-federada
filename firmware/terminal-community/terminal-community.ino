@@ -9,6 +9,8 @@
 #include "../shared/wifi_provisioning.h"
 #include "../shared/crypto_helper.h"
 #include "../shared/nfc_reader.h"
+#include "../shared/desfire_crypto.h"
+#include "../shared/card_rotation.h"
 #include "../shared/display_helper.h"
 #include "../shared/server_client.h"
 #include "../shared/pin_helper.h"
@@ -38,6 +40,9 @@ enum CommunityState {
 CommunityState commState = IDLE;
 String sellerCardUID = "";
 String sellerPIN = "";
+String sellerCardType = "uid_only";
+String buyerCardUID = "";
+String buyerCardType = "uid_only";
 int64_t amount = 0;
 
 ServerConfig config;
@@ -180,6 +185,7 @@ void loop() {
       NFCCard card = readNFCCard(500);
       if (card.valid) {
         sellerCardUID = card.uid;
+        sellerCardType = card.isSecure ? "desfire" : "uid_only";
         digitalWrite(BUZZER_PIN, HIGH); delay(100);
         digitalWrite(BUZZER_PIN, LOW);
         showPINPrompt("vendedor");
@@ -220,6 +226,8 @@ void loop() {
           break;
         }
 
+        buyerCardUID = card.uid;
+        buyerCardType = card.isSecure ? "desfire" : "uid_only";
         showPINPrompt("comprador");
         commState = WAITING_PIN_BUYER;
       }
@@ -234,16 +242,15 @@ void loop() {
       StaticJsonDocument<512> payload;
       payload["seller_card_uid"] = sellerCardUID;
       payload["seller_crypto_token"] = sellerCardUID;
+      payload["seller_card_type"] = sellerCardType;
       payload["seller_pin"] = sellerPIN;
-      payload["buyer_card_uid"] = ""; // will be set from last read
+      payload["buyer_card_uid"] = buyerCardUID;
+      payload["buyer_crypto_token"] = buyerCardUID;
+      payload["buyer_card_type"] = buyerCardType;
       payload["buyer_pin"] = buyerPIN;
       payload["amount"] = amount;
       payload["timestamp"] = millis();
       payload["nonce"] = String((unsigned long)esp_random());
-
-      // We need the buyer card UID - store it from WAITING_BUYER
-      // For simplicity, re-read is not needed; store in variable
-      // In production: store buyerCardUID in WAITING_BUYER state
 
       String payloadStr;
       serializeJson(payload, payloadStr);
