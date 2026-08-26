@@ -471,9 +471,34 @@ func (sh *FederatedServicesHandler) installService(w http.ResponseWriter, r *htt
 		return
 	}
 
-	// Ejecutar docker compose up -d (con --build para servicios que se construyen)
-	cmd := exec.Command("docker", "compose", "-f", composePath, "up", "-d", "--build")
-	output, err := cmd.CombinedOutput()
+	// Ejecutar docker compose up -d --build
+	// Para pos-web (que se construye desde codigo fuente), usar --no-cache
+	// para asegurar que cambios en vite.config.ts se apliquen
+	var output []byte
+	var err error
+	if serviceID == "pos-web" {
+		// Primero construir sin cache
+		buildCmd := exec.Command("docker", "compose", "-f", composePath, "build", "--no-cache")
+		buildOutput, buildErr := buildCmd.CombinedOutput()
+		output = buildOutput
+		if buildErr != nil {
+			writeJSON(w, 200, map[string]interface{}{
+				"success":    false,
+				"service_id": serviceID,
+				"message":    fmt.Sprintf("Error al construir: %v", buildErr),
+				"logs":       string(buildOutput),
+			})
+			return
+		}
+		// Luego hacer up -d
+		upCmd := exec.Command("docker", "compose", "-f", composePath, "up", "-d")
+		upOutput, upErr := upCmd.CombinedOutput()
+		output = append(output, upOutput...)
+		err = upErr
+	} else {
+		cmd := exec.Command("docker", "compose", "-f", composePath, "up", "-d", "--build")
+		output, err = cmd.CombinedOutput()
+	}
 
 	if err != nil {
 		// Si falla, NO marcar como instalado

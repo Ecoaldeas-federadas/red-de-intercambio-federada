@@ -494,10 +494,32 @@ func (h *UpdateHandler) updateService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Para servicios construidos (como pos-web), hacer build
+	// Para servicios construidos desde codigo fuente (como pos-web), hacer build --no-cache
 	// Para servicios con imagen pre-construida, hacer pull + up
-	cmd := exec.Command("docker", "compose", "-f", composePath, "up", "-d", "--build", "--pull", "always")
-	output, err := cmd.CombinedOutput()
+	// pos-web se construye desde el repo, necesita --no-cache para pick up vite.config.ts changes
+	var output []byte
+	var err error
+	if serviceID == "pos-web" {
+		// Reconstruir sin cache para asegurar que cambios en vite.config.ts se apliquen
+		buildCmd := exec.Command("docker", "compose", "-f", composePath, "build", "--no-cache")
+		buildOutput, buildErr := buildCmd.CombinedOutput()
+		if buildErr != nil {
+			_, _ = h.Pool.Exec(ctx, `UPDATE installed_services SET status = 'error', updated_at = NOW() WHERE service_id = $1`, serviceID)
+			writeJSON(w, 200, map[string]interface{}{
+				"success":    false,
+				"service_id": serviceID,
+				"message":    fmt.Sprintf("Error al construir: %v", buildErr),
+				"logs":       string(buildOutput),
+			})
+			return
+		}
+		// Ahora si hacer up -d con la nueva imagen
+		upCmd := exec.Command("docker", "compose", "-f", composePath, "up", "-d")
+		output, err = upCmd.CombinedOutput()
+	} else {
+		cmd := exec.Command("docker", "compose", "-f", composePath, "up", "-d", "--build", "--pull", "always")
+		output, err = cmd.CombinedOutput()
+	}
 
 	if err != nil {
 		_, _ = h.Pool.Exec(ctx, `UPDATE installed_services SET status = 'error', updated_at = NOW() WHERE service_id = $1`, serviceID)
