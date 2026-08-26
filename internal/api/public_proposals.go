@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"federated-credit-node/internal/db"
+	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
@@ -362,13 +363,47 @@ func (h *PublicProposalsHandler) runDemoStart() {
 	//   2. DemoAutoSetup() - configura node_config
 	//   3. DemoSeedData() - siembra datos frescos
 	// No hay que reconstruir la imagen: es la misma del node-app.
+	// CRITICO: usar --project-directory + override con host paths para que
+	// el Docker daemon encuentre los volume mounts en el host.
 	setDemoStatus("starting", "Arrancando contenedor del nodo demo (reset + seed automatico)...")
 	appendDemoLog("Arrancando contenedor con --force-recreate...")
-	upCmd := exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName, "--profile", "demo", "up", "-d", "--no-deps", "--force-recreate", "demo-app")
+
+	hostProjectDir := detectHostProjectDir()
+	hostDirFwd := toForwardSlashes(hostProjectDir)
+
+	var upCmd *exec.Cmd
+	if hostDirFwd != "" && hostDirFwd != "/project" {
+		overrideFile := "/tmp/docker-compose.demo-start-override.yml"
+		overrideContent := fmt.Sprintf(`services:
+  demo-app:
+    volumes:
+      - %s/secrets:/secrets:ro
+      - %s/config.demo.yaml:/app/config.yaml:ro
+      - %s/firmware:/app/firmware:ro
+      - demo_firmware_builds:/tmp/firmware-builds
+      - demo_uploads:/app/uploads
+      - demo_db_backups:/backups
+      - /var/run/docker.sock:/var/run/docker.sock
+      - %s:/project:rw
+      - demo_state:/app/.demo-shared
+      - update_state:/update-state
+`, hostDirFwd, hostDirFwd, hostDirFwd, hostDirFwd)
+		os.WriteFile(overrideFile, []byte(overrideContent), 0644)
+		appendDemoLog("Usando override con host paths: " + hostDirFwd)
+		upCmd = exec.Command("docker", "compose", "--project-directory", "/project",
+			"-f", composeFile, "-f", overrideFile,
+			"--project-name", projectName, "--profile", "demo",
+			"up", "-d", "--no-deps", "--force-recreate", "demo-app")
+	} else {
+		upCmd = exec.Command("docker", "compose", "--project-directory", "/project",
+			"-f", composeFile, "--project-name", projectName, "--profile", "demo",
+			"up", "-d", "--no-deps", "--force-recreate", "demo-app")
+	}
+
 	upOut, upErr := upCmd.CombinedOutput()
 	if upErr != nil {
 		appendDemoLog("Error arrancando contenedor:\n" + string(upOut))
-		setDemoStatus("error", "Error al arrancar el nodo demo")
+		setDemoStatus("error", "Error al arrancar el nodo demo: "+string(upOut))
 		return
 	}
 	appendDemoLog("Contenedor arrancado correctamente.")
@@ -406,6 +441,30 @@ func detectComposeProjectName() string {
 		return "project"
 	}
 	return name
+}
+
+// detectHostProjectDir detecta la ruta REAL del proyecto en el host.
+// docker compose corre dentro del contenedor donde /project es un mount,
+// pero el Docker daemon esta en el host donde /project no existe.
+// Inspecciona los mounts del contenedor actual para encontrar la ruta host.
+func detectHostProjectDir() string {
+	containerID, err := os.Hostname()
+	if err != nil {
+		return ""
+	}
+	// Inspeccionar mounts del contenedor y buscar el que tiene Destination=/project
+	cmd := exec.Command("docker", "inspect", "-f", "{{ range .Mounts }}{{ if eq .Destination \"/project\" }}{{ .Source }}{{ end }}{{ end }}", containerID)
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// toForwardSlashes convierte una ruta Windows (C:\Users\...) a formato
+// con barras normales (C:/Users/...) que docker compose acepta.
+func toForwardSlashes(path string) string {
+	return strings.ReplaceAll(path, "\\", "/")
 }
 
 // listDemoUsers devuelve la lista de usuarios demo para login con botones
@@ -601,19 +660,56 @@ func (h *PublicProposalsHandler) resetDemoNode(w http.ResponseWriter, r *http.Re
 	exec.Command("docker", "stop", "red-de-intercambio-federada-demo-app-1").Run()
 	exec.Command("docker", "rm", "-f", "red-de-intercambio-federada-demo-app-1").Run()
 
-	// 2. Recrear con la imagen actualizada (sin dependencias para no tocar yugabytedb)
-	// Si se especifico preset, pasarlo como variable de entorno al contenedor demo
-	cmd := exec.Command("docker", "compose", "--profile", "demo", "up", "-d", "--no-deps", "--force-recreate", "demo-app")
+	// 2. Si se especifico preset, escribirlo en .demo-shared/preset.txt
 	if presetID != "" {
-		// Pasar DEMO_PRESET via -e al contenedor demo-app
-		// docker compose no permite -e facilmente, usamos --env-file temporal o
-		// mejor: escribir el preset en el archivo .demo-shared/preset.txt que el nodo lee al arrancar
 		os.MkdirAll("/app/.demo-shared", 0755)
 		os.WriteFile("/app/.demo-shared/preset.txt", []byte(presetID), 0644)
 	}
-	err := cmd.Run()
+
+	// 3. Recrear con la imagen actualizada
+	// CRITICO: docker compose corre dentro del contenedor node-app donde el repo
+	// esta en /project, pero el Docker daemon esta en el HOST.
+	// Para 'up', necesitamos que las rutas relativas en docker-compose.yml se
+	// resuelvan a rutas del host. Generamos un override con rutas del host.
+	projectName := "red-de-intercambio-federada"
+	composeFile := "/project/docker-compose.yml"
+
+	// Detectar ruta host de /project
+	hostProjectDir := detectHostProjectDir()
+	hostDirFwd := toForwardSlashes(hostProjectDir)
+
+	// Generar override con rutas del host para demo-app
+	var cmd *exec.Cmd
+	if hostDirFwd != "" && hostDirFwd != "/project" {
+		overrideFile := "/tmp/docker-compose.demo-override.yml"
+		overrideContent := fmt.Sprintf(`services:
+  demo-app:
+    volumes:
+      - %s/secrets:/secrets:ro
+      - %s/config.demo.yaml:/app/config.yaml:ro
+      - %s/firmware:/app/firmware:ro
+      - demo_firmware_builds:/tmp/firmware-builds
+      - demo_uploads:/app/uploads
+      - demo_db_backups:/backups
+      - /var/run/docker.sock:/var/run/docker.sock
+      - %s:/project:rw
+      - demo_state:/app/.demo-shared
+      - update_state:/update-state
+`, hostDirFwd, hostDirFwd, hostDirFwd, hostDirFwd)
+		os.WriteFile(overrideFile, []byte(overrideContent), 0644)
+		cmd = exec.Command("docker", "compose", "--project-directory", "/project",
+			"-f", composeFile, "-f", overrideFile,
+			"--profile", "demo", "-p", projectName,
+			"up", "-d", "--no-deps", "--force-recreate", "demo-app")
+	} else {
+		cmd = exec.Command("docker", "compose", "--project-directory", "/project",
+			"-f", composeFile, "--profile", "demo", "-p", projectName,
+			"up", "-d", "--no-deps", "--force-recreate", "demo-app")
+	}
+
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		writeError(w, 500, "no se pudo recrear el nodo demo: "+err.Error())
+		writeError(w, 500, "no se pudo recrear el nodo demo: "+err.Error()+"\nOutput: "+string(out))
 		return
 	}
 
