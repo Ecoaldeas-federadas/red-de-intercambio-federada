@@ -3010,6 +3010,7 @@ func demoSeedAssemblyConfig(ctx context.Context, d *DB, nodeDomain string) {
 		requiredSignatures int
 		description        string
 	}{
+		{"node_config", "assembly", 66.67, 15, 0, "Configuracion del nodo (nombre, moneda, app) - 2/3 de la asamblea"},
 		{"limit_change", "assembly", 50.0, 10, 0, "Cambios de limites de credito/debito - mayoria simple"},
 		{"admission", "assembly", 66.67, 15, 0, "Admision de nuevos miembros - 2/3 de la asamblea"},
 		{"expulsion", "assembly", 80.0, 20, 0, "Expulsion de miembro - supermayoria 80%"},
@@ -3028,12 +3029,21 @@ func demoSeedAssemblyConfig(ctx context.Context, d *DB, nodeDomain string) {
 		{"product_import", "assembly", 50.0, 10, 0, "Importar producto federado - mayoria simple"},
 		{"product_remove", "assembly", 66.67, 15, 0, "Remover producto - 2/3 de la asamblea"},
 		{"product_to_base", "assembly", 66.67, 15, 0, "Convertir compuesto a base - 2/3 de la asamblea"},
+		{"backup_config", "assembly", 50.0, 10, 0, "Configuracion de copia de seguridad - mayoria simple"},
+		{"cluster_config", "board", 50.0, 0, 2, "Configuracion de base de datos - junta directiva (2 firmas)"},
 	}
 	for _, ac := range assemblyConfigs {
 		d.Pool.Exec(ctx, `
 			INSERT INTO assembly_config (id, node_domain, proposal_type, approval_method, required_percentage, required_quorum, required_signatures, description, is_active, created_at, updated_at)
 			VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, true, NOW(), NOW())
-			ON CONFLICT DO NOTHING`,
+			ON CONFLICT (node_domain, proposal_type) DO UPDATE SET
+				approval_method = EXCLUDED.approval_method,
+				required_percentage = EXCLUDED.required_percentage,
+				required_quorum = EXCLUDED.required_quorum,
+				required_signatures = EXCLUDED.required_signatures,
+				description = EXCLUDED.description,
+				is_active = true,
+				updated_at = NOW()`,
 			nodeDomain, ac.proposalType, ac.approvalMethod, ac.requiredPercentage,
 			ac.requiredQuorum, ac.requiredSignatures, ac.description)
 	}
