@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -42,6 +43,8 @@ func (h *UpdateHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequirePermission("config.manage")).Post("/api/node/restart", h.restartNode)
 	r.With(am.RequirePermission("config.manage")).Post("/api/services/{serviceID}/update", h.updateService)
 	r.With(am.RequirePermission("config.manage")).Post("/api/services/update-all", h.updateAllServices)
+	r.With(am.RequireAuth).Get("/api/services/{serviceID}/check-update", h.checkServiceUpdate)
+	r.With(am.RequireAuth).Get("/api/services/{serviceID}/update-status", h.getServiceUpdateStatus)
 }
 
 // writeUpdateState escribe el estado de actualizacion al volumen compartido.
@@ -479,6 +482,8 @@ func (h *UpdateHandler) getNodeLogs(w http.ResponseWriter, r *http.Request) {
 }
 
 // updateService actualiza un servicio especifico.
+// Corre en background (goroutine) y escribe progreso a serviceUpdateStates.
+// El frontend hace polling a /services/{id}/update-status para ver el progreso.
 func (h *UpdateHandler) updateService(w http.ResponseWriter, r *http.Request) {
 	serviceID := chi.URLParam(r, "serviceID")
 	svc := findService(serviceID)
@@ -487,69 +492,112 @@ func (h *UpdateHandler) updateService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := r.Context()
+	// Verificar si ya hay una actualizacion en curso para este servicio
+	if state, ok := serviceUpdateStates[serviceID]; ok && state.Status == "running" {
+		writeError(w, 409, "Ya hay una actualizacion en curso para "+svc.Name)
+		return
+	}
+
 	composePath := findComposeFile(serviceID)
 	if composePath == "" {
 		writeError(w, 400, "no se encontro docker-compose.yml para este servicio")
 		return
 	}
 
-	// Para servicios construidos desde codigo fuente (como pos-web), hacer:
-	// 1. down --rmi all (eliminar contenedor viejo + imagen vieja)
-	// 2. build --no-cache (reconstruir desde codigo actual)
-	// 3. up -d (iniciar con nueva imagen)
-	// Para servicios con imagen pre-construida, hacer pull + up
-	var output []byte
-	var err error
-	if serviceID == "pos-web" {
-		// 1. Eliminar contenedor e imagen vieja
-		downCmd := exec.Command("docker", "compose", "-f", composePath, "down", "--rmi", "all")
-		downOutput, _ := downCmd.CombinedOutput()
-		output = downOutput
+	// Inicializar estado
+	writeServiceUpdateState(serviceID, "running", "Iniciando actualizacion de "+svc.Name+"...", "", 5)
+	appendServiceUpdateLog(serviceID, "=== INICIO ACTUALIZACION DE "+svc.Name+" ===")
+	appendServiceUpdateLog(serviceID, "docker-compose: "+composePath)
 
-		// 2. Reconstruir sin cache
-		buildCmd := exec.Command("docker", "compose", "-f", composePath, "build", "--no-cache")
-		buildOutput, buildErr := buildCmd.CombinedOutput()
-		output = append(output, buildOutput...)
-		if buildErr != nil {
-			_, _ = h.Pool.Exec(ctx, `UPDATE installed_services SET status = 'error', updated_at = NOW() WHERE service_id = $1`, serviceID)
-			writeJSON(w, 200, map[string]interface{}{
-				"success":    false,
-				"service_id": serviceID,
-				"message":    fmt.Sprintf("Error al construir: %v", buildErr),
-				"logs":       string(output),
-			})
-			return
-		}
-		// 3. Iniciar con nueva imagen
-		upCmd := exec.Command("docker", "compose", "-f", composePath, "up", "-d")
-		upOutput, upErr := upCmd.CombinedOutput()
-		output = append(output, upOutput...)
-		err = upErr
-	} else {
-		cmd := exec.Command("docker", "compose", "-f", composePath, "up", "-d", "--build", "--pull", "always")
-		output, err = cmd.CombinedOutput()
-	}
-
-	if err != nil {
-		_, _ = h.Pool.Exec(ctx, `UPDATE installed_services SET status = 'error', updated_at = NOW() WHERE service_id = $1`, serviceID)
-		writeJSON(w, 200, map[string]interface{}{
-			"success":    false,
-			"service_id": serviceID,
-			"message":    fmt.Sprintf("Error al actualizar: %v", err),
-			"logs":       string(output),
-		})
-		return
-	}
-
-	_, _ = h.Pool.Exec(ctx, `UPDATE installed_services SET status = 'running', updated_at = NOW() WHERE service_id = $1`, serviceID)
+	// Lanzar actualizacion en background
+	go h.runServiceUpdate(serviceID, svc.Name, composePath)
 
 	writeJSON(w, 200, map[string]interface{}{
 		"success":    true,
 		"service_id": serviceID,
-		"message":    fmt.Sprintf("%s actualizado correctamente", svc.Name),
-		"logs":       string(output),
+		"message":    "Actualizacion iniciada. Monitorea el progreso en la consola.",
 	})
+}
+
+// runServiceUpdate ejecuta la actualizacion de un servicio en background.
+func (h *UpdateHandler) runServiceUpdate(serviceID, serviceName, composePath string) {
+	ctx := context.Background()
+
+	// Para servicios construidos desde codigo fuente (como pos-web), hacer:
+	// 1. down --rmi all (eliminar contenedor viejo + imagen vieja)
+	// 2. git pull (actualizar codigo del repo)
+	// 3. build --no-cache (reconstruir desde codigo actual)
+	// 4. up -d (iniciar con nueva imagen)
+	_, isSourceBuilt := serviceSourceDirs[serviceID]
+
+	if isSourceBuilt {
+		// Paso 1: git pull para obtener el codigo mas reciente
+		writeServiceUpdateState(serviceID, "running", "Descargando cambios del repositorio...", serviceUpdateStates[serviceID].Log, 10)
+		appendServiceUpdateLog(serviceID, "--- git fetch + reset ---")
+		projectDir := "/project"
+		h.configureGitAuth(projectDir)
+		fetchCmd := exec.Command("git", "-C", projectDir, "fetch", "origin", "main")
+		fetchOutput, fetchErr := fetchCmd.CombinedOutput()
+		appendServiceUpdateLog(serviceID, string(fetchOutput))
+		if fetchErr != nil {
+			appendServiceUpdateLog(serviceID, "WARN: git fetch fallo: "+fetchErr.Error())
+		}
+		resetCmd := exec.Command("git", "-C", projectDir, "reset", "--hard", "origin/main")
+		resetOutput, _ := resetCmd.CombinedOutput()
+		appendServiceUpdateLog(serviceID, string(resetOutput))
+
+		// Paso 2: Eliminar contenedor e imagen vieja
+		writeServiceUpdateState(serviceID, "running", "Eliminando contenedor e imagen vieja...", serviceUpdateStates[serviceID].Log, 20)
+		appendServiceUpdateLog(serviceID, "--- docker compose down --rmi all ---")
+		downCmd := exec.Command("docker", "compose", "-f", composePath, "down", "--rmi", "all")
+		downOutput, _ := downCmd.CombinedOutput()
+		appendServiceUpdateLog(serviceID, string(downOutput))
+
+		// Paso 3: Reconstruir sin cache
+		writeServiceUpdateState(serviceID, "running", "Construyendo nueva imagen (esto tarda varios minutos)...", serviceUpdateStates[serviceID].Log, 30)
+		appendServiceUpdateLog(serviceID, "--- docker compose build --no-cache ---")
+		buildCmd := exec.Command("docker", "compose", "-f", composePath, "build", "--no-cache")
+		buildOutput, buildErr := buildCmd.CombinedOutput()
+		appendServiceUpdateLog(serviceID, string(buildOutput))
+		if buildErr != nil {
+			writeServiceUpdateState(serviceID, "error", "Error al construir: "+buildErr.Error(), serviceUpdateStates[serviceID].Log, 30)
+			appendServiceUpdateLog(serviceID, "ERROR: build fallo: "+buildErr.Error())
+			_, _ = h.Pool.Exec(ctx, `UPDATE installed_services SET status = 'error', updated_at = NOW() WHERE service_id = $1`, serviceID)
+			return
+		}
+
+		// Paso 4: Iniciar con nueva imagen
+		writeServiceUpdateState(serviceID, "running", "Iniciando servicio con nueva imagen...", serviceUpdateStates[serviceID].Log, 90)
+		appendServiceUpdateLog(serviceID, "--- docker compose up -d ---")
+		upCmd := exec.Command("docker", "compose", "-f", composePath, "up", "-d")
+		upOutput, upErr := upCmd.CombinedOutput()
+		appendServiceUpdateLog(serviceID, string(upOutput))
+		if upErr != nil {
+			writeServiceUpdateState(serviceID, "error", "Error al iniciar: "+upErr.Error(), serviceUpdateStates[serviceID].Log, 90)
+			appendServiceUpdateLog(serviceID, "ERROR: up fallo: "+upErr.Error())
+			_, _ = h.Pool.Exec(ctx, `UPDATE installed_services SET status = 'error', updated_at = NOW() WHERE service_id = $1`, serviceID)
+			return
+		}
+	} else {
+		// Servicio con imagen pre-construida: pull + up
+		writeServiceUpdateState(serviceID, "running", "Descargando nueva imagen...", serviceUpdateStates[serviceID].Log, 30)
+		appendServiceUpdateLog(serviceID, "--- docker compose up -d --build --pull always ---")
+		cmd := exec.Command("docker", "compose", "-f", composePath, "up", "-d", "--build", "--pull", "always")
+		output, err := cmd.CombinedOutput()
+		appendServiceUpdateLog(serviceID, string(output))
+		if err != nil {
+			writeServiceUpdateState(serviceID, "error", "Error al actualizar: "+err.Error(), serviceUpdateStates[serviceID].Log, 30)
+			appendServiceUpdateLog(serviceID, "ERROR: "+err.Error())
+			_, _ = h.Pool.Exec(ctx, `UPDATE installed_services SET status = 'error', updated_at = NOW() WHERE service_id = $1`, serviceID)
+			return
+		}
+	}
+
+	// Actualizar BD
+	_, _ = h.Pool.Exec(ctx, `UPDATE installed_services SET status = 'running', updated_at = NOW() WHERE service_id = $1`, serviceID)
+
+	writeServiceUpdateState(serviceID, "completed", serviceName+" actualizado correctamente", serviceUpdateStates[serviceID].Log, 100)
+	appendServiceUpdateLog(serviceID, "=== ACTUALIZACION COMPLETADA ===")
 }
 
 // updateAllServices actualiza todos los servicios instalados.
@@ -632,3 +680,134 @@ func (h *UpdateHandler) configureGitAuth(projectDir string) {
 
 // context import workaround
 var _ = json.Marshal
+
+// serviceUpdateStates mantiene el estado de actualizacion por servicio en memoria.
+// Como node-app no se reinicia durante la actualizacion de un servicio,
+// podemos mantener el estado en memoria sin necesidad de volumenes compartidos.
+var serviceUpdateStates = make(map[string]*serviceUpdateState)
+
+type serviceUpdateState struct {
+	Status   string `json:"status"` // idle, running, completed, error
+	Message  string `json:"message"`
+	Log      string `json:"log"`
+	Progress int    `json:"progress"`
+}
+
+// serviceSourceDirs mapea serviceID -> directorios del repo que contienen su codigo.
+// Se usa para verificar si hay cambios en git que afecten al servicio.
+var serviceSourceDirs = map[string][]string{
+	"pos-web": {"pos/", "docker/Dockerfile.pos", "services/pos-web/"},
+}
+
+// checkServiceUpdate verifica si hay actualizaciones disponibles para un servicio.
+// Para servicios construidos desde codigo (como pos-web), hace git fetch y compara
+// si hay commits nuevos que afecten los directorios del servicio.
+func (h *UpdateHandler) checkServiceUpdate(w http.ResponseWriter, r *http.Request) {
+	serviceID := chi.URLParam(r, "serviceID")
+	svc := findService(serviceID)
+	if svc == nil {
+		writeError(w, 404, "servicio no encontrado")
+		return
+	}
+
+	projectDir := "/project"
+	currentCommit := ""
+	if cmd := exec.Command("git", "-C", projectDir, "rev-parse", "--short", "HEAD"); true {
+		out, _ := cmd.Output()
+		currentCommit = strings.TrimSpace(string(out))
+	}
+
+	// Configurar git auth
+	h.configureGitAuth(projectDir)
+
+	// git fetch
+	fetchCmd := exec.Command("git", "-C", projectDir, "fetch", "origin", "main")
+	fetchCmd.Run()
+
+	// Obtener commit remoto
+	remoteCommit := ""
+	if cmd := exec.Command("git", "-C", projectDir, "rev-parse", "--short", "origin/main"); true {
+		out, _ := cmd.Output()
+		remoteCommit = strings.TrimSpace(string(out))
+	}
+
+	// Para servicios construidos desde codigo fuente, verificar si hay cambios
+	// en los directorios relevantes
+	sourceDirs, isSourceBuilt := serviceSourceDirs[serviceID]
+
+	if isSourceBuilt {
+		// Verificar si hay commits que afecten los directorios del servicio
+		// Usar git diff para ver que archivos cambiaron entre HEAD y origin/main
+		changedFiles := ""
+		for _, dir := range sourceDirs {
+			cmd := exec.Command("git", "-C", projectDir, "diff", "--name-only", "HEAD", "origin/main", "--", dir)
+			out, _ := cmd.Output()
+			if len(out) > 0 {
+				changedFiles += strings.TrimSpace(string(out)) + "\n"
+			}
+		}
+
+		updatesAvailable := strings.TrimSpace(changedFiles) != ""
+
+		writeJSON(w, 200, map[string]interface{}{
+			"service_id":        serviceID,
+			"updates_available": updatesAvailable,
+			"current_commit":    currentCommit,
+			"remote_commit":     remoteCommit,
+			"changed_files":     strings.TrimSpace(changedFiles),
+			"source_built":      true,
+			"message": map[bool]string{
+				true:  "Hay cambios en el codigo del servicio",
+				false: "El servicio esta actualizado",
+			}[updatesAvailable],
+		})
+		return
+	}
+
+	// Para servicios con imagen pre-construida, no podemos verificar facilmente
+	// sin hacer docker pull. Devolver que es un servicio con imagen externa.
+	writeJSON(w, 200, map[string]interface{}{
+		"service_id":        serviceID,
+		"updates_available": false,
+		"current_commit":    currentCommit,
+		"remote_commit":     remoteCommit,
+		"source_built":      false,
+		"message":           "Servicio con imagen externa. Usa 'Actualizar' para forzar descarga de nueva imagen.",
+	})
+}
+
+// getServiceUpdateStatus devuelve el estado de actualizacion de un servicio.
+func (h *UpdateHandler) getServiceUpdateStatus(w http.ResponseWriter, r *http.Request) {
+	serviceID := chi.URLParam(r, "serviceID")
+	state, ok := serviceUpdateStates[serviceID]
+	if !ok {
+		writeJSON(w, 200, map[string]interface{}{
+			"status":   "idle",
+			"message":  "",
+			"log":      "",
+			"progress": 0,
+		})
+		return
+	}
+	writeJSON(w, 200, state)
+}
+
+// writeServiceUpdateState escribe el estado de actualizacion de un servicio.
+func writeServiceUpdateState(serviceID, status, message, log string, progress int) {
+	serviceUpdateStates[serviceID] = &serviceUpdateState{
+		Status:   status,
+		Message:  message,
+		Log:      log,
+		Progress: progress,
+	}
+}
+
+// appendServiceUpdateLog agrega una linea al log de actualizacion del servicio.
+func appendServiceUpdateLog(serviceID, line string) {
+	state, ok := serviceUpdateStates[serviceID]
+	if !ok {
+		state = &serviceUpdateState{}
+		serviceUpdateStates[serviceID] = state
+	}
+	state.Log += line + "\n"
+}

@@ -85,6 +85,13 @@ export default function FederatedServices() {
   const [installMsgs, setInstallMsgs] = useState<Record<string, { type: 'success' | 'error' | 'info', text: string, logs?: string }>>({})
   const [installingService, setInstallingService] = useState<string | null>(null)
   const [logsModal, setLogsModal] = useState<{ serviceId: string, serviceName: string, logs: string, loading: boolean } | null>(null)
+  // Estado de verificacion de actualizaciones por servicio
+  const [serviceUpdateInfo, setServiceUpdateInfo] = useState<Record<string, any>>({})
+  const [checkingServiceUpdate, setCheckingServiceUpdate] = useState<string | null>(null)
+  // Estado de actualizacion en curso (consola en tiempo real)
+  const [serviceUpdateConsole, setServiceUpdateConsole] = useState<{ serviceId: string, serviceName: string } | null>(null)
+  const [serviceUpdateState, setServiceUpdateState] = useState<any>(null)
+  const [serviceUpdatePoll, setServiceUpdatePoll] = useState<any>(null)
 
   useEffect(() => {
     loadServices()
@@ -231,6 +238,64 @@ export default function FederatedServices() {
     } catch (e: any) {
       setMsg({ type: 'error', text: 'Error al reiniciar' })
     }
+  }
+
+  const checkServiceUpdate = async (svc: ServiceItem) => {
+    setCheckingServiceUpdate(svc.id)
+    try {
+      const res: any = await api.get(`/services/${svc.id}/check-update`)
+      setServiceUpdateInfo((prev: any) => ({ ...prev, [svc.id]: res }))
+      if (res.updates_available) {
+        setMsg({ type: 'info', text: `${svc.name}: hay actualizaciones disponibles` })
+      } else {
+        setMsg({ type: 'success', text: `${svc.name}: ya esta actualizado` })
+      }
+    } catch (e: any) {
+      setMsg({ type: 'error', text: 'Error al verificar actualizaciones de ' + svc.name })
+    } finally {
+      setCheckingServiceUpdate(null)
+    }
+  }
+
+  const startServiceUpdate = async (svc: ServiceItem) => {
+    try {
+      await api.post(`/services/${svc.id}/update`, {})
+      setServiceUpdateConsole({ serviceId: svc.id, serviceName: svc.name })
+      setServiceUpdateState(null)
+      // Iniciar polling del estado
+      const interval = setInterval(async () => {
+        try {
+          const res: any = await api.get(`/services/${svc.id}/update-status`)
+          setServiceUpdateState(res)
+          if (res.status === 'completed') {
+            clearInterval(interval)
+            setServiceUpdatePoll(null)
+            setMsg({ type: 'success', text: `${svc.name} actualizado correctamente` })
+            await loadServices()
+            // Limpiar info de verificacion
+            setServiceUpdateInfo((prev: any) => { const n = { ...prev }; delete n[svc.id]; return n })
+          } else if (res.status === 'error') {
+            clearInterval(interval)
+            setServiceUpdatePoll(null)
+            setMsg({ type: 'error', text: res.message || 'Error en la actualizacion' })
+          }
+        } catch (e) {
+          // Continuar intentando
+        }
+      }, 2000)
+      setServiceUpdatePoll(interval)
+    } catch (e: any) {
+      setMsg({ type: 'error', text: 'Error al iniciar actualizacion: ' + (e?.message || 'sin respuesta') })
+    }
+  }
+
+  const closeServiceUpdateConsole = () => {
+    if (serviceUpdatePoll) {
+      clearInterval(serviceUpdatePoll)
+      setServiceUpdatePoll(null)
+    }
+    setServiceUpdateConsole(null)
+    setServiceUpdateState(null)
   }
 
   const updateService = async (svc: ServiceItem) => {
@@ -648,10 +713,23 @@ export default function FederatedServices() {
                 )}
                 {isInstalled && !isDemoNode && (
                   <button
-                    onClick={() => updateService(svc)}
-                    disabled={installing}
-                    className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs disabled:opacity-50 flex items-center gap-1"
-                    title="Actualizar a la ultima version"
+                    onClick={() => checkServiceUpdate(svc)}
+                    disabled={checkingServiceUpdate === svc.id}
+                    className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg text-xs disabled:opacity-50 flex items-center gap-1"
+                    title="Verificar si hay actualizaciones"
+                  >
+                    {checkingServiceUpdate === svc.id ? (
+                      <><Loader size={12} className="animate-spin" /> Verificando...</>
+                    ) : (
+                      <><Search size={12} /> Verificar</>
+                    )}
+                  </button>
+                )}
+                {isInstalled && !isDemoNode && serviceUpdateInfo[svc.id]?.updates_available && (
+                  <button
+                    onClick={() => startServiceUpdate(svc)}
+                    className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs flex items-center gap-1"
+                    title="Actualizar a la nueva version"
                   >
                     <RefreshCw size={12} /> Actualizar
                   </button>
@@ -719,6 +797,61 @@ export default function FederatedServices() {
               >
                 <Trash2 size={14} /> Si, desinstalar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Consola de actualizacion de servicio en tiempo real */}
+      {serviceUpdateConsole && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => { if (serviceUpdateState?.status !== 'running') closeServiceUpdateConsole() }}>
+          <div className="bg-gray-900 rounded-xl max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-gray-700">
+              <div className="flex items-center gap-2 text-white">
+                <RefreshCw size={20} className={serviceUpdateState?.status === 'running' ? 'animate-spin text-blue-400' : 'text-green-400'} />
+                <h2 className="text-lg font-bold">Actualizando: {serviceUpdateConsole.serviceName}</h2>
+              </div>
+              <div className="flex gap-2">
+                {serviceUpdateState?.status !== 'running' && (
+                  <button
+                    onClick={closeServiceUpdateConsole}
+                    className="px-3 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-600"
+                  >
+                    Cerrar
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="p-4 border-b border-gray-700">
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`text-sm font-medium ${
+                  serviceUpdateState?.status === 'running' ? 'text-blue-400' :
+                  serviceUpdateState?.status === 'completed' ? 'text-green-400' :
+                  serviceUpdateState?.status === 'error' ? 'text-red-400' : 'text-gray-400'
+                }`}>
+                  {serviceUpdateState?.message || 'Iniciando...'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 bg-gray-700 rounded-full h-2 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      serviceUpdateState?.status === 'completed' ? 'bg-green-500' :
+                      serviceUpdateState?.status === 'error' ? 'bg-red-500' :
+                      'bg-blue-500 animate-pulse'
+                    }`}
+                    style={{ width: serviceUpdateState?.progress ? `${serviceUpdateState.progress}%` : '5%' }}
+                  />
+                </div>
+                <span className="text-xs text-gray-400 font-mono">
+                  {serviceUpdateState?.progress ? `${serviceUpdateState.progress}%` : '...'}
+                </span>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+              <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap overflow-auto">
+                {serviceUpdateState?.log || '$ Esperando inicio de actualizacion...'}
+              </pre>
             </div>
           </div>
         </div>
