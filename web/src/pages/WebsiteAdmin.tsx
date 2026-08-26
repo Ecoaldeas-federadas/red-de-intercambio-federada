@@ -423,6 +423,7 @@ export default function WebsiteAdmin() {
   const [showHelp, setShowHelp] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [menuOrderOpen, setMenuOrderOpen] = useState(false)
 
   // Builder State
   const [selectedPage, setSelectedPage] = useState<any>(null)
@@ -968,60 +969,73 @@ export default function WebsiteAdmin() {
 
           {/* ===== ORDENAR MENU VISUAL ===== */}
           {pages.filter(p => p.show_in_menu).length > 0 && (
-            <div className="mb-6 bg-white rounded-2xl p-4 shadow-sm border border-gray-200">
-              <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+            <div className="mb-6 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+              <button
+                onClick={() => setMenuOrderOpen(o => !o)}
+                className="w-full flex items-center gap-2 p-4 text-left hover:bg-gray-50 transition"
+              >
                 <Menu size={16} className="text-emerald-700" />
-                Orden del Menú
-                <span className="text-xs font-normal text-gray-400">(usa las flechas para reordenar)</span>
-              </h3>
-              <div className="space-y-1">
-                {[...pages]
-                  .filter(p => p.show_in_menu)
-                  .sort((a, b) => (a.menu_order || 0) - (b.menu_order || 0))
-                  .map((p, idx, arr) => (
-                  <div key={p.id} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 group hover:bg-emerald-50 transition">
-                    <span className="text-xs font-mono text-gray-400 w-6 text-center">{idx + 1}</span>
-                    <span className="text-xs font-mono px-2 py-0.5 rounded bg-gray-200 text-gray-700 flex-shrink-0">/p/{p.slug}</span>
-                    <span className="text-sm text-gray-800 flex-1 truncate">{p.title}</span>
-                    <div className="flex gap-1 opacity-60 group-hover:opacity-100 transition">
-                      <button
-                        disabled={idx === 0}
-                        onClick={async () => {
-                          // Subir: intercambiar menu_order con el anterior
-                          const prev = arr[idx - 1]
-                          if (!prev) return
-                          try {
-                            await api.put(`/site/pages/${p.id}`, { ...p, menu_order: prev.menu_order })
-                            await api.put(`/site/pages/${prev.id}`, { ...prev, menu_order: p.menu_order })
-                            load()
-                          } catch (err) { setError('Error al reordenar') }
-                        }}
-                        className="p-1 rounded hover:bg-emerald-200 text-emerald-700 disabled:opacity-20 disabled:cursor-not-allowed"
-                        title="Subir"
-                      >
-                        <ChevronUp size={16} />
-                      </button>
-                      <button
-                        disabled={idx === arr.length - 1}
-                        onClick={async () => {
-                          // Bajar: intercambiar menu_order con el siguiente
-                          const next = arr[idx + 1]
-                          if (!next) return
-                          try {
-                            await api.put(`/site/pages/${p.id}`, { ...p, menu_order: next.menu_order })
-                            await api.put(`/site/pages/${next.id}`, { ...next, menu_order: p.menu_order })
-                            load()
-                          } catch (err) { setError('Error al reordenar') }
-                        }}
-                        className="p-1 rounded hover:bg-emerald-200 text-emerald-700 disabled:opacity-20 disabled:cursor-not-allowed"
-                        title="Bajar"
-                      >
-                        <ChevronDown size={16} />
-                      </button>
+                <span className="text-sm font-bold text-gray-800">Orden del Menú</span>
+                <span className="text-xs font-normal text-gray-400">
+                  ({pages.filter(p => p.show_in_menu).length} páginas{menuOrderOpen ? '' : ' — clic para desplegar'})
+                </span>
+                <span className="ml-auto">
+                  {menuOrderOpen
+                    ? <ChevronUp size={18} className="text-gray-400" />
+                    : <ChevronDown size={18} className="text-gray-400" />}
+                </span>
+              </button>
+              {menuOrderOpen && (
+                <div className="px-4 pb-4 space-y-1">
+                  <p className="text-xs text-gray-400 mb-2">Usa las flechas para reordenar</p>
+                  {[...pages]
+                    .filter(p => p.show_in_menu)
+                    .sort((a, b) => (a.menu_order || 0) - (b.menu_order || 0))
+                    .map((p, idx, arr) => (
+                    <div key={p.id} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 group hover:bg-emerald-50 transition">
+                      <span className="text-xs font-mono text-gray-400 w-6 text-center">{idx + 1}</span>
+                      <span className="text-xs font-mono px-2 py-0.5 rounded bg-gray-200 text-gray-700 flex-shrink-0">/p/{p.slug}</span>
+                      <span className="text-sm text-gray-800 flex-1 truncate">{p.title}</span>
+                      <div className="flex gap-1 opacity-60 group-hover:opacity-100 transition">
+                        <button
+                          disabled={idx === 0}
+                          onClick={async () => {
+                            // Subir: intercambiar menu_order con el anterior
+                            const prev = arr[idx - 1]
+                            if (!prev) return
+                            try {
+                              await api.put(`/site/pages/${p.id}`, { ...p, menu_order: prev.menu_order })
+                              await api.put(`/site/pages/${prev.id}`, { ...prev, menu_order: p.menu_order })
+                              load()
+                            } catch (err) { setError('Error al reordenar') }
+                          }}
+                          className="p-1 rounded hover:bg-emerald-200 text-emerald-700 disabled:opacity-20 disabled:cursor-not-allowed"
+                          title="Subir"
+                        >
+                          <ChevronUp size={16} />
+                        </button>
+                        <button
+                          disabled={idx === arr.length - 1}
+                          onClick={async () => {
+                            // Bajar: intercambiar menu_order con el siguiente
+                            const next = arr[idx + 1]
+                            if (!next) return
+                            try {
+                              await api.put(`/site/pages/${p.id}`, { ...p, menu_order: next.menu_order })
+                              await api.put(`/site/pages/${next.id}`, { ...next, menu_order: p.menu_order })
+                              load()
+                            } catch (err) { setError('Error al reordenar') }
+                          }}
+                          className="p-1 rounded hover:bg-emerald-200 text-emerald-700 disabled:opacity-20 disabled:cursor-not-allowed"
+                          title="Bajar"
+                        >
+                          <ChevronDown size={16} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
