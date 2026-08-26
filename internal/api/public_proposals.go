@@ -399,20 +399,15 @@ func (h *PublicProposalsHandler) runDemoStart(presetID string) {
 	var upCmd *exec.Cmd
 	if hostDirFwd != "" && hostDirFwd != "/project" {
 		overrideFile := "/tmp/docker-compose.demo-start-override.yml"
+		// SOLO reemplazar bind mounts con rutas del host.
+		// Named volumes (demo_uploads) se quedan igual.
 		overrideContent := fmt.Sprintf(`services:
   demo-app:
     volumes:
-      - %s/secrets:/secrets:ro
-      - %s/config.demo.yaml:/app/config.yaml:ro
       - %s/firmware:/app/firmware:ro
-      - demo_firmware_builds:/tmp/firmware-builds
       - demo_uploads:/app/uploads
-      - demo_db_backups:/backups
-      - /var/run/docker.sock:/var/run/docker.sock
-      - %s:/project:rw
-      - demo_state:/app/.demo-shared
-      - update_state:/update-state
-`, hostDirFwd, hostDirFwd, hostDirFwd, hostDirFwd)
+      - %s/.demo-shared:/app/.demo-shared:ro
+`, hostDirFwd, hostDirFwd)
 		os.WriteFile(overrideFile, []byte(overrideContent), 0644)
 		appendDemoLog("Usando override con host paths: " + hostDirFwd)
 		upCmd = exec.Command("docker", "compose", "--project-directory", "/project",
@@ -704,23 +699,18 @@ func (h *PublicProposalsHandler) resetDemoNode(w http.ResponseWriter, r *http.Re
 	hostDirFwd := toForwardSlashes(hostProjectDir)
 
 	// Generar override con rutas del host para demo-app
+	// SOLO reemplazar los bind mounts (./firmware, ./.demo-shared) con rutas
+	// absolutas del host. Los named volumes (demo_uploads) se quedan igual.
 	var cmd *exec.Cmd
 	if hostDirFwd != "" && hostDirFwd != "/project" {
 		overrideFile := "/tmp/docker-compose.demo-override.yml"
 		overrideContent := fmt.Sprintf(`services:
   demo-app:
     volumes:
-      - %s/secrets:/secrets:ro
-      - %s/config.demo.yaml:/app/config.yaml:ro
       - %s/firmware:/app/firmware:ro
-      - demo_firmware_builds:/tmp/firmware-builds
       - demo_uploads:/app/uploads
-      - demo_db_backups:/backups
-      - /var/run/docker.sock:/var/run/docker.sock
-      - %s:/project:rw
-      - demo_state:/app/.demo-shared
-      - update_state:/update-state
-`, hostDirFwd, hostDirFwd, hostDirFwd, hostDirFwd)
+      - %s/.demo-shared:/app/.demo-shared:ro
+`, hostDirFwd, hostDirFwd)
 		os.WriteFile(overrideFile, []byte(overrideContent), 0644)
 		cmd = exec.Command("docker", "compose", "--project-directory", "/project",
 			"-f", composeFile, "-f", overrideFile,
