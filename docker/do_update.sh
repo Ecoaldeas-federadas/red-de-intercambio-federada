@@ -131,8 +131,8 @@ fi
 # 6. docker compose build node-app (30% -> 60%)
 check_cancelled
 write_state "running" "Construyendo imagen Docker del nodo (esto tarda varios minutos)..." "$NEW_COMMIT" "$STARTED" "" 30
-log "--- docker compose build node-app ---"
-if ! docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" build node-app 2>&1; then
+log "--- docker compose build node-app --no-cache ---"
+if ! docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" build --no-cache node-app 2>&1; then
   write_state "error" "Error al construir imagen node-app" "$NEW_COMMIT" "$STARTED" "$(date -Iseconds 2>/dev/null || date)" 30
   log "ERROR: docker build node-app fallo"
   exit 1

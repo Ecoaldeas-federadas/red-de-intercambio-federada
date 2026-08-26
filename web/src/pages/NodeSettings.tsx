@@ -3107,6 +3107,9 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
   const [nodeRestarting, setNodeRestarting] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [nodePowerAction, setNodePowerAction] = useState('')
+  const [nodeRunning, setNodeRunning] = useState<boolean | null>(null)
+  const [nodeLogs, setNodeLogs] = useState<string | null>(null)
+  const [showNodeLogs, setShowNodeLogs] = useState(false)
 
   // Llamar al updater-controller directamente (puerto 9110)
   const updaterApi = async (endpoint: string, method: string = 'POST') => {
@@ -3114,6 +3117,51 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
     const resp = await fetch(`http://${host}:9110${endpoint}`, { method })
     return resp.json()
   }
+
+  // Obtener estado real del nodo (corriendo o detenido)
+  const checkNodeStatus = async () => {
+    try {
+      const res: any = await api.get('/node/status')
+      setNodeRunning(res.running === true)
+    } catch {
+      // Si el nodo no responde, intentar via updater-controller
+      try {
+        const host = window.location.hostname
+        const resp = await fetch(`http://${host}:9110/node-status`)
+        const result = await resp.json()
+        setNodeRunning(result.running === true)
+      } catch {
+        setNodeRunning(null)
+      }
+    }
+  }
+
+  // Ver logs del nodo principal
+  const viewNodeLogs = async () => {
+    setShowNodeLogs(true)
+    setNodeLogs('Cargando logs...')
+    try {
+      const res: any = await api.get('/node/logs')
+      setNodeLogs(res.logs || 'Sin logs disponibles')
+    } catch {
+      // Si el nodo no responde, intentar via updater-controller
+      try {
+        const host = window.location.hostname
+        const resp = await fetch(`http://${host}:9110/node-status`)
+        const result = await resp.json()
+        setNodeLogs(`Nodo no responde (estado: ${result.status}). No se pueden obtener logs via API.`)
+      } catch {
+        setNodeLogs('No se pueden obtener logs. Ni el nodo ni el updater-controller responden.')
+      }
+    }
+  }
+
+  // Polling del estado del nodo cada 10 segundos
+  useEffect(() => {
+    checkNodeStatus()
+    const interval = setInterval(checkNodeStatus, 10000)
+    return () => clearInterval(interval)
+  }, [])
 
   const controlNode = async (action: 'start' | 'stop' | 'restart') => {
     const labels = { start: 'Arrancar', stop: 'Detener', restart: 'Reiniciar' }
@@ -3135,6 +3183,8 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
           setMsg({ type: 'error', text: `${labels[action]} fallo: ${result.message || 'error'}` })
         }
       }
+      // Esperar 3 segundos y refrescar el estado real del nodo
+      setTimeout(() => checkNodeStatus(), 3000)
     } catch (err) {
       setMsg({ type: 'error', text: `No se pudo ${action} el nodo.` })
     } finally {
@@ -3517,29 +3567,77 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
         </div>
       )}
 
+      {/* Estado del nodo (corriendo/detenido) */}
+      <div className="flex items-center gap-2 mb-3 text-sm">
+        {nodeRunning === null ? (
+          <span className="text-gray-500 flex items-center gap-1"><RefreshCw size={14} className="animate-spin" /> Verificando estado del nodo...</span>
+        ) : nodeRunning ? (
+          <span className="text-green-600 flex items-center gap-1"><CheckCircle size={14} /> Nodo: ARRANCADO</span>
+        ) : (
+          <span className="text-red-600 flex items-center gap-1"><Square size={14} /> Nodo: DETENIDO</span>
+        )}
+      </div>
+
+      {/* Consola del nodo principal */}
+      {showNodeLogs && (
+        <div className="bg-gray-900 rounded-lg p-4 mb-3 border border-gray-700">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-green-400 text-sm font-medium flex items-center gap-2">
+              <RefreshCw size={14} /> Consola del Nodo
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={viewNodeLogs}
+                className="px-2 py-1 bg-gray-700 text-white rounded text-xs flex items-center gap-1 hover:bg-gray-600"
+                title="Actualizar logs"
+              >
+                <RefreshCw size={10} /> Actualizar
+              </button>
+              <button
+                onClick={() => setShowNodeLogs(false)}
+                className="text-gray-400 hover:text-white text-xl px-2"
+              >&times;</button>
+            </div>
+          </div>
+          <pre className="text-xs text-green-400 bg-black p-3 rounded max-h-60 overflow-auto whitespace-pre-wrap font-mono border border-gray-800">
+            {nodeLogs}
+          </pre>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2">
         {canManage && (
           <>
             <button
               onClick={() => controlNode('start')}
-              disabled={nodePowerAction === 'start'}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
+              disabled={nodePowerAction === 'start' || nodeRunning === true}
+              className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              title={nodeRunning === true ? 'El nodo ya esta arrancado' : ''}
             >
               {nodePowerAction === 'start' ? <><RefreshCw size={16} className="animate-spin" /> Iniciando...</> : <><Play size={16} /> Arrancar</>}
             </button>
             <button
               onClick={() => controlNode('stop')}
-              disabled={nodePowerAction === 'stop'}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
+              disabled={nodePowerAction === 'stop' || nodeRunning === false}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              title={nodeRunning === false ? 'El nodo ya esta detenido' : ''}
             >
               {nodePowerAction === 'stop' ? <><RefreshCw size={16} className="animate-spin" /> Deteniendo...</> : <><Square size={16} /> Detener</>}
             </button>
             <button
               onClick={() => controlNode('restart')}
-              disabled={nodePowerAction === 'restart'}
-              className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
+              disabled={nodePowerAction === 'restart' || nodeRunning === false}
+              className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              title={nodeRunning === false ? 'El nodo esta detenido, usa Arrancar' : ''}
             >
               {nodePowerAction === 'restart' ? <><RefreshCw size={16} className="animate-spin" /> Reiniciando...</> : <><RefreshCw size={16} /> Reiniciar</>}
+            </button>
+            <button
+              onClick={viewNodeLogs}
+              className="px-4 py-2 bg-gray-700 text-white rounded-lg text-sm flex items-center gap-2"
+              title="Ver consola del nodo"
+            >
+              <RefreshCw size={16} /> Consola del nodo
             </button>
             <div className="w-px h-8 bg-gray-300 mx-1" />
             <button

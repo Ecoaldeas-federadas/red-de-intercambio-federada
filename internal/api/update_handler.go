@@ -35,6 +35,8 @@ func (h *UpdateHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequireAuth).Get("/api/node/update-status", h.getUpdateStatus)
 	r.With(am.RequireAuth).Get("/api/node/check-updates", h.checkUpdates)
 	r.With(am.RequirePermission("config.manage")).Post("/api/node/cancel-update", h.cancelUpdate)
+	r.With(am.RequireAuth).Get("/api/node/status", h.getNodeStatus)
+	r.With(am.RequireAuth).Get("/api/node/logs", h.getNodeLogs)
 	r.With(am.RequirePermission("config.manage")).Post("/api/node/start", h.startNode)
 	r.With(am.RequirePermission("config.manage")).Post("/api/node/stop", h.stopNode)
 	r.With(am.RequirePermission("config.manage")).Post("/api/node/restart", h.restartNode)
@@ -429,6 +431,51 @@ func (h *UpdateHandler) restartNode(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]interface{}{"success": true, "message": "Nodo reiniciado"})
+}
+
+// getNodeStatus devuelve el estado real del contenedor node-app.
+func (h *UpdateHandler) getNodeStatus(w http.ResponseWriter, _ *http.Request) {
+	projectName := detectComposeProjectName()
+	containerName := projectName + "-node-app-1"
+	running := false
+	status := "not-found"
+	cmd := exec.Command("docker", "inspect", "-f", "{{.State.Running}}|{{.State.Status}}", containerName)
+	output, err := cmd.Output()
+	if err == nil {
+		parts := strings.Split(strings.TrimSpace(string(output)), "|")
+		if len(parts) >= 2 {
+			running = parts[0] == "true"
+			status = parts[1]
+		}
+	}
+	writeJSON(w, 200, map[string]interface{}{
+		"running":        running,
+		"status":         status,
+		"container_name": containerName,
+	})
+}
+
+// getNodeLogs devuelve los logs recientes del contenedor node-app.
+func (h *UpdateHandler) getNodeLogs(w http.ResponseWriter, r *http.Request) {
+	projectName := detectComposeProjectName()
+	containerName := projectName + "-node-app-1"
+	tail := r.URL.Query().Get("tail")
+	if tail == "" {
+		tail = "200"
+	}
+	cmd := exec.Command("docker", "logs", "--tail", tail, containerName)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		writeJSON(w, 200, map[string]interface{}{
+			"logs":  "No se pudieron obtener logs del nodo: " + err.Error(),
+			"error": true,
+		})
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{
+		"logs":  string(output),
+		"error": false,
+	})
 }
 
 // updateService actualiza un servicio especifico.
