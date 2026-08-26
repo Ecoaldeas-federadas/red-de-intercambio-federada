@@ -19,7 +19,7 @@ WHERE NOT EXISTS (
 -- Fuente: literatura agricola tradicional, FAO, estudios de traccion animal
 -- Estos valores son referencias, no mediciones exactas.
 INSERT INTO calculator_parameters (node_domain, parameter_type, category, subcategory, name, description, unit, kwh_per_unit, effort_factor, approved)
-SELECT '__LOCAL__', 'work', 'Traccion Animal', subcat, name, desc, 'horas', kwh, eff, true
+SELECT '__LOCAL__', 'work', 'Traccion Animal', subcat, name, descr, 'horas', kwh, eff, true
 FROM (VALUES
     -- Bueyes (traccion pesada)
     ('Bueyes', 'Arado con bueyes', 'Arar tierra con yunta de bueyes y arado de madera', 1.20, 1.5),
@@ -38,7 +38,7 @@ FROM (VALUES
     ('Cuidado', 'Alimentacion de animales de tiro', 'Preparar y dar alimento a animales de trabajo', 0.08, 1.0),
     ('Cuidado', 'Higiene de animales de tiro', 'Limpiar y cuidar animales de trabajo', 0.06, 1.0),
     ('Cuidado', 'Herraje de animales', 'Herrar o revisar cascos de animales de tiro', 0.15, 1.0)
-) AS t(subcat, name, desc, kwh, eff)
+) AS t(subcat, name, descr, kwh, eff)
 WHERE NOT EXISTS (
     SELECT 1 FROM calculator_parameters
     WHERE node_domain = '__LOCAL__' AND parameter_type = 'work'
@@ -54,7 +54,7 @@ WHERE NOT EXISTS (
 );
 
 INSERT INTO calculator_parameters (node_domain, parameter_type, category, subcategory, name, description, unit, kwh_per_unit, effort_factor, approved)
-SELECT '__LOCAL__', 'material', 'Insumos Traccion Animal', subcat, name, desc, unit, kwh, 1.0, true
+SELECT '__LOCAL__', 'material', 'Insumos Traccion Animal', subcat, name, descr, unit, kwh, 1.0, true
 FROM (VALUES
     ('Forraje', 'Heno/forraje fresco', 'Forraje para alimentacion diaria de animales', 'kg', 0.005),
     ('Forraje', 'Grano/avena', 'Grano para alimentacion de animales de trabajo', 'kg', 0.015),
@@ -62,7 +62,7 @@ FROM (VALUES
     ('Agua', 'Agua para animales', 'Agua de bebida para animales de tiro', 'litros', 0.0002),
     ('Sanidad', 'Medicina veterinaria basica', 'Medicamentos basicos para animales de tiro', 'dosis', 0.010),
     ('Estabulo', 'Paja para cama', 'Paja para cama de animales en estabulo', 'kg', 0.002)
-) AS t(subcat, name, desc, unit, kwh)
+) AS t(subcat, name, descr, unit, kwh)
 WHERE NOT EXISTS (
     SELECT 1 FROM calculator_parameters
     WHERE node_domain = '__LOCAL__' AND parameter_type = 'material'
