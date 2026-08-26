@@ -94,8 +94,8 @@ export function PublicFederationPage() {
           if (d?.status === 'running') {
             setDemoState('running')
             setDemoStarting(false)
-            // Esperar un poco y abrir el demo
-            setTimeout(() => window.open('/demo', '_blank'), 2000)
+            // No abrir automaticamente - dejar que el usuario haga clic
+            // cuando haya revisado el log de arranque
           } else if (d?.status === 'error') {
             setDemoState('stopped')
             setDemoStarting(false)

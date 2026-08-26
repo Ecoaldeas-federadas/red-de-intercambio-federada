@@ -428,9 +428,59 @@ func (h *PublicProposalsHandler) runDemoStart(presetID string) {
 	}
 	appendDemoLog("Contenedor arrancado correctamente.")
 	appendDemoLog("El demo esta haciendo reset + seed automaticamente (datos frescos).")
+	appendDemoLog("")
+	appendDemoLog("Esperando a que el nodo demo termine de cargar...")
+	setDemoStatus("starting", "Nodo demo arrancando. Esperando a que este listo...")
 
-	setDemoStatus("running", "Nodo demo arrancado. Listo en unos segundos.")
-	appendDemoLog("=== ARRANQUE COMPLETADO ===")
+	// Esperar a que el nodo demo responda HTTP en el puerto 9091
+	// Mientras espera, ir mostrando los logs del contenedor demo-app
+	demoContainerName := projectName + "-demo-app-1"
+	maxWait := 120 // 120 * 2s = 4 min max
+	lastLogLen := 0
+	for i := 0; i < maxWait; i++ {
+		// Obtener logs recientes del contenedor demo-app
+		logCmd := exec.Command("docker", "logs", "--tail", "20", demoContainerName)
+		logOut, _ := logCmd.CombinedOutput()
+		logStr := string(logOut)
+		if len(logStr) > lastLogLen {
+			// Solo agregar las lineas nuevas
+			newLines := logStr[lastLogLen:]
+			appendDemoLog(strings.TrimSpace(newLines))
+			lastLogLen = len(logStr)
+		}
+
+		// Verificar si el contenedor sigue corriendo
+		inspectCmd := exec.Command("docker", "inspect", "-f", "{{.State.Running}}", demoContainerName)
+		inspectOut, _ := inspectCmd.Output()
+		if strings.TrimSpace(string(inspectOut)) != "true" {
+			appendDemoLog("ERROR: El contenedor demo-app se detuvo.")
+			setDemoStatus("error", "El nodo demo se detuvo durante el arranque")
+			return
+		}
+
+		// Intentar conectar al HTTP del demo
+		// El demo escucha en 9091 dentro de la red docker, pero desde node-app
+		// podemos acceder via el nombre del contenedor o via localhost:9091
+		// Usar docker exec para hacer curl desde dentro del contenedor demo-app
+		curlCmd := exec.Command("docker", "exec", demoContainerName, "wget", "-q", "-O", "/dev/null", "--timeout=3", "http://localhost:9091/demo/")
+		curlErr := curlCmd.Run()
+		if curlErr == nil {
+			// El nodo respondio!
+			appendDemoLog("")
+			appendDemoLog("Nodo demo respondio HTTP correctamente.")
+			appendDemoLog("=== ARRANQUE COMPLETADO ===")
+			setDemoStatus("running", "Nodo demo listo y funcionando.")
+			return
+		}
+
+		// Si no respondio, esperar y reintentar
+		setDemoStatus("starting", fmt.Sprintf("Nodo demo cargando... (intento %d/%d)", i+1, maxWait))
+		time.Sleep(2 * time.Second)
+	}
+
+	// Timeout: el nodo no respondio en 4 minutos
+	appendDemoLog("TIMEOUT: El nodo demo no respondio en 4 minutos.")
+	setDemoStatus("error", "El nodo demo no termino de cargar (timeout)")
 }
 
 // getDemoStartStatus devuelve el progreso del arranque del demo en tiempo real.
