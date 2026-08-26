@@ -42,7 +42,7 @@ ON CONFLICT (id) DO NOTHING,
 
 -- 3. Hutteritas
 ('hutterita', 'Hutteritas', 'Colonias comunales, bienes en comun, ~100 personas/colonia. Contabilidad departamental sin cuentas personales.', 'cristiana', 'users', true,
- '{"node_name":"Colonia Hutterita","commerce_schedule":[],"commerce_hours_enabled":false,"public_settings":{"footer_schedule":"Produccion agricola continua"},"colors":{"primary">#4338ca"}}')
+ '{"node_name":"Colonia Hutterita","commerce_schedule":[],"commerce_hours_enabled":false,"public_settings":{"footer_schedule":"Produccion agricola continua"},"colors":{"primary":"#4338ca"}}')
 ON CONFLICT (id) DO NOTHING,
 
 -- 4. Bruderhof
