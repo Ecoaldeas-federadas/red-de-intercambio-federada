@@ -205,9 +205,12 @@ if echo "$PATH_REQ" | grep -q '^/update$'; then
     log_msg "Rechazado: ya hay actualizacion en curso"
     send_response '{"success":false,"message":"Ya hay una actualizacion en curso"}'
   else
-    nohup /do_update.sh >> "$LOG_FILE" 2>&1 &
+    # do_update.sh escribe directamente al LOG_FILE con >>
+    # stdout va a /dev/null para evitar duplicacion
+    nohup /do_update.sh > /dev/null 2>&1 &
     UPDATE_PID=$!
     echo "$UPDATE_PID" > "$STATE_DIR/update.pid"
+    # tail -f muestra el LOG_FILE en docker logs (stderr)
     nohup tail -f "$LOG_FILE" >&2 &
     log_msg "do_update.sh iniciado en background (PID=$UPDATE_PID)"
     sleep 2

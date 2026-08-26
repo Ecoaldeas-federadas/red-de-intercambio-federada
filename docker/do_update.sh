@@ -25,10 +25,15 @@ write_state() {
   if [ -z "$PROGRESS" ]; then PROGRESS="0"; fi
   printf '{"status":"%s","message":"%s","commit":"%s","started_at":"%s","completed_at":"%s","progress":%s}' \
     "$STATUS" "$MESSAGE" "$COMMIT" "$STARTED" "$COMPLETED" "$PROGRESS" > "$STATE_FILE"
+  # Forzar sync del archivo para que el frontend lo vea inmediatamente
+  sync 2>/dev/null || true
 }
 
+# log() escribe directamente al LOG_FILE con >> para que aparezca inmediatamente
+# No escribe a stdout para evitar duplicacion (stdout va a /dev/null via nohup)
 log() {
-  echo "$1"
+  TS=$(date '+%H:%M:%S' 2>/dev/null || echo "")
+  printf '[%s] %s\n' "$TS" "$1" >> "$LOG_FILE"
 }
 
 # Verificar si la actualizacion fue cancelada
@@ -46,6 +51,9 @@ STARTED=$(date -Iseconds 2>/dev/null || date)
 : > "$LOG_FILE"
 write_state "running" "Iniciando actualizacion..." "" "$STARTED" "" 5
 log "=== INICIO ACTUALIZACION ==="
+log "Script: $0"
+log "PID: $$"
+log "Fecha: $STARTED"
 
 PROJECT_DIR=/project
 COMPOSE_FILE=$PROJECT_DIR/docker-compose.yml
@@ -71,6 +79,7 @@ if [ -z "$PROJECT_NAME" ]; then
   PROJECT_NAME="red-de-intercambio-federada"
 fi
 log "Project name detectado: $PROJECT_NAME"
+log "Compose file: $COMPOSE_FILE"
 
 REMOTE_URL=$(git -C "$PROJECT_DIR" remote get-url origin 2>/dev/null)
 log "Remote URL configurado"
@@ -78,8 +87,8 @@ log "Remote URL configurado"
 # 1. git fetch origin main (10%)
 check_cancelled
 write_state "running" "Descargando cambios del repositorio (git fetch)..." "" "$STARTED" "" 10
-log "--- git fetch ---"
-if ! git -C "$PROJECT_DIR" fetch origin main 2>&1; then
+log "--- git fetch origin main ---"
+if ! git -C "$PROJECT_DIR" fetch origin main >> "$LOG_FILE" 2>&1; then
   write_state "error" "Error en git fetch. Verifica GIT_TOKEN en .env" "" "$STARTED" "$(date -Iseconds 2>/dev/null || date)" 10
   log "ERROR: git fetch fallo"
   exit 1
@@ -94,14 +103,16 @@ git -C "$PROJECT_DIR" rebase --abort 2>/dev/null || true
 check_cancelled
 write_state "running" "Aplicando cambios del repositorio (git reset)..." "" "$STARTED" "" 15
 log "--- git reset --hard origin/main ---"
-if ! git -C "$PROJECT_DIR" reset --hard origin/main 2>&1; then
+if ! git -C "$PROJECT_DIR" reset --hard origin/main >> "$LOG_FILE" 2>&1; then
   write_state "error" "Error al aplicar cambios (git reset)" "" "$STARTED" "$(date -Iseconds 2>/dev/null || date)" 15
   log "ERROR: git reset fallo"
   exit 1
 fi
+log "git reset OK"
 
 # 4. Clean untracked files
-git -C "$PROJECT_DIR" clean -fd 2>&1 || true
+log "--- git clean -fd ---"
+git -C "$PROJECT_DIR" clean -fd >> "$LOG_FILE" 2>&1 || true
 log "Cambios del repositorio aplicados"
 
 NEW_COMMIT=$(git -C "$PROJECT_DIR" rev-parse --short HEAD 2>/dev/null || echo "")
@@ -117,8 +128,7 @@ if [ -n "$UPDATER_CHANGED" ]; then
   log "Cambios detectados en archivos del updater-controller: $UPDATER_CHANGED"
   check_cancelled
   write_state "running" "Construyendo nueva imagen updater-controller (sin reiniciarlo aun)..." "$NEW_COMMIT" "$STARTED" "" 20
-  log "--- docker compose build updater-controller (sin reiniciar) ---"
-  if docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" build updater-controller 2>&1; then
+  if docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" build --progress plain updater-controller >> "$LOG_FILE" 2>&1; then
     log "Nueva imagen updater-controller construida (se reiniciara al final)"
     UPDATER_NEEDS_UPDATE=true
   else
@@ -128,34 +138,55 @@ else
   log "Sin cambios en archivos del updater-controller. No se construye ni se reinicia."
 fi
 
-# 6. docker compose build node-app (30% -> 60%)
+# 6. docker compose build node-app --no-cache --progress plain (30% -> 60%)
+# CRITICO: --progress plain para que el output sea linea por linea (no progress bars)
+# Sin --progress plain, docker compose usa progress bars animadas que no funcionan
+# sin TTY y el output se bufferiza, haciendo que parezca colgado.
 check_cancelled
 write_state "running" "Construyendo imagen Docker del nodo (esto tarda varios minutos)..." "$NEW_COMMIT" "$STARTED" "" 30
-log "--- docker compose build node-app --no-cache ---"
-if ! docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" build --no-cache node-app 2>&1; then
+log "--- docker compose build --no-cache --progress plain node-app ---"
+log "NOTA: Esto puede tardar 10-20 minutos. El output aparece linea por linea."
+log "Si no ves output por unos minutos, es normal (descargando dependencias)."
+if ! docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" build --no-cache --progress plain node-app >> "$LOG_FILE" 2>&1; then
   write_state "error" "Error al construir imagen node-app" "$NEW_COMMIT" "$STARTED" "$(date -Iseconds 2>/dev/null || date)" 30
   log "ERROR: docker build node-app fallo"
   exit 1
 fi
-log "Imagen node-app construida"
+log "Imagen node-app construida OK"
 write_state "running" "Imagen del nodo construida. Construyendo demo-app..." "$NEW_COMMIT" "$STARTED" "" 60
 
 # 7. docker compose build demo-app (65%)
 write_state "running" "Construyendo imagen demo-app..." "$NEW_COMMIT" "$STARTED" "" 65
-log "--- docker compose build demo-app ---"
-docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" --profile demo build demo-app 2>&1 || true
+log "--- docker compose build --progress plain demo-app ---"
+docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" --profile demo build --progress plain demo-app >> "$LOG_FILE" 2>&1 || true
 log "Imagen demo-app construida (o cacheada)"
 
 # 8. Restart node-app (70% -> 85%)
 check_cancelled
 write_state "running" "Reiniciando nodo..." "$NEW_COMMIT" "$STARTED" "" 70
-log "--- docker compose up -d node-app ---"
-if ! docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" up -d --no-deps node-app 2>&1; then
+log "--- docker compose up -d --no-deps node-app ---"
+if ! docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" up -d --no-deps node-app >> "$LOG_FILE" 2>&1; then
   write_state "error" "Error al reiniciar nodo" "$NEW_COMMIT" "$STARTED" "$(date -Iseconds 2>/dev/null || date)" 70
   log "ERROR: docker up node-app fallo"
   exit 1
 fi
-log "Nodo reiniciado"
+log "Nodo reiniciado OK"
+
+# Verificar que el nodo este corriendo
+log "--- Verificando que node-app este corriendo ---"
+sleep 5
+NODE_CONTAINER="${PROJECT_NAME}-node-app-1"
+NODE_RUNNING=$(docker inspect -f '{{.State.Running}}' "$NODE_CONTAINER" 2>/dev/null || echo "false")
+if [ "$NODE_RUNNING" = "true" ]; then
+  log "OK: node-app esta corriendo"
+else
+  log "WARNING: node-app no esta corriendo despues del restart"
+  log "Estado del contenedor:"
+  docker inspect -f '{{.State.Status}}' "$NODE_CONTAINER" >> "$LOG_FILE" 2>&1 || true
+  log "Ultimos logs del nodo:"
+  docker logs --tail 20 "$NODE_CONTAINER" >> "$LOG_FILE" 2>&1 || true
+fi
+
 write_state "running" "Nodo reiniciado. Verificando demo-app..." "$NEW_COMMIT" "$STARTED" "" 85
 
 # 9. Recreate demo-app if it was running (leave it stopped)
@@ -165,7 +196,7 @@ if [ "$DEMO_RUNNING" = "true" ]; then
   log "Demo-app estaba corriendo, recreando con nueva imagen..."
   docker stop "$DEMO_CONTAINER" 2>/dev/null || true
   docker rm -f "$DEMO_CONTAINER" 2>/dev/null || true
-  docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" --profile demo up -d --no-deps demo-app 2>&1 || true
+  docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" --profile demo up -d --no-deps demo-app >> "$LOG_FILE" 2>&1 || true
   docker stop "$DEMO_CONTAINER" 2>/dev/null || true
   log "Demo-app recreado (detenido, listo para arrancar desde la web)"
 fi
@@ -179,7 +210,7 @@ if [ "$UPDATER_NEEDS_UPDATE" = "true" ]; then
   log "La actualizacion ya esta completa. El updater-controller arrancara con la nueva imagen."
   # Marcar como completado ANTES de reiniciar, porque este proceso morira
   write_state "completed" "Nodo actualizado. Updater-controller reiniciandose con nueva imagen." "$NEW_COMMIT" "$STARTED" "$(date -Iseconds 2>/dev/null || date)" 95
-  docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" up -d --no-deps --force-recreate updater-controller 2>&1 || true
+  docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" up -d --no-deps --force-recreate updater-controller >> "$LOG_FILE" 2>&1 || true
   # Este proceso muere aqui. El estado ya dice "completed".
   exit 0
 fi
@@ -189,7 +220,7 @@ fi
 UPDATER_RUNNING=$(docker inspect -f '{{.State.Running}}' "${PROJECT_NAME}-updater-controller-1" 2>/dev/null || echo "false")
 if [ "$UPDATER_RUNNING" != "true" ]; then
   log "Updater-controller no estaba corriendo. Arrancandolo..."
-  docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" up -d --no-deps updater-controller 2>&1 || true
+  docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" up -d --no-deps updater-controller >> "$LOG_FILE" 2>&1 || true
 fi
 
 log "=== ACTUALIZACION COMPLETADA ==="
