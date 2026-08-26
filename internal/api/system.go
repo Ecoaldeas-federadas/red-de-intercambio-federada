@@ -1734,7 +1734,7 @@ func (h *SystemHandler) listCalcParams(w http.ResponseWriter, r *http.Request) {
 	category := r.URL.Query().Get("category")
 	approvedOnly := r.URL.Query().Get("approved") == "true"
 
-	query := `SELECT id, parameter_type, category, subcategory, name, description, unit, kwh_per_unit, effort_factor, is_active, approved, created_at
+	query := `SELECT id, parameter_type, category, subcategory, name, description, unit, kwh_per_unit, effort_factor, is_active, approved, created_at, COALESCE(tariff_category,'')
 		FROM calculator_parameters WHERE node_domain = $1`
 	args := []interface{}{db.LOCAL_NODE_DOMAIN}
 	argIdx := 2
@@ -1769,22 +1769,24 @@ func (h *SystemHandler) listCalcParams(w http.ResponseWriter, r *http.Request) {
 		var kwhPerUnit, effortFactor float64
 		var isActive, approved bool
 		var createdAt time.Time
-		if err := rows.Scan(&id, &pType, &category2, &subcategory, &name, &description, &unit, &kwhPerUnit, &effortFactor, &isActive, &approved, &createdAt); err != nil {
+		var tariffCategory string
+		if err := rows.Scan(&id, &pType, &category2, &subcategory, &name, &description, &unit, &kwhPerUnit, &effortFactor, &isActive, &approved, &createdAt, &tariffCategory); err != nil {
 			continue
 		}
 		params = append(params, map[string]interface{}{
-			"id":            id.String(),
-			"type":          pType,
-			"category":      category2,
-			"subcategory":   deref(subcategory),
-			"name":          name,
-			"description":   deref(description),
-			"unit":          deref(unit),
-			"kwh_per_unit":  kwhPerUnit,
-			"effort_factor": effortFactor,
-			"is_active":     isActive,
-			"approved":      approved,
-			"created_at":    createdAt,
+			"id":              id.String(),
+			"type":            pType,
+			"category":        category2,
+			"subcategory":     deref(subcategory),
+			"name":            name,
+			"description":     deref(description),
+			"unit":            deref(unit),
+			"kwh_per_unit":    kwhPerUnit,
+			"effort_factor":   effortFactor,
+			"tariff_category": tariffCategory,
+			"is_active":       isActive,
+			"approved":        approved,
+			"created_at":      createdAt,
 		})
 	}
 	if params == nil {
@@ -1835,14 +1837,15 @@ func (h *SystemHandler) listCalcCategories(w http.ResponseWriter, r *http.Reques
 }
 
 type CreateCalcParamRequest struct {
-	Type         string  `json:"type"` // 'work' o 'material'
-	Category     string  `json:"category"`
-	Subcategory  string  `json:"subcategory"`
-	Name         string  `json:"name"`
-	Description  string  `json:"description"`
-	Unit         string  `json:"unit"`
-	KwhPerUnit   float64 `json:"kwh_per_unit"`
-	EffortFactor float64 `json:"effort_factor"`
+	Type           string  `json:"type"` // 'work' o 'material'
+	Category       string  `json:"category"`
+	Subcategory    string  `json:"subcategory"`
+	Name           string  `json:"name"`
+	Description    string  `json:"description"`
+	Unit           string  `json:"unit"`
+	KwhPerUnit     float64 `json:"kwh_per_unit"`
+	EffortFactor   float64 `json:"effort_factor"`
+	TariffCategory string  `json:"tariff_category"` // 'agricultural', 'technical', 'admin' o ''
 }
 
 func (h *SystemHandler) createCalcParam(w http.ResponseWriter, r *http.Request) {
@@ -1884,11 +1887,15 @@ func (h *SystemHandler) createCalcParam(w http.ResponseWriter, r *http.Request) 
 	if req.Description != "" {
 		description = &req.Description
 	}
+	var tariffCategory *string
+	if req.TariffCategory != "" {
+		tariffCategory = &req.TariffCategory
+	}
 
 	_, err := h.Pool.Exec(r.Context(), `
-		INSERT INTO calculator_parameters (id, node_domain, parameter_type, category, subcategory, name, description, unit, kwh_per_unit, effort_factor, approved, created_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false, $11)`,
-		id, db.LOCAL_NODE_DOMAIN, req.Type, req.Category, subcategory, req.Name, description, req.Unit, req.KwhPerUnit, req.EffortFactor, userID)
+		INSERT INTO calculator_parameters (id, node_domain, parameter_type, category, subcategory, name, description, unit, kwh_per_unit, effort_factor, tariff_category, approved, created_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, false, $12)`,
+		id, db.LOCAL_NODE_DOMAIN, req.Type, req.Category, subcategory, req.Name, description, req.Unit, req.KwhPerUnit, req.EffortFactor, tariffCategory, userID)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
@@ -1925,14 +1932,18 @@ func (h *SystemHandler) updateCalcParam(w http.ResponseWriter, r *http.Request) 
 	if req.Description != "" {
 		description = &req.Description
 	}
+	var tariffCategory *string
+	if req.TariffCategory != "" {
+		tariffCategory = &req.TariffCategory
+	}
 
 	_, err = h.Pool.Exec(r.Context(), `
 		UPDATE calculator_parameters SET
 			category = $1, subcategory = $2, name = $3, description = $4,
-			unit = $5, kwh_per_unit = $6, effort_factor = $7,
+			unit = $5, kwh_per_unit = $6, effort_factor = $7, tariff_category = $8,
 			approved = false, updated_at = NOW()
-		WHERE id = $8`,
-		req.Category, subcategory, req.Name, description, req.Unit, req.KwhPerUnit, req.EffortFactor, id)
+		WHERE id = $9`,
+		req.Category, subcategory, req.Name, description, req.Unit, req.KwhPerUnit, req.EffortFactor, tariffCategory, id)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return

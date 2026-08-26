@@ -3195,38 +3195,45 @@ func demoSeedCalculatorData(ctx context.Context, d *DB, nodeDomain string) {
 	}
 
 	// Parametros de trabajo
+	// tariff_category vincula cada trabajo a la tarifa energetica (canasta vital)
+	// 'agricultural' -> base_rate * effort_agricultural (0.61)
+	// 'technical'    -> base_rate * effort_technical (3.0)
+	// 'admin'        -> base_rate * effort_admin (1.0)
+	// Cuando la asamblea cambia la canasta vital, la calculadora se actualiza automaticamente
 	workParams := []struct {
-		category, name, desc string
-		kwh                  float64
+		category, name, desc, tariffCat string
+		kwh                             float64
 	}{
-		{"Agricultura", "Siembra manual", "Sembrar semillas a mano en el campo", 0.15},
-		{"Agricultura", "Cosecha manual", "Recolectar frutos, verduras o granos a mano", 0.18},
-		{"Agricultura", "Cavado de tierra", "Cavar o arar la tierra con pala/azadon", 0.22},
-		{"Agricultura", "Riego manual", "Regar plantas con regadera o manguera", 0.12},
-		{"Agricultura", "Cuidado de animales", "Alimentar, limpiar y cuidar animales", 0.10},
-		{"Produccion de alimentos", "Cocina a leña", "Cocinar usando fogon o leña", 0.08},
-		{"Produccion de alimentos", "Cocina a gas", "Cocinar usando estufa de gas", 0.06},
-		{"Produccion de alimentos", "Panaderia manual", "Amasar, formar y hornear pan a mano", 0.12},
-		{"Produccion de alimentos", "Conservas y envasado", "Preparar conservas, mermeladas, encurtidos", 0.10},
-		{"Artesania y manufactura", "Costura a mano", "Coser, bordar o tejer a mano", 0.07},
-		{"Artesania y manufactura", "Carpinteria manual", "Trabajar madera con herramientas manuales", 0.17},
-		{"Artesania y manufactura", "Ceramica/alfareria", "Modelar y cocer ceramica", 0.13},
-		{"Construccion", "Albañileria", "Levantar muros, mezclar cemento", 0.19},
-		{"Construccion", "Pintura", "Pintar paredes o superficies", 0.09},
-		{"Construccion", "Plomeria", "Instalar o reparar tuberias", 0.11},
-		{"Construccion", "Electricidad", "Instalar o reparar cableado electrico", 0.10},
-		{"Servicios", "Limpieza", "Limpieza de espacios o viviendas", 0.06},
-		{"Servicios", "Cuidado de personas", "Cuidar niños, ancianos o enfermos", 0.07},
-		{"Servicios", "Enseñanza", "Dar clases o talleres", 0.05},
-		{"Trabajo intelectual", "Oficina/administracion", "Trabajo de oficina, contabilidad, gestion", 0.03},
-		{"Trabajo intelectual", "Computacion/programacion", "Trabajo con computadora", 0.04},
+		{"Agricultura", "Siembra manual", "Sembrar semillas a mano en el campo", "agricultural", 0.61},
+		{"Agricultura", "Cosecha manual", "Recolectar frutos, verduras o granos a mano", "agricultural", 0.61},
+		{"Agricultura", "Cavado de tierra", "Cavar o arar la tierra con pala/azadon", "agricultural", 0.61},
+		{"Agricultura", "Riego manual", "Regar plantas con regadera o manguera", "agricultural", 0.61},
+		{"Agricultura", "Cuidado de animales", "Alimentar, limpiar y cuidar animales", "agricultural", 0.61},
+		{"Produccion de alimentos", "Cocina a leña", "Cocinar usando fogon o leña", "admin", 1.0},
+		{"Produccion de alimentos", "Cocina a gas", "Cocinar usando estufa de gas", "admin", 1.0},
+		{"Produccion de alimentos", "Panaderia manual", "Amasar, formar y hornear pan a mano", "admin", 1.0},
+		{"Produccion de alimentos", "Conservas y envasado", "Preparar conservas, mermeladas, encurtidos", "admin", 1.0},
+		{"Artesania y manufactura", "Costura a mano", "Coser, bordar o tejer a mano", "technical", 3.0},
+		{"Artesania y manufactura", "Carpinteria manual", "Trabajar madera con herramientas manuales", "technical", 3.0},
+		{"Artesania y manufactura", "Ceramica/alfareria", "Modelar y cocer ceramica", "technical", 3.0},
+		{"Construccion", "Albañileria", "Levantar muros, mezclar cemento", "technical", 3.0},
+		{"Construccion", "Pintura", "Pintar paredes o superficies", "technical", 3.0},
+		{"Construccion", "Plomeria", "Instalar o reparar tuberias", "technical", 3.0},
+		{"Construccion", "Electricidad", "Instalar o reparar cableado electrico", "technical", 3.0},
+		{"Servicios", "Limpieza", "Limpieza de espacios o viviendas", "admin", 1.0},
+		{"Servicios", "Cuidado de personas", "Cuidar niños, ancianos o enfermos", "admin", 1.0},
+		{"Servicios", "Enseñanza", "Dar clases o talleres", "admin", 1.0},
+		{"Trabajo intelectual", "Oficina/administracion", "Trabajo de oficina, contabilidad, gestion", "admin", 1.0},
+		{"Trabajo intelectual", "Computacion/programacion", "Trabajo con computadora", "admin", 1.0},
 	}
 	for _, p := range workParams {
 		d.Pool.Exec(ctx, `
-			INSERT INTO calculator_parameters (node_domain, parameter_type, category, name, description, unit, kwh_per_unit, effort_factor, approved)
-			VALUES ($1, 'work', $2, $3, $4, 'horas', $5, 1.0, true)
-			ON CONFLICT DO NOTHING`,
-			LOCAL_NODE_DOMAIN, p.category, p.name, p.desc, p.kwh)
+			INSERT INTO calculator_parameters (node_domain, parameter_type, category, name, description, unit, kwh_per_unit, effort_factor, tariff_category, approved)
+			VALUES ($1, 'work', $2, $3, $4, 'horas', $5, 1.0, $6, true)
+			ON CONFLICT (node_domain, parameter_type, category, name) DO UPDATE SET
+				tariff_category = EXCLUDED.tariff_category,
+				kwh_per_unit = EXCLUDED.kwh_per_unit`,
+			LOCAL_NODE_DOMAIN, p.category, p.name, p.desc, p.kwh, p.tariffCat)
 	}
 
 	// Parametros de materiales

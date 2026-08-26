@@ -118,6 +118,7 @@ export default function Calculator() {
   // Parametros dinamicos desde la BD
   const [workParams, setWorkParams] = useState<any[]>([])
   const [materialParams, setMaterialParams] = useState<any[]>([])
+  const [tariff, setTariff] = useState<any>(null)
 
   // Simple mode state
   const [workItems, setWorkItems] = useState<WorkItem[]>([])
@@ -137,6 +138,8 @@ export default function Calculator() {
     // Cargar parametros aprobados desde la BD
     api.get('/calculator/params?type=work&approved=true').then((d: any) => setWorkParams(Array.isArray(d) ? d : [])).catch(() => setWorkParams([]))
     api.get('/calculator/params?type=material&approved=true').then((d: any) => setMaterialParams(Array.isArray(d) ? d : [])).catch(() => setMaterialParams([]))
+    // Cargar tarifa energetica para calculo dinamico
+    api.get('/calculator/tariff').then((d: any) => setTariff(d)).catch(() => setTariff(null))
   }, [])
 
   // Categorias dinamicas agrupadas desde workParams
@@ -146,6 +149,33 @@ export default function Calculator() {
     return acc
   }, {})
 
+  // Calcular base_rate dinamico desde la tarifa energetica (canasta vital)
+  // base_rate = (vital_food + vital_water + vital_domestic + vital_services) / work_hours_per_day
+  const baseRate = tariff
+    ? (tariff.vital_food + tariff.vital_water + tariff.vital_domestic + tariff.vital_services) / (tariff.work_hours_per_day || 8)
+    : 1.0
+
+  // Obtener el factor de esfuerzo de la tarifa segun tariff_category
+  const getTariffEffortFactor = (tariffCategory: string): number => {
+    if (!tariff || !tariffCategory) return 1.0
+    switch (tariffCategory) {
+      case 'agricultural': return tariff.effort_agricultural || 0.61
+      case 'technical': return tariff.effort_technical || 3.0
+      case 'admin': return tariff.effort_admin || 1.0
+      default: return 1.0
+    }
+  }
+
+  // Calcular kWh por hora para un parametro de trabajo
+  // Si tiene tariff_category, usa base_rate * effort_factor_from_tariff (dinamico)
+  // Si no, usa kwh_per_unit * effort_factor (estatico, comportamiento anterior)
+  const getKwhPerHour = (param: any): number => {
+    if (param.tariff_category) {
+      return baseRate * getTariffEffortFactor(param.tariff_category)
+    }
+    return param.kwh_per_unit * (param.effort_factor || 1.0)
+  }
+
   const addWork = () => {
     if (!selectedWorkType) return
     const param = workParams.find((p: any) => p.name === selectedWorkType && p.category === selectedWorkCategory)
@@ -153,7 +183,7 @@ export default function Calculator() {
     setWorkItems([...workItems, {
       id: crypto.randomUUID(),
       typeName: param.name,
-      kWhPerHour: param.kwh_per_unit * (param.effort_factor || 1.0),
+      kWhPerHour: getKwhPerHour(param),
       hours: workHours,
     }])
     setSelectedWorkType('')
@@ -281,8 +311,15 @@ export default function Calculator() {
                 </select>
                 {selectedWorkType && (
                   <p className="text-xs text-gray-400 mt-1">
-                    Costo energetico: {workParams.find((p: any) => p.name === selectedWorkType)?.kwh_per_unit} kWh por hora
-                    {workParams.find((p: any) => p.name === selectedWorkType)?.effort_factor !== 1.0 && ` (x${workParams.find((p: any) => p.name === selectedWorkType)?.effort_factor} esfuerzo)`}
+                    Costo energetico: {(() => {
+                      const p = workParams.find((pp: any) => pp.name === selectedWorkType)
+                      if (!p) return '?'
+                      const kwh = getKwhPerHour(p)
+                      if (p.tariff_category) {
+                        return `${kwh.toFixed(2)} kWh/hora (dinamico: ${baseRate.toFixed(1)} base x ${getTariffEffortFactor(p.tariff_category)} esfuerzo ${p.tariff_category})`
+                      }
+                      return `${kwh.toFixed(2)} kWh por hora`
+                    })()}
                   </p>
                 )}
               </div>
