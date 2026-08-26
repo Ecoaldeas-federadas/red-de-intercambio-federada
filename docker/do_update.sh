@@ -175,7 +175,10 @@ dc_up() {
 check_cancelled
 write_state "running" "Descargando cambios del repositorio..." "" "$STARTED" "" 10
 log "--- git fetch origin main ---"
-if ! git -C "$PROJECT_DIR" fetch origin main >> "$LOG_FILE" 2>&1; then
+# Usar --force para sobrescribir refs locales y --prune para limpiar refs viejos
+# fetch origin main actualiza FETCH_HEAD pero no siempre actualiza refs/remotes/origin/main
+# Por eso usamos fetch --all --prune --force para asegurar que origin/main se actualice
+if ! git -C "$PROJECT_DIR" fetch origin --force --prune >> "$LOG_FILE" 2>&1; then
   write_state "error" "Error en git fetch. Verifica GIT_TOKEN en .env" "" "$STARTED" "$(date -Iseconds 2>/dev/null || date)" 10
   log "ERROR: git fetch fallo"
   exit 1
@@ -186,13 +189,21 @@ log "git fetch OK"
 git -C "$PROJECT_DIR" merge --abort 2>/dev/null || true
 git -C "$PROJECT_DIR" rebase --abort 2>/dev/null || true
 
+# Verificar que origin/main existe y cual es su commit
+REMOTE_COMMIT=$(git -C "$PROJECT_DIR" rev-parse --short origin/main 2>/dev/null || echo "")
+log "Commit remoto (origin/main): $REMOTE_COMMIT"
+
 check_cancelled
 write_state "running" "Aplicando cambios del repositorio..." "" "$STARTED" "" 15
 log "--- git reset --hard origin/main ---"
 if ! git -C "$PROJECT_DIR" reset --hard origin/main >> "$LOG_FILE" 2>&1; then
-  write_state "error" "Error al aplicar cambios (git reset)" "" "$STARTED" "$(date -Iseconds 2>/dev/null || date)" 15
-  log "ERROR: git reset fallo"
-  exit 1
+  # Si origin/main no existe, intentar con FETCH_HEAD
+  log "origin/main no disponible, intentando con FETCH_HEAD..."
+  if ! git -C "$PROJECT_DIR" reset --hard FETCH_HEAD >> "$LOG_FILE" 2>&1; then
+    write_state "error" "Error al aplicar cambios (git reset)" "" "$STARTED" "$(date -Iseconds 2>/dev/null || date)" 15
+    log "ERROR: git reset fallo"
+    exit 1
+  fi
 fi
 log "git reset OK"
 
