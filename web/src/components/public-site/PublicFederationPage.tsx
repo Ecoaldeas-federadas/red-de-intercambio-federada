@@ -38,6 +38,9 @@ export function PublicFederationPage() {
   const [demoStarting, setDemoStarting] = useState(false)
   const [demoStartLog, setDemoStartLog] = useState('')
   const [demoStartMsg, setDemoStartMsg] = useState('')
+  const [demoPresets, setDemoPresets] = useState<any[]>([])
+  const [demoPresetSel, setDemoPresetSel] = useState('gen_ecoaldea')
+  const [demoPresetsLoaded, setDemoPresetsLoaded] = useState(false)
 
   useEffect(() => {
     api.get('/public/proposals').then((d: any) => {
@@ -47,6 +50,16 @@ export function PublicFederationPage() {
     // Verificar estado del nodo demo
     checkDemoStatus()
   }, [])
+
+  // Cargar presets del demo (solo si el demo no esta corriendo)
+  const loadDemoPresets = () => {
+    api.get('/presets').then((d: any) => {
+      if (d?.presets && Array.isArray(d.presets)) {
+        setDemoPresets(d.presets)
+        setDemoPresetsLoaded(true)
+      }
+    }).catch(() => {})
+  }
 
   const checkDemoStatus = () => {
     api.get('/demo/status').then((d: any) => {
@@ -62,9 +75,12 @@ export function PublicFederationPage() {
     setDemoStarting(true)
     setDemoState('starting')
     setDemoStartLog('Iniciando proceso de arranque...\n')
+    if (demoPresetSel) {
+      setDemoStartLog(prev => prev + `Preconfiguracion seleccionada: ${demoPresetSel}\n`)
+    }
     setDemoStartMsg('Enviando solicitud...')
     try {
-      await api.post('/demo/start', {})
+      await api.post('/demo/start', { preset_id: demoPresetSel || 'gen_ecoaldea' })
       // Consultar el progreso periodicamente
       let attempts = 0
       const maxAttempts = 120 // 120 * 2s = 4 min max
@@ -509,17 +525,56 @@ export function PublicFederationPage() {
                 <ExternalLink size={20} /> Entrar al Nodo Demo
               </a>
             ) : (
-              <button
-                onClick={startDemo}
-                disabled={demoStarting || demoState === 'starting'}
-                className="inline-flex items-center gap-2 bg-white text-emerald-700 font-semibold px-8 py-4 rounded-xl hover:bg-emerald-50 transition text-lg disabled:opacity-60"
-              >
-                {demoStarting ? (
-                  <><Loader2 size={20} className="animate-spin" /> Iniciando...</>
-                ) : (
-                  <><Power size={20} /> Iniciar Nodo Demo</>
-                )}
-              </button>
+              <div className="space-y-4">
+                {/* Selector de preconfiguracion */}
+                <div className="text-left">
+                  <label className="text-sm text-emerald-100 font-medium flex items-center gap-1 mb-2">
+                    <Sparkles size={14} /> Preconfiguracion del demo
+                  </label>
+                  <p className="text-xs text-emerald-200 mb-2">
+                    Elige los datos con los que se iniciara el demo. Cada perfil carga
+                    usuarios, organizaciones y reglas distintas.
+                  </p>
+                  {!demoPresetsLoaded && (
+                    <button
+                      onClick={loadDemoPresets}
+                      className="text-xs bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg transition"
+                    >
+                      Ver preconfiguraciones disponibles
+                    </button>
+                  )}
+                  {demoPresetsLoaded && demoPresets.length > 0 && (
+                    <select
+                      value={demoPresetSel}
+                      onChange={(e) => setDemoPresetSel(e.target.value)}
+                      className="w-full bg-white text-gray-800 rounded-lg p-2.5 text-sm border border-white/30"
+                    >
+                      {demoPresets.map((p: any) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.category})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {demoPresetsLoaded && demoPresets.length > 0 && demoPresets.find((p) => p.id === demoPresetSel) && (
+                    <p className="text-xs text-emerald-200 italic mt-2 bg-white/10 rounded-lg p-2">
+                      {demoPresets.find((p) => p.id === demoPresetSel)?.description}
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  onClick={startDemo}
+                  disabled={demoStarting || demoState === 'starting'}
+                  className="inline-flex items-center gap-2 bg-white text-emerald-700 font-semibold px-8 py-4 rounded-xl hover:bg-emerald-50 transition text-lg disabled:opacity-60"
+                >
+                  {demoStarting ? (
+                    <><Loader2 size={20} className="animate-spin" /> Iniciando...</>
+                  ) : (
+                    <><Power size={20} /> Iniciar Nodo Demo</>
+                  )}
+                </button>
+              </div>
             )}
 
             <p className="text-xs text-emerald-200 mt-4">

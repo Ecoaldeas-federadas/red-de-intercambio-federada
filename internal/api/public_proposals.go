@@ -291,6 +291,17 @@ var demoStartStatus = struct {
 // Es ASINCRONO: responde inmediatamente y el progreso se consulta con
 // GET /api/demo/start/status
 func (h *PublicProposalsHandler) startDemoNode(w http.ResponseWriter, r *http.Request) {
+	// Leer preset_id del body (opcional)
+	presetID := ""
+	if r.Body != nil {
+		var req struct {
+			PresetID string `json:"preset_id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err == nil && req.PresetID != "" {
+			presetID = req.PresetID
+		}
+	}
+
 	demoStartStatus.Lock()
 	if demoStartStatus.status == "building" || demoStartStatus.status == "starting" {
 		demoStartStatus.Unlock()
@@ -303,8 +314,8 @@ func (h *PublicProposalsHandler) startDemoNode(w http.ResponseWriter, r *http.Re
 	}
 	demoStartStatus.Unlock()
 
-	// Iniciar el arranque en background
-	go h.runDemoStart()
+	// Iniciar el arranque en background con el preset seleccionado
+	go h.runDemoStart(presetID)
 
 	writeJSON(w, 200, map[string]interface{}{
 		"success": true,
@@ -320,11 +331,14 @@ func (h *PublicProposalsHandler) startDemoNode(w http.ResponseWriter, r *http.Re
 // Al arrancar, el demo hace DemoReset + DemoAutoSetup + DemoSeedData
 // automaticamente (ver cmd/node/main.go), asi que los datos siempre
 // quedan frescos con los datos sembrados, sin cambios de usuarios.
-func (h *PublicProposalsHandler) runDemoStart() {
+func (h *PublicProposalsHandler) runDemoStart(presetID string) {
 	demoStartStatus.Lock()
 	demoStartStatus.status = "starting"
 	demoStartStatus.message = "Preparando arranque del nodo demo..."
 	demoStartStatus.log = "=== INICIO ARRANQUE DEMO ===\n"
+	if presetID != "" {
+		demoStartStatus.log += "Preset seleccionado: " + presetID + "\n"
+	}
 	demoStartStatus.Unlock()
 
 	appendDemoLog := func(msg string) {
@@ -355,6 +369,17 @@ func (h *PublicProposalsHandler) runDemoStart() {
 	_ = os.WriteFile(filepath.Join(sharedDir, "parent-domain.txt"), []byte(parentDomain), 0644)
 	appendDemoLog("Dominio del padre: " + parentDomain)
 	appendDemoLog("Proyecto Docker Compose: " + projectName)
+
+	// Si se especifico preset, escribirlo en .demo-shared/preset.txt
+	// para que el nodo demo lo lea al arrancar
+	if presetID != "" {
+		presetPath := filepath.Join(sharedDir, "preset.txt")
+		if err := os.WriteFile(presetPath, []byte(presetID), 0644); err != nil {
+			appendDemoLog("WARNING: no se pudo escribir preset.txt: " + err.Error())
+		} else {
+			appendDemoLog("Preset escrito en .demo-shared/preset.txt: " + presetID)
+		}
+	}
 
 	// Arrancar el contenedor con --force-recreate.
 	// Esto recrea el contenedor (borra el viejo, crea uno nuevo).
