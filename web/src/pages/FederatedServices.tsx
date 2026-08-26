@@ -246,12 +246,12 @@ export default function FederatedServices() {
       const res: any = await api.get(`/services/${svc.id}/check-update`)
       setServiceUpdateInfo((prev: any) => ({ ...prev, [svc.id]: res }))
       if (res.updates_available) {
-        setMsg({ type: 'info', text: `${svc.name}: hay actualizaciones disponibles` })
+        setInstallMsgs((prev: any) => ({ ...prev, [svc.id]: { type: 'info', text: `${svc.name}: hay actualizaciones disponibles`, logs: res.changed_files ? `Archivos cambiados:\n${res.changed_files}` : undefined } }))
       } else {
-        setMsg({ type: 'success', text: `${svc.name}: ya esta actualizado` })
+        setInstallMsgs((prev: any) => ({ ...prev, [svc.id]: { type: 'success', text: `${svc.name}: ya esta actualizado` } }))
       }
     } catch (e: any) {
-      setMsg({ type: 'error', text: 'Error al verificar actualizaciones de ' + svc.name })
+      setInstallMsgs((prev: any) => ({ ...prev, [svc.id]: { type: 'error', text: 'Error al verificar actualizaciones de ' + svc.name } }))
     } finally {
       setCheckingServiceUpdate(null)
     }
@@ -270,14 +270,14 @@ export default function FederatedServices() {
           if (res.status === 'completed') {
             clearInterval(interval)
             setServiceUpdatePoll(null)
-            setMsg({ type: 'success', text: `${svc.name} actualizado correctamente` })
+            setInstallMsgs((prev: any) => ({ ...prev, [svc.id]: { type: 'success', text: `${svc.name} actualizado correctamente` } }))
             await loadServices()
             // Limpiar info de verificacion
             setServiceUpdateInfo((prev: any) => { const n = { ...prev }; delete n[svc.id]; return n })
           } else if (res.status === 'error') {
             clearInterval(interval)
             setServiceUpdatePoll(null)
-            setMsg({ type: 'error', text: res.message || 'Error en la actualizacion' })
+            setInstallMsgs((prev: any) => ({ ...prev, [svc.id]: { type: 'error', text: res.message || 'Error en la actualizacion', logs: res.log } }))
           }
         } catch (e) {
           // Continuar intentando
@@ -285,7 +285,7 @@ export default function FederatedServices() {
       }, 2000)
       setServiceUpdatePoll(interval)
     } catch (e: any) {
-      setMsg({ type: 'error', text: 'Error al iniciar actualizacion: ' + (e?.message || 'sin respuesta') })
+      setInstallMsgs((prev: any) => ({ ...prev, [svc.id]: { type: 'error', text: 'Error al iniciar actualizacion: ' + (e?.message || 'sin respuesta') } }))
     }
   }
 
@@ -651,22 +651,6 @@ export default function FederatedServices() {
                     <Lock size={12} /> Instalar (demo: no disponible)
                   </span>
                 )}
-                {/* Mensaje de instalacion al lado del boton */}
-                {installMsgs[svc.id] && (
-                  <div className={`w-full mt-2 p-2 rounded text-xs ${
-                    installMsgs[svc.id].type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' :
-                    installMsgs[svc.id].type === 'error' ? 'bg-red-50 text-red-700 border border-red-200' :
-                    'bg-blue-50 text-blue-700 border border-blue-200'
-                  }`}>
-                    <div className="font-medium">{installMsgs[svc.id].text}</div>
-                    {installMsgs[svc.id].logs && (
-                      <details className="mt-1">
-                        <summary className="cursor-pointer text-xs opacity-70">Ver logs de instalacion</summary>
-                        <pre className="text-xs mt-1 bg-gray-900 text-gray-100 p-2 rounded max-h-40 overflow-auto whitespace-pre-wrap font-mono">{installMsgs[svc.id].logs}</pre>
-                      </details>
-                    )}
-                  </div>
-                )}
                 {isInstalled && isRunning && !isDemoNode && (
                   <button
                     onClick={() => stopService(svc)}
@@ -757,6 +741,22 @@ export default function FederatedServices() {
                   </button>
                 )}
               </div>
+              {/* Mensaje contextual al lado de los botones */}
+              {installMsgs[svc.id] && (
+                <div className={`w-full mt-2 p-2 rounded text-xs ${
+                  installMsgs[svc.id].type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' :
+                  installMsgs[svc.id].type === 'error' ? 'bg-red-50 text-red-700 border border-red-200' :
+                  'bg-blue-50 text-blue-700 border border-blue-200'
+                }`}>
+                  <div className="font-medium">{installMsgs[svc.id].text}</div>
+                  {installMsgs[svc.id].logs && (
+                    <details className="mt-1">
+                      <summary className="cursor-pointer text-xs opacity-70">Ver detalles</summary>
+                      <pre className="text-xs mt-1 bg-gray-900 text-gray-100 p-2 rounded max-h-40 overflow-auto whitespace-pre-wrap font-mono">{installMsgs[svc.id].logs}</pre>
+                    </details>
+                  )}
+                </div>
+              )}
             </div>
           )
         })}
