@@ -69,7 +69,12 @@ check_cancelled() {
 }
 
 STARTED=$(date -Iseconds 2>/dev/null || date)
-: > "$LOG_FILE"
+# NO truncar el LOG_FILE - los mensajes del backend Go ya estan ahi
+# Solo agregar un separador
+log "" >> "$LOG_FILE"
+log "========================================" >> "$LOG_FILE"
+log "=== INICIO ACTUALIZACION DO_UPDATE.SH ===" >> "$LOG_FILE"
+log "========================================" >> "$LOG_FILE"
 write_state "running" "Iniciando actualizacion..." "" "$STARTED" "" 5
 log "=== INICIO ACTUALIZACION ==="
 log "Script: $0"

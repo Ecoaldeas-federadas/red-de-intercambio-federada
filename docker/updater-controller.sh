@@ -260,7 +260,7 @@ elif echo "$PATH_REQ" | grep -q '^/status$'; then
 
 elif echo "$PATH_REQ" | grep -q '^/reset$'; then
   log_msg "Peticion /reset - limpiando estado de actualizacion"
-  # Matar cualquier proceso residual
+  # Matar el PID guardado
   if [ -f "$STATE_DIR/update.pid" ]; then
     PID=$(cat "$STATE_DIR/update.pid" 2>/dev/null)
     if [ -n "$PID" ]; then
@@ -269,10 +269,16 @@ elif echo "$PATH_REQ" | grep -q '^/reset$'; then
     fi
     rm -f "$STATE_DIR/update.pid"
   fi
+  # Matar TODOS los procesos do_update.sh residuales (pkill -f)
+  # Esto es critico: puede haber procesos do_update.sh huerfanos
+  # que siguen escribiendo "running" al archivo de estado
+  pkill -f do_update.sh 2>/dev/null || true
+  kill -9 $(pgrep -f do_update.sh 2>/dev/null) 2>/dev/null || true
   # Resetear estado a idle
   printf '{"status":"idle","message":"","commit":"","started_at":"","completed_at":"","progress":0}' > "$STATE_FILE"
   # Limpiar log
   : > "$LOG_FILE"
+  log_msg "Estado reseteado OK"
   send_response '{"success":true,"message":"Estado reseteado. Ya puedes actualizar de nuevo."}'
 
 elif echo "$PATH_REQ" | grep -q '^/node-status$'; then
@@ -327,6 +333,7 @@ elif echo "$PATH_REQ" | grep -q '^/cancel$'; then
     printf '{"status":"cancelled","message":"Actualizacion cancelada por el usuario","commit":"%s","started_at":"%s","completed_at":""}' \
       "$COMMIT" "$STARTED" > "$STATE_FILE"
     echo "=== CANCELACION SOLICITADA ===" >> "$LOG_FILE"
+    # Matar el PID guardado
     if [ -f "$STATE_DIR/update.pid" ]; then
       PID=$(cat "$STATE_DIR/update.pid" 2>/dev/null)
       if [ -n "$PID" ]; then
@@ -335,6 +342,9 @@ elif echo "$PATH_REQ" | grep -q '^/cancel$'; then
       fi
       rm -f "$STATE_DIR/update.pid"
     fi
+    # Matar TODOS los procesos do_update.sh residuales
+    pkill -f do_update.sh 2>/dev/null || true
+    kill -9 $(pgrep -f do_update.sh 2>/dev/null) 2>/dev/null || true
     send_response '{"success":true,"message":"Actualizacion cancelada"}'
   else
     send_response '{"success":false,"message":"No hay actualizacion en curso"}'

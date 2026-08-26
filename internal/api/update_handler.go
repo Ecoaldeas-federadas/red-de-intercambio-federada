@@ -213,11 +213,10 @@ func (h *UpdateHandler) updateNode(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Escribir estado inicial ANTES de delegar al updater-controller.
-	// Esto asegura que el frontend sepa que la actualizacion comenzo,
-	// incluso si el updater-controller no responde.
-	h.writeUpdateState("running", "Iniciando actualizacion...", "")
-	h.appendUpdateLog("=== SOLICITUD DE ACTUALIZACION RECIBIDA ===")
+	// NO escribir "running" al estado antes de llamar al updater-controller.
+	// Si lo hacemos, el updater-controller leera "running" y pensara que ya
+	// hay una actualizacion en curso, rechazando la peticion.
+	// El updater-controller escribira "running" cuando do_update.sh arranque.
 
 	// 1. Intentar delegar al updater-controller
 	resp, err := http.Post(updaterControllerURL+"/update", "application/json", nil)
@@ -228,9 +227,13 @@ func (h *UpdateHandler) updateNode(w http.ResponseWriter, r *http.Request) {
 		json.Unmarshal(body, &result)
 		if resp.StatusCode != 200 {
 			// El updater-controller respondio pero con error (ej: ya hay update en curso)
+			// NO dejar "running" en el estado - el updater-controller maneja su propio estado
 			writeJSON(w, resp.StatusCode, result)
 			return
 		}
+		// El updater-controller acepto - ahora si escribir estado inicial
+		h.writeUpdateState("running", "Updater-controller acepto la solicitud", "")
+		h.appendUpdateLog("=== SOLICITUD DE ACTUALIZACION RECIBIDA ===")
 		h.appendUpdateLog("Updater-controller acepto la solicitud")
 		writeJSON(w, 200, result)
 		return
@@ -367,13 +370,15 @@ func (h *UpdateHandler) cancelUpdate(w http.ResponseWriter, r *http.Request) {
 // Esto pasa cuando el updater-controller fue recreado o el proceso murio
 // sin escribir el estado final, dejando status="running" para siempre.
 func (h *UpdateHandler) resetUpdateState(w http.ResponseWriter, r *http.Request) {
+	// Matar cualquier proceso do_update.sh residual en el updater-controller
+	// El updater-controller tiene su propio endpoint /reset que hace pkill
+	// Llamarlo primero para que mate los procesos antes de limpiar el estado
+	http.Post(updaterControllerURL+"/reset", "application/json", nil)
+
 	// Limpiar archivos de estado en el volumen compartido
 	os.WriteFile("/update-state/update.json", []byte(`{"status":"idle","message":"","commit":"","started_at":"","completed_at":"","progress":0}`), 0644)
 	os.WriteFile("/update-state/update.log", []byte{}, 0644)
 	os.Remove("/update-state/update.pid")
-
-	// Tambien intentar reset via updater-controller (por si tiene proceso residual)
-	http.Post(updaterControllerURL+"/reset", "application/json", nil)
 
 	writeJSON(w, 200, map[string]interface{}{
 		"success": true,
