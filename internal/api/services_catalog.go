@@ -538,8 +538,11 @@ func (sh *FederatedServicesHandler) uninstallService(w http.ResponseWriter, r *h
 	ctx := r.Context()
 
 	// Detener y eliminar contenedor
-	cmd := exec.Command("docker", "compose", "-f", findComposeFile(serviceID), "down")
-	cmd.Run()
+	composePath := findComposeFile(serviceID)
+	if composePath != "" {
+		cmd := exec.Command("docker", "compose", "-f", composePath, "down", "--rmi", "all")
+		cmd.Run()
+	}
 
 	// Actualizar BD
 	_, _ = sh.Pool.Exec(ctx, `UPDATE installed_services SET status = 'not_installed', updated_at = NOW() WHERE service_id = $1`, serviceID)

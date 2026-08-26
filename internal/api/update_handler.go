@@ -494,28 +494,38 @@ func (h *UpdateHandler) updateService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Para servicios construidos desde codigo fuente (como pos-web), hacer build --no-cache
+	// Para servicios construidos desde codigo fuente (como pos-web), hacer:
+	// 1. down --rmi all (eliminar contenedor viejo + imagen vieja)
+	// 2. build --no-cache (reconstruir desde codigo actual)
+	// 3. up -d (iniciar con nueva imagen)
 	// Para servicios con imagen pre-construida, hacer pull + up
-	// pos-web se construye desde el repo, necesita --no-cache para pick up vite.config.ts changes
 	var output []byte
 	var err error
 	if serviceID == "pos-web" {
-		// Reconstruir sin cache para asegurar que cambios en vite.config.ts se apliquen
+		// 1. Eliminar contenedor e imagen vieja
+		downCmd := exec.Command("docker", "compose", "-f", composePath, "down", "--rmi", "all")
+		downOutput, _ := downCmd.CombinedOutput()
+		output = downOutput
+
+		// 2. Reconstruir sin cache
 		buildCmd := exec.Command("docker", "compose", "-f", composePath, "build", "--no-cache")
 		buildOutput, buildErr := buildCmd.CombinedOutput()
+		output = append(output, buildOutput...)
 		if buildErr != nil {
 			_, _ = h.Pool.Exec(ctx, `UPDATE installed_services SET status = 'error', updated_at = NOW() WHERE service_id = $1`, serviceID)
 			writeJSON(w, 200, map[string]interface{}{
 				"success":    false,
 				"service_id": serviceID,
 				"message":    fmt.Sprintf("Error al construir: %v", buildErr),
-				"logs":       string(buildOutput),
+				"logs":       string(output),
 			})
 			return
 		}
-		// Ahora si hacer up -d con la nueva imagen
+		// 3. Iniciar con nueva imagen
 		upCmd := exec.Command("docker", "compose", "-f", composePath, "up", "-d")
-		output, err = upCmd.CombinedOutput()
+		upOutput, upErr := upCmd.CombinedOutput()
+		output = append(output, upOutput...)
+		err = upErr
 	} else {
 		cmd := exec.Command("docker", "compose", "-f", composePath, "up", "-d", "--build", "--pull", "always")
 		output, err = cmd.CombinedOutput()
