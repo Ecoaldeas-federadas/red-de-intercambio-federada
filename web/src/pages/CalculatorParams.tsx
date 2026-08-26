@@ -29,8 +29,9 @@ export default function CalculatorParams() {
   const [editing, setEditing] = useState<any>(null)
   const [form, setForm] = useState({
     type: 'work', category: '', subcategory: '', name: '', description: '',
-    unit: 'horas', kwh_per_unit: 0, effort_factor: 1.0,
+    unit: 'horas', kwh_per_unit: 0, effort_factor: 1.0, tariff_category: '',
   })
+  const [tariff, setTariff] = useState<any>(null)
 
   const [showCatForm, setShowCatForm] = useState(false)
   const [catForm, setCatForm] = useState({ type: 'work', name: '', description: '' })
@@ -44,7 +45,32 @@ export default function CalculatorParams() {
     }).catch(() => setCategories([]))
   }
 
-  useEffect(() => { load() }, [tab])
+  useEffect(() => {
+    load()
+    api.get('/calculator/tariff').then((d: any) => setTariff(d)).catch(() => setTariff(null))
+  }, [tab])
+
+  // base_rate = canasta_vital / horas_por_dia
+  const baseRate = tariff
+    ? (tariff.vital_food + tariff.vital_water + tariff.vital_domestic + tariff.vital_services) / (tariff.work_hours_per_day || 8)
+    : 1.0
+
+  // Factor de esfuerzo de la tarifa segun categoria
+  const getTariffEffort = (cat: string): number => {
+    if (!tariff || !cat) return 1.0
+    switch (cat) {
+      case 'agricultural': return tariff.effort_agricultural || 0.61
+      case 'technical': return tariff.effort_technical || 3.0
+      case 'admin': return tariff.effort_admin || 1.0
+      default: return 1.0
+    }
+  }
+
+  // kWh dinamico para un parametro con tariff_category
+  const getDynamicKwh = (p: any): number | null => {
+    if (!p.tariff_category) return null
+    return baseRate * getTariffEffort(p.tariff_category) * (p.effort_factor || 1.0)
+  }
 
   const filtered = params.filter((p: any) => {
     if (search && !p.name.toLowerCase().includes(search.toLowerCase()) &&
@@ -66,12 +92,15 @@ export default function CalculatorParams() {
       setError('Nombre y categoria son obligatorios')
       return
     }
-    if (form.kwh_per_unit <= 0) {
-      setError('El costo en kWh debe ser mayor a 0')
+    // Si tiene tariff_category, calcular kwh_per_unit dinamicamente como referencia
+    let payload = { ...form, type: tab }
+    if (tab === 'work' && form.tariff_category) {
+      payload.kwh_per_unit = baseRate * getTariffEffort(form.tariff_category) * form.effort_factor
+    } else if (form.kwh_per_unit <= 0) {
+      setError('El costo en kWh debe ser mayor a 0, o selecciona un tipo de esfuerzo vinculado a la tarifa')
       return
     }
     try {
-      const payload = { ...form, type: tab }
       if (editing) {
         await api.put(`/calculator/params/${editing.id}`, payload)
         setSuccess('Parametro actualizado. Pendiente de reaprobacion.')
@@ -93,6 +122,7 @@ export default function CalculatorParams() {
       type: p.type, category: p.category, subcategory: p.subcategory || '',
       name: p.name, description: p.description || '', unit: p.unit || '',
       kwh_per_unit: p.kwh_per_unit, effort_factor: p.effort_factor || 1.0,
+      tariff_category: p.tariff_category || '',
     })
     setShowForm(true)
   }
@@ -149,10 +179,10 @@ export default function CalculatorParams() {
           <p><strong>Que son los parametros:</strong> Los parametros son los valores de referencia que usa la calculadora de precios para determinar el costo energetico (en kWh) de cualquier trabajo o insumo. Sin estos parametros, la calculadora no puede asignar un precio justo a los productos y servicios del nodo. Cada parametro define cuanto energia representa una unidad de trabajo o de material.</p>
           <p><strong>Para que sirve esta pagina:</strong> Aqui se gestionan todos los tipos de trabajo e insumos que usa la calculadora de precios. Puedes crear, editar, aprobar y desactivar parametros, asi como organizarlos en categorias. Es el panel de control del sistema de precios del nodo.</p>
           <p><strong>Como se usa:</strong> 1) Selecciona la pestana "Tipos de Trabajo" o "Insumos/Materiales" segun lo que quieras gestionar. 2) Usa el buscador y el filtro de categoria para encontrar parametros existentes. 3) Crea categorias nuevas si las necesitas. 4) Crea parametros nuevos con el boton "Nuevo Parametro". 5) Aprueba los parametros pendientes con el boton de check verde. 6) Edita o elimina parametros existentes segun sea necesario.</p>
-          <p><strong>Tipos de trabajo (administrativo, tecnico, agricola):</strong> Definen cuanto energia gasta una hora de cada tipo de trabajo. Por ejemplo: trabajo administrativo (ej: atencion al publico = 0.05 kWh/hora), trabajo tecnico (ej: albañileria = 0.19 kWh/hora, programacion = 0.12 kWh/hora), trabajo agricola (ej: cosecha manual = 0.15 kWh/hora, tractor = 0.30 kWh/hora). El costo energetico refleja el esfuerzo fisico/intelectual y las herramientas necesarias.</p>
+          <p><strong>Tipos de trabajo (dinamicos segun tarifa energetica):</strong> Cada tipo de trabajo se vincula a una categoria de esfuerzo (agricola, tecnico, administrativo). El costo en kWh se calcula automaticamente desde la canasta vital: <strong>base = canasta_vital / horas_por_dia</strong>, y cada categoria tiene su factor de esfuerzo (agricola=0.61, tecnico=3.0, admin=1.0). Si la asamblea cambia la canasta vital, todos los trabajos se actualizan automaticamente. Tambien puedes especificar un factor de amplificacion adicional para trabajos mas dificiles o faciles de lo normal.</p>
           <p><strong>Insumos/Materiales:</strong> Definen cuanto energia cuesta cada material que se usa en la produccion. Por ejemplo: harina de trigo = 1.8 kWh/kg, madera = 2.5 kWh/m3, electricidad = 1.0 kWh/kWh. Estos valores representan la energia total invertida en producir, transportar y almacenar cada insumo.</p>
           <p><strong>Categorias:</strong> Agrupan parametros similares para encontrarlos facil. Por ejemplo: "Construccion" agrupa albañileria, plomeria, electricidad; "Alimentos" agrupa harina, azucar, verduras. Puedes crear nuevas categorias segun las necesidades de tu nodo.</p>
-          <p><strong>Factor de esfuerzo:</strong> Para trabajos especialmente dificiles o faciles, multiplica el costo energetico base. 1.0 = esfuerzo normal (sin cambio), 1.3 = 30% mas esfuerzo (trabajo pesado, condiciones adversas), 0.8 = 20% menos esfuerzo (trabajo ligero, con maquinaria que facilita la tarea). Solo aplica a tipos de trabajo, no a insumos.</p>
+          <p><strong>Factor de amplificacion:</strong> Multiplicador adicional sobre el esfuerzo base de la categoria. 1.0 = sin cambio. Usalo para trabajos mas dificiles (1.3 = 30% mas) o mas faciles (0.8 = 20% menos) de lo normal para su categoria. Por ejemplo: cavar tierra a 40°C podria tener factor 1.3 sobre la categoria agricola.</p>
           <p><strong>Como se aprueban los parametros:</strong> Todo parametro nuevo o modificado queda en estado "Pendiente" y debe ser aprobado por asamblea. Los parametros no aprobados no aparecen en la calculadora. Un usuario con permiso de gestion (calculator.manage_params) puede aprobarlos con el boton de check verde. Esto asegura que la comunidad valide cada cambio en el sistema de precios.</p>
           <p><strong>Quien los puede cambiar:</strong> Solo los usuarios con el permiso "calculator.manage_params" pueden crear, editar, aprobar y eliminar parametros. El resto de usuarios puede verlos pero no modificarlos. La aprobacion final requiere decision asamblearia.</p>
           <p><strong>Moneda local:</strong> Los costos se expresan en kWh (1 {currency} = 1 kWh). El simbolo de tu moneda local es "{currency}" y aparece en los textos de ayuda de los campos.</p>
@@ -188,7 +218,7 @@ export default function CalculatorParams() {
         {canManage && (
           <>
             <button onClick={() => { setShowCatForm(!showCatForm); setCatForm({ type: tab, name: '', description: '' }) }} className="btn-secondary text-sm">Nueva Categoria</button>
-            <button onClick={() => { setShowForm(!showForm); setEditing(null); setForm({ type: tab, category: '', subcategory: '', name: '', description: '', unit: tab === 'work' ? 'horas' : 'unidad', kwh_per_unit: 0, effort_factor: 1.0 }) }} className="btn-primary flex items-center gap-2 text-sm"><Plus size={16} />Nuevo Parametro</button>
+            <button onClick={() => { setShowForm(!showForm); setEditing(null); setForm({ type: tab, category: '', subcategory: '', name: '', description: '', unit: tab === 'work' ? 'horas' : 'unidad', kwh_per_unit: 0, effort_factor: 1.0, tariff_category: '' }) }} className="btn-primary flex items-center gap-2 text-sm"><Plus size={16} />Nuevo Parametro</button>
           </>
         )}
       </div>
@@ -242,17 +272,48 @@ export default function CalculatorParams() {
               <input className="input" placeholder={tab === 'work' ? 'Ej: horas' : 'Ej: kg, litros, metros, unidades'} value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
               <p className="text-xs text-gray-400 mt-1">{tab === 'work' ? 'Normalmente "horas" (costo por hora de trabajo). Ej: "horas", "jornada".' : 'Unidad en que se mide el material. Ej: "kg", "litros", "metros", "unidades", "m3".'}</p>
             </div>
-            <div>
-              <label className="label">Costo energetico (kWh por unidad)</label>
-              <input type="number" step="0.0001" className="input" placeholder="Ej: 0.19" value={form.kwh_per_unit} onChange={(e) => setForm({ ...form, kwh_per_unit: parseFloat(e.target.value) || 0 })} />
-              <p className="text-xs text-gray-400 mt-1">Cuanta energia (kWh) representa una unidad. 1 {currency} = 1 kWh. {tab === 'work' ? 'Ej: albañileria = 0.19 kWh/hora, atencion al publico = 0.05 kWh/hora.' : 'Ej: harina = 1.8 kWh/kg, madera = 2.5 kWh/m3.'}</p>
-            </div>
+            {tab === 'work' ? (
+              <div>
+                <label className="label">Tipo de esfuerzo (vinculado a tarifa)</label>
+                <select className="input" value={form.tariff_category} onChange={(e) => setForm({ ...form, tariff_category: e.target.value })}>
+                  <option value="">Especificar kWh manualmente</option>
+                  <option value="agricultural">Agricola (esfuerzo {getTariffEffort('agricultural')}x)</option>
+                  <option value="technical">Tecnico (esfuerzo {getTariffEffort('technical')}x)</option>
+                  <option value="admin">Administrativo (esfuerzo {getTariffEffort('admin')}x)</option>
+                </select>
+                <p className="text-xs text-gray-400 mt-1">
+                  Vincula este trabajo a la tarifa energetica (canasta vital). El kWh se calcula automaticamente:
+                  base ({baseRate.toFixed(2)}) x esfuerzo ({form.tariff_category ? getTariffEffort(form.tariff_category) : '?'})
+                  {form.tariff_category && ` = ${(baseRate * getTariffEffort(form.tariff_category)).toFixed(2)} kWh/hora`}
+                  . Si la asamblea cambia la canasta vital, este valor se actualiza solo.
+                </p>
+              </div>
+            ) : (
+              <div>
+                <label className="label">Costo energetico (kWh por unidad)</label>
+                <input type="number" step="0.0001" className="input" placeholder="Ej: 1.8" value={form.kwh_per_unit} onChange={(e) => setForm({ ...form, kwh_per_unit: parseFloat(e.target.value) || 0 })} />
+                <p className="text-xs text-gray-400 mt-1">Cuanta energia (kWh) representa una unidad. 1 {currency} = 1 kWh. Ej: harina = 1.8 kWh/kg, madera = 2.5 kWh/m3.</p>
+              </div>
+            )}
           </div>
+          {tab === 'work' && form.tariff_category && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm">
+              <p><strong>Calculo dinamico:</strong> {baseRate.toFixed(2)} (base) x {getTariffEffort(form.tariff_category)} (esfuerzo {form.tariff_category}) x {form.effort_factor} (factor adicional) = <strong>{(baseRate * getTariffEffort(form.tariff_category) * form.effort_factor).toFixed(2)} kWh/hora</strong></p>
+              <p className="text-xs text-gray-500 mt-1">Este valor se recalcula automaticamente si la asamblea cambia la canasta vital o los factores de esfuerzo.</p>
+            </div>
+          )}
+          {tab === 'work' && !form.tariff_category && (
+            <div>
+              <label className="label">Costo energetico (kWh por unidad) — manual</label>
+              <input type="number" step="0.0001" className="input" placeholder="Ej: 0.19" value={form.kwh_per_unit} onChange={(e) => setForm({ ...form, kwh_per_unit: parseFloat(e.target.value) || 0 })} />
+              <p className="text-xs text-gray-400 mt-1">Cuanta energia (kWh) representa una hora. 1 {currency} = 1 kWh. Este valor es fijo (no se actualiza con la tarifa). Considera vincularlo a un tipo de esfuerzo arriba.</p>
+            </div>
+          )}
           {tab === 'work' && (
             <div>
-              <label className="label">Factor de esfuerzo</label>
+              <label className="label">Factor de amplificacion adicional</label>
               <input type="number" step="0.05" className="input" placeholder="Ej: 1.0 (normal), 1.3 (30% mas), 0.8 (20% menos)" value={form.effort_factor} onChange={(e) => setForm({ ...form, effort_factor: parseFloat(e.target.value) || 1.0 })} />
-              <p className="text-xs text-gray-400 mt-1">Multiplica el costo energetico segun la dificultad del trabajo. 1.0 = normal (sin cambio), 1.3 = 30% mas esfuerzo (ej: trabajo pesado con condiciones adversas), 0.8 = 20% menos (ej: trabajo asistido por maquinaria).</p>
+              <p className="text-xs text-gray-400 mt-1">Multiplicador adicional sobre el esfuerzo base. 1.0 = sin cambio. Usalo para trabajos mas dificiles (1.3 = 30% mas) o mas faciles (0.8 = 20% menos) de lo normal para su categoria.</p>
             </div>
           )}
           <button onClick={save} className="btn-primary">{editing ? 'Actualizar' : 'Crear'} (pendiente de aprobacion)</button>
@@ -285,8 +346,21 @@ export default function CalculatorParams() {
                       </div>
                       {p.description && <p className="text-xs text-gray-500 mt-0.5">{p.description}</p>}
                       <p className="text-xs text-gray-400 mt-0.5">
-                        {p.kwh_per_unit} kWh/{p.unit}
-                        {tab === 'work' && p.effort_factor !== 1.0 && ` | Esfuerzo: x${p.effort_factor}`}
+                        {tab === 'work' && p.tariff_category ? (
+                          <>
+                            <span className="text-emerald-600 font-medium">
+                              {(getDynamicKwh(p) || 0).toFixed(2)} kWh/{p.unit}
+                            </span>
+                            <span className="text-gray-400"> (dinamico: {baseRate.toFixed(1)} base x {getTariffEffort(p.tariff_category)} {p.tariff_category}</span>
+                            {p.effort_factor !== 1.0 && <span> x {p.effort_factor} amplificacion</span>}
+                            <span>)</span>
+                          </>
+                        ) : (
+                          <>
+                            {p.kwh_per_unit} kWh/{p.unit}
+                            {tab === 'work' && p.effort_factor !== 1.0 && ` | Esfuerzo: x${p.effort_factor}`}
+                          </>
+                        )}
                       </p>
                     </div>
                     {canManage && (
