@@ -707,7 +707,7 @@ func (h *AssemblyHandler) voteProposal(w http.ResponseWriter, r *http.Request) {
 	// Si es sesion de junta directiva, solo pueden votar miembros de la junta
 	if sessionMeetingType == "board" {
 		var isBoardMember int
-		h.Pool.QueryRow(r.Context(), `SELECT COUNT(*) FROM assembly_board_members WHERE user_id = $1 AND is_active = true`, userID).Scan(&isBoardMember)
+		h.Pool.QueryRow(r.Context(), `SELECT COUNT(*) FROM board_members WHERE user_id = $1 AND is_active = true`, userID).Scan(&isBoardMember)
 		if isBoardMember == 0 {
 			writeError(w, 403, "esta votacion es de junta directiva. Solo pueden votar los miembros de la junta.")
 			return
@@ -739,7 +739,7 @@ func (h *AssemblyHandler) voteProposal(w http.ResponseWriter, r *http.Request) {
 	var totalVotingMembers int
 	if sessionMeetingType == "board" {
 		// Junta directiva: solo contar miembros activos de la junta
-		h.Pool.QueryRow(r.Context(), `SELECT COUNT(*) FROM assembly_board_members WHERE is_active = true`).Scan(&totalVotingMembers)
+		h.Pool.QueryRow(r.Context(), `SELECT COUNT(*) FROM board_members WHERE is_active = true`).Scan(&totalVotingMembers)
 	} else {
 		// Asamblea: todos los miembros con derecho a voto
 		h.Pool.QueryRow(r.Context(), `
@@ -848,7 +848,7 @@ func (h *AssemblyHandler) executeProposal(w http.ResponseWriter, r *http.Request
 			approved = quorumMet && percentage >= requiredPercentage
 		case "board":
 			// Junta directiva: solo miembros activos de la junta
-			h.Pool.QueryRow(r.Context(), `SELECT COUNT(*) FROM assembly_board_members WHERE is_active = true`).Scan(&totalVotingMembers)
+			h.Pool.QueryRow(r.Context(), `SELECT COUNT(*) FROM board_members WHERE is_active = true`).Scan(&totalVotingMembers)
 
 			totalVotes := votesFor + votesAgainst
 			quorumMet := true
@@ -2653,7 +2653,7 @@ func (h *AssemblyHandler) verifyQuorum(w http.ResponseWriter, r *http.Request) {
 	var totalVotingMembers int
 	if meetingType == "board" {
 		// Junta directiva: solo miembros activos de la junta
-		h.Pool.QueryRow(r.Context(), `SELECT COUNT(*) FROM assembly_board_members WHERE is_active = true`).Scan(&totalVotingMembers)
+		h.Pool.QueryRow(r.Context(), `SELECT COUNT(*) FROM board_members WHERE is_active = true`).Scan(&totalVotingMembers)
 	} else {
 		// Asamblea: todos los miembros con derecho a voto
 		h.Pool.QueryRow(r.Context(), `

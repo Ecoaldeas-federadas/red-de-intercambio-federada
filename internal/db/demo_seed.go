@@ -2866,17 +2866,40 @@ func demoSeedAssemblySessions(ctx context.Context, d *DB, nodeDomain string) {
 		}
 	}
 
+	// Crear sesiones de junta directiva (meeting_type = 'board')
+	boardSessions := []struct {
+		sessionType, title, description, status, minutes string
+		startOffset                                      int
+		duration                                         int
+	}{
+		{"ordinaria", "Junta Directiva - Reunion Mensual Sep 2026", "Revision de gastos mensuales, aprobacion de compras menores, seguimiento de comisiones.", "completed", "ACTA DE JUNTA DIRECTIVA - SEPTIEMBRE 2026\n\nFecha: 5 de septiembre de 2026\nLugar: Sala de reuniones de la Ecoaldea\nHora: 18:00 - 20:00\nAsistentes: Elena (presidente), Marcos (vicepresidente), Andrea (tesorero), Lucia (secretario)\n\n1. REVISION DE GASTOS MENSUALES\n   - Gastos administrativos: 45 TQ\n   - Mantenimiento de infraestructura: 80 TQ\n   - Aprobado por mayoria (4/0)\n\n2. COMPRA DE HERRAMIENTAS PARA HUERTO\n   - Propuesta: Comprar 3 azadones y 2 tijeras de podar (120 TQ)\n   - Aprobado por mayoria (4/0)\n\n3. SEGUIMIENTO DE COMISIONES\n   - Comision de Tierra: 3 huertos activos, produccion estable\n   - Comision de Educacion: taller de permacultura programado\n   - Comision de Salud: botiquin abastecido\n\nLa junta concluye a las 20:00. Proxima junta: 5 de octubre.", -24 * 20, 2},
+		{"ordinaria", "Junta Directiva - Reunion Mensual Oct 2026", "Planificacion de cosecha, presupuesto de invierno, coordinacion de cayapa.", "completed", "ACTA DE JUNTA DIRECTIVA - OCTUBRE 2026\n\nFecha: 5 de octubre de 2026\nLugar: Sala de reuniones de la Ecoaldea\nHora: 18:00 - 20:30\nAsistentes: Elena (presidente), Marcos (vicepresidente), Andrea (tesorero), Lucia (secretario), Sofia (vocal1)\n\n1. PLANIFICACION DE COSECHA\n   - Cosecha estimada: 800 kg de granos, 300 kg de hortalizas\n   - Necesidad de voluntarios para cayapa: 15 personas\n   - Aprobado organizar cayapa para fin de semana (5/0)\n\n2. PRESUPUESTO DE INVIERNO\n   - Fondo requerido: 200 TQ para materiales de reparacion\n   - Fondo disponible: 528 TQ\n   - Aprobado asignar 200 TQ (5/0)\n\n3. COORDINACION DE CAYAPA\n   - Fecha: sabado 12 de octubre\n   - Tareas: cosecha de granos, reparacion de techo del deposito\n   - Almuerzo comunitario: cada familia trae un plato\n\nLa junta concluye a las 20:30. Proxima junta: 5 de noviembre.", -24 * 5, 2},
+		{"ordinaria", "Junta Directiva - Reunion Mensual Nov 2026", "Revision de balances post-cosecha, planificacion de feria de trueque, evaluacion de miembros.", "scheduled", "", 24 * 7, 2},
+		{"extraordinaria", "Junta Directiva Extraordinaria - Evaluacion de Proyectos", "Evaluacion urgente de proyectos pendientes y redistribucion de fondos.", "scheduled", "", 24 * 14, 2},
+	}
+
+	for _, s := range boardSessions {
+		startTime := time.Now().Add(time.Duration(s.startOffset) * time.Hour)
+		endTime := startTime.Add(time.Duration(s.duration) * time.Hour)
+		var minutesVal interface{}
+		if s.minutes != "" {
+			minutesVal = s.minutes
+		}
+		_, err := d.Pool.Exec(ctx, `
+			INSERT INTO assembly_sessions (id, node_domain, session_type, meeting_type, title, description, start_time, end_time, status, is_presential, created_at, minutes)
+			VALUES (gen_random_uuid(), $1, $2, 'board', $3, $4, $5, $6, $7, true, NOW(), $8)
+			ON CONFLICT DO NOTHING`,
+			nodeDomain, s.sessionType, s.title, s.description, startTime, endTime, s.status, minutesVal)
+		if err != nil {
+			log.Printf("Demo: error seeding board session %s: %v", s.title, err)
+		}
+	}
+
 	// Crear junta directiva
 	demoSeedBoardMembers(ctx, d, nodeDomain)
 }
 
 func demoSeedBoardMembers(ctx context.Context, d *DB, nodeDomain string) {
-	var count int
-	d.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM board_members WHERE node_domain = $1`, nodeDomain).Scan(&count)
-	if count > 0 {
-		return
-	}
-
 	// Obtener IDs de usuarios
 	type userRef struct {
 		username string
@@ -2885,6 +2908,7 @@ func demoSeedBoardMembers(ctx context.Context, d *DB, nodeDomain string) {
 	userMap := map[string]uuid.UUID{}
 	rows, err := d.Pool.Query(ctx, `SELECT username, id FROM users WHERE node_domain = $1 AND account_type = 'individual' AND membership_status = 'active'`, nodeDomain)
 	if err != nil {
+		log.Printf("Demo: error getting users for board: %v", err)
 		return
 	}
 	defer rows.Close()
@@ -2909,28 +2933,42 @@ func demoSeedBoardMembers(ctx context.Context, d *DB, nodeDomain string) {
 	for _, b := range board {
 		uid, ok := userMap[b.username]
 		if !ok {
+			log.Printf("Demo: warning - usuario %s no encontrado para junta directiva", b.username)
 			continue
 		}
 		_, err := d.Pool.Exec(ctx, `
 			INSERT INTO board_members (id, node_domain, user_id, position, term_start, term_end, is_active, created_at)
 			VALUES (gen_random_uuid(), $1, $2, $3, NOW() - interval '6 months', NOW() + interval '18 months', true, NOW())
-			ON CONFLICT DO NOTHING`,
+			ON CONFLICT (node_domain, user_id, position) DO UPDATE SET is_active = true, term_start = NOW() - interval '6 months', term_end = NOW() + interval '18 months'`,
 			nodeDomain, uid, b.position)
 		if err != nil {
 			log.Printf("Demo: error seeding board member %s: %v", b.username, err)
 		}
 	}
 
-	// Configurar quorum
+	// Configurar quorum para asamblea (meeting_type = 'assembly')
 	d.Pool.Exec(ctx, `
-		INSERT INTO assembly_quorum_config (id, node_domain, session_type, quorum_first_call, quorum_second_call, grace_period_hours, allow_reschedule, max_recall_count, is_active, created_at, updated_at)
-		VALUES (gen_random_uuid(), $1, 'ordinary', 50.0, 30.0, 2, true, 2, true, NOW(), NOW())
-		ON CONFLICT DO NOTHING`,
+		INSERT INTO assembly_quorum_config (id, node_domain, session_type, meeting_type, quorum_first_call, quorum_second_call, grace_period_hours, allow_reschedule, max_recall_count, is_active, created_at, updated_at)
+		VALUES (gen_random_uuid(), $1, 'ordinaria', 'assembly', 50.0, 30.0, 2, true, 2, true, NOW(), NOW())
+		ON CONFLICT (node_domain, session_type, meeting_type) DO NOTHING`,
 		nodeDomain)
 	d.Pool.Exec(ctx, `
-		INSERT INTO assembly_quorum_config (id, node_domain, session_type, quorum_first_call, quorum_second_call, grace_period_hours, allow_reschedule, max_recall_count, is_active, created_at, updated_at)
-		VALUES (gen_random_uuid(), $1, 'extraordinary', 66.67, 50.0, 1, true, 1, true, NOW(), NOW())
-		ON CONFLICT DO NOTHING`,
+		INSERT INTO assembly_quorum_config (id, node_domain, session_type, meeting_type, quorum_first_call, quorum_second_call, grace_period_hours, allow_reschedule, max_recall_count, is_active, created_at, updated_at)
+		VALUES (gen_random_uuid(), $1, 'extraordinaria', 'assembly', 66.67, 50.0, 1, true, 1, true, NOW(), NOW())
+		ON CONFLICT (node_domain, session_type, meeting_type) DO NOTHING`,
+		nodeDomain)
+
+	// Configurar quorum para junta directiva (meeting_type = 'board')
+	// Quorum mas bajo: la junta es mas pequena (7 miembros)
+	d.Pool.Exec(ctx, `
+		INSERT INTO assembly_quorum_config (id, node_domain, session_type, meeting_type, quorum_first_call, quorum_second_call, grace_period_hours, allow_reschedule, max_recall_count, is_active, created_at, updated_at)
+		VALUES (gen_random_uuid(), $1, 'ordinaria', 'board', 40.0, 25.0, 1, true, 1, true, NOW(), NOW())
+		ON CONFLICT (node_domain, session_type, meeting_type) DO NOTHING`,
+		nodeDomain)
+	d.Pool.Exec(ctx, `
+		INSERT INTO assembly_quorum_config (id, node_domain, session_type, meeting_type, quorum_first_call, quorum_second_call, grace_period_hours, allow_reschedule, max_recall_count, is_active, created_at, updated_at)
+		VALUES (gen_random_uuid(), $1, 'extraordinaria', 'board', 50.0, 30.0, 1, true, 1, true, NOW(), NOW())
+		ON CONFLICT (node_domain, session_type, meeting_type) DO NOTHING`,
 		nodeDomain)
 }
 
@@ -2939,16 +2977,28 @@ func demoSeedBoardMembers(ctx context.Context, d *DB, nodeDomain string) {
 // Separada de demoSeedBoardMembers para que se ejecute siempre,
 // incluso si board_members ya existe y demoSeedBoardMembers retorna temprano.
 func demoSeedAssemblyConfig(ctx context.Context, d *DB, nodeDomain string) {
-	// Quorum de junta directiva
+	// Quorum de asamblea (meeting_type = 'assembly')
 	d.Pool.Exec(ctx, `
-		INSERT INTO assembly_quorum_config (id, node_domain, session_type, quorum_first_call, quorum_second_call, grace_period_hours, allow_reschedule, max_recall_count, is_active, created_at, updated_at)
-		VALUES (gen_random_uuid(), $1, 'ordinary', 50.0, 30.0, 2, true, 2, true, NOW(), NOW())
-		ON CONFLICT DO NOTHING`,
+		INSERT INTO assembly_quorum_config (id, node_domain, session_type, meeting_type, quorum_first_call, quorum_second_call, grace_period_hours, allow_reschedule, max_recall_count, is_active, created_at, updated_at)
+		VALUES (gen_random_uuid(), $1, 'ordinaria', 'assembly', 50.0, 30.0, 2, true, 2, true, NOW(), NOW())
+		ON CONFLICT (node_domain, session_type, meeting_type) DO NOTHING`,
 		nodeDomain)
 	d.Pool.Exec(ctx, `
-		INSERT INTO assembly_quorum_config (id, node_domain, session_type, quorum_first_call, quorum_second_call, grace_period_hours, allow_reschedule, max_recall_count, is_active, created_at, updated_at)
-		VALUES (gen_random_uuid(), $1, 'extraordinary', 66.67, 50.0, 1, true, 1, true, NOW(), NOW())
-		ON CONFLICT DO NOTHING`,
+		INSERT INTO assembly_quorum_config (id, node_domain, session_type, meeting_type, quorum_first_call, quorum_second_call, grace_period_hours, allow_reschedule, max_recall_count, is_active, created_at, updated_at)
+		VALUES (gen_random_uuid(), $1, 'extraordinaria', 'assembly', 66.67, 50.0, 1, true, 1, true, NOW(), NOW())
+		ON CONFLICT (node_domain, session_type, meeting_type) DO NOTHING`,
+		nodeDomain)
+
+	// Quorum de junta directiva (meeting_type = 'board')
+	d.Pool.Exec(ctx, `
+		INSERT INTO assembly_quorum_config (id, node_domain, session_type, meeting_type, quorum_first_call, quorum_second_call, grace_period_hours, allow_reschedule, max_recall_count, is_active, created_at, updated_at)
+		VALUES (gen_random_uuid(), $1, 'ordinaria', 'board', 40.0, 25.0, 1, true, 1, true, NOW(), NOW())
+		ON CONFLICT (node_domain, session_type, meeting_type) DO NOTHING`,
+		nodeDomain)
+	d.Pool.Exec(ctx, `
+		INSERT INTO assembly_quorum_config (id, node_domain, session_type, meeting_type, quorum_first_call, quorum_second_call, grace_period_hours, allow_reschedule, max_recall_count, is_active, created_at, updated_at)
+		VALUES (gen_random_uuid(), $1, 'extraordinaria', 'board', 50.0, 30.0, 1, true, 1, true, NOW(), NOW())
+		ON CONFLICT (node_domain, session_type, meeting_type) DO NOTHING`,
 		nodeDomain)
 
 	// Configurar assembly_config (metodo de aprobacion por tipo de propuesta)

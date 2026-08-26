@@ -116,7 +116,7 @@ func (s *NotifyService) NotifyBoard(ctx context.Context, nodeDomain, notifType, 
 	// Resolver el dominio: si es el dominio real del nodo, usar __LOCAL__
 	resolvedDomain := db.ResolveNodeDomain(ctx, s.Pool, nodeDomain, "")
 	rows, err := s.Pool.Query(ctx, `
-		SELECT user_id FROM assembly_board_members WHERE node_domain = $1`, resolvedDomain)
+		SELECT user_id FROM board_members WHERE node_domain = $1 AND is_active = true`, resolvedDomain)
 	if err != nil {
 		return
 	}
