@@ -1,7 +1,16 @@
 #!/bin/sh
 # do_update.sh - Runs in background from updater-controller.sh
-# Does: git fetch + reset + docker build + restart node-app
-# Writes status to /update-state/update.json, logs to /update-state/update.log
+# Equivalente a update.ps1 pero ejecutado desde el updater-controller.
+#
+# Pasos (iguales a update.ps1):
+#   1. git fetch + reset --hard origin/main
+#   2. Limpiar contenedores huerfanos
+#   3. docker compose build --no-cache node-app (con fallback a build con cache)
+#   4. docker compose build updater-controller (sin reiniciarlo)
+#   5. docker compose build demo-app
+#   6. docker compose up -d --force-recreate node-app (CRITICO: --force-recreate)
+#   7. Esperar a que el nodo responda HTTP
+#   8. Reiniciar updater-controller al final si cambio
 #
 # CRITICO: Este script corre DENTRO del updater-controller.
 # NUNCA debe reiniciar el updater-controller durante la actualizacion,
@@ -25,15 +34,27 @@ write_state() {
   if [ -z "$PROGRESS" ]; then PROGRESS="0"; fi
   printf '{"status":"%s","message":"%s","commit":"%s","started_at":"%s","completed_at":"%s","progress":%s}' \
     "$STATUS" "$MESSAGE" "$COMMIT" "$STARTED" "$COMPLETED" "$PROGRESS" > "$STATE_FILE"
-  # Forzar sync del archivo para que el frontend lo vea inmediatamente
   sync 2>/dev/null || true
 }
 
 # log() escribe directamente al LOG_FILE con >> para que aparezca inmediatamente
-# No escribe a stdout para evitar duplicacion (stdout va a /dev/null via nohup)
 log() {
   TS=$(date '+%H:%M:%S' 2>/dev/null || echo "")
   printf '[%s] %s\n' "$TS" "$1" >> "$LOG_FILE"
+}
+
+# run_cmd ejecuta un comando, envia output al LOG_FILE y devuelve el exit code
+run_cmd() {
+  DESC=$1; shift
+  log "--- EJECUTANDO: $DESC ---"
+  "$@" >> "$LOG_FILE" 2>&1
+  RC=$?
+  if [ $RC -eq 0 ]; then
+    log "--- OK: $DESC (exit code: $RC) ---"
+  else
+    log "--- ERROR: $DESC fallo (exit code: $RC) ---"
+  fi
+  return $RC
 }
 
 # Verificar si la actualizacion fue cancelada
@@ -64,7 +85,7 @@ if [ -n "$GIT_TOKEN" ]; then
   log "Token configurado en remote origin"
 fi
 
-# Detect compose project name
+# Detect compose project name (igual que update.ps1 usa el nombre del directorio)
 PROJECT_NAME="${COMPOSE_PROJECT_NAME:-}"
 if [ -z "$PROJECT_NAME" ]; then
   PROJECT_NAME=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' "$(hostname)" 2>/dev/null)
@@ -78,15 +99,19 @@ fi
 if [ -z "$PROJECT_NAME" ]; then
   PROJECT_NAME="red-de-intercambio-federada"
 fi
-log "Project name detectado: $PROJECT_NAME"
+log "Project name: $PROJECT_NAME"
 log "Compose file: $COMPOSE_FILE"
 
-REMOTE_URL=$(git -C "$PROJECT_DIR" remote get-url origin 2>/dev/null)
-log "Remote URL configurado"
+# Helper para docker compose
+dc() {
+  docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" "$@"
+}
 
-# 1. git fetch origin main (10%)
+# ============================================================
+# 1. git fetch + reset --hard origin/main (10% -> 15%)
+# ============================================================
 check_cancelled
-write_state "running" "Descargando cambios del repositorio (git fetch)..." "" "$STARTED" "" 10
+write_state "running" "Descargando cambios del repositorio..." "" "$STARTED" "" 10
 log "--- git fetch origin main ---"
 if ! git -C "$PROJECT_DIR" fetch origin main >> "$LOG_FILE" 2>&1; then
   write_state "error" "Error en git fetch. Verifica GIT_TOKEN en .env" "" "$STARTED" "$(date -Iseconds 2>/dev/null || date)" 10
@@ -95,13 +120,12 @@ if ! git -C "$PROJECT_DIR" fetch origin main >> "$LOG_FILE" 2>&1; then
 fi
 log "git fetch OK"
 
-# 2. Abort any pending merge/rebase
+# Abort any pending merge/rebase
 git -C "$PROJECT_DIR" merge --abort 2>/dev/null || true
 git -C "$PROJECT_DIR" rebase --abort 2>/dev/null || true
 
-# 3. git reset --hard origin/main (15%)
 check_cancelled
-write_state "running" "Aplicando cambios del repositorio (git reset)..." "" "$STARTED" "" 15
+write_state "running" "Aplicando cambios del repositorio..." "" "$STARTED" "" 15
 log "--- git reset --hard origin/main ---"
 if ! git -C "$PROJECT_DIR" reset --hard origin/main >> "$LOG_FILE" 2>&1; then
   write_state "error" "Error al aplicar cambios (git reset)" "" "$STARTED" "$(date -Iseconds 2>/dev/null || date)" 15
@@ -110,7 +134,6 @@ if ! git -C "$PROJECT_DIR" reset --hard origin/main >> "$LOG_FILE" 2>&1; then
 fi
 log "git reset OK"
 
-# 4. Clean untracked files
 log "--- git clean -fd ---"
 git -C "$PROJECT_DIR" clean -fd >> "$LOG_FILE" 2>&1 || true
 log "Cambios del repositorio aplicados"
@@ -118,109 +141,185 @@ log "Cambios del repositorio aplicados"
 NEW_COMMIT=$(git -C "$PROJECT_DIR" rev-parse --short HEAD 2>/dev/null || echo "")
 log "Nuevo commit: $NEW_COMMIT"
 
-# 5. Verificar si el updater-controller necesita actualizarse
-# CRITICO: Solo construir si hay cambios reales en sus archivos.
-# NUNCA reiniciar el updater-controller durante la actualizacion -
-# eso mataria este proceso. Si hay cambios, se reinicia al FINAL.
+# ============================================================
+# 2. Limpiar contenedores huerfanos (como update.ps1)
+# ============================================================
+write_state "running" "Limpiando contenedores huerfanos..." "$NEW_COMMIT" "$STARTED" "" 18
+log "--- Limpiando contenedores huerfanos ---"
+ORPHANS=$(docker ps -a --format '{{.Names}}' 2>/dev/null | grep '_red-de-intercambio-federada-' || echo "")
+if [ -n "$ORPHANS" ]; then
+  echo "$ORPHANS" | while read -r orphan; do
+    log "Eliminando contenedor huerfano: $orphan"
+    docker rm -f "$orphan" 2>/dev/null || true
+  done
+fi
+log "Limpieza de huerfanos completada"
+
+# ============================================================
+# 3. Verificar si el updater-controller necesita actualizarse
+# ============================================================
 UPDATER_NEEDS_UPDATE=false
 UPDATER_CHANGED=$(git -C "$PROJECT_DIR" diff --name-only HEAD~1 HEAD 2>/dev/null | grep -E 'updater-controller|do_update\.sh|Dockerfile\.updater' || echo "")
 if [ -n "$UPDATER_CHANGED" ]; then
   log "Cambios detectados en archivos del updater-controller: $UPDATER_CHANGED"
   check_cancelled
-  write_state "running" "Construyendo nueva imagen updater-controller (sin reiniciarlo aun)..." "$NEW_COMMIT" "$STARTED" "" 20
-  if docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" build --progress plain updater-controller >> "$LOG_FILE" 2>&1; then
-    log "Nueva imagen updater-controller construida (se reiniciara al final)"
+  write_state "running" "Construyendo nueva imagen updater-controller..." "$NEW_COMMIT" "$STARTED" "" 20
+  if dc build --progress plain updater-controller >> "$LOG_FILE" 2>&1; then
+    log "Nueva imagen updater-controller construida"
     UPDATER_NEEDS_UPDATE=true
   else
     log "WARNING: build updater-controller fallo, continuando con imagen actual"
   fi
 else
-  log "Sin cambios en archivos del updater-controller. No se construye ni se reinicia."
+  log "Sin cambios en archivos del updater-controller"
 fi
 
-# 6. docker compose build node-app --no-cache --progress plain (30% -> 60%)
-# CRITICO: --progress plain para que el output sea linea por linea (no progress bars)
-# Sin --progress plain, docker compose usa progress bars animadas que no funcionan
-# sin TTY y el output se bufferiza, haciendo que parezca colgado.
+# ============================================================
+# 4. docker compose build --no-cache node-app (30% -> 60%)
+# CRITICO: --no-cache garantiza que migraciones y assets se copien frescos
+# Si falla, reintentar sin --no-cache (como update.ps1)
+# ============================================================
 check_cancelled
 write_state "running" "Construyendo imagen Docker del nodo (esto tarda varios minutos)..." "$NEW_COMMIT" "$STARTED" "" 30
 log "--- docker compose build --no-cache --progress plain node-app ---"
 log "NOTA: Esto puede tardar 10-20 minutos. El output aparece linea por linea."
 log "Si no ves output por unos minutos, es normal (descargando dependencias)."
-if ! docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" build --no-cache --progress plain node-app >> "$LOG_FILE" 2>&1; then
-  write_state "error" "Error al construir imagen node-app" "$NEW_COMMIT" "$STARTED" "$(date -Iseconds 2>/dev/null || date)" 30
-  log "ERROR: docker build node-app fallo"
+
+BUILD_OK=false
+if dc build --no-cache --progress plain node-app >> "$LOG_FILE" 2>&1; then
+  log "Imagen node-app construida con --no-cache OK"
+  BUILD_OK=true
+else
+  log "WARNING: build --no-cache fallo, reintentando con cache..."
+  write_state "running" "Reintentando build con cache..." "$NEW_COMMIT" "$STARTED" "" 35
+  if dc build --progress plain node-app >> "$LOG_FILE" 2>&1; then
+    log "Imagen node-app construida con cache OK"
+    BUILD_OK=true
+  else
+    log "ERROR: build node-app fallo incluso con cache"
+  fi
+fi
+
+if [ "$BUILD_OK" != "true" ]; then
+  write_state "error" "Error al construir imagen node-app" "$NEW_COMMIT" "$STARTED" "$(date -Iseconds 2>/dev/null || date)" 35
+  log "ERROR: No se pudo construir node-app"
   exit 1
 fi
-log "Imagen node-app construida OK"
+
 write_state "running" "Imagen del nodo construida. Construyendo demo-app..." "$NEW_COMMIT" "$STARTED" "" 60
 
-# 7. docker compose build demo-app (65%)
+# ============================================================
+# 5. docker compose build demo-app (60% -> 65%)
+# ============================================================
 write_state "running" "Construyendo imagen demo-app..." "$NEW_COMMIT" "$STARTED" "" 65
-log "--- docker compose build --progress plain demo-app ---"
-docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" --profile demo build --progress plain demo-app >> "$LOG_FILE" 2>&1 || true
+log "--- docker compose build demo-app ---"
+dc --profile demo build --progress plain demo-app >> "$LOG_FILE" 2>&1 || true
 log "Imagen demo-app construida (o cacheada)"
 
-# 8. Restart node-app (70% -> 85%)
+# ============================================================
+# 6. docker compose up -d --force-recreate node-app (70% -> 85%)
+# CRITICO: --force-recreate es necesario para que el contenedor viejo
+# se reemplace con la nueva imagen. Sin --force-recreate, docker compose
+# puede decidir no recrear el contenedor si ya esta corriendo.
+# Esto es lo que faltaba vs update.ps1.
+# ============================================================
 check_cancelled
-write_state "running" "Reiniciando nodo..." "$NEW_COMMIT" "$STARTED" "" 70
-log "--- docker compose up -d --no-deps node-app ---"
-if ! docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" up -d --no-deps node-app >> "$LOG_FILE" 2>&1; then
+write_state "running" "Reiniciando nodo con nueva imagen..." "$NEW_COMMIT" "$STARTED" "" 70
+log "--- docker compose up -d --no-deps --force-recreate node-app ---"
+log "CRITICO: --force-recreate asegura que el contenedor viejo se reemplace"
+if ! dc up -d --no-deps --force-recreate node-app >> "$LOG_FILE" 2>&1; then
   write_state "error" "Error al reiniciar nodo" "$NEW_COMMIT" "$STARTED" "$(date -Iseconds 2>/dev/null || date)" 70
   log "ERROR: docker up node-app fallo"
+  # Mostrar logs del nodo para diagnostico
+  log "--- Logs del nodo (ultimas 30 lineas) ---"
+  docker logs --tail 30 "${PROJECT_NAME}-node-app-1" >> "$LOG_FILE" 2>&1 || true
   exit 1
 fi
 log "Nodo reiniciado OK"
 
-# Verificar que el nodo este corriendo
-log "--- Verificando que node-app este corriendo ---"
-sleep 5
+# ============================================================
+# 7. Esperar a que el nodo responda HTTP (como update.ps1)
+# CRITICO: Esto verifica que el nodo realmente arranque, no solo
+# que el contenedor este corriendo. Si el nodo crashea por una
+# migracion fallida, el contenedor puede estar "running" pero
+# el servidor HTTP no responde.
+# ============================================================
+write_state "running" "Esperando a que el nodo responda..." "$NEW_COMMIT" "$STARTED" "" 80
+log "--- Esperando a que el nodo responda HTTP ---"
 NODE_CONTAINER="${PROJECT_NAME}-node-app-1"
-NODE_RUNNING=$(docker inspect -f '{{.State.Running}}' "$NODE_CONTAINER" 2>/dev/null || echo "false")
-if [ "$NODE_RUNNING" = "true" ]; then
-  log "OK: node-app esta corriendo"
-else
-  log "WARNING: node-app no esta corriendo despues del restart"
-  log "Estado del contenedor:"
-  docker inspect -f '{{.State.Status}}' "$NODE_CONTAINER" >> "$LOG_FILE" 2>&1 || true
-  log "Ultimos logs del nodo:"
-  docker logs --tail 20 "$NODE_CONTAINER" >> "$LOG_FILE" 2>&1 || true
+WAIT_OK=false
+WAITED=0
+MAX_WAIT=90
+while [ "$WAITED" -lt "$MAX_WAIT" ]; do
+  # Verificar que el contenedor siga corriendo
+  NODE_RUNNING=$(docker inspect -f '{{.State.Running}}' "$NODE_CONTAINER" 2>/dev/null || echo "false")
+  if [ "$NODE_RUNNING" != "true" ]; then
+    log "ERROR: node-app se detuvo despues de $WAITED segundos"
+    log "--- Logs del nodo (ultimas 50 lineas) ---"
+    docker logs --tail 50 "$NODE_CONTAINER" >> "$LOG_FILE" 2>&1 || true
+    write_state "error" "El nodo se detuvo durante el arranque. Revisa los logs." "$NEW_COMMIT" "$STARTED" "$(date -Iseconds 2>/dev/null || date)" 80
+    exit 1
+  fi
+
+  # Intentar conectar al HTTP
+  if wget -q -O /dev/null --timeout=3 "http://node-app:8080/api/setup/status" 2>/dev/null || \
+     wget -q -O /dev/null --timeout=3 "http://localhost:8080/api/setup/status" 2>/dev/null; then
+    log "OK: nodo responde HTTP despues de $WAITED segundos"
+    WAIT_OK=true
+    break
+  fi
+
+  sleep 3
+  WAITED=$((WAITED + 3))
+  log "Esperando... ($WAITED/$MAX_WAIT segundos)"
+done
+
+if [ "$WAIT_OK" != "true" ]; then
+  log "WARNING: El nodo no respondio HTTP en $MAX_WAIT segundos"
+  log "El contenedor puede estar corriendo pero el servidor no responde"
+  log "--- Logs del nodo (ultimas 50 lineas) ---"
+  docker logs --tail 50 "$NODE_CONTAINER" >> "$LOG_FILE" 2>&1 || true
+  # No marcar como error - el nodo puede estar arrancando lentamente
+  # (migraciones, etc). Marcar como completado con warning.
 fi
 
 write_state "running" "Nodo reiniciado. Verificando demo-app..." "$NEW_COMMIT" "$STARTED" "" 85
 
-# 9. Recreate demo-app if it was running (leave it stopped)
+# ============================================================
+# 8. Recreate demo-app if it was running (leave it stopped)
+# ============================================================
 DEMO_CONTAINER="${PROJECT_NAME}-demo-app-1"
 DEMO_RUNNING=$(docker inspect -f '{{.State.Running}}' "$DEMO_CONTAINER" 2>/dev/null || echo "false")
 if [ "$DEMO_RUNNING" = "true" ]; then
   log "Demo-app estaba corriendo, recreando con nueva imagen..."
   docker stop "$DEMO_CONTAINER" 2>/dev/null || true
   docker rm -f "$DEMO_CONTAINER" 2>/dev/null || true
-  docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" --profile demo up -d --no-deps demo-app >> "$LOG_FILE" 2>&1 || true
+  dc --profile demo up -d --no-deps demo-app >> "$LOG_FILE" 2>&1 || true
   docker stop "$DEMO_CONTAINER" 2>/dev/null || true
   log "Demo-app recreado (detenido, listo para arrancar desde la web)"
 fi
 
-# 10. Si el updater-controller necesita actualizarse, reiniciarlo AHORA (al final)
+# ============================================================
+# 9. Si el updater-controller necesita actualizarse, reiniciarlo AHORA
 # Esto mata este proceso, pero la actualizacion ya esta completa.
+# ============================================================
 if [ "$UPDATER_NEEDS_UPDATE" = "true" ]; then
-  write_state "running" "Reiniciando updater-controller con nueva imagen (ultimo paso)..." "$NEW_COMMIT" "$STARTED" "" 90
+  write_state "running" "Reiniciando updater-controller con nueva imagen..." "$NEW_COMMIT" "$STARTED" "" 90
   log "=== REINICIANDO UPDATER-CONTROLLER CON NUEVA IMAGEN ==="
   log "NOTA: Este proceso se detendra porque el updater-controller se reinicia."
-  log "La actualizacion ya esta completa. El updater-controller arrancara con la nueva imagen."
-  # Marcar como completado ANTES de reiniciar, porque este proceso morira
-  write_state "completed" "Nodo actualizado. Updater-controller reiniciandose con nueva imagen." "$NEW_COMMIT" "$STARTED" "$(date -Iseconds 2>/dev/null || date)" 95
-  docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" up -d --no-deps --force-recreate updater-controller >> "$LOG_FILE" 2>&1 || true
-  # Este proceso muere aqui. El estado ya dice "completed".
+  log "La actualizacion ya esta completa."
+  write_state "completed" "Nodo actualizado. Updater-controller reiniciandose." "$NEW_COMMIT" "$STARTED" "$(date -Iseconds 2>/dev/null || date)" 95
+  dc up -d --no-deps --force-recreate updater-controller >> "$LOG_FILE" 2>&1 || true
   exit 0
 fi
 
-# 11. Asegurar que el updater-controller siga corriendo (sin forzar recreate)
-# Solo lo arranca si esta detenido, no lo recrea si ya esta corriendo
+# ============================================================
+# 10. Asegurar que el updater-controller siga corriendo
+# ============================================================
 UPDATER_RUNNING=$(docker inspect -f '{{.State.Running}}' "${PROJECT_NAME}-updater-controller-1" 2>/dev/null || echo "false")
 if [ "$UPDATER_RUNNING" != "true" ]; then
   log "Updater-controller no estaba corriendo. Arrancandolo..."
-  docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" up -d --no-deps updater-controller >> "$LOG_FILE" 2>&1 || true
+  dc up -d --no-deps updater-controller >> "$LOG_FILE" 2>&1 || true
 fi
 
 log "=== ACTUALIZACION COMPLETADA ==="
