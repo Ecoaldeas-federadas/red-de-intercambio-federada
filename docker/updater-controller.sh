@@ -205,6 +205,12 @@ if echo "$PATH_REQ" | grep -q '^/update$'; then
     log_msg "Rechazado: ya hay actualizacion en curso"
     send_response '{"success":false,"message":"Ya hay una actualizacion en curso"}'
   else
+    # CRITICO: Escribir 'running' al state file ANTES de iniciar do_update.sh
+    # Si no, el frontend puede hacer polling y ver el estado 'completed' de la
+    # actualizacion anterior, marcando prematuramente como completada.
+    STARTED_TS=$(date -Iseconds 2>/dev/null || date)
+    echo "{\"status\":\"running\",\"message\":\"Iniciando actualizacion...\",\"commit\":\"\",\"started\":\"$STARTED_TS\",\"ended\":\"\",\"progress\":2}" > "$STATE_FILE"
+    log_msg "Estado 'running' escrito antes de iniciar do_update.sh"
     # do_update.sh escribe directamente al LOG_FILE con >>
     # stdout va a /dev/null para evitar duplicacion
     nohup /do_update.sh > /dev/null 2>&1 &

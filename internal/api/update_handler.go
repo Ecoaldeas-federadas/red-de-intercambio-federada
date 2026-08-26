@@ -231,8 +231,9 @@ func (h *UpdateHandler) updateNode(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, resp.StatusCode, result)
 			return
 		}
-		// El updater-controller acepto - ahora si escribir estado inicial
-		h.writeUpdateState("running", "Updater-controller acepto la solicitud", "")
+		// El updater-controller acepto y YA escribio 'running' al state file
+		// antes de responder. No sobrescribir el estado aqui para no perder
+		// el campo progress que el updater-controller ya escribio.
 		h.appendUpdateLog("=== SOLICITUD DE ACTUALIZACION RECIBIDA ===")
 		h.appendUpdateLog("Updater-controller acepto la solicitud")
 		writeJSON(w, 200, result)

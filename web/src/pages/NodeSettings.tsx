@@ -3203,7 +3203,7 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
         setUpdating(true)
         setUpdateStatus(res)
         setMsg({ type: 'info', text: 'Actualizacion en curso (restaurada despues de recargar).' })
-        startPolling()
+        startPolling(true)
       } else if (res && res.status === 'error') {
         // Estado de error previo - mostrar con boton de reset
         setUpdateStatus(res)
@@ -3217,14 +3217,15 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
           setUpdating(true)
           setUpdateStatus(res)
           setMsg({ type: 'info', text: 'Actualizacion en curso (detectada via updater-controller - nodo posiblemente reiniciando).' })
-          startPolling()
+          startPolling(true)
         }
       }).catch(() => {})
     })
   }, [])
 
-  const startPolling = () => {
+  const startPolling = (initialSawRunning = false) => {
     let consecutiveFailures = 0
+    let localSawRunning = initialSawRunning
     const interval = setInterval(async () => {
       try {
         const res: any = await api.get('/node/update-status')
@@ -3232,18 +3233,24 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
         consecutiveFailures = 0
         setNodeRestarting(false)
         setReconnectAttempts(0)
-        if (res.status === 'completed') {
+        // Solo considerar completed/error/cancelled si YA vimos running
+        // Esto evita que el frontend confunda el estado completed de una
+        // actualizacion ANTERIOR con el de la nueva actualizacion.
+        if (res.status === 'running') {
+          localSawRunning = true
+        }
+        if (res.status === 'completed' && localSawRunning) {
           clearInterval(interval)
           setPollInterval(null)
           setUpdating(false)
           setUpdateCompleted(true)
           setMsg({ type: 'success', text: 'Nodo actualizado correctamente.' })
-        } else if (res.status === 'error') {
+        } else if (res.status === 'error' && localSawRunning) {
           clearInterval(interval)
           setPollInterval(null)
           setUpdating(false)
           setMsg({ type: 'error', text: res.message || 'Error en la actualizacion' })
-        } else if (res.status === 'cancelled') {
+        } else if (res.status === 'cancelled' && localSawRunning) {
           clearInterval(interval)
           setPollInterval(null)
           setUpdating(false)
@@ -3265,20 +3272,23 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
             const status = await resp.json()
             if (status && status.status) {
               setUpdateStatus(status)
-              if (status.status === 'completed') {
+              if (status.status === 'running') {
+                localSawRunning = true
+              }
+              if (status.status === 'completed' && localSawRunning) {
                 clearInterval(interval)
                 setPollInterval(null)
                 setUpdating(false)
                 setNodeRestarting(false)
                 setUpdateCompleted(true)
                 setMsg({ type: 'success', text: 'Nodo actualizado correctamente.' })
-              } else if (status.status === 'error') {
+              } else if (status.status === 'error' && localSawRunning) {
                 clearInterval(interval)
                 setPollInterval(null)
                 setUpdating(false)
                 setNodeRestarting(false)
                 setMsg({ type: 'error', text: status.message || 'Error en la actualizacion' })
-              } else if (status.status === 'cancelled') {
+              } else if (status.status === 'cancelled' && localSawRunning) {
                 clearInterval(interval)
                 setPollInterval(null)
                 setUpdating(false)
