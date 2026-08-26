@@ -19,9 +19,19 @@ export default function Parity() {
 
   const parityLabel = (ratio: number) => {
     if (!ratio || ratio === 0) return { text: 'Sin datos', color: 'text-gray-500', icon: <Minus size={16} /> }
+    if (ratio === -1) return { text: 'Solo importas', color: 'text-red-600', icon: <TrendingDown size={16} /> }
+    if (ratio === -2) return { text: 'Solo exportas', color: 'text-blue-600', icon: <TrendingUp size={16} /> }
     if (ratio >= 0.9 && ratio <= 1.1) return { text: 'Equilibrado', color: 'text-green-600', icon: <TrendingUp size={16} /> }
     if (ratio > 1.1) return { text: 'Importas mas', color: 'text-amber-600', icon: <TrendingDown size={16} /> }
     return { text: 'Exportas mas', color: 'text-blue-600', icon: <TrendingUp size={16} /> }
+  }
+
+  // Mostrar el numero de paridad de forma clara
+  const parityDisplay = (ratio: number) => {
+    if (ratio === -1) return 'Solo importas'
+    if (ratio === -2) return 'Solo exportas'
+    if (ratio === 0) return '—'
+    return ratio.toLocaleString('es', { maximumFractionDigits: 2 })
   }
 
   return (
@@ -49,29 +59,43 @@ export default function Parity() {
                 <li><strong>1.0</strong> = Equilibrado: importas y exportas lo mismo.</li>
                 <li><strong>{'>'} 1.0</strong> = Importas mas de lo que exportas (ej: 1.5 = importas 50% mas).</li>
                 <li><strong>{'<'} 1.0</strong> = Exportas mas de lo que importas (ej: 0.5 = exportas el doble).</li>
+                <li><strong>"Solo importas"</strong> = Has recibido productos pero nunca has enviado nada.</li>
+                <li><strong>"Solo exportas"</strong> = Has enviado productos pero nunca has recibido nada.</li>
               </ul>
             </li>
             <li><strong>Importaciones:</strong> Total de {currency} que has recibido del otro nodo (compras).</li>
             <li><strong>Exportaciones:</strong> Total de {currency} que has enviado al otro nodo (ventas).</li>
             <li><strong>Balance:</strong> Exportaciones menos importaciones. Positivo = te deben. Negativo = debes.</li>
-            <li><strong>FC local:</strong> Tu Factor de Conversion. Es cuanto vale 1 {currency} en energia (kWh).
-              Ej: FC=5.0 significa que 1 {currency} = 5 kWh de energia.</li>
-            <li><strong>FC remoto:</strong> El Factor de Conversion del otro nodo. Si es menor al tuyo,
-              sus productos son mas baratos en energia. Si es mayor, son mas caros.</li>
           </ul>
 
-          <p><strong>Que es el Factor de Conversion (FC)?</strong>
-          El FC es la base de todo el sistema. Cada nodo calcula su FC segun su costo energetico local.
-          Si en tu nodo 1 kWh cuesta 0.15 de tu moneda local, tu FC seria 0.15.
-          El FC permite comparar valores entre nodos con diferentes monedas locales.</p>
+          <p><strong>Sobre el Factor de Conversion (FC) - IMPORTANTE</strong></p>
+          <p>El FC <strong>NO afecta el precio de los productos en {currency}</strong>.
+          Si vas a otro nodo con tu tarjeta y compras un producto que cuesta 50 {currency},
+          te cobran 50 {currency}. El precio es el mismo que esta publicado en la tienda.
+          No hay conversion ni cambio de precio entre nodos.</p>
 
-          <p><strong>Como se compara con monedas externas (USD)?</strong>
-          Convirtiendo ambos FC a una referencia comun (el precio del kWh en dolares).
-          Asi puedes saber si tu {currency} esta sobrevaluado o subvaluado respecto al dolar.</p>
+          <p>El FC se usa <strong>exclusivamente en el comercio exterior</strong>:
+          cuando Comercio Exterior compra productos internamente (en {currency}) para
+          vender afuera (en USD/moneda local) o cuando compra productos de afuera para
+          traerlos al nodo. Es una herramienta de conversion entre {currency} y moneda
+          local para el comercio exterior, no para transacciones entre nodos.</p>
 
-          <p><strong>Para que sirve?</strong></p>
+          <p>El FC tambien sirve como <strong>referencia informativa</strong> para que
+          los miembros sepan cuanto vale un producto en moneda local si deciden pagar
+          directamente entre ellos (fuera de la plataforma). Pero esos pagos en moneda
+          local no se registran en la plataforma: la plataforma solo registra {currency}.</p>
+
+          <p><strong>FC local:</strong> Tu Factor de Conversion. Es cuanto vale 1 {currency}
+          en energia (kWh). Ej: FC=5.0 significa que 1 {currency} = 5 kWh de energia.</p>
+
+          <p><strong>FC remoto:</strong> El Factor de Conversion del otro nodo. Solo aparece
+          si el otro nodo lo ha compartido. Si dice "No disponible", el otro nodo no ha
+          compartido su FC. <strong>El FC remoto no cambia el precio de los productos
+          que compras en {currency}.</strong></p>
+
+          <p><strong>Para que sirve el reporte de paridad?</strong></p>
           <ul className="list-disc list-inside ml-4 space-y-1">
-            <li>Detectar relaciones comerciales desequilibradas.</li>
+            <li>Detectar relaciones comerciales desequilibradas entre nodos.</li>
             <li>Decidir si ajustar los limites bilaterales con un nodo.</li>
             <li>Promover exportaciones donde hay deficit.</li>
             <li>Fomentar intercambios en areas donde hay superavit.</li>
@@ -118,13 +142,17 @@ export default function Parity() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs text-gray-500">Paridad (import/export)</p>
-                        <p className={`text-2xl font-bold ${p.color}`}>{fmtNum(r.parity_ratio)}</p>
+                        <p className={`text-2xl font-bold ${p.color}`}>{parityDisplay(r.parity_ratio)}</p>
                       </div>
                       <div className={`flex items-center gap-1 ${p.color}`}>
                         {p.icon}
                         <span className="text-sm font-medium">{p.text}</span>
                       </div>
                     </div>
+                    {/* Explicacion dinamica del numero */}
+                    {r.dynamic_explanation && (
+                      <p className={`text-sm mt-2 ${p.color}`}>{r.dynamic_explanation}</p>
+                    )}
                     <p className="text-xs text-gray-400 mt-1">1.0 = equilibrado | {'>'}1.0 = importas mas | {'<'}1.0 = exportas mas</p>
                   </div>
 
@@ -158,11 +186,22 @@ export default function Parity() {
                       <p className="text-xs text-gray-500">FC local (tu nodo)</p>
                       <p className="font-bold text-lg">{fmtNum(r.local_fc)}</p>
                       <p className="text-[10px] text-gray-400">1 {currency} = {fmtNum(r.local_fc)} kWh de energia</p>
+                      <p className="text-[10px] text-blue-500 mt-1">Solo para comercio exterior</p>
                     </div>
                     <div className="border border-gray-200 rounded-lg p-3">
                       <p className="text-xs text-gray-500">FC remoto ({r.remote_node})</p>
-                      <p className="font-bold text-lg">{fmtNum(r.remote_fc)}</p>
-                      <p className="text-[10px] text-gray-400">1 {currency} = {fmtNum(r.remote_fc)} kWh de energia</p>
+                      {r.remote_fc_real ? (
+                        <>
+                          <p className="font-bold text-lg">{fmtNum(r.remote_fc)}</p>
+                          <p className="text-[10px] text-gray-400">1 {currency} = {fmtNum(r.remote_fc)} kWh de energia</p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-bold text-lg text-gray-400">No disponible</p>
+                          <p className="text-[10px] text-gray-400">El nodo remoto no ha compartido su FC</p>
+                        </>
+                      )}
+                      <p className="text-[10px] text-blue-500 mt-1">Solo para comercio exterior</p>
                     </div>
                   </div>
 

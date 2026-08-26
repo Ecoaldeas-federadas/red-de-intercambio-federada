@@ -73,19 +73,21 @@ func (g *Gossip) syncBilateralLimits(ctx context.Context) {
 }
 
 type ParityReport struct {
-	RemoteNode       string  `json:"remote_node"`
-	Imports          int64   `json:"imports"`
-	Exports          int64   `json:"exports"`
-	Balance          int64   `json:"balance"`
-	ParityRatio      float64 `json:"parity_ratio"`
-	LocalFC          float64 `json:"local_fc"`
-	RemoteFC         float64 `json:"remote_fc"`
-	ImportPctOfLimit float64 `json:"import_pct_of_limit"`
-	ExportPctOfLimit float64 `json:"export_pct_of_limit"`
-	CreditLimit      int64   `json:"credit_limit"`
-	HasParity        bool    `json:"has_parity"`
-	Suggestion       string  `json:"suggestion"`
-	CreatedAt        string  `json:"created_at"`
+	RemoteNode         string  `json:"remote_node"`
+	Imports            int64   `json:"imports"`
+	Exports            int64   `json:"exports"`
+	Balance            int64   `json:"balance"`
+	ParityRatio        float64 `json:"parity_ratio"`
+	DynamicExplanation string  `json:"dynamic_explanation"`
+	LocalFC            float64 `json:"local_fc"`
+	RemoteFC           float64 `json:"remote_fc"`
+	RemoteFCReal       bool    `json:"remote_fc_real"`
+	ImportPctOfLimit   float64 `json:"import_pct_of_limit"`
+	ExportPctOfLimit   float64 `json:"export_pct_of_limit"`
+	CreditLimit        int64   `json:"credit_limit"`
+	HasParity          bool    `json:"has_parity"`
+	Suggestion         string  `json:"suggestion"`
+	CreatedAt          string  `json:"created_at"`
 }
 
 func (g *Gossip) GetParityReport(ctx context.Context, remoteNode string) (*ParityReport, error) {
@@ -159,13 +161,33 @@ func (g *Gossip) GetParityReport(ctx context.Context, remoteNode string) (*Parit
 	}
 
 	// Calcular parity_ratio: 1.0 = equilibrado
+	// IMPORTANTE: NO forzar valores fijos como 2.0 o 0.5.
+	// Calcular el ratio real cuando hay datos.
+	// Cuando solo hay un lado (solo import o solo export), usar un valor
+	// que indique claramente la situacion, pero la explicacion dinamica
+	// sera la que aclare el significado.
 	parityRatio := 0.0
+	dynamicExplanation := "Sin datos: no has realizado intercambios con este nodo."
+
 	if exports > 0 && imports > 0 {
 		parityRatio = float64(imports) / float64(exports)
-	} else if imports > 0 {
-		parityRatio = 2.0 // solo importas
-	} else if exports > 0 {
-		parityRatio = 0.5 // solo exportas
+		// Explicacion dinamica con el numero real
+		if parityRatio >= 0.9 && parityRatio <= 1.1 {
+			dynamicExplanation = fmt.Sprintf("Equilibrado: importas y exportas casi lo mismo. Por cada 1 TQ que exportas, importas %.1f TQ.", parityRatio)
+		} else if parityRatio > 1.0 {
+			dynamicExplanation = fmt.Sprintf("Importas mas de lo que exportas. Por cada 1 TQ que exportas, importas %.1f TQ. Debes exportar %.0f%% mas para equilibrar.", parityRatio, (parityRatio-1)*100)
+		} else {
+			dynamicExplanation = fmt.Sprintf("Exportas mas de lo que importas. Por cada 1 TQ que importas, exportas %.1f TQ. Puedes importar mas o reducir exportaciones.", 1/parityRatio)
+		}
+	} else if imports > 0 && exports == 0 {
+		// Solo importas, nunca has exportado
+		// Usar un valor alto para indicar desequilibrio total
+		parityRatio = -1 // valor especial: solo importas
+		dynamicExplanation = fmt.Sprintf("Solo has importado %d TQ de este nodo, pero nunca has exportado nada. Debes enviar productos o servicios para equilibrar el intercambio.", imports)
+	} else if exports > 0 && imports == 0 {
+		// Solo exportas, nunca has importado
+		parityRatio = -2 // valor especial: solo exportas
+		dynamicExplanation = fmt.Sprintf("Solo has exportado %d TQ a este nodo, pero nunca has importado nada. Puedes importar productos que necesites para equilibrar.", exports)
 	}
 
 	// Obtener FC local
@@ -178,16 +200,17 @@ func (g *Gossip) GetParityReport(ctx context.Context, remoteNode string) (*Parit
 		localFC = 5.0
 	}
 
-	// FC remoto: no podemos saberlo, usar valor estimado basado en el balance
-	remoteFC := localFC // por defecto igual
-	// Si hay balance negativo, el otro nodo tiene FC ligeramente diferente
-	if nodeBalance != 0 && (imports > 0 || exports > 0) {
-		// Estimacion simple: si importas mas, su FC es menor (mas barato)
-		if imports > exports {
-			remoteFC = localFC * 0.9
-		} else if exports > imports {
-			remoteFC = localFC * 1.1
-		}
+	// FC remoto: intentar obtener el FC real del nodo remoto via federation
+	// Si no se puede obtener, dejarlo como 0 y marcar remote_fc_real = false
+	remoteFC := 0.0
+	remoteFCReal := false
+	// Intentar leer el FC remoto de la tabla de federation (si el otro nodo lo compartio)
+	_ = g.Pool.QueryRow(ctx,
+		`SELECT COALESCE(factor, 0) FROM conversion_factor WHERE node_domain = $1 ORDER BY calculated_at DESC LIMIT 1`,
+		remoteNode,
+	).Scan(&remoteFC)
+	if remoteFC > 0 {
+		remoteFCReal = true
 	}
 
 	var parityThreshold int
@@ -208,19 +231,21 @@ func (g *Gossip) GetParityReport(ctx context.Context, remoteNode string) (*Parit
 	}
 
 	return &ParityReport{
-		RemoteNode:       remoteNode,
-		Imports:          imports,
-		Exports:          exports,
-		Balance:          nodeBalance,
-		ParityRatio:      parityRatio,
-		LocalFC:          localFC,
-		RemoteFC:         remoteFC,
-		ImportPctOfLimit: importPct,
-		ExportPctOfLimit: exportPct,
-		CreditLimit:      creditLimit,
-		HasParity:        hasParity,
-		Suggestion:       suggestion,
-		CreatedAt:        time.Now().UTC().Format("2006-01-02"),
+		RemoteNode:         remoteNode,
+		Imports:            imports,
+		Exports:            exports,
+		Balance:            nodeBalance,
+		ParityRatio:        parityRatio,
+		DynamicExplanation: dynamicExplanation,
+		LocalFC:            localFC,
+		RemoteFC:           remoteFC,
+		RemoteFCReal:       remoteFCReal,
+		ImportPctOfLimit:   importPct,
+		ExportPctOfLimit:   exportPct,
+		CreditLimit:        creditLimit,
+		HasParity:          hasParity,
+		Suggestion:         suggestion,
+		CreatedAt:          time.Now().UTC().Format("2006-01-02"),
 	}, nil
 }
 
