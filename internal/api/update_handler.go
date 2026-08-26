@@ -36,6 +36,7 @@ func (h *UpdateHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequireAuth).Get("/api/node/update-status", h.getUpdateStatus)
 	r.With(am.RequireAuth).Get("/api/node/check-updates", h.checkUpdates)
 	r.With(am.RequirePermission("config.manage")).Post("/api/node/cancel-update", h.cancelUpdate)
+	r.With(am.RequirePermission("config.manage")).Post("/api/node/reset-update-state", h.resetUpdateState)
 	r.With(am.RequireAuth).Get("/api/node/status", h.getNodeStatus)
 	r.With(am.RequireAuth).Get("/api/node/logs", h.getNodeLogs)
 	r.With(am.RequirePermission("config.manage")).Post("/api/node/start", h.startNode)
@@ -359,6 +360,24 @@ func (h *UpdateHandler) cancelUpdate(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]interface{}{
 		"success": true,
 		"message": "Actualizacion cancelada. El proceso en segundo plano se detendra.",
+	})
+}
+
+// resetUpdateState limpia el estado de actualizacion pegado/stale.
+// Esto pasa cuando el updater-controller fue recreado o el proceso murio
+// sin escribir el estado final, dejando status="running" para siempre.
+func (h *UpdateHandler) resetUpdateState(w http.ResponseWriter, r *http.Request) {
+	// Limpiar archivos de estado en el volumen compartido
+	os.WriteFile("/update-state/update.json", []byte(`{"status":"idle","message":"","commit":"","started_at":"","completed_at":"","progress":0}`), 0644)
+	os.WriteFile("/update-state/update.log", []byte{}, 0644)
+	os.Remove("/update-state/update.pid")
+
+	// Tambien intentar reset via updater-controller (por si tiene proceso residual)
+	http.Post(updaterControllerURL+"/reset", "application/json", nil)
+
+	writeJSON(w, 200, map[string]interface{}{
+		"success": true,
+		"message": "Estado de actualizacion reseteado.",
 	})
 }
 

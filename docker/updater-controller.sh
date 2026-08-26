@@ -228,12 +228,52 @@ elif echo "$PATH_REQ" | grep -q '^/status$'; then
     COMMIT=$(grep -o '"commit":"[^"]*"' "$STATE_FILE" | head -1 | sed 's/"commit":"//;s/"//')
     PROGRESS=$(grep -o '"progress":[0-9]*' "$STATE_FILE" | head -1 | sed 's/"progress"://' )
     if [ -z "$PROGRESS" ]; then PROGRESS="0"; fi
+
+    # DETECTAR ESTADO STALE: si status=running pero el proceso murio,
+    # el estado es stale (quedo pegado de una actualizacion fallida).
+    # Esto pasa cuando el updater-controller fue recreado o el proceso murio.
+    if [ "$STATUS" = "running" ]; then
+      PID_ALIVE=false
+      if [ -f "$STATE_DIR/update.pid" ]; then
+        PID=$(cat "$STATE_DIR/update.pid" 2>/dev/null)
+        if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
+          PID_ALIVE=true
+        fi
+      fi
+      if [ "$PID_ALIVE" != "true" ]; then
+        # El proceso murio pero el estado dice running -> stale
+        log_msg "Estado stale detectado: status=running pero PID no existe. Marcando como error."
+        STARTED=$(grep -o '"started_at":"[^"]*"' "$STATE_FILE" | head -1 | sed 's/"started_at":"//;s/"//')
+        printf '{"status":"error","message":"Actualizacion interrumpida (proceso murio). Click en Reset para limpiar.","commit":"%s","started_at":"%s","completed_at":"%s","progress":0}' \
+          "$COMMIT" "$STARTED" "$(date -Iseconds 2>/dev/null || date)" > "$STATE_FILE"
+        STATUS="error"
+        MESSAGE="Actualizacion interrumpida (proceso murio). Click en Reset para limpiar."
+        rm -f "$STATE_DIR/update.pid"
+      fi
+    fi
   fi
   LOG=""
   if [ -f "$LOG_FILE" ]; then
     LOG=$(json_escape "$(cat "$LOG_FILE")")
   fi
   send_response "{\"status\":\"$STATUS\",\"message\":\"$MESSAGE\",\"commit\":\"$COMMIT\",\"progress\":$PROGRESS,\"log\":\"$LOG\"}"
+
+elif echo "$PATH_REQ" | grep -q '^/reset$'; then
+  log_msg "Peticion /reset - limpiando estado de actualizacion"
+  # Matar cualquier proceso residual
+  if [ -f "$STATE_DIR/update.pid" ]; then
+    PID=$(cat "$STATE_DIR/update.pid" 2>/dev/null)
+    if [ -n "$PID" ]; then
+      kill "$PID" 2>/dev/null || true
+      kill -9 "$PID" 2>/dev/null || true
+    fi
+    rm -f "$STATE_DIR/update.pid"
+  fi
+  # Resetear estado a idle
+  printf '{"status":"idle","message":"","commit":"","started_at":"","completed_at":"","progress":0}' > "$STATE_FILE"
+  # Limpiar log
+  : > "$LOG_FILE"
+  send_response '{"success":true,"message":"Estado reseteado. Ya puedes actualizar de nuevo."}'
 
 elif echo "$PATH_REQ" | grep -q '^/node-status$'; then
   RESULT=$(check_node_status)
@@ -317,5 +357,5 @@ elif echo "$PATH_REQ" | grep -q '^/check$'; then
   send_response "{\"updates_available\":$UPDATES,\"current_commit\":\"$CURRENT\",\"new_commits\":\"$NEW_ESC\"}"
 
 else
-  send_response '{"status":"updater-controller running","endpoints":["/","/update","/status","/node-status","/start","/stop","/restart","/cancel","/check"]}'
+  send_response '{"status":"updater-controller running","endpoints":["/","/update","/status","/node-status","/start","/stop","/restart","/cancel","/check","/reset"]}'
 fi

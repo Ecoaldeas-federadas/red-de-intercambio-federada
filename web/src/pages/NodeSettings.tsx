@@ -3106,6 +3106,7 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
   const [reconnectAttempts, setReconnectAttempts] = useState(0)
   const [nodeRestarting, setNodeRestarting] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+  const [resetting, setResetting] = useState(false)
   const [nodePowerAction, setNodePowerAction] = useState('')
   const [nodeRunning, setNodeRunning] = useState<boolean | null>(null)
   const [nodeLogs, setNodeLogs] = useState<string | null>(null)
@@ -3194,6 +3195,7 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
 
   // Al cargar, verificar si ya hay una actualizacion en curso.
   // Esto permite restaurar la consola despues de una recarga de pagina.
+  // Tambien detecta estado stale (status=running pero proceso murio).
   useEffect(() => {
     api.get('/node/update-status').then((res: any) => {
       if (res && res.status === 'running') {
@@ -3201,6 +3203,10 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
         setUpdateStatus(res)
         setMsg({ type: 'info', text: 'Actualizacion en curso (restaurada despues de recargar).' })
         startPolling()
+      } else if (res && res.status === 'error') {
+        // Estado de error previo - mostrar con boton de reset
+        setUpdateStatus(res)
+        setMsg({ type: 'error', text: res.message || 'La ultima actualizacion fallo.' })
       }
     }).catch(() => {
       // Si el nodo no responde, intentar via updater-controller
@@ -3349,6 +3355,30 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
       }
       setUpdating(false)
       setCancelling(false)
+    }
+  }
+
+  const resetUpdateState = async () => {
+    setResetting(true)
+    try {
+      try {
+        await api.post('/node/reset-update-state', {})
+      } catch {
+        // Si el nodo no responde, intentar directamente via updater-controller
+        const host = window.location.hostname
+        await fetch(`http://${host}:9110/reset`, { method: 'POST' })
+      }
+      setUpdateStatus(null)
+      setUpdateInfo(null)
+      setMsg({ type: 'success', text: 'Estado reseteado. Ya puedes actualizar de nuevo.' })
+      // Recargar estado del nodo
+      checkNodeStatus()
+      // Recargar para verificar actualizaciones
+      checkUpdates()
+    } catch (err) {
+      setMsg({ type: 'error', text: 'No se pudo resetear el estado. Ni el nodo ni el updater-controller responden.' })
+    } finally {
+      setResetting(false)
     }
   }
 
@@ -3541,28 +3571,55 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
               </button>
             </div>
           )}
+          {/* Boton de reset cuando hay error o estado stale */}
+          {(updateStatus?.status === 'error' || updateStatus?.status === 'cancelled') && (
+            <div className="mt-3 flex justify-end">
+              <button
+                onClick={resetUpdateState}
+                disabled={resetting}
+                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs flex items-center gap-2 disabled:opacity-50"
+              >
+                {resetting ? <><RefreshCw size={14} className="animate-spin" /> Reseteando...</> : <><RefreshCw size={14} /> Resetear estado</>}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
       {/* Estado anterior (no durante updating) */}
-      {!updating && updateStatus && (updateStatus.status === 'running' || updateStatus.status === 'error' || updateStatus.status === 'completed') && (
+      {!updating && updateStatus && (updateStatus.status === 'running' || updateStatus.status === 'error' || updateStatus.status === 'completed' || updateStatus.status === 'cancelled') && (
         <div className={`bg-white rounded-lg p-3 border mb-3 ${
           updateStatus.status === 'running' ? 'border-blue-100' :
           updateStatus.status === 'error' ? 'border-red-100' :
+          updateStatus.status === 'cancelled' ? 'border-amber-100' :
           'border-green-100'
         }`}>
           <div className={`flex items-center gap-2 text-sm mb-2 ${
             updateStatus.status === 'running' ? 'text-blue-600' :
             updateStatus.status === 'error' ? 'text-red-600' :
+            updateStatus.status === 'cancelled' ? 'text-amber-600' :
             'text-green-600'
           }`}>
             {updateStatus.status === 'running' && <RefreshCw size={14} className="animate-spin" />}
             {updateStatus.status === 'error' && <AlertTriangle size={14} />}
+            {updateStatus.status === 'cancelled' && <AlertTriangle size={14} />}
             {updateStatus.status === 'completed' && <CheckCircle size={14} />}
             {updateStatus.message}
           </div>
           {updateStatus.log && (
             <pre className="text-xs text-gray-600 bg-gray-900 text-gray-100 p-3 rounded max-h-60 overflow-auto whitespace-pre-wrap font-mono">{updateStatus.log}</pre>
+          )}
+          {/* Boton de reset para estado error/cancelled/stale */}
+          {(updateStatus.status === 'error' || updateStatus.status === 'cancelled') && canManage && (
+            <div className="mt-2 flex justify-end">
+              <button
+                onClick={resetUpdateState}
+                disabled={resetting}
+                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs flex items-center gap-2 disabled:opacity-50"
+              >
+                {resetting ? <><RefreshCw size={14} className="animate-spin" /> Reseteando...</> : <><RefreshCw size={14} /> Resetear estado</>}
+              </button>
+            </div>
           )}
         </div>
       )}
