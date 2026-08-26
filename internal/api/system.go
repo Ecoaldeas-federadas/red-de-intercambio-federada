@@ -93,6 +93,7 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequireAuth).Get("/api/products/pending", h.listPendingProducts)
 	r.With(am.RequireAuth).Get("/api/products/composite", h.listCompositeProducts)
 	r.With(am.RequireAuth).Get("/api/products/federated", h.listFederatedProducts)
+	r.With(am.RequireAuth).Get("/api/products/federated/nodes", h.listFederatedProductNodes)
 	r.With(am.RequireAuth).Get("/api/products/categories", h.listProductCategories)
 	r.With(am.RequireAuth).Get("/api/products/{id}", h.getProduct)
 	r.With(am.RequirePermission("products.manage")).Post("/api/products", h.createProduct)
@@ -764,19 +765,28 @@ func (h *SystemHandler) listCompositeProducts(w http.ResponseWriter, r *http.Req
 // pueda aprobar/desaprobar individualmente. No muestra ocultos ni compuestos.
 func (h *SystemHandler) listFederatedProducts(w http.ResponseWriter, r *http.Request) {
 	search := r.URL.Query().Get("search")
+	orgFilter := r.URL.Query().Get("organization")
 	query := `
 		SELECT id, name, COALESCE(description,''), COALESCE(parent_category,''), COALESCE(category,''),
 		       COALESCE(subcategory,''), unit, price_per_unit,
 		       COALESCE(price_per_kg,0), COALESCE(weight_kg,0), COALESCE(base_unit,'kg'),
 		       is_approved, origin, badge, image_url, product_code, is_system, is_hidden,
-		       node_domain, COALESCE(source_node, ''), COALESCE(image_thumb_url,''), COALESCE(is_allowed, NULL)`
+		       node_domain, COALESCE(source_node, ''), COALESCE(image_thumb_url,''), COALESCE(is_allowed, NULL)
+		FROM products`
 	var args []interface{}
+	argIdx := 1
+	whereParts := []string{"is_hidden = false", "COALESCE(is_composite, false) = false"}
 	if search != "" {
-		query += ` WHERE LOWER(name) LIKE LOWER($1) AND is_hidden = false AND COALESCE(is_composite, false) = false`
+		whereParts = append(whereParts, fmt.Sprintf("LOWER(name) LIKE LOWER($%d)", argIdx))
 		args = append(args, "%"+search+"%")
-	} else {
-		query += ` WHERE is_hidden = false AND COALESCE(is_composite, false) = false`
+		argIdx++
 	}
+	if orgFilter != "" {
+		whereParts = append(whereParts, fmt.Sprintf("node_domain = $%d", argIdx))
+		args = append(args, orgFilter)
+		argIdx++
+	}
+	query += " WHERE " + strings.Join(whereParts, " AND ")
 	query += ` ORDER BY is_approved DESC, node_domain, COALESCE(parent_category,''), COALESCE(category,''), name LIMIT 1000`
 	rows, err := h.Pool.Query(r.Context(), query, args...)
 	if err != nil {
@@ -852,6 +862,35 @@ func (h *SystemHandler) listFederatedProducts(w http.ResponseWriter, r *http.Req
 		products = []map[string]interface{}{}
 	}
 	writeJSON(w, 200, products)
+}
+
+// listFederatedProductNodes devuelve los nodos/organizaciones que tienen productos
+// para que el frontend pueda mostrar un filtro por organizacion.
+func (h *SystemHandler) listFederatedProductNodes(w http.ResponseWriter, r *http.Request) {
+	rows, err := h.Pool.Query(r.Context(), `
+		SELECT node_domain, COUNT(*) as product_count
+		FROM products
+		WHERE is_hidden = false AND COALESCE(is_composite, false) = false
+		GROUP BY node_domain
+		ORDER BY node_domain`)
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+	nodes := []map[string]interface{}{}
+	for rows.Next() {
+		var nodeDomain string
+		var count int
+		if err := rows.Scan(&nodeDomain, &count); err != nil {
+			continue
+		}
+		nodes = append(nodes, map[string]interface{}{
+			"node_domain":   nodeDomain,
+			"product_count": count,
+		})
+	}
+	writeJSON(w, 200, nodes)
 }
 
 // promoteCompositeToBase promueve un producto compuesto a producto base.

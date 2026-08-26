@@ -65,6 +65,8 @@ export default function Products() {
   const [pendingProducts, setPendingProducts] = useState<any[]>([])
   const [showPending, setShowPending] = useState(false)
   const [hasMore, setHasMore] = useState(true)
+  const [fedNodes, setFedNodes] = useState<any[]>([])
+  const [fedNodeFilter, setFedNodeFilter] = useState('')
   const sentinelRef = useRef<HTMLDivElement>(null)
 
   // Nueva: busqueda por nombre
@@ -117,12 +119,22 @@ export default function Products() {
   const loadFederated = useCallback(() => {
     setLoading(true)
     let url = '/products/federated'
-    if (searchTerm) url += `?search=${encodeURIComponent(searchTerm)}`
+    const params: string[] = []
+    if (searchTerm) params.push(`search=${encodeURIComponent(searchTerm)}`)
+    if (fedNodeFilter) params.push(`organization=${encodeURIComponent(fedNodeFilter)}`)
+    if (params.length) url += '?' + params.join('&')
     api.get(url).then((d: any) => {
       setProducts(Array.isArray(d) ? d : [])
       setHasMore(false)
     }).catch(() => setProducts([])).finally(() => setLoading(false))
-  }, [searchTerm])
+  }, [searchTerm, fedNodeFilter])
+
+  // Cargar nodos disponibles para filtrar
+  const loadFedNodes = () => {
+    api.get('/products/federated/nodes').then((d: any) => {
+      setFedNodes(Array.isArray(d) ? d : [])
+    }).catch(() => {})
+  }
 
   // Recargar cuando cambie la pestana, sub-tab o el termino de busqueda
   useEffect(() => {
@@ -132,8 +144,9 @@ export default function Products() {
       loadComposite()
     } else if (activeTab === 'federated') {
       loadFederated()
+      loadFedNodes()
     }
-  }, [activeTab, searchTerm, mynodeSubTab])
+  }, [activeTab, searchTerm, mynodeSubTab, fedNodeFilter])
 
   // Cargar propuestas de productos federados pendientes
   const loadFedProposals = () => {
@@ -772,8 +785,8 @@ export default function Products() {
       </div>
 
       {/* Campo de busqueda por nombre */}
-      <div className="flex gap-2 items-center">
-        <div className="relative flex-1">
+      <div className="flex gap-2 items-center flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             className="input pl-10"
@@ -783,6 +796,21 @@ export default function Products() {
             onKeyDown={(e) => { if (e.key === 'Enter') doSearch() }}
           />
         </div>
+        {/* Filtro por organizacion - solo en pestaña Federacion */}
+        {activeTab === 'federated' && fedNodes.length > 0 && (
+          <select
+            value={fedNodeFilter}
+            onChange={(e) => setFedNodeFilter(e.target.value)}
+            className="input max-w-[250px]"
+          >
+            <option value="">Todas las organizaciones</option>
+            {fedNodes.map((n: any) => (
+              <option key={n.node_domain} value={n.node_domain}>
+                {n.node_domain} ({n.product_count})
+              </option>
+            ))}
+          </select>
+        )}
         <button onClick={doSearch} className="btn-primary flex items-center gap-2">
           <Search size={16} />
           Buscar
