@@ -9,23 +9,14 @@
 -- 1. Eliminar filas duplicadas (conservar la mas antigua por created_at)
 -- 2. Anadir UNIQUE constraint en (node_domain, parameter_type, category, name)
 --    para que ON CONFLICT DO NOTHING funcione en el futuro
+--
+-- NOTA: YugabyteDB no tiene min(uuid), se usa DISTINCT ON en su lugar.
 
 -- Paso 1: Eliminar duplicados de calculator_parameters
 -- Conservar la fila con el created_at mas antiguo (la primera insertada)
+-- Usar DISTINCT ON que si funciona en YugabyteDB/PostgreSQL
 DELETE FROM calculator_parameters
-WHERE id NOT IN (
-    SELECT MIN(id) FROM (
-        SELECT id, node_domain, parameter_type, category, name,
-               ROW_NUMBER() OVER (
-                   PARTITION BY node_domain, parameter_type, category, name
-                   ORDER BY created_at ASC, id ASC
-               ) AS rn
-        FROM calculator_parameters
-    ) AS ranked
-    WHERE ranked.rn = 1
-    GROUP BY node_domain, parameter_type, category, name
-)
-AND id IN (
+WHERE id IN (
     SELECT id FROM (
         SELECT id,
                ROW_NUMBER() OVER (
