@@ -3107,6 +3107,7 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
   const [nodeRestarting, setNodeRestarting] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [resetting, setResetting] = useState(false)
+  const [updateCompleted, setUpdateCompleted] = useState(false)
   const [nodePowerAction, setNodePowerAction] = useState('')
   const [nodeRunning, setNodeRunning] = useState<boolean | null>(null)
   const [nodeLogs, setNodeLogs] = useState<string | null>(null)
@@ -3235,8 +3236,8 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
           clearInterval(interval)
           setPollInterval(null)
           setUpdating(false)
-          setMsg({ type: 'success', text: 'Nodo actualizado correctamente. La pagina se recargara...' })
-          setTimeout(() => window.location.reload(), 3000)
+          setUpdateCompleted(true)
+          setMsg({ type: 'success', text: 'Nodo actualizado correctamente.' })
         } else if (res.status === 'error') {
           clearInterval(interval)
           setPollInterval(null)
@@ -3269,8 +3270,8 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
                 setPollInterval(null)
                 setUpdating(false)
                 setNodeRestarting(false)
-                setMsg({ type: 'success', text: 'Nodo actualizado correctamente. La pagina se recargara...' })
-                setTimeout(() => window.location.reload(), 3000)
+                setUpdateCompleted(true)
+                setMsg({ type: 'success', text: 'Nodo actualizado correctamente.' })
               } else if (status.status === 'error') {
                 clearInterval(interval)
                 setPollInterval(null)
@@ -3387,6 +3388,7 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
     setUpdating(true)
     setMsg(null)
     setUpdateStatus(null)
+    setUpdateCompleted(false)
     setReconnectAttempts(0)
     setNodeRestarting(false)
     try {
@@ -3479,7 +3481,7 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
       )}
 
       {/* Consola de estado de actualizacion - siempre visible durante updating */}
-      {updating && (
+      {(updating || updateCompleted) && (
         <div className="bg-gray-900 rounded-lg p-4 mb-3 border border-gray-700">
           <div className="flex items-center gap-2 mb-3">
             {nodeRestarting ? (
@@ -3583,11 +3585,25 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
               </button>
             </div>
           )}
+          {/* Boton de recargar cuando la actualizacion completo */}
+          {updateCompleted && (
+            <div className="mt-3 flex justify-between items-center">
+              <span className="text-xs text-green-400 font-medium">
+                Actualizacion completada. El log completo esta arriba.
+              </span>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm flex items-center gap-2 font-medium"
+              >
+                <CheckCircle size={16} /> Recargar pagina
+              </button>
+            </div>
+          )}
         </div>
       )}
 
       {/* Estado anterior (no durante updating) */}
-      {!updating && updateStatus && (updateStatus.status === 'running' || updateStatus.status === 'error' || updateStatus.status === 'completed' || updateStatus.status === 'cancelled') && (
+      {!updating && !updateCompleted && updateStatus && (updateStatus.status === 'running' || updateStatus.status === 'error' || updateStatus.status === 'completed' || updateStatus.status === 'cancelled') && (
         <div className={`bg-white rounded-lg p-3 border mb-3 ${
           updateStatus.status === 'running' ? 'border-blue-100' :
           updateStatus.status === 'error' ? 'border-red-100' :
