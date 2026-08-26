@@ -18,6 +18,8 @@ FROM nginx:alpine
 COPY --from=pos-builder /pos/dist /usr/share/nginx/html
 
 # nginx config para SPA (todas las rutas van a index.html)
+# El proxy inverso del nodo strip /pos-web antes de enviar,
+# asi que nginx recibe /, /assets/..., /index.html, etc.
 RUN echo 'server { \
     listen 80; \
     server_name _; \

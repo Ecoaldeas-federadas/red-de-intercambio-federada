@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
-import { Video, MessageCircle, Image as ImageIcon, Users, MessageSquare, BookOpen, PenTool, Calendar, Phone, Mic, Cloud, FileText, BookMarked, Globe, Film, Music, GitBranch, GraduationCap, Home, Lock, Download, Play, Square, Trash2, RefreshCw, Search, Server, AlertTriangle, CheckCircle, XCircle, Loader, Phone as PhoneIcon, HelpCircle, ExternalLink } from 'lucide-react'
+import { Video, MessageCircle, Image as ImageIcon, Users, MessageSquare, BookOpen, PenTool, Calendar, Phone, Mic, Cloud, FileText, BookMarked, Globe, Film, Music, GitBranch, GraduationCap, Home, Lock, Download, Play, Square, Trash2, RefreshCw, Search, Server, AlertTriangle, CheckCircle, XCircle, Loader, Phone as PhoneIcon, HelpCircle, ExternalLink, Terminal } from 'lucide-react'
 
 interface ServiceItem {
   id: string
@@ -18,6 +18,7 @@ interface ServiceItem {
   default_port: number
   subdomain: string
   status: string
+  port?: number
 }
 
 interface VoIPConfig {
@@ -83,6 +84,7 @@ export default function FederatedServices() {
   // Estado de instalacion por servicio: mensaje y logs al lado del boton
   const [installMsgs, setInstallMsgs] = useState<Record<string, { type: 'success' | 'error' | 'info', text: string, logs?: string }>>({})
   const [installingService, setInstallingService] = useState<string | null>(null)
+  const [logsModal, setLogsModal] = useState<{ serviceId: string, serviceName: string, logs: string, loading: boolean } | null>(null)
 
   useEffect(() => {
     loadServices()
@@ -100,12 +102,13 @@ export default function FederatedServices() {
   }
 
   // Construye la URL para abrir un servicio instalado.
-  // Todos los servicios se acceden via /<service_id> (ej: /pos, /peertube).
+  // Usa el dominio del nodo si esta configurado, sino usa el hostname actual.
+  // Todos los servicios se acceden via /<service_id> (ej: /pos-web, /peertube).
   // El backend tiene un proxy reverso que redirige /<service_id> -> localhost:<port>.
-  // Esto evita que el usuario tenga que recordar puertos.
   const buildServiceURL = (serviceID: string) => {
-    const base = window.location.origin
-    return `${base}/${serviceID}`
+    const protocol = window.location.protocol
+    const host = nodeDomain && nodeDomain !== 'localhost' ? nodeDomain : window.location.host
+    return `${protocol}//${host}/${serviceID}`
   }
 
   const loadServices = async () => {
@@ -207,6 +210,26 @@ export default function FederatedServices() {
       setMsg({ type: 'success', text: `Descarga de ${svc.name} generada` })
     } catch (e: any) {
       setMsg({ type: 'error', text: 'Error al descargar' })
+    }
+  }
+
+  const viewLogs = async (svc: ServiceItem) => {
+    setLogsModal({ serviceId: svc.id, serviceName: svc.name, logs: '', loading: true })
+    try {
+      const res: any = await api.get(`/services/${svc.id}/logs`)
+      setLogsModal({ serviceId: svc.id, serviceName: svc.name, logs: res.logs || 'Sin logs disponibles', loading: false })
+    } catch (e: any) {
+      setLogsModal({ serviceId: svc.id, serviceName: svc.name, logs: 'Error al obtener logs: ' + (e?.message || 'sin respuesta'), loading: false })
+    }
+  }
+
+  const restartService = async (svc: ServiceItem) => {
+    try {
+      await api.post(`/services/${svc.id}/restart`, {})
+      setMsg({ type: 'success', text: `${svc.name} reiniciado` })
+      await loadServices()
+    } catch (e: any) {
+      setMsg({ type: 'error', text: 'Error al reiniciar' })
     }
   }
 
@@ -541,7 +564,7 @@ export default function FederatedServices() {
               <div className="text-xs text-gray-400 mb-3 flex gap-3">
                 <span>RAM: {svc.min_ram_mb >= 1024 ? `${svc.min_ram_mb / 1024}GB` : `${svc.min_ram_mb}MB`}</span>
                 <span>Disco: {svc.min_disk_gb}GB</span>
-                <span>Puerto: {svc.default_port}</span>
+                <span>Puerto: {svc.port || svc.default_port}{isInstalled && svc.port ? ' (real)' : ''}</span>
               </div>
 
               <div className="mt-auto flex gap-2 flex-wrap">
@@ -593,6 +616,24 @@ export default function FederatedServices() {
                     className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs flex items-center gap-1"
                   >
                     <Play size={12} /> Iniciar
+                  </button>
+                )}
+                {isInstalled && !isDemoNode && (
+                  <button
+                    onClick={() => restartService(svc)}
+                    className="px-3 py-1.5 bg-orange-500 text-white rounded-lg text-xs flex items-center gap-1"
+                    title="Reiniciar servicio"
+                  >
+                    <RefreshCw size={12} /> Reiniciar
+                  </button>
+                )}
+                {isInstalled && !isDemoNode && (
+                  <button
+                    onClick={() => viewLogs(svc)}
+                    className="px-3 py-1.5 bg-gray-700 text-white rounded-lg text-xs flex items-center gap-1"
+                    title="Ver consola del servicio"
+                  >
+                    <Terminal size={12} /> Consola
                   </button>
                 )}
                 {isInstalled && isRunning && (
@@ -678,6 +719,39 @@ export default function FederatedServices() {
               >
                 <Trash2 size={14} /> Si, desinstalar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de consola/logs */}
+      {logsModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setLogsModal(null)}>
+          <div className="bg-gray-900 rounded-xl max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-gray-700">
+              <div className="flex items-center gap-2 text-white">
+                <Terminal size={20} />
+                <h2 className="text-lg font-bold">Consola: {logsModal.serviceName}</h2>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => viewLogs({ id: logsModal.serviceId, name: logsModal.serviceName } as any)}
+                  className="px-3 py-1 bg-gray-700 text-white rounded text-xs flex items-center gap-1 hover:bg-gray-600"
+                  title="Actualizar logs"
+                >
+                  <RefreshCw size={12} /> Actualizar
+                </button>
+                <button onClick={() => setLogsModal(null)} className="text-gray-400 hover:text-white text-2xl">&times;</button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+              {logsModal.loading ? (
+                <div className="flex items-center justify-center text-gray-400 py-8">
+                  <Loader className="animate-spin mr-2" size={20} /> Cargando logs...
+                </div>
+              ) : (
+                <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap overflow-auto">{logsModal.logs}</pre>
+              )}
             </div>
           </div>
         </div>
@@ -820,6 +894,22 @@ export default function FederatedServices() {
                       title={isDemoNode ? 'No disponible en nodo demo' : ''}
                     >
                       <Trash2 size={14} /> Desinstalar
+                    </button>
+                    <button
+                      onClick={() => { if (!isDemoNode) { restartService(selectedService); setSelectedService(null) } }}
+                      disabled={isDemoNode}
+                      className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      title={isDemoNode ? 'No disponible en nodo demo' : 'Reiniciar servicio'}
+                    >
+                      <RefreshCw size={14} /> Reiniciar
+                    </button>
+                    <button
+                      onClick={() => { if (!isDemoNode) { viewLogs(selectedService) } }}
+                      disabled={isDemoNode}
+                      className="px-4 py-2 bg-gray-700 text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      title={isDemoNode ? 'No disponible en nodo demo' : 'Ver consola del servicio'}
+                    >
+                      <Terminal size={14} /> Consola
                     </button>
                   </>
                 )}

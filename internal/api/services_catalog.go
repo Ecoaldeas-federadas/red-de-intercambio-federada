@@ -264,12 +264,16 @@ func (sh *FederatedServicesHandler) RegisterRoutesWithAuth(r chi.Router, am *Aut
 		r.With(am.RequirePermission("config.manage")).Post("/api/services/{serviceID}/uninstall", sh.uninstallService)
 		r.With(am.RequirePermission("config.manage")).Post("/api/services/{serviceID}/start", sh.startService)
 		r.With(am.RequirePermission("config.manage")).Post("/api/services/{serviceID}/stop", sh.stopService)
+		r.With(am.RequirePermission("config.manage")).Post("/api/services/{serviceID}/restart", sh.restartService)
+		r.With(am.RequirePermission("config.manage")).Get("/api/services/{serviceID}/logs", sh.getServiceLogs)
 		r.With(am.RequirePermission("config.manage")).Get("/api/services/{serviceID}/download", sh.downloadService)
 	} else {
 		r.Post("/api/services/{serviceID}/install", sh.installService)
 		r.Post("/api/services/{serviceID}/uninstall", sh.uninstallService)
 		r.Post("/api/services/{serviceID}/start", sh.startService)
 		r.Post("/api/services/{serviceID}/stop", sh.stopService)
+		r.Post("/api/services/{serviceID}/restart", sh.restartService)
+		r.Get("/api/services/{serviceID}/logs", sh.getServiceLogs)
 		r.Get("/api/services/{serviceID}/download", sh.downloadService)
 	}
 
@@ -334,21 +338,27 @@ func (sh *FederatedServicesHandler) RegisterRoutesWithAuth(r chi.Router, am *Aut
 func (sh *FederatedServicesHandler) getCatalog(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	// Obtener estados instalados
-	installed := map[string]string{}
-	rows, err := sh.Pool.Query(ctx, `SELECT service_id, status FROM installed_services`)
+	// Obtener estados instalados + puerto real
+	type installedInfo struct {
+		status string
+		port   *int
+	}
+	installed := map[string]installedInfo{}
+	rows, err := sh.Pool.Query(ctx, `SELECT service_id, status, port FROM installed_services`)
 	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
 			var svcID, status string
-			_ = rows.Scan(&svcID, &status)
-			installed[svcID] = status
+			var port *int
+			_ = rows.Scan(&svcID, &status, &port)
+			installed[svcID] = installedInfo{status: status, port: port}
 		}
 	}
 
 	// Combinar catalogo con estado
 	result := make([]map[string]interface{}, len(catalog))
 	for i, svc := range catalog {
+		info := installed[svc.ID]
 		item := map[string]interface{}{
 			"id":           svc.ID,
 			"name":         svc.Name,
@@ -363,10 +373,13 @@ func (sh *FederatedServicesHandler) getCatalog(w http.ResponseWriter, r *http.Re
 			"min_disk_gb":  svc.MinDisk,
 			"default_port": svc.DefaultPort,
 			"subdomain":    svc.Subdomain,
-			"status":       installed[svc.ID],
+			"status":       info.status,
 		}
 		if item["status"] == nil || item["status"] == "" {
 			item["status"] = "not_installed"
+		}
+		if info.port != nil {
+			item["port"] = *info.port
 		}
 		result[i] = item
 	}
@@ -543,6 +556,50 @@ func (sh *FederatedServicesHandler) stopService(w http.ResponseWriter, r *http.R
 	_, _ = sh.Pool.Exec(ctx, `UPDATE installed_services SET status = 'stopped', updated_at = NOW() WHERE service_id = $1`, serviceID)
 
 	writeJSON(w, 200, map[string]interface{}{"success": true, "message": "Servicio detenido"})
+}
+
+// restartService reinicia un servicio.
+func (sh *FederatedServicesHandler) restartService(w http.ResponseWriter, r *http.Request) {
+	if os.Getenv("DEMO_MODE") == "true" {
+		writeError(w, 403, "No se pueden reiniciar servicios en el nodo demo.")
+		return
+	}
+	serviceID := chi.URLParam(r, "serviceID")
+	composePath := findComposeFile(serviceID)
+	if composePath == "" {
+		writeError(w, 404, "docker-compose.yml no encontrado para el servicio")
+		return
+	}
+	cmd := exec.Command("docker", "compose", "-f", composePath, "restart")
+	output, err := cmd.CombinedOutput()
+	ctx := r.Context()
+	if err == nil {
+		_, _ = sh.Pool.Exec(ctx, `UPDATE installed_services SET status = 'running', updated_at = NOW() WHERE service_id = $1`, serviceID)
+		writeJSON(w, 200, map[string]interface{}{"success": true, "message": "Servicio reiniciado", "logs": string(output)})
+	} else {
+		_, _ = sh.Pool.Exec(ctx, `UPDATE installed_services SET status = 'error', updated_at = NOW() WHERE service_id = $1`, serviceID)
+		writeJSON(w, 200, map[string]interface{}{"success": false, "message": fmt.Sprintf("error al reiniciar: %v", err), "logs": string(output)})
+	}
+}
+
+// getServiceLogs devuelve los logs recientes de un servicio.
+func (sh *FederatedServicesHandler) getServiceLogs(w http.ResponseWriter, r *http.Request) {
+	serviceID := chi.URLParam(r, "serviceID")
+	containerName := fmt.Sprintf("aldea-%s", serviceID)
+	// Ultimas 200 lineas de logs del contenedor
+	cmd := exec.Command("docker", "logs", "--tail", "200", containerName)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		writeJSON(w, 200, map[string]interface{}{
+			"service_id": serviceID,
+			"logs":       fmt.Sprintf("No se pudieron obtener logs (el contenedor podria estar detenido): %v", err),
+		})
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{
+		"service_id": serviceID,
+		"logs":       string(output),
+	})
 }
 
 // getServiceStatus devuelve el estado de un servicio.

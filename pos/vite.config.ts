@@ -3,6 +3,11 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  // base debe coincidir con el path del proxy inverso del nodo
+  // El nodo redirige /pos-web/ -> localhost:3001/
+  // Sin esto, los assets se referencian como /assets/... y el browser
+  // los pide en el nodo principal (404) en vez de via el proxy
+  base: '/pos-web/',
   plugins: [
     react(),
     VitePWA({
@@ -13,8 +18,8 @@ export default defineConfig({
       background_color: '#0a0a0a',
       display: 'standalone',
       orientation: 'portrait',
-      start_url: '/',
-      scope: '/',
+      start_url: '/pos-web/',
+      scope: '/pos-web/',
       registerType: 'autoUpdate',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
@@ -23,7 +28,7 @@ export default defineConfig({
       manifest: {
         icons: [
           {
-            src: '/icon.svg',
+            src: '/pos-web/icon.svg',
             sizes: 'any',
             type: 'image/svg+xml',
             purpose: 'any maskable'
