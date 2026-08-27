@@ -3244,7 +3244,10 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
           setPollInterval(null)
           setUpdating(false)
           setUpdateCompleted(true)
+          setUpdateInfo(null)
           setMsg({ type: 'success', text: 'Nodo actualizado correctamente.' })
+          // Re-verificar actualizaciones despues de completar
+          setTimeout(() => checkUpdates(), 2000)
         } else if (res.status === 'error' && localSawRunning) {
           clearInterval(interval)
           setPollInterval(null)
@@ -3281,7 +3284,10 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
                 setUpdating(false)
                 setNodeRestarting(false)
                 setUpdateCompleted(true)
+                setUpdateInfo(null)
                 setMsg({ type: 'success', text: 'Nodo actualizado correctamente.' })
+                // Re-verificar actualizaciones despues de completar
+                setTimeout(() => checkUpdates(), 2000)
               } else if (status.status === 'error' && localSawRunning) {
                 clearInterval(interval)
                 setPollInterval(null)
@@ -3315,10 +3321,12 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
 
   const checkUpdates = async () => {
     setChecking(true)
+    // Limpiar info anterior inmediatamente para no mostrar datos stale
+    setUpdateInfo(null)
+    setMsg(null)
     try {
       const res: any = await api.get('/node/check-updates')
       setUpdateInfo(res)
-      setMsg(null)
     } catch (e: any) {
       // Si el nodo no responde, intentar via updater-controller directamente
       try {

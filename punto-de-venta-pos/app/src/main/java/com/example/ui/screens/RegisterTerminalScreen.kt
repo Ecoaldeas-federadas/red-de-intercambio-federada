@@ -473,6 +473,28 @@ fun RegisterTerminalScreen(
                                     Text("Iniciar Emparejamiento", fontWeight = FontWeight.Bold)
                                 }
                             }
+                            // Mostrar error justo debajo del boton, no arriba
+                            if (uiState.errorMessage != null && pairingStatus == null) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = PosErrorRed.copy(alpha = 0.2f)),
+                                    shape = RoundedCornerShape(10.dp),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, PosErrorRed)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.Error, contentDescription = null, tint = PosErrorRedLight, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = uiState.errorMessage ?: "",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = PosErrorRedLight
+                                        )
+                                    }
+                                }
+                            }
                         } else if (pairingStatus == "pending") {
                             // Mostrar codigo grande + cuenta regresiva
                             Card(
