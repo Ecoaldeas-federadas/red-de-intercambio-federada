@@ -112,7 +112,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
         <nav className="sidebar-scroll px-2 py-4 space-y-1 overflow-y-auto h-[calc(100vh-120px)]">
-        <nav className="sidebar-scroll px-2 py-4 space-y-1 overflow-y-auto h-[calc(100vh-120px)]">
           {visibleItems.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
