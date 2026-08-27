@@ -55,20 +55,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [unreadCount, setUnreadCount] = useState(0)
   const [notifications, setNotifications] = useState<any[]>([])
 
-  // Auto-colapsar el sidebar en pantallas medianas (1024-1279px)
-  // para dar mas espacio al contenido. Expandir automaticamente en XL+.
-  useEffect(() => {
-    const checkWidth = () => {
-      const w = window.innerWidth
-      if (w >= 1024 && w < 1280) {
-        setSidebarCollapsed(true)
-      }
-    }
-    checkWidth()
-    window.addEventListener('resize', checkWidth)
-    return () => window.removeEventListener('resize', checkWidth)
-  }, [])
-
   // Filtrar items segun permisos del usuario
   const visibleItems = navItems.filter(item => !item.perm || hasPermission(item.perm))
 
