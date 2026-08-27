@@ -9,9 +9,42 @@ El sistema soporta terminales de pago NFC basados en ESP32 que se comunican con 
 | Tipo | Hardware | Input | Uso |
 |------|----------|-------|-----|
 | **Keypad** | ESP32 + PN532 + OLED + encoder | Encoder para monto y PIN | Comercio individual |
-| **Web** | ESP32 + PN532 + OLED | Monto desde app web | Comercio con PC/tablet |
 | **Touch** | TTGO T-Display + PN532 | Pantalla tactil | Terminal autonomo |
 | **Community** | ESP32 + PN532 + OLED + encoder | Doble tarjeta | Punto comunitario |
+| **BLE Reader** | ESP32 + PN532 (sin pantalla/WiFi) | Lector NFC Bluetooth | Accesorio del POS (Android o web) |
+
+**Nota:** El "terminal web" es ahora puro software en el navegador (`/app/pos`). No requiere ESP32.
+El merchant usa la pagina web para crear cobros QR. Para NFC en el navegador, se conecta
+un lector BLE Reader via Web Bluetooth (solo Chrome/Edge, no Safari de iPhone).
+
+## Emparejamiento
+
+Hay dos formas de registrar un terminal ESP32:
+
+1. **Por codigo corto (recomendado):** El ESP32 muestra un codigo de 6 digitos en su pantalla,
+   el admin lo aprueba desde la web. Firmware generico, no requiere compilacion por terminal.
+   El ESP32 envia su chip_id (MAC efuse) automaticamente.
+
+2. **Provision manual (mayor seguridad):** El admin provisiona con chip_id, descarga config.h,
+   compila firmware especifico. Hardware binding anti-copia (el firmware no arranca en otro ESP32).
+
+### Re-registro (rotacion de claves)
+
+Si un terminal pierde sus claves o se reemplaza, el sistema detecta que el dispositivo ya existe
+por su chip_id/fingerprint y le pregunta al admin: "Reemplazar la clave del terminal existente
+o crear uno nuevo?" Esto preserva el historial y configuracion del terminal.
+
+## Confirmacion de pagos
+
+| Metodo | Confirmacion | Requiere celular |
+|--------|-------------|------------------|
+| QR code | Cliente escanea QR -> /pay?t=token -> confirma | Si |
+| NFC DESFire (tarjeta segura) | Tarjeta + PIN en terminal | No |
+| NFC UID-only (tarjeta sencilla) | Tarjeta + documento ID + PIN en terminal | No |
+
+La tarjeta DESFire tiene encriptacion AES que valida autenticidad, por eso solo pide PIN.
+La tarjeta UID-only es barata y no tiene encriptacion, por eso pide documento de identidad
+para verificar que la tarjeta pertenece a quien dice ser.
 
 ## Componentes
 

@@ -99,13 +99,12 @@ red de intercambio federada/
 │   ├── payments/             # QR, NFC, manual, terminales NFC ESP32
 │   └── pricing/              # Calculadora energetica, productos
 ├── firmware/                 # Firmware ESP32 para terminales NFC
-│   ├── shared/               # Codigo compartido (crypto, NFC, display, server)
+│   ├── shared/               # Codigo compartido (crypto, NFC, display, server, pairing)
 │   ├── terminal-keypad/      # Terminal con encoder rotatorio
-│   ├── terminal-web/         # Terminal con app web
 │   ├── terminal-touch/       # Terminal con pantalla tactil
 │   ├── terminal-community/   # Punto comunitario doble tarjeta
-│   ├── terminal-ble-reader/  # Lector BLE de tarjetas
-│   ├── chip-id-reader/       # Lector de chip ID
+│   ├── terminal-ble-reader/  # Lector NFC Bluetooth (accesorio del POS, no terminal)
+│   ├── chip-id-reader/       # Lector de chip ID para provisioning
 │   └── docs/                 # Hardware, seguridad, flasheo, troubleshooting
 ├── web/                      # Frontend PWA React
 │   ├── src/
@@ -113,7 +112,7 @@ red de intercambio federada/
 │   │   ├── App.tsx           # Rutas
 │   │   ├── components/       # Layout, navegacion, public-site
 │   │   ├── hooks/            # useAuth, usePermissions, useConfig
-│   │   ├── pages/            # 18+ paginas (Setup, Departments, NFCTerminals, Store, Products)
+│   │   ├── pages/            # 42+ paginas (Setup, Dashboard, Pos, NFCTerminals, Assembly, Store, etc.)
 │   │   └── main.tsx          # Entry point + service worker
 │   ├── public/               # manifest, sw.js, icon
 │   └── package.json
