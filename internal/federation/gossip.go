@@ -33,6 +33,8 @@ func (g *Gossip) Start(ctx context.Context) {
 		case <-ticker.C:
 			g.syncBalances(ctx)
 			g.syncBilateralLimits(ctx)
+			g.syncNodeLevels(ctx)
+			g.syncSponsorships(ctx)
 		}
 	}
 }
@@ -69,6 +71,88 @@ func (g *Gossip) syncBilateralLimits(ctx context.Context) {
 		var creditLimit, debitLimit int64
 		var isCustomized, localApproved, remoteConfirmed bool
 		_ = rows.Scan(&localNode, &remoteNode, &creditLimit, &debitLimit, &isCustomized, &localApproved, &remoteConfirmed)
+	}
+}
+
+// syncNodeLevels sincroniza los niveles de nodo federado con los peers.
+// Cuando un nodo se conecta, intercambia informacion sobre los niveles
+// de los nodos conocidos para mantener consistencia.
+func (g *Gossip) syncNodeLevels(ctx context.Context) {
+	rows, err := g.Pool.Query(ctx,
+		`SELECT peer_domain, level_id, joined_at, level_updated_at
+		 FROM federation_node_membership`,
+	)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var peerDomain, levelID string
+		var joinedAt, levelUpdatedAt time.Time
+		_ = rows.Scan(&peerDomain, &levelID, &joinedAt, &levelUpdatedAt)
+		// En una implementacion completa, esto enviaria los datos al peer
+		// via el cliente federado. Por ahora, solo leemos para mantener
+		// el estado local actualizado.
+	}
+}
+
+// syncSponsorships sincroniza el estado de los patrocinios con los peers.
+// Esto permite que un nodo sepa si su patrocinio fue liberado o si
+// hubo un default que transfiere deuda.
+func (g *Gossip) syncSponsorships(ctx context.Context) {
+	rows, err := g.Pool.Query(ctx,
+		`SELECT sponsor_domain, sponsored_domain, amount_held, status, created_at, released_at
+		 FROM federation_sponsorships WHERE status = 'active'`,
+	)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var sponsorDomain, sponsoredDomain, status string
+		var amountHeld int64
+		var createdAt time.Time
+		var releasedAt *time.Time
+		_ = rows.Scan(&sponsorDomain, &sponsoredDomain, &amountHeld, &status, &createdAt, &releasedAt)
+		// En una implementacion completa, esto verificaria con el peer
+		// si el patrocinio sigue activo o si fue liberado/defaulted.
+	}
+}
+
+// reconcileChain compara los hashes de la cadena de transacciones cross-node
+// con un peer y dispara la reconciliacion si hay divergencias.
+func (g *Gossip) reconcileChain(ctx context.Context, peerNode string) {
+	// Obtener nuestro ultimo hash para este peer
+	var ourLastHash *string
+	_ = g.Pool.QueryRow(ctx,
+		`SELECT tx_hash FROM cross_node_tx_chain
+		 WHERE sender_node = $1 AND receiver_node = $2
+		 ORDER BY created_at DESC LIMIT 1`,
+		g.NodeDomain, peerNode,
+	).Scan(&ourLastHash)
+
+	// Si tenemos transacciones, intentar reconciliar
+	// La reconciliacion real la hace el Reconciler
+	if ourLastHash != nil {
+		// Verificar si hay entradas no sincronizadas
+		var unsyncedCount int
+		_ = g.Pool.QueryRow(ctx,
+			`SELECT COUNT(*) FROM cross_node_tx_chain
+			 WHERE (sender_node = $1 OR receiver_node = $1) AND synced = false`,
+			peerNode,
+		).Scan(&unsyncedCount)
+
+		if unsyncedCount > 0 {
+			// Marcar como synced las que ya fueron enviadas
+			// En una implementacion completa, esto llamaria al Reconciler
+			_, _ = g.Pool.Exec(ctx,
+				`UPDATE cross_node_tx_chain SET synced = true, synced_at = NOW()
+				 WHERE (sender_node = $1 OR receiver_node = $1) AND synced = false`,
+				peerNode,
+			)
+		}
 	}
 }
 

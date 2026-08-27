@@ -163,6 +163,18 @@ func (s *Server) handleTransferMessage(w http.ResponseWriter, r *http.Request, m
 
 	txID, _ := payload["transaction_id"].(string)
 
+	// Validar firma dual: tanto el nodo emisor como el receptor deben firmar
+	senderSignature, _ := payload["sender_signature"].(string)
+	receiverSignature, _ := payload["receiver_signature"].(string)
+	if senderSignature == "" {
+		writeFederationJSON(w, 400, map[string]string{"error": "missing sender_signature - dual signature required"})
+		return
+	}
+	if receiverSignature == "" {
+		writeFederationJSON(w, 400, map[string]string{"error": "missing receiver_signature - dual signature required"})
+		return
+	}
+
 	_, err := s.Pool.Exec(r.Context(), `
 		INSERT INTO processed_messages (id, source_node) VALUES ($1, $2)
 		ON CONFLICT (id) DO NOTHING`,

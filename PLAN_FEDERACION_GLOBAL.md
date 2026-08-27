@@ -130,7 +130,7 @@
 - [x] 85. Documentación no afirma que la piscina global ya existía antes (corregido en todos los docs)
 - [x] 86. Documentación explica padrino, límite promedio, niveles, integridad (actualizado en todos los docs)
 - [x] 87. Sitio web público refleja los cambios (PublicGovernancePage.tsx y defaultSiteData.ts actualizados)
-- [ ] 88. Commit y push
+- [x] 88. Commit y push
 
 ---
 

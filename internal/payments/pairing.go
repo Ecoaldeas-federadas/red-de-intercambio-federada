@@ -502,13 +502,48 @@ func shufflePairingOptions(s []string) {
 
 // ApprovePairingWithCode aprueba una solicitud de emparejamiento verificando el codigo seleccionado.
 // El admin debe elegir el codigo correcto de entre 4 opciones.
+// Incluye rate-limiting: despues de 5 intentos fallidos, la solicitud se expira.
 func (nt *NFCTerminals) ApprovePairingWithCode(ctx context.Context, code, selectedCode string, adminUserID uuid.UUID, label, terminalType, location, mode string) (*PairingResult, error) {
 	// Verify the selected code matches the actual code
 	if code != selectedCode {
-		// Increment failed attempts (if column exists)
-		return nil, fmt.Errorf("codigo incorrecto. Verifique con la persona del terminal.")
+		// Increment failed attempts in terminal_pairing_requests
+		_, _ = nt.Pool.Exec(ctx, `
+			UPDATE terminal_pairing_requests SET failed_attempts = COALESCE(failed_attempts, 0) + 1
+			WHERE pairing_code = $1`, code)
+
+		// Check if max attempts reached (5 failures = expired)
+		var failedAttempts int
+		_ = nt.Pool.QueryRow(ctx, `
+			SELECT COALESCE(failed_attempts, 0) FROM terminal_pairing_requests WHERE pairing_code = $1`, code).Scan(&failedAttempts)
+		if failedAttempts >= 5 {
+			// Expire the request after too many failures
+			_, _ = nt.Pool.Exec(ctx, `
+				UPDATE terminal_pairing_requests SET status = 'expired' WHERE pairing_code = $1 AND status = 'pending'`, code)
+			// Audit log the expiration
+			_, _ = nt.Pool.Exec(ctx, `
+				INSERT INTO audit_log (action, actor_id, details, created_at)
+				VALUES ('pairing_failed_expired', NULL, $1, NOW())`,
+				fmt.Sprintf(`{"pairing_code":"%s","failed_attempts":%d,"reason":"max_attempts_reached"}`, code, failedAttempts))
+			return nil, fmt.Errorf("demasiados intentos fallidos (%d). La solicitud ha expirado. Genere un nuevo codigo.", failedAttempts)
+		}
+
+		// Audit log the failed attempt
+		_, _ = nt.Pool.Exec(ctx, `
+			INSERT INTO audit_log (action, actor_id, details, created_at)
+			VALUES ('pairing_failed_attempt', $1, $2, NOW())`,
+			adminUserID,
+			fmt.Sprintf(`{"pairing_code":"%s","attempt":%d}`, code, failedAttempts+1))
+
+		return nil, fmt.Errorf("codigo incorrecto (intento %d de 5). Verifique con la persona del terminal.", failedAttempts+1)
 	}
 
 	// Code is correct, proceed with normal approval
+	// Audit log the successful pairing
+	_, _ = nt.Pool.Exec(ctx, `
+		INSERT INTO audit_log (action, actor_id, details, created_at)
+		VALUES ('pairing_approved', $1, $2, NOW())`,
+		adminUserID,
+		fmt.Sprintf(`{"pairing_code":"%s","terminal_label":"%s"}`, code, label))
+
 	return nt.ApprovePairing(ctx, code, adminUserID, label, terminalType, location, mode)
 }

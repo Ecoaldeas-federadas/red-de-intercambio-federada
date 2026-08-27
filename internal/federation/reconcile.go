@@ -4,11 +4,17 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// PeerClient is the interface for making requests to federation peers.
+type PeerClient interface {
+	GetFromPeer(ctx context.Context, peerDomain, path string) ([]byte, error)
+}
 
 // Reconciler handles reconciliation of cross-node transaction chains.
 // When two nodes reconnect, they compare their chain hashes and resolve
@@ -17,6 +23,7 @@ import (
 type Reconciler struct {
 	Pool       *pgxpool.Pool
 	NodeDomain string
+	Client     PeerClient
 }
 
 func NewReconciler(pool *pgxpool.Pool, nodeDomain string) *Reconciler {
@@ -55,7 +62,11 @@ func (r *Reconciler) GetLastChainHash(ctx context.Context, senderNode, receiverN
 // GetChainSince returns all chain entries after the given hash (or all if empty).
 // Used to send divergent transactions to a peer during reconciliation.
 func (r *Reconciler) GetChainSince(ctx context.Context, senderNode, receiverNode, sinceHash string) ([]ChainEntry, error) {
-	var rows interface{ Next() bool; Scan(...interface{}) error; Close() }
+	var rows interface {
+		Next() bool
+		Scan(...interface{}) error
+		Close()
+	}
 
 	var err error
 	if sinceHash == "" {
@@ -152,23 +163,88 @@ func (r *Reconciler) ReconcileWithPeer(ctx context.Context, peerNode string) (in
 	ourHashAB, _ := r.GetLastChainHash(ctx, r.NodeDomain, peerNode)
 	ourHashBA, _ := r.GetLastChainHash(ctx, peerNode, r.NodeDomain)
 
-	// In a real implementation, we would call the peer's /federation/reconcile endpoint
-	// to get their last hash and compare. For now, this is a stub that would be
-	// called by the gossip protocol when it detects a hash mismatch.
-	//
-	// The flow would be:
-	// 1. Call peer: GET /federation/reconcile/compare?node=ourDomain
-	// 2. Peer returns their last hash for both directions
-	// 3. If hashes match -> synchronized, return 0
-	// 4. If mismatch -> GET /federation/reconcile/chain?node=ourDomain&since=ourHash
-	// 5. Peer returns chain entries since our last known hash
-	// 6. Verify each entry (signatures + hash)
-	// 7. Import valid entries
+	// Compare with peer via the federation client
+	// The peer's /federation/reconcile/compare endpoint returns their last hashes
+	peerHashAB, peerHashBA, err := r.compareWithPeer(ctx, peerNode)
+	if err != nil {
+		// Peer unreachable or error - return 0, no reconciliation possible now
+		return 0, nil
+	}
 
-	_ = ourHashAB
-	_ = ourHashBA
+	imported := 0
 
-	return 0, nil
+	// Direction A->B (we are sender, peer is receiver)
+	if ourHashAB != peerHashAB {
+		// Divergence detected: fetch chain entries from peer since our last hash
+		entries, err := r.fetchChainFromPeer(ctx, peerNode, r.NodeDomain, ourHashAB)
+		if err == nil {
+			for _, entry := range entries {
+				// Verify both signatures and hash before importing
+				if r.VerifyChainEntry(&entry) {
+					if err := r.ImportChainEntry(ctx, &entry); err == nil {
+						imported++
+					}
+				}
+			}
+		}
+	}
+
+	// Direction B->A (peer is sender, we are receiver)
+	if ourHashBA != peerHashBA {
+		entries, err := r.fetchChainFromPeer(ctx, peerNode, peerNode, ourHashBA)
+		if err == nil {
+			for _, entry := range entries {
+				if r.VerifyChainEntry(&entry) {
+					if err := r.ImportChainEntry(ctx, &entry); err == nil {
+						imported++
+					}
+				}
+			}
+		}
+	}
+
+	return imported, nil
+}
+
+// compareWithPeer calls the peer's /federation/reconcile/compare endpoint
+// to get their last hashes for both directions.
+func (r *Reconciler) compareWithPeer(ctx context.Context, peerNode string) (string, string, error) {
+	// Use the federation client to call the peer's compare endpoint
+	// Returns (hashAB, hashBA, error)
+	// If the peer is unreachable, returns empty strings and error
+	if r.Client == nil {
+		return "", "", fmt.Errorf("no federation client configured")
+	}
+	resp, err := r.Client.GetFromPeer(ctx, peerNode, "/federation/reconcile/compare?node="+r.NodeDomain)
+	if err != nil {
+		return "", "", err
+	}
+	var result struct {
+		HashAB string `json:"hash_ab"`
+		HashBA string `json:"hash_ba"`
+	}
+	if err := json.Unmarshal(resp, &result); err != nil {
+		return "", "", err
+	}
+	return result.HashAB, result.HashBA, nil
+}
+
+// fetchChainFromPeer calls the peer's /federation/reconcile/chain endpoint
+// to get chain entries since the given hash.
+func (r *Reconciler) fetchChainFromPeer(ctx context.Context, peerNode, senderNode, sinceHash string) ([]ChainEntry, error) {
+	if r.Client == nil {
+		return nil, fmt.Errorf("no federation client configured")
+	}
+	endpoint := fmt.Sprintf("/federation/reconcile/chain?sender=%s&since=%s", senderNode, sinceHash)
+	resp, err := r.Client.GetFromPeer(ctx, peerNode, endpoint)
+	if err != nil {
+		return nil, err
+	}
+	var entries []ChainEntry
+	if err := json.Unmarshal(resp, &entries); err != nil {
+		return nil, err
+	}
+	return entries, nil
 }
 
 // MarkAsSynced marks a chain entry as synced with the peer.

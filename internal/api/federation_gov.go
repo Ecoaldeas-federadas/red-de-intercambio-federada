@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -228,6 +229,37 @@ func (fh *FederationGovHandler) createProposal(w http.ResponseWriter, r *http.Re
 		req.ProposalType = "change_constant"
 	}
 
+	// Si es propuesta de upgrade de nivel, verificar min_days_at_level
+	if req.ProposalType == "upgrade_node_level" {
+		// req.Key contiene el dominio del nodo a promover
+		var minDaysAtLevel, daysAtLevel int
+		var lastLevelApprovedAt *time.Time
+		_ = fh.Pool.QueryRow(r.Context(), `
+			SELECT l.min_days_at_level, EXTRACT(DAY FROM NOW() - m.level_updated_at)::INT,
+			      m.last_level_approved_at
+			FROM federation_node_membership m
+			JOIN federation_node_levels l ON m.level_id = l.id
+			WHERE m.peer_domain = $1`, req.Key).Scan(&minDaysAtLevel, &daysAtLevel, &lastLevelApprovedAt)
+		if minDaysAtLevel > 0 && daysAtLevel < minDaysAtLevel {
+			writeError(w, 400, fmt.Sprintf("el nodo no cumple min_days_at_level: %d dias de %d requeridos", daysAtLevel, minDaysAtLevel))
+			return
+		}
+		// Verificar min_days_after_last_level si esta configurado
+		var minDaysAfterLast int
+		_ = fh.Pool.QueryRow(r.Context(), `
+			SELECT l.min_days_after_last_level
+			FROM federation_node_membership m
+			JOIN federation_node_levels l ON m.level_id = l.id
+			WHERE m.peer_domain = $1`, req.Key).Scan(&minDaysAfterLast)
+		if minDaysAfterLast > 0 && lastLevelApprovedAt != nil {
+			daysSinceLast := int(time.Since(*lastLevelApprovedAt).Hours() / 24)
+			if daysSinceLast < minDaysAfterLast {
+				writeError(w, 400, fmt.Sprintf("el nodo no cumple min_days_after_last_level: %d dias de %d requeridos", daysSinceLast, minDaysAfterLast))
+				return
+			}
+		}
+	}
+
 	// Obtener valor actual
 	var currentValue []byte
 	_ = fh.Pool.QueryRow(r.Context(), `SELECT value FROM federation_constants WHERE key = $1`, req.Key).Scan(&currentValue)
@@ -317,10 +349,22 @@ func (fh *FederationGovHandler) voteProposal(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Verificar que la propuesta esta pendiente
-	var status string
-	_ = fh.Pool.QueryRow(r.Context(), `SELECT status FROM federation_proposals WHERE id = $1`, proposalID).Scan(&status)
+	var status, proposalType string
+	_ = fh.Pool.QueryRow(r.Context(), `SELECT status, proposal_type FROM federation_proposals WHERE id = $1`, proposalID).Scan(&status, &proposalType)
 	if status != "pending" {
 		writeError(w, 400, "la propuesta ya no esta pendiente (estado: "+status+")")
+		return
+	}
+
+	// Verificar que este nodo tiene derecho a voto (nivel 2+)
+	var hasVote bool
+	_ = fh.Pool.QueryRow(r.Context(), `
+		SELECT COALESCE(l.has_vote, false)
+		FROM federation_node_membership m
+		JOIN federation_node_levels l ON m.level_id = l.id
+		WHERE m.peer_domain = $1`, fh.NodeDomain).Scan(&hasVote)
+	if !hasVote {
+		writeError(w, 403, "este nodo no tiene derecho a voto (requiere nivel 2+)")
 		return
 	}
 
@@ -366,6 +410,18 @@ func (fh *FederationGovHandler) remoteVote(w http.ResponseWriter, r *http.Reques
 	}
 	if req.VoterNode == "" || req.Vote == "" {
 		writeError(w, 400, "voter_node y vote son requeridos")
+		return
+	}
+
+	// Verificar que el nodo votante tiene derecho a voto (nivel 2+)
+	var hasVote bool
+	_ = fh.Pool.QueryRow(r.Context(), `
+		SELECT COALESCE(l.has_vote, false)
+		FROM federation_node_membership m
+		JOIN federation_node_levels l ON m.level_id = l.id
+		WHERE m.peer_domain = $1`, req.VoterNode).Scan(&hasVote)
+	if !hasVote {
+		writeError(w, 403, "el nodo votante no tiene derecho a voto (requiere nivel 2+)")
 		return
 	}
 
@@ -442,12 +498,12 @@ func (fh *FederationGovHandler) recountVotes(ctx context.Context, proposalID uui
 
 // checkConsensus verifica si una propuesta alcanzo el consenso y la aplica
 func (fh *FederationGovHandler) checkConsensus(ctx context.Context, proposalID uuid.UUID) bool {
-	var status string
+	var status, proposalType, key string
 	var approvals, rejections, totalNodes, threshold int
 	_ = fh.Pool.QueryRow(ctx, `
-		SELECT status, approvals, rejections, total_nodes, approval_threshold
+		SELECT status, proposal_type, key, approvals, rejections, total_nodes, approval_threshold
 		FROM federation_proposals WHERE id = $1`, proposalID,
-	).Scan(&status, &approvals, &rejections, &totalNodes, &threshold)
+	).Scan(&status, &proposalType, &key, &approvals, &rejections, &totalNodes, &threshold)
 
 	if status != "pending" {
 		return false
@@ -459,15 +515,36 @@ func (fh *FederationGovHandler) checkConsensus(ctx context.Context, proposalID u
 	}
 	approvalPct := (approvals * 100) / totalNodes
 
+	// Para upgrade_node_level: verificar si el nivel destino es de excepcion
+	// Si es excepcion, usar exception_vote_threshold (ej: 75%) en lugar del umbral normal
+	effectiveThreshold := threshold
+	if proposalType == "upgrade_node_level" {
+		// key contiene el dominio del nodo a promover
+		// Obtener el nivel actual y el nivel destino (upgrade_to)
+		var currentLevelID string
+		_ = fh.Pool.QueryRow(ctx, `
+			SELECT level_id FROM federation_node_membership WHERE peer_domain = $1`, key).Scan(&currentLevelID)
+		if currentLevelID != "" {
+			var isException bool
+			var exceptionThreshold float64
+			_ = fh.Pool.QueryRow(ctx, `
+				SELECT is_exception, exception_vote_threshold
+				FROM federation_node_levels WHERE id = $1`, currentLevelID).Scan(&isException, &exceptionThreshold)
+			if isException && exceptionThreshold > 0 {
+				effectiveThreshold = int(exceptionThreshold * 100)
+			}
+		}
+	}
+
 	// Verificar si hay suficientes rechazos para bloquear
 	rejectionPct := (rejections * 100) / totalNodes
-	if rejectionPct > (100 - threshold) {
+	if rejectionPct > (100 - effectiveThreshold) {
 		// Mas rechazos de los que se puede tolerar -> rechazada
 		_, _ = fh.Pool.Exec(ctx, `UPDATE federation_proposals SET status = 'rejected' WHERE id = $1`, proposalID)
 		return false
 	}
 
-	if approvalPct >= threshold {
+	if approvalPct >= effectiveThreshold {
 		// Consenso alcanzado - aplicar el cambio
 		return fh.applyProposal(ctx, proposalID)
 	}
@@ -505,6 +582,98 @@ func (fh *FederationGovHandler) applyProposal(ctx context.Context, proposalID uu
 			UPDATE federation_known_nodes SET is_expelled = true WHERE node_domain = $1`, key)
 
 		// Marcar la propuesta como aprobada
+		_, _ = fh.Pool.Exec(ctx, `
+			UPDATE federation_proposals SET status = 'approved', applied_at = NOW() WHERE id = $1`, proposalID)
+		return true
+	}
+
+	// Si es upgrade de nivel de nodo, promover el nodo
+	if proposalType == "upgrade_node_level" {
+		// key contiene el dominio del nodo a promover
+		// proposed_value contiene el nivel destino (ej: "accepted")
+		var newLevelID string
+		if err := json.Unmarshal(proposedValue, &newLevelID); err != nil {
+			// intentar como string directo
+			newLevelID = string(proposedValue)
+			newLevelID = strings.Trim(newLevelID, `"`)
+		}
+
+		// Actualizar el nivel del nodo en federation_node_membership
+		_, err = fh.Pool.Exec(ctx, `
+			UPDATE federation_node_membership
+			SET level_id = $1, level_updated_at = NOW(), last_level_approved_at = NOW(), upgraded_by_proposal = $2
+			WHERE peer_domain = $3`,
+			newLevelID, proposalID, key)
+		if err != nil {
+			return false
+		}
+
+		// Si el nodo sube a nivel 2 (accepted), liberar el patrocinio del padrino
+		if newLevelID == "accepted" {
+			_, _ = fh.Pool.Exec(ctx, `
+				UPDATE federation_sponsorships SET status = 'released', released_at = NOW()
+				WHERE sponsored_domain = $1 AND status = 'active'`, key)
+		}
+
+		_, _ = fh.Pool.Exec(ctx, `
+			UPDATE federation_proposals SET status = 'approved', applied_at = NOW() WHERE id = $1`, proposalID)
+		return true
+	}
+
+	// Si es creacion de nivel de nodo
+	if proposalType == "create_node_level" {
+		// proposed_value contiene el JSON del nivel a crear
+		// key contiene el id del nivel
+		_, err = fh.Pool.Exec(ctx, `
+			INSERT INTO federation_node_levels (id, name, description, level,
+				global_credit_limit, global_debit_limit, has_voice, has_vote, can_sponsor,
+				min_days_at_level, min_days_after_last_level, auto_upgrade, upgrade_to,
+				require_reciprocity, reciprocity_min_balance, reciprocity_max_balance,
+				require_avg_limit, avg_limit_ratio, is_system, is_active, is_exception,
+				exception_vote_threshold)
+			SELECT $1, data->>'name', data->>'description', (data->>'level')::INT,
+				(data->>'global_credit_limit')::BIGINT, (data->>'global_debit_limit')::BIGINT,
+				(data->>'has_voice')::BOOLEAN, (data->>'has_vote')::BOOLEAN, (data->>'can_sponsor')::BOOLEAN,
+				(data->>'min_days_at_level')::INT, COALESCE((data->>'min_days_after_last_level')::INT, 0),
+				COALESCE((data->>'auto_upgrade')::BOOLEAN, false), data->>'upgrade_to',
+				COALESCE((data->>'require_reciprocity')::BOOLEAN, true),
+				COALESCE((data->>'reciprocity_min_balance')::INT, 0),
+				COALESCE((data->>'reciprocity_max_balance')::INT, 0),
+				COALESCE((data->>'require_avg_limit')::BOOLEAN, false),
+				COALESCE((data->>'avg_limit_ratio')::FLOAT, 0.5),
+				false, true, COALESCE((data->>'is_exception')::BOOLEAN, false),
+				COALESCE((data->>'exception_vote_threshold')::FLOAT, 0.75)
+			FROM (SELECT $2::jsonb AS data)`,
+			key, proposedValue)
+		if err != nil {
+			return false
+		}
+
+		_, _ = fh.Pool.Exec(ctx, `
+			UPDATE federation_proposals SET status = 'approved', applied_at = NOW() WHERE id = $1`, proposalID)
+		return true
+	}
+
+	// Si es edicion de nivel de nodo
+	if proposalType == "edit_node_level" {
+		// key contiene el id del nivel a editar
+		// proposed_value contiene los campos a actualizar en JSON
+		_, err = fh.Pool.Exec(ctx, `
+			UPDATE federation_node_levels SET
+				name = COALESCE((data->>'name'), name),
+				description = COALESCE((data->>'description'), description),
+				global_credit_limit = COALESCE(NULLIF(data->>'global_credit_limit', '')::BIGINT, global_credit_limit),
+				global_debit_limit = COALESCE(NULLIF(data->>'global_debit_limit', '')::BIGINT, global_debit_limit),
+				min_days_at_level = COALESCE(NULLIF(data->>'min_days_at_level', '')::INT, min_days_at_level),
+				avg_limit_ratio = COALESCE(NULLIF(data->>'avg_limit_ratio', '')::FLOAT, avg_limit_ratio),
+				exception_vote_threshold = COALESCE(NULLIF(data->>'exception_vote_threshold', '')::FLOAT, exception_vote_threshold)
+			FROM (SELECT $2::jsonb AS data)
+			WHERE id = $1`,
+			key, proposedValue)
+		if err != nil {
+			return false
+		}
+
 		_, _ = fh.Pool.Exec(ctx, `
 			UPDATE federation_proposals SET status = 'approved', applied_at = NOW() WHERE id = $1`, proposalID)
 		return true
