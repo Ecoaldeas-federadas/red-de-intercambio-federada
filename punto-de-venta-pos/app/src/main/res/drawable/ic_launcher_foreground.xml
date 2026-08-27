@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:translateX="0"
+        android:translateY="0">
+        <!-- Terminal Body -->
+        <path
+            android:fillColor="#38BDF8"
+            android:pathData="M34,26 h40 c4.4,0 8,3.6 8,8 v40 c0,4.4 -3.6,8 -8,8 h-40 c-4.4,0 -8,-3.6 -8,-8 v-40 c0,-4.4 3.6,-8 8,-8 z" />
+        <!-- Terminal Screen (Dark Glass) -->
+        <path
+            android:fillColor="#0F172A"
+            android:pathData="M32,32 h44 c2.2,0 4,1.8 4,4 v20 c0,2.2 -1.8,4 -4,4 h-44 c-2.2,0 -4,-1.8 -4,-4 v-20 c0,-2.2 1.8,-4 4,-4 z" />
+        <!-- Screen Content: Amount & Currency Symbol TQ -->
+        <path
+            android:fillColor="#10B981"
+            android:pathData="M40,42 h12 v3 h-4.5 v9 h-3 v-9 h-4.5 z" />
+        <path
+            android:fillColor="#F59E0B"
+            android:pathData="M56,42 h10 c2.2,0 4,1.8 4,4 v4 c0,2.2 -1.8,4 -4,4 h-4 v3 h-3 z M59,45 v4 h6 v-4 z" />
+        <!-- Keypad dots/buttons -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M36,66 h6 v4 h-6 z M46,66 h6 v4 h-6 z M56,66 h6 v4 h-6 z M66,66 h6 v4 h-6 z M36,73 h6 v3 h-6 z M46,73 h6 v3 h-6 z M56,73 h6 v3 h-6 z M66,73 h6 v3 h-6 z" />
+        <!-- Contactless NFC waves above -->
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#10B981"
+            android:strokeWidth="2.5"
+            android:strokeLineCap="round"
+            android:pathData="M44,19 A14,14 0 0,1 64,19" />
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#38BDF8"
+            android:strokeWidth="2.5"
+            android:strokeLineCap="round"
+            android:pathData="M38,14 A22,22 0 0,1 70,14" />
+    </group>
+</vector>

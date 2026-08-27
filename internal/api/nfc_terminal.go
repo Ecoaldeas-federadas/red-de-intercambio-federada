@@ -43,6 +43,10 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.Get("/api/nfc/terminal/payment/multisig/{pendingId}/status", h.getMultisigPaymentStatus)
 	r.Get("/api/nfc/terminal/{id}/session", h.getTerminalSession)
 
+	// Terminal pairing by short code (no auth required for initiate/status)
+	r.Post("/api/nfc/terminal/pair/initiate", h.initiatePairing)
+	r.Get("/api/nfc/terminal/pair/{code}/status", h.getPairingStatus)
+
 	// Block/unblock from the terminal itself (with local code)
 	r.Post("/api/nfc/terminal/{id}/block", h.blockTerminal)
 	r.Post("/api/nfc/terminal/{id}/unblock", h.unblockTerminal)
@@ -56,6 +60,11 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequireAuth).Get("/api/nfc/terminals", h.listTerminals)
 	r.With(am.RequireAuth).Get("/api/nfc/terminals/types", h.listTerminalTypes)
 	r.With(am.RequirePermission("nfc.deactivate_terminal")).Delete("/api/nfc/terminal/{id}", h.deactivateTerminal)
+
+	// Terminal pairing management (admin)
+	r.With(am.RequirePermission("nfc.register_terminal")).Get("/api/nfc/terminal/pair/pending", h.listPendingPairings)
+	r.With(am.RequirePermission("nfc.register_terminal")).Post("/api/nfc/terminal/pair/{code}/approve", h.approvePairing)
+	r.With(am.RequirePermission("nfc.register_terminal")).Post("/api/nfc/terminal/pair/{code}/reject", h.rejectPairing)
 
 	// Assign terminal to organization (admin/Asamblea assigns)
 	r.With(am.RequirePermission("nfc.register_terminal")).Post("/api/nfc/terminal/{id}/assign", h.assignTerminalToOrg)
@@ -1597,28 +1606,28 @@ func (h *NFCTerminalHandler) getMultisigPaymentStatus(w http.ResponseWriter, r *
 		if remaining <= 0 {
 			h.MultiSig.CancelPendingPayment(r.Context(), pendingID)
 			writeJSON(w, 200, map[string]interface{}{
-				"id":                p.ID,
-				"status":            "expired",
-				"remaining_seconds": 0,
+				"id":                  p.ID,
+				"status":              "expired",
+				"remaining_seconds":   0,
 				"required_signatures": p.RequiredSignatures,
-				"collected_count":   len(p.CollectedSignatures),
-				"remaining_sigs":    p.RequiredSignatures - len(p.CollectedSignatures),
-				"message":           "Tiempo agotado. El pago ha sido anulado.",
+				"collected_count":     len(p.CollectedSignatures),
+				"remaining_sigs":      p.RequiredSignatures - len(p.CollectedSignatures),
+				"message":             "Tiempo agotado. El pago ha sido anulado.",
 			})
 			return
 		}
 		writeJSON(w, 200, map[string]interface{}{
-			"id":                p.ID,
-			"status":            p.Status,
-			"amount":            p.Amount,
-			"payment_type":      p.PaymentType,
-			"from_account":      p.FromAccount,
-			"to_account":        p.ToAccount,
-			"required_signatures": p.RequiredSignatures,
-			"collected_count":   len(p.CollectedSignatures),
-			"remaining_sigs":    p.RequiredSignatures - len(p.CollectedSignatures),
-			"expires_at":        p.ExpiresAt,
-			"remaining_seconds": int(remaining.Seconds()),
+			"id":                   p.ID,
+			"status":               p.Status,
+			"amount":               p.Amount,
+			"payment_type":         p.PaymentType,
+			"from_account":         p.FromAccount,
+			"to_account":           p.ToAccount,
+			"required_signatures":  p.RequiredSignatures,
+			"collected_count":      len(p.CollectedSignatures),
+			"remaining_sigs":       p.RequiredSignatures - len(p.CollectedSignatures),
+			"expires_at":           p.ExpiresAt,
+			"remaining_seconds":    int(remaining.Seconds()),
 			"collected_signatures": p.CollectedSignatures,
 		})
 		return
@@ -1626,11 +1635,127 @@ func (h *NFCTerminalHandler) getMultisigPaymentStatus(w http.ResponseWriter, r *
 
 	// Ya ejecutado, cancelado o expirado
 	writeJSON(w, 200, map[string]interface{}{
-		"id":                p.ID,
-		"status":            p.Status,
-		"remaining_seconds": 0,
+		"id":                  p.ID,
+		"status":              p.Status,
+		"remaining_seconds":   0,
 		"required_signatures": p.RequiredSignatures,
-		"collected_count":   len(p.CollectedSignatures),
-		"executed_at":       p.ExecutedAt,
+		"collected_count":     len(p.CollectedSignatures),
+		"executed_at":         p.ExecutedAt,
 	})
+}
+
+// ============================================
+// Terminal Pairing by Short Code
+// ============================================
+
+// initiatePairing inicia el emparejamiento del terminal con un codigo corto.
+// No requiere autenticacion - el terminal envia su clave publica Ed25519
+// y el servidor responde con un codigo de 6 digitos que expira en 60 segundos.
+func (h *NFCTerminalHandler) initiatePairing(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		TerminalPublicKey string `json:"terminal_public_key"`
+		DeviceFingerprint string `json:"device_fingerprint"`
+		TerminalLabel     string `json:"terminal_label"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.TerminalPublicKey == "" {
+		writeError(w, 400, "terminal_public_key is required")
+		return
+	}
+
+	code, err := h.NFC.InitiatePairing(r.Context(), req.TerminalPublicKey, req.DeviceFingerprint, req.TerminalLabel)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	writeJSON(w, 201, map[string]interface{}{
+		"pairing_code": code,
+		"expires_in":   60,
+		"message":      "Pida al administrador que apruebe este codigo en su panel.",
+	})
+}
+
+// getPairingStatus consulta el estado del emparejamiento (polling del terminal).
+// No requiere autenticacion.
+func (h *NFCTerminalHandler) getPairingStatus(w http.ResponseWriter, r *http.Request) {
+	code := chi.URLParam(r, "code")
+	if code == "" || len(code) != 6 {
+		writeError(w, 400, "invalid pairing code")
+		return
+	}
+
+	status, err := h.NFC.GetPairingStatus(r.Context(), code)
+	if err != nil {
+		writeError(w, 404, err.Error())
+		return
+	}
+	writeJSON(w, 200, status)
+}
+
+// approvePairing aprueba una solicitud de emparejamiento (admin).
+// Crea el terminal, registra la clave publica, y marca como approved.
+func (h *NFCTerminalHandler) approvePairing(w http.ResponseWriter, r *http.Request) {
+	code := chi.URLParam(r, "code")
+	if code == "" {
+		writeError(w, 400, "pairing code is required")
+		return
+	}
+
+	adminUserID, err := uuid.Parse(r.Header.Get("X-User-ID"))
+	if err != nil {
+		writeError(w, 401, "invalid admin user")
+		return
+	}
+
+	var body struct {
+		Label        string `json:"label"`
+		TerminalType string `json:"terminal_type"`
+		Location     string `json:"location"`
+	}
+	// Body es opcional, ignorar error si viene vacio
+	_ = json.NewDecoder(r.Body).Decode(&body)
+
+	result, err := h.NFC.ApprovePairing(r.Context(), code, adminUserID, body.Label, body.TerminalType, body.Location)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	writeJSON(w, 200, result)
+}
+
+// rejectPairing rechaza una solicitud de emparejamiento (admin).
+func (h *NFCTerminalHandler) rejectPairing(w http.ResponseWriter, r *http.Request) {
+	code := chi.URLParam(r, "code")
+	if code == "" {
+		writeError(w, 400, "pairing code is required")
+		return
+	}
+
+	adminUserID, err := uuid.Parse(r.Header.Get("X-User-ID"))
+	if err != nil {
+		writeError(w, 401, "invalid admin user")
+		return
+	}
+
+	if err := h.NFC.RejectPairing(r.Context(), code, adminUserID); err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]string{"status": "rejected"})
+}
+
+// listPendingPairings lista las solicitudes de emparejamiento pendientes (admin).
+func (h *NFCTerminalHandler) listPendingPairings(w http.ResponseWriter, r *http.Request) {
+	requests, err := h.NFC.ListPendingPairings(r.Context())
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	if requests == nil {
+		requests = []payments.PairingRequest{}
+	}
+	writeJSON(w, 200, requests)
 }
