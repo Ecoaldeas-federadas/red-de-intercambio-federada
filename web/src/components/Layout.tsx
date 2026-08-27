@@ -55,6 +55,20 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [unreadCount, setUnreadCount] = useState(0)
   const [notifications, setNotifications] = useState<any[]>([])
 
+  // Auto-colapsar el sidebar en pantallas medianas (1024-1279px)
+  // para dar mas espacio al contenido. Expandir automaticamente en XL+.
+  useEffect(() => {
+    const checkWidth = () => {
+      const w = window.innerWidth
+      if (w >= 1024 && w < 1280) {
+        setSidebarCollapsed(true)
+      }
+    }
+    checkWidth()
+    window.addEventListener('resize', checkWidth)
+    return () => window.removeEventListener('resize', checkWidth)
+  }, [])
+
   // Filtrar items segun permisos del usuario
   const visibleItems = navItems.filter(item => !item.perm || hasPermission(item.perm))
 
@@ -111,6 +125,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <X size={20} />
           </button>
         </div>
+        <nav className="sidebar-scroll px-2 py-4 space-y-1 overflow-y-auto h-[calc(100vh-120px)]">
         <nav className="sidebar-scroll px-2 py-4 space-y-1 overflow-y-auto h-[calc(100vh-120px)]">
           {visibleItems.map(({ to, label, icon: Icon, end }) => (
             <NavLink
