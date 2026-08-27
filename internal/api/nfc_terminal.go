@@ -681,6 +681,12 @@ func (h *NFCTerminalHandler) downloadConfigH(w http.ResponseWriter, r *http.Requ
 
 	serverURL := "https://" + h.NodeDomain
 
+	// Obtener chip_id de forma segura (es *string ahora)
+	chipID := ""
+	if terminal.ChipID != nil {
+		chipID = *terminal.ChipID
+	}
+
 	// Generar el contenido del config.h
 	configContent := fmt.Sprintf(`// config.h — Generado por el servidor para el terminal %s
 // NO EDITAR MANUALMENTE. Este archivo se genera automaticamente.
@@ -703,8 +709,8 @@ func (h *NFCTerminalHandler) downloadConfigH(w http.ResponseWriter, r *http.Requ
 #endif // CONFIG_H
 `,
 		terminalID,
-		terminal.ChipID,
-		terminal.ChipID,
+		chipID,
+		chipID,
 		terminalID,
 		token,
 		serverURL,
@@ -1409,18 +1415,19 @@ func (h *NFCTerminalHandler) listMyTerminals(w http.ResponseWriter, r *http.Requ
 	defer rows.Close()
 
 	type MyTerminal struct {
-		ID           uuid.UUID  `json:"id"`
-		NodeDomain   string     `json:"node_domain"`
-		TerminalID   string     `json:"terminal_id"`
-		Label        string     `json:"label"`
-		TerminalType string     `json:"terminal_type"`
-		Location     string     `json:"location"`
-		IsActive     bool       `json:"is_active"`
-		IsRegistered bool       `json:"is_registered"`
-		IsBlocked    bool       `json:"is_blocked"`
-		LastSeen     *time.Time `json:"last_seen"`
-		CreatedAt    time.Time  `json:"created_at"`
-		UpdatedAt    time.Time  `json:"updated_at"`
+		ID              uuid.UUID  `json:"id"`
+		NodeDomain      string     `json:"node_domain"`
+		TerminalID      string     `json:"terminal_id"`
+		Label           *string    `json:"label"`
+		TerminalType    string     `json:"terminal_type"`
+		Location        *string    `json:"location"`
+		IsActive        bool       `json:"is_active"`
+		IsRegistered    bool       `json:"is_registered"`
+		IsBlocked       bool       `json:"is_blocked"`
+		LastSeen        *time.Time `json:"last_seen"`
+		FirmwareVersion *string    `json:"firmware_version"`
+		CreatedAt       time.Time  `json:"created_at"`
+		UpdatedAt       time.Time  `json:"updated_at"`
 	}
 
 	var terminals []MyTerminal
@@ -1428,7 +1435,7 @@ func (h *NFCTerminalHandler) listMyTerminals(w http.ResponseWriter, r *http.Requ
 		var t MyTerminal
 		if err := rows.Scan(&t.ID, &t.NodeDomain, &t.TerminalID, &t.Label, &t.TerminalType,
 			&t.Location, &t.IsActive, &t.IsRegistered, &t.LastSeen,
-			&t.CreatedAt, &t.UpdatedAt, &t.IsBlocked); err != nil {
+			&t.FirmwareVersion, &t.CreatedAt, &t.UpdatedAt, &t.IsBlocked); err != nil {
 			continue
 		}
 		terminals = append(terminals, t)

@@ -73,9 +73,9 @@ func (fc *FirmwareCompiler) CompileFirmware(ctx context.Context, terminal *NFCTe
 		"-v", fmt.Sprintf("%s:/build-config/config.h:ro", configHPath),
 		"-v", fmt.Sprintf("%s:/build-output", buildDir),
 		fc.DockerImage,
-		terminal.TerminalType,           // arg 1: tipo de terminal
-		"/build-config/config.h",        // arg 2: config.h
-		"/build-output/firmware.bin",    // arg 3: output
+		terminal.TerminalType,        // arg 1: tipo de terminal
+		"/build-config/config.h",     // arg 2: config.h
+		"/build-output/firmware.bin", // arg 3: output
 	}
 
 	compileCtx, cancel := context.WithTimeout(ctx, fc.CompilerTimeout)
@@ -131,6 +131,12 @@ func (fc *FirmwareCompiler) generateConfigH(terminal *NFCTerminal, token, server
 `, terminal.TerminalID)
 	}
 
+	// Obtener chip_id de forma segura (es *string ahora)
+	chipID := ""
+	if terminal.ChipID != nil {
+		chipID = *terminal.ChipID
+	}
+
 	return fmt.Sprintf(`// config.h — Generado por el servidor para el terminal %s
 // NO EDITAR MANUALMENTE. Este archivo se genera automaticamente.
 // Vinculado al hardware ESP32 con chip ID: %s
@@ -153,9 +159,9 @@ func (fc *FirmwareCompiler) generateConfigH(terminal *NFCTerminal, token, server
 #endif // CONFIG_H
 `,
 		terminal.TerminalID,
-		terminal.ChipID,
+		chipID,
 		uuid.New().String(),
-		terminal.ChipID,
+		chipID,
 		terminal.TerminalID,
 		token,
 		serverURL,

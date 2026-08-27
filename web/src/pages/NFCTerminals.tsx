@@ -8,19 +8,19 @@ import { Nfc, Plus, Trash2, CreditCard, KeyRound, Activity, Cpu, Usb, Download, 
 interface Terminal {
   id: string
   terminal_id: string
-  label: string
+  label: string | null
   terminal_type: string
-  location: string
+  location: string | null
   is_active: boolean
   is_registered: boolean
   last_seen: string | null
-  firmware_version: string
+  firmware_version: string | null
   created_at: string
-  chip_id?: string
-  device_fingerprint?: string
-  device_model?: string
-  device_manufacturer?: string
-  android_version?: string
+  chip_id?: string | null
+  device_fingerprint?: string | null
+  device_model?: string | null
+  device_manufacturer?: string | null
+  android_version?: string | null
 }
 
 interface Transaction {

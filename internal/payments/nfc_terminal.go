@@ -21,19 +21,19 @@ type NFCTerminal struct {
 	ID                 uuid.UUID  `json:"id"`
 	NodeDomain         string     `json:"node_domain"`
 	TerminalID         string     `json:"terminal_id"`
-	Label              string     `json:"label"`
+	Label              *string    `json:"label"`
 	TerminalType       string     `json:"terminal_type"`
-	Location           string     `json:"location"`
-	ChipID             string     `json:"chip_id,omitempty"`
+	Location           *string    `json:"location"`
+	ChipID             *string    `json:"chip_id,omitempty"`
 	FirmwareBinaryPath string     `json:"firmware_binary_path,omitempty"`
-	TerminalPublicKey  string     `json:"terminal_public_key,omitempty"`
-	ServerPublicKey    string     `json:"server_public_key,omitempty"`
-	RegistrationToken  string     `json:"registration_token,omitempty"`
-	DeviceFingerprint  string     `json:"device_fingerprint,omitempty"`
+	TerminalPublicKey  *string    `json:"terminal_public_key,omitempty"`
+	ServerPublicKey    *string    `json:"server_public_key,omitempty"`
+	RegistrationToken  *string    `json:"registration_token,omitempty"`
+	DeviceFingerprint  *string    `json:"device_fingerprint,omitempty"`
 	IsActive           bool       `json:"is_active"`
 	IsRegistered       bool       `json:"is_registered"`
 	LastSeen           *time.Time `json:"last_seen"`
-	FirmwareVersion    string     `json:"firmware_version"`
+	FirmwareVersion    *string    `json:"firmware_version"`
 	CreatedAt          time.Time  `json:"created_at"`
 	UpdatedAt          time.Time  `json:"updated_at"`
 }
@@ -139,7 +139,7 @@ func (nt *NFCTerminals) GetTerminalForProvisioning(ctx context.Context, terminal
 	if token == nil {
 		return nil, "", fmt.Errorf("terminal has no registration token")
 	}
-	t.RegistrationToken = *token
+	t.RegistrationToken = token
 	return &t, *token, nil
 }
 

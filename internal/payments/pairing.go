@@ -199,17 +199,26 @@ func (nt *NFCTerminals) GetPairingStatus(ctx context.Context, code string) (*Pai
 func (nt *NFCTerminals) ApprovePairing(ctx context.Context, code string, adminUserID uuid.UUID, label, terminalType, location, mode string) (*PairingResult, error) {
 	// Buscar la solicitud pendiente
 	var req PairingRequest
+	var fingerprint, terminalLabel, chipID, deviceModel, deviceManufacturer, androidVersion sql.NullString
 	err := nt.Pool.QueryRow(ctx, `
 		SELECT id, terminal_public_key, device_fingerprint, terminal_label, terminal_type, expires_at,
 		       chip_id, device_model, device_manufacturer, android_version
 		FROM terminal_pairing_requests
 		WHERE pairing_code = $1 AND status = 'pending'`,
 		code,
-	).Scan(&req.ID, &req.TerminalPublicKey, &req.DeviceFingerprint, &req.TerminalLabel, &req.TerminalType, &req.ExpiresAt,
-		&req.ChipID, &req.DeviceModel, &req.DeviceManufacturer, &req.AndroidVersion)
+	).Scan(&req.ID, &req.TerminalPublicKey, &fingerprint, &terminalLabel, &req.TerminalType, &req.ExpiresAt,
+		&chipID, &deviceModel, &deviceManufacturer, &androidVersion)
 	if err != nil {
 		return nil, fmt.Errorf("codigo no encontrado o ya procesado")
 	}
+
+	// Asignar los valores nullable escaneados con sql.NullString al struct
+	req.DeviceFingerprint = fingerprint.String
+	req.TerminalLabel = terminalLabel.String
+	req.ChipID = chipID.String
+	req.DeviceModel = deviceModel.String
+	req.DeviceManufacturer = deviceManufacturer.String
+	req.AndroidVersion = androidVersion.String
 
 	// Verificar que no ha expirado (considerando el periodo de gracia)
 	// El tiempo visible expira en expires_at, pero aceptamos aprobaciones
