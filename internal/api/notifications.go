@@ -143,7 +143,7 @@ func (h *NotificationHandler) listNotifications(w http.ResponseWriter, r *http.R
 			SELECT id, notification_type, title, message, metadata, link, is_read, created_at, read_at
 			FROM notifications WHERE user_id = $1
 			UNION ALL
-			SELECT id, 'assembly' AS notification_type, title, message, NULL AS metadata, link, is_read, created_at, read_at
+			SELECT id, 'assembly' AS notification_type, title, message, NULL AS metadata, NULL AS link, is_read, created_at, read_at
 			FROM assembly_notifications WHERE user_id = $1
 		) AS combined
 		ORDER BY created_at DESC

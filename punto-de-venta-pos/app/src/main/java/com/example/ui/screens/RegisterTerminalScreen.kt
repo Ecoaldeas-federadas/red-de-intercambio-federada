@@ -206,7 +206,7 @@ fun RegisterTerminalScreen(
                         value = nodeUrlInput,
                         onValueChange = { nodeUrlInput = it },
                         label = { Text("URL del Nodo Servidor") },
-                        placeholder = { Text("https://feria.loanstly.com") },
+                        placeholder = { Text("https://feria.loanstly.com/main") },
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()

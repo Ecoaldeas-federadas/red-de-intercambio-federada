@@ -352,7 +352,6 @@ type RegisterTerminalRequest struct {
 	Label             string `json:"label"`
 	TerminalType      string `json:"terminal_type"`
 	Location          string `json:"location"`
-	WifiSSID          string `json:"wifi_ssid"`
 	DeviceFingerprint string `json:"device_fingerprint"`
 }
 
@@ -370,7 +369,7 @@ func (h *NFCTerminalHandler) registerTerminal(w http.ResponseWriter, r *http.Req
 		req.TerminalType = "keypad"
 	}
 
-	terminal, token, err := h.NFC.RegisterTerminal(r.Context(), req.TerminalID, req.Label, req.TerminalType, req.Location, req.WifiSSID, req.DeviceFingerprint)
+	terminal, token, err := h.NFC.RegisterTerminal(r.Context(), req.TerminalID, req.Label, req.TerminalType, req.Location, req.DeviceFingerprint)
 	if err != nil {
 		writeError(w, 400, err.Error())
 		return

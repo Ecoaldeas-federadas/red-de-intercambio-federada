@@ -93,7 +93,7 @@ fun SettingsScreen(
                         value = urlInput,
                         onValueChange = { urlInput = it },
                         label = { Text("URL del Servidor") },
-                        placeholder = { Text("https://feria.loanstly.com") },
+                        placeholder = { Text("https://feria.loanstly.com/main") },
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()

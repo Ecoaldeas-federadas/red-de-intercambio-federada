@@ -24,7 +24,6 @@ type NFCTerminal struct {
 	Label              string     `json:"label"`
 	TerminalType       string     `json:"terminal_type"`
 	Location           string     `json:"location"`
-	WifiSSID           string     `json:"wifi_ssid"`
 	ChipID             string     `json:"chip_id,omitempty"`
 	FirmwareBinaryPath string     `json:"firmware_binary_path,omitempty"`
 	TerminalPublicKey  string     `json:"terminal_public_key,omitempty"`
@@ -78,18 +77,18 @@ func NewNFCTerminals(pool *pgxpool.Pool, nodeDomain string) *NFCTerminals {
 	return &NFCTerminals{Pool: pool, NodeDomain: nodeDomain}
 }
 
-func (nt *NFCTerminals) RegisterTerminal(ctx context.Context, terminalID, label, terminalType, location, wifiSSID, deviceFingerprint string) (*NFCTerminal, string, error) {
+func (nt *NFCTerminals) RegisterTerminal(ctx context.Context, terminalID, label, terminalType, location, deviceFingerprint string) (*NFCTerminal, string, error) {
 	token := uuid.New().String()
 
 	var t NFCTerminal
 	err := nt.Pool.QueryRow(ctx, `
-		INSERT INTO nfc_terminals (node_domain, terminal_id, label, terminal_type, location, wifi_ssid, registration_token, device_fingerprint)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id, node_domain, terminal_id, label, terminal_type, location, wifi_ssid,
+		INSERT INTO nfc_terminals (node_domain, terminal_id, label, terminal_type, location, registration_token, device_fingerprint)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, node_domain, terminal_id, label, terminal_type, location,
 			registration_token, is_active, is_registered, last_seen, firmware_version, created_at, updated_at`,
-		nt.NodeDomain, terminalID, label, terminalType, location, wifiSSID, token, deviceFingerprint,
+		nt.NodeDomain, terminalID, label, terminalType, location, token, deviceFingerprint,
 	).Scan(&t.ID, &t.NodeDomain, &t.TerminalID, &t.Label, &t.TerminalType,
-		&t.Location, &t.WifiSSID, &t.RegistrationToken, &t.IsActive, &t.IsRegistered,
+		&t.Location, &t.RegistrationToken, &t.IsActive, &t.IsRegistered,
 		&t.LastSeen, &t.FirmwareVersion, &t.CreatedAt, &t.UpdatedAt)
 	if err != nil {
 		return nil, "", fmt.Errorf("registering terminal: %w", err)
@@ -107,11 +106,11 @@ func (nt *NFCTerminals) ProvisionTerminal(ctx context.Context, terminalID, chipI
 	err := nt.Pool.QueryRow(ctx, `
 		INSERT INTO nfc_terminals (node_domain, terminal_id, chip_id, label, terminal_type, location, registration_token)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id, node_domain, terminal_id, chip_id, label, terminal_type, location, wifi_ssid,
+		RETURNING id, node_domain, terminal_id, chip_id, label, terminal_type, location,
 			registration_token, is_active, is_registered, last_seen, firmware_version, created_at, updated_at`,
 		nt.NodeDomain, terminalID, chipID, label, terminalType, location, token,
 	).Scan(&t.ID, &t.NodeDomain, &t.TerminalID, &t.ChipID, &t.Label, &t.TerminalType,
-		&t.Location, &t.WifiSSID, &t.RegistrationToken, &t.IsActive, &t.IsRegistered,
+		&t.Location, &t.RegistrationToken, &t.IsActive, &t.IsRegistered,
 		&t.LastSeen, &t.FirmwareVersion, &t.CreatedAt, &t.UpdatedAt)
 	if err != nil {
 		return nil, "", fmt.Errorf("provisioning terminal: %w", err)
@@ -126,13 +125,13 @@ func (nt *NFCTerminals) GetTerminalForProvisioning(ctx context.Context, terminal
 	var t NFCTerminal
 	var token *string
 	err := nt.Pool.QueryRow(ctx, `
-		SELECT id, node_domain, terminal_id, chip_id, label, terminal_type, location, wifi_ssid,
+		SELECT id, node_domain, terminal_id, chip_id, label, terminal_type, location,
 			registration_token, is_active, is_registered, last_seen, firmware_version, created_at, updated_at
 		FROM nfc_terminals
 		WHERE terminal_id = $1 AND is_active = true AND is_registered = false AND registration_token IS NOT NULL`,
 		terminalID,
 	).Scan(&t.ID, &t.NodeDomain, &t.TerminalID, &t.ChipID, &t.Label, &t.TerminalType,
-		&t.Location, &t.WifiSSID, &token, &t.IsActive, &t.IsRegistered,
+		&t.Location, &token, &t.IsActive, &t.IsRegistered,
 		&t.LastSeen, &t.FirmwareVersion, &t.CreatedAt, &t.UpdatedAt)
 	if err != nil {
 		return nil, "", fmt.Errorf("terminal not found or already registered: %w", err)
@@ -153,11 +152,11 @@ func (nt *NFCTerminals) CompleteRegistration(ctx context.Context, terminalID, re
 		    device_fingerprint = COALESCE(NULLIF($4, ''), device_fingerprint),
 		    updated_at = NOW()
 		WHERE terminal_id = $1 AND registration_token = $2 AND is_active = true
-		RETURNING id, node_domain, terminal_id, label, terminal_type, location, wifi_ssid,
+		RETURNING id, node_domain, terminal_id, label, terminal_type, location,
 			terminal_public_key, is_active, is_registered, last_seen, firmware_version, created_at, updated_at`,
 		terminalID, registrationToken, terminalPublicKey, deviceFingerprint,
 	).Scan(&t.ID, &t.NodeDomain, &t.TerminalID, &t.Label, &t.TerminalType,
-		&t.Location, &t.WifiSSID, &t.TerminalPublicKey, &t.IsActive, &t.IsRegistered,
+		&t.Location, &t.TerminalPublicKey, &t.IsActive, &t.IsRegistered,
 		&t.LastSeen, &t.FirmwareVersion, &t.CreatedAt, &t.UpdatedAt)
 	if err != nil {
 		return "", fmt.Errorf("completing terminal registration: %w", err)
@@ -276,12 +275,12 @@ func (nt *NFCTerminals) HeartbeatWithStatus(ctx context.Context, terminalID stri
 func (nt *NFCTerminals) GetTerminalStatus(ctx context.Context, terminalID string) (*NFCTerminal, error) {
 	var t NFCTerminal
 	err := nt.Pool.QueryRow(ctx, `
-		SELECT id, node_domain, terminal_id, label, terminal_type, location, wifi_ssid,
+		SELECT id, node_domain, terminal_id, label, terminal_type, location,
 			is_active, is_registered, last_seen, firmware_version, created_at, updated_at
 		FROM nfc_terminals WHERE terminal_id = $1`,
 		terminalID,
 	).Scan(&t.ID, &t.NodeDomain, &t.TerminalID, &t.Label, &t.TerminalType,
-		&t.Location, &t.WifiSSID, &t.IsActive, &t.IsRegistered,
+		&t.Location, &t.IsActive, &t.IsRegistered,
 		&t.LastSeen, &t.FirmwareVersion, &t.CreatedAt, &t.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("terminal not found: %w", err)
@@ -291,7 +290,7 @@ func (nt *NFCTerminals) GetTerminalStatus(ctx context.Context, terminalID string
 
 func (nt *NFCTerminals) ListTerminals(ctx context.Context, nodeDomain string) ([]NFCTerminal, error) {
 	rows, err := nt.Pool.Query(ctx, `
-		SELECT id, node_domain, terminal_id, label, terminal_type, location, wifi_ssid,
+		SELECT id, node_domain, terminal_id, label, terminal_type, location,
 			is_active, is_registered, last_seen, firmware_version, created_at, updated_at
 		FROM nfc_terminals WHERE node_domain = $1 ORDER BY created_at DESC`,
 		nodeDomain,
@@ -305,7 +304,7 @@ func (nt *NFCTerminals) ListTerminals(ctx context.Context, nodeDomain string) ([
 	for rows.Next() {
 		var t NFCTerminal
 		if err := rows.Scan(&t.ID, &t.NodeDomain, &t.TerminalID, &t.Label, &t.TerminalType,
-			&t.Location, &t.WifiSSID, &t.IsActive, &t.IsRegistered,
+			&t.Location, &t.IsActive, &t.IsRegistered,
 			&t.LastSeen, &t.FirmwareVersion, &t.CreatedAt, &t.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scanning terminal: %w", err)
 		}

@@ -37,8 +37,8 @@ data class PosUiState(
     val successMessage: String? = null,
 
     // Node & User
-    val serverUrl: String = "https://feria.loanstly.com",
-    val nodeDomain: String = "feria.loanstly.com",
+    val serverUrl: String = "https://feria.loanstly.com/main",
+    val nodeDomain: String = "feria.loanstly.com/main",
     val currentUser: UserMeResponse? = null,
     val isLoggedIn: Boolean = false,
     val isRegistered: Boolean = false,
@@ -106,7 +106,7 @@ class PosViewModel(
     val repository = PosRepository(
         context = application.applicationContext,
         database = database,
-        apiClient = PosApiClient("https://feria.loanstly.com")
+        apiClient = PosApiClient("https://feria.loanstly.com/main")
     )
 
     private val _uiState = MutableStateFlow(PosUiState())
