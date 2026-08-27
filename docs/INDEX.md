@@ -28,6 +28,8 @@
 24. [Plan: Servicios de Organizaciones](PLAN_SERVICIOS_ORGANIZACIONES.md) - Plan de impuestos por nivel, servicios, organizaciones de la Asamblea
 25. [Gobernanza Federada](federation_governance.md) - Constantes federadas, propuestas, votacion entre nodos, consenso, canasta basica compartida
 26. [Escalar YugabyteDB](scaling_yugabytedb.md) - Limite de tabletas, agregar nodos, colocation, configuracion de cluster
+27. [Guia de Inicio para Desarrolladores](guia-inicio-desarrolladores-tq.md) - Stack completo, estructura del repo, como colaborar
+28. [Principios Innegociables para Desarrollar](PRINCIPIOS_INNEGOCIABLES.md) - 10 reglas basicas: codigo abierto, codigo base unico, ajustes de nodo, que requiere aprobacion
 
 ## Estado de Implementacion
 

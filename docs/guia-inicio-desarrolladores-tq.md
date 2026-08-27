@@ -4,6 +4,11 @@ Bienvenido a la arquitectura técnica de la **Red de Intercambio Federada**, una
 
 Esta guía está dirigida a arquitectos de software, desarrolladores y administradores de sistemas que deseen comprender la infraestructura, el stack de desarrollo y el protocolo de federación para colaborar de manera unificada en el repositorio principal del proyecto.
 
+> **Antes de empezar a programar, lee [`PRINCIPIOS_INNEGOCIABLES.md`](./PRINCIPIOS_INNEGOCIABLES.md).**
+> Ese documento define las 10 reglas básicas que no se negocian: código abierto, un código base único,
+> ajustes para cambiar de nodo, qué requiere aprobación de todos los nodos, qué se puede modificar
+> localmente, y cómo se comparten las mejoras con toda la red.
+
 ---
 
 ## 0. Por qué trabajar unificado, no separado
@@ -340,6 +345,11 @@ Para evitar la atomización tecnológica y robustecer el sistema en beneficio de
 - Protocolo criptográfico de tarjetas NFC y terminales.
 - Estructura del ledger contable.
 - Reglas de expulsión de nodos de la red.
+
+> **Ver [`PRINCIPIOS_INNEGOCIABLES.md`](./PRINCIPIOS_INNEGOCIABLES.md) para el detalle completo
+> de las 10 reglas innegociables, incluyendo: todo código debe tener ajustes para cambiar de nodo,
+> las implementaciones locales deben pensarse para poder expandirse mundialmente, y las decisiones
+> se explican en lenguaje humano para que todos puedan participar.**
 
 ---
 

@@ -3,7 +3,7 @@ import { api } from '../../api'
 import {
   Globe, Users, Network, Leaf, Heart, Scale, ArrowRight, Check,
   Sparkles, MessageSquare, ThumbsUp, Send, Menu, X, Home, Copy, Share2,
-  Power, Loader2, ExternalLink, AlertCircle, CheckCircle
+  Power, Loader2, ExternalLink, AlertCircle, CheckCircle, Code
 } from 'lucide-react'
 
 const SHARE_MESSAGE = `¿El mayor reto de crear una ecoaldea? No es comprar el terreno... es ponerse de acuerdo. 🏡🤝
@@ -263,6 +263,94 @@ export function PublicFederationPage() {
         </div>
       </section>
 
+      {/* Por que trabajar unificado */}
+      <section className="bg-gradient-to-b from-white to-blue-50 py-16">
+        <div className="max-w-4xl mx-auto px-6">
+          <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Por que trabajar en un codigo unificado</h2>
+          <p className="text-lg text-gray-600 leading-relaxed mb-8 text-center max-w-3xl mx-auto">
+            Nunca hemos avanzado por trabajar aislados. Cada quien creando su propio sistema
+            logra quizas unificar pequenos grupos dentro de su pais, pero si queremos una
+            unificacion mundial, tiene que haber cosas que sean comunes.
+          </p>
+
+          <div className="grid md:grid-cols-2 gap-6 mb-8">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mb-4">
+                <Code className="text-emerald-600" size={24} />
+              </div>
+              <h3 className="font-semibold text-gray-800 mb-2">Un codigo base, abierto y auditable</h3>
+              <p className="text-sm text-gray-600">
+                Todo el software es 100% de codigo abierto. Cualquiera puede auditarlo, modificarlo
+                y adaptarlo a su realidad. Pero la base —la comunicacion entre nodos y la moneda
+                trueque— debe ser la misma para todos. Las mejoras que se implementan en el codigo
+                central quedan disponibles para todos. Si Uruguay agrega una funcion, Venezuela la
+                puede usar. Si Venezuela mejora algo, Uruguay se beneficia.
+              </p>
+            </div>
+
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
+                <Globe className="text-blue-600" size={24} />
+              </div>
+              <h3 className="font-semibold text-gray-800 mb-2">Tu tarjeta funciona en cualquier nodo</h3>
+              <p className="text-sm text-gray-600">
+                Como Visa o Mastercard: no importa en que pais o nodo estes, tu tarjeta NFC
+                debe ser aceptada de inmediato, aplicando los limites del protocolo unificado
+                de forma instantanea. Si cada pais inventa su propio protocolo, las tarjetas
+                de un pais no funcionaran en otro, destruyendo la federacion.
+              </p>
+            </div>
+
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4">
+                <Scale className="text-purple-600" size={24} />
+              </div>
+              <h3 className="font-semibold text-gray-800 mb-2">La moneda trueque es unica</h3>
+              <p className="text-sm text-gray-600">
+                1 TQ = 1 kWh de energia fisica real. La energia no tiene nacionalidad. Si cada
+                pais inventa su propia metrica, caemos en el mercado de divisas tradicional con
+                especulacion cambiaria. La metrica debe ser universal y auditada colectivamente
+                por el software para que el comercio inter-nodos sea justo.
+              </p>
+            </div>
+
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center mb-4">
+                <Users className="text-amber-600" size={24} />
+              </div>
+              <h3 className="font-semibold text-gray-800 mb-2">Cooperacion, no aislamiento</h3>
+              <p className="text-sm text-gray-600">
+                Los que saben programar escriben codigo. Los que no saben programar lo auditan,
+                lo entienden, y aceptan o rechazan los cambios en lenguaje humano. Las nuevas
+                implementaciones se explican para que todos las entiendan. Asi nos apoyamos entre
+                todos: lo que uno inventa, lo pone a disposicion de los demas.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
+            <h3 className="font-semibold text-gray-800 mb-3 text-center">Se puede desarrollar en otro lenguaje, pero...</h3>
+            <p className="text-sm text-gray-700 leading-relaxed mb-3">
+              No es que no se puedan usar software separados. Cualquiera puede desarrollar la misma
+              funcionalidad en el lenguaje que quiera. Pero tiene que garantizar que ese codigo pueda
+              conversar correctamente con todas las implementaciones del codigo base. Tiene que ser
+              100% compatible. La idea es que todos trabajemos en un codigo base donde todos sepamos
+              que existe, lo auditemos, y despues cada quien puede cambiar el skin, los colores, el
+              lenguaje con que se escribio —pero el motor interno y la comunicacion son exactamente
+              lo mismo.
+            </p>
+            <p className="text-sm text-gray-700 leading-relaxed">
+              <strong>Lo que se puede modificar localmente sin aprobacion:</strong> catalogo de
+              productos, reglas de gobernanza interna, colores del sitio web, moneda de referencia
+              local, servicios instalados, adaptaciones culturales, horarios de comercio.<br /><br />
+              <strong>Lo que requiere aprobacion de todos los nodos:</strong> protocolo de
+              comunicacion entre nodos, metrica de valor de la moneda trueque, protocolo criptografico
+              de tarjetas NFC, estructura del ledger contable, reglas de expulsion de nodos.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* Gobernanza Federada */}
       <section className="max-w-4xl mx-auto px-6 py-16">
         <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Gobernanza Federada</h2>
@@ -323,7 +411,11 @@ export function PublicFederationPage() {
             'Organizaciones y departamentos',
             'Intercambios y credito mutuo (TQ)',
             'Catalogo de productos con precios energeticos',
-            'Terminales NFC para pagos',
+            'App Android POS (cobro QR + NFC)',
+            'POS web para iPhone/computadoras',
+            'Terminales ESP32 (keypad, touch, comunitario)',
+            'Lector NFC Bluetooth (accesorio del POS)',
+            'Emparejamiento por codigo corto',
             'Notificaciones (WebPush, XMPP, SMS, Telegram)',
             'Contabilidad y auditoria',
             'Recuperacion de cuentas (multisig)',
@@ -331,9 +423,14 @@ export function PublicFederationPage() {
             'Sitio web publico configurable',
             'Gobernanza configurable por nodo',
             'Gobernanza federada entre nodos',
-            'Comercio exterior con puente externo',
+            'Comercio exterior con 20 monedas locales',
             'Calculadora de precios por energia',
-            'Canasta basica federada (mismo valor en todos los nodos)',
+            'Canasta basica federada (mismo valor en todos)',
+            'Internet paralelo cifrado (WireGuard)',
+            'Intranet local off-grid (OpenWrt)',
+            'Servicios federados un solo clic (Matrix, Nextcloud, VoIP, +20)',
+            'Instalador automatico con asistente',
+            'Nodo demo que se reinicia cada 24h',
           ].map((feature, i) => (
             <div key={i} className="flex items-center gap-2 bg-white rounded-lg p-3 border border-gray-100">
               <Check className="text-emerald-600 flex-shrink-0" size={18} />
@@ -640,6 +737,54 @@ export function PublicFederationPage() {
         </div>
       </section>
       )}
+
+      {/* Compartir modelos entre aldeas */}
+      <section className="bg-white py-16">
+        <div className="max-w-4xl mx-auto px-6">
+          <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Compartir modelos entre aldeas</h2>
+          <p className="text-lg text-gray-600 leading-relaxed mb-8 text-center max-w-3xl mx-auto">
+            La idea es ser 100% transparentes. Compartir, no acapararse las ventajas.
+            Si alguien inventa algo que funciona, lo pone a disposicion de los demas.
+            Para eso usamos una red de aldeas federada: compartimos experiencias,
+            gobernanza que nos ha dado exito, y los codigos.
+          </p>
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="bg-emerald-50 rounded-2xl p-6">
+              <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mb-4">
+                <Network className="text-emerald-600" size={24} />
+              </div>
+              <h3 className="font-semibold text-gray-800 mb-2">Copiar modelos que funcionan</h3>
+              <p className="text-sm text-gray-600">
+                Viene alguien nuevo, analiza las aldeas existentes: cual es su gobernanza interna,
+                como funciona, y puede copiar el modelo para implementar en su propia aldea sin
+                arrancar desde cero dandose golpes.
+              </p>
+            </div>
+            <div className="bg-blue-50 rounded-2xl p-6">
+              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
+                <Globe className="text-blue-600" size={24} />
+              </div>
+              <h3 className="font-semibold text-gray-800 mb-2">Implementaciones federadas</h3>
+              <p className="text-sm text-gray-600">
+                Cada nodo puede agregar nuevas implementaciones y modulos. Los demas nodos pueden
+                verlas, descargarlas y usarlas tambien. Lo que tu inventas, otros lo pueden copiar
+                a su propio nodo.
+              </p>
+            </div>
+            <div className="bg-purple-50 rounded-2xl p-6">
+              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4">
+                <Code className="text-purple-600" size={24} />
+              </div>
+              <h3 className="font-semibold text-gray-800 mb-2">Codigos universales y limpios</h3>
+              <p className="text-sm text-gray-600">
+                Los codigos se crean completamente limpios para que cualquiera lo pueda adaptar a
+                su realidad. Todos los codigos deberian tener en los ajustes la opcion de cambiar
+                el nodo por defecto, para que la gente de cualquier nodo lo pueda usar.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Footer */}
       <footer className="bg-gray-900 text-gray-400 py-8 text-center text-sm">
