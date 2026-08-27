@@ -229,6 +229,14 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
   const headerStyle = settings?.header_style || 'modern_eco'
   const headerSticky = (settings as any)?.header_sticky ?? true
+
+  // Detectar ancho de pantalla para ajustar cuantos items del menu caben
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1280)
+  useEffect(() => {
+    const onResize = () => setWindowWidth(window.innerWidth)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
   const headerBannerImage = (settings as any)?.header_banner_image || ''
   const headerBannerImages = (settings as any)?.header_banner_images || ''
   const headerBannerDuration = (settings as any)?.header_banner_duration || 5
@@ -296,7 +304,10 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
     hero_overlay: 7,
     sticky_pill: 6, // pill is compact
   }
-  const maxVisible = maxVisibleByStyle[headerStyle] ?? 8
+  // A 1024-1279px el menu no cabe con todos los items.
+  // Reducir a 5 visibles + "Mas" para que quepa.
+  const styleMax = maxVisibleByStyle[headerStyle] ?? 8
+  const maxVisible = windowWidth < 1280 ? Math.min(5, styleMax) : styleMax
   const visiblePages = menuPages.slice(0, maxVisible)
   const overflowPages = menuPages.slice(maxVisible)
 
