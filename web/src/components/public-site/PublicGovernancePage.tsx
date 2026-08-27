@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../api'
-import { Scale, AlertTriangle, AlertOctagon, Ban, Info, CheckCircle, XCircle, Users, Home, Leaf, Coins, Calendar, UserPlus, UserX, Percent, PiggyBank, Map, Key, FileText } from 'lucide-react'
+import { Scale, AlertTriangle, AlertOctagon, Ban, Info, CheckCircle, XCircle, Users, Home, Leaf, Coins, Calendar, UserPlus, UserX, Percent, PiggyBank, Map, Key, FileText, Globe, Network, Building2 } from 'lucide-react'
 
 const CATEGORIES = [
   { value: 'estructura', label: 'Estructura de Gobernanza', icon: Users, color: 'text-blue-700 bg-blue-50' },
@@ -102,6 +102,49 @@ export function PublicGovernancePage() {
         <p className="text-xs text-gray-400">
           {rules.length} reglas vigentes - Cualquier modificacion requiere aprobacion de la Asamblea General
         </p>
+      </div>
+
+      {/* Tres niveles de gobernanza */}
+      <div className="bg-gradient-to-b from-gray-50 to-white rounded-2xl p-6 border border-gray-200">
+        <h2 className="text-lg font-bold text-gray-800 mb-2 text-center">Tres Niveles de Gobernanza</h2>
+        <p className="text-xs text-gray-500 text-center mb-4 max-w-2xl mx-auto">
+          El sistema tiene tres niveles. Cada uno es independiente internamente pero sujeto al
+          nivel superior. Las reglas de abajo son del Nivel 2 (Aldea). El Nivel 1 (Federacion) y
+          el Nivel 3 (Organizaciones) se gestionan por separado.
+        </p>
+        <div className="grid md:grid-cols-3 gap-3">
+          <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+            <div className="flex items-center gap-2 mb-2">
+              <Globe className="text-blue-600" size={18} />
+              <h3 className="font-semibold text-sm text-gray-800">1. Federacion (mundial)</h3>
+            </div>
+            <p className="text-xs text-gray-600">
+              Decisiones que afectan a todos los nodos del mundo. Por votacion de todos los nodos.
+              Ej: canasta basica TQ, expulsion de nodos, protocolo de comunicacion.
+            </p>
+          </div>
+          <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100 ring-2 ring-emerald-300">
+            <div className="flex items-center gap-2 mb-2">
+              <Network className="text-emerald-600" size={18} />
+              <h3 className="font-semibold text-sm text-gray-800">2. Aldea / Nodo (local)</h3>
+              <span className="text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded">Aqui</span>
+            </div>
+            <p className="text-xs text-gray-600">
+              Decisiones que afectan a toda la comunidad local. Por asamblea del nodo.
+              Ej: sueldos, horarios, catalogo, admision, tasas, reglas de convivencia.
+            </p>
+          </div>
+          <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
+            <div className="flex items-center gap-2 mb-2">
+              <Building2 className="text-purple-600" size={18} />
+              <h3 className="font-semibold text-sm text-gray-800">3. Organizaciones</h3>
+            </div>
+            <p className="text-xs text-gray-600">
+              Decisiones que afectan solo dentro de cada organizacion. Por su asamblea interna.
+              Ej: reglas internas, departamentos, roles. Sujetas a las reglas de la aldea.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Navegacion por categorias */}

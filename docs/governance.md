@@ -4,6 +4,62 @@
 
 El sistema incluye un modulo de gobernanza completo que define las reglas de convivencia de la ecoaldea: la "Ley de la Aldea". Estas reglas son editables por el administrador y se muestran a los visitantes en la pagina publica, a los aspirantes en el formulario de admision (con aceptacion obligatoria) y a los miembros en el panel de administracion.
 
+## Los Tres Niveles de Gobernanza
+
+El sistema tiene **tres niveles de gobernanza**, cada uno independiente internamente
+pero sujeto al nivel superior:
+
+| Nivel | Que decide | Quien decide | Ejemplos |
+|-------|-----------|-------------|----------|
+| **Federacion** (mundial) | Cosas que afectan a todos los nodos del mundo | Todos los nodos por votacion | Canasta TQ, expulsion, protocolo |
+| **Aldea/Nodo** (local) | Cosas que afectan a toda la comunidad local | Asamblea del nodo | Sueldos, horarios, catalogo, tasas |
+| **Organizacion** (dentro de la aldea) | Cosas que afectan solo a la organizacion | Asamblea de la organizacion | Reglas internas, departamentos |
+
+### Nivel 1: Federacion (mundial)
+
+Pocas cosas afectan a toda la red. Se deciden por votacion igualitaria de todos los
+nodos federados. Ver [federation_governance.md](federation_governance.md) para detalles.
+
+- **Canasta basica TQ:** La misma en todos los nodos. La moneda trueque no tiene
+  inflacion, asi que la canasta tiene que ser exactamente la misma en todas partes.
+  Si un pais tiene una canasta mas alta y otro mas baja, se crea riqueza en un lado
+  y pobreza en el otro.
+- **Limite de credito global** para todos los nodos.
+- **Expulsion de un nodo** que perjudica la red.
+- **Protocolo de comunicacion, criptografia NFC, estructura del ledger.**
+
+**Importante:** La canasta federada no tiene nada que ver con el comercio exterior.
+Cada nodo hace su comercio exterior directamente en su moneda local (UYU, VES, ARS).
+El Factor de Conversion (FC) calcula el equivalente con TQ, pero eso es interno de
+cada nodo.
+
+### Nivel 2: Aldea / Nodo (local)
+
+Cada nodo es soberano. La asamblea del nodo decide todo lo que afecta a su comunidad.
+**Este documento describe las reglas de este nivel** (la "Ley de la Aldea"):
+
+- Reglas de convivencia (estructura, deberes, permitido, prohibido, faltas).
+- Horas de trabajo y sueldos.
+- Catalogo de productos y precios locales.
+- Admision y expulsion de miembros del nodo.
+- Tasas, comisiones, horarios de comercio.
+- Sitio web publico, adaptaciones culturales.
+- Comercio exterior con su moneda local.
+
+### Nivel 3: Organizaciones (dentro de la aldea)
+
+Un nodo puede tener varias organizaciones (cooperativas, parcelas, comisiones). Cada
+organizacion es independiente dentro de su propio terreno, pero sujeta a las reglas
+generales de la aldea. Dentro de cada organizacion puede haber departamentos.
+
+- Asambleas de organizacion (sesiones, propuestas, votaciones con scope limitado).
+- Reglas internas de cada organizacion.
+- Departamentos con roles y permisos especificos.
+
+Las reglas mas grandes (las de la aldea) engloban las cosas mas comunes entre todos.
+Las reglas de cada organizacion solo afectan dentro de su terreno. Las reglas
+universales afectan al mundo entero.
+
 ## Componentes
 
 ### 1. Tabla `governance_rules`
