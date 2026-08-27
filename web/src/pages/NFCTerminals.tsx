@@ -33,9 +33,9 @@ interface Transaction {
 export default function NFCTerminals() {
   const { hasPermission } = usePermissions()
   const [searchParams, setSearchParams] = useSearchParams()
-  const initialTab = (searchParams.get('tab') as 'terminals' | 'provision' | 'cards' | 'transactions') || 'terminals'
-  const [tab, setTab] = useState<'terminals' | 'provision' | 'cards' | 'transactions'>(initialTab)
-  const changeTab = (t: 'terminals' | 'provision' | 'cards' | 'transactions') => {
+  const initialTab = (searchParams.get('tab') as 'terminals' | 'provision' | 'cards' | 'transactions' | 'pairing') || 'terminals'
+  const [tab, setTab] = useState<'terminals' | 'provision' | 'cards' | 'transactions' | 'pairing'>(initialTab)
+  const changeTab = (t: 'terminals' | 'provision' | 'cards' | 'transactions' | 'pairing') => {
     setTab(t)
     setSearchParams({ tab: t })
   }
@@ -47,6 +47,14 @@ export default function NFCTerminals() {
   const [showIssueCard, setShowIssueCard] = useState(false)
   const [showResetPIN, setShowResetPIN] = useState<string | null>(null)
   const [showHelp, setShowHelp] = useState(false)
+
+  // Pairing state
+  const [pendingPairings, setPendingPairings] = useState<any[]>([])
+  const [pairingPoll, setPairingPoll] = useState<any>(null)
+  const [approveLabel, setApproveLabel] = useState('')
+  const [approveLocation, setApproveLocation] = useState('')
+  const [approvingCode, setApprovingCode] = useState('')
+  const [pairingAction, setPairingAction] = useState('')
 
   // Provisioning state
   const { chipId, scanning, error: serialError, supported: serialSupported, scan } = useSerialChipId()
@@ -69,6 +77,58 @@ export default function NFCTerminals() {
     loadTerminalTypes()
     loadTransactions()
   }, [])
+
+  // Auto-refresh pending pairings when on pairing tab
+  useEffect(() => {
+    if (tab === 'pairing') {
+      loadPendingPairings()
+      const interval = setInterval(loadPendingPairings, 3000)
+      setPairingPoll(interval)
+      return () => { clearInterval(interval); setPairingPoll(null) }
+    }
+  }, [tab])
+
+  const loadPendingPairings = async () => {
+    try {
+      const res = await api.get<any[]>('/nfc/terminal/pair/pending')
+      setPendingPairings(res || [])
+    } catch (err) {
+      // ignore errors silently
+    }
+  }
+
+  const approvePairing = async (code: string) => {
+    setPairingAction(code)
+    try {
+      await api.post(`/nfc/terminal/pair/${code}/approve`, {
+        label: approveLabel || undefined,
+        location: approveLocation || undefined,
+      })
+      setPendingPairings(prev => prev.filter(p => p.pairing_code !== code))
+      setApprovingCode('')
+      setApproveLabel('')
+      setApproveLocation('')
+      loadTerminals()
+      setError('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al aprobar emparejamiento')
+    } finally {
+      setPairingAction('')
+    }
+  }
+
+  const rejectPairing = async (code: string) => {
+    setPairingAction(code + '-reject')
+    try {
+      await api.post(`/nfc/terminal/pair/${code}/reject`, {})
+      setPendingPairings(prev => prev.filter(p => p.pairing_code !== code))
+      setError('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al rechazar')
+    } finally {
+      setPairingAction('')
+    }
+  }
 
   const loadTerminals = async () => {
     try {
@@ -304,6 +364,14 @@ export default function NFCTerminals() {
         )}
         {canRegisterTerminal && (
           <button onClick={() => changeTab('provision')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'provision' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Provisionar</button>
+        )}
+        {canRegisterTerminal && (
+          <button onClick={() => changeTab('pairing')} className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1 ${tab === 'pairing' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>
+            Emparejamientos
+            {pendingPairings.length > 0 && (
+              <span className="bg-red-500 text-white text-xs px-1.5 rounded-full">{pendingPairings.length}</span>
+            )}
+          </button>
         )}
         {/* Tarjetas: todos pueden ver (su propia tarjeta) */}
         <button onClick={() => changeTab('cards')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'cards' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Tarjetas</button>
@@ -669,13 +737,98 @@ export default function NFCTerminals() {
               <input className="input" placeholder="Ej: Local 5, Mercado Central" value={newTerminal.location} onChange={(e) => setNewTerminal({ ...newTerminal, location: e.target.value })} />
               <p className="text-xs text-gray-400 mt-1">Direccion o referencia del lugar. Ejemplo: <code>Local 5, Mercado Central</code></p>
             </div>
-            <div>
-              <label className="label">WiFi SSID</label>
-              <input className="input" placeholder="Ej: RedTrueque" value={newTerminal.wifi_ssid} onChange={(e) => setNewTerminal({ ...newTerminal, wifi_ssid: e.target.value })} />
-              <p className="text-xs text-gray-400 mt-1">Nombre de la red WiFi donde se conectara el terminal. Ejemplo: <code>RedTrueque</code></p>
-            </div>
             <button onClick={registerTerminal} className="btn-primary w-full">Registrar</button>
           </div>
+        </div>
+      )}
+
+      {/* Pairing tab - Emparejamientos pendientes de POS Android */}
+      {tab === 'pairing' && (
+        <div className="space-y-4">
+          <div className="card bg-blue-50 border-blue-200">
+            <h3 className="font-bold text-blue-900">Emparejamientos Pendientes</h3>
+            <p className="text-sm text-blue-700 mt-1">
+              Cuando un POS Android inicia un emparejamiento, muestra un codigo de 6 digitos en pantalla.
+              Aqui puedes ver los codigos pendientes y aprobarlos con un clic. Los datos del terminal se copian
+              automaticamente desde el POS — solo necesitas confirmar la etiqueta y ubicacion (opcional).
+            </p>
+          </div>
+
+          {pendingPairings.length === 0 ? (
+            <div className="card text-center text-gray-500 py-12">
+              <Nfc className="mx-auto mb-3 text-gray-300" size={48} />
+              <p>No hay emparejamientos pendientes.</p>
+              <p className="text-sm mt-1">Cuando un POS Android inicie un emparejamiento, aparecera aqui automaticamente.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {pendingPairings.map((p) => (
+                <div key={p.id} className="card border-2 border-trueque-300 bg-trueque-50">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="bg-trueque-600 text-white text-3xl font-bold font-mono px-6 py-3 rounded-xl">
+                        {p.pairing_code}
+                      </div>
+                      <div>
+                        <p className="font-bold text-lg">{p.terminal_label || 'POS Android'}</p>
+                        <p className="text-sm text-gray-600">Tipo: {p.terminal_type}</p>
+                        <p className="text-sm text-gray-600">
+                          Tiempo restante: <span className={p.remaining_seconds <= 10 ? 'text-red-600 font-bold' : 'font-medium'}>
+                            {Math.floor(p.remaining_seconds / 60)}:{String(p.remaining_seconds % 60).padStart(2, '0')}
+                          </span>
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          Clave publica: {p.terminal_public_key?.substring(0, 16)}...
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {approvingCode === p.pairing_code ? (
+                    <div className="mt-4 space-y-3 border-t pt-4">
+                      <div>
+                        <label className="label">Etiqueta (opcional, pre-llenada por el POS)</label>
+                        <input className="input" placeholder={p.terminal_label || 'POS Android'}
+                          value={approveLabel}
+                          onChange={(e) => setApproveLabel(e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="label">Ubicacion (opcional)</label>
+                        <input className="input" placeholder="Ej: Local 5, Mercado Central"
+                          value={approveLocation}
+                          onChange={(e) => setApproveLocation(e.target.value)} />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => approvePairing(p.pairing_code)}
+                          disabled={pairingAction === p.pairing_code}
+                          className="btn-primary flex-1">
+                          {pairingAction === p.pairing_code ? 'Aprobando...' : 'Aprobar y Registrar'}
+                        </button>
+                        <button
+                          onClick={() => { setApprovingCode(''); setApproveLabel(''); setApproveLocation('') }}
+                          className="btn-secondary">Cancelar</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-4 flex gap-2">
+                      <button
+                        onClick={() => { setApprovingCode(p.pairing_code); setApproveLabel(p.terminal_label || ''); setApproveLocation('') }}
+                        className="btn-primary flex-1">
+                        Aprobar
+                      </button>
+                      <button
+                        onClick={() => rejectPairing(p.pairing_code)}
+                        disabled={pairingAction === p.pairing_code + '-reject'}
+                        className="btn-secondary text-red-600">
+                        {pairingAction === p.pairing_code + '-reject' ? 'Rechazando...' : 'Rechazar'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
