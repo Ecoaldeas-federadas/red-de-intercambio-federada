@@ -1073,29 +1073,32 @@ func (h *CardCryptoHandler) getCardTypeConfig(w http.ResponseWriter, r *http.Req
 	}
 
 	var mode string
-	var requireCrypto, autoRotate bool
+	var requireCrypto, autoRotate, requireIDDoc bool
 	var maxFails int
 	var uidMsg string
 	err := h.Pool.QueryRow(r.Context(), `
-		SELECT card_type_mode, require_crypto, auto_rotate_key, max_write_fails, uid_only_message
+		SELECT card_type_mode, require_crypto, auto_rotate_key, max_write_fails, uid_only_message,
+		       require_id_document_for_uid_only
 		FROM nfc_card_type_config WHERE node_domain = $1`, nodeDomain).Scan(
-		&mode, &requireCrypto, &autoRotate, &maxFails, &uidMsg)
+		&mode, &requireCrypto, &autoRotate, &maxFails, &uidMsg, &requireIDDoc)
 	if err != nil {
 		writeJSON(w, 200, map[string]interface{}{
-			"card_type_mode":   "dual",
-			"require_crypto":   false,
-			"auto_rotate_key":  true,
-			"max_write_fails":  3,
-			"uid_only_message": "Esta tarjeta no tiene seguridad criptografica. Usa PIN para proteger.",
+			"card_type_mode":                   "dual",
+			"require_crypto":                   false,
+			"auto_rotate_key":                  true,
+			"max_write_fails":                  3,
+			"uid_only_message":                 "Esta tarjeta no tiene seguridad criptografica. Usa PIN para proteger.",
+			"require_id_document_for_uid_only": false,
 		})
 		return
 	}
 	writeJSON(w, 200, map[string]interface{}{
-		"card_type_mode":   mode,
-		"require_crypto":   requireCrypto,
-		"auto_rotate_key":  autoRotate,
-		"max_write_fails":  maxFails,
-		"uid_only_message": uidMsg,
+		"card_type_mode":                   mode,
+		"require_crypto":                   requireCrypto,
+		"auto_rotate_key":                  autoRotate,
+		"max_write_fails":                  maxFails,
+		"uid_only_message":                 uidMsg,
+		"require_id_document_for_uid_only": requireIDDoc,
 	})
 }
 
@@ -1106,11 +1109,12 @@ func (h *CardCryptoHandler) updateCardTypeConfig(w http.ResponseWriter, r *http.
 	}
 
 	var body struct {
-		CardTypeMode  string `json:"card_type_mode"`
-		RequireCrypto bool   `json:"require_crypto"`
-		AutoRotateKey bool   `json:"auto_rotate_key"`
-		MaxWriteFails int    `json:"max_write_fails"`
-		UidOnlyMsg    string `json:"uid_only_message"`
+		CardTypeMode           string `json:"card_type_mode"`
+		RequireCrypto          bool   `json:"require_crypto"`
+		AutoRotateKey          bool   `json:"auto_rotate_key"`
+		MaxWriteFails          int    `json:"max_write_fails"`
+		UidOnlyMsg             string `json:"uid_only_message"`
+		RequireIDDocForUIDOnly bool   `json:"require_id_document_for_uid_only"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -1127,12 +1131,12 @@ func (h *CardCryptoHandler) updateCardTypeConfig(w http.ResponseWriter, r *http.
 	}
 
 	_, err := h.Pool.Exec(r.Context(), `
-		INSERT INTO nfc_card_type_config (node_domain, card_type_mode, require_crypto, auto_rotate_key, max_write_fails, uid_only_message)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO nfc_card_type_config (node_domain, card_type_mode, require_crypto, auto_rotate_key, max_write_fails, uid_only_message, require_id_document_for_uid_only)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		ON CONFLICT (node_domain) DO UPDATE
 		SET card_type_mode = $2, require_crypto = $3, auto_rotate_key = $4,
-		    max_write_fails = $5, uid_only_message = $6, updated_at = NOW()`,
-		nodeDomain, body.CardTypeMode, body.RequireCrypto, body.AutoRotateKey, body.MaxWriteFails, body.UidOnlyMsg)
+		    max_write_fails = $5, uid_only_message = $6, require_id_document_for_uid_only = $7, updated_at = NOW()`,
+		nodeDomain, body.CardTypeMode, body.RequireCrypto, body.AutoRotateKey, body.MaxWriteFails, body.UidOnlyMsg, body.RequireIDDocForUIDOnly)
 	if err != nil {
 		writeError(w, 500, "error saving card type config")
 		return

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"time"
 
 	"federated-credit-node/internal/db"
@@ -21,6 +22,7 @@ type POSHandler struct {
 	Pool       *pgxpool.Pool
 	NFC        *payments.NFCTerminals
 	NodeDomain string
+	MultiSig   *payments.MultiSigPayments
 }
 
 func NewPOSHandler(pool *pgxpool.Pool, nfc *payments.NFCTerminals, nodeDomain string) *POSHandler {
@@ -270,6 +272,40 @@ func (h *POSHandler) payCharge(w http.ResponseWriter, r *http.Request) {
 	if balance-amount < -50000 {
 		writeError(w, 400, "saldo insuficiente")
 		return
+	}
+
+	// Verificar si la cuenta del pagador requiere multi-firma
+	if h.MultiSig != nil {
+		reqSigs, _, err := h.MultiSig.CheckAccountMultiSig(r.Context(), payerID)
+		if err == nil && reqSigs > 1 {
+			// La cuenta requiere multi-firma: crear pago pendiente
+			pending, err := h.MultiSig.CreatePendingPayment(r.Context(), payments.CreatePendingPaymentParams{
+				PaymentType:   "pos_qr",
+				FromAccount:   payerID,
+				ToAccount:     merchantID,
+				Amount:        amount,
+				PaymentMethod: "qr",
+				PosChargeID:   &chargeID,
+				Description:   "Pago QR multi-firma",
+			})
+			if err != nil {
+				writeError(w, 500, "error creating pending multi-sig payment: "+err.Error())
+				return
+			}
+			// La primera firma es implicita (el usuario que inicio el pago)
+			remaining, _, _ := h.MultiSig.SignPendingPayment(r.Context(), pending.ID, payerID, "web", "", false, false)
+			_ = tx.Commit(r.Context())
+			writeJSON(w, 202, map[string]interface{}{
+				"status":         "pending_multisig",
+				"pending_id":     pending.ID,
+				"charge_id":      chargeID,
+				"required_sigs":  reqSigs,
+				"collected_sigs": 1,
+				"remaining_sigs": remaining,
+				"message":        "Pago pendiente. Faltan " + strconv.Itoa(remaining) + " firma(s) para completar.",
+			})
+			return
+		}
 	}
 
 	// Debitar del pagador

@@ -244,6 +244,7 @@ func main() {
 	}
 
 	handler := api.NewHandler(ledgerSvc, accountsSvc, pricingSvc, cryptoSvc, db.LOCAL_NODE_DOMAIN, database.Pool)
+	handler.MultiSig = payments.NewMultiSigPayments(database.Pool, db.LOCAL_NODE_DOMAIN)
 	federationHandler := api.NewFederationHandler(database.Pool, cfg.Node.Domain)
 	orgsSvc := accounts.NewOrganizations(database.Pool)
 	orgHandler := api.NewOrganizationHandler(orgsSvc, cfg.Node.Domain)
@@ -274,6 +275,7 @@ func main() {
 	firmwareCompiler := payments.NewFirmwareCompiler(firmwareDir, buildDir, dockerImage)
 
 	nfcTerminalHandler := api.NewNFCTerminalHandler(nfcTerminalsSvc, cfg.Node.Domain, firmwareCompiler)
+	nfcTerminalHandler.MultiSig = handler.MultiSig
 
 	setupHandler := api.NewSetupHandler(database.Pool, accountsSvc, jwtSecret, cfg.Node.Domain, cfg.Node.Name)
 

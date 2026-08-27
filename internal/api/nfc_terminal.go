@@ -22,6 +22,7 @@ type NFCTerminalHandler struct {
 	NFC        *payments.NFCTerminals
 	NodeDomain string
 	Compiler   *payments.FirmwareCompiler
+	MultiSig   *payments.MultiSigPayments
 }
 
 func NewNFCTerminalHandler(nfc *payments.NFCTerminals, nodeDomain string, compiler *payments.FirmwareCompiler) *NFCTerminalHandler {
@@ -38,6 +39,7 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.Put("/api/nfc/terminal/session/amount", h.setSessionAmount)
 	r.Post("/api/nfc/terminal/payment", h.processPayment)
 	r.Post("/api/nfc/terminal/payment/community", h.processCommunityPayment)
+	r.Post("/api/nfc/terminal/payment/multisig-sign", h.signMultisigPayment)
 	r.Get("/api/nfc/terminal/{id}/session", h.getTerminalSession)
 
 	// Block/unblock from the terminal itself (with local code)
@@ -1528,4 +1530,41 @@ func (h *NFCTerminalHandler) listMyTerminalTransactions(w http.ResponseWriter, r
 		txs = []Tx{}
 	}
 	writeJSON(w, 200, txs)
+}
+
+// signMultisigPayment permite a un firmante autorizado firmar un pago multi-firma
+// pendiente usando su tarjeta NFC + PIN. El pago se completa cuando todas las
+// firmas requeridas se han recolectado.
+func (h *NFCTerminalHandler) signMultisigPayment(w http.ResponseWriter, r *http.Request) {
+	var req ProcessPaymentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	plaintext, sharedKey, err := h.NFC.DecodePayload(r.Context(), req.TerminalID, req.EncryptedPayload)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+
+	var payload payments.MultisigSignPayload
+	if err := json.Unmarshal(plaintext, &payload); err != nil {
+		writeError(w, 400, "invalid payload format")
+		return
+	}
+
+	result, err := h.NFC.SignMultisigPaymentWithCard(r.Context(), req.TerminalID, payload)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	resultBytes, _ := json.Marshal(result)
+	encResp, err := h.NFC.EncodeResponseWithSharedKey(r.Context(), req.TerminalID, resultBytes, sharedKey)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, encResp)
 }

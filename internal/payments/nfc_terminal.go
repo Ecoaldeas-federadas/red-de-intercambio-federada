@@ -371,12 +371,14 @@ func (nt *NFCTerminals) SetTerminalAmount(ctx context.Context, sessionToken stri
 }
 
 type NFCPaymentPayload struct {
-	CardUID     string `json:"card_uid"`
-	CryptoToken string `json:"crypto_token"`
-	PIN         string `json:"pin"`
-	Amount      int64  `json:"amount"`
-	Timestamp   int64  `json:"timestamp"`
-	Nonce       string `json:"nonce"`
+	CardUID          string `json:"card_uid"`
+	CryptoToken      string `json:"crypto_token"`
+	PIN              string `json:"pin"`
+	Amount           int64  `json:"amount"`
+	Timestamp        int64  `json:"timestamp"`
+	Nonce            string `json:"nonce"`
+	IDDocumentType   string `json:"id_document_type,omitempty"`
+	IDDocumentNumber string `json:"id_document_number,omitempty"`
 }
 
 type NFCPaymentResult struct {
@@ -421,6 +423,23 @@ func (nt *NFCTerminals) ProcessNFCPayment(ctx context.Context, terminalID string
 		nt.resetCardAttempts(ctx, payload.CardUID)
 	}
 
+	// Verificacion de documento de identidad para tarjetas UID-only
+	// (solo si el nodo lo tiene configurado y la tarjeta no es segura)
+	if card.CardType == "uid_only" {
+		requireDoc, err := nt.checkRequireIDDocument(ctx)
+		if err == nil && requireDoc {
+			if payload.IDDocumentNumber == "" {
+				nt.logTransaction(ctx, termDBID, payload.CardUID, &card.UserID, payload.Amount, "rejected", payload.CryptoToken, true, "single", "", "id document required but not provided")
+				return &NFCPaymentResult{Status: "rejected", Message: "se requiere documento de identidad para esta tarjeta"}, nil
+			}
+			matched, err := nt.verifyIDDocument(ctx, card.UserID, payload.IDDocumentType, payload.IDDocumentNumber)
+			if err != nil || !matched {
+				nt.logTransaction(ctx, termDBID, payload.CardUID, &card.UserID, payload.Amount, "rejected", payload.CryptoToken, true, "single", "", "id document mismatch")
+				return &NFCPaymentResult{Status: "rejected", Message: "documento de identidad no coincide"}, nil
+			}
+		}
+	}
+
 	var balance int64
 	err = nt.Pool.QueryRow(ctx, `SELECT balance FROM users WHERE id = $1`, card.UserID).Scan(&balance)
 	if err != nil {
@@ -430,6 +449,40 @@ func (nt *NFCTerminals) ProcessNFCPayment(ctx context.Context, terminalID string
 	if balance-payload.Amount < -50000 {
 		nt.logTransaction(ctx, termDBID, payload.CardUID, &card.UserID, payload.Amount, "rejected", payload.CryptoToken, true, "single", "", "insufficient balance")
 		return &NFCPaymentResult{Status: "rejected", Message: "saldo insuficiente"}, nil
+	}
+
+	// Verificar si la cuenta del comprador requiere multi-firma
+	reqSigs, _, err := nt.checkAccountMultiSig(ctx, card.UserID)
+	if err == nil && reqSigs > 1 {
+		// Crear pago pendiente multi-firma
+		msig := NewMultiSigPayments(nt.Pool, nt.NodeDomain)
+		// Necesitamos el merchant_id del terminal para saber a quien se le paga
+		var merchantID *uuid.UUID
+		_ = nt.Pool.QueryRow(ctx, `SELECT merchant_user_id FROM nfc_terminals WHERE id = $1`, termDBID).Scan(&merchantID)
+		if merchantID == nil {
+			return &NFCPaymentResult{Status: "rejected", Message: "terminal no tiene comerciante asignado"}, nil
+		}
+		pending, err := msig.CreatePendingPayment(ctx, CreatePendingPaymentParams{
+			PaymentType:   "nfc",
+			FromAccount:   card.UserID,
+			ToAccount:     *merchantID,
+			Amount:        payload.Amount,
+			PaymentMethod: "nfc",
+			TerminalID:    &termDBID,
+			Description:   "Pago NFC multi-firma",
+		})
+		if err != nil {
+			return &NFCPaymentResult{Status: "rejected", Message: "error creando pago multi-firma: " + err.Error()}, nil
+		}
+		// La primera firma es del comprador que acerco su tarjeta
+		remaining, _, _ := msig.SignPendingPayment(ctx, pending.ID, card.UserID, "nfc_card", payload.CardUID, true, payload.IDDocumentNumber != "")
+		nt.logTransaction(ctx, termDBID, payload.CardUID, &card.UserID, payload.Amount, "pending", payload.CryptoToken, true, "single", "", "multisig pending")
+		return &NFCPaymentResult{
+			Status:        "pending_multisig",
+			TransactionID: pending.ID.String(),
+			Message:       fmt.Sprintf("Pago pendiente. Faltan %d firma(s). Acerque las tarjetas de los firmantes autorizados.", remaining),
+			UserBalance:   &balance,
+		}, nil
 	}
 
 	txID := uuid.New()
@@ -453,15 +506,17 @@ func (nt *NFCTerminals) ProcessNFCPayment(ctx context.Context, terminalID string
 }
 
 type CommunityPaymentPayload struct {
-	SellerCardUID     string `json:"seller_card_uid"`
-	SellerCryptoToken string `json:"seller_crypto_token"`
-	SellerPIN         string `json:"seller_pin"`
-	BuyerCardUID      string `json:"buyer_card_uid"`
-	BuyerCryptoToken  string `json:"buyer_crypto_token"`
-	BuyerPIN          string `json:"buyer_pin"`
-	Amount            int64  `json:"amount"`
-	Timestamp         int64  `json:"timestamp"`
-	Nonce             string `json:"nonce"`
+	SellerCardUID         string `json:"seller_card_uid"`
+	SellerCryptoToken     string `json:"seller_crypto_token"`
+	SellerPIN             string `json:"seller_pin"`
+	BuyerCardUID          string `json:"buyer_card_uid"`
+	BuyerCryptoToken      string `json:"buyer_crypto_token"`
+	BuyerPIN              string `json:"buyer_pin"`
+	Amount                int64  `json:"amount"`
+	Timestamp             int64  `json:"timestamp"`
+	Nonce                 string `json:"nonce"`
+	BuyerIDDocumentType   string `json:"buyer_id_document_type,omitempty"`
+	BuyerIDDocumentNumber string `json:"buyer_id_document_number,omitempty"`
 }
 
 func (nt *NFCTerminals) ProcessCommunityPayment(ctx context.Context, terminalID string, payload CommunityPaymentPayload) (*NFCPaymentResult, error) {
@@ -508,6 +563,22 @@ func (nt *NFCTerminals) ProcessCommunityPayment(ctx context.Context, terminalID 
 		nt.resetCardAttempts(ctx, payload.BuyerCardUID)
 	}
 
+	// Verificacion de documento de identidad para tarjetas UID-only del comprador
+	if buyerCard.CardType == "uid_only" {
+		requireDoc, err := nt.checkRequireIDDocument(ctx)
+		if err == nil && requireDoc {
+			if payload.BuyerIDDocumentNumber == "" {
+				nt.logTransaction(ctx, termDBID, payload.BuyerCardUID, &buyerCard.UserID, payload.Amount, "rejected", payload.BuyerCryptoToken, true, "community", "", "buyer id document required but not provided")
+				return &NFCPaymentResult{Status: "rejected", Message: "se requiere documento de identidad del comprador para esta tarjeta"}, nil
+			}
+			matched, err := nt.verifyIDDocument(ctx, buyerCard.UserID, payload.BuyerIDDocumentType, payload.BuyerIDDocumentNumber)
+			if err != nil || !matched {
+				nt.logTransaction(ctx, termDBID, payload.BuyerCardUID, &buyerCard.UserID, payload.Amount, "rejected", payload.BuyerCryptoToken, true, "community", "", "buyer id document mismatch")
+				return &NFCPaymentResult{Status: "rejected", Message: "documento de identidad del comprador no coincide"}, nil
+			}
+		}
+	}
+
 	var buyerBalance int64
 	err = nt.Pool.QueryRow(ctx, `SELECT balance FROM users WHERE id = $1`, buyerCard.UserID).Scan(&buyerBalance)
 	if err != nil {
@@ -546,6 +617,64 @@ type nfcCardInfo struct {
 	CardType string
 	PinHash  *string
 	IsActive bool
+}
+
+// checkRequireIDDocument verifica si el nodo requiere documento de identidad
+// para tarjetas UID-only
+func (nt *NFCTerminals) checkRequireIDDocument(ctx context.Context) (bool, error) {
+	var requireDoc bool
+	err := nt.Pool.QueryRow(ctx, `
+		SELECT COALESCE(require_id_document_for_uid_only, false)
+		FROM nfc_card_type_config WHERE node_domain = $1`,
+		nt.NodeDomain,
+	).Scan(&requireDoc)
+	if err != nil {
+		// Si no hay config, no requerir
+		return false, nil
+	}
+	return requireDoc, nil
+}
+
+// checkAccountMultiSig verifica si una cuenta requiere multi-firma
+func (nt *NFCTerminals) checkAccountMultiSig(ctx context.Context, userID uuid.UUID) (int, []uuid.UUID, error) {
+	var reqSigs int
+	var signers []uuid.UUID
+	err := nt.Pool.QueryRow(ctx, `
+		SELECT COALESCE(required_signatures, 1), COALESCE(authorized_signers, ARRAY[]::uuid[])
+		FROM users WHERE id = $1`, userID).Scan(&reqSigs, &signers)
+	if err != nil {
+		return 1, nil, err
+	}
+	return reqSigs, signers, nil
+}
+
+// verifyIDDocument verifica que el documento de identidad proporcionado
+// coincida con el registrado del usuario
+func (nt *NFCTerminals) verifyIDDocument(ctx context.Context, userID uuid.UUID, docType, docNumber string) (bool, error) {
+	if docNumber == "" {
+		return false, nil
+	}
+	// 1. Verificar contra users.national_id (campo directo)
+	var nationalID string
+	err := nt.Pool.QueryRow(ctx, `SELECT COALESCE(national_id, '') FROM users WHERE id = $1`, userID).Scan(&nationalID)
+	if err == nil && nationalID != "" && nationalID == docNumber {
+		return true, nil
+	}
+	// 2. Verificar contra user_documents (puede tener varios documentos)
+	var exists bool
+	err = nt.Pool.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1 FROM user_documents
+			WHERE user_id = $1
+			AND document_number = $2
+			AND ($3 = '' OR document_type_code = $3)
+		)`,
+		userID, docNumber, docType,
+	).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
 }
 
 func (nt *NFCTerminals) lookupCard(ctx context.Context, cardUID string) (*nfcCardInfo, error) {

@@ -164,6 +164,7 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 
 	// POS Web handler (cargos QR para punto de venta web)
 	posH := NewPOSHandler(pool, nh.NFC, nh.NodeDomain)
+	posH.MultiSig = nh.MultiSig
 	posH.RegisterRoutes(r, am)
 
 	// Network handler (red privada federada con OpenWrt - opcional)
@@ -260,6 +261,12 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 	// Card crypto: modelo criptografico completo para tarjetas NFC
 	cardCryptoH := &CardCryptoHandler{Pool: pool, NodeDomain: h.nodeDomain}
 	cardCryptoH.RegisterRoutes(r, am)
+
+	// Multi-sig payments: pagos pendientes que requieren multiples firmas
+	multiSigH := &MultiSigHandler{MultiSig: h.MultiSig, Pool: pool}
+	if multiSigH.MultiSig != nil {
+		multiSigH.RegisterRoutes(r, am)
+	}
 
 	// Departmental accounting: contabilidad por departamento/comision
 	deptAcctH := &DepartmentalAccountingHandler{Pool: pool, NodeDomain: h.nodeDomain}

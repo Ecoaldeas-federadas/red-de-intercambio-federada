@@ -13,6 +13,7 @@ import (
 	"federated-credit-node/internal/accounts"
 	"federated-credit-node/internal/crypto"
 	"federated-credit-node/internal/ledger"
+	"federated-credit-node/internal/payments"
 	"federated-credit-node/internal/pricing"
 )
 
@@ -23,6 +24,7 @@ type Handler struct {
 	crypto     *crypto.KeyManager
 	nodeDomain string
 	Pool       *pgxpool.Pool
+	MultiSig   *payments.MultiSigPayments
 }
 
 func NewHandler(l *ledger.Ledger, a *accounts.Accounts, p *pricing.Pricing, c *crypto.KeyManager, nodeDomain string, pool *pgxpool.Pool) *Handler {
@@ -237,6 +239,37 @@ func (h *Handler) transfer(w http.ResponseWriter, r *http.Request) {
 			if assemblyAcctID != uuid.Nil {
 				taxTargetAccount = &assemblyAcctID
 			}
+		}
+	}
+
+	// Verificar si la cuenta del emisor requiere multi-firma
+	if h.MultiSig != nil && h.Pool != nil {
+		reqSigs, _, err := h.MultiSig.CheckAccountMultiSig(r.Context(), senderID)
+		if err == nil && reqSigs > 1 {
+			// La cuenta requiere multi-firma: crear pago pendiente
+			pending, err := h.MultiSig.CreatePendingPayment(r.Context(), payments.CreatePendingPaymentParams{
+				PaymentType:   "transfer",
+				FromAccount:   senderID,
+				ToAccount:     receiverID,
+				Amount:        req.Amount,
+				PaymentMethod: "transfer",
+				Description:   "",
+			})
+			if err != nil {
+				writeError(w, 500, "error creating pending multi-sig payment: "+err.Error())
+				return
+			}
+			// La primera firma es implicita (el usuario que inicio la transferencia)
+			remaining, _, _ := h.MultiSig.SignPendingPayment(r.Context(), pending.ID, senderID, "web", "", false, false)
+			writeJSON(w, 202, map[string]interface{}{
+				"status":         "pending_multisig",
+				"pending_id":     pending.ID,
+				"required_sigs":  reqSigs,
+				"collected_sigs": 1,
+				"remaining_sigs": remaining,
+				"message":        fmt.Sprintf("Pago pendiente. Faltan %d firma(s) para completar.", remaining),
+			})
+			return
 		}
 	}
 
