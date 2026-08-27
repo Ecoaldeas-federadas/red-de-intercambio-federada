@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { api, apiFetch } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useSerialChipId } from '../hooks/useSerialChipId'
-import { Nfc, Plus, Trash2, CreditCard, KeyRound, Activity, Cpu, Usb, Download, Lock, HelpCircle } from 'lucide-react'
+import { Nfc, Plus, Trash2, CreditCard, KeyRound, Activity, Cpu, Usb, Download, Lock, HelpCircle, X } from 'lucide-react'
 
 interface Terminal {
   id: string
@@ -142,9 +142,9 @@ export default function NFCTerminals() {
   const loadTerminalTypes = async () => {
     try {
       const res = await api.get<string[]>('/nfc/terminals/types')
-      setTerminalTypes(res || [])
+      setTerminalTypes(res || ['keypad', 'web', 'touch', 'community', 'android_pos', 'ble-reader'])
     } catch {
-      setTerminalTypes(['keypad', 'web', 'touch', 'community'])
+      setTerminalTypes(['keypad', 'web', 'touch', 'community', 'android_pos', 'ble-reader'])
     }
   }
 
@@ -712,8 +712,15 @@ export default function NFCTerminals() {
       {/* Modal: Register Terminal */}
       {showRegister && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowRegister(false)}>
-          <div className="bg-white rounded-xl p-6 w-96 space-y-3" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-bold text-lg">Registrar Terminal</h2>
+          <div className="bg-white rounded-xl p-6 w-96 space-y-3 relative" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setShowRegister(false)}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg p-1.5 transition"
+              title="Cerrar"
+            >
+              <X size={20} />
+            </button>
+            <h2 className="font-bold text-lg pr-8">Registrar Terminal</h2>
             <div>
               <label className="label">Terminal ID</label>
               <input className="input" placeholder="Ej: TERM-001" value={newTerminal.terminal_id} onChange={(e) => setNewTerminal({ ...newTerminal, terminal_id: e.target.value })} />
@@ -727,16 +734,37 @@ export default function NFCTerminals() {
             <div>
               <label className="label">Tipo de terminal</label>
               <select className="input" value={newTerminal.terminal_type} onChange={(e) => setNewTerminal({ ...newTerminal, terminal_type: e.target.value })}>
-                {terminalTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+                {terminalTypes.map((t) => {
+                  const labels: Record<string, string> = {
+                    'keypad': 'Keypad (encoder rotativo)',
+                    'web': 'Web (monto desde app)',
+                    'touch': 'Touch (pantalla tactil)',
+                    'community': 'Community (doble tarjeta)',
+                    'android_pos': 'POS Android (telefono/tablet)',
+                    'ble-reader': 'BLE Reader (lector Bluetooth)',
+                  }
+                  return <option key={t} value={t}>{labels[t] || t}</option>
+                })}
               </select>
-              <p className="text-xs text-gray-400 mt-1">Tipo de hardware del terminal. Ejemplo: <code>keypad</code> para terminal con encoder.</p>
+              <div className="text-xs text-gray-500 mt-1 p-2 bg-gray-50 rounded">
+                {newTerminal.terminal_type === 'keypad' && 'Terminal ESP32 con encoder rotativo y pantalla pequena. El usuario gira el encoder para seleccionar el monto y confirma con un clic. Ideal para mercados y ferias donde se necesita un hardware dedicado y resistente.'}
+                {newTerminal.terminal_type === 'web' && 'Terminal que se controla desde una app web o movil. El vendedor entra el monto desde su telefono y el cliente confirma en el ESP32. Util cuando el vendedor ya tiene un telefono y no necesita hardware adicional.'}
+                {newTerminal.terminal_type === 'touch' && 'Terminal ESP32 con pantalla tactil completa. El vendedor toca los botones en pantalla para entrar el monto. Mas intuitivo que el encoder, ideal para usuarios que no estan familiarizados con hardware dedicado.'}
+                {newTerminal.terminal_type === 'community' && 'Terminal ESP32 de doble tarjeta para mercados comunitarios. Lee tanto la tarjeta del vendedor como la del comprador en una sola transaccion. Diseñado para trueque comunitario donde ambos miembros deben estar presentes.'}
+                {newTerminal.terminal_type === 'android_pos' && 'Aplicacion Android (telefono o tablet) que funciona como punto de venta. Se empareja con el nodo via codigo corto de 6 digitos. No requiere hardware dedicado — usa el telefono del vendedor. Genera cobros por QR y NFC. Ideal para vendedores que ya tienen un telefono Android.'}
+                {newTerminal.terminal_type === 'ble-reader' && 'Lector NFC Bluetooth sin pantalla. Se conecta al telefono del vendedor via Bluetooth. El telefono muestra el monto y el lector solo confirma la tarjeta NFC. No necesita WiFi. Ideal para vendedores moviles que no tienen acceso a una red WiFi fija.'}
+                {!['keypad','web','touch','community','android_pos','ble-reader'].includes(newTerminal.terminal_type) && 'Tipo de hardware del terminal.'}
+              </div>
             </div>
             <div>
               <label className="label">Ubicacion</label>
               <input className="input" placeholder="Ej: Local 5, Mercado Central" value={newTerminal.location} onChange={(e) => setNewTerminal({ ...newTerminal, location: e.target.value })} />
               <p className="text-xs text-gray-400 mt-1">Direccion o referencia del lugar. Ejemplo: <code>Local 5, Mercado Central</code></p>
             </div>
-            <button onClick={registerTerminal} className="btn-primary w-full">Registrar</button>
+            <div className="flex gap-2">
+              <button onClick={registerTerminal} className="btn-primary flex-1">Registrar</button>
+              <button onClick={() => setShowRegister(false)} className="btn-secondary">Cancelar</button>
+            </div>
           </div>
         </div>
       )}

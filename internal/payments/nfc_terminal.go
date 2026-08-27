@@ -314,7 +314,7 @@ func (nt *NFCTerminals) ListTerminals(ctx context.Context, nodeDomain string) ([
 }
 
 func (nt *NFCTerminals) ListTerminalTypes() []string {
-	return []string{"keypad", "web", "touch", "community"}
+	return []string{"keypad", "web", "touch", "community", "android_pos", "ble-reader"}
 }
 
 func (nt *NFCTerminals) DeactivateTerminal(ctx context.Context, terminalID string) error {
