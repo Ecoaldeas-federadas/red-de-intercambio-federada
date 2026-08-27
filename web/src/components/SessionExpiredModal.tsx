@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
-import { api, setSessionExpiredHandler } from '../api'
+import { api, setSessionExpiredHandler, clearSessionExpiredFlag } from '../api'
 import { useAuth } from '../hooks/useAuth'
 import { Lock, X } from 'lucide-react'
 
 export function SessionExpiredProvider({ children }: { children: React.ReactNode }) {
   const [showModal, setShowModal] = useState(false)
-  const { login } = useAuth()
+  const { login, logout } = useAuth()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -29,11 +29,18 @@ export function SessionExpiredProvider({ children }: { children: React.ReactNode
       setShowModal(false)
       setUsername('')
       setPassword('')
+      clearSessionExpiredFlag()
     } catch (err: any) {
       setError(err?.message || 'Error al iniciar sesión')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleClose = () => {
+    setShowModal(false)
+    clearSessionExpiredFlag()
+    logout()
   }
 
   return (
@@ -43,7 +50,7 @@ export function SessionExpiredProvider({ children }: { children: React.ReactNode
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative">
             <button
-              onClick={() => setShowModal(false)}
+              onClick={handleClose}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
             >
               <X size={20} />

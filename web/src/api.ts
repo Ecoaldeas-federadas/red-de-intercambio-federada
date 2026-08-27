@@ -22,9 +22,16 @@ function getToken(): string | null {
 
 // Session expiration handling: show a re-login modal instead of redirecting
 let onSessionExpired: (() => void) | null = null
+let sessionExpiredShown = false
 
 export function setSessionExpiredHandler(handler: (() => void) | null) {
   onSessionExpired = handler
+  if (!handler) sessionExpiredShown = false
+}
+
+// Called by the modal after successful re-login to reset the flag
+export function clearSessionExpiredFlag() {
+  sessionExpiredShown = false
 }
 
 function handleUnauthorized() {
@@ -34,21 +41,27 @@ function handleUnauthorized() {
   const hadToken = !!localStorage.getItem(keys.tokenKey)
   if (!hadToken) return
 
-  // Clear token but DON'T redirect - let the modal handle re-login
+  // If a session-expired handler is registered, show the modal
+  // WITHOUT clearing the token or redirecting.
+  // The modal handles re-login in-place. The token stays in localStorage
+  // so useAuth doesn't redirect to the public site.
+  // The old token is invalid (server returned 401) but keeping it
+  // prevents the app from unmounting the current page.
+  if (onSessionExpired) {
+    if (!sessionExpiredShown) {
+      sessionExpiredShown = true
+      onSessionExpired()
+    }
+    return
+  }
+
+  // Fallback: no handler registered, clear token and redirect to login
   localStorage.removeItem(keys.tokenKey)
   localStorage.removeItem(keys.usernameKey)
-  // Dispatch event so useAuth hook updates
   window.dispatchEvent(new Event('storage'))
-
-  // If a session-expired handler is registered, call it (shows modal)
-  if (onSessionExpired) {
-    onSessionExpired()
-  } else {
-    // Fallback: redirect to login if no handler registered
-    if (!window.location.pathname.includes('/login')) {
-      const basePath = (window as any).__BASE_PATH__ || ''
-      window.location.href = basePath + '/login?expired=1'
-    }
+  if (!window.location.pathname.includes('/login')) {
+    const basePath = (window as any).__BASE_PATH__ || ''
+    window.location.href = basePath + '/login?expired=1'
   }
 }
 

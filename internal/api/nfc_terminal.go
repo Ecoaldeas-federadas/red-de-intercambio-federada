@@ -1705,8 +1705,17 @@ func (h *NFCTerminalHandler) approvePairing(w http.ResponseWriter, r *http.Reque
 
 	adminUserID, err := uuid.Parse(r.Header.Get("X-User-ID"))
 	if err != nil {
-		writeError(w, 401, "invalid admin user")
-		return
+		// Intentar desde el contexto (seteado por el middleware JWT)
+		uidStr, ok := r.Context().Value("user_id").(string)
+		if !ok || uidStr == "" {
+			writeError(w, 401, "invalid admin user")
+			return
+		}
+		adminUserID, err = uuid.Parse(uidStr)
+		if err != nil {
+			writeError(w, 401, "invalid admin user")
+			return
+		}
 	}
 
 	var body struct {
@@ -1735,8 +1744,16 @@ func (h *NFCTerminalHandler) rejectPairing(w http.ResponseWriter, r *http.Reques
 
 	adminUserID, err := uuid.Parse(r.Header.Get("X-User-ID"))
 	if err != nil {
-		writeError(w, 401, "invalid admin user")
-		return
+		uidStr, ok := r.Context().Value("user_id").(string)
+		if !ok || uidStr == "" {
+			writeError(w, 401, "invalid admin user")
+			return
+		}
+		adminUserID, err = uuid.Parse(uidStr)
+		if err != nil {
+			writeError(w, 401, "invalid admin user")
+			return
+		}
 	}
 
 	if err := h.NFC.RejectPairing(r.Context(), code, adminUserID); err != nil {
