@@ -2568,11 +2568,19 @@ func DemoReset(ctx context.Context, d *DB, nodeDomain string) error {
 	_, _ = d.Pool.Exec(ctx, "DELETE FROM assembly_votes_scoped WHERE decision_id IN (SELECT id FROM assembly_decisions_scoped WHERE session_id IN (SELECT id FROM assembly_sessions_scoped WHERE node_domain = $1))", dataDomain)
 	_, _ = d.Pool.Exec(ctx, "DELETE FROM assembly_attendance_scoped WHERE session_id IN (SELECT id FROM assembly_sessions_scoped WHERE node_domain = $1)", dataDomain)
 
+	// 3b. Borrar assembly_decisions via assembly_sessions.node_domain
+	// (assembly_decisions no tiene node_domain, referencia assembly_sessions)
+	_, _ = d.Pool.Exec(ctx, "DELETE FROM assembly_decisions WHERE assembly_id IN (SELECT id FROM assembly_sessions WHERE node_domain = $1)", dataDomain)
+
+	// 3c. Borrar product_compositions via products.node_domain
+	// (product_compositions no tiene node_domain, referencia products)
+	_, _ = d.Pool.Exec(ctx, "DELETE FROM product_compositions WHERE product_id IN (SELECT id FROM products WHERE node_domain = $1)", dataDomain)
+
 	// 4. Borrar tablas con node_domain (orden por FK)
 	// Estas tablas usan __LOCAL__ para los datos del demo
+	// Nota: assembly_decisions_scoped, department_members y department_roles
+	// tienen ON DELETE CASCADE y se borran automaticamente con su padre.
 	ndTables := []string{
-		"assembly_decisions",
-		"assembly_decisions_scoped",
 		"assembly_sessions",
 		"assembly_sessions_scoped",
 		"assembly_quorum_config",
@@ -2587,12 +2595,9 @@ func DemoReset(ctx context.Context, d *DB, nodeDomain string) error {
 		"admission_requests",
 		"store_items",
 		"governance_rules",
-		"department_members",
-		"department_roles",
 		"departments",
 		"organization_levels",
 		"member_levels",
-		"product_compositions",
 		"products",
 		"notifications",
 		"user_credentials",
