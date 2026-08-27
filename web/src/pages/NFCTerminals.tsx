@@ -162,7 +162,6 @@ export default function NFCTerminals() {
     label: '',
     terminal_type: 'keypad',
     location: '',
-    wifi_ssid: '',
   })
   const [regToken, setRegToken] = useState('')
 
