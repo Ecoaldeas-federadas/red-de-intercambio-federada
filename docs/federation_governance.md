@@ -1,10 +1,27 @@
 # Gobernanza Federada
 
-La red de intercambio federada tiene valores que afectan a **TODA la federacion**, no a un solo nodo. Estos valores no los puede cambiar un nodo por su cuenta. Para cambiarlos, se necesita el **consenso de los nodos federados**.
+La red de intercambio federada tiene **tres niveles de gobernanza**. Este documento
+describe el nivel mas alto: la gobernanza federada (mundial).
+
+## Los tres niveles
+
+| Nivel | Que decide | Quien decide |
+|-------|-----------|-------------|
+| **Federacion** (mundial) | Cosas que afectan a todos los nodos del mundo | Todos los nodos por votacion |
+| **Aldea/Nodo** (local) | Cosas que afectan a toda la comunidad local | Asamblea del nodo |
+| **Organizacion** (dentro de la aldea) | Cosas que afectan solo a la organizacion | Asamblea de la organizacion |
+
+Cada nivel es independiente internamente pero sujeto al nivel superior. Las reglas
+mas grandes (las de la aldea) engloban las cosas mas comunes entre todos. Las reglas
+de cada organizacion solo afectan dentro de su terreno. Las reglas universales
+afectan al mundo entero.
 
 ---
 
 ## Que valores son federados
+
+Estos valores no los puede cambiar un nodo por su cuenta. Para cambiarlos, se necesita
+el **consenso de los nodos federados**.
 
 | Constante | Valor por defecto | Descripcion |
 |-----------|-------------------|-------------|
@@ -14,9 +31,42 @@ La red de intercambio federada tiene valores que afectan a **TODA la federacion*
 
 ### Por que la canasta basica es federada
 
-La canasta basica interna determina cuanto vale 1 TQ en terminos de poder adquisitivo. Si cada nodo tuviera una canasta diferente, el TQ valdria cosas distintas en cada aldea, y el comercio federado se romperia.
+La canasta basica interna determina cuanto vale 1 TQ en terminos de poder adquisitivo.
+La moneda trueque no tiene inflacion, asi que la canasta basica tiene que ser
+**exactamente la misma en todas partes**. Si un pais tiene una canasta mas alta y otro
+mas baja, se crea riqueza en un lado y pobreza en el otro, rompiendo el principio de
+igualdad.
 
-Por eso la canasta interna es **la misma en todos los nodos**. Solo se puede cambiar mediante una propuesta federada aprobada por consenso.
+Por eso la canasta interna es la misma en todos los nodos. Solo se puede cambiar mediante
+una propuesta federada aprobada por consenso.
+
+### La canasta federada NO es lo mismo que el comercio exterior
+
+Esto es importante aclararlo:
+
+- **Canasta basica federada:** Es el valor interno de la moneda trueque. Es la misma
+  en todos los nodos. No tiene inflacion. Se decide por votacion de todos los nodos.
+
+- **Comercio exterior:** Cada nodo hace su propio comercio exterior directamente en su
+  moneda local (UYU, VES, ARS, COP, MXN, etc.). El Factor de Conversion (FC) calcula
+  el equivalente entre TQ y la moneda local para el comercio externo. Esto es interno
+  de cada nodo y **no afecta la canasta basica federada**.
+
+- **Horas de trabajo y sueldos:** Cada nodo decide cuanto necesita una persona para
+  comer en un dia, cuantas horas trabaja, y cuanto gana. Esto se maneja directamente
+  en el nodo y **no afecta la canasta basica federada**.
+
+### Que mas se decide a nivel federado
+
+Ademas de la canasta basica, estas cosas requieren aprobacion de todos los nodos:
+
+- **Limite de credito global** para todos los nodos.
+- **Expulsion de un nodo** que perjudica la red.
+- **Protocolo de comunicacion** entre nodos (API federada, mTLS).
+- **Metrica de valor de la moneda trueque** (1 TQ = 1 kWh).
+- **Protocolo criptografico de tarjetas NFC.**
+- **Estructura del ledger contable.**
+- **Umbral de aprobacion** (por defecto 100%).
 
 ---
 

@@ -15,10 +15,11 @@ Esta guía está dirigida a arquitectos de software, desarrolladores y administr
 
 Nunca hemos avanzado por trabajar aislados. Cada quien creando su propio sistema por separado logra, quizás, unificar pequeños grupos dentro de su país, pero si queremos una unificación mundial, tiene que haber cosas que sean comunes.
 
-Este software propone dos niveles de gobernanza:
+Este software propone **tres niveles de gobernanza**:
 
-- **Gobernanza local:** Cada nodo es totalmente independiente. Cada comunidad decide sus propias reglas internas, sus leyes, sus catálogos de productos, sus comisiones, sus niveles de admisión. El servidor corre físicamente en cada nodo. Cada quien es dueño de sus propios datos.
-- **Gobernanza federada:** Pocas cosas que afectan a toda la red se deciden por votación igualitaria de todos los nodos. Por ejemplo: cómo se calcula el valor de la moneda trueque, cómo se comunica un nodo con otro, qué pasa cuando un nodo perjudica la red.
+- **Gobernanza de la Federación (mundial):** Pocas cosas que afectan a toda la red se deciden por votación igualitaria de todos los nodos. Por ejemplo: la canasta básica de la moneda trueque (que es la misma en todas partes), el protocolo de comunicación entre nodos, qué pasa cuando un nodo perjudica la red.
+- **Gobernanza de la Aldea/Nodo (local):** Cada nodo es totalmente independiente. Cada comunidad decide sus propias reglas internas, sus leyes, sus catálogos de productos, sus comisiones, sus niveles de admisión, sus horas de trabajo, sus sueldos. El servidor corre físicamente en cada nodo. Cada quien es dueño de sus propios datos.
+- **Gobernanza de Organizaciones (dentro de la aldea):** Un nodo puede tener varias organizaciones (cooperativas, parcelas, comisiones). Cada organización tiene sus propias reglas internas y departamentos, pero está sujeta a las reglas generales de la aldea.
 
 La regla fundamental es: **un código central, abierto, auditable y modificable por todos.** Cualquiera puede proponer mejoras, agregar módulos, adaptar el software a las necesidades de su país. Pero la base —la comunicación entre nodos y la moneda de trueque— debe ser la misma para todos. Modificar esa base requiere aprobación de todos los nodos porque implica modificar todos los nodos.
 
@@ -209,29 +210,88 @@ Para federar dos nodos independientes, los servidores realizan un apretón de ma
 
 ---
 
-## 5. Gobernanza y Asambleas
+## 5. Gobernanza y Asambleas — Tres Niveles
 
-El sistema tiene dos niveles de gobernanza, ambos configurables:
+El sistema tiene **tres niveles de gobernanza**, cada uno independiente internamente pero sujeto al nivel superior:
 
-### Gobernanza Local (por nodo)
+```
+┌─────────────────────────────────────────────────────────┐
+│  NIVEL 1: FEDERACIÓN (mundial)                          │
+│  Decisiones que afectan a TODOS los nodos del mundo.     │
+│  Se deciden por votación igualitaria de todos los nodos. │
+│  Ej: canasta básica TQ, protocolo, expulsión de nodos.  │
+├─────────────────────────────────────────────────────────┤
+│  NIVEL 2: ALDEA / NODO (local)                          │
+│  Decisiones que afectan a toda la comunidad local.       │
+│  Se deciden por asamblea del nodo.                       │
+│  Ej: horarios, sueldos, tasas, admisión, catálogo.      │
+├─────────────────────────────────────────────────────────┤
+│  NIVEL 3: ORGANIZACIONES (dentro de la aldea)           │
+│  Decisiones que afectan solo dentro de la organización.  │
+│  Se deciden por la asamblea de la organización.          │
+│  Ej: reglas internas, departamentos, parcelas.          │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Nivel 1: Gobernanza Federada (mundial)
+
+Pocas cosas afectan a toda la red. Estas son las decisiones que se toman por votación igualitaria de **todos los nodos federados**:
+
+- **Canasta básica TQ:** Es la misma en todos los nodos. La moneda trueque no tiene inflación, así que la canasta básica tiene que ser exactamente la misma en todas partes. Si un país tiene una canasta más alta y otro más baja, se crea riqueza en un lado y pobreza en el otro, rompiendo el principio de igualdad.
+- **Límite de crédito global:** El tope máximo de crédito mutuo entre nodos.
+- **Expulsión de un nodo:** Si un nodo perjudica la red, los demás votan su expulsión.
+- **Umbral de aprobación:** Qué porcentaje de nodos se necesita para aprobar cambios (por defecto 100%).
+- **Protocolo de comunicación:** La API federada, el protocolo criptográfico, el formato del ledger.
+
+**Importante:** La canasta básica federada **no tiene nada que ver** con el comercio exterior. El comercio exterior es directo, en cada nodo, con su moneda local (UYU, VES, ARS, etc.). El Factor de Conversión (FC) calcula el equivalente entre TQ y la moneda local para el comercio externo, pero eso es interno de cada nodo y no afecta la canasta básica federada.
+
+### Nivel 2: Gobernanza de la Aldea / Nodo (local)
+
+Cada nodo es soberano. La asamblea del nodo decide todo lo que afecta a su comunidad:
+
 - **Asambleas locales:** Creación de sesiones, propuestas, votaciones, asistencia, quórum configurable (10% a 90%).
 - **Reglas de gobernanza dinámicas:** Tipos de propuesta, niveles de aprobación, plazos de votación.
-- **Departamentos y roles:** Asignación de miembros a departamentos con roles y permisos específicos.
-- **Permisos granulares:** Cada acción (emitir tarjeta, registrar terminal, aprobar admisión, cambiar nivel de miembro, etc.) tiene un permiso configurable que puede requerir multisig (múltiples firmas).
-- **Configuración de la comunidad:** Catálogo de productos, tasas, horarios de comercio, adaptaciones culturales, sitio web público configurable.
+- **Horas de trabajo y sueldos:** Cuánto necesita una persona para comer en un día, cuántas horas trabaja, cuánto gana. Esto se maneja directamente en el nodo.
+- **Catálogo de productos y precios locales.**
+- **Tasas, comisiones, horarios de comercio.**
+- **Admisión de miembros y recuperación de cuentas.**
+- **Configuración del sitio web público** (colores, logo, textos, páginas).
+- **Adaptaciones culturales y de idioma.**
+- **Comercio exterior con su moneda local** (FC, canasta local para cálculo del FC).
 
-### Gobernanza Federada (entre nodos)
-- **Votación global:** Decisiones que afectan a toda la red se deciden por votación igualitaria de todos los nodos.
-- **Expulsión de nodos:** Si un nodo perjudica la red, los demás nodos pueden votar su expulsión.
-- **Límites bilaterales:** Cada par de nodos negocia sus propios límites de crédito mutuo.
-- **Junta directiva del nodo:** Reuniones de la junta con enrutamiento de decisiones.
+**Lo que decide la aldea no puede afectar la canasta básica federada.** Las horas de trabajo, los sueldos y el comercio exterior son internos del nodo.
 
-### Modos de aprobación configurables
+### Nivel 3: Gobernanza de Organizaciones (dentro de la aldea)
+
+Un nodo puede tener **varias organizaciones**. Cada organización puede ser:
+- Una cooperativa encargada de tareas específicas.
+- Un grupo de parcelas individuales con sus propias reglas internas.
+- Una comisión o departamento con autonomía operativa.
+
+Cada organización es **independiente dentro de su propio terreno**, pero está sujeta a las reglas generales de la aldea. Dentro de cada organización puede haber **departamentos** para dividirse internamente.
+
+- **Asambleas de organización:** Sesiones, propuestas y votaciones con scope limitado a la organización.
+- **Reglas internas:** Cada organización define cómo se gobierna internamente.
+- **Departamentos:** Subdivisión interna con roles y permisos específicos.
+- **Permisos granulares:** Cada acción (emitir tarjeta, registrar terminal, aprobar admisión, etc.) tiene un permiso configurable que puede requerir multisig.
+
+### Modos de aprobación configurables (en cualquier nivel)
+
 - Votación de asamblea.
 - Una persona autorizada.
 - Cualquier persona u organización de un grupo.
 - Múltiples firmas simultáneas (multisig).
 - Una organización/comisión/departamento.
+
+### Resumen de los tres niveles
+
+| Nivel | Qué decide | Quién decide | Ejemplos |
+|-------|-----------|-------------|----------|
+| **Federación** | Cosas que afectan a todo el mundo | Todos los nodos por votación | Canasta TQ, protocolo, expulsión |
+| **Aldea/Nodo** | Cosas que afectan a toda la comunidad | Asamblea del nodo | Sueldos, horarios, catálogo, tasas |
+| **Organización** | Cosas que afectan solo a la organización | Asamblea de la organización | Reglas internas, departamentos |
+
+Las reglas más grandes (las de la aldea) engloban las cosas más comunes entre todos. Las reglas de cada organización solo afectan dentro de su terreno. Las reglas universales afectan al mundo entero.
 
 ---
 

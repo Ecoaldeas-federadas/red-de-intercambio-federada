@@ -353,49 +353,106 @@ export function PublicFederationPage() {
 
       {/* Gobernanza Federada */}
       <section className="max-w-4xl mx-auto px-6 py-16">
-        <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Gobernanza Federada</h2>
-        <p className="text-lg text-gray-600 leading-relaxed mb-4 text-center max-w-2xl mx-auto">
-          Algunos valores afectan a TODA la federacion, no a un solo nodo.
-          La canasta basica interna, por ejemplo, es el mismo valor en todos los nodos.
-          Para cambiarla, todos los nodos deben aprobar.
+        <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Tres Niveles de Gobernanza</h2>
+        <p className="text-lg text-gray-600 leading-relaxed mb-4 text-center max-w-3xl mx-auto">
+          El sistema tiene tres niveles de gobernanza, cada uno independiente internamente
+          pero sujeto al nivel superior. Las reglas mas grandes engloban las cosas mas comunes
+          entre todos. Las reglas de cada organizacion solo afectan dentro de su terreno.
+          Las reglas universales afectan al mundo entero.
         </p>
-        <div className="grid md:grid-cols-3 gap-4 mt-8">
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
-              <Scale className="text-blue-600" size={24} />
+
+        {/* Nivel 1: Federacion */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 mb-4 border border-blue-100">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-bold">
+              1
             </div>
-            <h3 className="font-semibold text-gray-800 mb-2">Canasta Federada</h3>
-            <p className="text-sm text-gray-600">
-              El costo de la canasta basica interna (500 TQ) es el mismo en todos los nodos.
-              Esto garantiza que el TQ tenga el mismo poder adquisitivo en todas las aldeas.
-            </p>
+            <h3 className="text-xl font-bold text-gray-800">Federacion (mundial)</h3>
           </div>
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mb-4">
-              <Users className="text-emerald-600" size={24} />
-            </div>
-            <h3 className="font-semibold text-gray-800 mb-2">Consenso entre Nodos</h3>
-            <p className="text-sm text-gray-600">
-              Por defecto, todos los nodos deben aprobar un cambio (100%).
-              Un solo nodo que rechace bloquea el cambio. Asi se protege la estabilidad del sistema.
-            </p>
+          <p className="text-sm text-gray-600 mb-3">
+            Decisiones que afectan a <strong>TODOS los nodos del mundo</strong>. Se deciden por
+            votacion igualitaria de todos los nodos federados.
+          </p>
+          <div className="grid md:grid-cols-2 gap-2 text-sm text-gray-700">
+            <div className="flex items-start gap-2"><Check size={16} className="text-blue-600 mt-0.5 flex-shrink-0" /> Canasta basica TQ (misma en todos)</div>
+            <div className="flex items-start gap-2"><Check size={16} className="text-blue-600 mt-0.5 flex-shrink-0" /> Limite de credito global</div>
+            <div className="flex items-start gap-2"><Check size={16} className="text-blue-600 mt-0.5 flex-shrink-0" /> Expulsion de nodos</div>
+            <div className="flex items-start gap-2"><Check size={16} className="text-blue-600 mt-0.5 flex-shrink-0" /> Protocolo de comunicacion</div>
+            <div className="flex items-start gap-2"><Check size={16} className="text-blue-600 mt-0.5 flex-shrink-0" /> Metrica de la moneda trueque</div>
+            <div className="flex items-start gap-2"><Check size={16} className="text-blue-600 mt-0.5 flex-shrink-0" /> Protocolo criptografico NFC</div>
           </div>
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4">
-              <Network className="text-purple-600" size={24} />
-            </div>
-            <h3 className="font-semibold text-gray-800 mb-2">Umbral Configurable</h3>
-            <p className="text-sm text-gray-600">
-              El umbral de aprobacion se puede cambiar (por ejemplo a 50%+1), pero para cambiarlo
-              se necesita la aprobacion bajo el umbral actual. Asi nadie impone reglas unilateralmente.
-            </p>
+          <div className="mt-3 bg-blue-100/50 rounded-lg p-3 text-xs text-gray-700">
+            <strong>Por que la canasta es federada:</strong> La moneda trueque no tiene inflacion,
+            asi que la canasta tiene que ser exactamente la misma en todas partes. Si un pais tiene
+            una canasta mas alta y otro mas baja, se crea riqueza en un lado y pobreza en el otro.
+            <br /><br />
+            <strong>Esto no tiene nada que ver con el comercio exterior:</strong> Cada nodo hace su
+            comercio exterior directamente en su moneda local (UYU, VES, ARS). El Factor de Conversion
+            calcula el equivalente con TQ, pero eso es interno de cada nodo.
           </div>
         </div>
-        <div className="mt-6 bg-emerald-50 rounded-xl p-6 text-center">
-          <p className="text-sm text-gray-700">
-            <strong>Como funciona:</strong> Un nodo propone un cambio. Todos los nodos federados
-            lo revisan y aprueban o rechazan. Cuando se alcanza el consenso, el cambio se aplica
-            automaticamente en todos. Si no se alcanza, se sigue usando el valor actual.
+
+        {/* Nivel 2: Aldea */}
+        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl p-6 mb-4 border border-emerald-100">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center font-bold">
+              2
+            </div>
+            <h3 className="text-xl font-bold text-gray-800">Aldea / Nodo (local)</h3>
+          </div>
+          <p className="text-sm text-gray-600 mb-3">
+            Decisiones que afectan a <strong>toda la comunidad local</strong>. Se deciden por
+            asamblea del nodo. Cada nodo es soberano.
+          </p>
+          <div className="grid md:grid-cols-2 gap-2 text-sm text-gray-700">
+            <div className="flex items-start gap-2"><Check size={16} className="text-emerald-600 mt-0.5 flex-shrink-0" /> Horas de trabajo y sueldos</div>
+            <div className="flex items-start gap-2"><Check size={16} className="text-emerald-600 mt-0.5 flex-shrink-0" /> Catalogo de productos locales</div>
+            <div className="flex items-start gap-2"><Check size={16} className="text-emerald-600 mt-0.5 flex-shrink-0" /> Reglas de gobernanza interna</div>
+            <div className="flex items-start gap-2"><Check size={16} className="text-emerald-600 mt-0.5 flex-shrink-0" /> Admision de miembros</div>
+            <div className="flex items-start gap-2"><Check size={16} className="text-emerald-600 mt-0.5 flex-shrink-0" /> Comercio exterior (moneda local)</div>
+            <div className="flex items-start gap-2"><Check size={16} className="text-emerald-600 mt-0.5 flex-shrink-0" /> Horarios, tasas, comisiones</div>
+            <div className="flex items-start gap-2"><Check size={16} className="text-emerald-600 mt-0.5 flex-shrink-0" /> Sitio web publico</div>
+            <div className="flex items-start gap-2"><Check size={16} className="text-emerald-600 mt-0.5 flex-shrink-0" /> Adaptaciones culturales</div>
+          </div>
+          <div className="mt-3 bg-emerald-100/50 rounded-lg p-3 text-xs text-gray-700">
+            <strong>Lo que decide la aldea no puede afectar la canasta basica federada.</strong> Las
+            horas de trabajo, los sueldos y el comercio exterior son internos del nodo.
+          </div>
+        </div>
+
+        {/* Nivel 3: Organizaciones */}
+        <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-6 mb-4 border border-purple-100">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-purple-600 text-white rounded-xl flex items-center justify-center font-bold">
+              3
+            </div>
+            <h3 className="text-xl font-bold text-gray-800">Organizaciones (dentro de la aldea)</h3>
+          </div>
+          <p className="text-sm text-gray-600 mb-3">
+            Decisiones que afectan <strong> solo dentro de la organizacion</strong>. Se deciden por
+            la asamblea de la organizacion. Un nodo puede tener varias organizaciones.
+          </p>
+          <div className="grid md:grid-cols-2 gap-2 text-sm text-gray-700">
+            <div className="flex items-start gap-2"><Check size={16} className="text-purple-600 mt-0.5 flex-shrink-0" /> Reglas internas de la organizacion</div>
+            <div className="flex items-start gap-2"><Check size={16} className="text-purple-600 mt-0.5 flex-shrink-0" /> Departamentos internos</div>
+            <div className="flex items-start gap-2"><Check size={16} className="text-purple-600 mt-0.5 flex-shrink-0" /> Asambleas de organizacion</div>
+            <div className="flex items-start gap-2"><Check size={16} className="text-purple-600 mt-0.5 flex-shrink-0" /> Roles y permisos internos</div>
+          </div>
+          <div className="mt-3 bg-purple-100/50 rounded-lg p-3 text-xs text-gray-700">
+            Cada organizacion es <strong>independiente dentro de su propio terreno</strong>, pero
+            esta sujeta a las reglas generales de la aldea.
+          </div>
+        </div>
+
+        {/* Como funciona el consenso federado */}
+        <div className="mt-6 bg-emerald-50 rounded-xl p-6">
+          <h3 className="font-semibold text-gray-800 mb-2 text-center">Como funciona el consenso federado</h3>
+          <p className="text-sm text-gray-700 text-center">
+            Un nodo propone un cambio. Todos los nodos federados lo revisan y aprueban o rechazan.
+            Por defecto se necesita el 100% (todos). Cuando se alcanza el consenso, el cambio se
+            aplica automaticamente en todos. Si no se alcanza, se sigue usando el valor actual.
+            El umbral se puede cambiar, pero para cambiarlo se necesita la aprobacion bajo el umbral
+            actual. Asi nadie impone reglas unilateralmente.
           </p>
         </div>
       </section>

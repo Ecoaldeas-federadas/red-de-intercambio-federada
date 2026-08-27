@@ -53,35 +53,71 @@ en los ajustes.
 
 ---
 
-## 4. Lo que requiere aprobacion de todos los nodos
+## 4. Tres niveles de gobernanza
 
-Estas cosas **no se pueden modificar unilateralmente**. Requieren aprobacion por
-votacion de todos los nodos federados:
+El sistema tiene tres niveles de gobernanza, cada uno independiente internamente pero
+sujeto al nivel superior:
 
-- **Protocolo de comunicacion entre nodos** (API federada, mTLS, endpoints).
+### Nivel 1: Federacion (mundial)
+Decisiones que afectan a **TODOS los nodos del mundo**. Se deciden por votacion
+igualitaria de todos los nodos federados.
+
+- **Canasta basica TQ:** Es la misma en todos los nodos. La moneda trueque no tiene
+  inflacion, asi que la canasta basica tiene que ser exactamente la misma en todas
+  partes. Si un pais tiene una canasta mas alta y otro mas baja, se crea riqueza en
+  un lado y pobreza en el otro, rompiendo el principio de igualdad.
+- **Limite de credito global** para todos los nodos.
+- **Expulsion de un nodo** que perjudica la red.
+- **Protocolo de comunicacion** entre nodos (API federada, mTLS, endpoints).
 - **Metrica de valor de la moneda trueque** (calculo por energia, 1 TQ = 1 kWh).
-- **Protocolo criptografico de tarjetas NFC** (Ed25519, AES-256-GCM, ECDH, formato
-  de lectura BIN-style).
+- **Protocolo criptografico de tarjetas NFC** (Ed25519, AES-256-GCM, ECDH).
 - **Estructura del ledger contable** (doble entrada, hash chain, suma cero).
-- **Reglas de expulsion de nodos** de la red.
+- **Umbral de aprobacion** (por defecto 100%).
 
-**Razon:** Si un nodo cambia el protocolo de comunicacion, los demas nodos no pueden
-entenderlo. Si un nodo cambia la metrica de valor, el comercio inter-nodos se vuelve
-injusto. Estas cosas afectan a TODA la red, no a un solo nodo.
+**Importante:** La canasta basica federada **no tiene nada que ver** con el comercio
+exterior. El comercio exterior es directo, en cada nodo, con su moneda local. El Factor
+de Conversion (FC) calcula el equivalente entre TQ y la moneda local para comercio
+externo, pero eso es interno de cada nodo y no afecta la canasta basica federada.
+
+### Nivel 2: Aldea / Nodo (local)
+Decisiones que afectan a **toda la comunidad local**. Se deciden por asamblea del nodo.
+
+- Horas de trabajo y sueldos (cuanto necesita una persona para comer, cuantas horas
+  trabaja, cuanto gana).
+- Catalogo de productos y precios locales.
+- Reglas de gobernanza interna (quorum, niveles de admision, permisos).
+- Configuracion del sitio web publico (colores, logo, textos, paginas).
+- Moneda de referencia para comercio exterior (UYU, VES, ARS, etc.).
+- Servicios federados instalados (Matrix, Nextcloud, VoIP, etc.).
+- Adaptaciones culturales y de idioma.
+- Horarios de comercio, comisiones, tasas locales.
+
+**Lo que decide la aldea no puede afectar la canasta basica federada.**
+
+### Nivel 3: Organizaciones (dentro de la aldea)
+Decisiones que afectan **solo dentro de la organizacion**. Se deciden por la asamblea
+de la organizacion.
+
+- Un nodo puede tener varias organizaciones (cooperativas, parcelas, comisiones).
+- Cada organizacion es independiente dentro de su propio terreno.
+- Cada organizacion puede tener departamentos para dividirse internamente.
+- Esta sujeta a las reglas generales de la aldea.
+
+### Resumen
+
+| Nivel | Que decide | Quien decide |
+|-------|-----------|-------------|
+| Federacion | Cosas que afectan a todo el mundo | Todos los nodos por votacion |
+| Aldea/Nodo | Cosas que afectan a toda la comunidad | Asamblea del nodo |
+| Organizacion | Cosas que afectan solo a la organizacion | Asamblea de la organizacion |
+
+Las reglas mas grandes (las de la aldea) engloban las cosas mas comunes entre todos.
+Las reglas de cada organizacion solo afectan dentro de su terreno. Las reglas
+universales afectan al mundo entero.
 
 ---
 
 ## 5. Lo que se puede modificar localmente sin aprobacion
-
-Cada nodo es soberano y puede modificar sin pedir permiso:
-
-- Catalogo de productos y precios locales.
-- Reglas de gobernanza interna (quorum, niveles de admision, permisos).
-- Configuracion del sitio web publico (colores, logo, textos, paginas).
-- Moneda de referencia para mostrar precios externos (UYU, VES, ARS, etc.).
-- Servicios federados instalados (Matrix, Nextcloud, VoIP, etc.).
-- Adaptaciones culturales y de idioma.
-- Horarios de comercio, comisiones, tasas locales.
 
 **Razon:** Cada comunidad es independiente y tiene su propia realidad. La federacion
 no se entromete en las decisiones internas de cada nodo.
