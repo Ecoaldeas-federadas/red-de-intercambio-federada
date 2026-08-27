@@ -40,6 +40,7 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.Post("/api/nfc/terminal/payment", h.processPayment)
 	r.Post("/api/nfc/terminal/payment/community", h.processCommunityPayment)
 	r.Post("/api/nfc/terminal/payment/multisig-sign", h.signMultisigPayment)
+	r.Get("/api/nfc/terminal/payment/multisig/{pendingId}/status", h.getMultisigPaymentStatus)
 	r.Get("/api/nfc/terminal/{id}/session", h.getTerminalSession)
 
 	// Block/unblock from the terminal itself (with local code)
@@ -1567,4 +1568,69 @@ func (h *NFCTerminalHandler) signMultisigPayment(w http.ResponseWriter, r *http.
 		return
 	}
 	writeJSON(w, 200, encResp)
+}
+
+// getMultisigPaymentStatus permite al POS NFC consultar el estado de un pago
+// multi-firma pendiente, incluyendo el tiempo restante. Si el tiempo expiro,
+// se anula automaticamente. El POS usa esto para mostrar la cuenta regresiva.
+func (h *NFCTerminalHandler) getMultisigPaymentStatus(w http.ResponseWriter, r *http.Request) {
+	pendingID, err := uuid.Parse(chi.URLParam(r, "pendingId"))
+	if err != nil {
+		writeError(w, 400, "invalid pending payment id")
+		return
+	}
+
+	if h.MultiSig == nil {
+		writeError(w, 500, "multi-sig not configured")
+		return
+	}
+
+	p, err := h.MultiSig.GetPendingPayment(r.Context(), pendingID)
+	if err != nil {
+		writeError(w, 404, "pending payment not found")
+		return
+	}
+
+	// Auto-anular si ya expiro y sigue pendiente
+	if p.Status == "pending" || p.Status == "ready" {
+		remaining := time.Until(p.ExpiresAt)
+		if remaining <= 0 {
+			h.MultiSig.CancelPendingPayment(r.Context(), pendingID)
+			writeJSON(w, 200, map[string]interface{}{
+				"id":                p.ID,
+				"status":            "expired",
+				"remaining_seconds": 0,
+				"required_signatures": p.RequiredSignatures,
+				"collected_count":   len(p.CollectedSignatures),
+				"remaining_sigs":    p.RequiredSignatures - len(p.CollectedSignatures),
+				"message":           "Tiempo agotado. El pago ha sido anulado.",
+			})
+			return
+		}
+		writeJSON(w, 200, map[string]interface{}{
+			"id":                p.ID,
+			"status":            p.Status,
+			"amount":            p.Amount,
+			"payment_type":      p.PaymentType,
+			"from_account":      p.FromAccount,
+			"to_account":        p.ToAccount,
+			"required_signatures": p.RequiredSignatures,
+			"collected_count":   len(p.CollectedSignatures),
+			"remaining_sigs":    p.RequiredSignatures - len(p.CollectedSignatures),
+			"expires_at":        p.ExpiresAt,
+			"remaining_seconds": int(remaining.Seconds()),
+			"collected_signatures": p.CollectedSignatures,
+		})
+		return
+	}
+
+	// Ya ejecutado, cancelado o expirado
+	writeJSON(w, 200, map[string]interface{}{
+		"id":                p.ID,
+		"status":            p.Status,
+		"remaining_seconds": 0,
+		"required_signatures": p.RequiredSignatures,
+		"collected_count":   len(p.CollectedSignatures),
+		"executed_at":       p.ExecutedAt,
+	})
 }

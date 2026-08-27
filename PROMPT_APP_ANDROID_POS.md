@@ -1924,19 +1924,92 @@ Or when complete:
 }
 ```
 
+#### Get Multi-Sig Payment Status (NFC Terminal polling)
+
+**GET `/nfc/terminal/payment/multisig/{pendingId}/status`** — No auth (terminal polling)
+
+The POS app polls this endpoint every 2-3 seconds during multi-sig signing to:
+- Get the remaining time (countdown timer)
+- Detect auto-cancellation when time expires
+- Detect if other signers signed remotely
+
+Response (200):
+```json
+{
+  "id": "uuid",
+  "status": "pending",
+  "amount": 50000,
+  "payment_type": "nfc",
+  "from_account": "uuid",
+  "to_account": "uuid",
+  "required_signatures": 3,
+  "collected_count": 1,
+  "remaining_sigs": 2,
+  "expires_at": "2026-08-26T12:10:00Z",
+  "remaining_seconds": 480,
+  "collected_signatures": [
+    {"signer_id": "uuid", "method": "nfc_card", "card_uid": "AABBCCDDEEFF", "timestamp": "..."}
+  ]
+}
+```
+
+When time expires (auto-cancellation):
+```json
+{
+  "id": "uuid",
+  "status": "expired",
+  "remaining_seconds": 0,
+  "required_signatures": 3,
+  "collected_count": 1,
+  "remaining_sigs": 2,
+  "message": "Tiempo agotado. El pago ha sido anulado."
+}
+```
+
+When all signatures collected and executed:
+```json
+{
+  "id": "uuid",
+  "status": "executed",
+  "remaining_seconds": 0,
+  "required_signatures": 3,
+  "collected_count": 3,
+  "executed_at": "2026-08-26T12:05:00Z"
+}
+```
+
 ### Multi-Sig App UI Flow (NFC)
 
 1. Customer taps card → app shows "Cuenta multi-firma. Se requieren N firmas."
 2. Customer enters PIN (and ID document if UID-only).
 3. App sends payment → backend creates pending payment.
-4. App shows: "Firma 1 de N completada. Acerque la tarjeta del siguiente firmante."
-5. Next authorized signer taps their card.
-6. App asks for their PIN (and ID document if UID-only).
-7. App sends multi-sig sign request.
-8. App shows: "Firma 2 de N completada. Faltan N-2 firma(s)."
-9. Repeat until all signers have tapped.
-10. When all signatures are collected: "Pago aprobado. {amount} TQ."
-11. App clears state and returns to main screen.
+4. **App starts a countdown timer** using `remaining_seconds` from the response.
+5. App shows: "Firma 1 de N completada. Acerque la tarjeta del siguiente firmante." + **countdown timer visible on screen**.
+6. **App polls `GET /api/nfc/terminal/payment/multisig/{pendingId}/status` every 2-3 seconds** to keep the timer synchronized with the server and detect auto-cancellation.
+7. Next authorized signer taps their card.
+8. App asks for their PIN (and ID document if UID-only).
+9. App sends multi-sig sign request.
+10. App shows: "Firma 2 de N completada. Faltan N-2 firma(s)." + **updated countdown timer**.
+11. Repeat until all signers have tapped.
+12. When all signatures are collected: "Pago aprobado. {amount} TQ."
+13. **If the countdown reaches zero**: app shows "Tiempo agotado. El pago ha sido anulado." and returns to the main screen. The backend auto-cancels the payment.
+14. App clears state and returns to main screen.
+
+### Countdown Timer Requirements
+
+- The app MUST show a visible countdown timer (MM:SS format) during the entire multi-sig signing process.
+- The timer starts from `remaining_seconds` returned by the payment creation or status endpoint.
+- The app MUST poll `GET /api/nfc/terminal/payment/multisig/{pendingId}/status` every 2-3 seconds to:
+  - Synchronize the remaining time with the server (in case of clock drift).
+  - Detect if the payment was auto-cancelled by the server.
+  - Detect if another signer signed remotely (via web/app) while waiting.
+- When the timer reaches 00:00, the app MUST:
+  - Stop accepting new card taps.
+  - Show "Tiempo agotado. El pago ha sido anulado."
+  - Return to the main screen after 3 seconds.
+- The timer MUST be prominently visible (large font, top of screen) so the merchant and signers know how much time is left.
+- If the server returns `status: "expired"` or `status: "cancelled"` during polling, the app MUST immediately stop and show the cancellation message.
+- If the server returns `status: "executed"` during polling (e.g., all signers signed remotely), the app MUST show "Pago aprobado" and return to the main screen.
 
 ### Important Notes
 

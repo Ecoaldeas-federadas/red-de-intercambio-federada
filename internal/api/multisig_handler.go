@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -77,7 +78,51 @@ func (h *MultiSigHandler) getPendingPayment(w http.ResponseWriter, r *http.Reque
 		writeError(w, 404, "payment not found")
 		return
 	}
-	writeJSON(w, 200, p)
+
+	// Auto-anular si ya expiro
+	if p.Status == "pending" || p.Status == "ready" {
+		remaining := time.Until(p.ExpiresAt)
+		if remaining <= 0 {
+			h.MultiSig.CancelPendingPayment(r.Context(), paymentID)
+			p.Status = "expired"
+			writeJSON(w, 200, map[string]interface{}{
+				"id":                  p.ID,
+				"status":              "expired",
+				"expires_at":          p.ExpiresAt,
+				"remaining_seconds":   0,
+				"message":             "Tiempo agotado. El pago ha sido anulado.",
+				"required_signatures": p.RequiredSignatures,
+				"collected_count":     len(p.CollectedSignatures),
+			})
+			return
+		}
+		// Retornar con tiempo restante
+		writeJSON(w, 200, map[string]interface{}{
+			"id":                   p.ID,
+			"payment_type":         p.PaymentType,
+			"from_account":         p.FromAccount,
+			"to_account":           p.ToAccount,
+			"amount":               p.Amount,
+			"required_signatures":  p.RequiredSignatures,
+			"collected_count":      len(p.CollectedSignatures),
+			"remaining_sigs":       p.RequiredSignatures - len(p.CollectedSignatures),
+			"status":               p.Status,
+			"expires_at":           p.ExpiresAt,
+			"remaining_seconds":    int(remaining.Seconds()),
+			"collected_signatures": p.CollectedSignatures,
+			"created_at":           p.CreatedAt,
+		})
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{
+		"id":                  p.ID,
+		"status":              p.Status,
+		"expires_at":          p.ExpiresAt,
+		"remaining_seconds":   0,
+		"required_signatures": p.RequiredSignatures,
+		"collected_count":     len(p.CollectedSignatures),
+		"executed_at":         p.ExecutedAt,
+	})
 }
 
 // signPendingPayment permite a un firmante autorizado firmar un pago pendiente
