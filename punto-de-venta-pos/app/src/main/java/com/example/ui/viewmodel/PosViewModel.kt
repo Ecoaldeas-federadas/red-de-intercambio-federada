@@ -157,6 +157,25 @@ class PosViewModel(
                     }
                 }
                 // Si el heartbeat falla por red, no cambiar estado (puede ser temporal)
+            } else {
+                // No esta registrado localmente — pero podria haber sido aprobado
+                // en el servidor sin que el POS se entero (polling expiro antes de
+                // recibir el "approved"). Consultar al servidor por public_key.
+                val lookupResult = repository.checkRegistrationByKey()
+                lookupResult.onSuccess { isRegistered ->
+                    if (isRegistered) {
+                        // El servidor confirma que este terminal ya fue registrado.
+                        // Actualizar estado local.
+                        _uiState.update {
+                            it.copy(
+                                isRegistered = true,
+                                currentScreen = PosScreen.Login,
+                                successMessage = "Terminal verificado y registrado con el servidor."
+                            )
+                        }
+                    }
+                }
+                // Si el lookup falla por red o no esta registrado, mantener estado actual
             }
 
             if (config.isRegistered && !repository.apiClient.authToken.isNullOrBlank()) {

@@ -47,6 +47,10 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.Post("/api/nfc/terminal/pair/initiate", h.initiatePairing)
 	r.Get("/api/nfc/terminal/pair/{code}/status", h.getPairingStatus)
 
+	// Terminal lookup by public key (no auth required — allows POS to discover
+	// it was approved even if polling timed out before receiving the response)
+	r.Post("/api/nfc/terminal/lookup", h.lookupTerminalByKey)
+
 	// Block/unblock from the terminal itself (with local code)
 	r.Post("/api/nfc/terminal/{id}/block", h.blockTerminal)
 	r.Post("/api/nfc/terminal/{id}/unblock", h.unblockTerminal)
@@ -1716,6 +1720,72 @@ func (h *NFCTerminalHandler) getPairingStatus(w http.ResponseWriter, r *http.Req
 		return
 	}
 	writeJSON(w, 200, status)
+}
+
+// lookupTerminalByKey permite a un POS descubrir si su terminal_public_key
+// ya fue registrada en el servidor, incluso si el polling del emparejamiento
+// expiro antes de recibir la respuesta "approved".
+//
+// Esto resuelve el problema de sincronizacion: el admin aprueba en el servidor
+// pero el POS no se entera porque su polling expiro. Al arrancar, el POS
+// consulta este endpoint con su clave publica. Si el servidor ya la tiene
+// registrada, devuelve el terminal_id + server_public_key para que el POS
+// complete su registro local.
+func (h *NFCTerminalHandler) lookupTerminalByKey(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		TerminalPublicKey string `json:"terminal_public_key"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.TerminalPublicKey == "" {
+		writeError(w, 400, "terminal_public_key is required")
+		return
+	}
+
+	// Buscar el terminal por su clave publica
+	var terminalID string
+	var isActive, isRegistered bool
+	var serverPubKey *string
+	err := h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT t.terminal_id, t.is_active, t.is_registered, sk.public_key
+		FROM nfc_terminals t
+		LEFT JOIN nfc_server_keys sk ON sk.node_domain = t.node_domain
+		WHERE t.terminal_public_key = $1
+		ORDER BY t.updated_at DESC LIMIT 1`,
+		req.TerminalPublicKey,
+	).Scan(&terminalID, &isActive, &isRegistered, &serverPubKey)
+	if err != nil {
+		// No encontrado — el terminal no esta registrado en este servidor
+		writeJSON(w, 200, map[string]interface{}{
+			"registered": false,
+			"message":    "Terminal no encontrado en el servidor.",
+		})
+		return
+	}
+
+	if !isRegistered || !isActive {
+		writeJSON(w, 200, map[string]interface{}{
+			"registered": false,
+			"active":     isActive,
+			"message":    "Terminal existe pero no esta registrado o inactivo.",
+		})
+		return
+	}
+
+	// Esta registrado y activo — devolver info para que el POS complete
+	spk := ""
+	if serverPubKey != nil {
+		spk = *serverPubKey
+	}
+	writeJSON(w, 200, map[string]interface{}{
+		"registered":        true,
+		"active":            true,
+		"terminal_id":       terminalID,
+		"server_public_key": spk,
+		"message":           "Terminal registrado y activo.",
+	})
 }
 
 // approvePairing aprueba una solicitud de emparejamiento (admin).

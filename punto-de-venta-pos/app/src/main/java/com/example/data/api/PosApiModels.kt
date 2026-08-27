@@ -394,3 +394,17 @@ data class PairingOptionsResponse(
 data class PairingApproveRequest(
     @Json(name = "selected_code") val selectedCode: String
 )
+
+@JsonClass(generateAdapter = true)
+data class TerminalLookupRequest(
+    @Json(name = "terminal_public_key") val terminalPublicKey: String
+)
+
+@JsonClass(generateAdapter = true)
+data class TerminalLookupResponse(
+    @Json(name = "registered") val registered: Boolean = false,
+    @Json(name = "active") val active: Boolean? = null,
+    @Json(name = "terminal_id") val terminalId: String? = null,
+    @Json(name = "server_public_key") val serverPublicKey: String? = null,
+    @Json(name = "message") val message: String? = null
+)

@@ -836,4 +836,45 @@ class PosRepository(
             Result.failure(Exception("Error de conexión en heartbeat: ${e.localizedMessage}"))
         }
     }
+
+    /**
+     * checkRegistrationByKey consulta al servidor si la clave publica de este
+     * terminal ya esta registrada. Esto permite al POS descubrir que fue
+     * aprobado incluso si el polling del emparejamiento expiro antes de
+     * recibir la respuesta "approved".
+     *
+     * Si el servidor confirma que esta registrado, guarda el terminal_id y
+     * server_public_key localmente y retorna true.
+     */
+    suspend fun checkRegistrationByKey(): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val config = getOrInitTerminalConfig()
+            val service = apiClient.getService()
+            val response = service.lookupTerminal(
+                TerminalLookupRequest(terminalPublicKey = config.terminalPublicKeyHex)
+            )
+            if (response.isSuccessful && response.body() != null) {
+                val body = response.body()!!
+                if (body.registered && body.serverPublicKey != null) {
+                    // El servidor confirma que este terminal esta registrado.
+                    // Guardar terminal_id y server_public_key localmente.
+                    terminalConfigDao.saveConfig(
+                        config.copy(
+                            isRegistered = true,
+                            terminalId = body.terminalId ?: config.terminalId,
+                            serverPublicKeyHex = body.serverPublicKey
+                        )
+                    )
+                    cachedSharedKey = null
+                    Result.success(true)
+                } else {
+                    Result.success(false)
+                }
+            } else {
+                Result.success(false)
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error al verificar registro: ${e.localizedMessage}"))
+        }
+    }
 }

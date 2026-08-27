@@ -60,6 +60,9 @@ interface PosApiService {
     @POST("nfc/terminal/heartbeat")
     suspend fun terminalHeartbeat(@Body body: Map<String, String>): Response<HeartbeatResponse>
 
+    @POST("nfc/terminal/lookup")
+    suspend fun lookupTerminal(@Body request: TerminalLookupRequest): Response<TerminalLookupResponse>
+
     @POST("nfc/terminal/session")
     suspend fun createTerminalSession(@Body request: CreateTerminalSessionRequest): Response<TerminalSessionResponse>
 
