@@ -527,6 +527,13 @@ func MigrateDomainData(ctx context.Context, pool *pgxpool.Pool) error {
 		{"node_discovery_config", "node_domain"},
 		{"calculator_categories", "node_domain"},
 		{"calculator_parameters", "node_domain"},
+		// NFC tables: deben usar LOCAL_NODE_DOMAIN como el resto
+		{"nfc_terminals", "node_domain"},
+		{"nfc_server_keys", "node_domain"},
+		{"nfc_card_type_config", "node_domain"},
+		{"nfc_card_keys", "node_domain"},
+		{"terminal_pairing_requests", "node_domain"},
+		{"card_key_rotations", "node_domain"},
 	}
 
 	migrated := 0

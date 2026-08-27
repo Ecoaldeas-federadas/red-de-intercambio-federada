@@ -272,6 +272,23 @@ func (nt *NFCTerminals) HeartbeatWithStatus(ctx context.Context, terminalID stri
 	return isActive, nil
 }
 
+// HeartbeatFull retorna el estado completo del terminal: is_active e is_registered.
+// El terminal usa esto para verificar que sigue registrado y activo antes de
+// cada transaccion. Si is_registered=false o el terminal no existe, el cliente
+// debe volver a la pantalla de emparejamiento.
+func (nt *NFCTerminals) HeartbeatFull(ctx context.Context, terminalID string) (isActive, isRegistered bool, err error) {
+	err = nt.Pool.QueryRow(ctx, `
+		UPDATE nfc_terminals SET last_seen = NOW()
+		WHERE terminal_id = $1
+		RETURNING is_active, is_registered`,
+		terminalID,
+	).Scan(&isActive, &isRegistered)
+	if err != nil {
+		return false, false, fmt.Errorf("heartbeat: %w", err)
+	}
+	return isActive, isRegistered, nil
+}
+
 func (nt *NFCTerminals) GetTerminalStatus(ctx context.Context, terminalID string) (*NFCTerminal, error) {
 	var t NFCTerminal
 	err := nt.Pool.QueryRow(ctx, `

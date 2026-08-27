@@ -257,7 +257,7 @@ func main() {
 	recoveryHandler := api.NewRecoveryHandler(recoverySvc, database.Pool, cfg.Node.Domain, jwtSecret)
 	departmentsSvc := accounts.NewDepartments(database.Pool)
 	departmentsHandler := api.NewDepartmentsHandler(departmentsSvc, cfg.Node.Domain, authMiddleware, database.Pool)
-	nfcTerminalsSvc := payments.NewNFCTerminals(database.Pool, cfg.Node.Domain)
+	nfcTerminalsSvc := payments.NewNFCTerminals(database.Pool, db.LOCAL_NODE_DOMAIN)
 
 	// Firmware compiler (opcional — solo si Docker esta disponible)
 	firmwareDir := os.Getenv("FIRMWARE_DIR")

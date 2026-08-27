@@ -524,15 +524,24 @@ fun RegisterTerminalScreen(
                                         fontSize = 56.sp
                                     )
                                     Spacer(modifier = Modifier.height(12.dp))
-                                    // Cuenta regresiva
-                                    val mins = remainingSecs / 60
-                                    val secs = remainingSecs % 60
-                                    Text(
-                                        text = "Tiempo restante: %02d:%02d".format(mins, secs),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = if (remainingSecs <= 10) PosErrorRedLight else PosSlate100,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    // Cuenta regresiva o mensaje de grace period
+                                    if (uiState.isInGracePeriod) {
+                                        Text(
+                                            text = "Tiempo agotado, esperando respuesta...",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = PosGoldLight,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    } else {
+                                        val mins = remainingSecs / 60
+                                        val secs = remainingSecs % 60
+                                        Text(
+                                            text = "Tiempo restante: %02d:%02d".format(mins, secs),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = if (remainingSecs <= 10) PosErrorRedLight else PosSlate100,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
                                     Spacer(modifier = Modifier.height(12.dp))
                                     Text(
                                         text = "Pida al administrador que apruebe este codigo en su panel del nodo.",

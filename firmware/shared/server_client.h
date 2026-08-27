@@ -122,8 +122,9 @@ String authenticateTerminal(ServerConfig* config, KeyPair* kp, const uint8_t* se
   return "";
 }
 
-// Send heartbeat
-bool sendHeartbeat(ServerConfig* config, const uint8_t* serverPubKey) {
+// Send heartbeat and check terminal status
+// Returns: 0 = error, 1 = active, 2 = inactive, 3 = not registered/deleted
+int sendHeartbeat(ServerConfig* config, const uint8_t* serverPubKey) {
   StaticJsonDocument<256> doc;
   doc["terminal_id"] = config->terminalId;
   String body;
@@ -131,7 +132,18 @@ bool sendHeartbeat(ServerConfig* config, const uint8_t* serverPubKey) {
 
   String url = config->serverUrl + "/api/nfc/terminal/heartbeat";
   String response = httpPost(url, body);
-  return (response.length() > 0);
+  if (response.length() == 0) return 0; // network error
+
+  StaticJsonDocument<256> respDoc;
+  deserializeJson(respDoc, response);
+
+  bool notFound = respDoc["not_found"] | false;
+  bool registered = respDoc["registered"] | true;
+  bool active = respDoc["active"] | false;
+
+  if (notFound || !registered) return 3; // terminal deleted from server
+  if (!active) return 2; // terminal deactivated
+  return 1; // active and registered
 }
 
 // Encrypt payload for server

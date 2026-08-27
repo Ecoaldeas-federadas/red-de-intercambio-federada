@@ -104,6 +104,18 @@ bool isRegistered() {
   return (reg == 1);
 }
 
+// Clear registration flag (when server says terminal was deleted)
+void clearRegistration() {
+  nvs_handle_t handle;
+  if (nvs_open(NVS_NAMESPACE, NVS_READWRITE, &handle) != ESP_OK) return;
+  nvs_set_u8(handle, NVS_REGISTERED, 0);
+  // Also clear server public key and terminal_id
+  nvs_erase_key(handle, NVS_SRV_KEY);
+  nvs_erase_key(handle, NVS_TERMINAL_ID);
+  nvs_commit(handle);
+  nvs_close(handle);
+}
+
 // Save terminal_id (assigned by server after pairing)
 bool saveTerminalId(const String& terminalId) {
   nvs_handle_t handle;

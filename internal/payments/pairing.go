@@ -10,6 +10,12 @@ import (
 	"github.com/google/uuid"
 )
 
+// PairingGracePeriod es el tiempo adicional despues de que el codigo visible expira.
+// Durante este periodo, el servidor sigue aceptando aprobaciones que estaban en vuelo
+// (el admin ya hizo clic pero la red tarda). El cliente sigue haciendo polling.
+// Esto evita que un approval llegue 1 segundo despues del expiry y se rechace.
+const PairingGracePeriod = 30 * time.Second
+
 // PairingRequest representa una solicitud de emparejamiento pendiente
 type PairingRequest struct {
 	ID                 uuid.UUID  `json:"id"`
@@ -111,7 +117,9 @@ func (nt *NFCTerminals) InitiatePairing(ctx context.Context, terminalPublicKey, 
 }
 
 // GetPairingStatus consulta el estado de una solicitud de emparejamiento.
-// Si el tiempo expiro, marca como expired automaticamente.
+// Si el tiempo expiro y el periodo de gracia tambien, marca como expired.
+// Durante el periodo de gracia, sigue retornando "pending" para que el cliente
+// siga esperando una aprobacion que pudo haber llegado tarde.
 func (nt *NFCTerminals) GetPairingStatus(ctx context.Context, code string) (*PairingStatus, error) {
 	var req PairingRequest
 	err := nt.Pool.QueryRow(ctx, `
@@ -125,13 +133,23 @@ func (nt *NFCTerminals) GetPairingStatus(ctx context.Context, code string) (*Pai
 
 	remaining := int(time.Until(req.ExpiresAt).Seconds())
 
-	// Auto-expirar si el tiempo se agoto
-	if (req.Status == "pending") && remaining <= 0 {
+	// Auto-expirar solo si paso el tiempo visible + el periodo de gracia
+	if (req.Status == "pending") && time.Now().After(req.ExpiresAt.Add(PairingGracePeriod)) {
 		nt.Pool.Exec(ctx, `UPDATE terminal_pairing_requests SET status = 'expired' WHERE id = $1`, req.ID)
 		return &PairingStatus{
 			Status:           "expired",
 			RemainingSeconds: 0,
 			Message:          "Tiempo agotado. Intente nuevamente.",
+		}, nil
+	}
+
+	// Durante el periodo de gracia: seguir retornando pending con remaining=0
+	// El cliente mostrara "Tiempo agotado, esperando respuesta..."
+	if (req.Status == "pending") && remaining <= 0 {
+		return &PairingStatus{
+			Status:           "pending",
+			RemainingSeconds: 0,
+			Message:          "Tiempo agotado, esperando respuesta del administrador...",
 		}, nil
 	}
 
@@ -193,8 +211,10 @@ func (nt *NFCTerminals) ApprovePairing(ctx context.Context, code string, adminUs
 		return nil, fmt.Errorf("codigo no encontrado o ya procesado")
 	}
 
-	// Verificar que no ha expirado
-	if time.Now().After(req.ExpiresAt) {
+	// Verificar que no ha expirado (considerando el periodo de gracia)
+	// El tiempo visible expira en expires_at, pero aceptamos aprobaciones
+	// hasta expires_at + PairingGracePeriod para no rechazar approvals en vuelo.
+	if time.Now().After(req.ExpiresAt.Add(PairingGracePeriod)) {
 		nt.Pool.Exec(ctx, `UPDATE terminal_pairing_requests SET status = 'expired' WHERE id = $1`, req.ID)
 		return nil, fmt.Errorf("el codigo ya expiro")
 	}

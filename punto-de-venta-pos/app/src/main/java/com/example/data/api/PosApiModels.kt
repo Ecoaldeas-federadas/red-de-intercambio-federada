@@ -69,6 +69,15 @@ data class GenericStatusResponse(
 )
 
 @JsonClass(generateAdapter = true)
+data class HeartbeatResponse(
+    @Json(name = "status") val status: String? = null,
+    @Json(name = "active") val active: Boolean? = null,
+    @Json(name = "registered") val registered: Boolean? = null,
+    @Json(name = "not_found") val notFound: Boolean? = null,
+    @Json(name = "signature") val signature: String? = null
+)
+
+@JsonClass(generateAdapter = true)
 data class RegisterTerminalApiRequest(
     @Json(name = "terminal_id") val terminalId: String,
     @Json(name = "label") val label: String,

@@ -95,7 +95,8 @@ data class PosUiState(
     val pairingCode: String? = null,
     val pairingRemainingSeconds: Int = 60,
     val pairingStatus: String? = null, // null, "pending", "approved", "expired", "rejected"
-    val isPairingPolling: Boolean = false
+    val isPairingPolling: Boolean = false,
+    val isInGracePeriod: Boolean = false // true cuando el tiempo visible expiro pero estamos en grace period
 )
 
 class PosViewModel(
@@ -137,6 +138,27 @@ class PosViewModel(
                 )
             }
             loadCardTypeConfig()
+
+            // Verificar con el servidor que el terminal sigue registrado y activo
+            if (config.isRegistered) {
+                val hbResult = repository.heartbeat()
+                hbResult.onSuccess { hb ->
+                    if (hb.notFound == true || hb.registered == false || hb.active == false) {
+                        // El terminal fue borrado o desactivado del servidor
+                        // Resetear registro local y volver a emparejamiento
+                        repository.resetTerminalRegistration()
+                        _uiState.update {
+                            it.copy(
+                                isRegistered = false,
+                                currentScreen = PosScreen.RegisterTerminal,
+                                errorMessage = "El terminal fue desactivado o eliminado desde el panel administrativo. Vuelva a emparejar."
+                            )
+                        }
+                    }
+                }
+                // Si el heartbeat falla por red, no cambiar estado (puede ser temporal)
+            }
+
             if (config.isRegistered && !repository.apiClient.authToken.isNullOrBlank()) {
                 refreshCurrentUser()
             }
@@ -362,7 +384,7 @@ class PosViewModel(
     private fun startPairingPolling(code: String) {
         stopPairingPolling()
         pairingPollJob = viewModelScope.launch {
-            // Cuenta regresiva local
+            // Cuenta regresiva local (tiempo visible: 60 segundos)
             val countdownJob = launch {
                 while (isActive) {
                     delay(1000L)
@@ -370,21 +392,33 @@ class PosViewModel(
                     if (current <= 0) break
                     _uiState.update { it.copy(pairingRemainingSeconds = current - 1) }
                 }
+                // Tiempo visible agotado: entrar en grace period (30 segundos mas)
+                _uiState.update { it.copy(isInGracePeriod = true) }
             }
 
             // Polling al servidor cada 2 segundos
+            // Durante el grace period, seguimos haciendo polling por si una
+            // aprobacion estaba en vuelo cuando el tiempo expiro.
+            var gracePeriodSeconds = 0
             while (isActive) {
                 delay(2000L)
                 val state = _uiState.value
                 if (state.pairingStatus != "pending") break
-                if (state.pairingRemainingSeconds <= 0) {
-                    _uiState.update {
-                        it.copy(
-                            pairingStatus = "expired",
-                            errorMessage = "Tiempo agotado. El código ha expirado. Intente nuevamente."
-                        )
+
+                // Si estamos en grace period, contar segundos
+                if (state.isInGracePeriod) {
+                    gracePeriodSeconds += 2
+                    if (gracePeriodSeconds >= 30) {
+                        // Grace period agotado: expirar de verdad
+                        _uiState.update {
+                            it.copy(
+                                pairingStatus = "expired",
+                                isInGracePeriod = false,
+                                errorMessage = "Tiempo agotado. El código ha expirado. Intente nuevamente."
+                            )
+                        }
+                        break
                     }
-                    break
                 }
 
                 val res = repository.pollPairingStatus(code)
@@ -398,6 +432,7 @@ class PosViewModel(
                                     it.copy(
                                         pairingStatus = "approved",
                                         isRegistered = true,
+                                        isInGracePeriod = false,
                                         currentScreen = PosScreen.Login,
                                         successMessage = "¡Terminal emparejado y registrado exitosamente! Inicie sesión con su cuenta de comercio.",
                                         errorMessage = null
@@ -407,6 +442,7 @@ class PosViewModel(
                                 _uiState.update {
                                     it.copy(
                                         pairingStatus = null,
+                                        isInGracePeriod = false,
                                         errorMessage = "Error al guardar configuración: ${e.message}"
                                     )
                                 }
@@ -417,6 +453,7 @@ class PosViewModel(
                             _uiState.update {
                                 it.copy(
                                     pairingStatus = "expired",
+                                    isInGracePeriod = false,
                                     errorMessage = "Tiempo agotado. El código ha expirado. Intente nuevamente."
                                 )
                             }
@@ -426,6 +463,7 @@ class PosViewModel(
                             _uiState.update {
                                 it.copy(
                                     pairingStatus = "rejected",
+                                    isInGracePeriod = false,
                                     errorMessage = "Solicitud rechazada por el administrador."
                                 )
                             }
@@ -435,9 +473,11 @@ class PosViewModel(
                             // Actualizar tiempo restante del servidor si difiere
                             val serverRemaining = status.remainingSeconds ?: 60
                             val localRemaining = _uiState.value.pairingRemainingSeconds
-                            if (kotlin.math.abs(serverRemaining - localRemaining) > 3) {
+                            if (serverRemaining > 0 && kotlin.math.abs(serverRemaining - localRemaining) > 3) {
                                 _uiState.update { it.copy(pairingRemainingSeconds = serverRemaining) }
                             }
+                            // Si el servidor dice remaining=0 pero sigue pending,
+                            // estamos en grace period del servidor. No hacer nada especial.
                         }
                     }
                 }
@@ -458,6 +498,7 @@ class PosViewModel(
                 pairingCode = null,
                 pairingStatus = null,
                 pairingRemainingSeconds = 60,
+                isInGracePeriod = false,
                 errorMessage = null,
                 successMessage = null
             )
@@ -506,6 +547,47 @@ class PosViewModel(
         }
     }
 
+    // ============================================
+    // Verificacion de estado antes de transacciones
+    // ============================================
+
+    /**
+     * Verifica con el servidor que el terminal sigue registrado y activo
+     * antes de iniciar una transaccion. Si el terminal fue desactivado o
+     * borrado, resetea el registro y vuelve a la pantalla de emparejamiento.
+     * Retorna false si no se puede continuar con la transaccion.
+     */
+    private suspend fun verifyTerminalStatus(): Boolean {
+        val hbRes = repository.heartbeat()
+        var canProceed = true
+        hbRes.onSuccess { hb ->
+            if (hb.notFound == true || hb.registered == false) {
+                // Terminal fue borrado del servidor
+                repository.resetTerminalRegistration()
+                _uiState.update {
+                    it.copy(
+                        isRegistered = false,
+                        currentScreen = PosScreen.RegisterTerminal,
+                        isLoading = false,
+                        errorMessage = "Este terminal fue eliminado del servidor. Vuelva a emparejar."
+                    )
+                }
+                canProceed = false
+            } else if (hb.active == false) {
+                // Terminal desactivado pero no borrado
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "Este terminal está desactivado. Contacte al administrador."
+                    )
+                }
+                canProceed = false
+            }
+        }
+        // Si el heartbeat falla por red, permitir la transaccion (puede ser temporal)
+        return canProceed
+    }
+
     // --- QR CHARGE WORKFLOW ---
     fun startQrCharge() {
         val microUnits = CurrencyHelper.parseInputToMicroUnits(_uiState.value.amountInput)
@@ -515,6 +597,9 @@ class PosViewModel(
         }
 
         viewModelScope.launch {
+            // Verificar estado del terminal antes de iniciar la transaccion
+            if (!verifyTerminalStatus()) return@launch
+
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             val desc = _uiState.value.chargeDescription.ifBlank { "Cobro POS" }
             val res = repository.createQrCharge(microUnits, desc)
@@ -642,6 +727,9 @@ class PosViewModel(
         }
 
         viewModelScope.launch {
+            // Verificar estado del terminal antes de iniciar la transaccion
+            if (!verifyTerminalStatus()) return@launch
+
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             val isDesfire = (state.detectedCardType == "desfire")
 
@@ -837,6 +925,9 @@ class PosViewModel(
         }
 
         viewModelScope.launch {
+            // Verificar estado del terminal antes de iniciar la transaccion
+            if (!verifyTerminalStatus()) return@launch
+
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             val res = repository.processCommunityPayment(
                 sellerCardUid = state.sellerCardUid ?: "SELLER001",

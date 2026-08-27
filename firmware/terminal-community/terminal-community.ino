@@ -158,10 +158,17 @@ void setup() {
 void loop() {
   // Heartbeat — verifica estado activo en el servidor
   if (millis() - lastHeartbeat > 30000) {
-    String hbResponse = sendHeartbeat(&config, serverPubKey);
-    if (hbResponse.indexOf("\"active\":false") >= 0) {
+    int hbStatus = sendHeartbeat(&config, serverPubKey);
+    if (hbStatus == 3) {
+      // Terminal fue borrado del servidor: resetear y reiniciar
+      showText("Terminal", 1, 16);
+      showText("eliminado", 1, 32);
+      clearRegistration();
+      delay(3000);
+      ESP.restart();
+    } else if (hbStatus == 2) {
       serverActive = false;
-    } else if (hbResponse.length() > 0) {
+    } else if (hbStatus == 1) {
       serverActive = true;
     }
     lastHeartbeat = millis();

@@ -147,7 +147,28 @@ void setup() {
   sessionToken = authenticateTerminal(&config, &terminalKeys, serverPubKey);
   if (sessionToken.length() == 0) {
     showText("Error auth", 2, 24);
-    while (1) delay(5000);
+    // El terminal pudo haber sido borrado del servidor. Resetear registro.
+    clearRegistration();
+    showText("Resetear reg", 2, 40);
+    showText("Reiniciar...", 3, 56);
+    delay(3000);
+    ESP.restart();
+  }
+
+  // Verificar estado con heartbeat al arrancar
+  int hbStatus = sendHeartbeat(&config, serverPubKey);
+  if (hbStatus == 3) {
+    // Terminal fue borrado del servidor
+    showText("Terminal", 1, 16);
+    showText("eliminado", 1, 32);
+    showText("Reiniciar...", 2, 48);
+    clearRegistration();
+    delay(3000);
+    ESP.restart();
+  } else if (hbStatus == 2) {
+    serverActive = false;
+  } else if (hbStatus == 1) {
+    serverActive = true;
   }
 
   showReady();
@@ -157,11 +178,17 @@ void setup() {
 void loop() {
   // Heartbeat every 30s — verifica estado activo en el servidor
   if (millis() - lastHeartbeat > 30000) {
-    String hbResponse = sendHeartbeat(&config, serverPubKey);
-    // El servidor puede indicar que el terminal esta desactivado
-    if (hbResponse.indexOf("\"active\":false") >= 0) {
+    int hbStatus = sendHeartbeat(&config, serverPubKey);
+    if (hbStatus == 3) {
+      // Terminal fue borrado del servidor: resetear y reiniciar
+      showText("Terminal", 1, 16);
+      showText("eliminado", 1, 32);
+      clearRegistration();
+      delay(3000);
+      ESP.restart();
+    } else if (hbStatus == 2) {
       serverActive = false;
-    } else if (hbResponse.length() > 0) {
+    } else if (hbStatus == 1) {
       serverActive = true;
     }
     lastHeartbeat = millis();

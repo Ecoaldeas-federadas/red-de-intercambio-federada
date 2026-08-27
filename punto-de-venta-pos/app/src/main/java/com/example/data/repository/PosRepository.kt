@@ -779,4 +779,46 @@ class PosRepository(
             Result.failure(Exception("Error al cerrar turno: ${e.localizedMessage}"))
         }
     }
+
+    // ============================================
+    // Heartbeat / Verificacion de estado
+    // ============================================
+
+    suspend fun resetTerminalRegistration(): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val config = getOrInitTerminalConfig()
+            // Generar nuevas claves (el terminal viejo ya no existe en el servidor)
+            val keyPair = CryptoEngine.generateEd25519KeyPair()
+            terminalConfigDao.saveConfig(
+                config.copy(
+                    isRegistered = false,
+                    terminalPrivateKeyHex = keyPair.privateKeyHex,
+                    terminalPublicKeyHex = keyPair.publicKeyHex,
+                    serverPublicKeyHex = null,
+                    sessionToken = null
+                )
+            )
+            cachedSharedKey = null
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(Exception("Error al resetear registro: ${e.localizedMessage}"))
+        }
+    }
+
+    suspend fun heartbeat(): Result<HeartbeatResponse> = withContext(Dispatchers.IO) {
+        try {
+            val config = getOrInitTerminalConfig()
+            val service = apiClient.getService()
+            val response = service.terminalHeartbeat(mapOf("terminal_id" to config.terminalId))
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                // Si el servidor no encuentra el terminal, responder como no registrado
+                Result.success(HeartbeatResponse(status = "ok", active = false, registered = false, notFound = true))
+            }
+        } catch (e: Exception) {
+            // Error de red: no cambiar estado (puede ser temporal)
+            Result.failure(Exception("Error de conexión en heartbeat: ${e.localizedMessage}"))
+        }
+    }
 }
