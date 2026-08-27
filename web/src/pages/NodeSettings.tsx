@@ -3245,9 +3245,12 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
           setUpdating(false)
           setUpdateCompleted(true)
           setUpdateInfo(null)
-          setMsg({ type: 'success', text: 'Nodo actualizado correctamente.' })
-          // Re-verificar actualizaciones despues de completar
-          setTimeout(() => checkUpdates(), 2000)
+          setMsg({ type: 'success', text: 'Nodo actualizado correctamente. Verificando nueva version...' })
+          // Re-verificar actualizaciones varias veces despues de completar
+          // El servidor acaba de reiniciar y puede tardar en responder correctamente
+          setTimeout(() => checkUpdates(1), 2000)
+          setTimeout(() => checkUpdates(1), 5000)
+          setTimeout(() => checkUpdates(1), 8000)
         } else if (res.status === 'error' && localSawRunning) {
           clearInterval(interval)
           setPollInterval(null)
@@ -3285,9 +3288,11 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
                 setNodeRestarting(false)
                 setUpdateCompleted(true)
                 setUpdateInfo(null)
-                setMsg({ type: 'success', text: 'Nodo actualizado correctamente.' })
-                // Re-verificar actualizaciones despues de completar
-                setTimeout(() => checkUpdates(), 2000)
+                setMsg({ type: 'success', text: 'Nodo actualizado correctamente. Verificando nueva version...' })
+                // Re-verificar actualizaciones varias veces despues de completar
+                setTimeout(() => checkUpdates(1), 2000)
+                setTimeout(() => checkUpdates(1), 5000)
+                setTimeout(() => checkUpdates(1), 8000)
               } else if (status.status === 'error' && localSawRunning) {
                 clearInterval(interval)
                 setPollInterval(null)
@@ -3319,19 +3324,24 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
     setPollInterval(interval)
   }
 
-  const checkUpdates = async () => {
-    setChecking(true)
-    // Limpiar info anterior inmediatamente para no mostrar datos stale
-    setUpdateInfo(null)
-    setMsg(null)
+  const checkUpdates = async (retryCount = 0) => {
+    if (retryCount === 0) {
+      setChecking(true)
+      // Limpiar info anterior inmediatamente para no mostrar datos stale
+      setUpdateInfo(null)
+      setMsg(null)
+    }
     try {
-      const res: any = await api.get('/node/check-updates')
-      setUpdateInfo(res)
+      // Cache-busting: agregar timestamp para evitar cualquier cache HTTP/browser
+      const res: any = await api.get(`/node/check-updates?_t=${Date.now()}`)
+      if (res) {
+        setUpdateInfo(res)
+      }
     } catch (e: any) {
       // Si el nodo no responde, intentar via updater-controller directamente
       try {
         const host = window.location.hostname
-        const resp = await fetch(`http://${host}:9110/check`)
+        const resp = await fetch(`http://${host}:9110/check?_t=${Date.now()}`)
         const result = await resp.json()
         if (result) {
           setUpdateInfo({
@@ -3348,7 +3358,9 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
         setMsg({ type: 'error', text: 'No se puede conectar con el nodo ni con el updater-controller. Verifica que los contenedores esten corriendo.' })
       }
     } finally {
-      setChecking(false)
+      if (retryCount === 0) {
+        setChecking(false)
+      }
     }
   }
 
@@ -3732,7 +3744,7 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
             </button>
             <div className="w-px h-8 bg-gray-300 mx-1" />
             <button
-              onClick={checkUpdates}
+              onClick={() => checkUpdates()}
               disabled={checking}
               className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
             >
