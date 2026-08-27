@@ -1856,6 +1856,38 @@ Or when all signatures are collected:
 
 **POST `/multisig/payments/{id}/cancel`** — Requires JWT auth
 
+#### Get Multi-Sig Config
+
+**GET `/multisig/config`** — Requires JWT auth
+
+Response:
+```json
+{
+  "node_domain": "aldea-semilla-viva.org",
+  "expiration_minutes": 10,
+  "notify_signers": true,
+  "notification_message": "Tienes un pago pendiente que requiere tu firma. Ingresa al sistema para confirmar."
+}
+```
+
+#### Update Multi-Sig Config
+
+**POST `/multisig/config`** — Requires JWT + `config.manage` permission
+
+Request:
+```json
+{
+  "expiration_minutes": 5,
+  "notify_signers": true,
+  "notification_message": "Tienes un pago pendiente que requiere tu firma. Ingresa al sistema para confirmar."
+}
+```
+
+The app should:
+- Call `GET /multisig/config` on startup to know the expiration time.
+- Show a **countdown timer** during multi-sig signing.
+- If the timer expires, show "Tiempo agotado. El pago ha sido cancelado."
+
 #### Sign Pending Payment via NFC Terminal
 
 **POST `/nfc/terminal/payment/multisig-sign`** — Terminal Ed25519 auth
@@ -1911,7 +1943,7 @@ Or when complete:
 - **Signers can tap in ANY order.** There is no required sequence.
 - **Each signer uses their OWN card + their OWN PIN.** The app must not reuse the first signer's card.
 - **The same signer cannot sign twice.** The backend rejects duplicate signatures.
-- **Pending payments expire after 24 hours** if not all signatures are collected.
+- **Pending payments expire after 10 minutes by default** (configurable per node via `multisig_config.expiration_minutes`, max 1440 minutes = 24 hours). The app must show a countdown timer. If the timer expires, the payment is cancelled automatically.
 - **Pending payments can be cancelled** by any authorized signer.
 - **The app must display the remaining signature count** clearly after each tap.
 - **If a signer's card is UID-only and the node requires ID document**, each signer must also enter their ID document number.

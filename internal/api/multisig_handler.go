@@ -38,6 +38,10 @@ func (h *MultiSigHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 
 	// Cancelar un pago pendiente
 	r.With(am.RequireAuth).Post("/api/multisig/payments/{id}/cancel", h.cancelPendingPayment)
+
+	// Configuracion multi-sig del nodo (ver y actualizar)
+	r.With(am.RequireAuth).Get("/api/multisig/config", h.getMultisigConfig)
+	r.With(am.RequirePermission("config.manage")).Post("/api/multisig/config", h.updateMultisigConfig)
 }
 
 // listPendingPayments lista los pagos pendientes para la cuenta del usuario
@@ -169,4 +173,75 @@ func (h *MultiSigHandler) cancelPendingPayment(w http.ResponseWriter, r *http.Re
 		return
 	}
 	writeJSON(w, 200, map[string]string{"status": "cancelled"})
+}
+
+// getMultisigConfig devuelve la configuracion multi-sig del nodo
+func (h *MultiSigHandler) getMultisigConfig(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = h.MultiSig.NodeDomain
+	}
+
+	var expirationMinutes int
+	var notifySigners bool
+	var notificationMessage string
+	err := h.Pool.QueryRow(r.Context(), `
+		SELECT expiration_minutes, notify_signers, notification_message
+		FROM multisig_config WHERE node_domain = $1`, nodeDomain,
+	).Scan(&expirationMinutes, &notifySigners, &notificationMessage)
+	if err != nil {
+		// Config por defecto
+		writeJSON(w, 200, map[string]interface{}{
+			"node_domain":          nodeDomain,
+			"expiration_minutes":   10,
+			"notify_signers":       true,
+			"notification_message": "Tienes un pago pendiente que requiere tu firma. Ingresa al sistema para confirmar.",
+		})
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{
+		"node_domain":          nodeDomain,
+		"expiration_minutes":   expirationMinutes,
+		"notify_signers":       notifySigners,
+		"notification_message": notificationMessage,
+	})
+}
+
+// updateMultisigConfig actualiza la configuracion multi-sig del nodo
+func (h *MultiSigHandler) updateMultisigConfig(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = h.MultiSig.NodeDomain
+	}
+
+	var body struct {
+		ExpirationMinutes   int    `json:"expiration_minutes"`
+		NotifySigners       bool   `json:"notify_signers"`
+		NotificationMessage string `json:"notification_message"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if body.ExpirationMinutes <= 0 {
+		body.ExpirationMinutes = 10
+	}
+	if body.ExpirationMinutes > 1440 {
+		body.ExpirationMinutes = 1440 // max 24 horas
+	}
+	if body.NotificationMessage == "" {
+		body.NotificationMessage = "Tienes un pago pendiente que requiere tu firma. Ingresa al sistema para confirmar."
+	}
+
+	_, err := h.Pool.Exec(r.Context(), `
+		INSERT INTO multisig_config (node_domain, expiration_minutes, notify_signers, notification_message)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (node_domain) DO UPDATE
+		SET expiration_minutes = $2, notify_signers = $3, notification_message = $4, updated_at = NOW()`,
+		nodeDomain, body.ExpirationMinutes, body.NotifySigners, body.NotificationMessage)
+	if err != nil {
+		writeError(w, 500, "error saving multisig config")
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{"success": true})
 }

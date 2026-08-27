@@ -74,14 +74,25 @@ func (m *MultiSigPayments) CreatePendingPayment(ctx context.Context, params Crea
 		return nil, fmt.Errorf("account does not require multi-sig")
 	}
 
+	// Obtener tiempo de expiracion configurado (default 10 minutos)
+	expirationMinutes := 10
+	_ = m.Pool.QueryRow(ctx, `
+		SELECT expiration_minutes FROM multisig_config WHERE node_domain = $1`,
+		m.NodeDomain,
+	).Scan(&expirationMinutes)
+	if expirationMinutes <= 0 {
+		expirationMinutes = 10
+	}
+
 	var p PendingMultiSigPayment
 	metadataJSON, _ := json.Marshal(params.Metadata)
 	err = m.Pool.QueryRow(ctx, `
 		INSERT INTO pending_multisig_payments
 			(node_domain, payment_type, from_account, to_account, amount,
 			 required_signatures, authorized_signers, status, payment_method,
-			 terminal_id, pos_charge_id, description, metadata)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $9, $10, $11, $12)
+			 terminal_id, pos_charge_id, description, metadata, expires_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $9, $10, $11, $12,
+		        NOW() + make_interval(mins => $13))
 		RETURNING id, node_domain, payment_type, from_account, to_account, amount,
 			required_signatures, authorized_signers, collected_signatures, status,
 			payment_method, terminal_id, pos_charge_id, description, metadata,
@@ -89,6 +100,7 @@ func (m *MultiSigPayments) CreatePendingPayment(ctx context.Context, params Crea
 		m.NodeDomain, params.PaymentType, params.FromAccount, params.ToAccount, params.Amount,
 		reqSigs, signers, params.PaymentMethod,
 		params.TerminalID, params.PosChargeID, params.Description, metadataJSON,
+		expirationMinutes,
 	).Scan(&p.ID, &p.NodeDomain, &p.PaymentType, &p.FromAccount, &p.ToAccount, &p.Amount,
 		&p.RequiredSignatures, &p.AuthorizedSigners, &p.CollectedSignatures, &p.Status,
 		&p.PaymentMethod, &p.TerminalID, &p.PosChargeID, &p.Description, &p.Metadata,
