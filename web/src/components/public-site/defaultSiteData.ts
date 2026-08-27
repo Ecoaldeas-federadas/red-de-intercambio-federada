@@ -1070,22 +1070,12 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
       },
       {
         type: 'faq',
-        title: 'Preguntas Frecuentes de Visitantes y Productores',
+        title: 'Para Visitantes y Compradores',
         items: [
           {
             question: '¿Necesito ser miembro de la feria para comprar productos?',
             answer:
               '¡No! Nuestro evento mensual es un mercado a cielo abierto abierto a todo el público general. Cualquier persona puede venir y comprar hortalizas frescas, tubérculos, quesos, panes, botica natural y comida artesanal directamente de los productores pagando en moneda local.',
-          },
-          {
-            question: '¿Quiénes pueden participar en los intercambios de trueque?',
-            answer:
-              'El trueque directo y el sistema de crédito mutuo (Trueque TQ) está disponible para los miembros y colectivos registrados en la red. Si deseas participar formalmente en los intercambios de crédito mutuo o traer tu propia producción a la feria, puedes llenar la solicitud de admisión para ser evaluado por la asamblea.',
-          },
-          {
-            question: '¿Cómo se organiza la feria más allá del día de mercado?',
-            answer:
-              'La feria tiene una vida organizativa continua: celebramos Asambleas Generales cada 3 meses para la toma de decisiones colectivas, estructuramos comisiones temáticas periódicas (logística, comunicación, bioinsumos, cultura), realizamos talleres formativos presenciales y organizamos cayapas y visitas a los conucos.',
           },
           {
             question: '¿Cuándo y en qué horario se realiza el mercado mensual?',
@@ -1106,6 +1096,287 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
             question: '¿Qué actividades culturales y formativas se realizan durante la feria?',
             answer:
               'En cada jornada mensual se ofrecen talleres gratuitos de siembra y lombricultura, trueque libre de semillas criollas, intercambio de libros ("Dona y adopta un libro"), música popular en vivo y actividades lúdicas para niños y familias.',
+          },
+          {
+            question: '¿Puedo pagar con tarjeta de débito o crédito?',
+            answer:
+              'El comercio exterior (ventas al público general) se realiza en moneda local del país (pesos, bolívares, soles, etc.). Algunos puestos pueden aceptar transferencias o pagos digitales, pero le recomendamos traer efectivo. El trueque interno entre miembros funciona con la moneda TQ, pero eso es solo para miembros registrados.',
+          },
+          {
+            question: '¿Puedo llevar mis propios productos para vender?',
+            answer:
+              'Para vender necesitas ser miembro registrado. Si eres productor agroecológico, artesano o tienes un emprendimiento compatible con los valores de la feria, puedes solicitar admisión. La asamblea evaluará tu solicitud y, si eres aceptado, recibirás un puesto y acceso al sistema de trueque.',
+          },
+          {
+            question: '¿La feria es solo para productores agroecológicos?',
+            answer:
+              'No necesariamente. Aunque la agroecología es nuestro corazón, también hay lugar para artesanos, productores de alimentos procesados (panes, quesos, conservas), herbolaria, productos de higiene natural, y servicios comunitarios. Lo importante es que lo que ofrezcas sea coherente con los valores de cuidado de la tierra y el trueque.',
+          },
+        ],
+      },
+      {
+        type: 'faq',
+        title: 'Sobre el Trueque y la Moneda TQ',
+        items: [
+          {
+            question: '¿Qué es la moneda TQ?',
+            answer:
+              'TQ es la unidad de medida del trueque interno entre miembros. No es dinero físico ni se puede comprar ni vender por dinero. Es una unidad contable que mide cuánto aportas y cuánto recibes dentro de la comunidad. 1 TQ equivale a 1 kWh de energía, es decir, a una hora de trabajo humano. No tiene inflación porque no está atada al dólar ni al oro, sino a las leyes de la física.',
+          },
+          {
+            question: '¿Por qué el saldo perfecto es cero?',
+            answer:
+              'El objetivo de todo miembro es que su saldo sea cero. Si tu saldo está en cero, significa que has aportado a la comunidad exactamente lo mismo que has recibido de ella. Eso es equilibrio. Si tu saldo está muy negativo, significa que estás recibiendo mucho pero aportando poco: tienes que aportar más para llegar a cero. Si tu saldo está muy positivo, significa que estás aportando mucho pero no aprovechando lo que la comunidad ofrece: tienes que recibir más para llegar a cero. El saldo cero es la meta de todos.',
+          },
+          {
+            question: '¿Es preferible tener saldo positivo o negativo?',
+            answer:
+              'Técnicamente, si tu saldo está en positivo es porque alguien más está en negativo. Lo ideal es que todos tiendan a cero. Pero si vas a estar en un lado, es preferible estar ligeramente en positivo (aportando un poco más de lo que recibes) que en negativo (recibiendo más de lo que aportas). Un saldo muy negativo sostenido significa que la comunidad te está sosteniendo, y eso no es sostenible a largo plazo.',
+          },
+          {
+            question: '¿Qué pasa si mi saldo se va muy negativo?',
+            answer:
+              'Si tu saldo baja demasiado, el sistema te avisa. Tienes que aportar más (vender productos, ofrecer trabajo, dar talleres) para subir tu saldo. Si no logras subirlo, la asamblea puede revisar tu caso. La idea no es castigar, sino ayudarte a encontrar equilibrio. Pero si una persona solo recibe y nunca aporta, la asamblea puede decidir que ya no puede seguir en el sistema.',
+          },
+          {
+            question: '¿Por qué para entrar a la comunidad tengo que tener algo que aportar?',
+            answer:
+              'Porque el trueque funciona así: tú aportas algo que la comunidad necesita, y la comunidad te aporta algo que tú necesitas. Si entras sin nada que aportar, solo estarías recibiendo de los demás sin devolver nada. Eso desequilibra el sistema y no es justo para los demás miembros. Muchas monedas comunitarias fracasan precisamente porque entra mucha gente que solo quiere recibir y poca gente que aporta. Por eso, antes de entrar, tienes que preguntarte: ¿Qué tengo yo que la comunidad pueda necesitar? ¿Qué tiene la comunidad que yo pueda necesecer? Si ambas respuestas son positivas, vale la pena que te integres.',
+          },
+          {
+            question: '¿Qué cosas puedo aportar?',
+            answer:
+              'Puedes aportar productos (frutas, verduras, huevos, panes, artesanías, conservas, medicina natural), servicios (reparaciones, transporte, clases, cuidado de niños, peluquería), trabajo (ayuda en conucos, construcción, limpieza, organización de eventos), o conocimientos (talleres, asesorías, mentorías). Todo lo que la comunidad valore puede ser un aporte. No tiene que ser solo cosas materiales: el tiempo y el talento también cuentan.',
+          },
+          {
+            question: '¿Cómo sé si vale la pena integrarme a la comunidad?',
+            answer:
+              'Hazte estas preguntas antes de solicitar admisión: 1) ¿Tengo algo que aportar que la comunidad pueda necesitar? (productos, trabajo, talentos, servicios). 2) ¿Tiene la comunidad algo que yo necesite o me interese? (alimentos, trabajo, servicios, conexión con otras personas). 3) ¿Estoy dispuesto a participar activamente, no solo a recibir? Si las tres respuestas son sí, entonces vale la pena que te integres. Si solo quieres recibir pero no tienes nada que aportar, el trueque no te va a funcionar.',
+          },
+          {
+            question: '¿La moneda TQ tiene inflación?',
+            answer:
+              'No. La moneda TQ no tiene inflación porque no está atada al dinero de ningún país ni al oro. Está atada a la energía: 1 TQ = 1 kWh. La energía no se devalúa. Una hora de trabajo hoy vale lo mismo que una hora de trabajo dentro de 10 años. Esto significa que lo que ahorras en TQ mantiene su valor real con el tiempo, a diferencia del dinero en el banco que pierde valor cada mes por la inflación.',
+          },
+          {
+            question: '¿Puedo acumular TQ para hacerme "rico"?',
+            answer:
+              'El sistema no está diseñado para que nadie se haga rico acumulando números. El objetivo es el equilibrio: aportar y recibir en proporción similar. Acumular mucho TQ significa que estás aportando mucho pero no aprovechando lo que la comunidad ofrece. En lugar de acumular TQ, te invitamos a acumular riqueza real y tangible: tu vivienda, tu conuco, tus herramientas, tus semillas, tus relaciones comunitarias. Eso sí es riqueza de verdad.',
+          },
+          {
+            question: '¿Qué son los límites de crédito?',
+            answer:
+              'Los límites de crédito son como escalones de confianza. Un miembro nuevo inicia con un límite bajo, equivalente a su canasta básica familiar, para proteger a la comunidad. A medida que participas, aportas y demuestras compromiso, la asamblea puede subir tu límite. No es un castigo ni una restricción: es una medida de protección para que nadie entre, reciba mucho y se vaya sin aportar.',
+          },
+          {
+            question: '¿Las ventas al público se mezclan con el trueque?',
+            answer:
+              '¡No! Las ventas al público general son externas y se pagan en moneda local del país (pesos, bolívares, etc.). El trueque TQ es solo entre miembros registrados. Los compradores externos no tienen cuentas TQ ni participan del trueque. Esto es muy importante: no podemos mezclar las ventas al público con el trueque, porque son cosas distintas con reglas distintas.',
+          },
+          {
+            question: '¿Qué pasa si quiero salir de la comunidad?',
+            answer:
+              'Puedes salir cuando quieras. Lo ideal es que antes de salir, tu saldo esté en cero o cercano a cero. Si tu saldo está muy negativo (recibiste más de lo que aportaste), la asamblea puede pedirte que aportes algo antes de irte para equilibrar tu cuenta. Si tu saldo está positivo, simplemente pierdes ese saldo al salir, ya que el TQ no tiene valor fuera de la comunidad.',
+          },
+        ],
+      },
+      {
+        type: 'faq',
+        title: 'Para Quienes Quieren Unirse',
+        items: [
+          {
+            question: '¿Quiénes pueden solicitar admisión?',
+            answer:
+              'Cualquier persona, familia, cooperativa o colectivo que tenga algo que aportar a la comunidad y que esté dispuesto a participar activamente. Esto incluye productores agroecológicos, artesanos, personas con oficios (carpintería, costura, reparaciones), profesionales que quieran ofrecer servicios, y personas dispuestas a aportar su trabajo y talento.',
+          },
+          {
+            question: '¿Cómo sé si soy apto para integrarme?',
+            answer:
+              'La métrica inicial es simple: ¿Tienes algo que aportar que la comunidad necesite? ¿Tiene la comunidad algo que tú necesites? Si ambas respuestas son positivas, eres un buen candidato. Si solo quieres recibir pero no tienes nada que aportar, el sistema no te va a funcionar. El trueque requiere que ambos lados ganen: tú aportas algo y recibes algo a cambio.',
+          },
+          {
+            question: '¿Qué evalúa la asamblea antes de aceptar a alguien?',
+            answer:
+              'La asamblea evalúa: 1) ¿Qué aporta esta persona a la comunidad? (productos, trabajo, talentos, servicios). 2) ¿Hay interés en la comunidad por lo que esta persona aporta? 3) ¿Hay cosas en la comunidad que esta persona pueda necesecer o recibir? 4) ¿Esta persona entiende y comparte los valores del trueque y la agroecología? 5) ¿Está dispuesta a participar activamente en asambleas y actividades?',
+          },
+          {
+            question: '¿Necesito tener tierra o un conuco para entrar?',
+            answer:
+              'No necesariamente. Hay miembros que son productores con tierra, pero también hay artesanos, panaderos, herbolarios, personas que ofrecen servicios, y personas que aportan su trabajo en los conucos de otros. Lo importante no es qué tienes, sino qué puedes aportar con lo que tienes.',
+          },
+          {
+            question: '¿Puedo entrar si solo quiero consumir productos sanos?',
+            answer:
+              'Si solo quieres consumir, puedes venir a la feria como visitante y comprar en moneda local. Para ser miembro del trueque interno, necesitas aportar algo. No puedes solo recibir. Si quieres ser miembro pero no tienes productos, puedes aportar trabajo: ayudar en la organización, en los conucos, en la logística, dar talleres, etc.',
+          },
+          {
+            question: '¿Cuánto tiempo toma el proceso de admisión?',
+            answer:
+              'Depende de cada comunidad. Generalmente: llenas la solicitud, la asamblea la revisa en su próxima reunión, te invitan a una entrevista o visita, y luego votan. Puede tomar de unas semanas a un mes. Mientras esperas, puedes participar en las ferias como visitante y conocer a los miembros.',
+          },
+          {
+            question: '¿Qué compromisos asumo al ser miembro?',
+            answer:
+              'Al ser miembro te comprometes a: 1) Aportar algo a la comunidad de forma regular. 2) Mantener tu saldo TQ cercano a cero. 3) Participar en las asambleas (presenciales o digitales). 4) Respetar los valores de agroecología, trueque y cuidado de la tierra. 5) Ser honesto en tus intercambios. 6) No acumular saldo negativo sin plan para recuperarlo.',
+          },
+          {
+            question: '¿Puedo entrar siendo parte de otra comunidad o red?',
+            answer:
+              'Sí, siempre y cuando no haya conflicto de intereses. Muchos miembros participan en varias redes. La idea es sumar, no excluir. Si ya eres parte de otra comunidad de trueque, nos encantará conocer tu experiencia y aprender de ella.',
+          },
+        ],
+      },
+      {
+        type: 'faq',
+        title: 'Sobre la Organización y las Asambleas',
+        items: [
+          {
+            question: '¿Cómo se organiza la feria más allá del día de mercado?',
+            answer:
+              'La feria tiene una vida organizativa continua: celebramos Asambleas Generales cada 3 meses para la toma de decisiones colectivas, estructuramos comisiones temáticas periódicas (logística, comunicación, bioinsumos, cultura), realizamos talleres formativos presenciales y organizamos cayapas y visitas a los conucos.',
+          },
+          {
+            question: '¿Qué es una asamblea y por qué es importante?',
+            answer:
+              'La asamblea es el espacio donde todos los miembros toman decisiones juntos. No hay un jefe ni un dueño: las decisiones se toman colectivamente, por consenso o por votación. La asamblea decide quién entra, quién sale, cómo se reparten los recursos, qué reglas se cambian, y cómo se resuelven los conflictos. Si no participas en la asamblea, no tienes voz en las decisiones que afectan a la comunidad.',
+          },
+          {
+            question: '¿Tengo que asistir a todas las asambleas?',
+            answer:
+              'Se espera que los miembros participen en las asambleas, pero entendemos que a veces no es posible asistir físicamente. Por eso existe la asamblea digital: puedes participar y votar desde tu teléfono o computadora. Lo importante es que tu voz se escuche, aunque no puedas estar presente.',
+          },
+          {
+            question: '¿Cómo se toman las decisiones en la asamblea?',
+            answer:
+              'Por defecto, las decisiones se toman por consenso: se busca que todos estén de acuerdo. Si no hay consenso, se vota. El umbral de aprobación por defecto es del 100%, lo que significa que una decisión se aprueba solo si nadie se opone. Esto asegura que las decisiones sean verdaderamente colectivas y que nadie quede marginado.',
+          },
+          {
+            question: '¿Qué pasa si no estoy de acuerdo con una decisión?',
+            answer:
+              'Puedes expresar tu desacuerdo en la asamblea. Tu voz cuenta. Si una decisión se aprueba y tú no estás de acuerdo, puedes proponer revisarla en la próxima asamblea. La comunidad escucha a sus miembros. Si un miembro sistemáticamente no está de acuerdo con nada, puede ser que esta comunidad no sea el lugar adecuado para esa persona.',
+          },
+          {
+            question: '¿Quién puede proponer cambios?',
+            answer:
+              'Cualquier miembro puede proponer cambios: nuevos productos, nuevas reglas, nuevos miembros, nuevas actividades. La propuesta se presenta en la asamblea y se discute colectivamente. No hay jerarquías: la palabra de un miembro nuevo vale igual que la de un miembro antiguo.',
+          },
+          {
+            question: '¿Qué son las comisiones?',
+            answer:
+              'Las comisiones son grupos de miembros que se encargan de áreas específicas: logística, comunicación, bioinsumos, cultura, educación, etc. Cada comisión tiene cierta autonomía para tomar decisiones dentro de su área, pero siempre rinde cuentas a la asamblea general. Cualquier miembro puede unirse a una comisión.',
+          },
+          {
+            question: '¿Qué es una cayapa?',
+            answer:
+              'Una cayapa es un trabajo colectivo donde varios miembros se juntan para ayudar a uno de ellos con una tarea grande: preparar un terreno, construir una casa, cosechar, etc. Es una forma de mutualidad: hoy te ayudamos tú, mañana ayudamos a otro. Las cayapas son el corazón del trueque de trabajo.',
+          },
+        ],
+      },
+      {
+        type: 'faq',
+        title: 'Sobre la Federación y Otras Comunidades',
+        items: [
+          {
+            question: '¿Qué significa que esta comunidad sea parte de una federación?',
+            answer:
+              'Significa que nuestra comunidad no está sola. Somos parte de una red de comunidades que comparten los mismos principios de trueque, agroecología y gobernanza asamblearia. Cada comunidad es autónoma y toma sus propias decisiones internas, pero todas usamos el mismo sistema de trueque, la misma moneda TQ, y los mismos protocolos de comunicación. Esto nos permite comerciar entre comunidades cuando es beneficioso para todos.',
+          },
+          {
+            question: '¿Puedo usar mi saldo TQ en otra comunidad federada?',
+            answer:
+              'Sí, esa es una de las ventajas de la federación. Si vas a otra comunidad federada, puedes usar tu tarjeta NFC o tu cuenta para intercambiar. Pero recuerda: el saldo sigue siendo el mismo. Si gastas en otra comunidad, tu saldo baja aquí. La federación no crea dinero nuevo, solo amplía el espectro de lo que puedes recibir.',
+          },
+          {
+            question: '¿Qué pasa mientras hay pocas comunidades federadas?',
+            answer:
+              'Al principio, con pocas comunidades, el espectro de lo que puedes aportar y recibir es más limitado. Por eso es crucial que cada comunidad que se federé garantice que sus miembros tienen algo real que aportar. A medida que más comunidades se federen, el espectro se amplía: más productos, más servicios, más lugares donde aportar trabajo, más cosas que recibir. La federación se hace más sólida cuantas más comunidades participen.',
+          },
+          {
+            question: '¿Mi comunidad tiene que usar el mismo software?',
+            answer:
+              'Sí, todas las comunidades federadas usan el mismo software base, porque es la única forma de garantizar que los intercambios funcionen correctamente entre comunidades. Pero cada comunidad puede personalizar los colores, textos, idioma, y reglas internas de su plataforma. La base técnica es compartida, pero la identidad de cada comunidad es propia.',
+          },
+          {
+            question: '¿Una comunidad nueva puede crear su propio software?',
+            answer:
+              'El software es de código abierto, lo que significa que cualquiera puede verlo, modificarlo y adaptarlo. Pero para federarse, tiene que usar el mismo protocolo de comunicación. Si alguien quiere desarrollar una versión distinta del software, puede hacerlo, siempre y cuando sea 100% compatible con el protocolo federado. La idea es que todas las comunidades puedan comunicarse e intercambiar sin problemas.',
+          },
+          {
+            question: '¿Quién gobierna la federación?',
+            answer:
+              'La federación se gobierna por votación de todos los nodos federados. Cada comunidad (nodo) tiene un voto. Las decisiones que afectan a toda la federación (como la canasta básica TQ, el límite de crédito global, o la expulsión de un nodo problemático) se toman colectivamente. Ninguna comunidad puede imponer reglas sobre las demás.',
+          },
+        ],
+      },
+      {
+        type: 'faq',
+        title: 'Sobre las Tarjetas NFC y el POS',
+        items: [
+          {
+            question: '¿Qué es la tarjeta NFC y cómo funciona?',
+            answer:
+              'La tarjeta NFC es como una tarjeta de identidad del trueque. La acercas al terminal POS y este reconoce quién eres. Cada tarjeta tiene un chip que la hace única e inimitable. Con ella puedes recibir pagos por tus productos, pagar por lo que recibes, y consultar tu saldo. Es más segura que una contraseña porque usa criptografía de nivel bancario.',
+          },
+          {
+            question: '¿Qué pasa si pierdo mi tarjeta?',
+            answer:
+              'Avísale al administrador de la comunidad inmediatamente. El puede desactivar tu tarjeta perdida y emitirte una nueva. Nadie puede usar tu tarjeta perdida una vez que está desactivada. Tu saldo no se pierde: está asociado a tu cuenta, no a la tarjeta física.',
+          },
+          {
+            question: '¿Necesito tener la tarjeta para participar?',
+            answer:
+              'La tarjeta NFC es la forma más fácil y segura de participar en los intercambios. Si no tienes tarjeta, también puedes usar códigos QR desde tu teléfono. La comunidad te puede ayudar a conseguir una tarjeta si eres miembro.',
+          },
+          {
+            question: '¿El terminal POS funciona sin internet?',
+            answer:
+              'El terminal POS puede funcionar sin internet por un tiempo, guardando las transacciones localmente. Cuando recupera conexión, sincroniza con el servidor. Esto es útil para ferias en lugares sin buena señal. Pero es importante que sincronice pronto para evitar problemas.',
+          },
+          {
+            question: '¿Puedo ver mi saldo desde mi teléfono?',
+            answer:
+              'Sí, si la comunidad tiene la aplicación móvil instalada, puedes ver tu saldo, tu historial de transacciones, y participar en asambleas digitales desde tu teléfono. Pregúntale al administrador cómo acceder.',
+          },
+          {
+            question: '¿Qué es el emparejamiento del terminal?',
+            answer:
+              'Cuando un terminal POS nuevo llega a la comunidad, necesita ser "emparejado" con el servidor. El administrador genera un código de 6 dígitos que el terminal usa para registrarse. Una vez emparejado, el terminal sabe quién es y puede operar. Si el terminal se pierde o se daña, el administrador puede desactivarlo desde el panel y emparejar uno nuevo.',
+          },
+        ],
+      },
+      {
+        type: 'faq',
+        title: 'Preguntas que Debes Hacerte Antes de Entrar',
+        items: [
+          {
+            question: '¿Tengo algo que aportar?',
+            answer:
+              'Esta es la pregunta más importante. El trueque funciona porque todos aportan y todos reciben. Si no tienes nada que aportar, el sistema no te va a funcionar. Aportar puede ser: productos de tu conuco o huerta, artesanías, alimentos procesados, servicios (reparaciones, clases, transporte), trabajo (ayuda en conucos, construcción, organización), o conocimientos (talleres, asesorías). Todo cuenta. Lo importante es que la comunidad valore lo que tú aportas.',
+          },
+          {
+            question: '¿Hay algo en la comunidad que yo necesite o me interese?',
+            answer:
+              'La otra cara del trueque: ¿qué tiene la comunidad que tú puedes recibir? Alimentos, trabajo, servicios, productos artesanales, conexión con personas afines, talleres, participación en eventos. Si nada de lo que la comunidad ofrece te interesa, no tiene sentido que te integres. El trueque es bidireccional: tú aportas y recibes.',
+          },
+          {
+            question: '¿Estoy dispuesto a participar activamente?',
+            answer:
+              'Ser miembro no es solo tener una cuenta. Es participar: asistir a asambleas, aportar de forma regular, ayudar en cayapas, respetar los valores de la comunidad. Si solo quieres tener una cuenta para recibir y nunca participar, el sistema no es para ti. La comunidad se sostiene con la participación de todos.',
+          },
+          {
+            question: '¿Comparto los valores de la agroecología y el trueque?',
+            answer:
+              'Nuestra comunidad se basa en el cuidado de la tierra, la agroecología, el trueque, y la mutualidad. Si no compartes estos valores, probablemente no te sentirás cómodo aquí. No es un requisito ser productor agroecológico, pero sí respetar y apoyar estos principios.',
+          },
+          {
+            question: '¿Estoy dispuesto a que mi saldo sea cero?',
+            answer:
+              'El objetivo del trueque no es acumular, sino equilibrar. Si tu meta es acumular mucho TQ para ser "rico", este sistema no es para ti. La meta es que tu saldo esté en cero: aportar lo que recibes. Si entiendes y aceptas esto, vas a disfrutar el trueque. Si no, vas a frustrarte.',
+          },
+          {
+            question: '¿Qué hago si mis respuestas son positivas?',
+            answer:
+              '¡Excelente! Si tienes algo que aportar, hay algo que te interesa recibir, y estás dispuesto a participar, puedes solicitar admisión. Llena la solicitud, asiste a una feria como visitante, conoce a los miembros, y presenta tu propuesta en la asamblea. Te recibiremos con los brazos abiertos.',
           },
         ],
       },

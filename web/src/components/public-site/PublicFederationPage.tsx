@@ -3,7 +3,8 @@ import { api } from '../../api'
 import {
   Globe, Users, Network, Leaf, Heart, Scale, ArrowRight, Check,
   Sparkles, MessageSquare, ThumbsUp, Send, Menu, X, Home, Copy, Share2,
-  Power, Loader2, ExternalLink, AlertCircle, CheckCircle, Code
+  Power, Loader2, ExternalLink, AlertCircle, CheckCircle, Code,
+  ChevronUp, ChevronDown
 } from 'lucide-react'
 
 const SHARE_MESSAGE = `¿El mayor reto de crear una ecoaldea? No es comprar el terreno... es ponerse de acuerdo. 🏡🤝
@@ -843,11 +844,132 @@ export function PublicFederationPage() {
         </div>
       </section>
 
+      {/* FAQ - Preguntas frecuentes sobre la federacion */}
+      <section className="bg-gray-50 py-16">
+        <div className="max-w-4xl mx-auto px-6">
+          <h2 className="text-3xl font-bold text-gray-800 mb-4 text-center">
+            Preguntas Frecuentes sobre la Federacion
+          </h2>
+          <p className="text-gray-600 text-center mb-10 max-w-2xl mx-auto">
+            Resolvemos las dudas mas comunes sobre como funciona la red de comunidades federadas,
+            el trueque, y como sumarte.
+          </p>
+          <FederationFaq />
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="bg-gray-900 text-gray-400 py-8 text-center text-sm">
         <p>Red de Intercambio Federada - Plataforma libre para ecoaldeas y comunidades</p>
         <p className="mt-1">Gratis, configurable, federada. Abierta a aportes.</p>
       </footer>
+    </div>
+  )
+}
+
+// ============================================
+// FAQ - Preguntas frecuentes sobre la federacion
+// ============================================
+const FEDERATION_FAQS = [
+  {
+    q: '¿Para que sirve federarse? ¿No es mejor que cada comunidad funcione sola?',
+    a: 'Cada comunidad es autónoma y toma sus propias decisiones internas. Pero federarse tiene ventajas: puedes intercambiar con miembros de otras comunidades, el espectro de lo que puedes aportar y recibir se amplía, y las comunidades se apoyan mutuamente. Una comunidad sola es frágil; una red de comunidades es robusta. Si una comunidad tiene problemas, las demás pueden ayudar.',
+  },
+  {
+    q: '¿Tengo que aportar algo para entrar a una comunidad federada?',
+    a: 'Sí. Esta es la regla más importante: para entrar tienes que tener algo que aportar. Puede ser productos, trabajo, talentos, servicios, o conocimientos. Si solo quieres recibir pero no tienes nada que aportar, el trueque no te va a funcionar. Muchas monedas comunitarias fracasan porque entra mucha gente que solo quiere recibir y poca gente que aporta. Por eso, antes de entrar, pregúntate: ¿Qué tengo yo que la comunidad pueda necesitar? ¿Qué tiene la comunidad que yo pueda necesecer? Si ambas respuestas son positivas, vale la pena que te integres.',
+  },
+  {
+    q: '¿Por que el saldo perfecto es cero?',
+    a: 'El objetivo de todo miembro es que su saldo sea cero. Si tu saldo está en cero, significa que has aportado a la comunidad exactamente lo mismo que has recibido de ella. Eso es equilibrio. Si tu saldo está muy negativo, estás recibiendo mucho pero aportando poco: tienes que aportar más. Si está muy positivo, estás aportando mucho pero no aprovechando lo que la comunidad ofrece. El saldo cero es la meta de todos.',
+  },
+  {
+    q: '¿Que pasa si solo quiero recibir de la comunidad pero no tengo nada que aportar?',
+    a: 'El trueque no funciona así. El trueque requiere que ambos lados ganen: tú aportas algo y recibes algo a cambio. Si entras sin nada que aportar, solo estarías recibiendo de los demás sin devolver nada. Eso desequilibra el sistema y no es justo. Si quieres consumir productos de la feria sin ser miembro, puedes venir como visitante y comprar en moneda local. Para ser miembro del trueque, necesitas aportar.',
+  },
+  {
+    q: '¿Puedo usar mi saldo TQ en otra comunidad de la federacion?',
+    a: 'Sí. Esa es una de las ventajas de la federación. Si vas a otra comunidad federada, puedes usar tu tarjeta NFC o tu cuenta para intercambiar. Pero recuerda: el saldo sigue siendo el mismo. Si gastas en otra comunidad, tu saldo baja. La federación no crea dinero nuevo, solo amplía el espectro de lo que puedes recibir.',
+  },
+  {
+    q: '¿Mi comunidad tiene que usar el mismo software que las demas?',
+    a: 'Sí, todas las comunidades federadas usan el mismo software base porque es la única forma de garantizar que los intercambios funcionen correctamente entre comunidades. Pero cada comunidad puede personalizar los colores, textos, idioma, y reglas internas de su plataforma. La base técnica es compartida, pero la identidad de cada comunidad es propia. El software es de código abierto, así que cualquiera puede auditarlo y adaptarlo.',
+  },
+  {
+    q: '¿Que pasa mientras hay pocas comunidades federadas?',
+    a: 'Al principio, con pocas comunidades, el espectro de lo que puedes aportar y recibir es más limitado. Por eso es crucial que cada comunidad que se federé garantice que sus miembros tienen algo real que aportar. A medida que más comunidades se federen, el espectro se amplía: más productos, más servicios, más lugares donde aportar trabajo, más cosas que recibir. La federación se hace más sólida cuantas más comunidades participen.',
+  },
+  {
+    q: '¿Quien gobierna la federacion?',
+    a: 'La federación se gobierna por votación de todos los nodos federados. Cada comunidad (nodo) tiene un voto. Las decisiones que afectan a toda la federación (como la canasta básica TQ, el límite de crédito global, o la expulsión de un nodo problemático) se toman colectivamente. Ninguna comunidad puede imponer reglas sobre las demás.',
+  },
+  {
+    q: '¿La moneda TQ tiene inflacion?',
+    a: 'No. La moneda TQ no tiene inflación porque no está atada al dinero de ningún país ni al oro. Está atada a la energía: 1 TQ = 1 kWh. La energía no se devalúa. Una hora de trabajo hoy vale lo mismo que una hora de trabajo dentro de 10 años. Esto significa que lo que ahorras en TQ mantiene su valor real con el tiempo, a diferencia del dinero en el banco que pierde valor cada mes por la inflación.',
+  },
+  {
+    q: '¿Puedo acumular TQ para hacerme rico?',
+    a: 'El sistema no está diseñado para que nadie se haga rico acumulando números. El objetivo es el equilibrio: aportar y recibir en proporción similar. Acumular mucho TQ significa que estás aportando mucho pero no aprovechando lo que la comunidad ofrece. En lugar de acumular TQ, te invitamos a acumular riqueza real y tangible: tu vivienda, tu conuco, tus herramientas, tus semillas, tus relaciones comunitarias. Eso sí es riqueza de verdad.',
+  },
+  {
+    q: '¿Se mezclan las ventas al publico con el trueque?',
+    a: '¡No! Las ventas al público general son externas y se pagan en moneda local del país (pesos, bolívares, etc.). El trueque TQ es solo entre miembros registrados. Los compradores externos no tienen cuentas TQ ni participan del trueque. Esto es muy importante: no podemos mezclar las ventas al público con el trueque, porque son cosas distintas con reglas distintas.',
+  },
+  {
+    q: '¿Como se si vale la pena integrarme a una comunidad federada?',
+    a: 'Hazte estas tres preguntas: 1) ¿Tengo algo que aportar que la comunidad pueda necesitar? (productos, trabajo, talentos, servicios). 2) ¿Tiene la comunidad algo que yo necesite o me interese? (alimentos, trabajo, servicios, conexión con personas). 3) ¿Estoy dispuesto a participar activamente, no solo a recibir? Si las tres respuestas son sí, vale la pena que te integres. Si solo quieres recibir pero no tienes nada que aportar, el trueque no te va a funcionar.',
+  },
+  {
+    q: '¿Que cosas puedo aportar ademas de productos?',
+    a: 'Puedes aportar productos (frutas, verduras, huevos, panes, artesanías, conservas, medicina natural), servicios (reparaciones, transporte, clases, cuidado de niños, peluquería), trabajo (ayuda en conucos, construcción, limpieza, organización de eventos), o conocimientos (talleres, asesorías, mentorías). Todo lo que la comunidad valore puede ser un aporte. No tiene que ser solo cosas materiales: el tiempo y el talento también cuentan.',
+  },
+  {
+    q: '¿Necesito tener tierra o un conuco para entrar?',
+    a: 'No necesariamente. Hay miembros que son productores con tierra, pero también hay artesanos, panaderos, herbolarios, personas que ofrecen servicios, y personas que aportan su trabajo en los conucos de otros. Lo importante no es qué tienes, sino qué puedes aportar con lo que tienes.',
+  },
+  {
+    q: '¿Que pasa si mi saldo se va muy negativo?',
+    a: 'Si tu saldo baja demasiado, el sistema te avisa. Tienes que aportar más (vender productos, ofrecer trabajo, dar talleres) para subir tu saldo. Si no logras subirlo, la asamblea puede revisar tu caso. La idea no es castigar, sino ayudarte a encontrar equilibrio. Pero si una persona solo recibe y nunca aporta, la asamblea puede decidir que ya no puede seguir en el sistema.',
+  },
+  {
+    q: '¿Puedo salir de la comunidad cuando quiera?',
+    a: 'Sí. Lo ideal es que antes de salir, tu saldo esté en cero o cercano a cero. Si tu saldo está muy negativo (recibiste más de lo que aportaste), la asamblea puede pedirte que aportes algo antes de irte para equilibrar tu cuenta. Si tu saldo está positivo, simplemente pierdes ese saldo al salir, ya que el TQ no tiene valor fuera de la comunidad.',
+  },
+  {
+    q: '¿La federacion funciona sin internet?',
+    a: 'La federación puede funcionar de dos formas: por Internet público (cuando las comunidades están lejos) o por intranet comunitaria usando túneles WireGuard (cuando están cerca y no dependen de Internet público). Esto significa que incluso comunidades sin acceso a Internet pueden federarse si instalan OpenWrt y configuran los túneles.',
+  },
+  {
+    q: '¿Mi comunidad tiene que pagar para usar el software?',
+    a: 'No. El software es 100% gratuito y de código abierto. Cualquier comunidad puede instalarlo, usarlo, y adaptarlo sin pagar licencias. Lo único que necesitas es un servidor (puede ser una computadora modesta) y alguien con conocimientos básicos de informática para la instalación. La comunidad de desarrolladores ayuda con la configuración inicial.',
+  },
+]
+
+function FederationFaq() {
+  const [openIdx, setOpenIdx] = useState<number | null>(0)
+  return (
+    <div className="max-w-3xl mx-auto space-y-3">
+      {FEDERATION_FAQS.map((faq, idx) => {
+        const isOpen = openIdx === idx
+        return (
+          <div key={idx} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+            <button
+              onClick={() => setOpenIdx(isOpen ? null : idx)}
+              className="w-full p-4 sm:p-5 text-left flex items-center justify-between gap-4 hover:bg-gray-50 transition"
+            >
+              <span className="font-semibold text-gray-800 text-sm sm:text-base">{faq.q}</span>
+              <span className="p-1.5 rounded-full bg-emerald-100 text-emerald-700 flex-shrink-0">
+                {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </span>
+            </button>
+            {isOpen && (
+              <div className="px-4 sm:px-5 pb-5 pt-1 text-sm text-gray-600 leading-relaxed border-t border-gray-100">
+                {faq.a}
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
