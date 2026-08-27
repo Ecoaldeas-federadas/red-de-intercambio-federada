@@ -96,16 +96,51 @@ void setup() {
     }
     saveKeyPair(&terminalKeys);
 
-    showText("Registrando...", 1, 16);
-    if (!completeRegistration(&config, &terminalKeys, serverPubKey)) {
-      showText("Error registro", 2, 16);
-      while (1) delay(1000);
+    if (config.registrationToken.length() > 0) {
+      showText("Registrando...", 1, 16);
+      if (!completeRegistration(&config, &terminalKeys, serverPubKey)) {
+        showText("Error registro", 2, 16);
+        while (1) delay(1000);
+      }
+      saveServerPublicKey(serverPubKey);
+      showText("Registrado OK", 1, 24);
+    } else {
+      // Emparejamiento por codigo de 6 digitos
+      showText("Emparejando...", 1, 16);
+      String code = initiatePairing(&config, &terminalKeys, "community");
+      if (code.length() == 0) {
+        showText("Error emparejar", 2, 16);
+        while (1) delay(5000);
+      }
+
+      showText("Codigo:", 1, 16);
+      showText(code, 2, 24);
+      showText("Ingresa en panel", 3, 40);
+
+      while (true) {
+        delay(3000);
+        PairingPollResult pr = pollPairingStatus(&config, code);
+        if (pr.status == "approved") {
+          config.terminalId = pr.terminalId;
+          size_t len;
+          hexToBytes(pr.serverPubKey, serverPubKey, &len);
+          saveServerPublicKey(serverPubKey);
+          saveTerminalId(config.terminalId);
+          showText("Aprobado!", 1, 24);
+          break;
+        } else if (pr.status == "rejected") {
+          showText("Rechazado", 2, 24);
+          while (1) delay(5000);
+        } else if (pr.status == "expired") {
+          showText("Expirado", 2, 24);
+          while (1) delay(5000);
+        }
+      }
     }
-    saveServerPublicKey(serverPubKey);
-    showText("Registrado OK", 1, 24);
   } else {
     loadKeyPair(&terminalKeys);
     loadServerPublicKey(serverPubKey);
+    config.terminalId = loadTerminalId();
   }
 
   deriveSharedKey(terminalKeys.private_key, serverPubKey, sharedKey);

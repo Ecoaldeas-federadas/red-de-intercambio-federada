@@ -18,6 +18,7 @@ static const char* NVS_PRIV_KEY = "priv_key";
 static const char* NVS_PUB_KEY  = "pub_key";
 static const char* NVS_SRV_KEY  = "srv_key";
 static const char* NVS_REGISTERED = "registered";
+static const char* NVS_TERMINAL_ID = "term_id";
 
 struct KeyPair {
   uint8_t private_key[32];
@@ -101,6 +102,28 @@ bool isRegistered() {
   nvs_get_u8(handle, NVS_REGISTERED, &reg);
   nvs_close(handle);
   return (reg == 1);
+}
+
+// Save terminal_id (assigned by server after pairing)
+bool saveTerminalId(const String& terminalId) {
+  nvs_handle_t handle;
+  if (nvs_open(NVS_NAMESPACE, NVS_READWRITE, &handle) != ESP_OK) return false;
+  nvs_set_str(handle, NVS_TERMINAL_ID, terminalId.c_str());
+  nvs_commit(handle);
+  nvs_close(handle);
+  return true;
+}
+
+// Load terminal_id
+String loadTerminalId() {
+  nvs_handle_t handle;
+  if (nvs_open(NVS_NAMESPACE, NVS_READONLY, &handle) != ESP_OK) return "";
+  char buf[64];
+  size_t len = sizeof(buf);
+  esp_err_t ret = nvs_get_str(handle, NVS_TERMINAL_ID, buf, &len);
+  nvs_close(handle);
+  if (ret != ESP_OK) return "";
+  return String(buf);
 }
 
 // Sign a message with terminal private key

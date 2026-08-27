@@ -22,6 +22,7 @@ const navItems: { to: string; label: string; icon: any; perm?: string; end?: boo
   { to: '/app/payments', label: 'Pagos', icon: Wallet },
   { to: '/app/nfc-terminals', label: 'Terminales NFC', icon: Nfc, perm: 'nfc.register_terminal' },
   { to: '/app/my-terminals', label: 'Mis Puntos de Venta', icon: ShoppingBag },
+  { to: '/app/pos', label: 'Punto de Venta Web', icon: ShoppingBag },
   { to: '/app/products', label: 'Productos', icon: Package },
   { to: '/app/calculator', label: 'Calculadora', icon: Calculator },
   { to: '/app/calculator/params', label: 'Parametros Calc.', icon: Zap, perm: 'calculator.manage_params' },

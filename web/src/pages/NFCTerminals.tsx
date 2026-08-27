@@ -16,6 +16,11 @@ interface Terminal {
   last_seen: string | null
   firmware_version: string
   created_at: string
+  chip_id?: string
+  device_fingerprint?: string
+  device_model?: string
+  device_manufacturer?: string
+  android_version?: string
 }
 
 interface Transaction {
@@ -97,12 +102,13 @@ export default function NFCTerminals() {
     }
   }
 
-  const approvePairing = async (code: string) => {
+  const approvePairing = async (code: string, mode: string = 'new') => {
     setPairingAction(code)
     try {
       await api.post(`/nfc/terminal/pair/${code}/approve`, {
         label: approveLabel || undefined,
         location: approveLocation || undefined,
+        mode,
       })
       setPendingPairings(prev => prev.filter(p => p.pairing_code !== code))
       setApprovingCode('')
@@ -593,6 +599,13 @@ export default function NFCTerminals() {
                   <p className="text-xs text-gray-500">
                     {t.terminal_type} · {t.location || 'sin ubicacion'} · {formatTime(t.last_seen)}
                   </p>
+                  {(t.chip_id || t.device_fingerprint || t.device_model) && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      {t.chip_id && `Chip: ${t.chip_id} · `}
+                      {t.device_fingerprint && !t.chip_id && `Fingerprint: ${t.device_fingerprint.substring(0, 12)}... · `}
+                      {t.device_model && `${t.device_manufacturer || ''} ${t.device_model}`}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -734,25 +747,25 @@ export default function NFCTerminals() {
             <div>
               <label className="label">Tipo de terminal</label>
               <select className="input" value={newTerminal.terminal_type} onChange={(e) => setNewTerminal({ ...newTerminal, terminal_type: e.target.value })}>
-                {terminalTypes.map((t) => {
+                {terminalTypes.filter(t => t !== 'ble-reader').map((t) => {
                   const labels: Record<string, string> = {
                     'keypad': 'Keypad (encoder rotativo)',
-                    'web': 'Web (monto desde app)',
+                    'web': 'Web (puro software, sin ESP32)',
                     'touch': 'Touch (pantalla tactil)',
                     'community': 'Community (doble tarjeta)',
                     'android_pos': 'POS Android (telefono/tablet)',
-                    'ble-reader': 'BLE Reader (lector Bluetooth)',
+                    'ble-reader': 'BLE Reader (lector Bluetooth - accesorio)',
                   }
                   return <option key={t} value={t}>{labels[t] || t}</option>
                 })}
               </select>
               <div className="text-xs text-gray-500 mt-1 p-2 bg-gray-50 rounded">
                 {newTerminal.terminal_type === 'keypad' && 'Terminal ESP32 con encoder rotativo y pantalla pequena. El usuario gira el encoder para seleccionar el monto y confirma con un clic. Ideal para mercados y ferias donde se necesita un hardware dedicado y resistente.'}
-                {newTerminal.terminal_type === 'web' && 'Terminal que se controla desde una app web o movil. El vendedor entra el monto desde su telefono y el cliente confirma en el ESP32. Util cuando el vendedor ya tiene un telefono y no necesita hardware adicional.'}
+                {newTerminal.terminal_type === 'web' && 'Punto de venta en el navegador. Ideal para iPhone, computadoras o cualquier dispositivo sin app Android. Puede usar lector NFC Bluetooth. El cliente paga escaneando un QR o con tarjeta NFC.'}
                 {newTerminal.terminal_type === 'touch' && 'Terminal ESP32 con pantalla tactil completa. El vendedor toca los botones en pantalla para entrar el monto. Mas intuitivo que el encoder, ideal para usuarios que no estan familiarizados con hardware dedicado.'}
                 {newTerminal.terminal_type === 'community' && 'Terminal ESP32 de doble tarjeta para mercados comunitarios. Lee tanto la tarjeta del vendedor como la del comprador en una sola transaccion. Diseñado para trueque comunitario donde ambos miembros deben estar presentes.'}
                 {newTerminal.terminal_type === 'android_pos' && 'Aplicacion Android (telefono o tablet) que funciona como punto de venta. Se empareja con el nodo via codigo corto de 6 digitos. No requiere hardware dedicado — usa el telefono del vendedor. Genera cobros por QR y NFC. Ideal para vendedores que ya tienen un telefono Android.'}
-                {newTerminal.terminal_type === 'ble-reader' && 'Lector NFC Bluetooth sin pantalla. Se conecta al telefono del vendedor via Bluetooth. El telefono muestra el monto y el lector solo confirma la tarjeta NFC. No necesita WiFi. Ideal para vendedores moviles que no tienen acceso a una red WiFi fija.'}
+                {newTerminal.terminal_type === 'ble-reader' && 'Lector NFC Bluetooth (accesorio). No es un terminal — se asocia al POS web o Android desde la app del POS. No se registra aqui.'}
                 {!['keypad','web','touch','community','android_pos','ble-reader'].includes(newTerminal.terminal_type) && 'Tipo de hardware del terminal.'}
               </div>
             </div>
@@ -785,7 +798,7 @@ export default function NFCTerminals() {
             <div className="card text-center text-gray-500 py-12">
               <Nfc className="mx-auto mb-3 text-gray-300" size={48} />
               <p>No hay emparejamientos pendientes.</p>
-              <p className="text-sm mt-1">Cuando un POS Android inicie un emparejamiento, aparecera aqui automaticamente.</p>
+              <p className="text-sm mt-1">Cuando un POS Android o ESP32 inicie un emparejamiento, aparecera aqui automaticamente.</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -796,7 +809,7 @@ export default function NFCTerminals() {
                       <div className="bg-trueque-600 text-white text-3xl font-bold font-mono px-6 py-3 rounded-xl">
                         {p.pairing_code}
                       </div>
-                      <div>
+                      <div className="flex-1">
                         <p className="font-bold text-lg">{p.terminal_label || 'POS Android'}</p>
                         <p className="text-sm text-gray-600">Tipo: {p.terminal_type}</p>
                         <p className="text-sm text-gray-600">
@@ -804,9 +817,47 @@ export default function NFCTerminals() {
                             {Math.floor(p.remaining_seconds / 60)}:{String(p.remaining_seconds % 60).padStart(2, '0')}
                           </span>
                         </p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          Clave publica: {p.terminal_public_key?.substring(0, 16)}...
-                        </p>
+
+                        {/* Info del dispositivo */}
+                        <div className="mt-2 space-y-1 text-xs">
+                          {p.chip_id && (
+                            <p className="text-gray-600">
+                              <span className="font-semibold">Chip ID (ESP32):</span>{' '}
+                              <code className="bg-gray-100 px-1 rounded">{p.chip_id}</code>
+                            </p>
+                          )}
+                          {p.device_fingerprint && (
+                            <p className="text-gray-600">
+                              <span className="font-semibold">Fingerprint:</span>{' '}
+                              <code className="bg-gray-100 px-1 rounded">{p.device_fingerprint.substring(0, 16)}...</code>
+                            </p>
+                          )}
+                          {p.device_model && (
+                            <p className="text-gray-600">
+                              <span className="font-semibold">Modelo:</span> {p.device_manufacturer} {p.device_model}
+                              {p.android_version && ` (Android ${p.android_version})`}
+                            </p>
+                          )}
+                          <p className="text-gray-400">
+                            <span className="font-semibold">Clave publica:</span> {p.terminal_public_key?.substring(0, 16)}...
+                          </p>
+                        </div>
+
+                        {/* Advertencia de re-registro */}
+                        {p.existing_terminal_id && (
+                          <div className="mt-2 bg-yellow-100 border border-yellow-400 rounded-lg p-3 text-sm">
+                            <p className="font-bold text-yellow-800">⚠ Dispositivo ya registrado</p>
+                            <p className="text-yellow-700 mt-1">
+                              Este dispositivo ya esta registrado como{' '}
+                              <code className="bg-yellow-200 px-1 rounded font-bold">{p.existing_terminal_id}</code>
+                              {p.existing_label && ` (${p.existing_label})`}
+                              {p.existing_is_active ? ' — activo' : ' — inactivo'}
+                            </p>
+                            <p className="text-yellow-700 mt-1">
+                              Al aprobar, elige si reemplazar la clave del terminal existente o crear uno nuevo.
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -825,17 +876,37 @@ export default function NFCTerminals() {
                           value={approveLocation}
                           onChange={(e) => setApproveLocation(e.target.value)} />
                       </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => approvePairing(p.pairing_code)}
-                          disabled={pairingAction === p.pairing_code}
-                          className="btn-primary flex-1">
-                          {pairingAction === p.pairing_code ? 'Aprobando...' : 'Aprobar y Registrar'}
-                        </button>
-                        <button
-                          onClick={() => { setApprovingCode(''); setApproveLabel(''); setApproveLocation('') }}
-                          className="btn-secondary">Cancelar</button>
-                      </div>
+                      {p.existing_terminal_id ? (
+                        <div className="space-y-2">
+                          <p className="text-sm font-semibold text-gray-700">Este dispositivo ya existe. Que deseas hacer?</p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => approvePairing(p.pairing_code, 'replace')}
+                              disabled={pairingAction === p.pairing_code}
+                              className="btn-primary flex-1">
+                              {pairingAction === p.pairing_code ? 'Aprobando...' : 'Reemplazar clave existente'}
+                            </button>
+                            <button
+                              onClick={() => approvePairing(p.pairing_code, 'new')}
+                              disabled={pairingAction === p.pairing_code}
+                              className="btn-secondary flex-1">
+                              Crear terminal nuevo
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => approvePairing(p.pairing_code, 'new')}
+                            disabled={pairingAction === p.pairing_code}
+                            className="btn-primary flex-1">
+                            {pairingAction === p.pairing_code ? 'Aprobando...' : 'Aprobar y Registrar'}
+                          </button>
+                        </div>
+                      )}
+                      <button
+                        onClick={() => { setApprovingCode(''); setApproveLabel(''); setApproveLocation('') }}
+                        className="btn-secondary w-full">Cancelar</button>
                     </div>
                   ) : (
                     <div className="mt-4 flex gap-2">

@@ -1,16 +1,19 @@
 # Firmware ESP32 — Terminales NFC
 
-Firmware para terminales de pago NFC basadas en ESP32. Cinco tipos de terminal con codigo y documentacion separados.
+Firmware para terminales de pago NFC basadas en ESP32. Cuatro tipos de terminal con codigo y documentacion separados.
 
 ## Tipos de terminal
 
 | Tipo | Hardware | Input | Carpeta |
 |------|----------|-------|---------|
 | **Keypad** | ESP32 + PN532 + OLED + encoder | Encoder para monto y PIN | `terminal-keypad/` |
-| **Web** | ESP32 + PN532 + OLED | Monto desde app web, PIN en app | `terminal-web/` |
 | **Touch** | TTGO T-Display + PN532 | Pantalla tactil para monto y PIN | `terminal-touch/` |
 | **Community** | ESP32 + PN532 + OLED + encoder | Doble tarjeta (vendedor + comprador) | `terminal-community/` |
-| **BLE Reader** | ESP32 + PN532 (sin pantalla/WiFi) | Lector tonto via Bluetooth al celular | `terminal-ble-reader/` |
+| **BLE Reader** | ESP32 + PN532 (sin pantalla/WiFi) | Lector NFC via Bluetooth al POS (accesorio) | `terminal-ble-reader/` |
+
+**Nota:** El "terminal web" es ahora puro software en el navegador (ver `web/src/pages/Pos.tsx`).
+No requiere ESP32. El merchant usa la pagina web `/app/pos` para crear cobros QR.
+Para NFC en el navegador, se usa un lector BLE Reader conectado via Web Bluetooth.
 
 ## Estructura
 
@@ -19,51 +22,63 @@ firmware/
 ├── README.md              (este archivo)
 ├── shared/                (codigo compartido: crypto, NFC, display, server, PIN, hardware_binding, wifi_provisioning)
 ├── terminal-keypad/       (terminal con encoder)
-├── terminal-web/          (terminal con app web)
 ├── terminal-touch/        (terminal con pantalla tactil)
 ├── terminal-community/    (punto comunitario doble tarjeta)
-├── terminal-ble-reader/   (lector NFC tonto via Bluetooth)
+├── terminal-ble-reader/   (lector NFC via Bluetooth - accesorio del POS)
 └── docs/                  (documentacion general)
 ```
 
 ## Provisioning (flujo de instalacion)
 
-**IMPORTANTE: `config.h` NO se edita manualmente.** El servidor lo genera con los valores reales del terminal.
+Hay dos formas de registrar un terminal ESP32:
 
-### Flujo completo
+### Opcion 1: Emparejamiento por codigo (recomendado)
+
+```
+1. Flashear el firmware generico en el ESP32 (mismo firmware para todos)
+2. En el sitio: encender el terminal
+3. El ESP32 se conecta al WiFi (portal cautivo si primera vez)
+4. El ESP32 genera su par de claves Ed25519
+5. El ESP32 envia su chip_id + clave publica al servidor
+6. El servidor responde con un codigo de 6 digitos
+7. El ESP32 muestra el codigo en su pantalla
+8. El admin entra el codigo en el panel web (Terminales NFC > Emparejamiento)
+9. El admin ve la info del dispositivo (chip_id, tipo) y aprueba
+10. El ESP32 recibe la confirmacion por polling y queda registrado
+```
+
+### Opcion 2: Provision manual (mayor seguridad)
+
+**IMPORTANTE: `config.h` NO se edita manualmente.** El servidor lo genera con los valores reales del terminal.
 
 ```
 1. En la central:
    a. Conectar ESP32 nuevo por USB
    b. Leer el chip ID del ESP32 (MAC de fabrica, 12 hex chars)
-      - En Arduino IDE: Serial Monitor muestra el chip ID al arrancar
-      - O ejecutar: esptool.py --port COMX chip_id
    c. En la web app (panel admin) > "Provisionar Terminal":
       - Entrar el chip ID
-      - Seleccionar tipo de terminal (keypad, touch, web, community, ble-reader)
+      - Seleccionar tipo de terminal (keypad, touch, community)
       - El servidor registra el terminal y genera terminal_id + registration_token
    d. Descargar el config.h generado (o el .bin compilado)
    e. Colocar config.h en la carpeta del terminal y compilar
-      - O flashear el .bin directamente
    f. El firmware queda vinculado a ese ESP32 (no funciona en otro)
 
 2. En el sitio (instalacion final):
    a. Encender el terminal
    b. El ESP32 verifica su chip ID (si no coincide, se detiene)
    c. Si es la primera vez: entra modo provisioning WiFi
-      - Aparece un WiFi "Terminal-XXXX"
-      - Conectarse desde el celular
-      - Se abre una pagina web (192.168.4.1)
-      - Seleccionar red WiFi y entrar contrasena
-      - El ESP32 se reinicia y se conecta
    d. El ESP32 se registra con el servidor (intercambio de claves)
    e. El terminal queda operativo
-
-3. Para reconfigurar:
-   - Llevar el terminal a la central
-   - Reflashear con nuevo firmware
-   - No se puede reconfigurar remotamente (por seguridad)
 ```
+
+### Re-registro (rotacion de claves)
+
+Si un terminal pierde sus claves o se reemplaza:
+1. El terminal se re-registra con el mismo chip_id
+2. El servidor detecta que el dispositivo ya existe
+3. El admin ve "Dispositivo ya registrado" y elige:
+   - Reemplazar la clave del terminal existente (mantiene historial)
+   - Crear un terminal nuevo
 
 ### Vinculacion al hardware (anti-copia)
 

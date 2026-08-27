@@ -44,6 +44,7 @@ import Notifications from './pages/Notifications'
 import Pay from './pages/Pay'
 import MyTerminals from './pages/MyTerminals'
 import SoftwareAdaptations from './pages/SoftwareAdaptations'
+import Pos from './pages/Pos'
 
 // updateFavicon cambia el favicon del navegador dinamicamente.
 // Si se pasa una URL de logo, lo usa como favicon.
@@ -141,6 +142,7 @@ function AppInner() {
         <Route path="/app/governance" element={<Layout><Governance /></Layout>} />
         <Route path="/app/nfc-terminals" element={<Layout><NFCTerminals /></Layout>} />
       <Route path="/app/my-terminals" element={<Layout><MyTerminals /></Layout>} />
+      <Route path="/app/pos" element={<Layout><Pos /></Layout>} />
         <Route path="/app/federation/peers" element={<Layout><Federation /></Layout>} />
         <Route path="/app/federation/conflicts" element={<Layout><MergeConflicts /></Layout>} />
         <Route path="/app/settings" element={<Layout><NodeSettings /></Layout>} />

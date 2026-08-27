@@ -1652,9 +1652,14 @@ func (h *NFCTerminalHandler) getMultisigPaymentStatus(w http.ResponseWriter, r *
 // y el servidor responde con un codigo de 6 digitos que expira en 60 segundos.
 func (h *NFCTerminalHandler) initiatePairing(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		TerminalPublicKey string `json:"terminal_public_key"`
-		DeviceFingerprint string `json:"device_fingerprint"`
-		TerminalLabel     string `json:"terminal_label"`
+		TerminalPublicKey  string `json:"terminal_public_key"`
+		DeviceFingerprint  string `json:"device_fingerprint"`
+		TerminalLabel      string `json:"terminal_label"`
+		ChipID             string `json:"chip_id"`
+		DeviceModel        string `json:"device_model"`
+		DeviceManufacturer string `json:"device_manufacturer"`
+		AndroidVersion     string `json:"android_version"`
+		TerminalType       string `json:"terminal_type"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -1665,7 +1670,8 @@ func (h *NFCTerminalHandler) initiatePairing(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	code, err := h.NFC.InitiatePairing(r.Context(), req.TerminalPublicKey, req.DeviceFingerprint, req.TerminalLabel)
+	code, err := h.NFC.InitiatePairing(r.Context(), req.TerminalPublicKey, req.DeviceFingerprint, req.TerminalLabel,
+		req.ChipID, req.DeviceModel, req.DeviceManufacturer, req.AndroidVersion, req.TerminalType)
 	if err != nil {
 		writeError(w, 400, err.Error())
 		return
@@ -1722,11 +1728,16 @@ func (h *NFCTerminalHandler) approvePairing(w http.ResponseWriter, r *http.Reque
 		Label        string `json:"label"`
 		TerminalType string `json:"terminal_type"`
 		Location     string `json:"location"`
+		Mode         string `json:"mode"` // "new" (default) o "replace"
 	}
 	// Body es opcional, ignorar error si viene vacio
 	_ = json.NewDecoder(r.Body).Decode(&body)
 
-	result, err := h.NFC.ApprovePairing(r.Context(), code, adminUserID, body.Label, body.TerminalType, body.Location)
+	if body.Mode == "" {
+		body.Mode = "new"
+	}
+
+	result, err := h.NFC.ApprovePairing(r.Context(), code, adminUserID, body.Label, body.TerminalType, body.Location, body.Mode)
 	if err != nil {
 		writeError(w, 400, err.Error())
 		return

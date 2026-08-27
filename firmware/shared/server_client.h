@@ -6,6 +6,7 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include "crypto_helper.h"
+#include "hardware_binding.h"
 
 struct ServerConfig {
   String serverUrl;
@@ -48,12 +49,13 @@ String httpGet(const String& url) {
   return response;
 }
 
-// Complete registration: send terminal public key, receive server public key
+// Complete registration: send terminal public key + chip_id, receive server public key
 bool completeRegistration(ServerConfig* config, KeyPair* kp, uint8_t* serverPubKey) {
   StaticJsonDocument<512> doc;
   doc["terminal_id"] = config->terminalId;
   doc["registration_token"] = config->registrationToken;
   doc["terminal_public_key"] = bytesToHex(kp->public_key, 32);
+  doc["device_fingerprint"] = getFullMacHex();
 
   String body;
   serializeJson(doc, body);
@@ -80,15 +82,18 @@ String authenticateTerminal(ServerConfig* config, KeyPair* kp, const uint8_t* se
   uint8_t nonceBytes[16];
   esp_fill_random(nonceBytes, 16);
   String nonce = bytesToHex(nonceBytes, 16);
+  String chipId = getFullMacHex();
 
-  // Sign nonce with terminal private key
+  // Sign: terminal_id:nonce:device_fingerprint
+  String signedMessage = config->terminalId + ":" + nonce + ":" + chipId;
   uint8_t signature[64];
-  signMessage(kp->private_key, (const uint8_t*)nonce.c_str(), nonce.length(), signature);
+  signMessage(kp->private_key, (const uint8_t*)signedMessage.c_str(), signedMessage.length(), signature);
 
   StaticJsonDocument<512> doc;
   doc["terminal_id"] = config->terminalId;
   doc["nonce"] = nonce;
   doc["signature"] = bytesToHex(signature, 64);
+  doc["device_fingerprint"] = chipId;
 
   String body;
   serializeJson(doc, body);
@@ -206,6 +211,68 @@ String decryptServerResponse(const uint8_t* sharedKey, const String& responseJso
   }
 
   return String((char*)plaintext).substring(0, ptLen);
+}
+
+// ============================================
+// Terminal Pairing by Short Code (ESP32)
+// ============================================
+
+// Initiate pairing: send public key + chip_id, receive 6-digit code
+// Returns the pairing code (empty string on error)
+String initiatePairing(ServerConfig* config, KeyPair* kp, const String& terminalType) {
+  String chipId = getFullMacHex();
+
+  StaticJsonDocument<512> doc;
+  doc["terminal_public_key"] = bytesToHex(kp->public_key, 32);
+  doc["device_fingerprint"] = chipId;
+  doc["chip_id"] = chipId;
+  doc["terminal_label"] = "ESP32 " + terminalType;
+  doc["terminal_type"] = terminalType;
+
+  String body;
+  serializeJson(doc, body);
+
+  String url = config->serverUrl + "/api/nfc/terminal/pair/initiate";
+  String response = httpPost(url, body);
+
+  if (response.length() == 0) return "";
+
+  StaticJsonDocument<256> respDoc;
+  deserializeJson(respDoc, response);
+
+  String code = respDoc["pairing_code"] | "";
+  return code;
+}
+
+// Poll pairing status. Returns "pending", "approved", "rejected", "expired"
+// On approved, fills terminalId and serverPubKey
+struct PairingPollResult {
+  String status;
+  String terminalId;
+  String serverPubKey;
+  String message;
+};
+
+PairingPollResult pollPairingStatus(ServerConfig* config, const String& code) {
+  PairingPollResult result;
+  String url = config->serverUrl + "/api/nfc/terminal/pair/" + code + "/status";
+  String response = httpGet(url);
+
+  if (response.length() == 0) {
+    result.status = "error";
+    result.message = "Sin respuesta del servidor";
+    return result;
+  }
+
+  StaticJsonDocument<512> respDoc;
+  deserializeJson(respDoc, response);
+
+  result.status = respDoc["status"] | "error";
+  result.terminalId = respDoc["terminal_id"] | "";
+  result.serverPubKey = respDoc["server_public_key"] | "";
+  result.message = respDoc["message"] | "";
+
+  return result;
 }
 
 #endif // SERVER_CLIENT_H

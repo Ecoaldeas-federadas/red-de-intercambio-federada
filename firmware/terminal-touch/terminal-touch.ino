@@ -193,16 +193,50 @@ void setup() {
     }
     saveKeyPair(&terminalKeys);
 
-    showTextTouch("Registrando...");
-    if (!completeRegistration(&config, &terminalKeys, serverPubKey)) {
-      showTextTouch("Error registro", TFT_RED);
-      while (1) delay(1000);
+    if (config.registrationToken.length() > 0) {
+      showTextTouch("Registrando...");
+      if (!completeRegistration(&config, &terminalKeys, serverPubKey)) {
+        showTextTouch("Error registro", TFT_RED);
+        while (1) delay(1000);
+      }
+      saveServerPublicKey(serverPubKey);
+      showTextTouch("Registrado OK", TFT_GREEN);
+    } else {
+      // Emparejamiento por codigo de 6 digitos
+      showTextTouch("Emparejando...");
+      String code = initiatePairing(&config, &terminalKeys, "touch");
+      if (code.length() == 0) {
+        showTextTouch("Error emparejar", TFT_RED);
+        while (1) delay(5000);
+      }
+
+      showTextTouch("Codigo: " + code, TFT_CYAN, 24);
+      showTextTouch("Ingresa en panel admin", TFT_WHITE, 48);
+
+      while (true) {
+        delay(3000);
+        PairingPollResult pr = pollPairingStatus(&config, code);
+        if (pr.status == "approved") {
+          config.terminalId = pr.terminalId;
+          size_t len;
+          hexToBytes(pr.serverPubKey, serverPubKey, &len);
+          saveServerPublicKey(serverPubKey);
+          saveTerminalId(config.terminalId);
+          showTextTouch("Aprobado!", TFT_GREEN);
+          break;
+        } else if (pr.status == "rejected") {
+          showTextTouch("Rechazado", TFT_RED);
+          while (1) delay(5000);
+        } else if (pr.status == "expired") {
+          showTextTouch("Expirado", TFT_RED);
+          while (1) delay(5000);
+        }
+      }
     }
-    saveServerPublicKey(serverPubKey);
-    showTextTouch("Registrado OK", TFT_GREEN);
   } else {
     loadKeyPair(&terminalKeys);
     loadServerPublicKey(serverPubKey);
+    config.terminalId = loadTerminalId();
   }
 
   deriveSharedKey(terminalKeys.private_key, serverPubKey, sharedKey);
