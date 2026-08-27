@@ -207,9 +207,77 @@ tecnico.
 
 ---
 
+## 11. Piscina global compartida
+
+La federacion tiene una **piscina global multilateral real**. El balance que un
+miembro gana con el Nodo B se puede gastar con el Nodo C. Esto no es solo una
+verificacion de limites bilaterales, sino un pool compartido real y separado de
+los pools bilaterales.
+
+- La piscina global es distinta de los limites bilaterales entre cada par de nodos.
+- Las transacciones inter-nodos se registran con `pool_type = 'global'` o
+  `pool_type = 'bilateral'` en el ledger.
+- Las categorias del ledger son `node_bridge_global` y `node_bridge_bilateral`
+  (ademas de `node_bridge` existente).
+
+**Razon:** Si solo existen limites bilaterales, el intercambio se fragmenta en
+parejas de nodos y no hay una red real. La piscina global permite que la
+reciprocidad fluya entre todos los nodos federados.
+
+---
+
+## 12. Responsabilidad del padrino
+
+Cuando un nodo nivel 2 o superior apadrina a un nodo nuevo, el padrino asume
+responsabilidad:
+
+- El limite del padrino se reduce por el monto del limite del nodo apadrinado.
+- Si el nodo apadrinado entra en default, la deuda se transfiere al padrino.
+- Cuando el nodo apadrinado alcanza el nivel 2, el limite del padrino se libera.
+
+**Razon:** Nadie debe apadrinar a un nodo sin asumir responsabilidad. El sistema
+de padrinos asegura que los nodos nuevos tengan respaldo real y que los nodos
+establecidos evaluen con cuidado a quienes apadrinan.
+
+---
+
+## 13. Integridad criptografica
+
+Las transacciones inter-nodos usan **firma dual** (ambos nodos firman) y
+**hashes encadenados** (`prev_hash`, `tx_hash` en `cross_node_tx_chain`). Cuando
+los nodos se reconectan, se realiza una reconciliacion automatica para detectar
+discrepancias en la cadena.
+
+**Razon:** Sin firma dual y hashes encadenados, un nodo podria alterar
+transacciones unilateralmente. La integridad distribuida asegura que ambos nodos
+tengan la misma cadena verificable.
+
+---
+
+## 14. Separacion trueque / comercio
+
+El trueque interno (intercambio TQ entre miembros) y el comercio exterior (ventas
+al publico en moneda local) **nunca se mezclan**. Las ventas al publico son
+externas al ledger interno y a las piscinas de federacion (global y bilateral).
+
+- El ledger interno solo registra transacciones TQ entre miembros.
+- Las ventas al publico se manejan por separado, en moneda local del pais.
+- El Factor de Conversion (FC) calcula el equivalente entre TQ y moneda local
+  para comercio externo, pero eso es interno de cada nodo.
+
+**Razon:** Mezclar el trueque interno con el comercio exterior destruiria la
+economia de credito mutuo. El trueque es reciprocidad entre miembros; el comercio
+exterior es intercambio con el mercado convencional. Son cosas distintas con
+reglas distintas.
+
+---
+
 ## Resumen en una frase
 
 **Un codigo abierto, auditable y unico para todo el mundo, donde todos participan
 en el desarrollo de forma igualitaria. Cada quien es dueño de sus datos y puede
 adaptar el software a su realidad, pero la base —comunicacion, moneda y
-cripitografia— es la misma para todos.**
+cripitografia— es la misma para todos. La piscina global es compartida, el
+padrino responde por su ahijado, las transacciones inter-nodos tienen firma dual
+e integridad criptografica, y el trueque interno nunca se mezcla con el comercio
+exterior.**

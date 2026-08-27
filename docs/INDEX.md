@@ -16,7 +16,7 @@
 12. [Puente de Comercio Externo](external_bridge.md) - FC, DEX, tienda comunitaria, productos compuestos
 13. [Modulo de Precios](pricing.md) - Calculadora energetica, catalogo, tarifas, energia por kg
 14. [Productos Compuestos](composite_products.md) - Sistema de productos compuestos, materias primas, recetas
-15. [Limites Federados](federation_limits.md) - Limites globales, bilaterales, piscinas separadas
+15. [Limites Federados](federation_limits.md) - Piscina global multilateral, piscinas bilaterales, integridad distribuida, firma dual, hash encadenado, reconciliacion
 16. [Frontend PWA](frontend.md) - React, TypeScript, TailwindCSS, Vite, service worker
 17. [Despliegue](deployment.md) - Docker, instalacion de nuevo nodo, setup wizard
 18. [Departamentos y Permisos](departments.md) - Departamentos con jerarquia (org padre), roles, permisos, asambleas opcionales
@@ -26,7 +26,7 @@
 22. [Gobernanza - Ley de la Aldea](governance.md) - Reglas, jerarquia nodo/org/depto, asambleas por scope, admision, FRNE, tenencia de tierra
 23. [Notificaciones](notifications.md) - Sistema unificado, pasarelas federadas (Matrix, Telegram, XMPP), preferencias, scope por usuario
 24. [Plan: Servicios de Organizaciones](PLAN_SERVICIOS_ORGANIZACIONES.md) - Plan de impuestos por nivel, servicios, organizaciones de la Asamblea
-25. [Gobernanza Federada](federation_governance.md) - Constantes federadas, propuestas, votacion entre nodos, consenso, canasta basica compartida
+25. [Gobernanza Federada](federation_governance.md) - Constantes federadas, propuestas, votacion entre nodos, consenso, canasta basica compartida, niveles de nodo, padrino, verificacion de 4 opciones
 26. [Escalar YugabyteDB](scaling_yugabytedb.md) - Limite de tabletas, agregar nodos, colocation, configuracion de cluster
 27. [Guia de Inicio para Desarrolladores](guia-inicio-desarrolladores-tq.md) - Stack completo, estructura del repo, como colaborar
 28. [Principios Innegociables para Desarrollar](PRINCIPIOS_INNEGOCIABLES.md) - 10 reglas basicas: codigo abierto, codigo base unico, ajustes de nodo, que requiere aprobacion
@@ -81,6 +81,11 @@
 | 16.5 | Fix: catalogo de servicios federados no cargaba (res.data) | Completado |
 | 16.6 | Fix: guardar FC desde canasta basica (internal_cost nullable) | Completado |
 | 16.7 | Documentacion actualizada | Completado |
+| 17 | Piscina global multilateral + integridad distribuida (migraciones 128-130) | Completado |
+| 17.1 | Piscina global real vs bilateral, firma dual, hash encadenado | Completado |
+| 17.2 | Niveles de nodo federado (Nuevo, Aceptado, Pleno) + padrino | Completado |
+| 17.3 | Verificacion de 4 opciones para POS y federation pairing | Completado |
+| 17.4 | Reconciliacion de cadena al reconectar nodos | Completado |
 
 ## Estructura del Proyecto
 
@@ -168,6 +173,9 @@ red de intercambio federada/
 | 080 | Junta Directiva del nodo (meeting_type en assembly_sessions del nodo) |
 | 081 | Fix: internal_cost y external_price_usd nullable en conversion_factor |
 | 082 | Reclasificar decisiones operativas a Junta Directiva + defaults de quorum |
+| 128 | Piscina global federada: pool_type en ledger_entries + tabla cross_node_tx_chain (NUEVO) |
+| 129 | Niveles de nodo federado + membresia + patrocinios (NUEVO) |
+| 130 | Federation pairing requests para verificacion de 4 opciones (NUEVO) |
 
 ## Cambios Recientes
 

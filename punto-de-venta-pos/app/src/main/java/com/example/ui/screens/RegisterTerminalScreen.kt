@@ -451,7 +451,7 @@ fun RegisterTerminalScreen(
                         if (pairingCode == null) {
                             // Estado inicial: boton para iniciar
                             Text(
-                                text = "Genere un codigo corto de 6 digitos y pida al administrador que lo apruebe desde su panel web. No necesita credenciales de administrador en este terminal.",
+                                text = "Genere un codigo corto de 6 digitos y comuníquelo al administrador por teléfono o mensaje. El administrador vera 4 opciones en su panel y debera elegir la correcta para aprobar el emparejamiento. No necesita credenciales de administrador en este terminal.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = PosSlate300
                             )
@@ -544,11 +544,37 @@ fun RegisterTerminalScreen(
                                     }
                                     Spacer(modifier = Modifier.height(12.dp))
                                     Text(
-                                        text = "Pida al administrador que apruebe este codigo en su panel del nodo.",
+                                        text = "Comunique este código al administrador por teléfono o mensaje. El administrador verá 4 opciones y debe elegir la correcta.",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = PosSlate300,
                                         textAlign = TextAlign.Center
                                     )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Card(
+                                        colors = CardDefaults.cardColors(containerColor = PosPrimaryBlue.copy(alpha = 0.12f)),
+                                        shape = RoundedCornerShape(10.dp),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, PosPrimaryBlue.copy(alpha = 0.4f))
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Info,
+                                                contentDescription = null,
+                                                tint = PosPrimaryLight,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = "El administrador vera 4 codigos en su panel. Indiquele cual es el correcto para verificar la comunicación fuera de banda.",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = PosSlate200
+                                            )
+                                        }
+                                    }
                                     Spacer(modifier = Modifier.height(16.dp))
                                     OutlinedButton(
                                         onClick = { viewModel.cancelPairing() },

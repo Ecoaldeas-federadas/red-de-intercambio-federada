@@ -19,16 +19,22 @@ type FederationHandler struct {
 	Pool       *pgxpool.Pool
 	Protocol   *federation.Protocol
 	Gossip     *federation.Gossip
+	NodeLevels *federation.NodeLevels
+	FedPairing *federation.FederationPairing
 	NodeDomain string
 }
 
 func NewFederationHandler(pool *pgxpool.Pool, nodeDomain string) *FederationHandler {
 	proto := federation.New(pool, nodeDomain)
 	gossip := federation.NewGossip(pool, nodeDomain, 0)
+	nodeLevels := federation.NewNodeLevels(pool, nodeDomain)
+	fedPairing := federation.NewFederationPairing(pool, nodeDomain, nodeLevels)
 	return &FederationHandler{
 		Pool:       pool,
 		Protocol:   proto,
 		Gossip:     gossip,
+		NodeLevels: nodeLevels,
+		FedPairing: fedPairing,
 		NodeDomain: nodeDomain,
 	}
 }
@@ -76,6 +82,21 @@ func (fh *FederationHandler) RegisterRoutesWithAuth(r chi.Router, am *AuthMiddle
 	} else {
 		r.Post("/api/federation/peers", fh.registerPeer)
 		r.Delete("/api/federation/peers/{peerDomain}", fh.removePeer)
+	}
+
+	// Niveles de nodo federado
+	r.Get("/api/federation/node-levels", fh.listNodeLevels)
+	r.Get("/api/federation/nodes/{domain}/membership", fh.getNodeMembership)
+	r.Get("/api/federation/nodes/{domain}/check-upgrade", fh.checkNodeUpgrade)
+	r.Get("/api/federation/sponsorships", fh.listSponsorships)
+
+	// Federation pairing (verificacion de 4 opciones)
+	r.Post("/api/federation/pair/initiate", fh.initiateFedPairing)
+	r.Get("/api/federation/pair/{code}/options", fh.getFedPairingOptions)
+	if am != nil {
+		r.With(am.RequirePermission("federation.change_config")).Post("/api/federation/pair/{code}/confirm", fh.confirmFedPairing)
+	} else {
+		r.Post("/api/federation/pair/{code}/confirm", fh.confirmFedPairing)
 	}
 
 	// Propuestas de productos federados
@@ -904,4 +925,167 @@ func (fh *FederationHandler) peerTransactions(w http.ResponseWriter, r *http.Req
 		txs = []map[string]interface{}{}
 	}
 	writeJSON(w, 200, txs)
+}
+
+// ============ NIVELES DE NODO FEDERADO ============
+
+// listNodeLevels returns all federation node levels
+func (fh *FederationHandler) listNodeLevels(w http.ResponseWriter, r *http.Request) {
+	levels, err := fh.NodeLevels.GetAllLevels(r.Context())
+	if err != nil {
+		writeError(w, 500, "error listing node levels")
+		return
+	}
+	if levels == nil {
+		levels = []federation.NodeLevel{}
+	}
+	writeJSON(w, 200, map[string]interface{}{"levels": levels})
+}
+
+// getNodeMembership returns the membership info for a specific node
+func (fh *FederationHandler) getNodeMembership(w http.ResponseWriter, r *http.Request) {
+	domain := chi.URLParam(r, "domain")
+	if domain == "" {
+		writeError(w, 400, "domain is required")
+		return
+	}
+
+	membership, err := fh.NodeLevels.GetMembership(r.Context(), domain)
+	if err != nil {
+		writeError(w, 404, "node not found in federation membership")
+		return
+	}
+
+	// Also get effective limit
+	effectiveLimit, _ := fh.NodeLevels.GetEffectiveLimit(r.Context(), domain)
+
+	writeJSON(w, 200, map[string]interface{}{
+		"membership":      membership,
+		"effective_limit": effectiveLimit,
+	})
+}
+
+// checkNodeUpgrade checks if a node can be upgraded (auto or by vote)
+func (fh *FederationHandler) checkNodeUpgrade(w http.ResponseWriter, r *http.Request) {
+	domain := chi.URLParam(r, "domain")
+	if domain == "" {
+		writeError(w, 400, "domain is required")
+		return
+	}
+
+	// Check if can propose upgrade (time requirements)
+	canPropose, reason, err := fh.NodeLevels.CanProposeUpgrade(r.Context(), domain)
+	if err != nil {
+		writeError(w, 500, "error checking upgrade eligibility")
+		return
+	}
+
+	// Check if qualifies for auto-upgrade
+	canAutoUpgrade, autoReason, err := fh.NodeLevels.CheckAutoUpgrade(r.Context(), domain)
+	if err != nil {
+		writeError(w, 500, "error checking auto-upgrade")
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"node_domain":      domain,
+		"can_propose":      canPropose,
+		"propose_reason":   reason,
+		"can_auto_upgrade": canAutoUpgrade,
+		"auto_reason":      autoReason,
+	})
+}
+
+// listSponsorships returns all sponsorships
+func (fh *FederationHandler) listSponsorships(w http.ResponseWriter, r *http.Request) {
+	sponsorships, err := fh.NodeLevels.GetAllSponsorships(r.Context())
+	if err != nil {
+		writeError(w, 500, "error listing sponsorships")
+		return
+	}
+	if sponsorships == nil {
+		sponsorships = []federation.Sponsorship{}
+	}
+	writeJSON(w, 200, map[string]interface{}{"sponsorships": sponsorships})
+}
+
+// ============ FEDERATION PAIRING (4 opciones) ============
+
+// initiateFedPairing starts a federation pairing request from a new node
+func (fh *FederationHandler) initiateFedPairing(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		RequestingDomain    string `json:"requesting_domain"`
+		RequestingPublicKey string `json:"requesting_public_key"`
+		RequestingEndpoint  string `json:"requesting_endpoint"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	code, err := fh.FedPairing.InitiateFederationPairing(r.Context(), req.RequestingDomain, req.RequestingPublicKey, req.RequestingEndpoint)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+
+	writeJSON(w, 201, map[string]interface{}{
+		"pairing_code": code,
+		"expires_in":   60,
+		"message":      "Solicitud creada. Comunique este codigo al nodo padrino por un canal seguro (telefono, mensaje). El padrino vera 4 opciones y debe elegir la correcta.",
+	})
+}
+
+// getFedPairingOptions returns 4 code options for the sponsor to choose from
+func (fh *FederationHandler) getFedPairingOptions(w http.ResponseWriter, r *http.Request) {
+	code := chi.URLParam(r, "code")
+	if code == "" {
+		writeError(w, 400, "code is required")
+		return
+	}
+
+	options, err := fh.FedPairing.GetFederationPairingOptions(r.Context(), code)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"options": options,
+		"message": "Elija el codigo que le comunico el nodo nuevo. Solo uno es correcto.",
+	})
+}
+
+// confirmFedPairing confirms a federation pairing by selecting the correct code
+func (fh *FederationHandler) confirmFedPairing(w http.ResponseWriter, r *http.Request) {
+	code := chi.URLParam(r, "code")
+	if code == "" {
+		writeError(w, 400, "code is required")
+		return
+	}
+
+	var req struct {
+		SelectedCode  string `json:"selected_code"`
+		SponsorDomain string `json:"sponsor_domain"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	if req.SelectedCode == "" {
+		writeError(w, 400, "selected_code is required")
+		return
+	}
+	if req.SponsorDomain == "" {
+		req.SponsorDomain = fh.NodeDomain
+	}
+
+	result, err := fh.FedPairing.ConfirmFederationPairing(r.Context(), code, req.SelectedCode, req.SponsorDomain)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+
+	writeJSON(w, 200, result)
 }

@@ -370,3 +370,201 @@ unirse para heredar automaticamente todas las reglas existentes.
 | `/api/federation-gov/known-nodes` | GET | Listar todos los nodos de la red |
 | `/api/federation-gov/sync-constants` | GET | Constantes + expulsados (para nodos nuevos) |
 | `/api/federation-gov/proposals` | POST | Crear propuesta (tipo `expel_node` para expulsion) |
+
+---
+
+## Niveles de Nodo Federado (NUEVO)
+
+Los nodos federados tienen **niveles** que determinan sus permisos, limites y derechos.
+Esto es analogo a los niveles de miembros dentro de un nodo, pero aplicado a nodos
+dentro de la federacion.
+
+### Niveles por defecto
+
+| Nivel | Nombre | Limite global | Voz | Voto | Patrocinar | Min dias | Auto-upgrade |
+|-------|--------|--------------|-----|------|-----------|----------|-------------|
+| 1 | Nodo Nuevo | 1000 TQ | Si | **No** | **No** | 90 | No (requiere votacion) |
+| 2 | Nodo Aceptado | 5000 TQ | Si | Si | Si | 180 | Si (a nivel 3) |
+| 3 | Nodo Pleno | 20000 TQ | Si | Si | Si | - | - |
+
+### Nivel 1: Nodo Nuevo
+
+- **Sin derecho a voto** en propuestas federadas
+- **No puede patrocinar** nuevos nodos
+- Limite global bajo (1000 TQ por defecto)
+- Debe permanecer al menos **90 dias** (configurable) antes de poder solicitar subida
+- Puede participar en comercio federado con la piscina global
+- Tiene voz (puede opinar) pero no voto
+
+### Nivel 2: Nodo Aceptado
+
+- **Con derecho a voto** en propuestas federadas
+- **Puede patrocinar** nuevos nodos (actuar como padrino)
+- Limite global mayor (5000 TQ por defecto)
+- Debe permanecer al menos **180 dias** antes de poder subir a nivel 3
+- Subida a nivel 2 requiere **votacion federada** (todos los nodos con voto deciden)
+
+### Nivel 3: Nodo Pleno
+
+- Limite global alto (20000 TQ por defecto)
+- Subida automatica desde nivel 2 si cumple condiciones:
+  - Minimo 180 dias en nivel 2
+  - **Reciprocidad**: ha tenido tanto saldo positivo como negativo (aporta Y recibe)
+  - **Limite promedio**: el menor entre el total positivo y negativo del periodo debe superar la mitad del limite actual
+
+### Sistema de Padrino (NUEVO)
+
+Cuando un nodo nivel 2+ ingresa un nodo nuevo a la federacion:
+
+1. El nodo nuevo entra a **nivel 1** con su limite (ej: 1000 TQ)
+2. El limite del **padrino se reduce** en el mismo monto (ej: 5000 → 4000)
+3. El padrino es **responsable** del nodo nuevo:
+   - Si el nodo nuevo entra en default, la **deuda pasa al padrino**
+4. El padrino puede patrocinar hasta que su limite llegue a 0
+   - Con 5000 y nodos nuevos de 1000, puede patrocinar maximo **4 nodos**
+5. Cuando el nodo patrocinado **sube a nivel 2** (aprobado por asamblea):
+   - El monto retenido se **libera al padrino**
+   - El limite efectivo del padrino aumenta
+
+### Limite Promedio (NUEVO)
+
+Para subir de nivel automaticamente, se calcula el "limite promedio":
+
+1. Se suman todos los saldos negativos (gastos) del periodo → `total_negativo`
+2. Se suman todos los saldos positivos (ingresos) del periodo → `total_positivo`
+3. El limite promedio = el **menor** de los dos valores absolutos
+   - Si negativo=600 y positivo=300 → limite promedio = 300
+   - Si positivo=500 y negativo=250 → limite promedio = 250
+4. Para auto-upgrade: el limite promedio debe ser > (limite actual × 0.5)
+   - Ej: nivel 2 con limite 5000 → limite promedio debe ser > 2500
+
+**Proposito:** Garantizar que el nodo ha estado activo real, tanto aportando como recibiendo,
+en volumenes significativos. Un nodo inactivo no califica.
+
+### Tiempos minimos configurables (NUEVO)
+
+Cada nivel tiene dos configuraciones de tiempo:
+
+- `min_days_at_level`: dias minimos en el nivel antes de poder solicitar subida
+- `min_days_after_last_level`: dias minimos desde la ultima aprobacion de nivel
+
+**No se puede proponer votacion de subida antes de que pasen los dias minimos.**
+
+Los niveles especiales pueden tener requisitos de antiguedad mas altos (ej: 365 dias).
+
+### Niveles de Excepcion (NUEVO)
+
+Se pueden crear niveles de excepcion (`is_exception = true`) para casos especiales:
+- Requieren umbral de votacion mayor (75% por defecto, configurable)
+- Permiten subida sin cumplir todos los requisitos con mayor consenso
+- Ejemplo: una aldea con mucha antiguedad pero poca actividad reciente
+
+### Crear/editar niveles (requiere votacion federada)
+
+- Crear nivel nuevo → propuesta tipo `create_node_level`
+- Editar nivel existente → propuesta tipo `edit_node_level`
+- Cambiar limites, tiempos, condiciones, umbrales → todo por votacion
+- Los niveles de excepcion tambien se crean por votacion
+
+### Subida de nivel
+
+**Nivel 1 → Nivel 2 (requiere votacion federada):**
+- Minimo 90 dias en nivel 1 (configurable)
+- Se crea propuesta tipo `upgrade_node_level`
+- Solo votan nodos con derecho a voto (nivel 2+)
+- Si alcanza el umbral → el nodo sube a nivel 2
+- Al subir, se libera el limite retenido del padrino
+- No se puede proponer antes de que pasen los dias minimos
+
+**Nivel 2 → Nivel 3 (automatico si cumple condiciones):**
+- Minimo 180 dias en nivel 2 (configurable)
+- Se verifican: reciprocidad + limite promedio
+- Si cumple todas → auto-upgrade sin votacion
+- Si no cumple → se queda en nivel 2
+- Un nodo inactivo (saldo 0) no califica
+
+### Tablas de la base de datos
+
+#### `federation_node_levels`
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| id | VARCHAR(64) PK | Identificador del nivel |
+| name | TEXT | Nombre del nivel |
+| level | INT | Numero de nivel (1, 2, 3) |
+| global_credit_limit | BIGINT | Limite de la piscina global |
+| global_debit_limit | BIGINT | Limite de debito global |
+| has_voice | BOOLEAN | Tiene voz (puede opinar) |
+| has_vote | BOOLEAN | Tiene voto |
+| can_sponsor | BOOLEAN | Puede patrocinar nodos nuevos |
+| min_days_at_level | INT | Dias minimos en el nivel |
+| min_days_after_last_level | INT | Dias minimos desde ultimo nivel |
+| auto_upgrade | BOOLEAN | Subida automatica |
+| upgrade_to | VARCHAR(64) | A que nivel subir |
+| require_reciprocity | BOOLEAN | Requiere reciprocidad |
+| reciprocity_min_balance | INT | Saldo minimo (negativo) |
+| reciprocity_max_balance | INT | Saldo maximo (positivo) |
+| require_avg_limit | BOOLEAN | Requiere limite promedio |
+| avg_limit_ratio | FLOAT | Proporcion requerida (0.5 = mitad) |
+| is_exception | BOOLEAN | Nivel de excepcion |
+| exception_vote_threshold | FLOAT | Umbral para excepcion (0.75 = 75%) |
+
+#### `federation_node_membership`
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| peer_domain | VARCHAR(255) PK | Dominio del nodo |
+| level_id | VARCHAR(64) FK | Nivel actual |
+| joined_at | TIMESTAMPTZ | Cuando se unio |
+| level_updated_at | TIMESTAMPTZ | Cuando cambio de nivel |
+| last_level_approved_at | TIMESTAMPTZ | Ultima aprobacion de nivel |
+| sponsored_by | VARCHAR(255) | Nodo padrino |
+| sponsor_limit_held | BIGINT | Monto retenido del padrino |
+| min_balance_reached | BIGINT | Saldo minimo historico |
+| max_balance_reached | BIGINT | Saldo maximo historico |
+| total_volume | BIGINT | Volumen total |
+| avg_limit_calculated | BIGINT | Limite promedio calculado |
+
+#### `federation_sponsorships`
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| id | UUID PK | Identificador |
+| sponsor_domain | VARCHAR(255) | Nodo padrino |
+| sponsored_domain | VARCHAR(255) | Nodo patrocinado |
+| amount_held | BIGINT | Monto retenido |
+| status | TEXT | active, released, defaulted |
+| created_at | TIMESTAMPTZ | Cuando se creo |
+| released_at | TIMESTAMPTZ | Cuando se libero |
+
+### API de niveles
+
+| Endpoint | Metodo | Descripcion |
+|----------|--------|-------------|
+| `/api/federation/node-levels` | GET | Listar niveles |
+| `/api/federation/nodes/{domain}/membership` | GET | Membresia de un nodo |
+| `/api/federation/nodes/{domain}/check-upgrade` | GET | Verificar si puede subir |
+| `/api/federation/sponsorships` | GET | Listar patrocinios |
+
+---
+
+## Verificacion de 4 Opciones (NUEVO)
+
+Para unirse a la federacion, un nodo nuevo debe ser aceptado por un padrino (nodo nivel 2+).
+El proceso usa verificacion de 4 opciones para garantizar que el padrino esta interactuando
+con el nodo correcto:
+
+1. El nodo nuevo genera una solicitud con un codigo de 6 digitos
+2. El padrino ve **4 codigos diferentes** en pantalla
+3. El nodo nuevo le dice el codigo correcto al padrino por otro canal (telefono, mensaje)
+4. El padrino elige el codigo correcto
+5. Si elige incorrecto → rechazado
+6. El codigo expira en 60 segundos
+
+### API de federation pairing
+
+| Endpoint | Metodo | Descripcion |
+|----------|--------|-------------|
+| `/api/federation/pair/initiate` | POST | Nodo nuevo inicia solicitud |
+| `/api/federation/pair/{code}/options` | GET | Padrino ve 4 opciones |
+| `/api/federation/pair/{code}/confirm` | POST | Padrino confirma eligiendo codigo |

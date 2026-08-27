@@ -383,3 +383,14 @@ data class PairingStatusResponse(
     @Json(name = "server_public_key") val serverPublicKey: String? = null,
     @Json(name = "message") val message: String? = null
 )
+
+@JsonClass(generateAdapter = true)
+data class PairingOptionsResponse(
+    @Json(name = "options") val options: List<String> = emptyList(),
+    @Json(name = "message") val message: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class PairingApproveRequest(
+    @Json(name = "selected_code") val selectedCode: String
+)

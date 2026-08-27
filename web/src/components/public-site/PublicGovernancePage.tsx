@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../api'
-import { Scale, AlertTriangle, AlertOctagon, Ban, Info, CheckCircle, XCircle, Users, Home, Leaf, Coins, Calendar, UserPlus, UserX, Percent, PiggyBank, Map, Key, FileText, Globe, Network, Building2 } from 'lucide-react'
+import { Scale, AlertTriangle, AlertOctagon, Ban, Info, CheckCircle, XCircle, Users, Home, Leaf, Coins, Calendar, UserPlus, UserX, Percent, PiggyBank, Map, Key, FileText, Globe, Network, Building2, Shield, Award, Handshake, Layers, Vote, Lock } from 'lucide-react'
 
 const CATEGORIES = [
   { value: 'estructura', label: 'Estructura de Gobernanza', icon: Users, color: 'text-blue-700 bg-blue-50' },
@@ -142,6 +142,197 @@ export function PublicGovernancePage() {
             <p className="text-xs text-gray-600">
               Decisiones que afectan solo dentro de cada organizacion. Por su asamblea interna.
               Ej: reglas internas, departamentos, roles. Sujetas a las reglas de la aldea.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Tres niveles de nodo federado */}
+      <div className="bg-gradient-to-b from-blue-50 to-white rounded-2xl p-6 border border-blue-200">
+        <h2 className="text-lg font-bold text-gray-800 mb-2 text-center">Tres Niveles de Nodo Federado</h2>
+        <p className="text-xs text-gray-500 text-center mb-4 max-w-2xl mx-auto">
+          Cada nodo de la federacion pasa por tres niveles de confianza. El nivel determina el limite de credito,
+          el derecho a voto y la capacidad de patrocinar nuevos nodos.
+        </p>
+        <div className="grid md:grid-cols-3 gap-3">
+          <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+            <div className="flex items-center gap-2 mb-2">
+              <Lock className="text-gray-500" size={18} />
+              <h3 className="font-semibold text-sm text-gray-800">Nivel 1: Nodo Nuevo</h3>
+            </div>
+            <ul className="text-xs text-gray-600 space-y-1 list-disc list-inside">
+              <li>Limite de 1.000 TQ</li>
+              <li>Sin derecho a voto en la federacion</li>
+              <li>No puede patrocinar (ser padrino) de nuevos nodos</li>
+              <li>Acceso a la piscina global multilateral</li>
+              <li>Periodo minimo de 90 dias antes de poder ser promovido</li>
+            </ul>
+          </div>
+          <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
+            <div className="flex items-center gap-2 mb-2">
+              <Vote className="text-emerald-600" size={18} />
+              <h3 className="font-semibold text-sm text-gray-800">Nivel 2: Nodo Aceptado</h3>
+            </div>
+            <ul className="text-xs text-gray-600 space-y-1 list-disc list-inside">
+              <li>Limite de 5.000 TQ</li>
+              <li>Derecho a voto en decisiones de la federacion</li>
+              <li>Puede patrocinar (ser padrino) de nuevos nodos</li>
+              <li>Acceso completo a la piscina global multilateral</li>
+              <li>Se alcanza tras votacion de toda la federacion (minimo 90 dias en nivel 1)</li>
+            </ul>
+          </div>
+          <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
+            <div className="flex items-center gap-2 mb-2">
+              <Award className="text-purple-600" size={18} />
+              <h3 className="font-semibold text-sm text-gray-800">Nivel 3: Nodo Pleno</h3>
+            </div>
+            <ul className="text-xs text-gray-600 space-y-1 list-disc list-inside">
+              <li>Limite de 20.000 TQ</li>
+              <li>Derecho a voto y capacidad de patrocinio</li>
+              <li>Acceso completo a la piscina global multilateral</li>
+              <li>Promocion automatica al cumplir reciprocidad y limite promedio requerido</li>
+            </ul>
+          </div>
+        </div>
+        <div className="mt-4 bg-blue-50 rounded-lg p-3 border border-blue-100">
+          <p className="text-xs text-blue-700">
+            <strong>Promocion a Nivel 2:</strong> Requiere una votacion de toda la federacion despues de un minimo
+            de 90 dias como Nodo Nuevo. La promocion a Nivel 3 es automatica cuando el nodo cumple los requisitos
+            de reciprocidad y el limite promedio de la federacion.
+          </p>
+        </div>
+      </div>
+
+      {/* Sistema de padrino (patrocinador) */}
+      <div className="bg-gradient-to-b from-amber-50 to-white rounded-2xl p-6 border border-amber-200">
+        <h2 className="text-lg font-bold text-gray-800 mb-2 text-center">Sistema de Padrino (Patrocinador)</h2>
+        <p className="text-xs text-gray-500 text-center mb-4 max-w-2xl mx-auto">
+          Los nodos de nivel 2 o superior pueden patrocinar nuevos nodos que ingresan a la federacion,
+          asumiendo responsabilidad solidaria sobre su deuda en caso de incumplimiento.
+        </p>
+        <div className="grid md:grid-cols-2 gap-3">
+          <div className="bg-white rounded-xl p-4 border border-amber-100">
+            <div className="flex items-center gap-2 mb-2">
+              <Handshake className="text-amber-600" size={18} />
+              <h3 className="font-semibold text-sm text-gray-800">Como funciona el patrocinio</h3>
+            </div>
+            <ul className="text-xs text-gray-600 space-y-1.5 list-disc list-inside">
+              <li>Solo los nodos de <strong>Nivel 2 (Aceptado)</strong> o <strong>Nivel 3 (Pleno)</strong> pueden ser padrinos</li>
+              <li>Al patrocinar un nodo nuevo, el limite del padrino se reduce en el monto del limite del nodo patrocinado (1.000 TQ)</li>
+              <li>El nodo patrocinado ingresa como <strong>Nivel 1 (Nodo Nuevo)</strong> con su limite de 1.000 TQ</li>
+              <li>Si el nodo patrocinado incumple (default), la deuda se transfiere al padrino</li>
+              <li>Cuando el nodo patrocinado alcanza el <strong>Nivel 2</strong>, el limite retenido del padrino se libera automaticamente</li>
+            </ul>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-amber-100">
+            <div className="flex items-center gap-2 mb-2">
+              <Shield className="text-amber-600" size={18} />
+              <h3 className="font-semibold text-sm text-gray-800">Responsabilidad del padrino</h3>
+            </div>
+            <ul className="text-xs text-gray-600 space-y-1.5 list-disc list-inside">
+              <li>El padrino responde solidariamente por la deuda del nodo patrocinado</li>
+              <li>El limite efectivo del padrino = limite nominal - suma de limites de nodos patrocinados</li>
+              <li>Un nodo puede patrocinar multiples nodos nuevos, mientras tenga limite disponible</li>
+              <li>El patrocinio fomenta la confianza: el padrino solo patrocina nodos que conoce y en los que confia</li>
+              <li>La liberacion del limite al alcanzar el ahijado el Nivel 2 incentiva al padrino a apoyar el crecimiento del nodo nuevo</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* Piscina global vs bilateral */}
+      <div className="bg-gradient-to-b from-teal-50 to-white rounded-2xl p-6 border border-teal-200">
+        <h2 className="text-lg font-bold text-gray-800 mb-2 text-center">Piscina Global Multilateral vs. Piscinas Bilaterales</h2>
+        <p className="text-xs text-gray-500 text-center mb-4 max-w-2xl mx-auto">
+          La federacion maneja dos tipos de piscinas de saldo: una global compartida y piscinas bilaterales entre pares de nodos.
+        </p>
+        <div className="grid md:grid-cols-2 gap-3">
+          <div className="bg-white rounded-xl p-4 border border-teal-100">
+            <div className="flex items-center gap-2 mb-2">
+              <Layers className="text-teal-600" size={18} />
+              <h3 className="font-semibold text-sm text-gray-800">Piscina Global Multilateral Real</h3>
+            </div>
+            <p className="text-xs text-gray-600 leading-relaxed">
+              Una piscina compartida por todos los nodos federados. El saldo que ganas en el nodo B
+              es gastable en el nodo C. Es decir, si un usuario del nodo A compra productos de un
+              productor del nodo B, el saldo positivo que genera el productor del nodo B puede
+              usarse para comprar productos del nodo C. Esto permite un trueque multilateral real
+              entre todas las comunidades federadas, no solo de par en par.
+            </p>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-teal-100">
+            <div className="flex items-center gap-2 mb-2">
+              <Network className="text-teal-600" size={18} />
+              <h3 className="font-semibold text-sm text-gray-800">Piscinas Bilaterales</h3>
+            </div>
+            <p className="text-xs text-gray-600 leading-relaxed">
+              Cada par de nodos mantiene ademas un saldo bilateral independiente. Este saldo refleja
+              el intercambio directo entre dos nodos especificos. Las piscinas bilaterales son
+              separadas de la piscina global: el saldo bilateral con el nodo B no se mezcla con el
+              saldo bilateral con el nodo C. Anteriormente, el sistema solo verificaba limites
+              bilaterales; ahora existe una piscina global real que permite el multilateralismo
+              completo.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Verificacion de 4 opciones */}
+      <div className="bg-gradient-to-b from-indigo-50 to-white rounded-2xl p-6 border border-indigo-200">
+        <h2 className="text-lg font-bold text-gray-800 mb-2 text-center">Verificacion de 4 Opciones</h2>
+        <p className="text-xs text-gray-500 text-center mb-4 max-w-2xl mx-auto">
+          Para mayor seguridad, el emparejamiento de terminales POS y la incorporacion de nuevos nodos
+          a la federacion utilizan un sistema de verificacion de 4 opciones.
+        </p>
+        <div className="bg-white rounded-xl p-4 border border-indigo-100">
+          <div className="flex items-center gap-2 mb-2">
+            <Key className="text-indigo-600" size={18} />
+            <h3 className="font-semibold text-sm text-gray-800">Como funciona</h3>
+          </div>
+          <ol className="text-xs text-gray-600 space-y-1.5 list-decimal list-inside">
+            <li>El dispositivo o nodo que solicita emparejamiento genera un codigo de 6 digitos</li>
+            <li>El confirmador (administrador del nodo receptor) ve <strong>4 opciones de codigo</strong> en pantalla</li>
+            <li>Solo una de las 4 opciones es el codigo correcto que muestra el dispositivo solicitante</li>
+            <li>El confirmador debe <strong>seleccionar el codigo correcto</strong> entre las 4 opciones</li>
+            <li>Si selecciona el codigo equivocado, el emparejamiento se rechaza automaticamente</li>
+          </ol>
+          <p className="text-xs text-indigo-600 mt-3 bg-indigo-50 p-2 rounded">
+            Este sistema previene ataques de intermediario: incluso si un atacante intercepta la comunicacion,
+            no puede forzar la aprobacion sin conocer visualmente cual de las 4 opciones es la correcta.
+          </p>
+        </div>
+      </div>
+
+      {/* Integridad distribuida */}
+      <div className="bg-gradient-to-b from-rose-50 to-white rounded-2xl p-6 border border-rose-200">
+        <h2 className="text-lg font-bold text-gray-800 mb-2 text-center">Integridad Distribuida</h2>
+        <p className="text-xs text-gray-500 text-center mb-4 max-w-2xl mx-auto">
+          Las transacciones entre nodos federados estan protegidas por un sistema de doble firma
+          y hashes encadenados que garantiza su integridad.
+        </p>
+        <div className="grid md:grid-cols-2 gap-3">
+          <div className="bg-white rounded-xl p-4 border border-rose-100">
+            <div className="flex items-center gap-2 mb-2">
+              <Shield className="text-rose-600" size={18} />
+              <h3 className="font-semibold text-sm text-gray-800">Doble firma</h3>
+            </div>
+            <p className="text-xs text-gray-600 leading-relaxed">
+              Cada transaccion entre nodos federados requiere la firma criptografica de ambos nodos
+              (emisor y receptor). Esto significa que ningun nodo puede falsificar una transaccion
+              en nombre del otro. Ambas partes deben confirmar criptograficamente la transaccion
+              para que sea valida.
+            </p>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-rose-100">
+            <div className="flex items-center gap-2 mb-2">
+              <Layers className="text-rose-600" size={18} />
+              <h3 className="font-semibold text-sm text-gray-800">Hashes encadenados</h3>
+            </div>
+            <p className="text-xs text-gray-600 leading-relaxed">
+              Las transacciones entre nodos se encadenan mediante hashes: cada transaccion incluye
+              el hash de la transaccion anterior. Esto crea una cadena inmutable donde cualquier
+              modificacion de una transaccion pasada invalida todas las posteriores. Permite
+              verificar la integridad completa del historial de intercambios entre dos nodos.
             </p>
           </div>
         </div>

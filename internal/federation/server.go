@@ -22,6 +22,7 @@ type Server struct {
 	TLSConfig  *tls.Config
 	Protocol   *Protocol
 	Gossip     *Gossip
+	Reconciler *Reconciler
 	ListenPort int
 }
 
@@ -33,6 +34,7 @@ func NewServer(pool *pgxpool.Pool, nodeDomain string, listenPort int, certPath, 
 
 	proto := New(pool, nodeDomain)
 	gossip := NewGossip(pool, nodeDomain, 60*time.Second)
+	reconciler := NewReconciler(pool, nodeDomain)
 
 	return &Server{
 		Pool:       pool,
@@ -40,6 +42,7 @@ func NewServer(pool *pgxpool.Pool, nodeDomain string, listenPort int, certPath, 
 		TLSConfig:  tlsConfig,
 		Protocol:   proto,
 		Gossip:     gossip,
+		Reconciler: reconciler,
 		ListenPort: listenPort,
 	}, nil
 }
@@ -81,6 +84,10 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("/federation/parity", s.handleParity)
 	mux.HandleFunc("/federation/warnings", s.handleWarnings)
 	mux.HandleFunc("/federation/health", s.handleHealth)
+	mux.HandleFunc("/federation/reconcile/compare", s.handleReconcileCompare)
+	mux.HandleFunc("/federation/reconcile/chain", s.handleReconcileChain)
+	mux.HandleFunc("/federation/reconcile/import", s.handleReconcileImport)
+	mux.HandleFunc("/federation/audit/chain", s.handleAuditChain)
 
 	srv := &http.Server{
 		Addr:      fmt.Sprintf(":%d", s.ListenPort),
@@ -478,6 +485,131 @@ func (c *Client) QueryRemoteCard(ctx context.Context, remoteNodeURL, cardUID str
 	return &result, nil
 }
 
+// ============ RECONCILIATION & AUDIT ============
+
+// handleReconcileCompare returns our last chain hash for a given node pair.
+// The peer calls this to check if our chains are in sync.
+func (s *Server) handleReconcileCompare(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeFederationJSON(w, 405, map[string]string{"error": "method not allowed"})
+		return
+	}
+
+	peerNode := r.URL.Query().Get("node")
+	if peerNode == "" {
+		writeFederationJSON(w, 400, map[string]string{"error": "node parameter required"})
+		return
+	}
+
+	// Our last hash for A->B (we are A, peer is B)
+	hashAB, _ := s.Reconciler.GetLastChainHash(r.Context(), s.NodeDomain, peerNode)
+	// Our last hash for B->A (peer is B, we are A)
+	hashBA, _ := s.Reconciler.GetLastChainHash(r.Context(), peerNode, s.NodeDomain)
+
+	writeFederationJSON(w, 200, map[string]interface{}{
+		"node":         s.NodeDomain,
+		"peer":         peerNode,
+		"last_hash_ab": hashAB,
+		"last_hash_ba": hashBA,
+	})
+}
+
+// handleReconcileChain returns chain entries since a given hash (or all if empty).
+// The peer calls this when it detects a hash mismatch to get our missing entries.
+func (s *Server) handleReconcileChain(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeFederationJSON(w, 405, map[string]string{"error": "method not allowed"})
+		return
+	}
+
+	peerNode := r.URL.Query().Get("node")
+	if peerNode == "" {
+		writeFederationJSON(w, 400, map[string]string{"error": "node parameter required"})
+		return
+	}
+
+	sinceHash := r.URL.Query().Get("since")
+
+	// Return entries where we are sender and peer is receiver
+	entries, err := s.Reconciler.GetChainSince(r.Context(), s.NodeDomain, peerNode, sinceHash)
+	if err != nil {
+		writeFederationJSON(w, 500, map[string]string{"error": "getting chain"})
+		return
+	}
+
+	// Also entries where peer is sender and we are receiver
+	entriesRev, _ := s.Reconciler.GetChainSince(r.Context(), peerNode, s.NodeDomain, sinceHash)
+	entries = append(entries, entriesRev...)
+
+	writeFederationJSON(w, 200, map[string]interface{}{
+		"entries": entries,
+		"count":   len(entries),
+	})
+}
+
+// handleReconcileImport receives chain entries from a peer and imports them.
+func (s *Server) handleReconcileImport(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeFederationJSON(w, 405, map[string]string{"error": "method not allowed"})
+		return
+	}
+
+	var req struct {
+		Entries []ChainEntry `json:"entries"`
+	}
+	if err := decodeFederationJSON(r, &req); err != nil {
+		writeFederationJSON(w, 400, map[string]string{"error": "invalid request"})
+		return
+	}
+
+	imported := 0
+	rejected := 0
+	for _, entry := range req.Entries {
+		err := s.Reconciler.ImportChainEntry(r.Context(), &entry)
+		if err != nil {
+			rejected++
+		} else {
+			imported++
+		}
+	}
+
+	writeFederationJSON(w, 200, map[string]interface{}{
+		"imported": imported,
+		"rejected": rejected,
+	})
+}
+
+// handleAuditChain returns the full chain for a node pair for audit purposes.
+// Any node can request another node's chain to verify integrity.
+func (s *Server) handleAuditChain(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeFederationJSON(w, 405, map[string]string{"error": "method not allowed"})
+		return
+	}
+
+	peerNode := r.URL.Query().Get("node")
+	if peerNode == "" {
+		writeFederationJSON(w, 400, map[string]string{"error": "node parameter required"})
+		return
+	}
+
+	entries, err := s.Reconciler.GetChainSince(r.Context(), s.NodeDomain, peerNode, "")
+	if err != nil {
+		writeFederationJSON(w, 500, map[string]string{"error": "getting audit chain"})
+		return
+	}
+
+	entriesRev, _ := s.Reconciler.GetChainSince(r.Context(), peerNode, s.NodeDomain, "")
+	entries = append(entries, entriesRev...)
+
+	writeFederationJSON(w, 200, map[string]interface{}{
+		"node":    s.NodeDomain,
+		"peer":    peerNode,
+		"entries": entries,
+		"count":   len(entries),
+	})
+}
+
 // ============ PRODUCT FEDERATION ============
 
 func (s *Server) handleProductProposalMessage(w http.ResponseWriter, r *http.Request, msg *Message) {
@@ -551,7 +683,7 @@ func (s *Server) BroadcastProductProposal(ctx context.Context, productID uuid.UU
 	// Nota: el envio real requiere URL del nodo remoto y cliente TLS
 	// Por ahora registramos el intento en el log
 	for _, node := range nodes {
-		log.Printf("Product proposal: %s -> %s (product: %s, price: %d)", s.NodeDomain, node, name, pricePerUnit)
+		log.Printf("Product proposal: %s -> %s (product: %s, price: %f)", s.NodeDomain, node, name, pricePerUnit)
 		// El envio real se hace via el cliente federado cuando las URLs esten configuradas
 	}
 

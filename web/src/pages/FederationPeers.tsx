@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useConfig } from '../hooks/useConfig'
-import { Globe, Plus, Trash2, Key, Copy, CheckCircle, AlertCircle, Link2, HelpCircle, ArrowUpCircle, ArrowDownCircle, FileText } from 'lucide-react'
+import { Globe, Plus, Trash2, Key, Copy, CheckCircle, AlertCircle, Link2, HelpCircle, ArrowUpCircle, ArrowDownCircle, FileText, Award, Handshake, Shield } from 'lucide-react'
 
 interface Peer {
   peer_domain: string
@@ -22,6 +22,27 @@ interface NodeKeys {
   initialized: boolean
 }
 
+interface NodeLevel {
+  peer_domain: string
+  level: number
+  level_name: string
+  limit: number
+  effective_limit: number
+  held_limit: number
+  can_vote: boolean
+  can_sponsor: boolean
+}
+
+interface Sponsorship {
+  id: string
+  sponsor_domain: string
+  sponsored_domain: string
+  sponsored_name?: string
+  held_limit: number
+  created_at: string
+  status: string
+}
+
 export default function FederationPeers() {
   const { currency } = useConfig()
   const { hasPermission } = usePermissions()
@@ -36,6 +57,8 @@ export default function FederationPeers() {
   const [expandedPeer, setExpandedPeer] = useState<string | null>(null)
   const [peerTxs, setPeerTxs] = useState<any[]>([])
   const [loadingTxs, setLoadingTxs] = useState(false)
+  const [nodeLevels, setNodeLevels] = useState<Record<string, NodeLevel>>({})
+  const [sponsorships, setSponsorships] = useState<Sponsorship[]>([])
 
   const canManage = hasPermission('federation.change_config')
 
@@ -51,6 +74,8 @@ export default function FederationPeers() {
     loadPeers()
     loadNodeKeys()
     loadBalances()
+    loadNodeLevels()
+    loadSponsorships()
   }, [])
 
   const loadBalances = async () => {
@@ -80,6 +105,30 @@ export default function FederationPeers() {
       setNodeKeys(res)
     } catch {
       // El nodo puede no estar inicializado aun
+    }
+  }
+
+  const loadNodeLevels = async () => {
+    try {
+      const res = await api.get<any>('/federation/node-levels')
+      const list = Array.isArray(res) ? res : res?.levels ?? []
+      const map: Record<string, NodeLevel> = {}
+      list.forEach((l: any) => {
+        map[l.peer_domain || l.node_domain] = l
+      })
+      setNodeLevels(map)
+    } catch {
+      // Los niveles pueden no estar disponibles aun
+    }
+  }
+
+  const loadSponsorships = async () => {
+    try {
+      const res = await api.get<any>('/federation/sponsorships')
+      const list = Array.isArray(res) ? res : res?.sponsorships ?? []
+      setSponsorships(list)
+    } catch {
+      // Los patrocinios pueden no estar disponibles aun
     }
   }
 
@@ -177,6 +226,14 @@ export default function FederationPeers() {
             <li><strong>pending:</strong> El nodo esta registrado de tu lado pero el otro nodo aun no te ha registrado.</li>
             <li><strong>Mutuo:</strong> Indica que ambos nodos se han registrado mutuamente y la federacion esta activa.</li>
           </ul>
+          <p><strong>Niveles de nodo federado:</strong> Cada nodo tiene un nivel que determina su limite y capacidades:</p>
+          <ul className="list-disc list-inside space-y-1 ml-2">
+            <li><strong>Nivel 1 (Nodo Nuevo):</strong> Limite 1.000 TQ, sin voto, sin patrocinio. Minimo 90 dias antes de promocion.</li>
+            <li><strong>Nivel 2 (Nodo Aceptado):</strong> Limite 5.000 TQ, con voto y capacidad de patrocinar. Se alcanza por votacion de la federacion.</li>
+            <li><strong>Nivel 3 (Nodo Pleno):</strong> Limite 20.000 TQ. Promocion automatica al cumplir reciprocidad y limite promedio.</li>
+          </ul>
+          <p><strong>Limite efectivo:</strong> El limite efectivo de un nodo es su limite nominal menos el limite retenido por patrocinios activos. Cuando un nodo patrocina a otro, su limite se reduce temporalmente. Se libera cuando el nodo patrocinado alcanza el Nivel 2.</p>
+          <p><strong>Piscina global multilateral:</strong> Ademas de los saldos bilaterales entre pares de nodos, existe una piscina global compartida. El saldo que ganas en un nodo es gastable en cualquier otro nodo federado.</p>
           <p><strong>Como usar esta pagina:</strong> Copia tu clave publica y enviasela al admin del otro nodo. Pide la clave publica del otro nodo. Registra el otro nodo aqui (dominio + clave publica). Pide al otro nodo que te registre a ti. Cuando ambos se han registrado, la federacion esta activa.</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
         </div>
@@ -230,11 +287,17 @@ export default function FederationPeers() {
         {peers.map((p) => {
           const bal = balances[p.peer_domain] ?? 0
           const isExpanded = expandedPeer === p.peer_domain
+          const levelInfo = nodeLevels[p.peer_domain]
+          const levelBadge = levelInfo ? {
+            1: { label: 'Nivel 1: Nodo Nuevo', class: 'bg-gray-100 text-gray-600' },
+            2: { label: 'Nivel 2: Nodo Aceptado', class: 'bg-emerald-100 text-emerald-700' },
+            3: { label: 'Nivel 3: Nodo Pleno', class: 'bg-purple-100 text-purple-700' },
+          }[levelInfo.level] || null : null
           return (
           <div key={p.peer_domain} className="card">
             <div className="flex items-center justify-between">
               <div className="space-y-1 flex-1">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Globe size={16} className="text-blue-600" />
                   <p className="font-medium">{p.peer_name || p.peer_domain}</p>
                   <span className={`text-xs px-2 py-0.5 rounded ${
@@ -245,6 +308,11 @@ export default function FederationPeers() {
                   {p.mutual_verified && (
                     <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded flex items-center gap-1">
                       <CheckCircle size={12} /> Mutuo
+                    </span>
+                  )}
+                  {levelBadge && (
+                    <span className={`text-xs px-2 py-0.5 rounded flex items-center gap-1 ${levelBadge.class}`}>
+                      <Award size={12} /> {levelBadge.label}
                     </span>
                   )}
                 </div>
@@ -260,6 +328,38 @@ export default function FederationPeers() {
                   {bal < 0 && <span className="text-xs text-red-600">(debes)</span>}
                   {bal === 0 && <span className="text-xs text-gray-400">(sin transacciones)</span>}
                 </div>
+
+                {/* Limite efectivo considerando patrocinios */}
+                {levelInfo && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                    <span className="text-gray-600 flex items-center gap-1">
+                      <Shield size={12} /> Limite nominal:
+                      <strong className="font-bold text-gray-700">{levelInfo.limit} {currency}</strong>
+                    </span>
+                    {levelInfo.held_limit > 0 && (
+                      <span className="text-amber-600 flex items-center gap-1">
+                        Retenido por patrocinios:
+                        <strong className="font-bold">-{levelInfo.held_limit} {currency}</strong>
+                      </span>
+                    )}
+                    <span className="text-gray-600 flex items-center gap-1">
+                      Limite efectivo:
+                      <strong className={`font-bold ${levelInfo.effective_limit < levelInfo.limit ? 'text-amber-600' : 'text-green-600'}`}>
+                        {levelInfo.effective_limit} {currency}
+                      </strong>
+                    </span>
+                    {levelInfo.can_vote && (
+                      <span className="bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded flex items-center gap-1">
+                        <CheckCircle size={10} /> Voto
+                      </span>
+                    )}
+                    {levelInfo.can_sponsor && (
+                      <span className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded flex items-center gap-1">
+                        <Handshake size={10} /> Puede patrocinar
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="flex flex-col gap-2 items-end">
                 <button
@@ -406,6 +506,50 @@ export default function FederationPeers() {
           )
         })}
       </div>
+
+      {/* Patrocinios activos (padrinos) */}
+      {sponsorships.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="font-semibold flex items-center gap-2"><Handshake size={18} /> Patrocinios Activos ({sponsorships.length})</h2>
+          <div className="card bg-amber-50 border-amber-200 text-sm text-amber-700">
+            <p>
+              Los patrocinios activos muestran los nodos que tu nodo esta respaldando como padrino.
+              El limite retenido por cada patrocinio se libera cuando el nodo patrocinado alcanza el Nivel 2.
+            </p>
+          </div>
+          {sponsorships.map((s) => (
+            <div key={s.id} className="card border-amber-200">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Handshake size={16} className="text-amber-600" />
+                    <p className="font-medium text-sm">
+                      Padrino: <span className="text-gray-700">{s.sponsor_domain}</span>
+                    </p>
+                    <span className="text-gray-400 text-xs">→</span>
+                    <p className="font-medium text-sm">
+                      Patrocinado: <span className="text-gray-700">{s.sponsored_name || s.sponsored_domain}</span>
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className="text-amber-600">
+                      Limite retenido: <strong>{s.held_limit} {currency}</strong>
+                    </span>
+                    <span className={`px-2 py-0.5 rounded ${
+                      s.status === 'active' ? 'bg-green-100 text-green-700' :
+                      s.status === 'released' ? 'bg-blue-100 text-blue-700' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>{s.status}</span>
+                    <span className="text-gray-400">
+                      {String(s.created_at || '').slice(0, 10)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Info: como federar */}
       <div className="card bg-amber-50 border-amber-200">

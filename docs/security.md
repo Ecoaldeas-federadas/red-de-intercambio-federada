@@ -56,6 +56,76 @@
 - Recalcula hashes y compara con almacenados
 - Cualquier modificacion altera la cadena detectablemente
 
+## Firma Dual (Transacciones Inter-Nodos)
+
+### Archivos
+- `internal/federation/reconcile.go` - Reconciliacion de cadenas
+- Tabla `cross_node_tx_chain` - Cadena de transacciones inter-nodos
+
+### Concepto
+Las transacciones entre nodos federados requieren **firma dual**: ambos nodos
+(Nodo A y Nodo B) firman cada transaccion con sus claves Ed25519. Esto asegura
+que ningun nodo puede crear transacciones unilaterales.
+
+### Flujo
+1. Nodo A crea la transaccion y la firma con su clave privada.
+2. Nodo B recibe la transaccion, verifica la firma de A, y la firma con su clave.
+3. Ambas firmas se almacenan en `cross_node_tx_chain`.
+4. Cualquier nodo puede verificar ambas firmas con las claves publicas de A y B.
+
+## Hash Encadenado Inter-Nodos
+
+### Tabla `cross_node_tx_chain`
+Cada transaccion inter-nodos tiene:
+- `prev_hash`: Hash de la transaccion anterior en la cadena
+- `tx_hash`: Hash de la transaccion actual (`SHA256(prev_hash + tx_data + firmas)`)
+
+### Reconciliacion
+Cuando dos nodos se reconectan (despues de una desconexion), realizan una
+reconciliacion automatica:
+1. `POST /federation/reconcile/compare` — Comparan los ultimos hashes de sus cadenas.
+2. `POST /federation/reconcile/chain` — Si hay discrepancia, solicitan la cadena completa.
+3. `POST /federation/reconcile/import` — Importan las transacciones faltantes.
+
+Esto asegura que ambos nodos tengan la misma cadena de transacciones verificable,
+incluso despues de desconexiones prolongadas.
+
+## Verificacion de 4 Opciones
+
+### Emparejamiento federado y POS
+Tanto el emparejamiento federado (nodo a nodo) como el emparejamiento de
+terminales POS usan **verificacion de 4 opciones**:
+
+1. El solicitante genera un codigo de emparejamiento.
+2. El confirmador ve **4 codigos distintos** en su pantalla.
+3. Debe seleccionar el codigo correcto.
+4. El codigo **expira en 60 segundos**.
+
+### Endpoints
+- `GET /api/federation/pair/{code}/options` — 4 opciones para emparejamiento federado.
+- `GET /api/nfc/terminal/pair/{code}/options` — 4 opciones para emparejamiento POS.
+
+### Razon de seguridad
+Con un solo codigo, cualquiera que lo intercepte puede confirmar. Con 4
+opciones, solo quien ve la pantalla del solicitante sabe cual es el correcto.
+Esto previene ataques de intermediario y confirmaciones por error.
+
+## Rate-Limiting de Intentos Fallidos
+
+### Emparejamiento
+- Si se selecciona el codigo incorrecto en la verificacion de 4 opciones, el
+  intento se registra.
+- Despues de **5 intentos fallidos**, el codigo de emparejamiento se bloquea y
+  se debe generar uno nuevo.
+
+### PIN de tarjetas NFC
+- Maximo 3 intentos antes de bloqueo temporal (15 minutos).
+- El admin puede resetear el PIN con permiso `nfc.reset_pin`.
+
+### Login
+- Intentos fallidos de login se registran en `audit_log` con accion `login_failed`.
+- El sistema puede aplicar rate-limiting configurable por IP y por usuario.
+
 ## Encriptacion de Claves Privadas
 
 - **Algoritmo**: AES-256-GCM

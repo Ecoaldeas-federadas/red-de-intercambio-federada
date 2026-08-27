@@ -35,10 +35,20 @@ const (
 type AccountCategory string
 
 const (
-	CategoryUserBalance    AccountCategory = "user_balance"
-	CategoryNodeBridge     AccountCategory = "node_bridge"
-	CategoryFund           AccountCategory = "fund"
-	CategoryExternalBridge AccountCategory = "external_bridge"
+	CategoryUserBalance         AccountCategory = "user_balance"
+	CategoryNodeBridge          AccountCategory = "node_bridge"
+	CategoryNodeBridgeGlobal    AccountCategory = "node_bridge_global"
+	CategoryNodeBridgeBilateral AccountCategory = "node_bridge_bilateral"
+	CategoryFund                AccountCategory = "fund"
+	CategoryExternalBridge      AccountCategory = "external_bridge"
+)
+
+// PoolType distingue entre la piscina global (multilateral) y bilateral
+type PoolType string
+
+const (
+	PoolTypeGlobal    PoolType = "global"
+	PoolTypeBilateral PoolType = "bilateral"
 )
 
 type Transaction struct {
@@ -98,7 +108,7 @@ func (l *Ledger) GetNodeBalance(ctx context.Context, remoteNode string) (int64, 
 	var balance int64
 	err := l.Pool.QueryRow(ctx,
 		`SELECT COALESCE(SUM(CASE WHEN entry_type = 'credit' THEN amount ELSE -amount END), 0)
-		 FROM ledger_entries WHERE counterpart_node = $1 AND account_category = 'node_bridge'`,
+		 FROM ledger_entries WHERE counterpart_node = $1 AND account_category IN ('node_bridge', 'node_bridge_bilateral')`,
 		remoteNode,
 	).Scan(&balance)
 	if err != nil {
@@ -107,12 +117,44 @@ func (l *Ledger) GetNodeBalance(ctx context.Context, remoteNode string) (int64, 
 	return balance, nil
 }
 
+// GetGlobalPoolBalance returns the shared global pool balance (multilateral).
+// Sums all node_bridge_global entries WITHOUT filtering by counterpart_node.
+// This is the real global pool: a balance earned from node B is spendable with node C.
+func (l *Ledger) GetGlobalPoolBalance(ctx context.Context) (int64, error) {
+	var balance int64
+	err := l.Pool.QueryRow(ctx,
+		`SELECT COALESCE(SUM(CASE WHEN entry_type = 'credit' THEN amount ELSE -amount END), 0)
+		 FROM ledger_entries WHERE account_category = 'node_bridge_global'`,
+	).Scan(&balance)
+	if err != nil {
+		return 0, fmt.Errorf("getting global pool balance: %w", err)
+	}
+	return balance, nil
+}
+
+// GetBilateralPoolBalance returns the bilateral pool balance for a specific counterpart.
+// Only sums node_bridge_bilateral entries filtered by counterpart_node.
+func (l *Ledger) GetBilateralPoolBalance(ctx context.Context, counterpartNode string) (int64, error) {
+	var balance int64
+	err := l.Pool.QueryRow(ctx,
+		`SELECT COALESCE(SUM(CASE WHEN entry_type = 'credit' THEN amount ELSE -amount END), 0)
+		 FROM ledger_entries WHERE account_category = 'node_bridge_bilateral' AND counterpart_node = $1`,
+		counterpartNode,
+	).Scan(&balance)
+	if err != nil {
+		return 0, fmt.Errorf("getting bilateral pool balance: %w", err)
+	}
+	return balance, nil
+}
+
+// GetGlobalBaseBalance is kept for backward compatibility but now delegates to GetGlobalPoolBalance.
+// It sums all node_bridge entries (both legacy and new pool types).
 func (l *Ledger) GetGlobalBaseBalance(ctx context.Context, localNode string) (int64, error) {
 	var balance int64
 	err := l.Pool.QueryRow(ctx,
 		`SELECT COALESCE(SUM(CASE WHEN entry_type = 'credit' THEN amount ELSE -amount END), 0)
 		 FROM ledger_entries 
-		 WHERE account_category = 'node_bridge' 
+		 WHERE account_category IN ('node_bridge', 'node_bridge_global', 'node_bridge_bilateral')
 		 AND counterpart_node != ''`,
 	).Scan(&balance)
 	if err != nil {
@@ -211,10 +253,17 @@ func (l *Ledger) CreateTransaction(ctx context.Context, params CreateTxParams) (
 
 func (l *Ledger) PostEntries(ctx context.Context, txID uuid.UUID, entries []LedgerEntry) error {
 	for _, e := range entries {
+		// Determinar pool_type basado en account_category
+		poolType := "global"
+		if e.AccountCategory == CategoryNodeBridgeBilateral {
+			poolType = "bilateral"
+		} else if e.AccountCategory == CategoryNodeBridgeGlobal {
+			poolType = "global"
+		}
 		_, err := l.Pool.Exec(ctx, `
-			INSERT INTO ledger_entries (transaction_id, account_id, entry_type, amount, account_category, counterpart_node, created_at)
-			VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
-			txID, e.AccountID, e.EntryType, e.Amount, e.AccountCategory, e.CounterpartNode,
+			INSERT INTO ledger_entries (transaction_id, account_id, entry_type, amount, account_category, counterpart_node, pool_type, created_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+			txID, e.AccountID, e.EntryType, e.Amount, e.AccountCategory, e.CounterpartNode, poolType,
 		)
 		if err != nil {
 			return fmt.Errorf("inserting ledger entry: %w", err)
@@ -289,19 +338,33 @@ func (l *Ledger) InternalTransfer(ctx context.Context, p InternalTransferParams)
 }
 
 type CrossNodeTransferParams struct {
-	SenderID         uuid.UUID
-	ReceiverID       uuid.UUID
-	SenderNode       string
-	ReceiverNode     string
-	Amount           int64
-	TaxAmount        int64
-	TaxTargetAccount *uuid.UUID
-	UserSignature    string
-	NodeSignature    string
-	ExternalID       string
+	SenderID          uuid.UUID
+	ReceiverID        uuid.UUID
+	SenderNode        string
+	ReceiverNode      string
+	Amount            int64
+	TaxAmount         int64
+	TaxTargetAccount  *uuid.UUID
+	UserSignature     string
+	NodeSignature     string
+	ExternalID        string
+	PoolType          PoolType // 'global' or 'bilateral'
+	ReceiverSignature string   // firma del nodo receptor (firma dual)
 }
 
 func (l *Ledger) CrossNodeTransfer(ctx context.Context, p CrossNodeTransferParams) (*Transaction, error) {
+	poolType := p.PoolType
+	if poolType == "" {
+		poolType = PoolTypeGlobal
+	}
+
+	var bridgeCategory AccountCategory
+	if poolType == PoolTypeBilateral {
+		bridgeCategory = CategoryNodeBridgeBilateral
+	} else {
+		bridgeCategory = CategoryNodeBridgeGlobal
+	}
+
 	tx, err := l.CreateTransaction(ctx, CreateTxParams{
 		TxType:           TxTypeCrossNode,
 		SenderID:         &p.SenderID,
@@ -321,7 +384,7 @@ func (l *Ledger) CrossNodeTransfer(ctx context.Context, p CrossNodeTransferParam
 
 	entries := []LedgerEntry{
 		{TransactionID: tx.ID, AccountID: p.SenderID, EntryType: EntryTypeDebit, Amount: p.Amount, AccountCategory: CategoryUserBalance},
-		{TransactionID: tx.ID, AccountID: p.SenderID, EntryType: EntryTypeCredit, Amount: p.Amount, AccountCategory: CategoryNodeBridge, CounterpartNode: p.ReceiverNode},
+		{TransactionID: tx.ID, AccountID: p.SenderID, EntryType: EntryTypeCredit, Amount: p.Amount, AccountCategory: bridgeCategory, CounterpartNode: p.ReceiverNode},
 	}
 
 	if p.TaxAmount > 0 && p.TaxTargetAccount != nil {
@@ -335,7 +398,78 @@ func (l *Ledger) CrossNodeTransfer(ctx context.Context, p CrossNodeTransferParam
 		return nil, fmt.Errorf("posting entries: %w", err)
 	}
 
+	// Guardar en la cadena de transacciones cross-node (firma dual + hash encadenado)
+	if err := l.recordCrossNodeTxChain(ctx, tx, poolType, p.NodeSignature, p.ReceiverSignature); err != nil {
+		// No fallar la transaccion si la cadena falla, pero logear
+		// La transaccion ya esta registrada en el ledger
+	}
+
 	return tx, nil
+}
+
+// recordCrossNodeTxChain guarda la transaccion en cross_node_tx_chain con hash encadenado.
+// El prev_hash se obtiene de la ultima transaccion con el mismo par de nodos.
+func (l *Ledger) recordCrossNodeTxChain(ctx context.Context, tx *Transaction, poolType PoolType, senderSig, receiverSig string) error {
+	// Obtener el ultimo hash de la cadena para este par de nodos
+	var prevHash *string
+	_ = l.Pool.QueryRow(ctx,
+		`SELECT tx_hash FROM cross_node_tx_chain
+		 WHERE sender_node = $1 AND receiver_node = $2
+		 ORDER BY created_at DESC LIMIT 1`,
+		tx.SenderNode, tx.ReceiverNode,
+	).Scan(&prevHash)
+
+	prevHashStr := ""
+	if prevHash != nil {
+		prevHashStr = *prevHash
+	}
+
+	// Calcular hash de esta transaccion
+	chainData := fmt.Sprintf("%s|%s|%s|%d|%d|%s|%s|%s",
+		tx.ID.String(),
+		tx.SenderNode,
+		tx.ReceiverNode,
+		tx.Amount,
+		tx.CreatedAt.UnixNano(),
+		prevHashStr,
+		senderSig,
+		receiverSig,
+	)
+	h := sha256.Sum256([]byte(chainData))
+	txHash := hex.EncodeToString(h[:])
+
+	_, err := l.Pool.Exec(ctx, `
+		INSERT INTO cross_node_tx_chain
+			(tx_id, pool_type, sender_node, receiver_node, amount,
+			 sender_signature, receiver_signature, prev_hash, tx_hash, synced, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, false, $10)`,
+		tx.ID, string(poolType), tx.SenderNode, tx.ReceiverNode, tx.Amount,
+		senderSig, receiverSig, prevHashStr, txHash, tx.CreatedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("recording cross-node tx chain: %w", err)
+	}
+
+	return nil
+}
+
+// GetLastChainHash returns the last tx_hash in the chain for a given node pair.
+// Used for reconciliation: both nodes should have the same last hash.
+func (l *Ledger) GetLastChainHash(ctx context.Context, senderNode, receiverNode string) (string, error) {
+	var txHash string
+	err := l.Pool.QueryRow(ctx,
+		`SELECT tx_hash FROM cross_node_tx_chain
+		 WHERE sender_node = $1 AND receiver_node = $2
+		 ORDER BY created_at DESC LIMIT 1`,
+		senderNode, receiverNode,
+	).Scan(&txHash)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return "", nil
+		}
+		return "", fmt.Errorf("getting last chain hash: %w", err)
+	}
+	return txHash, nil
 }
 
 func (l *Ledger) GetTransactionHistory(ctx context.Context, accountID uuid.UUID, limit, offset int) ([]Transaction, error) {

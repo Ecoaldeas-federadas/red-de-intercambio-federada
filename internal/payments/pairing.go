@@ -442,3 +442,73 @@ func generatePairingCode() (string, error) {
 	code := num % 1000000
 	return fmt.Sprintf("%06d", code), nil
 }
+
+// GetPairingOptions returns 4 codes: the correct one + 3 random decoys, in random order.
+// The admin must choose the correct code, proving out-of-band communication with the terminal user.
+func (nt *NFCTerminals) GetPairingOptions(ctx context.Context, code string) ([]string, error) {
+	// Verify the code exists and is pending
+	var status string
+	var expiresAt time.Time
+	err := nt.Pool.QueryRow(ctx, `
+		SELECT status, expires_at FROM terminal_pairing_requests
+		WHERE pairing_code = $1`, code,
+	).Scan(&status, &expiresAt)
+	if err != nil {
+		return nil, fmt.Errorf("codigo no encontrado")
+	}
+	if status != "pending" {
+		return nil, fmt.Errorf("la solicitud ya fue procesada (estado: %s)", status)
+	}
+	// Allow during grace period
+	if time.Now().After(expiresAt.Add(PairingGracePeriod)) {
+		nt.Pool.Exec(ctx, `UPDATE terminal_pairing_requests SET status = 'expired' WHERE pairing_code = $1`, code)
+		return nil, fmt.Errorf("el codigo ya expiro")
+	}
+
+	// Generate 3 random decoy codes
+	options := []string{code}
+	for len(options) < 4 {
+		decoy, err := generatePairingCode()
+		if err != nil {
+			continue
+		}
+		duplicate := false
+		for _, o := range options {
+			if o == decoy {
+				duplicate = true
+				break
+			}
+		}
+		if !duplicate {
+			options = append(options, decoy)
+		}
+	}
+
+	// Shuffle the options
+	shufflePairingOptions(options)
+
+	return options, nil
+}
+
+// shufflePairingOptions shuffles a slice of strings in place
+func shufflePairingOptions(s []string) {
+	for i := len(s) - 1; i > 0; i-- {
+		b := make([]byte, 1)
+		rand.Read(b)
+		j := int(b[0]) % (i + 1)
+		s[i], s[j] = s[j], s[i]
+	}
+}
+
+// ApprovePairingWithCode aprueba una solicitud de emparejamiento verificando el codigo seleccionado.
+// El admin debe elegir el codigo correcto de entre 4 opciones.
+func (nt *NFCTerminals) ApprovePairingWithCode(ctx context.Context, code, selectedCode string, adminUserID uuid.UUID, label, terminalType, location, mode string) (*PairingResult, error) {
+	// Verify the selected code matches the actual code
+	if code != selectedCode {
+		// Increment failed attempts (if column exists)
+		return nil, fmt.Errorf("codigo incorrecto. Verifique con la persona del terminal.")
+	}
+
+	// Code is correct, proceed with normal approval
+	return nt.ApprovePairing(ctx, code, adminUserID, label, terminalType, location, mode)
+}

@@ -45,6 +45,15 @@ interface PosApiService {
     @GET("nfc/terminal/pair/{code}/status")
     suspend fun getPairingStatus(@Path("code") code: String): Response<PairingStatusResponse>
 
+    @GET("nfc/terminal/pair/{code}/options")
+    suspend fun getPairingOptions(@Path("code") code: String): Response<PairingOptionsResponse>
+
+    @POST("nfc/terminal/pair/{code}/approve")
+    suspend fun approvePairing(
+        @Path("code") code: String,
+        @Body request: PairingApproveRequest
+    ): Response<GenericStatusResponse>
+
     @POST("nfc/terminal/auth")
     suspend fun terminalAuth(@Body request: TerminalAuthRequest): Response<TerminalAuthResponse>
 

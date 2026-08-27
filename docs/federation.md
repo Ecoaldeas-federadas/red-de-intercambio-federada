@@ -49,8 +49,15 @@ para la intranet**. Si federas por Internet normal, no necesitas esos datos.
 - `internal/federation/protocol.go` - Protocolo de mensajes
 - `internal/federation/helpers.go` - Utilidades JSON
 - `internal/federation/gossip.go` - Sincronizacion periodica
+- `internal/federation/reconcile.go` - Reconciliacion de cadena de transacciones (NUEVO)
+- `internal/federation/node_levels.go` - Niveles de nodo, padrino, limite promedio (NUEVO)
+- `internal/federation/pairing.go` - Verificacion de 4 opciones para federation pairing (NUEVO)
 - `internal/api/federation.go` - Handlers API REST
+- `internal/api/federation_gov.go` - Gobernanza federada (propuestas, votos, niveles)
 - `internal/api/net_sync.go` - Sincronizacion automatica de informacion de red y servicios
+- `internal/ledger/transaction.go` - Ledger con piscina global vs bilateral (ACTUALIZADO)
+- `internal/ledger/limits.go` - Validacion de limites con piscina global primaria (ACTUALIZADO)
+- `internal/payments/pairing.go` - Emparejamiento POS con verificacion de 4 opciones (ACTUALIZADO)
 
 ## Sincronizacion Automatica de Informacion de Red
 
@@ -116,8 +123,34 @@ Cada nodo tiene su propio certificado. La comunicacion entre nodos usa mutual TL
 
 ## Limites Federados
 
-### Limites Globales
-- `federation_global_config`: limites globales del nodo
+### Piscina Global Multilateral (NUEVO)
+
+La federacion tiene una **piscina global real** compartida entre todos los nodos.
+Esto es diferente del sistema anterior donde el "global" era solo un limite secundario.
+
+- Las transacciones sin acuerdo bilateral van a `node_bridge_global`
+- El saldo global **no se filtra por `counterpart_node`**
+- Un saldo ganado con el nodo B **se puede gastar con el nodo C**
+- El limite depende del **nivel del nodo** (ver `docs/federation_governance.md`)
+
+### Piscinas Bilaterales
+
+- Las transacciones con acuerdo bilateral van a `node_bridge_bilateral`
+- El saldo bilateral **se filtra por `counterpart_node`**
+- **No afecta la piscina global**
+- Solo aplica entre los dos nodos del acuerdo
+
+### Routing de transacciones
+
+```
+Transaccion cross-node:
+  ¿Existe acuerdo bilateral activo?
+    SI → piscina bilateral (node_bridge_bilateral)
+    NO → piscina global (node_bridge_global)
+```
+
+### Limites Globales (configuracion heredada)
+- `federation_global_config`: limites globales del nodo (usado como fallback)
   - `node_global_credit_limit` / `node_global_debit_limit`: limite total del nodo
   - `node_bilateral_base_limit`: limite base bilateral por defecto
   - Umbrales de advertencia: 80%, 90%, 95%
@@ -129,16 +162,54 @@ Cada nodo tiene su propio certificado. La comunicacion entre nodos usa mutual TL
 - Requiere aprobacion local y confirmacion remota
 - Historial de cambios en `bilateral_limit_history`
 
-### Piscinas Separadas
-- Los limites bilaterales son independientes entre si
-- El saldo con el nodo A no afecta el saldo con el nodo B
-- Balance multilateral en `node_balance`
+## Integridad Distribuida (NUEVO)
 
-## Balance Multilateral
+### Firma Dual
+Cada transaccion cross-node debe ser firmada por **AMBOS nodos**:
+1. Nodo A crea y firma la transaccion
+2. Nodo B verifica la firma de A, firma tambien
+3. Ambos nodos almacenan la transaccion dual-firmada
+4. Sin ambas firmas, la transaccion **no es valida**
 
-- `node_balance`: saldo con cada nodo remoto
+### Hash Encadenado
+- Cada transaccion incluye `prev_hash` y `tx_hash`
+- Crea una cadena por par de nodos
+- Cualquier modificacion rompe la cadena
+
+### Reconciliacion
+Al reconectar dos nodos:
+1. Comparan los `last_hash` de cada par
+2. Si coinciden → sincronizados
+3. Si no → intercambian la cadena divergente
+4. Cada entrada se verifica (firmas + hash)
+5. Entradas validas se incorporan, invalidas se auditan
+
+### Tabla `cross_node_tx_chain`
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| tx_id | UUID PK | ID de la transaccion |
+| pool_type | TEXT | global o bilateral |
+| sender_node | TEXT | Nodo que envia |
+| receiver_node | TEXT | Nodo que recibe |
+| amount | BIGINT | Monto |
+| sender_signature | TEXT | Firma del nodo emisor |
+| receiver_signature | TEXT | Firma del nodo receptor |
+| prev_hash | TEXT | Hash de la transaccion anterior |
+| tx_hash | TEXT | Hash de esta transaccion |
+| synced | BOOLEAN | Si se sincronizo con el peer |
+
+## Balance Bilateral
+
+- `node_balance`: saldo bilateral con cada nodo remoto
 - Actualizado en cada transaccion federada
 - Sincronizado via mensajes entre nodos
+
+## Piscina Global (NUEVO)
+
+- El saldo global se calcula sumando `node_bridge_global` sin filtrar por `counterpart_node`
+- Es un saldo compartido entre todos los nodos federados
+- Un saldo ganado con el nodo B se puede gastar con el nodo C
+- Ver `GetGlobalPoolBalance` en `internal/ledger/transaction.go`
 
 ## Mensajes Entre Nodos
 

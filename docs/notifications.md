@@ -33,6 +33,11 @@ Este documento describe el modulo completo de notificaciones. Se va implementand
 - [x] Admision aprobada/rechazada — para el aspirante
 - [x] Miembro asignado a departamento — para el miembro
 - [x] Limite de federacion cercano — alerta de limite
+- [x] Ascenso de nivel de nodo federado (node_level_upgrade)
+- [x] Liberacion de limite de padrino (sponsorship_released)
+- [x] Discrepancia en cadena inter-nodos (chain_discrepancy)
+- [x] Creacion de padrino (sponsorship_created)
+- [x] Solicitud de emparejamiento federado (federation_pair_request)
 
 ## Fase 3: Pasarelas de entrega (PENDIENTE)
 
@@ -133,6 +138,11 @@ El proyecto impulsa redes federadas y soberanas. Se priorizan:
 | `product_federation_request` | Solicitud de federar producto X | Junta directiva | in_app |
 | `assembly_rescheduled` | Asamblea reprogramada para FECHA | Miembros con voto | in_app + email |
 | `quorum_not_reached` | No se alcanzo el quorum | Miembros con voto | in_app |
+| `node_level_upgrade` | Tu nodo ascendio a nivel X | Junta directiva | in_app + email |
+| `sponsorship_released` | El limite de tu padrino fue liberado | Junta directiva | in_app |
+| `chain_discrepancy` | Discrepancia detectada en cadena inter-nodos | Admins de ambos nodos | in_app + email |
+| `sponsorship_created` | Tu nodo apadrino a nodo X | Junta directiva | in_app |
+| `federation_pair_request` | Solicitud de emparejamiento federado de nodo X | Junta directiva | in_app |
 
 ---
 

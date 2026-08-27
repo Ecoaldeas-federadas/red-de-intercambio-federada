@@ -21,7 +21,8 @@ El sistema de credito mutuo federado es una red descentralizada de nodos indepen
 ### 3. Ledger de Doble Entrada
 - **Archivo**: `internal/ledger/`
 - **Hash chain**: Cada transaccion encadena el hash de la anterior
-- **Entradas**: credit/debit con categoria (user_balance, tax, federation, external)
+- **Entradas**: credit/debit con categoria (user_balance, node_bridge, node_bridge_global, node_bridge_bilateral, fund, external_bridge)
+- **Pool type**: Cada entrada cross-node tiene pool_type 'global' o 'bilateral'
 - **Inmutabilidad**: Las entradas no se modifican, solo se crean nuevas
 
 ### 4. Criptografia
@@ -44,7 +45,12 @@ El sistema de credito mutuo federado es una red descentralizada de nodos indepen
 - **Archivo**: `internal/federation/`
 - **Transporte**: mTLS (mutual TLS) con certificados propios
 - **Mensajes**: Inbox para mensajes entre nodos, confirmaciones, limites
-- **Balance multilateral**: Seguimiento de saldo con cada nodo remoto
+- **Piscina global multilateral**: Saldo compartido entre todos los nodos (node_bridge_global)
+- **Piscinas bilaterales**: Saldo entre dos nodos especificos (node_bridge_bilateral)
+- **Integridad distribuida**: Firma dual + hash encadenado + reconciliacion (cross_node_tx_chain)
+- **Niveles de nodo**: Nodo Nuevo (1), Nodo Aceptado (2), Nodo Pleno (3) con padrino
+- **Verificacion de 4 opciones**: Para emparejamiento POS y federation pairing
+- **Reconciliacion**: Al reconectar, compara hashes y sincroniza divergencias
 
 ### 7. Frontend PWA
 - **Archivo**: `web/`
@@ -112,10 +118,15 @@ El sistema de credito mutuo federado es una red descentralizada de nodos indepen
 6. Si requiere multi-firma, se acumulan firmas hasta alcanzar required_signatures
 
 ### Transaccion Federada
-1. Nodo local valida limites bilaterales con nodo remoto
-2. Mensaje enviado via mTLS al inbox del nodo remoto
-3. Nodo remoto valida y confirma
-4. Balance multilateral actualizado en ambos nodos
+1. Nodo local determina el pool: acuerdo bilateral activo → bilateral; si no → global
+2. Nodo local valida limites (bilaterales o globales segun el nivel del nodo)
+3. Nodo local crea la transaccion y la firma con su clave Ed25519 (firma del emisor)
+4. Mensaje enviado via mTLS al nodo remoto
+5. Nodo remoto verifica la firma del emisor, firma tambien (firma dual)
+6. Ambos nodos almacenan la transaccion dual-firmada en cross_node_tx_chain
+7. Hash encadenado: tx_hash = SHA256(prev_hash + tx_data + ambas_firmas)
+8. Balance actualizado en ambos nodos (global o bilateral segun el pool)
+9. Al reconectar, reconcilian hashes y sincronizan divergencias
 
 ### Recuperacion de Cuenta
 1. Usuario pierde acceso a su dispositivo/Passkey

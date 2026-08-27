@@ -248,6 +248,37 @@ Ver `departments.md` para la lista completa de permisos.
 | POST | `/api/federation/products/{id}/approve` | `products.manage` | Aprueba producto federado |
 | POST | `/api/federation/products/{id}/reject` | `products.manage` | Rechaza producto federado |
 
+### Niveles de Nodo, Membresia y Padrinos (`internal/api/federation.go`, `internal/federation/node_levels.go`)
+
+| Metodo | Ruta | Permiso | Descripcion |
+|--------|------|---------|-------------|
+| GET | `/api/federation/node-levels` | - | Lista los niveles de nodo federado |
+| GET | `/api/federation/nodes/{domain}/membership` | - | Membresia de un nodo (nivel, fechas) |
+| GET | `/api/federation/nodes/{domain}/check-upgrade` | - | Verifica si un nodo puede ascender de nivel |
+| GET | `/api/federation/sponsorships` | - | Lista de padrinos y nodos apadrinados |
+
+### Emparejamiento Federado (`internal/federation/pairing.go`)
+
+| Metodo | Ruta | Body | Descripcion |
+|--------|------|------|-------------|
+| POST | `/api/federation/pair/initiate` | `requesting_domain`, `requesting_public_key`, `requesting_endpoint` | Inicia emparejamiento federado |
+| GET | `/api/federation/pair/{code}/options` | - | Devuelve 4 opciones de codigo + `message` |
+| POST | `/api/federation/pair/{code}/confirm` | `selected_code`, `sponsor_domain` | Confirma emparejamiento con codigo seleccionado |
+
+El emparejamiento usa **verificacion de 4 opciones**: el confirmador ve 4
+codigos y debe elegir el correcto. Expira en 60 segundos.
+
+### Endpoints mTLS de Federacion (reconciliacion y auditoria)
+
+Estos endpoints se consumen entre nodos via mTLS (no requieren JWT):
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| POST | `/federation/reconcile/compare` | Compara cadenas de transacciones inter-nodos |
+| POST | `/federation/reconcile/chain` | Solicita la cadena de transacciones de un nodo |
+| POST | `/federation/reconcile/import` | Importa transacciones faltantes durante reconciliacion |
+| GET | `/federation/audit/chain` | Auditoria federada de la cadena de transacciones |
+
 ### Organizaciones (`internal/api/organization.go`)
 
 | Metodo | Ruta | Descripcion |
@@ -354,6 +385,8 @@ Ver `departments.md` para la lista completa de permisos.
 | PUT | `/api/nfc/cards/pin` | JWT | Cambiar PIN |
 | PUT | `/api/nfc/cards/{uid}/pin/reset` | JWT + `nfc.reset_pin` | Resetear PIN |
 | GET | `/api/nfc/transactions` | JWT | Lista transacciones NFC |
+| GET | `/api/nfc/terminal/pair/{code}/options` | JWT | Devuelve 4 opciones de codigo para verificacion de emparejamiento POS |
+| POST | `/api/nfc/terminal/pair/{code}/approve` | JWT | Aprueba emparejamiento POS (acepta `selected_code` opcional) |
 
 ### Auditoria (`internal/api/handler.go`)
 

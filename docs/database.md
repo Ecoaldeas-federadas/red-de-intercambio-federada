@@ -92,7 +92,10 @@
 
 ### Transacciones y Ledger
 - **`transactions`**: Transacciones con hash chain, multi-firma, impuestos
-- **`ledger_entries`**: Entradas doble entrada (credit/debit, account_category)
+- **`ledger_entries`**: Entradas doble entrada (credit/debit, account_category, pool_type)
+  - `pool_type`: 'global' (piscina global multilateral) o 'bilateral' (piscina bilateral)
+  - `account_category`: user_balance, node_bridge, node_bridge_global, node_bridge_bilateral, fund, external_bridge
+- **`cross_node_tx_chain`**: Cadena de transacciones cross-node con firma dual y hash encadenado (NUEVO)
 - **`multi_sig_approvals`**: Propuestas multi-firma pendientes
 
 ### Admision y Membresia
@@ -100,14 +103,18 @@
 - **`membership_history`**: Historial de cambios de nivel/estado
 
 ### Federacion
-- **`federation_global_config`**: Limites globales del nodo
+- **`federation_global_config`**: Limites globales del nodo (fallback)
 - **`bilateral_limits`**: Limites bilaterales entre nodos
 - **`bilateral_limit_history`**: Historial de cambios de limites
-- **`node_balance`**: Balance multilateral con cada nodo
+- **`node_balance`**: Balance bilateral con cada nodo
 - **`processed_messages`**: Idempotencia de mensajes federados
 - **`certificates`**: Certificados mTLS
 - **`node_federation_keys`**: Claves publicas de nodos pares (peers)
 - **`product_federation_proposals`**: Productos propuestos por otros nodos (pending/approved/rejected)
+- **`federation_node_levels`**: Niveles de nodo federado (configurables por votacion) (NUEVO)
+- **`federation_node_membership`**: Membresia de cada nodo (nivel, metricas, padrino) (NUEVO)
+- **`federation_sponsorships`**: Patrocinios (retencion de limite del padrino) (NUEVO)
+- **`federation_pairing_requests`**: Solicitudes de federation pairing con verificacion de 4 opciones (NUEVO)
 
 ### Productos y Precios
 - **`products`**: Catalogo con energia directa, humana, insumos, amortizacion

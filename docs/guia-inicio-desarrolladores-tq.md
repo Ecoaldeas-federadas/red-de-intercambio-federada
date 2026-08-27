@@ -71,7 +71,7 @@ El ecosistema está construido utilizando tecnologías modernas, eficientes y 10
 ### Base de Datos (Persistencia Distribuida)
 - **Motor:** **YugabyteDB** (100% Open Source y gratuita, compatible con PostgreSQL).
 - **Por qué YugabyteDB:** Escalabilidad lineal horizontal y vertical. Al añadir un nuevo nodo físico al servidor, YugabyteDB redistribuye el almacenamiento y las consultas sin apagar el sistema. Tolerancia total a fallas de hardware en entornos rurales hostiles. Sin costos de licencia, sin "puertas traseras" corporativas.
-- **Migraciones:** 127 migraciones SQL versionadas en `internal/db/migrations/`, compatibles con PostgreSQL estándar.
+- **Migraciones:** 130 migraciones SQL versionadas en `internal/db/migrations/`, compatibles con PostgreSQL estándar.
 
 ### Frontend Web
 - **Aplicación Web:** **React + TypeScript + Vite** (PWA). Instalable en navegador de celular o computadora. Funciona en iPhone, Android, computadoras, o cualquier dispositivo con navegador.
@@ -179,6 +179,21 @@ $$\sum (\text{Saldos de todos los usuarios}) = 0$$
 - **Inmutabilidad criptográfica:** Cada transacción se registra en un libro contable (ledger) de doble entrada donde cada registro se encadena criptográficamente con el hash del registro anterior (`SHA256(prev_hash + transaction_details)`), firmado digitalmente con claves Ed25519.
 - **Límites simétricos dinámicos:** El sistema restringe la capacidad de transaccionar de un usuario si supera su tope positivo o negativo establecido por la asamblea. Esto obliga a circular los saldos para volver siempre al equilibrio de cero (reciprocidad pura).
 
+### Nuevas tablas de federación (migraciones 128-130)
+
+| Tabla | Migracion | Descripcion |
+|-------|-----------|-------------|
+| `cross_node_tx_chain` | 128 | Cadena de transacciones inter-nodos con `prev_hash` y `tx_hash` |
+| `federation_node_levels` | 129 | Definicion de niveles de nodo (Nuevo, Aceptado, Pleno) |
+| `federation_node_membership` | 129 | Membresia de cada nodo en la federacion (nivel, fechas) |
+| `federation_sponsorships` | 129 | Relaciones de padrino entre nodos |
+| `federation_pairing_requests` | 130 | Solicitudes de emparejamiento federado con verificacion de 4 opciones |
+
+### Nuevas columnas y categorias del ledger
+
+- `ledger_entries.pool_type`: Indica si la transaccion es `'global'` o `'bilateral'`.
+- Nuevas categorias: `node_bridge_global` (piscina global) y `node_bridge_bilateral` (pools bilaterales), ademas de `node_bridge` existente.
+
 ### Protocolo NFC Seguro
 La interacción física mediante tarjetas o llaveros NFC utiliza tecnología **NTAG424 DNA** y **MIFARE DESFire**:
 
@@ -197,7 +212,47 @@ Cada terminal tiene tres identidades separadas:
 Cuando un terminal se re-registra (rotación de claves), el servidor detecta que el dispositivo ya existe por su fingerprint/chip_id y le pregunta al administrador: "¿Reemplazar la clave del terminal existente o crear uno nuevo?" Esto preserva el historial y la configuración del terminal.
 
 ### Límites Inter-Nodos (Federación Real)
-Cuando dos nodos se federan, las asambleas establecen límites de crédito mutuo bilaterales. Si los miembros del Nodo B consumen bienes del Nodo A superando ese límite, el sistema bloquea automáticamente nuevas transacciones inter-nodos. La única forma de desbloquearlo no es con transferencias financieras vacías, sino con **reciprocidad física**: los productores del Nodo B deben aportar valor real (semillas, herramientas, trabajo) al Nodo A para saldar la deuda inter-nodo y reactivar el intercambio.
+
+La federación tiene dos mecanismos de intercambio inter-nodos:
+
+1. **Piscina global multilateral real:** Un pool compartido donde el balance
+   ganado con el Nodo B se puede gastar con el Nodo C. No es solo una
+   verificación de límites, sino un pool real separado de los bilaterales. Las
+   transacciones de la piscina global se registran con `pool_type = 'global'` y
+   categoría `node_bridge_global` en el ledger.
+
+2. **Pools bilaterales:** Limites de crédito mutuo entre cada par de nodos. Si
+   los miembros del Nodo B consumen bienes del Nodo A superando ese límite
+   bilateral, el sistema bloquea nuevas transacciones bilaterales. Las
+   transacciones bilaterales se registran con `pool_type = 'bilateral'` y
+   categoría `node_bridge_bilateral`.
+
+La única forma de desbloquear no es con transferencias financieras vacías, sino
+con **reciprocidad física**: los productores del Nodo B deben aportar valor real
+(semillas, herramientas, trabajo) al Nodo A para saldar la deuda inter-nodo y
+reactivar el intercambio.
+
+### Niveles de Nodo Federado
+
+Cada nodo federado tiene un nivel que determina sus capacidades:
+
+| Nivel | Nombre | Límite TQ | Antigüedad mínima | Voto | Padrino |
+|-------|--------|-----------|-------------------|------|---------|
+| 1 | Nodo Nuevo | 1.000 | 90 días | No | No |
+| 2 | Nodo Aceptado | 5.000 | 180 días | Sí | Sí |
+| 3 | Nodo Pleno | 20.000 | - | Sí | Sí |
+
+El **sistema de padrino** permite que un nodo nivel 2+ respalde a un nodo nuevo.
+El límite del padrino se reduce por el monto del nodo apadrinado. Si el
+apadrinado entra en default, la deuda pasa al padrino. Al alcanzar nivel 2, el
+límite del padrino se libera.
+
+### Integridad Distribuida
+
+Las transacciones inter-nodos usan **firma dual** (ambos nodos firman) y
+**hashes encadenados** (`prev_hash`, `tx_hash` en la tabla `cross_node_tx_chain`).
+Cuando los nodos se reconectan, se realiza una reconciliación automática para
+detectar discrepancias en la cadena.
 
 ### Integración de API Federada (El Estándar Unificado)
 Para federar dos nodos independientes, los servidores realizan un apretón de manos seguro (mTLS con certificados cruzados) y consumen endpoints unificados:
@@ -207,6 +262,25 @@ Para federar dos nodos independientes, los servidores realizan un apretón de ma
 - `POST /api/v1/federation/catalog/sync`: Sincronización de productos autorizados para comercio internacional de trueque.
 - `GET /api/v1/federation/peers`: Lista de nodos federados y sus estados.
 - Node discovery por gossip protocol para encontrar nuevos nodos automáticamente.
+
+### Nuevos endpoints de federación (niveles, padrinos, emparejamiento)
+
+- `GET /api/federation/node-levels` — Lista los niveles de nodo federado.
+- `GET /api/federation/nodes/{domain}/membership` — Membresía de un nodo (nivel, fecha de ingreso).
+- `GET /api/federation/nodes/{domain}/check-upgrade` — Verifica si un nodo puede ascender de nivel.
+- `GET /api/federation/sponsorships` — Lista de padrinos y nodos apadrinados.
+- `POST /api/federation/pair/initiate` — Inicia emparejamiento federado (body: `requesting_domain`, `requesting_public_key`, `requesting_endpoint`).
+- `GET /api/federation/pair/{code}/options` — Devuelve 4 opciones de código para verificación (body: `options[]`, `message`).
+- `POST /api/federation/pair/{code}/confirm` — Confirma emparejamiento (body: `selected_code`, `sponsor_domain`).
+- `GET /api/nfc/terminal/pair/{code}/options` — Devuelve 4 opciones de código para emparejamiento POS.
+- `POST /api/nfc/terminal/pair/{code}/approve` — Aprueba emparejamiento POS (acepta `selected_code` opcional).
+
+### Endpoints mTLS de federación (reconciliación y auditoría)
+
+- `POST /federation/reconcile/compare` — Compara cadenas de transacciones inter-nodos.
+- `POST /federation/reconcile/chain` — Solicita la cadena de transacciones de un nodo.
+- `POST /federation/reconcile/import` — Importa transacciones faltantes durante reconciliación.
+- `GET /federation/audit/chain` — Auditoría federada de la cadena de transacciones.
 
 ---
 
@@ -325,6 +399,9 @@ red-de-intercambio-federada/
 │   ├── db/                       # Migraciones y conexión a BD
 │   ├── external/                 # Comercio exterior
 │   ├── federation/               # Federación entre nodos
+│   │   ├── reconcile.go          # Reconciliación de cadenas inter-nodos
+│   │   ├── node_levels.go        # Niveles de nodo federado y padrinos
+│   │   └── pairing.go            # Emparejamiento federado con verificación de 4 opciones
 │   ├── ledger/                   # Ledger contable inmutable
 │   ├── payments/                 # Pagos NFC, terminales, emparejamiento
 │   ├── pricing/                  # Cálculo de precios por energía

@@ -378,6 +378,21 @@ class PosRepository(
         }
     }
 
+    suspend fun getPairingOptions(code: String): Result<PairingOptionsResponse> = withContext(Dispatchers.IO) {
+        try {
+            val service = apiClient.getService()
+            val res = service.getPairingOptions(code)
+            if (res.isSuccessful && res.body() != null) {
+                Result.success(res.body()!!)
+            } else {
+                val err = res.errorBody()?.string() ?: "Error al obtener opciones de emparejamiento"
+                Result.failure(Exception(err))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión al obtener opciones: ${e.localizedMessage}"))
+        }
+    }
+
     suspend fun completePairing(status: PairingStatusResponse): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val config = getOrInitTerminalConfig()

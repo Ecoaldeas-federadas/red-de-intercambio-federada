@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { api, apiFetch } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useSerialChipId } from '../hooks/useSerialChipId'
-import { Nfc, Plus, Trash2, CreditCard, KeyRound, Activity, Cpu, Usb, Download, Lock, HelpCircle, X } from 'lucide-react'
+import { Nfc, Plus, Trash2, CreditCard, KeyRound, Activity, Cpu, Usb, Download, Lock, HelpCircle, X, UserPlus } from 'lucide-react'
 
 interface Terminal {
   id: string
@@ -60,6 +60,9 @@ export default function NFCTerminals() {
   const [approveLocation, setApproveLocation] = useState('')
   const [approvingCode, setApprovingCode] = useState('')
   const [pairingAction, setPairingAction] = useState('')
+  const [pairingOptions, setPairingOptions] = useState<string[]>([])
+  const [selectedCode, setSelectedCode] = useState('')
+  const [loadingOptions, setLoadingOptions] = useState(false)
 
   // Provisioning state
   const { chipId, scanning, error: serialError, supported: serialSupported, scan } = useSerialChipId()
@@ -102,6 +105,21 @@ export default function NFCTerminals() {
     }
   }
 
+  const loadPairingOptions = async (code: string) => {
+    setLoadingOptions(true)
+    setPairingOptions([])
+    setSelectedCode('')
+    try {
+      const res = await api.get<any>(`/nfc/terminal/pair/${code}/options`)
+      const options = Array.isArray(res) ? res : res?.options ?? []
+      setPairingOptions(options)
+    } catch {
+      // Si no hay opciones disponibles, continuar sin verificacion de 4 opciones
+      setPairingOptions([])
+    }
+    setLoadingOptions(false)
+  }
+
   const approvePairing = async (code: string, mode: string = 'new') => {
     setPairingAction(code)
     try {
@@ -109,11 +127,14 @@ export default function NFCTerminals() {
         label: approveLabel || undefined,
         location: approveLocation || undefined,
         mode,
+        selected_code: selectedCode || undefined,
       })
       setPendingPairings(prev => prev.filter(p => p.pairing_code !== code))
       setApprovingCode('')
       setApproveLabel('')
       setApproveLocation('')
+      setSelectedCode('')
+      setPairingOptions([])
       loadTerminals()
       setError('')
     } catch (err) {
@@ -876,20 +897,53 @@ export default function NFCTerminals() {
                           value={approveLocation}
                           onChange={(e) => setApproveLocation(e.target.value)} />
                       </div>
+
+                      {/* Verificacion de 4 opciones */}
+                      {loadingOptions ? (
+                        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-sm text-indigo-700">
+                          Cargando opciones de verificacion...
+                        </div>
+                      ) : pairingOptions.length > 0 ? (
+                        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 space-y-2">
+                          <p className="text-sm font-semibold text-indigo-800">Verificacion: selecciona el codigo correcto</p>
+                          <p className="text-xs text-indigo-600">
+                            El POS muestra un codigo en su pantalla. Selecciona la opcion que coincida con el codigo mostrado.
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {pairingOptions.map((opt) => (
+                              <button
+                                key={opt}
+                                onClick={() => setSelectedCode(opt)}
+                                className={`px-4 py-3 rounded-lg text-lg font-bold font-mono transition ${
+                                  selectedCode === opt
+                                    ? 'bg-indigo-600 text-white ring-2 ring-indigo-400'
+                                    : 'bg-white text-indigo-700 border border-indigo-200 hover:bg-indigo-100'
+                                }`}
+                              >
+                                {opt}
+                              </button>
+                            ))}
+                          </div>
+                          {!selectedCode && (
+                            <p className="text-xs text-amber-600">Debes seleccionar un codigo para aprobar.</p>
+                          )}
+                        </div>
+                      ) : null}
+
                       {p.existing_terminal_id ? (
                         <div className="space-y-2">
                           <p className="text-sm font-semibold text-gray-700">Este dispositivo ya existe. Que deseas hacer?</p>
                           <div className="flex gap-2">
                             <button
                               onClick={() => approvePairing(p.pairing_code, 'replace')}
-                              disabled={pairingAction === p.pairing_code}
-                              className="btn-primary flex-1">
+                              disabled={pairingAction === p.pairing_code || (pairingOptions.length > 0 && !selectedCode)}
+                              className="btn-primary flex-1 disabled:opacity-50">
                               {pairingAction === p.pairing_code ? 'Aprobando...' : 'Reemplazar clave existente'}
                             </button>
                             <button
                               onClick={() => approvePairing(p.pairing_code, 'new')}
-                              disabled={pairingAction === p.pairing_code}
-                              className="btn-secondary flex-1">
+                              disabled={pairingAction === p.pairing_code || (pairingOptions.length > 0 && !selectedCode)}
+                              className="btn-secondary flex-1 disabled:opacity-50">
                               Crear terminal nuevo
                             </button>
                           </div>
@@ -898,20 +952,20 @@ export default function NFCTerminals() {
                         <div className="flex gap-2">
                           <button
                             onClick={() => approvePairing(p.pairing_code, 'new')}
-                            disabled={pairingAction === p.pairing_code}
-                            className="btn-primary flex-1">
+                            disabled={pairingAction === p.pairing_code || (pairingOptions.length > 0 && !selectedCode)}
+                            className="btn-primary flex-1 disabled:opacity-50">
                             {pairingAction === p.pairing_code ? 'Aprobando...' : 'Aprobar y Registrar'}
                           </button>
                         </div>
                       )}
                       <button
-                        onClick={() => { setApprovingCode(''); setApproveLabel(''); setApproveLocation('') }}
+                        onClick={() => { setApprovingCode(''); setApproveLabel(''); setApproveLocation(''); setSelectedCode(''); setPairingOptions([]) }}
                         className="btn-secondary w-full">Cancelar</button>
                     </div>
                   ) : (
                     <div className="mt-4 flex gap-2">
                       <button
-                        onClick={() => { setApprovingCode(p.pairing_code); setApproveLabel(p.terminal_label || ''); setApproveLocation('') }}
+                        onClick={() => { setApprovingCode(p.pairing_code); setApproveLabel(p.terminal_label || ''); setApproveLocation(''); loadPairingOptions(p.pairing_code) }}
                         className="btn-primary flex-1">
                         Aprobar
                       </button>

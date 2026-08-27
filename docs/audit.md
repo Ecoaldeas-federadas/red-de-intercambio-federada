@@ -50,3 +50,47 @@
 - `GET /api/audit?action=transfer`: filtrar por accion
 - `GET /api/audit?actor_id={uuid}`: filtrar por actor
 - `GET /api/audit?from={date}&to={date}`: filtrar por rango de fechas
+
+## Auditoria Federada de Cadenas de Transacciones
+
+### Tabla `cross_node_tx_chain`
+
+Las transacciones inter-nodos se registran en una cadena independiente con
+firma dual (ambos nodos firman) y hashes encadenados (`prev_hash`, `tx_hash`).
+Esto permite auditar las transacciones federadas de forma verificable.
+
+### Endpoint de auditoria federada
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| GET | `/federation/audit/chain` | Auditoria federada de la cadena de transacciones inter-nodos |
+
+Este endpoint se consume via mTLS entre nodos. Permite a un nodo solicitar la
+cadena completa de transacciones inter-nodos a otro nodo para verificar:
+
+1. Que los hashes encadenados (`prev_hash` -> `tx_hash`) sean consistentes.
+2. Que ambas firmas (Nodo A y Nodo B) sean validas.
+3. Que no haya transacciones faltantes o alteradas.
+
+### Reconciliacion de cadenas
+
+Cuando los nodos se reconectan despues de una desconexion, se realiza una
+reconciliacion automatica usando los endpoints:
+
+- `POST /federation/reconcile/compare` — Compara los ultimos hashes de las cadenas.
+- `POST /federation/reconcile/chain` — Solicita la cadena completa si hay discrepancia.
+- `POST /federation/reconcile/import` — Importa transacciones faltantes.
+
+Si se detectan discrepancias, se registra una alerta de auditoria y se notifica
+a los administradores de ambos nodos.
+
+### Acciones auditadas adicionales (federacion)
+
+| Accion | Descripcion |
+|--------|-------------|
+| `federation_pair_init` | Inicio de emparejamiento federado |
+| `federation_pair_confirm` | Confirmacion de emparejamiento federado |
+| `node_level_upgrade` | Ascenso de nivel de un nodo federado |
+| `sponsorship_created` | Creacion de relacion padrino-ahijado |
+| `sponsorship_released` | Liberacion de limite del padrino |
+| `chain_discrepancy` | Discrepancia detectada en reconciliacion de cadena |

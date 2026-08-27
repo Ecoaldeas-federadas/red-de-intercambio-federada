@@ -63,6 +63,7 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 
 	// Terminal pairing management (admin)
 	r.With(am.RequirePermission("nfc.register_terminal")).Get("/api/nfc/terminal/pair/pending", h.listPendingPairings)
+	r.With(am.RequirePermission("nfc.register_terminal")).Get("/api/nfc/terminal/pair/{code}/options", h.getPairingOptions)
 	r.With(am.RequirePermission("nfc.register_terminal")).Post("/api/nfc/terminal/pair/{code}/approve", h.approvePairing)
 	r.With(am.RequirePermission("nfc.register_terminal")).Post("/api/nfc/terminal/pair/{code}/reject", h.rejectPairing)
 
@@ -1712,6 +1713,7 @@ func (h *NFCTerminalHandler) getPairingStatus(w http.ResponseWriter, r *http.Req
 
 // approvePairing aprueba una solicitud de emparejamiento (admin).
 // Crea el terminal, registra la clave publica, y marca como approved.
+// Si se envia selected_code, se verifica que coincida con el codigo real (verificacion de 4 opciones).
 func (h *NFCTerminalHandler) approvePairing(w http.ResponseWriter, r *http.Request) {
 	code := chi.URLParam(r, "code")
 	if code == "" {
@@ -1738,7 +1740,8 @@ func (h *NFCTerminalHandler) approvePairing(w http.ResponseWriter, r *http.Reque
 		Label        string `json:"label"`
 		TerminalType string `json:"terminal_type"`
 		Location     string `json:"location"`
-		Mode         string `json:"mode"` // "new" (default) o "replace"
+		Mode         string `json:"mode"`          // "new" (default) o "replace"
+		SelectedCode string `json:"selected_code"` // para verificacion de 4 opciones
 	}
 	// Body es opcional, ignorar error si viene vacio
 	_ = json.NewDecoder(r.Body).Decode(&body)
@@ -1747,12 +1750,44 @@ func (h *NFCTerminalHandler) approvePairing(w http.ResponseWriter, r *http.Reque
 		body.Mode = "new"
 	}
 
+	// Si se envia selected_code, verificar que coincida (verificacion de 4 opciones)
+	if body.SelectedCode != "" {
+		result, err := h.NFC.ApprovePairingWithCode(r.Context(), code, body.SelectedCode, adminUserID, body.Label, body.TerminalType, body.Location, body.Mode)
+		if err != nil {
+			writeError(w, 400, err.Error())
+			return
+		}
+		writeJSON(w, 200, result)
+		return
+	}
+
 	result, err := h.NFC.ApprovePairing(r.Context(), code, adminUserID, body.Label, body.TerminalType, body.Location, body.Mode)
 	if err != nil {
 		writeError(w, 400, err.Error())
 		return
 	}
 	writeJSON(w, 200, result)
+}
+
+// getPairingOptions returns 4 code options for the admin to choose from.
+// The admin must choose the correct code, proving out-of-band communication.
+func (h *NFCTerminalHandler) getPairingOptions(w http.ResponseWriter, r *http.Request) {
+	code := chi.URLParam(r, "code")
+	if code == "" {
+		writeError(w, 400, "pairing code is required")
+		return
+	}
+
+	options, err := h.NFC.GetPairingOptions(r.Context(), code)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"options": options,
+		"message": "Elija el codigo que le comunico la persona del terminal por telefono. Solo uno es correcto.",
+	})
 }
 
 // rejectPairing rechaza una solicitud de emparejamiento (admin).

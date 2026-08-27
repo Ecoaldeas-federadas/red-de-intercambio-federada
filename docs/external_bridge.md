@@ -1,5 +1,28 @@
 # Puente de Comercio Externo
 
+## Separacion fundamental: trueque interno vs comercio exterior
+
+**El comercio exterior (ventas al publico) y el trueque interno (intercambio TQ
+entre miembros) NUNCA se mezclan.** Esta es una regla innegociable del sistema.
+
+- **Trueque interno:** Intercambio de bienes y servicios entre miembros
+  registrados usando la moneda TQ. Se registra en el ledger interno con
+  doble entrada y hash chain. Participa de las piscinas de federacion (global
+  y bilateral) para transacciones inter-nodos.
+
+- **Comercio exterior:** Ventas al publico externo (no miembros) en moneda
+  local del pais (UYU, VES, ARS, COP, etc.). Los compradores externos no tienen
+  cuentas TQ ni participan del trueque. Estas ventas estan **fuera del ledger
+  interno** y **fuera de las piscinas de federacion**.
+
+- **El Factor de Conversion (FC)** calcula el equivalente entre TQ y la moneda
+  local para fines de referencia y comercio externo, pero es interno de cada
+  nodo. No afecta la canasta basica federada ni las piscinas de federacion.
+
+**Invariante economica:** Las ventas al publico externo no pueden crear, debitar
+ni modificar saldos TQ de miembros. Las piscinas global y bilateral de la
+federacion solo registran transacciones TQ entre miembros de nodos federados.
+
 ## Archivos
 - `internal/external/dex.go` - Factor de conversion (FC) y operaciones externas
 - `internal/external/store.go` - Tienda comunitaria, productos compuestos, compra

@@ -33,6 +33,39 @@ Cada nodo hace su comercio exterior directamente en su moneda local (UYU, VES, A
 El Factor de Conversion (FC) calcula el equivalente con TQ, pero eso es interno de
 cada nodo.
 
+### Niveles de Nodo Federado
+
+Dentro del nivel de Federacion, cada nodo federado tiene un **nivel de nodo** que
+determina sus capacidades dentro de la red. Esto es distinto de los niveles de
+miembro dentro de un nodo (aspirante, provisional, pleno): los niveles de nodo
+son un concepto de la federacion, no de la comunidad local.
+
+| Nivel | Nombre | Limite TQ | Antiguedad minima | Voto federado | Puede apadrinar |
+|-------|--------|----------|-------------------|---------------|-----------------|
+| 1 | Nodo Nuevo | 1.000 TQ | 90 dias | No | No |
+| 2 | Nodo Aceptado | 5.000 TQ | 180 dias | Si | Si |
+| 3 | Nodo Pleno | 20.000 TQ | - | Si | Si |
+
+- **Nodo Nuevo (Nivel 1):** Nodo recien federado. Tiene un limite bajo de
+  intercambio inter-nodos (1.000 TQ). No participa en votaciones federadas ni
+  puede apadrinar a otros nodos. Debe permanecer al menos 90 dias en este nivel
+  antes de poder solicitar ascenso.
+- **Nodo Aceptado (Nivel 2):** Nodo que ha demostrado reciprocidad y confianza.
+  Limite de 5.000 TQ. Puede votar en propuestas federadas y apadrinar nodos
+  nuevos. Requiere minimo 180 dias y aprobacion por votacion federada.
+- **Nodo Pleno (Nivel 3):** Nodo con plena confianza en la red. Limite de
+  20.000 TQ. El ascenso es automatico cuando se cumple reciprocidad con los
+  demas nodos y el limite promedio lo permite.
+
+**Sistema de padrino:** Cuando un nodo nivel 2+ apadrina a un nodo nuevo, su
+propio limite se reduce temporalmente por el monto del limite del nodo
+apadrinado. Si el nodo apadrinado entra en default, la deuda se transfiere al
+padrino. Cuando el nodo apadrinado alcanza el nivel 2, el limite del padrino se
+libera.
+
+Estos niveles se gestionan mediante las tablas `federation_node_levels`,
+`federation_node_membership` y `federation_sponsorships` (migraciones 129-130).
+
 ### Nivel 2: Aldea / Nodo (local)
 
 Cada nodo es soberano. La asamblea del nodo decide todo lo que afecta a su comunidad.
@@ -310,6 +343,7 @@ Pago diferido en cuotas mensuales (12-24 meses) para no desestabilizar la econom
 - `070_board_meetings.sql` - Reuniones de junta directiva (meeting_type) en orgs
 - `080_node_board_meetings.sql` - Junta Directiva del nodo (meeting_type en assembly_sessions)
 - `082_board_decision_routing.sql` - Reclasificar decisiones operativas a Junta Directiva
+- `129_federation_node_levels.sql` - Niveles de nodo federado, membresia y padrinos
 
 Permiso `governance.manage` para gestionar las reglas.
 

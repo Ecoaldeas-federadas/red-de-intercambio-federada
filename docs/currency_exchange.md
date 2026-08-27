@@ -234,10 +234,25 @@ Los limites **suben con el tiempo** segun la trayectoria del miembro. Un miembro
 
 #### Transaccion Federada (entre nodos)
 
-1. Nodo local valida limites bilaterales con nodo remoto
-2. Mensaje enviado via mTLS al inbox del nodo remoto
-3. Nodo remoto valida y confirma
-4. Balance multilateral actualizado en ambos nodos
+La federacion tiene dos mecanismos de intercambio inter-nodos:
+
+1. **Piscina global multilateral real:** Un pool compartido donde el balance
+   ganado con el Nodo B se puede gastar con el Nodo C. No es solo una
+   verificacion de limites, sino un pool real. Las transacciones se registran
+   con `pool_type = 'global'` y categoria `node_bridge_global` en el ledger.
+
+2. **Pools bilaterales:** Limites de credito mutuo entre cada par de nodos. Las
+   transacciones se registran con `pool_type = 'bilateral'` y categoria
+   `node_bridge_bilateral`.
+
+Flujo de transaccion federada:
+1. Nodo local valida limites (globales y bilaterales) con nodo remoto
+2. Ambos nodos firman la transaccion (firma dual)
+3. Transaccion se registra en `cross_node_tx_chain` con `prev_hash` y `tx_hash`
+4. Mensaje enviado via mTLS al nodo remoto
+5. Nodo remoto valida, firma y confirma
+6. Balance global y bilateral actualizado en ambos nodos
+7. Al reconectar, reconciliacion automatica de cadenas
 
 ### Ledger de Doble Entrada
 
@@ -246,7 +261,8 @@ El sistema usa un **ledger de doble entrada** con hash chain:
 - Cada transaccion crea 2-3 entradas: debit del remitente, credit del receptor, debit para impuesto
 - Cada entrada encadena el hash de la anterior (inmutable)
 - Las entradas no se modifican, solo se crean nuevas
-- Categorias: `user_balance`, `tax`, `federation`, `external`
+- Categorias: `user_balance`, `tax`, `federation`, `external`, `node_bridge`, `node_bridge_global`, `node_bridge_bilateral`
+- Columna `pool_type` en `ledger_entries`: indica `'global'` o `'bilateral'` para transacciones inter-nodos
 
 ### Impuestos y Fondo Comunitario
 

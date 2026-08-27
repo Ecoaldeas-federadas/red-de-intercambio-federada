@@ -34,6 +34,25 @@ Si un terminal pierde sus claves o se reemplaza, el sistema detecta que el dispo
 por su chip_id/fingerprint y le pregunta al admin: "Reemplazar la clave del terminal existente
 o crear uno nuevo?" Esto preserva el historial y configuracion del terminal.
 
+### Verificacion de 4 opciones (emparejamiento POS)
+
+El emparejamiento de terminales POS ahora usa una **verificacion de 4 opciones**
+para evitar que alguien intercepte el codigo y lo confirme por error o fraude:
+
+1. El terminal genera y muestra un codigo de 6 digitos.
+2. El admin abre la pantalla de aprobacion en la web.
+3. La pantalla muestra **4 codigos distintos** (uno es el correcto, tres son aleatorios).
+4. El admin debe **seleccionar el codigo correcto** de las 4 opciones.
+5. Si no se confirma en **60 segundos**, el codigo expira y se debe generar uno nuevo.
+
+**Endpoints:**
+- `GET /api/nfc/terminal/pair/{code}/options` — Devuelve las 4 opciones de codigo.
+- `POST /api/nfc/terminal/pair/{code}/approve` — Aprueba con el `selected_code` (opcional).
+
+**Razon:** Con un solo codigo, cualquiera que lo vea puede confirmar. Con 4
+opciones, solo quien ve la pantalla del terminal sabe cual es el correcto. Esto
+evita ataques de intermediario y errores de confirmacion.
+
 ## Confirmacion de pagos
 
 | Metodo | Confirmacion | Requiere celular |

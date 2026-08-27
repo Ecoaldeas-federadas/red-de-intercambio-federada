@@ -8,7 +8,13 @@ Cada nodo opera de forma independiente y se federa con otros nodos via protocolo
 - **Moneda digital local**: cada nodo emite y gestiona su propia moneda comunitaria (TQ)
 - **TQ no es dinero**: registra energia, contribuciones y compromisos. No es bancario, no genera intereses
 - **Modelo energetico**: precios basados en energia incorporada por kg de material (estandar ICE Database)
-- **Federacion entre nodos**: transferencias cross-node con limites bilaterales y globales
+- **Federacion entre nodos**: transferencias cross-node con piscina global multilateral y piscinas bilaterales
+- **Piscina global**: saldo compartido entre todos los nodos — un saldo ganado con el nodo B se gasta con el nodo C
+- **Piscinas bilaterales**: acuerdos especificos entre dos nodos, independientes de la piscina global
+- **Integridad distribuida**: firma dual (ambos nodos firman) + hash encadenado + reconciliacion al reconectar
+- **Niveles de nodo federado**: Nodo Nuevo (nivel 1, sin voto), Nodo Aceptado (nivel 2, con voto), Nodo Pleno (nivel 3)
+- **Sistema de padrino**: un nodo nivel 2+ ingresa nodos nuevos y es responsable de su deuda
+- **Verificacion de 4 opciones**: emparejamiento POS y federacion usan 4 codigos para verificar comunicacion fuera de banda
 - **Federacion de productos**: productos aprobados por un nodo se distribuyen a otros para aprobacion individual
 - **Productos compuestos**: cualquier usuario crea productos combinando materias primas aprobadas, precio automatico
 - **Calculo por rendimiento**: especificas cuanto compraste y cuantos productos salen, el sistema calcula el costo por unidad
@@ -186,6 +192,53 @@ Para que dos nodos se comuniquen, **ambos deben registrarse mutuamente**:
 
 Esto se hace desde la seccion "Federacion" en la web app del nodo.
 
+### Piscina global multilateral (NUEVO)
+
+La federacion tiene una **piscina global real** compartida entre todos los nodos:
+- Las transacciones sin acuerdo bilateral van a la piscina global
+- Un saldo ganado comerciando con el nodo B **se puede gastar con el nodo C**
+- El limite depende del nivel del nodo (ver mas abajo)
+
+### Piscinas bilaterales
+
+- Acuerdos especificos entre dos nodos
+- El saldo bilateral solo aplica entre esos dos nodos
+- **No afecta la piscina global**
+
+### Integridad distribuida (NUEVO)
+
+- **Firma dual**: cada transaccion cross-node es firmada por AMBOS nodos
+- **Hash encadenado**: cada transaccion incluye el hash de la anterior
+- **Reconciliacion**: al reconectar, los nodos comparan hashes y sincronizan divergencias
+- Una transaccion sin ambas firmas **no es valida**
+
+### Niveles de nodo federado (NUEVO)
+
+| Nivel | Nombre | Limite | Voto | Patrocinar |
+|-------|--------|--------|------|-----------|
+| 1 | Nodo Nuevo | 1000 TQ | No | No |
+| 2 | Nodo Aceptado | 5000 TQ | Si | Si |
+| 3 | Nodo Pleno | 20000 TQ | Si | Si |
+
+- **Nivel 1**: sin voto, no patrocina, min 90 dias antes de subir
+- **Nivel 2**: con voto, puede patrocinar, min 180 dias antes de subir
+- **Nivel 3**: subida automatica con reciprocidad + limite promedio
+
+### Sistema de padrino (NUEVO)
+
+- Un nodo nivel 2+ ingresa nodos nuevos a la federacion
+- El limite del padrino se reduce por el monto del nodo nuevo
+- Si el nodo nuevo entra en default, la deuda pasa al padrino
+- Al subir el nodo a nivel 2, el limite del padrino se libera
+
+### Verificacion de 4 opciones (NUEVO)
+
+Para emparejar terminales POS o unirse a la federacion:
+1. El dispositivo genera un codigo de 6 digitos
+2. El administrador ve **4 codigos diferentes**
+3. Debe elegir el correcto (verifica comunicacion fuera de banda)
+4. El codigo expira en 60 segundos
+
 ### Federacion de productos
 
 Cuando un nodo aprueba un producto base por asamblea, se distribuye a los demas
@@ -267,6 +320,23 @@ Los nodos se comunican via mTLS en el puerto `8443`:
 | GET | `/federation/balance` | Consultar balance bilateral |
 | POST | `/federation/card/lookup` | Buscar tarjeta NFC de otro nodo |
 | GET | `/federation/health` | Health check |
+| GET | `/federation/reconcile/compare` | Comparar hashes de cadena (NUEVO) |
+| GET | `/federation/reconcile/chain` | Obtener cadena divergente (NUEVO) |
+| POST | `/federation/reconcile/import` | Importar entradas de cadena (NUEVO) |
+| GET | `/federation/audit/chain` | Auditoria completa de cadena (NUEVO) |
+
+## API de niveles y patrocinios (NUEVO)
+
+| Metodo | Endpoint | Descripcion |
+|--------|----------|-------------|
+| GET | `/api/federation/node-levels` | Listar niveles de nodo federado |
+| GET | `/api/federation/nodes/{domain}/membership` | Membresia de un nodo |
+| GET | `/api/federation/nodes/{domain}/check-upgrade` | Verificar si puede subir de nivel |
+| GET | `/api/federation/sponsorships` | Listar patrocinios |
+| POST | `/api/federation/pair/initiate` | Iniciar federation pairing |
+| GET | `/api/federation/pair/{code}/options` | Ver 4 opciones de codigo |
+| POST | `/api/federation/pair/{code}/confirm` | Confirmar eligiendo codigo correcto |
+| GET | `/api/nfc/terminal/pair/{code}/options` | 4 opciones para POS pairing |
 
 ## Documentacion
 

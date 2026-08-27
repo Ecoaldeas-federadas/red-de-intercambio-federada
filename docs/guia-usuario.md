@@ -206,6 +206,70 @@ A medida que mas comunidades se federen, el espectro se amplía: mas productos,
 mas servicios, mas lugares donde aportar trabajo, mas cosas que recibir. La
 federacion se hace mas solida cuantas mas comunidades participen.
 
+### ¿Como se federa una comunidad nueva?
+
+Cuando una comunidad quiere federarse, no entra sola. Necesita un **padrino**:
+un nodo ya federado (nivel 2 o superior) que la respalda.
+
+1. La comunidad nueva solicita federacion a un nodo existente.
+2. El nodo padrino la evalua y decide apadrinarla.
+3. Al apadrinarla, el limite del padrino se reduce temporalmente por el monto
+   del limite del nodo nuevo.
+4. Si la comunidad nueva no cumple sus compromisos, la deuda pasa al padrino.
+5. Cuando la comunidad nueva demuestra reciprocidad y alcanza el nivel 2, el
+   limite del padrino se libera.
+
+Esto asegura que nadie entra sin respaldo real y que los nodos establecidos
+evaluan con cuidado a quienes apadrinan.
+
+### Los 3 niveles de nodo federado
+
+Cada nodo federado tiene un nivel que determina cuanto puede intercambiar y que
+poder de decision tiene en la red:
+
+| Nivel | Nombre | Limite TQ | Que puede hacer |
+|-------|--------|----------|-----------------|
+| 1 | Nodo Nuevo | 1.000 TQ | Intercambiar con limites bajos. No vota ni apadrina. |
+| 2 | Nodo Aceptado | 5.000 TQ | Vota en propuestas federadas y apadrina nodos nuevos. |
+| 3 | Nodo Pleno | 20.000 TQ | Plena confianza. Ascenso automatico con reciprocidad. |
+
+- **Nodo Nuevo:** Recien federado. Empieza con un limite bajo para proteger la
+  red. Debe permanecer al menos 90 dias antes de poder solicitar ascenso.
+- **Nodo Aceptado:** Ha demostrado reciprocidad. Puede votar y apadrinar.
+  Requiere al menos 180 dias y aprobacion por votacion federada.
+- **Nodo Pleno:** Confianza plena. Limite alto. Ascenso automatico cuando se
+  cumple reciprocidad con los demas nodos.
+
+### ¿Como se sube de nivel 1 a nivel 2?
+
+Despues de al menos 90 dias como Nodo Nuevo, la comunidad puede solicitar el
+ascenso a Nodo Aceptado. La solicitud se somete a **votacion federada**: todos
+los nodos con derecho a voto (nivel 2 y 3) deciden si aprueban el ascenso. Si se
+aprueba, el nodo sube de nivel y obtiene limite mayor, derecho a voto y capacidad
+de apadrinar.
+
+### Verificacion de 4 opciones al federarse
+
+Cuando un nodo se federa o cuando un terminal POS se empareja con el servidor,
+el sistema usa una **verificacion de 4 opciones** para evitar errores y fraudes:
+
+1. El solicitante genera un codigo de emparejamiento.
+2. El confirmador ve **4 opciones de codigo** en su pantalla.
+3. Debe elegir el codigo correcto.
+4. Si no se confirma en **60 segundos**, el codigo expira.
+
+Esto asegura que la persona correcta esta confirmando, no alguien que intercepto
+el codigo.
+
+### ¿Puedo usar mi saldo de un nodo en otro nodo?
+
+**Si.** La federacion tiene una **piscina global compartida**. Si eres miembro
+del Nodo A y ganas saldo vendiendo productos al Nodo B, puedes usar ese saldo
+para comprar en el Nodo C. El balance fluye entre todos los nodos federados.
+
+Esto es distinto de los limites bilaterales (entre cada par de nodos). La piscina
+global es real y compartida, no solo una verificacion de limites.
+
 ---
 
 ## ¿Que es la asamblea?

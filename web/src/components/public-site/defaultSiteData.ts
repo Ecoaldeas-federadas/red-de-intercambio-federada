@@ -1284,7 +1284,7 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
           {
             question: '¿Puedo usar mi saldo TQ en otra comunidad federada?',
             answer:
-              'Sí, esa es una de las ventajas de la federación. Si vas a otra comunidad federada, puedes usar tu tarjeta NFC o tu cuenta para intercambiar. Pero recuerda: el saldo sigue siendo el mismo. Si gastas en otra comunidad, tu saldo baja aquí. La federación no crea dinero nuevo, solo amplía el espectro de lo que puedes recibir.',
+              'Sí, gracias a la piscina global multilateral real. Anteriormente, el sistema solo verificaba límites bilaterales entre pares de nodos, lo que limitaba el intercambio. Ahora existe una piscina global compartida: el saldo que ganas en el nodo B es gastable en el nodo C. Si vas a otra comunidad federada, puedes usar tu tarjeta NFC o tu cuenta para intercambiar. La federación no crea dinero nuevo, solo amplía el espectro de lo que puedes recibir mediante la piscina global multilateral.',
           },
           {
             question: '¿Qué pasa mientras hay pocas comunidades federadas?',
@@ -1305,6 +1305,131 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
             question: '¿Quién gobierna la federación?',
             answer:
               'La federación se gobierna por votación de todos los nodos federados. Cada comunidad (nodo) tiene un voto. Las decisiones que afectan a toda la federación (como la canasta básica TQ, el límite de crédito global, o la expulsión de un nodo problemático) se toman colectivamente. Ninguna comunidad puede imponer reglas sobre las demás.',
+          },
+        ],
+      },
+      {
+        type: 'faq',
+        title: 'Sobre las Piscinas de la Federación (Global vs. Bilateral)',
+        items: [
+          {
+            question: '¿Qué es la piscina global multilateral real?',
+            answer:
+              'Es una piscina de saldo compartida por todos los nodos federados. El saldo que ganas intercambiando con el nodo B es gastable con el nodo C. Por ejemplo: si un productor del nodo B vende productos a un usuario del nodo A, el saldo positivo que genera el productor del nodo B puede usarse para comprar productos del nodo C. Esto permite un trueque multilateral real entre todas las comunidades federadas, no solo de par en par.',
+          },
+          {
+            question: '¿Qué son las piscinas bilaterales?',
+            answer:
+              'Cada par de nodos mantiene un saldo bilateral independiente que refleja el intercambio directo entre esos dos nodos. El saldo bilateral con el nodo B es separado del saldo bilateral con el nodo C. Estas piscinas bilaterales coexisten con la piscina global y permiten llevar un registro detallado del intercambio entre cada par de comunidades.',
+          },
+          {
+            question: '¿Antes no existía ya una piscina global?',
+            answer:
+              'No. Anteriormente, el sistema solo verificaba límites bilaterales entre pares de nodos. Es decir, solo se podía intercambiar con un nodo si el saldo bilateral con ese nodo específico estaba dentro del límite. No existía una piscina global real que permitiera gastar en el nodo C el saldo ganado en el nodo B. Ahora la piscina global multilateral real hace posible el trueque multilateral completo entre todos los nodos federados.',
+          },
+          {
+            question: '¿Cómo se relacionan la piscina global y las bilaterales?',
+            answer:
+              'Son independientes. La piscina global permite el multilateralismo: lo que ganas en un nodo lo puedes gastar en cualquier otro. Las piscinas bilaterales llevan el registro del intercambio directo entre cada par de nodos. Ambas coexisten: la piscina global amplía las posibilidades de intercambio, mientras que las bilaterales mantienen la trazabilidad entre pares específicos.',
+          },
+        ],
+      },
+      {
+        type: 'faq',
+        title: 'Sobre los Niveles de Nodo Federado',
+        items: [
+          {
+            question: '¿Cuáles son los niveles de nodo federado?',
+            answer:
+              'Existen tres niveles: Nivel 1 (Nodo Nuevo) con un límite de 1.000 TQ, sin derecho a voto y sin capacidad de patrocinar nuevos nodos. Nivel 2 (Nodo Aceptado) con un límite de 5.000 TQ, derecho a voto en la federación y capacidad de patrocinar nuevos nodos. Nivel 3 (Nodo Pleno) con un límite de 20.000 TQ, derecho a voto y capacidad de patrocinio, con acceso completo a la piscina global multilateral.',
+          },
+          {
+            question: '¿Cómo se promueve un nodo de Nivel 1 a Nivel 2?',
+            answer:
+              'La promoción a Nivel 2 (Nodo Aceptado) requiere una votación de toda la federación. El nodo debe haber permanecido un mínimo de 90 días como Nodo Nuevo antes de poder ser propuesto para promoción. La votación la realizan todos los nodos que ya tienen derecho a voto (Nivel 2 y Nivel 3). Si la federación aprueba la promoción, el nodo pasa a tener límite de 5.000 TQ, derecho a voto y capacidad de patrocinar.',
+          },
+          {
+            question: '¿Cómo se promueve un nodo de Nivel 2 a Nivel 3?',
+            answer:
+              'La promoción a Nivel 3 (Nodo Pleno) es automática. Se alcanza cuando el nodo cumple los requisitos de reciprocidad y el límite promedio de la federación. No requiere votación: el sistema detecta que el nodo ha mantenido relaciones de intercambio recíprocas con otros nodos y que su actividad justifica un límite mayor de 20.000 TQ.',
+          },
+          {
+            question: '¿Por qué los nodos nuevos no tienen derecho a voto?',
+            answer:
+              'Porque la confianza se construye con el tiempo. Un nodo nuevo (Nivel 1) aún no ha demostrado su compromiso con la federación ni ha establecido relaciones de reciprocidad con los demás nodos. Sin derecho a voto, el nodo puede participar en los intercambios pero no influye en las decisiones colectivas hasta que la federación lo apruebe como Nodo Aceptado (Nivel 2) tras un mínimo de 90 días.',
+          },
+        ],
+      },
+      {
+        type: 'faq',
+        title: 'Sobre el Sistema de Padrino (Patrocinador)',
+        items: [
+          {
+            question: '¿Qué es el sistema de padrino?',
+            answer:
+              'Cuando un nodo de Nivel 2 (Aceptado) o Nivel 3 (Pleno) patrocina a un nodo nuevo que ingresa a la federación, se convierte en su "padrino". El padrino asume responsabilidad solidaria sobre el nodo patrocinado: si el nodo nuevo incumple (default), la deuda se transfiere al padrino. A cambio, el nodo nuevo obtiene acceso a la federación con el respaldo de un nodo establecido.',
+          },
+          {
+            question: '¿Quién puede ser padrino de un nodo nuevo?',
+            answer:
+              'Solo los nodos de Nivel 2 (Nodo Aceptado) o Nivel 3 (Nodo Pleno) pueden ser padrinos. Los nodos de Nivel 1 (Nodo Nuevo) no tienen capacidad de patrocinar. Esto asegura que solo los nodos que ya han demostrado compromiso y han sido aprobados por la federación puedan respaldar a nuevos nodos.',
+          },
+          {
+            question: '¿Qué pasa con el límite del padrino al patrocinar?',
+            answer:
+              'Al patrocinar un nodo nuevo, el límite del padrino se reduce en el monto del límite del nodo patrocinado (1.000 TQ). Por ejemplo, si un nodo de Nivel 2 tiene un límite de 5.000 TQ y patrocina un nodo nuevo, su límite efectivo pasa a 4.000 TQ. El límite se libera automáticamente cuando el nodo patrocinado alcanza el Nivel 2 (Nodo Aceptado).',
+          },
+          {
+            question: '¿Qué pasa si el nodo patrocinado incumple?',
+            answer:
+              'Si el nodo patrocinado no cumple con sus compromisos (default), la deuda se transfiere al padrino. Esto significa que el padrino debe cubrir el saldo negativo del nodo patrocinado. Por eso es importante que el padrino solo patrocine nodos en los que confía y que conoce bien. El sistema de padrino fomenta relaciones de confianza real entre nodos.',
+          },
+          {
+            question: '¿Cuándo se libera el límite retenido del padrino?',
+            answer:
+              'El límite retenido se libera automáticamente cuando el nodo patrocinado alcanza el Nivel 2 (Nodo Aceptado). Esto significa que el nodo patrocinado ha sido aprobado por votación de toda la federación tras un mínimo de 90 días, demostrando que es confiable. Al liberarse el límite, el padrino recupera su capacidad de crédito completa y puede patrocinar a otros nodos nuevos si lo desea.',
+          },
+        ],
+      },
+      {
+        type: 'faq',
+        title: 'Sobre la Verificación de 4 Opciones',
+        items: [
+          {
+            question: '¿Qué es la verificación de 4 opciones?',
+            answer:
+              'Es un sistema de seguridad que se utiliza tanto en el emparejamiento de terminales POS como en la incorporación de nuevos nodos a la federación. Cuando un dispositivo o nodo solicita emparejamiento, el confirmador (administrador del nodo receptor) ve 4 opciones de código en pantalla. Solo una de las 4 opciones es el código correcto. El confirmador debe seleccionar el código correcto entre las 4 opciones.',
+          },
+          {
+            question: '¿Por qué se usan 4 opciones en lugar de ingresar el código directamente?',
+            answer:
+              'Porque previene ataques de intermediario. Si un atacante intercepta la comunicación, no puede forzar la aprobación sin conocer visualmente cuál de las 4 opciones es la correcta. El código correcto solo lo muestra el dispositivo solicitante en su pantalla física. El confirmador debe verlo y seleccionar la opción coincidente, lo que requiere acceso visual al dispositivo.',
+          },
+          {
+            question: '¿Qué pasa si selecciono el código equivocado?',
+            answer:
+              'Si el confirmador selecciona el código equivocado, el emparejamiento se rechaza automáticamente. El dispositivo solicitante deberá iniciar un nuevo proceso de emparejamiento con un código nuevo. Esto es una medida de seguridad: es preferible rechazar un emparejamiento válido antes que aprobar uno fraudulento.',
+          },
+        ],
+      },
+      {
+        type: 'faq',
+        title: 'Sobre la Integridad Distribuida',
+        items: [
+          {
+            question: '¿Qué es la integridad distribuida en las transacciones federadas?',
+            answer:
+              'Es un sistema de seguridad que protege las transacciones entre nodos federados mediante doble firma criptográfica y hashes encadenados. Cada transacción entre nodos requiere la firma de ambos (emisor y receptor), y cada transacción incluye el hash de la anterior, creando una cadena inmutable.',
+          },
+          {
+            question: '¿Qué es la doble firma?',
+            answer:
+              'Cada transacción entre nodos federados requiere la firma criptográfica de ambos nodos: el emisor y el receptor. Ningún nodo puede falsificar una transacción en nombre del otro. Ambas partes deben confirmar criptográficamente la transacción para que sea válida. Esto garantiza que todas las transacciones federadas son consentidas por ambos nodos.',
+          },
+          {
+            question: '¿Qué son los hashes encadenados?',
+            answer:
+              'Cada transacción entre nodos incluye el hash (una huella digital criptográfica) de la transacción anterior. Esto crea una cadena donde cualquier modificación de una transacción pasada invalida todas las posteriores. Permite verificar la integridad completa del historial de intercambios entre dos nodos: si alguien intenta alterar una transacción, la cadena se rompe y la alteración es detectable inmediatamente.',
           },
         ],
       },

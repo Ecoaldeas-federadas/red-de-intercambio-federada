@@ -135,6 +135,26 @@ openssl req -x509 -newkey rsa:4096 -keyout node-key.pem -out node-cert.pem -days
 - Configurar limites bilaterales via asamblea
 - Confirmar limites bilateralmente
 
+## Migraciones Recientes
+
+Las migraciones se ejecutan automaticamente al arrancar el nodo. Las migraciones
+128-130 anaden las nuevas funciones de federacion:
+
+| Migracion | Descripcion |
+|-----------|-------------|
+| `128_global_pool_cross_node_tx_chain.sql` | Piscina global multilateral real + tabla `cross_node_tx_chain` para transacciones inter-nodos con firma dual y hashes encadenados |
+| `129_federation_node_levels.sql` | Niveles de nodo federado (`federation_node_levels`), membresia (`federation_node_membership`) y padrinos (`federation_sponsorships`) |
+| `130_federation_pairing.sql` | Tabla `federation_pairing_requests` para emparejamiento federado con verificacion de 4 opciones |
+
+Tambien anade la columna `pool_type` a `ledger_entries` (`'global'` o `'bilateral'`)
+y las nuevas categorias `node_bridge_global` y `node_bridge_bilateral`.
+
+**Nota:** Si actualizas un nodo existente, estas migraciones se aplican
+automaticamente. No se requiere intervencion manual. Verifica que las tablas
+`cross_node_tx_chain`, `federation_node_levels`, `federation_node_membership`,
+`federation_sponsorships` y `federation_pairing_requests` existan despues de
+actualizar.
+
 ## SSL / TLS en Intranet (sin internet)
 
 El problema: en una red intranet pura sin acceso a internet, los navegadores

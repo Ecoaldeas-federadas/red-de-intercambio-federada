@@ -120,10 +120,10 @@ func (lc *LimitsChecker) GetFederationConfig(ctx context.Context) (*FederationGl
 }
 
 type BilateralLimit struct {
-	CreditLimit   int64
-	DebitLimit    int64
-	IsCustomized  bool
-	LocalApproved bool
+	CreditLimit     int64
+	DebitLimit      int64
+	IsCustomized    bool
+	LocalApproved   bool
 	RemoteConfirmed bool
 }
 
@@ -165,48 +165,120 @@ func (lc *LimitsChecker) ValidateCrossNodeTransfer(ctx context.Context, senderID
 		return fmt.Errorf("amount %d exceeds per-transaction limit %d", amount, *limits.PerTransactionLimit)
 	}
 
-	fedCfg, err := lc.GetFederationConfig(ctx)
-	if err != nil {
-		return err
-	}
-
+	// Determinar el pool: si hay acuerdo bilateral activo y customizado -> bilateral
+	// Si no -> global
 	bl, err := lc.GetBilateralLimit(ctx, senderNode, receiverNode)
-	if err != nil {
-		bl = &BilateralLimit{
-			CreditLimit: fedCfg.NodeBilateralBaseLimit,
-			DebitLimit:  fedCfg.NodeGlobalDebitLimit,
-		}
-	}
+	hasBilateralAgreement := err == nil && bl.IsCustomized && bl.LocalApproved && bl.RemoteConfirmed
 
-	bilateralBalance, err := lc.GetBilateralBalance(ctx, senderNode, receiverNode)
-	if err != nil {
-		return err
-	}
-
-	newBilateralBalance := bilateralBalance + amount
-	if newBilateralBalance > bl.CreditLimit {
-		return fmt.Errorf("transfer would exceed bilateral credit limit: %d > %d", newBilateralBalance, bl.CreditLimit)
-	}
-
-	if !bl.IsCustomized {
-		globalBalance, err := lc.GetGlobalBaseBalance(ctx, senderNode)
+	if hasBilateralAgreement {
+		// Validar contra la piscina bilateral
+		bilateralBalance, err := lc.GetBilateralPoolBalance(ctx, receiverNode)
 		if err != nil {
 			return err
 		}
-		newGlobalBalance := globalBalance + amount
-		if newGlobalBalance > fedCfg.NodeGlobalCreditLimit {
-			return fmt.Errorf("transfer would exceed global credit limit: %d > %d", newGlobalBalance, fedCfg.NodeGlobalCreditLimit)
+		newBilateralBalance := bilateralBalance + amount
+		if newBilateralBalance > bl.CreditLimit {
+			return fmt.Errorf("transfer would exceed bilateral credit limit: %d > %d", newBilateralBalance, bl.CreditLimit)
 		}
+		// Las transacciones bilaterales NO afectan la piscina global
+		return nil
+	}
+
+	// No hay acuerdo bilateral -> usar la piscina global
+	// El limite global depende del nivel del nodo (federation_node_membership)
+	// Si no hay nivel asignado, usar el default de federation_global_config
+	globalLimit, err := lc.GetNodeGlobalLimit(ctx, receiverNode)
+	if err != nil || globalLimit <= 0 {
+		// Fallback al config global
+		fedCfg, err2 := lc.GetFederationConfig(ctx)
+		if err2 != nil {
+			return err2
+		}
+		globalLimit = fedCfg.NodeGlobalCreditLimit
+	}
+
+	globalBalance, err := lc.GetGlobalPoolBalance(ctx)
+	if err != nil {
+		return err
+	}
+	newGlobalBalance := globalBalance + amount
+	if newGlobalBalance > globalLimit {
+		return fmt.Errorf("transfer would exceed global pool credit limit: %d > %d", newGlobalBalance, globalLimit)
 	}
 
 	return nil
+}
+
+// GetNodeGlobalLimit returns the effective global credit limit for a node,
+// considering its federation level and any sponsor holdbacks.
+func (lc *LimitsChecker) GetNodeGlobalLimit(ctx context.Context, remoteNode string) (int64, error) {
+	// Obtener el nivel del nodo desde federation_node_membership
+	var levelID string
+	err := lc.Pool.QueryRow(ctx,
+		`SELECT level_id FROM federation_node_membership WHERE peer_domain = $1`,
+		remoteNode,
+	).Scan(&levelID)
+	if err != nil {
+		return 0, nil // no membership -> caller falls back to global config
+	}
+
+	// Obtener el limite del nivel
+	var globalCreditLimit int64
+	err = lc.Pool.QueryRow(ctx,
+		`SELECT global_credit_limit FROM federation_node_levels WHERE id = $1 AND is_active = true`,
+		levelID,
+	).Scan(&globalCreditLimit)
+	if err != nil {
+		return 0, nil
+	}
+
+	// Restar retenciones de patrocinios activos donde este nodo es padrino
+	var heldAmount int64
+	_ = lc.Pool.QueryRow(ctx,
+		`SELECT COALESCE(SUM(amount_held), 0) FROM federation_sponsorships
+		 WHERE sponsor_domain = $1 AND status = 'active'`,
+		remoteNode,
+	).Scan(&heldAmount)
+
+	effectiveLimit := globalCreditLimit - heldAmount
+	if effectiveLimit < 0 {
+		effectiveLimit = 0
+	}
+	return effectiveLimit, nil
+}
+
+// GetBilateralPoolBalance returns the bilateral pool balance for a specific counterpart.
+func (lc *LimitsChecker) GetBilateralPoolBalance(ctx context.Context, counterpartNode string) (int64, error) {
+	var balance int64
+	err := lc.Pool.QueryRow(ctx,
+		`SELECT COALESCE(SUM(CASE WHEN entry_type = 'credit' THEN amount ELSE -amount END), 0)
+		 FROM ledger_entries WHERE account_category = 'node_bridge_bilateral' AND counterpart_node = $1`,
+		counterpartNode,
+	).Scan(&balance)
+	if err != nil {
+		return 0, fmt.Errorf("getting bilateral pool balance: %w", err)
+	}
+	return balance, nil
+}
+
+// GetGlobalPoolBalance returns the shared global pool balance (multilateral).
+func (lc *LimitsChecker) GetGlobalPoolBalance(ctx context.Context) (int64, error) {
+	var balance int64
+	err := lc.Pool.QueryRow(ctx,
+		`SELECT COALESCE(SUM(CASE WHEN entry_type = 'credit' THEN amount ELSE -amount END), 0)
+		 FROM ledger_entries WHERE account_category = 'node_bridge_global'`,
+	).Scan(&balance)
+	if err != nil {
+		return 0, fmt.Errorf("getting global pool balance: %w", err)
+	}
+	return balance, nil
 }
 
 func (lc *LimitsChecker) GetBilateralBalance(ctx context.Context, localNode, remoteNode string) (int64, error) {
 	var balance int64
 	err := lc.Pool.QueryRow(ctx,
 		`SELECT COALESCE(SUM(CASE WHEN entry_type = 'credit' THEN amount ELSE -amount END), 0)
-		 FROM ledger_entries WHERE account_category = 'node_bridge' AND counterpart_node = $1`,
+		 FROM ledger_entries WHERE account_category IN ('node_bridge', 'node_bridge_bilateral') AND counterpart_node = $1`,
 		remoteNode,
 	).Scan(&balance)
 	if err != nil {
@@ -219,7 +291,7 @@ func (lc *LimitsChecker) GetGlobalBaseBalance(ctx context.Context, localNode str
 	var balance int64
 	err := lc.Pool.QueryRow(ctx,
 		`SELECT COALESCE(SUM(CASE WHEN entry_type = 'credit' THEN amount ELSE -amount END), 0)
-		 FROM ledger_entries WHERE account_category = 'node_bridge'`,
+		 FROM ledger_entries WHERE account_category IN ('node_bridge', 'node_bridge_global', 'node_bridge_bilateral')`,
 	).Scan(&balance)
 	if err != nil {
 		return 0, fmt.Errorf("getting global base balance: %w", err)
