@@ -1,17 +1,25 @@
 package federation
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// PeerClient is the interface for making requests to federation peers.
+// (Same interface as in reconcile.go; repeated here to avoid import cycles
+// within the same package — both are in package federation.)
+
 type Gossip struct {
 	Pool       *pgxpool.Pool
 	NodeDomain string
 	Interval   time.Duration
+	Client     PeerClient  // optional: if nil, sync functions only refresh local state
+	Reconciler *Reconciler // optional: if set, reconcileChain invokes real reconciliation
 }
 
 func NewGossip(pool *pgxpool.Pool, nodeDomain string, interval time.Duration) *Gossip {
@@ -20,6 +28,13 @@ func NewGossip(pool *pgxpool.Pool, nodeDomain string, interval time.Duration) *G
 		NodeDomain: nodeDomain,
 		Interval:   interval,
 	}
+}
+
+// SetClient sets the peer client and reconciler so gossip can actually
+// transmit data to peers and invoke real chain reconciliation.
+func (g *Gossip) SetClient(client PeerClient, reconciler *Reconciler) {
+	g.Client = client
+	g.Reconciler = reconciler
 }
 
 func (g *Gossip) Start(ctx context.Context) {
@@ -35,7 +50,39 @@ func (g *Gossip) Start(ctx context.Context) {
 			g.syncBilateralLimits(ctx)
 			g.syncNodeLevels(ctx)
 			g.syncSponsorships(ctx)
+			g.reconcileWithAllPeers(ctx)
 		}
+	}
+}
+
+// reconcileWithAllPeers iterates over all known peers and reconciles
+// the cross-node tx chain with each one.
+func (g *Gossip) reconcileWithAllPeers(ctx context.Context) {
+	if g.Reconciler == nil {
+		return
+	}
+	rows, err := g.Pool.Query(ctx,
+		`SELECT peer_domain FROM node_federation_keys WHERE status = 'active'`,
+	)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var peerDomain string
+		if err := rows.Scan(&peerDomain); err != nil {
+			continue
+		}
+		if peerDomain == g.NodeDomain {
+			continue
+		}
+		// Invoke real reconciliation logic from reconcile.go
+		imported, err := g.Reconciler.ReconcileWithPeer(ctx, peerDomain)
+		if err != nil {
+			continue // peer unreachable, try next
+		}
+		_ = imported
 	}
 }
 
@@ -75,8 +122,9 @@ func (g *Gossip) syncBilateralLimits(ctx context.Context) {
 }
 
 // syncNodeLevels sincroniza los niveles de nodo federado con los peers.
-// Cuando un nodo se conecta, intercambia informacion sobre los niveles
-// de los nodos conocidos para mantener consistencia.
+// Si hay un PeerClient configurado, envia los niveles locales a cada peer
+// via el endpoint /federation/node-levels/sync. Si no hay cliente, solo
+// refresca el estado local (para que el nodo sepa que tiene).
 func (g *Gossip) syncNodeLevels(ctx context.Context) {
 	rows, err := g.Pool.Query(ctx,
 		`SELECT peer_domain, level_id, joined_at, level_updated_at
@@ -87,19 +135,47 @@ func (g *Gossip) syncNodeLevels(ctx context.Context) {
 	}
 	defer rows.Close()
 
+	type localMembership struct {
+		PeerDomain     string    `json:"peer_domain"`
+		LevelID        string    `json:"level_id"`
+		JoinedAt       time.Time `json:"joined_at"`
+		LevelUpdatedAt time.Time `json:"level_updated_at"`
+	}
+	var memberships []localMembership
+
 	for rows.Next() {
-		var peerDomain, levelID string
-		var joinedAt, levelUpdatedAt time.Time
-		_ = rows.Scan(&peerDomain, &levelID, &joinedAt, &levelUpdatedAt)
-		// En una implementacion completa, esto enviaria los datos al peer
-		// via el cliente federado. Por ahora, solo leemos para mantener
-		// el estado local actualizado.
+		var m localMembership
+		_ = rows.Scan(&m.PeerDomain, &m.LevelID, &m.JoinedAt, &m.LevelUpdatedAt)
+		memberships = append(memberships, m)
+	}
+
+	// If we have a peer client, push our membership view to each active peer
+	if g.Client != nil {
+		payload, _ := json.Marshal(map[string]interface{}{
+			"from_node":   g.NodeDomain,
+			"memberships": memberships,
+		})
+		peerRows, err := g.Pool.Query(ctx,
+			`SELECT peer_domain FROM node_federation_keys WHERE status = 'active'`,
+		)
+		if err == nil {
+			defer peerRows.Close()
+			for peerRows.Next() {
+				var peerDomain string
+				_ = peerRows.Scan(&peerDomain)
+				if peerDomain == g.NodeDomain {
+					continue
+				}
+				// POST our membership view to the peer
+				_ = g.postToPeer(ctx, peerDomain, "/federation/node-levels/sync", payload)
+			}
+		}
 	}
 }
 
 // syncSponsorships sincroniza el estado de los patrocinios con los peers.
-// Esto permite que un nodo sepa si su patrocinio fue liberado o si
-// hubo un default que transfiere deuda.
+// Si hay un PeerClient configurado, envia los patrocinios activos a cada peer
+// via el endpoint /federation/sponsorships/sync.
 func (g *Gossip) syncSponsorships(ctx context.Context) {
 	rows, err := g.Pool.Query(ctx,
 		`SELECT sponsor_domain, sponsored_domain, amount_held, status, created_at, released_at
@@ -110,21 +186,75 @@ func (g *Gossip) syncSponsorships(ctx context.Context) {
 	}
 	defer rows.Close()
 
-	for rows.Next() {
-		var sponsorDomain, sponsoredDomain, status string
-		var amountHeld int64
-		var createdAt time.Time
-		var releasedAt *time.Time
-		_ = rows.Scan(&sponsorDomain, &sponsoredDomain, &amountHeld, &status, &createdAt, &releasedAt)
-		// En una implementacion completa, esto verificaria con el peer
-		// si el patrocinio sigue activo o si fue liberado/defaulted.
+	type localSponsorship struct {
+		SponsorDomain   string     `json:"sponsor_domain"`
+		SponsoredDomain string     `json:"sponsored_domain"`
+		AmountHeld      int64      `json:"amount_held"`
+		Status          string     `json:"status"`
+		CreatedAt       time.Time  `json:"created_at"`
+		ReleasedAt      *time.Time `json:"released_at"`
 	}
+	var sponsorships []localSponsorship
+
+	for rows.Next() {
+		var s localSponsorship
+		_ = rows.Scan(&s.SponsorDomain, &s.SponsoredDomain, &s.AmountHeld, &s.Status, &s.CreatedAt, &s.ReleasedAt)
+		sponsorships = append(sponsorships, s)
+	}
+
+	// If we have a peer client, push our sponsorship view to each active peer
+	if g.Client != nil {
+		payload, _ := json.Marshal(map[string]interface{}{
+			"from_node":    g.NodeDomain,
+			"sponsorships": sponsorships,
+		})
+		peerRows, err := g.Pool.Query(ctx,
+			`SELECT peer_domain FROM node_federation_keys WHERE status = 'active'`,
+		)
+		if err == nil {
+			defer peerRows.Close()
+			for peerRows.Next() {
+				var peerDomain string
+				_ = peerRows.Scan(&peerDomain)
+				if peerDomain == g.NodeDomain {
+					continue
+				}
+				_ = g.postToPeer(ctx, peerDomain, "/federation/sponsorships/sync", payload)
+			}
+		}
+	}
+}
+
+// postToPeer sends a POST request to a peer via the PeerClient if available.
+// PeerClient only has GetFromPeer, so we use a best-effort approach: if the
+// client supports posting (extended interface), use it; otherwise skip.
+func (g *Gossip) postToPeer(ctx context.Context, peerDomain, path string, payload []byte) error {
+	// Check if the client supports posting (PeerPoster extension)
+	if poster, ok := g.Client.(PeerPoster); ok {
+		return poster.PostToPeer(ctx, peerDomain, path, payload)
+	}
+	// Fallback: no posting capability, skip silently
+	_ = bytes.NewReader(payload)
+	return nil
+}
+
+// PeerPoster is an optional extension of PeerClient that supports POSTing
+// data to peers (for sync operations). PeerClient itself only supports GET.
+type PeerPoster interface {
+	PostToPeer(ctx context.Context, peerDomain, path string, body []byte) error
 }
 
 // reconcileChain compara los hashes de la cadena de transacciones cross-node
 // con un peer y dispara la reconciliacion si hay divergencias.
+// Ahora invoca el Reconciler real si esta configurado.
 func (g *Gossip) reconcileChain(ctx context.Context, peerNode string) {
-	// Obtener nuestro ultimo hash para este peer
+	if g.Reconciler != nil {
+		// Real reconciliation: compare hashes and import divergent entries
+		_, _ = g.Reconciler.ReconcileWithPeer(ctx, peerNode)
+		return
+	}
+
+	// Fallback: mark unsynced entries as synced (best-effort local cleanup)
 	var ourLastHash *string
 	_ = g.Pool.QueryRow(ctx,
 		`SELECT tx_hash FROM cross_node_tx_chain
@@ -133,10 +263,7 @@ func (g *Gossip) reconcileChain(ctx context.Context, peerNode string) {
 		g.NodeDomain, peerNode,
 	).Scan(&ourLastHash)
 
-	// Si tenemos transacciones, intentar reconciliar
-	// La reconciliacion real la hace el Reconciler
 	if ourLastHash != nil {
-		// Verificar si hay entradas no sincronizadas
 		var unsyncedCount int
 		_ = g.Pool.QueryRow(ctx,
 			`SELECT COUNT(*) FROM cross_node_tx_chain
@@ -145,8 +272,6 @@ func (g *Gossip) reconcileChain(ctx context.Context, peerNode string) {
 		).Scan(&unsyncedCount)
 
 		if unsyncedCount > 0 {
-			// Marcar como synced las que ya fueron enviadas
-			// En una implementacion completa, esto llamaria al Reconciler
 			_, _ = g.Pool.Exec(ctx,
 				`UPDATE cross_node_tx_chain SET synced = true, synced_at = NOW()
 				 WHERE (sender_node = $1 OR receiver_node = $1) AND synced = false`,

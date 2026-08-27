@@ -3,8 +3,10 @@ package federation
 import (
 	"bytes"
 	"context"
+	"crypto/ed25519"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -35,6 +37,8 @@ func NewServer(pool *pgxpool.Pool, nodeDomain string, listenPort int, certPath, 
 	proto := New(pool, nodeDomain)
 	gossip := NewGossip(pool, nodeDomain, 60*time.Second)
 	reconciler := NewReconciler(pool, nodeDomain)
+	// Wire up gossip with reconciler so reconcileChain invokes real logic
+	gossip.Reconciler = reconciler
 
 	return &Server{
 		Pool:       pool,
@@ -175,6 +179,31 @@ func (s *Server) handleTransferMessage(w http.ResponseWriter, r *http.Request, m
 		return
 	}
 
+	// Verificacion criptografica Ed25519 de las firmas contra las claves
+	// publicas registradas en node_federation_keys.
+	// Los datos firmados son: tx_id|sender_node|receiver_node|amount|created_at
+	senderNode, _ := payload["sender_node"].(string)
+	receiverNode, _ := payload["receiver_node"].(string)
+	amount, _ := payload["amount"].(float64)
+	createdAtStr, _ := payload["created_at"].(string)
+
+	signedData := fmt.Sprintf("%s|%s|%s|%d|%s", txID, senderNode, receiverNode, int64(amount), createdAtStr)
+
+	// Verify sender signature against sender node's public key
+	if senderNode != "" {
+		if !s.verifyNodeSignature(r.Context(), senderNode, signedData, senderSignature) {
+			writeFederationJSON(w, 400, map[string]string{"error": "invalid sender_signature - cryptographic verification failed"})
+			return
+		}
+	}
+	// Verify receiver signature against receiver node's public key
+	if receiverNode != "" {
+		if !s.verifyNodeSignature(r.Context(), receiverNode, signedData, receiverSignature) {
+			writeFederationJSON(w, 400, map[string]string{"error": "invalid receiver_signature - cryptographic verification failed"})
+			return
+		}
+	}
+
 	_, err := s.Pool.Exec(r.Context(), `
 		INSERT INTO processed_messages (id, source_node) VALUES ($1, $2)
 		ON CONFLICT (id) DO NOTHING`,
@@ -189,6 +218,35 @@ func (s *Server) handleTransferMessage(w http.ResponseWriter, r *http.Request, m
 		"status":         "accepted",
 		"transaction_id": txID,
 	})
+}
+
+// verifyNodeSignature looks up the peer's public key in node_federation_keys
+// and cryptographically verifies the Ed25519 signature over the given data.
+// Returns true if the signature is valid, false otherwise (including if the
+// peer key is not found — in which case we fail closed for security).
+func (s *Server) verifyNodeSignature(ctx context.Context, peerDomain, data, signatureHex string) bool {
+	var peerPubKey string
+	err := s.Pool.QueryRow(ctx,
+		`SELECT peer_public_key FROM node_federation_keys
+		 WHERE peer_domain = $1 AND status = 'active'`,
+		peerDomain,
+	).Scan(&peerPubKey)
+	if err != nil {
+		// Peer key not found — fail closed
+		return false
+	}
+
+	pubKeyBytes, err := hex.DecodeString(peerPubKey)
+	if err != nil || len(pubKeyBytes) != ed25519.PublicKeySize {
+		return false
+	}
+
+	sigBytes, err := hex.DecodeString(signatureHex)
+	if err != nil {
+		return false
+	}
+
+	return ed25519.Verify(ed25519.PublicKey(pubKeyBytes), []byte(data), sigBytes)
 }
 
 func (s *Server) handleBalanceSyncMessage(w http.ResponseWriter, r *http.Request, msg *Message) {

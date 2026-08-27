@@ -2,6 +2,7 @@ package federation
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -130,6 +131,11 @@ func (r *Reconciler) VerifyChainEntry(entry *ChainEntry) bool {
 
 // ImportChainEntry imports a chain entry from a peer if it's valid and not already present.
 // This is used during reconciliation to fill in missing transactions.
+// It verifies:
+//  1. The hash chain integrity (VerifyChainEntry)
+//  2. Both signatures are present (firma dual)
+//  3. Cryptographic Ed25519 verification of both signatures against the
+//     registered public keys of the sender and receiver nodes
 func (r *Reconciler) ImportChainEntry(ctx context.Context, entry *ChainEntry) error {
 	if !r.VerifyChainEntry(entry) {
 		return fmt.Errorf("invalid chain entry: hash mismatch for tx %s", entry.TxID)
@@ -138,6 +144,26 @@ func (r *Reconciler) ImportChainEntry(ctx context.Context, entry *ChainEntry) er
 	// Check if both signatures are present (firma dual)
 	if entry.SenderSignature == "" || entry.ReceiverSignature == "" {
 		return fmt.Errorf("invalid chain entry: missing dual signatures for tx %s", entry.TxID)
+	}
+
+	// Cryptographic Ed25519 verification of both signatures
+	// The signed data is: tx_id|sender_node|receiver_node|amount|created_at_unix_nano
+	signedData := fmt.Sprintf("%s|%s|%s|%d|%d",
+		entry.TxID,
+		entry.SenderNode,
+		entry.ReceiverNode,
+		entry.Amount,
+		entry.CreatedAt.UnixNano(),
+	)
+
+	// Verify sender signature against sender node's public key
+	if !r.verifyNodeSignature(ctx, entry.SenderNode, signedData, entry.SenderSignature) {
+		return fmt.Errorf("invalid chain entry: sender signature cryptographic verification failed for tx %s", entry.TxID)
+	}
+
+	// Verify receiver signature against receiver node's public key
+	if !r.verifyNodeSignature(ctx, entry.ReceiverNode, signedData, entry.ReceiverSignature) {
+		return fmt.Errorf("invalid chain entry: receiver signature cryptographic verification failed for tx %s", entry.TxID)
 	}
 
 	_, err := r.Pool.Exec(ctx, `
@@ -154,6 +180,33 @@ func (r *Reconciler) ImportChainEntry(ctx context.Context, entry *ChainEntry) er
 		return fmt.Errorf("importing chain entry: %w", err)
 	}
 	return nil
+}
+
+// verifyNodeSignature looks up the peer's public key in node_federation_keys
+// and cryptographically verifies the Ed25519 signature over the given data.
+// Returns true if valid, false otherwise (fails closed if key not found).
+func (r *Reconciler) verifyNodeSignature(ctx context.Context, peerDomain, data, signatureHex string) bool {
+	var peerPubKey string
+	err := r.Pool.QueryRow(ctx,
+		`SELECT peer_public_key FROM node_federation_keys
+		 WHERE peer_domain = $1 AND status = 'active'`,
+		peerDomain,
+	).Scan(&peerPubKey)
+	if err != nil {
+		return false
+	}
+
+	pubKeyBytes, err := hex.DecodeString(peerPubKey)
+	if err != nil || len(pubKeyBytes) != ed25519.PublicKeySize {
+		return false
+	}
+
+	sigBytes, err := hex.DecodeString(signatureHex)
+	if err != nil {
+		return false
+	}
+
+	return ed25519.Verify(ed25519.PublicKey(pubKeyBytes), []byte(data), sigBytes)
 }
 
 // ReconcileWithPeer compares chain hashes with a peer and resolves discrepancies.

@@ -23,6 +23,7 @@ const (
 	TxTypeSalary           TxType = "salary"
 	TxTypeDebtLiberation   TxType = "debt_liberation"
 	TxTypeLimitIncrease    TxType = "limit_increase"
+	TxTypeSponsorDebt      TxType = "sponsor_debt" // debt transfer from defaulted node to sponsor
 )
 
 type EntryType string
@@ -505,4 +506,86 @@ func (l *Ledger) GetTransactionHistory(ctx context.Context, accountID uuid.UUID,
 	}
 
 	return txs, nil
+}
+
+// SponsorDebtTransferParams holds the parameters for transferring debt from
+// a defaulted sponsored node to its sponsor (padrino).
+type SponsorDebtTransferParams struct {
+	SponsorDomain   string // domain of the sponsor (padrino)
+	SponsoredDomain string // domain of the defaulted node
+	DebtAmount      int64  // amount of debt to transfer
+}
+
+// SponsorDebtTransfer creates a ledger transaction that transfers debt from
+// a defaulted sponsored node to its sponsor. This is called when a sponsored
+// node defaults on its obligations — the sponsor (padrino) assumes the debt.
+//
+// The transaction records:
+//   - A debit to the sponsored node's global bridge account (reducing its debt)
+//   - A credit to the sponsor's global bridge account (increasing its debt)
+//
+// This ensures the ledger remains balanced (sum-zero) and the debt is
+// formally transferred to the responsible party.
+func (l *Ledger) SponsorDebtTransfer(ctx context.Context, p SponsorDebtTransferParams) (*Transaction, error) {
+	// Find the sponsored node's bridge account (user account that holds the
+	// node_bridge_global balance for the sponsored domain)
+	// We look for a system/admin account associated with the node, or use
+	// the node's own config account. In practice, the debt lives in the
+	// ledger_entries with account_category = 'node_bridge_global' and
+	// counterpart_node = sponsored_domain.
+	//
+	// For the transfer, we create a transaction with:
+	//   - SenderNode = sponsored domain (the defaulting node)
+	//   - ReceiverNode = sponsor domain (the padrino)
+	//   - TxType = sponsor_debt
+
+	tx, err := l.CreateTransaction(ctx, CreateTxParams{
+		TxType:       TxTypeSponsorDebt,
+		SenderNode:   p.SponsoredDomain,
+		ReceiverNode: p.SponsorDomain,
+		Amount:       p.DebtAmount,
+		ExternalID:   fmt.Sprintf("sponsor_debt:%s:%s", p.SponsoredDomain, p.SponsorDomain),
+		Metadata: map[string]interface{}{
+			"type":             "sponsor_debt_transfer",
+			"sponsor_domain":   p.SponsorDomain,
+			"sponsored_domain": p.SponsoredDomain,
+			"debt_amount":      p.DebtAmount,
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("creating sponsor debt transfer transaction: %w", err)
+	}
+
+	// Post ledger entries:
+	// 1. Debit the sponsored node's global bridge (reduces its negative balance / debt)
+	// 2. Credit the sponsor's global bridge (increases its negative balance / assumes debt)
+	// We use the node domains as counterpart identifiers.
+	// The AccountID for node bridge entries is typically the admin/system account
+	// that owns the node bridge category. We use a zero UUID placeholder if no
+	// specific account exists — the balance is tracked by account_category +
+	// counterpart_node, not by account_id alone for node bridges.
+	entries := []LedgerEntry{
+		{
+			TransactionID:   tx.ID,
+			AccountID:       uuid.Nil, // system-level entry
+			EntryType:       EntryTypeDebit,
+			Amount:          p.DebtAmount,
+			AccountCategory: CategoryNodeBridgeGlobal,
+			CounterpartNode: p.SponsoredDomain,
+		},
+		{
+			TransactionID:   tx.ID,
+			AccountID:       uuid.Nil, // system-level entry
+			EntryType:       EntryTypeCredit,
+			Amount:          p.DebtAmount,
+			AccountCategory: CategoryNodeBridgeGlobal,
+			CounterpartNode: p.SponsorDomain,
+		},
+	}
+
+	if err := l.PostEntries(ctx, tx.ID, entries); err != nil {
+		return nil, fmt.Errorf("posting sponsor debt entries: %w", err)
+	}
+
+	return tx, nil
 }
