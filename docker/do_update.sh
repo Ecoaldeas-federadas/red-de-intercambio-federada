@@ -175,11 +175,23 @@ dc_up() {
 check_cancelled
 write_state "running" "Descargando cambios del repositorio..." "" "$STARTED" "" 10
 log "--- git fetch origin main ---"
+
+# Verificar que /project es un repo git antes de hacer fetch.
+# Si el mount de /project esta roto (directorio vacio), git fetch falla con
+# "not a git repository" y el mensaje engañoso "Verifica GIT_TOKEN" confunde.
+if [ ! -d "$PROJECT_DIR/.git" ]; then
+  write_state "error" "El repositorio no esta montado en /project. Reinicia el updater-controller: docker compose up -d --force-recreate updater-controller" "" "$STARTED" "$(date -Iseconds 2>/dev/null || date)" 10
+  log "ERROR: /project no es un repo git (.git no encontrado). El mount esta roto."
+  log "Esto pasa cuando el updater-controller fue recreado sin las rutas correctas del host."
+  log "Solucion: docker compose up -d --force-recreate updater-controller (con --project-directory y override)"
+  exit 1
+fi
+
 # Usar --force para sobrescribir refs locales y --prune para limpiar refs viejos
 # fetch origin main actualiza FETCH_HEAD pero no siempre actualiza refs/remotes/origin/main
 # Por eso usamos fetch --all --prune --force para asegurar que origin/main se actualice
 if ! git -C "$PROJECT_DIR" fetch origin --force --prune >> "$LOG_FILE" 2>&1; then
-  write_state "error" "Error en git fetch. Verifica GIT_TOKEN en .env" "" "$STARTED" "$(date -Iseconds 2>/dev/null || date)" 10
+  write_state "error" "Error en git fetch. Verifica GIT_TOKEN en .env y conexion a internet." "" "$STARTED" "$(date -Iseconds 2>/dev/null || date)" 10
   log "ERROR: git fetch fallo"
   exit 1
 fi
@@ -382,6 +394,10 @@ if [ "$UPDATER_NEEDS_UPDATE" = "true" ]; then
   log "NOTA: Este proceso se detendra porque el updater-controller se reinicia."
   log "La actualizacion ya esta completa."
   write_state "completed" "Nodo actualizado. Updater-controller reiniciandose." "$NEW_COMMIT" "$STARTED" "$(date -Iseconds 2>/dev/null || date)" 95
+  # Recrear el updater-controller con el override (que tiene las rutas del host).
+  # Esto asegura que el nuevo contenedor tenga /project montado correctamente.
+  # NOTA: Este proceso (do_update.sh) se mata cuando el contenedor se recrea.
+  # El node-app maneja los reintentos de conexion en su codigo Go (updateNode).
   dc_up up -d --no-deps --force-recreate updater-controller >> "$LOG_FILE" 2>&1 || true
   exit 0
 fi

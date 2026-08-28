@@ -118,14 +118,22 @@ func (h *UpdateHandler) checkUpdates(w http.ResponseWriter, r *http.Request) {
 	fetchOutput := strings.TrimSpace(string(fetchOut))
 
 	if fetchErr != nil {
+		// Distinguir si el error es "not a git repository" (mount roto)
+		// vs un error real de autenticacion/token.
+		errorMsg := "Error al conectar con el repositorio. Verifica GIT_TOKEN en .env"
+		errorType := "fetch_failed"
+		if strings.Contains(fetchOutput, "not a git repository") {
+			errorMsg = "El repositorio no esta montado correctamente en /project. Reinicia el updater-controller manualmente: docker compose up -d --force-recreate updater-controller"
+			errorType = "no_git_repo"
+		}
 		writeJSON(w, 200, map[string]interface{}{
 			"updates_available": false,
 			"current_commit":    currentCommit,
 			"remote_url":        remoteURL,
-			"message":           "Error al conectar con el repositorio. Verifica GIT_TOKEN en .env",
+			"message":           errorMsg,
 			"fetch_error":       fetchOutput,
 			"fetch_exit_code":   fetchErr.Error(),
-			"error":             "fetch_failed",
+			"error":             errorType,
 		})
 		return
 	}
@@ -239,8 +247,22 @@ func (h *UpdateHandler) updateNode(w http.ResponseWriter, r *http.Request) {
 	// El updater-controller escribira "running" cuando do_update.sh arranque.
 
 	// 1. Intentar delegar al updater-controller
-	resp, err := http.Post(updaterControllerURL+"/update", "application/json", nil)
-	if err == nil {
+	// Reintentar varias veces: el updater-controller puede estar reiniciandose
+	// (por ejemplo, despues de una actualizacion anterior donde sus propios
+	// archivos cambiaron). Darle tiempo a que arranque antes de hacer fallback.
+	var resp *http.Response
+	var postErr error
+	for attempt := 0; attempt < 5; attempt++ {
+		resp, postErr = http.Post(updaterControllerURL+"/update", "application/json", nil)
+		if postErr == nil {
+			break
+		}
+		if attempt < 4 {
+			h.appendUpdateLog(fmt.Sprintf("Updater-controller no responde (intento %d/5), reintentando en 3s...", attempt+1))
+			time.Sleep(3 * time.Second)
+		}
+	}
+	if postErr == nil {
 		defer resp.Body.Close()
 		body, _ := io.ReadAll(resp.Body)
 		var result map[string]interface{}
@@ -259,47 +281,94 @@ func (h *UpdateHandler) updateNode(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, result)
 		return
 	}
-	h.appendUpdateLog(fmt.Sprintf("WARN: updater-controller no responde: %v", err))
+	h.appendUpdateLog(fmt.Sprintf("WARN: updater-controller no responde despues de 5 intentos: %v", postErr))
 
 	// 2. Updater-controller no responde. Intentar construirlo e iniciarlo.
+	// CRITICO: Generar un docker-compose.override.yml con las rutas del host
+	// para que el daemon de Docker pueda encontrar los archivos del proyecto.
+	// Sin esto, el volumen ".:/project:rw" del docker-compose.yml se resuelve
+	// como "/project:/project:rw" que no existe en el host, y el nuevo
+	// updater-controller arranca con /project vacio (sin repo git).
 	projectDir := "/project"
 	composeFile := filepath.Join(projectDir, "docker-compose.yml")
 	projectName := detectComposeProjectName()
+	overridePath := h.generateUpdaterOverrideFile()
 
 	// Verificar que el Dockerfile existe
 	dockerfile := filepath.Join(projectDir, "docker", "Dockerfile.updater-controller")
 	if _, err := os.Stat(dockerfile); err == nil {
 		h.appendUpdateLog("Intentando construir e iniciar updater-controller...")
-		// Construir el updater-controller
-		buildOut, _ := exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName,
-			"build", "updater-controller").CombinedOutput()
-		// Iniciarlo
-		exec.Command("docker", "compose", "-f", composeFile, "--project-name", projectName,
-			"up", "-d", "--no-deps", "updater-controller").Run()
-		// Esperar a que arranque
-		time.Sleep(5 * time.Second)
-		// Reintentar conexion
-		resp, err = http.Post(updaterControllerURL+"/update", "application/json", nil)
-		if err == nil {
-			defer resp.Body.Close()
-			body, _ := io.ReadAll(resp.Body)
-			var result map[string]interface{}
-			json.Unmarshal(body, &result)
-			if resp.StatusCode != 200 {
-				writeJSON(w, resp.StatusCode, result)
+		// Construir el updater-controller con --project-directory y override
+		buildArgs := []string{"compose", "-f", composeFile, "--project-name", projectName, "--project-directory", projectDir}
+		if overridePath != "" {
+			buildArgs = append(buildArgs, "-f", overridePath)
+		}
+		buildArgs = append(buildArgs, "build", "updater-controller")
+		buildOut, _ := exec.Command("docker", buildArgs...).CombinedOutput()
+		// Iniciarlo con override
+		upArgs := []string{"compose", "-f", composeFile, "--project-name", projectName, "--project-directory", projectDir}
+		if overridePath != "" {
+			upArgs = append(upArgs, "-f", overridePath)
+		}
+		upArgs = append(upArgs, "up", "-d", "--no-deps", "updater-controller")
+		exec.Command("docker", upArgs...).Run()
+		// Esperar a que arranque (reintentar varias veces)
+		h.appendUpdateLog("Esperando a que updater-controller arranque...")
+		var retryErr error
+		for attempt := 0; attempt < 5; attempt++ {
+			time.Sleep(3 * time.Second)
+			resp, retryErr = http.Post(updaterControllerURL+"/update", "application/json", nil)
+			if retryErr == nil {
+				defer resp.Body.Close()
+				body, _ := io.ReadAll(resp.Body)
+				var result map[string]interface{}
+				json.Unmarshal(body, &result)
+				if resp.StatusCode != 200 {
+					writeJSON(w, resp.StatusCode, result)
+					return
+				}
+				h.appendUpdateLog("Updater-controller reconstruido y acepto la solicitud")
+				writeJSON(w, 200, result)
 				return
 			}
-			h.appendUpdateLog("Updater-controller reconstruido y acepto la solicitud")
-			writeJSON(w, 200, result)
-			return
+			h.appendUpdateLog(fmt.Sprintf("Reintento %d/5: updater-controller no responde aun...", attempt+1))
 		}
-		h.appendUpdateLog(fmt.Sprintf("WARN: updater-controller sigue sin responder despues de rebuild: %v", err))
+		h.appendUpdateLog(fmt.Sprintf("WARN: updater-controller sigue sin responder despues de 15s: %v", retryErr))
 		h.appendUpdateLog(fmt.Sprintf("Build output: %s", string(buildOut)))
 	}
 
 	// 3. Updater-controller no disponible. Lanzar contenedor desechable.
 	h.appendUpdateLog("Fallback: lanzando contenedor desechable...")
 	h.updateWithDetachedContainer(w, r, projectName)
+}
+
+// generateUpdaterOverrideFile genera un docker-compose.override.yml temporal
+// con las rutas del host para que docker compose pueda encontrar los archivos
+// del proyecto en el host (no en el contenedor).
+// Sin esto, el volumen ".:/project:rw" se resuelve como "/project:/project:rw"
+// que no existe en el host, y el updater-controller arranca sin repo git.
+func (h *UpdateHandler) generateUpdaterOverrideFile() string {
+	hostDir := detectHostProjectDir()
+	if hostDir == "" || hostDir == "/project" {
+		return ""
+	}
+	hostDirFwd := toForwardSlashes(hostDir)
+
+	overrideContent := fmt.Sprintf(`services:
+  updater-controller:
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - %s:/project:rw
+      - update_state:/update-state
+`, hostDirFwd)
+
+	overridePath := "/tmp/docker-compose.updater-override.yml"
+	if err := os.WriteFile(overridePath, []byte(overrideContent), 0644); err != nil {
+		h.appendUpdateLog(fmt.Sprintf("WARN: no se pudo escribir override: %v", err))
+		return ""
+	}
+	h.appendUpdateLog(fmt.Sprintf("Override generado con ruta host: %s", hostDirFwd))
+	return overridePath
 }
 
 // updateWithDetachedContainer inicia un contenedor Docker desechable que
@@ -310,12 +379,21 @@ func (h *UpdateHandler) updateWithDetachedContainer(w http.ResponseWriter, _ *ht
 	// Nombre unico para el contenedor
 	containerName := fmt.Sprintf("fmc-updater-%d", time.Now().Unix())
 
+	// Detectar la ruta REAL del proyecto en el host para montar el repo correctamente.
+	// Sin esto, "/project:/project:rw" monta un directorio vacio del host (no el repo).
+	projectMount := "/project:/project:rw"
+	hostDir := detectHostProjectDir()
+	if hostDir != "" && hostDir != "/project" {
+		projectMount = toForwardSlashes(hostDir) + ":/project:rw"
+		h.appendUpdateLog(fmt.Sprintf("Usando ruta host para mount: %s", projectMount))
+	}
+
 	// Lanzar contenedor desechable con alpine + git + docker-cli
 	// Monta: docker socket, repo, volumen de estado
 	cmd := exec.Command("docker", "run", "-d", "--rm",
 		"--name", containerName,
 		"-v", "/var/run/docker.sock:/var/run/docker.sock",
-		"-v", "/project:/project:rw",
+		"-v", projectMount,
 		"-v", "update_state:/update-state",
 		"-e", "GIT_TOKEN="+os.Getenv("GIT_TOKEN"),
 		"-e", "COMPOSE_PROJECT_NAME="+projectName,
