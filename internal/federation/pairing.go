@@ -3,6 +3,7 @@ package federation
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -25,17 +26,17 @@ func NewFederationPairing(pool *pgxpool.Pool, nodeDomain string, nodeLevels *Nod
 
 // FederationPairingRequest represents a federation pairing request
 type FederationPairingRequest struct {
-	ID                   uuid.UUID  `json:"id"`
-	RequestingDomain     string     `json:"requesting_domain"`
-	RequestingPublicKey  string     `json:"requesting_public_key"`
-	RequestingEndpoint   string     `json:"requesting_endpoint"`
-	PairingCode          string     `json:"pairing_code"`
-	Status               string     `json:"status"`
-	SponsorDomain        string     `json:"sponsor_domain"`
-	ExpiresAt            time.Time  `json:"expires_at"`
-	ConfirmedAt          *time.Time `json:"confirmed_at"`
-	FailedAttempts       int        `json:"failed_attempts"`
-	CreatedAt            time.Time  `json:"created_at"`
+	ID                  uuid.UUID  `json:"id"`
+	RequestingDomain    string     `json:"requesting_domain"`
+	RequestingPublicKey string     `json:"requesting_public_key"`
+	RequestingEndpoint  string     `json:"requesting_endpoint"`
+	PairingCode         string     `json:"pairing_code"`
+	Status              string     `json:"status"`
+	SponsorDomain       string     `json:"sponsor_domain"`
+	ExpiresAt           time.Time  `json:"expires_at"`
+	ConfirmedAt         *time.Time `json:"confirmed_at"`
+	FailedAttempts      int        `json:"failed_attempts"`
+	CreatedAt           time.Time  `json:"created_at"`
 }
 
 // InitiateFederationPairing creates a pairing request from a new node.
@@ -284,4 +285,99 @@ func shuffleStrings(s []string) {
 		j := int(b[0]) % (i + 1)
 		s[i], s[j] = s[j], s[i]
 	}
+}
+
+// ============================================
+// Metodos basados en request_id (UUID)
+// El frontend nunca recibe el pairing_code real.
+// ============================================
+
+// ListPendingFederationPairings lista las solicitudes de federacion pendientes.
+// NUNCA devuelve pairing_code — el frontend solo recibe el request_id (UUID).
+func (fp *FederationPairing) ListPendingFederationPairings(ctx context.Context) ([]FederationPairingRequest, error) {
+	// Expirar las que ya vencieron
+	_, _ = fp.Pool.Exec(ctx, `
+		UPDATE federation_pairing_requests SET status = 'expired'
+		WHERE status = 'pending' AND expires_at < NOW()`)
+
+	rows, err := fp.Pool.Query(ctx, `
+		SELECT id, requesting_domain, requesting_public_key, requesting_endpoint,
+		       pairing_code, status, sponsor_domain, expires_at, confirmed_at, failed_attempts, created_at
+		FROM federation_pairing_requests
+		WHERE status = 'pending'
+		ORDER BY created_at DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("listing pending federation pairings: %w", err)
+	}
+	defer rows.Close()
+
+	var requests []FederationPairingRequest
+	for rows.Next() {
+		var r FederationPairingRequest
+		var sponsorDomain sql.NullString
+		var confirmedAt sql.NullTime
+		if err := rows.Scan(&r.ID, &r.RequestingDomain, &r.RequestingPublicKey, &r.RequestingEndpoint,
+			&r.PairingCode, &r.Status, &sponsorDomain, &r.ExpiresAt, &confirmedAt, &r.FailedAttempts, &r.CreatedAt); err != nil {
+			continue
+		}
+		r.SponsorDomain = sponsorDomain.String
+		if confirmedAt.Valid {
+			r.ConfirmedAt = &confirmedAt.Time
+		}
+		// NUNCA enviar el pairing_code al frontend
+		r.PairingCode = ""
+		requests = append(requests, r)
+	}
+	return requests, nil
+}
+
+// GetFederationPairingOptionsByReqID returns 4 options for a request identified by UUID.
+func (fp *FederationPairing) GetFederationPairingOptionsByReqID(ctx context.Context, reqID uuid.UUID) ([]string, error) {
+	var code string
+	var status string
+	var expiresAt time.Time
+	err := fp.Pool.QueryRow(ctx, `
+		SELECT pairing_code, status, expires_at FROM federation_pairing_requests
+		WHERE id = $1`, reqID,
+	).Scan(&code, &status, &expiresAt)
+	if err != nil {
+		return nil, fmt.Errorf("solicitud no encontrada")
+	}
+	if status != "pending" {
+		return nil, fmt.Errorf("la solicitud ya fue procesada (estado: %s)", status)
+	}
+	if time.Now().After(expiresAt.Add(30 * time.Second)) {
+		fp.Pool.Exec(ctx, `UPDATE federation_pairing_requests SET status = 'expired' WHERE id = $1`, reqID)
+		return nil, fmt.Errorf("el codigo ya expiro")
+	}
+	return fp.GetFederationPairingOptions(ctx, code)
+}
+
+// ConfirmFederationPairingByReqID confirma una solicitud por UUID.
+// El selectedCode es validado contra el codigo real internamente.
+func (fp *FederationPairing) ConfirmFederationPairingByReqID(ctx context.Context, reqID uuid.UUID, selectedCode, sponsorDomain string) (*FederationPairingResult, error) {
+	var code string
+	var status string
+	err := fp.Pool.QueryRow(ctx, `
+		SELECT pairing_code, status FROM federation_pairing_requests WHERE id = $1`,
+		reqID,
+	).Scan(&code, &status)
+	if err != nil {
+		return nil, fmt.Errorf("solicitud no encontrada")
+	}
+	if status != "pending" {
+		return nil, fmt.Errorf("la solicitud ya fue procesada (estado: %s)", status)
+	}
+	return fp.ConfirmFederationPairing(ctx, code, selectedCode, sponsorDomain)
+}
+
+// RejectFederationPairingByReqID rechaza una solicitud por UUID.
+func (fp *FederationPairing) RejectFederationPairingByReqID(ctx context.Context, reqID uuid.UUID) error {
+	_, err := fp.Pool.Exec(ctx, `
+		UPDATE federation_pairing_requests SET status = 'rejected'
+		WHERE id = $1 AND status = 'pending'`, reqID)
+	if err != nil {
+		return fmt.Errorf("error rechazando solicitud: %w", err)
+	}
+	return nil
 }

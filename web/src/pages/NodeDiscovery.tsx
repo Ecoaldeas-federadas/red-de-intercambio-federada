@@ -34,21 +34,32 @@ export default function NodeDiscovery() {
   const [syncing, setSyncing] = useState(false)
   const [consensusRunning, setConsensusRunning] = useState(false)
 
+  // Federation pairing (4 opciones)
+  const [fedPairings, setFedPairings] = useState<any[]>([])
+  const [fedApprovingId, setFedApprovingId] = useState('')
+  const [fedPairingOptions, setFedPairingOptions] = useState<string[]>([])
+  const [fedSelectedCode, setFedSelectedCode] = useState('')
+  const [fedLoadingOptions, setFedLoadingOptions] = useState(false)
+  const [fedOptionsError, setFedOptionsError] = useState('')
+  const [fedAction, setFedAction] = useState('')
+
   const loadData = async () => {
     setLoading(true)
     try {
-      const [disc, fed, inact, reqs, cfg] = await Promise.all([
+      const [disc, fed, inact, reqs, cfg, fedPair] = await Promise.all([
         api.get('/nodes/discovered') as any,
         api.get('/nodes/federated') as any,
         api.get('/nodes/inactive') as any,
         api.get('/nodes/contact-requests') as any,
         api.get('/nodes/discovery-config') as any,
+        api.get('/federation/pair/pending').catch(() => ({ pending: [] })) as any,
       ])
       setNodes(disc.discovered_nodes || [])
       setFederatedNodes(fed.federated_nodes || [])
       setInactiveNodes(inact.inactive_nodes || [])
       setRequests(reqs.requests || [])
       setConfig(cfg)
+      setFedPairings(fedPair.pending || fedPair || [])
     } catch (e) {
       console.error(e)
     } finally {
@@ -136,6 +147,59 @@ export default function NodeDiscovery() {
       loadData()
     } catch (e: any) {
       showMsg('error', e.message || 'Error eliminando nodo')
+    }
+  }
+
+  // === Federation pairing: 4 opciones ===
+  const loadFedPairingOptions = async (reqId: string) => {
+    setFedLoadingOptions(true)
+    setFedPairingOptions([])
+    setFedSelectedCode('')
+    setFedOptionsError('')
+    try {
+      const res = await api.get<any>(`/federation/pair/request/${reqId}/options`)
+      const options = Array.isArray(res) ? res : res?.options ?? []
+      if (options.length === 0) {
+        setFedOptionsError('No se pudieron cargar las opciones de verificacion')
+      } else {
+        setFedPairingOptions(options)
+      }
+    } catch (err) {
+      setFedOptionsError(err instanceof Error ? err.message : 'Error al cargar opciones')
+      setFedPairingOptions([])
+    }
+    setFedLoadingOptions(false)
+  }
+
+  const confirmFedPairing = async (reqId: string) => {
+    setFedAction(reqId)
+    try {
+      await api.post(`/federation/pair/request/${reqId}/confirm`, {
+        selected_code: fedSelectedCode,
+      })
+      showMsg('success', 'Nodo federado y confirmado exitosamente')
+      setFedApprovingId('')
+      setFedPairingOptions([])
+      setFedSelectedCode('')
+      setFedOptionsError('')
+      loadData()
+    } catch (e: any) {
+      showMsg('error', e.message || 'Error al confirmar federacion')
+    } finally {
+      setFedAction('')
+    }
+  }
+
+  const rejectFedPairing = async (reqId: string) => {
+    setFedAction(reqId + '-reject')
+    try {
+      await api.post(`/federation/pair/request/${reqId}/reject`, {})
+      showMsg('success', 'Solicitud de federacion rechazada')
+      loadData()
+    } catch (e: any) {
+      showMsg('error', e.message || 'Error al rechazar')
+    } finally {
+      setFedAction('')
     }
   }
 
@@ -377,6 +441,94 @@ export default function NodeDiscovery() {
           <div className="bg-blue-50 p-3 rounded-lg text-sm text-gray-700">
             <p>Las solicitudes de contacto <strong>no federan automaticamente</strong>. Son una forma de expresar interes y compartir informacion de contacto. La federacion se hace personalmente: las personas se contactan, se reúnen, las asambleas aprueban, y luego comparten las claves publicas en persona.</p>
           </div>
+
+          {/* Emparejamientos federados pendientes (4 opciones) */}
+          {fedPairings.length > 0 && (
+            <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 space-y-3">
+              <h3 className="text-sm font-semibold text-amber-800 flex items-center gap-1.5">
+                <AlertTriangle size={16} /> Emparejamientos Federados Pendientes ({fedPairings.length})
+              </h3>
+              <p className="text-xs text-amber-700">
+                Un nodo nuevo solicita federarse. El nodo nuevo le comunico un codigo de 6 digitos por telefono.
+                Haga clic en Confirmar para ver 4 opciones y elegir la correcta.
+              </p>
+              {fedPairings.map((p: any) => (
+                <div key={p.id} className="border border-amber-200 bg-white rounded-lg p-4 space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="font-medium text-sm">{p.requesting_domain}</div>
+                      <div className="text-xs text-gray-500">Clave publica: {p.requesting_public_key?.substring(0, 16)}...</div>
+                      {p.requesting_endpoint && (
+                        <div className="text-xs text-gray-500">Endpoint: {p.requesting_endpoint}</div>
+                      )}
+                      <div className="text-xs text-gray-400 mt-1">
+                        Codigo oculto — debe ser verificado por telefono
+                      </div>
+                    </div>
+                  </div>
+
+                  {fedApprovingId === p.id ? (
+                    <div className="mt-3 space-y-3 border-t pt-3">
+                      {fedLoadingOptions ? (
+                        <div className="text-sm text-indigo-600">Cargando opciones de verificacion...</div>
+                      ) : fedOptionsError ? (
+                        <div className="bg-red-50 border border-red-200 rounded p-2 text-sm text-red-700">
+                          <p className="font-semibold">Error</p>
+                          <p className="text-xs">{fedOptionsError}</p>
+                          <button onClick={() => loadFedPairingOptions(p.id)} className="text-xs text-red-600 underline mt-1">Reintentar</button>
+                        </div>
+                      ) : fedPairingOptions.length > 0 ? (
+                        <div>
+                          <p className="text-sm font-semibold mb-2">Elija el codigo que le comunico el nodo nuevo:</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {fedPairingOptions.map((opt) => (
+                              <button
+                                key={opt}
+                                onClick={() => setFedSelectedCode(opt)}
+                                className={`py-3 text-xl font-mono font-bold rounded-lg border-2 transition ${
+                                  fedSelectedCode === opt
+                                    ? 'border-trueque-600 bg-trueque-50 text-trueque-700'
+                                    : 'border-gray-200 hover:border-trueque-300'
+                                }`}>
+                                {opt}
+                              </button>
+                            ))}
+                          </div>
+                          <div className="flex gap-2 mt-3">
+                            <button
+                              onClick={() => confirmFedPairing(p.id)}
+                              disabled={fedAction === p.id || !fedSelectedCode}
+                              className="btn-primary flex-1 disabled:opacity-50">
+                              {fedAction === p.id ? 'Confirmando...' : 'Confirmar Federacion'}
+                            </button>
+                            <button
+                              onClick={() => { setFedApprovingId(''); setFedPairingOptions([]); setFedSelectedCode(''); setFedOptionsError('') }}
+                              className="btn-secondary">
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={() => { setFedApprovingId(p.id); setFedOptionsError(''); loadFedPairingOptions(p.id) }}
+                        className="btn-primary text-sm">
+                        Confirmar
+                      </button>
+                      <button
+                        onClick={() => rejectFedPairing(p.id)}
+                        disabled={fedAction === p.id + '-reject'}
+                        className="btn-secondary text-sm text-red-600">
+                        {fedAction === p.id + '-reject' ? 'Rechazando...' : 'Rechazar'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Solicitudes recibidas */}
           <div>

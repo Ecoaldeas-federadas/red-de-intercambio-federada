@@ -91,12 +91,16 @@ func (fh *FederationHandler) RegisterRoutesWithAuth(r chi.Router, am *AuthMiddle
 	r.Get("/api/federation/sponsorships", fh.listSponsorships)
 
 	// Federation pairing (verificacion de 4 opciones)
+	// Usa request_id (UUID) para que el frontend nunca sepa el codigo real.
 	r.Post("/api/federation/pair/initiate", fh.initiateFedPairing)
-	r.Get("/api/federation/pair/{code}/options", fh.getFedPairingOptions)
+	r.Get("/api/federation/pair/pending", fh.listPendingFedPairings)
+	r.Get("/api/federation/pair/request/{reqId}/options", fh.getFedPairingOptionsByReqID)
 	if am != nil {
-		r.With(am.RequirePermission("federation.change_config")).Post("/api/federation/pair/{code}/confirm", fh.confirmFedPairing)
+		r.With(am.RequirePermission("federation.change_config")).Post("/api/federation/pair/request/{reqId}/confirm", fh.confirmFedPairingByReqID)
+		r.With(am.RequirePermission("federation.change_config")).Post("/api/federation/pair/request/{reqId}/reject", fh.rejectFedPairingByReqID)
 	} else {
-		r.Post("/api/federation/pair/{code}/confirm", fh.confirmFedPairing)
+		r.Post("/api/federation/pair/request/{reqId}/confirm", fh.confirmFedPairingByReqID)
+		r.Post("/api/federation/pair/request/{reqId}/reject", fh.rejectFedPairingByReqID)
 	}
 
 	// Propuestas de productos federados
@@ -1088,4 +1092,107 @@ func (fh *FederationHandler) confirmFedPairing(w http.ResponseWriter, r *http.Re
 	}
 
 	writeJSON(w, 200, result)
+}
+
+// ============ FEDERATION PAIRING BY REQUEST_ID (UUID) ============
+// Estos endpoints usan el UUID de la solicitud en lugar del pairing_code.
+// El frontend nunca recibe el pairing_code real — solo el request_id.
+
+// listPendingFedPairings lista las solicitudes de federacion pendientes.
+// NUNCA devuelve pairing_code — el frontend solo recibe el request_id (UUID).
+func (fh *FederationHandler) listPendingFedPairings(w http.ResponseWriter, r *http.Request) {
+	requests, err := fh.FedPairing.ListPendingFederationPairings(r.Context())
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	if requests == nil {
+		requests = []federation.FederationPairingRequest{}
+	}
+	writeJSON(w, 200, requests)
+}
+
+// getFedPairingOptionsByReqID devuelve 4 opciones de codigo para que el admin elija.
+func (fh *FederationHandler) getFedPairingOptionsByReqID(w http.ResponseWriter, r *http.Request) {
+	reqIDStr := chi.URLParam(r, "reqId")
+	if reqIDStr == "" {
+		writeError(w, 400, "request id is required")
+		return
+	}
+	reqID, err := uuid.Parse(reqIDStr)
+	if err != nil {
+		writeError(w, 400, "invalid request id")
+		return
+	}
+
+	options, err := fh.FedPairing.GetFederationPairingOptionsByReqID(r.Context(), reqID)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"options": options,
+		"message": "Elija el codigo que le comunico el nodo nuevo por telefono. Solo uno es correcto.",
+	})
+}
+
+// confirmFedPairingByReqID confirma una solicitud por UUID.
+// El admin envia selected_code (el que eligio de las 4 opciones).
+// El servidor valida internamente si selected_code coincide con el codigo real.
+func (fh *FederationHandler) confirmFedPairingByReqID(w http.ResponseWriter, r *http.Request) {
+	reqIDStr := chi.URLParam(r, "reqId")
+	if reqIDStr == "" {
+		writeError(w, 400, "request id is required")
+		return
+	}
+	reqID, err := uuid.Parse(reqIDStr)
+	if err != nil {
+		writeError(w, 400, "invalid request id")
+		return
+	}
+
+	var req struct {
+		SelectedCode  string `json:"selected_code"`
+		SponsorDomain string `json:"sponsor_domain"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.SelectedCode == "" {
+		writeError(w, 400, "selected_code is required — debe elegir uno de los 4 codigos")
+		return
+	}
+	if req.SponsorDomain == "" {
+		req.SponsorDomain = fh.NodeDomain
+	}
+
+	result, err := fh.FedPairing.ConfirmFederationPairingByReqID(r.Context(), reqID, req.SelectedCode, req.SponsorDomain)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+
+	writeJSON(w, 200, result)
+}
+
+// rejectFedPairingByReqID rechaza una solicitud por UUID.
+func (fh *FederationHandler) rejectFedPairingByReqID(w http.ResponseWriter, r *http.Request) {
+	reqIDStr := chi.URLParam(r, "reqId")
+	if reqIDStr == "" {
+		writeError(w, 400, "request id is required")
+		return
+	}
+	reqID, err := uuid.Parse(reqIDStr)
+	if err != nil {
+		writeError(w, 400, "invalid request id")
+		return
+	}
+
+	if err := fh.FedPairing.RejectFederationPairingByReqID(r.Context(), reqID); err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]string{"status": "rejected"})
 }
