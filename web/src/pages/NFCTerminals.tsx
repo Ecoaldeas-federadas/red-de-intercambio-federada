@@ -244,7 +244,6 @@ export default function NFCTerminals() {
         body: JSON.stringify({
           label: editForm.label,
           location: editForm.location,
-          terminal_type: editForm.terminal_type,
         }),
       })
       setShowEditModal(null)
@@ -1069,20 +1068,9 @@ export default function NFCTerminals() {
               <p className="text-xs text-gray-400 mt-1">Donde esta fisicamente el terminal.</p>
             </div>
 
-            <div>
-              <label className="label">Tipo de terminal</label>
-              <select className="input" value={editForm.terminal_type} onChange={(e) => setEditForm({ ...editForm, terminal_type: e.target.value })}>
-                <option value="android_pos">POS Android</option>
-                <option value="esp32_nfc">ESP32 NFC</option>
-                <option value="esp32_ble">ESP32 BLE</option>
-                <option value="qr_terminal">QR Terminal</option>
-                <option value="web_pos">Web POS</option>
-              </select>
-            </div>
-
             <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-500">
-              <p className="font-semibold mb-1">No editables (por seguridad):</p>
-              <p>Clave publica, clave privada, token de registro, chip ID, fingerprint, modelo de dispositivo.</p>
+              <p className="font-semibold mb-1">No editables (definidos por el dispositivo):</p>
+              <p>Tipo de terminal, clave publica, token de registro, chip ID, fingerprint, modelo de dispositivo. El dispositivo reporta estos datos al emparejarse.</p>
             </div>
 
             <div className="flex gap-2 pt-2">
