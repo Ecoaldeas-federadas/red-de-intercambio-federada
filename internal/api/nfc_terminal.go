@@ -66,10 +66,12 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequirePermission("nfc.deactivate_terminal")).Delete("/api/nfc/terminal/{id}", h.deactivateTerminal)
 
 	// Terminal pairing management (admin)
+	// Usa request_id (UUID) en lugar de pairing_code para que el frontend
+	// nunca sepa cual es el codigo real. El servidor valida internamente.
 	r.With(am.RequirePermission("nfc.register_terminal")).Get("/api/nfc/terminal/pair/pending", h.listPendingPairings)
-	r.With(am.RequirePermission("nfc.register_terminal")).Get("/api/nfc/terminal/pair/{code}/options", h.getPairingOptions)
-	r.With(am.RequirePermission("nfc.register_terminal")).Post("/api/nfc/terminal/pair/{code}/approve", h.approvePairing)
-	r.With(am.RequirePermission("nfc.register_terminal")).Post("/api/nfc/terminal/pair/{code}/reject", h.rejectPairing)
+	r.With(am.RequirePermission("nfc.register_terminal")).Get("/api/nfc/terminal/pair/request/{reqId}/options", h.getPairingOptionsByReqID)
+	r.With(am.RequirePermission("nfc.register_terminal")).Post("/api/nfc/terminal/pair/request/{reqId}/approve", h.approvePairingByReqID)
+	r.With(am.RequirePermission("nfc.register_terminal")).Post("/api/nfc/terminal/pair/request/{reqId}/reject", h.rejectPairingByReqID)
 
 	// Assign terminal to organization (admin/Asamblea assigns)
 	r.With(am.RequirePermission("nfc.register_terminal")).Post("/api/nfc/terminal/{id}/assign", h.assignTerminalToOrg)
@@ -1907,4 +1909,123 @@ func (h *NFCTerminalHandler) listPendingPairings(w http.ResponseWriter, r *http.
 		requests = []payments.PairingRequest{}
 	}
 	writeJSON(w, 200, requests)
+}
+
+// ============================================
+// Pairing management by request_id (UUID)
+// Estos endpoints usan el UUID de la solicitud en lugar del pairing_code.
+// El frontend nunca recibe el pairing_code real — solo el request_id.
+// ============================================
+
+// getPairingOptionsByReqID devuelve 4 opciones de codigo para que el admin elija.
+// El servidor busca el codigo real internamente por UUID y genera 4 opciones.
+func (h *NFCTerminalHandler) getPairingOptionsByReqID(w http.ResponseWriter, r *http.Request) {
+	reqIDStr := chi.URLParam(r, "reqId")
+	if reqIDStr == "" {
+		writeError(w, 400, "request id is required")
+		return
+	}
+	reqID, err := uuid.Parse(reqIDStr)
+	if err != nil {
+		writeError(w, 400, "invalid request id")
+		return
+	}
+
+	options, err := h.NFC.GetPairingOptionsByReqID(r.Context(), reqID)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"options": options,
+		"message": "Elija el codigo que le comunico la persona del terminal por telefono. Solo uno es correcto.",
+	})
+}
+
+// approvePairingByReqID aprueba una solicitud por UUID.
+// El admin envia selected_code (el que eligio de las 4 opciones).
+// El servidor valida internamente si selected_code coincide con el codigo real.
+func (h *NFCTerminalHandler) approvePairingByReqID(w http.ResponseWriter, r *http.Request) {
+	reqIDStr := chi.URLParam(r, "reqId")
+	if reqIDStr == "" {
+		writeError(w, 400, "request id is required")
+		return
+	}
+	reqID, err := uuid.Parse(reqIDStr)
+	if err != nil {
+		writeError(w, 400, "invalid request id")
+		return
+	}
+
+	adminUserID, err := uuid.Parse(r.Header.Get("X-User-ID"))
+	if err != nil {
+		uidStr, ok := r.Context().Value("user_id").(string)
+		if !ok || uidStr == "" {
+			writeError(w, 401, "invalid admin user")
+			return
+		}
+		adminUserID, err = uuid.Parse(uidStr)
+		if err != nil {
+			writeError(w, 401, "invalid admin user")
+			return
+		}
+	}
+
+	var body struct {
+		Label        string `json:"label"`
+		TerminalType string `json:"terminal_type"`
+		Location     string `json:"location"`
+		Mode         string `json:"mode"`
+		SelectedCode string `json:"selected_code"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+	if body.Mode == "" {
+		body.Mode = "new"
+	}
+	if body.SelectedCode == "" {
+		writeError(w, 400, "selected_code is required — debe elegir uno de los 4 codigos")
+		return
+	}
+
+	result, err := h.NFC.ApprovePairingByReqID(r.Context(), reqID, body.SelectedCode, adminUserID, body.Label, body.TerminalType, body.Location, body.Mode)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	writeJSON(w, 200, result)
+}
+
+// rejectPairingByReqID rechaza una solicitud por UUID.
+func (h *NFCTerminalHandler) rejectPairingByReqID(w http.ResponseWriter, r *http.Request) {
+	reqIDStr := chi.URLParam(r, "reqId")
+	if reqIDStr == "" {
+		writeError(w, 400, "request id is required")
+		return
+	}
+	reqID, err := uuid.Parse(reqIDStr)
+	if err != nil {
+		writeError(w, 400, "invalid request id")
+		return
+	}
+
+	adminUserID, err := uuid.Parse(r.Header.Get("X-User-ID"))
+	if err != nil {
+		uidStr, ok := r.Context().Value("user_id").(string)
+		if !ok || uidStr == "" {
+			writeError(w, 401, "invalid admin user")
+			return
+		}
+		adminUserID, err = uuid.Parse(uidStr)
+		if err != nil {
+			writeError(w, 401, "invalid admin user")
+			return
+		}
+	}
+
+	if err := h.NFC.RejectPairingByReqID(r.Context(), reqID, adminUserID); err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]string{"status": "rejected"})
 }

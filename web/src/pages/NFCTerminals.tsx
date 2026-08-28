@@ -106,13 +106,13 @@ export default function NFCTerminals() {
     }
   }
 
-  const loadPairingOptions = async (code: string) => {
+  const loadPairingOptions = async (reqId: string) => {
     setLoadingOptions(true)
     setPairingOptions([])
     setSelectedCode('')
     setOptionsError('')
     try {
-      const res = await api.get<any>(`/nfc/terminal/pair/${code}/options`)
+      const res = await api.get<any>(`/nfc/terminal/pair/request/${reqId}/options`)
       const options = Array.isArray(res) ? res : res?.options ?? []
       if (options.length === 0) {
         setOptionsError('No se pudieron cargar las opciones de verificacion')
@@ -126,16 +126,16 @@ export default function NFCTerminals() {
     setLoadingOptions(false)
   }
 
-  const approvePairing = async (code: string, mode: string = 'new') => {
-    setPairingAction(code)
+  const approvePairing = async (reqId: string, mode: string = 'new') => {
+    setPairingAction(reqId)
     try {
-      await api.post(`/nfc/terminal/pair/${code}/approve`, {
+      await api.post(`/nfc/terminal/pair/request/${reqId}/approve`, {
         label: approveLabel || undefined,
         location: approveLocation || undefined,
         mode,
         selected_code: selectedCode || undefined,
       })
-      setPendingPairings(prev => prev.filter(p => p.pairing_code !== code))
+      setPendingPairings(prev => prev.filter(p => p.id !== reqId))
       setApprovingCode('')
       setApproveLabel('')
       setApproveLocation('')
@@ -151,11 +151,11 @@ export default function NFCTerminals() {
     }
   }
 
-  const rejectPairing = async (code: string) => {
-    setPairingAction(code + '-reject')
+  const rejectPairing = async (reqId: string) => {
+    setPairingAction(reqId + '-reject')
     try {
-      await api.post(`/nfc/terminal/pair/${code}/reject`, {})
-      setPendingPairings(prev => prev.filter(p => p.pairing_code !== code))
+      await api.post(`/nfc/terminal/pair/request/${reqId}/reject`, {})
+      setPendingPairings(prev => prev.filter(p => p.id !== reqId))
       setError('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al rechazar')
@@ -834,8 +834,8 @@ export default function NFCTerminals() {
                 <div key={p.id} className="card border-2 border-trueque-300 bg-trueque-50">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="bg-trueque-600 text-white text-3xl font-bold font-mono px-6 py-3 rounded-xl">
-                        ******
+                      <div className="bg-trueque-600 text-white text-lg font-bold px-6 py-3 rounded-xl">
+                        Codigo oculto
                       </div>
                       <div className="flex-1">
                         <p className="font-bold text-lg">{p.terminal_label || 'POS Android'}</p>
@@ -890,7 +890,7 @@ export default function NFCTerminals() {
                     </div>
                   </div>
 
-                  {approvingCode === p.pairing_code ? (
+                  {approvingCode === p.id ? (
                     <div className="mt-4 space-y-3 border-t pt-4">
                       <div>
                         <label className="label">Etiqueta (opcional, pre-llenada por el POS)</label>
@@ -914,7 +914,7 @@ export default function NFCTerminals() {
                         <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
                           <p className="font-semibold">Error al cargar opciones</p>
                           <p className="text-xs mt-1">{optionsError}</p>
-                          <button onClick={() => loadPairingOptions(p.pairing_code)} className="text-xs text-red-600 underline mt-1">Reintentar</button>
+                          <button onClick={() => loadPairingOptions(p.id)} className="text-xs text-red-600 underline mt-1">Reintentar</button>
                         </div>
                       ) : pairingOptions.length > 0 ? (
                         <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 space-y-2">
@@ -948,14 +948,14 @@ export default function NFCTerminals() {
                           <p className="text-sm font-semibold text-gray-700">Este dispositivo ya existe. Que deseas hacer?</p>
                           <div className="flex gap-2">
                             <button
-                              onClick={() => approvePairing(p.pairing_code, 'replace')}
-                              disabled={pairingAction === p.pairing_code || (pairingOptions.length > 0 && !selectedCode) || (!!optionsError && pairingOptions.length === 0)}
+                              onClick={() => approvePairing(p.id, 'replace')}
+                              disabled={pairingAction === p.id || (pairingOptions.length > 0 && !selectedCode) || (!!optionsError && pairingOptions.length === 0)}
                               className="btn-primary flex-1 disabled:opacity-50">
-                              {pairingAction === p.pairing_code ? 'Aprobando...' : 'Reemplazar clave existente'}
+                              {pairingAction === p.id ? 'Aprobando...' : 'Reemplazar clave existente'}
                             </button>
                             <button
-                              onClick={() => approvePairing(p.pairing_code, 'new')}
-                              disabled={pairingAction === p.pairing_code || (pairingOptions.length > 0 && !selectedCode) || (!!optionsError && pairingOptions.length === 0)}
+                              onClick={() => approvePairing(p.id, 'new')}
+                              disabled={pairingAction === p.id || (pairingOptions.length > 0 && !selectedCode) || (!!optionsError && pairingOptions.length === 0)}
                               className="btn-secondary flex-1 disabled:opacity-50">
                               Crear terminal nuevo
                             </button>
@@ -964,10 +964,10 @@ export default function NFCTerminals() {
                       ) : (
                         <div className="flex gap-2">
                           <button
-                            onClick={() => approvePairing(p.pairing_code, 'new')}
-                            disabled={pairingAction === p.pairing_code || (pairingOptions.length > 0 && !selectedCode) || (!!optionsError && pairingOptions.length === 0)}
+                            onClick={() => approvePairing(p.id, 'new')}
+                            disabled={pairingAction === p.id || (pairingOptions.length > 0 && !selectedCode) || (!!optionsError && pairingOptions.length === 0)}
                             className="btn-primary flex-1 disabled:opacity-50">
-                            {pairingAction === p.pairing_code ? 'Aprobando...' : 'Aprobar y Registrar'}
+                            {pairingAction === p.id ? 'Aprobando...' : 'Aprobar y Registrar'}
                           </button>
                         </div>
                       )}
@@ -978,15 +978,15 @@ export default function NFCTerminals() {
                   ) : (
                     <div className="mt-4 flex gap-2">
                       <button
-                        onClick={() => { setApprovingCode(p.pairing_code); setApproveLabel(p.terminal_label || ''); setApproveLocation(''); setOptionsError(''); loadPairingOptions(p.pairing_code) }}
+                        onClick={() => { setApprovingCode(p.id); setApproveLabel(p.terminal_label || ''); setApproveLocation(''); setOptionsError(''); loadPairingOptions(p.id) }}
                         className="btn-primary flex-1">
                         Aprobar
                       </button>
                       <button
-                        onClick={() => rejectPairing(p.pairing_code)}
-                        disabled={pairingAction === p.pairing_code + '-reject'}
+                        onClick={() => rejectPairing(p.id)}
+                        disabled={pairingAction === p.id + '-reject'}
                         className="btn-secondary text-red-600">
-                        {pairingAction === p.pairing_code + '-reject' ? 'Rechazando...' : 'Rechazar'}
+                        {pairingAction === p.id + '-reject' ? 'Rechazando...' : 'Rechazar'}
                       </button>
                     </div>
                   )}

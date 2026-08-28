@@ -435,6 +435,11 @@ func (nt *NFCTerminals) ListPendingPairings(ctx context.Context) ([]PairingReque
 			}
 		}
 
+		// NUNCA enviar el pairing_code al frontend — el frontend no debe
+		// saber cual es el codigo real. El admin solo ve ****** y debe
+		// elegir entre 4 opciones que envia el servidor.
+		r.PairingCode = ""
+
 		requests = append(requests, r)
 	}
 	return requests, nil
@@ -555,4 +560,69 @@ func (nt *NFCTerminals) ApprovePairingWithCode(ctx context.Context, code, select
 		fmt.Sprintf(`{"pairing_code":"%s","terminal_label":"%s"}`, code, label))
 
 	return nt.ApprovePairing(ctx, code, adminUserID, label, terminalType, location, mode)
+}
+
+// ============================================
+// Metodos basados en request_id (UUID)
+// Estos metodos permiten al frontend operar sin conocer el pairing_code real.
+// El frontend usa el request_id (UUID) que se devuelve en ListPendingPairings.
+// ============================================
+
+// GetPairingOptionsByReqID returns 4 codes for a pairing request identified by its UUID.
+// The frontend never sees the real code — only the 4 options to choose from.
+func (nt *NFCTerminals) GetPairingOptionsByReqID(ctx context.Context, reqID uuid.UUID) ([]string, error) {
+	var code string
+	var status string
+	var expiresAt time.Time
+	err := nt.Pool.QueryRow(ctx, `
+		SELECT pairing_code, status, expires_at FROM terminal_pairing_requests
+		WHERE id = $1`, reqID,
+	).Scan(&code, &status, &expiresAt)
+	if err != nil {
+		return nil, fmt.Errorf("solicitud no encontrada")
+	}
+	if status != "pending" {
+		return nil, fmt.Errorf("la solicitud ya fue procesada (estado: %s)", status)
+	}
+	if time.Now().After(expiresAt.Add(PairingGracePeriod)) {
+		nt.Pool.Exec(ctx, `UPDATE terminal_pairing_requests SET status = 'expired' WHERE id = $1`, reqID)
+		return nil, fmt.Errorf("el codigo ya expiro")
+	}
+	// Reuse the existing logic that generates 4 options from the real code
+	return nt.GetPairingOptions(ctx, code)
+}
+
+// ApprovePairingByReqID aprueba una solicitud identificada por su UUID.
+// El selectedCode es el codigo que el admin selecciono de las 4 opciones.
+// El servidor verifica internamente si selectedCode coincide con el codigo real.
+func (nt *NFCTerminals) ApprovePairingByReqID(ctx context.Context, reqID uuid.UUID, selectedCode string, adminUserID uuid.UUID, label, terminalType, location, mode string) (*PairingResult, error) {
+	// Obtener el codigo real de la solicitud
+	var code string
+	var status string
+	err := nt.Pool.QueryRow(ctx, `
+		SELECT pairing_code, status FROM terminal_pairing_requests WHERE id = $1`,
+		reqID,
+	).Scan(&code, &status)
+	if err != nil {
+		return nil, fmt.Errorf("solicitud no encontrada")
+	}
+	if status != "pending" {
+		return nil, fmt.Errorf("la solicitud ya fue procesada (estado: %s)", status)
+	}
+	// Validar el selectedCode contra el codigo real usando la logica existente
+	return nt.ApprovePairingWithCode(ctx, code, selectedCode, adminUserID, label, terminalType, location, mode)
+}
+
+// RejectPairingByReqID rechaza una solicitud identificada por su UUID.
+func (nt *NFCTerminals) RejectPairingByReqID(ctx context.Context, reqID uuid.UUID, adminUserID uuid.UUID) error {
+	_, err := nt.Pool.Exec(ctx, `
+		UPDATE terminal_pairing_requests
+		SET status = 'rejected', admin_user_id = $2
+		WHERE id = $1 AND status = 'pending'`,
+		reqID, adminUserID,
+	)
+	if err != nil {
+		return fmt.Errorf("error rechazando solicitud: %w", err)
+	}
+	return nil
 }
