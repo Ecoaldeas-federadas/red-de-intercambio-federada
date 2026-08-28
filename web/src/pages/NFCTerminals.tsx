@@ -22,6 +22,10 @@ interface Terminal {
   device_model?: string | null
   device_manufacturer?: string | null
   android_version?: string | null
+  organization_id?: string | null
+  organization_name?: string | null
+  merchant_user_id?: string | null
+  merchant_user_name?: string | null
 }
 
 interface Transaction {
@@ -46,6 +50,8 @@ export default function NFCTerminals() {
     setSearchParams({ tab: t })
   }
   const [terminals, setTerminals] = useState<Terminal[]>([])
+  const [terminalFilter, setTerminalFilter] = useState<'all' | 'assigned' | 'unassigned'>('all')
+  const [terminalSearch, setTerminalSearch] = useState('')
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [terminalTypes, setTerminalTypes] = useState<string[]>([])
   const [error, setError] = useState('')
@@ -648,11 +654,58 @@ export default function NFCTerminals() {
             )}
           </div>
 
+          {/* Filtros y busqueda */}
+          <div className="flex flex-wrap gap-2 items-center">
+            <div className="flex gap-1">
+              <button
+                onClick={() => setTerminalFilter('all')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium ${terminalFilter === 'all' ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                Todos ({terminals.length})
+              </button>
+              <button
+                onClick={() => setTerminalFilter('assigned')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium ${terminalFilter === 'assigned' ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                Asignados ({terminals.filter(t => t.organization_name || t.merchant_user_name).length})
+              </button>
+              <button
+                onClick={() => setTerminalFilter('unassigned')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium ${terminalFilter === 'unassigned' ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                No asignados ({terminals.filter(t => !t.organization_name && !t.merchant_user_name).length})
+              </button>
+            </div>
+            <input
+              type="text"
+              placeholder="Buscar por etiqueta, persona u organizacion..."
+              value={terminalSearch}
+              onChange={(e) => setTerminalSearch(e.target.value)}
+              className="input flex-1 min-w-[200px] text-sm"
+            />
+          </div>
+
           {terminals.length === 0 && (
             <div className="card text-center text-gray-500 py-8">No hay terminales registrados</div>
           )}
 
-          {terminals.map((t) => (
+          {terminals
+            .filter((t) => {
+              // Filtro de asignacion
+              const isAssigned = !!(t.organization_name || t.merchant_user_name)
+              if (terminalFilter === 'assigned' && !isAssigned) return false
+              if (terminalFilter === 'unassigned' && isAssigned) return false
+              // Filtro de busqueda
+              if (terminalSearch) {
+                const s = terminalSearch.toLowerCase()
+                const matches =
+                  (t.label || '').toLowerCase().includes(s) ||
+                  (t.terminal_id || '').toLowerCase().includes(s) ||
+                  (t.organization_name || '').toLowerCase().includes(s) ||
+                  (t.merchant_user_name || '').toLowerCase().includes(s) ||
+                  (t.location || '').toLowerCase().includes(s)
+                if (!matches) return false
+              }
+              return true
+            })
+            .map((t) => (
             <div key={t.id} className="card flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Cpu size={20} className={t.is_active ? 'text-green-600' : 'text-gray-400'} />
@@ -661,6 +714,16 @@ export default function NFCTerminals() {
                   <p className="text-xs text-gray-500">
                     {t.terminal_type} · {t.location || 'sin ubicacion'} · {formatTime(t.last_seen)}
                   </p>
+                  {/* Asignacion visible directamente */}
+                  {(t.organization_name || t.merchant_user_name) ? (
+                    <p className="text-xs text-green-600 font-medium mt-1">
+                      ✓ Asignado a: {t.organization_name || t.merchant_user_name}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-amber-600 font-medium mt-1">
+                      ✗ No asignado
+                    </p>
+                  )}
                   {(t.chip_id || t.device_fingerprint || t.device_model) && (
                     <p className="text-xs text-gray-400 mt-1">
                       {t.chip_id && `Chip: ${t.chip_id} · `}

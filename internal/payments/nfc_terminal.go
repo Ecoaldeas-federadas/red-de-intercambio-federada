@@ -6,6 +6,7 @@ import (
 	"crypto/cipher"
 	"crypto/ed25519"
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"federated-credit-node/internal/crypto"
@@ -36,6 +37,15 @@ type NFCTerminal struct {
 	FirmwareVersion    *string    `json:"firmware_version"`
 	CreatedAt          time.Time  `json:"created_at"`
 	UpdatedAt          time.Time  `json:"updated_at"`
+	// Info de dispositivo (migration 127)
+	DeviceModel        *string `json:"device_model,omitempty"`
+	DeviceManufacturer *string `json:"device_manufacturer,omitempty"`
+	AndroidVersion     *string `json:"android_version,omitempty"`
+	// Asignacion
+	OrganizationID   *uuid.UUID `json:"organization_id,omitempty"`
+	OrganizationName *string    `json:"organization_name,omitempty"`
+	MerchantUserID   *uuid.UUID `json:"merchant_user_id,omitempty"`
+	MerchantUserName *string    `json:"merchant_user_name,omitempty"`
 }
 
 type NFCTerminalSession struct {
@@ -307,9 +317,15 @@ func (nt *NFCTerminals) GetTerminalStatus(ctx context.Context, terminalID string
 
 func (nt *NFCTerminals) ListTerminals(ctx context.Context, nodeDomain string) ([]NFCTerminal, error) {
 	rows, err := nt.Pool.Query(ctx, `
-		SELECT id, node_domain, terminal_id, label, terminal_type, location,
-			is_active, is_registered, last_seen, firmware_version, created_at, updated_at
-		FROM nfc_terminals WHERE node_domain = $1 ORDER BY created_at DESC`,
+		SELECT t.id, t.node_domain, t.terminal_id, t.label, t.terminal_type, t.location,
+			t.is_active, t.is_registered, t.last_seen, t.firmware_version, t.created_at, t.updated_at,
+			t.chip_id, t.device_fingerprint, t.device_model, t.device_manufacturer, t.android_version,
+			t.organization_id, org.username, org.display_name,
+			t.merchant_user_id, merchant.username, merchant.display_name
+		FROM nfc_terminals t
+		LEFT JOIN users org ON org.id = t.organization_id
+		LEFT JOIN users merchant ON merchant.id = t.merchant_user_id
+		WHERE t.node_domain = $1 ORDER BY t.created_at DESC`,
 		nodeDomain,
 	)
 	if err != nil {
@@ -320,10 +336,40 @@ func (nt *NFCTerminals) ListTerminals(ctx context.Context, nodeDomain string) ([
 	var terminals []NFCTerminal
 	for rows.Next() {
 		var t NFCTerminal
+		var chipID, deviceFingerprint, deviceModel, deviceManufacturer, androidVersion, firmwareVersion sql.NullString
+		var orgID, merchantID sql.NullString
+		var orgUsername, orgDisplayName, merchantUsername, merchantDisplayName sql.NullString
 		if err := rows.Scan(&t.ID, &t.NodeDomain, &t.TerminalID, &t.Label, &t.TerminalType,
 			&t.Location, &t.IsActive, &t.IsRegistered,
-			&t.LastSeen, &t.FirmwareVersion, &t.CreatedAt, &t.UpdatedAt); err != nil {
+			&t.LastSeen, &firmwareVersion, &t.CreatedAt, &t.UpdatedAt,
+			&chipID, &deviceFingerprint, &deviceModel, &deviceManufacturer, &androidVersion,
+			&orgID, &orgUsername, &orgDisplayName,
+			&merchantID, &merchantUsername, &merchantDisplayName); err != nil {
 			return nil, fmt.Errorf("scanning terminal: %w", err)
+		}
+		t.ChipID = strPtr(chipID)
+		t.DeviceFingerprint = strPtr(deviceFingerprint)
+		t.DeviceModel = strPtr(deviceModel)
+		t.DeviceManufacturer = strPtr(deviceManufacturer)
+		t.AndroidVersion = strPtr(androidVersion)
+		t.FirmwareVersion = strPtr(firmwareVersion)
+		if orgID.Valid {
+			id, _ := uuid.Parse(orgID.String)
+			t.OrganizationID = &id
+			name := orgDisplayName.String
+			if name == "" {
+				name = orgUsername.String
+			}
+			t.OrganizationName = &name
+		}
+		if merchantID.Valid {
+			id, _ := uuid.Parse(merchantID.String)
+			t.MerchantUserID = &id
+			name := merchantDisplayName.String
+			if name == "" {
+				name = merchantUsername.String
+			}
+			t.MerchantUserName = &name
 		}
 		terminals = append(terminals, t)
 	}
@@ -1100,4 +1146,13 @@ func cryptoDecrypt(sharedKey, nonce, ciphertext []byte) ([]byte, error) {
 		return nil, err
 	}
 	return gcm.Open(nil, nonce, ciphertext, nil)
+}
+
+// strPtr convierte sql.NullString a *string (nil si invalid)
+func strPtr(n sql.NullString) *string {
+	if !n.Valid || n.String == "" {
+		return nil
+	}
+	s := n.String
+	return &s
 }
