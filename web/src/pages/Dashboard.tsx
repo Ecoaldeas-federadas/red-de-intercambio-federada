@@ -130,11 +130,11 @@ export default function Dashboard() {
             <p className="text-xs text-gray-500 mb-1">@{userName} ({userDisplay})</p>
           )}
           <p className="text-3xl font-bold text-trueque-700">
-            {balance !== null ? `${balance >= 0 ? '+' : ''}${balance.toLocaleString()} ${currency}` : '...'}
+            {balance !== null ? `${balance >= 0 ? '+' : ''}${(balance / 100).toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}` : '...'}
           </p>
           {creditLimit !== null && debitLimit !== null && (
             <p className="text-xs text-gray-500 mt-2">
-              Limite credito: +{creditLimit.toLocaleString()} {currency} (maximo a tu favor) | Limite debito: -{debitLimit.toLocaleString()} {currency} (maximo que puedes deber)
+              Tope credito (piso): {(creditLimit / 100).toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency} | Tope debito (techo): {(debitLimit / 100).toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}
             </p>
           )}
           <p className="text-xs text-gray-400 mt-1">

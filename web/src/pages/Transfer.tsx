@@ -22,9 +22,17 @@ export default function Transfer() {
     }
     setLoading(true)
     try {
+      // El sistema almacena montos en CENTAVOS internamente.
+      // Convertir el input del usuario (TQ con decimales) a centavos.
+      const cents = Math.round(parseFloat(amount) * 100)
+      if (!cents || cents <= 0) {
+        setError('Monto invalido. Debe ser un numero positivo (ej: 1.50)')
+        setLoading(false)
+        return
+      }
       await api.post('/ledger/transfer', {
         to_user: recipient,
-        amount: parseInt(amount),
+        amount: cents,
         reference,
       })
       setSuccess('Transferencia enviada correctamente')
@@ -73,8 +81,8 @@ export default function Transfer() {
         </div>
         <div>
           <label className="label">Monto ({currency})</label>
-          <input className="input" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="100" />
-          <p className="text-xs text-gray-400 mt-1">Cantidad de Trueques a enviar. Solo numeros enteros positivos. 1 {currency} = 1 kWh de energia. Ej: 50 para enviar cincuenta Trueques.</p>
+          <input className="input" type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="1.50" />
+          <p className="text-xs text-gray-400 mt-1">Cantidad de Trueques a enviar. Acepta decimales (centavos). Ej: 1.50 para enviar un Trueque con cincuenta centavos.</p>
         </div>
         <div>
           <label className="label">Referencia (opcional)</label>

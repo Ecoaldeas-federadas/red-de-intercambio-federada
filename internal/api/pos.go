@@ -275,11 +275,18 @@ func (h *POSHandler) payCharge(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if balance-amount < creditLimit {
+		// Formatear montos en TQ (dividir centavos por 100) para el mensaje.
+		// El sistema almacena enteros en centavos internamente.
+		balanceTQ := float64(balance) / 100.0
+		limitTQ := float64(creditLimit) / 100.0
+		afterTQ := float64(balance-amount) / 100.0
 		writeJSON(w, 400, map[string]interface{}{
-			"error":        fmt.Sprintf("has llegado al tope de tu crédito comunitario (tope: %d TQ). Debes aportar a la comunidad (bienes o trabajo) para poder recibir nuevamente.", creditLimit),
-			"balance":      balance,
-			"credit_limit": creditLimit,
-			"amount":       amount,
+			"error":           fmt.Sprintf("Este pago te llevaria a %.2f TQ, por debajo de tu tope de credito comunitario (%.2f TQ). Debes aportar a la comunidad (bienes o trabajo) para poder pagar nuevamente.", afterTQ, limitTQ),
+			"balance":         balance,
+			"balance_tq":      balanceTQ,
+			"credit_limit":    creditLimit,
+			"credit_limit_tq": limitTQ,
+			"amount":          amount,
 		})
 		return
 	}

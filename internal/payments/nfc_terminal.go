@@ -514,15 +514,18 @@ func (nt *NFCTerminals) ProcessNFCPayment(ctx context.Context, terminalID string
 		}
 	}
 
-	var balance int64
-	err = nt.Pool.QueryRow(ctx, `SELECT balance FROM users WHERE id = $1`, card.UserID).Scan(&balance)
+	var balance, creditLimit int64
+	err = nt.Pool.QueryRow(ctx, `SELECT balance, credit_limit FROM users WHERE id = $1`, card.UserID).Scan(&balance, &creditLimit)
 	if err != nil {
 		return nil, fmt.Errorf("getting user balance: %w", err)
 	}
 
-	if balance-payload.Amount < -50000 {
-		nt.logTransaction(ctx, termDBID, payload.CardUID, &card.UserID, payload.Amount, "rejected", payload.CryptoToken, true, "single", "", "insufficient balance")
-		return &NFCPaymentResult{Status: "rejected", Message: "saldo insuficiente"}, nil
+	// Filosofia moneda cero: el saldo puede ser negativo.
+	// El pago se rechaza solo al llegar al tope de credito (credit_limit),
+	// no por "saldo insuficiente" convencional.
+	if balance-payload.Amount < creditLimit {
+		nt.logTransaction(ctx, termDBID, payload.CardUID, &card.UserID, payload.Amount, "rejected", payload.CryptoToken, true, "single", "", "limite de credito alcanzado")
+		return &NFCPaymentResult{Status: "rejected", Message: "has llegado al tope de tu credito comunitario. Debes aportar a la comunidad para poder pagar nuevamente."}, nil
 	}
 
 	// Verificar si la cuenta del comprador requiere multi-firma

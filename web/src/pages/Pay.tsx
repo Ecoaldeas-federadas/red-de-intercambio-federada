@@ -13,14 +13,20 @@ import Login from './Login'
 //  1. Info del cargo (sin login): monto, comerciante, concepto. Boton "Continuar".
 //  2. Login inline (si no autenticado): tras login, reload vuelve a /pay?t=...
 //  3. Confirmacion (autenticado): quien soy, mi saldo (con signo moneda cero),
-//     a quien pago, monto, saldo despues de pagar. Boton "Confirmar y Pagar".
+//     a quien pago, monto, saldo despues de pagar, topes. Boton "Confirmar y Pagar".
 //  4. Resultado: exito (con nuevo saldo) o error.
 //
 // Filosofia moneda cero (LETS / Credito Mutuo):
-//  - Saldo negativo = deuda con la comunidad (debes aportar).
-//  - Saldo positivo = la comunidad te debe (puedes recibir).
+//  - Saldo negativo = deuda con la comunidad (debes aportar). NO es algo malo.
+//  - Saldo positivo = la comunidad te debe (puedes recibir). Tampoco es malo.
+//  - Ambos saldos son igualmente validos. No hay rojo/verde.
 //  - Tope negativo (credit_limit): al tocarlo, debes aportar para recibir nuevamente.
+//  - Tope positivo (debit_limit): al tocarlo, debes recibir para poder pagar nuevamente.
+//  - La advertencia sale cuando te ACERCAS a cualquier tope, no por ser negativo.
 //  - No existe "saldo insuficiente"; existe "llegaste al tope de tu credito comunitario".
+//
+// IMPORTANTE: El sistema almacena montos en CENTAVOS internamente.
+// 1.00 TQ = 100 centavos. Para mostrar, dividir por 100.
 
 type ChargeInfo = {
   amount: number
@@ -39,6 +45,13 @@ type MeInfo = {
 }
 
 type PayStatus = 'loading' | 'ready' | 'needLogin' | 'confirming' | 'paying' | 'paid' | 'error'
+
+// Convierte centavos (int64 interno) a string TQ con 2 decimales.
+// Ej: 100 -> "1,00"  |  -50000 -> "-500,00"  |  1250 -> "12,50"
+const fmtTQ = (centavos: number): string => {
+  const tq = centavos / 100
+  return tq.toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
 
 export default function Pay() {
   const [searchParams] = useSearchParams()
@@ -128,20 +141,22 @@ export default function Pay() {
 
   // --- Render helpers ---
 
-  const fmt = (n: number) => n.toLocaleString('es')
-
-  // Formatear saldo con filosofia moneda cero
-  const renderBalance = (balance: number, label: string) => {
-    const isDebt = balance < 0
-    const color = isDebt ? '#ef4444' : '#14b8a6'
-    const tag = isDebt ? 'en deuda con la comunidad' : 'a favor de la comunidad'
+  // Formatear saldo con filosofia moneda cero.
+  // NO usar rojo/verde: ambos saldos (positivo y negativo) son igualmente validos.
+  // Solo indicar el significado en texto neutro.
+  const renderBalance = (balanceCentavos: number, label: string) => {
+    const tag = balanceCentavos < 0
+      ? 'deuda con la comunidad (debes aportar)'
+      : balanceCentavos > 0
+        ? 'a favor de la comunidad (puedes recibir)'
+        : 'balance en cero'
     return (
       <div>
         <p style={{ color: '#a0a0a0', fontSize: 13, marginBottom: 4 }}>{label}</p>
-        <p style={{ fontSize: 28, fontWeight: 800, color }}>
-          {balance < 0 ? '-' : ''}{fmt(Math.abs(balance))} TQ
+        <p style={{ fontSize: 28, fontWeight: 800, color: '#e0e0e0' }}>
+          {balanceCentavos < 0 ? '-' : ''}{fmtTQ(Math.abs(balanceCentavos))} TQ
         </p>
-        <p style={{ fontSize: 12, color, marginTop: 2 }}>{tag}</p>
+        <p style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{tag}</p>
       </div>
     )
   }
@@ -187,16 +202,16 @@ export default function Pay() {
         <div style={{ textAlign: 'center', maxWidth: 400, padding: 24 }}>
           <div style={{ fontSize: 80, marginBottom: 16 }}>✅</div>
           <h1 style={{ fontSize: 28, color: '#16a34a', marginBottom: 8 }}>Pago Completado</h1>
-          <p style={{ fontSize: 20, marginBottom: 4 }}>{charge?.amount?.toLocaleString('es')} TQ</p>
+          <p style={{ fontSize: 20, marginBottom: 4 }}>{fmtTQ(charge?.amount || 0)} TQ</p>
           <p style={{ color: '#a0a0a0', marginBottom: 24 }}>Pago realizado con exito</p>
           {newBalance !== null && (
             <div style={{ background: '#1a1a1a', borderRadius: 12, padding: 16, marginBottom: 24 }}>
               <p style={{ color: '#a0a0a0', fontSize: 13, marginBottom: 4 }}>Tu saldo actual</p>
-              <p style={{ fontSize: 24, fontWeight: 800, color: newBalance < 0 ? '#ef4444' : '#14b8a6' }}>
-                {newBalance < 0 ? '-' : ''}{fmt(Math.abs(newBalance))} TQ
+              <p style={{ fontSize: 24, fontWeight: 800, color: '#e0e0e0' }}>
+                {newBalance < 0 ? '-' : ''}{fmtTQ(Math.abs(newBalance))} TQ
               </p>
-              <p style={{ fontSize: 12, color: newBalance < 0 ? '#ef4444' : '#14b8a6', marginTop: 2 }}>
-                {newBalance < 0 ? 'en deuda con la comunidad' : 'a favor de la comunidad'}
+              <p style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+                {newBalance < 0 ? 'deuda con la comunidad (debes aportar)' : newBalance > 0 ? 'a favor de la comunidad (puedes recibir)' : 'balance en cero'}
               </p>
             </div>
           )}
@@ -222,7 +237,7 @@ export default function Pay() {
             <div style={{ textAlign: 'center', marginBottom: 24 }}>
               <p style={{ color: '#a0a0a0', fontSize: 14, marginBottom: 4 }}>MONTO A PAGAR</p>
               <p style={{ fontSize: 48, fontWeight: 800, color: '#14b8a6' }}>
-                {charge?.amount?.toLocaleString('es')} TQ
+                {fmtTQ(charge?.amount || 0)} TQ
               </p>
             </div>
 
@@ -267,8 +282,47 @@ export default function Pay() {
   }
 
   // --- Pantalla 3: confirmacion (autenticado) ---
-  const balanceAfter = me ? me.balance - (charge?.amount || 0) : 0
-  const wouldExceedLimit = me ? balanceAfter < me.credit_limit : false
+  const amountCentavos = charge?.amount || 0
+  const balanceAfter = me ? me.balance - amountCentavos : 0
+
+  // Filosofia moneda cero: la advertencia sale cuando te ACERCAS a cualquier tope.
+  // No por ser negativo, sino por estar cerca del limite (positivo o negativo).
+  // Umbral: 90% del camino hacia el tope.
+  const creditLimit = me?.credit_limit ?? 0   // tope negativo (ej: -500000 = -5000.00 TQ)
+  const debitLimit = me?.debit_limit ?? 0     // tope positivo (ej: 500000 = 5000.00 TQ)
+
+  // Distancia al tope negativo: cuanto credito me queda antes de llegar al piso.
+  // Si balance = -100 y credit_limit = -5000, me quedan 4900 antes del tope.
+  const remainingCredit = creditLimit - me.balance  // negativo = me queda credito
+  const remainingDebit = debitLimit - me.balance     // positivo = me queda para el tope positivo
+
+  // Porcentaje del limite usado (0% = balance en cero, 100% = en el tope)
+  const creditUsedPct = creditLimit < 0 ? Math.max(0, Math.min(100, (me.balance / creditLimit) * 100)) : 0
+  const debitUsedPct = debitLimit > 0 ? Math.max(0, Math.min(100, (me.balance / debitLimit) * 100)) : 0
+
+  // Proyectado despues del pago
+  const creditUsedAfterPct = creditLimit < 0 ? Math.max(0, Math.min(100, (balanceAfter / creditLimit) * 100)) : 0
+  const debitUsedAfterPct = debitLimit > 0 ? Math.max(0, Math.min(100, (balanceAfter / debitLimit) * 100)) : 0
+
+  // Advertencia si despues del pago estaria al 90%+ de cualquier tope
+  const nearCreditLimit = creditUsedAfterPct >= 90
+  const nearDebitLimit = debitUsedAfterPct >= 90
+  // Bloqueo si despues del pago pasaria el tope
+  const exceedsCreditLimit = creditLimit < 0 && balanceAfter < creditLimit
+  const exceedsDebitLimit = debitLimit > 0 && balanceAfter > debitLimit
+
+  const blocked = exceedsCreditLimit || exceedsDebitLimit
+
+  let warningMsg = ''
+  if (exceedsCreditLimit) {
+    warningMsg = `Este pago te llevaria a ${fmtTQ(balanceAfter)} TQ, por debajo de tu tope de credito comunitario (${fmtTQ(creditLimit)} TQ). Debes aportar a la comunidad (bienes o trabajo) para poder pagar nuevamente.`
+  } else if (exceedsDebitLimit) {
+    warningMsg = `Este pago te llevaria a ${fmtTQ(balanceAfter)} TQ, por encima de tu tope de debito (${fmtTQ(debitLimit)} TQ). Debes recibir de la comunidad para poder pagar nuevamente.`
+  } else if (nearCreditLimit) {
+    warningMsg = `Atencion: despues de este pago estarias al ${Math.round(creditUsedAfterPct)}% de tu tope de credito comunitario (${fmtTQ(creditLimit)} TQ).`
+  } else if (nearDebitLimit) {
+    warningMsg = `Atencion: despues de este pago estarias al ${Math.round(debitUsedAfterPct)}% de tu tope de debito (${fmtTQ(debitLimit)} TQ).`
+  }
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0a0a0a', color: 'white', padding: 24 }}>
@@ -282,20 +336,26 @@ export default function Pay() {
         <div style={{ background: '#1a1a1a', borderRadius: 16, padding: 20, marginBottom: 16, textAlign: 'center' }}>
           <p style={{ color: '#a0a0a0', fontSize: 13, marginBottom: 4 }}>MONTO A PAGAR</p>
           <p style={{ fontSize: 40, fontWeight: 800, color: '#14b8a6' }}>
-            {charge?.amount?.toLocaleString('es')} TQ
+            {fmtTQ(amountCentavos)} TQ
           </p>
         </div>
 
-        {/* Quien paga y a quien */}
+        {/* Quien paga y a quien - AMBOS visibles */}
         <div style={{ background: '#1a1a1a', borderRadius: 16, padding: 20, marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ color: '#a0a0a0', fontSize: 14 }}>Pagas a</span>
+            <span style={{ color: '#a0a0a0', fontSize: 14 }}>Pagas a (vendedor)</span>
             <span style={{ fontSize: 14, fontWeight: 600 }}>{charge?.merchant_name || 'POS'}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ color: '#a0a0a0', fontSize: 14 }}>Tu cuenta</span>
+            <span style={{ color: '#a0a0a0', fontSize: 14 }}>Tu cuenta (comprador)</span>
             <span style={{ fontSize: 14, fontWeight: 600 }}>@{me?.username || username}</span>
           </div>
+          {me?.display_name && me.display_name !== me.username && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+              <span style={{ color: '#a0a0a0', fontSize: 14 }}>Nombre</span>
+              <span style={{ fontSize: 14 }}>{me.display_name}</span>
+            </div>
+          )}
           {charge?.description && (
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: '#a0a0a0', fontSize: 14 }}>Concepto</span>
@@ -304,22 +364,37 @@ export default function Pay() {
           )}
         </div>
 
-        {/* Saldos con filosofia moneda cero */}
+        {/* Saldos con filosofia moneda cero - sin rojo/verde */}
         {me && (
           <div style={{ background: '#1a1a1a', borderRadius: 16, padding: 20, marginBottom: 16 }}>
             <div style={{ marginBottom: 16 }}>
               {renderBalance(me.balance, 'TU SALDO ACTUAL')}
             </div>
-            <div style={{ borderTop: '1px solid #333', paddingTop: 16 }}>
+            <div style={{ borderTop: '1px solid #333', paddingTop: 16, marginBottom: 16 }}>
               {renderBalance(balanceAfter, 'SALDO DESPUES DE PAGAR')}
+            </div>
+            {/* Topes comunitarios */}
+            <div style={{ borderTop: '1px solid #333', paddingTop: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ color: '#a0a0a0', fontSize: 12 }}>Tu tope de credito (piso)</span>
+                <span style={{ fontSize: 12, color: '#888' }}>{fmtTQ(creditLimit)} TQ</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#a0a0a0', fontSize: 12 }}>Tu tope de debito (techo)</span>
+                <span style={{ fontSize: 12, color: '#888' }}>{fmtTQ(debitLimit)} TQ</span>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Advertencia si se acerca al tope */}
-        {wouldExceedLimit && (
-          <div style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', padding: 14, borderRadius: 12, marginBottom: 16, fontSize: 14, fontWeight: 600 }}>
-            ⚠️ Este pago excede tu tope de crédito comunitario ({me?.credit_limit} TQ). Debes aportar a la comunidad para poder recibir nuevamente.
+        {/* Advertencia solo al acercarse a cualquier tope */}
+        {warningMsg && (
+          <div style={{
+            background: blocked ? 'rgba(220,38,38,0.15)' : 'rgba(217,119,6,0.15)',
+            color: blocked ? '#dc2626' : '#d97706',
+            padding: 14, borderRadius: 12, marginBottom: 16, fontSize: 13, fontWeight: 600,
+          }}>
+            {blocked ? '⛔ ' : '⚠️ '}{warningMsg}
           </div>
         )}
 
@@ -331,11 +406,11 @@ export default function Pay() {
 
         <button
           onClick={handlePay}
-          disabled={status === 'paying' || wouldExceedLimit}
+          disabled={status === 'paying' || blocked}
           style={{
             width: '100%', padding: 20, borderRadius: 12,
-            background: wouldExceedLimit ? '#333' : '#0f766e', color: 'white', border: 'none',
-            fontSize: 18, fontWeight: 700, cursor: wouldExceedLimit ? 'not-allowed' : 'pointer',
+            background: blocked ? '#333' : '#0f766e', color: 'white', border: 'none',
+            fontSize: 18, fontWeight: 700, cursor: blocked ? 'not-allowed' : 'pointer',
             opacity: status === 'paying' ? 0.5 : 1,
           }}
         >

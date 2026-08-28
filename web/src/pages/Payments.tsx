@@ -63,7 +63,7 @@ export default function Payments() {
   const generateQR = async () => {
     setError('')
     try {
-      const amount = genAmount ? parseInt(genAmount) : null
+      const amount = genAmount ? Math.round(parseFloat(genAmount) * 100) : null
       const res = await api.post<{ qr_data: string; payment_req: PaymentRequest }>('/payments/qr/generate', {
         display_name: genDisplayName || undefined,
         amount,
@@ -238,7 +238,8 @@ export default function Payments() {
   const confirmPayment = async () => {
     setError('')
     try {
-      const amount = parseInt(payAmount)
+      // Convertir input del usuario (TQ con decimales) a centavos
+      const amount = Math.round(parseFloat(payAmount) * 100)
       if (!amount || amount <= 0) {
         setError('Monto invalido')
         return

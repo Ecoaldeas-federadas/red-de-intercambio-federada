@@ -43,9 +43,11 @@ export default function Wallet() {
     }).catch(() => setLoading(false))
   }
 
-  const fmtAmount = (n: number) => {
-    const v = Math.round(n * 100) / 100
-    return v.toLocaleString('es')
+  // El sistema almacena montos en CENTAVOS internamente.
+  // Para mostrar, dividir por 100 y formatear con 2 decimales.
+  const fmtAmount = (centavos: number) => {
+    const tq = centavos / 100
+    return tq.toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   }
 
   // Determinar si una transaccion es debito (salida) o credito (entrada)
@@ -124,7 +126,7 @@ export default function Wallet() {
                 {balance >= 0 ? '+' : ''}{fmtAmount(balance)} {currency}
               </p>
               <p className="text-trueque-200 text-xs mt-2">
-                Limite credito: +{fmtAmount(creditLimit)} {currency} | Limite debito: -{fmtAmount(debitLimit)} {currency}
+                Tope credito (piso): {fmtAmount(creditLimit)} {currency} | Tope debito (techo): {fmtAmount(debitLimit)} {currency}
               </p>
             </div>
             <WalletIcon size={48} className="text-trueque-200" />
