@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -261,16 +262,25 @@ func (h *POSHandler) payCharge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verificar saldo del pagador
-	var balance int64
-	err = tx.QueryRow(r.Context(), `SELECT balance FROM users WHERE id = $1`, payerID).Scan(&balance)
+	// Verificar saldo del pagador contra su tope de credito comunitario
+	// Filosofia moneda cero (LETS / Credito Mutuo):
+	// - El saldo puede ser negativo (deuda con la comunidad).
+	// - No existe "saldo insuficiente"; existe el tope negativo (credit_limit).
+	// - Al tocar el tope, el miembro debe aportar a la comunidad para recibir nuevamente.
+	var balance, creditLimit int64
+	err = tx.QueryRow(r.Context(), `SELECT balance, credit_limit FROM users WHERE id = $1`, payerID).Scan(&balance, &creditLimit)
 	if err != nil {
 		writeError(w, 500, "failed to get payer balance")
 		return
 	}
 
-	if balance-amount < -50000 {
-		writeError(w, 400, "saldo insuficiente")
+	if balance-amount < creditLimit {
+		writeJSON(w, 400, map[string]interface{}{
+			"error":        fmt.Sprintf("has llegado al tope de tu crédito comunitario (tope: %d TQ). Debes aportar a la comunidad (bienes o trabajo) para poder recibir nuevamente.", creditLimit),
+			"balance":      balance,
+			"credit_limit": creditLimit,
+			"amount":       amount,
+		})
 		return
 	}
 
