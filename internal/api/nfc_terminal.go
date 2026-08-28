@@ -64,6 +64,7 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequireAuth).Get("/api/nfc/terminals", h.listTerminals)
 	r.With(am.RequireAuth).Get("/api/nfc/terminals/types", h.listTerminalTypes)
 	r.With(am.RequirePermission("nfc.deactivate_terminal")).Delete("/api/nfc/terminal/{id}", h.deactivateTerminal)
+	r.With(am.RequirePermission("nfc.register_terminal")).Put("/api/nfc/terminal/{id}", h.updateTerminal)
 
 	// Terminal pairing management (admin)
 	// Usa request_id (UUID) en lugar de pairing_code para que el frontend
@@ -422,6 +423,66 @@ func (h *NFCTerminalHandler) deactivateTerminal(w http.ResponseWriter, r *http.R
 		return
 	}
 	writeJSON(w, 200, map[string]string{"status": "deactivated"})
+}
+
+// updateTerminal actualiza los campos editables de un terminal:
+// label, location, terminal_type. No permite editar claves ni tokens.
+func (h *NFCTerminalHandler) updateTerminal(w http.ResponseWriter, r *http.Request) {
+	terminalID := chi.URLParam(r, "id")
+	if terminalID == "" {
+		writeError(w, 400, "terminal id is required")
+		return
+	}
+
+	var req struct {
+		Label        *string `json:"label"`
+		Location     *string `json:"location"`
+		TerminalType *string `json:"terminal_type"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	// Construir SET dinamicamente
+	setParts := []string{}
+	args := []interface{}{}
+	argIdx := 1
+
+	if req.Label != nil {
+		setParts = append(setParts, fmt.Sprintf("label = $%d", argIdx))
+		args = append(args, *req.Label)
+		argIdx++
+	}
+	if req.Location != nil {
+		setParts = append(setParts, fmt.Sprintf("location = $%d", argIdx))
+		args = append(args, *req.Location)
+		argIdx++
+	}
+	if req.TerminalType != nil && *req.TerminalType != "" {
+		setParts = append(setParts, fmt.Sprintf("terminal_type = $%d", argIdx))
+		args = append(args, *req.TerminalType)
+		argIdx++
+	}
+
+	if len(setParts) == 0 {
+		writeError(w, 400, "no fields to update")
+		return
+	}
+
+	setParts = append(setParts, fmt.Sprintf("updated_at = NOW()"))
+	args = append(args, terminalID)
+
+	query := fmt.Sprintf("UPDATE nfc_terminals SET %s WHERE terminal_id = $%d",
+		strings.Join(setParts, ", "), argIdx)
+
+	_, err := h.NFC.Pool.Exec(r.Context(), query, args...)
+	if err != nil {
+		writeError(w, 500, fmt.Sprintf("error updating terminal: %v", err))
+		return
+	}
+
+	writeJSON(w, 200, map[string]string{"status": "updated"})
 }
 
 type IssueCryptoCardRequest struct {

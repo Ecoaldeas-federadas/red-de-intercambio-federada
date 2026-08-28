@@ -4,7 +4,7 @@ import { api, apiFetch } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useSerialChipId } from '../hooks/useSerialChipId'
 import { EntitySelector } from '../components/EntitySelector'
-import { Nfc, Plus, Trash2, CreditCard, KeyRound, Activity, Cpu, Usb, Download, Lock, HelpCircle, X, UserPlus } from 'lucide-react'
+import { Nfc, Plus, Trash2, CreditCard, KeyRound, Activity, Cpu, Usb, Download, Lock, HelpCircle, X, UserPlus, Edit } from 'lucide-react'
 
 interface Terminal {
   id: string
@@ -224,6 +224,35 @@ export default function NFCTerminals() {
   const [showAssignModal, setShowAssignModal] = useState<string | null>(null)
   const [assignTarget, setAssignTarget] = useState('')
   const [assignType, setAssignType] = useState<'user' | 'org'>('user')
+  const [showEditModal, setShowEditModal] = useState<Terminal | null>(null)
+  const [editForm, setEditForm] = useState({ label: '', location: '', terminal_type: '' })
+
+  const openEditModal = (t: Terminal) => {
+    setEditForm({
+      label: t.label || '',
+      location: t.location || '',
+      terminal_type: t.terminal_type || '',
+    })
+    setShowEditModal(t)
+  }
+
+  const saveEditTerminal = async () => {
+    if (!showEditModal) return
+    try {
+      await apiFetch(`/nfc/terminal/${showEditModal.terminal_id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          label: editForm.label,
+          location: editForm.location,
+          terminal_type: editForm.terminal_type,
+        }),
+      })
+      setShowEditModal(null)
+      loadTerminals()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al editar terminal')
+    }
+  }
 
   const assignTerminal = async (terminalId: string) => {
     if (!assignTarget) return
@@ -648,6 +677,15 @@ export default function NFCTerminals() {
                 </span>
                 {canRegisterTerminal && t.is_registered && (
                   <button
+                    onClick={() => openEditModal(t)}
+                    className="text-gray-500 hover:text-blue-700"
+                    title="Editar etiqueta, ubicacion y tipo"
+                  >
+                    <Edit size={16} />
+                  </button>
+                )}
+                {canRegisterTerminal && t.is_registered && (
+                  <button
                     onClick={() => { setShowAssignModal(t.terminal_id); setAssignTarget(''); setAssignType('user') }}
                     className="text-blue-500 hover:text-blue-700"
                     title="Asignar a persona u organizacion"
@@ -1000,6 +1038,58 @@ export default function NFCTerminals() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Modal: Editar terminal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowEditModal(null)}>
+          <div className="bg-white rounded-xl p-6 w-[500px] max-w-[90vw] space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="font-bold text-lg">Editar Terminal</h2>
+              <button onClick={() => setShowEditModal(null)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-xs text-gray-400">Terminal ID: {showEditModal.terminal_id}</p>
+
+            <div>
+              <label className="label">Etiqueta</label>
+              <input className="input" placeholder="Ej: POS Local 5"
+                value={editForm.label}
+                onChange={(e) => setEditForm({ ...editForm, label: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">Nombre identificador del terminal.</p>
+            </div>
+
+            <div>
+              <label className="label">Ubicacion</label>
+              <input className="input" placeholder="Ej: Local 5, Mercado Central"
+                value={editForm.location}
+                onChange={(e) => setEditForm({ ...editForm, location: e.target.value })} />
+              <p className="text-xs text-gray-400 mt-1">Donde esta fisicamente el terminal.</p>
+            </div>
+
+            <div>
+              <label className="label">Tipo de terminal</label>
+              <select className="input" value={editForm.terminal_type} onChange={(e) => setEditForm({ ...editForm, terminal_type: e.target.value })}>
+                <option value="android_pos">POS Android</option>
+                <option value="esp32_nfc">ESP32 NFC</option>
+                <option value="esp32_ble">ESP32 BLE</option>
+                <option value="qr_terminal">QR Terminal</option>
+                <option value="web_pos">Web POS</option>
+              </select>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-500">
+              <p className="font-semibold mb-1">No editables (por seguridad):</p>
+              <p>Clave publica, clave privada, token de registro, chip ID, fingerprint, modelo de dispositivo.</p>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button onClick={saveEditTerminal} className="btn-primary flex-1">Guardar cambios</button>
+              <button onClick={() => setShowEditModal(null)} className="btn-secondary">Cancelar</button>
+            </div>
+          </div>
         </div>
       )}
 
