@@ -183,10 +183,23 @@ func (h *NFCTerminalHandler) terminalAuth(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	// Resolver format_settings para el terminal: usar las preferencias del
+	// merchant_user_id del terminal, con fallback a los defaults del nodo.
+	var merchantUserID *string
+	_ = h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT merchant_user_id::text FROM nfc_terminals WHERE terminal_id = $1`, req.TerminalID).Scan(&merchantUserID)
+	var fs FormatSettings
+	if merchantUserID != nil && *merchantUserID != "" {
+		fs = resolveFormatSettings(r.Context(), h.NFC.Pool, *merchantUserID, h.NodeDomain)
+	} else {
+		fs = nodeFormatSettings(r.Context(), h.NFC.Pool, h.NodeDomain)
+	}
+
 	serverSig := ed25519.Sign(serverPriv, []byte(sessionToken))
-	writeJSON(w, 200, map[string]string{
-		"session_token": sessionToken,
-		"signature":     hexEncodeBytes(serverSig),
+	writeJSON(w, 200, map[string]interface{}{
+		"session_token":   sessionToken,
+		"signature":       hexEncodeBytes(serverSig),
+		"format_settings": fs,
 	})
 }
 

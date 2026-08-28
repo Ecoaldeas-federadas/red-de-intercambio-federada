@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { ConfigProvider } from './hooks/useConfig'
+import { PreferencesProvider } from './hooks/usePreferences'
 import './index.css'
 
 // El servidor puede inyectar window.__BASE_PATH__ para servir el frontend
@@ -17,7 +18,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter basename={basePath}>
       <ConfigProvider>
-        <App />
+        <PreferencesProvider>
+          <App />
+        </PreferencesProvider>
       </ConfigProvider>
     </BrowserRouter>
   </React.StrictMode>,

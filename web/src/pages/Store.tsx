@@ -3,7 +3,7 @@ import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { ShoppingCart, Plus, HelpCircle, Trash2, Search, Store as StoreIcon, Package, Layers, X } from 'lucide-react'
 import { assetUrl } from '../utils/assetUrl'
-import { fmtTQ, toCents } from '../lib/format'
+import { fmtTQ, toCents, fmtNumber } from '../lib/format'
 
 interface CompositeComponent {
   component_product_id: string
@@ -532,7 +532,7 @@ export default function Store() {
                         {yieldProducts > 0 && qtyPurchased > 0 && (
                           <div className="bg-white rounded-lg p-2 text-xs text-gray-700">
                             <p>Costo por producto: <strong>{fmtTQ((pendingComponent.price_per_unit || 0) * qtyPurchased / yieldProducts)} {currency}</strong></p>
-                            <p className="text-gray-500">= {fmtTQ(pendingComponent.price_per_unit || 0)} {currency} x {qtyPurchased} {pendingComponent.unit} / {yieldProducts} productos = {(qtyPurchased / yieldProducts).toFixed(4)} {pendingComponent.unit} por producto</p>
+                            <p className="text-gray-500">= {fmtTQ(pendingComponent.price_per_unit || 0)} {currency} x {qtyPurchased} {pendingComponent.unit} / {yieldProducts} productos = {fmtNumber(qtyPurchased / yieldProducts, 4)} {pendingComponent.unit} por producto</p>
                           </div>
                         )}
                         <button onClick={confirmAddComponent} className="btn-primary w-full" disabled={yieldProducts <= 0 || qtyPurchased <= 0}>
@@ -567,13 +567,13 @@ export default function Store() {
                     {components.length > 0 && (
                       <div className="bg-trueque-100 border border-trueque-300 rounded-lg p-3 flex justify-between items-center">
                         <span className="font-semibold text-trueque-900">Precio total automatico:</span>
-                        <span className="text-xl font-bold text-trueque-700">{compositeTotalPrice.toFixed(2)} {currency}</span>
+                        <span className="text-xl font-bold text-trueque-700">{fmtNumber(compositeTotalPrice, 2)} {currency}</span>
                       </div>
                     )}
                   </div>
 
                   <button onClick={saveComposite} className="btn-primary" disabled={components.length === 0 || !compositeName || !selectedParent || !selectedCategory}>
-                    Publicar en Mi Tienda ({compositeTotalPrice.toFixed(2)} {currency})
+                    Publicar en Mi Tienda ({fmtNumber(compositeTotalPrice, 2)} {currency})
                   </button>
                 </>
               ) : (

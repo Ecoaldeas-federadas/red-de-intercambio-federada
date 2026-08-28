@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { HelpCircle, FileSearch } from 'lucide-react'
+import { fmtDateTime } from '../lib/format'
 
 export default function Audit() {
   const [entries, setEntries] = useState<any[]>([])
@@ -75,7 +76,7 @@ export default function Audit() {
 
   const formatDate = (d: string): string => {
     if (!d) return ''
-    return d.slice(0, 19).replace('T', ' ')
+    return fmtDateTime(d)
   }
 
   const getActorName = (e: any): string => {

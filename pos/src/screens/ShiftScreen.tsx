@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { API } from '../api'
-import { fmtTQ } from '../utils/format'
+import { fmtTQ, fmtDateTime } from '../utils/format'
 
 interface Props {
   onBack: () => void
@@ -30,12 +30,6 @@ export function ShiftScreen({ onBack, api, terminalID }: Props) {
     } finally {
       setLoading(false)
     }
-  }
-
-  const formatTime = (ts: string) => {
-    if (!ts) return ''
-    const d = new Date(ts)
-    return d.toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' })
   }
 
   // Teclado decimal para monto de apertura
@@ -129,7 +123,7 @@ export function ShiftScreen({ onBack, api, terminalID }: Props) {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', fontSize: 12, color: 'var(--text-dim)' }}>
                 <span>Abierto desde</span>
-                <span>{formatTime(shift.opened_at)}</span>
+                <span>{fmtDateTime(shift.opened_at)}</span>
               </div>
 
               <button

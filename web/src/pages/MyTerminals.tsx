@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { api, apiFetch } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { Smartphone, Lock, Unlock, Eye, Activity, Power, ShoppingBag, Edit2, Globe, Clock, XCircle, CheckCircle } from 'lucide-react'
-import { fmtTQ } from '../lib/format'
+import { fmtTQ, fmtDateTime } from '../lib/format'
 
 interface MyTerminal {
   id: string
@@ -208,9 +208,7 @@ export default function MyTerminals() {
 
   const formatTime = (ts: string | null) => {
     if (!ts) return 'Nunca'
-    return new Date(ts).toLocaleString('es', {
-      day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
-    })
+    return fmtDateTime(ts)
   }
 
   const totalSales = transactions

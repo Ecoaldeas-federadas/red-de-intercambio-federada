@@ -27,7 +27,7 @@ import com.example.ui.theme.*
 import com.example.ui.util.CurrencyHelper
 import com.example.ui.viewmodel.PosScreen
 import com.example.ui.viewmodel.PosViewModel
-
+ 
 @Composable
 fun DashboardScreen(
     viewModel: PosViewModel,
@@ -175,6 +175,110 @@ fun DashboardScreen(
                                 tint = PosSlate400
                             )
                         }
+                    }
+                }
+            }
+        }
+
+        // --- NFC HARDWARE & STATUS WARNING ---
+        if (!uiState.hasNfcHardware) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = PosWarningAmber.copy(alpha = 0.15f)),
+                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, PosWarningAmber)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = PosWarningAmberLight)
+                    Text(
+                        text = "Dispositivo sin hardware NFC integrado. Use cobros QR o lector externo.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = PosWarningAmberLight
+                    )
+                }
+            }
+        } else if (!uiState.isNfcEnabled) {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            Card(
+                colors = CardDefaults.cardColors(containerColor = PosWarningAmber.copy(alpha = 0.15f)),
+                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, PosWarningAmber)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(Icons.Default.Nfc, contentDescription = null, tint = PosWarningAmberLight)
+                        Text(
+                            text = "NFC desactivado en este teléfono",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = PosWarningAmberLight,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Text(
+                        text = "Active el NFC para poder procesar pagos con tarjeta de clientes y puesteros.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = PosSlate300
+                    )
+                    Button(
+                        onClick = {
+                            try {
+                                val intent = android.content.Intent(android.provider.Settings.ACTION_NFC_SETTINGS)
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                val intent = android.content.Intent(android.provider.Settings.ACTION_SETTINGS)
+                                context.startActivity(intent)
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = PosWarningAmber),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Activar NFC en Ajustes", color = PosNavyDark, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        // --- DEMO MODE NOTICE ---
+        if (uiState.isDemoNode) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = PosGold.copy(alpha = 0.15f)),
+                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, PosGold.copy(alpha = 0.6f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(Icons.Default.Science, contentDescription = null, tint = PosGoldLight)
+                    Column {
+                        Text(
+                            text = "Modo Demostración Activo (/demo)",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = PosGoldLight,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Acepta cualquier tarjeta NFC con aprobación simulada para pruebas.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = PosSlate300
+                        )
                     }
                 }
             }

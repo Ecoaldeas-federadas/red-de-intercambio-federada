@@ -11,6 +11,7 @@ import com.example.data.db.TransactionEntity
 import com.example.data.repository.PosRepository
 import com.example.ui.util.CurrencyHelper
 import com.example.ui.util.FeedbackHelper
+import com.example.ui.util.FormatConfig
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -56,7 +57,12 @@ data class PosUiState(
     val qrChargeResponse: CreateChargeResponse? = null,
     val qrPayUrl: String? = null,
     val isQrPolling: Boolean = false,
-    val qrStatus: String? = null, // "pending", "paid", "expired", "cancelled"
+    val qrStatus: String? = null, // "pending", "partially_signed", "paid", "expired", "cancelled"
+    val qrRemainingSeconds: Int = 180,
+    val qrInitialSeconds: Int = 180,
+    val qrRequiredSignatures: Int = 1,
+    val qrCollectedSignatures: Int = 0,
+    val qrSignaturesList: List<QrSignatureInfo> = emptyList(),
 
     // NFC Hardware & Status
     val hasNfcHardware: Boolean = true,
@@ -129,12 +135,16 @@ class PosViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private var qrPollJob: Job? = null
+    private var qrTimerJob: Job? = null
     private var multisigPollJob: Job? = null
     private var pairingPollJob: Job? = null
 
     init {
         viewModelScope.launch {
             val config = repository.getOrInitTerminalConfig()
+            // Apply saved format settings to the in-memory FormatConfig so that
+            // all formatters (currency, date, time) use the server-provided locale.
+            FormatConfig.updateFromEntity(config)
             val hasActiveSession = !config.sessionToken.isNullOrBlank()
             
             _uiState.update {
@@ -657,13 +667,22 @@ class PosViewModel(
     }
 
     fun updateServerUrl(url: String) {
+        val sanitized = PosApiClient.sanitizeUrl(url)
         viewModelScope.launch {
-            repository.updateServerUrl(url)
+            _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
+            repository.updateServerUrl(sanitized)
+            val isDemo = repository.apiClient.isDemoNode
             _uiState.update {
                 it.copy(
-                    serverUrl = url,
+                    isLoading = false,
+                    serverUrl = sanitized,
+                    isDemoNode = isDemo,
                     nodeDomain = repository.apiClient.nodeDomain,
-                    successMessage = "URL del servidor actualizada a $url"
+                    successMessage = if (isDemo) {
+                        "Modo Demostración activado (/demo). Cobros y pagos simulados para pruebas."
+                    } else {
+                        "Conectado exitosamente al nodo: $sanitized"
+                    }
                 )
             }
             loadCardTypeConfig()
@@ -741,15 +760,22 @@ class PosViewModel(
 
             res.onSuccess { charge ->
                 val payUrl = repository.apiClient.getPayQrUrl(charge.chargeToken ?: "")
+                val initialSeconds = charge.expiresIn ?: 180
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         qrChargeResponse = charge,
                         qrPayUrl = payUrl,
                         qrStatus = "pending",
-                        isQrPolling = true
+                        isQrPolling = true,
+                        qrRemainingSeconds = initialSeconds,
+                        qrInitialSeconds = initialSeconds,
+                        qrRequiredSignatures = 1,
+                        qrCollectedSignatures = 0,
+                        qrSignaturesList = emptyList()
                     )
                 }
+                startQrTimer(initialSeconds)
                 startQrPolling(charge.chargeId ?: "")
             }.onFailure { err ->
                 _uiState.update { it.copy(isLoading = false, errorMessage = err.message) }
@@ -757,47 +783,93 @@ class PosViewModel(
         }
     }
 
+    private fun startQrTimer(seconds: Int = 180) {
+        qrTimerJob?.cancel()
+        _uiState.update {
+            it.copy(
+                qrRemainingSeconds = seconds,
+                qrInitialSeconds = seconds
+            )
+        }
+        qrTimerJob = viewModelScope.launch {
+            while (isActive && _uiState.value.qrRemainingSeconds > 0) {
+                delay(1000)
+                val current = _uiState.value.qrRemainingSeconds
+                if (current <= 1) {
+                    _uiState.update {
+                        it.copy(
+                            qrRemainingSeconds = 0,
+                            qrStatus = "expired",
+                            isQrPolling = false,
+                            errorMessage = "Código QR vencido (Tiempo límite de 3 minutos agotado)"
+                        )
+                    }
+                    stopQrPolling()
+                    FeedbackHelper.playError(getApplication())
+                    break
+                } else {
+                    _uiState.update { it.copy(qrRemainingSeconds = current - 1) }
+                }
+            }
+        }
+    }
+
+    private fun stopQrTimer() {
+        qrTimerJob?.cancel()
+        qrTimerJob = null
+    }
+
     private fun startQrPolling(chargeId: String) {
         qrPollJob?.cancel()
         qrPollJob = viewModelScope.launch {
-            var counter = 0
             while (isActive) {
-                delay(2500)
-                counter++
+                delay(2000)
                 val res = repository.pollQrChargeStatus(chargeId)
                 res.onSuccess { status ->
-                    if (status.status == "paid") {
+                    val required = status.requiredSignatures ?: 1
+                    val collected = status.collectedSignatures ?: status.signaturesCount ?: (if (status.status == "paid") 1 else 0)
+                    val signatures = status.signatures ?: emptyList()
+
+                    if (status.status == "paid" || (required > 0 && collected >= required && status.status != "pending")) {
+                        stopQrTimer()
                         FeedbackHelper.playSuccess(getApplication())
                         _uiState.update {
                             it.copy(
                                 qrStatus = "paid",
                                 isQrPolling = false,
+                                qrRequiredSignatures = required,
+                                qrCollectedSignatures = required,
+                                qrSignaturesList = signatures,
                                 successMessage = "¡Cobro QR aprobado exitosamente!"
                             )
                         }
                         return@launch
                     } else if (status.status == "expired" || status.status == "cancelled") {
+                        stopQrTimer()
                         FeedbackHelper.playError(getApplication())
                         _uiState.update {
                             it.copy(
                                 qrStatus = status.status,
                                 isQrPolling = false,
-                                errorMessage = "El cobro QR fue ${status.status}"
+                                errorMessage = if (status.status == "expired") "El cobro QR ha vencido" else "El cobro QR fue cancelado"
                             )
                         }
                         return@launch
+                    } else if (collected > _uiState.value.qrCollectedSignatures || (required > 1 && status.status == "partially_signed")) {
+                        // NUEVA FIRMA DETECTADA EN CUENTA MULTIFIRMA
+                        // Cada vez que se procesa una firma, se resetea la cuenta regresiva a 3 minutos para la siguiente
+                        FeedbackHelper.playCardDetected(getApplication())
+                        startQrTimer(180)
+                        _uiState.update {
+                            it.copy(
+                                qrStatus = "partially_signed",
+                                qrRequiredSignatures = required,
+                                qrCollectedSignatures = collected,
+                                qrSignaturesList = signatures,
+                                successMessage = "Firma $collected de $required completada. Esperando siguiente firmante..."
+                            )
+                        }
                     }
-                }
-                // Auto-expire after 10 min
-                if (counter > 240) {
-                    _uiState.update {
-                        it.copy(
-                            qrStatus = "expired",
-                            isQrPolling = false,
-                            errorMessage = "Tiempo de cobro QR agotado"
-                        )
-                    }
-                    return@launch
                 }
             }
         }
@@ -806,18 +878,34 @@ class PosViewModel(
     fun cancelQrCharge() {
         val chargeId = _uiState.value.qrChargeResponse?.chargeId
         stopQrPolling()
+        stopQrTimer()
         if (chargeId != null) {
             viewModelScope.launch {
-                repository.cancelQrCharge(chargeId)
+                try {
+                    repository.cancelQrCharge(chargeId)
+                } catch (e: Exception) {
+                    // ignore
+                }
             }
         }
         _uiState.update {
             it.copy(
-                qrStatus = "cancelled",
+                qrChargeResponse = null,
+                qrPayUrl = null,
+                qrStatus = null,
                 isQrPolling = false,
-                errorMessage = "Cobro cancelado"
+                qrRemainingSeconds = 180,
+                qrRequiredSignatures = 1,
+                qrCollectedSignatures = 0,
+                qrSignaturesList = emptyList(),
+                errorMessage = null,
+                successMessage = "Cobro QR cancelado"
             )
         }
+    }
+
+    fun resetQrCharge() {
+        cancelQrCharge()
     }
 
     private fun stopQrPolling() {

@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { Search, Globe, Send, CheckCircle, XCircle, RefreshCw, Trash2, Settings, Users, Server, Mail, ExternalLink, AlertTriangle, Clock, MapPin, FileText, Wifi, WifiOff } from 'lucide-react'
+import { fmtDate } from '../lib/format'
 
 // NodeDiscovery: descubre nodos via gossip, envia solicitudes de contacto
 // (NO federacion automatica) y verifica salud por consenso.
@@ -298,7 +299,7 @@ export default function NodeDiscovery() {
                   <div key={n.node_domain} className={`border rounded-lg p-3 flex items-center justify-between ${n.online ? 'border-green-300 bg-green-50' : 'border-gray-300 bg-gray-50'}`}>
                     <div>
                       <div className="font-medium text-sm">{n.node_domain}</div>
-                      <div className="text-xs text-gray-500">Federado desde {new Date(n.created_at).toLocaleDateString()}</div>
+                      <div className="text-xs text-gray-500">Federado desde {fmtDate(n.created_at)}</div>
                     </div>
                     <div className="flex items-center gap-1.5">
                       {n.online ? (
@@ -372,7 +373,7 @@ export default function NodeDiscovery() {
                       {n.discovered_via && <span className="bg-gray-100 px-1.5 py-0.5 rounded">via {n.discovered_via}</span>}
                       {n.member_count > 0 && <span className="bg-gray-100 px-1.5 py-0.5 rounded">{n.member_count} miembros</span>}
                       {n.peer_count > 0 && <span className="bg-gray-100 px-1.5 py-0.5 rounded">{n.peer_count} federados</span>}
-                      {n.last_seen && <span className="bg-gray-100 px-1.5 py-0.5 rounded">visto {new Date(n.last_seen).toLocaleDateString()}</span>}
+                      {n.last_seen && <span className="bg-gray-100 px-1.5 py-0.5 rounded">visto {fmtDate(n.last_seen)}</span>}
                     </div>
 
                     {/* Links a gobernanza y pagina */}
@@ -421,7 +422,7 @@ export default function NodeDiscovery() {
                       <span className="font-medium">{n.node_name || n.node_domain}</span>
                       {n.country && <span className="text-xs text-gray-500 ml-2">{n.country}</span>}
                       {n.location && <span className="text-xs text-gray-500 ml-1">{n.location}</span>}
-                      {n.last_checked && <span className="text-xs text-gray-500 ml-2">verificado {new Date(n.last_checked).toLocaleDateString()}</span>}
+                      {n.last_checked && <span className="text-xs text-gray-500 ml-2">verificado {fmtDate(n.last_checked)}</span>}
                     </div>
                     <div className="flex gap-1">
                       <button onClick={() => handleCheckNode(n.node_domain)} className="text-xs text-blue-600 hover:underline">Reintentar</button>
@@ -551,7 +552,7 @@ export default function NodeDiscovery() {
                           </div>
                         )}
                       </div>
-                      <span className="text-xs text-gray-500">{new Date(r.created_at).toLocaleDateString()}</span>
+                      <span className="text-xs text-gray-500">{fmtDate(r.created_at)}</span>
                     </div>
                     {r.message && <p className="text-sm text-gray-700">{r.message}</p>}
                     {r.contact_info && <p className="text-xs text-gray-600">Contacto: {r.contact_info}</p>}

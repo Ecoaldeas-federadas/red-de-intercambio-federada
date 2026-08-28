@@ -272,6 +272,7 @@ func (h *SystemHandler) getConfig(w http.ResponseWriter, r *http.Request) {
 			"currency_full_name": "Trueque",
 			"app_name":           "Red de Intercambio",
 			"node_domain":        actualDomain,
+			"format_settings":    nodeFormatSettings(r.Context(), h.Pool, actualDomain),
 		})
 		return
 	}
@@ -282,15 +283,17 @@ func (h *SystemHandler) getConfig(w http.ResponseWriter, r *http.Request) {
 		"currency_full_name": currencyFullName,
 		"app_name":           appName,
 		"node_domain":        actualDomain,
+		"format_settings":    nodeFormatSettings(r.Context(), h.Pool, actualDomain),
 	})
 }
 
 type UpdateNodeConfigRequest struct {
-	NodeName         string `json:"node_name"`
-	CurrencyName     string `json:"currency_name"`
-	CurrencyFullName string `json:"currency_full_name"`
-	AppName          string `json:"app_name"`
-	NodeDomain       string `json:"node_domain"`
+	NodeName         string                  `json:"node_name"`
+	CurrencyName     string                  `json:"currency_name"`
+	CurrencyFullName string                  `json:"currency_full_name"`
+	AppName          string                  `json:"app_name"`
+	NodeDomain       string                  `json:"node_domain"`
+	FormatSettings   *map[string]interface{} `json:"format_settings,omitempty"`
 }
 
 func (h *SystemHandler) updateConfig(w http.ResponseWriter, r *http.Request) {
@@ -338,11 +341,32 @@ func (h *SystemHandler) updateConfig(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Si se envian format_settings, mergearlos en node_config.settings JSONB
+	// usando el operador || (jsonb concat) sobre la clave "format_settings".
+	if req.FormatSettings != nil {
+		fsBytes, err := json.Marshal(*req.FormatSettings)
+		if err != nil {
+			writeError(w, 400, "format_settings invalido")
+			return
+		}
+		_, err = h.Pool.Exec(r.Context(), `
+			UPDATE node_config
+			SET settings = COALESCE(settings, '{}'::jsonb) || jsonb_build_object('format_settings', $2::jsonb),
+			    updated_at = NOW()
+			WHERE node_domain = $1`,
+			actualDomain, string(fsBytes))
+		if err != nil {
+			writeError(w, 500, err.Error())
+			return
+		}
+	}
+
 	writeJSON(w, 200, map[string]interface{}{
 		"node_name":          req.NodeName,
 		"currency_name":      req.CurrencyName,
 		"currency_full_name": req.CurrencyFullName,
 		"app_name":           req.AppName,
+		"format_settings":    nodeFormatSettings(r.Context(), h.Pool, actualDomain),
 		"message":            "Configuracion actualizada",
 	})
 }

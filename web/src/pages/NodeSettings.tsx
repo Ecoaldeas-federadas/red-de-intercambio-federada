@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { api, getStorageKeys } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon, Vote as VoteIcon, Database, Download, Upload, AlertTriangle, RefreshCw, Globe, Lock, Unlock, Trash2, FileText, Server, HardDrive, CheckCircle, Info, X, Power, Play, Square, Sparkles, Clock, Shield, Scale, Flower, Sprout } from 'lucide-react'
-import { fmtTQ, toCents } from '../lib/format'
+import { fmtTQ, toCents, fmtDate, fmtDateTime, fmtNumber } from '../lib/format'
 
 // Opciones del 1 al 10 para el numero de nivel (seleccionable, no texto libre)
 const LEVEL_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1)
@@ -1073,8 +1073,8 @@ export default function NodeSettings() {
           </div>
 
           <div className="card bg-gray-50 text-sm">
-            <p><strong>Suma total diaria:</strong> {(tariff.vital_food + tariff.vital_water + tariff.vital_domestic + tariff.vital_services).toFixed(0)} {config.currency_name}</p>
-            <p className="text-xs text-gray-500 mt-1">Tarifa base por hora = {((tariff.vital_food + tariff.vital_water + tariff.vital_domestic + tariff.vital_services) / (tariff.work_hours_per_day || 1)).toFixed(1)} {config.currency_name} (suma total / horas por dia)</p>
+            <p><strong>Suma total diaria:</strong> {fmtNumber(tariff.vital_food + tariff.vital_water + tariff.vital_domestic + tariff.vital_services, 0)} {config.currency_name}</p>
+            <p className="text-xs text-gray-500 mt-1">Tarifa base por hora = {fmtNumber((tariff.vital_food + tariff.vital_water + tariff.vital_domestic + tariff.vital_services) / (tariff.work_hours_per_day || 1), 1)} {config.currency_name} (suma total / horas por dia)</p>
           </div>
 
           <h3 className="font-medium text-sm">Factores de esfuerzo</h3>
@@ -1441,7 +1441,7 @@ export default function NodeSettings() {
                     }`}>{s.status}</span>
                   </div>
                   <div className="text-xs text-gray-600 mt-1">
-                    {s.work_type} · {s.valuation_type} · {s.session_date ? new Date(s.session_date).toLocaleDateString() : ''}
+                    {s.work_type} · {s.valuation_type} · {s.session_date ? fmtDate(s.session_date) : ''}
                   </div>
                   {s.description && <p className="text-xs text-gray-500 mt-1">{s.description}</p>}
                 </div>
@@ -1977,7 +1977,7 @@ export default function NodeSettings() {
               {bioEntries.map((entry: any) => (
                 <div key={entry.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
-                    <span className="font-medium text-sm">{entry.date ? new Date(entry.date).toLocaleDateString() : ''}</span>
+                    <span className="font-medium text-sm">{entry.date ? fmtDate(entry.date) : ''}</span>
                     <span className={`ml-2 text-xs px-2 py-0.5 rounded ${
                       entry.day_type === 'root' ? 'bg-amber-100 text-amber-700' :
                       entry.day_type === 'flower' ? 'bg-pink-100 text-pink-700' :
@@ -2380,7 +2380,7 @@ export default function NodeSettings() {
                         <div className="min-w-0">
                           <div className="font-mono text-xs truncate">{b.filename}</div>
                           <div className="text-xs text-gray-500">
-                            {new Date(b.created_at).toLocaleString()} - {(b.size_bytes / 1024).toFixed(1)} KB
+                            {fmtDateTime(b.created_at)} - {fmtNumber(b.size_bytes / 1024, 1)} KB
                             {b.is_locked && <span className="ml-2 text-amber-600 font-medium">Bloqueado</span>}
                           </div>
                         </div>
@@ -2509,7 +2509,7 @@ export default function NodeSettings() {
                   <div className="text-xs text-gray-400">de {clusterStatus.tablet_limit_total}</div>
                 </div>
                 <div className="bg-white p-2 rounded-lg">
-                  <div className="text-lg font-bold">{clusterStatus.tablet_usage_pct?.toFixed(1)}%</div>
+                  <div className="text-lg font-bold">{fmtNumber(clusterStatus.tablet_usage_pct ?? 0, 1)}%</div>
                   <div className="text-xs text-gray-500">Uso</div>
                   <div className="text-xs text-gray-400">Alerta: {clusterStatus.alert_threshold}%</div>
                 </div>
@@ -2679,8 +2679,8 @@ export default function NodeSettings() {
                   />
                   <p className="text-xs text-gray-400 mt-1">
                     Porcentaje de RAM para escritura de YugabyteDB (global_memstore_size_percentage).
-                    Recomendado: {hardwareInfo.recommended_mem_pct}% = {(clusterForm.server_ram_gb * clusterForm.memstore_percentage / 100).toFixed(1)}GB de {clusterForm.server_ram_gb}GB.
-                    El resto ({(clusterForm.server_ram_gb * (100 - clusterForm.memstore_percentage) / 100).toFixed(1)}GB) queda para el backend, frontend y el OS.
+                    Recomendado: {hardwareInfo.recommended_mem_pct}% = {fmtNumber(clusterForm.server_ram_gb * clusterForm.memstore_percentage / 100, 1)}GB de {clusterForm.server_ram_gb}GB.
+                    El resto ({fmtNumber(clusterForm.server_ram_gb * (100 - clusterForm.memstore_percentage) / 100, 1)}GB) queda para el backend, frontend y el OS.
                   </p>
                 </div>
 

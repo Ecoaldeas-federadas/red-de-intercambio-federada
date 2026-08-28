@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { Plus, Vote as VoteIcon, Calendar, FileText, Clock, Check, X, Settings, Bell } from 'lucide-react'
+import { fmtNumber } from '../lib/format'
 
 interface ScopedAssemblyProps {
   scope: 'organization' | 'department'
@@ -612,7 +613,7 @@ export default function ScopedAssembly({ scope, scopeId, scopeName, isAssemblyOw
                     <span className="text-red-600">En contra: {rp.votes_against}</span>
                     <span className="text-gray-500">Abstencion: {rp.votes_abstain}</span>
                     <span className="text-gray-400">No emitidos: {rp.votes_not_cast}</span>
-                    <span>Participacion: {rp.participation_pct.toFixed(1)}%</span>
+                    <span>Participacion: {fmtNumber(rp.participation_pct, 1)}%</span>
                     <span className="text-gray-400">{rp.created_at?.slice(0, 16).replace('T', ' ')}</span>
                   </div>
                 </div>

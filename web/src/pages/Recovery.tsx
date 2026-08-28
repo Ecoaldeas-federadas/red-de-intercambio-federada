@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { Shield, KeyRound, Check, X, Clock, Plus, HelpCircle } from 'lucide-react'
+import { fmtDateTime } from '../lib/format'
 
 export default function Recovery() {
   const [config, setConfig] = useState<any>(null)
@@ -187,7 +188,7 @@ export default function Recovery() {
                 <span className="font-medium">{req.target_username}</span>
                 <p className="text-sm text-gray-600">{req.reason}</p>
                 <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                  <span className="flex items-center gap-1"><Clock size={12} />Expira: {new Date(req.expires_at).toLocaleString()}</span>
+                  <span className="flex items-center gap-1"><Clock size={12} />Expira: {fmtDateTime(req.expires_at)}</span>
                   <span>Aprobaciones: {req.approved_by?.length ?? 0}/{req.required_approvals}</span>
                 </div>
               </div>
@@ -224,7 +225,7 @@ export default function Recovery() {
                   <span>Usuario: {a.approver_id?.slice(0, 8)}...</span>
                   <span className="text-gray-500">{a.approval_type}</span>
                   {a.notes && <span className="text-gray-400">| {a.notes}</span>}
-                  <span className="text-gray-400 ml-auto">{new Date(a.created_at).toLocaleString()}</span>
+                  <span className="text-gray-400 ml-auto">{fmtDateTime(a.created_at)}</span>
                 </div>
               ))}
             </div>

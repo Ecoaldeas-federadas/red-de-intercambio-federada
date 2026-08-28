@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { Search } from 'lucide-react'
+import { fmtNumber } from '../../lib/format'
 import {
   EdText,
   EdArrayText,
@@ -667,7 +668,7 @@ export function ProductsShowcaseBlock({ data }: { data: ProductsShowcaseBlockDat
   const externalCurrency = fc?.external_currency || 'USD'
   const formatExternal = (tq: number) => {
     if (!tq || !fcFactor) return ''
-    return (tq / fcFactor).toFixed(2)
+    return fmtNumber(tq / fcFactor)
   }
 
   // Cargar items de la tienda (lo que realmente hay en la feria)
@@ -1303,7 +1304,7 @@ export function CalculatorPreviewBlock({ data }: { data: CalculatorPreviewBlockD
   const [kwhRate, setKwhRate] = useState(0.19)
   const [categoryType, setCategoryType] = useState('conuco')
 
-  const totalKwh = (hours * kwhRate * effort).toFixed(2)
+  const totalKwh = fmtNumber(hours * kwhRate * effort)
 
   return (
     <section className="my-8 sm:my-12 bg-gradient-to-br from-emerald-950 via-trueque-900 to-teal-950 text-white rounded-3xl p-6 sm:p-10 shadow-xl border border-emerald-800/40">

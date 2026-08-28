@@ -5,7 +5,7 @@ import { usePermissions } from '../hooks/usePermissions'
 import { useConfig } from '../hooks/useConfig'
 import { EntitySelector } from '../components/EntitySelector'
 import { Plus, Check, X, HelpCircle, Users, Calendar, Shield, Vote as VoteIcon, DollarSign, Crown, Trash2, FileText, Clock } from 'lucide-react'
-import { fmtTQ } from '../lib/format'
+import { fmtTQ, fmtDateTime, fmtNumber } from '../lib/format'
 
 type ProposalType =
   | 'limit_change' | 'admission' | 'expulsion' | 'budget_increase'
@@ -932,7 +932,7 @@ export default function Assembly() {
                       <div className="text-sm">
                         <p className="font-medium">{isDebit ? `${fromName} → ${toName}` : `${fromName} → ${toName}`}</p>
                         <p className="text-xs text-gray-500">{t.description || t.metadata?.description || ''}</p>
-                        <p className="text-xs text-gray-400">{new Date(t.created_at).toLocaleString()}</p>
+                        <p className="text-xs text-gray-400">{fmtDateTime(t.created_at)}</p>
                       </div>
                       <div className={`font-bold ${isDebit ? 'text-red-600' : 'text-green-600'}`}>
                         {isDebit ? '-' : '+'}{fmtTQ(t.amount)} {currency}
@@ -1269,8 +1269,8 @@ export default function Assembly() {
                         <span className="text-gray-400">No emitidos: {rp.votes_not_cast}</span>
                       </div>
                       <div className="flex flex-wrap gap-3 text-xs text-gray-400 mt-1">
-                        <span>Participacion: {rp.participation_pct.toFixed(1)}%</span>
-                        <span>Aprobacion: {rp.approval_pct.toFixed(1)}%</span>
+                        <span>Participacion: {fmtNumber(rp.participation_pct, 1)}%</span>
+                        <span>Aprobacion: {fmtNumber(rp.approval_pct, 1)}%</span>
                         <span>{rp.created_at?.slice(0, 16).replace('T', ' ')}</span>
                       </div>
                     </div>
@@ -1395,7 +1395,7 @@ export default function Assembly() {
                     <p className="text-xs text-gray-500 mt-1">{ml.description}</p>
                     <p className="text-xs text-gray-400 mt-1">
                       Limite credito: {fmtTQ(ml.credit_limit)} {currency} | Limite debito: {fmtTQ(ml.debit_limit)} {currency}
-                      {ml.tax_rate && ` | Impuesto: ${(ml.tax_rate * 100).toFixed(2)}%`}
+                      {ml.tax_rate && ` | Impuesto: ${fmtNumber(ml.tax_rate * 100, 2)}%`}
                     </p>
                   </div>
                 ))}
@@ -1931,7 +1931,7 @@ export default function Assembly() {
                       <td className="py-2 font-medium">{lt.name} (Nivel {lt.level})</td>
                       <td className="text-gray-500">{lt.description}</td>
                       <td className={lt.tax_rate > 0 ? 'text-amber-600 font-bold' : 'text-green-600'}>
-                        {lt.tax_rate > 0 ? `${(lt.tax_rate * 100).toFixed(2)}%` : 'Exento'}
+                        {lt.tax_rate > 0 ? `${fmtNumber(lt.tax_rate * 100, 2)}%` : 'Exento'}
                       </td>
                     </tr>
                   ))}
@@ -1950,7 +1950,7 @@ export default function Assembly() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <label className="label">Tasa global por defecto</label>
-                  <b>{taxConfig.tax_rate ? `${(taxConfig.tax_rate * 100).toFixed(2)}%` : '0%'}</b>
+                  <b>{taxConfig.tax_rate ? `${fmtNumber(taxConfig.tax_rate * 100, 2)}%` : '0%'}</b>
                   <p className="text-xs text-gray-400">Se aplica si el nivel del miembro no tiene tasa propia</p>
                 </div>
                 <div>

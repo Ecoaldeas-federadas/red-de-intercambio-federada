@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { Database, AlertTriangle, CheckCircle, Plus, RefreshCw, Server, Activity } from 'lucide-react'
+import { fmtDateTime, fmtNumber } from '../lib/format'
 
 interface ClusterStatus {
   min_nodes: number
@@ -115,7 +116,7 @@ export default function ClusterStatus() {
             </h3>
             {status.alert_message && <p className="text-sm mt-1">{status.alert_message}</p>}
             <p className="text-xs mt-2 opacity-75">
-              Ultima verificacion: {new Date(status.last_checked).toLocaleString('es')}
+              Ultima verificacion: {fmtDateTime(status.last_checked)}
             </p>
           </div>
         </div>
@@ -137,7 +138,7 @@ export default function ClusterStatus() {
         </div>
         <div className="card p-3 text-center">
           <Activity size={20} className="mx-auto mb-1 text-amber-600" />
-          <div className="text-2xl font-bold">{status.tablet_usage_pct.toFixed(1)}%</div>
+          <div className="text-2xl font-bold">{fmtNumber(status.tablet_usage_pct, 1)}%</div>
           <div className="text-xs text-gray-500">Uso de tabletas</div>
           <div className="text-xs text-gray-400">Alerta: {status.alert_threshold}%</div>
         </div>
@@ -168,7 +169,7 @@ export default function ClusterStatus() {
         </div>
         {status.tablet_usage_pct >= status.alert_threshold && (
           <div className="mt-3 p-3 bg-amber-50 rounded-lg text-sm text-amber-700">
-            <strong>Atencion:</strong> El cluster esta usando {status.tablet_usage_pct.toFixed(1)}% de su capacidad.
+            <strong>Atencion:</strong> El cluster esta usando {fmtNumber(status.tablet_usage_pct, 1)}% de su capacidad.
             Cuando llegue al 100%, no podra crear mas tablas ni indices.
             {status.nodes_needed > 0 && ` Agrega ${status.nodes_needed} nodo(s) para aumentar la capacidad.`}
           </div>

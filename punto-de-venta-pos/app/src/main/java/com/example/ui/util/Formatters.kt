@@ -14,22 +14,46 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
+import com.example.data.db.TerminalConfigEntity
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.EnumMap
 import java.util.Locale
 
+/**
+ * Holds the format settings received from the server so that the formatting
+ * functions in [CurrencyHelper] are locale-aware and configurable at runtime.
+ */
+object FormatConfig {
+    var locale: String = "es"
+    var numberLocale: String = "es-VE"
+    var dateFormat: String = "DD/MM/YYYY"
+    var timeFormat: String = "24h"
+    var firstDayOfWeek: Int = 1
+    var timezone: String = "America/Caracas"
+
+    fun updateFromEntity(config: TerminalConfigEntity) {
+        locale = config.fmtLocale
+        numberLocale = config.fmtNumberLocale
+        dateFormat = config.fmtDateFormat
+        timeFormat = config.fmtTimeFormat
+        firstDayOfWeek = config.fmtFirstDayOfWeek
+        timezone = config.fmtTimezone
+    }
+}
+
 object CurrencyHelper {
     /**
      * Converts micro-units integer (e.g. 50000) to formatted TQ string (e.g. "500.00 TQ")
      */
     fun formatMicroUnits(microUnits: Long): String {
-        val amount = microUnits / 100.0
-        val formatter = NumberFormat.getNumberInstance(Locale("es", "ES")).apply {
+        val locale = parseLocale(FormatConfig.numberLocale)
+        val formatter = NumberFormat.getNumberInstance(locale).apply {
             minimumFractionDigits = 2
             maximumFractionDigits = 2
         }
+        val amount = microUnits / 100.0
         return "${formatter.format(amount)} TQ"
     }
 
@@ -50,13 +74,51 @@ object CurrencyHelper {
     }
 
     fun formatDateTime(timestamp: Long): String {
-        val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale("es", "ES"))
-        return sdf.format(Date(timestamp))
+        val d = Date(timestamp)
+        val pattern = buildDateTimePattern(FormatConfig.dateFormat, FormatConfig.timeFormat)
+        val locale = parseLocale(FormatConfig.locale)
+        val sdf = SimpleDateFormat(pattern, locale)
+        return sdf.format(d)
+    }
+
+    fun formatDate(timestamp: Long): String {
+        val d = Date(timestamp)
+        val pattern = buildDatePattern(FormatConfig.dateFormat)
+        val locale = parseLocale(FormatConfig.locale)
+        val sdf = SimpleDateFormat(pattern, locale)
+        return sdf.format(d)
     }
 
     fun formatTime(timestamp: Long): String {
-        val sdf = SimpleDateFormat("HH:mm", Locale("es", "ES"))
-        return sdf.format(Date(timestamp))
+        val d = Date(timestamp)
+        val pattern = buildTimePattern(FormatConfig.timeFormat)
+        val locale = parseLocale(FormatConfig.locale)
+        val sdf = SimpleDateFormat(pattern, locale)
+        return sdf.format(d)
+    }
+
+    private fun buildDatePattern(format: String): String {
+        return when (format) {
+            "MM/DD/YYYY" -> "MM/dd/yyyy"
+            "YYYY-MM-DD" -> "yyyy-MM-dd"
+            else -> "dd/MM/yyyy"
+        }
+    }
+
+    private fun buildTimePattern(format: String): String {
+        return when (format) {
+            "12h" -> "hh:mm a"
+            else -> "HH:mm"
+        }
+    }
+
+    private fun buildDateTimePattern(dateFormat: String, timeFormat: String): String {
+        return "${buildDatePattern(dateFormat)} ${buildTimePattern(timeFormat)}"
+    }
+
+    private fun parseLocale(localeStr: String): Locale {
+        val parts = localeStr.split("-")
+        return if (parts.size >= 2) Locale(parts[0], parts[1]) else Locale(parts[0])
     }
 }
 

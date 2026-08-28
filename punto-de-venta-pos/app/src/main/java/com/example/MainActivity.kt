@@ -1,9 +1,10 @@
 package com.example
 
 import android.app.Application
-import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.os.Build
@@ -58,10 +59,24 @@ class PosViewModelFactory(
     }
 }
 
-class MainActivity : ComponentActivity() {
+class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     private var nfcAdapter: NfcAdapter? = null
-    private var pendingIntent: PendingIntent? = null
     private lateinit var viewModel: PosViewModel
+
+    private val nfcStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == NfcAdapter.ACTION_ADAPTER_STATE_CHANGED) {
+                val state = intent.getIntExtra(NfcAdapter.EXTRA_ADAPTER_STATE, NfcAdapter.STATE_OFF)
+                val isEnabled = (state == NfcAdapter.STATE_ON)
+                viewModel.updateNfcHardwareStatus(hasHardware = (nfcAdapter != null), isEnabled = isEnabled)
+                if (isEnabled) {
+                    enableNfcReaderMode()
+                } else {
+                    disableNfcReaderMode()
+                }
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -75,13 +90,12 @@ class MainActivity : ComponentActivity() {
         viewModel = ViewModelProvider(this, factory)[PosViewModel::class.java]
 
         nfcAdapter = NfcAdapter.getDefaultAdapter(this)
-        val intent = Intent(this, javaClass).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        } else {
-            PendingIntent.FLAG_UPDATE_CURRENT
-        }
-        pendingIntent = PendingIntent.getActivity(this, 0, intent, flags)
+        val hasHardware = (nfcAdapter != null)
+        val isEnabled = nfcAdapter?.isEnabled == true
+        viewModel.updateNfcHardwareStatus(hasHardware, isEnabled)
+
+        val filter = IntentFilter(NfcAdapter.ACTION_ADAPTER_STATE_CHANGED)
+        registerReceiver(nfcStateReceiver, filter)
 
         setContent {
             MyApplicationTheme {
@@ -102,58 +116,91 @@ class MainActivity : ComponentActivity() {
         val isEnabled = adapter?.isEnabled == true
         viewModel.updateNfcHardwareStatus(hasHardware, isEnabled)
 
-        if (adapter != null && isEnabled && pendingIntent != null) {
-            adapter.enableForegroundDispatch(this, pendingIntent, null, null)
+        if (adapter != null && isEnabled) {
+            enableNfcReaderMode()
         }
     }
 
     override fun onPause() {
         super.onPause()
-        nfcAdapter?.disableForegroundDispatch(this)
+        disableNfcReaderMode()
     }
 
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        handleNfcIntent(intent)
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            unregisterReceiver(nfcStateReceiver)
+        } catch (e: Exception) {
+            // ignore
+        }
     }
 
-    private fun handleNfcIntent(intent: Intent) {
-        if (NfcAdapter.ACTION_TAG_DISCOVERED == intent.action ||
-            NfcAdapter.ACTION_TECH_DISCOVERED == intent.action ||
-            NfcAdapter.ACTION_NDEF_DISCOVERED == intent.action
-        ) {
-            val tag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                intent.getParcelableExtra(NfcAdapter.EXTRA_TAG, Tag::class.java)
-            } else {
-                @Suppress("DEPRECATION")
-                intent.getParcelableExtra(NfcAdapter.EXTRA_TAG)
-            } ?: return
+    private fun enableNfcReaderMode() {
+        val adapter = nfcAdapter ?: return
+        if (!adapter.isEnabled) return
 
-            val tagId = tag.id ?: return
-            val cardUid = CryptoEngine.bytesToHex(tagId)
-            val techList = tag.techList.toList()
-            val isDesfire = techList.any {
-                it.contains("IsoDep", ignoreCase = true) || it.contains("Desfire", ignoreCase = true)
-            }
+        // Intercept all NFC technologies directly and suppress system tag dispatcher & sound popups
+        val flags = NfcAdapter.FLAG_READER_NFC_A or
+                NfcAdapter.FLAG_READER_NFC_B or
+                NfcAdapter.FLAG_READER_NFC_F or
+                NfcAdapter.FLAG_READER_NFC_V or
+                NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS
 
-            val currentScreen = viewModel.uiState.value.currentScreen
-            when (currentScreen) {
-                is PosScreen.NfcCharge -> {
-                    // Only process card if user has entered an amount and is in the NFC tap step
+        val extras = Bundle().apply {
+            putInt(NfcAdapter.EXTRA_READER_PRESENCE_CHECK_DELAY, 250)
+        }
+
+        try {
+            adapter.enableReaderMode(this, this, flags, extras)
+        } catch (e: Exception) {
+            // Safe fallback
+        }
+    }
+
+    private fun disableNfcReaderMode() {
+        try {
+            nfcAdapter?.disableReaderMode(this)
+        } catch (e: Exception) {
+            // ignore
+        }
+    }
+
+    override fun onTagDiscovered(tag: Tag?) {
+        if (tag == null) return
+        val tagId = tag.id ?: return
+        val cardUid = CryptoEngine.bytesToHex(tagId)
+        val techList = tag.techList.toList()
+        val isDesfire = techList.any {
+            it.contains("IsoDep", ignoreCase = true) || it.contains("Desfire", ignoreCase = true)
+        }
+
+        runOnUiThread {
+            processCardTap(cardUid, isDesfire)
+        }
+    }
+
+    private fun processCardTap(cardUid: String, isDesfire: Boolean) {
+        val currentScreen = viewModel.uiState.value.currentScreen
+        when (currentScreen) {
+            is PosScreen.NfcCharge -> {
+                // If on NFC charge screen and amount is set or waiting for card
+                val state = viewModel.uiState.value
+                val hasAmount = state.amountInput.replace(Regex("[^0-9]"), "").ifEmpty { "0" }.toLong() > 0
+                if (hasAmount && state.nfcPaymentResult == null && !state.isLoading) {
                     viewModel.onCardTapped(cardUid, isDesfire)
                 }
-                is PosScreen.MultiVendor -> {
-                    val step = viewModel.uiState.value.mvStep
-                    if (step == 1) {
-                        viewModel.onMultiVendorSellerTapped(cardUid)
-                    } else if (step == 3) {
-                        viewModel.onMultiVendorBuyerTapped(cardUid)
-                    }
+            }
+            is PosScreen.MultiVendor -> {
+                val step = viewModel.uiState.value.mvStep
+                if (step == 1) {
+                    viewModel.onMultiVendorSellerTapped(cardUid)
+                } else if (step == 3) {
+                    viewModel.onMultiVendorBuyerTapped(cardUid)
                 }
-                else -> {
-                    // Ignore NFC taps on other screens (Dashboard, Login, Settings, etc.)
-                    // Do not automatically navigate or trigger unexpected payments.
-                }
+            }
+            else -> {
+                // SILENTLY IGNORE on all other screens (Dashboard, Settings, Login, Admin, etc.)
+                // Never pop up system dialogues or trigger unwanted actions.
             }
         }
     }

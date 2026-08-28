@@ -5,6 +5,7 @@ import { usePermissions } from '../hooks/usePermissions'
 import { useSerialChipId } from '../hooks/useSerialChipId'
 import { EntitySelector } from '../components/EntitySelector'
 import { Nfc, Plus, Trash2, CreditCard, KeyRound, Activity, Cpu, Usb, Download, Lock, HelpCircle, X, UserPlus, Edit } from 'lucide-react'
+import { fmtDateTime, fmtNumber } from '../lib/format'
 
 interface Terminal {
   id: string
@@ -319,7 +320,7 @@ export default function NFCTerminals() {
   const formatAmount = (cents: number) => `${(cents / 100).toFixed(2)}`
   const formatTime = (ts: string | null) => {
     if (!ts) return 'Nunca'
-    return new Date(ts).toLocaleString()
+    return fmtDateTime(ts)
   }
 
   // Cuando el escaneo USB encuentra el chip ID, llenar el campo
@@ -618,7 +619,7 @@ export default function NFCTerminals() {
                   <div className="bg-white p-3 rounded-lg border border-green-300 space-y-2">
                     <p className="text-sm text-green-700 font-medium">Compilacion exitosa!</p>
                     <p className="text-xs text-gray-500">
-                      Tamano: {(compileResult.size / 1024).toFixed(0)} KB · Build ID: {compileResult.build_id.substring(0, 8)}
+                      Tamano: {fmtNumber(compileResult.size / 1024, 0)} KB · Build ID: {compileResult.build_id.substring(0, 8)}
                     </p>
                     <button
                       onClick={() => downloadFirmwareBin(provisionResult.terminal_id, compileResult.build_id)}
@@ -848,7 +849,7 @@ export default function NFCTerminals() {
                   {tx.transaction_type === 'community' ? 'Comunitaria' : 'Individual'} · {formatAmount(tx.amount)}
                 </p>
                 <p className="text-xs text-gray-500">
-                  Tarjeta: {tx.card_uid.substring(0, 12)}... · {new Date(tx.created_at).toLocaleString()}
+                  Tarjeta: {tx.card_uid.substring(0, 12)}... · {fmtDateTime(tx.created_at)}
                 </p>
                 {tx.error_message && <p className="text-xs text-red-500">{tx.error_message}</p>}
               </div>

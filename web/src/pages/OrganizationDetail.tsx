@@ -5,7 +5,7 @@ import { useConfig } from '../hooks/useConfig'
 import { usePermissions } from '../hooks/usePermissions'
 import { ArrowLeft, Users, Wallet as WalletIcon, Vote as VoteIcon, Settings, Crown, Plus, Trash2, ArrowUpCircle, ArrowDownCircle, FileText, Building2, Plug, Landmark, ExternalLink, ShoppingBag, UserCheck, Power, Eye, Clock } from 'lucide-react'
 import ScopedAssembly from '../components/ScopedAssembly'
-import { fmtTQ, toCents } from '../lib/format'
+import { fmtTQ, toCents, fmtDateTime } from '../lib/format'
 
 export default function OrganizationDetail() {
   const { id } = useParams<{ id: string }>()
@@ -917,7 +917,7 @@ function OrgTerminals({ orgID }: { orgID: string }) {
 
   const formatTime = (ts: string | null) => {
     if (!ts) return 'Nunca'
-    return new Date(ts).toLocaleString('es', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    return fmtDateTime(ts)
   }
 
   // Vista de turnos

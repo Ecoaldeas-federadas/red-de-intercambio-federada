@@ -4,6 +4,7 @@ import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useConfig } from '../hooks/useConfig'
 import { HelpCircle, Plus, Edit, Trash2, Check, Search, Zap, Package } from 'lucide-react'
+import { fmtNumber } from '../lib/format'
 
 export default function CalculatorParams() {
   const { hasPermission } = usePermissions()
@@ -283,8 +284,8 @@ export default function CalculatorParams() {
                 </select>
                 <p className="text-xs text-gray-400 mt-1">
                   Vincula este trabajo a la tarifa energetica (canasta vital). El kWh se calcula automaticamente:
-                  base ({baseRate.toFixed(2)}) x esfuerzo ({form.tariff_category ? getTariffEffort(form.tariff_category) : '?'})
-                  {form.tariff_category && ` = ${(baseRate * getTariffEffort(form.tariff_category)).toFixed(2)} kWh/hora`}
+                  base ({fmtNumber(baseRate, 2)}) x esfuerzo ({form.tariff_category ? getTariffEffort(form.tariff_category) : '?'})
+                  {form.tariff_category && ` = ${fmtNumber(baseRate * getTariffEffort(form.tariff_category), 2)} kWh/hora`}
                   . Si la asamblea cambia la canasta vital, este valor se actualiza solo.
                 </p>
               </div>
@@ -298,7 +299,7 @@ export default function CalculatorParams() {
           </div>
           {tab === 'work' && form.tariff_category && (
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm">
-              <p><strong>Calculo dinamico:</strong> {baseRate.toFixed(2)} (base) x {getTariffEffort(form.tariff_category)} (esfuerzo {form.tariff_category}) x {form.effort_factor} (factor adicional) = <strong>{(baseRate * getTariffEffort(form.tariff_category) * form.effort_factor).toFixed(2)} kWh/hora</strong></p>
+              <p><strong>Calculo dinamico:</strong> {fmtNumber(baseRate, 2)} (base) x {getTariffEffort(form.tariff_category)} (esfuerzo {form.tariff_category}) x {form.effort_factor} (factor adicional) = <strong>{fmtNumber(baseRate * getTariffEffort(form.tariff_category) * form.effort_factor, 2)} kWh/hora</strong></p>
               <p className="text-xs text-gray-500 mt-1">Este valor se recalcula automaticamente si la asamblea cambia la canasta vital o los factores de esfuerzo.</p>
             </div>
           )}
@@ -349,9 +350,9 @@ export default function CalculatorParams() {
                         {tab === 'work' && p.tariff_category ? (
                           <>
                             <span className="text-emerald-600 font-medium">
-                              {(getDynamicKwh(p) || 0).toFixed(2)} kWh/{p.unit}
+                              {fmtNumber(getDynamicKwh(p) || 0, 2)} kWh/{p.unit}
                             </span>
-                            <span className="text-gray-400"> (dinamico: {baseRate.toFixed(1)} base x {getTariffEffort(p.tariff_category)} {p.tariff_category}</span>
+                            <span className="text-gray-400"> (dinamico: {fmtNumber(baseRate, 1)} base x {getTariffEffort(p.tariff_category)} {p.tariff_category}</span>
                             {p.effort_factor !== 1.0 && <span> x {p.effort_factor} amplificacion</span>}
                             <span>)</span>
                           </>

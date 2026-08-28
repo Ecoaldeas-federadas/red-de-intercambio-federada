@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { API } from '../api'
 import { storage } from '../crypto'
+import { getFormatSettings, FormatSettings } from '../hooks/usePreferences'
 
 interface Props {
   onBack: () => void
@@ -23,6 +24,7 @@ export function SettingsScreen({ onBack, onLogout, api, terminalID, merchantUser
   const publicKey = storage.get('publicKey')
   const serverPublicKey = storage.get('serverPublicKey')
   const apiURL = api.getBaseURL()
+  const formatSettings: FormatSettings = getFormatSettings()
 
   const handleReset = () => {
     storage.clear()
@@ -119,6 +121,43 @@ export function SettingsScreen({ onBack, onLogout, api, terminalID, merchantUser
         <h3 style={{ fontSize: 14, color: 'var(--text-dim)', marginBottom: 8 }}>CONEXION</h3>
         <div style={{ fontSize: 14, fontFamily: 'monospace', wordBreak: 'break-all' }}>
           {apiURL}
+        </div>
+      </div>
+
+      {/* Display Format Settings (received from server, display-only) */}
+      <div className="card" style={{ marginBottom: 12 }}>
+        <h3 style={{ fontSize: 14, color: 'var(--text-dim)', marginBottom: 8 }}>FORMATO DE PANTALLA</h3>
+        <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 12 }}>
+          Configuracion regional recibida del servidor. Define como se muestran
+          moneda, fechas y horas en este terminal.
+        </p>
+        <div style={{ fontSize: 14 }}>
+          <p style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+            <span style={{ color: 'var(--text-dim)' }}>Idioma (locale)</span>
+            <span style={{ fontWeight: 600 }}>{formatSettings.locale}</span>
+          </p>
+          <p style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+            <span style={{ color: 'var(--text-dim)' }}>Locale numerico</span>
+            <span style={{ fontWeight: 600 }}>{formatSettings.number_locale}</span>
+          </p>
+          <p style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+            <span style={{ color: 'var(--text-dim)' }}>Formato de fecha</span>
+            <span style={{ fontWeight: 600 }}>{formatSettings.date_format}</span>
+          </p>
+          <p style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+            <span style={{ color: 'var(--text-dim)' }}>Formato de hora</span>
+            <span style={{ fontWeight: 600 }}>{formatSettings.time_format}</span>
+          </p>
+          <p style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+            <span style={{ color: 'var(--text-dim)' }}>Primer dia de semana</span>
+            <span style={{ fontWeight: 600 }}>
+              {['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'][formatSettings.first_day_of_week] || formatSettings.first_day_of_week}
+            </span>
+          </p>
+          <p style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+            <span style={{ color: 'var(--text-dim)' }}>Zona horaria</span>
+            <span style={{ fontWeight: 600 }}>{formatSettings.timezone}</span>
+          </p>
         </div>
       </div>
 

@@ -4,7 +4,7 @@ import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { Plus, Check, X, HelpCircle, Globe, Calculator, Save, Edit3, Info, Package, Building2, Wallet, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react'
 import { EntitySelector } from '../components/EntitySelector'
-import { toCents } from '../lib/format'
+import { toCents, fmtNumber } from '../lib/format'
 
 export default function ExternalBridge() {
   const { currency } = useConfig()
@@ -346,7 +346,7 @@ export default function ExternalBridge() {
               {/* Saldo TQ del DEX */}
               <div className="bg-white rounded-lg p-4 border">
                 <p className="text-xs text-gray-500">Saldo en {currency} del DEX</p>
-                <p className="text-2xl font-bold text-trueque-700">{(summary.dex_balance_tq || 0).toLocaleString()} {currency}</p>
+                <p className="text-2xl font-bold text-trueque-700">{fmtNumber(summary.dex_balance_tq || 0)} {currency}</p>
                 <p className="text-xs text-gray-400 mt-1">Dinero interno disponible para compras</p>
               </div>
               {/* FC actual */}
@@ -384,7 +384,7 @@ export default function ExternalBridge() {
                 {summary.bank_balances.map((b: any, i: number) => (
                   <div key={i} className="border rounded-lg p-3 text-center">
                     <p className="text-xs text-gray-500">{b.currency}</p>
-                    <p className="text-xl font-bold text-green-700">{b.balance.toLocaleString(undefined, { maximumFractionDigits: 2 })} {b.currency}</p>
+                    <p className="text-xl font-bold text-green-700">{fmtNumber(b.balance)} {b.currency}</p>
                     <p className="text-xs text-gray-400">{b.accounts} cuenta(s)</p>
                   </div>
                 ))}
@@ -519,7 +519,7 @@ export default function ExternalBridge() {
                     </div>
                     <div className="text-right">
                       <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded">{ba.currency}</span>
-                      <p className="text-2xl font-bold text-green-700 mt-1">{ba.balance.toLocaleString(undefined, { maximumFractionDigits: 2 })} {ba.currency}</p>
+                      <p className="text-2xl font-bold text-green-700 mt-1">{fmtNumber(ba.balance)} {ba.currency}</p>
                       <p className="text-xs text-gray-400">{ba.is_cash ? 'Efectivo en caja' : 'Cuenta bancaria'}</p>
                     </div>
                   </div>
@@ -550,7 +550,7 @@ export default function ExternalBridge() {
                                 <td className="py-1">{m.date?.slice(0, 10)}</td>
                                 <td><span className={`px-1.5 py-0.5 rounded ${m.type === 'compra' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{m.type}</span></td>
                                 <td>{m.product_name}</td>
-                                <td className={m.type === 'compra' ? 'text-red-600' : 'text-green-600'}>{m.type === 'compra' ? '-' : '+'}{m.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })} {m.currency}</td>
+                                <td className={m.type === 'compra' ? 'text-red-600' : 'text-green-600'}>{m.type === 'compra' ? '-' : '+'}{fmtNumber(m.amount)} {m.currency}</td>
                                 <td>{m.status}</td>
                                 <td className="text-gray-500">{m.counterparty || '-'}</td>
                               </tr>
@@ -868,8 +868,8 @@ export default function ExternalBridge() {
               <div className="text-xs bg-white p-3 rounded border border-blue-100">
                 <p className="font-medium text-gray-600 mb-1">Ejemplo de como funciona:</p>
                 <p>Si alla la canasta cuesta <b>300 {fcForm.external_currency}</b> y aca cuesta <b>{fcForm.basket_cost_local_tq || 500} {currency}</b>:</p>
-                <p className="mt-1">FC = {fcForm.basket_cost_local_tq || 500} / 300 = <b className="text-blue-700">{((fcForm.basket_cost_local_tq || 500) / 300).toFixed(2)} {currency}</b> por cada <b>1 {fcForm.external_currency}</b></p>
-                <p className="mt-1 text-gray-400">Esto significa que 1 {fcForm.external_currency} tiene el mismo poder adquisitivo que {((fcForm.basket_cost_local_tq || 500) / 300).toFixed(2)} {currency}.</p>
+                <p className="mt-1">FC = {fcForm.basket_cost_local_tq || 500} / 300 = <b className="text-blue-700">{fmtNumber((fcForm.basket_cost_local_tq || 500) / 300)} {currency}</b> por cada <b>1 {fcForm.external_currency}</b></p>
+                <p className="mt-1 text-gray-400">Esto significa que 1 {fcForm.external_currency} tiene el mismo poder adquisitivo que {fmtNumber((fcForm.basket_cost_local_tq || 500) / 300)} {currency}.</p>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -879,7 +879,7 @@ export default function ExternalBridge() {
                 {fcPreview !== null && (
                   <>
                     <span className="text-sm text-gray-600">
-                      Nuevo FC: <b className="text-blue-700">1 {fcForm.external_currency} = {fcPreview.toFixed(2)} {currency}</b>
+                      Nuevo FC: <b className="text-blue-700">1 {fcForm.external_currency} = {fmtNumber(fcPreview)} {currency}</b>
                     </span>
                     <button onClick={saveFC} disabled={fcSaving} className="btn-primary flex items-center gap-1 text-sm">
                       <Save size={16} /> {fcSaving ? 'Guardando...' : 'Guardar FC'}
@@ -1049,13 +1049,13 @@ export default function ExternalBridge() {
                     <span className="text-gray-500">Cantidad:</span> <b>{op.quantity}</b>
                   </div>
                   <div>
-                    <span className="text-gray-500">Total USD:</span> <b>${usdTotal.toFixed(2)}</b>
+                    <span className="text-gray-500">Total USD:</span> <b>${fmtNumber(usdTotal)}</b>
                   </div>
                   <div>
                     <span className="text-gray-500">Total {currency}:</span> <b className="text-trueque-700">{totalTQ} {currency}</b>
                   </div>
                   <div>
-                    <span className="text-gray-500">FC usado:</span> <b>{fcUsed.toFixed(2)}</b>
+                    <span className="text-gray-500">FC usado:</span> <b>{fmtNumber(fcUsed)}</b>
                   </div>
                 </div>
                 {op.buyer_seller && (
@@ -1149,7 +1149,7 @@ export default function ExternalBridge() {
                             </button>
                           </td>
                           <td className="py-2 px-3 text-right font-mono">
-                            {priceTQ.toLocaleString()}
+                            {fmtNumber(priceTQ)}
                             <div className="text-xs text-gray-400">{p.unit || ''}</div>
                           </td>
                           <td className="py-2 px-3 text-right font-mono text-xs">
@@ -1158,7 +1158,7 @@ export default function ExternalBridge() {
                               : '-'}
                           </td>
                           <td className="py-2 px-3 text-right font-mono">
-                            {priceExternal > 0 ? priceExternal.toFixed(2) : '-'}
+                            {priceExternal > 0 ? fmtNumber(priceExternal) : '-'}
                           </td>
                           <td className="py-2 px-3 text-gray-500 text-xs">{p.category || p.type || '-'}</td>
                         </tr>
@@ -1206,7 +1206,7 @@ export default function ExternalBridge() {
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="bg-gray-50 p-2 rounded">
                 <div className="text-xs text-gray-500">Precio</div>
-                <div className="font-mono font-medium">{(selectedProduct.price_tq || selectedProduct.price || 0).toLocaleString()} {currency}</div>
+                <div className="font-mono font-medium">{fmtNumber(selectedProduct.price_tq || selectedProduct.price || 0)} {currency}</div>
                 <div className="text-xs text-gray-500">por {selectedProduct.unit || 'unidad'}</div>
               </div>
               <div className="bg-blue-50 p-2 rounded">
@@ -1229,7 +1229,7 @@ export default function ExternalBridge() {
                 <div className="text-xs text-gray-500">Precio externo</div>
                 <div className="font-mono font-medium">
                   {fc && fc.factor > 0
-                    ? ((selectedProduct.price_tq || selectedProduct.price || 0) / fc.factor).toFixed(2)
+                    ? fmtNumber((selectedProduct.price_tq || selectedProduct.price || 0) / fc.factor)
                     : '-'} {fc?.external_currency || 'USD'}
                 </div>
               </div>
@@ -1260,7 +1260,7 @@ export default function ExternalBridge() {
                   <div className="text-xs text-gray-500">Precio externo</div>
                   <div className="font-mono font-medium">
                     {fc.factor > 0
-                      ? ((selectedProduct.price_tq || selectedProduct.price || 0) / fc.factor).toFixed(2)
+                      ? fmtNumber((selectedProduct.price_tq || selectedProduct.price || 0) / fc.factor)
                       : '-'} {fc.external_currency || 'USD'}
                   </div>
                 </div>
@@ -1276,12 +1276,12 @@ export default function ExternalBridge() {
               <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg text-sm">
                 <div className="font-semibold text-amber-800 mb-1">¿Cómo se calcula el precio?</div>
                 <div className="text-amber-700 font-mono text-xs">
-                  {selectedProduct.price_calculation || `${selectedProduct.base_price} ${currency}/${selectedProduct.base_unit || 'kg'} × ${selectedProduct.weight_kg} ${selectedProduct.base_unit === 'L' ? 'L' : 'kg'} = ${(selectedProduct.base_price * selectedProduct.weight_kg).toFixed(2)} ${currency}`}
+                  {selectedProduct.price_calculation || `${selectedProduct.base_price} ${currency}/${selectedProduct.base_unit || 'kg'} × ${selectedProduct.weight_kg} ${selectedProduct.base_unit === 'L' ? 'L' : 'kg'} = ${fmtNumber(selectedProduct.base_price * selectedProduct.weight_kg)} ${currency}`}
                 </div>
                 <div className="text-xs text-amber-600 mt-1">
                   El precio base de <strong>{selectedProduct.base_price} {currency}/{selectedProduct.base_unit || 'kg'}</strong> viene de la base de datos mundial
                   (Agribalyse, FAO, Pimentel). Este producto pesa <strong>{selectedProduct.weight_kg} {selectedProduct.base_unit === 'L' ? 'litros' : 'kg'}</strong>,
-                  por eso el precio es <strong>{(selectedProduct.price_tq || selectedProduct.price || 0).toLocaleString()} {currency}</strong>.
+                  por eso el precio es <strong>{fmtNumber(selectedProduct.price_tq || selectedProduct.price || 0)} {currency}</strong>.
                 </div>
               </div>
             )}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { API } from '../api'
-import { fmtTQ } from '../utils/format'
+import { fmtTQ, fmtTime } from '../utils/format'
 
 interface Props {
   onBack: () => void
@@ -32,12 +32,6 @@ export function SalesScreen({ onBack, api, terminalID }: Props) {
     } finally {
       setLoading(false)
     }
-  }
-
-  const formatTime = (ts: string) => {
-    if (!ts) return ''
-    const d = new Date(ts)
-    return d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })
   }
 
   return (
@@ -80,7 +74,7 @@ export function SalesScreen({ onBack, api, terminalID }: Props) {
                     {tx.card_uid ? `💳 ${tx.card_uid.slice(0, 12)}...` : '📱 NFC'}
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>
-                    {formatTime(tx.created_at || tx.timestamp)}
+                    {fmtTime(tx.created_at || tx.timestamp)}
                     {tx.status === 'approved' ? ' ✅' : tx.status === 'rejected' ? ' ❌' : ''}
                   </div>
                 </div>

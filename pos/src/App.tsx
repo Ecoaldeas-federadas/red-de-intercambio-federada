@@ -44,6 +44,11 @@ export function App() {
 
       api.setBaseURL(url)
 
+      // Fetch public node config (includes default format_settings) so the
+      // POS formats currency/dates correctly even before terminal auth.
+      // Best-effort: failures are non-fatal (defaults remain in place).
+      api.getNodeConfig().then((cfg) => api.applyFormatSettings(cfg)).catch(() => {})
+
       if (termID && privKey && sessionToken && jwt) {
         // Todo configurado - ir directo al keypad
         setTerminalID(termID)

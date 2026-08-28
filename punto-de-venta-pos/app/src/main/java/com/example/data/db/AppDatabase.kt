@@ -49,7 +49,14 @@ data class TerminalConfigEntity(
     val terminalPublicKeyHex: String = "",
     val serverPublicKeyHex: String? = null,
     val sessionToken: String? = null,
-    val isMultiVendorEnabled: Boolean = false
+    val isMultiVendorEnabled: Boolean = false,
+    // Format settings (received from server)
+    val fmtLocale: String = "es",
+    val fmtNumberLocale: String = "es-VE",
+    val fmtDateFormat: String = "DD/MM/YYYY",
+    val fmtTimeFormat: String = "24h",
+    val fmtFirstDayOfWeek: Int = 1,
+    val fmtTimezone: String = "America/Caracas"
 )
 
 @Entity(tableName = "shift_pin")
@@ -114,7 +121,7 @@ interface TerminalConfigDao {
 
 @Database(
     entities = [TransactionEntity::class, ShiftEntity::class, TerminalConfigEntity::class, ShiftPinEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

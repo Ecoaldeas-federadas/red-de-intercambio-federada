@@ -7,6 +7,7 @@ import com.example.data.crypto.EncryptedPayload
 import com.example.data.crypto.KeystoreCrypto
 import com.example.data.crypto.toHex
 import com.example.data.db.*
+import com.example.ui.util.FormatConfig
 import com.squareup.moshi.Moshi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -98,14 +99,14 @@ class PosRepository(
         val current = getOrInitTerminalConfig()
         val updated = current.copy(terminalId = newTerminalId.trim())
         saveConfigSecure(updated)
-        apiClient.updateConfig(updated.serverUrl, apiClient.authToken, updated.terminalId)
+        apiClient.updateConfig(updated.serverUrl, apiClient.authToken, updated.terminalId, updated.terminalPublicKeyHex)
     }
 
     suspend fun updateServerUrl(newUrl: String) = withContext(Dispatchers.IO) {
         val current = getOrInitTerminalConfig()
         val updated = current.copy(serverUrl = PosApiClient.sanitizeUrl(newUrl))
         saveConfigSecure(updated)
-        apiClient.updateConfig(updated.serverUrl, apiClient.authToken, updated.terminalId)
+        apiClient.updateConfig(updated.serverUrl, apiClient.authToken, updated.terminalId, updated.terminalPublicKeyHex)
         cachedSharedKey = null
     }
 
@@ -145,6 +146,76 @@ class PosRepository(
     suspend fun toggleMultiVendor(enabled: Boolean) = withContext(Dispatchers.IO) {
         val current = getOrInitTerminalConfig()
         saveConfigSecure(current.copy(isMultiVendorEnabled = enabled))
+    }
+
+    // ============================================
+    // Terminal Authentication (POST /api/nfc/terminal/auth)
+    // ============================================
+
+    /**
+     * Authenticates the terminal with the server using its Ed25519 key pair.
+     * The server responds with a session token and, when available, format_settings
+     * (locale, date/time format, timezone, etc.) which are persisted to the local
+     * config and applied to the in-memory [FormatConfig].
+     */
+    suspend fun authenticateTerminal(): Result<TerminalAuthResponse> = withContext(Dispatchers.IO) {
+        try {
+            val config = getOrInitTerminalConfig()
+            val sharedKey = ensureSharedKey()
+            val nonce = CryptoEngine.generateRandomNonce(16)
+            val timestamp = System.currentTimeMillis() / 1000
+
+            // Sign (terminal_id + nonce + timestamp) with the terminal private key
+            val message = "${config.terminalId}|$nonce|$timestamp".toByteArray(Charsets.UTF_8)
+            val signature = CryptoEngine.signEd25519(config.terminalPrivateKeyHex, message)
+
+            val service = apiClient.getService()
+            val request = TerminalAuthRequest(
+                terminalId = config.terminalId,
+                signature = signature,
+                nonce = nonce,
+                deviceFingerprint = CryptoEngine.getDeviceFingerprint(context)
+            )
+
+            val response = service.terminalAuth(request)
+            if (response.isSuccessful && response.body() != null) {
+                val body = response.body()!!
+
+                // Persist session token if provided
+                val sessionToken = body.sessionToken ?: config.sessionToken
+
+                // Apply format_settings from the server if present
+                val fs = body.formatSettings
+                val updated = if (fs != null) {
+                    config.copy(
+                        sessionToken = sessionToken,
+                        fmtLocale = fs.locale ?: config.fmtLocale,
+                        fmtNumberLocale = fs.numberLocale ?: config.fmtNumberLocale,
+                        fmtDateFormat = fs.dateFormat ?: config.fmtDateFormat,
+                        fmtTimeFormat = fs.timeFormat ?: config.fmtTimeFormat,
+                        fmtFirstDayOfWeek = fs.firstDayOfWeek ?: config.fmtFirstDayOfWeek,
+                        fmtTimezone = fs.timezone ?: config.fmtTimezone
+                    )
+                } else {
+                    config.copy(sessionToken = sessionToken)
+                }
+                saveConfigSecure(updated)
+
+                // Update the in-memory format config so formatters reflect new settings
+                FormatConfig.updateFromEntity(updated)
+
+                if (!sessionToken.isNullOrBlank()) {
+                    apiClient.authToken = sessionToken
+                }
+
+                Result.success(body)
+            } else {
+                val err = response.errorBody()?.string() ?: response.body()?.error ?: "Error de autenticación del terminal (Código ${response.code()})"
+                Result.failure(Exception(err))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión al autenticar terminal: ${e.localizedMessage}"))
+        }
     }
 
     suspend fun login(username: String, password: String): Result<LoginResponse> = withContext(Dispatchers.IO) {

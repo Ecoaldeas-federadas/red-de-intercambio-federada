@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { Globe, Plus, Check, X, RefreshCw, Users, Vote, Lock, Info, Ban, Network, AlertTriangle } from 'lucide-react'
+import { fmtDate } from '../lib/format'
 
 interface FederationProposal {
   id: string
@@ -273,8 +274,8 @@ export default function FederationGov() {
                     </div>
                   </div>
                   <p className="text-xs text-gray-400 mt-2">
-                    Propuesta por: {p.proposed_by_node} | {new Date(p.created_at).toLocaleDateString('es')}
-                    {p.applied_at && ` | Aplicada: ${new Date(p.applied_at).toLocaleDateString('es')}`}
+                    Propuesta por: {p.proposed_by_node} | {fmtDate(p.created_at)}
+                    {p.applied_at && ` | Aplicada: ${fmtDate(p.applied_at)}`}
                   </p>
 
                   {/* Barra de progreso */}
@@ -344,7 +345,7 @@ export default function FederationGov() {
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-bold text-trueque-700">{String(c.value)}</div>
-                  <div className="text-xs text-gray-400">Actualizado: {new Date(c.updated_at).toLocaleDateString('es')}</div>
+                  <div className="text-xs text-gray-400">Actualizado: {fmtDate(c.updated_at)}</div>
                 </div>
               </div>
             </div>
@@ -499,7 +500,7 @@ export default function FederationGov() {
                   <div key={i} className="bg-white p-3 rounded-lg border border-red-200">
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-sm">{n.node_domain}</span>
-                      <span className="text-xs text-gray-400">{new Date(n.expelled_at).toLocaleDateString('es')}</span>
+                      <span className="text-xs text-gray-400">{fmtDate(n.expelled_at)}</span>
                     </div>
                     {n.reason && <p className="text-xs text-gray-600 mt-1">{n.reason}</p>}
                   </div>

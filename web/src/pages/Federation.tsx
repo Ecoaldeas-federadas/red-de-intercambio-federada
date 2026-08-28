@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Network, Globe, Scale, Server, RefreshCw, MapPin, Wifi, Compass } from 'lucide-react'
+import { fmtDateTime } from '../lib/format'
 import { api } from '../api'
 import NetworkConfig from './NetworkConfig'
 import FederationPeers from './FederationPeers'
@@ -231,7 +232,7 @@ function PeersNetInfo() {
 
               {/* Ultima actualizacion */}
               <div className="text-xs text-gray-400 border-t pt-2">
-                Actualizado: {new Date(peer.last_updated).toLocaleString()}
+                Actualizado: {fmtDateTime(peer.last_updated)}
               </div>
             </div>
           ))}

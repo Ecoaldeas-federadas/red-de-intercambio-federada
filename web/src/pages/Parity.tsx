@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { Scale, HelpCircle, ArrowDownCircle, ArrowUpCircle, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { fmtNumber } from '../lib/format'
 
 export default function Parity() {
   const { currency } = useConfig()
@@ -14,7 +15,7 @@ export default function Parity() {
 
   const fmtNum = (n: number) => {
     if (!n || n === 0) return '0'
-    return n.toLocaleString('es', { maximumFractionDigits: 2 })
+    return fmtNumber(n)
   }
 
   const parityLabel = (ratio: number) => {
@@ -31,7 +32,7 @@ export default function Parity() {
     if (ratio === -1) return 'Solo importas'
     if (ratio === -2) return 'Solo exportas'
     if (ratio === 0) return '—'
-    return ratio.toLocaleString('es', { maximumFractionDigits: 2 })
+    return fmtNumber(ratio)
   }
 
   return (

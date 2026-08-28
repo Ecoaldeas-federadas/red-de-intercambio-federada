@@ -406,6 +406,8 @@ func (ah *AuthHandlers) RegisterRoutes(r chi.Router) {
 		r.Use(am.RequireAuth)
 		r.Get("/api/auth/me", ah.getMe)
 		r.Put("/api/auth/me/contacts", ah.updateMyContacts)
+		r.Get("/api/me/preferences", ah.getMyPreferences)
+		r.Put("/api/me/preferences", ah.updateMyPreferences)
 		r.Get("/api/auth/passkey/list", ah.listPasskeys)
 		r.Post("/api/auth/passkey/add/begin", ah.beginAddPasskey)
 		r.Post("/api/auth/passkey/add/finish", ah.finishAddPasskey)
@@ -711,7 +713,28 @@ func (ah *AuthHandlers) getMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, 200, user)
+	// Resolver el dominio del nodo del usuario para el fallback de nodo
+	var userNodeDomain string
+	_ = ah.Pool.QueryRow(r.Context(), `SELECT node_domain FROM users WHERE id = $1`, userID).Scan(&userNodeDomain)
+	if userNodeDomain == "" {
+		userNodeDomain = ah.NodeDomain
+	}
+	fs := resolveFormatSettings(r.Context(), ah.Pool, userID.String(), userNodeDomain)
+
+	// Incluir format_settings en la respuesta preservando el objeto del usuario.
+	// Como GetUser devuelve interface{}, lo serializamos a un mapa para anadir el campo.
+	userBytes, _ := json.Marshal(user)
+	var resp map[string]interface{}
+	if err := json.Unmarshal(userBytes, &resp); err != nil {
+		// Si no es un objeto JSON, devolver el usuario tal cual con format_settings aparte
+		writeJSON(w, 200, map[string]interface{}{
+			"user":            user,
+			"format_settings": fs,
+		})
+		return
+	}
+	resp["format_settings"] = fs
+	writeJSON(w, 200, resp)
 }
 
 // updateMyContacts permite al usuario actualizar sus datos de contacto para notificaciones

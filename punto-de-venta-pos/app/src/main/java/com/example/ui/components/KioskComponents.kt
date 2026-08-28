@@ -39,9 +39,8 @@ fun KioskAmountDisplay(
 ) {
     // POS-style decimal: input is in centimos. "1" = 0.01 TQ, "100" = 1.00 TQ
     val centimos = amountInput.replace(Regex("[^0-9]"), "").ifEmpty { "0" }.toLong()
-    val units = centimos / 100
-    val dec = (centimos % 100).toString().padStart(2, '0')
-    val formatted = String.format("%,d.%s TQ", units, dec)
+    val microUnits = centimos // centimos map directly to micro-units
+    val formatted = CurrencyHelper.formatMicroUnits(microUnits)
 
     Card(
         modifier = modifier
@@ -65,7 +64,7 @@ fun KioskAmountDisplay(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = if (centimos == 0L) "0.00 TQ" else formatted,
+                text = if (centimos == 0L) CurrencyHelper.formatMicroUnits(0L) else formatted,
                 style = MaterialTheme.typography.displayMedium,
                 color = if (centimos > 0) PosPrimaryLight else PosSlate600,
                 fontWeight = FontWeight.Black

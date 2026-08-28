@@ -8,7 +8,7 @@ import {
   Network, Scale, Users, Gavel, FileSearch, Globe, UserPlus, Wallet, Shield,
   Building2, Nfc, Settings, User, PiggyBank, Zap, Plug,
   LogOut, Menu, X, ExternalLink, Bell, ChevronLeft, ChevronRight, AlertTriangle,
-  Server, ShoppingBag,
+  Server, ShoppingBag, SlidersHorizontal,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -39,6 +39,7 @@ const navItems: { to: string; label: string; icon: any; perm?: string; end?: boo
   { to: '/app/recovery', label: 'Recuperacion', icon: Shield, perm: 'recovery.approve' },
   { to: '/app/fund', label: 'Fondo Comunitario', icon: PiggyBank },
   { to: '/app/profile', label: 'Mi Perfil', icon: User },
+  { to: '/app/display-settings', label: 'Ajustes de pantalla', icon: SlidersHorizontal },
   { to: '/app/notifications/settings', label: 'Notificaciones', icon: Bell },
   { to: '/app/settings', label: 'Configuracion', icon: Settings, perm: 'config.manage' },
   { to: '/app/services', label: 'Servicios Federados', icon: Server, perm: 'config.manage' },

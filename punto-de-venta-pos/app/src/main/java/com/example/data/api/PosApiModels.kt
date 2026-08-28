@@ -39,12 +39,22 @@ data class CreateChargeRequest(
 )
 
 @JsonClass(generateAdapter = true)
+data class QrSignatureInfo(
+    @Json(name = "user_id") val userId: String? = null,
+    @Json(name = "username") val username: String? = null,
+    @Json(name = "signer_name") val signerName: String? = null,
+    @Json(name = "signed_at") val signedAt: String? = null,
+    @Json(name = "status") val status: String? = "signed"
+)
+
+@JsonClass(generateAdapter = true)
 data class CreateChargeResponse(
     @Json(name = "charge_id") val chargeId: String? = null,
     @Json(name = "charge_token") val chargeToken: String? = null,
     @Json(name = "amount") val amount: Long? = 0L,
     @Json(name = "status") val status: String? = "pending",
     @Json(name = "expires_at") val expiresAt: String? = null,
+    @Json(name = "expires_in") val expiresIn: Int? = 180,
     @Json(name = "error") val error: String? = null
 )
 
@@ -58,7 +68,14 @@ data class ChargeStatusResponse(
     @Json(name = "description") val description: String? = null,
     @Json(name = "merchant_name") val merchantName: String? = null,
     @Json(name = "expires_at") val expiresAt: String? = null,
-    @Json(name = "payer_id") val payerId: String? = null
+    @Json(name = "expires_in") val expiresIn: Int? = null,
+    @Json(name = "remaining_seconds") val remainingSeconds: Long? = null,
+    @Json(name = "payer_id") val payerId: String? = null,
+    @Json(name = "payer_name") val payerName: String? = null,
+    @Json(name = "required_signatures") val requiredSignatures: Int? = 1,
+    @Json(name = "collected_signatures") val collectedSignatures: Int? = 0,
+    @Json(name = "signatures_count") val signaturesCount: Int? = null,
+    @Json(name = "signatures") val signatures: List<QrSignatureInfo>? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -119,9 +136,20 @@ data class TerminalAuthRequest(
 )
 
 @JsonClass(generateAdapter = true)
+data class FormatSettings(
+    @Json(name = "locale") val locale: String? = null,
+    @Json(name = "number_locale") val numberLocale: String? = null,
+    @Json(name = "date_format") val dateFormat: String? = null,
+    @Json(name = "time_format") val timeFormat: String? = null,
+    @Json(name = "first_day_of_week") val firstDayOfWeek: Int? = null,
+    @Json(name = "timezone") val timezone: String? = null
+)
+
+@JsonClass(generateAdapter = true)
 data class TerminalAuthResponse(
     @Json(name = "session_token") val sessionToken: String? = null,
     @Json(name = "signature") val signature: String? = null,
+    @Json(name = "format_settings") val formatSettings: FormatSettings? = null,
     @Json(name = "error") val error: String? = null
 )
 

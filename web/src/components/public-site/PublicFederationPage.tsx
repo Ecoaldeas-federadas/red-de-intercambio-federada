@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect } from 'react'
 import { api } from '../../api'
+import { fmtDate } from '../../lib/format'
 import {
   Globe, Users, Network, Leaf, Heart, Scale, ArrowRight, Check,
   Sparkles, MessageSquare, ThumbsUp, Send, Menu, X, Home, Copy, Share2,
@@ -899,7 +900,7 @@ export function PublicFederationPage() {
                   </div>
                   <p className="text-sm text-gray-600">{p.description}</p>
                   <p className="text-xs text-gray-400 mt-2">
-                    {p.author_name || 'Anonimo'} - {new Date(p.created_at).toLocaleDateString()}
+                    {p.author_name || 'Anonimo'} - {fmtDate(p.created_at)}
                   </p>
                 </div>
               ))}

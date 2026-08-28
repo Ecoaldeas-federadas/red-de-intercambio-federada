@@ -1,6 +1,7 @@
 // API client - communicates with the backend node via REST API
 // Uses Ed25519 for terminal identity + device fingerprint + rotating session keys
 import { storage, signMessage, generateNonce, generateDeviceFingerprint, signWithRotatingKey } from './crypto'
+import { setFormatSettings, FormatSettings } from './hooks/usePreferences'
 
 export class API {
   private baseURL: string
@@ -192,7 +193,26 @@ export class API {
     if (data.server_public_key) {
       storage.set('serverPublicKey', data.server_public_key)
     }
+    // The backend includes format_settings in the auth response so the POS
+    // can format currency/dates/times according to the node's locale config.
+    if (data.format_settings) {
+      setFormatSettings(data.format_settings as FormatSettings)
+    }
     return data
+  }
+
+  // ===== NODE CONFIG (public) =====
+  // Fetch the public node config (includes default format_settings) so the
+  // POS can display correctly even before the terminal is authenticated.
+  async getNodeConfig(): Promise<any> {
+    return this.request('/api/config')
+  }
+
+  // Apply format_settings from a config/auth payload if present.
+  applyFormatSettings(payload: any): void {
+    if (payload && payload.format_settings) {
+      setFormatSettings(payload.format_settings as FormatSettings)
+    }
   }
 
   // ===== HEARTBEAT (with fingerprint verification) =====

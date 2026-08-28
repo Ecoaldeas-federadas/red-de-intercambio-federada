@@ -2,6 +2,7 @@ import {
   Wallet, Calendar, Vote, UserCheck, UserX, KeyRound, Building2,
   Network, Package, Bell, AlertTriangle, type LucideIcon,
 } from 'lucide-react'
+import { fmtDate } from './format'
 
 // Mapea el tipo de notificacion a un icono y color
 export const NOTIF_ICONS: Record<string, { icon: LucideIcon; color: string }> = {
@@ -41,5 +42,5 @@ export function relativeTime(dateStr: string): string {
   if (diffHour < 24) return `hace ${diffHour} ${diffHour === 1 ? 'hora' : 'horas'}`
   if (diffDay < 7) return `hace ${diffDay} ${diffDay === 1 ? 'dia' : 'dias'}`
   // Para mas de una semana, mostrar fecha
-  return date.toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' })
+  return fmtDate(date)
 }

@@ -319,10 +319,8 @@ fun ShiftManagementScreen(
                             )
                             // POS-style amount display
                             val centimos = shiftInitialAmount.replace(Regex("[^0-9]"), "").ifEmpty { "0" }.toLong()
-                            val units = centimos / 100
-                            val dec = (centimos % 100).toString().padStart(2, '0')
                             Text(
-                                text = if (centimos == 0L) "0.00 TQ" else String.format("%,d.%s TQ", units, dec),
+                                text = CurrencyHelper.formatMicroUnits(centimos),
                                 style = MaterialTheme.typography.headlineLarge,
                                 color = if (centimos > 0) PosPrimaryLight else PosSlate600,
                                 fontWeight = FontWeight.Black,

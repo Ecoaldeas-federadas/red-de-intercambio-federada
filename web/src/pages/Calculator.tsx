@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { Calculator as CalcIcon, HelpCircle, Plus, Trash2, X } from 'lucide-react'
+import { fmtNumber } from '../lib/format'
 
 // Tipos de trabajo predefinidos con su costo energetico (kWh por hora)
 // Basado en estudios de costo energetico humano
@@ -331,7 +332,7 @@ export default function Calculator() {
                       const effort = p.tariff_category ? getTariffEffortFactor(p.tariff_category) : 1.0
                       const effortUsed = Math.max(1.0, effort)
                       const additional = p.kwh_per_unit > 0 ? ` + ${p.kwh_per_unit} adicional` : ''
-                      return `${kwh.toFixed(2)} kWh/hora (base ${baseRate.toFixed(1)} x esfuerzo ${effortUsed}${additional})`
+                      return `${fmtNumber(kwh, 2)} kWh/hora (base ${fmtNumber(baseRate, 1)} x esfuerzo ${effortUsed}${additional})`
                     })()}
                   </p>
                 )}
@@ -358,7 +359,7 @@ export default function Calculator() {
                   <div key={w.id} className="flex items-center justify-between bg-gray-50 rounded-lg p-3 text-sm">
                     <div>
                       <span className="font-medium">{w.typeName}</span>
-                      <span className="text-gray-500 ml-2">{w.hours}h x {w.kWhPerHour} kWh/h = {(w.kWhPerHour * w.hours).toFixed(2)} kWh</span>
+                      <span className="text-gray-500 ml-2">{w.hours}h x {w.kWhPerHour} kWh/h = {fmtNumber(w.kWhPerHour * w.hours, 2)} kWh</span>
                     </div>
                     <button onClick={() => removeWork(w.id)} className="text-red-500"><Trash2 size={16} /></button>
                   </div>
@@ -419,7 +420,7 @@ export default function Calculator() {
                   <div key={i.id} className="flex items-center justify-between bg-gray-50 rounded-lg p-3 text-sm">
                     <div>
                       <span className="font-medium">{i.name}</span>
-                      <span className="text-gray-500 ml-2">{i.quantity} {i.unit} x {i.kWhPerUnit} kWh = {(i.kWhPerUnit * i.quantity).toFixed(2)} kWh</span>
+                      <span className="text-gray-500 ml-2">{i.quantity} {i.unit} x {i.kWhPerUnit} kWh = {fmtNumber(i.kWhPerUnit * i.quantity, 2)} kWh</span>
                     </div>
                     <button onClick={() => removeInput(i.id)} className="text-red-500"><Trash2 size={16} /></button>
                   </div>
@@ -484,15 +485,15 @@ export default function Calculator() {
           <div className="space-y-1 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600">Energia del trabajo humano:</span>
-              <span className="font-medium">{result.workKWh.toFixed(2)} kWh</span>
+              <span className="font-medium">{fmtNumber(result.workKWh, 2)} kWh</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Energia de insumos y materiales:</span>
-              <span className="font-medium">{result.inputsKWh.toFixed(2)} kWh</span>
+              <span className="font-medium">{fmtNumber(result.inputsKWh, 2)} kWh</span>
             </div>
             <div className="border-t border-trueque-200 pt-2 flex justify-between text-lg">
               <span className="font-bold text-trueque-700">Precio total:</span>
-              <span className="font-bold text-trueque-700">{result.totalTQ.toFixed(2)} {currency}</span>
+              <span className="font-bold text-trueque-700">{fmtNumber(result.totalTQ, 2)} {currency}</span>
             </div>
           </div>
           <p className="text-xs text-gray-500">Este es el precio sugerido para tu producto. Llevalo a la asamblea para que lo aprueben y lo agreguen al registro de productos.</p>

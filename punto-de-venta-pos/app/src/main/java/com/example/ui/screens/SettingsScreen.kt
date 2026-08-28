@@ -66,6 +66,47 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // ALERTS
+            if (!uiState.successMessage.isNullOrBlank()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = PosSuccessGreen.copy(alpha = 0.2f)),
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, PosSuccessGreen)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null, tint = PosSuccessGreenLight)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(text = uiState.successMessage!!, color = PosSlate100, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+
+            if (!uiState.errorMessage.isNullOrBlank()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = PosErrorRed.copy(alpha = 0.2f)),
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, PosErrorRed)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(imageVector = Icons.Default.Error, contentDescription = null, tint = PosErrorRedLight)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(text = uiState.errorMessage!!, color = PosSlate100, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+
             // SERVER URL CONFIGURATION
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -76,25 +117,96 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Servidor / Modo de Operación",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = PosSlate100,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (uiState.isDemoNode) PosGold.copy(alpha = 0.2f) else PosPrimaryBlue.copy(alpha = 0.2f),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (uiState.isDemoNode) PosGold else PosPrimaryLight
+                            )
+                        ) {
+                            Text(
+                                text = if (uiState.isDemoNode) "MODO DEMO" else "PRODUCCIÓN",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (uiState.isDemoNode) PosGoldLight else PosPrimaryLight,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
                     Text(
-                        text = "Servidor / Nodo de Trueque",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = PosSlate100,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Ingrese la URL completa del nodo de la comunidad o nodo de demostración.",
+                        text = "Seleccione el modo de operación rápido o escriba la URL personalizada del nodo.",
                         style = MaterialTheme.typography.bodySmall,
                         color = PosSlate300
                     )
 
+                    // PRESET SHORTCUT BUTTONS
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                urlInput = "https://feria.loanstly.com/main"
+                                viewModel.updateServerUrl("https://feria.loanstly.com/main")
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = if (!uiState.isDemoNode && urlInput.contains("/main")) PosPrimaryBlue.copy(alpha = 0.2f) else androidx.compose.ui.graphics.Color.Transparent,
+                                contentColor = PosSlate100
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (!uiState.isDemoNode && urlInput.contains("/main")) PosPrimaryLight else PosSlate700
+                            )
+                        ) {
+                            Icon(Icons.Default.CloudQueue, contentDescription = null, modifier = Modifier.size(16.dp), tint = PosPrimaryLight)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Modo Main", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                urlInput = "https://feria.loanstly.com/demo"
+                                viewModel.updateServerUrl("https://feria.loanstly.com/demo")
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = if (uiState.isDemoNode || urlInput.contains("/demo")) PosGold.copy(alpha = 0.2f) else androidx.compose.ui.graphics.Color.Transparent,
+                                contentColor = PosSlate100
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (uiState.isDemoNode || urlInput.contains("/demo")) PosGold else PosSlate700
+                            )
+                        ) {
+                            Icon(Icons.Default.Science, contentDescription = null, modifier = Modifier.size(16.dp), tint = PosGoldLight)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Modo Demo", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
                     OutlinedTextField(
                         value = urlInput,
                         onValueChange = { urlInput = it },
-                        label = { Text("URL del Servidor") },
-                        placeholder = { Text("https://feria.loanstly.com/main") },
+                        label = { Text("URL del Servidor / Nodo") },
+                        placeholder = { Text("https://feria.loanstly.com/main o /demo") },
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -120,6 +232,7 @@ fun SettingsScreen(
                         onClick = {
                             viewModel.updateServerUrl(urlInput)
                         },
+                        enabled = !uiState.isLoading && urlInput.isNotBlank(),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp)
@@ -127,9 +240,13 @@ fun SettingsScreen(
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue)
                     ) {
-                        Icon(imageVector = Icons.Default.Save, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Guardar y Conectar con el Nodo", fontWeight = FontWeight.Bold)
+                        if (uiState.isLoading) {
+                            CircularProgressIndicator(color = PosSlate100, modifier = Modifier.size(22.dp))
+                        } else {
+                            Icon(imageVector = Icons.Default.Save, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Guardar y Conectar con el Nodo", fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
@@ -211,6 +328,76 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Abrir / Cerrar Punto", fontWeight = FontWeight.Bold)
                     }
+                }
+            }
+
+            // FORMAT SETTINGS (received from server, read-only display)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = PosSlate900),
+                shape = RoundedCornerShape(18.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Ajustes de Formato",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = PosSlate100,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Icon(
+                            imageVector = Icons.Default.Language,
+                            contentDescription = null,
+                            tint = PosPrimaryLight,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    Text(
+                        text = "Estos ajustes se sincronizan con el servidor.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = PosSlate300
+                    )
+
+                    val cfg = terminalConfig
+                    val fmtRow: @Composable (String, String) -> Unit = { label, value ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = PosSlate300
+                            )
+                            Text(
+                                text = value,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = PosSlate100,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    fmtRow("Idioma (locale):", cfg?.fmtLocale ?: "es")
+                    fmtRow("Formato numérico:", cfg?.fmtNumberLocale ?: "es-VE")
+                    fmtRow("Formato de fecha:", cfg?.fmtDateFormat ?: "DD/MM/YYYY")
+                    fmtRow("Formato de hora:", cfg?.fmtTimeFormat ?: "24h")
+                    fmtRow("Primer día de la semana:", when (cfg?.fmtFirstDayOfWeek ?: 1) {
+                        0 -> "Domingo"
+                        1 -> "Lunes"
+                        6 -> "Sábado"
+                        else -> (cfg?.fmtFirstDayOfWeek ?: 1).toString()
+                    })
+                    fmtRow("Zona horaria:", cfg?.fmtTimezone ?: "America/Caracas")
                 }
             }
 

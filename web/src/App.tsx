@@ -44,6 +44,7 @@ import Notifications from './pages/Notifications'
 import Pay from './pages/Pay'
 import MyTerminals from './pages/MyTerminals'
 import SoftwareAdaptations from './pages/SoftwareAdaptations'
+import Settings from './pages/Settings'
 
 // updateFavicon cambia el favicon del navegador dinamicamente.
 // Si se pasa una URL de logo, lo usa como favicon.
@@ -149,6 +150,7 @@ function AppInner() {
         <Route path="/app/notifications/settings" element={<Layout><NotificationSettings /></Layout>} />
         <Route path="/app/notifications" element={<Layout><Notifications /></Layout>} />
         <Route path="/app/profile" element={<Layout><Profile /></Layout>} />
+        <Route path="/app/display-settings" element={<Layout><Settings /></Layout>} />
         <Route path="/app/fund" element={<Layout><CommunityFund /></Layout>} />
         <Route path="/app/calculator/params" element={<Layout><CalculatorParams /></Layout>} />
         <Route path="/app/website" element={<Layout><WebsiteAdmin /></Layout>} />

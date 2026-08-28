@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { Plug, CheckCircle, XCircle, Calendar, RefreshCw } from 'lucide-react'
-import { fmtTQ } from '../lib/format'
+import { fmtTQ, fmtDate } from '../lib/format'
 
 export default function MyServices() {
   const { currency } = useConfig()
@@ -198,7 +198,7 @@ export default function MyServices() {
                   <p className="text-xs text-gray-500">{sub.org_name}</p>
                   {sub.next_charge_at && (
                     <p className="text-xs text-gray-400 mt-1">
-                      Proximo cobro: {new Date(sub.next_charge_at).toLocaleDateString('es')}
+                      Proximo cobro: {fmtDate(sub.next_charge_at)}
                     </p>
                   )}
                 </div>
