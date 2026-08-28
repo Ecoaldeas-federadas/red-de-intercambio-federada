@@ -34,6 +34,7 @@ sealed class PosScreen {
 
 data class PosUiState(
     val currentScreen: PosScreen = PosScreen.RegisterTerminal,
+    val screenHistory: List<PosScreen> = emptyList(),
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null,
@@ -279,15 +280,25 @@ class PosViewModel(
         }
     }
 
-    fun navigateTo(screen: PosScreen) {
+    fun navigateTo(screen: PosScreen, addToHistory: Boolean = true) {
+        val current = _uiState.value.currentScreen
+        if (current == screen) return
+
         // Reset transient states
         if (screen != PosScreen.QrCharge) stopQrPolling()
         if (screen != PosScreen.NfcCharge && screen != PosScreen.MultiVendor) stopMultisigPolling()
         if (screen != PosScreen.RegisterTerminal) stopPairingPolling()
 
+        val newHistory = if (addToHistory) {
+            _uiState.value.screenHistory + current
+        } else {
+            _uiState.value.screenHistory
+        }
+
         _uiState.update {
             it.copy(
                 currentScreen = screen,
+                screenHistory = newHistory,
                 errorMessage = null,
                 successMessage = null,
                 amountInput = "",
@@ -312,7 +323,83 @@ class PosViewModel(
         }
     }
 
+    fun handleBackPress(): Boolean {
+        val state = _uiState.value
+
+        // If in MultiVendor flow past step 1, step backwards in the wizard
+        if (state.currentScreen == PosScreen.MultiVendor && state.mvStep > 1) {
+            _uiState.update {
+                it.copy(
+                    mvStep = it.mvStep - 1,
+                    errorMessage = null,
+                    buyerPin = "",
+                    isSameCardError = false
+                )
+            }
+            return true
+        }
+
+        // If root screen, do not navigate back; let root handler prompt to exit
+        val isRootScreen = when (state.currentScreen) {
+            PosScreen.Dashboard -> true
+            PosScreen.Login -> !state.isRegistered || state.currentUser == null
+            PosScreen.RegisterTerminal -> !state.isRegistered
+            else -> false
+        }
+
+        if (isRootScreen) {
+            return false
+        }
+
+        // Pop last screen from navigation history
+        val history = state.screenHistory
+        if (history.isNotEmpty()) {
+            val previousScreen = history.last()
+            val remainingHistory = history.dropLast(1)
+
+            if (previousScreen != PosScreen.QrCharge) stopQrPolling()
+            if (previousScreen != PosScreen.NfcCharge && previousScreen != PosScreen.MultiVendor) stopMultisigPolling()
+            if (previousScreen != PosScreen.RegisterTerminal) stopPairingPolling()
+
+            _uiState.update {
+                it.copy(
+                    currentScreen = previousScreen,
+                    screenHistory = remainingHistory,
+                    errorMessage = null,
+                    successMessage = null,
+                    amountInput = "",
+                    customerPin = "",
+                    detectedCardUid = null,
+                    isNfcWaitingCard = (previousScreen == PosScreen.NfcCharge),
+                    nfcPaymentResult = null,
+                    qrChargeResponse = null,
+                    qrPayUrl = null,
+                    qrStatus = null,
+                    isQrPolling = false,
+                    isMultisigActive = false,
+                    multisigPendingId = null,
+                    idDocNumber = "",
+                    mvStep = 1,
+                    sellerCardUid = null,
+                    sellerName = null,
+                    buyerCardUid = null,
+                    buyerPin = "",
+                    buyerDocNumber = ""
+                )
+            }
+            return true
+        } else {
+            // Default fallback: return to Dashboard if logged in
+            if (state.isRegistered && state.isLoggedIn) {
+                navigateTo(PosScreen.Dashboard, addToHistory = false)
+                return true
+            }
+            return false
+        }
+    }
+
     fun resetNfcPaymentState() {
+        stopMultisigPolling()
         _uiState.update {
             it.copy(
                 detectedCardUid = null,
@@ -320,6 +407,10 @@ class PosViewModel(
                 nfcPaymentResult = null,
                 amountInput = "",
                 idDocNumber = "",
+                isMultisigActive = false,
+                multisigPendingId = null,
+                multisigCollectedSigs = 0,
+                multisigRequiredSigs = 1,
                 errorMessage = null,
                 successMessage = null,
                 isNfcWaitingCard = true
@@ -1203,7 +1294,7 @@ class PosViewModel(
         _uiState.update { it.copy(mvStep = 3, errorMessage = null) } // Move to Tap Buyer
     }
 
-    fun onMultiVendorBuyerTapped(cardUid: String, isMultisig: Boolean = false, isDesfire: Boolean = false) {
+    fun onMultiVendorBuyerTapped(cardUid: String, isMultisig: Boolean = false, requiredSigs: Int = 2, isDesfire: Boolean = false) {
         if (cardUid == _uiState.value.sellerCardUid) {
             FeedbackHelper.playCardScanError(getApplication())
             _uiState.update {
@@ -1216,15 +1307,15 @@ class PosViewModel(
         }
         FeedbackHelper.playCardDetected(getApplication())
         val mustAskId = !isDesfire
+        // NOTA: En modo real, el servidor decide si la cuenta requiere multifirma
+        // al responder pending_multisig. No detectamos multifirma por cardUid.
+        // Los parametros isMultisig/requiredSigs solo se usan en modo demo.
         _uiState.update {
             it.copy(
                 isSameCardError = false,
                 buyerCardUid = cardUid,
                 requireIdVerification = mustAskId,
                 buyerPin = "",
-                isMultiVendorMultisig = isMultisig,
-                mvMultisigRequired = if (isMultisig) 2 else 1,
-                mvMultisigCollected = 0,
                 mvStep = 4 // Move to Buyer PIN & ID
             )
         }
@@ -1235,24 +1326,11 @@ class PosViewModel(
         val microUnits = CurrencyHelper.parseInputToMicroUnits(state.amountInput)
 
         if (state.buyerPin.length < 4) {
-            _uiState.update { it.copy(errorMessage = "El comprador debe ingresar su PIN de 4 dígitos") }
+            _uiState.update { it.copy(errorMessage = "El comprador/firmante debe ingresar su PIN de 4 dígitos") }
             return
         }
         if (state.requireIdVerification && state.buyerDocNumber.isBlank()) {
             _uiState.update { it.copy(errorMessage = "Ingrese el documento de identidad del comprador") }
-            return
-        }
-
-        // Si es comprador mancomunado / multifirma simulado
-        if (state.isMultiVendorMultisig && state.mvMultisigCollected < (state.mvMultisigRequired - 1)) {
-            FeedbackHelper.playCardDetected(getApplication())
-            _uiState.update {
-                it.copy(
-                    mvMultisigCollected = it.mvMultisigCollected + 1,
-                    buyerPin = "",
-                    successMessage = "Firma 1 de 2 registrada. Ingrese PIN del 2do firmante autorizado."
-                )
-            }
             return
         }
 
@@ -1273,27 +1351,47 @@ class PosViewModel(
 
             res.onSuccess { r ->
                 if (r.status == "approved") {
-                    FeedbackHelper.playSuccess(getApplication())
+                    FeedbackHelper.playPaymentApprovedCoins(getApplication())
                     _uiState.update {
                         it.copy(
                             isLoading = false,
                             mvStep = 5, // Result
                             nfcPaymentResult = r,
-                            successMessage = "¡Venta comunitaria aprobada!"
+                            successMessage = "¡Venta comunitaria aprobada exitosamente!"
                         )
                     }
+                } else if (r.status == "pending_multisig") {
+                    // El servidor detecto que la cuenta del comprador requiere multifirma.
+                    // Entrar en el flujo de firma secuencial real (igual que submitNfcPayment).
+                    FeedbackHelper.playCardDetected(getApplication())
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isMultisigActive = true,
+                            multisigPendingId = r.pendingId ?: r.transactionId ?: UUID.randomUUID().toString(),
+                            multisigRequiredSigs = r.requiredSigs ?: 2,
+                            multisigCollectedSigs = r.collectedSigs ?: 1,
+                            multisigRemainingSeconds = 180L,
+                            multisigMessage = r.message ?: "Cuenta multi-firma. Acerque las tarjetas de los siguientes firmantes.",
+                            buyerPin = "",
+                            buyerCardUid = null,
+                            isNfcWaitingCard = true
+                        )
+                    }
+                    startMultisigPolling(_uiState.value.multisigPendingId!!)
                 } else {
-                    FeedbackHelper.playError(getApplication())
+                    FeedbackHelper.playPaymentError(getApplication())
                     _uiState.update { it.copy(isLoading = false, errorMessage = r.message ?: "Cobro rechazado") }
                 }
             }.onFailure { err ->
-                FeedbackHelper.playError(getApplication())
+                FeedbackHelper.playPaymentError(getApplication())
                 _uiState.update { it.copy(isLoading = false, errorMessage = err.message) }
             }
         }
     }
 
     fun resetMultiVendorSale() {
+        stopMultisigPolling()
         _uiState.update {
             it.copy(
                 mvStep = 1,
@@ -1306,6 +1404,10 @@ class PosViewModel(
                 isMultiVendorMultisig = false,
                 mvMultisigRequired = 1,
                 mvMultisigCollected = 0,
+                isMultisigActive = false,
+                multisigPendingId = null,
+                multisigCollectedSigs = 0,
+                multisigRequiredSigs = 1,
                 nfcPaymentResult = null,
                 errorMessage = null,
                 successMessage = null

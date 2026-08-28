@@ -10,7 +10,9 @@ import android.nfc.Tag
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.*
@@ -20,7 +22,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.room.Room
@@ -216,6 +222,23 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
 @Composable
 fun PosMainContent(viewModel: PosViewModel) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    var lastBackPressTime by remember { mutableLongStateOf(0L) }
+
+    // Intercept hardware/system back button
+    BackHandler {
+        val handled = viewModel.handleBackPress()
+        if (!handled) {
+            // We are on the main/root screen
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastBackPressTime < 2000) {
+                (context as? ComponentActivity)?.finish()
+            } else {
+                lastBackPressTime = currentTime
+                Toast.makeText(context, "Presione nuevamente para salir", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     DemoWatermarkOverlay(
         isDemo = uiState.isDemoNode,

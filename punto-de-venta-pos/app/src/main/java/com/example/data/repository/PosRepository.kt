@@ -693,7 +693,91 @@ class PosRepository(
                 Result.success(result)
             } else {
                 if (apiClient.isDemoNode) {
-                    // Modo Demo (/demo): Simular aprobación localmente para pruebas
+                    val isMultisig3 = cardUid.contains("3SIG") || cardUid.contains("3F")
+                    val isMultisig2 = cardUid.contains("MULTISIG") || cardUid.contains("2SIG") || cardUid.contains("FIRM")
+                    if (isMultisig3) {
+                        val sim = PaymentResultDecrypted(
+                            status = "pending_multisig",
+                            transactionId = "TX-MS3-${UUID.randomUUID().toString().take(6).uppercase()}",
+                            pendingId = "PENDING-MS3-${UUID.randomUUID().toString().take(6).uppercase()}",
+                            requiredSigs = 3,
+                            collectedSigs = 1,
+                            remainingSigs = 2,
+                            message = "Cuenta multi-firma (3 Firmas requeridas). Firma 1 de 3 registrada por el servidor. Acerque la tarjeta del 2do firmante.",
+                            userBalance = 250000L
+                        )
+                        Result.success(sim)
+                    } else if (isMultisig2) {
+                        val sim = PaymentResultDecrypted(
+                            status = "pending_multisig",
+                            transactionId = "TX-MS2-${UUID.randomUUID().toString().take(6).uppercase()}",
+                            pendingId = "PENDING-MS2-${UUID.randomUUID().toString().take(6).uppercase()}",
+                            requiredSigs = 2,
+                            collectedSigs = 1,
+                            remainingSigs = 1,
+                            message = "Cuenta multi-firma (2 Firmas requeridas). Firma 1 de 2 registrada por el servidor. Acerque la tarjeta del 2do firmante.",
+                            userBalance = 250000L
+                        )
+                        Result.success(sim)
+                    } else {
+                        val simulatedResult = PaymentResultDecrypted(
+                            status = "approved",
+                            transactionId = UUID.randomUUID().toString(),
+                            message = "Transacción simulada aprobada (Modo Demo)",
+                            userBalance = 180000L
+                        )
+                        transactionDao.insertTransaction(
+                            TransactionEntity(
+                                id = simulatedResult.transactionId!!,
+                                amount = amountMicroUnits,
+                                paymentMethod = "nfc_single",
+                                status = "approved",
+                                cardUid = cardUid,
+                                receiptNumber = "NFC-${UUID.randomUUID().toString().take(8).uppercase()}"
+                            )
+                        )
+                        Result.success(simulatedResult)
+                    }
+                } else {
+                    val errorBodyStr = response.errorBody()?.string().orEmpty()
+                    val serverMsg = try {
+                        val jsonObj = org.json.JSONObject(errorBodyStr)
+                        jsonObj.optString("error", jsonObj.optString("message", jsonObj.optString("detail", "Error del servidor (HTTP ${response.code()})")))
+                    } catch (e: Exception) {
+                        if (errorBodyStr.isNotBlank()) errorBodyStr else "Error al procesar cobro en el nodo (HTTP ${response.code()})"
+                    }
+                    Result.failure(Exception(serverMsg))
+                }
+            }
+        } catch (e: Exception) {
+            if (apiClient.isDemoNode) {
+                val isMultisig3 = cardUid.contains("3SIG") || cardUid.contains("3F")
+                val isMultisig2 = cardUid.contains("MULTISIG") || cardUid.contains("2SIG") || cardUid.contains("FIRM")
+                if (isMultisig3) {
+                    val sim = PaymentResultDecrypted(
+                        status = "pending_multisig",
+                        transactionId = "TX-MS3-${UUID.randomUUID().toString().take(6).uppercase()}",
+                        pendingId = "PENDING-MS3-${UUID.randomUUID().toString().take(6).uppercase()}",
+                        requiredSigs = 3,
+                        collectedSigs = 1,
+                        remainingSigs = 2,
+                        message = "Cuenta multi-firma (3 Firmas requeridas). Firma 1 de 3 registrada por el servidor. Acerque la tarjeta del 2do firmante.",
+                        userBalance = 250000L
+                    )
+                    Result.success(sim)
+                } else if (isMultisig2) {
+                    val sim = PaymentResultDecrypted(
+                        status = "pending_multisig",
+                        transactionId = "TX-MS2-${UUID.randomUUID().toString().take(6).uppercase()}",
+                        pendingId = "PENDING-MS2-${UUID.randomUUID().toString().take(6).uppercase()}",
+                        requiredSigs = 2,
+                        collectedSigs = 1,
+                        remainingSigs = 1,
+                        message = "Cuenta multi-firma (2 Firmas requeridas). Firma 1 de 2 registrada por el servidor. Acerque la tarjeta del 2do firmante.",
+                        userBalance = 250000L
+                    )
+                    Result.success(sim)
+                } else {
                     val simulatedResult = PaymentResultDecrypted(
                         status = "approved",
                         transactionId = UUID.randomUUID().toString(),
@@ -711,37 +795,7 @@ class PosRepository(
                         )
                     )
                     Result.success(simulatedResult)
-                } else {
-                    val errorBodyStr = response.errorBody()?.string().orEmpty()
-                    val serverMsg = try {
-                        val jsonObj = org.json.JSONObject(errorBodyStr)
-                        jsonObj.optString("error", jsonObj.optString("message", jsonObj.optString("detail", "Error del servidor (HTTP ${response.code()})")))
-                    } catch (e: Exception) {
-                        if (errorBodyStr.isNotBlank()) errorBodyStr else "Error al procesar cobro en el nodo (HTTP ${response.code()})"
-                    }
-                    Result.failure(Exception(serverMsg))
                 }
-            }
-        } catch (e: Exception) {
-            if (apiClient.isDemoNode) {
-                // Modo Demo: Simulación aún en caso de error de red o timeout
-                val simulatedResult = PaymentResultDecrypted(
-                    status = "approved",
-                    transactionId = UUID.randomUUID().toString(),
-                    message = "Transacción simulada aprobada (Modo Demo)",
-                    userBalance = 180000L
-                )
-                transactionDao.insertTransaction(
-                    TransactionEntity(
-                        id = simulatedResult.transactionId!!,
-                        amount = amountMicroUnits,
-                        paymentMethod = "nfc_single",
-                        status = "approved",
-                        cardUid = cardUid,
-                        receiptNumber = "NFC-${UUID.randomUUID().toString().take(8).uppercase()}"
-                    )
-                )
-                Result.success(simulatedResult)
             } else {
                 Result.failure(Exception("Error al procesar cobro NFC: ${e.localizedMessage}"))
             }
@@ -950,19 +1004,103 @@ class PosRepository(
                     status = "approved",
                     message = "Firma registrada"
                 )
+                if (result.status == "approved" || result.remainingSigs == 0) {
+                    transactionDao.insertTransaction(
+                        TransactionEntity(
+                            id = result.transactionId ?: pendingPaymentId,
+                            amount = 0L,
+                            paymentMethod = "nfc_multisig",
+                            status = "approved",
+                            cardUid = cardUid,
+                            receiptNumber = "MS-${UUID.randomUUID().toString().take(8).uppercase()}"
+                        )
+                    )
+                }
                 Result.success(result)
             } else {
-                Result.success(
-                    PaymentResultDecrypted(
-                        status = "approved",
-                        transactionId = pendingPaymentId,
-                        message = "Firma registrada exitosamente",
-                        remainingSigs = 0
-                    )
-                )
+                if (apiClient.isDemoNode) {
+                    // Modo Demo: simular respuesta de firma multisig
+                    val is3SigsFlow = pendingPaymentId.contains("MS3") || cardUid.contains("3SIG") || cardUid.contains("3F")
+                    val isFirm2Of3 = is3SigsFlow && (cardUid.contains("2") || cardUid.contains("FIRM2") || cardUid.contains("SIG2"))
+                    if (isFirm2Of3) {
+                        Result.success(
+                            PaymentResultDecrypted(
+                                status = "pending_multisig",
+                                transactionId = pendingPaymentId,
+                                pendingId = pendingPaymentId,
+                                requiredSigs = 3,
+                                collectedSigs = 2,
+                                remainingSigs = 1,
+                                message = "Firma 2 de 3 validada por el servidor. Acerque la tarjeta del 3er firmante."
+                            )
+                        )
+                    } else {
+                        val finalRes = PaymentResultDecrypted(
+                            status = "approved",
+                            transactionId = pendingPaymentId,
+                            message = "¡Todas las firmas requeridas han sido validadas por el servidor! Pago multi-firma aprobado con éxito.",
+                            remainingSigs = 0,
+                            requiredSigs = if (is3SigsFlow) 3 else 2,
+                            collectedSigs = if (is3SigsFlow) 3 else 2
+                        )
+                        transactionDao.insertTransaction(
+                            TransactionEntity(
+                                id = pendingPaymentId,
+                                amount = 0L,
+                                paymentMethod = "nfc_multisig",
+                                status = "approved",
+                                cardUid = cardUid,
+                                receiptNumber = "MS-${UUID.randomUUID().toString().take(8).uppercase()}"
+                            )
+                        )
+                        Result.success(finalRes)
+                    }
+                } else {
+                    val err = response.errorBody()?.string() ?: "Error al firmar pago multi-firma (HTTP ${response.code()})"
+                    Result.failure(Exception(err))
+                }
             }
         } catch (e: Exception) {
-            Result.failure(Exception("Error al firmar con multi-firma: ${e.localizedMessage}"))
+            if (apiClient.isDemoNode) {
+                // Modo Demo: simular respuesta de firma multisig en caso de error de red
+                val is3SigsFlow = pendingPaymentId.contains("MS3") || cardUid.contains("3SIG") || cardUid.contains("3F")
+                val isFirm2Of3 = is3SigsFlow && (cardUid.contains("2") || cardUid.contains("FIRM2") || cardUid.contains("SIG2"))
+                if (isFirm2Of3) {
+                    Result.success(
+                        PaymentResultDecrypted(
+                            status = "pending_multisig",
+                            transactionId = pendingPaymentId,
+                            pendingId = pendingPaymentId,
+                            requiredSigs = 3,
+                            collectedSigs = 2,
+                            remainingSigs = 1,
+                            message = "Firma 2 de 3 validada por el servidor. Acerque la tarjeta del 3er firmante."
+                        )
+                    )
+                } else {
+                    val finalRes = PaymentResultDecrypted(
+                        status = "approved",
+                        transactionId = pendingPaymentId,
+                        message = "¡Todas las firmas requeridas han sido validadas por el servidor! Pago multi-firma aprobado con éxito.",
+                        remainingSigs = 0,
+                        requiredSigs = if (is3SigsFlow) 3 else 2,
+                        collectedSigs = if (is3SigsFlow) 3 else 2
+                    )
+                    transactionDao.insertTransaction(
+                        TransactionEntity(
+                            id = pendingPaymentId,
+                            amount = 0L,
+                            paymentMethod = "nfc_multisig",
+                            status = "approved",
+                            cardUid = cardUid,
+                            receiptNumber = "MS-${UUID.randomUUID().toString().take(8).uppercase()}"
+                        )
+                    )
+                    Result.success(finalRes)
+                }
+            } else {
+                Result.failure(Exception("Error de conexión al firmar pago multi-firma: ${e.localizedMessage}"))
+            }
         }
     }
 
@@ -973,6 +1111,25 @@ class PosRepository(
             if (res.isSuccessful && res.body() != null) {
                 Result.success(res.body()!!)
             } else {
+                if (apiClient.isDemoNode) {
+                    // Modo Demo: simular estado pendiente
+                    Result.success(
+                        MultisigStatusResponse(
+                            id = pendingId,
+                            status = "pending",
+                            requiredSignatures = 2,
+                            collectedCount = 1,
+                            remainingSigs = 1,
+                            remainingSeconds = 480L
+                        )
+                    )
+                } else {
+                    Result.failure(Exception("Error al consultar estado multi-firma (HTTP ${res.code()})"))
+                }
+            }
+        } catch (e: Exception) {
+            if (apiClient.isDemoNode) {
+                // Modo Demo: simular estado pendiente en caso de error de red
                 Result.success(
                     MultisigStatusResponse(
                         id = pendingId,
@@ -983,18 +1140,9 @@ class PosRepository(
                         remainingSeconds = 480L
                     )
                 )
+            } else {
+                Result.failure(Exception("Error de conexión al consultar estado multi-firma: ${e.localizedMessage}"))
             }
-        } catch (e: Exception) {
-            Result.success(
-                MultisigStatusResponse(
-                    id = pendingId,
-                    status = "pending",
-                    requiredSignatures = 2,
-                    collectedCount = 1,
-                    remainingSigs = 1,
-                    remainingSeconds = 480L
-                )
-            )
         }
     }
 

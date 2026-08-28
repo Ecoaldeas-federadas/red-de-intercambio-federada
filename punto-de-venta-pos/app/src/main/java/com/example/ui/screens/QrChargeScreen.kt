@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -28,6 +29,7 @@ import com.example.ui.components.KioskAmountDisplay
 import com.example.ui.components.KioskNumericKeypad
 import com.example.ui.theme.*
 import com.example.ui.util.CurrencyHelper
+import com.example.ui.util.FeedbackHelper
 import com.example.ui.util.QrCodeHelper
 import com.example.ui.viewmodel.PosScreen
 import com.example.ui.viewmodel.PosViewModel
@@ -39,6 +41,7 @@ fun QrChargeScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     val isChargeGenerated = (uiState.qrChargeResponse != null && uiState.qrPayUrl != null)
     val isPaid = (uiState.qrStatus == "paid")
     val isExpired = (uiState.qrStatus == "expired" || (isChargeGenerated && uiState.qrRemainingSeconds <= 0 && !isPaid))
@@ -68,6 +71,7 @@ fun QrChargeScreen(
                 navigationIcon = {
                     IconButton(
                         onClick = {
+                            FeedbackHelper.playButtonClick(context)
                             if (isChargeGenerated && !isPaid) {
                                 viewModel.cancelQrCharge()
                             }
@@ -167,7 +171,10 @@ fun QrChargeScreen(
                 )
 
                 Button(
-                    onClick = { viewModel.startQrCharge() },
+                    onClick = {
+                        FeedbackHelper.playButtonClick(context)
+                        viewModel.startQrCharge()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(60.dp)
@@ -275,6 +282,7 @@ fun QrChargeScreen(
 
                         Button(
                             onClick = {
+                                FeedbackHelper.playButtonClick(context)
                                 viewModel.resetQrCharge()
                                 viewModel.navigateTo(PosScreen.Dashboard)
                             },
@@ -350,7 +358,10 @@ fun QrChargeScreen(
                         HorizontalDivider(color = PosSlate800)
 
                         Button(
-                            onClick = { viewModel.startQrCharge() },
+                            onClick = {
+                                FeedbackHelper.playButtonClick(context)
+                                viewModel.startQrCharge()
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(54.dp),
@@ -363,7 +374,10 @@ fun QrChargeScreen(
                         }
 
                         OutlinedButton(
-                            onClick = { viewModel.cancelQrCharge() },
+                            onClick = {
+                                FeedbackHelper.playButtonClick(context)
+                                viewModel.cancelQrCharge()
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp),
@@ -644,7 +658,10 @@ fun QrChargeScreen(
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         OutlinedButton(
-                                            onClick = { viewModel.simulateQrApproval(1) },
+                                            onClick = {
+                                                FeedbackHelper.playButtonClick(context)
+                                                viewModel.simulateQrApproval(1)
+                                            },
                                             modifier = Modifier
                                                 .weight(1f)
                                                 .testTag("sim_qr_approve_btn"),
@@ -655,7 +672,10 @@ fun QrChargeScreen(
                                         }
 
                                         OutlinedButton(
-                                            onClick = { viewModel.simulateQrMultisigSignature() },
+                                            onClick = {
+                                                FeedbackHelper.playButtonClick(context)
+                                                viewModel.simulateQrMultisigSignature()
+                                            },
                                             modifier = Modifier
                                                 .weight(1f)
                                                 .testTag("sim_qr_multisig_btn"),
@@ -672,6 +692,7 @@ fun QrChargeScreen(
                         // CANCEL BUTTON (Funcional y Directo)
                         Button(
                             onClick = {
+                                FeedbackHelper.playButtonClick(context)
                                 viewModel.cancelQrCharge()
                             },
                             modifier = Modifier

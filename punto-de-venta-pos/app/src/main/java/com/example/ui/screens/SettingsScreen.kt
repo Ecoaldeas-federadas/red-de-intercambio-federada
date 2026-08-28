@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -30,6 +31,7 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val terminalConfig by viewModel.terminalConfig.collectAsState()
     var urlInput by remember(uiState.serverUrl) { mutableStateOf(uiState.serverUrl) }
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -43,7 +45,10 @@ fun SettingsScreen(
                 },
                 navigationIcon = {
                     IconButton(
-                        onClick = { viewModel.navigateTo(PosScreen.Dashboard) },
+                        onClick = {
+                            FeedbackHelper.playButtonClick(context)
+                            viewModel.navigateTo(PosScreen.Dashboard)
+                        },
                         modifier = Modifier.testTag("settings_back_btn")
                     ) {
                         Icon(
@@ -161,6 +166,7 @@ fun SettingsScreen(
                     ) {
                         OutlinedButton(
                             onClick = {
+                                FeedbackHelper.playButtonClick(context)
                                 urlInput = "https://feria.loanstly.com/main"
                                 viewModel.updateServerUrl("https://feria.loanstly.com/main")
                             },
@@ -182,6 +188,7 @@ fun SettingsScreen(
 
                         OutlinedButton(
                             onClick = {
+                                FeedbackHelper.playButtonClick(context)
                                 urlInput = "https://feria.loanstly.com/demo"
                                 viewModel.updateServerUrl("https://feria.loanstly.com/demo")
                             },
@@ -230,6 +237,7 @@ fun SettingsScreen(
 
                     Button(
                         onClick = {
+                            FeedbackHelper.playButtonClick(context)
                             viewModel.updateServerUrl(urlInput)
                         },
                         enabled = !uiState.isLoading && urlInput.isNotBlank(),
@@ -300,7 +308,10 @@ fun SettingsScreen(
                         )
 
                         Button(
-                            onClick = { viewModel.navigateTo(PosScreen.RegisterTerminal) },
+                            onClick = {
+                                FeedbackHelper.playButtonClick(context)
+                                viewModel.navigateTo(PosScreen.RegisterTerminal)
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(48.dp)
@@ -316,7 +327,10 @@ fun SettingsScreen(
 
                     // ABRIR/CERRAR PUNTO - protegido con PIN
                     Button(
-                        onClick = { viewModel.navigateTo(PosScreen.ShiftManagement) },
+                        onClick = {
+                            FeedbackHelper.playButtonClick(context)
+                            viewModel.navigateTo(PosScreen.ShiftManagement)
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp)
@@ -403,8 +417,8 @@ fun SettingsScreen(
 
             // FEEDBACK SOUND & HAPTIC CONFIGURATION & TEST
             var soundOn by remember { mutableStateOf(FeedbackHelper.isSoundEnabled) }
+            var soundVol by remember { mutableFloatStateOf(FeedbackHelper.soundVolume.toFloat()) }
             var vibOn by remember { mutableStateOf(FeedbackHelper.isVibrationEnabled) }
-            val context = androidx.compose.ui.platform.LocalContext.current
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -424,7 +438,7 @@ fun SettingsScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Configure la retroalimentación sonora y vibración al pulsar teclas numéricas y procesar transacciones.",
+                        text = "Configure el volumen y la retroalimentación sonora para las teclas numéricas, botones de navegación y transacciones.",
                         style = MaterialTheme.typography.bodySmall,
                         color = PosSlate300
                     )
@@ -437,14 +451,14 @@ fun SettingsScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                             Icon(
-                                imageVector = if (soundOn) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                                imageVector = if (soundOn && soundVol > 0) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
                                 contentDescription = null,
-                                tint = if (soundOn) PosPrimaryLight else PosSlate600
+                                tint = if (soundOn && soundVol > 0) PosPrimaryLight else PosSlate600
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text("Sonido al presionar botones", style = MaterialTheme.typography.bodyMedium, color = PosSlate100, fontWeight = FontWeight.SemiBold)
-                                Text("Emite un tono al tocar números y confirmar", style = MaterialTheme.typography.bodySmall, color = PosSlate400)
+                                Text("Emite tonos en teclado numérico y botones generales", style = MaterialTheme.typography.bodySmall, color = PosSlate400)
                             }
                         }
                         Switch(
@@ -459,6 +473,69 @@ fun SettingsScreen(
                                 checkedTrackColor = PosPrimaryBlue.copy(alpha = 0.5f)
                             )
                         )
+                    }
+
+                    // Volume Slider (Enabled if sound is ON)
+                    if (soundOn) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = when {
+                                            soundVol <= 0f -> Icons.Default.VolumeMute
+                                            soundVol < 50f -> Icons.Default.VolumeDown
+                                            else -> Icons.Default.VolumeUp
+                                        },
+                                        contentDescription = null,
+                                        tint = PosPrimaryLight,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = "Volumen del teclado y alertas",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = PosSlate200,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                                Text(
+                                    text = "${soundVol.toInt()}%",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = PosPrimaryLight,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            Slider(
+                                value = soundVol,
+                                onValueChange = { newVal ->
+                                    soundVol = newVal
+                                    FeedbackHelper.setSoundVolume(context, newVal.toInt())
+                                },
+                                onValueChangeFinished = {
+                                    FeedbackHelper.playKeyClick(context)
+                                },
+                                valueRange = 0f..100f,
+                                steps = 19,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = PosPrimaryLight,
+                                    activeTrackColor = PosPrimaryBlue,
+                                    inactiveTrackColor = PosSlate700
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
 
                     HorizontalDivider(color = PosSlate800)
@@ -478,7 +555,7 @@ fun SettingsScreen(
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text("Vibración háptica al presionar", style = MaterialTheme.typography.bodyMedium, color = PosSlate100, fontWeight = FontWeight.SemiBold)
-                                Text("Vibra suavemente al tocar teclas numéricas", style = MaterialTheme.typography.bodySmall, color = PosSlate400)
+                                Text("Vibra suavemente al tocar teclas y botones", style = MaterialTheme.typography.bodySmall, color = PosSlate400)
                             }
                         }
                         Switch(
@@ -507,7 +584,15 @@ fun SettingsScreen(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(10.dp)
                         ) {
-                            Text("Clic Tecla", fontSize = 11.sp)
+                            Text("Clic Teclado", fontSize = 11.sp)
+                        }
+                        OutlinedButton(
+                            onClick = { FeedbackHelper.playButtonClick(context) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PosPrimaryLight)
+                        ) {
+                            Text("Clic Botón", fontSize = 11.sp)
                         }
                         OutlinedButton(
                             onClick = { FeedbackHelper.playCardDetected(context) },
@@ -516,6 +601,12 @@ fun SettingsScreen(
                         ) {
                             Text("Bip Tarjeta", fontSize = 11.sp)
                         }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         OutlinedButton(
                             onClick = { FeedbackHelper.playCardScanError(context) },
                             modifier = Modifier.weight(1f),
@@ -524,12 +615,6 @@ fun SettingsScreen(
                         ) {
                             Text("Error Tarjeta", fontSize = 11.sp)
                         }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
                         OutlinedButton(
                             onClick = { FeedbackHelper.playPaymentApprovedCoins(context) },
                             modifier = Modifier.weight(1.2f),
@@ -538,7 +623,7 @@ fun SettingsScreen(
                         ) {
                             Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(14.dp), tint = PosSuccessGreenLight)
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Pago Aprobado (Monedas)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("Pago (Monedas)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                         OutlinedButton(
                             onClick = { FeedbackHelper.playPaymentError(context) },

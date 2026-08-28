@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -24,6 +25,7 @@ import com.example.data.api.DEFAULT_DOCUMENT_TYPES
 import com.example.ui.components.*
 import com.example.ui.theme.*
 import com.example.ui.util.CurrencyHelper
+import com.example.ui.util.FeedbackHelper
 import com.example.ui.viewmodel.PosScreen
 import com.example.ui.viewmodel.PosViewModel
 
@@ -34,7 +36,7 @@ fun NfcChargeScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     val isCardDetected = !uiState.detectedCardUid.isNullOrBlank()
     val isPaymentApproved = (uiState.nfcPaymentResult?.status == "approved")
 
@@ -68,6 +70,7 @@ fun NfcChargeScreen(
                 navigationIcon = {
                     IconButton(
                         onClick = {
+                            FeedbackHelper.playButtonClick(context)
                             viewModel.resetNfcPaymentState()
                             viewModel.navigateTo(PosScreen.Dashboard)
                         },
@@ -143,6 +146,7 @@ fun NfcChargeScreen(
                         )
                         Button(
                             onClick = {
+                                FeedbackHelper.playButtonClick(context)
                                 try {
                                     val intent = android.content.Intent(android.provider.Settings.ACTION_NFC_SETTINGS)
                                     context.startActivity(intent)
@@ -297,6 +301,7 @@ fun NfcChargeScreen(
                         ) {
                             OutlinedButton(
                                 onClick = {
+                                    FeedbackHelper.playButtonClick(context)
                                     viewModel.resetNfcPaymentState()
                                     nfcStep = "amount_input"
                                 },
@@ -312,6 +317,7 @@ fun NfcChargeScreen(
 
                             Button(
                                 onClick = {
+                                    FeedbackHelper.playButtonClick(context)
                                     viewModel.resetNfcPaymentState()
                                     viewModel.navigateTo(PosScreen.Dashboard)
                                 },
@@ -324,6 +330,130 @@ fun NfcChargeScreen(
                             ) {
                                 Text("Finalizar", color = PosNavyDark, fontWeight = FontWeight.Bold)
                             }
+                        }
+                    }
+                }
+            } else if (uiState.isMultisigActive && !isCardDetected) {
+                // --- MULTI-SIG WAITING FOR NEXT SIGNER CARD ---
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = PosSlate900),
+                    shape = RoundedCornerShape(20.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, PosGold.copy(alpha = 0.5f))
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        // Header info
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Group, contentDescription = null, tint = PosGoldLight, modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "CUENTA MULTI-FIRMA",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = PosGoldLight,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Text(
+                                text = "Firma ${uiState.multisigCollectedSigs} de ${uiState.multisigRequiredSigs}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = PosSlate200,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        // Countdown
+                        val min = uiState.multisigRemainingSeconds / 60
+                        val sec = uiState.multisigRemainingSeconds % 60
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = PosSlate800),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Timer, contentDescription = null, tint = PosGoldLight, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Tiempo restante: ${String.format("%02d:%02d", min, sec)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = PosGoldLight,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+
+                        NfcWaveAnimation(isCardDetected = false)
+
+                        Text(
+                            text = "ACERQUE LA TARJETA DEL FIRMANTE ${uiState.multisigCollectedSigs + 1} de ${uiState.multisigRequiredSigs}",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = PosGoldLight,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Text(
+                            text = "La firma anterior fue validada por el servidor. Coloque la tarjeta del siguiente titular o firmante autorizado en el reverso del dispositivo.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = PosSlate300,
+                            textAlign = TextAlign.Center
+                        )
+
+                        // SIMULATION BUTTON FOR NEXT SIGNER (DEMO NODE)
+                        if (uiState.isDemoNode) {
+                            val nextSignerIndex = uiState.multisigCollectedSigs + 1
+                            Button(
+                                onClick = {
+                                    FeedbackHelper.playButtonClick(context)
+                                    val simUid = if (uiState.multisigRequiredSigs == 3) {
+                                        "CARD-MULTISIG-3F-FIRM$nextSignerIndex"
+                                    } else {
+                                        "CARD-MULTISIG-2F-FIRM$nextSignerIndex"
+                                    }
+                                    viewModel.onCardTapped(simUid, isDesfire = true)
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp)
+                                    .testTag("sim_next_signer_btn"),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = PosGold)
+                            ) {
+                                Icon(Icons.Default.Contactless, contentDescription = null, tint = PosNavyDark)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Simular Tarjeta Firmante $nextSignerIndex de ${uiState.multisigRequiredSigs}",
+                                    color = PosNavyDark,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                FeedbackHelper.playButtonClick(context)
+                                viewModel.resetNfcPaymentState()
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(46.dp)
+                                .testTag("nfc_cancel_multisig_btn"),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PosErrorRedLight)
+                        ) {
+                            Text("Cancelar Pago Multi-Firma")
                         }
                     }
                 }
@@ -347,7 +477,10 @@ fun NfcChargeScreen(
                         )
 
                         Button(
-                            onClick = { nfcStep = "confirm" },
+                            onClick = {
+                                FeedbackHelper.playButtonClick(context)
+                                nfcStep = "confirm"
+                            },
                             enabled = hasAmount,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -379,7 +512,10 @@ fun NfcChargeScreen(
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             OutlinedButton(
-                                onClick = { nfcStep = "amount_input" },
+                                onClick = {
+                                    FeedbackHelper.playButtonClick(context)
+                                    nfcStep = "amount_input"
+                                },
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(56.dp)
@@ -391,7 +527,10 @@ fun NfcChargeScreen(
                             }
 
                             Button(
-                                onClick = { nfcStep = "tap_card" },
+                                onClick = {
+                                    FeedbackHelper.playButtonClick(context)
+                                    nfcStep = "tap_card"
+                                },
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(56.dp)
@@ -444,30 +583,78 @@ fun NfcChargeScreen(
 
                                 // SIMULATION BUTTONS - ONLY ON DEMO NODE (/demo)
                                 if (uiState.isDemoNode) {
-                                    Row(
+                                    Column(
                                         modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        verticalArrangement = Arrangement.spacedBy(6.dp)
                                     ) {
-                                        OutlinedButton(
-                                            onClick = { viewModel.onCardTapped("AABBCCDDEEFF", isDesfire = true) },
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .testTag("sim_desfire_card_btn"),
-                                            shape = RoundedCornerShape(12.dp),
-                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PosPrimaryLight)
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            Text("Simular DESFire", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            OutlinedButton(
+                                                onClick = {
+                                                    FeedbackHelper.playButtonClick(context)
+                                                    viewModel.onCardTapped("AABBCCDDEEFF", isDesfire = true)
+                                                },
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .testTag("sim_desfire_card_btn"),
+                                                shape = RoundedCornerShape(12.dp),
+                                                colors = ButtonDefaults.outlinedButtonColors(contentColor = PosPrimaryLight)
+                                            ) {
+                                                Text("1 Firma DESFire", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            }
+
+                                            OutlinedButton(
+                                                onClick = {
+                                                    FeedbackHelper.playButtonClick(context)
+                                                    viewModel.onCardTapped("112233445566", isDesfire = false)
+                                                },
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .testTag("sim_uid_card_btn"),
+                                                shape = RoundedCornerShape(12.dp),
+                                                colors = ButtonDefaults.outlinedButtonColors(contentColor = PosGoldLight)
+                                            ) {
+                                                Text("1 Firma UID Clásica", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            }
                                         }
 
-                                        OutlinedButton(
-                                            onClick = { viewModel.onCardTapped("112233445566", isDesfire = false) },
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .testTag("sim_uid_card_btn"),
-                                            shape = RoundedCornerShape(12.dp),
-                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PosGoldLight)
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            Text("Simular UID Clásica", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            OutlinedButton(
+                                                onClick = {
+                                                    FeedbackHelper.playButtonClick(context)
+                                                    viewModel.onCardTapped("CARD-MULTISIG-2F-FIRM1", isDesfire = true)
+                                                },
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .testTag("sim_multisig_2f_btn"),
+                                                shape = RoundedCornerShape(12.dp),
+                                                colors = ButtonDefaults.outlinedButtonColors(contentColor = PosGold)
+                                            ) {
+                                                Icon(Icons.Default.Group, contentDescription = null, modifier = Modifier.size(14.dp), tint = PosGold)
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Multifirma (2 Firmas)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            }
+
+                                            OutlinedButton(
+                                                onClick = {
+                                                    FeedbackHelper.playButtonClick(context)
+                                                    viewModel.onCardTapped("CARD-MULTISIG-3F-FIRM1", isDesfire = true)
+                                                },
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .testTag("sim_multisig_3f_btn"),
+                                                shape = RoundedCornerShape(12.dp),
+                                                colors = ButtonDefaults.outlinedButtonColors(contentColor = PosGold)
+                                            ) {
+                                                Icon(Icons.Default.Group, contentDescription = null, modifier = Modifier.size(14.dp), tint = PosGold)
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Multifirma (3 Firmas)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            }
                                         }
                                     }
                                 }
@@ -476,7 +663,10 @@ fun NfcChargeScreen(
 
                         // Back button to return to amount input
                         OutlinedButton(
-                            onClick = { nfcStep = "amount_input" },
+                            onClick = {
+                                FeedbackHelper.playButtonClick(context)
+                                nfcStep = "amount_input"
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(48.dp)
@@ -497,7 +687,7 @@ fun NfcChargeScreen(
                     colors = CardDefaults.cardColors(containerColor = PosSlate900),
                     shape = RoundedCornerShape(20.dp),
                     border = CardDefaults.outlinedCardBorder().copy(
-                        brush = androidx.compose.ui.graphics.SolidColor(PosPrimaryLight)
+                        brush = androidx.compose.ui.graphics.SolidColor(if (uiState.isMultisigActive) PosGold else PosPrimaryLight)
                     )
                 ) {
                     Column(
@@ -512,27 +702,48 @@ fun NfcChargeScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(imageVector = Icons.Default.CreditCard, contentDescription = null, tint = PosPrimaryLight)
+                                Icon(
+                                    imageVector = if (uiState.isMultisigActive) Icons.Default.Group else Icons.Default.CreditCard,
+                                    contentDescription = null,
+                                    tint = if (uiState.isMultisigActive) PosGoldLight else PosPrimaryLight
+                                )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Column {
                                     Text(
-                                        text = "Tarjeta: ${uiState.detectedCardUid}",
+                                        text = if (uiState.isMultisigActive) {
+                                            "Firmante ${uiState.multisigCollectedSigs + 1} de ${uiState.multisigRequiredSigs}"
+                                        } else {
+                                            "Tarjeta: ${uiState.detectedCardUid}"
+                                        },
                                         style = MaterialTheme.typography.titleMedium,
                                         color = PosSlate100,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = if (uiState.detectedCardType == "desfire") "DESFire EV3 (Segura Criptográfica)" else "UID Estándar",
+                                        text = if (uiState.isMultisigActive) {
+                                            "UID: ${uiState.detectedCardUid}"
+                                        } else if (uiState.detectedCardType == "desfire") {
+                                            "DESFire EV3 (Segura Criptográfica)"
+                                        } else {
+                                            "UID Estándar"
+                                        },
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = if (uiState.detectedCardType == "desfire") PosSuccessGreenLight else PosWarningAmberLight
+                                        color = if (uiState.isMultisigActive) PosGoldLight else if (uiState.detectedCardType == "desfire") PosSuccessGreenLight else PosWarningAmberLight
                                     )
                                 }
                             }
 
                             TextButton(
-                                onClick = { viewModel.navigateTo(PosScreen.NfcCharge) }
+                                onClick = {
+                                    FeedbackHelper.playButtonClick(context)
+                                    if (uiState.isMultisigActive) {
+                                        viewModel.resetNfcPaymentState()
+                                    } else {
+                                        viewModel.navigateTo(PosScreen.NfcCharge)
+                                    }
+                                }
                             ) {
-                                Text("Cambiar", color = PosSlate300)
+                                Text("Cancelar", color = PosSlate300)
                             }
                         }
 
@@ -612,11 +823,16 @@ fun NfcChargeScreen(
                         PinInputPad(
                             pin = uiState.customerPin,
                             onPinChange = { viewModel.setCustomerPin(it) },
-                            title = if (uiState.isMultisigActive) "PIN del Firmante Autorizado" else "PIN del Cliente"
+                            title = if (uiState.isMultisigActive) {
+                                "PIN del Firmante ${uiState.multisigCollectedSigs + 1} de ${uiState.multisigRequiredSigs}"
+                            } else {
+                                "PIN del Cliente"
+                            }
                         )
 
                         Button(
                             onClick = {
+                                FeedbackHelper.playButtonClick(context)
                                 if (uiState.isMultisigActive) {
                                     viewModel.submitMultisigSigner(
                                         cardUid = uiState.detectedCardUid ?: "",
@@ -633,17 +849,32 @@ fun NfcChargeScreen(
                                 .height(58.dp)
                                 .testTag("process_nfc_btn"),
                             shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (uiState.isMultisigActive) PosGold else PosPrimaryBlue
+                            ),
                             enabled = !uiState.isLoading && uiState.customerPin.length == 4
                         ) {
                             if (uiState.isLoading) {
                                 CircularProgressIndicator(color = PosWhite, modifier = Modifier.size(24.dp))
                             } else {
-                                Icon(imageVector = Icons.Default.Lock, contentDescription = null)
+                                Icon(
+                                    imageVector = if (uiState.isMultisigActive) Icons.Default.VpnKey else Icons.Default.Lock,
+                                    contentDescription = null,
+                                    tint = if (uiState.isMultisigActive) PosNavyDark else PosWhite
+                                )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Text(
-                                    text = if (uiState.isMultisigActive) "Registrar Firma" else "Procesar Cobro Cifrado",
+                                    text = if (uiState.isMultisigActive) {
+                                        if (uiState.multisigCollectedSigs + 1 < uiState.multisigRequiredSigs) {
+                                            "Validar Firma ${uiState.multisigCollectedSigs + 1} de ${uiState.multisigRequiredSigs}"
+                                        } else {
+                                            "Validar Firma Final y Aprobar Pago"
+                                        }
+                                    } else {
+                                        "Procesar Cobro Cifrado"
+                                    },
                                     style = MaterialTheme.typography.titleMedium,
+                                    color = if (uiState.isMultisigActive) PosNavyDark else PosWhite,
                                     fontWeight = FontWeight.Bold
                                 )
                             }

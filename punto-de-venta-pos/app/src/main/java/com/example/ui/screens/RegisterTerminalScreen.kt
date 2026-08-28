@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.*
+import com.example.ui.util.FeedbackHelper
 import com.example.ui.viewmodel.PosScreen
 import com.example.ui.viewmodel.PosViewModel
 
@@ -61,7 +62,10 @@ fun RegisterTerminalScreen(
                 actions = {
                     if (terminalConfig?.isRegistered == true) {
                         TextButton(
-                            onClick = { viewModel.navigateTo(PosScreen.Login) },
+                            onClick = {
+                                FeedbackHelper.playButtonClick(context)
+                                viewModel.navigateTo(PosScreen.Login)
+                            },
                             modifier = Modifier.testTag("goto_login_top_btn")
                         ) {
                             Text("Ir al Login", color = PosPrimaryLight, fontWeight = FontWeight.Bold)
@@ -156,7 +160,10 @@ fun RegisterTerminalScreen(
                 if (terminalConfig?.terminalPublicKeyHex != null && terminalConfig?.isRegistered != true) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Button(
-                        onClick = { viewModel.retryVerification() },
+                        onClick = {
+                            FeedbackHelper.playButtonClick(context)
+                            viewModel.retryVerification()
+                        },
                         enabled = !uiState.isLoading,
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue),
@@ -246,6 +253,7 @@ fun RegisterTerminalScreen(
 
                     Button(
                         onClick = {
+                            FeedbackHelper.playButtonClick(context)
                             viewModel.updateServerUrl(nodeUrlInput)
                         },
                         modifier = Modifier
@@ -328,6 +336,7 @@ fun RegisterTerminalScreen(
                                 )
                                 IconButton(
                                     onClick = {
+                                        FeedbackHelper.playButtonClick(context)
                                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                         val clip = ClipData.newPlainText("Terminal Public Key", terminalConfig?.terminalPublicKeyHex ?: "")
                                         clipboard.setPrimaryClip(clip)
@@ -441,6 +450,7 @@ fun RegisterTerminalScreen(
 
                         Button(
                             onClick = {
+                                FeedbackHelper.playButtonClick(context)
                                 viewModel.completeRegistrationWithToken(regTokenInput)
                             },
                             enabled = !uiState.isLoading && regTokenInput.isNotBlank(),
@@ -473,7 +483,10 @@ fun RegisterTerminalScreen(
                                 color = PosSlate300
                             )
                             Button(
-                                onClick = { viewModel.startPairing() },
+                                onClick = {
+                                    FeedbackHelper.playButtonClick(context)
+                                    viewModel.startPairing()
+                                },
                                 enabled = !uiState.isLoading,
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -594,7 +607,10 @@ fun RegisterTerminalScreen(
                                     }
                                     Spacer(modifier = Modifier.height(16.dp))
                                     OutlinedButton(
-                                        onClick = { viewModel.cancelPairing() },
+                                        onClick = {
+                                            FeedbackHelper.playButtonClick(context)
+                                            viewModel.cancelPairing()
+                                        },
                                         modifier = Modifier.fillMaxWidth(),
                                         shape = RoundedCornerShape(12.dp),
                                         colors = ButtonDefaults.outlinedButtonColors(contentColor = PosErrorRedLight)
@@ -635,7 +651,10 @@ fun RegisterTerminalScreen(
                                     )
                                     Spacer(modifier = Modifier.height(16.dp))
                                     Button(
-                                        onClick = { viewModel.startPairing() },
+                                        onClick = {
+                                            FeedbackHelper.playButtonClick(context)
+                                            viewModel.startPairing()
+                                        },
                                         modifier = Modifier.fillMaxWidth(),
                                         shape = RoundedCornerShape(12.dp),
                                         colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue)
@@ -676,7 +695,10 @@ fun RegisterTerminalScreen(
                                     )
                                     Spacer(modifier = Modifier.height(16.dp))
                                     Button(
-                                        onClick = { viewModel.startPairing() },
+                                        onClick = {
+                                            FeedbackHelper.playButtonClick(context)
+                                            viewModel.startPairing()
+                                        },
                                         modifier = Modifier.fillMaxWidth(),
                                         shape = RoundedCornerShape(12.dp),
                                         colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue)
@@ -697,6 +719,7 @@ fun RegisterTerminalScreen(
             ) {
                 OutlinedButton(
                     onClick = {
+                        FeedbackHelper.playButtonClick(context)
                         viewModel.resetTerminalRegistration()
                     },
                     modifier = Modifier
@@ -713,6 +736,7 @@ fun RegisterTerminalScreen(
 
                 Button(
                     onClick = {
+                        FeedbackHelper.playButtonClick(context)
                         viewModel.navigateTo(PosScreen.Login)
                     },
                     modifier = Modifier

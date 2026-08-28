@@ -165,9 +165,13 @@ object FeedbackHelper {
     private var toneGen: ToneGenerator? = null
     private const val PREFS_NAME = "pos_feedback_prefs"
     private const val KEY_SOUND_ENABLED = "sound_enabled"
+    private const val KEY_SOUND_VOLUME = "sound_volume"
     private const val KEY_VIBRATION_ENABLED = "vibration_enabled"
 
     var isSoundEnabled: Boolean = true
+        private set
+
+    var soundVolume: Int = 80 // 0 to 100
         private set
 
     var isVibrationEnabled: Boolean = true
@@ -179,7 +183,7 @@ object FeedbackHelper {
 
     init {
         try {
-            toneGen = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
+            toneGen = ToneGenerator(AudioManager.STREAM_MUSIC, 80)
         } catch (e: Exception) {
             // Tone generator fallback
         }
@@ -189,7 +193,12 @@ object FeedbackHelper {
         if (!isInitialized) {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             isSoundEnabled = prefs.getBoolean(KEY_SOUND_ENABLED, true)
+            soundVolume = prefs.getInt(KEY_SOUND_VOLUME, 80).coerceIn(0, 100)
             isVibrationEnabled = prefs.getBoolean(KEY_VIBRATION_ENABLED, true)
+            try {
+                toneGen?.release()
+                toneGen = ToneGenerator(AudioManager.STREAM_MUSIC, soundVolume)
+            } catch (e: Exception) {}
             isInitialized = true
         }
     }
@@ -202,6 +211,19 @@ object FeedbackHelper {
             .apply()
     }
 
+    fun setSoundVolume(context: Context, volume: Int) {
+        initPreferences(context)
+        soundVolume = volume.coerceIn(0, 100)
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putInt(KEY_SOUND_VOLUME, soundVolume)
+            .apply()
+        try {
+            toneGen?.release()
+            toneGen = ToneGenerator(AudioManager.STREAM_MUSIC, soundVolume)
+        } catch (e: Exception) {}
+    }
+
     fun setVibrationEnabled(context: Context, enabled: Boolean) {
         isVibrationEnabled = enabled
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -211,6 +233,26 @@ object FeedbackHelper {
     }
 
     // --- PCM SYNTHESIZED BUFFERS ---
+
+    /**
+     * Synthesizes Subtle Snappy UI Button Tap (Para botones de acción, aceptar, confirmar, tabs)
+     */
+    private val buttonClickPcm: ShortArray by lazy {
+        val duration = 0.035 // 35ms
+        val totalSamples = (SAMPLE_RATE * duration).toInt()
+        val buffer = ShortArray(totalSamples)
+        val twoPi = 2.0 * Math.PI
+
+        for (i in 0 until totalSamples) {
+            val t = i.toDouble() / SAMPLE_RATE
+            val env = exp(-t / 0.007)
+            val freq = 1350.0 - (t * 15000.0) // 1350 down to 825
+            val sample = (sin(twoPi * freq * t) * 0.75 + sin(twoPi * (freq * 1.8) * t) * 0.25) * env
+            val clamped = (sample * 25000.0).coerceIn(-32767.0, 32767.0)
+            buffer[i] = clamped.toInt().toShort()
+        }
+        buffer
+    }
 
     /**
      * Synthesizes Cash Register Drawer Open & Cascading Shower of Falling Gold Coins
@@ -348,7 +390,14 @@ object FeedbackHelper {
     }
 
     private fun playPcm(pcm: ShortArray) {
-        if (!isSoundEnabled) return
+        if (!isSoundEnabled || soundVolume <= 0) return
+        val volFactor = (soundVolume.toFloat() / 100f).coerceIn(0f, 1f)
+        val scaledPcm = if (volFactor >= 0.99f) {
+            pcm
+        } else {
+            ShortArray(pcm.size) { (pcm[it] * volFactor).toInt().toShort() }
+        }
+
         audioExecutor.execute {
             try {
                 val audioTrack = AudioTrack.Builder()
@@ -365,13 +414,13 @@ object FeedbackHelper {
                             .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                             .build()
                     )
-                    .setBufferSizeInBytes(pcm.size * 2)
+                    .setBufferSizeInBytes(scaledPcm.size * 2)
                     .setTransferMode(AudioTrack.MODE_STATIC)
                     .build()
 
-                audioTrack.write(pcm, 0, pcm.size)
+                audioTrack.write(scaledPcm, 0, scaledPcm.size)
                 audioTrack.play()
-                val durationMs = (pcm.size.toDouble() / SAMPLE_RATE * 1000).toLong() + 40
+                val durationMs = (scaledPcm.size.toDouble() / SAMPLE_RATE * 1000).toLong() + 40
                 Thread.sleep(durationMs)
                 audioTrack.stop()
                 audioTrack.release()
@@ -385,21 +434,37 @@ object FeedbackHelper {
 
     // --- PUBLIC PLAYBACK FUNCTIONS ---
 
+    /**
+     * Sonido táctil para teclado numérico (0-9, DEL, C)
+     */
     fun playKeyClick(context: Context) {
         initPreferences(context)
-        if (isSoundEnabled) {
+        if (isSoundEnabled && soundVolume > 0) {
             try {
-                toneGen?.startTone(ToneGenerator.TONE_DTMF_1, 30)
+                toneGen?.startTone(ToneGenerator.TONE_DTMF_1, 28)
             } catch (e: Exception) {}
         }
         if (isVibrationEnabled) {
-            vibrate(context, 18)
+            vibrate(context, 16)
+        }
+    }
+
+    /**
+     * Sonido táctil moderno para todos los demás botones de la app (Navegación, Confirmar, Cancelar, Opciones)
+     */
+    fun playButtonClick(context: Context) {
+        initPreferences(context)
+        if (isSoundEnabled && soundVolume > 0) {
+            playPcm(buttonClickPcm)
+        }
+        if (isVibrationEnabled) {
+            vibrate(context, 14)
         }
     }
 
     fun playCardDetected(context: Context) {
         initPreferences(context)
-        if (isSoundEnabled) {
+        if (isSoundEnabled && soundVolume > 0) {
             try {
                 toneGen?.startTone(ToneGenerator.TONE_PROP_BEEP, 90)
             } catch (e: Exception) {}

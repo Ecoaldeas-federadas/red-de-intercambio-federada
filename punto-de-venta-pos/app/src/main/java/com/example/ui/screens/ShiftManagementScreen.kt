@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -23,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.components.KioskNumericKeypad
 import com.example.ui.theme.*
 import com.example.ui.util.CurrencyHelper
+import com.example.ui.util.FeedbackHelper
 import com.example.ui.viewmodel.PosScreen
 import com.example.ui.viewmodel.PosViewModel
 
@@ -35,6 +37,7 @@ fun ShiftManagementScreen(
     val uiState by viewModel.uiState.collectAsState()
     val latestShift by viewModel.latestShift.collectAsState()
     val isShiftOpen = latestShift?.status == "open"
+    val context = LocalContext.current
 
     var pinInput by remember { mutableStateOf("") }
     var pinVerified by remember { mutableStateOf(false) }
@@ -84,6 +87,7 @@ fun ShiftManagementScreen(
             confirmButton = {
                 Button(
                     onClick = {
+                        FeedbackHelper.playButtonClick(context)
                         if (newPin.length != 4) {
                             pinError = "El PIN debe tener 4 dígitos"
                             return@Button
@@ -102,6 +106,7 @@ fun ShiftManagementScreen(
             },
             dismissButton = {
                 TextButton(onClick = {
+                    FeedbackHelper.playButtonClick(context)
                     showCreatePinDialog = false
                     viewModel.navigateTo(PosScreen.Settings)
                 }) { Text("Cancelar") }
@@ -121,7 +126,10 @@ fun ShiftManagementScreen(
                 },
                 navigationIcon = {
                     IconButton(
-                        onClick = { viewModel.navigateTo(PosScreen.Settings) },
+                        onClick = {
+                            FeedbackHelper.playButtonClick(context)
+                            viewModel.navigateTo(PosScreen.Settings)
+                        },
                         modifier = Modifier.testTag("shift_mgmt_back_btn")
                     ) {
                         Icon(
@@ -184,6 +192,7 @@ fun ShiftManagementScreen(
                         }
                         Button(
                             onClick = {
+                                FeedbackHelper.playButtonClick(context)
                                 viewModel.verifyShiftPin(pinInput) { success ->
                                     if (success) {
                                         pinVerified = true
@@ -277,6 +286,7 @@ fun ShiftManagementScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                             Button(
                                 onClick = {
+                                    FeedbackHelper.playButtonClick(context)
                                     viewModel.closeShift(null, "Cierre de punto")
                                     pinVerified = false
                                 },
@@ -333,6 +343,7 @@ fun ShiftManagementScreen(
                             )
                             Button(
                                 onClick = {
+                                    FeedbackHelper.playButtonClick(context)
                                     val micro = CurrencyHelper.parseInputToMicroUnits(shiftInitialAmount)
                                     viewModel.openShift(micro, "Apertura de punto")
                                     shiftInitialAmount = ""

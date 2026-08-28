@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -24,6 +25,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.*
+import com.example.ui.util.FeedbackHelper
 import com.example.ui.viewmodel.PosScreen
 import com.example.ui.viewmodel.PosViewModel
 
@@ -36,6 +38,7 @@ fun LoginScreen(
     val uiState by viewModel.uiState.collectAsState()
     val terminalConfig by viewModel.terminalConfig.collectAsState()
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
 
     var usernameInput by remember { mutableStateOf("") }
     var passwordInput by remember { mutableStateOf("") }
@@ -53,7 +56,10 @@ fun LoginScreen(
                 },
                 actions = {
                     IconButton(
-                        onClick = { viewModel.navigateTo(PosScreen.RegisterTerminal) },
+                        onClick = {
+                            FeedbackHelper.playButtonClick(context)
+                            viewModel.navigateTo(PosScreen.RegisterTerminal)
+                        },
                         modifier = Modifier.testTag("login_to_reg_btn")
                     ) {
                         Icon(Icons.Default.Settings, contentDescription = "Configurar Terminal", tint = PosSlate100)
@@ -228,7 +234,10 @@ fun LoginScreen(
                         label = { Text("Contraseña") },
                         leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = PosSlate300) },
                         trailingIcon = {
-                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            IconButton(onClick = {
+                                FeedbackHelper.playButtonClick(context)
+                                passwordVisible = !passwordVisible
+                            }) {
                                 Icon(
                                     imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
                                     contentDescription = if (passwordVisible) "Ocultar" else "Mostrar",
@@ -261,6 +270,7 @@ fun LoginScreen(
 
                     Button(
                         onClick = {
+                            FeedbackHelper.playButtonClick(context)
                             focusManager.clearFocus()
                             viewModel.loginMerchant(usernameInput, passwordInput)
                         },
@@ -289,7 +299,10 @@ fun LoginScreen(
                 horizontalArrangement = Arrangement.Center
             ) {
                 TextButton(
-                    onClick = { viewModel.navigateTo(PosScreen.RegisterTerminal) },
+                    onClick = {
+                        FeedbackHelper.playButtonClick(context)
+                        viewModel.navigateTo(PosScreen.RegisterTerminal)
+                    },
                     modifier = Modifier.testTag("goto_register_terminal_link")
                 ) {
                     Icon(Icons.Default.Settings, contentDescription = null, tint = PosPrimaryLight, modifier = Modifier.size(16.dp))

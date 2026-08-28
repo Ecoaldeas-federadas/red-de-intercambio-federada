@@ -12,11 +12,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.*
+import com.example.ui.util.FeedbackHelper
 import com.example.ui.viewmodel.PosScreen
 import com.example.ui.viewmodel.PosViewModel
 
@@ -28,6 +30,7 @@ fun AdminScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val terminalConfig by viewModel.terminalConfig.collectAsState()
+    val context = LocalContext.current
 
     var regTokenInput by remember { mutableStateOf("") }
 
@@ -43,7 +46,10 @@ fun AdminScreen(
                 },
                 navigationIcon = {
                     IconButton(
-                        onClick = { viewModel.navigateTo(PosScreen.Dashboard) },
+                        onClick = {
+                            FeedbackHelper.playButtonClick(context)
+                            viewModel.navigateTo(PosScreen.Dashboard)
+                        },
                         modifier = Modifier.testTag("admin_back_btn")
                     ) {
                         Icon(
@@ -173,6 +179,7 @@ fun AdminScreen(
 
                         Button(
                             onClick = {
+                                FeedbackHelper.playButtonClick(context)
                                 viewModel.completeRegistrationWithToken(regTokenInput)
                             },
                             enabled = regTokenInput.isNotBlank(),
@@ -190,6 +197,7 @@ fun AdminScreen(
 
                         OutlinedButton(
                             onClick = {
+                                FeedbackHelper.playButtonClick(context)
                                 viewModel.navigateTo(PosScreen.RegisterTerminal)
                             },
                             modifier = Modifier

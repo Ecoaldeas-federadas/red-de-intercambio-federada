@@ -460,6 +460,11 @@ type NFCPaymentResult struct {
 	TransactionID string `json:"transaction_id,omitempty"`
 	Message       string `json:"message,omitempty"`
 	UserBalance   *int64 `json:"user_balance,omitempty"`
+	// Campos para multifirma (cuando status == "pending_multisig")
+	PendingID     string `json:"pending_id,omitempty"`
+	RequiredSigs  int    `json:"required_sigs,omitempty"`
+	CollectedSigs int    `json:"collected_sigs,omitempty"`
+	RemainingSigs int    `json:"remaining_sigs,omitempty"`
 }
 
 func (nt *NFCTerminals) ProcessNFCPayment(ctx context.Context, terminalID string, payload NFCPaymentPayload) (*NFCPaymentResult, error) {
@@ -557,6 +562,10 @@ func (nt *NFCTerminals) ProcessNFCPayment(ctx context.Context, terminalID string
 		return &NFCPaymentResult{
 			Status:        "pending_multisig",
 			TransactionID: pending.ID.String(),
+			PendingID:     pending.ID.String(),
+			RequiredSigs:  reqSigs,
+			CollectedSigs: 1,
+			RemainingSigs: remaining,
 			Message:       fmt.Sprintf("Pago pendiente. Faltan %d firma(s). Acerque las tarjetas de los firmantes autorizados.", remaining),
 			UserBalance:   &balance,
 		}, nil
@@ -665,6 +674,40 @@ func (nt *NFCTerminals) ProcessCommunityPayment(ctx context.Context, terminalID 
 	if buyerBalance-payload.Amount < buyerCreditLimit {
 		nt.logTransaction(ctx, termDBID, payload.BuyerCardUID, &buyerCard.UserID, payload.Amount, "rejected", payload.BuyerCryptoToken, true, "community", "", "limite de credito alcanzado")
 		return &NFCPaymentResult{Status: "rejected", Message: "has llegado al tope de tu credito comunitario. Debes aportar a la comunidad para poder pagar nuevamente."}, nil
+	}
+
+	// Verificar si la cuenta del comprador requiere multi-firma (cuenta mancomunada).
+	// Si required_signatures > 1, se crea un pago pendiente y la primera firma
+	// es del comprador que acerco su tarjeta. Los firmantes siguientes deben
+	// acercar sus tarjetas via el endpoint /api/nfc/terminal/payment/multisig-sign.
+	reqSigs, _, err := nt.checkAccountMultiSig(ctx, buyerCard.UserID)
+	if err == nil && reqSigs > 1 {
+		msig := NewMultiSigPayments(nt.Pool, nt.NodeDomain)
+		pending, err := msig.CreatePendingPayment(ctx, CreatePendingPaymentParams{
+			PaymentType:   "nfc_community",
+			FromAccount:   buyerCard.UserID,
+			ToAccount:     sellerCard.UserID,
+			Amount:        payload.Amount,
+			PaymentMethod: "nfc_community",
+			TerminalID:    &termDBID,
+			Description:   "Pago comunitario multi-firma",
+		})
+		if err != nil {
+			return &NFCPaymentResult{Status: "rejected", Message: "error creando pago multi-firma: " + err.Error()}, nil
+		}
+		// La primera firma es del comprador que acerco su tarjeta
+		remaining, _, _ := msig.SignPendingPayment(ctx, pending.ID, buyerCard.UserID, "nfc_card", payload.BuyerCardUID, true, payload.BuyerIDDocumentNumber != "")
+		nt.logTransaction(ctx, termDBID, payload.BuyerCardUID, &buyerCard.UserID, payload.Amount, "pending", payload.BuyerCryptoToken, true, "community", "", "multisig pending")
+		return &NFCPaymentResult{
+			Status:        "pending_multisig",
+			TransactionID: pending.ID.String(),
+			PendingID:     pending.ID.String(),
+			RequiredSigs:  reqSigs,
+			CollectedSigs: 1,
+			RemainingSigs: remaining,
+			Message:       fmt.Sprintf("Pago pendiente. Faltan %d firma(s). Acerque las tarjetas de los firmantes autorizados.", remaining),
+			UserBalance:   &buyerBalance,
+		}, nil
 	}
 
 	_, err = nt.Pool.Exec(ctx, `UPDATE users SET balance = balance - $2 WHERE id = $1`, buyerCard.UserID, payload.Amount)

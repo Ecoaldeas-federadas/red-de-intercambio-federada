@@ -426,7 +426,7 @@ func (nt *NFCTerminals) SignMultisigPaymentWithCard(ctx context.Context, termina
 
 	// Firmar el pago pendiente
 	msig := NewMultiSigPayments(nt.Pool, nt.NodeDomain)
-	remaining, _, err := msig.SignPendingPayment(ctx, pendingID, card.UserID, "nfc_card", payload.CardUID, true, payload.IDDocumentNumber != "")
+	remaining, signedPayment, err := msig.SignPendingPayment(ctx, pendingID, card.UserID, "nfc_card", payload.CardUID, true, payload.IDDocumentNumber != "")
 	if err != nil {
 		return &NFCPaymentResult{Status: "rejected", Message: "error firmando pago: " + err.Error()}, nil
 	}
@@ -454,6 +454,10 @@ func (nt *NFCTerminals) SignMultisigPaymentWithCard(ctx context.Context, termina
 	return &NFCPaymentResult{
 		Status:        "pending_multisig",
 		TransactionID: pendingID.String(),
+		PendingID:     pendingID.String(),
+		RequiredSigs:  signedPayment.RequiredSignatures,
+		CollectedSigs: len(signedPayment.CollectedSignatures),
+		RemainingSigs: remaining,
 		Message:       fmt.Sprintf("Firma registrada. Faltan %d firma(s).", remaining),
 	}, nil
 }

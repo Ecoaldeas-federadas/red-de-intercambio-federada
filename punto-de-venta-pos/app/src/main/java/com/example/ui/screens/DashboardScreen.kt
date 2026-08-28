@@ -18,6 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -25,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.*
 import com.example.ui.util.CurrencyHelper
+import com.example.ui.util.FeedbackHelper
 import com.example.ui.viewmodel.PosScreen
 import com.example.ui.viewmodel.PosViewModel
  
@@ -36,6 +38,7 @@ fun DashboardScreen(
     val uiState by viewModel.uiState.collectAsState()
     val shift by viewModel.latestShift.collectAsState()
     val isShiftOpen = (shift != null && shift?.status == "open")
+    val context = LocalContext.current
 
     Scaffold(
         containerColor = PosNavyDark,
@@ -154,7 +157,10 @@ fun DashboardScreen(
 
                     if (!uiState.isLoggedIn) {
                         Button(
-                            onClick = { viewModel.navigateTo(PosScreen.Login) },
+                            onClick = {
+                                FeedbackHelper.playButtonClick(context)
+                                viewModel.navigateTo(PosScreen.Login)
+                            },
                             shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
@@ -166,7 +172,10 @@ fun DashboardScreen(
                         }
                     } else {
                         IconButton(
-                            onClick = { viewModel.logout() },
+                            onClick = {
+                                FeedbackHelper.playButtonClick(context)
+                                viewModel.logout()
+                            },
                             modifier = Modifier.testTag("dashboard_logout_btn")
                         ) {
                             Icon(
@@ -203,7 +212,6 @@ fun DashboardScreen(
                 }
             }
         } else if (!uiState.isNfcEnabled) {
-            val context = androidx.compose.ui.platform.LocalContext.current
             Card(
                 colors = CardDefaults.cardColors(containerColor = PosWarningAmber.copy(alpha = 0.15f)),
                 shape = RoundedCornerShape(12.dp),
@@ -234,6 +242,7 @@ fun DashboardScreen(
                     )
                     Button(
                         onClick = {
+                            FeedbackHelper.playButtonClick(context)
                             try {
                                 val intent = android.content.Intent(android.provider.Settings.ACTION_NFC_SETTINGS)
                                 context.startActivity(intent)
