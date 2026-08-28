@@ -26,6 +26,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.room.Room
 import com.example.data.crypto.CryptoEngine
 import com.example.data.db.AppDatabase
+import com.example.ui.components.DemoWatermarkOverlay
 import com.example.ui.screens.*
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.viewmodel.PosScreen
@@ -210,24 +211,31 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
 fun PosMainContent(viewModel: PosViewModel) {
     val uiState by viewModel.uiState.collectAsState()
 
-    AnimatedContent(
-        targetState = uiState.currentScreen,
-        transitionSpec = {
-            fadeIn() togetherWith fadeOut()
-        },
-        label = "screen_transition"
-    ) { screen ->
-        when (screen) {
-            is PosScreen.RegisterTerminal -> RegisterTerminalScreen(viewModel = viewModel)
-            is PosScreen.Login -> LoginScreen(viewModel = viewModel)
-            is PosScreen.Dashboard -> DashboardScreen(viewModel = viewModel)
-            is PosScreen.QrCharge -> QrChargeScreen(viewModel = viewModel)
-            is PosScreen.NfcCharge -> NfcChargeScreen(viewModel = viewModel)
-            is PosScreen.MultiVendor -> MultiVendorScreen(viewModel = viewModel)
-            is PosScreen.Transactions -> TransactionsScreen(viewModel = viewModel)
-            is PosScreen.Admin -> AdminScreen(viewModel = viewModel)
-            is PosScreen.Settings -> SettingsScreen(viewModel = viewModel)
-            is PosScreen.ShiftManagement -> ShiftManagementScreen(viewModel = viewModel)
+    DemoWatermarkOverlay(
+        isDemo = uiState.isDemoNode,
+        onBannerClick = {
+            viewModel.navigateTo(PosScreen.Settings)
+        }
+    ) {
+        AnimatedContent(
+            targetState = uiState.currentScreen,
+            transitionSpec = {
+                fadeIn() togetherWith fadeOut()
+            },
+            label = "screen_transition"
+        ) { screen ->
+            when (screen) {
+                is PosScreen.RegisterTerminal -> RegisterTerminalScreen(viewModel = viewModel)
+                is PosScreen.Login -> LoginScreen(viewModel = viewModel)
+                is PosScreen.Dashboard -> DashboardScreen(viewModel = viewModel)
+                is PosScreen.QrCharge -> QrChargeScreen(viewModel = viewModel)
+                is PosScreen.NfcCharge -> NfcChargeScreen(viewModel = viewModel)
+                is PosScreen.MultiVendor -> MultiVendorScreen(viewModel = viewModel)
+                is PosScreen.Transactions -> TransactionsScreen(viewModel = viewModel)
+                is PosScreen.Admin -> AdminScreen(viewModel = viewModel)
+                is PosScreen.Settings -> SettingsScreen(viewModel = viewModel)
+                is PosScreen.ShiftManagement -> ShiftManagementScreen(viewModel = viewModel)
+            }
         }
     }
 }

@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -30,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.*
 import com.example.ui.util.CurrencyHelper
+import com.example.ui.util.FeedbackHelper
 
 @Composable
 fun KioskAmountDisplay(
@@ -79,6 +81,7 @@ fun KioskNumericKeypad(
     onInputChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     // POS-style decimal keypad: digits enter as centimos from the right.
     // "1" → 0.01, "10" → 0.10, "100" → 1.00, "1234" → 12.34
     // No decimal point button, no quick-add buttons.
@@ -112,6 +115,7 @@ fun KioskNumericKeypad(
                             .clip(RoundedCornerShape(16.dp))
                             .background(bgColor)
                             .clickable {
+                                FeedbackHelper.playKeyClick(context)
                                 when (key) {
                                     "DEL" -> {
                                         if (currentInput.isNotEmpty()) {
@@ -173,6 +177,7 @@ fun PinInputPad(
     modifier: Modifier = Modifier,
     title: String = "Ingrese PIN de 4 dígitos"
 ) {
+    val context = LocalContext.current
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -229,6 +234,7 @@ fun PinInputPad(
                             .clip(RoundedCornerShape(14.dp))
                             .background(PosSlate800)
                             .clickable {
+                                FeedbackHelper.playKeyClick(context)
                                 when (key) {
                                     "C" -> onPinChange("")
                                     "DEL" -> if (pin.isNotEmpty()) onPinChange(pin.dropLast(1))

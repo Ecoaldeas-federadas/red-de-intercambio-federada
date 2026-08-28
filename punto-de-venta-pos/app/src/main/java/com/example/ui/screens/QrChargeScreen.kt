@@ -619,6 +619,56 @@ fun QrChargeScreen(
                             textAlign = TextAlign.Center
                         )
 
+                        // DEMO MODE SIMULATION CONTROLS
+                        if (uiState.isDemoNode) {
+                            Surface(
+                                color = PosSlate800.copy(alpha = 0.6f),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = "Simulaciones de Pago QR (Modo Demo):",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = PosGoldLight,
+                                        fontWeight = FontWeight.Bold
+                                    )
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        OutlinedButton(
+                                            onClick = { viewModel.simulateQrApproval(1) },
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .testTag("sim_qr_approve_btn"),
+                                            shape = RoundedCornerShape(10.dp),
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PosSuccessGreenLight)
+                                        ) {
+                                            Text("Simular 1 Firma (Aprobar)", fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                                        }
+
+                                        OutlinedButton(
+                                            onClick = { viewModel.simulateQrMultisigSignature() },
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .testTag("sim_qr_multisig_btn"),
+                                            shape = RoundedCornerShape(10.dp),
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PosGoldLight)
+                                        ) {
+                                            Text("Simular Multifirma (+1)", fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         // CANCEL BUTTON (Funcional y Directo)
                         Button(
                             onClick = {

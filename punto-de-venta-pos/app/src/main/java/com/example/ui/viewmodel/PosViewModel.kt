@@ -87,6 +87,10 @@ data class PosUiState(
     val buyerPin: String = "",
     val buyerDocType: String = "cedula",
     val buyerDocNumber: String = "",
+    val isSameCardError: Boolean = false,
+    val isMultiVendorMultisig: Boolean = false,
+    val mvMultisigRequired: Int = 1,
+    val mvMultisigCollected: Int = 0,
 
     // Multi-Signature Flow
     val isMultisigActive: Boolean = false,
@@ -333,6 +337,20 @@ class PosViewModel(
 
     fun setCustomerPin(pin: String) {
         _uiState.update { it.copy(customerPin = pin) }
+    }
+
+    fun setBuyerPin(pin: String) {
+        _uiState.update { it.copy(buyerPin = pin) }
+    }
+
+    fun setBuyerDocInfo(docType: String, docNumber: String) {
+        _uiState.update {
+            it.copy(buyerDocType = docType, buyerDocNumber = docNumber)
+        }
+    }
+
+    fun dismissSameCardError() {
+        _uiState.update { it.copy(isSameCardError = false, errorMessage = null) }
     }
 
     fun setIdDocInfo(docType: String, docNumber: String) {
@@ -926,7 +944,76 @@ class PosViewModel(
                 detectedCardType = if (isDesfire) "desfire" else "uid_only",
                 requireIdVerification = mustAskId,
                 customerPin = "",
+                idDocNumber = if (mustAskId) it.idDocNumber else "",
                 isNfcWaitingCard = false
+            )
+        }
+    }
+
+    // --- QR SIMULATION CONTROLS (DEMO MODE) ---
+    fun simulateQrApproval(requiredSignatures: Int = 1) {
+        val chargeId = _uiState.value.qrChargeResponse?.chargeId ?: "DEMO-CHG-SIM"
+        val microUnits = CurrencyHelper.parseInputToMicroUnits(_uiState.value.amountInput)
+        stopQrPolling()
+        stopQrTimer()
+        FeedbackHelper.playSuccess(getApplication())
+
+        viewModelScope.launch {
+            repository.transactionDao.insertTransaction(
+                TransactionEntity(
+                    id = chargeId,
+                    amount = microUnits,
+                    paymentMethod = "qr",
+                    status = "approved",
+                    receiptNumber = "QR-${chargeId.take(8).uppercase()}"
+                )
+            )
+        }
+
+        _uiState.update {
+            it.copy(
+                qrStatus = "paid",
+                qrCollectedSignatures = requiredSignatures,
+                qrRequiredSignatures = requiredSignatures,
+                isQrPolling = false,
+                successMessage = "¡Pago QR simulado aprobado exitosamente!"
+            )
+        }
+    }
+
+    fun simulateQrMultisigSignature() {
+        val currentCollected = _uiState.value.qrCollectedSignatures
+        val required = 2
+        val nextCollected = currentCollected + 1
+
+        if (nextCollected >= required) {
+            simulateQrApproval(requiredSignatures = required)
+        } else {
+            FeedbackHelper.playCardDetected(getApplication())
+            startQrTimer(180)
+            _uiState.update {
+                it.copy(
+                    qrStatus = "partially_signed",
+                    qrRequiredSignatures = required,
+                    qrCollectedSignatures = nextCollected,
+                    qrSignaturesList = listOf(
+                        QrSignatureInfo(signerName = "Firma 1 / Comprador", signedAt = "Confirmado", status = "signed")
+                    ),
+                    successMessage = "Firma $nextCollected de $required completada. Esperando siguiente firmante (3 minutos)..."
+                )
+            }
+        }
+    }
+
+    fun simulateQrRejection() {
+        stopQrPolling()
+        stopQrTimer()
+        FeedbackHelper.playError(getApplication())
+        _uiState.update {
+            it.copy(
+                qrStatus = "expired",
+                isQrPolling = false,
+                errorMessage = "El pago QR fue rechazado o anulado por el usuario."
             )
         }
     }
@@ -1116,19 +1203,28 @@ class PosViewModel(
         _uiState.update { it.copy(mvStep = 3, errorMessage = null) } // Move to Tap Buyer
     }
 
-    fun onMultiVendorBuyerTapped(cardUid: String) {
+    fun onMultiVendorBuyerTapped(cardUid: String, isMultisig: Boolean = false, isDesfire: Boolean = false) {
         if (cardUid == _uiState.value.sellerCardUid) {
-            FeedbackHelper.playError(getApplication())
-            _uiState.update { it.copy(errorMessage = "El vendedor y el comprador no pueden ser la misma tarjeta") }
+            FeedbackHelper.playCardScanError(getApplication())
+            _uiState.update {
+                it.copy(
+                    isSameCardError = true,
+                    errorMessage = "Error de Validación: El vendedor y el comprador no pueden ser la misma persona ni la misma tarjeta (${cardUid}). Utilice una tarjeta diferente para el cliente."
+                )
+            }
             return
         }
         FeedbackHelper.playCardDetected(getApplication())
-        val requireId = _uiState.value.cardTypeConfig?.requireIdDocumentForUidOnly ?: false
+        val mustAskId = !isDesfire
         _uiState.update {
             it.copy(
+                isSameCardError = false,
                 buyerCardUid = cardUid,
-                requireIdVerification = requireId,
+                requireIdVerification = mustAskId,
                 buyerPin = "",
+                isMultiVendorMultisig = isMultisig,
+                mvMultisigRequired = if (isMultisig) 2 else 1,
+                mvMultisigCollected = 0,
                 mvStep = 4 // Move to Buyer PIN & ID
             )
         }
@@ -1144,6 +1240,19 @@ class PosViewModel(
         }
         if (state.requireIdVerification && state.buyerDocNumber.isBlank()) {
             _uiState.update { it.copy(errorMessage = "Ingrese el documento de identidad del comprador") }
+            return
+        }
+
+        // Si es comprador mancomunado / multifirma simulado
+        if (state.isMultiVendorMultisig && state.mvMultisigCollected < (state.mvMultisigRequired - 1)) {
+            FeedbackHelper.playCardDetected(getApplication())
+            _uiState.update {
+                it.copy(
+                    mvMultisigCollected = it.mvMultisigCollected + 1,
+                    buyerPin = "",
+                    successMessage = "Firma 1 de 2 registrada. Ingrese PIN del 2do firmante autorizado."
+                )
+            }
             return
         }
 
@@ -1192,6 +1301,11 @@ class PosViewModel(
                 sellerCardUid = null,
                 buyerCardUid = null,
                 buyerPin = "",
+                buyerDocNumber = "",
+                isSameCardError = false,
+                isMultiVendorMultisig = false,
+                mvMultisigRequired = 1,
+                mvMultisigCollected = 0,
                 nfcPaymentResult = null,
                 errorMessage = null,
                 successMessage = null

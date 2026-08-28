@@ -81,6 +81,89 @@ fun MultiVendorScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // ERROR MODAL FOR SAME CARD ERROR
+            if (uiState.isSameCardError) {
+                AlertDialog(
+                    onDismissRequest = { viewModel.dismissSameCardError() },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.Error,
+                            contentDescription = null,
+                            tint = PosErrorRedLight,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    },
+                    title = {
+                        Text(
+                            text = "¡Error: Tarjetas Duplicadas!",
+                            fontWeight = FontWeight.Bold,
+                            color = PosSlate100,
+                            textAlign = TextAlign.Center
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = uiState.errorMessage
+                                ?: "El vendedor y el comprador no pueden ser la misma persona ni la misma tarjeta. Por favor acerque una tarjeta diferente para el cliente.",
+                            color = PosSlate300,
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = { viewModel.dismissSameCardError() },
+                            colors = ButtonDefaults.buttonColors(containerColor = PosErrorRed),
+                            modifier = Modifier.testTag("dismiss_same_card_error_btn")
+                        ) {
+                            Text("Entendido", color = PosWhite, fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    containerColor = PosSlate900,
+                    shape = RoundedCornerShape(20.dp)
+                )
+            }
+
+            // Alerts / Normal Error Messages
+            if (!uiState.errorMessage.isNullOrBlank() && !uiState.isSameCardError) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = PosErrorRed.copy(alpha = 0.2f)),
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, PosErrorRed)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(imageVector = Icons.Default.Error, contentDescription = null, tint = PosErrorRedLight)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(text = uiState.errorMessage!!, color = PosSlate100, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+
+            if (!uiState.successMessage.isNullOrBlank() && uiState.mvStep != 5) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = PosSuccessGreen.copy(alpha = 0.2f)),
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, PosSuccessGreen)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null, tint = PosSuccessGreenLight)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(text = uiState.successMessage!!, color = PosSlate100, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
             // NFC STATUS BANNER
             if (!uiState.hasNfcHardware) {
                 Card(
@@ -471,17 +554,68 @@ fun MultiVendorScreen(
                                 }
                             }
 
-                            // Quick simulation button for tests - ONLY ON DEMO NODE
+                            // Quick simulation buttons for tests - ONLY ON DEMO NODE
                             if (uiState.isDemoNode) {
-                                OutlinedButton(
-                                    onClick = { viewModel.onMultiVendorBuyerTapped("BUYER_CARD_99") },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .testTag("sim_buyer_tap_btn"),
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = PosPrimaryLight)
+                                Text(
+                                    text = "Simulaciones de Prueba (Modo Demo):",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = PosSlate400,
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Text("Simular Tarjeta Cliente (BUYER_99)")
+                                    OutlinedButton(
+                                        onClick = { viewModel.onMultiVendorBuyerTapped("BUYER_1SIG_DESFIRE", isMultisig = false, isDesfire = true) },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .testTag("sim_buyer_1sig_btn"),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PosPrimaryLight)
+                                    ) {
+                                        Text("1 Firma (DESFire)", fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                                    }
+
+                                    OutlinedButton(
+                                        onClick = { viewModel.onMultiVendorBuyerTapped("BUYER_MULTISIG_CARD", isMultisig = true, isDesfire = true) },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .testTag("sim_buyer_multisig_btn"),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PosGoldLight)
+                                    ) {
+                                        Text("Multifirma (2 Firmas)", fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                                    }
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    OutlinedButton(
+                                        onClick = { viewModel.onMultiVendorBuyerTapped("BUYER_UID_CLASSIC", isMultisig = false, isDesfire = false) },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .testTag("sim_buyer_uid_btn"),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PosSlate200)
+                                    ) {
+                                        Text("UID Clásica (Pide Cédula)", fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                                    }
+
+                                    // Button to test same card validation error
+                                    OutlinedButton(
+                                        onClick = { viewModel.onMultiVendorBuyerTapped(uiState.sellerCardUid ?: "DEMO_SELLER_01") },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .testTag("sim_buyer_same_card_btn"),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PosErrorRedLight)
+                                    ) {
+                                        Text("Probar Misma Tarjeta", fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                                    }
                                 }
                             }
                         }
@@ -504,12 +638,61 @@ fun MultiVendorScreen(
                                 .padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text(
-                                text = "Comprador: ${uiState.buyerCardUid}",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = PosSlate100,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        text = "Comprador: ${uiState.buyerCardUid}",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = PosSlate100,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    if (uiState.isMultiVendorMultisig) {
+                                        Text(
+                                            text = "Cuenta Mancomunada (${uiState.mvMultisigCollected} / ${uiState.mvMultisigRequired} firmas)",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = PosGoldLight,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+
+                                TextButton(
+                                    onClick = { viewModel.navigateTo(PosScreen.MultiVendor) }
+                                ) {
+                                    Text("Reiniciar", color = PosSlate400, fontSize = 12.sp)
+                                }
+                            }
+
+                            if (uiState.isMultiVendorMultisig) {
+                                Surface(
+                                    color = PosGold.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(10.dp),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, PosGold.copy(alpha = 0.5f)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(Icons.Default.Groups, contentDescription = null, tint = PosGoldLight, modifier = Modifier.size(18.dp))
+                                        Text(
+                                            text = if (uiState.mvMultisigCollected == 0) {
+                                                "Firmante 1 de 2: Ingrese PIN de autorización"
+                                            } else {
+                                                "Firmante 2 de 2: Ingrese PIN del segundo autorizador"
+                                            },
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = PosGoldLight,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
 
                             if (uiState.requireIdVerification) {
                                 Card(
@@ -523,7 +706,7 @@ fun MultiVendorScreen(
                                         verticalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         Text(
-                                            text = "Verificación de Identidad del Comprador (UID)",
+                                            text = "Verificación de Identidad del Comprador (Tarjeta Clásica)",
                                             style = MaterialTheme.typography.labelMedium,
                                             color = PosGoldLight,
                                             fontWeight = FontWeight.Bold
@@ -555,7 +738,7 @@ fun MultiVendorScreen(
                                                     DropdownMenuItem(
                                                         text = { Text(doc.spanishName) },
                                                         onClick = {
-                                                            viewModel.setIdDocInfo(doc.code, uiState.buyerDocNumber)
+                                                            viewModel.setBuyerDocInfo(doc.code, uiState.buyerDocNumber)
                                                             buyerDocExpanded = false
                                                         }
                                                     )
@@ -565,7 +748,7 @@ fun MultiVendorScreen(
 
                                         OutlinedTextField(
                                             value = uiState.buyerDocNumber,
-                                            onValueChange = { viewModel.setIdDocInfo(uiState.buyerDocType, it) },
+                                            onValueChange = { viewModel.setBuyerDocInfo(uiState.buyerDocType, it) },
                                             label = { Text("Número de Documento del Cliente") },
                                             placeholder = { Text("Ej. 98765432") },
                                             singleLine = true,
@@ -584,12 +767,16 @@ fun MultiVendorScreen(
                             PinInputPad(
                                 pin = uiState.buyerPin,
                                 onPinChange = { pin ->
-                                    // Update buyer pin
-                                    viewModel.setCustomerPin(pin)
-                                    // Also sync in state
+                                    viewModel.setBuyerPin(pin)
                                 },
-                                title = "PIN del Comprador (4 dígitos)"
+                                title = if (uiState.isMultiVendorMultisig) {
+                                    "PIN del Firmante ${uiState.mvMultisigCollected + 1} (4 dígitos)"
+                                } else {
+                                    "PIN del Comprador (4 dígitos)"
+                                }
                             )
+
+                            val isFirstSignatureOfMultisig = (uiState.isMultiVendorMultisig && uiState.mvMultisigCollected < uiState.mvMultisigRequired - 1)
 
                             Button(
                                 onClick = { viewModel.submitMultiVendorPayment() },
@@ -598,14 +785,25 @@ fun MultiVendorScreen(
                                     .height(58.dp)
                                     .testTag("mv_submit_payment_btn"),
                                 shape = RoundedCornerShape(16.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = PosSuccessGreen)
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isFirstSignatureOfMultisig) PosGold else PosSuccessGreen
+                                )
                             ) {
                                 if (uiState.isLoading) {
                                     CircularProgressIndicator(color = PosNavyDark, modifier = Modifier.size(24.dp))
                                 } else {
-                                    Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null, tint = PosNavyDark)
+                                    Icon(
+                                        imageVector = if (isFirstSignatureOfMultisig) Icons.Default.Groups else Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = PosNavyDark
+                                    )
                                     Spacer(modifier = Modifier.width(10.dp))
-                                    Text("Ejecutar Pago Comunitario", color = PosNavyDark, fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium)
+                                    Text(
+                                        text = if (isFirstSignatureOfMultisig) "Registrar Firma 1 de 2" else "Ejecutar Pago Comunitario",
+                                        color = PosNavyDark,
+                                        fontWeight = FontWeight.Black,
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
                                 }
                             }
                         }

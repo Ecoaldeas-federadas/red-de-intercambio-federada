@@ -345,12 +345,37 @@ class PosRepository(
             val response = service.createCharge(CreateChargeRequest(amountMicroUnits, description))
             if (response.isSuccessful && response.body()?.chargeToken != null) {
                 Result.success(response.body()!!)
+            } else if (apiClient.isDemoNode) {
+                // Modo Demo: generar QR simulado si el backend demo responde con error
+                val demoChargeId = "DEMO-CHG-${UUID.randomUUID().toString().take(8).uppercase()}"
+                val demoToken = "DEMO-TOKEN-${UUID.randomUUID().toString().take(12)}"
+                val simResp = CreateChargeResponse(
+                    chargeId = demoChargeId,
+                    chargeToken = demoToken,
+                    amount = amountMicroUnits,
+                    status = "pending",
+                    expiresIn = 180
+                )
+                Result.success(simResp)
             } else {
                 val err = response.errorBody()?.string() ?: "Error al generar cobro QR en el nodo (${response.code()})"
                 Result.failure(Exception(err))
             }
         } catch (e: Exception) {
-            Result.failure(Exception("Error de conexión al generar cobro QR: ${e.localizedMessage}"))
+            if (apiClient.isDemoNode) {
+                val demoChargeId = "DEMO-CHG-${UUID.randomUUID().toString().take(8).uppercase()}"
+                val demoToken = "DEMO-TOKEN-${UUID.randomUUID().toString().take(12)}"
+                val simResp = CreateChargeResponse(
+                    chargeId = demoChargeId,
+                    chargeToken = demoToken,
+                    amount = amountMicroUnits,
+                    status = "pending",
+                    expiresIn = 180
+                )
+                Result.success(simResp)
+            } else {
+                Result.failure(Exception("Error de conexión al generar cobro QR: ${e.localizedMessage}"))
+            }
         }
     }
 

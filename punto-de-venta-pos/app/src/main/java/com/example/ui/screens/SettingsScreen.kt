@@ -401,7 +401,11 @@ fun SettingsScreen(
                 }
             }
 
-            // FEEDBACK SOUND & HAPTIC TEST
+            // FEEDBACK SOUND & HAPTIC CONFIGURATION & TEST
+            var soundOn by remember { mutableStateOf(FeedbackHelper.isSoundEnabled) }
+            var vibOn by remember { mutableStateOf(FeedbackHelper.isVibrationEnabled) }
+            val context = androidx.compose.ui.platform.LocalContext.current
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = PosSlate900),
@@ -411,46 +415,140 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Text(
-                        text = "Prueba de Sonido y Vibración Kiosco",
+                        text = "Sonido y Vibración del Terminal",
                         style = MaterialTheme.typography.titleMedium,
                         color = PosSlate100,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Verifique la respuesta sonora y háptica del terminal de punto de venta.",
+                        text = "Configure la retroalimentación sonora y vibración al pulsar teclas numéricas y procesar transacciones.",
                         style = MaterialTheme.typography.bodySmall,
                         color = PosSlate300
                     )
+
+                    // Sound Toggle
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                            Icon(
+                                imageVector = if (soundOn) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                                contentDescription = null,
+                                tint = if (soundOn) PosPrimaryLight else PosSlate600
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text("Sonido al presionar botones", style = MaterialTheme.typography.bodyMedium, color = PosSlate100, fontWeight = FontWeight.SemiBold)
+                                Text("Emite un tono al tocar números y confirmar", style = MaterialTheme.typography.bodySmall, color = PosSlate400)
+                            }
+                        }
+                        Switch(
+                            checked = soundOn,
+                            onCheckedChange = {
+                                soundOn = it
+                                FeedbackHelper.setSoundEnabled(context, it)
+                                if (it) FeedbackHelper.playKeyClick(context)
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = PosPrimaryBlue,
+                                checkedTrackColor = PosPrimaryBlue.copy(alpha = 0.5f)
+                            )
+                        )
+                    }
+
+                    HorizontalDivider(color = PosSlate800)
+
+                    // Vibration Toggle
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                            Icon(
+                                imageVector = if (vibOn) Icons.Default.Vibration else Icons.Default.Smartphone,
+                                contentDescription = null,
+                                tint = if (vibOn) PosGoldLight else PosSlate600
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text("Vibración háptica al presionar", style = MaterialTheme.typography.bodyMedium, color = PosSlate100, fontWeight = FontWeight.SemiBold)
+                                Text("Vibra suavemente al tocar teclas numéricas", style = MaterialTheme.typography.bodySmall, color = PosSlate400)
+                            }
+                        }
+                        Switch(
+                            checked = vibOn,
+                            onCheckedChange = {
+                                vibOn = it
+                                FeedbackHelper.setVibrationEnabled(context, it)
+                                if (it) FeedbackHelper.playKeyClick(context)
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = PosGold,
+                                checkedTrackColor = PosGold.copy(alpha = 0.5f)
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Probar Sonidos y Vibraciones del Sistema:", style = MaterialTheme.typography.labelMedium, color = PosSlate300, fontWeight = FontWeight.Bold)
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         OutlinedButton(
-                            onClick = { FeedbackHelper.playCardDetected(viewModel.getApplication()) },
+                            onClick = { FeedbackHelper.playKeyClick(context) },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(10.dp)
                         ) {
-                            Text("Bip Tarjeta", fontSize = 12.sp)
+                            Text("Clic Tecla", fontSize = 11.sp)
                         }
                         OutlinedButton(
-                            onClick = { FeedbackHelper.playSuccess(viewModel.getApplication()) },
+                            onClick = { FeedbackHelper.playCardDetected(context) },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Bip Tarjeta", fontSize = 11.sp)
+                        }
+                        OutlinedButton(
+                            onClick = { FeedbackHelper.playCardScanError(context) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PosGoldLight)
+                        ) {
+                            Text("Error Tarjeta", fontSize = 11.sp)
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { FeedbackHelper.playPaymentApprovedCoins(context) },
+                            modifier = Modifier.weight(1.2f),
+                            shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = PosSuccessGreenLight)
                         ) {
-                            Text("Bip Éxito", fontSize = 12.sp)
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(14.dp), tint = PosSuccessGreenLight)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Pago Aprobado (Monedas)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                         OutlinedButton(
-                            onClick = { FeedbackHelper.playError(viewModel.getApplication()) },
+                            onClick = { FeedbackHelper.playPaymentError(context) },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = PosErrorRedLight)
                         ) {
-                            Text("Bip Error", fontSize = 12.sp)
+                            Icon(Icons.Default.Error, contentDescription = null, modifier = Modifier.size(14.dp), tint = PosErrorRedLight)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Error Pago", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
