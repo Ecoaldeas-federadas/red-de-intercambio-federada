@@ -61,6 +61,9 @@ export default function NFCTerminals() {
   const [approvingCode, setApprovingCode] = useState('')
   const [pairingAction, setPairingAction] = useState('')
   const [pairingOptions, setPairingOptions] = useState<string[]>([])
+  const [pairingOptionsMap, setPairingOptionsMap] = useState<Record<string, string[]>>({})
+  const [optionsErrorMap, setOptionsErrorMap] = useState<Record<string, string>>({})
+  const [loadingOptionsMap, setLoadingOptionsMap] = useState<Record<string, boolean>>({})
   const [selectedCode, setSelectedCode] = useState('')
   const [loadingOptions, setLoadingOptions] = useState(false)
   const [optionsError, setOptionsError] = useState('')
@@ -100,7 +103,14 @@ export default function NFCTerminals() {
   const loadPendingPairings = async () => {
     try {
       const res = await api.get<any[]>('/nfc/terminal/pair/pending')
-      setPendingPairings(res || [])
+      const pairings = res || []
+      setPendingPairings(pairings)
+      // Auto-cargar 4 opciones para cada emparejamiento pendiente
+      pairings.forEach((p: any) => {
+        if (p.id && !pairingOptionsMap[p.id]) {
+          loadPairingOptionsForCard(p.id)
+        }
+      })
     } catch (err) {
       // ignore errors silently
     }
@@ -126,6 +136,24 @@ export default function NFCTerminals() {
     setLoadingOptions(false)
   }
 
+  // Cargar 4 opciones para una tarjeta especifica (auto-load)
+  const loadPairingOptionsForCard = async (reqId: string) => {
+    setLoadingOptionsMap(prev => ({ ...prev, [reqId]: true }))
+    setOptionsErrorMap(prev => { const n = { ...prev }; delete n[reqId]; return n })
+    try {
+      const res = await api.get<any>(`/nfc/terminal/pair/request/${reqId}/options`)
+      const options = Array.isArray(res) ? res : res?.options ?? []
+      if (options.length === 0) {
+        setOptionsErrorMap(prev => ({ ...prev, [reqId]: 'No se pudieron cargar las opciones' }))
+      } else {
+        setPairingOptionsMap(prev => ({ ...prev, [reqId]: options }))
+      }
+    } catch (err) {
+      setOptionsErrorMap(prev => ({ ...prev, [reqId]: err instanceof Error ? err.message : 'Error al cargar opciones' }))
+    }
+    setLoadingOptionsMap(prev => { const n = { ...prev }; delete n[reqId]; return n })
+  }
+
   const approvePairing = async (reqId: string, mode: string = 'new') => {
     setPairingAction(reqId)
     try {
@@ -142,6 +170,8 @@ export default function NFCTerminals() {
       setSelectedCode('')
       setPairingOptions([])
       setOptionsError('')
+      setPairingOptionsMap(prev => { const n = { ...prev }; delete n[reqId]; return n })
+      setOptionsErrorMap(prev => { const n = { ...prev }; delete n[reqId]; return n })
       loadTerminals()
       setError('')
     } catch (err) {
@@ -156,6 +186,8 @@ export default function NFCTerminals() {
     try {
       await api.post(`/nfc/terminal/pair/request/${reqId}/reject`, {})
       setPendingPairings(prev => prev.filter(p => p.id !== reqId))
+      setPairingOptionsMap(prev => { const n = { ...prev }; delete n[reqId]; return n })
+      setOptionsErrorMap(prev => { const n = { ...prev }; delete n[reqId]; return n })
       setError('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al rechazar')
@@ -830,13 +862,15 @@ export default function NFCTerminals() {
             </div>
           ) : (
             <div className="space-y-3">
-              {pendingPairings.map((p) => (
+              {pendingPairings.map((p) => {
+                const cardOptions = pairingOptionsMap[p.id] || []
+                const cardError = optionsErrorMap[p.id]
+                const cardLoading = loadingOptionsMap[p.id]
+                const hasOptions = cardOptions.length > 0
+                return (
                 <div key={p.id} className="card border-2 border-trueque-300 bg-trueque-50">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="bg-trueque-600 text-white text-lg font-bold px-6 py-3 rounded-xl">
-                        Codigo oculto
-                      </div>
                       <div className="flex-1">
                         <p className="font-bold text-lg">{p.terminal_label || 'POS Android'}</p>
                         <p className="text-sm text-gray-600">Tipo: {p.terminal_type}</p>
@@ -890,108 +924,97 @@ export default function NFCTerminals() {
                     </div>
                   </div>
 
-                  {approvingCode === p.id ? (
-                    <div className="mt-4 space-y-3 border-t pt-4">
-                      <div>
-                        <label className="label">Etiqueta (opcional, pre-llenada por el POS)</label>
-                        <input className="input" placeholder={p.terminal_label || 'POS Android'}
-                          value={approveLabel}
-                          onChange={(e) => setApproveLabel(e.target.value)} />
-                      </div>
-                      <div>
-                        <label className="label">Ubicacion (opcional)</label>
-                        <input className="input" placeholder="Ej: Local 5, Mercado Central"
-                          value={approveLocation}
-                          onChange={(e) => setApproveLocation(e.target.value)} />
-                      </div>
+                  {/* 4 opciones de verificacion - cargadas automaticamente */}
+                  <div className="mt-4 border-t pt-4">
+                    <div>
+                      <label className="label">Etiqueta (opcional, pre-llenada por el POS)</label>
+                      <input className="input" placeholder={p.terminal_label || 'POS Android'}
+                        value={approvingCode === p.id ? approveLabel : ''}
+                        onChange={(e) => { setApprovingCode(p.id); setApproveLabel(e.target.value) }} />
+                    </div>
+                    <div>
+                      <label className="label">Ubicacion (opcional)</label>
+                      <input className="input" placeholder="Ej: Local 5, Mercado Central"
+                        value={approvingCode === p.id ? approveLocation : ''}
+                        onChange={(e) => { setApprovingCode(p.id); setApproveLocation(e.target.value) }} />
+                    </div>
 
-                      {/* Verificacion de 4 opciones */}
-                      {loadingOptions ? (
-                        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-sm text-indigo-700">
-                          Cargando opciones de verificacion...
+                    {/* Verificacion de 4 opciones */}
+                    {cardLoading ? (
+                      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-sm text-indigo-700 mt-3">
+                        Cargando 4 opciones de verificacion...
+                      </div>
+                    ) : cardError ? (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700 mt-3">
+                        <p className="font-semibold">Error al cargar opciones</p>
+                        <p className="text-xs mt-1">{cardError}</p>
+                        <button onClick={() => loadPairingOptionsForCard(p.id)} className="text-xs text-red-600 underline mt-1">Reintentar</button>
+                      </div>
+                    ) : hasOptions ? (
+                      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 space-y-2 mt-3">
+                        <p className="text-sm font-semibold text-indigo-800">Verificacion: selecciona el codigo que le comunico por telefono</p>
+                        <p className="text-xs text-indigo-600">
+                          El POS muestra un codigo en su pantalla. Solo uno de estos 4 es correcto.
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {cardOptions.map((opt) => (
+                            <button
+                              key={opt}
+                              onClick={() => { setApprovingCode(p.id); setSelectedCode(opt) }}
+                              className={`px-4 py-3 rounded-lg text-lg font-bold font-mono transition ${
+                                approvingCode === p.id && selectedCode === opt
+                                  ? 'bg-indigo-600 text-white ring-2 ring-indigo-400'
+                                  : 'bg-white text-indigo-700 border border-indigo-200 hover:bg-indigo-100'
+                              }`}
+                            >
+                              {opt}
+                            </button>
+                          ))}
                         </div>
-                      ) : optionsError ? (
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
-                          <p className="font-semibold">Error al cargar opciones</p>
-                          <p className="text-xs mt-1">{optionsError}</p>
-                          <button onClick={() => loadPairingOptions(p.id)} className="text-xs text-red-600 underline mt-1">Reintentar</button>
-                        </div>
-                      ) : pairingOptions.length > 0 ? (
-                        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 space-y-2">
-                          <p className="text-sm font-semibold text-indigo-800">Verificacion: selecciona el codigo correcto</p>
-                          <p className="text-xs text-indigo-600">
-                            El POS muestra un codigo en su pantalla. Selecciona la opcion que coincida con el codigo mostrado.
-                          </p>
-                          <div className="grid grid-cols-2 gap-2">
-                            {pairingOptions.map((opt) => (
-                              <button
-                                key={opt}
-                                onClick={() => setSelectedCode(opt)}
-                                className={`px-4 py-3 rounded-lg text-lg font-bold font-mono transition ${
-                                  selectedCode === opt
-                                    ? 'bg-indigo-600 text-white ring-2 ring-indigo-400'
-                                    : 'bg-white text-indigo-700 border border-indigo-200 hover:bg-indigo-100'
-                                }`}
-                              >
-                                {opt}
-                              </button>
-                            ))}
-                          </div>
-                          {!selectedCode && (
-                            <p className="text-xs text-amber-600">Debes seleccionar un codigo para aprobar.</p>
-                          )}
-                        </div>
-                      ) : null}
+                        {approvingCode === p.id && !selectedCode && (
+                          <p className="text-xs text-amber-600">Debes seleccionar un codigo para aprobar.</p>
+                        )}
+                      </div>
+                    ) : null}
 
-                      {p.existing_terminal_id ? (
-                        <div className="space-y-2">
-                          <p className="text-sm font-semibold text-gray-700">Este dispositivo ya existe. Que deseas hacer?</p>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => approvePairing(p.id, 'replace')}
-                              disabled={pairingAction === p.id || (pairingOptions.length > 0 && !selectedCode) || (!!optionsError && pairingOptions.length === 0)}
-                              className="btn-primary flex-1 disabled:opacity-50">
-                              {pairingAction === p.id ? 'Aprobando...' : 'Reemplazar clave existente'}
-                            </button>
-                            <button
-                              onClick={() => approvePairing(p.id, 'new')}
-                              disabled={pairingAction === p.id || (pairingOptions.length > 0 && !selectedCode) || (!!optionsError && pairingOptions.length === 0)}
-                              className="btn-secondary flex-1 disabled:opacity-50">
-                              Crear terminal nuevo
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
+                    {p.existing_terminal_id ? (
+                      <div className="space-y-2 mt-3">
+                        <p className="text-sm font-semibold text-gray-700">Este dispositivo ya existe. Que deseas hacer?</p>
                         <div className="flex gap-2">
                           <button
-                            onClick={() => approvePairing(p.id, 'new')}
-                            disabled={pairingAction === p.id || (pairingOptions.length > 0 && !selectedCode) || (!!optionsError && pairingOptions.length === 0)}
+                            onClick={() => approvePairing(p.id, 'replace')}
+                            disabled={pairingAction === p.id || (hasOptions && !(approvingCode === p.id && selectedCode)) || (!!cardError && !hasOptions)}
                             className="btn-primary flex-1 disabled:opacity-50">
-                            {pairingAction === p.id ? 'Aprobando...' : 'Aprobar y Registrar'}
+                            {pairingAction === p.id ? 'Aprobando...' : 'Reemplazar clave existente'}
+                          </button>
+                          <button
+                            onClick={() => approvePairing(p.id, 'new')}
+                            disabled={pairingAction === p.id || (hasOptions && !(approvingCode === p.id && selectedCode)) || (!!cardError && !hasOptions)}
+                            className="btn-secondary flex-1 disabled:opacity-50">
+                            Crear terminal nuevo
                           </button>
                         </div>
-                      )}
-                      <button
-                        onClick={() => { setApprovingCode(''); setApproveLabel(''); setApproveLocation(''); setSelectedCode(''); setPairingOptions([]); setOptionsError('') }}
-                        className="btn-secondary w-full">Cancelar</button>
-                    </div>
-                  ) : (
-                    <div className="mt-4 flex gap-2">
-                      <button
-                        onClick={() => { setApprovingCode(p.id); setApproveLabel(p.terminal_label || ''); setApproveLocation(''); setOptionsError(''); loadPairingOptions(p.id) }}
-                        className="btn-primary flex-1">
-                        Aprobar
-                      </button>
-                      <button
-                        onClick={() => rejectPairing(p.id)}
-                        disabled={pairingAction === p.id + '-reject'}
-                        className="btn-secondary text-red-600">
-                        {pairingAction === p.id + '-reject' ? 'Rechazando...' : 'Rechazar'}
-                      </button>
-                    </div>
-                  )}
+                      </div>
+                    ) : (
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={() => approvePairing(p.id, 'new')}
+                          disabled={pairingAction === p.id || (hasOptions && !(approvingCode === p.id && selectedCode)) || (!!cardError && !hasOptions)}
+                          className="btn-primary flex-1 disabled:opacity-50">
+                          {pairingAction === p.id ? 'Aprobando...' : 'Aprobar y Registrar'}
+                        </button>
+                      </div>
+                    )}
+                    <button
+                      onClick={() => rejectPairing(p.id)}
+                      disabled={pairingAction === p.id + '-reject'}
+                      className="btn-secondary text-red-600 w-full mt-2">
+                      {pairingAction === p.id + '-reject' ? 'Rechazando...' : 'Rechazar'}
+                    </button>
+                  </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
