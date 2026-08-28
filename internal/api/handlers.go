@@ -308,7 +308,7 @@ func (h *Handler) transfer(w http.ResponseWriter, r *http.Request) {
 		notify := NewNotifyService(h.Pool)
 		notify.Notify(r.Context(), h.nodeDomain, receiverID, "payment_received",
 			"Pago recibido",
-			fmt.Sprintf("Recibiste %d %s de %s", req.Amount, "TQ", senderName),
+			fmt.Sprintf("Recibiste %.2f TQ de %s", float64(req.Amount)/100, senderName),
 			"/app/history",
 			map[string]interface{}{"amount": req.Amount, "sender_id": senderID.String(), "sender_name": senderName})
 	}

@@ -656,15 +656,15 @@ func (nt *NFCTerminals) ProcessCommunityPayment(ctx context.Context, terminalID 
 		}
 	}
 
-	var buyerBalance int64
-	err = nt.Pool.QueryRow(ctx, `SELECT balance FROM users WHERE id = $1`, buyerCard.UserID).Scan(&buyerBalance)
+	var buyerBalance, buyerCreditLimit int64
+	err = nt.Pool.QueryRow(ctx, `SELECT balance, credit_limit FROM users WHERE id = $1`, buyerCard.UserID).Scan(&buyerBalance, &buyerCreditLimit)
 	if err != nil {
 		return nil, fmt.Errorf("getting buyer balance: %w", err)
 	}
 
-	if buyerBalance-payload.Amount < -50000 {
-		nt.logTransaction(ctx, termDBID, payload.BuyerCardUID, &buyerCard.UserID, payload.Amount, "rejected", payload.BuyerCryptoToken, true, "community", "", "insufficient balance")
-		return &NFCPaymentResult{Status: "rejected", Message: "saldo insuficiente del comprador"}, nil
+	if buyerBalance-payload.Amount < buyerCreditLimit {
+		nt.logTransaction(ctx, termDBID, payload.BuyerCardUID, &buyerCard.UserID, payload.Amount, "rejected", payload.BuyerCryptoToken, true, "community", "", "limite de credito alcanzado")
+		return &NFCPaymentResult{Status: "rejected", Message: "has llegado al tope de tu credito comunitario. Debes aportar a la comunidad para poder pagar nuevamente."}, nil
 	}
 
 	_, err = nt.Pool.Exec(ctx, `UPDATE users SET balance = balance - $2 WHERE id = $1`, buyerCard.UserID, payload.Amount)

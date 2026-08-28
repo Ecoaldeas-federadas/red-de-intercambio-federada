@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { Plus, HelpCircle, Network, ArrowUpCircle, ArrowDownCircle } from 'lucide-react'
+import { fmtTQ, toCents } from '../lib/format'
 
 export default function FederationLimits() {
   const { currency } = useConfig()
@@ -61,7 +62,7 @@ export default function FederationLimits() {
       return
     }
     const verb = action === 'increase' ? 'aumentar' : 'reducir'
-    const description = `Cambiar limite bilateral con ${changeRequest.node}: ${verb} credito de ${changeRequest.currentCredit} a ${credit_limit} ${currency} y debito de ${changeRequest.currentDebit} a ${debit_limit} ${currency}. Razon: ${reason || 'No especificada'}`
+    const description = `Cambiar limite bilateral con ${changeRequest.node}: ${verb} credito de ${fmtTQ(changeRequest.currentCredit)} a ${fmtTQ(credit_limit)} ${currency} y debito de ${fmtTQ(changeRequest.currentDebit)} a ${fmtTQ(debit_limit)} ${currency}. Razon: ${reason || 'No especificada'}`
     try {
       await api.post('/assembly/proposals', {
         proposal_type: 'federation_limit_change',
@@ -120,15 +121,15 @@ export default function FederationLimits() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
               <label className="label">Credito Global</label>
-              <b>{config.node_global_credit_limit} {currency}</b>
+              <b>{fmtTQ(config.node_global_credit_limit)} {currency}</b>
             </div>
             <div>
               <label className="label">Debito Global</label>
-              <b>{config.node_global_debit_limit} {currency}</b>
+              <b>{fmtTQ(config.node_global_debit_limit)} {currency}</b>
             </div>
             <div>
               <label className="label">Base Bilateral</label>
-              <b>{config.node_bilateral_base_limit} {currency}</b>
+              <b>{fmtTQ(config.node_bilateral_base_limit)} {currency}</b>
             </div>
             <div>
               <label className="label">Umbrales de aviso</label>
@@ -170,12 +171,12 @@ export default function FederationLimits() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Limite de credito ({currency})</label>
-              <input type="number" className="input" placeholder="Ej: 1000" value={form.credit_limit} onChange={(e) => setForm({ ...form, credit_limit: parseInt(e.target.value) || 0 })} />
+              <input type="number" className="input" placeholder="Ej: 1000" value={form.credit_limit} onChange={(e) => setForm({ ...form, credit_limit: toCents(e.target.value) })} />
               <p className="text-xs text-gray-400 mt-1">Maximo saldo positivo (a tu favor) con este nodo. Ejemplo: <code>1000</code> {currency}</p>
             </div>
             <div>
               <label className="label">Limite de debito ({currency})</label>
-              <input type="number" className="input" placeholder="Ej: 500" value={form.debit_limit} onChange={(e) => setForm({ ...form, debit_limit: parseInt(e.target.value) || 0 })} />
+              <input type="number" className="input" placeholder="Ej: 500" value={form.debit_limit} onChange={(e) => setForm({ ...form, debit_limit: toCents(e.target.value) })} />
               <p className="text-xs text-gray-400 mt-1">Maximo saldo negativo (deuda) con este nodo. Ejemplo: <code>500</code> {currency}</p>
             </div>
           </div>
@@ -202,7 +203,7 @@ export default function FederationLimits() {
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-sm text-gray-600">
-                      Credito: {b.credit_limit} {currency} | Debito: {b.debit_limit} {currency}
+                      Credito: {fmtTQ(b.credit_limit)} {currency} | Debito: {fmtTQ(b.debit_limit)} {currency}
                       {!b.remote_confirmed && <button onClick={() => confirm(b.remote_node)} className="ml-2 text-blue-600 hover:underline">Confirmar</button>}
                     </div>
                     <button
@@ -238,11 +239,11 @@ export default function FederationLimits() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="label">Nuevo limite credito ({currency})</label>
-                <input type="number" className="input" value={changeForm.credit_limit} onChange={(e) => setChangeForm({ ...changeForm, credit_limit: parseInt(e.target.value) || 0 })} />
+                <input type="number" className="input" value={changeForm.credit_limit} onChange={(e) => setChangeForm({ ...changeForm, credit_limit: toCents(e.target.value) })} />
               </div>
               <div>
                 <label className="label">Nuevo limite debito ({currency})</label>
-                <input type="number" className="input" value={changeForm.debit_limit} onChange={(e) => setChangeForm({ ...changeForm, debit_limit: parseInt(e.target.value) || 0 })} />
+                <input type="number" className="input" value={changeForm.debit_limit} onChange={(e) => setChangeForm({ ...changeForm, debit_limit: toCents(e.target.value) })} />
               </div>
             </div>
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { API } from '../api'
+import { fmtTQ } from '../utils/format'
 
 interface Props {
   onBack: () => void
@@ -29,13 +30,6 @@ export function ShiftScreen({ onBack, api, terminalID }: Props) {
     } finally {
       setLoading(false)
     }
-  }
-
-  // Formatear como decimal
-  const formatAmount = (cents: number) => {
-    const units = Math.floor(cents / 100)
-    const dec = (cents % 100).toString().padStart(2, '0')
-    return `${units.toLocaleString('es')}.${dec}`
   }
 
   const formatTime = (ts: string) => {
@@ -119,11 +113,11 @@ export function ShiftScreen({ onBack, api, terminalID }: Props) {
 
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
                 <span style={{ color: 'var(--text-dim)', fontSize: 14 }}>Apertura</span>
-                <span style={{ fontWeight: 600 }}>{formatAmount(shift.opening_amount || 0)} TQ</span>
+                <span style={{ fontWeight: 600 }}>{fmtTQ(shift.opening_amount || 0)} TQ</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
                 <span style={{ color: 'var(--text-dim)', fontSize: 14 }}>Total vendido</span>
-                <span style={{ fontWeight: 600, color: 'var(--success)' }}>{formatAmount(shift.total_sales || 0)} TQ</span>
+                <span style={{ fontWeight: 600, color: 'var(--success)' }}>{fmtTQ(shift.total_sales || 0)} TQ</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
                 <span style={{ color: 'var(--text-dim)', fontSize: 14 }}>Transacciones</span>
@@ -131,7 +125,7 @@ export function ShiftScreen({ onBack, api, terminalID }: Props) {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0' }}>
                 <span style={{ color: 'var(--text-dim)', fontSize: 14 }}>Cierre esperado</span>
-                <span style={{ fontWeight: 700, color: 'var(--accent-light)' }}>{formatAmount(shift.expected_close || 0)} TQ</span>
+                <span style={{ fontWeight: 700, color: 'var(--accent-light)' }}>{fmtTQ(shift.expected_close || 0)} TQ</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', fontSize: 12, color: 'var(--text-dim)' }}>
                 <span>Abierto desde</span>
@@ -175,7 +169,7 @@ export function ShiftScreen({ onBack, api, terminalID }: Props) {
           <div className="card" style={{ marginBottom: 16, textAlign: 'center' }}>
             <div style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 4 }}>MONTO INICIAL (EFECTIVO/CAJA)</div>
             <div className="amount-display" style={{ color: 'var(--accent-light)' }}>
-              {formatAmount(parseInt(openingAmount) || 0)}
+              {fmtTQ(parseInt(openingAmount) || 0)}
             </div>
             <div style={{ color: 'var(--text-dim)', fontSize: 14 }}>TQ</div>
           </div>
@@ -209,11 +203,11 @@ export function ShiftScreen({ onBack, api, terminalID }: Props) {
 
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
               <span style={{ color: 'var(--text-dim)', fontSize: 14 }}>Monto apertura</span>
-              <span style={{ fontWeight: 600 }}>{formatAmount(closeResult.opening_amount || 0)} TQ</span>
+              <span style={{ fontWeight: 600 }}>{fmtTQ(closeResult.opening_amount || 0)} TQ</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
               <span style={{ color: 'var(--text-dim)', fontSize: 14 }}>Total vendido</span>
-              <span style={{ fontWeight: 600, color: 'var(--success)' }}>{formatAmount(closeResult.total_sales || 0)} TQ</span>
+              <span style={{ fontWeight: 600, color: 'var(--success)' }}>{fmtTQ(closeResult.total_sales || 0)} TQ</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
               <span style={{ color: 'var(--text-dim)', fontSize: 14 }}>Transacciones</span>
@@ -221,7 +215,7 @@ export function ShiftScreen({ onBack, api, terminalID }: Props) {
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0' }}>
               <span style={{ color: 'var(--text-dim)', fontSize: 14 }}>Cierre total</span>
-              <span style={{ fontWeight: 700, fontSize: 18, color: 'var(--accent-light)' }}>{formatAmount(closeResult.expected_close || 0)} TQ</span>
+              <span style={{ fontWeight: 700, fontSize: 18, color: 'var(--accent-light)' }}>{fmtTQ(closeResult.expected_close || 0)} TQ</span>
             </div>
           </div>
 

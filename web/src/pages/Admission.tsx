@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { Check, X, Plus, HelpCircle, UserPlus, Clock } from 'lucide-react'
+import { toCents } from '../lib/format'
 
 export default function Admission() {
   const { currency } = useConfig()
@@ -144,12 +145,12 @@ export default function Admission() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Limite de credito solicitado ({currency})</label>
-              <input type="number" className="input" value={form.requested_credit_limit} onChange={(e) => setForm({ ...form, requested_credit_limit: parseInt(e.target.value) || 0 })} />
+              <input type="number" className="input" value={form.requested_credit_limit} onChange={(e) => setForm({ ...form, requested_credit_limit: toCents(e.target.value) })} />
               <p className="text-xs text-gray-400 mt-1">Maximo saldo positivo que puedes acumular.</p>
             </div>
             <div>
               <label className="label">Limite de debito solicitado ({currency})</label>
-              <input type="number" className="input" value={form.requested_debit_limit} onChange={(e) => setForm({ ...form, requested_debit_limit: parseInt(e.target.value) || 0 })} />
+              <input type="number" className="input" value={form.requested_debit_limit} onChange={(e) => setForm({ ...form, requested_debit_limit: toCents(e.target.value) })} />
               <p className="text-xs text-gray-400 mt-1">Maximo saldo negativo (deuda) permitido.</p>
             </div>
           </div>

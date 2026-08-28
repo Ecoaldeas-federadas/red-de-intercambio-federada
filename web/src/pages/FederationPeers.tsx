@@ -3,6 +3,7 @@ import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useConfig } from '../hooks/useConfig'
 import { Globe, Plus, Trash2, Key, Copy, CheckCircle, AlertCircle, Link2, HelpCircle, ArrowUpCircle, ArrowDownCircle, FileText, Award, Handshake, Shield } from 'lucide-react'
+import { fmtTQ } from '../lib/format'
 
 interface Peer {
   peer_domain: string
@@ -322,7 +323,7 @@ export default function FederationPeers() {
                 <div className="mt-2 flex items-center gap-2">
                   <span className="text-xs text-gray-600">Saldo bilateral:</span>
                   <span className={`text-sm font-bold ${bal > 0 ? 'text-green-600' : bal < 0 ? 'text-red-600' : 'text-gray-500'}`}>
-                    {bal > 0 ? '+' : ''}{bal} {currency}
+                    {bal > 0 ? '+' : ''}{fmtTQ(bal)} {currency}
                   </span>
                   {bal > 0 && <span className="text-xs text-green-600">(te deben)</span>}
                   {bal < 0 && <span className="text-xs text-red-600">(debes)</span>}
@@ -334,18 +335,18 @@ export default function FederationPeers() {
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                     <span className="text-gray-600 flex items-center gap-1">
                       <Shield size={12} /> Limite nominal:
-                      <strong className="font-bold text-gray-700">{levelInfo.limit} {currency}</strong>
+                      <strong className="font-bold text-gray-700">{fmtTQ(levelInfo.limit)} {currency}</strong>
                     </span>
                     {levelInfo.held_limit > 0 && (
                       <span className="text-amber-600 flex items-center gap-1">
                         Retenido por patrocinios:
-                        <strong className="font-bold">-{levelInfo.held_limit} {currency}</strong>
+                        <strong className="font-bold">-{fmtTQ(levelInfo.held_limit)} {currency}</strong>
                       </span>
                     )}
                     <span className="text-gray-600 flex items-center gap-1">
                       Limite efectivo:
                       <strong className={`font-bold ${levelInfo.effective_limit < levelInfo.limit ? 'text-amber-600' : 'text-green-600'}`}>
-                        {levelInfo.effective_limit} {currency}
+                        {fmtTQ(levelInfo.effective_limit)} {currency}
                       </strong>
                     </span>
                     {levelInfo.can_vote && (
@@ -421,7 +422,7 @@ export default function FederationPeers() {
                             </div>
                           </div>
                           <div className={`font-bold text-sm ${isDebit ? 'text-red-600' : 'text-green-600'}`}>
-                            {isDebit ? '-' : '+'}{amount} {currency}
+                            {isDebit ? '-' : '+'}{fmtTQ(amount)} {currency}
                           </div>
                         </div>
                       )
@@ -437,13 +438,13 @@ export default function FederationPeers() {
                       <div className="bg-red-50 rounded-lg p-2">
                         <p className="text-gray-600 text-xs">Total enviado</p>
                         <p className="font-bold text-red-600 text-lg">
-                          -{peerTxs.filter(t => t.direction === 'debit').reduce((s, t) => s + Math.abs(t.amount || 0), 0)} {currency}
+                          -{fmtTQ(peerTxs.filter(t => t.direction === 'debit').reduce((s, t) => s + Math.abs(t.amount || 0), 0))} {currency}
                         </p>
                       </div>
                       <div className="bg-green-50 rounded-lg p-2">
                         <p className="text-gray-600 text-xs">Total recibido</p>
                         <p className="font-bold text-green-600 text-lg">
-                          +{peerTxs.filter(t => t.direction === 'credit').reduce((s, t) => s + Math.abs(t.amount || 0), 0)} {currency}
+                          +{fmtTQ(peerTxs.filter(t => t.direction === 'credit').reduce((s, t) => s + Math.abs(t.amount || 0), 0))} {currency}
                         </p>
                       </div>
                       <div className={`rounded-lg p-2 ${(peerTxs.filter(t => t.direction === 'credit').reduce((s, t) => s + Math.abs(t.amount || 0), 0) - peerTxs.filter(t => t.direction === 'debit').reduce((s, t) => s + Math.abs(t.amount || 0), 0)) >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
@@ -453,7 +454,7 @@ export default function FederationPeers() {
                             const net = peerTxs.filter(t => t.direction === 'credit').reduce((s, t) => s + Math.abs(t.amount || 0), 0) - peerTxs.filter(t => t.direction === 'debit').reduce((s, t) => s + Math.abs(t.amount || 0), 0)
                             return net >= 0 ? '+' : ''
                           })()}
-                          {peerTxs.filter(t => t.direction === 'credit').reduce((s, t) => s + Math.abs(t.amount || 0), 0) - peerTxs.filter(t => t.direction === 'debit').reduce((s, t) => s + Math.abs(t.amount || 0), 0)} {currency}
+                          {fmtTQ(peerTxs.filter(t => t.direction === 'credit').reduce((s, t) => s + Math.abs(t.amount || 0), 0) - peerTxs.filter(t => t.direction === 'debit').reduce((s, t) => s + Math.abs(t.amount || 0), 0))} {currency}
                         </p>
                       </div>
                     </div>
@@ -533,7 +534,7 @@ export default function FederationPeers() {
                   </div>
                   <div className="flex items-center gap-3 text-xs">
                     <span className="text-amber-600">
-                      Limite retenido: <strong>{s.held_limit} {currency}</strong>
+                      Limite retenido: <strong>{fmtTQ(s.held_limit)} {currency}</strong>
                     </span>
                     <span className={`px-2 py-0.5 rounded ${
                       s.status === 'active' ? 'bg-green-100 text-green-700' :

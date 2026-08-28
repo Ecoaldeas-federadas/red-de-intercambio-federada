@@ -74,14 +74,15 @@ func (m *MultiSigPayments) CreatePendingPayment(ctx context.Context, params Crea
 		return nil, fmt.Errorf("account does not require multi-sig")
 	}
 
-	// Obtener tiempo de expiracion configurado (default 10 minutos)
-	expirationMinutes := 10
+	// Obtener tiempo de expiracion configurado (default 3 minutos).
+	// Cada firma resetea el timeout a 3 minutos mas (se maneja en SignPendingPayment).
+	expirationMinutes := 3
 	_ = m.Pool.QueryRow(ctx, `
 		SELECT expiration_minutes FROM multisig_config WHERE node_domain = $1`,
 		m.NodeDomain,
 	).Scan(&expirationMinutes)
 	if expirationMinutes <= 0 {
-		expirationMinutes = 10
+		expirationMinutes = 3
 	}
 
 	var p PendingMultiSigPayment
@@ -192,10 +193,16 @@ func (m *MultiSigPayments) SignPendingPayment(ctx context.Context, paymentID, si
 		remaining = 0
 	}
 
+	// Resetear el timeout: cada firma da 3 minutos mas de prorroga.
+	// Esto permite que transacciones multi-firma no expiren mientras
+	// se buscan los firmantes, pero si nadie firma en 3 min, se anula.
+	newExpiresAt := time.Now().Add(3 * time.Minute)
+
 	_, err = m.Pool.Exec(ctx, `
-		UPDATE pending_multisig_payments SET collected_signatures = $2, status = $3, updated_at = NOW()
+		UPDATE pending_multisig_payments
+		SET collected_signatures = $2, status = $3, updated_at = NOW(), expires_at = $4
 		WHERE id = $1`,
-		paymentID, collected, status)
+		paymentID, collected, status, newExpiresAt)
 	if err != nil {
 		return 0, nil, fmt.Errorf("updating pending payment: %w", err)
 	}
@@ -225,15 +232,15 @@ func (m *MultiSigPayments) ExecutePendingPayment(ctx context.Context, paymentID 
 	}
 
 	// Verificar saldo
-	var balance int64
-	err = m.Pool.QueryRow(ctx, `SELECT balance FROM users WHERE id = $1`, p.FromAccount).Scan(&balance)
+	var balance, creditLimit int64
+	err = m.Pool.QueryRow(ctx, `SELECT balance, credit_limit FROM users WHERE id = $1`, p.FromAccount).Scan(&balance, &creditLimit)
 	if err != nil {
 		return fmt.Errorf("getting balance: %w", err)
 	}
-	if balance-p.Amount < -50000 {
+	if balance-p.Amount < creditLimit {
 		// Marcar como cancelado por saldo insuficiente
 		m.Pool.Exec(ctx, `UPDATE pending_multisig_payments SET status = 'cancelled', updated_at = NOW() WHERE id = $1`, paymentID)
-		return fmt.Errorf("saldo insuficiente")
+		return fmt.Errorf("has llegado al tope de tu credito comunitario")
 	}
 
 	// Debitar y acreditar

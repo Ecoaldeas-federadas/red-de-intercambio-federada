@@ -5,6 +5,7 @@ import { Users, Plus, HelpCircle, X, Crown, Trash2, Key, Vote as VoteIcon, Arrow
 import { EntitySelector } from '../components/EntitySelector'
 import { useConfig } from '../hooks/useConfig'
 import ScopedAssembly from '../components/ScopedAssembly'
+import { toCents } from '../lib/format'
 
 const ORG_TYPE_OPTIONS = [
   {
@@ -314,7 +315,7 @@ export default function Organizations() {
                 className="input"
                 placeholder={`Ej: -20000 (${currency})`}
                 value={form.credit_limit}
-                onChange={(e) => setForm({ ...form, credit_limit: parseInt(e.target.value) || 0 })}
+                onChange={(e) => setForm({ ...form, credit_limit: toCents(e.target.value) })}
               />
               <p className="text-xs text-gray-400 mt-1">
                 Monto maximo en {currency} que la organizacion puede tener como credito (saldo
@@ -328,7 +329,7 @@ export default function Organizations() {
                 className="input"
                 placeholder={`Ej: 20000 (${currency})`}
                 value={form.debit_limit}
-                onChange={(e) => setForm({ ...form, debit_limit: parseInt(e.target.value) || 0 })}
+                onChange={(e) => setForm({ ...form, debit_limit: toCents(e.target.value) })}
               />
               <p className="text-xs text-gray-400 mt-1">
                 Monto maximo en {currency} que la organizacion puede tener como debito (saldo

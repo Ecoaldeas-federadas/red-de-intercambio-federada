@@ -236,7 +236,7 @@ func (nl *NodeLevels) SponsorNewNode(ctx context.Context, sponsorDomain, newDoma
 
 	// Check if sponsor has enough limit remaining
 	if effectiveLimit-amountHeld <= 0 {
-		return fmt.Errorf("sponsor does not have enough limit: effective %d - held %d would be <= 0", effectiveLimit, amountHeld)
+		return fmt.Errorf("sponsor does not have enough limit: effective %.2f TQ - held %.2f TQ would be <= 0", float64(effectiveLimit)/100, float64(amountHeld)/100)
 	}
 
 	// Create the sponsorship
@@ -405,10 +405,10 @@ func (nl *NodeLevels) CheckAutoUpgrade(ctx context.Context, peerDomain string) (
 	// Check reciprocity: node must have both contributed (positive balance) and received (negative balance)
 	if level.RequireReciprocity {
 		if membership.MinBalanceReached > -level.ReciprocityMinBalance {
-			return false, fmt.Sprintf("reciprocity: min balance %d not low enough (need <= -%d)", membership.MinBalanceReached, level.ReciprocityMinBalance), nil
+			return false, fmt.Sprintf("reciprocity: min balance %.2f TQ not low enough (need <= -%.2f TQ)", float64(membership.MinBalanceReached)/100, float64(level.ReciprocityMinBalance)/100), nil
 		}
 		if membership.MaxBalanceReached < level.ReciprocityMaxBalance {
-			return false, fmt.Sprintf("reciprocity: max balance %d not high enough (need >= %d)", membership.MaxBalanceReached, level.ReciprocityMaxBalance), nil
+			return false, fmt.Sprintf("reciprocity: max balance %.2f TQ not high enough (need >= %.2f TQ)", float64(membership.MaxBalanceReached)/100, float64(level.ReciprocityMaxBalance)/100), nil
 		}
 	}
 
@@ -416,7 +416,7 @@ func (nl *NodeLevels) CheckAutoUpgrade(ctx context.Context, peerDomain string) (
 	if level.RequireAvgLimit {
 		requiredAvgLimit := int64(float64(level.GlobalCreditLimit) * level.AvgLimitRatio)
 		if membership.AvgLimitCalculated < requiredAvgLimit {
-			return false, fmt.Sprintf("average limit %d below required %d (ratio %.2f of %d)", membership.AvgLimitCalculated, requiredAvgLimit, level.AvgLimitRatio, level.GlobalCreditLimit), nil
+			return false, fmt.Sprintf("average limit %.2f TQ below required %.2f TQ (ratio %.2f of %.2f TQ)", float64(membership.AvgLimitCalculated)/100, float64(requiredAvgLimit)/100, level.AvgLimitRatio, float64(level.GlobalCreditLimit)/100), nil
 		}
 	}
 

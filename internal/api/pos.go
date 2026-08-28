@@ -40,6 +40,10 @@ func (h *POSHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	// No requiere auth - el cliente ve el monto primero, luego inicia sesion
 	r.Get("/api/pos/charge/{token}/info", h.getChargeInfo)
 
+	// Ruta para que el cliente cancele el cargo (usa token, no id del merchant)
+	// Requiere auth del cliente para que solo el que escaneo el QR pueda cancelar
+	r.With(am.RequireAuth).Post("/api/pos/charge/{token}/cancel", h.cancelChargeByToken)
+
 	// Ruta para pagar (requiere auth del cliente/pagador)
 	r.With(am.RequireAuth).Post("/api/pos/charge/{token}/pay", h.payCharge)
 }
@@ -92,7 +96,9 @@ func (h *POSHandler) createCharge(w http.ResponseWriter, r *http.Request) {
 	}
 
 	chargeToken := uuid.New().String()
-	expiresAt := time.Now().Add(10 * time.Minute)
+	// Timeout de 3 minutos para que el cliente confirme el pago.
+	// Si son varias firmas (multi-sig), cada firma resetea el timeout a 3 min mas.
+	expiresAt := time.Now().Add(3 * time.Minute)
 
 	var chargeID string
 	err = h.Pool.QueryRow(r.Context(), `
@@ -407,6 +413,45 @@ func (h *POSHandler) cancelCharge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]string{"status": "cancelled"})
+}
+
+// cancelChargeByToken permite al CLIENTE cancelar el cargo usando el token del QR.
+// Esto notifica al POS (que hace polling de status) que el cliente cancelo,
+// en lugar de dejarlo esperando hasta que expire el timeout.
+func (h *POSHandler) cancelChargeByToken(w http.ResponseWriter, r *http.Request) {
+	token := chi.URLParam(r, "token")
+	if token == "" {
+		writeError(w, 400, "token is required")
+		return
+	}
+
+	result, err := h.Pool.Exec(r.Context(), `
+		UPDATE pos_charges SET status = 'cancelled'
+		WHERE charge_token = $1 AND status = 'pending'`,
+		token,
+	)
+	if err != nil {
+		writeError(w, 500, "failed to cancel charge")
+		return
+	}
+	if result.RowsAffected() == 0 {
+		// El cargo ya no esta pending (puede estar paid, expired, o cancelled)
+		var status string
+		_ = h.Pool.QueryRow(r.Context(), `SELECT status FROM pos_charges WHERE charge_token = $1`, token).Scan(&status)
+		if status == "" {
+			writeError(w, 404, "charge not found")
+			return
+		}
+		writeJSON(w, 200, map[string]interface{}{
+			"status":  status,
+			"message": "El cargo ya no esta pendiente (estado: " + status + ")",
+		})
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{
+		"status":  "cancelled",
+		"message": "Cargo cancelado por el cliente",
+	})
 }
 
 var _ = context.Background

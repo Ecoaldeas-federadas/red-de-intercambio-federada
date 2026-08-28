@@ -4,6 +4,7 @@ import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { Plus, Check, X, HelpCircle, Globe, Calculator, Save, Edit3, Info, Package, Building2, Wallet, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react'
 import { EntitySelector } from '../components/EntitySelector'
+import { toCents } from '../lib/format'
 
 export default function ExternalBridge() {
   const { currency } = useConfig()
@@ -986,7 +987,7 @@ export default function ExternalBridge() {
                 className="input"
                 placeholder="Ej: 150"
                 value={form.local_price_trueque}
-                onChange={(e) => setForm({ ...form, local_price_trueque: parseInt(e.target.value) || 0 })}
+                onChange={(e) => setForm({ ...form, local_price_trueque: toCents(e.target.value) })}
               />
               <p className="text-xs text-gray-400 mt-1">
                 Precio en moneda local ({currency}) por unidad. Se autocompleta al seleccionar un producto. Ej: 150 {currency} por kg.

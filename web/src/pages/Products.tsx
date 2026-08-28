@@ -4,6 +4,7 @@ import { usePermissions } from '../hooks/usePermissions'
 import { useConfig } from '../hooks/useConfig'
 import { Plus, HelpCircle, Package, Pencil, Check, X, Upload, Eye, EyeOff, Loader2, Globe, Search, Layers, ArrowUpCircle, Trash2 } from 'lucide-react'
 import { assetUrl } from '../utils/assetUrl'
+import { fmtTQ, toCents } from '../lib/format'
 
 interface ProductForm {
   name: string
@@ -417,7 +418,7 @@ export default function Products() {
       parent_category: p.parent_category || '',
       category: p.category || '',
       subcategory: p.subcategory || '',
-      price: p.price || 0,
+      price: (p.price || 0) / 100,
       product_code: p.product_code || '',
       badge: p.badge || '',
       image_url: p.image_url || '',
@@ -553,7 +554,7 @@ export default function Products() {
         </div>
         <div>
           <label className="label">Precio ({currency})</label>
-          <input type="number" className="input" placeholder="Ej: 50" value={form.price} onChange={(e) => setForm({ ...form, price: parseInt(e.target.value) || 0 })} />
+          <input type="number" className="input" placeholder="Ej: 50" value={form.price} onChange={(e) => setForm({ ...form, price: toCents(e.target.value) })} />
         </div>
       </div>
 
@@ -637,7 +638,7 @@ export default function Products() {
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">{p.name}</span>
                       <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">De: {p.source_node}</span>
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{p.price_per_unit} TQ/{p.unit}</span>
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{fmtTQ(p.price_per_unit)} TQ/{p.unit}</span>
                     </div>
                     <p className="text-xs text-gray-600 mt-1">{p.description}</p>
                     <p className="text-[10px] text-gray-400 mt-1">
@@ -676,7 +677,7 @@ export default function Products() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">{p.name}</span>
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{p.price_per_unit} {currency}/{p.unit}</span>
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{fmtTQ(p.price_per_unit)} {currency}/{p.unit}</span>
                     </div>
                     <p className="text-xs text-gray-600 mt-1">{p.description}</p>
                     <p className="text-[10px] text-gray-400 mt-1">
@@ -1034,7 +1035,7 @@ export default function Products() {
                       </div>
                       <div className="mt-3 space-y-1">
                         <p className="text-lg font-bold text-trueque-700">
-                          {p.price} {currency}
+                          {fmtTQ(p.price)} {currency}
                           {p.unit && <span className="text-sm font-normal text-gray-500"> / {p.unit}</span>}
                         </p>
                         {p.price_calculation && (

@@ -1,4 +1,5 @@
 import { API } from '../api'
+import { fmtTQ } from '../utils/format'
 
 interface Props {
   amount: number
@@ -10,13 +11,6 @@ interface Props {
 }
 
 export function ConfirmAmountScreen({ amount, onBack, onShowQR, onShowNFC, api, sessionToken }: Props) {
-  // Formatear como decimal: el amount esta en centimos
-  const formatAmount = (cents: number) => {
-    const units = Math.floor(cents / 100)
-    const dec = (cents % 100).toString().padStart(2, '0')
-    return `${units.toLocaleString('es')}.${dec}`
-  }
-
   const handleQR = async () => {
     if (sessionToken) {
       try {
@@ -55,7 +49,7 @@ export function ConfirmAmountScreen({ amount, onBack, onShowQR, onShowNFC, api, 
       <div className="card" style={{ width: '100%', textAlign: 'center', marginBottom: 32, padding: 32 }}>
         <div style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 8 }}>MONTO A COBRAR</div>
         <div style={{ fontSize: 56, fontWeight: 800, color: 'var(--accent-light)' }}>
-          {formatAmount(amount)}
+          {fmtTQ(amount)}
         </div>
         <div style={{ color: 'var(--text-dim)', fontSize: 20, marginTop: 4 }}>TQ</div>
       </div>

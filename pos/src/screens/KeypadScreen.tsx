@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { API } from '../api'
+import { fmtTQ } from '../utils/format'
 
 interface Props {
   amount: number
@@ -64,15 +65,6 @@ export function KeypadScreen({
     onAmountChange(parseInt(newDigits) || 0)
   }
 
-  // Formatear como decimal: ultimos 2 digitos son centimos
-  const formatDisplay = (d: string) => {
-    const num = parseInt(d) || 0
-    const cents = num % 100
-    const units = Math.floor(num / 100)
-    const centsStr = cents.toString().padStart(2, '0')
-    return `${units.toLocaleString('es')}.${centsStr}`
-  }
-
   const handleCharge = () => {
     if (amount <= 0) return
     setError('')
@@ -109,7 +101,7 @@ export function KeypadScreen({
       <div className="card" style={{ marginBottom: 16, textAlign: 'center' }}>
         <div style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 4 }}>MONTO A COBRAR</div>
         <div className="amount-display" style={{ color: 'var(--accent-light)' }}>
-          {formatDisplay(digits)}
+          {fmtTQ(parseInt(digits) || 0)}
         </div>
         <div style={{ color: 'var(--text-dim)', fontSize: 14 }}>TQ</div>
       </div>

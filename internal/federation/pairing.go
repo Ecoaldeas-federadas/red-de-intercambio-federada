@@ -196,7 +196,7 @@ func (fp *FederationPairing) ConfirmFederationPairing(ctx context.Context, code,
 		return nil, fmt.Errorf("error obteniendo limite del sponsor: %w", err)
 	}
 	if sponsorEffectiveLimit-level1.GlobalCreditLimit <= 0 {
-		return nil, fmt.Errorf("el sponsor no tiene limite suficiente para patrocinar (efectivo: %d, necesario: %d)", sponsorEffectiveLimit, level1.GlobalCreditLimit)
+		return nil, fmt.Errorf("el sponsor no tiene limite suficiente para patrocinar (efectivo: %.2f TQ, necesario: %.2f TQ)", float64(sponsorEffectiveLimit)/100, float64(level1.GlobalCreditLimit)/100)
 	}
 
 	// Register the new node as a peer in node_federation_keys

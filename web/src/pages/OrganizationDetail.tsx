@@ -5,6 +5,7 @@ import { useConfig } from '../hooks/useConfig'
 import { usePermissions } from '../hooks/usePermissions'
 import { ArrowLeft, Users, Wallet as WalletIcon, Vote as VoteIcon, Settings, Crown, Plus, Trash2, ArrowUpCircle, ArrowDownCircle, FileText, Building2, Plug, Landmark, ExternalLink, ShoppingBag, UserCheck, Power, Eye, Clock } from 'lucide-react'
 import ScopedAssembly from '../components/ScopedAssembly'
+import { fmtTQ, toCents } from '../lib/format'
 
 export default function OrganizationDetail() {
   const { id } = useParams<{ id: string }>()
@@ -190,7 +191,7 @@ export default function OrganizationDetail() {
     }
   }
 
-  const fmtAmount = (n: number) => Math.round(n * 100) / 100
+  const fmtAmount = (n: number) => fmtTQ(n)
 
   if (!org) {
     return (
@@ -313,11 +314,11 @@ export default function OrganizationDetail() {
             </div>
             <div>
               <p className="text-gray-500">Limite credito:</p>
-              <p className="font-medium">{org.credit_limit || 0} {currency}</p>
+              <p className="font-medium">{fmtTQ(org.credit_limit || 0)} {currency}</p>
             </div>
             <div>
               <p className="text-gray-500">Limite debito:</p>
-              <p className="font-medium">{org.debit_limit || 0} {currency}</p>
+              <p className="font-medium">{fmtTQ(org.debit_limit || 0)} {currency}</p>
             </div>
           </div>
           {isAssemblyOwned && (
@@ -568,7 +569,7 @@ export default function OrganizationDetail() {
                       type="number"
                       className="input mt-1"
                       value={serviceForm.amount}
-                      onChange={(e) => setServiceForm({ ...serviceForm, amount: parseInt(e.target.value) || 0 })}
+                      onChange={(e) => setServiceForm({ ...serviceForm, amount: toCents(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -943,7 +944,7 @@ function OrgTerminals({ orgID }: { orgID: string }) {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-bold text-green-600">{s.total_sales?.toLocaleString('es')} TQ</div>
+                  <div className="font-bold text-green-600">{fmtTQ(s.total_sales || 0)} TQ</div>
                   <div className="text-xs text-gray-500">{s.transactions_count} tx · {s.status}</div>
                 </div>
               </div>
@@ -964,7 +965,7 @@ function OrgTerminals({ orgID }: { orgID: string }) {
           <button onClick={() => { setSubView('list'); setSelectedTerminal(null) }} className="px-4 py-2 bg-gray-100 rounded-lg">← Volver</button>
         </div>
         <div className="grid grid-cols-2 gap-4 mb-4">
-          <div className="card"><div className="text-xs text-gray-500">TOTAL</div><div className="text-2xl font-bold text-green-600">{total.toLocaleString('es')} TQ</div></div>
+          <div className="card"><div className="text-xs text-gray-500">TOTAL</div><div className="text-2xl font-bold text-green-600">{fmtTQ(total)} TQ</div></div>
           <div className="card"><div className="text-xs text-gray-500">TRANSACCIONES</div><div className="text-2xl font-bold">{transactions.length}</div></div>
         </div>
         <div className="card divide-y">
@@ -975,7 +976,7 @@ function OrgTerminals({ orgID }: { orgID: string }) {
                 <div className="text-xs text-gray-500">{formatTime(t.created_at)}{t.error_message && ` · ${t.error_message}`}</div>
               </div>
               <div className={`font-bold ${t.status === 'approved' ? 'text-green-600' : 'text-red-600'}`}>
-                {t.status === 'approved' ? '+' : ''}{t.amount.toLocaleString('es')} TQ
+                {t.status === 'approved' ? '+' : ''}{fmtTQ(t.amount || 0)} TQ
               </div>
             </div>
           ))}

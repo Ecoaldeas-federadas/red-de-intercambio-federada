@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { api, apiFetch } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { Smartphone, Lock, Unlock, Eye, Activity, Power, ShoppingBag, Edit2, Globe, Clock, XCircle, CheckCircle } from 'lucide-react'
+import { fmtTQ } from '../lib/format'
 
 interface MyTerminal {
   id: string
@@ -237,7 +238,7 @@ export default function MyTerminals() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-white rounded-xl p-4 border">
             <div className="text-gray-500 text-xs mb-1">TOTAL VENTAS</div>
-            <div className="text-2xl font-bold text-green-600">{totalSales.toLocaleString('es')} TQ</div>
+            <div className="text-2xl font-bold text-green-600">{fmtTQ(totalSales)} TQ</div>
           </div>
           <div className="bg-white rounded-xl p-4 border">
             <div className="text-gray-500 text-xs mb-1">TRANSACCIONES</div>
@@ -273,7 +274,7 @@ export default function MyTerminals() {
                   </div>
                   <div className="text-right">
                     <div className={`font-bold ${tx.status === 'approved' ? 'text-green-600' : 'text-red-600'}`}>
-                      {tx.status === 'approved' ? '+' : ''}{tx.amount.toLocaleString('es')} TQ
+                      {tx.status === 'approved' ? '+' : ''}{fmtTQ(tx.amount)} TQ
                     </div>
                     <div className="text-xs text-gray-500">{tx.status}</div>
                   </div>

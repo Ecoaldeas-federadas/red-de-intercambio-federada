@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { api, getStorageKeys } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon, Vote as VoteIcon, Database, Download, Upload, AlertTriangle, RefreshCw, Globe, Lock, Unlock, Trash2, FileText, Server, HardDrive, CheckCircle, Info, X, Power, Play, Square, Sparkles, Clock, Shield, Scale, Flower, Sprout } from 'lucide-react'
+import { fmtTQ, toCents } from '../lib/format'
 
 // Opciones del 1 al 10 para el numero de nivel (seleccionable, no texto libre)
 const LEVEL_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1)
@@ -818,12 +819,12 @@ export default function NodeSettings() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label">Limite de credito (negativo)</label>
-                  <input type="number" className="input" value={levelForm.credit_limit} onChange={(e) => setLevelForm({ ...levelForm, credit_limit: parseInt(e.target.value) || 0 })} />
+                  <input type="number" className="input" value={levelForm.credit_limit} onChange={(e) => setLevelForm({ ...levelForm, credit_limit: toCents(e.target.value) })} />
                   <p className="text-xs text-gray-400 mt-1">Cuanto puede deber (negativo).</p>
                 </div>
                 <div>
                   <label className="label">Limite de debito (positivo)</label>
-                  <input type="number" className="input" value={levelForm.debit_limit} onChange={(e) => setLevelForm({ ...levelForm, debit_limit: parseInt(e.target.value) || 0 })} />
+                  <input type="number" className="input" value={levelForm.debit_limit} onChange={(e) => setLevelForm({ ...levelForm, debit_limit: toCents(e.target.value) })} />
                   <p className="text-xs text-gray-400 mt-1">Cuanto puede acumular (positivo).</p>
                 </div>
               </div>
@@ -894,7 +895,7 @@ export default function NodeSettings() {
                     {l.can_create_organization && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">Crea org</span>}
                   </div>
                   <p className="text-xs text-gray-400 mt-2">
-                    Credito: {l.credit_limit} | Debito: {l.debit_limit}
+                    Credito: {fmtTQ(l.credit_limit || 0)} | Debito: {fmtTQ(l.debit_limit || 0)}
                     {l.max_organizations > 0 && ` | Max org: ${l.max_organizations}`}
                   </p>
                 </div>
@@ -954,12 +955,12 @@ export default function NodeSettings() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label">Limite de credito (negativo)</label>
-                  <input type="number" className="input" value={orgLevelForm.credit_limit} onChange={(e) => setOrgLevelForm({ ...orgLevelForm, credit_limit: parseInt(e.target.value) || 0 })} />
+                  <input type="number" className="input" value={orgLevelForm.credit_limit} onChange={(e) => setOrgLevelForm({ ...orgLevelForm, credit_limit: toCents(e.target.value) })} />
                   <p className="text-xs text-gray-400 mt-1">Cuanto puede deber la organizacion (negativo). Ej: -100000.</p>
                 </div>
                 <div>
                   <label className="label">Limite de debito (positivo)</label>
-                  <input type="number" className="input" value={orgLevelForm.debit_limit} onChange={(e) => setOrgLevelForm({ ...orgLevelForm, debit_limit: parseInt(e.target.value) || 0 })} />
+                  <input type="number" className="input" value={orgLevelForm.debit_limit} onChange={(e) => setOrgLevelForm({ ...orgLevelForm, debit_limit: toCents(e.target.value) })} />
                   <p className="text-xs text-gray-400 mt-1">Cuanto puede acumular la organizacion (positivo). Ej: 100000.</p>
                 </div>
               </div>
@@ -1017,7 +1018,7 @@ export default function NodeSettings() {
                     {l.can_view_audit && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Auditoria</span>}
                   </div>
                   <p className="text-xs text-gray-400 mt-2">
-                    Credito: {l.credit_limit} | Debito: {l.debit_limit} | Impuesto: {l.tax_rate}%
+                    Credito: {fmtTQ(l.credit_limit || 0)} | Debito: {fmtTQ(l.debit_limit || 0)} | Impuesto: {l.tax_rate}%
                     {l.max_members > 0 && ` | Max miembros: ${l.max_members}`}
                   </p>
                 </div>

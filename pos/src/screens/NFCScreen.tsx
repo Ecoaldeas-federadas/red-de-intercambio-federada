@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { API } from '../api'
+import { fmtTQ } from '../utils/format'
 
 interface Props {
   amount: number
@@ -117,13 +118,6 @@ export function NFCScreen({ amount, onBack, onPaid, api, terminalID, isDemoNode 
     }
   }
 
-  // Formatear como decimal
-  const formatAmount = (cents: number) => {
-    const units = Math.floor(cents / 100)
-    const dec = (cents % 100).toString().padStart(2, '0')
-    return `${units.toLocaleString('es')}.${dec}`
-  }
-
   return (
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 24, maxWidth: 480, margin: '0 auto' }}>
       {/* Header */}
@@ -139,7 +133,7 @@ export function NFCScreen({ amount, onBack, onPaid, api, terminalID, isDemoNode 
       <div style={{ textAlign: 'center', marginBottom: 24, background: 'var(--card)', padding: 20, borderRadius: 16, width: '100%' }}>
         <div style={{ color: 'var(--text-dim)', fontSize: 14 }}>Monto a cobrar</div>
         <div style={{ fontSize: 48, fontWeight: 800, color: 'var(--accent-light)' }}>
-          {formatAmount(amount)} TQ
+          {fmtTQ(amount)} TQ
         </div>
       </div>
 
@@ -292,7 +286,7 @@ export function NFCScreen({ amount, onBack, onPaid, api, terminalID, isDemoNode 
           <div style={{ fontSize: 80, marginBottom: 16 }}>✅</div>
           <h2 style={{ fontSize: 28, fontWeight: 800, color: 'var(--success)', marginBottom: 8 }}>Pago Aprobado</h2>
           <p style={{ color: 'var(--text-dim)', fontSize: 18, marginBottom: 4 }}>
-            {formatAmount(amount)} TQ
+            {fmtTQ(amount)} TQ
           </p>
           <p style={{ color: 'var(--text-dim)', fontSize: 14, marginTop: 16 }}>Redirigiendo...</p>
         </div>

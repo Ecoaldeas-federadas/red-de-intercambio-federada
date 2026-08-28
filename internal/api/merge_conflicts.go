@@ -470,7 +470,7 @@ func (h *MergeConflictHandler) executeResolution(w http.ResponseWriter, r *http.
 
 	writeJSON(w, 200, map[string]interface{}{
 		"status":           "executed",
-		"message":          fmt.Sprintf("Usuario migrado al nodo %s. Saldo combinado: %d TQ (%s). Nodo removido: %s", keepNode, combinedBalance, c.BalanceAction, removeNode),
+		"message":          fmt.Sprintf("Usuario migrado al nodo %s. Saldo combinado: %.2f TQ (%s). Nodo removido: %s", keepNode, float64(combinedBalance)/100, c.BalanceAction, removeNode),
 		"keep_node":        keepNode,
 		"remove_node":      removeNode,
 		"combined_balance": combinedBalance,

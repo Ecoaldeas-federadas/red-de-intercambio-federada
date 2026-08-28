@@ -121,6 +121,19 @@ export default function Pay() {
     }
   }
 
+  // Cancelar el cargo: llama al API para que el POS lo sepa, luego navega.
+  // Sin esto, el POS sigue haciendo polling y viendo "pending" para siempre.
+  const handleCancel = async () => {
+    if (token) {
+      try {
+        await api.post(`/pos/charge/${token}/cancel`, {})
+      } catch {
+        // Si falla el cancel, no importa: el cargo expirara solo.
+      }
+    }
+    navigate('/app/dashboard')
+  }
+
   const handlePay = async () => {
     if (!charge) return
     setStatus('paying')
@@ -267,7 +280,7 @@ export default function Pay() {
           </button>
 
           <button
-            onClick={() => navigate('/app/dashboard')}
+            onClick={handleCancel}
             style={{
               width: '100%', padding: 14, borderRadius: 12, marginTop: 12,
               background: 'transparent', color: '#a0a0a0', border: 'none',
@@ -285,22 +298,16 @@ export default function Pay() {
   const amountCentavos = charge?.amount || 0
   const balanceAfter = me ? me.balance - amountCentavos : 0
 
-  // Filosofia moneda cero: la advertencia sale cuando te ACERCAS a cualquier tope.
-  // No por ser negativo, sino por estar cerca del limite (positivo o negativo).
-  // Umbral: 90% del camino hacia el tope.
-  const creditLimit = me?.credit_limit ?? 0   // tope negativo (ej: -500000 = -5000.00 TQ)
-  const debitLimit = me?.debit_limit ?? 0     // tope positivo (ej: 500000 = 5000.00 TQ)
-
-  // Distancia al tope negativo: cuanto credito me queda antes de llegar al piso.
-  // Si balance = -100 y credit_limit = -5000, me quedan 4900 antes del tope.
-  const remainingCredit = creditLimit - me.balance  // negativo = me queda credito
-  const remainingDebit = debitLimit - me.balance     // positivo = me queda para el tope positivo
+  // Filosofia moneda cero: los topes son reciprocos (simetricos).
+  // Si el tope es 5000, puedes ir de -5000 a +5000. No hay tope negativo y
+  // tope positivo distintos; son el mismo valor absoluto.
+  // La advertencia sale cuando te ACERCAS a cualquier tope (90%+).
+  const creditLimit = me?.credit_limit ?? 0   // negativo (ej: -500000 = -5000.00 TQ)
+  const debitLimit = me?.debit_limit ?? 0     // positivo (ej: 500000 = 5000.00 TQ)
+  // Tope unico (valor absoluto, son iguales)
+  const tope = Math.max(Math.abs(creditLimit), Math.abs(debitLimit))
 
   // Porcentaje del limite usado (0% = balance en cero, 100% = en el tope)
-  const creditUsedPct = creditLimit < 0 ? Math.max(0, Math.min(100, (me.balance / creditLimit) * 100)) : 0
-  const debitUsedPct = debitLimit > 0 ? Math.max(0, Math.min(100, (me.balance / debitLimit) * 100)) : 0
-
-  // Proyectado despues del pago
   const creditUsedAfterPct = creditLimit < 0 ? Math.max(0, Math.min(100, (balanceAfter / creditLimit) * 100)) : 0
   const debitUsedAfterPct = debitLimit > 0 ? Math.max(0, Math.min(100, (balanceAfter / debitLimit) * 100)) : 0
 
@@ -373,15 +380,11 @@ export default function Pay() {
             <div style={{ borderTop: '1px solid #333', paddingTop: 16, marginBottom: 16 }}>
               {renderBalance(balanceAfter, 'SALDO DESPUES DE PAGAR')}
             </div>
-            {/* Topes comunitarios */}
+            {/* Tope comunitario (unico, reciproco: +/- tope) */}
             <div style={{ borderTop: '1px solid #333', paddingTop: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ color: '#a0a0a0', fontSize: 12 }}>Tu tope de credito (piso)</span>
-                <span style={{ fontSize: 12, color: '#888' }}>{fmtTQ(creditLimit)} TQ</span>
-              </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#a0a0a0', fontSize: 12 }}>Tu tope de debito (techo)</span>
-                <span style={{ fontSize: 12, color: '#888' }}>{fmtTQ(debitLimit)} TQ</span>
+                <span style={{ color: '#a0a0a0', fontSize: 12 }}>Tu tope comunitario</span>
+                <span style={{ fontSize: 12, color: '#888' }}>±{fmtTQ(tope)} TQ</span>
               </div>
             </div>
           </div>
@@ -418,7 +421,7 @@ export default function Pay() {
         </button>
 
         <button
-          onClick={() => navigate('/app/dashboard')}
+          onClick={handleCancel}
           style={{
             width: '100%', padding: 14, borderRadius: 12, marginTop: 12,
             background: 'transparent', color: '#a0a0a0', border: 'none',

@@ -3,6 +3,7 @@ import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { usePermissions } from '../hooks/usePermissions'
 import { HelpCircle, Wallet, Users, Vote as VoteIcon, Plus, Check, X } from 'lucide-react'
+import { fmtTQ, toCents } from '../lib/format'
 
 export default function CommunityFund() {
   const { currency } = useConfig()
@@ -103,7 +104,7 @@ export default function CommunityFund() {
         {fund ? (
           fund.fund_account ? (
             <div className="space-y-2">
-              <div className="text-3xl font-bold text-trueque-700">{fund.balance >= 0 ? '+' : ''}{fund.balance || 0} {currency}</div>
+              <div className="text-3xl font-bold text-trueque-700">{fund.balance >= 0 ? '+' : ''}{fmtTQ(fund.balance || 0)} {currency}</div>
               <p className="text-sm text-gray-500">Cuenta: <b>{fund.display_name || fund.username || 'asamblea'}</b></p>
               <div className="flex flex-wrap gap-2 mt-2">
                 <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-mono">@asamblea</span>
@@ -148,7 +149,7 @@ export default function CommunityFund() {
             </div>
             <div>
               <label className="label">Monto ({currency})</label>
-              <input type="number" className="input" placeholder="Ej: 500" value={newProposal.amount} onChange={(e) => setNewProposal({ ...newProposal, amount: parseInt(e.target.value) || 0 })} />
+              <input type="number" className="input" placeholder="Ej: 500" value={newProposal.amount} onChange={(e) => setNewProposal({ ...newProposal, amount: toCents(e.target.value) })} />
               <p className="text-xs text-gray-400 mt-1">Cuanto dinero del fondo se distribuira al destinatario. Debe ser mayor que 0 y no superar el balance disponible. Ej: 500.</p>
             </div>
             <div>

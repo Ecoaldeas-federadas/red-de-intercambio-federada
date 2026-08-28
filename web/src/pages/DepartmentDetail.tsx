@@ -5,6 +5,7 @@ import { useConfig } from '../hooks/useConfig'
 import { usePermissions } from '../hooks/usePermissions'
 import { ArrowLeft, Users, Wallet as WalletIcon, Vote as VoteIcon, Shield, Plus, Trash2, ArrowUpCircle, ArrowDownCircle, Building2 } from 'lucide-react'
 import ScopedAssembly from '../components/ScopedAssembly'
+import { fmtTQ } from '../lib/format'
 
 interface Role {
   id: string
@@ -125,7 +126,7 @@ export default function DepartmentDetail() {
     }
   }
 
-  const fmtAmount = (n: number) => Math.round(n * 100) / 100
+  const fmtAmount = (n: number) => fmtTQ(n)
 
   if (!dept) {
     return (

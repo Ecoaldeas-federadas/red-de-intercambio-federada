@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { HelpCircle, History as HistoryIcon } from 'lucide-react'
+import { fmtTQ } from '../lib/format'
 
 export default function History() {
   const { currency } = useConfig()
@@ -64,7 +65,7 @@ export default function History() {
                 <tr key={i} className="border-b border-gray-100">
                   <td className="py-2">{t.created_at?.slice(0, 10)}</td>
                   <td>{t.from_user}</td><td>{t.to_user}</td>
-                  <td className="font-semibold text-trueque-700">{t.amount} {currency}</td>
+                  <td className="font-semibold text-trueque-700">{fmtTQ(t.amount)} {currency}</td>
                   <td>{t.reference}</td>
                 </tr>
               ))}

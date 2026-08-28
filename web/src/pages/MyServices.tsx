@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { Plug, CheckCircle, XCircle, Calendar, RefreshCw } from 'lucide-react'
+import { fmtTQ } from '../lib/format'
 
 export default function MyServices() {
   const { currency } = useConfig()
@@ -48,7 +49,7 @@ export default function MyServices() {
     return mySubs.some((s: any) => s.service_id === serviceId && (s.status === 'active' || s.status === 'auto'))
   }
 
-  const fmtAmount = (n: number) => Math.round(n).toLocaleString('es')
+  const fmtAmount = (n: number) => fmtTQ(n)
 
   if (loading) {
     return <div className="flex items-center justify-center py-12"><RefreshCw className="animate-spin text-trueque-600" size={24} /></div>

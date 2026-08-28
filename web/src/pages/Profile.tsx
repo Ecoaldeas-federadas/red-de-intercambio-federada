@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { HelpCircle, User, Key, CreditCard, History, Shield, TrendingUp, Plus, Trash2, Globe } from 'lucide-react'
+import { fmtTQ } from '../lib/format'
 
 // === Utilidades WebAuthn ===
 
@@ -335,7 +336,7 @@ export default function Profile() {
             <div className="flex justify-between"><span className="text-gray-500">Usuario:</span> <b>{me.username}</b></div>
             <div className="flex justify-between"><span className="text-gray-500">Nombre:</span> <b>{me.display_name || '-'}</b></div>
             <div className="flex justify-between"><span className="text-gray-500">Tipo:</span> <b>{me.account_type}</b></div>
-            <div className="flex justify-between"><span className="text-gray-500">Balance:</span> <b>{me.balance} {currency}</b></div>
+            <div className="flex justify-between"><span className="text-gray-500">Balance:</span> <b>{fmtTQ(me.balance)} {currency}</b></div>
             <div className="flex justify-between"><span className="text-gray-500">Estado:</span> <b>{me.membership_status}</b></div>
           </div>
         ) : (
@@ -469,8 +470,8 @@ export default function Profile() {
               {myLevel.counts_in_quorum && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Quorum</span>}
             </div>
             <div className="grid grid-cols-2 gap-2 mt-3">
-              <div><span className="text-gray-500">Limite credito:</span> <b>{myLevel.credit_limit} {currency}</b></div>
-              <div><span className="text-gray-500">Limite debito:</span> <b>{myLevel.debit_limit} {currency}</b></div>
+              <div><span className="text-gray-500">Limite credito:</span> <b>{fmtTQ(myLevel.credit_limit)} {currency}</b></div>
+              <div><span className="text-gray-500">Limite debito:</span> <b>{fmtTQ(myLevel.debit_limit)} {currency}</b></div>
             </div>
             <div className="flex gap-2 mt-2 flex-wrap">
               {myLevel.can_create_organization && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">Crea org</span>}
@@ -596,7 +597,7 @@ export default function Profile() {
                   <p className="text-xs text-gray-400">{t.created_at?.slice(0, 10)}</p>
                 </div>
                 <b className={t.amount >= 0 ? 'text-green-600' : 'text-red-600'}>
-                  {t.amount >= 0 ? '+' : ''}{t.amount} {currency}
+                  {t.amount >= 0 ? '+' : ''}{fmtTQ(t.amount)} {currency}
                 </b>
               </div>
             ))}

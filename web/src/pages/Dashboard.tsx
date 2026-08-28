@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { Wallet, AlertTriangle, Network, HelpCircle, Send, History as HistoryIcon, ShoppingBag, Calculator, Calendar, ChevronRight, Building2, Users as UsersIcon } from 'lucide-react'
+import { fmtTQ } from '../lib/format'
 
 export default function Dashboard() {
   const { currency } = useConfig()
@@ -340,7 +341,7 @@ export default function Dashboard() {
               <div key={i} className="flex items-center justify-between border-b border-gray-100 py-2">
                 <span className="font-medium">{n.remote_node}</span>
                 <span className={`text-sm ${n.balance < 0 ? 'text-red-600' : 'text-trueque-600'}`}>
-                  {n.balance?.toLocaleString()} {currency}
+                  {fmtTQ(n.balance || 0)} {currency}
                 </span>
               </div>
             ))}

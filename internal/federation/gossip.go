@@ -392,11 +392,11 @@ func (g *Gossip) GetParityReport(ctx context.Context, remoteNode string) (*Parit
 		// Solo importas, nunca has exportado
 		// Usar un valor alto para indicar desequilibrio total
 		parityRatio = -1 // valor especial: solo importas
-		dynamicExplanation = fmt.Sprintf("Solo has importado %d TQ de este nodo, pero nunca has exportado nada. Debes enviar productos o servicios para equilibrar el intercambio.", imports)
+		dynamicExplanation = fmt.Sprintf("Solo has importado %.2f TQ de este nodo, pero nunca has exportado nada. Debes enviar productos o servicios para equilibrar el intercambio.", float64(imports)/100)
 	} else if exports > 0 && imports == 0 {
 		// Solo exportas, nunca has importado
 		parityRatio = -2 // valor especial: solo exportas
-		dynamicExplanation = fmt.Sprintf("Solo has exportado %d TQ a este nodo, pero nunca has importado nada. Puedes importar productos que necesites para equilibrar.", exports)
+		dynamicExplanation = fmt.Sprintf("Solo has exportado %.2f TQ a este nodo, pero nunca has importado nada. Puedes importar productos que necesites para equilibrar.", float64(exports)/100)
 	}
 
 	// Obtener FC local

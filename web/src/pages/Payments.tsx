@@ -5,6 +5,7 @@ import { QrCode, Nfc, Send, ScanLine, Copy, Check, Camera, Upload, X, HelpCircle
 import { QRCodeSVG } from 'qrcode.react'
 import { Html5Qrcode } from 'html5-qrcode'
 import jsQR from 'jsqr'
+import { toCents } from '../lib/format'
 
 interface PaymentRequest {
   protocol: string
@@ -456,7 +457,7 @@ export default function Payments() {
           </div>
           <div>
             <label className="label">Monto</label>
-            <input type="number" className="input" placeholder="Ej: 500" value={manual.amount || ''} onChange={(e) => setManual({ ...manual, amount: parseInt(e.target.value) || 0 })} />
+            <input type="number" className="input" placeholder="Ej: 500" value={manual.amount || ''} onChange={(e) => setManual({ ...manual, amount: toCents(e.target.value) })} />
             <p className="text-xs text-gray-400 mt-1">Cuanto saldo quieres enviar. Debe ser mayor que 0 y no superar tu limite de credito. Ej: 500 para enviar 500 unidades.</p>
           </div>
           <div>

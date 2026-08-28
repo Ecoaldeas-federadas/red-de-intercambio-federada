@@ -3,6 +3,7 @@ import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { ShoppingCart, Plus, HelpCircle, Trash2, Search, Store as StoreIcon, Package, Layers, X } from 'lucide-react'
 import { assetUrl } from '../utils/assetUrl'
+import { fmtTQ, toCents } from '../lib/format'
 
 interface CompositeComponent {
   component_product_id: string
@@ -497,7 +498,7 @@ export default function Store() {
                         <div className="flex justify-between items-start">
                           <div>
                             <p className="font-semibold text-sm text-amber-900">{pendingComponent.name}</p>
-                            <p className="text-xs text-amber-700">{pendingComponent.price_per_unit} {currency} / {pendingComponent.unit || 'unidad'}</p>
+                            <p className="text-xs text-amber-700">{fmtTQ(pendingComponent.price_per_unit || 0)} {currency} / {pendingComponent.unit || 'unidad'}</p>
                             {pendingComponent.description && <p className="text-xs text-gray-500 mt-1">{pendingComponent.description}</p>}
                           </div>
                           <button onClick={cancelAddComponent} className="text-red-500 hover:text-red-700"><X size={18} /></button>
@@ -530,8 +531,8 @@ export default function Store() {
                         </div>
                         {yieldProducts > 0 && qtyPurchased > 0 && (
                           <div className="bg-white rounded-lg p-2 text-xs text-gray-700">
-                            <p>Costo por producto: <strong>{(pendingComponent.price_per_unit * qtyPurchased / yieldProducts).toFixed(2)} {currency}</strong></p>
-                            <p className="text-gray-500">= {pendingComponent.price_per_unit} {currency} x {qtyPurchased} {pendingComponent.unit} / {yieldProducts} productos = {(qtyPurchased / yieldProducts).toFixed(4)} {pendingComponent.unit} por producto</p>
+                            <p>Costo por producto: <strong>{fmtTQ((pendingComponent.price_per_unit || 0) * qtyPurchased / yieldProducts)} {currency}</strong></p>
+                            <p className="text-gray-500">= {fmtTQ(pendingComponent.price_per_unit || 0)} {currency} x {qtyPurchased} {pendingComponent.unit} / {yieldProducts} productos = {(qtyPurchased / yieldProducts).toFixed(4)} {pendingComponent.unit} por producto</p>
                           </div>
                         )}
                         <button onClick={confirmAddComponent} className="btn-primary w-full" disabled={yieldProducts <= 0 || qtyPurchased <= 0}>
@@ -551,7 +552,7 @@ export default function Store() {
                               <span className="text-xs text-gray-500 ml-2">({c.component_category})</span>
                               <span className="text-xs text-gray-500 block">
                                 Compro {c.quantity_purchased} {c.component_unit} → {c.yield_products} productos →
-                                <strong> {(c.component_price * c.quantity).toFixed(2)} {currency}</strong> por producto
+                                <strong> {fmtTQ((c.component_price || 0) * c.quantity)} {currency}</strong> por producto
                               </span>
                             </div>
                             <button onClick={() => removeComponent(i)} className="text-red-500 hover:text-red-700">
@@ -643,7 +644,7 @@ export default function Store() {
                     </div>
                     <div>
                       <label className="label">Costo adicional en {currency}</label>
-                      <input type="number" className="input" placeholder="Ej: 5 (por envio, envase de vidrio, etc.)" value={form.extra_costs} onChange={(e) => setForm({ ...form, extra_costs: parseInt(e.target.value) || 0 })} />
+                      <input type="number" className="input" placeholder="Ej: 5 (por envio, envase de vidrio, etc.)" value={form.extra_costs} onChange={(e) => setForm({ ...form, extra_costs: toCents(e.target.value) })} />
                     </div>
                     <div>
                       <label className="label">Descripcion del costo adicional</label>
@@ -933,7 +934,7 @@ export default function Store() {
                           </p>
                         </div>
                         <div className="text-right ml-2">
-                          <p className="font-bold text-emerald-700">{c.price_per_unit} {currency}</p>
+                          <p className="font-bold text-emerald-700">{fmtTQ(c.price_per_unit || 0)} {currency}</p>
                           <p className="text-xs text-gray-400">/ {c.unit || 'unidad'}</p>
                         </div>
                       </div>

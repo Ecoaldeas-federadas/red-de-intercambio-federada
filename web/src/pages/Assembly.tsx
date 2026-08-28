@@ -5,6 +5,7 @@ import { usePermissions } from '../hooks/usePermissions'
 import { useConfig } from '../hooks/useConfig'
 import { EntitySelector } from '../components/EntitySelector'
 import { Plus, Check, X, HelpCircle, Users, Calendar, Shield, Vote as VoteIcon, DollarSign, Crown, Trash2, FileText, Clock } from 'lucide-react'
+import { fmtTQ } from '../lib/format'
 
 type ProposalType =
   | 'limit_change' | 'admission' | 'expulsion' | 'budget_increase'
@@ -901,7 +902,7 @@ export default function Assembly() {
                 <div>
                   <p className="text-amber-100 text-sm">Fondo Comunitario (Asamblea General)</p>
                   <p className="text-4xl font-bold mt-1">
-                    {fundData?.balance != null ? `${fundData.balance >= 0 ? '+' : ''}${fundData.balance}` : '...'} {currency}
+                    {fundData?.balance != null ? `${fundData.balance >= 0 ? '+' : ''}${fmtTQ(fundData.balance)}` : '...'} {currency}
                   </p>
                   <p className="text-amber-200 text-xs mt-2">
                     Cuenta: @{fundData?.username || 'asamblea'}
@@ -934,7 +935,7 @@ export default function Assembly() {
                         <p className="text-xs text-gray-400">{new Date(t.created_at).toLocaleString()}</p>
                       </div>
                       <div className={`font-bold ${isDebit ? 'text-red-600' : 'text-green-600'}`}>
-                        {isDebit ? '-' : '+'}{t.amount} {currency}
+                        {isDebit ? '-' : '+'}{fmtTQ(t.amount)} {currency}
                       </div>
                     </div>
                   )
@@ -1393,7 +1394,7 @@ export default function Assembly() {
                     </div>
                     <p className="text-xs text-gray-500 mt-1">{ml.description}</p>
                     <p className="text-xs text-gray-400 mt-1">
-                      Limite credito: {ml.credit_limit} {currency} | Limite debito: {ml.debit_limit} {currency}
+                      Limite credito: {fmtTQ(ml.credit_limit)} {currency} | Limite debito: {fmtTQ(ml.debit_limit)} {currency}
                       {ml.tax_rate && ` | Impuesto: ${(ml.tax_rate * 100).toFixed(2)}%`}
                     </p>
                   </div>
@@ -1958,7 +1959,7 @@ export default function Assembly() {
                 </div>
                 <div>
                   <label className="label">Monto minimo</label>
-                  <b>{taxConfig.min_amount || 0} {currency}</b>
+                  <b>{fmtTQ(taxConfig.min_amount || 0)} {currency}</b>
                   <p className="text-xs text-gray-400">Transacciones menores a este monto no pagan impuesto</p>
                 </div>
                 <div>
@@ -1976,7 +1977,7 @@ export default function Assembly() {
               {taxAccount.tax_account ? (
                 <div className="text-sm">
                   <p><span className="text-gray-500">Cuenta:</span> <b>{taxAccount.tax_account_display || taxAccount.tax_account_name || taxAccount.tax_account}</b></p>
-                  <p className="mt-1"><span className="text-gray-500">Balance:</span> <b className="text-trueque-700">{taxAccount.balance} {currency}</b></p>
+                  <p className="mt-1"><span className="text-gray-500">Balance:</span> <b className="text-trueque-700">{fmtTQ(taxAccount.balance)} {currency}</b></p>
                   <p className="mt-2 text-xs text-gray-500">
                     Los impuestos llegan automaticamente a esta cuenta. Es la misma cuenta de la Asamblea General y del Fondo Comunitario.
                     Para gastar este dinero, crea una propuesta de "Distribucion de fondos" en asamblea.

@@ -70,11 +70,11 @@ func (lc *LimitsChecker) ValidateInternalTransfer(ctx context.Context, senderID 
 
 	newBalance := balance - amount
 	if newBalance < limits.CreditLimit {
-		return fmt.Errorf("transfer would exceed credit limit: new balance %d < limit %d", newBalance, limits.CreditLimit)
+		return fmt.Errorf("transfer would exceed credit limit: new balance %.2f TQ < limit %.2f TQ", float64(newBalance)/100, float64(limits.CreditLimit)/100)
 	}
 
 	if limits.PerTransactionLimit != nil && amount > *limits.PerTransactionLimit {
-		return fmt.Errorf("amount %d exceeds per-transaction limit %d", amount, *limits.PerTransactionLimit)
+		return fmt.Errorf("amount %.2f TQ exceeds per-transaction limit %.2f TQ", float64(amount)/100, float64(*limits.PerTransactionLimit)/100)
 	}
 
 	if limits.DailyLimit != nil {
@@ -88,7 +88,7 @@ func (lc *LimitsChecker) ValidateInternalTransfer(ctx context.Context, senderID 
 			return fmt.Errorf("checking daily limit: %w", err)
 		}
 		if dailySpent+amount > *limits.DailyLimit {
-			return fmt.Errorf("transfer would exceed daily limit: %d + %d > %d", dailySpent, amount, *limits.DailyLimit)
+			return fmt.Errorf("transfer would exceed daily limit: %.2f TQ + %.2f TQ > %.2f TQ", float64(dailySpent)/100, float64(amount)/100, float64(*limits.DailyLimit)/100)
 		}
 	}
 
@@ -158,11 +158,11 @@ func (lc *LimitsChecker) ValidateCrossNodeTransfer(ctx context.Context, senderID
 
 	newBalance := balance - amount
 	if newBalance < limits.CreditLimit {
-		return fmt.Errorf("transfer would exceed credit limit: new balance %d < limit %d", newBalance, limits.CreditLimit)
+		return fmt.Errorf("transfer would exceed credit limit: new balance %.2f TQ < limit %.2f TQ", float64(newBalance)/100, float64(limits.CreditLimit)/100)
 	}
 
 	if limits.PerTransactionLimit != nil && amount > *limits.PerTransactionLimit {
-		return fmt.Errorf("amount %d exceeds per-transaction limit %d", amount, *limits.PerTransactionLimit)
+		return fmt.Errorf("amount %.2f TQ exceeds per-transaction limit %.2f TQ", float64(amount)/100, float64(*limits.PerTransactionLimit)/100)
 	}
 
 	// Determinar el pool: si hay acuerdo bilateral activo y customizado -> bilateral
@@ -178,7 +178,7 @@ func (lc *LimitsChecker) ValidateCrossNodeTransfer(ctx context.Context, senderID
 		}
 		newBilateralBalance := bilateralBalance + amount
 		if newBilateralBalance > bl.CreditLimit {
-			return fmt.Errorf("transfer would exceed bilateral credit limit: %d > %d", newBilateralBalance, bl.CreditLimit)
+			return fmt.Errorf("transfer would exceed bilateral credit limit: %.2f TQ > %.2f TQ", float64(newBilateralBalance)/100, float64(bl.CreditLimit)/100)
 		}
 		// Las transacciones bilaterales NO afectan la piscina global
 		return nil
@@ -203,7 +203,7 @@ func (lc *LimitsChecker) ValidateCrossNodeTransfer(ctx context.Context, senderID
 	}
 	newGlobalBalance := globalBalance + amount
 	if newGlobalBalance > globalLimit {
-		return fmt.Errorf("transfer would exceed global pool credit limit: %d > %d", newGlobalBalance, globalLimit)
+		return fmt.Errorf("transfer would exceed global pool credit limit: %.2f TQ > %.2f TQ", float64(newGlobalBalance)/100, float64(globalLimit)/100)
 	}
 
 	return nil

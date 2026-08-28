@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { AlertTriangle, Users, ArrowRight, Check, X, Search, Vote } from 'lucide-react'
+import { fmtTQ } from '../lib/format'
 
 export default function MergeConflicts() {
   const { currency } = useConfig()
@@ -184,13 +185,13 @@ export default function MergeConflicts() {
                   <div className="text-xs text-blue-600 mb-1">Nodo A</div>
                   <div className="font-medium">{c.node_a_domain}</div>
                   <div className="text-sm">{c.user_a_name}</div>
-                  <div className="text-xs text-gray-500 mt-1">Saldo: {c.balance_a} {currency}</div>
+                  <div className="text-xs text-gray-500 mt-1">Saldo: {fmtTQ(c.balance_a)} {currency}</div>
                 </div>
                 <div className="bg-purple-50 p-3 rounded-lg">
                   <div className="text-xs text-purple-600 mb-1">Nodo B</div>
                   <div className="font-medium">{c.node_b_domain}</div>
                   <div className="text-sm">{c.user_b_name}</div>
-                  <div className="text-xs text-gray-500 mt-1">Saldo: {c.balance_b} {currency}</div>
+                  <div className="text-xs text-gray-500 mt-1">Saldo: {fmtTQ(c.balance_b)} {currency}</div>
                 </div>
               </div>
 
