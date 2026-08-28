@@ -26,6 +26,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.room.Room
 import com.example.data.crypto.CryptoEngine
 import com.example.data.db.AppDatabase
+import com.example.data.db.MIGRATION_2_3
 import com.example.ui.components.DemoWatermarkOverlay
 import com.example.ui.screens.*
 import com.example.ui.theme.MyApplicationTheme
@@ -42,7 +43,12 @@ object DatabaseProvider {
                 context.applicationContext,
                 AppDatabase::class.java,
                 "pos_terminal_db.db"
-            ).fallbackToDestructiveMigration().build().also { instance = it }
+            )
+            .addMigrations(MIGRATION_2_3)
+            // fallback solo como ultima opcion para migraciones futuras no previstas,
+            // pero MIGRATION_2_3 preserva los datos existentes al actualizar de v2 a v3.
+            .fallbackToDestructiveMigration()
+            .build().also { instance = it }
         }
     }
 }
