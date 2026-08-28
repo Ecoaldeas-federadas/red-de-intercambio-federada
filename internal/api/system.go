@@ -4448,8 +4448,9 @@ func scanProductRowsWithThumb(rows pgx.Rows) []map[string]interface{} {
 
 // ===== BUSQUEDA DE USUARIOS Y ORGANIZACIONES =====
 
-// searchUsers busca usuarios por username o display_name.
-// Usado por EntitySelector en el frontend para asignar terminales, tarjetas, etc.
+// searchUsers busca SOLO personas (account_type = 'individual').
+// Las organizaciones (asamblea, impuesto, fondo comunitario, cooperativas, etc)
+// NO aparecen aqui — se buscan con searchOrganizations.
 func (h *SystemHandler) searchUsers(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
@@ -4461,13 +4462,13 @@ func (h *SystemHandler) searchUsers(w http.ResponseWriter, r *http.Request) {
 		rows, err = h.Pool.Query(r.Context(), `
 			SELECT id, username, COALESCE(display_name, username), account_type, membership_status
 			FROM users
-			WHERE node_domain = $1 AND membership_status = 'active'
+			WHERE node_domain = $1 AND membership_status = 'active' AND account_type = 'individual'
 			ORDER BY username LIMIT 100`, nodeDomain)
 	} else {
 		rows, err = h.Pool.Query(r.Context(), `
 			SELECT id, username, COALESCE(display_name, username), account_type, membership_status
 			FROM users
-			WHERE node_domain = $1 AND membership_status = 'active'
+			WHERE node_domain = $1 AND membership_status = 'active' AND account_type = 'individual'
 			  AND (username ILIKE $2 OR display_name ILIKE $2)
 			ORDER BY username LIMIT 50`, nodeDomain, "%"+q+"%")
 	}
