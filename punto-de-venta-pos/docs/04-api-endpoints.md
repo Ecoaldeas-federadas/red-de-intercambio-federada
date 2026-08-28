@@ -402,6 +402,62 @@ Desbloquea un terminal (admin).
 
 ---
 
+## 5.1. Tarjetas NFC — Administración
+
+### GET /api/nfc/cards
+Lista las tarjetas NFC registradas (requiere auth).
+
+### POST /api/nfc/cards/issue
+Emite una nueva tarjeta NFC crypto (requiere permiso `nfc.issue_card`).
+
+### DELETE /api/nfc/cards/{uid}
+Desactiva una tarjeta NFC (requiere permiso `nfc.deactivate_card`).
+
+### PUT /api/nfc/cards/pin
+Cambia el PIN de una tarjeta (requiere auth — el usuario debe conocer el PIN anterior).
+
+**Request**:
+```json
+{
+  "card_uid": "04A3B2C1D2E3F4",
+  "old_pin": "1234",
+  "new_pin": "5678"
+}
+```
+
+### PUT /api/nfc/cards/{uid}/pin/reset
+Resetea el PIN de una tarjeta (requiere permiso `nfc.reset_pin`).
+
+**Importante**: Este endpoint **también desbloquea la tarjeta** si estaba bloqueada por intentos fallidos, ya que `ResetCardPIN` limpia `attempt_count = 0` y `blocked_until = NULL` en `nfc_card_attempts`. **No hay un endpoint dedicado para desbloquear una tarjeta sin resetear el PIN.**
+
+**Request**:
+```json
+{
+  "new_pin": "1234"
+}
+```
+
+**Response** `200 OK`:
+```json
+{ "status": "pin_reset" }
+```
+
+### Bloqueo automático por intentos de PIN
+
+El bloqueo es **automático** y está **hardcodeado** en el backend:
+
+| Parámetro | Valor | Ubicación | ¿Configurable? |
+|-----------|-------|-----------|----------------|
+| Máximo de intentos | 3 | `incrementCardAttempt()` en `internal/payments/nfc_terminal.go` | **No** |
+| Duración del bloqueo | 15 minutos | `incrementCardAttempt()` en `internal/payments/nfc_terminal.go` | **No** |
+| Tabla | `nfc_card_attempts` | Migración 004 | — |
+| Reset automático | Sí, al acertar PIN | `resetCardAttempts()` | — |
+| Reset manual | `PUT /api/nfc/cards/{uid}/pin/reset` | Requiere permiso `nfc.reset_pin` | — |
+
+**Limitación conocida**: No hay UI ni API para configurar el número máximo de intentos o la duración del bloqueo. Tampoco hay un endpoint para desbloquear sin resetear el PIN. Si se necesita desbloquear manteniendo el PIN actual, habría que resetearlo al mismo valor.
+
+---
+
 ## 6. POS Web — Cargas QR
 
 ### POST /api/pos/charge
@@ -566,7 +622,7 @@ Configuración pública del nodo (incluye `format_settings` con defaults del nod
 **Response** `200 OK`:
 ```json
 {
-  "node_domain": "feria.loanstly.com",
+  "node_domain": "<dominio-del-nodo>",
   "node_name": "Feria San Juan",
   "currency_code": "TQ",
   "currency_symbol": "TQ",

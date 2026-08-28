@@ -34,7 +34,7 @@ The **POS Android** application (`punto-de-venta-pos/`) is a Kotlin/Jetpack Comp
                             │           FEDERATED NETWORK (Internet)          │
                             │                                                 │
                             │   Node A ◄──── federation ────► Node B          │
-                            │  (feria.loanstly.com/main)    (aldea.example.org)│
+                            │  (nodo-a.example.org/main)   (nodo-b.example.org)│
                             │       │                            │             │
                             │       │ gossip / mTLS              │ gossip/mTLS │
                             │       ▼                            ▼             │

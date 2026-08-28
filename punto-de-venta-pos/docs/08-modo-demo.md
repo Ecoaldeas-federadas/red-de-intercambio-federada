@@ -47,18 +47,20 @@ val isDemoNode: Boolean
 
 | URL | `isDemoNode` | Modo |
 |-----|-------------|------|
-| `https://feria.loanstly.com/demo` | `true` | Demo |
-| `https://feria.loanstly.com/main` | `false` | Real |
-| `https://feria.loanstly.com/demo/api/` | `true` | Demo |
+| `https://<dominio>/demo` | `true` | Demo |
+| `https://<dominio>/main` | `false` | Real |
+| `https://<dominio>/demo/api/` | `true` | Demo |
 | `https://midominio.org/demo` | `true` | Demo |
 | `https://midominio.org/main` | `false` | Real |
+
+> **Nota:** `<dominio>` es un placeholder. Cada nodo federado tiene su propio dominio. La URL real se configura en la pantalla de Settings del POS.
 
 ### 2.2. URL default del terminal
 
 **Archivo:** `AppDatabase.kt` línea 46
 
 ```kotlin
-val serverUrl: String = "https://feria.loanstly.com/demo"
+val serverUrl: String = "https://<dominio-del-nodo>/demo" // valor por defecto, configurable
 ```
 
 La URL por defecto del terminal es un nodo demo. Esto significa que la app viene preconfigurada en modo demo.

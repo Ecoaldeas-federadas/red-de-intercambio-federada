@@ -147,7 +147,7 @@ data class ShiftEntity(
 @Entity(tableName = "terminal_config")
 data class TerminalConfigEntity(
     @PrimaryKey val id: Int = 1,       // Singleton (siempre id=1)
-    val serverUrl: String = "https://feria.loanstly.com/demo",
+    val serverUrl: String = "https://<dominio-del-nodo>/demo", // valor por defecto, configurable
     val terminalId: String = "TERM-POS-001",
     val label: String = "Terminal Kiosco POS",
     val isRegistered: Boolean = false,
@@ -254,8 +254,8 @@ Encripta la clave privada del terminal usando Android Keystore:
 
 Gestiona la configuración del cliente HTTP:
 
-- **URL base:** `serverUrl` (ej: `https://feria.loanstly.com/main`). Se sanitiza (añade `https://` si falta, quita trailing `/`).
-- **API base URL:** `{serverUrl}/api/` (ej: `https://feria.loanstly.com/main/api/`).
+- **URL base:** `serverUrl` (ej: `https://<dominio-del-nodo>/main`). Se sanitiza (añade `https://` si falta, quita trailing `/`).
+- **API base URL:** `{serverUrl}/api/` (ej: `https://<dominio-del-nodo>/main/api/`).
 - **nodeDomain:** Se extrae solo el host de la URL (sin path). Se envía en header `X-Node-Domain`.
 - **isDemoNode:** `serverUrl.contains("/demo")`.
 - **Headers inyectados (authInterceptor):**
@@ -418,8 +418,8 @@ data class PosUiState(
     val successMessage: String? = null,
 
     // Nodo y usuario
-    val serverUrl: String = "https://feria.loanstly.com/main",
-    val nodeDomain: String = "feria.loanstly.com/main",
+    val serverUrl: String = "https://<dominio-del-nodo>/main",  // valor por defecto, configurable
+    val nodeDomain: String = "<dominio-del-nodo>/main",
     val currentUser: UserMeResponse? = null,
     val isLoggedIn: Boolean = false,
     val isRegistered: Boolean = false,

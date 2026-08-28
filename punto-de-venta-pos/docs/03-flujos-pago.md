@@ -31,11 +31,13 @@ POST /api/nfc/terminal/payment
 
 1. Verificar que el terminal existe y está activo
 2. Buscar la tarjeta NFC por `card_uid`
-3. Verificar PIN (bcrypt compare contra `pin_hash`)
-4. Verificar documento de identidad si la tarjeta es `uid_only` y el nodo lo requiere
-5. Obtener balance y `credit_limit` del usuario
-6. Verificar límite de crédito: `balance - amount < credit_limit` → rechazado
-7. **Verificar multifirma**: `checkAccountMultiSig(userID)` → si `required_signatures > 1`:
+3. **Verificar si la tarjeta está bloqueada** (`checkCardBlocked`): consulta `nfc_card_attempts.blocked_until` → si está en el futuro, rechazar con "tarjeta bloqueada por intentos de PIN"
+4. Verificar PIN (bcrypt compare contra `pin_hash`): si falla → `incrementCardAttempt` (después de 3 intentos → bloqueo 15 min)
+5. Si PIN correcto → `resetCardAttempts` (limpia contador y bloqueo)
+6. Verificar documento de identidad si la tarjeta es `uid_only` y el nodo lo requiere
+7. Obtener balance y `credit_limit` del usuario
+8. Verificar límite de crédito: `balance - amount < credit_limit` → rechazado
+9. **Verificar multifirma**: `checkAccountMultiSig(userID)` → si `required_signatures > 1`:
    - Crear `pending_multisig_payments` con `payment_type="nfc"`
    - Firmar con el primer firmante (el comprador que acercó la tarjeta)
    - Retornar `status="pending_multisig"` con `pending_id`, `required_sigs`, `collected_sigs=1`, `remaining_sigs`
@@ -135,7 +137,7 @@ POST /api/nfc/terminal/payment/community
 2. Buscar tarjeta vendedora y compradora
 3. Verificar que vendedor ≠ comprador (mismo `user_id`)
 4. Verificar PIN del vendedor (bcrypt)
-5. Verificar PIN del comprador (bcrypt) + bloqueo por intentos
+5. Verificar PIN del comprador (bcrypt) + bloqueo por intentos (3 intentos → 15 min bloqueo, hardcodeado)
 6. Verificar documento de identidad del comprador si es `uid_only`
 7. Obtener balance y `credit_limit` del comprador
 8. Verificar límite de crédito

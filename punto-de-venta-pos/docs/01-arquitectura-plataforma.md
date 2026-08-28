@@ -51,7 +51,7 @@ Cada nodo se ejecuta como un proceso independiente con su propia base de datos, 
 
 ```yaml
 node:
-  domain: ""           # Dominio del nodo (ej: "feria.loanstly.com")
+  domain: ""           # Dominio del nodo (ej: "nodo-a.mid-comunidad.org")
   name: ""             # Nombre humano del nodo
   private_key_path: "/secrets/node_private_key.ed25519"
 
@@ -229,8 +229,8 @@ El sistema soporta múltiples nodos servidos desde el mismo dominio usando **bas
 ### 8.1 Nodo principal (`/main`)
 
 - `basePath = "/main"`
-- Las URLs del frontend son: `https://feria.loanstly.com/main/`
-- Las URLs de la API son: `https://feria.loanstly.com/main/api/*`
+- Las URLs del frontend son (ejemplo): `https://<dominio-del-nodo>/main/`
+- Las URLs de la API son (ejemplo): `https://<dominio-del-nodo>/main/api/*`
 - El backend hace **strip** del basePath antes de procesar: `/main/api/users` → `/api/users`
 - Actúa como **proxy reverso** para el nodo demo y servicios instalados.
 
@@ -238,8 +238,8 @@ El sistema soporta múltiples nodos servidos desde el mismo dominio usando **bas
 
 - `basePath = "/demo"`
 - `config.demo.yaml`: `node.domain: "demo"`, `api.port: 9091`
-- Las URLs del frontend son: `https://feria.loanstly.com/demo/`
-- Las URLs de la API son: `https://feria.loanstly.com/demo/api/*`
+- Las URLs del frontend son (ejemplo): `https://<dominio-del-nodo>/demo/`
+- Las URLs de la API son (ejemplo): `https://<dominio-del-nodo>/demo/api/*`
 - **Se reinicia cada 24 horas** con datos de demostración.
 - El POS Android detecta el modo demo cuando la URL contiene `/demo` (`isDemoNode = serverUrl.contains("/demo")`).
 - En modo demo, el POS simula transacciones localmente si el backend no responde.
@@ -384,7 +384,7 @@ POS Android (Kotlin)
     │  Headers: Authorization, X-Node-Domain, X-Terminal-ID, X-Terminal-Public-Key
     │
     ▼
-{serverUrl}/api/*  (ej: https://feria.loanstly.com/main/api/)
+{serverUrl}/api/*  (ej: https://<dominio-del-nodo>/main/api/)
     │
     │  chi router → strip basePath → handler
     │
@@ -399,13 +399,13 @@ Backend Go (internal/api/)
 fun getApiBaseUrl(): String {
     val clean = serverUrl.trimEnd('/')
     return "$clean/api/"
-    // ej: https://feria.loanstly.com/main → https://feria.loanstly.com/main/api/
+    // ej: https://<dominio-del-nodo>/main → https://<dominio-del-nodo>/main/api/
 }
 
 fun getPayQrUrl(chargeToken: String): String {
     val clean = serverUrl.trimEnd('/')
     return "$clean/pay?t=$chargeToken"
-    // ej: https://feria.loanstly.com/main/pay?t=abc123
+    // ej: https://<dominio-del-nodo>/main/pay?t=abc123
 }
 ```
 
@@ -432,7 +432,7 @@ Cuando `isDemoNode` es true, el POS muestra un watermark de demostración y simu
 ### 12.2 Autenticación de tarjetas NFC
 
 - **PIN:** Las tarjetas tienen un PIN de 4 dígitos hasheado con bcrypt (`pin_hash`).
-- **Bloqueo por intentos:** Después de múltiples intentos fallidos, la tarjeta se bloquea temporalmente (`nfc_card_attempts`).
+- **Bloqueo por intentos:** Después de **3 intentos fallidos** de PIN, la tarjeta se bloquea temporalmente por **15 minutos** (`nfc_card_attempts` tabla). Estos valores están **hardcodeados** en `internal/payments/nfc_terminal.go` (`incrementCardAttempt`), **no son configurables** desde la UI ni desde la API actualmente. Para desbloquear una tarjeta antes de que expire el timeout, un admin con permiso `nfc.reset_pin` debe usar `PUT /api/nfc/cards/{uid}/pin/reset` para resetear el PIN (lo cual también limpia los intentos y el bloqueo). No hay un endpoint dedicado de "desbloquear tarjeta" sin resetear el PIN.
 - **Documento de identidad:** Para tarjetas UID-only (clonables), el nodo puede requerir verificación de documento de identidad además del PIN.
 - **Tipos de tarjeta:** `uid_only` (sin crypto), `desfire` (con crypto AES), `dual` (ambos).
 

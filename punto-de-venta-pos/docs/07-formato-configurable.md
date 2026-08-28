@@ -216,7 +216,7 @@ FormatConfig.updateFromEntity(updated)
 @Entity(tableName = "terminal_config")
 data class TerminalConfigEntity(
     @PrimaryKey val id: Int = 1,
-    val serverUrl: String = "https://feria.loanstly.com/demo",
+    val serverUrl: String = "https://<dominio-del-nodo>/demo", // valor por defecto, configurable
     val terminalId: String = "TERM-POS-001",
     val label: String = "Terminal Kiosco POS",
     val isRegistered: Boolean = false,

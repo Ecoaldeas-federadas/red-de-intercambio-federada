@@ -322,7 +322,7 @@ fun getDatabase(context: Context): AppDatabase {
 ### URL del servidor
 - Se configura en la pantalla de Settings
 - Se persiste en `TerminalConfigEntity.serverUrl`
-- Default: `https://feria.loanstly.com/demo`
+- Default: `https://<dominio-del-nodo>/demo` (valor por defecto del código, configurable en Settings)
 
 ### Detección de modo demo
 ```kotlin
@@ -334,7 +334,7 @@ val isDemoNode: Boolean
 
 ### Cambiar de servidor
 1. Ir a Settings → Server URL
-2. Ingresar nueva URL (ej: `https://feria.loanstly.com/main` para modo real)
+2. Ingresar nueva URL (ej: `https://<dominio-del-nodo>/main` para modo real)
 3. Guardar
 4. Si el servidor cambió, puede ser necesario re-registrar el terminal
 
@@ -398,7 +398,15 @@ El sistema incluye un mecanismo de actualización OTA (Over-The-Air) para termin
 - Un pago se rechaza si el balance resultante sería menor que `credit_limit`
 - **No es "fondos insuficientes" convencional** — es un límite comunitario
 
-### El pago multifirma expira
+### "tarjeta bloqueada por intentos de PIN"
+- Después de **3 intentos fallidos**, la tarjeta se bloquea por **15 minutos**
+- Estos valores son **hardcodeados** en `internal/payments/nfc_terminal.go`, no configurables
+- No hay UI para desbloquear tarjetas desde el POS Android
+- Para desbloquear: un admin con permiso `nfc.reset_pin` debe llamar `PUT /api/nfc/cards/{uid}/pin/reset`
+- Esto resetea el PIN **y** limpia el bloqueo (no hay forma de desbloquear sin resetear el PIN)
+- Si no se resetea manualmente, la tarjeta se desbloquea sola después de 15 minutos
+
+### El pago multifigma expira
 - Cada firma tiene 3 minutos de timeout
 - Cada firma válida resetea el timer a 3 minutos
 - Si nadie firma en 3 minutos, el pago se anula automáticamente
@@ -431,3 +439,7 @@ El sistema incluye un mecanismo de actualización OTA (Over-The-Air) para termin
 - **El POS no genera QR visualmente**: usa `zxing.core` para generar la matriz, pero la UI la renderiza con Compose
 - **No hay cifrado de la BD Room**: las credenciales se almacenan en texto plano en Room (la clave privada Ed25519 en hex). Para mayor seguridad, considerar SQLCipher.
 - **El NFC es `required="false"`**: la app funciona sin NFC (modo QR), pero los pagos NFC no estarán disponibles
+- **Bloqueo por intentos de PIN no es configurable**: el máximo de 3 intentos y el bloqueo de 15 minutos están hardcodeados en `internal/payments/nfc_terminal.go`. No hay UI ni API para cambiar estos valores.
+- **No hay endpoint dedicado para desbloquear tarjetas**: para desbloquear una tarjeta bloqueada por intentos de PIN, un admin debe resetear el PIN via `PUT /api/nfc/cards/{uid}/pin/reset` (permiso `nfc.reset_pin`), lo cual también limpia el bloqueo. No es posible desbloquear manteniendo el PIN actual sin resetearlo (aunque se puede resetear al mismo valor).
+- **No hay UI en el POS para gestionar tarjetas bloqueadas**: la gestión de tarjetas (emitir, desactivar, resetear PIN, desbloquear) se hace desde la web app admin, no desde el POS Android.
+- **La URL por defecto en el código es un placeholder**: `feria.loanstly.com` es un dominio provisional usado durante el desarrollo. Cada despliegue debe configurar su propia URL en la pantalla de Settings. La documentación usa `<dominio-del-nodo>` como placeholder.

@@ -170,6 +170,23 @@ Log de transacciones NFC.
 | `error_message` | TEXT | Error |
 | `created_at` | TIMESTAMPTZ | — |
 
+### nfc_card_attempts (migración 004)
+Contador de intentos fallidos de PIN y bloqueo temporal de tarjetas.
+
+| Columna | Tipo | Descripción |
+|---------|------|-------------|
+| `card_uid` | TEXT | PK, UID de la tarjeta |
+| `attempt_count` | INT | Número de intentos fallidos |
+| `last_attempt_at` | TIMESTAMPTZ | Timestamp del último intento |
+| `blocked_until` | TIMESTAMPTZ | Bloqueada hasta esta fecha (NULL = no bloqueada) |
+
+**Comportamiento** (hardcodeado en `internal/payments/nfc_terminal.go`):
+- Después de **3 intentos fallidos** → `blocked_until = NOW() + 15 minutos`
+- Al acertar el PIN → `attempt_count = 0, blocked_until = NULL` (`resetCardAttempts`)
+- Al resetear el PIN via API → `attempt_count = 0, blocked_until = NULL` (`ResetCardPIN`)
+- **No es configurable** desde la UI ni la API
+- `nfc_cards` también tiene columnas `pin_attempts` y `blocked_until` (migración 004) pero el código usa principalmente `nfc_card_attempts`
+
 ### transactions (migración 001)
 Transacciones del libro mayor (hash-chain ledger).
 
@@ -341,7 +358,7 @@ Configuración del terminal, persistida localmente. **Es la entidad más crític
 | Columna | Tipo | Default | Descripción |
 |---------|------|---------|-------------|
 | `id` | Int | `1` | PK (singleton, siempre id=1) |
-| `serverUrl` | String | `https://feria.loanstly.com/demo` | URL del servidor |
+| `serverUrl` | String | `https://<dominio-del-nodo>/demo` | URL del servidor (valor por defecto, configurable) |
 | `terminalId` | String | `TERM-POS-001` | ID del terminal |
 | `label` | String | `Terminal Kiosco POS` | Etiqueta |
 | `isRegistered` | Boolean | `false` | Registrado |
