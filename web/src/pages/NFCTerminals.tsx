@@ -264,7 +264,10 @@ export default function NFCTerminals() {
     try {
       await apiFetch(`/nfc/terminal/${terminalId}/assign`, {
         method: 'POST',
-        body: JSON.stringify({ organization_id: assignTarget }),
+        body: JSON.stringify({
+          target_type: assignType,
+          target_id: assignTarget,
+        }),
       })
       setShowAssignModal(null)
       setAssignTarget('')

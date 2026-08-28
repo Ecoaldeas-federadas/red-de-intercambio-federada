@@ -974,7 +974,7 @@ func (h *NFCTerminalHandler) unblockTerminal(w http.ResponseWriter, r *http.Requ
 	writeJSON(w, 200, map[string]string{"status": "unblocked"})
 }
 
-// --- Assign terminal to organization (admin/Asamblea assigns) ---
+// --- Assign terminal to organization or person (admin/Asamblea assigns) ---
 
 func (h *NFCTerminalHandler) assignTerminalToOrg(w http.ResponseWriter, r *http.Request) {
 	terminalID := chi.URLParam(r, "id")
@@ -985,33 +985,85 @@ func (h *NFCTerminalHandler) assignTerminalToOrg(w http.ResponseWriter, r *http.
 
 	var req struct {
 		OrganizationID string `json:"organization_id"`
+		// Campos nuevos para soportar persona u organizacion
+		TargetType string `json:"target_type"` // "person" o "organization"
+		TargetID   string `json:"target_id"`   // UUID del usuario/organizacion
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")
 		return
 	}
-	if req.OrganizationID == "" {
-		writeError(w, 400, "organization_id is required")
+
+	// Determinar el tipo de target y el ID
+	// Si vienen los campos nuevos (target_type + target_id), usar esos
+	// Si no, usar el campo viejo (organization_id) para compatibilidad
+	var targetID string
+	var isPerson bool
+
+	if req.TargetID != "" && req.TargetType != "" {
+		targetID = req.TargetID
+		isPerson = req.TargetType == "person"
+	} else if req.OrganizationID != "" {
+		targetID = req.OrganizationID
+		isPerson = false
+	} else {
+		writeError(w, 400, "target_id o organization_id es requerido")
 		return
 	}
 
-	orgID, err := uuid.Parse(req.OrganizationID)
+	id, err := uuid.Parse(targetID)
 	if err != nil {
-		writeError(w, 400, "invalid organization_id")
+		writeError(w, 400, "invalid target id")
 		return
 	}
 
-	_, err = h.NFC.Pool.Exec(r.Context(), `
-		UPDATE nfc_terminals
-		SET organization_id = $2, department_id = NULL, merchant_user_id = NULL, updated_at = NOW()
-		WHERE terminal_id = $1`,
-		terminalID, orgID,
-	)
+	// Verificar que el target existe y obtener su account_type
+	var accountType string
+	err = h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT account_type FROM users WHERE id = $1`, id,
+	).Scan(&accountType)
 	if err != nil {
-		writeError(w, 500, "failed to assign terminal to organization")
+		writeError(w, 404, "usuario/organizacion no encontrado")
 		return
 	}
-	writeJSON(w, 200, map[string]string{"status": "assigned_to_org"})
+
+	// Determinar si es persona u organizacion segun account_type real
+	if accountType == "individual" {
+		isPerson = true
+	} else if accountType == "organization" {
+		isPerson = false
+	} else {
+		writeError(w, 400, "tipo de cuenta no valido para asignar terminal: "+accountType)
+		return
+	}
+
+	if isPerson {
+		// Asignar a persona: setear merchant_user_id, limpiar organization_id
+		_, err = h.NFC.Pool.Exec(r.Context(), `
+			UPDATE nfc_terminals
+			SET merchant_user_id = $2, organization_id = NULL, department_id = NULL, updated_at = NOW()
+			WHERE terminal_id = $1`,
+			terminalID, id,
+		)
+		if err != nil {
+			writeError(w, 500, "failed to assign terminal to user")
+			return
+		}
+		writeJSON(w, 200, map[string]string{"status": "assigned_to_user"})
+	} else {
+		// Asignar a organizacion: setear organization_id, limpiar merchant_user_id
+		_, err = h.NFC.Pool.Exec(r.Context(), `
+			UPDATE nfc_terminals
+			SET organization_id = $2, department_id = NULL, merchant_user_id = NULL, updated_at = NOW()
+			WHERE terminal_id = $1`,
+			terminalID, id,
+		)
+		if err != nil {
+			writeError(w, 500, "failed to assign terminal to organization")
+			return
+		}
+		writeJSON(w, 200, map[string]string{"status": "assigned_to_org"})
+	}
 }
 
 // --- Organization: list their terminals ---

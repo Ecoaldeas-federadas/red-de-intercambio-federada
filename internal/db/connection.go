@@ -440,6 +440,12 @@ func ResolveNodeDomain(ctx context.Context, pool *pgxpool.Pool, headerDomain, co
 		if headerDomain == "localhost" && (actual == "" || actual == "localhost") {
 			return LOCAL_NODE_DOMAIN
 		}
+		// Algunos clientes (ej: POS Android) pueden enviar host+path
+		// (ej: "feria.loanstly.com/main"). El path no es parte del dominio.
+		// Si el header empieza con el dominio real seguido de "/", tratar como local.
+		if actual != "" && strings.HasPrefix(headerDomain, actual+"/") {
+			return LOCAL_NODE_DOMAIN
+		}
 		// Si es un dominio diferente, es de otro nodo (federacion)
 		// Devolverlo tal cual para guardar datos federados
 		return headerDomain
