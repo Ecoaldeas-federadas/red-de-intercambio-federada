@@ -219,6 +219,7 @@ const STORAGE_KEYS = {
   merchantToken: 'pos_merchant_jwt', // JWT from login
   merchantUser: 'pos_merchant_user',
   deviceFingerprint: 'pos_device_fingerprint',
+  webSessionExpiresAt: 'pos_web_session_expires_at',
 }
 
 export const storage = {
@@ -227,6 +228,9 @@ export const storage = {
   },
   set(key: keyof typeof STORAGE_KEYS, value: string) {
     localStorage.setItem(STORAGE_KEYS[key], value)
+  },
+  delete(key: keyof typeof STORAGE_KEYS) {
+    localStorage.removeItem(STORAGE_KEYS[key])
   },
   clear() {
     Object.values(STORAGE_KEYS).forEach(k => localStorage.removeItem(k))

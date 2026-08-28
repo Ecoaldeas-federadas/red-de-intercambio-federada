@@ -47,6 +47,20 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.Post("/api/nfc/terminal/pair/initiate", h.initiatePairing)
 	r.Get("/api/nfc/terminal/pair/{code}/status", h.getPairingStatus)
 
+	// POS Web session requests (no auth required for request/status — the POS web
+	// needs to request a session before it can login. The DUEÑO of the terminal
+	// approves from their account, not the admin.)
+	r.Post("/api/pos-web/request-session", h.requestWebSession)
+	r.Get("/api/pos-web/session-status/{reqId}", h.getWebSessionStatus)
+
+	// POS Web session management (requires auth — the dueño approves/rejects/revokes)
+	r.With(am.RequireAuth).Get("/api/pos-web/pending-sessions", h.listPendingWebSessions)
+	r.With(am.RequireAuth).Get("/api/pos-web/pending-sessions/{reqId}/options", h.getWebSessionOptions)
+	r.With(am.RequireAuth).Post("/api/pos-web/pending-sessions/{reqId}/approve", h.approveWebSession)
+	r.With(am.RequireAuth).Post("/api/pos-web/pending-sessions/{reqId}/reject", h.rejectWebSession)
+	r.With(am.RequireAuth).Get("/api/pos-web/sessions", h.listActiveWebSessions)
+	r.With(am.RequireAuth).Post("/api/pos-web/sessions/{terminalId}/revoke", h.revokeWebSession)
+
 	// Terminal lookup by public key (no auth required — allows POS to discover
 	// it was approved even if polling timed out before receiving the response)
 	r.Post("/api/nfc/terminal/lookup", h.lookupTerminalByKey)
@@ -2275,4 +2289,230 @@ func (h *NFCTerminalHandler) rejectPairingByReqID(w http.ResponseWriter, r *http
 		return
 	}
 	writeJSON(w, 200, map[string]string{"status": "rejected"})
+}
+
+// ============================================
+// POS Web Session Handlers
+// ============================================
+// A diferencia del pairing de Android/ESP32 (aprobado por el admin),
+// las sesiones del POS web son aprobadas por el DUEÑO del terminal.
+
+// requestWebSession es llamado por el POS web (sin auth) para iniciar una
+// solicitud de sesion. El POS envia su terminal_id (asignado por el admin),
+// su clave publica Ed25519 efimera y la huella del navegador.
+// El servidor responde con un codigo de 4 digitos que el POS muestra al usuario.
+func (h *NFCTerminalHandler) requestWebSession(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		TerminalID        string `json:"terminal_id"`
+		TerminalPublicKey string `json:"terminal_public_key"`
+		DeviceFingerprint string `json:"device_fingerprint"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.TerminalID == "" || req.TerminalPublicKey == "" {
+		writeError(w, 400, "terminal_id y terminal_public_key son requeridos")
+		return
+	}
+
+	code, requestID, err := h.NFC.RequestWebSession(r.Context(), req.TerminalID, req.TerminalPublicKey, req.DeviceFingerprint)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	writeJSON(w, 201, map[string]interface{}{
+		"pairing_code": code,
+		"request_id":   requestID.String(),
+		"expires_in":   60,
+		"message":      "Pide al dueno del terminal que apruebe este codigo en su cuenta.",
+	})
+}
+
+// getWebSessionStatus es consultado por el POS web (sin auth) via polling
+// para saber si su solicitud de sesion fue aprobada.
+func (h *NFCTerminalHandler) getWebSessionStatus(w http.ResponseWriter, r *http.Request) {
+	reqIDStr := chi.URLParam(r, "reqId")
+	if reqIDStr == "" {
+		writeError(w, 400, "reqId is required")
+		return
+	}
+	reqID, err := uuid.Parse(reqIDStr)
+	if err != nil {
+		writeError(w, 400, "invalid request id")
+		return
+	}
+
+	status, terminalID, serverPubKey, expiresAt, err := h.NFC.GetWebSessionStatus(r.Context(), reqID)
+	if err != nil {
+		writeError(w, 404, err.Error())
+		return
+	}
+
+	resp := map[string]interface{}{
+		"status":      status,
+		"terminal_id": terminalID,
+	}
+	if serverPubKey != "" {
+		resp["server_public_key"] = serverPubKey
+	}
+	if expiresAt != nil {
+		resp["expires_at"] = *expiresAt
+	}
+	writeJSON(w, 200, resp)
+}
+
+// listPendingWebSessions lista las solicitudes de sesion web pendientes
+// para los terminales del usuario autenticado (dueño del terminal).
+func (h *NFCTerminalHandler) listPendingWebSessions(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserID(r)
+	if err != nil {
+		writeError(w, 401, "not authenticated")
+		return
+	}
+	requests, err := h.NFC.ListPendingWebSessions(r.Context(), userID)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	if requests == nil {
+		requests = []payments.WebSessionRequest{}
+	}
+	writeJSON(w, 200, requests)
+}
+
+// getWebSessionOptions devuelve 4 opciones de codigo para que el dueno elija.
+func (h *NFCTerminalHandler) getWebSessionOptions(w http.ResponseWriter, r *http.Request) {
+	reqIDStr := chi.URLParam(r, "reqId")
+	if reqIDStr == "" {
+		writeError(w, 400, "reqId is required")
+		return
+	}
+	reqID, err := uuid.Parse(reqIDStr)
+	if err != nil {
+		writeError(w, 400, "invalid request id")
+		return
+	}
+
+	options, err := h.NFC.GetWebSessionOptions(r.Context(), reqID)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{
+		"options": options,
+		"message": "Elija el codigo que le comunico la persona del POS web.",
+	})
+}
+
+// approveWebSession aprueba una solicitud de sesion web.
+// El dueno envia el codigo que eligio de las 4 opciones y las horas (1, 5, 24).
+func (h *NFCTerminalHandler) approveWebSession(w http.ResponseWriter, r *http.Request) {
+	reqIDStr := chi.URLParam(r, "reqId")
+	if reqIDStr == "" {
+		writeError(w, 400, "reqId is required")
+		return
+	}
+	reqID, err := uuid.Parse(reqIDStr)
+	if err != nil {
+		writeError(w, 400, "invalid request id")
+		return
+	}
+
+	userID, err := getUserID(r)
+	if err != nil {
+		writeError(w, 401, "not authenticated")
+		return
+	}
+
+	var body struct {
+		SelectedCode  string `json:"selected_code"`
+		ApprovedHours int    `json:"approved_hours"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if body.SelectedCode == "" {
+		writeError(w, 400, "selected_code es requerido")
+		return
+	}
+	if body.ApprovedHours == 0 {
+		body.ApprovedHours = 24 // default
+	}
+
+	serverPubKey, err := h.NFC.ApproveWebSession(r.Context(), reqID, body.SelectedCode, body.ApprovedHours, userID)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{
+		"status":            "approved",
+		"server_public_key": serverPubKey,
+	})
+}
+
+// rejectWebSession rechaza una solicitud de sesion web.
+func (h *NFCTerminalHandler) rejectWebSession(w http.ResponseWriter, r *http.Request) {
+	reqIDStr := chi.URLParam(r, "reqId")
+	if reqIDStr == "" {
+		writeError(w, 400, "reqId is required")
+		return
+	}
+	reqID, err := uuid.Parse(reqIDStr)
+	if err != nil {
+		writeError(w, 400, "invalid request id")
+		return
+	}
+
+	userID, err := getUserID(r)
+	if err != nil {
+		writeError(w, 401, "not authenticated")
+		return
+	}
+
+	if err := h.NFC.RejectWebSession(r.Context(), reqID, userID); err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]string{"status": "rejected"})
+}
+
+// listActiveWebSessions lista las sesiones web activas del usuario.
+func (h *NFCTerminalHandler) listActiveWebSessions(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserID(r)
+	if err != nil {
+		writeError(w, 401, "not authenticated")
+		return
+	}
+	sessions, err := h.NFC.ListActiveWebSessions(r.Context(), userID)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	if sessions == nil {
+		sessions = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, sessions)
+}
+
+// revokeWebSession anula la sesion activa de un terminal web_pos.
+func (h *NFCTerminalHandler) revokeWebSession(w http.ResponseWriter, r *http.Request) {
+	terminalID := chi.URLParam(r, "terminalId")
+	if terminalID == "" {
+		writeError(w, 400, "terminalId is required")
+		return
+	}
+
+	userID, err := getUserID(r)
+	if err != nil {
+		writeError(w, 401, "not authenticated")
+		return
+	}
+
+	if err := h.NFC.RevokeWebSession(r.Context(), terminalID, userID); err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]string{"status": "revoked"})
 }

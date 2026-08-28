@@ -1093,6 +1093,23 @@ func (ah *AuthHandlers) passwordLogin(w http.ResponseWriter, r *http.Request) {
 			writeError(w, 403, "terminal_not_registered")
 			return
 		}
+		// Verificar expiracion de sesion web (solo terminales web_pos)
+		var dbTerminalType string
+		var dbWebSessionExpiresAt *time.Time
+		_ = ah.Pool.QueryRow(r.Context(), `
+			SELECT terminal_type, web_session_expires_at
+			FROM nfc_terminals WHERE terminal_id = $1
+			ORDER BY updated_at DESC LIMIT 1`,
+			terminalIDHeader,
+		).Scan(&dbTerminalType, &dbWebSessionExpiresAt)
+		if dbTerminalType == "web" || dbTerminalType == "web_pos" {
+			if dbWebSessionExpiresAt == nil || time.Now().After(*dbWebSessionExpiresAt) {
+				// Marcar como inactivo para forzar re-validacion
+				ah.Pool.Exec(r.Context(), `UPDATE nfc_terminals SET is_active = false WHERE terminal_id = $1`, terminalIDHeader)
+				writeError(w, 403, "web_session_expired")
+				return
+			}
+		}
 	}
 
 	if ah.Pool == nil {

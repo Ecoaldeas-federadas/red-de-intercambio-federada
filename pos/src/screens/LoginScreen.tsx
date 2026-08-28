@@ -5,11 +5,12 @@ import { storage } from '../crypto'
 interface Props {
   onLogin?: (user: any) => void
   onURLSet?: () => void
+  onSessionExpired?: () => void // Cuando la sesion web expiro
   api: API
   skipURL?: boolean // Si true, solo mostrar login (URL ya configurada)
 }
 
-export function LoginScreen({ onLogin, onURLSet, api, skipURL }: Props) {
+export function LoginScreen({ onLogin, onURLSet, onSessionExpired, api, skipURL }: Props) {
   const [step, setStep] = useState<string>(skipURL ? 'login' : 'url')
   const [apiURL, setApiURL] = useState(storage.get('apiURL') || '')
   const [username, setUsername] = useState('')
@@ -44,6 +45,14 @@ export function LoginScreen({ onLogin, onURLSet, api, skipURL }: Props) {
         setError('No se recibio token de autenticacion')
       }
     } catch (e: any) {
+      const errMsg = e?.message || ''
+      if (errMsg.includes('web_session_expired') && onSessionExpired) {
+        storage.delete('sessionToken')
+        storage.delete('merchantToken')
+        storage.delete('merchantUser')
+        onSessionExpired()
+        return
+      }
       setError(e.message || 'Error al iniciar sesion')
     } finally {
       setLoading(false)

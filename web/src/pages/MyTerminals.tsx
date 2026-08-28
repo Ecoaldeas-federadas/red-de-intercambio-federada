@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api, apiFetch } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
-import { Smartphone, Lock, Unlock, Eye, Activity, Power, ShoppingBag, Edit2 } from 'lucide-react'
+import { Smartphone, Lock, Unlock, Eye, Activity, Power, ShoppingBag, Edit2, Globe, Clock, XCircle, CheckCircle } from 'lucide-react'
 
 interface MyTerminal {
   id: string
@@ -38,6 +38,18 @@ export default function MyTerminals() {
   const [renameLabel, setRenameLabel] = useState('')
   const [renameSaving, setRenameSaving] = useState(false)
 
+  // POS Web session state
+  const [pendingWebSessions, setPendingWebSessions] = useState<any[]>([])
+  const [activeWebSessions, setActiveWebSessions] = useState<any[]>([])
+  const [webSessionOptions, setWebSessionOptions] = useState<string[]>([])
+  const [selectedReqId, setSelectedReqId] = useState<string | null>(null)
+  const [selectedCode, setSelectedCode] = useState('')
+  const [approvedHours, setApprovedHours] = useState(24)
+  const [webSessionAction, setWebSessionAction] = useState('')
+  const [showWebSessions, setShowWebSessions] = useState(false)
+
+  const hasWebTerminals = terminals.some(t => t.terminal_type === 'web_pos')
+
   useEffect(() => {
     loadTerminals()
     // Auto-refresh cada 15 segundos cuando la pagina esta visible
@@ -48,6 +60,101 @@ export default function MyTerminals() {
     }, 15000)
     return () => clearInterval(interval)
   }, [])
+
+  // Auto-refresh pending web sessions cuando la seccion esta visible
+  useEffect(() => {
+    if (showWebSessions && hasWebTerminals) {
+      loadPendingWebSessions()
+      loadActiveWebSessions()
+      const interval = setInterval(() => {
+        loadPendingWebSessions()
+        loadActiveWebSessions()
+      }, 3000)
+      return () => clearInterval(interval)
+    }
+  }, [showWebSessions, hasWebTerminals])
+
+  const loadPendingWebSessions = async () => {
+    try {
+      const res = await api.get<any[]>('/pos-web/pending-sessions')
+      setPendingWebSessions(res || [])
+    } catch (err) {
+      // ignore errors
+    }
+  }
+
+  const loadActiveWebSessions = async () => {
+    try {
+      const res = await api.get<any[]>('/pos-web/sessions')
+      setActiveWebSessions(res || [])
+    } catch (err) {
+      // ignore errors
+    }
+  }
+
+  const loadWebSessionOptions = async (reqId: string) => {
+    setSelectedReqId(reqId)
+    setWebSessionOptions([])
+    setSelectedCode('')
+    try {
+      const res = await api.get<any>(`/pos-web/pending-sessions/${reqId}/options`)
+      const options = Array.isArray(res) ? res : res?.options ?? []
+      setWebSessionOptions(options)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cargar opciones')
+    }
+  }
+
+  const handleApproveWebSession = async (reqId: string) => {
+    if (!selectedCode) {
+      setError('Selecciona un codigo')
+      return
+    }
+    setWebSessionAction(reqId)
+    try {
+      await api.post(`/pos-web/pending-sessions/${reqId}/approve`, {
+        selected_code: selectedCode,
+        approved_hours: approvedHours,
+      })
+      setPendingWebSessions(prev => prev.filter(p => p.id !== reqId))
+      setSelectedReqId(null)
+      setSelectedCode('')
+      setWebSessionOptions([])
+      loadActiveWebSessions()
+      setError('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al aprobar sesion')
+    } finally {
+      setWebSessionAction('')
+    }
+  }
+
+  const handleRejectWebSession = async (reqId: string) => {
+    setWebSessionAction(reqId + '-reject')
+    try {
+      await api.post(`/pos-web/pending-sessions/${reqId}/reject`, {})
+      setPendingWebSessions(prev => prev.filter(p => p.id !== reqId))
+      setError('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al rechazar')
+    } finally {
+      setWebSessionAction('')
+    }
+  }
+
+  const handleRevokeWebSession = async (terminalId: string) => {
+    setWebSessionAction(terminalId + '-revoke')
+    try {
+      await api.post(`/pos-web/sessions/${terminalId}/revoke`, {})
+      loadActiveWebSessions()
+      loadTerminals()
+      setError('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al anular sesion')
+    } finally {
+      setWebSessionAction('')
+    }
+  }
 
   const loadTerminals = async () => {
     setLoading(true)
@@ -273,13 +380,209 @@ export default function MyTerminals() {
         </div>
       )}
 
+      {/* POS Web Sessions - solo si tiene terminales web_pos */}
+      {hasWebTerminals && (
+        <div className="mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Globe size={24} />
+              Sesiones POS Web
+            </h2>
+            <button
+              onClick={() => setShowWebSessions(!showWebSessions)}
+              className="px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium hover:bg-gray-200"
+            >
+              {showWebSessions ? 'Ocultar' : 'Mostrar'}
+              {pendingWebSessions.length > 0 && (
+                <span className="ml-2 bg-red-500 text-white text-xs px-1.5 rounded-full">
+                  {pendingWebSessions.length}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {showWebSessions && (
+            <>
+              {/* Solicitudes pendientes */}
+              {pendingWebSessions.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="font-semibold mb-3 flex items-center gap-2">
+                    <Clock size={18} className="text-orange-500" />
+                    Solicitudes Pendientes ({pendingWebSessions.length})
+                  </h3>
+                  <div className="space-y-3">
+                    {pendingWebSessions.map((req) => (
+                      <div key={req.id} className="bg-white rounded-xl border p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <p className="font-medium">{req.terminal_label || req.terminal_id}</p>
+                            <p className="text-xs text-gray-500 font-mono mt-1">
+                              Terminal: {req.terminal_id.slice(0, 24)}...
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              Solicitado: {formatTime(req.created_at)}
+                            </p>
+                          </div>
+                        </div>
+
+                        {selectedReqId === req.id ? (
+                          /* Mostrar opciones de codigo */
+                          <div className="border-t pt-3">
+                            <p className="text-sm text-gray-600 mb-3">
+                              Selecciona el codigo que te comunico la persona del POS web:
+                            </p>
+                            <div className="grid grid-cols-2 gap-2 mb-3">
+                              {webSessionOptions.map((code) => (
+                                <button
+                                  key={code}
+                                  onClick={() => setSelectedCode(code)}
+                                  className={`px-4 py-3 rounded-lg font-mono text-lg font-bold ${
+                                    selectedCode === code
+                                      ? 'bg-trueque-600 text-white'
+                                      : 'bg-gray-100 hover:bg-gray-200'
+                                  }`}
+                                >
+                                  {code}
+                                </button>
+                              ))}
+                            </div>
+
+                            <p className="text-sm text-gray-600 mb-2">Duracion de la sesion:</p>
+                            <div className="flex gap-2 mb-3">
+                              {[1, 5, 24].map(h => (
+                                <button
+                                  key={h}
+                                  onClick={() => setApprovedHours(h)}
+                                  className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                                    approvedHours === h
+                                      ? 'bg-trueque-600 text-white'
+                                      : 'bg-gray-100 hover:bg-gray-200'
+                                  }`}
+                                >
+                                  {h}h
+                                </button>
+                              ))}
+                            </div>
+
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleApproveWebSession(req.id)}
+                                disabled={!selectedCode || webSessionAction === req.id}
+                                className="btn-primary flex-1 disabled:opacity-50"
+                              >
+                                {webSessionAction === req.id ? 'Aprobando...' : 'Aprobar'}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedReqId(null)
+                                  setSelectedCode('')
+                                  setWebSessionOptions([])
+                                }}
+                                className="btn-secondary"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => loadWebSessionOptions(req.id)}
+                              className="btn-primary flex-1"
+                            >
+                              Ver codigos
+                            </button>
+                            <button
+                              onClick={() => handleRejectWebSession(req.id)}
+                              disabled={webSessionAction === req.id + '-reject'}
+                              className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100"
+                            >
+                              {webSessionAction === req.id + '-reject' ? '...' : 'Rechazar'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Sesiones activas */}
+              <div>
+                <h3 className="font-semibold mb-3">Sesiones Activas</h3>
+                {activeWebSessions.length === 0 ? (
+                  <div className="bg-white rounded-xl border p-6 text-center text-gray-500">
+                    No hay sesiones web activas
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {activeWebSessions.map((session) => (
+                      <div key={session.terminal_id} className="bg-white rounded-xl border p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <p className="font-medium">{session.label || session.terminal_id}</p>
+                            <p className="text-xs text-gray-500 font-mono mt-1">
+                              {session.terminal_id.slice(0, 24)}...
+                            </p>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            {session.expired ? (
+                              <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">
+                                Expirada
+                              </span>
+                            ) : session.is_active ? (
+                              <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">
+                                ● Activa
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">
+                                ○ Inactiva
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-sm text-gray-500 mb-3">
+                          {session.expires_at && (
+                            <p>⏰ Expira: {formatTime(session.expires_at)}</p>
+                          )}
+                          <p>🕐 Ultima actividad: {formatTime(session.last_seen)}</p>
+                        </div>
+                        {!session.expired && session.is_active && (
+                          <button
+                            onClick={() => handleRevokeWebSession(session.terminal_id)}
+                            disabled={webSessionAction === session.terminal_id + '-revoke'}
+                            className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 flex items-center gap-1"
+                          >
+                            <XCircle size={16} />
+                            {webSessionAction === session.terminal_id + '-revoke' ? 'Anulando...' : 'Anular sesion'}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {pendingWebSessions.length === 0 && activeWebSessions.length === 0 && (
+                <div className="bg-white rounded-xl border p-6 text-center text-gray-500">
+                  No hay solicitudes pendientes ni sesiones activas.
+                  <br />
+                  <span className="text-sm">Cuando alguien abra el POS web, aparecera aqui una solicitud.</span>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       {/* Info box */}
       <div className="mt-6 bg-blue-50 rounded-xl p-4 text-sm text-blue-700">
         <p className="font-medium mb-1">💡 Como usar tu terminal</p>
         <ol className="list-decimal list-inside space-y-1 text-blue-600">
           <li>Abre el POS en tu dispositivo (celular o PC)</li>
           <li>Ingresa la URL del nodo e inicia sesion</li>
-          <li>Si es la primera vez, registra el terminal con el administrador</li>
+          <li>Si es terminal fisico (Android/ESP32), el administrador lo registra</li>
+          <li>Si es POS Web, el administrador te asigna el terminal y tu apruebas cada sesion de navegador desde aqui</li>
           <li>Usa el teclado para ingresar el monto a cobrar</li>
           <li>Cobra con QR o NFC</li>
           <li>Aqui puedes ver todas tus transacciones y gestionar tus terminales</li>

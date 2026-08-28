@@ -194,13 +194,25 @@ func (nt *NFCTerminals) CompleteRegistration(ctx context.Context, terminalID, re
 func (nt *NFCTerminals) AuthenticateTerminal(ctx context.Context, terminalID string, signature []byte, nonce, deviceFingerprint string, serverPrivKey ed25519.PrivateKey) (string, error) {
 	var t NFCTerminal
 	var pubKeyStr, storedFingerprint *string
+	var terminalType string
+	var webSessionExpiresAt *time.Time
 	err := nt.Pool.QueryRow(ctx, `
-		SELECT id, terminal_public_key, device_fingerprint FROM nfc_terminals
+		SELECT id, terminal_public_key, device_fingerprint, terminal_type, web_session_expires_at
+		FROM nfc_terminals
 		WHERE terminal_id = $1 AND is_active = true AND is_registered = true`,
 		terminalID,
-	).Scan(&t.ID, &pubKeyStr, &storedFingerprint)
+	).Scan(&t.ID, &pubKeyStr, &storedFingerprint, &terminalType, &webSessionExpiresAt)
 	if err != nil {
 		return "", fmt.Errorf("terminal not found or not registered")
+	}
+
+	// Verificar expiracion de sesion web (solo terminales web)
+	if (terminalType == "web" || terminalType == "web_pos") && webSessionExpiresAt != nil {
+		if time.Now().After(*webSessionExpiresAt) {
+			// Marcar como inactivo para forzar re-validacion
+			nt.Pool.Exec(ctx, `UPDATE nfc_terminals SET is_active = false WHERE id = $1`, t.ID)
+			return "", fmt.Errorf("web_session_expired")
+		}
 	}
 
 	if pubKeyStr == nil || *pubKeyStr == "" {

@@ -128,7 +128,7 @@ export class API {
       body: JSON.stringify({
         terminal_id: terminalID,
         label,
-        terminal_type: 'web_pos',
+        terminal_type: 'web',
         location,
         device_fingerprint: fingerprint,
       }),
@@ -145,6 +145,27 @@ export class API {
         terminal_public_key: publicKey,
         device_fingerprint: fingerprint,
       }),
+    })
+  }
+
+  // ===== POS WEB SESSION REQUESTS =====
+  // El POS web solicita una sesion al backend. El backend genera un codigo
+  // de 4 digitos que el usuario le da al dueno del terminal para que lo apruebe.
+  async requestWebSession(terminalID: string, publicKey: string, fingerprint: string): Promise<any> {
+    return this.request('/api/pos-web/request-session', {
+      method: 'POST',
+      body: JSON.stringify({
+        terminal_id: terminalID,
+        terminal_public_key: publicKey,
+        device_fingerprint: fingerprint,
+      }),
+    })
+  }
+
+  // Consultar el estado de una solicitud de sesion web (polling).
+  async getWebSessionStatus(requestId: string): Promise<any> {
+    return this.request(`/api/pos-web/session-status/${requestId}`, {
+      method: 'GET',
     })
   }
 

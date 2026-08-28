@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { api } from './api'
 import { storage, generateKeyPair, generateTerminalID, generateDeviceFingerprint } from './crypto'
 import { LoginScreen } from './screens/LoginScreen'
-import { SetupScreen } from './screens/SetupScreen'
+import { SessionRequestScreen } from './screens/SessionRequestScreen'
 import { KeypadScreen } from './screens/KeypadScreen'
 import { QRScreen } from './screens/QRScreen'
 import { NFCScreen } from './screens/NFCScreen'
@@ -11,7 +11,7 @@ import { SettingsScreen } from './screens/SettingsScreen'
 import { ConfirmAmountScreen } from './screens/ConfirmAmountScreen'
 import { ShiftScreen } from './screens/ShiftScreen'
 
-export type Screen = 'url' | 'login' | 'setup' | 'keypad' | 'confirm' | 'qr' | 'nfc' | 'sales' | 'settings' | 'shift'
+export type Screen = 'url' | 'login' | 'session_request' | 'keypad' | 'confirm' | 'qr' | 'nfc' | 'sales' | 'settings' | 'shift'
 
 export function App() {
   const [screen, setScreen] = useState<Screen>('url')
@@ -64,8 +64,8 @@ export function App() {
         setTerminalID(termID)
         setScreen('login')
       } else {
-        // No hay terminal - ir a setup
-        setScreen('setup')
+        // No hay sesion valida - ir a solicitud de sesion web
+        setScreen('session_request')
       }
     }
     initApp()
@@ -88,17 +88,26 @@ export function App() {
         setAuthenticating(false)
         setScreen('login')
       }
-    } catch (e) {
+    } catch (e: any) {
+      // Si la sesion web expiro, ir a solicitud de sesion
+      const errMsg = e?.message || ''
+      if (errMsg.includes('web_session_expired') || errMsg.includes('session expired')) {
+        storage.delete('sessionToken')
+        storage.delete('merchantToken')
+        storage.delete('merchantUser')
+        setAuthenticating(false)
+        setScreen('session_request')
+        return
+      }
       // Fallo la re-autenticacion (red, servidor caido, etc.)
       // NO borrar las claves - permitir reintentar desde login
-      // El usuario puede reintentar o resetear manualmente si es necesario
       setAuthenticating(false)
       setScreen('login')
     }
   }
 
   const handleURLSet = () => {
-    // Después de setear la URL, ir a setup si no hay terminal, o a login si ya hay
+    // Después de setear la URL, ir a session_request si no hay terminal, o a login si ya hay
     const termID = storage.get('terminalID')
     const privKey = storage.get('privateKey')
     const sessionToken = storage.get('sessionToken')
@@ -107,14 +116,14 @@ export function App() {
       setTerminalID(termID)
       setScreen('login')
     } else {
-      setScreen('setup')
+      setScreen('session_request')
     }
   }
 
-  const handleSetupComplete = (termID: string) => {
+  const handleSessionComplete = (termID: string) => {
     setTerminalID(termID)
     storage.set('terminalID', termID)
-    // Después de activar el terminal, hacer login del merchant
+    // Después de activar la sesion, hacer login del merchant
     setScreen('login')
   }
 
@@ -171,13 +180,11 @@ export function App() {
   return (
     <div className="safe-top safe-bottom" style={{ minHeight: '100dvh' }}>
       {screen === 'url' && <LoginScreen onURLSet={handleURLSet} api={api} />}
-      {screen === 'login' && <LoginScreen onLogin={handleLogin} api={api} skipURL />}
-      {screen === 'setup' && (
-        <SetupScreen
-          onComplete={handleSetupComplete}
+      {screen === 'login' && <LoginScreen onLogin={handleLogin} onSessionExpired={() => setScreen('session_request')} api={api} skipURL />}
+      {screen === 'session_request' && (
+        <SessionRequestScreen
+          onComplete={handleSessionComplete}
           api={api}
-          generateKeyPair={generateKeyPair}
-          generateTerminalID={generateTerminalID}
         />
       )}
       {screen === 'keypad' && (
