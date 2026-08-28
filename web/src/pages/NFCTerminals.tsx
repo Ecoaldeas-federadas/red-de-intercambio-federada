@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { api, apiFetch } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useSerialChipId } from '../hooks/useSerialChipId'
+import { EntitySelector } from '../components/EntitySelector'
 import { Nfc, Plus, Trash2, CreditCard, KeyRound, Activity, Cpu, Usb, Download, Lock, HelpCircle, X, UserPlus } from 'lucide-react'
 
 interface Terminal {
@@ -61,9 +62,6 @@ export default function NFCTerminals() {
   const [approvingCode, setApprovingCode] = useState('')
   const [pairingAction, setPairingAction] = useState('')
   const [pairingOptions, setPairingOptions] = useState<string[]>([])
-  const [pairingOptionsMap, setPairingOptionsMap] = useState<Record<string, string[]>>({})
-  const [optionsErrorMap, setOptionsErrorMap] = useState<Record<string, string>>({})
-  const [loadingOptionsMap, setLoadingOptionsMap] = useState<Record<string, boolean>>({})
   const [selectedCode, setSelectedCode] = useState('')
   const [loadingOptions, setLoadingOptions] = useState(false)
   const [optionsError, setOptionsError] = useState('')
@@ -103,14 +101,7 @@ export default function NFCTerminals() {
   const loadPendingPairings = async () => {
     try {
       const res = await api.get<any[]>('/nfc/terminal/pair/pending')
-      const pairings = res || []
-      setPendingPairings(pairings)
-      // Auto-cargar 4 opciones para cada emparejamiento pendiente
-      pairings.forEach((p: any) => {
-        if (p.id && !pairingOptionsMap[p.id]) {
-          loadPairingOptionsForCard(p.id)
-        }
-      })
+      setPendingPairings(res || [])
     } catch (err) {
       // ignore errors silently
     }
@@ -136,24 +127,6 @@ export default function NFCTerminals() {
     setLoadingOptions(false)
   }
 
-  // Cargar 4 opciones para una tarjeta especifica (auto-load)
-  const loadPairingOptionsForCard = async (reqId: string) => {
-    setLoadingOptionsMap(prev => ({ ...prev, [reqId]: true }))
-    setOptionsErrorMap(prev => { const n = { ...prev }; delete n[reqId]; return n })
-    try {
-      const res = await api.get<any>(`/nfc/terminal/pair/request/${reqId}/options`)
-      const options = Array.isArray(res) ? res : res?.options ?? []
-      if (options.length === 0) {
-        setOptionsErrorMap(prev => ({ ...prev, [reqId]: 'No se pudieron cargar las opciones' }))
-      } else {
-        setPairingOptionsMap(prev => ({ ...prev, [reqId]: options }))
-      }
-    } catch (err) {
-      setOptionsErrorMap(prev => ({ ...prev, [reqId]: err instanceof Error ? err.message : 'Error al cargar opciones' }))
-    }
-    setLoadingOptionsMap(prev => { const n = { ...prev }; delete n[reqId]; return n })
-  }
-
   const approvePairing = async (reqId: string, mode: string = 'new') => {
     setPairingAction(reqId)
     try {
@@ -170,8 +143,6 @@ export default function NFCTerminals() {
       setSelectedCode('')
       setPairingOptions([])
       setOptionsError('')
-      setPairingOptionsMap(prev => { const n = { ...prev }; delete n[reqId]; return n })
-      setOptionsErrorMap(prev => { const n = { ...prev }; delete n[reqId]; return n })
       loadTerminals()
       setError('')
     } catch (err) {
@@ -186,8 +157,6 @@ export default function NFCTerminals() {
     try {
       await api.post(`/nfc/terminal/pair/request/${reqId}/reject`, {})
       setPendingPairings(prev => prev.filter(p => p.id !== reqId))
-      setPairingOptionsMap(prev => { const n = { ...prev }; delete n[reqId]; return n })
-      setOptionsErrorMap(prev => { const n = { ...prev }; delete n[reqId]; return n })
       setError('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al rechazar')
@@ -252,14 +221,19 @@ export default function NFCTerminals() {
     }
   }
 
+  const [showAssignModal, setShowAssignModal] = useState<string | null>(null)
+  const [assignTarget, setAssignTarget] = useState('')
+  const [assignType, setAssignType] = useState<'user' | 'org'>('user')
+
   const assignTerminal = async (terminalId: string) => {
-    const orgID = prompt('Ingresa el ID de la organizacion a la que se le asignara este terminal:')
-    if (!orgID) return
+    if (!assignTarget) return
     try {
       await apiFetch(`/nfc/terminal/${terminalId}/assign`, {
         method: 'POST',
-        body: JSON.stringify({ organization_id: orgID }),
+        body: JSON.stringify({ organization_id: assignTarget }),
       })
+      setShowAssignModal(null)
+      setAssignTarget('')
       loadTerminals()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error')
@@ -674,9 +648,9 @@ export default function NFCTerminals() {
                 </span>
                 {canRegisterTerminal && t.is_registered && (
                   <button
-                    onClick={() => assignTerminal(t.terminal_id)}
+                    onClick={() => { setShowAssignModal(t.terminal_id); setAssignTarget(''); setAssignType('user') }}
                     className="text-blue-500 hover:text-blue-700"
-                    title="Asignar a organizacion"
+                    title="Asignar a persona u organizacion"
                   >
                     <UserPlus size={16} />
                   </button>
@@ -862,15 +836,13 @@ export default function NFCTerminals() {
             </div>
           ) : (
             <div className="space-y-3">
-              {pendingPairings.map((p) => {
-                const cardOptions = pairingOptionsMap[p.id] || []
-                const cardError = optionsErrorMap[p.id]
-                const cardLoading = loadingOptionsMap[p.id]
-                const hasOptions = cardOptions.length > 0
-                return (
+              {pendingPairings.map((p) => (
                 <div key={p.id} className="card border-2 border-trueque-300 bg-trueque-50">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-4">
+                      <div className="bg-trueque-600 text-white text-lg font-bold px-6 py-3 rounded-xl">
+                        Codigo oculto
+                      </div>
                       <div className="flex-1">
                         <p className="font-bold text-lg">{p.terminal_label || 'POS Android'}</p>
                         <p className="text-sm text-gray-600">Tipo: {p.terminal_type}</p>
@@ -924,112 +896,195 @@ export default function NFCTerminals() {
                     </div>
                   </div>
 
-                  {/* 4 opciones de verificacion - cargadas automaticamente */}
-                  <div className="mt-4 border-t pt-4">
-                    <div>
-                      <label className="label">Etiqueta (opcional, pre-llenada por el POS)</label>
-                      <input className="input" placeholder={p.terminal_label || 'POS Android'}
-                        value={approvingCode === p.id ? approveLabel : ''}
-                        onChange={(e) => { setApprovingCode(p.id); setApproveLabel(e.target.value) }} />
-                    </div>
-                    <div>
-                      <label className="label">Ubicacion (opcional)</label>
-                      <input className="input" placeholder="Ej: Local 5, Mercado Central"
-                        value={approvingCode === p.id ? approveLocation : ''}
-                        onChange={(e) => { setApprovingCode(p.id); setApproveLocation(e.target.value) }} />
-                    </div>
+                  {approvingCode === p.id ? (
+                    <div className="mt-4 space-y-3 border-t pt-4">
+                      <div>
+                        <label className="label">Etiqueta (opcional, pre-llenada por el POS)</label>
+                        <input className="input" placeholder={p.terminal_label || 'POS Android'}
+                          value={approveLabel}
+                          onChange={(e) => setApproveLabel(e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="label">Ubicacion (opcional)</label>
+                        <input className="input" placeholder="Ej: Local 5, Mercado Central"
+                          value={approveLocation}
+                          onChange={(e) => setApproveLocation(e.target.value)} />
+                      </div>
 
-                    {/* Verificacion de 4 opciones */}
-                    {cardLoading ? (
-                      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-sm text-indigo-700 mt-3">
-                        Cargando 4 opciones de verificacion...
-                      </div>
-                    ) : cardError ? (
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700 mt-3">
-                        <p className="font-semibold">Error al cargar opciones</p>
-                        <p className="text-xs mt-1">{cardError}</p>
-                        <button onClick={() => loadPairingOptionsForCard(p.id)} className="text-xs text-red-600 underline mt-1">Reintentar</button>
-                      </div>
-                    ) : hasOptions ? (
-                      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 space-y-2 mt-3">
-                        <p className="text-sm font-semibold text-indigo-800">Verificacion: selecciona el codigo que le comunico por telefono</p>
-                        <p className="text-xs text-indigo-600">
-                          El POS muestra un codigo en su pantalla. Solo uno de estos 4 es correcto.
-                        </p>
-                        <div className="grid grid-cols-2 gap-2">
-                          {cardOptions.map((opt) => (
-                            <button
-                              key={opt}
-                              onClick={() => { setApprovingCode(p.id); setSelectedCode(opt) }}
-                              className={`px-4 py-3 rounded-lg text-lg font-bold font-mono transition ${
-                                approvingCode === p.id && selectedCode === opt
-                                  ? 'bg-indigo-600 text-white ring-2 ring-indigo-400'
-                                  : 'bg-white text-indigo-700 border border-indigo-200 hover:bg-indigo-100'
-                              }`}
-                            >
-                              {opt}
-                            </button>
-                          ))}
+                      {/* Verificacion de 4 opciones */}
+                      {loadingOptions ? (
+                        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-sm text-indigo-700">
+                          Cargando opciones de verificacion...
                         </div>
-                        {approvingCode === p.id && !selectedCode && (
-                          <p className="text-xs text-amber-600">Debes seleccionar un codigo para aprobar.</p>
-                        )}
-                      </div>
-                    ) : null}
+                      ) : optionsError ? (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+                          <p className="font-semibold">Error al cargar opciones</p>
+                          <p className="text-xs mt-1">{optionsError}</p>
+                          <button onClick={() => loadPairingOptions(p.id)} className="text-xs text-red-600 underline mt-1">Reintentar</button>
+                        </div>
+                      ) : pairingOptions.length > 0 ? (
+                        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 space-y-2">
+                          <p className="text-sm font-semibold text-indigo-800">Verificacion: selecciona el codigo correcto</p>
+                          <p className="text-xs text-indigo-600">
+                            El POS muestra un codigo en su pantalla. Selecciona la opcion que coincida con el codigo mostrado.
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {pairingOptions.map((opt) => (
+                              <button
+                                key={opt}
+                                onClick={() => setSelectedCode(opt)}
+                                className={`px-4 py-3 rounded-lg text-lg font-bold font-mono transition ${
+                                  selectedCode === opt
+                                    ? 'bg-indigo-600 text-white ring-2 ring-indigo-400'
+                                    : 'bg-white text-indigo-700 border border-indigo-200 hover:bg-indigo-100'
+                                }`}
+                              >
+                                {opt}
+                              </button>
+                            ))}
+                          </div>
+                          {!selectedCode && (
+                            <p className="text-xs text-amber-600">Debes seleccionar un codigo para aprobar.</p>
+                          )}
+                        </div>
+                      ) : null}
 
-                    {p.existing_terminal_id ? (
-                      <div className="space-y-2 mt-3">
-                        <p className="text-sm font-semibold text-gray-700">Este dispositivo ya existe. Que deseas hacer?</p>
+                      {p.existing_terminal_id ? (
+                        <div className="space-y-2">
+                          <p className="text-sm font-semibold text-gray-700">Este dispositivo ya existe. Que deseas hacer?</p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => approvePairing(p.id, 'replace')}
+                              disabled={pairingAction === p.id || (pairingOptions.length > 0 && !selectedCode) || (!!optionsError && pairingOptions.length === 0)}
+                              className="btn-primary flex-1 disabled:opacity-50">
+                              {pairingAction === p.id ? 'Aprobando...' : 'Reemplazar clave existente'}
+                            </button>
+                            <button
+                              onClick={() => approvePairing(p.id, 'new')}
+                              disabled={pairingAction === p.id || (pairingOptions.length > 0 && !selectedCode) || (!!optionsError && pairingOptions.length === 0)}
+                              className="btn-secondary flex-1 disabled:opacity-50">
+                              Crear terminal nuevo
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
                         <div className="flex gap-2">
                           <button
-                            onClick={() => approvePairing(p.id, 'replace')}
-                            disabled={pairingAction === p.id || (hasOptions && !(approvingCode === p.id && selectedCode)) || (!!cardError && !hasOptions)}
-                            className="btn-primary flex-1 disabled:opacity-50">
-                            {pairingAction === p.id ? 'Aprobando...' : 'Reemplazar clave existente'}
-                          </button>
-                          <button
                             onClick={() => approvePairing(p.id, 'new')}
-                            disabled={pairingAction === p.id || (hasOptions && !(approvingCode === p.id && selectedCode)) || (!!cardError && !hasOptions)}
-                            className="btn-secondary flex-1 disabled:opacity-50">
-                            Crear terminal nuevo
+                            disabled={pairingAction === p.id || (pairingOptions.length > 0 && !selectedCode) || (!!optionsError && pairingOptions.length === 0)}
+                            className="btn-primary flex-1 disabled:opacity-50">
+                            {pairingAction === p.id ? 'Aprobando...' : 'Aprobar y Registrar'}
                           </button>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="flex gap-2 mt-3">
-                        <button
-                          onClick={() => approvePairing(p.id, 'new')}
-                          disabled={pairingAction === p.id || (hasOptions && !(approvingCode === p.id && selectedCode)) || (!!cardError && !hasOptions)}
-                          className="btn-primary flex-1 disabled:opacity-50">
-                          {pairingAction === p.id ? 'Aprobando...' : 'Aprobar y Registrar'}
-                        </button>
-                      </div>
-                    )}
-                    <button
-                      onClick={() => rejectPairing(p.id)}
-                      disabled={pairingAction === p.id + '-reject'}
-                      className="btn-secondary text-red-600 w-full mt-2">
-                      {pairingAction === p.id + '-reject' ? 'Rechazando...' : 'Rechazar'}
-                    </button>
-                  </div>
+                      )}
+                      <button
+                        onClick={() => { setApprovingCode(''); setApproveLabel(''); setApproveLocation(''); setSelectedCode(''); setPairingOptions([]); setOptionsError('') }}
+                        className="btn-secondary w-full">Cancelar</button>
+                    </div>
+                  ) : (
+                    <div className="mt-4 flex gap-2">
+                      <button
+                        onClick={() => { setApprovingCode(p.id); setApproveLabel(p.terminal_label || ''); setApproveLocation(''); setOptionsError(''); loadPairingOptions(p.id) }}
+                        className="btn-primary flex-1">
+                        Aprobar
+                      </button>
+                      <button
+                        onClick={() => rejectPairing(p.id)}
+                        disabled={pairingAction === p.id + '-reject'}
+                        className="btn-secondary text-red-600">
+                        {pairingAction === p.id + '-reject' ? 'Rechazando...' : 'Rechazar'}
+                      </button>
+                    </div>
+                  )}
                 </div>
-                )
-              })}
+              ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Modal: Asignar terminal a persona u organizacion */}
+      {showAssignModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowAssignModal(null)}>
+          <div className="bg-white rounded-xl p-6 w-[500px] max-w-[90vw] space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="font-bold text-lg">Asignar Terminal</h2>
+              <button onClick={() => setShowAssignModal(null)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-sm text-gray-600">Busca una persona o organizacion existente para asignarle este terminal.</p>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setAssignType('user'); setAssignTarget('') }}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium ${assignType === 'user' ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                Persona
+              </button>
+              <button
+                onClick={() => { setAssignType('org'); setAssignTarget('') }}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium ${assignType === 'org' ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                Organizacion
+              </button>
+            </div>
+
+            {assignType === 'user' ? (
+              <EntitySelector
+                label="Buscar persona"
+                placeholder="Escribe el nombre para buscar..."
+                value={assignTarget}
+                onChange={setAssignTarget}
+                endpoint="/search/users"
+                valueKey="id"
+                labelKey="username"
+                subLabelKey="display_name"
+                emptyMessage="No se encontraron personas"
+              />
+            ) : (
+              <EntitySelector
+                label="Buscar organizacion"
+                placeholder="Escribe el nombre para buscar..."
+                value={assignTarget}
+                onChange={setAssignTarget}
+                endpoint="/search/organizations"
+                valueKey="id"
+                labelKey="name"
+                subLabelKey="display_name"
+                emptyMessage="No se encontraron organizaciones"
+              />
+            )}
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => assignTerminal(showAssignModal)}
+                disabled={!assignTarget}
+                className="btn-primary flex-1 disabled:opacity-50">
+                Asignar
+              </button>
+              <button onClick={() => setShowAssignModal(null)} className="btn-secondary">
+                Cancelar
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Modal: Issue Card */}
       {showIssueCard && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowIssueCard(false)}>
-          <div className="bg-white rounded-xl p-6 w-96 space-y-3" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-xl p-6 w-[500px] max-w-[90vw] space-y-3" onClick={(e) => e.stopPropagation()}>
             <h2 className="font-bold text-lg">Emitir Tarjeta NFC</h2>
-            <div>
-              <label className="label">User ID (UUID del usuario)</label>
-              <input className="input" placeholder="Ej: 550e8400-e29b-41d4-a716-446655440000" value={newCard.user_id} onChange={(e) => setNewCard({ ...newCard, user_id: e.target.value })} />
-              <p className="text-xs text-gray-400 mt-1">Identificador unico del usuario al que se le asigna la tarjeta. Ejemplo: <code>550e8400-e29b-41d4-a716-446655440000</code></p>
-            </div>
+            <EntitySelector
+              label="Persona"
+              placeholder="Escribe el nombre para buscar..."
+              value={newCard.user_id}
+              onChange={(v) => setNewCard({ ...newCard, user_id: v })}
+              endpoint="/search/users"
+              valueKey="id"
+              labelKey="username"
+              subLabelKey="display_name"
+              emptyMessage="No se encontraron personas"
+            />
             <div>
               <label className="label">Card UID (hexadecimal)</label>
               <input className="input" placeholder="Ej: 04A3B2C1D2E3F4" value={newCard.card_uid} onChange={(e) => setNewCard({ ...newCard, card_uid: e.target.value })} />

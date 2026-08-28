@@ -149,6 +149,10 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	// Subida de imagenes (para el editor visual del sitio publico)
 	r.With(am.RequireAuth).Post("/api/uploads/image", h.uploadImage)
 	r.With(am.RequireAuth).Get("/api/uploads/images", h.listUploadedImages)
+
+	// Buscar usuarios y organizaciones (para asignar terminales, tarjetas, etc.)
+	r.With(am.RequireAuth).Get("/api/search/users", h.searchUsers)
+	r.With(am.RequireAuth).Get("/api/search/organizations", h.searchOrganizations)
 }
 
 // ===== AUDITORIA =====
@@ -4440,4 +4444,95 @@ func scanProductRowsWithThumb(rows pgx.Rows) []map[string]interface{} {
 		products = []map[string]interface{}{}
 	}
 	return products
+}
+
+// ===== BUSQUEDA DE USUARIOS Y ORGANIZACIONES =====
+
+// searchUsers busca usuarios por username o display_name.
+// Usado por EntitySelector en el frontend para asignar terminales, tarjetas, etc.
+func (h *SystemHandler) searchUsers(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+	q := r.URL.Query().Get("q")
+
+	var rows pgx.Rows
+	var err error
+	if q == "" {
+		rows, err = h.Pool.Query(r.Context(), `
+			SELECT id, username, COALESCE(display_name, username), account_type, membership_status
+			FROM users
+			WHERE node_domain = $1 AND membership_status = 'active'
+			ORDER BY username LIMIT 100`, nodeDomain)
+	} else {
+		rows, err = h.Pool.Query(r.Context(), `
+			SELECT id, username, COALESCE(display_name, username), account_type, membership_status
+			FROM users
+			WHERE node_domain = $1 AND membership_status = 'active'
+			  AND (username ILIKE $2 OR display_name ILIKE $2)
+			ORDER BY username LIMIT 50`, nodeDomain, "%"+q+"%")
+	}
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+
+	users := []map[string]interface{}{}
+	for rows.Next() {
+		var id uuid.UUID
+		var username, displayName, accountType, status string
+		rows.Scan(&id, &username, &displayName, &accountType, &status)
+		users = append(users, map[string]interface{}{
+			"id":                id.String(),
+			"username":          username,
+			"display_name":      displayName,
+			"account_type":      accountType,
+			"membership_status": status,
+		})
+	}
+	writeJSON(w, 200, users)
+}
+
+// searchOrganizations busca organizaciones por nombre o display_name.
+func (h *SystemHandler) searchOrganizations(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+	q := r.URL.Query().Get("q")
+
+	var rows pgx.Rows
+	var err error
+	if q == "" {
+		rows, err = h.Pool.Query(r.Context(), `
+			SELECT id, username, COALESCE(display_name, username), account_type, membership_status
+			FROM users
+			WHERE node_domain = $1 AND account_type = 'organization' AND membership_status = 'active'
+			ORDER BY username LIMIT 100`, nodeDomain)
+	} else {
+		rows, err = h.Pool.Query(r.Context(), `
+			SELECT id, username, COALESCE(display_name, username), account_type, membership_status
+			FROM users
+			WHERE node_domain = $1 AND account_type = 'organization' AND membership_status = 'active'
+			  AND (username ILIKE $2 OR display_name ILIKE $2)
+			ORDER BY username LIMIT 50`, nodeDomain, "%"+q+"%")
+	}
+	if err != nil {
+		writeJSON(w, 200, []interface{}{})
+		return
+	}
+	defer rows.Close()
+
+	orgs := []map[string]interface{}{}
+	for rows.Next() {
+		var id uuid.UUID
+		var username, displayName, accountType, status string
+		rows.Scan(&id, &username, &displayName, &accountType, &status)
+		orgs = append(orgs, map[string]interface{}{
+			"id":                id.String(),
+			"name":              username,
+			"display_name":      displayName,
+			"account_type":      accountType,
+			"membership_status": status,
+		})
+	}
+	writeJSON(w, 200, orgs)
 }
