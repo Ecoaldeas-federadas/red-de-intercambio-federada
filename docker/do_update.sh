@@ -259,14 +259,14 @@ log "NOTA: Esto puede tardar 10-20 minutos. El output aparece linea por linea."
 log "Si no ves output por unos minutos, es normal (descargando dependencias)."
 
 BUILD_OK=false
-if dc_build build --no-cache --progress plain node-app >> "$LOG_FILE" 2>&1; then
-  log "Imagen node-app construida con --no-cache OK"
+if dc_build build --no-cache --build-arg BUILD_COMMIT=$NEW_COMMIT --progress plain node-app >> "$LOG_FILE" 2>&1; then
+  log "Imagen node-app construida con --no-cache OK (commit: $NEW_COMMIT)"
   BUILD_OK=true
 else
   log "WARNING: build --no-cache fallo, reintentando con cache..."
   write_state "running" "Reintentando build con cache..." "$NEW_COMMIT" "$STARTED" "" 35
-  if dc_build build --progress plain node-app >> "$LOG_FILE" 2>&1; then
-    log "Imagen node-app construida con cache OK"
+  if dc_build build --build-arg BUILD_COMMIT=$NEW_COMMIT --progress plain node-app >> "$LOG_FILE" 2>&1; then
+    log "Imagen node-app construida con cache OK (commit: $NEW_COMMIT)"
     BUILD_OK=true
   else
     log "ERROR: build node-app fallo incluso con cache"

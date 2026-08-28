@@ -10,6 +10,9 @@ RUN go mod download
 
 COPY . .
 
+ARG BUILD_COMMIT=unknown
+RUN echo "$BUILD_COMMIT" > /app/BUILD_COMMIT
+
 RUN CGO_ENABLED=0 go build -o /fmc-node ./cmd/node
 
 # Stage 2: Build frontend
@@ -31,6 +34,7 @@ RUN apk --no-cache add ca-certificates tzdata docker-cli docker-cli-compose git
 WORKDIR /app
 
 COPY --from=go-builder /fmc-node /app/fmc-node
+COPY --from=go-builder /app/BUILD_COMMIT /app/BUILD_COMMIT
 COPY --from=go-builder /app/internal/db/migrations /app/internal/db/migrations
 COPY --from=go-builder /app/config.yaml /app/config.yaml
 COPY --from=go-builder /app/config.demo.yaml /app/config.demo.yaml

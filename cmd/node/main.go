@@ -33,6 +33,20 @@ func main() {
 	demoDomain := flag.String("demo-domain", "demo", "Dominio del nodo demo")
 	flag.Parse()
 
+	// Inicializar el commit instalado en el volumen compartido.
+	// El archivo /app/BUILD_COMMIT se inyecta en build time via ARG BUILD_COMMIT.
+	// Esto permite que checkUpdates distinga "commit descargado" (HEAD del repo,
+	// que puede moverse al actualizar un servicio) de "commit instalado" (el
+	// commit con el que se construyo esta imagen del node-app).
+	if buildCommit, err := os.ReadFile("/app/BUILD_COMMIT"); err == nil {
+		commit := strings.TrimSpace(string(buildCommit))
+		if commit != "" && commit != "unknown" {
+			os.MkdirAll("/update-state", 0755)
+			os.WriteFile("/update-state/installed-node-commit.txt", []byte(commit), 0644)
+			log.Printf("Installed node commit: %s", commit)
+		}
+	}
+
 	configPath := os.Getenv("CONFIG_PATH")
 	if configPath == "" {
 		configPath = "config.yaml"

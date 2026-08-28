@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
+      args:
+        - BUILD_COMMIT=${BUILD_COMMIT:-unknown}
     ports:
       - "8080:8080"
       - "8443:8443"

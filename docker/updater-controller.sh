@@ -360,17 +360,26 @@ elif echo "$PATH_REQ" | grep -q '^/check$'; then
   log_msg "Peticion /check (verificar actualizaciones)"
   PROJECT_DIR=/project
   CURRENT=$(git -C "$PROJECT_DIR" rev-parse --short HEAD 2>/dev/null || echo "")
+  # Leer el commit instalado (con el que se construyo el node-app)
+  INSTALLED=""
+  if [ -f /update-state/installed-node-commit.txt ]; then
+    INSTALLED=$(cat /update-state/installed-node-commit.txt | tr -d '[:space:]')
+  fi
+  if [ -z "$INSTALLED" ]; then
+    INSTALLED="$CURRENT"
+  fi
   if [ -n "$GIT_TOKEN" ]; then
     git -C "$PROJECT_DIR" remote set-url origin "https://${GIT_TOKEN}@github.com/discapacidad5/red-de-intercambio-federada.git" 2>/dev/null
   fi
   git -C "$PROJECT_DIR" fetch origin main 2>/dev/null
-  NEW_COMMITS=$(git -C "$PROJECT_DIR" log --oneline HEAD..origin/main 2>/dev/null || echo "")
+  REMOTE=$(git -C "$PROJECT_DIR" rev-parse --short origin/main 2>/dev/null || echo "")
+  NEW_COMMITS=$(git -C "$PROJECT_DIR" log --oneline "$INSTALLED..origin/main" 2>/dev/null || echo "")
   UPDATES="false"
-  if [ -n "$NEW_COMMITS" ]; then
+  if [ -n "$NEW_COMMITS" ] || [ "$INSTALLED" != "$REMOTE" -a -n "$REMOTE" ]; then
     UPDATES="true"
   fi
   NEW_ESC=$(json_escape "$NEW_COMMITS")
-  send_response "{\"updates_available\":$UPDATES,\"current_commit\":\"$CURRENT\",\"new_commits\":\"$NEW_ESC\"}"
+  send_response "{\"updates_available\":$UPDATES,\"current_commit\":\"$CURRENT\",\"installed_commit\":\"$INSTALLED\",\"remote_commit\":\"$REMOTE\",\"new_commits\":\"$NEW_ESC\"}"
 
 else
   send_response '{"status":"updater-controller running","endpoints":["/","/update","/status","/node-status","/start","/stop","/restart","/cancel","/check","/reset"]}'

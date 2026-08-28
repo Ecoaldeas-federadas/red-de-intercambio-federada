@@ -152,6 +152,25 @@ func (h *UpdateHandler) checkUpdates(w http.ResponseWriter, r *http.Request) {
 
 	updatesAvailable := newCommits != ""
 
+	// Leer el commit instalado (con el que se construyo el node-app).
+	// Esto es distinto de currentCommit (HEAD del repo) porque el repo
+	// puede haberse adelantado al actualizar un servicio (ej: pos-web)
+	// sin reconstruir el node-app.
+	installedCommit := currentCommit // fallback: usar HEAD
+	if data, err := os.ReadFile("/update-state/installed-node-commit.txt"); err == nil {
+		ic := strings.TrimSpace(string(data))
+		if ic != "" {
+			installedCommit = ic
+		}
+	}
+
+	// Hay actualizaciones si el commit instalado != commit remoto.
+	// Esto detecta correctamente el caso donde un servicio se actualizo
+	// (moviendo HEAD) pero el node-app no se reconstruyo.
+	if remoteCommit != "" && installedCommit != remoteCommit {
+		updatesAvailable = true
+	}
+
 	// Tambien verificar servicios instalados que pueden actualizarse
 	servicesUpdate := []map[string]interface{}{}
 	rows, err := h.Pool.Query(r.Context(), `SELECT service_id, service_name FROM installed_services WHERE status IN ('running', 'stopped', 'error')`)
@@ -170,6 +189,7 @@ func (h *UpdateHandler) checkUpdates(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, 200, map[string]interface{}{
 		"updates_available":   updatesAvailable,
+		"installed_commit":    installedCommit,
 		"current_commit":      currentCommit,
 		"remote_commit":       remoteCommit,
 		"new_commits":         newCommits,

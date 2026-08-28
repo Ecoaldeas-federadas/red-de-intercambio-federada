@@ -3486,6 +3486,12 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
 
       {updateInfo && (
         <div className="bg-white rounded-lg p-3 border border-green-100 mb-3 text-sm">
+          {updateInfo.installed_commit && (
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">Commit instalado:</span>
+              <code className="font-mono text-xs">{updateInfo.installed_commit}</code>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <span className="text-gray-600">Commit actual:</span>
             <code className="font-mono text-xs">{updateInfo.current_commit || 'desconocido'}</code>
@@ -3503,7 +3509,7 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
             </div>
           )}
           {!updateInfo.updates_available && !updateInfo.error && (
-            <div className="mt-2 text-gray-500">El nodo esta actualizado.</div>
+            <div className="mt-2 text-gray-500">El nodo esta actualizado (commit instalado: {updateInfo.installed_commit || updateInfo.current_commit}).</div>
           )}
           {updateInfo.error && (
             <div className="mt-2 p-2 rounded bg-amber-50 border border-amber-200 text-amber-700 text-xs">
