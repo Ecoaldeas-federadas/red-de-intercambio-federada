@@ -187,20 +187,24 @@ fun AdminScreen(
                         Text("Registrar Criptográficamente", fontWeight = FontWeight.Bold)
                     }
 
-                    OutlinedButton(
-                        onClick = {
-                            viewModel.navigateTo(PosScreen.RegisterTerminal)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .testTag("admin_goto_register_screen_btn"),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PosGoldLight)
-                    ) {
-                        Icon(Icons.Default.Security, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Abrir Asistente de Registro Completo")
+                    // Solo mostrar el boton de asistente de registro si NO esta registrado.
+                    // Si ya esta registrado, no tiene sentido ofrecer registro de nuevo.
+                    if (terminalConfig?.isRegistered != true) {
+                        OutlinedButton(
+                            onClick = {
+                                viewModel.navigateTo(PosScreen.RegisterTerminal)
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .testTag("admin_goto_register_screen_btn"),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PosGoldLight)
+                        ) {
+                            Icon(Icons.Default.Security, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Abrir Asistente de Registro Completo")
+                        }
                     }
                 }
             }

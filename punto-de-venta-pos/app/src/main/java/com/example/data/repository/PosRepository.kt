@@ -5,6 +5,7 @@ import com.example.data.api.*
 import com.example.data.crypto.CryptoEngine
 import com.example.data.crypto.EncryptedPayload
 import com.example.data.crypto.KeystoreCrypto
+import com.example.data.crypto.toHex
 import com.example.data.db.*
 import com.squareup.moshi.Moshi
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +20,7 @@ class PosRepository(
 ) {
     val transactionDao: TransactionDao = database.transactionDao()
     val shiftDao: ShiftDao = database.shiftDao()
+    val shiftPinDao: ShiftPinDao = database.shiftPinDao()
     val terminalConfigDao: TerminalConfigDao = database.terminalConfigDao()
 
     val allTransactions: Flow<List<TransactionEntity>> = transactionDao.getAllTransactions()
@@ -59,7 +61,7 @@ class PosRepository(
             config = TerminalConfigEntity(
                 id = 1,
                 serverUrl = apiClient.serverUrl,
-                terminalId = "TERM-POS-${UUID.randomUUID().toString().take(6).uppercase()}",
+                terminalId = CryptoEngine.generateTerminalId(context),
                 label = "Terminal Móvil POS",
                 isRegistered = false,
                 terminalPrivateKeyHex = keyPair.privateKeyHex,
@@ -71,6 +73,17 @@ class PosRepository(
             saveConfigSecure(config)
             // Devolver la config con la clave desencriptada (no la version encriptada guardada)
             config
+        } else {
+            // Migrar terminal_id viejo aleatorio (TERM-POS-*) al nuevo determinista
+            // Solo si NO esta registrado (si ya esta registrado, el servidor tiene
+            // el ID viejo y no podemos cambiarlo sin re-registrar)
+            if (!config.isRegistered && config.terminalId.startsWith("TERM-POS-")) {
+                val newTerminalId = CryptoEngine.generateTerminalId(context)
+                val migrated = config.copy(terminalId = newTerminalId)
+                saveConfigSecure(migrated)
+                apiClient.updateConfig(migrated.serverUrl, apiClient.authToken, migrated.terminalId)
+                return@withContext migrated
+            }
         }
         apiClient.updateConfig(
             url = config.serverUrl,
@@ -389,6 +402,7 @@ class PosRepository(
             val req = PairingInitiateRequest(
                 terminalPublicKey = config.terminalPublicKeyHex,
                 deviceFingerprint = fingerprint,
+                terminalId = config.terminalId,
                 terminalLabel = "POS Android",
                 deviceModel = android.os.Build.MODEL,
                 deviceManufacturer = android.os.Build.MANUFACTURER,
@@ -441,12 +455,14 @@ class PosRepository(
         try {
             val config = getOrInitTerminalConfig()
             if (status.serverPublicKey != null) {
-                saveConfigSecure(
-                    config.copy(
-                        isRegistered = true,
-                        serverPublicKeyHex = status.serverPublicKey
-                    )
+                val assignedTerminalId = if (!status.terminalId.isNullOrBlank()) status.terminalId else config.terminalId
+                val updated = config.copy(
+                    isRegistered = true,
+                    terminalId = assignedTerminalId,
+                    serverPublicKeyHex = status.serverPublicKey
                 )
+                saveConfigSecure(updated)
+                apiClient.updateConfig(updated.serverUrl, apiClient.authToken, updated.terminalId)
                 cachedSharedKey = null
             }
             Result.success(Unit)
@@ -881,13 +897,14 @@ class PosRepository(
                 if (body.registered && body.serverPublicKey != null) {
                     // El servidor confirma que este terminal esta registrado.
                     // Guardar terminal_id y server_public_key localmente.
-                    saveConfigSecure(
-                        config.copy(
-                            isRegistered = true,
-                            terminalId = body.terminalId ?: config.terminalId,
-                            serverPublicKeyHex = body.serverPublicKey
-                        )
+                    val assignedTerminalId = body.terminalId ?: config.terminalId
+                    val updated = config.copy(
+                        isRegistered = true,
+                        terminalId = assignedTerminalId,
+                        serverPublicKeyHex = body.serverPublicKey
                     )
+                    saveConfigSecure(updated)
+                    apiClient.updateConfig(updated.serverUrl, apiClient.authToken, updated.terminalId)
                     cachedSharedKey = null
                     Result.success(true)
                 } else {
@@ -899,5 +916,44 @@ class PosRepository(
         } catch (e: Exception) {
             Result.failure(Exception("Error al verificar registro: ${e.localizedMessage}"))
         }
+    }
+
+    // ============================================
+    // Shift PIN management
+    // ============================================
+
+    suspend fun setShiftPin(pin: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val hash = hashPin(pin)
+            shiftPinDao.savePin(ShiftPinEntity(id = 1, pinHash = hash))
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(Exception("Error al guardar PIN: ${e.localizedMessage}"))
+        }
+    }
+
+    suspend fun verifyShiftPin(pin: String): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val stored = shiftPinDao.getPin()
+            if (stored == null) {
+                Result.success(false) // No PIN set
+            } else {
+                val hash = hashPin(pin)
+                Result.success(hash == stored.pinHash)
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error al verificar PIN: ${e.localizedMessage}"))
+        }
+    }
+
+    suspend fun hasShiftPin(): Boolean = withContext(Dispatchers.IO) {
+        shiftPinDao.getPin() != null
+    }
+
+    private fun hashPin(pin: String): String {
+        val md = java.security.MessageDigest.getInstance("SHA-256")
+        val salt = "POS_SHIFT_PIN_SALT"
+        val digest = md.digest("$salt$pin".toByteArray(Charsets.UTF_8))
+        return digest.toHex()
     }
 }

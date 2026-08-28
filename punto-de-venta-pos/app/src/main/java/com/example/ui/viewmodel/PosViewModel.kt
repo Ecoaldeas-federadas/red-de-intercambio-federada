@@ -28,6 +28,7 @@ sealed class PosScreen {
     object Transactions : PosScreen()
     object Admin : PosScreen()
     object Settings : PosScreen()
+    object ShiftManagement : PosScreen()
 }
 
 data class PosUiState(
@@ -42,6 +43,7 @@ data class PosUiState(
     val currentUser: UserMeResponse? = null,
     val isLoggedIn: Boolean = false,
     val isRegistered: Boolean = false,
+    val isDemoNode: Boolean = false,
 
     // Shift
     val activeShift: ShiftEntity? = null,
@@ -134,6 +136,7 @@ class PosViewModel(
                     serverUrl = config.serverUrl,
                     nodeDomain = repository.apiClient.nodeDomain,
                     isRegistered = config.isRegistered,
+                    isDemoNode = repository.apiClient.isDemoNode,
                     currentScreen = if (!config.isRegistered) PosScreen.RegisterTerminal else PosScreen.Login
                 )
             }
@@ -1096,6 +1099,27 @@ class PosViewModel(
             }.onFailure { err ->
                 _uiState.update { it.copy(isLoading = false, errorMessage = err.message) }
             }
+        }
+    }
+
+    // --- SHIFT PIN ---
+    fun hasShiftPin(callback: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            callback(repository.hasShiftPin())
+        }
+    }
+
+    fun setShiftPin(pin: String, callback: () -> Unit) {
+        viewModelScope.launch {
+            repository.setShiftPin(pin)
+            callback()
+        }
+    }
+
+    fun verifyShiftPin(pin: String, callback: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val res = repository.verifyShiftPin(pin)
+            callback(res.getOrDefault(false))
         }
     }
 

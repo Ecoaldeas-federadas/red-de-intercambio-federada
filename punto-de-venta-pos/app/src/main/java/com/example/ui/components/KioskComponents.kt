@@ -37,8 +37,11 @@ fun KioskAmountDisplay(
     modifier: Modifier = Modifier,
     label: String = "Monto a Cobrar"
 ) {
-    val microUnits = CurrencyHelper.parseInputToMicroUnits(amountInput)
-    val formatted = CurrencyHelper.formatMicroUnits(microUnits)
+    // POS-style decimal: input is in centimos. "1" = 0.01 TQ, "100" = 1.00 TQ
+    val centimos = amountInput.replace(Regex("[^0-9]"), "").ifEmpty { "0" }.toLong()
+    val units = centimos / 100
+    val dec = (centimos % 100).toString().padStart(2, '0')
+    val formatted = String.format("%,d.%s TQ", units, dec)
 
     Card(
         modifier = modifier
@@ -62,18 +65,11 @@ fun KioskAmountDisplay(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = if (amountInput.isEmpty() || amountInput == "0") "0.00 TQ" else formatted,
+                text = if (centimos == 0L) "0.00 TQ" else formatted,
                 style = MaterialTheme.typography.displayMedium,
-                color = if (microUnits > 0) PosPrimaryLight else PosSlate600,
+                color = if (centimos > 0) PosPrimaryLight else PosSlate600,
                 fontWeight = FontWeight.Black
             )
-            if (microUnits > 0) {
-                Text(
-                    text = "($microUnits micro-unidades)",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = PosSlate600
-                )
-            }
         }
     }
 }
@@ -84,46 +80,19 @@ fun KioskNumericKeypad(
     onInputChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // POS-style decimal keypad: digits enter as centimos from the right.
+    // "1" → 0.01, "10" → 0.10, "100" → 1.00, "1234" → 12.34
+    // No decimal point button, no quick-add buttons.
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // Quick add buttons
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            val quickAmounts = listOf("+10", "+50", "+100", "+500")
-            quickAmounts.forEach { addStr ->
-                val addVal = addStr.removePrefix("+").toDoubleOrNull() ?: 0.0
-                Button(
-                    onClick = {
-                        val currentVal = currentInput.toDoubleOrNull() ?: 0.0
-                        val newVal = currentVal + addVal
-                        onInputChange(if (newVal % 1.0 == 0.0) newVal.toInt().toString() else "%.2f".format(newVal))
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp)
-                        .testTag("quick_add_$addStr"),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = PosSlate800,
-                        contentColor = PosPrimaryLight
-                    ),
-                    contentPadding = PaddingValues(0.dp)
-                ) {
-                    Text(text = addStr, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                }
-            }
-        }
-
-        // Numeric Keypad Grid 3x4
+        // Numeric Keypad Grid 3x4 (no decimal point, no quick-add)
         val rows = listOf(
             listOf("1", "2", "3"),
             listOf("4", "5", "6"),
             listOf("7", "8", "9"),
-            listOf(".", "0", "DEL")
+            listOf("C", "0", "DEL")
         )
 
         rows.forEach { row ->
@@ -132,12 +101,17 @@ fun KioskNumericKeypad(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 row.forEach { key ->
+                    val bgColor = when (key) {
+                        "DEL" -> PosSlate700
+                        "C" -> PosErrorRed.copy(alpha = 0.3f)
+                        else -> PosSlate800
+                    }
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .height(64.dp)
                             .clip(RoundedCornerShape(16.dp))
-                            .background(if (key == "DEL") PosSlate700 else PosSlate800)
+                            .background(bgColor)
                             .clickable {
                                 when (key) {
                                     "DEL" -> {
@@ -145,21 +119,14 @@ fun KioskNumericKeypad(
                                             onInputChange(currentInput.dropLast(1))
                                         }
                                     }
-                                    "." -> {
-                                        if (!currentInput.contains(".")) {
-                                            onInputChange(if (currentInput.isEmpty()) "0." else "$currentInput.")
-                                        }
+                                    "C" -> {
+                                        onInputChange("")
                                     }
                                     else -> {
-                                        if (currentInput == "0") {
-                                            onInputChange(key)
-                                        } else if (currentInput.contains(".")) {
-                                            val parts = currentInput.split(".")
-                                            if (parts.size > 1 && parts[1].length < 2) {
-                                                onInputChange(currentInput + key)
-                                            }
-                                        } else if (currentInput.length < 7) {
-                                            onInputChange(currentInput + key)
+                                        // Limit to 9 digits (max 999,999.99 TQ)
+                                        val digits = currentInput.replace(Regex("[^0-9]"), "")
+                                        if (digits.length < 9) {
+                                            onInputChange(digits + key)
                                         }
                                     }
                                 }
@@ -167,20 +134,31 @@ fun KioskNumericKeypad(
                             .testTag("keypad_btn_$key"),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (key == "DEL") {
-                            Icon(
-                                imageVector = Icons.Default.Backspace,
-                                contentDescription = "Borrar",
-                                tint = PosSlate100,
-                                modifier = Modifier.size(26.dp)
-                            )
-                        } else {
-                            Text(
-                                text = key,
-                                style = MaterialTheme.typography.headlineMedium,
-                                color = PosSlate100,
-                                fontWeight = FontWeight.Bold
-                            )
+                        when (key) {
+                            "DEL" -> {
+                                Icon(
+                                    imageVector = Icons.Default.Backspace,
+                                    contentDescription = "Borrar",
+                                    tint = PosSlate100,
+                                    modifier = Modifier.size(26.dp)
+                                )
+                            }
+                            "C" -> {
+                                Text(
+                                    text = "C",
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    color = PosErrorRedLight,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            else -> {
+                                Text(
+                                    text = key,
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    color = PosSlate100,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }

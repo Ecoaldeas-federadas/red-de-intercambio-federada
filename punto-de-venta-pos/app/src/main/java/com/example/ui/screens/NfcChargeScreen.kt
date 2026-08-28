@@ -39,6 +39,21 @@ fun NfcChargeScreen(
 
     var docTypeExpanded by remember { mutableStateOf(false) }
 
+    // NFC flow steps: amount_input → confirm → tap_card
+    // Only show "tap card" AFTER the operator confirms the amount
+    var nfcStep by remember { mutableStateOf("amount_input") }
+
+    // Reset step when entering screen or after payment completes
+    LaunchedEffect(isPaymentApproved, isCardDetected) {
+        if (isPaymentApproved) {
+            nfcStep = "amount_input"
+        }
+        // If card is detected, we must be in tap_card step
+        if (isCardDetected && nfcStep != "tap_card") {
+            nfcStep = "tap_card"
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -185,76 +200,168 @@ fun NfcChargeScreen(
                     }
                 }
             } else if (!isCardDetected) {
-                // --- STEP 1: AMOUNT INPUT & NFC TAP PROMPT ---
-                KioskAmountDisplay(
-                    amountInput = uiState.amountInput,
-                    label = "Monto a Cobrar por NFC"
-                )
+                // --- NFC FLOW: 3 steps ---
+                // Step 1: amount_input → Step 2: confirm → Step 3: tap_card
+                val centimos = uiState.amountInput.replace(Regex("[^0-9]"), "").ifEmpty { "0" }.toLong()
+                val hasAmount = centimos > 0
 
-                // NFC Pulsing Wave Visualizer
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = PosSlate900),
-                    shape = RoundedCornerShape(20.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        NfcWaveAnimation(isCardDetected = false)
+                when (nfcStep) {
+                    "amount_input" -> {
+                        // STEP 1: Enter amount
+                        KioskAmountDisplay(
+                            amountInput = uiState.amountInput,
+                            label = "Monto a Cobrar por NFC"
+                        )
 
-                        Text(
-                            text = "ACERQUE LA TARJETA NFC",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = PosPrimaryLight,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
+                        KioskNumericKeypad(
+                            currentInput = uiState.amountInput,
+                            onInputChange = { viewModel.setAmountInput(it) }
+                        )
+
+                        Button(
+                            onClick = { nfcStep = "confirm" },
+                            enabled = hasAmount,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp)
+                                .testTag("nfc_confirm_amount_btn"),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue)
+                        ) {
+                            Text("Cobrar", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        }
+                    }
+
+                    "confirm" -> {
+                        // STEP 2: Confirm amount before asking for card
+                        KioskAmountDisplay(
+                            amountInput = uiState.amountInput,
+                            label = "Confirme el Monto"
                         )
 
                         Text(
-                            text = "Coloque la tarjeta del cliente en el reverso del celular.",
-                            style = MaterialTheme.typography.bodySmall,
+                            text = "¿Es correcto este monto?",
+                            style = MaterialTheme.typography.bodyLarge,
                             color = PosSlate300,
                             textAlign = TextAlign.Center
                         )
 
-                        // SIMULATION BUTTONS (FOR TEST & EMULATOR ENVIRONMENTS)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             OutlinedButton(
-                                onClick = { viewModel.onCardTapped("AABBCCDDEEFF", isDesfire = true) },
+                                onClick = { nfcStep = "amount_input" },
                                 modifier = Modifier
                                     .weight(1f)
-                                    .testTag("sim_desfire_card_btn"),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = PosPrimaryLight)
+                                    .height(56.dp)
+                                    .testTag("nfc_cancel_confirm_btn"),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = PosSlate300)
                             ) {
-                                Text("Simular DESFire", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("Cancelar", fontWeight = FontWeight.Bold)
                             }
 
-                            OutlinedButton(
-                                onClick = { viewModel.onCardTapped("112233445566", isDesfire = false) },
+                            Button(
+                                onClick = { nfcStep = "tap_card" },
                                 modifier = Modifier
                                     .weight(1f)
-                                    .testTag("sim_uid_card_btn"),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = PosGoldLight)
+                                    .height(56.dp)
+                                    .testTag("nfc_proceed_tap_btn"),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue)
                             ) {
-                                Text("Simular UID Clásica", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("Confirmar", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                             }
                         }
                     }
-                }
 
-                KioskNumericKeypad(
-                    currentInput = uiState.amountInput,
-                    onInputChange = { viewModel.setAmountInput(it) }
-                )
+                    else -> {
+                        // STEP 3: tap_card - NOW ask for the NFC card
+                        // Show the amount so the customer can see it
+                        KioskAmountDisplay(
+                            amountInput = uiState.amountInput,
+                            label = "Monto a Pagar"
+                        )
+
+                        // NFC Pulsing Wave Visualizer
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = PosSlate900),
+                            shape = RoundedCornerShape(20.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(20.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                NfcWaveAnimation(isCardDetected = false)
+
+                                Text(
+                                    text = "ACERQUE LA TARJETA NFC",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = PosPrimaryLight,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp
+                                )
+
+                                Text(
+                                    text = "Coloque la tarjeta del cliente en el reverso del celular.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = PosSlate300,
+                                    textAlign = TextAlign.Center
+                                )
+
+                                // SIMULATION BUTTONS - ONLY ON DEMO NODE (/demo)
+                                if (uiState.isDemoNode) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        OutlinedButton(
+                                            onClick = { viewModel.onCardTapped("AABBCCDDEEFF", isDesfire = true) },
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .testTag("sim_desfire_card_btn"),
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PosPrimaryLight)
+                                        ) {
+                                            Text("Simular DESFire", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
+
+                                        OutlinedButton(
+                                            onClick = { viewModel.onCardTapped("112233445566", isDesfire = false) },
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .testTag("sim_uid_card_btn"),
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PosGoldLight)
+                                        ) {
+                                            Text("Simular UID Clásica", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Back button to return to amount input
+                        OutlinedButton(
+                            onClick = { nfcStep = "amount_input" },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .testTag("nfc_back_to_amount_btn"),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PosSlate300)
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Cambiar Monto")
+                        }
+                    }
+                }
             } else {
                 // --- STEP 2: CARD DETECTED -> ENTER PIN & ID DOC (IF REQUIRED) ---
                 Card(

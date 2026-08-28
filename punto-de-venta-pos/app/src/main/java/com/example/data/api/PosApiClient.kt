@@ -20,6 +20,13 @@ class PosApiClient(
     var nodeDomain: String = extractNodeDomain(initialServerUrl)
         private set
 
+    /**
+     * Returns true if the configured server URL points to a demo node (contains /demo).
+     * Demo nodes show simulation buttons; real nodes (e.g. /main) do not.
+     */
+    val isDemoNode: Boolean
+        get() = serverUrl.contains("/demo")
+
     var authToken: String? = null
     var terminalId: String = "TERM-POS-001"
 

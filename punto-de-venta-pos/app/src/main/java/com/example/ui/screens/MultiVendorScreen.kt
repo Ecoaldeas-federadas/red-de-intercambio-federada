@@ -167,16 +167,18 @@ fun MultiVendorScreen(
                                 textAlign = TextAlign.Center
                             )
 
-                            // Quick simulation button for tests
-                            OutlinedButton(
-                                onClick = { viewModel.onMultiVendorSellerTapped("SELLER_CARD_88") },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("sim_seller_tap_btn"),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = PosGoldLight)
-                            ) {
-                                Text("Simular Tarjeta Vendedor (SELLER_88)")
+                            // Quick simulation button for tests - ONLY ON DEMO NODE
+                            if (uiState.isDemoNode) {
+                                OutlinedButton(
+                                    onClick = { viewModel.onMultiVendorSellerTapped("SELLER_CARD_88") },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("sim_seller_tap_btn"),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = PosGoldLight)
+                                ) {
+                                    Text("Simular Tarjeta Vendedor (SELLER_88)")
+                                }
                             }
                         }
                     }
@@ -260,16 +262,18 @@ fun MultiVendorScreen(
                                 textAlign = TextAlign.Center
                             )
 
-                            // Quick simulation button for tests
-                            OutlinedButton(
-                                onClick = { viewModel.onMultiVendorBuyerTapped("BUYER_CARD_99") },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("sim_buyer_tap_btn"),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = PosPrimaryLight)
-                            ) {
-                                Text("Simular Tarjeta Cliente (BUYER_99)")
+                            // Quick simulation button for tests - ONLY ON DEMO NODE
+                            if (uiState.isDemoNode) {
+                                OutlinedButton(
+                                    onClick = { viewModel.onMultiVendorBuyerTapped("BUYER_CARD_99") },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("sim_buyer_tap_btn"),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = PosPrimaryLight)
+                                ) {
+                                    Text("Simular Tarjeta Cliente (BUYER_99)")
+                                }
                             }
                         }
                     }

@@ -159,7 +159,7 @@ fun RegisterTerminalScreen(
                         onClick = { viewModel.retryVerification() },
                         enabled = !uiState.isLoading,
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = PosPrimary),
+                        colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = null)

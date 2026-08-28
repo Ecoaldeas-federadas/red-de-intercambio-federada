@@ -52,8 +52,10 @@ type PairingStatus struct {
 
 // InitiatePairing crea una solicitud de emparejamiento con un codigo corto de 6 digitos.
 // El terminal envia su clave publica Ed25519, chip_id/fingerprint y datos del dispositivo.
+// terminalIDRequested es el terminal_id que el POS genera deterministicamente; el servidor
+// debe respetarlo al aprobar (en vez de generar uno nuevo).
 func (nt *NFCTerminals) InitiatePairing(ctx context.Context, terminalPublicKey, deviceFingerprint, label string,
-	chipID, deviceModel, deviceManufacturer, androidVersion, terminalType string) (string, error) {
+	chipID, deviceModel, deviceManufacturer, androidVersion, terminalType, terminalIDRequested string) (string, error) {
 	if terminalPublicKey == "" {
 		return "", fmt.Errorf("terminal_public_key is required")
 	}
@@ -104,10 +106,11 @@ func (nt *NFCTerminals) InitiatePairing(ctx context.Context, terminalPublicKey, 
 		INSERT INTO terminal_pairing_requests
 			(node_domain, pairing_code, terminal_public_key, device_fingerprint,
 			 terminal_label, terminal_type, chip_id, device_model, device_manufacturer,
-			 android_version, status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending')`,
+			 android_version, terminal_id_requested, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending')`,
 		nt.NodeDomain, pairingCode, terminalPublicKey, deviceFingerprint,
 		label, terminalType, chipID, deviceModel, deviceManufacturer, androidVersion,
+		terminalIDRequested,
 	)
 	if err != nil {
 		return "", fmt.Errorf("creating pairing request: %w", err)
@@ -199,15 +202,15 @@ func (nt *NFCTerminals) GetPairingStatus(ctx context.Context, code string) (*Pai
 func (nt *NFCTerminals) ApprovePairing(ctx context.Context, code string, adminUserID uuid.UUID, label, terminalType, location, mode string) (*PairingResult, error) {
 	// Buscar la solicitud pendiente
 	var req PairingRequest
-	var fingerprint, terminalLabel, chipID, deviceModel, deviceManufacturer, androidVersion sql.NullString
+	var fingerprint, terminalLabel, chipID, deviceModel, deviceManufacturer, androidVersion, terminalIDRequested sql.NullString
 	err := nt.Pool.QueryRow(ctx, `
 		SELECT id, terminal_public_key, device_fingerprint, terminal_label, terminal_type, expires_at,
-		       chip_id, device_model, device_manufacturer, android_version
+		       chip_id, device_model, device_manufacturer, android_version, terminal_id_requested
 		FROM terminal_pairing_requests
 		WHERE pairing_code = $1 AND status = 'pending'`,
 		code,
 	).Scan(&req.ID, &req.TerminalPublicKey, &fingerprint, &terminalLabel, &req.TerminalType, &req.ExpiresAt,
-		&chipID, &deviceModel, &deviceManufacturer, &androidVersion)
+		&chipID, &deviceModel, &deviceManufacturer, &androidVersion, &terminalIDRequested)
 	if err != nil {
 		return nil, fmt.Errorf("codigo no encontrado o ya procesado")
 	}
@@ -219,6 +222,9 @@ func (nt *NFCTerminals) ApprovePairing(ctx context.Context, code string, adminUs
 	req.DeviceModel = deviceModel.String
 	req.DeviceManufacturer = deviceManufacturer.String
 	req.AndroidVersion = androidVersion.String
+	// terminal_id que el POS envio al iniciar emparejamiento (puede ser vacio si
+	// la solicitud fue creada antes de esta funcionalidad)
+	terminalIDFromPOS := terminalIDRequested.String
 
 	// Verificar que no ha expirado (considerando el periodo de gracia)
 	// El tiempo visible expira en expires_at, pero aceptamos aprobaciones
@@ -297,27 +303,51 @@ func (nt *NFCTerminals) ApprovePairing(ctx context.Context, code string, adminUs
 	} else {
 		// Modo "new" o sin fingerprint: crear terminal nuevo
 
-		// Generar terminal_id automatico segun tipo
-		fingerprintShort := "AABBCC"
-		if len(req.DeviceFingerprint) >= 6 {
-			fingerprintShort = req.DeviceFingerprint[:6]
-		}
+		// Si el POS envio un terminal_id determinista, respetarlo.
+		// El POS genera este ID desde ANDROID_ID (hash SHA-256), por lo que
+		// es estable y unico por dispositivo. El servidor no debe cambiarlo.
+		if terminalIDFromPOS != "" {
+			// Verificar que el terminal_id no exista ya (con otra clave publica)
+			var existingID uuid.UUID
+			_ = nt.Pool.QueryRow(ctx, `SELECT id FROM nfc_terminals WHERE terminal_id = $1`, terminalIDFromPOS).Scan(&existingID)
+			if existingID != uuid.Nil {
+				// Si ya existe con esa clave, esta bien (re-registro).
+				// Si existe con otra clave, no podemos sobreescribir - generar uno nuevo.
+				var existingPubKey string
+				_ = nt.Pool.QueryRow(ctx, `SELECT terminal_public_key FROM nfc_terminals WHERE terminal_id = $1`, terminalIDFromPOS).Scan(&existingPubKey)
+				if existingPubKey != req.TerminalPublicKey {
+					// Clave diferente - generar ID alternativo
+					suffix, _ := generatePairingCode()
+					terminalID = fmt.Sprintf("%s-%s", terminalIDFromPOS, suffix[:3])
+				} else {
+					terminalID = terminalIDFromPOS
+				}
+			} else {
+				terminalID = terminalIDFromPOS
+			}
+		} else {
+			// El POS no envio terminal_id (version vieja) - generar uno automatico
+			fingerprintShort := "AABBCC"
+			if len(req.DeviceFingerprint) >= 6 {
+				fingerprintShort = req.DeviceFingerprint[:6]
+			}
 
-		// Prefijo segun tipo de terminal
-		prefix := "TERM-ANDROID"
-		if req.ChipID != "" && len(req.ChipID) >= 6 {
-			fingerprintShort = req.ChipID[:6]
-			prefix = "TERM-ESP32"
-		}
-		terminalID = fmt.Sprintf("%s-%s", prefix, fingerprintShort)
+			// Prefijo segun tipo de terminal
+			prefix := "TERM-ANDROID"
+			if req.ChipID != "" && len(req.ChipID) >= 6 {
+				fingerprintShort = req.ChipID[:6]
+				prefix = "TERM-ESP32"
+			}
+			terminalID = fmt.Sprintf("%s-%s", prefix, fingerprintShort)
 
-		// Verificar que el terminal_id no exista ya
-		var existingID uuid.UUID
-		_ = nt.Pool.QueryRow(ctx, `SELECT id FROM nfc_terminals WHERE terminal_id = $1`, terminalID).Scan(&existingID)
-		if existingID != uuid.Nil {
-			// Si ya existe, agregar un sufijo aleatorio
-			suffix, _ := generatePairingCode()
-			terminalID = fmt.Sprintf("%s-%s%s", prefix, fingerprintShort, suffix[:3])
+			// Verificar que el terminal_id no exista ya
+			var existingID uuid.UUID
+			_ = nt.Pool.QueryRow(ctx, `SELECT id FROM nfc_terminals WHERE terminal_id = $1`, terminalID).Scan(&existingID)
+			if existingID != uuid.Nil {
+				// Si ya existe, agregar un sufijo aleatorio
+				suffix, _ := generatePairingCode()
+				terminalID = fmt.Sprintf("%s-%s%s", prefix, fingerprintShort, suffix[:3])
+			}
 		}
 
 		// Crear el terminal directamente con la clave publica ya registrada

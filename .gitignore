@@ -49,7 +49,9 @@ Thumbs.db
 desktop.ini
 
 # ---- Docker volúmenes locales ----
-data/
-volumes/
+# Solo ignorar data/ y volumes/ en la raíz del repo, no en subdirectorios
+# (el paquete Kotlin com/example/data/ es código fuente, no datos temporales)
+/data/
+/volumes/
 
 .commit_msg.txt

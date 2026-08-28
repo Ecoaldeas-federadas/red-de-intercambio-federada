@@ -34,12 +34,19 @@ object CurrencyHelper {
     }
 
     /**
-     * Converts raw string input from POS keypad (e.g. "500.50" or "500") to integer micro-units (50050)
+     * Converts raw string input from POS keypad to integer micro-units.
+     * POS-style decimal entry: the input string represents CENTIMOS directly.
+     * "1" → 1 centimo → 0.01 TQ → 1 micro-unit
+     * "100" → 100 centimos → 1.00 TQ → 100 micro-units
+     * "12345" → 123.45 TQ → 12345 micro-units
+     *
+     * This matches how real POS keypads work: digits enter from the right
+     * as the least significant decimal position.
      */
     fun parseInputToMicroUnits(input: String): Long {
-        val clean = input.replace(",", ".").trim()
-        val d = clean.toDoubleOrNull() ?: 0.0
-        return (d * 100).toLong()
+        val clean = input.replace(Regex("[^0-9]"), "").trim()
+        if (clean.isEmpty()) return 0L
+        return clean.toLongOrNull() ?: 0L
     }
 
     fun formatDateTime(timestamp: Long): String {

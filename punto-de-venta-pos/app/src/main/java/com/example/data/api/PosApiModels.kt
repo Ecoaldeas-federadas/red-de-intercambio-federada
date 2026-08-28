@@ -359,6 +359,7 @@ val DEFAULT_DOCUMENT_TYPES = listOf(
 data class PairingInitiateRequest(
     @Json(name = "terminal_public_key") val terminalPublicKey: String,
     @Json(name = "device_fingerprint") val deviceFingerprint: String,
+    @Json(name = "terminal_id") val terminalId: String? = null,
     @Json(name = "terminal_label") val terminalLabel: String? = null,
     @Json(name = "chip_id") val chipId: String? = null,
     @Json(name = "device_model") val deviceModel: String? = null,

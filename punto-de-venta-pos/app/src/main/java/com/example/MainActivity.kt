@@ -177,6 +177,7 @@ fun PosMainContent(viewModel: PosViewModel) {
             is PosScreen.Transactions -> TransactionsScreen(viewModel = viewModel)
             is PosScreen.Admin -> AdminScreen(viewModel = viewModel)
             is PosScreen.Settings -> SettingsScreen(viewModel = viewModel)
+            is PosScreen.ShiftManagement -> ShiftManagementScreen(viewModel = viewModel)
         }
     }
 }

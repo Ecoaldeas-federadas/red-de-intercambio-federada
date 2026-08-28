@@ -1878,6 +1878,7 @@ func (h *NFCTerminalHandler) initiatePairing(w http.ResponseWriter, r *http.Requ
 	var req struct {
 		TerminalPublicKey  string `json:"terminal_public_key"`
 		DeviceFingerprint  string `json:"device_fingerprint"`
+		TerminalID         string `json:"terminal_id"`
 		TerminalLabel      string `json:"terminal_label"`
 		ChipID             string `json:"chip_id"`
 		DeviceModel        string `json:"device_model"`
@@ -1895,7 +1896,7 @@ func (h *NFCTerminalHandler) initiatePairing(w http.ResponseWriter, r *http.Requ
 	}
 
 	code, err := h.NFC.InitiatePairing(r.Context(), req.TerminalPublicKey, req.DeviceFingerprint, req.TerminalLabel,
-		req.ChipID, req.DeviceModel, req.DeviceManufacturer, req.AndroidVersion, req.TerminalType)
+		req.ChipID, req.DeviceModel, req.DeviceManufacturer, req.AndroidVersion, req.TerminalType, req.TerminalID)
 	if err != nil {
 		writeError(w, 400, err.Error())
 		return

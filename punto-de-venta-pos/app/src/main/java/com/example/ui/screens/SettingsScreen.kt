@@ -170,6 +170,23 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Ver Claves y Registro del Terminal", color = PosNavyDark, fontWeight = FontWeight.Bold)
                     }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // ABRIR/CERRAR PUNTO - protegido con PIN
+                    Button(
+                        onClick = { viewModel.navigateTo(PosScreen.ShiftManagement) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .testTag("settings_shift_mgmt_btn"),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue)
+                    ) {
+                        Icon(Icons.Default.PointOfSale, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Abrir / Cerrar Punto", fontWeight = FontWeight.Bold)
+                    }
                 }
             }
 

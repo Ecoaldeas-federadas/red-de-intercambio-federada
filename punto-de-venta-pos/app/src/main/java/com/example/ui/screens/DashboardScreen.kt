@@ -37,9 +37,6 @@ fun DashboardScreen(
     val shift by viewModel.latestShift.collectAsState()
     val isShiftOpen = (shift != null && shift?.status == "open")
 
-    var showShiftDialog by remember { mutableStateOf(false) }
-    var shiftInitialAmount by remember { mutableStateOf("0") }
-
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -100,32 +97,32 @@ fun DashboardScreen(
                         }
                     }
 
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        // Shift Pill Button
+                    // No mostrar pill de turno aqui - el turno se gestiona
+                    // desde Ajustes > Abrir/Cerrar Punto (protegido con PIN).
+                    // Solo mostrar un indicador discreto si hay turno abierto.
+                    if (isShiftOpen) {
                         AssistChip(
-                            onClick = { showShiftDialog = true },
+                            onClick = { viewModel.navigateTo(PosScreen.Settings) },
                             label = {
                                 Text(
-                                    text = if (isShiftOpen) "Turno Abierto" else "Abrir Turno",
-                                    color = if (isShiftOpen) PosSuccessGreenLight else PosWarningAmberLight,
-                                    fontWeight = FontWeight.Bold
+                                    text = "Punto Abierto",
+                                    color = PosSuccessGreenLight,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
                                 )
                             },
                             leadingIcon = {
                                 Icon(
-                                    imageVector = if (isShiftOpen) Icons.Default.LockOpen else Icons.Default.Lock,
+                                    imageVector = Icons.Default.LockOpen,
                                     contentDescription = "Turno",
-                                    tint = if (isShiftOpen) PosSuccessGreenLight else PosWarningAmberLight,
-                                    modifier = Modifier.size(16.dp)
+                                    tint = PosSuccessGreenLight,
+                                    modifier = Modifier.size(14.dp)
                                 )
                             },
                             colors = AssistChipDefaults.assistChipColors(
-                                containerColor = if (isShiftOpen) PosSuccessGreen.copy(alpha = 0.15f) else PosWarningAmber.copy(alpha = 0.15f)
+                                containerColor = PosSuccessGreen.copy(alpha = 0.15f)
                             ),
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
-                                if (isShiftOpen) PosSuccessGreen else PosWarningAmber
-                            ),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, PosSuccessGreen),
                             modifier = Modifier.testTag("shift_status_btn")
                         )
                     }
@@ -135,64 +132,27 @@ fun DashboardScreen(
                 HorizontalDivider(color = PosSlate800)
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Balance Display & Refresh
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "SALDO REAL DEL COMERCIO",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = PosSlate300,
-                                letterSpacing = 1.sp
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            IconButton(
-                                onClick = { viewModel.refreshCurrentUser() },
-                                modifier = Modifier.size(24.dp).testTag("refresh_balance_btn")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Refresh,
-                                    contentDescription = "Refrescar Saldo",
-                                    tint = PosPrimaryLight,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
-                        }
-                        if (uiState.isLoggedIn && uiState.currentUser != null) {
-                            Text(
-                                text = CurrencyHelper.formatMicroUnits(uiState.currentUser?.balance ?: 0L),
-                                style = MaterialTheme.typography.displayMedium,
-                                color = PosGoldLight,
-                                fontWeight = FontWeight.Black,
-                                modifier = Modifier.testTag("merchant_balance_text")
-                            )
-                        } else {
-                            Text(
-                                text = "Sin Sesión",
-                                style = MaterialTheme.typography.headlineMedium,
-                                color = PosSlate400,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
+                // NO mostrar saldo del comercio ni ventas del turno aqui.
+                // El saldo solo es visible en Ajustes > Abrir/Cerrar Punto (con PIN).
+                // El Dashboard solo muestra info del comercio y botones de cobro.
 
-                    if (!uiState.isLoggedIn) {
-                        Button(
-                            onClick = { viewModel.navigateTo(PosScreen.Login) },
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                            modifier = Modifier.testTag("dashboard_login_btn")
-                        ) {
-                            Icon(Icons.Default.Login, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Iniciar Sesión", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-                    } else {
+                if (!uiState.isLoggedIn) {
+                    Button(
+                        onClick = { viewModel.navigateTo(PosScreen.Login) },
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.testTag("dashboard_login_btn")
+                    ) {
+                        Icon(Icons.Default.Login, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Iniciar Sesión", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
                         IconButton(
                             onClick = { viewModel.logout() },
                             modifier = Modifier.testTag("dashboard_logout_btn")
@@ -325,80 +285,6 @@ fun DashboardScreen(
                 onClick = { viewModel.navigateTo(PosScreen.Settings) }
             )
         }
-    }
-
-    // --- SHIFT DIALOG ---
-    if (showShiftDialog) {
-        AlertDialog(
-            onDismissRequest = { showShiftDialog = false },
-            title = {
-                Text(
-                    text = if (isShiftOpen) "Cierre de Turno / Caja" else "Apertura de Turno",
-                    fontWeight = FontWeight.Bold,
-                    color = PosSlate100
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (isShiftOpen) {
-                        Text(
-                            text = "Turno iniciado: ${CurrencyHelper.formatDateTime(shift?.openedAt ?: System.currentTimeMillis())}",
-                            color = PosSlate300,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            text = "Monto de apertura: ${CurrencyHelper.formatMicroUnits(shift?.openingAmount ?: 0L)}",
-                            color = PosSlate300,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            text = "¿Desea cerrar el turno actual y generar el arqueo?",
-                            color = PosSlate100,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    } else {
-                        Text(
-                            text = "Ingrese el monto inicial de apertura de caja (opcional):",
-                            color = PosSlate300
-                        )
-                        OutlinedTextField(
-                            value = shiftInitialAmount,
-                            onValueChange = { shiftInitialAmount = it },
-                            label = { Text("Monto Apertura (TQ)") },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = PosSlate100,
-                                unfocusedTextColor = PosSlate100
-                            )
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showShiftDialog = false
-                        if (isShiftOpen) {
-                            viewModel.closeShift(null, "Cierre de turno habitual")
-                        } else {
-                            val micro = CurrencyHelper.parseInputToMicroUnits(shiftInitialAmount)
-                            viewModel.openShift(micro, "Apertura de turno")
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isShiftOpen) PosErrorRed else PosSuccessGreen
-                    )
-                ) {
-                    Text(text = if (isShiftOpen) "Cerrar Turno" else "Abrir Turno", color = PosWhite, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showShiftDialog = false }) {
-                    Text("Cancelar", color = PosSlate300)
-                }
-            },
-            containerColor = PosSlate900
-        )
     }
 }
 
