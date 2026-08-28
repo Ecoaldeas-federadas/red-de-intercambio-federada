@@ -65,7 +65,7 @@ export class API {
 
   // ===== AUTH (merchant login) =====
   async login(username: string, password: string): Promise<any> {
-    const data = await this.request('/api/auth/login', {
+    const data = await this.request('/api/auth/login/password', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     })

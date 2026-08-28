@@ -1518,12 +1518,15 @@ func (h *NFCTerminalHandler) listMyTerminals(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// Buscar terminales asignados al usuario actual, ya sea como:
+	// - merchant_user_id (persona individual)
+	// - organization_id (organizacion, si el usuario logueado es una organizacion)
 	rows, err := h.NFC.Pool.Query(r.Context(), `
 		SELECT id, node_domain, terminal_id, label, terminal_type, location,
 		       is_active, is_registered, last_seen, firmware_version, created_at, updated_at,
 		       block_code_hash IS NOT NULL as is_blocked
 		FROM nfc_terminals
-		WHERE merchant_user_id = $1
+		WHERE merchant_user_id = $1 OR organization_id = $1
 		ORDER BY created_at DESC`,
 		userID,
 	)
