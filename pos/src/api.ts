@@ -18,6 +18,35 @@ export class API {
     return this.baseURL
   }
 
+  // Auto-detectar la URL del nodo sondando /api/setup/status
+  // El POS web esta servido en el mismo origin que el nodo.
+  // Intenta varias rutas base comunes hasta encontrar el nodo.
+  async detectNodeURL(): Promise<string | null> {
+    const origin = window.location.origin
+    const candidates = [
+      `${origin}`,           // nodo en raiz
+      `${origin}/main`,      // nodo en /main
+      `${origin}/demo`,      // nodo en /demo
+    ]
+    for (const base of candidates) {
+      try {
+        const resp = await fetch(`${base}/api/setup/status`, {
+          signal: AbortSignal.timeout(5000),
+        })
+        if (resp.ok) {
+          const data = await resp.json()
+          if (data && (data.node_domain || data.initialized !== undefined)) {
+            this.setBaseURL(base)
+            return base
+          }
+        }
+      } catch {
+        // continuar con el siguiente candidato
+      }
+    }
+    return null
+  }
+
   private async request(path: string, options: RequestInit = {}): Promise<any> {
     const url = `${this.baseURL}${path}`
     const headers: Record<string, string> = {

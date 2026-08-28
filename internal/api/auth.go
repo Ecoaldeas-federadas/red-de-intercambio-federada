@@ -1067,6 +1067,34 @@ func (ah *AuthHandlers) passwordLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validar terminal si el POS envia X-Terminal-ID y X-Terminal-Public-Key
+	// Esto bloquea el login en terminales no registrados o con clave publica incorrecta
+	terminalIDHeader := r.Header.Get("X-Terminal-ID")
+	terminalPubKeyHeader := r.Header.Get("X-Terminal-Public-Key")
+	if terminalIDHeader != "" && terminalPubKeyHeader != "" {
+		var dbPubKey string
+		var dbIsRegistered, dbIsActive bool
+		err := ah.Pool.QueryRow(r.Context(), `
+			SELECT terminal_public_key, is_registered, is_active
+			FROM nfc_terminals
+			WHERE terminal_id = $1
+			ORDER BY updated_at DESC LIMIT 1`,
+			terminalIDHeader,
+		).Scan(&dbPubKey, &dbIsRegistered, &dbIsActive)
+		if err != nil {
+			writeError(w, 403, "terminal_not_registered")
+			return
+		}
+		if dbPubKey != terminalPubKeyHeader {
+			writeError(w, 403, "terminal_key_mismatch")
+			return
+		}
+		if !dbIsRegistered || !dbIsActive {
+			writeError(w, 403, "terminal_not_registered")
+			return
+		}
+	}
+
 	if ah.Pool == nil {
 		writeError(w, 500, "database not available")
 		return

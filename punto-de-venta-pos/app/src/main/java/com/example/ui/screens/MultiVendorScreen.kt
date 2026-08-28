@@ -34,6 +34,7 @@ fun MultiVendorScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
     var buyerDocExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -80,6 +81,68 @@ fun MultiVendorScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // NFC STATUS BANNER
+            if (!uiState.hasNfcHardware) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = PosWarningAmber.copy(alpha = 0.15f)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, PosWarningAmber)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = PosWarningAmberLight)
+                        Text(
+                            text = "Este dispositivo no cuenta con lector NFC integrado.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = PosWarningAmberLight
+                        )
+                    }
+                }
+            } else if (!uiState.isNfcEnabled) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = PosWarningAmber.copy(alpha = 0.15f)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, PosWarningAmber)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.Nfc, contentDescription = null, tint = PosWarningAmberLight)
+                            Text(
+                                text = "NFC desactivado en el teléfono",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = PosWarningAmberLight,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Button(
+                            onClick = {
+                                try {
+                                    val intent = android.content.Intent(android.provider.Settings.ACTION_NFC_SETTINGS)
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    val intent = android.content.Intent(android.provider.Settings.ACTION_SETTINGS)
+                                    context.startActivity(intent)
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = PosWarningAmber),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Activar NFC en Ajustes", color = PosNavyDark, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+
             // STEP PROGRESS INDICATOR
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -141,27 +204,90 @@ fun MultiVendorScreen(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = PosSlate900),
-                        shape = RoundedCornerShape(20.dp)
+                        shape = RoundedCornerShape(24.dp),
+                        border = androidx.compose.foundation.BorderStroke(2.dp, PosGold.copy(alpha = 0.6f))
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
+                            // Banner distintivo Vendedor
+                            Surface(
+                                color = PosGold.copy(alpha = 0.15f),
+                                shape = RoundedCornerShape(12.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, PosGold.copy(alpha = 0.4f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(Icons.Default.Storefront, contentDescription = null, tint = PosGoldLight, modifier = Modifier.size(18.dp))
+                                    Text("PASO 1 • IDENTIFICAR VENDEDOR", color = PosGoldLight, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+                            }
+
+                            // Grafico Ilustrativo de Tarjeta de Vendedor
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(130.dp)
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(
+                                        androidx.compose.ui.graphics.Brush.linearGradient(
+                                            listOf(androidx.compose.ui.graphics.Color(0xFFB45309), androidx.compose.ui.graphics.Color(0xFFF59E0B))
+                                        )
+                                    )
+                                    .padding(16.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.fillMaxSize(),
+                                    verticalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(Icons.Default.Storefront, contentDescription = null, tint = PosNavyDark, modifier = Modifier.size(24.dp))
+                                            Text("TARJETA VENDEDOR", color = PosNavyDark, fontWeight = FontWeight.Black, fontSize = 13.sp)
+                                        }
+                                        Icon(Icons.Default.Contactless, contentDescription = null, tint = PosNavyDark, modifier = Modifier.size(26.dp))
+                                    }
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.Bottom
+                                    ) {
+                                        Column {
+                                            Text("Puesto / Comercio", color = PosNavyDark.copy(alpha = 0.8f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            Text("RECEPTOR DE FONDOS", color = PosNavyDark, fontSize = 14.sp, fontWeight = FontWeight.Black)
+                                        }
+                                        Icon(Icons.Default.AccountBalance, contentDescription = null, tint = PosNavyDark.copy(alpha = 0.5f), modifier = Modifier.size(32.dp))
+                                    }
+                                }
+                            }
+
                             NfcWaveAnimation()
 
                             Text(
-                                text = "PASO 1: ACERQUE TARJETA DEL VENDEDOR",
-                                style = MaterialTheme.typography.titleMedium,
+                                text = "Acerque la Tarjeta del VENDEDOR",
+                                style = MaterialTheme.typography.titleLarge,
                                 color = PosGoldLight,
                                 fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Center
                             )
 
                             Text(
-                                text = "La persona que recibirá el dinero (vendedor) debe acercar su tarjeta para identificarse.",
+                                text = "La persona dueña del puesto o producto que recibirá el pago debe pasar primero su tarjeta.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = PosSlate300,
                                 textAlign = TextAlign.Center
@@ -235,32 +361,115 @@ fun MultiVendorScreen(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = PosSlate900),
-                        shape = RoundedCornerShape(20.dp)
+                        shape = RoundedCornerShape(24.dp),
+                        border = androidx.compose.foundation.BorderStroke(2.dp, PosPrimaryLight.copy(alpha = 0.6f))
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
+                            // Banner distintivo Comprador
+                            Surface(
+                                color = PosPrimaryLight.copy(alpha = 0.15f),
+                                shape = RoundedCornerShape(12.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, PosPrimaryLight.copy(alpha = 0.4f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(Icons.Default.CreditCard, contentDescription = null, tint = PosPrimaryLight, modifier = Modifier.size(18.dp))
+                                    Text("PASO 3 • COBRO AL CLIENTE", color = PosPrimaryLight, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+                            }
+
+                            // Grafico Ilustrativo de Tarjeta de Comprador / Cliente
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(130.dp)
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(
+                                        androidx.compose.ui.graphics.Brush.linearGradient(
+                                            listOf(androidx.compose.ui.graphics.Color(0xFF0284C7), androidx.compose.ui.graphics.Color(0xFF38BDF8))
+                                        )
+                                    )
+                                    .padding(16.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.fillMaxSize(),
+                                    verticalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(Icons.Default.Person, contentDescription = null, tint = PosNavyDark, modifier = Modifier.size(24.dp))
+                                            Text("TARJETA CLIENTE / COMPRADOR", color = PosNavyDark, fontWeight = FontWeight.Black, fontSize = 13.sp)
+                                        }
+                                        Icon(Icons.Default.Contactless, contentDescription = null, tint = PosNavyDark, modifier = Modifier.size(26.dp))
+                                    }
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.Bottom
+                                    ) {
+                                        Column {
+                                            Text("Monto a Pagar", color = PosNavyDark.copy(alpha = 0.8f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            Text(
+                                                CurrencyHelper.formatMicroUnits(CurrencyHelper.parseInputToMicroUnits(uiState.amountInput)),
+                                                color = PosNavyDark,
+                                                fontSize = 18.sp,
+                                                fontWeight = FontWeight.Black
+                                            )
+                                        }
+                                        Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, tint = PosNavyDark.copy(alpha = 0.5f), modifier = Modifier.size(32.dp))
+                                    }
+                                }
+                            }
+
                             NfcWaveAnimation()
 
                             Text(
-                                text = "PASO 3: ACERQUE TARJETA DEL CLIENTE",
-                                style = MaterialTheme.typography.titleMedium,
+                                text = "Acerque la Tarjeta del CLIENTE",
+                                style = MaterialTheme.typography.titleLarge,
                                 color = PosPrimaryLight,
                                 fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Center
                             )
 
-                            Text(
-                                text = "Monto a cobrar: ${CurrencyHelper.formatMicroUnits(CurrencyHelper.parseInputToMicroUnits(uiState.amountInput))}\nVendedor: ${uiState.sellerName}",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = PosSlate100,
-                                fontWeight = FontWeight.SemiBold,
-                                textAlign = TextAlign.Center
-                            )
+                            // Resumen de la operacion
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = PosSlate800),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("Cobro para el Vendedor:", color = PosSlate400, fontSize = 12.sp)
+                                        Text(uiState.sellerName ?: "Vendedor", color = PosGoldLight, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    }
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("Total a debitar:", color = PosSlate400, fontSize = 12.sp)
+                                        Text(
+                                            CurrencyHelper.formatMicroUnits(CurrencyHelper.parseInputToMicroUnits(uiState.amountInput)),
+                                            color = PosSlate100,
+                                            fontWeight = FontWeight.Black,
+                                            fontSize = 13.sp
+                                        )
+                                    }
+                                }
+                            }
 
                             // Quick simulation button for tests - ONLY ON DEMO NODE
                             if (uiState.isDemoNode) {

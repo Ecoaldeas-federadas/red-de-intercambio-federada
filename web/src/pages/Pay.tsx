@@ -72,9 +72,15 @@ export default function Pay() {
     }
   }
 
-  // Si no esta autenticado, mostrar login
+  // Si no esta autenticado, mostrar login inline (preserva la URL /pay?t=...)
+  // El Login hace window.location.reload() que vuelve a /pay?t=... y ya
+  // estara autenticado, mostrando el monto y el boton de pagar.
   if (!isAuthenticated) {
-    return <Login />
+    return (
+      <div style={{ minHeight: '100vh', background: '#0a0a0a' }}>
+        <Login />
+      </div>
+    )
   }
 
   if (status === 'loading') {

@@ -29,6 +29,7 @@ class PosApiClient(
 
     var authToken: String? = null
     var terminalId: String = "TERM-POS-001"
+    var terminalPublicKey: String? = null
 
     val moshi: Moshi = Moshi.Builder()
         .addLast(KotlinJsonAdapterFactory())
@@ -48,6 +49,10 @@ class PosApiClient(
         if (terminalId.isNotBlank()) {
             builder.header("X-Terminal-ID", terminalId)
         }
+        val pubKey = terminalPublicKey
+        if (!pubKey.isNullOrBlank()) {
+            builder.header("X-Terminal-Public-Key", pubKey)
+        }
 
         chain.proceed(builder.build())
     }
@@ -62,12 +67,13 @@ class PosApiClient(
         })
         .build()
 
-    fun updateConfig(url: String, token: String? = authToken, termId: String = terminalId) {
+    fun updateConfig(url: String, token: String? = authToken, termId: String = terminalId, pubKey: String? = terminalPublicKey) {
         val clean = sanitizeUrl(url)
         serverUrl = clean
         nodeDomain = extractNodeDomain(clean)
         authToken = token
         terminalId = termId
+        terminalPublicKey = pubKey
         cachedService = null // Force recreate retrofit
     }
 

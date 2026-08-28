@@ -28,6 +28,7 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val terminalConfig by viewModel.terminalConfig.collectAsState()
     var urlInput by remember(uiState.serverUrl) { mutableStateOf(uiState.serverUrl) }
 
     Scaffold(
@@ -133,7 +134,7 @@ fun SettingsScreen(
                 }
             }
 
-            // TERMINAL REGISTRATION LINK
+            // TERMINAL IDENTITY & SHIFT MANAGEMENT
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = PosSlate900),
@@ -143,35 +144,58 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "Identidad y Registro Criptográfico (Ed25519)",
+                        text = "Gestión del Terminal y Turno",
                         style = MaterialTheme.typography.titleMedium,
                         color = PosSlate100,
                         fontWeight = FontWeight.Bold
                     )
-                    Text(
-                        text = "Vincule o registre este terminal de punto de venta con las claves criptográficas autorizadas en el nodo.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = PosSlate300
-                    )
 
-                    Button(
-                        onClick = { viewModel.navigateTo(PosScreen.RegisterTerminal) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .testTag("settings_goto_registration_btn"),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = PosGold)
-                    ) {
-                        Icon(Icons.Default.VpnKey, contentDescription = null, tint = PosNavyDark)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Ver Claves y Registro del Terminal", color = PosNavyDark, fontWeight = FontWeight.Bold)
+                    if (terminalConfig?.isRegistered == true) {
+                        // Estado registrado
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = PosSuccessGreen.copy(alpha = 0.12f)),
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, PosSuccessGreen.copy(alpha = 0.5f))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = PosSuccessGreenLight, modifier = Modifier.size(28.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text("Terminal Vinculado y Autorizado", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = PosSuccessGreenLight)
+                                    Text("ID: ${terminalConfig?.terminalId}", style = MaterialTheme.typography.bodySmall, color = PosSlate300)
+                                }
+                            }
+                        }
+                    } else {
+                        // No registrado aún
+                        Text(
+                            text = "Vincule este terminal con el nodo mediante emparejamiento para habilitar transacciones.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = PosSlate300
+                        )
+
+                        Button(
+                            onClick = { viewModel.navigateTo(PosScreen.RegisterTerminal) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .testTag("settings_goto_registration_btn"),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = PosGold)
+                        ) {
+                            Icon(Icons.Default.VpnKey, contentDescription = null, tint = PosNavyDark)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Emparejar y Registrar Terminal", color = PosNavyDark, fontWeight = FontWeight.Bold)
+                        }
                     }
-
-                    Spacer(modifier = Modifier.height(12.dp))
 
                     // ABRIR/CERRAR PUNTO - protegido con PIN
                     Button(

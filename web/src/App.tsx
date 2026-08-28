@@ -44,7 +44,6 @@ import Notifications from './pages/Notifications'
 import Pay from './pages/Pay'
 import MyTerminals from './pages/MyTerminals'
 import SoftwareAdaptations from './pages/SoftwareAdaptations'
-import Pos from './pages/Pos'
 
 // updateFavicon cambia el favicon del navegador dinamicamente.
 // Si se pasa una URL de logo, lo usa como favicon.
@@ -142,7 +141,6 @@ function AppInner() {
         <Route path="/app/governance" element={<Layout><Governance /></Layout>} />
         <Route path="/app/nfc-terminals" element={<Layout><NFCTerminals /></Layout>} />
       <Route path="/app/my-terminals" element={<Layout><MyTerminals /></Layout>} />
-      <Route path="/app/pos" element={<Layout><Pos /></Layout>} />
         <Route path="/app/federation/peers" element={<Layout><Federation /></Layout>} />
         <Route path="/app/federation/conflicts" element={<Layout><MergeConflicts /></Layout>} />
         <Route path="/app/settings" element={<Layout><NodeSettings /></Layout>} />
@@ -154,6 +152,7 @@ function AppInner() {
         <Route path="/app/fund" element={<Layout><CommunityFund /></Layout>} />
         <Route path="/app/calculator/params" element={<Layout><CalculatorParams /></Layout>} />
         <Route path="/app/website" element={<Layout><WebsiteAdmin /></Layout>} />
+        <Route path="/pay" element={<Pay />} />
         <Route path="/login" element={<Navigate to="/app/dashboard" replace />} />
         {/* Sitio publico tambien accesible cuando estas logueado */}
         <Route path="/" element={<Navigate to="/p/inicio" replace />} />

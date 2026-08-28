@@ -88,6 +88,7 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	// User endpoints: ver y gestionar sus propios terminales asignados
 	r.With(am.RequireAuth).Get("/api/nfc/my-terminals", h.listMyTerminals)
 	r.With(am.RequireAuth).Post("/api/nfc/my-terminals/{id}/toggle", h.toggleMyTerminal)
+	r.With(am.RequireAuth).Put("/api/nfc/my-terminals/{id}/label", h.updateMyTerminalLabel)
 	r.With(am.RequireAuth).Get("/api/nfc/my-terminals/{id}/transactions", h.listMyTerminalTransactions)
 	r.With(am.RequireAuth).Post("/api/nfc/my-terminals/{id}/shift", h.openShift)
 	r.With(am.RequireAuth).Post("/api/nfc/my-terminals/{id}/shift/close", h.closeShift)
@@ -1695,6 +1696,51 @@ func (h *NFCTerminalHandler) toggleMyTerminal(w http.ResponseWriter, r *http.Req
 		status = "deactivated"
 	}
 	writeJSON(w, 200, map[string]string{"status": status})
+}
+
+// --- User: rename their terminal (update label) ---
+
+func (h *NFCTerminalHandler) updateMyTerminalLabel(w http.ResponseWriter, r *http.Request) {
+	terminalID := chi.URLParam(r, "id")
+	if terminalID == "" {
+		writeError(w, 400, "terminal id is required")
+		return
+	}
+
+	userID, err := getUserID(r)
+	if err != nil {
+		writeError(w, 401, "not authenticated")
+		return
+	}
+
+	var req struct {
+		Label string `json:"label"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.Label == "" {
+		writeError(w, 400, "label is required")
+		return
+	}
+
+	// Verify the terminal belongs to this user and update label
+	tag, err := h.NFC.Pool.Exec(r.Context(), `
+		UPDATE nfc_terminals SET label = $2, updated_at = NOW()
+		WHERE terminal_id = $1 AND merchant_user_id = $3`,
+		terminalID, req.Label, userID,
+	)
+	if err != nil {
+		writeError(w, 500, "failed to update terminal label")
+		return
+	}
+	if tag.RowsAffected() == 0 {
+		writeError(w, 404, "terminal not found or not assigned to you")
+		return
+	}
+
+	writeJSON(w, 200, map[string]string{"status": "updated", "label": req.Label})
 }
 
 // --- User: list transactions for their terminal ---

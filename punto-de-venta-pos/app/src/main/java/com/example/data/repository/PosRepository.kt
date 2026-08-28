@@ -87,8 +87,9 @@ class PosRepository(
         }
         apiClient.updateConfig(
             url = config.serverUrl,
-            token = apiClient.authToken,
-            termId = config.terminalId
+            token = config.sessionToken ?: apiClient.authToken,
+            termId = config.terminalId,
+            pubKey = config.terminalPublicKeyHex
         )
         config
     }
@@ -153,6 +154,11 @@ class PosRepository(
             if (response.isSuccessful && response.body()?.token != null) {
                 val body = response.body()!!
                 apiClient.authToken = body.token
+                
+                // Persist session token in secure terminal config
+                val currentConfig = getOrInitTerminalConfig()
+                saveConfigSecure(currentConfig.copy(sessionToken = body.token))
+                
                 val meResult = fetchCurrentUser()
                 
                 // Also create/bind terminal session for this merchant if terminal is registered
@@ -170,6 +176,23 @@ class PosRepository(
 
                 Result.success(body)
             } else {
+                // Manejar 403: terminal no registrado o clave publica no coincide
+                if (response.code() == 403) {
+                    val errBody = response.errorBody()?.string() ?: ""
+                    if (errBody.contains("terminal_not_registered") || errBody.contains("terminal_key_mismatch")) {
+                        // Marcar terminal como no registrado - el servidor no reconoce este terminal
+                        val currentConfig = getOrInitTerminalConfig()
+                        saveConfigSecure(currentConfig.copy(isRegistered = false, sessionToken = null))
+                        apiClient.authToken = null
+                        currentUser = null
+                        val msg = if (errBody.contains("terminal_key_mismatch")) {
+                            "La clave publica de este terminal no coincide con la registrada en el servidor. Debe registrarse nuevamente."
+                        } else {
+                            "Este terminal no esta registrado en el servidor. Debe registrarse nuevamente."
+                        }
+                        return@withContext Result.failure(Exception(msg))
+                    }
+                }
                 val errBody = response.errorBody()?.string()
                 val errorMsg = response.body()?.error ?: errBody ?: "Credenciales inválidas (Código ${response.code()})"
                 Result.failure(Exception(errorMsg))
@@ -180,6 +203,8 @@ class PosRepository(
     }
 
     suspend fun logout() = withContext(Dispatchers.IO) {
+        val currentConfig = getOrInitTerminalConfig()
+        saveConfigSecure(currentConfig.copy(sessionToken = null))
         apiClient.authToken = null
         currentUser = null
     }
@@ -196,13 +221,23 @@ class PosRepository(
                 currentUser = response.body()
                 Result.success(currentUser!!)
             } else {
-                currentUser = null
+                if (response.code() == 401) {
+                    // Token expired or invalid on server
+                    val currentConfig = getOrInitTerminalConfig()
+                    saveConfigSecure(currentConfig.copy(sessionToken = null))
+                    apiClient.authToken = null
+                    currentUser = null
+                }
                 val err = response.errorBody()?.string() ?: "Error obteniendo datos del usuario (${response.code()})"
                 Result.failure(Exception(err))
             }
         } catch (e: Exception) {
-            currentUser = null
-            Result.failure(Exception("Error al contactar al nodo: ${e.localizedMessage}"))
+            // Keep existing currentUser if network temporarily fails
+            if (currentUser != null) {
+                Result.success(currentUser!!)
+            } else {
+                Result.failure(Exception("Error al contactar al nodo: ${e.localizedMessage}"))
+            }
         }
     }
 
@@ -543,9 +578,8 @@ class PosRepository(
 
                 val resAdapter = apiClient.moshi.adapter(PaymentResultDecrypted::class.java)
                 val result = resAdapter.fromJson(plainResp) ?: PaymentResultDecrypted(
-                    status = "approved",
-                    message = "Transacción aprobada",
-                    transactionId = UUID.randomUUID().toString()
+                    status = "error",
+                    message = "Respuesta del servidor inválida"
                 )
 
                 if (result.status == "approved") {
@@ -562,11 +596,43 @@ class PosRepository(
                 }
                 Result.success(result)
             } else {
-                // Fallback simulation / live server response
+                if (apiClient.isDemoNode) {
+                    // Modo Demo (/demo): Simular aprobación localmente para pruebas
+                    val simulatedResult = PaymentResultDecrypted(
+                        status = "approved",
+                        transactionId = UUID.randomUUID().toString(),
+                        message = "Transacción simulada aprobada (Modo Demo)",
+                        userBalance = 180000L
+                    )
+                    transactionDao.insertTransaction(
+                        TransactionEntity(
+                            id = simulatedResult.transactionId!!,
+                            amount = amountMicroUnits,
+                            paymentMethod = "nfc_single",
+                            status = "approved",
+                            cardUid = cardUid,
+                            receiptNumber = "NFC-${UUID.randomUUID().toString().take(8).uppercase()}"
+                        )
+                    )
+                    Result.success(simulatedResult)
+                } else {
+                    val errorBodyStr = response.errorBody()?.string().orEmpty()
+                    val serverMsg = try {
+                        val jsonObj = org.json.JSONObject(errorBodyStr)
+                        jsonObj.optString("error", jsonObj.optString("message", jsonObj.optString("detail", "Error del servidor (HTTP ${response.code()})")))
+                    } catch (e: Exception) {
+                        if (errorBodyStr.isNotBlank()) errorBodyStr else "Error al procesar cobro en el nodo (HTTP ${response.code()})"
+                    }
+                    Result.failure(Exception(serverMsg))
+                }
+            }
+        } catch (e: Exception) {
+            if (apiClient.isDemoNode) {
+                // Modo Demo: Simulación aún en caso de error de red o timeout
                 val simulatedResult = PaymentResultDecrypted(
                     status = "approved",
                     transactionId = UUID.randomUUID().toString(),
-                    message = "Transacción aprobada",
+                    message = "Transacción simulada aprobada (Modo Demo)",
                     userBalance = 180000L
                 )
                 transactionDao.insertTransaction(
@@ -580,9 +646,9 @@ class PosRepository(
                     )
                 )
                 Result.success(simulatedResult)
+            } else {
+                Result.failure(Exception("Error al procesar cobro NFC: ${e.localizedMessage}"))
             }
-        } catch (e: Exception) {
-            Result.failure(Exception("Error al procesar cobro NFC: ${e.localizedMessage}"))
         } finally {
             // Memory hygiene
             CryptoEngine.zeroize()
@@ -653,9 +719,8 @@ class PosRepository(
 
                 val resAdapter = apiClient.moshi.adapter(PaymentResultDecrypted::class.java)
                 val result = resAdapter.fromJson(plainResp) ?: PaymentResultDecrypted(
-                    status = "approved",
-                    message = "Transacción comunitaria aprobada",
-                    transactionId = UUID.randomUUID().toString()
+                    status = "error",
+                    message = "Respuesta inválida del servidor"
                 )
 
                 if (result.status == "approved") {
@@ -673,10 +738,42 @@ class PosRepository(
                 }
                 Result.success(result)
             } else {
+                if (apiClient.isDemoNode) {
+                    val simulated = PaymentResultDecrypted(
+                        status = "approved",
+                        transactionId = UUID.randomUUID().toString(),
+                        message = "Transacción comunitaria simulada aprobada (Modo Demo)",
+                        userBalance = 150000L
+                    )
+                    transactionDao.insertTransaction(
+                        TransactionEntity(
+                            id = simulated.transactionId!!,
+                            amount = amountMicroUnits,
+                            paymentMethod = "nfc_community",
+                            status = "approved",
+                            cardUid = buyerCardUid,
+                            vendorName = "Vendedor $sellerCardUid",
+                            receiptNumber = "COM-${UUID.randomUUID().toString().take(8).uppercase()}"
+                        )
+                    )
+                    Result.success(simulated)
+                } else {
+                    val errorBodyStr = response.errorBody()?.string().orEmpty()
+                    val serverMsg = try {
+                        val jsonObj = org.json.JSONObject(errorBodyStr)
+                        jsonObj.optString("error", jsonObj.optString("message", jsonObj.optString("detail", "Error del servidor (HTTP ${response.code()})")))
+                    } catch (e: Exception) {
+                        if (errorBodyStr.isNotBlank()) errorBodyStr else "Error en cobro multi-vendedor (HTTP ${response.code()})"
+                    }
+                    Result.failure(Exception(serverMsg))
+                }
+            }
+        } catch (e: Exception) {
+            if (apiClient.isDemoNode) {
                 val simulated = PaymentResultDecrypted(
                     status = "approved",
                     transactionId = UUID.randomUUID().toString(),
-                    message = "Transacción comunitaria aprobada",
+                    message = "Transacción comunitaria simulada aprobada (Modo Demo)",
                     userBalance = 150000L
                 )
                 transactionDao.insertTransaction(
@@ -691,9 +788,9 @@ class PosRepository(
                     )
                 )
                 Result.success(simulated)
+            } else {
+                Result.failure(Exception("Error en cobro multi-vendedor: ${e.localizedMessage}"))
             }
-        } catch (e: Exception) {
-            Result.failure(Exception("Error en cobro multi-vendedor: ${e.localizedMessage}"))
         }
     }
 
@@ -866,9 +963,12 @@ class PosRepository(
             val response = service.terminalHeartbeat(mapOf("terminal_id" to config.terminalId))
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
+            } else if (response.code() == 404) {
+                // Solo si el servidor responde 404 explicitamente, considerar no registrado
+                Result.success(HeartbeatResponse(status = "not_found", active = false, registered = false, notFound = true))
             } else {
-                // Si el servidor no encuentra el terminal, responder como no registrado
-                Result.success(HeartbeatResponse(status = "ok", active = false, registered = false, notFound = true))
+                // Errores 500 u otros codigos son problemas temporales del servidor, no desregistrar
+                Result.failure(Exception("Error en heartbeat del servidor (HTTP ${response.code()})"))
             }
         } catch (e: Exception) {
             // Error de red: no cambiar estado (puede ser temporal)

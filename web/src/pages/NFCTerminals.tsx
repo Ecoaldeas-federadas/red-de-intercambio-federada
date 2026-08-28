@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { api, apiFetch } from '../api'
+import { api, apiFetch, getStorageKeys } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useSerialChipId } from '../hooks/useSerialChipId'
 import { EntitySelector } from '../components/EntitySelector'
@@ -259,8 +259,10 @@ export default function NFCTerminals() {
     }
   }
 
+  const [assigning, setAssigning] = useState(false)
   const assignTerminal = async (terminalId: string) => {
     if (!assignTarget) return
+    setAssigning(true)
     try {
       await apiFetch(`/nfc/terminal/${terminalId}/assign`, {
         method: 'POST',
@@ -269,11 +271,13 @@ export default function NFCTerminals() {
           target_id: assignTarget,
         }),
       })
-      setShowAssignModal(null)
       setAssignTarget('')
-      loadTerminals()
+      await loadTerminals()
+      setShowAssignModal(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error')
+    } finally {
+      setAssigning(false)
     }
   }
 
@@ -345,7 +349,7 @@ export default function NFCTerminals() {
 
   const downloadConfigH = async (terminalId: string) => {
     try {
-      const token = localStorage.getItem('fmc_token')
+      const token = localStorage.getItem(getStorageKeys().tokenKey)
       const res = await fetch(`/api/nfc/terminal/${terminalId}/config.h`, {
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -379,7 +383,7 @@ export default function NFCTerminals() {
 
   const downloadFirmwareBin = async (terminalId: string, buildId: string) => {
     try {
-      const token = localStorage.getItem('fmc_token')
+      const token = localStorage.getItem(getStorageKeys().tokenKey)
       const res = await fetch(`/api/nfc/terminal/${terminalId}/firmware.bin?build_id=${buildId}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -485,7 +489,7 @@ export default function NFCTerminals() {
             <button
               onClick={async () => {
                 try {
-                  const token = localStorage.getItem('fmc_token')
+                  const token = localStorage.getItem(getStorageKeys().tokenKey)
                   const res = await fetch('/api/nfc/chip-id-reader.ino', {
                     headers: { Authorization: `Bearer ${token}` },
                   })
@@ -1201,11 +1205,11 @@ export default function NFCTerminals() {
             <div className="flex gap-2 pt-2">
               <button
                 onClick={() => assignTerminal(showAssignModal)}
-                disabled={!assignTarget}
+                disabled={!assignTarget || assigning}
                 className="btn-primary flex-1 disabled:opacity-50">
-                Asignar
+                {assigning ? 'Asignando...' : 'Asignar'}
               </button>
-              <button onClick={() => setShowAssignModal(null)} className="btn-secondary">
+              <button onClick={() => setShowAssignModal(null)} disabled={assigning} className="btn-secondary">
                 Cancelar
               </button>
             </div>

@@ -163,9 +163,30 @@ export function NFCScreen({ amount, onBack, onPaid, api, terminalID, isDemoNode 
           </p>
 
           {!('NDEFReader' in window) && (
-            <div style={{ background: 'rgba(202,138,4,0.15)', padding: 12, borderRadius: 12, marginBottom: 16 }}>
-              <p style={{ color: 'var(--warning)', fontSize: 12 }}>
-                ⚠️ Tu navegador no soporta NFC nativo. Puedes ingresar el UID manualmente.
+            <div style={{ background: 'rgba(202,138,4,0.15)', padding: 16, borderRadius: 12, marginBottom: 16, textAlign: 'left' }}>
+              <p style={{ color: 'var(--warning)', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+                ⚠️ Este dispositivo no tiene NFC integrado
+              </p>
+              <p style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 8 }}>
+                Para pagos NFC necesitas:
+              </p>
+              <ul style={{ color: 'var(--text-dim)', fontSize: 12, paddingLeft: 20, marginBottom: 8 }}>
+                <li>Un celular con NFC (Chrome/Edge en Android)</li>
+                <li>O un lector NFC Bluetooth conectado</li>
+              </ul>
+              <p style={{ color: 'var(--text-dim)', fontSize: 12 }}>
+                Sin NFC, puedes ingresar el UID de la tarjeta manualmente o usar QR.
+              </p>
+              <p style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 8 }}>
+                Lector NFC Bluetooth: <strong style={{ color: 'var(--danger)' }}>no conectado</strong>
+              </p>
+            </div>
+          )}
+
+          {'NDEFReader' in window && (
+            <div style={{ background: 'rgba(15,118,110,0.15)', padding: 12, borderRadius: 12, marginBottom: 16 }}>
+              <p style={{ color: 'var(--accent-light)', fontSize: 12 }}>
+                ✓ NFC detectado en este dispositivo. Acerca la tarjeta para leerla.
               </p>
             </div>
           )}

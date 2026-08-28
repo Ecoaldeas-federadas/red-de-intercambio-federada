@@ -58,6 +58,10 @@ data class PosUiState(
     val isQrPolling: Boolean = false,
     val qrStatus: String? = null, // "pending", "paid", "expired", "cancelled"
 
+    // NFC Hardware & Status
+    val hasNfcHardware: Boolean = true,
+    val isNfcEnabled: Boolean = true,
+
     // NFC Charge Flow
     val isNfcWaitingCard: Boolean = false,
     val detectedCardUid: String? = null,
@@ -131,13 +135,20 @@ class PosViewModel(
     init {
         viewModelScope.launch {
             val config = repository.getOrInitTerminalConfig()
+            val hasActiveSession = !config.sessionToken.isNullOrBlank()
+            
             _uiState.update {
                 it.copy(
                     serverUrl = config.serverUrl,
                     nodeDomain = repository.apiClient.nodeDomain,
                     isRegistered = config.isRegistered,
                     isDemoNode = repository.apiClient.isDemoNode,
-                    currentScreen = if (!config.isRegistered) PosScreen.RegisterTerminal else PosScreen.Login
+                    isLoggedIn = hasActiveSession,
+                    currentScreen = when {
+                        !config.isRegistered -> PosScreen.RegisterTerminal
+                        hasActiveSession -> PosScreen.Dashboard
+                        else -> PosScreen.Login
+                    }
                 )
             }
             loadCardTypeConfig()
@@ -146,26 +157,17 @@ class PosViewModel(
             if (config.isRegistered) {
                 val hbResult = repository.heartbeat()
                 hbResult.onSuccess { hb ->
-                    if (hb.notFound == true || hb.registered == false || hb.active == false) {
-                        // El servidor no encuentra el terminal o esta inactivo.
-                        // NO resetear las claves locales - solo marcar como pendiente.
-                        // El usuario puede reintentar la verificacion o resetear
-                        // manualmente desde ajustes si es necesario.
-                        // Las claves se mantienen para poder reconectar si el servidor
-                        // vuelve a estar disponible o si fue un fallo temporal.
+                    if (hb.notFound == true) {
                         _uiState.update {
                             it.copy(
                                 isRegistered = false,
                                 currentScreen = PosScreen.RegisterTerminal,
-                                errorMessage = "No se pudo verificar el terminal con el servidor. " +
-                                    "Si el terminal fue eliminado desde el panel administrativo, " +
-                                    "use \"Resetear Terminal\" en ajustes para generar nuevas claves. " +
-                                    "De lo contrario, reintente la verificacion."
+                                errorMessage = "El terminal no fue encontrado en el servidor. Empareje nuevamente si fue eliminado."
                             )
                         }
                     }
                 }
-                // Si el heartbeat falla por red, no cambiar estado (puede ser temporal)
+                // Si el heartbeat falla por error 500 o red, NO cambiar estado (mantiene registro)
             } else {
                 // No esta registrado localmente — pero podria haber sido aprobado
                 // en el servidor sin que el POS se entero (polling expiro antes de
@@ -178,7 +180,7 @@ class PosViewModel(
                         _uiState.update {
                             it.copy(
                                 isRegistered = true,
-                                currentScreen = PosScreen.Login,
+                                currentScreen = if (hasActiveSession) PosScreen.Dashboard else PosScreen.Login,
                                 successMessage = "Terminal verificado y registrado con el servidor."
                             )
                         }
@@ -187,7 +189,7 @@ class PosViewModel(
                 // Si el lookup falla por red o no esta registrado, mantener estado actual
             }
 
-            if (config.isRegistered && !repository.apiClient.authToken.isNullOrBlank()) {
+            if (config.isRegistered && hasActiveSession) {
                 refreshCurrentUser()
             }
         }
@@ -254,6 +256,15 @@ class PosViewModel(
         }
     }
 
+    fun updateNfcHardwareStatus(hasHardware: Boolean, isEnabled: Boolean) {
+        _uiState.update {
+            it.copy(
+                hasNfcHardware = hasHardware,
+                isNfcEnabled = isEnabled
+            )
+        }
+    }
+
     fun navigateTo(screen: PosScreen) {
         // Reset transient states
         if (screen != PosScreen.QrCharge) stopQrPolling()
@@ -269,9 +280,35 @@ class PosViewModel(
                 customerPin = "",
                 detectedCardUid = null,
                 isNfcWaitingCard = (screen == PosScreen.NfcCharge),
+                nfcPaymentResult = null,
+                qrChargeResponse = null,
+                qrPayUrl = null,
+                qrStatus = null,
+                isQrPolling = false,
+                isMultisigActive = false,
+                multisigPendingId = null,
+                idDocNumber = "",
                 mvStep = 1,
                 sellerCardUid = null,
-                buyerCardUid = null
+                sellerName = null,
+                buyerCardUid = null,
+                buyerPin = "",
+                buyerDocNumber = ""
+            )
+        }
+    }
+
+    fun resetNfcPaymentState() {
+        _uiState.update {
+            it.copy(
+                detectedCardUid = null,
+                customerPin = "",
+                nfcPaymentResult = null,
+                amountInput = "",
+                idDocNumber = "",
+                errorMessage = null,
+                successMessage = null,
+                isNfcWaitingCard = true
             )
         }
     }
@@ -314,12 +351,19 @@ class PosViewModel(
                     )
                 }
             }.onFailure { err ->
+                val msg = err.message ?: ""
+                // Si el servidor rechazo por terminal no registrado o clave incorrecta,
+                // actualizar el estado y enviar a registro
+                val isTerminalRejected = msg.contains("no coincide") || msg.contains("no esta registrado") ||
+                    msg.contains("terminal_not_registered") || msg.contains("terminal_key_mismatch")
                 _uiState.update { state ->
                     state.copy(
                         isLoading = false,
                         isLoggedIn = false,
                         currentUser = null,
-                        errorMessage = err.message ?: "Error al autenticar con el nodo"
+                        isRegistered = if (isTerminalRejected) false else state.isRegistered,
+                        currentScreen = if (isTerminalRejected) PosScreen.RegisterTerminal else state.currentScreen,
+                        errorMessage = msg.ifEmpty { "Error al autenticar con el nodo" }
                     )
                 }
             }
@@ -339,12 +383,14 @@ class PosViewModel(
                     )
                 }
             }.onFailure { err ->
+                val hasToken = !repository.apiClient.authToken.isNullOrBlank()
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        isLoggedIn = false,
-                        currentUser = null,
-                        errorMessage = "No se pudo actualizar datos del comercio: ${err.message}"
+                        isLoggedIn = hasToken,
+                        currentUser = if (hasToken) it.currentUser else null,
+                        currentScreen = if (hasToken) it.currentScreen else PosScreen.Login,
+                        errorMessage = if (!hasToken) "Sesión expirada. Por favor inicie sesión nuevamente." else null
                     )
                 }
             }
@@ -650,8 +696,8 @@ class PosViewModel(
         val hbRes = repository.heartbeat()
         var canProceed = true
         hbRes.onSuccess { hb ->
-            if (hb.notFound == true || hb.registered == false) {
-                // Terminal fue borrado del servidor
+            if (hb.notFound == true) {
+                // Solo si el servidor confirmó 404 (not found)
                 repository.resetTerminalRegistration()
                 _uiState.update {
                     it.copy(
@@ -673,7 +719,7 @@ class PosViewModel(
                 canProceed = false
             }
         }
-        // Si el heartbeat falla por red, permitir la transaccion (puede ser temporal)
+        // Si el heartbeat falla por 500 o red, permitir continuar la transaccion
         return canProceed
     }
 

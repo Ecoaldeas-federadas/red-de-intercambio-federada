@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { api } from '../api'
+import { api, getStorageKeys } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon, Vote as VoteIcon, Database, Download, Upload, AlertTriangle, RefreshCw, Globe, Lock, Unlock, Trash2, FileText, Server, HardDrive, CheckCircle, Info, X, Power, Play, Square, Sparkles, Clock, Shield, Scale, Flower, Sprout } from 'lucide-react'
 
@@ -304,7 +304,7 @@ export default function NodeSettings() {
   // Cargar backups automaticos y nodos YugabyteDB cuando se abren esos tabs
   const loadAutoBackups = async () => {
     try {
-      const token = localStorage.getItem('fmc_token')
+      const token = localStorage.getItem(getStorageKeys().tokenKey)
       const res = await fetch('/api/admin/backups', {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
@@ -314,7 +314,7 @@ export default function NodeSettings() {
 
   const loadBackupConfig = async () => {
     try {
-      const token = localStorage.getItem('fmc_token')
+      const token = localStorage.getItem(getStorageKeys().tokenKey)
       const res = await fetch('/api/admin/backup-config', {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
@@ -324,7 +324,7 @@ export default function NodeSettings() {
 
   const loadYbNodes = async () => {
     try {
-      const token = localStorage.getItem('fmc_token')
+      const token = localStorage.getItem(getStorageKeys().tokenKey)
       const res = await fetch('/api/admin/yb-nodes', {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
@@ -1701,6 +1701,21 @@ export default function NodeSettings() {
                   }} />
                 <label htmlFor="auto_rotate" className="text-sm">Rotar clave automaticamente en cada transaccion (solo DESFire)</label>
               </div>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="require_id_uid" checked={cardTypeCfg?.require_id_document_for_uid_only ?? false}
+                  onChange={async (e) => {
+                    const newCfg = { ...cardTypeCfg, require_id_document_for_uid_only: e.target.checked }
+                    setCardTypeCfg(newCfg)
+                    await api.post('/nfc/card-type/config', {
+                      card_type_mode: newCfg.card_type_mode || 'dual',
+                      require_crypto: newCfg.require_crypto || false,
+                      auto_rotate_key: newCfg.auto_rotate_key ?? true,
+                      max_write_fails: newCfg.max_write_fails || 3,
+                      require_id_document_for_uid_only: e.target.checked,
+                    })
+                  }} />
+                <label htmlFor="require_id_uid" className="text-sm">Pedir documento de identidad para tarjetas UID (sin crypto)</label>
+              </div>
             </div>
             {cardTypeCfgLoading && <p className="text-xs text-gray-500">Guardando...</p>}
           </div>
@@ -2066,7 +2081,7 @@ export default function NodeSettings() {
                 setBackupLoading(true)
                 setError(''); setSuccess('')
                 try {
-                  const token = localStorage.getItem('fmc_token')
+                  const token = localStorage.getItem(getStorageKeys().tokenKey)
                   const res = await fetch('/api/backup', {
                     headers: token ? { Authorization: `Bearer ${token}` } : {},
                   })
@@ -2127,7 +2142,7 @@ export default function NodeSettings() {
                 try {
                   const text = await restoreFile.text()
                   const backup = JSON.parse(text)
-                  const token = localStorage.getItem('fmc_token')
+                  const token = localStorage.getItem(getStorageKeys().tokenKey)
                   const res = await fetch('/api/backup/restore', {
                     method: 'POST',
                     headers: {
@@ -2238,7 +2253,7 @@ export default function NodeSettings() {
                   setBackupConfigLoading(true)
                   setBackupMsg(null)
                   try {
-                    const token = localStorage.getItem('fmc_token')
+                    const token = localStorage.getItem(getStorageKeys().tokenKey)
                     const res = await fetch('/api/admin/backup-config', {
                       method: 'PUT',
                       headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
@@ -2275,7 +2290,7 @@ export default function NodeSettings() {
                   setAutoBackupLoading(true)
                   setBackupMsg({ type: 'info', text: 'Solicitando backup...' })
                   try {
-                    const token = localStorage.getItem('fmc_token')
+                    const token = localStorage.getItem(getStorageKeys().tokenKey)
                     const res = await fetch('/api/admin/backups/now', {
                       method: 'POST',
                       headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -2374,7 +2389,7 @@ export default function NodeSettings() {
                           href={`/api/admin/backups/${encodeURIComponent(b.filename)}/download`}
                           onClick={(e) => {
                             e.preventDefault()
-                            const token = localStorage.getItem('fmc_token')
+                            const token = localStorage.getItem(getStorageKeys().tokenKey)
                             fetch(`/api/admin/backups/${encodeURIComponent(b.filename)}/download`, {
                               headers: token ? { Authorization: `Bearer ${token}` } : {},
                             }).then(res => res.blob()).then(blob => {
@@ -2395,7 +2410,7 @@ export default function NodeSettings() {
                         </a>
                         <button
                           onClick={async () => {
-                            const token = localStorage.getItem('fmc_token')
+                            const token = localStorage.getItem(getStorageKeys().tokenKey)
                             await fetch(`/api/admin/backups/${encodeURIComponent(b.filename)}/lock`, {
                               method: 'PUT',
                               headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -2414,7 +2429,7 @@ export default function NodeSettings() {
                                 open: true,
                                 text: 'Borrar este backup? Esta accion no se puede deshacer.',
                                 action: async () => {
-                                  const token = localStorage.getItem('fmc_token')
+                                  const token = localStorage.getItem(getStorageKeys().tokenKey)
                                   await fetch(`/api/admin/backups/${encodeURIComponent(b.filename)}`, {
                                     method: 'DELETE',
                                     headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -2779,7 +2794,7 @@ export default function NodeSettings() {
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => {
-                          const token = localStorage.getItem('fmc_token')
+                          const token = localStorage.getItem(getStorageKeys().tokenKey)
                           fetch(`/api/admin/yb-nodes/${n.id}/script`, {
                             headers: token ? { Authorization: `Bearer ${token}` } : {},
                           }).then(res => res.blob()).then(blob => {
@@ -2803,7 +2818,7 @@ export default function NodeSettings() {
                             open: true,
                             text: 'Eliminar este nodo de la lista? Esto no detiene el nodo en el servidor remoto.',
                             action: async () => {
-                              const token = localStorage.getItem('fmc_token')
+                              const token = localStorage.getItem(getStorageKeys().tokenKey)
                               await fetch(`/api/admin/yb-nodes/${n.id}`, {
                                 method: 'DELETE',
                                 headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -2888,7 +2903,7 @@ export default function NodeSettings() {
                 setYbLoading(true)
                 setError(''); setSuccess('')
                 try {
-                  const token = localStorage.getItem('fmc_token')
+                  const token = localStorage.getItem(getStorageKeys().tokenKey)
                   const res = await fetch('/api/admin/yb-nodes', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },

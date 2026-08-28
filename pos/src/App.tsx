@@ -29,37 +29,46 @@ export function App() {
     const sessionToken = storage.get('sessionToken')
     const jwt = storage.get('merchantToken')
 
-    if (!apiURL) {
-      setScreen('url')
-      return
-    }
+    const initApp = async () => {
+      let url = apiURL
+      if (!url) {
+        // Auto-detectar la URL del nodo
+        const detected = await api.detectNodeURL()
+        if (detected) {
+          url = detected
+        } else {
+          setScreen('url')
+          return
+        }
+      }
 
-    api.setBaseURL(apiURL)
+      api.setBaseURL(url)
 
-    if (termID && privKey && sessionToken && jwt) {
-      // Todo configurado - ir directo al keypad
-      setTerminalID(termID)
-      setMerchantUser(api.getMerchantUser())
-      setScreen('keypad')
-    } else if (termID && privKey && jwt) {
-      // Hay terminal + claves + JWT, pero no sessionToken (o expiro)
-      // Auto re-autenticar el terminal con el servidor
-      setTerminalID(termID)
-      setMerchantUser(api.getMerchantUser())
-      setAuthenticating(true)
-      autoReauthTerminal(termID, privKey)
-    } else if (termID && privKey && !jwt) {
-      // Terminal registrado pero no autenticado como merchant
-      setTerminalID(termID)
-      setScreen('login')
-    } else if (termID && privKey) {
-      // Hay claves pero no JWT - ir a login
-      setTerminalID(termID)
-      setScreen('login')
-    } else {
-      // Empezar desde URL
-      setScreen('url')
+      if (termID && privKey && sessionToken && jwt) {
+        // Todo configurado - ir directo al keypad
+        setTerminalID(termID)
+        setMerchantUser(api.getMerchantUser())
+        setScreen('keypad')
+      } else if (termID && privKey && jwt) {
+        // Hay terminal + claves + JWT, pero no sessionToken (o expiro)
+        setTerminalID(termID)
+        setMerchantUser(api.getMerchantUser())
+        setAuthenticating(true)
+        autoReauthTerminal(termID, privKey)
+      } else if (termID && privKey && !jwt) {
+        // Terminal registrado pero no autenticado como merchant
+        setTerminalID(termID)
+        setScreen('login')
+      } else if (termID && privKey) {
+        // Hay claves pero no JWT - ir a login
+        setTerminalID(termID)
+        setScreen('login')
+      } else {
+        // No hay terminal - ir a setup
+        setScreen('setup')
+      }
     }
+    initApp()
   }, [])
 
   // Auto re-autenticar el terminal con el servidor

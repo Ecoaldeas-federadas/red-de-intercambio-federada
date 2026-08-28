@@ -5,7 +5,7 @@
 const API_BASE = (typeof window !== 'undefined' && (window as any).__BASE_PATH__) ? (window as any).__BASE_PATH__ + '/api' : '/api'
 
 // Claves de localStorage separadas por ruta base (padre vs demo)
-function getStorageKeys() {
+export function getStorageKeys() {
   const basePath = typeof window !== 'undefined' ? ((window as any).__BASE_PATH__ || '') : ''
   let prefix = 'fmc'
   if (basePath === '/demo') prefix = 'fmc_demo'

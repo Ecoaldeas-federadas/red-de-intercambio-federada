@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api, apiFetch } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
-import { Smartphone, Lock, Unlock, Eye, Activity, Power, ShoppingBag } from 'lucide-react'
+import { Smartphone, Lock, Unlock, Eye, Activity, Power, ShoppingBag, Edit2 } from 'lucide-react'
 
 interface MyTerminal {
   id: string
@@ -34,9 +34,19 @@ export default function MyTerminals() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [renaming, setRenaming] = useState<MyTerminal | null>(null)
+  const [renameLabel, setRenameLabel] = useState('')
+  const [renameSaving, setRenameSaving] = useState(false)
 
   useEffect(() => {
     loadTerminals()
+    // Auto-refresh cada 15 segundos cuando la pagina esta visible
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadTerminals()
+      }
+    }, 15000)
+    return () => clearInterval(interval)
   }, [])
 
   const loadTerminals = async () => {
@@ -67,6 +77,24 @@ export default function MyTerminals() {
       setTransactions(res || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error')
+    }
+  }
+
+  const handleRename = async () => {
+    if (!renaming || !renameLabel.trim()) return
+    setRenameSaving(true)
+    try {
+      await apiFetch(`/nfc/my-terminals/${renaming.terminal_id}/label`, {
+        method: 'PUT',
+        body: JSON.stringify({ label: renameLabel.trim() }),
+      })
+      setRenaming(null)
+      setRenameLabel('')
+      await loadTerminals()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al renombrar')
+    } finally {
+      setRenameSaving(false)
     }
   }
 
@@ -220,6 +248,13 @@ export default function MyTerminals() {
                   <Eye size={16} />
                   Transacciones
                 </button>
+                <button
+                  onClick={() => { setRenaming(term); setRenameLabel(term.label || '') }}
+                  className="px-3 py-2 bg-gray-50 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-100 flex items-center justify-center gap-1"
+                >
+                  <Edit2 size={16} />
+                  Renombrar
+                </button>
                 {!term.is_blocked && (
                   <button
                     onClick={() => handleToggle(term)}
@@ -250,6 +285,42 @@ export default function MyTerminals() {
           <li>Aqui puedes ver todas tus transacciones y gestionar tus terminales</li>
         </ol>
       </div>
+
+      {/* Modal de renombrar */}
+      {renaming && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 max-w-sm w-full">
+            <h2 className="font-bold text-lg mb-2">Renombrar Terminal</h2>
+            <p className="text-sm text-gray-500 mb-4">
+                ID: <span className="font-mono">{renaming.terminal_id.slice(0, 24)}...</span>
+            </p>
+            <input
+              type="text"
+              value={renameLabel}
+              onChange={(e) => setRenameLabel(e.target.value)}
+              placeholder="Nombre personalizado (ej: Caja 1, Tienda Central)"
+              className="input w-full mb-4"
+              autoFocus
+              onKeyDown={(e) => { if (e.key === 'Enter') handleRename() }}
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={handleRename}
+                disabled={!renameLabel.trim() || renameSaving}
+                className="btn-primary flex-1 disabled:opacity-50"
+              >
+                {renameSaving ? 'Guardando...' : 'Guardar'}
+              </button>
+              <button
+                onClick={() => { setRenaming(null); setRenameLabel('') }}
+                className="btn-secondary"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

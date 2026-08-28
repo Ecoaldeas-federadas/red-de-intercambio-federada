@@ -131,65 +131,63 @@ fun AdminScreen(
                 }
             }
 
-            // REGISTRATION TOKEN INPUT
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = PosSlate900),
-                shape = RoundedCornerShape(18.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+            // REGISTRATION TOKEN INPUT - Solo si el terminal NO esta registrado
+            if (terminalConfig?.isRegistered != true) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = PosSlate900),
+                    shape = RoundedCornerShape(18.dp)
                 ) {
-                    Text(
-                        text = "Completar Registro con el Nodo",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = PosSlate100,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Ingrese el token de registro emitido en el panel de administración web del nodo.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = PosSlate300
-                    )
-
-                    OutlinedTextField(
-                        value = regTokenInput,
-                        onValueChange = { regTokenInput = it },
-                        label = { Text("Registration Token (UUID)") },
-                        placeholder = { Text("Ej. 550e8400-e29b-41d4-a716-446655440000") },
-                        singleLine = true,
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .testTag("reg_token_input"),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = PosSlate100,
-                            unfocusedTextColor = PosSlate100
-                        )
-                    )
-
-                    Button(
-                        onClick = {
-                            viewModel.completeRegistrationWithToken(regTokenInput)
-                        },
-                        enabled = regTokenInput.isNotBlank(),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp)
-                            .testTag("submit_reg_token_btn"),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue)
+                            .padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.VpnKey, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Registrar Criptográficamente", fontWeight = FontWeight.Bold)
-                    }
+                        Text(
+                            text = "Completar Registro con el Nodo",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = PosSlate100,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Ingrese el token de registro emitido en el panel de administración web del nodo.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = PosSlate300
+                        )
 
-                    // Solo mostrar el boton de asistente de registro si NO esta registrado.
-                    // Si ya esta registrado, no tiene sentido ofrecer registro de nuevo.
-                    if (terminalConfig?.isRegistered != true) {
+                        OutlinedTextField(
+                            value = regTokenInput,
+                            onValueChange = { regTokenInput = it },
+                            label = { Text("Registration Token (UUID)") },
+                            placeholder = { Text("Ej. 550e8400-e29b-41d4-a716-446655440000") },
+                            singleLine = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("reg_token_input"),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = PosSlate100,
+                                unfocusedTextColor = PosSlate100
+                            )
+                        )
+
+                        Button(
+                            onClick = {
+                                viewModel.completeRegistrationWithToken(regTokenInput)
+                            },
+                            enabled = regTokenInput.isNotBlank(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp)
+                                .testTag("submit_reg_token_btn"),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue)
+                        ) {
+                            Icon(imageVector = Icons.Default.VpnKey, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Registrar Criptográficamente", fontWeight = FontWeight.Bold)
+                        }
+
                         OutlinedButton(
                             onClick = {
                                 viewModel.navigateTo(PosScreen.RegisterTerminal)

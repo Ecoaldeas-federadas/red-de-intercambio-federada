@@ -97,10 +97,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        nfcAdapter?.let { adapter ->
-            if (adapter.isEnabled && pendingIntent != null) {
-                adapter.enableForegroundDispatch(this, pendingIntent, null, null)
-            }
+        val adapter = nfcAdapter
+        val hasHardware = (adapter != null)
+        val isEnabled = adapter?.isEnabled == true
+        viewModel.updateNfcHardwareStatus(hasHardware, isEnabled)
+
+        if (adapter != null && isEnabled && pendingIntent != null) {
+            adapter.enableForegroundDispatch(this, pendingIntent, null, null)
         }
     }
 
@@ -136,6 +139,7 @@ class MainActivity : ComponentActivity() {
             val currentScreen = viewModel.uiState.value.currentScreen
             when (currentScreen) {
                 is PosScreen.NfcCharge -> {
+                    // Only process card if user has entered an amount and is in the NFC tap step
                     viewModel.onCardTapped(cardUid, isDesfire)
                 }
                 is PosScreen.MultiVendor -> {
@@ -147,9 +151,8 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 else -> {
-                    // Quick transition to NFC charge when card is tapped on dashboard
-                    viewModel.navigateTo(PosScreen.NfcCharge)
-                    viewModel.onCardTapped(cardUid, isDesfire)
+                    // Ignore NFC taps on other screens (Dashboard, Login, Settings, etc.)
+                    // Do not automatically navigate or trigger unexpected payments.
                 }
             }
         }

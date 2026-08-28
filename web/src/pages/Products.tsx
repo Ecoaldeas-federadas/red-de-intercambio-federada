@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { api } from '../api'
+import { api, getStorageKeys } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useConfig } from '../hooks/useConfig'
 import { Plus, HelpCircle, Package, Pencil, Check, X, Upload, Eye, EyeOff, Loader2, Globe, Search, Layers, ArrowUpCircle, Trash2 } from 'lucide-react'
@@ -457,7 +457,7 @@ export default function Products() {
     const formData = new FormData()
     formData.append('file', file)
     try {
-      const token = localStorage.getItem('fmc_token')
+      const token = localStorage.getItem(getStorageKeys().tokenKey)
       const res = await fetch('/api/uploads/image', {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},

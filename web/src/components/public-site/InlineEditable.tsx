@@ -1,7 +1,7 @@
 ﻿import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Image as ImageIcon, X, Check, Plus, Trash2, Upload, Link2 } from 'lucide-react'
-import { api } from '../../api'
+import { api, getStorageKeys } from '../../api'
 import { assetUrl } from '../../utils/assetUrl'
 
 // -------------------------------------------------------------
@@ -408,7 +408,7 @@ async function uploadImage(file: File): Promise<string | null> {
   try {
     const formData = new FormData()
     formData.append('file', file)
-    const token = localStorage.getItem('fmc_token')
+    const token = localStorage.getItem(getStorageKeys().tokenKey)
     const res = await fetch('/api/uploads/image', {
       method: 'POST',
       headers: token ? { Authorization: `Bearer ${token}` } : {},

@@ -52,10 +52,23 @@ export function LoginScreen({ onLogin, onURLSet, api, skipURL }: Props) {
 
   return (
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 24, maxWidth: 480, margin: '0 auto' }}>
-      <div style={{ textAlign: 'center', marginBottom: 32 }}>
+      <div style={{ textAlign: 'center', marginBottom: 32, position: 'relative' }}>
         <div style={{ fontSize: 48, marginBottom: 8 }}>🛒</div>
         <h1 style={{ fontSize: 28, fontWeight: 800 }}>POS Federada</h1>
         <p style={{ color: 'var(--text-dim)', marginTop: 4 }}>Punto de Venta Web</p>
+        {step === 'login' && (
+          <button
+            onClick={() => setStep('url')}
+            title="Cambiar URL del nodo"
+            style={{
+              position: 'absolute', top: 0, right: 0,
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontSize: 22, opacity: 0.6, padding: 8,
+            }}
+          >
+            ⚙️
+          </button>
+        )}
       </div>
 
       {step === 'url' && (
@@ -129,15 +142,6 @@ export function LoginScreen({ onLogin, onURLSet, api, skipURL }: Props) {
           >
             {loading ? 'Conectando...' : 'Entrar'}
           </button>
-          {!skipURL && (
-            <button
-              className="btn btn-secondary"
-              style={{ width: '100%', marginTop: 8 }}
-              onClick={() => setStep('url')}
-            >
-              Cambiar URL
-            </button>
-          )}
         </div>
       )}
     </div>

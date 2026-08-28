@@ -34,6 +34,7 @@ fun NfcChargeScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
     val isCardDetected = !uiState.detectedCardUid.isNullOrBlank()
     val isPaymentApproved = (uiState.nfcPaymentResult?.status == "approved")
 
@@ -66,7 +67,10 @@ fun NfcChargeScreen(
                 },
                 navigationIcon = {
                     IconButton(
-                        onClick = { viewModel.navigateTo(PosScreen.Dashboard) },
+                        onClick = {
+                            viewModel.resetNfcPaymentState()
+                            viewModel.navigateTo(PosScreen.Dashboard)
+                        },
                         modifier = Modifier.testTag("nfc_back_btn")
                     ) {
                         Icon(
@@ -90,6 +94,107 @@ fun NfcChargeScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // NFC HARDWARE / ENABLED WARNING BANNER
+            if (!uiState.hasNfcHardware) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = PosWarningAmber.copy(alpha = 0.15f)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, PosWarningAmber)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = PosWarningAmberLight)
+                        Text(
+                            text = "Este dispositivo no cuenta con lector NFC integrado. Se requiere lector externo Bluetooth / Arduino.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = PosWarningAmberLight
+                        )
+                    }
+                }
+            } else if (!uiState.isNfcEnabled) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = PosWarningAmber.copy(alpha = 0.15f)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, PosWarningAmber)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(Icons.Default.Nfc, contentDescription = null, tint = PosWarningAmberLight)
+                            Text(
+                                text = "El NFC del teléfono está desactivado",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = PosWarningAmberLight,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Text(
+                            text = "Para poder leer las tarjetas de los clientes, debe activar la función NFC en los ajustes de Android.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = PosSlate200
+                        )
+                        Button(
+                            onClick = {
+                                try {
+                                    val intent = android.content.Intent(android.provider.Settings.ACTION_NFC_SETTINGS)
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    val intent = android.content.Intent(android.provider.Settings.ACTION_SETTINGS)
+                                    context.startActivity(intent)
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = PosWarningAmber),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Settings, contentDescription = null, tint = PosNavyDark, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Activar NFC en Ajustes", color = PosNavyDark, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+
+            // SERVER ERROR BANNER
+            if (!uiState.errorMessage.isNullOrBlank() && !isPaymentApproved) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = PosErrorRed.copy(alpha = 0.2f)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, PosErrorRed)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = PosErrorRedLight)
+                            Text(
+                                text = "No se pudo procesar el cobro",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = PosErrorRedLight,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Text(
+                            text = uiState.errorMessage ?: "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = PosSlate100
+                        )
+                    }
+                }
+            }
+
             // MULTI-SIG LIVE COUNTDOWN HEADER
             if (uiState.isMultisigActive) {
                 MultisigCountdownHeader(
@@ -186,16 +291,39 @@ fun NfcChargeScreen(
 
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        Button(
-                            onClick = { viewModel.navigateTo(PosScreen.Dashboard) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp)
-                                .testTag("nfc_done_btn"),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = PosSuccessGreen)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text("Finalizar y Volver", color = PosNavyDark, fontWeight = FontWeight.Bold)
+                            OutlinedButton(
+                                onClick = {
+                                    viewModel.resetNfcPaymentState()
+                                    nfcStep = "amount_input"
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(56.dp)
+                                    .testTag("nfc_new_charge_btn"),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = PosPrimaryLight)
+                            ) {
+                                Text("Nuevo Cobro", fontWeight = FontWeight.Bold)
+                            }
+
+                            Button(
+                                onClick = {
+                                    viewModel.resetNfcPaymentState()
+                                    viewModel.navigateTo(PosScreen.Dashboard)
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(56.dp)
+                                    .testTag("nfc_done_btn"),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = PosSuccessGreen)
+                            ) {
+                                Text("Finalizar", color = PosNavyDark, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }

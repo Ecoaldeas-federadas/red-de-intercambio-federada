@@ -37,15 +37,19 @@ fun DashboardScreen(
     val shift by viewModel.latestShift.collectAsState()
     val isShiftOpen = (shift != null && shift?.status == "open")
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(PosNavyDark)
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // --- TOP KIOSK HEADER ---
+    Scaffold(
+        containerColor = PosNavyDark,
+        modifier = modifier.fillMaxSize()
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // --- TOP KIOSK HEADER ---
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = PosSlate900),
@@ -54,28 +58,45 @@ fun DashboardScreen(
                 brush = Brush.horizontalGradient(listOf(PosSlate700, PosSlate800))
             )
         ) {
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(18.dp)
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (uiState.isLoggedIn) PosPrimaryBlue.copy(alpha = 0.2f) else PosSlate800),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (uiState.isLoggedIn) Icons.Default.Storefront else Icons.Default.PersonOutline,
+                            contentDescription = null,
+                            tint = if (uiState.isLoggedIn) PosPrimaryLight else PosSlate400,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
-                                    .size(8.dp)
+                                    .size(7.dp)
                                     .clip(CircleShape)
                                     .background(if (uiState.isLoggedIn) PosSuccessGreen else PosWarningAmber)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = uiState.nodeDomain,
-                                style = MaterialTheme.typography.labelMedium,
+                                style = MaterialTheme.typography.labelSmall,
                                 color = PosPrimaryLight,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -84,9 +105,11 @@ fun DashboardScreen(
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = uiState.currentUser?.displayName ?: if (uiState.isLoggedIn) "Comercio Conectado" else "Comercio no autenticado",
-                            style = MaterialTheme.typography.titleLarge,
+                            style = MaterialTheme.typography.titleMedium,
                             color = PosSlate100,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         if (uiState.currentUser?.username != null) {
                             Text(
@@ -96,16 +119,18 @@ fun DashboardScreen(
                             )
                         }
                     }
+                }
 
-                    // No mostrar pill de turno aqui - el turno se gestiona
-                    // desde Ajustes > Abrir/Cerrar Punto (protegido con PIN).
-                    // Solo mostrar un indicador discreto si hay turno abierto.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     if (isShiftOpen) {
                         AssistChip(
                             onClick = { viewModel.navigateTo(PosScreen.Settings) },
                             label = {
                                 Text(
-                                    text = "Punto Abierto",
+                                    text = "Abierto",
                                     color = PosSuccessGreenLight,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 11.sp
@@ -114,9 +139,9 @@ fun DashboardScreen(
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Default.LockOpen,
-                                    contentDescription = "Turno",
+                                    contentDescription = "Turno Abierto",
                                     tint = PosSuccessGreenLight,
-                                    modifier = Modifier.size(14.dp)
+                                    modifier = Modifier.size(13.dp)
                                 )
                             },
                             colors = AssistChipDefaults.assistChipColors(
@@ -126,33 +151,20 @@ fun DashboardScreen(
                             modifier = Modifier.testTag("shift_status_btn")
                         )
                     }
-                }
 
-                Spacer(modifier = Modifier.height(14.dp))
-                HorizontalDivider(color = PosSlate800)
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // NO mostrar saldo del comercio ni ventas del turno aqui.
-                // El saldo solo es visible en Ajustes > Abrir/Cerrar Punto (con PIN).
-                // El Dashboard solo muestra info del comercio y botones de cobro.
-
-                if (!uiState.isLoggedIn) {
-                    Button(
-                        onClick = { viewModel.navigateTo(PosScreen.Login) },
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                        modifier = Modifier.testTag("dashboard_login_btn")
-                    ) {
-                        Icon(Icons.Default.Login, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Iniciar Sesión", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    }
-                } else {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
+                    if (!uiState.isLoggedIn) {
+                        Button(
+                            onClick = { viewModel.navigateTo(PosScreen.Login) },
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                            modifier = Modifier.testTag("dashboard_login_btn")
+                        ) {
+                            Icon(Icons.Default.Login, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Entrar", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    } else {
                         IconButton(
                             onClick = { viewModel.logout() },
                             modifier = Modifier.testTag("dashboard_logout_btn")
@@ -285,7 +297,10 @@ fun DashboardScreen(
                 onClick = { viewModel.navigateTo(PosScreen.Settings) }
             )
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
     }
+}
 }
 
 @Composable
