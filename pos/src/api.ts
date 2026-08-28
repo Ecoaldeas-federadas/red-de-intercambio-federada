@@ -323,6 +323,28 @@ export class API {
   async listRotations(cardUID: string): Promise<any> {
     return this.request(`/api/nfc/cards/${cardUID}/rotations`)
   }
+
+  // ===== SHIFT MANAGEMENT =====
+  async openShift(terminalID: string, openingAmount: number, notes?: string): Promise<any> {
+    return this.request(`/api/nfc/my-terminals/${terminalID}/shift`, {
+      method: 'POST',
+      body: JSON.stringify({ opening_amount: openingAmount, notes: notes || '' }),
+    })
+  }
+
+  async closeShift(terminalID: string): Promise<any> {
+    return this.request(`/api/nfc/my-terminals/${terminalID}/shift/close`, { method: 'POST' })
+  }
+
+  async getActiveShift(terminalID: string): Promise<any> {
+    return this.request(`/api/nfc/my-terminals/${terminalID}/shift`)
+  }
+
+  // ===== DEMO NODE DETECTION =====
+  isDemoNode(): boolean {
+    const url = this.baseURL || ''
+    return url.includes('/demo')
+  }
 }
 
 export const api = new API()

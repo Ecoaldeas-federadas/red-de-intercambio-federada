@@ -8,14 +8,17 @@ interface Props {
   api: API
   terminalID: string | null
   merchantUser: any
+  onShowShift: () => void
 }
 
-export function SettingsScreen({ onBack, onLogout, api, terminalID, merchantUser }: Props) {
+export function SettingsScreen({ onBack, onLogout, api, terminalID, merchantUser, onShowShift }: Props) {
   const [showKeys, setShowKeys] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
   const [blockStep, setBlockStep] = useState<'idle' | 'enter_code' | 'blocked'>('idle')
   const [blockCode, setBlockCode] = useState('')
   const [error, setError] = useState('')
+  const [shiftPin, setShiftPin] = useState('')
+  const [showShiftAccess, setShowShiftAccess] = useState(false)
 
   const publicKey = storage.get('publicKey')
   const serverPublicKey = storage.get('serverPublicKey')
@@ -57,6 +60,32 @@ export function SettingsScreen({ onBack, onLogout, api, terminalID, merchantUser
     }
   }
 
+  // Verificar PIN para acceder al estado del turno
+  // El PIN se guarda localmente (no en backend) - es proteccion casual
+  const handleShiftPinSubmit = () => {
+    const savedPin = storage.get('shiftPin') || ''
+    if (!savedPin) {
+      // Si no hay PIN configurado, pedir crear uno
+      if (shiftPin.length === 4) {
+        storage.set('shiftPin', shiftPin)
+        setShowShiftAccess(false)
+        setShiftPin('')
+        onShowShift()
+      } else {
+        setError('El PIN debe ser de 4 digitos')
+      }
+      return
+    }
+    if (shiftPin === savedPin) {
+      setShowShiftAccess(false)
+      setShiftPin('')
+      setError('')
+      onShowShift()
+    } else {
+      setError('PIN incorrecto')
+    }
+  }
+
   return (
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', padding: 16, maxWidth: 480, margin: '0 auto' }}>
       {/* Header */}
@@ -93,13 +122,48 @@ export function SettingsScreen({ onBack, onLogout, api, terminalID, merchantUser
         </div>
       </div>
 
+      {/* Apertura/Cierre de Turno - protegido con PIN */}
+      <div className="card" style={{ marginBottom: 12 }}>
+        <h3 style={{ fontSize: 14, color: 'var(--text-dim)', marginBottom: 8 }}>TURNO</h3>
+        <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 12 }}>
+          Ver estado del turno, abrir o cerrar. Protegido con PIN.
+        </p>
+        {!showShiftAccess ? (
+          <button className="btn btn-secondary" style={{ width: '100%' }} onClick={() => { setShowShiftAccess(true); setShiftPin(''); setError('') }}>
+            📊 Ver Estado del Turno
+          </button>
+        ) : (
+          <div>
+            <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 8 }}>
+              {storage.get('shiftPin') ? 'Ingresa tu PIN de turno:' : 'Crea un PIN de 4 digitos para el turno:'}
+            </p>
+            <input
+              type="password"
+              placeholder="PIN (4 digitos)"
+              value={shiftPin}
+              onChange={(e) => setShiftPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              style={{
+                width: '100%', padding: 14, borderRadius: 12, marginBottom: 12,
+                background: 'var(--card-light)', border: '1px solid var(--border)',
+                color: 'var(--text)', fontSize: 16, textAlign: 'center', fontFamily: 'monospace'
+              }}
+            />
+            {error && <p style={{ color: 'var(--danger)', fontSize: 14, marginBottom: 8 }}>{error}</p>}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleShiftPinSubmit} disabled={shiftPin.length !== 4}>
+                Acceder
+              </button>
+              <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { setShowShiftAccess(false); setShiftPin(''); setError('') }}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Bloquear / Desbloquear */}
       <div className="card" style={{ marginBottom: 12 }}>
         <h3 style={{ fontSize: 14, color: 'var(--text-dim)', marginBottom: 8 }}>BLOQUEO LOCAL</h3>
-        <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 12 }}>
-          Bloquea el terminal con un codigo. Solo con el codigo podras desbloquearlo.
-          El administrador tambien puede bloquear/desbloquear desde la plataforma.
-        </p>
 
         {blockStep === 'idle' && (
           <button className="btn btn-danger" style={{ width: '100%' }} onClick={() => setBlockStep('enter_code')}>

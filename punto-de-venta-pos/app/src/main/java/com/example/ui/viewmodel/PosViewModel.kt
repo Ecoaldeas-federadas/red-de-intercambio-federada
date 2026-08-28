@@ -144,14 +144,20 @@ class PosViewModel(
                 val hbResult = repository.heartbeat()
                 hbResult.onSuccess { hb ->
                     if (hb.notFound == true || hb.registered == false || hb.active == false) {
-                        // El terminal fue borrado o desactivado del servidor
-                        // Resetear registro local y volver a emparejamiento
-                        repository.resetTerminalRegistration()
+                        // El servidor no encuentra el terminal o esta inactivo.
+                        // NO resetear las claves locales - solo marcar como pendiente.
+                        // El usuario puede reintentar la verificacion o resetear
+                        // manualmente desde ajustes si es necesario.
+                        // Las claves se mantienen para poder reconectar si el servidor
+                        // vuelve a estar disponible o si fue un fallo temporal.
                         _uiState.update {
                             it.copy(
                                 isRegistered = false,
                                 currentScreen = PosScreen.RegisterTerminal,
-                                errorMessage = "El terminal fue desactivado o eliminado desde el panel administrativo. Vuelva a emparejar."
+                                errorMessage = "No se pudo verificar el terminal con el servidor. " +
+                                    "Si el terminal fue eliminado desde el panel administrativo, " +
+                                    "use \"Resetear Terminal\" en ajustes para generar nuevas claves. " +
+                                    "De lo contrario, reintente la verificacion."
                             )
                         }
                     }
@@ -180,6 +186,67 @@ class PosViewModel(
 
             if (config.isRegistered && !repository.apiClient.authToken.isNullOrBlank()) {
                 refreshCurrentUser()
+            }
+        }
+    }
+
+    // Reintentar verificacion con el servidor sin resetear las claves
+    // Usa las claves existentes para verificar si el servidor ya reconoce este terminal
+    fun retryVerification() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
+
+            // Primero intentar heartbeat (si el terminal ya esta registrado en el servidor)
+            val hbResult = repository.heartbeat()
+            hbResult.onSuccess { hb ->
+                if (hb.notFound != true && hb.registered != false && hb.active != false) {
+                    // El servidor confirma que el terminal esta registrado y activo
+                    val config = repository.getOrInitTerminalConfig()
+                    if (!config.isRegistered) {
+                        // Actualizar estado local - el servidor lo reconoce
+                        repository.markTerminalRegistered()
+                    }
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isRegistered = true,
+                            currentScreen = PosScreen.Login,
+                            successMessage = "Terminal verificado con el servidor."
+                        )
+                    }
+                    return@launch
+                }
+            }
+
+            // Si heartbeat falla, intentar lookup por clave publica
+            // (el terminal podria estar registrado pero con otro terminal_id)
+            val lookupResult = repository.checkRegistrationByKey()
+            lookupResult.onSuccess { isRegistered ->
+                if (isRegistered) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isRegistered = true,
+                            currentScreen = PosScreen.Login,
+                            successMessage = "Terminal verificado y registrado con el servidor."
+                        )
+                    }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = "El servidor no reconoce este terminal. " +
+                                "Si fue eliminado, use \"Resetear Terminal\" en ajustes."
+                        )
+                    }
+                }
+            }.onFailure { err ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "Error de conexion: ${err.message}. Reintente mas tarde."
+                    )
+                }
             }
         }
     }

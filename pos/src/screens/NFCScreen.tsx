@@ -7,10 +7,11 @@ interface Props {
   onPaid: () => void
   api: API
   terminalID: string | null
+  isDemoNode?: boolean
 }
 
-export function NFCScreen({ amount, onBack, onPaid, api, terminalID }: Props) {
-  const [status, setStatus] = useState<'waiting' | 'reading' | 'pin' | 'processing' | 'rotating' | 'approved' | 'rejected'>('waiting')
+export function NFCScreen({ amount, onBack, onPaid, api, terminalID, isDemoNode }: Props) {
+  const [status, setStatus] = useState<'waiting' | 'pin' | 'processing' | 'rotating' | 'approved' | 'rejected'>('waiting')
   const [pin, setPin] = useState('')
   const [cardUID, setCardUID] = useState('')
   const [cardType, setCardType] = useState<'uid_only' | 'desfire' | 'unknown'>('unknown')
@@ -58,6 +59,13 @@ export function NFCScreen({ amount, onBack, onPaid, api, terminalID }: Props) {
   const handleManualCard = () => {
     const uid = prompt('Ingresa el UID de la tarjeta:')
     if (uid) handleCardRead(uid)
+  }
+
+  // Simulacion de pago - solo disponible en nodo demo
+  const handleSimulatePayment = () => {
+    setCardUID('SIM-' + Math.random().toString(36).substring(2, 10))
+    setCardType('uid_only')
+    setStatus('pin')
   }
 
   const handlePinSubmit = async () => {
@@ -109,6 +117,13 @@ export function NFCScreen({ amount, onBack, onPaid, api, terminalID }: Props) {
     }
   }
 
+  // Formatear como decimal
+  const formatAmount = (cents: number) => {
+    const units = Math.floor(cents / 100)
+    const dec = (cents % 100).toString().padStart(2, '0')
+    return `${units.toLocaleString('es')}.${dec}`
+  }
+
   return (
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 24, maxWidth: 480, margin: '0 auto' }}>
       {/* Header */}
@@ -120,11 +135,11 @@ export function NFCScreen({ amount, onBack, onPaid, api, terminalID }: Props) {
         <div style={{ width: 44 }} />
       </div>
 
-      {/* Amount */}
-      <div style={{ textAlign: 'center', marginBottom: 24 }}>
+      {/* Amount - siempre visible para que el cliente lo vea antes de acercar la tarjeta */}
+      <div style={{ textAlign: 'center', marginBottom: 24, background: 'var(--card)', padding: 20, borderRadius: 16, width: '100%' }}>
         <div style={{ color: 'var(--text-dim)', fontSize: 14 }}>Monto a cobrar</div>
-        <div style={{ fontSize: 40, fontWeight: 800, color: 'var(--accent-light)' }}>
-          {amount.toLocaleString('es')} TQ
+        <div style={{ fontSize: 48, fontWeight: 800, color: 'var(--accent-light)' }}>
+          {formatAmount(amount)} TQ
         </div>
       </div>
 
@@ -140,7 +155,7 @@ export function NFCScreen({ amount, onBack, onPaid, api, terminalID }: Props) {
 
       {/* Waiting for NFC */}
       {status === 'waiting' && (
-        <div className="fade-in" style={{ textAlign: 'center', marginTop: 40 }}>
+        <div className="fade-in" style={{ textAlign: 'center', marginTop: 20 }}>
           <div style={{ fontSize: 80, marginBottom: 24 }} className="pulse">📱</div>
           <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Acerca la tarjeta</h2>
           <p style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 24, maxWidth: 280 }}>
@@ -166,6 +181,17 @@ export function NFCScreen({ amount, onBack, onPaid, api, terminalID }: Props) {
           <button className="btn btn-secondary" style={{ width: '100%', maxWidth: 300 }} onClick={handleManualCard}>
             Ingresar UID manualmente
           </button>
+
+          {/* Simulacion solo en nodo demo */}
+          {isDemoNode && (
+            <button
+              className="btn btn-secondary"
+              style={{ width: '100%', maxWidth: 300, marginTop: 12, background: 'rgba(202,138,4,0.2)', color: 'var(--warning)' }}
+              onClick={handleSimulatePayment}
+            >
+              🧪 Simular pago (modo demo)
+            </button>
+          )}
         </div>
       )}
 
@@ -239,19 +265,14 @@ export function NFCScreen({ amount, onBack, onPaid, api, terminalID }: Props) {
         </div>
       )}
 
-      {/* Approved */}
+      {/* Approved - NO mostrar saldo de cuenta */}
       {status === 'approved' && (
         <div className="fade-in" style={{ textAlign: 'center', marginTop: 60 }}>
           <div style={{ fontSize: 80, marginBottom: 16 }}>✅</div>
           <h2 style={{ fontSize: 28, fontWeight: 800, color: 'var(--success)', marginBottom: 8 }}>Pago Aprobado</h2>
           <p style={{ color: 'var(--text-dim)', fontSize: 18, marginBottom: 4 }}>
-            {amount.toLocaleString('es')} TQ
+            {formatAmount(amount)} TQ
           </p>
-          {result?.user_balance != null && (
-            <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>
-              Saldo del cliente: {result.user_balance} TQ
-            </p>
-          )}
           <p style={{ color: 'var(--text-dim)', fontSize: 14, marginTop: 16 }}>Redirigiendo...</p>
         </div>
       )}

@@ -4,6 +4,7 @@ import android.content.Context
 import com.example.data.api.*
 import com.example.data.crypto.CryptoEngine
 import com.example.data.crypto.EncryptedPayload
+import com.example.data.crypto.KeystoreCrypto
 import com.example.data.db.*
 import com.squareup.moshi.Moshi
 import kotlinx.coroutines.Dispatchers
@@ -27,8 +28,32 @@ class PosRepository(
     private var currentUser: UserMeResponse? = null
     private var cachedSharedKey: ByteArray? = null
 
+    // Guardar config con la clave privada encriptada
+    private suspend fun saveConfigSecure(config: TerminalConfigEntity) = withContext(Dispatchers.IO) {
+        // Encriptar la clave privada antes de guardar en Room
+        val encryptedPrivateKey = if (config.terminalPrivateKeyHex.isNotEmpty() && !KeystoreCrypto.isEncrypted(config.terminalPrivateKeyHex)) {
+            KeystoreCrypto.encrypt(config.terminalPrivateKeyHex)
+        } else {
+            config.terminalPrivateKeyHex
+        }
+        val secureConfig = config.copy(terminalPrivateKeyHex = encryptedPrivateKey)
+        terminalConfigDao.saveConfig(secureConfig)
+    }
+
+    // Leer config con la clave privada desencriptada
+    private suspend fun getConfigSecure(): TerminalConfigEntity? = withContext(Dispatchers.IO) {
+        val config = terminalConfigDao.getConfig() ?: return@withContext null
+        // Desencriptar la clave privada al leer
+        val decryptedPrivateKey = if (config.terminalPrivateKeyHex.isNotEmpty() && KeystoreCrypto.isEncrypted(config.terminalPrivateKeyHex)) {
+            KeystoreCrypto.decrypt(config.terminalPrivateKeyHex)
+        } else {
+            config.terminalPrivateKeyHex
+        }
+        config.copy(terminalPrivateKeyHex = decryptedPrivateKey)
+    }
+
     suspend fun getOrInitTerminalConfig(): TerminalConfigEntity = withContext(Dispatchers.IO) {
-        var config = terminalConfigDao.getConfig()
+        var config = getConfigSecure()
         if (config == null) {
             val keyPair = CryptoEngine.generateEd25519KeyPair()
             config = TerminalConfigEntity(
@@ -43,7 +68,9 @@ class PosRepository(
                 sessionToken = null,
                 isMultiVendorEnabled = false
             )
-            terminalConfigDao.saveConfig(config)
+            saveConfigSecure(config)
+            // Devolver la config con la clave desencriptada (no la version encriptada guardada)
+            config
         }
         apiClient.updateConfig(
             url = config.serverUrl,
@@ -56,37 +83,54 @@ class PosRepository(
     suspend fun updateTerminalId(newTerminalId: String) = withContext(Dispatchers.IO) {
         val current = getOrInitTerminalConfig()
         val updated = current.copy(terminalId = newTerminalId.trim())
-        terminalConfigDao.saveConfig(updated)
+        saveConfigSecure(updated)
         apiClient.updateConfig(updated.serverUrl, apiClient.authToken, updated.terminalId)
     }
 
     suspend fun updateServerUrl(newUrl: String) = withContext(Dispatchers.IO) {
         val current = getOrInitTerminalConfig()
         val updated = current.copy(serverUrl = PosApiClient.sanitizeUrl(newUrl))
-        terminalConfigDao.saveConfig(updated)
+        saveConfigSecure(updated)
         apiClient.updateConfig(updated.serverUrl, apiClient.authToken, updated.terminalId)
         cachedSharedKey = null
     }
 
-    suspend fun resetTerminalRegistration() = withContext(Dispatchers.IO) {
-        val current = getOrInitTerminalConfig()
-        val keyPair = CryptoEngine.generateEd25519KeyPair()
-        val reset = current.copy(
-            isRegistered = false,
-            terminalPrivateKeyHex = keyPair.privateKeyHex,
-            terminalPublicKeyHex = keyPair.publicKeyHex,
-            serverPublicKeyHex = null,
-            sessionToken = null
-        )
-        terminalConfigDao.saveConfig(reset)
-        cachedSharedKey = null
-        apiClient.authToken = null
-        currentUser = null
+    suspend fun resetTerminalRegistration(): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val current = getOrInitTerminalConfig()
+            val keyPair = CryptoEngine.generateEd25519KeyPair()
+            val reset = current.copy(
+                isRegistered = false,
+                terminalPrivateKeyHex = keyPair.privateKeyHex,
+                terminalPublicKeyHex = keyPair.publicKeyHex,
+                serverPublicKeyHex = null,
+                sessionToken = null
+            )
+            saveConfigSecure(reset)
+            cachedSharedKey = null
+            apiClient.authToken = null
+            currentUser = null
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(Exception("Error al resetear registro: ${e.localizedMessage}"))
+        }
+    }
+
+    // Marcar el terminal como registrado sin resetear las claves
+    // Se usa cuando el servidor confirma que el terminal ya esta registrado
+    // pero el estado local dice que no (por ejemplo, despues de un fallo temporal)
+    suspend fun markTerminalRegistered() = withContext(Dispatchers.IO) {
+        try {
+            val current = getOrInitTerminalConfig()
+            saveConfigSecure(current.copy(isRegistered = true))
+        } catch (e: Exception) {
+            // No es critico si falla
+        }
     }
 
     suspend fun toggleMultiVendor(enabled: Boolean) = withContext(Dispatchers.IO) {
         val current = getOrInitTerminalConfig()
-        terminalConfigDao.saveConfig(current.copy(isMultiVendorEnabled = enabled))
+        saveConfigSecure(current.copy(isMultiVendorEnabled = enabled))
     }
 
     suspend fun login(username: String, password: String): Result<LoginResponse> = withContext(Dispatchers.IO) {
@@ -247,7 +291,7 @@ class PosRepository(
             val res = service.completeRegistration(req)
             if (res.isSuccessful && res.body()?.serverPublicKey != null) {
                 val body = res.body()!!
-                terminalConfigDao.saveConfig(
+                saveConfigSecure(
                     config.copy(
                         isRegistered = true,
                         serverPublicKeyHex = body.serverPublicKey
@@ -315,7 +359,7 @@ class PosRepository(
 
             if (compRes.isSuccessful && compRes.body()?.serverPublicKey != null) {
                 val body = compRes.body()!!
-                terminalConfigDao.saveConfig(
+                saveConfigSecure(
                     config.copy(
                         isRegistered = true,
                         serverPublicKeyHex = body.serverPublicKey
@@ -397,7 +441,7 @@ class PosRepository(
         try {
             val config = getOrInitTerminalConfig()
             if (status.serverPublicKey != null) {
-                terminalConfigDao.saveConfig(
+                saveConfigSecure(
                     config.copy(
                         isRegistered = true,
                         serverPublicKeyHex = status.serverPublicKey
@@ -799,27 +843,6 @@ class PosRepository(
     // Heartbeat / Verificacion de estado
     // ============================================
 
-    suspend fun resetTerminalRegistration(): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
-            val config = getOrInitTerminalConfig()
-            // Generar nuevas claves (el terminal viejo ya no existe en el servidor)
-            val keyPair = CryptoEngine.generateEd25519KeyPair()
-            terminalConfigDao.saveConfig(
-                config.copy(
-                    isRegistered = false,
-                    terminalPrivateKeyHex = keyPair.privateKeyHex,
-                    terminalPublicKeyHex = keyPair.publicKeyHex,
-                    serverPublicKeyHex = null,
-                    sessionToken = null
-                )
-            )
-            cachedSharedKey = null
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(Exception("Error al resetear registro: ${e.localizedMessage}"))
-        }
-    }
-
     suspend fun heartbeat(): Result<HeartbeatResponse> = withContext(Dispatchers.IO) {
         try {
             val config = getOrInitTerminalConfig()
@@ -858,7 +881,7 @@ class PosRepository(
                 if (body.registered && body.serverPublicKey != null) {
                     // El servidor confirma que este terminal esta registrado.
                     // Guardar terminal_id y server_public_key localmente.
-                    terminalConfigDao.saveConfig(
+                    saveConfigSecure(
                         config.copy(
                             isRegistered = true,
                             terminalId = body.terminalId ?: config.terminalId,

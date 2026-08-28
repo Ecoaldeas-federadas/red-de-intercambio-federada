@@ -39,6 +39,13 @@ export function SalesScreen({ onBack, api, terminalID }: Props) {
     return d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })
   }
 
+  // Formatear como decimal: el amount esta en centimos
+  const formatAmount = (cents: number) => {
+    const units = Math.floor(cents / 100)
+    const dec = (cents % 100).toString().padStart(2, '0')
+    return `${units.toLocaleString('es')}.${dec}`
+  }
+
   return (
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', padding: 16, maxWidth: 480, margin: '0 auto' }}>
       {/* Header */}
@@ -54,7 +61,7 @@ export function SalesScreen({ onBack, api, terminalID }: Props) {
       <div className="card" style={{ marginBottom: 16, textAlign: 'center' }}>
         <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>TOTAL VENDIDO HOY</div>
         <div style={{ fontSize: 36, fontWeight: 800, color: 'var(--success)' }}>
-          {total.toLocaleString('es')} TQ
+          {formatAmount(total)} TQ
         </div>
         <div style={{ color: 'var(--text-dim)', fontSize: 14 }}>
           {count} {count === 1 ? 'transaccion' : 'transacciones'}
@@ -85,7 +92,7 @@ export function SalesScreen({ onBack, api, terminalID }: Props) {
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontWeight: 700, fontSize: 16, color: tx.status === 'approved' ? 'var(--success)' : 'var(--danger)' }}>
-                    {tx.status === 'approved' ? '+' : ''}{tx.amount || 0} TQ
+                    {tx.status === 'approved' ? '+' : ''}{formatAmount(tx.amount || 0)} TQ
                   </div>
                   <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>{tx.status}</div>
                 </div>

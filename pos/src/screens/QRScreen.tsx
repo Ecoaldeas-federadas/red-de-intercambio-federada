@@ -18,6 +18,13 @@ export function QRScreen({ amount, qrToken, apiURL, onBack, onPaid, api, termina
   const [countdown, setCountdown] = useState(600) // 10 minutes
   const pollRef = useRef<any>(null)
 
+  // Formatear como decimal: el amount esta en centimos
+  const formatAmount = (cents: number) => {
+    const units = Math.floor(cents / 100)
+    const dec = (cents % 100).toString().padStart(2, '0')
+    return `${units.toLocaleString('es')}.${dec}`
+  }
+
   // Build the payment URL that the customer will scan
   // Format: {apiURL}/pay?t={token}
   // The /pay page is served by the main frontend and handles login + payment
@@ -88,7 +95,7 @@ export function QRScreen({ amount, qrToken, apiURL, onBack, onPaid, api, termina
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <div style={{ color: 'var(--text-dim)', fontSize: 14 }}>Monto a cobrar</div>
         <div style={{ fontSize: 40, fontWeight: 800, color: 'var(--accent-light)' }}>
-          {amount.toLocaleString('es')} TQ
+          {formatAmount(amount)} TQ
         </div>
       </div>
 
@@ -133,7 +140,7 @@ export function QRScreen({ amount, qrToken, apiURL, onBack, onPaid, api, termina
           <div style={{ fontSize: 80, marginBottom: 16 }}>✅</div>
           <h2 style={{ fontSize: 28, fontWeight: 800, color: 'var(--success)', marginBottom: 8 }}>Pago Recibido</h2>
           <p style={{ color: 'var(--text-dim)', fontSize: 18, marginBottom: 4 }}>
-            {amount.toLocaleString('es')} TQ
+            {formatAmount(amount)} TQ
           </p>
           <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>Redirigiendo...</p>
         </div>

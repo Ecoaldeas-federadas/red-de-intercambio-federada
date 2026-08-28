@@ -8,6 +8,7 @@ interface Props {
   onShowNFC: () => void
   onShowSales: () => void
   onShowSettings: () => void
+  onShowConfirm: () => void
   terminalID: string | null
   sessionToken: string | null
   api: API
@@ -15,12 +16,13 @@ interface Props {
 }
 
 export function KeypadScreen({
-  amount, onAmountChange, onShowQR, onShowNFC, onShowSales, onShowSettings,
+  amount, onAmountChange, onShowSales, onShowSettings, onShowConfirm,
   terminalID, sessionToken, api, merchantUser
 }: Props) {
-  const [displayAmount, setDisplayAmount] = useState('0')
+  // Digitos ingresados como string. Los ultimos 2 digitos son centimos.
+  // Ej: "100" = 1.00, "12345" = 123.45
+  const [digits, setDigits] = useState('0')
   const [sessionActive, setSessionActive] = useState(false)
-  const [creatingCharge, setCreatingCharge] = useState(false)
   const [error, setError] = useState('')
 
   // Check terminal status on mount
@@ -39,52 +41,42 @@ export function KeypadScreen({
   const handleKey = (key: string) => {
     setError('')
     if (key === 'clear') {
-      setDisplayAmount('0')
+      setDigits('0')
       onAmountChange(0)
       return
     }
     if (key === 'back') {
-      const newAmt = displayAmount.length > 1 ? displayAmount.slice(0, -1) : '0'
-      setDisplayAmount(newAmt)
-      onAmountChange(parseInt(newAmt) || 0)
+      if (digits.length > 1) {
+        const newDigits = digits.slice(0, -1)
+        setDigits(newDigits)
+        onAmountChange(parseInt(newDigits) || 0)
+      } else {
+        setDigits('0')
+        onAmountChange(0)
+      }
       return
     }
-    // Limit to 8 digits
-    if (displayAmount.replace(/^0+/, '').length >= 8) return
-    const newAmt = displayAmount === '0' ? key : displayAmount + key
-    setDisplayAmount(newAmt)
-    onAmountChange(parseInt(newAmt) || 0)
+    // Limit to 9 digits (max 999,999.99)
+    if (digits.length >= 9) return
+    // Si solo hay "0", reemplazarlo con el primer digito
+    const newDigits = digits === '0' ? key : digits + key
+    setDigits(newDigits)
+    onAmountChange(parseInt(newDigits) || 0)
   }
 
-  const handleCharge = async () => {
+  // Formatear como decimal: ultimos 2 digitos son centimos
+  const formatDisplay = (d: string) => {
+    const num = parseInt(d) || 0
+    const cents = num % 100
+    const units = Math.floor(num / 100)
+    const centsStr = cents.toString().padStart(2, '0')
+    return `${units.toLocaleString('es')}.${centsStr}`
+  }
+
+  const handleCharge = () => {
     if (amount <= 0) return
     setError('')
-    setCreatingCharge(true)
-    try {
-      // Set the amount on the terminal session
-      if (sessionToken) {
-        await api.setSessionAmount(sessionToken, amount)
-      }
-
-      // Crear cargo en el backend - el backend genera un token unico
-      // que el cliente usara para pagar. El backend sabe que este cargo
-      // pertenece a este terminal, asi que cuando el cliente paga,
-      // el backend marca el cargo como pagado y el POS lo detecta.
-      const charge = await api.createCharge(amount)
-
-      // El QR contiene el token del cargo + la URL del nodo
-      // El cliente escanea, va a /pay?t={token}, el backend resuelve el cargo
-      onShowQR(charge.charge_id || charge.token)
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setCreatingCharge(false)
-    }
-  }
-
-  const formatDisplay = (amt: string) => {
-    const num = parseInt(amt) || 0
-    return num.toLocaleString('es')
+    onShowConfirm()
   }
 
   return (
@@ -117,7 +109,7 @@ export function KeypadScreen({
       <div className="card" style={{ marginBottom: 16, textAlign: 'center' }}>
         <div style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 4 }}>MONTO A COBRAR</div>
         <div className="amount-display" style={{ color: 'var(--accent-light)' }}>
-          {formatDisplay(displayAmount)}
+          {formatDisplay(digits)}
         </div>
         <div style={{ color: 'var(--text-dim)', fontSize: 14 }}>TQ</div>
       </div>
@@ -138,23 +130,15 @@ export function KeypadScreen({
         <button className="key" onClick={() => handleKey('back')} style={{ background: 'rgba(202,138,4,0.2)', color: 'var(--warning)' }}>⌫</button>
       </div>
 
-      {/* Action buttons */}
+      {/* Action button - un solo boton Cobrar */}
       <div style={{ display: 'flex', gap: 12, marginTop: 'auto' }}>
         <button
           className="btn btn-primary"
           style={{ flex: 1, fontSize: 18, padding: 20 }}
           onClick={handleCharge}
-          disabled={amount <= 0 || creatingCharge || !sessionActive}
-        >
-          {creatingCharge ? 'Generando...' : '💳 Cobrar con QR'}
-        </button>
-        <button
-          className="btn btn-secondary"
-          style={{ flex: 1, fontSize: 18, padding: 20 }}
-          onClick={onShowNFC}
           disabled={amount <= 0 || !sessionActive}
         >
-          📱 NFC
+          💳 Cobrar
         </button>
       </div>
     </div>

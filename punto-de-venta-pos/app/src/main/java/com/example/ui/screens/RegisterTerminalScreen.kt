@@ -150,6 +150,23 @@ fun RegisterTerminalScreen(
                         )
                     }
                 }
+
+                // Boton para reintentar verificacion sin resetear claves
+                // Se muestra cuando hay claves existentes pero el terminal no esta registrado
+                if (terminalConfig?.terminalPublicKeyHex != null && terminalConfig?.isRegistered != true) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = { viewModel.retryVerification() },
+                        enabled = !uiState.isLoading,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = PosPrimary),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Reintentar Verificacion")
+                    }
+                }
             }
 
             if (uiState.successMessage != null) {

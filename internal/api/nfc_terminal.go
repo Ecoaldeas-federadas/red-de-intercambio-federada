@@ -91,6 +91,7 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequireAuth).Get("/api/nfc/my-terminals/{id}/transactions", h.listMyTerminalTransactions)
 	r.With(am.RequireAuth).Post("/api/nfc/my-terminals/{id}/shift", h.openShift)
 	r.With(am.RequireAuth).Post("/api/nfc/my-terminals/{id}/shift/close", h.closeShift)
+	r.With(am.RequireAuth).Get("/api/nfc/my-terminals/{id}/shift", h.getActiveShift)
 
 	r.With(am.RequirePermission("nfc.issue_card")).Post("/api/nfc/cards/issue", h.issueCryptoCard)
 	r.With(am.RequireAuth).Get("/api/nfc/cards", h.listCards)
@@ -1420,6 +1421,12 @@ func (h *NFCTerminalHandler) openShift(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var req struct {
+		OpeningAmount int64  `json:"opening_amount"`
+		Notes         string `json:"notes"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
 	// Get terminal DB id and org
 	var termDBID uuid.UUID
 	var orgID *uuid.UUID
@@ -1446,10 +1453,10 @@ func (h *NFCTerminalHandler) openShift(w http.ResponseWriter, r *http.Request) {
 
 	var shiftID uuid.UUID
 	err = h.NFC.Pool.QueryRow(r.Context(), `
-		INSERT INTO pos_shifts (terminal_id, user_id, organization_id, status)
-		VALUES ($1, $2, $3, 'open')
+		INSERT INTO pos_shifts (terminal_id, user_id, organization_id, status, opening_amount, notes)
+		VALUES ($1, $2, $3, 'open', $4, NULLIF($5, ''))
 		RETURNING id`,
-		termDBID, userID, orgID,
+		termDBID, userID, orgID, req.OpeningAmount, req.Notes,
 	).Scan(&shiftID)
 	if err != nil {
 		writeError(w, 500, "failed to open shift")
@@ -1457,9 +1464,75 @@ func (h *NFCTerminalHandler) openShift(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, 201, map[string]interface{}{
-		"shift_id": shiftID,
-		"status":   "open",
+		"shift_id":       shiftID,
+		"status":         "open",
+		"opening_amount": req.OpeningAmount,
 	})
+}
+
+// getActiveShift devuelve el turno activo del terminal (si hay uno abierto)
+func (h *NFCTerminalHandler) getActiveShift(w http.ResponseWriter, r *http.Request) {
+	terminalID := chi.URLParam(r, "id")
+
+	var termDBID uuid.UUID
+	err := h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT id FROM nfc_terminals WHERE terminal_id = $1`,
+		terminalID,
+	).Scan(&termDBID)
+	if err != nil {
+		writeError(w, 404, "terminal not found")
+		return
+	}
+
+	var shiftID uuid.UUID
+	var userID uuid.UUID
+	var status string
+	var openedAt time.Time
+	var openingAmount int64
+	var totalSales int64
+	var txCount int
+	var notes *string
+
+	err = h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT id, user_id, status, opened_at, opening_amount,
+		       COALESCE(total_sales, 0), COALESCE(transactions_count, 0), notes
+		FROM pos_shifts
+		WHERE terminal_id = $1 AND status = 'open'
+		ORDER BY opened_at DESC LIMIT 1`,
+		termDBID,
+	).Scan(&shiftID, &userID, &status, &openedAt, &openingAmount, &totalSales, &txCount, &notes)
+	if err != nil {
+		// No hay turno abierto
+		writeJSON(w, 200, map[string]interface{}{
+			"active": false,
+		})
+		return
+	}
+
+	// Calcular ventas en tiempo real desde la apertura del turno
+	h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT COALESCE(SUM(amount), 0), COUNT(*)
+		FROM nfc_transactions
+		WHERE terminal_id = $1 AND status = 'approved'
+		  AND created_at >= $2`,
+		termDBID, openedAt,
+	).Scan(&totalSales, &txCount)
+
+	resp := map[string]interface{}{
+		"active":             true,
+		"shift_id":           shiftID,
+		"user_id":            userID,
+		"status":             status,
+		"opened_at":          openedAt,
+		"opening_amount":     openingAmount,
+		"total_sales":        totalSales,
+		"transactions_count": txCount,
+		"expected_close":     openingAmount + totalSales,
+	}
+	if notes != nil {
+		resp["notes"] = *notes
+	}
+	writeJSON(w, 200, resp)
 }
 
 func (h *NFCTerminalHandler) closeShift(w http.ResponseWriter, r *http.Request) {
@@ -1483,6 +1556,7 @@ func (h *NFCTerminalHandler) closeShift(w http.ResponseWriter, r *http.Request) 
 	// Calculate total sales for this shift
 	var totalSales int64
 	var txCount int
+	var openingAmount int64
 	h.NFC.Pool.QueryRow(r.Context(), `
 		SELECT COALESCE(SUM(amount), 0), COUNT(*)
 		FROM nfc_transactions
@@ -1490,6 +1564,14 @@ func (h *NFCTerminalHandler) closeShift(w http.ResponseWriter, r *http.Request) 
 		  AND created_at >= (SELECT opened_at FROM pos_shifts WHERE terminal_id = $1 AND status = 'open' ORDER BY opened_at DESC LIMIT 1)`,
 		termDBID,
 	).Scan(&totalSales, &txCount)
+
+	// Obtener el monto de apertura antes de cerrar
+	h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT opening_amount FROM pos_shifts
+		WHERE terminal_id = $1 AND user_id = $2 AND status = 'open'
+		ORDER BY opened_at DESC LIMIT 1`,
+		termDBID, userID,
+	).Scan(&openingAmount)
 
 	_, err = h.NFC.Pool.Exec(r.Context(), `
 		UPDATE pos_shifts
@@ -1504,8 +1586,10 @@ func (h *NFCTerminalHandler) closeShift(w http.ResponseWriter, r *http.Request) 
 
 	writeJSON(w, 200, map[string]interface{}{
 		"status":             "closed",
+		"opening_amount":     openingAmount,
 		"total_sales":        totalSales,
 		"transactions_count": txCount,
+		"expected_close":     openingAmount + totalSales,
 	})
 }
 
