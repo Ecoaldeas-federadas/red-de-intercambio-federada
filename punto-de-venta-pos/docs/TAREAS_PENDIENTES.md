@@ -153,4 +153,4 @@ Indicaste que el backend está correcto (es más avanzado) y que la documentaci�
 | 2 | URL default /demo vs /main | Cambiar a /main en AppDatabase.kt | ✅ Corregido |
 | 3 | Nombre unidad fraccional | Estandarizar "centavo" en todo el código Android | ✅ Corregido |
 | 4 | Payload cifrado con handshake | Documentar EphemeralMessage en doc 06 | ✅ Documentado |
-| 5 | BRECHA: Android no envía EphemeralMessage | Implementar handshake efímero en CryptoEngine.kt | ⚠️ Pendiente de implementación |
+| 5 | BRECHA: Android no envía EphemeralMessage | Implementar handshake efímero en CryptoEngine.kt | ✅ Resuelto |

@@ -355,7 +355,8 @@ El backend:
 4. Verifica la firma del ciphertext.
 5. Descifra con AES-256-GCM.
 
-> **BRECHA DE IMPLEMENTACIÓN:** El código Android actual (`CryptoEngine.kt`, `PosApiModels.kt`) envía un `EncryptedPayload` simple (`{nonce, ciphertext, signature}`) **sin** el campo `handshake`. El backend rechazaría estos payloads. El Android POS necesita ser actualizado para implementar el `EphemeralMessage` con handshake. Ver `TAREAS_PENDIENTES.md`.
+> **BRECHA DE IMPLEMENTACIÓN:** ~~El código Android actual (`CryptoEngine.kt`, `PosApiModels.kt`) envía un `EncryptedPayload` simple (`{nonce, ciphertext, signature}`) **sin** el campo `handshake`. El backend rechazaría estos payloads. El Android POS necesita ser actualizado para implementar el `EphemeralMessage` con handshake.~~
+> **RESUELTO:** El código Android ahora implementa `encryptPayloadEphemeral()` en `CryptoEngine.kt` que genera un keypair efímero, firma el handshake con la clave de identidad del terminal, deriva una clave compartida efímera via ECDH, y cifra el payload con AES-256-GCM. Los modelos `EphemeralHandshakeModel` y `EphemeralMessageModel` en `PosApiModels.kt` serializan el mensaje al formato esperado por el backend. `PosRepository.kt` usa este flujo en los 3 endpoints de pago NFC.
 
 ### 5.1. Estructura EncryptedPayload (formato actual del Android)
 

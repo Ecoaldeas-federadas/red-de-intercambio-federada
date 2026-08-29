@@ -624,7 +624,7 @@ class PosRepository(
     ): Result<PaymentResultDecrypted> = withContext(Dispatchers.IO) {
         try {
             val config = getOrInitTerminalConfig()
-            val sharedKey = ensureSharedKey()
+            val serverPubKey = config.serverPublicKeyHex ?: return@withContext Result.failure(Exception("Terminal no registrado: sin clave pública del servidor"))
             val timestamp = System.currentTimeMillis() / 1000
             val nonce = CryptoEngine.generateRandomNonce(16)
             val cryptoToken = if (isDesfire) "desfire_auth_ok" else cardUid
@@ -643,32 +643,37 @@ class PosRepository(
             val adapter = apiClient.moshi.adapter(SinglePaymentDecryptedPayload::class.java)
             val jsonPlain = adapter.toJson(decryptedPayload)
 
-            val encrypted = CryptoEngine.encryptPayload(
+            val (ephemeralMsg, ephemeralSharedKey) = CryptoEngine.encryptPayloadEphemeral(
                 plaintextJson = jsonPlain,
-                sharedKey = sharedKey,
-                terminalPrivateKeyHex = config.terminalPrivateKeyHex
+                terminalPrivateKeyHex = config.terminalPrivateKeyHex,
+                serverPublicKeyHex = serverPubKey
             )
 
             val service = apiClient.getService()
             val request = EncryptedPaymentRequest(
                 terminalId = config.terminalId,
-                encryptedPayload = EncryptedPayloadModel(
-                    nonce = encrypted.nonce,
-                    ciphertext = encrypted.ciphertext,
-                    signature = encrypted.signature
+                encryptedPayload = EphemeralMessageModel(
+                    handshake = EphemeralHandshakeModel(
+                        ephemeralPublicKey = ephemeralMsg.handshake.ephemeralPublicKey,
+                        identitySignature = ephemeralMsg.handshake.identitySignature,
+                        nonce = ephemeralMsg.handshake.nonce
+                    ),
+                    nonce = ephemeralMsg.nonce,
+                    ciphertext = ephemeralMsg.ciphertext,
+                    signature = ephemeralMsg.signature
                 )
             )
 
             val response = service.processNfcPayment(request)
             if (response.isSuccessful && response.body()?.ciphertext != null) {
                 val encResp = response.body()!!
-                val plainResp = CryptoEngine.decryptPayload(
+                val plainResp = CryptoEngine.decryptResponseEphemeral(
                     encryptedPayload = EncryptedPayload(
                         nonce = encResp.nonce.orEmpty(),
                         ciphertext = encResp.ciphertext.orEmpty(),
                         signature = encResp.signature.orEmpty()
                     ),
-                    sharedKey = sharedKey,
+                    ephemeralSharedKey = ephemeralSharedKey,
                     serverPublicKeyHex = config.serverPublicKeyHex
                 )
 
@@ -817,7 +822,7 @@ class PosRepository(
     ): Result<PaymentResultDecrypted> = withContext(Dispatchers.IO) {
         try {
             val config = getOrInitTerminalConfig()
-            val sharedKey = ensureSharedKey()
+            val serverPubKey = config.serverPublicKeyHex ?: return@withContext Result.failure(Exception("Terminal no registrado: sin clave pública del servidor"))
             val timestamp = System.currentTimeMillis() / 1000
             val nonce = CryptoEngine.generateRandomNonce(16)
 
@@ -838,32 +843,37 @@ class PosRepository(
             val adapter = apiClient.moshi.adapter(CommunityPaymentDecryptedPayload::class.java)
             val jsonPlain = adapter.toJson(decryptedPayload)
 
-            val encrypted = CryptoEngine.encryptPayload(
+            val (ephemeralMsg, ephemeralSharedKey) = CryptoEngine.encryptPayloadEphemeral(
                 plaintextJson = jsonPlain,
-                sharedKey = sharedKey,
-                terminalPrivateKeyHex = config.terminalPrivateKeyHex
+                terminalPrivateKeyHex = config.terminalPrivateKeyHex,
+                serverPublicKeyHex = serverPubKey
             )
 
             val service = apiClient.getService()
             val request = EncryptedPaymentRequest(
                 terminalId = config.terminalId,
-                encryptedPayload = EncryptedPayloadModel(
-                    nonce = encrypted.nonce,
-                    ciphertext = encrypted.ciphertext,
-                    signature = encrypted.signature
+                encryptedPayload = EphemeralMessageModel(
+                    handshake = EphemeralHandshakeModel(
+                        ephemeralPublicKey = ephemeralMsg.handshake.ephemeralPublicKey,
+                        identitySignature = ephemeralMsg.handshake.identitySignature,
+                        nonce = ephemeralMsg.handshake.nonce
+                    ),
+                    nonce = ephemeralMsg.nonce,
+                    ciphertext = ephemeralMsg.ciphertext,
+                    signature = ephemeralMsg.signature
                 )
             )
 
             val response = service.processCommunityPayment(request)
             if (response.isSuccessful && response.body()?.ciphertext != null) {
                 val encResp = response.body()!!
-                val plainResp = CryptoEngine.decryptPayload(
+                val plainResp = CryptoEngine.decryptResponseEphemeral(
                     encryptedPayload = EncryptedPayload(
                         nonce = encResp.nonce.orEmpty(),
                         ciphertext = encResp.ciphertext.orEmpty(),
                         signature = encResp.signature.orEmpty()
                     ),
-                    sharedKey = sharedKey,
+                    ephemeralSharedKey = ephemeralSharedKey,
                     serverPublicKeyHex = config.serverPublicKeyHex
                 )
 
@@ -1010,7 +1020,7 @@ class PosRepository(
     ): Result<PaymentResultDecrypted> = withContext(Dispatchers.IO) {
         try {
             val config = getOrInitTerminalConfig()
-            val sharedKey = ensureSharedKey()
+            val serverPubKey = config.serverPublicKeyHex ?: return@withContext Result.failure(Exception("Terminal no registrado: sin clave pública del servidor"))
             val timestamp = System.currentTimeMillis() / 1000
             val nonce = CryptoEngine.generateRandomNonce(16)
 
@@ -1027,32 +1037,37 @@ class PosRepository(
             val adapter = apiClient.moshi.adapter(MultisigSignDecryptedPayload::class.java)
             val jsonPlain = adapter.toJson(decrypted)
 
-            val encrypted = CryptoEngine.encryptPayload(
+            val (ephemeralMsg, ephemeralSharedKey) = CryptoEngine.encryptPayloadEphemeral(
                 plaintextJson = jsonPlain,
-                sharedKey = sharedKey,
-                terminalPrivateKeyHex = config.terminalPrivateKeyHex
+                terminalPrivateKeyHex = config.terminalPrivateKeyHex,
+                serverPublicKeyHex = serverPubKey
             )
 
             val service = apiClient.getService()
             val request = EncryptedPaymentRequest(
                 terminalId = config.terminalId,
-                encryptedPayload = EncryptedPayloadModel(
-                    nonce = encrypted.nonce,
-                    ciphertext = encrypted.ciphertext,
-                    signature = encrypted.signature
+                encryptedPayload = EphemeralMessageModel(
+                    handshake = EphemeralHandshakeModel(
+                        ephemeralPublicKey = ephemeralMsg.handshake.ephemeralPublicKey,
+                        identitySignature = ephemeralMsg.handshake.identitySignature,
+                        nonce = ephemeralMsg.handshake.nonce
+                    ),
+                    nonce = ephemeralMsg.nonce,
+                    ciphertext = ephemeralMsg.ciphertext,
+                    signature = ephemeralMsg.signature
                 )
             )
 
             val response = service.signMultisigNfcPayment(request)
             if (response.isSuccessful && response.body()?.ciphertext != null) {
                 val encResp = response.body()!!
-                val plainResp = CryptoEngine.decryptPayload(
+                val plainResp = CryptoEngine.decryptResponseEphemeral(
                     encryptedPayload = EncryptedPayload(
                         nonce = encResp.nonce.orEmpty(),
                         ciphertext = encResp.ciphertext.orEmpty(),
                         signature = encResp.signature.orEmpty()
                     ),
-                    sharedKey = sharedKey,
+                    ephemeralSharedKey = ephemeralSharedKey,
                     serverPublicKeyHex = config.serverPublicKeyHex
                 )
                 val resAdapter = apiClient.moshi.adapter(PaymentResultDecrypted::class.java)

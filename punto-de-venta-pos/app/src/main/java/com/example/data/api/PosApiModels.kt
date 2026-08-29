@@ -177,6 +177,21 @@ data class SetSessionAmountRequest(
 )
 
 @JsonClass(generateAdapter = true)
+data class EphemeralHandshakeModel(
+    @Json(name = "ephemeral_public_key") val ephemeralPublicKey: String,
+    @Json(name = "identity_signature") val identitySignature: String,
+    @Json(name = "nonce") val nonce: String
+)
+
+@JsonClass(generateAdapter = true)
+data class EphemeralMessageModel(
+    @Json(name = "handshake") val handshake: EphemeralHandshakeModel,
+    @Json(name = "nonce") val nonce: String,
+    @Json(name = "ciphertext") val ciphertext: String,
+    @Json(name = "signature") val signature: String
+)
+
+@JsonClass(generateAdapter = true)
 data class EncryptedPayloadModel(
     @Json(name = "nonce") val nonce: String,
     @Json(name = "ciphertext") val ciphertext: String,
@@ -186,7 +201,7 @@ data class EncryptedPayloadModel(
 @JsonClass(generateAdapter = true)
 data class EncryptedPaymentRequest(
     @Json(name = "terminal_id") val terminalId: String,
-    @Json(name = "encrypted_payload") val encryptedPayload: EncryptedPayloadModel
+    @Json(name = "encrypted_payload") val encryptedPayload: EphemeralMessageModel
 )
 
 @JsonClass(generateAdapter = true)

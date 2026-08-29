@@ -23,6 +23,19 @@ data class EncryptedPayload(
     val signature: String
 )
 
+data class EphemeralHandshake(
+    val ephemeralPublicKey: String,
+    val identitySignature: String,
+    val nonce: String
+)
+
+data class EphemeralMessage(
+    val handshake: EphemeralHandshake,
+    val nonce: String,
+    val ciphertext: String,
+    val signature: String
+)
+
 data class TerminalKeyPair(
     val privateKeyHex: String,
     val publicKeyHex: String
@@ -178,6 +191,79 @@ object CryptoEngine {
         val plaintext = String(decryptedBytes, Charsets.UTF_8)
         Arrays.fill(decryptedBytes, 0.toByte())
         return plaintext
+    }
+
+    /**
+     * Encrypts payload using ephemeral key with handshake (perfect forward secrecy).
+     * Returns EphemeralMessage + the ephemeral shared key (for decrypting the response).
+     *
+     * Flow:
+     * 1. Generate ephemeral Ed25519 keypair
+     * 2. Sign (ephemeral_pub || handshake_nonce) with terminal identity key
+     * 3. Derive ephemeral shared key via ECDH(ephemeral_priv, server_pub)
+     * 4. Encrypt payload with AES-256-GCM using ephemeral shared key
+     * 5. Sign ciphertext with terminal identity key
+     */
+    fun encryptPayloadEphemeral(
+        plaintextJson: String,
+        terminalPrivateKeyHex: String,
+        serverPublicKeyHex: String
+    ): Pair<EphemeralMessage, ByteArray> {
+        // 1. Generate ephemeral keypair
+        val ephemeralKeyPair = generateEd25519KeyPair()
+
+        // 2. Create handshake nonce and sign (ephemeral_pub || nonce) with identity key
+        val handshakeNonce = generateRandomNonce(16)
+        val handshakeMessage = ephemeralKeyPair.publicKeyHex.hexToBytes() + handshakeNonce.toByteArray(Charsets.UTF_8)
+        val identitySignature = signEd25519(terminalPrivateKeyHex, handshakeMessage)
+
+        val handshake = EphemeralHandshake(
+            ephemeralPublicKey = ephemeralKeyPair.publicKeyHex,
+            identitySignature = identitySignature,
+            nonce = handshakeNonce
+        )
+
+        // 3. Derive ephemeral shared key via ECDH
+        val ephemeralSharedKey = deriveSharedKey(ephemeralKeyPair.privateKeyHex, serverPublicKeyHex)
+
+        // 4. Encrypt payload with AES-256-GCM using ephemeral shared key
+        val aesNonce = ByteArray(12)
+        secureRandom.nextBytes(aesNonce)
+
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        val spec = GCMParameterSpec(128, aesNonce)
+        val keySpec = SecretKeySpec(ephemeralSharedKey, "AES")
+        cipher.init(Cipher.ENCRYPT_MODE, keySpec, spec)
+
+        val plainBytes = plaintextJson.toByteArray(Charsets.UTF_8)
+        val ciphertext = cipher.doFinal(plainBytes)
+
+        // 5. Sign ciphertext with terminal identity key
+        val ciphertextSignature = signEd25519(terminalPrivateKeyHex, ciphertext)
+
+        val message = EphemeralMessage(
+            handshake = handshake,
+            nonce = aesNonce.toHex(),
+            ciphertext = ciphertext.toHex(),
+            signature = ciphertextSignature
+        )
+
+        // Zeroize ephemeral private key bytes
+        Arrays.fill(ephemeralKeyPair.privateKeyHex.hexToBytes(), 0.toByte())
+
+        return Pair(message, ephemeralSharedKey)
+    }
+
+    /**
+     * Decrypts server response using the ephemeral shared key from the request.
+     * The response format is {nonce, ciphertext, signature} (no handshake).
+     */
+    fun decryptResponseEphemeral(
+        encryptedPayload: EncryptedPayload,
+        ephemeralSharedKey: ByteArray,
+        serverPublicKeyHex: String?
+    ): String {
+        return decryptPayload(encryptedPayload, ephemeralSharedKey, serverPublicKeyHex)
     }
 
     fun generateRandomNonce(byteLength: Int = 16): String {
