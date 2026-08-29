@@ -1,0 +1,395 @@
+LICENCIA PUBLICA FEDERADA (LPF) Version 1.0
+
+Copyright (c) 2026 discapacidad5
+Repositorio Principal: https://github.com/discapacidad5/red-de-intercambio-federada
+
+Esta licencia se basa en los principios del copyleft fuerte (estilo AGPL v3)
+con condiciones adicionales de federacion, atribucion, no-comercializacion
+del codigo y regalías por uso comercial en SaaS.
+
+----------------------------------------------------------------------
+SECCION 1. DEFINICIONES
+----------------------------------------------------------------------
+
+1.1. "Software" se refiere a este codigo fuente, sus derivados y cualquier
+obra basada en el, en cualquier lenguaje o plataforma.
+
+1.2. "Repositorio Principal" se refiere al repositorio ubicado en
+https://github.com/discapacidad5/red-de-intercambio-federada y mantenido
+por el Creador.
+
+1.3. "Creador" se refiere a discapacidad5, autor del Repositorio Principal.
+
+1.4. "Protocolo de Federacion" se refiere al conjunto de reglas, formatos,
+APIs y mecanismos de comunicacion entre nodos definidos en el Repositorio
+Principal, incluyendo但不限于 los esquemas de identidad, transporte cifrado,
+propagacion, gobernanza y contabilidad federada.
+
+1.5. "Modificacion" se refiere a cualquier cambio al Software, incluyendo
+adaptaciones, traducciones a otros lenguajes de programacion, porting a
+otras plataformas, o cualquier obra derivada.
+
+1.6. "Distribucion" se refiere a poner el Software o Modificaciones a
+disposicion de terceros, incluyendo su uso via red (SaaS, API, aplicacion
+web, aplicacion movil, o cualquier otro medio de acceso remoto).
+
+1.7. "Registro de Forks" se refiere a la carpeta `forks-registry/` en el
+Repositorio Principal, donde se inscriben todos los repositorios derivados.
+
+1.8. "Codigo Fuente Completo" se refiere a la totalidad del codigo fuente
+necesario para compilar, ejecutar y reproducir el Software o Modificacion,
+incluyendo scripts de build, configuracion, migraciones y documentacion
+esencial.
+
+1.9. "Ingresos Brutos" se refiere a todos los ingresos generados por el
+hospedaje o prestacion del Software como servicio, antes de impuestos,
+devoluciones y comisiones de procesamiento de pagos.
+
+1.10. "SaaS" se refiere a ofrecer el Software o Modificacion como servicio
+via red, donde usuarios acceden al software de forma remota, incluyendo
+hospedaje web, API como servicio, o aplicacion hospedada.
+
+----------------------------------------------------------------------
+SECCION 2. CONCESION DE DERECHOS
+----------------------------------------------------------------------
+
+Se concede a cualquier persona, de forma gratuita y mundial, el derecho a:
+
+2.1. Usar el Software para cualquier proposito legitimo.
+2.2. Estudiar y auditar el codigo fuente.
+2.3. Copiar y distribuir el Software.
+2.4. Modificar el Software y distribuir las Modificaciones.
+2.5. Hospedar el Software como servicio (SaaS), sujeto a la Seccion 7.
+
+Estos derechos se conceden UNICAMENTE bajo esta licencia (LPF-1.0).
+No se puede sublicenciar bajo ninguna otra licencia.
+
+----------------------------------------------------------------------
+SECCION 3. COPYLEFT FUERTE (OBLIGACION DE COMPARTIR)
+----------------------------------------------------------------------
+
+Toda Modificacion, en cualquier lenguaje o plataforma, debe:
+
+3.1. Ser publicada bajo esta misma licencia (LPF-1.0).
+3.2. Incluir el Codigo Fuente Completo de las Modificaciones.
+3.3. Mantenerse en un repositorio publico accesible sin barreras de pago.
+3.4. Incluir una copia integra de esta licencia.
+
+Esta estrictamente prohibido:
+
+3.5. Cerrar el codigo fuente de cualquier Modificacion.
+3.6. Usar el Software o Modificaciones como parte de un producto propietario.
+3.7. Emitir el Software bajo una licencia diferente a LPF-1.0.
+3.8. Combinar el Software con codigo propietario de forma que el resultado
+     no este bajo LPF-1.0.
+
+----------------------------------------------------------------------
+SECCION 4. DIVULGACION POR USO EN RED (ESTILO AGPL)
+----------------------------------------------------------------------
+
+4.1. Si el Software o cualquier Modificacion se ofrece como servicio via
+red (SaaS, API, aplicacion web, aplicacion movil, o cualquier otro medio
+de acceso remoto), el operador debe poner a disposicion de todos los
+usuarios del servicio el Codigo Fuente Completo de la version exacta que
+esta ejecutando, incluyendo todas las Modificaciones, bajo esta licencia.
+
+4.2. El codigo fuente debe estar disponible durante todo el periodo en que
+el servicio este activo, y debe ser accesible sin barreras de pago ni
+registro obligatorio.
+
+4.3. La disponibilidad del codigo fuente debe incluir un enlace visible
+desde la interfaz del servicio o su documentacion publica.
+
+----------------------------------------------------------------------
+SECCION 5. ATRIBUCION OBLIGATORIA
+----------------------------------------------------------------------
+
+Toda Distribucion o Modificacion debe incluir de forma visible:
+
+5.1. El nombre del Creador: discapacidad5.
+5.2. La URL del Repositorio Principal:
+     https://github.com/discapacidad5/red-de-intercambio-federada
+5.3. Una copia integra de esta licencia.
+5.4. Una indicacion clara de que se trata de una obra derivada del Software
+     original, cuando corresponda.
+
+Esta atribucion debe aparecer en:
+
+5.5. El archivo LICENSE del repositorio derivado.
+5.6. La documentacion del proyecto (README o equivalente).
+5.7. La interfaz del usuario del software, en una seccion de "Acerca de" o
+     "Creditos" accesible sin esfuerzo extraordinario.
+
+----------------------------------------------------------------------
+SECCION 6. PROHIBICION DE VENTA DEL CODIGO
+----------------------------------------------------------------------
+
+Esta estrictamente prohibido:
+
+6.1. Vender el codigo fuente o binario del Software como producto.
+6.2. Licenciar el Software o Modificaciones a cambio de pago.
+6.3. Incluir el Software en un producto cerrado de pago.
+6.4. Crear un producto comercial que incorpore el Software sin publicar su
+     codigo fuente completo bajo esta licencia.
+6.5. Cobrar por el derecho de usar, copiar, modificar o distribuir el
+     Software.
+
+Esta permitido cobrar por los siguientes servicios:
+
+6.6. Servicios de instalacion, configuracion y despliegue.
+6.7. Servicios de programacion y desarrollo a medida sobre el Software.
+6.8. Capacitacion, formacion, enseñanza y clases sobre el Software.
+6.9. Soporte tecnico, mantenimiento y actualizacion del Software.
+6.10. Hospedaje del Software como servicio (SaaS) — sujeto a la Seccion 7.
+
+En todos los casos anteriores, el cobro es por el servicio prestado, no por
+el codigo en si. El codigo fuente debe permanecer libre y disponible bajo
+LPF-1.0.
+
+----------------------------------------------------------------------
+SECCION 7. SaaS Y REGALIAS
+----------------------------------------------------------------------
+
+7.1. Se permite hospedar el Software como servicio (SaaS) cobrando a los
+usuarios por el acceso o uso del servicio.
+
+7.2. Si los Ingresos Brutos anuales por hospedaje del Software superan
+USD 12,000 (doce mil dolares estadounidenses, o equivalente en moneda
+local al tipo de cambio oficial), el operador debe pagar al Creador una
+regalia del 2% (dos por ciento) sobre el excedente sobre el umbral.
+
+7.3. Si los Ingresos Brutos no superan el umbral de USD 12,000 anuales,
+no se exige regalia. Se reconoce que el SaaS puede apenas cubrir costos
+de hospedaje y operacion.
+
+7.4. Ejemplos:
+     - Ingresos de USD 15,000/ano: regalia de USD 60 (2% de 3,000)
+     - Ingresos de USD 50,000/ano: regalia de USD 760 (2% de 38,000)
+     - Ingresos de USD 100,000/ano: regalia de USD 1,760 (2% de 88,000)
+
+7.5. La regalia se paga trimestralmente, dentro de los 30 dias siguientes
+al cierre de cada trimestre calendario.
+
+7.6. El operador debe llevar un registro de los Ingresos Brutos derivados
+del SaaS y ponerlo a disposicion del Creador a solicitud, para verificacion.
+
+7.7. El pago de la regalia es condicion para mantener la licencia. Su
+incumplimiento constituye violacion de licencia (ver Seccion 14).
+
+7.8. El Creador debe proporcionar instrucciones de pago (cuenta bancaria,
+wallet digital, o metodo acordado) en el Repositorio Principal o por
+solicitud directa.
+
+7.9. El umbral y porcentaje pueden ser ajustados por el Creador en
+versiones futuras de esta licencia. Los operadores existentes pueden
+acogerse a la version bajo la cual iniciaron su operacion o a una
+posterior si lo desean.
+
+----------------------------------------------------------------------
+SECCION 8. COMPATIBILIDAD DE FEDERACION OBLIGATORIA
+----------------------------------------------------------------------
+
+Toda Modificacion, en cualquier lenguaje o plataforma, debe:
+
+8.1. Implementar y mantener el Protocolo de Federacion tal como esta
+definido en el Repositorio Principal.
+8.2. Ser capaz de federarse con cualquier nodo que ejecute el Software del
+Repositorio Principal.
+8.3. Garantizar interoperabilidad: cualquier nodo derivado debe poder
+comunicarse con cualquier otro nodo de la red federada, de la misma
+forma que diferentes servidores de correo electronico interoperan via
+SMTP.
+
+Esta estrictamente prohibido:
+
+8.4. Crear una Modificacion que no pueda federarse con el Repositorio
+     Principal.
+8.5. Aislar una Modificacion del resto de la red federada.
+8.6. Eliminar, desactivar o evadir la capacidad de federacion.
+8.7. Crear un "walled garden" que impida la comunicacion con otros nodos
+     de la red.
+
+El proposito fundamental del Software es la federacion. Una Modificacion
+aislada que no federa contradice el proposito del Software y constituye
+violacion de licencia.
+
+----------------------------------------------------------------------
+SECCION 9. CAMBIOS AL PROTOCOLO DE FEDERACION
+----------------------------------------------------------------------
+
+9.1. El Protocolo de Federacion no puede ser modificado unilateralmente
+por ningun licenciatario.
+
+9.2. Cualquier cambio al protocolo debe:
+     a) Ser propuesto al Repositorio Principal mediante un Pull Request.
+     b) Ser aprobado por el Creador o los mantenedores designados por el
+        Creador.
+     c) Ser incorporado al Repositorio Principal antes de que cualquier
+        Modificacion pueda implementarlo.
+
+9.3. Esto garantiza que todos los nodos de la red federada hablen el mismo
+"idioma" y mantengan interoperabilidad.
+
+9.4. Modificar el protocolo sin aprobacion constituye violacion de
+licencia, ya que rompe la interoperabilidad de la red.
+
+9.5. Se permite proponer mejoras, extensiones y optimizaciones al
+protocolo. El proceso colaborativo es bienvenido, pero la decision final
+sobre que cambios se incorporan al protocolo oficial corresponde al
+Creador o mantenedores designados.
+
+----------------------------------------------------------------------
+SECCION 10. REGISTRO OBLIGATORIO DE FORKS
+----------------------------------------------------------------------
+
+10.1. Toda persona que cree una Modificacion o fork del Software debe
+inscribir su repositorio en el Registro de Forks del Repositorio Principal.
+
+10.2. La inscripcion se realiza mediante un Pull Request al Repositorio
+Principal que UNICAMENTE modifica el archivo
+`forks-registry/registry.md`, agregando una entrada con:
+     a) URL del repositorio derivado.
+     b) Nombre del autor o organizacion.
+     c) Descripcion breve de las Modificaciones.
+     d) Fecha de creacion.
+     e) Licencia: LPF-1.0 (confirmacion de que el fork usa esta licencia).
+
+10.3. Si el repositorio derivado cambia de URL, el autor debe actualizar
+su entrada en el Registro de Forks mediante un nuevo Pull Request.
+
+10.4. El Registro de Forks permite al Creador y a la comunidad:
+     a) Conocer todas las Modificaciones existentes.
+     b) Identificar mejoras que podrian incorporarse al Repositorio
+        Principal.
+     c) Verificar que todos los forks cumplen con la licencia.
+     d) Facilitar la colaboracion entre desarrolladores.
+
+10.5. La falta de inscripcion en el Registro de Forks dentro de los 30
+dias siguientes a la publicacion del fork constituye violacion de
+licencia.
+
+----------------------------------------------------------------------
+SECCION 11. CONTRIBUCION RECIPROCA
+----------------------------------------------------------------------
+
+11.1. Se alienta moralmente (aunque no se exige legalmente) a que los
+autores de Modificaciones:
+     a) Envien sus mejoras como Pull Requests al Repositorio Principal.
+     b) Otorguen al Creador permiso para incorporar sus mejoras al
+        Software original.
+     c) Participen en la mejora colaborativa del codigo base.
+
+11.2. El Creador se reserva el derecho de incorporar al Repositorio
+Principal las mejoras publicadas en forks registrados, manteniendo la
+atribucion correspondiente al autor original.
+
+11.3. Las contribuciones enviadas al Repositorio Principal se publicaran
+bajo LPF-1.0, y el contribuyente reconoce que su contribucion podra ser
+usada, modificada y distribuida bajo los terminos de esta licencia.
+
+----------------------------------------------------------------------
+SECCION 12. LIBERTAD DE DISENO VISUAL
+----------------------------------------------------------------------
+
+Los licenciatarios son libres de:
+
+12.1. Disenar la interfaz visual a su gusto.
+12.2. Crear nuevas funcionalidades dentro del Software.
+12.3. Adaptar el Software a su cultura, idioma y necesidades locales.
+12.4. Crear implementaciones para otras plataformas y lenguajes.
+12.5. Personalizar la experiencia de usuario sin restricciones.
+
+Siempre que cumplan todas las condiciones de esta licencia (copyleft,
+federacion, atribucion, registro, no-venta de codigo).
+
+----------------------------------------------------------------------
+SECCION 13. PROHIBICION DE RELICENCIAMIENTO
+----------------------------------------------------------------------
+
+Esta estrictamente prohibido:
+
+13.1. Relicenciar el Software o cualquier Modificacion bajo una licencia
+diferente a LPF-1.0.
+13.2. Crear un producto que combine el Software con codigo propietario de
+forma que el resultado no este bajo LPF-1.0.
+13.3. Usar terminos contractuales, NDA, o acuerdos que restrinjan los
+derechos concedidos por esta licencia a los usuarios finales.
+13.4. Distribuir el Software bajo una licencia "dual" o "multiple" que
+permita al receptor elegir una licencia que no sea LPF-1.0.
+
+----------------------------------------------------------------------
+SECCION 14. INCUMPLIMIENTO Y TERMINACION
+----------------------------------------------------------------------
+
+14.1. El incumplimiento de cualquiera de las condiciones de esta licencia
+constituye una violacion de licencia.
+
+14.2. Mecanismo de cumplimiento:
+     a) Notificacion: el Creador o cualquier miembro de la comunidad puede
+        notificar al infractor el incumplimiento, por cualquier medio
+        razonable (email, issue en GitHub, mensaje publico).
+     b) Periodo de gracia: el infractor tiene 30 dias desde la
+        notificacion para corregir el incumplimiento. Esto puede incluir:
+        - Publicar el codigo fuente completo.
+        - Registrar el fork en el Registro de Forks.
+        - Restaurar la compatibilidad de federacion.
+        - Pagar las regalías pendientes.
+        - Anadir la atribucion requerida.
+        - Cambiar la licencia del fork a LPF-1.0.
+     c) Revocacion automatica: si el incumplimiento no se corrige en el
+        periodo de gracia de 30 dias, la licencia se revoca
+        automaticamente y el infractor pierde todos los derechos
+        concedidos por esta licencia, incluyendo el derecho de uso,
+        modificacion y distribucion.
+     d) Acciones legales: la violacion de licencia esta sujeta a las leyes
+        aplicables de copyright y contratos en la jurisdiccion
+        correspondiente. El Creador puede iniciar acciones legales para
+        exigir el cumplimiento, la indemnizacion por danos, o el cese de
+        uso del Software.
+
+14.3. La revocacion automatica no requiere notificacion adicional ni
+orden judicial para ser efectiva. Sin embargo, el Creador puede optar por
+iniciar acciones legales formales en lugar de o ademas de la revocacion
+automatica.
+
+14.4. La correccion del incumplimiento dentro del periodo de gracia
+restaura la licencia, salvo en casos de incumplimiento repetido (mas de
+dos veces en un periodo de 12 meses), en cuyo caso el Creador puede
+revocar permanentemente la licencia.
+
+----------------------------------------------------------------------
+SECCION 15. SIN GARANTIA
+----------------------------------------------------------------------
+
+EL SOFTWARE SE PROPORCIONA "TAL CUAL", SIN GARANTIA DE NINGUN TIPO,
+EXPRESA O IMPLICITA, INCLUYENDO PERO NO LIMITANDO A GARANTIAS DE
+COMERCIALIZACION, APTITUD PARA UN PROPOSITO PARTICULAR E
+INCUMPLIMIENTO. EN NINGUN CASO EL CREADOR SERA RESPONSABLE DE NINGUN
+RECLAMO, DANO U OTRA RESPONSABILIDAD, YA SEA EN UNA ACCION DE
+CONTRATO, AGRAVIO O DE OTRO MODO, DERIVADO DE, O EN RELACION CON EL
+SOFTWARE O EL USO U OTROS TRATOS EN EL SOFTWARE.
+
+----------------------------------------------------------------------
+SECCION 16. VERSIONES FUTURAS
+----------------------------------------------------------------------
+
+16.1. El Creador puede publicar versiones futuras de esta licencia
+(LPF-1.1, LPF-2.0, etc.).
+
+16.2. Las Modificaciones existentes pueden elegir acogerse a una version
+posterior si lo desean.
+
+16.3. Toda nueva Distribucion debe especificar que version de la licencia
+aplica.
+
+16.4. En caso de conflicto entre versiones, prevalecera la version
+especificada en el archivo LICENSE del repositorio desde el cual se
+obtuvo el Software.
+
+----------------------------------------------------------------------
+FIN DE LA LICENCIA
+----------------------------------------------------------------------
+
+Para consultas sobre esta licencia, contactar al Creador:
+- GitHub: https://github.com/discapacidad5
+- Repositorio: https://github.com/discapacidad5/red-de-intercambio-federada

@@ -1,3 +1,6 @@
+// Licencia: LPF-1.0 — https://github.com/discapacidad5/red-de-intercambio-federada
+// Copyright (c) 2026 discapacidad5
+
 package main
 
 import (

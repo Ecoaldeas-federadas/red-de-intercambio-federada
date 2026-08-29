@@ -356,4 +356,23 @@ Los nodos se comunican via mTLS en el puerto `8443`:
 
 ## Licencia
 
-Este proyecto es software libre.
+Este proyecto esta bajo la **Licencia Publica Federada (LPF-1.0)**.
+
+Ver el archivo [LICENSE](LICENSE) para el texto completo.
+
+### Puntos clave
+
+- **Copyleft fuerte:** toda modificacion debe publicarse bajo LPF-1.0 con codigo fuente completo.
+- **No se puede vender el codigo:** esta prohibido vender el software como producto o licenciarlo por pago.
+- **Servicios permitidos:** puedes cobrar por instalacion, configuracion, soporte, capacitacion y hospedaje (SaaS).
+- **SaaS con regalía:** si tus ingresos por SaaS superan USD 12,000/ano, pagas 2% sobre el excedente al creador.
+- **Federacion obligatoria:** toda modificacion debe poder federarse con el repositorio principal (como SMTP entre servidores de correo).
+- **Atribucion:** debes mencionar al creador (discapacidad5) y el repositorio principal.
+- **Registro de forks:** todo fork debe inscribirse en [forks-registry/registry.md](forks-registry/registry.md).
+- **No relicenciamiento:** esta prohibido cambiar la licencia o combinar con codigo propietario.
+
+### Registro de Forks
+
+Si creas un fork o modificacion, debes inscribirlo en
+[forks-registry/registry.md](forks-registry/registry.md) mediante un Pull
+Request. Ver instrucciones en ese archivo.

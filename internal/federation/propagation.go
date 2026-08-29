@@ -1,3 +1,6 @@
+// Licencia: LPF-1.0 — https://github.com/discapacidad5/red-de-intercambio-federada
+// Copyright (c) 2026 discapacidad5
+
 package federation
 
 import (
@@ -39,21 +42,21 @@ func NewPropagator(pool *pgxpool.Pool, nodeDomain string, transport *EncryptedTr
 type PropagationMessageType string
 
 const (
-	MsgPropNewPeer      PropagationMessageType = "new_peer"
-	MsgPropMembership   PropagationMessageType = "membership_update"
-	MsgPropBlock        PropagationMessageType = "unilateral_block"
-	MsgPropUnblock      PropagationMessageType = "unilateral_unblock"
-	MsgPropExpulsion    PropagationMessageType = "expulsion"
-	MsgPropCatchUpReq   PropagationMessageType = "catch_up_request"
-	MsgPropCatchUpResp  PropagationMessageType = "catch_up_response"
+	MsgPropNewPeer     PropagationMessageType = "new_peer"
+	MsgPropMembership  PropagationMessageType = "membership_update"
+	MsgPropBlock       PropagationMessageType = "unilateral_block"
+	MsgPropUnblock     PropagationMessageType = "unilateral_unblock"
+	MsgPropExpulsion   PropagationMessageType = "expulsion"
+	MsgPropCatchUpReq  PropagationMessageType = "catch_up_request"
+	MsgPropCatchUpResp PropagationMessageType = "catch_up_response"
 )
 
 // PropagationMessage is the payload inside the encrypted envelope.
 type PropagationMessage struct {
-	Type            PropagationMessageType `json:"type"`
-	FromNode        string                  `json:"from_node"`
-	Timestamp       int64                   `json:"timestamp"`
-	MessageID       string                  `json:"message_id"`
+	Type      PropagationMessageType `json:"type"`
+	FromNode  string                 `json:"from_node"`
+	Timestamp int64                  `json:"timestamp"`
+	MessageID string                 `json:"message_id"`
 
 	// For new_peer propagation
 	NewDomain       string `json:"new_domain,omitempty"`
@@ -65,20 +68,20 @@ type PropagationMessage struct {
 	SponsorshipAmt  int64  `json:"sponsorship_amt,omitempty"`
 
 	// For membership_update
-	PeerDomain      string `json:"peer_domain,omitempty"`
-	NewLevelID      string `json:"new_level_id,omitempty"`
-	ProposalID      string `json:"proposal_id,omitempty"`
+	PeerDomain string `json:"peer_domain,omitempty"`
+	NewLevelID string `json:"new_level_id,omitempty"`
+	ProposalID string `json:"proposal_id,omitempty"`
 
 	// For unilateral_block / unblock
-	BlockedDomain   string `json:"blocked_domain,omitempty"`
-	BlockReason     string `json:"block_reason,omitempty"`
+	BlockedDomain string `json:"blocked_domain,omitempty"`
+	BlockReason   string `json:"block_reason,omitempty"`
 
 	// For expulsion
 	ExpelledDomain  string `json:"expelled_domain,omitempty"`
 	ExpulsionReason string `json:"expulsion_reason,omitempty"`
 
 	// For catch_up_response — contains all federation data
-	CatchUpData     *CatchUpData `json:"catch_up_data,omitempty"`
+	CatchUpData *CatchUpData `json:"catch_up_data,omitempty"`
 }
 
 // CatchUpData contains all federation state for a node to catch up.
@@ -91,19 +94,19 @@ type CatchUpData struct {
 }
 
 type CatchUpPeer struct {
-	Domain     string `json:"domain"`
-	PublicKey  string `json:"public_key"`
-	Endpoint   string `json:"endpoint"`
-	NodeName   string `json:"node_name"`
-	AutoAccepted bool `json:"auto_accepted"`
+	Domain       string `json:"domain"`
+	PublicKey    string `json:"public_key"`
+	Endpoint     string `json:"endpoint"`
+	NodeName     string `json:"node_name"`
+	AutoAccepted bool   `json:"auto_accepted"`
 	PropagatedBy string `json:"propagated_by"`
 }
 
 type CatchUpMembership struct {
-	PeerDomain    string `json:"peer_domain"`
-	LevelID       string `json:"level_id"`
-	SponsoredBy   string `json:"sponsored_by"`
-	SponsorshipHeld int64 `json:"sponsorship_held"`
+	PeerDomain      string `json:"peer_domain"`
+	LevelID         string `json:"level_id"`
+	SponsoredBy     string `json:"sponsored_by"`
+	SponsorshipHeld int64  `json:"sponsorship_held"`
 }
 
 type CatchUpSponsorship struct {
