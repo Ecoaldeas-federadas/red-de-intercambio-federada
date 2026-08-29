@@ -241,6 +241,78 @@ func (am *AuthMiddleware) GetUserID(r *http.Request) (uuid.UUID, error) {
 	return uuid.Parse(userIDStr)
 }
 
+// RequireActiveMembership bloquea usuarios con membership_status = 'pending_admission'
+// excepto para rutas whitelisted (status, perfil, notificaciones, passkey).
+func (am *AuthMiddleware) RequireActiveMembership(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if am.Pool == nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Extraer userID del JWT
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			next.ServeHTTP(w, r) // dejar que RequireAuth maneje el 401
+			return
+		}
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		claims, err := am.ValidateToken(parts[1])
+		if err != nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Verificar membership_status
+		var membershipStatus string
+		_ = am.Pool.QueryRow(r.Context(), `SELECT membership_status FROM users WHERE id = $1`, claims.UserID).Scan(&membershipStatus)
+
+		// Si es active, permitir todo
+		if membershipStatus == "active" || membershipStatus == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Si es pending_admission, solo permitir rutas whitelisted
+		if membershipStatus == "pending_admission" {
+			path := r.URL.Path
+			allowed := false
+			whitelist := []string{
+				"/api/auth/me",
+				"/api/auth/me/contacts",
+				"/api/auth/me/documents",
+				"/api/my/admission-status",
+				"/api/my/admission-defense",
+				"/api/notifications",
+				"/api/notifications/settings",
+				"/api/notifications/preferences",
+				"/api/notifications/unread-count",
+				"/api/notifications/subscribe",
+				"/api/notifications/unsubscribe",
+				"/api/auth/passkey",
+				"/api/auth/passkey/list",
+				"/api/auth/passkey/finish",
+			}
+			for _, wl := range whitelist {
+				if path == wl || strings.HasPrefix(path, wl+"/") || strings.HasPrefix(path, wl+"?") {
+					allowed = true
+					break
+				}
+			}
+			if !allowed {
+				writeError(w, 403, "Tu cuenta esta pendiente de aprobacion. Solo puedes ver el estado de tu solicitud.")
+				return
+			}
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (am *AuthMiddleware) RequirePermission(permission string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -539,7 +611,7 @@ func (ah *AuthHandlers) beginLogin(w http.ResponseWriter, r *http.Request) {
 	var userDisplayName string
 	err := ah.Pool.QueryRow(r.Context(), `
 		SELECT id, COALESCE(display_name, username) FROM users
-		WHERE username = $1 AND node_domain = $2 AND membership_status = 'active'`,
+		WHERE username = $1 AND node_domain = $2 AND membership_status IN ('active', 'pending_admission')`,
 		username, nodeDomain).Scan(&userID, &userDisplayName)
 	if err != nil {
 		writeError(w, 404, "usuario no encontrado")
@@ -1154,7 +1226,7 @@ func (ah *AuthHandlers) passwordLogin(w http.ResponseWriter, r *http.Request) {
 		SELECT u.id, uc.password_hash, u.node_domain
 		FROM users u
 		JOIN user_credentials uc ON uc.user_id = u.id
-		WHERE u.username = $1 AND u.node_domain = $2 AND u.membership_status = 'active'
+		WHERE u.username = $1 AND u.node_domain = $2 AND u.membership_status IN ('active', 'pending_admission')
 	`, username, nodeDomain).Scan(&userID, &passwordHash, &userNodeDomain)
 	if err != nil {
 		writeError(w, 401, "invalid credentials")

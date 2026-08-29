@@ -52,6 +52,12 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 	r.Use(middleware.Timeout(60 * time.Second))
 	r.Use(corsMiddleware(corsOrigins))
 
+	// Middleware global: restringir acceso de usuarios preliminares (pending_admission)
+	// a solo las rutas whitelisted (status, perfil, notificaciones, passkey).
+	// Las rutas publicas (sin auth) no se ven afectadas porque el middleware
+	// verifica el JWT y si no hay JWT, deja pasar (RequireAuth maneja el 401).
+	r.Use(am.RequireActiveMembership)
+
 	// Cuando basePath esta seteado (ej: nodo padre con basePath="/main"
 	// o nodo demo con basePath="/demo"), strip basePath de las llamadas API
 	// para que funcionen las rutas internas.

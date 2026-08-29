@@ -25,6 +25,30 @@ export const DEFAULT_ADMISSION_FIELDS: FormFieldSchema[] = [
     required: true,
   },
   {
+    id: 'proposed_username',
+    label: 'Nombre de Usuario *',
+    type: 'text',
+    placeholder: 'Ej: maria_rodriguez, colectivo_conuco, juanperez',
+    help_text: 'Así quieres que te identifiquen en la red. Solo letras, números, guiones y guiones bajos. Sin espacios.',
+    required: true,
+  },
+  {
+    id: 'proposed_password',
+    label: 'Contraseña *',
+    type: 'password',
+    placeholder: 'Mínimo 6 caracteres',
+    help_text: 'Con esta contraseña podrás iniciar sesión para ver el estado de tu solicitud.',
+    required: true,
+  },
+  {
+    id: 'proposed_password_confirm',
+    label: 'Confirmar Contraseña *',
+    type: 'password',
+    placeholder: 'Repite tu contraseña',
+    help_text: 'Verifica que escribiste bien tu contraseña.',
+    required: true,
+  },
+  {
     id: 'email',
     label: 'Correo Electrónico',
     type: 'email',
@@ -182,6 +206,23 @@ export function DynamicAdmissionForm() {
 
     setLoading(true)
     try {
+      // Validar que las contraseñas coincidan
+      const pw = answers.proposed_password || ''
+      const pwConfirm = answers.proposed_password_confirm || ''
+      if (pw && pwConfirm && pw !== pwConfirm) {
+        setError('Las contraseñas no coinciden.')
+        setLoading(false)
+        return
+      }
+
+      // Validar formato de username
+      const username = (answers.proposed_username || '').trim().toLowerCase()
+      if (username && !/^[a-z0-9_-]+$/.test(username)) {
+        setError('El nombre de usuario solo puede contener letras, números, guiones y guiones bajos.')
+        setLoading(false)
+        return
+      }
+
       const payload = {
         full_name: answers.full_name || answers[fields[0]?.id] || 'Anónimo',
         email: answers.email || '',
@@ -191,6 +232,8 @@ export function DynamicAdmissionForm() {
         skills: answers.skills || '',
         how_heard: answers.how_heard || '',
         custom_fields: answers,
+        proposed_username: username,
+        proposed_password: pw,
       }
 
       await api.post('/public/admission-request', payload)
@@ -212,7 +255,10 @@ export function DynamicAdmissionForm() {
           ¡Solicitud enviada con éxito!
         </h2>
         <p className="text-xs sm:text-sm text-gray-600 leading-relaxed max-w-lg mx-auto">
-          Muchas gracias por tu interés en sumarte a la <b>comunidad</b>. Tus respuestas han sido registradas y serán evaluadas por la asamblea comunitaria. Nos pondremos en contacto contigo a la brevedad.
+          Muchas gracias por tu interés en sumarte a la <b>comunidad</b>. Tus respuestas han sido registradas y serán evaluadas por la asamblea comunitaria.
+        </p>
+        <p className="text-xs sm:text-sm text-emerald-800 font-medium">
+          Puedes <Link to="/login" className="underline font-bold">iniciar sesión</Link> con tu nombre de usuario y contraseña para ver el estado de tu solicitud.
         </p>
         <div className="pt-3">
           <Link
@@ -256,6 +302,18 @@ export function DynamicAdmissionForm() {
                   placeholder={field.placeholder || ''}
                   value={val}
                   onChange={(e) => handleFieldChange(field.id, e.target.value)}
+                />
+              )}
+
+              {/* 1b. PASSWORD INPUT */}
+              {field.type === 'password' && (
+                <input
+                  type="password"
+                  className="input text-xs sm:text-sm"
+                  placeholder={field.placeholder || ''}
+                  value={val}
+                  onChange={(e) => handleFieldChange(field.id, e.target.value)}
+                  autoComplete="new-password"
                 />
               )}
 

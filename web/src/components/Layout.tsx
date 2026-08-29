@@ -4,7 +4,7 @@ import { usePermissions } from '../hooks/usePermissions'
 import { api } from '../api'
 import { getNotifIcon, relativeTime } from '../lib/notifications'
 import {
-  Home, ArrowLeftRight, History, Package, Calculator, Store,
+  Home, ArrowLeftRight, History, Package, Calculator, Store, Clock,
   Network, Scale, Users, Gavel, FileSearch, Globe, UserPlus, Wallet, Shield,
   Building2, Nfc, Settings, User, PiggyBank, Zap, Plug,
   LogOut, Menu, X, ExternalLink, Bell, ChevronLeft, ChevronRight, AlertTriangle,
@@ -16,6 +16,7 @@ import { useState, useEffect } from 'react'
 // Si perm no esta definido, la pestaña es visible para todos.
 const navItems: { to: string; label: string; icon: any; perm?: string; end?: boolean }[] = [
   { to: '/app/dashboard', label: 'Inicio', icon: Home, end: true },
+  { to: '/app/admission-status', label: 'Mi Solicitud', icon: UserPlus },
   { to: '/app/transfer', label: 'Transferir', icon: ArrowLeftRight },
   { to: '/app/wallet', label: 'Billetera', icon: Wallet },
   { to: '/app/my-services', label: 'Mis Servicios', icon: Plug },
@@ -55,9 +56,26 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [showNotif, setShowNotif] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [notifications, setNotifications] = useState<any[]>([])
+  const [membershipStatus, setMembershipStatus] = useState<string>('active')
 
-  // Filtrar items segun permisos del usuario
-  const visibleItems = navItems.filter(item => !item.perm || hasPermission(item.perm))
+  // Cargar membership_status del usuario
+  useEffect(() => {
+    api.get<any>('/auth/me').then((d: any) => {
+      setMembershipStatus(d?.membership_status || 'active')
+    }).catch(() => {})
+  }, [])
+
+  // Si el usuario es preliminar (pending_admission), mostrar solo 3 items
+  const isPendingAdmission = membershipStatus === 'pending_admission'
+
+  // Filtrar items segun permisos del usuario y estado de membresia
+  const visibleItems = isPendingAdmission
+    ? navItems.filter(item =>
+        item.to === '/app/admission-status' ||
+        item.to === '/app/profile' ||
+        item.to === '/app/notifications/settings'
+      )
+    : navItems.filter(item => !item.perm || hasPermission(item.perm))
 
   // Cargar contador de notificaciones no leidas (polling cada 30s)
   useEffect(() => {
@@ -233,7 +251,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <main className="flex-1 p-4 lg:p-6 overflow-y-auto">
-          {children}
+          {isPendingAdmission && !window.location.pathname.includes('/app/admission-status') && !window.location.pathname.includes('/app/profile') && !window.location.pathname.includes('/app/notifications') ? (
+            <div className="max-w-2xl mx-auto py-12 text-center space-y-4">
+              <Clock size={32} className="mx-auto text-amber-500" />
+              <h2 className="text-lg font-bold text-gray-900">Tu cuenta está pendiente de aprobación</h2>
+              <p className="text-xs text-gray-600">Mientras esperas la decisión de la asamblea, solo puedes ver el estado de tu solicitud.</p>
+              <button onClick={() => navigate('/app/admission-status')} className="btn-primary text-xs">
+                Ver estado de mi solicitud
+              </button>
+            </div>
+          ) : children}
         </main>
       </div>
     </div>

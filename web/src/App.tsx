@@ -21,6 +21,7 @@ import Assembly from './pages/Assembly'
 import Audit from './pages/Audit'
 import ExternalBridge from './pages/ExternalBridge'
 import Admission from './pages/Admission'
+import AdmissionStatus from './pages/AdmissionStatus'
 import Organizations from './pages/Organizations'
 import OrganizationDetail from './pages/OrganizationDetail'
 import Payments from './pages/Payments'
@@ -136,6 +137,7 @@ function AppInner() {
         <Route path="/app/audit" element={<Layout><Audit /></Layout>} />
         <Route path="/app/external" element={<Layout><ExternalBridge /></Layout>} />
         <Route path="/app/admission" element={<Layout><Admission /></Layout>} />
+        <Route path="/app/admission-status" element={<Layout><AdmissionStatus /></Layout>} />
         <Route path="/app/recovery" element={<Layout><Recovery /></Layout>} />
         <Route path="/app/departments" element={<Layout><Departments /></Layout>} />
         <Route path="/app/departments/:id" element={<Layout><DepartmentDetail /></Layout>} />

@@ -22,6 +22,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // SystemHandler maneja auditoria, configuracion del nodo, niveles de miembro y moneda
@@ -44,6 +45,10 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.Get("/api/public/products", h.listPublicProducts)
 
 	// ===== ENDPOINTS PRIVADOS (requieren auth) =====
+
+	// Status de admision (para usuarios preliminares)
+	r.With(am.RequireAuth).Get("/api/my/admission-status", h.getMyAdmissionStatus)
+	r.With(am.RequireAuth).Post("/api/my/admission-defense", h.submitAdmissionDefense)
 
 	// Gestion del sitio publico (admin)
 	r.With(am.RequireAuth).Get("/api/site/pages", h.listSitePages)
@@ -2745,14 +2750,16 @@ func jsonContentToText(jsonStr string) string {
 }
 
 type AdmissionRequestReq struct {
-	FullName     string          `json:"full_name"`
-	Email        string          `json:"email"`
-	Phone        string          `json:"phone"`
-	Location     string          `json:"location"`
-	Reason       string          `json:"reason"`
-	Skills       string          `json:"skills"`
-	HowHeard     string          `json:"how_heard"`
-	CustomFields json.RawMessage `json:"custom_fields"`
+	FullName         string          `json:"full_name"`
+	Email            string          `json:"email"`
+	Phone            string          `json:"phone"`
+	Location         string          `json:"location"`
+	Reason           string          `json:"reason"`
+	Skills           string          `json:"skills"`
+	HowHeard         string          `json:"how_heard"`
+	CustomFields     json.RawMessage `json:"custom_fields"`
+	ProposedUsername string          `json:"proposed_username"`
+	ProposedPassword string          `json:"proposed_password"`
 }
 
 func (h *SystemHandler) getPublicAdmissionForm(w http.ResponseWriter, r *http.Request) {
@@ -2792,29 +2799,196 @@ func (h *SystemHandler) submitAdmissionRequest(w http.ResponseWriter, r *http.Re
 		writeError(w, 400, "full_name is required")
 		return
 	}
+	if req.ProposedUsername == "" {
+		writeError(w, 400, "proposed_username is required")
+		return
+	}
+	if req.ProposedPassword == "" || len(req.ProposedPassword) < 6 {
+		writeError(w, 400, "proposed_password is required and must be at least 6 characters")
+		return
+	}
+
+	// Validar username: solo letras, numeros, guiones, sin espacios
+	username := strings.ToLower(strings.TrimSpace(req.ProposedUsername))
+	for _, c := range username {
+		if !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_') {
+			writeError(w, 400, "username solo puede contener letras, numeros, guiones y guiones bajos")
+			return
+		}
+	}
 
 	nodeDomain := r.URL.Query().Get("node")
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+
+	// Verificar que el username no exista ya
+	var existingID *uuid.UUID
+	_ = h.Pool.QueryRow(r.Context(), `
+		SELECT id FROM users WHERE username = $1 AND node_domain = $2`,
+		username, nodeDomain).Scan(&existingID)
+	if existingID != nil {
+		writeError(w, 409, "El nombre de usuario ya existe. Elige otro.")
+		return
+	}
+
+	// Hashear password con bcrypt
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.ProposedPassword), bcrypt.DefaultCost)
+	if err != nil {
+		writeError(w, 500, "error hashing password")
+		return
+	}
+
+	// Crear usuario preliminar
+	userID := uuid.New()
+	_, err = h.Pool.Exec(r.Context(), `
+		INSERT INTO users (id, node_domain, username, display_name, account_type, membership_status, balance, credit_limit, debit_limit, is_approved)
+		VALUES ($1, $2, $3, $4, 'individual', 'pending_admission', 0, 0, 0, false)`,
+		userID, nodeDomain, username, req.FullName)
+	if err != nil {
+		writeError(w, 500, "error creating preliminary user: "+err.Error())
+		return
+	}
+
+	// Crear credenciales (password hash)
+	_, err = h.Pool.Exec(r.Context(), `
+		INSERT INTO user_credentials (user_id, password_hash) VALUES ($1, $2)`,
+		userID, string(passwordHash))
+	if err != nil {
+		// Rollback: borrar usuario preliminar
+		h.Pool.Exec(r.Context(), `DELETE FROM users WHERE id = $1`, userID)
+		writeError(w, 500, "error creating user credentials: "+err.Error())
+		return
+	}
 
 	customJSON := string(req.CustomFields)
 	if customJSON == "" || customJSON == "null" {
 		customJSON = "{}"
 	}
 
+	// Crear admission_request con created_user_id y proposed_password
 	var id uuid.UUID
-	err := h.Pool.QueryRow(r.Context(), `
-		INSERT INTO admission_requests (node_domain, full_name, email, phone, location, reason, skills, how_heard, custom_fields)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb) RETURNING id`,
-		nodeDomain, req.FullName, req.Email, req.Phone, req.Location, req.Reason, req.Skills, req.HowHeard, customJSON).Scan(&id)
+	err = h.Pool.QueryRow(r.Context(), `
+		INSERT INTO admission_requests (node_domain, full_name, email, phone, location, reason, skills, how_heard, custom_fields, proposed_username, proposed_password, created_user_id, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, 'pending_review') RETURNING id`,
+		nodeDomain, req.FullName, req.Email, req.Phone, req.Location, req.Reason, req.Skills, req.HowHeard, customJSON,
+		username, string(passwordHash), userID).Scan(&id)
 	if err != nil {
-		writeError(w, 500, err.Error())
+		// Rollback: borrar usuario y credenciales
+		h.Pool.Exec(r.Context(), `DELETE FROM users WHERE id = $1`, userID)
+		writeError(w, 500, "error creating admission request: "+err.Error())
 		return
 	}
 
 	writeJSON(w, 201, map[string]interface{}{
-		"id":      id.String(),
-		"message": "Solicitud enviada. Nos pondremos en contacto contigo.",
-		"status":  "pending",
+		"id":       id.String(),
+		"message":  "Solicitud enviada. Puedes iniciar sesion con tu usuario y contrasena para ver el estado de tu solicitud.",
+		"status":   "pending_review",
+		"username": username,
+	})
+}
+
+// ===== STATUS DE ADMISION (para usuarios preliminares) =====
+
+func (h *SystemHandler) getMyAdmissionStatus(w http.ResponseWriter, r *http.Request) {
+	userID, err := h.Auth.GetUserID(r)
+	if err != nil {
+		writeError(w, 401, "authentication required")
+		return
+	}
+
+	var id, status string
+	var fullName, rejectionReason, defenseText, defenseStatus *string
+	var submittedAt, reviewedAt, elevatedAt, rejectionExpiresAt, defenseSubmittedAt *time.Time
+
+	err = h.Pool.QueryRow(r.Context(), `
+		SELECT id::text, status, full_name, rejection_reason, defense_text, defense_status,
+		       submitted_at, reviewed_at, elevated_at, rejection_expires_at, defense_submitted_at
+		FROM admission_requests WHERE created_user_id = $1 ORDER BY created_at DESC LIMIT 1`,
+		userID).Scan(&id, &status, &fullName, &rejectionReason, &defenseText, &defenseStatus,
+		&submittedAt, &reviewedAt, &elevatedAt, &rejectionExpiresAt, &defenseSubmittedAt)
+	if err != nil {
+		writeError(w, 404, "no admission request found for this user")
+		return
+	}
+
+	// Si esta elevado a asamblea, buscar la proxima asamblea
+	var nextAssemblyDate *string
+	if status == "elevated_to_assembly" {
+		var nextDate *time.Time
+		_ = h.Pool.QueryRow(r.Context(), `
+			SELECT start_time FROM assembly_sessions
+			WHERE status IN ('scheduled', 'active') AND start_time >= NOW()
+			ORDER BY start_time ASC LIMIT 1`).Scan(&nextDate)
+		if nextDate != nil {
+			s := nextDate.Format("2006-01-02 15:04")
+			nextAssemblyDate = &s
+		}
+	}
+
+	resp := map[string]interface{}{
+		"id":                   id,
+		"status":               status,
+		"full_name":            deref(fullName),
+		"submitted_at":         submittedAt,
+		"reviewed_at":          reviewedAt,
+		"elevated_at":          elevatedAt,
+		"next_assembly":        deref(nextAssemblyDate),
+		"rejection_reason":     deref(rejectionReason),
+		"rejection_expires_at": rejectionExpiresAt,
+		"defense_text":         deref(defenseText),
+		"defense_status":       deref(defenseStatus),
+		"defense_submitted_at": defenseSubmittedAt,
+	}
+	writeJSON(w, 200, resp)
+}
+
+func (h *SystemHandler) submitAdmissionDefense(w http.ResponseWriter, r *http.Request) {
+	userID, err := h.Auth.GetUserID(r)
+	if err != nil {
+		writeError(w, 401, "authentication required")
+		return
+	}
+
+	var req struct {
+		DefenseText string `json:"defense_text"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.DefenseText == "" || len(req.DefenseText) < 10 {
+		writeError(w, 400, "defense_text is required and must be at least 10 characters")
+		return
+	}
+
+	// Verificar que el usuario tiene una solicitud rechazada y no expirada
+	var reqID string
+	var rejectionExpiresAt *time.Time
+	err = h.Pool.QueryRow(r.Context(), `
+		SELECT id::text, rejection_expires_at FROM admission_requests
+		WHERE created_user_id = $1 AND status = 'rejected' ORDER BY created_at DESC LIMIT 1`,
+		userID).Scan(&reqID, &rejectionExpiresAt)
+	if err != nil {
+		writeError(w, 404, "no rejected admission request found")
+		return
+	}
+	if rejectionExpiresAt != nil && rejectionExpiresAt.Before(time.Now()) {
+		writeError(w, 403, "el plazo para enviar defensa ha expirado")
+		return
+	}
+
+	_, err = h.Pool.Exec(r.Context(), `
+		UPDATE admission_requests SET
+			defense_text = $1, defense_submitted_at = NOW(), defense_status = 'pending', status = 'defense_pending'
+		WHERE id = $2::uuid`,
+		req.DefenseText, reqID)
+	if err != nil {
+		writeError(w, 500, "error submitting defense: "+err.Error())
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"message": "Defensa enviada. La comision revisara tu respuesta.",
+		"status":  "defense_pending",
 	})
 }
 
