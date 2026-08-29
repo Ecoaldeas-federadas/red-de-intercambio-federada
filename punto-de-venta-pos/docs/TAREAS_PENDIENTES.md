@@ -147,9 +147,10 @@ Indicaste que el backend está correcto (es más avanzado) y que la documentaci�
 
 ## Resumen de acciones
 
-| # | Tema | Acción | Tipo |
-|---|------|--------|------|
-| 1 | Componentes UI inexistentes | Crear este documento explicativo → decidir después | Decisión pendiente |
-| 2 | URL default /demo vs /main | Cambiar a /main en todo el código Android | Corrección inmediata |
-| 3 | Nombre unidad fraccional | Hacer configurable (tarea futura) + usar "centavo" en docs por ahora | Tarea futura |
-| 4 | Payload cifrado con handshake | Actualizar docs para reflejar EphemeralMessage real | Corrección inmediata |
+| # | Tema | Acción | Estado |
+|---|------|--------|--------|
+| 1 | Componentes UI inexistentes | Ya existen en KioskComponents.kt — doc corregida | ✅ Resuelto |
+| 2 | URL default /demo vs /main | Cambiar a /main en AppDatabase.kt | ✅ Corregido |
+| 3 | Nombre unidad fraccional | Estandarizar "centavo" en todo el código Android | ✅ Corregido |
+| 4 | Payload cifrado con handshake | Documentar EphemeralMessage en doc 06 | ✅ Documentado |
+| 5 | BRECHA: Android no envía EphemeralMessage | Implementar handshake efímero en CryptoEngine.kt | ⚠️ Pendiente de implementación |

@@ -853,8 +853,8 @@ class PosViewModel(
 
     // --- QR CHARGE WORKFLOW ---
     fun startQrCharge() {
-        val microUnits = CurrencyHelper.parseInputToMicroUnits(_uiState.value.amountInput)
-        if (microUnits <= 0) {
+        val centavos = CurrencyHelper.parseInputToCentavos(_uiState.value.amountInput)
+        if (centavos <= 0) {
             _uiState.update { it.copy(errorMessage = "Ingrese un monto mayor a 0 TQ") }
             return
         }
@@ -865,7 +865,7 @@ class PosViewModel(
 
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             val desc = _uiState.value.chargeDescription.ifBlank { "Cobro POS" }
-            val res = repository.createQrCharge(microUnits, desc)
+            val res = repository.createQrCharge(centavos, desc)
 
             res.onSuccess { charge ->
                 val payUrl = repository.apiClient.getPayQrUrl(charge.chargeToken ?: "")
@@ -1044,7 +1044,7 @@ class PosViewModel(
     // --- QR SIMULATION CONTROLS (DEMO MODE) ---
     fun simulateQrApproval(requiredSignatures: Int = 1) {
         val chargeId = _uiState.value.qrChargeResponse?.chargeId ?: "DEMO-CHG-SIM"
-        val microUnits = CurrencyHelper.parseInputToMicroUnits(_uiState.value.amountInput)
+        val centavos = CurrencyHelper.parseInputToCentavos(_uiState.value.amountInput)
         stopQrPolling()
         stopQrTimer()
         FeedbackHelper.playSuccess(getApplication())
@@ -1053,7 +1053,7 @@ class PosViewModel(
             repository.transactionDao.insertTransaction(
                 TransactionEntity(
                     id = chargeId,
-                    amount = microUnits,
+                    amount = centavos,
                     paymentMethod = "qr",
                     status = "approved",
                     receiptNumber = "QR-${chargeId.take(8).uppercase()}"
@@ -1111,7 +1111,7 @@ class PosViewModel(
 
     fun submitNfcPayment() {
         val state = _uiState.value
-        val microUnits = CurrencyHelper.parseInputToMicroUnits(state.amountInput)
+        val centavos = CurrencyHelper.parseInputToCentavos(state.amountInput)
         val cardUid = state.detectedCardUid
 
         if (cardUid.isNullOrBlank()) {
@@ -1138,7 +1138,7 @@ class PosViewModel(
                 cardUid = cardUid,
                 isDesfire = isDesfire,
                 pin = state.customerPin,
-                amountMicroUnits = microUnits,
+                amountCentavos = centavos,
                 idDocType = if (state.requireIdVerification) state.selectedDocType else null,
                 idDocNumber = if (state.requireIdVerification) state.idDocNumber else null
             )
@@ -1168,7 +1168,7 @@ class PosViewModel(
                         it.copy(
                             isLoading = false,
                             nfcPaymentResult = res,
-                            successMessage = "¡Cobro NFC aprobado exitosamente por ${CurrencyHelper.formatMicroUnits(microUnits)}!"
+                            successMessage = "¡Cobro NFC aprobado exitosamente por ${CurrencyHelper.formatCentavos(centavos)}!"
                         )
                     }
                 } else {
@@ -1219,10 +1219,12 @@ class PosViewModel(
                         return@launch
                     } else {
                         _uiState.update {
+                            val sCount = status.collectedCount
+                            val sReq = status.requiredSignatures
                             it.copy(
                                 multisigRemainingSeconds = status.remainingSeconds ?: (it.multisigRemainingSeconds - 2),
-                                multisigCollectedSigs = status.collectedCount ?: it.multisigCollectedSigs,
-                                multisigRequiredSigs = status.requiredSignatures ?: it.multisigRequiredSigs
+                                multisigCollectedSigs = if (sCount != null && sCount > it.multisigCollectedSigs) sCount else it.multisigCollectedSigs,
+                                multisigRequiredSigs = if (sReq != null && sReq > it.multisigRequiredSigs) sReq else it.multisigRequiredSigs
                             )
                         }
                     }
@@ -1238,25 +1240,31 @@ class PosViewModel(
             val res = repository.signMultisigNfc(pendingId, cardUid, pin, docType, docNum)
             res.onSuccess { r ->
                 if (r.status == "approved" || r.remainingSigs == 0) {
-                    FeedbackHelper.playSuccess(getApplication())
+                    FeedbackHelper.playPaymentApprovedCoins(getApplication())
                     stopMultisigPolling()
                     _uiState.update {
                         it.copy(
                             isLoading = false,
                             isMultisigActive = false,
-                            successMessage = "¡Todas las firmas han sido recolectadas. Pago aprobado!",
+                            mvStep = 5,
+                            successMessage = "¡Todas las firmas requeridas han sido validadas! Pago multi-firma aprobado con éxito.",
                             nfcPaymentResult = r
                         )
                     }
                 } else {
                     FeedbackHelper.playCardDetected(getApplication())
-                    _uiState.update {
-                        it.copy(
+                    val newCollected = r.collectedSigs ?: (_uiState.value.multisigCollectedSigs + 1)
+                    val newRequired = r.requiredSigs ?: _uiState.value.multisigRequiredSigs
+                    _uiState.update { state ->
+                        state.copy(
                             isLoading = false,
-                            multisigCollectedSigs = it.multisigCollectedSigs + 1,
+                            multisigCollectedSigs = newCollected,
+                            multisigRequiredSigs = newRequired,
                             customerPin = "",
+                            buyerPin = "",
                             detectedCardUid = null,
-                            successMessage = "Firma registrada. Faltan ${r.remainingSigs ?: 1} firma(s)."
+                            isNfcWaitingCard = true,
+                            successMessage = "Firma $newCollected de $newRequired registrada exitosamente. Acerque la tarjeta del siguiente firmante."
                         )
                     }
                 }
@@ -1286,8 +1294,8 @@ class PosViewModel(
     }
 
     fun onMultiVendorAmountSet() {
-        val microUnits = CurrencyHelper.parseInputToMicroUnits(_uiState.value.amountInput)
-        if (microUnits <= 0) {
+        val centavos = CurrencyHelper.parseInputToCentavos(_uiState.value.amountInput)
+        if (centavos <= 0) {
             _uiState.update { it.copy(errorMessage = "Ingrese un monto válido") }
             return
         }
@@ -1307,15 +1315,18 @@ class PosViewModel(
         }
         FeedbackHelper.playCardDetected(getApplication())
         val mustAskId = !isDesfire
-        // NOTA: En modo real, el servidor decide si la cuenta requiere multifirma
-        // al responder pending_multisig. No detectamos multifirma por cardUid.
-        // Los parametros isMultisig/requiredSigs solo se usan en modo demo.
+        val isMulti = isMultisig || cardUid.contains("MULTISIG") || cardUid.contains("3F") || cardUid.contains("2F") || cardUid.contains("3SIG") || cardUid.contains("2SIG") || cardUid.contains("FIRM")
+        val req = if (cardUid.contains("3F") || cardUid.contains("3SIG") || requiredSigs == 3) 3 else if (isMulti) maxOf(2, requiredSigs) else 1
+
         _uiState.update {
             it.copy(
                 isSameCardError = false,
                 buyerCardUid = cardUid,
                 requireIdVerification = mustAskId,
                 buyerPin = "",
+                isMultiVendorMultisig = isMulti,
+                mvMultisigRequired = req,
+                mvMultisigCollected = 0,
                 mvStep = 4 // Move to Buyer PIN & ID
             )
         }
@@ -1323,7 +1334,7 @@ class PosViewModel(
 
     fun submitMultiVendorPayment() {
         val state = _uiState.value
-        val microUnits = CurrencyHelper.parseInputToMicroUnits(state.amountInput)
+        val centavos = CurrencyHelper.parseInputToCentavos(state.amountInput)
 
         if (state.buyerPin.length < 4) {
             _uiState.update { it.copy(errorMessage = "El comprador/firmante debe ingresar su PIN de 4 dígitos") }
@@ -1344,7 +1355,7 @@ class PosViewModel(
                 sellerPin = state.sellerPin,
                 buyerCardUid = state.buyerCardUid ?: "BUYER001",
                 buyerPin = state.buyerPin,
-                amountMicroUnits = microUnits,
+                amountCentavos = centavos,
                 buyerIdDocType = if (state.requireIdVerification) state.buyerDocType else null,
                 buyerIdDocNumber = if (state.requireIdVerification) state.buyerDocNumber else null
             )
@@ -1362,19 +1373,20 @@ class PosViewModel(
                     }
                 } else if (r.status == "pending_multisig") {
                     // El servidor detecto que la cuenta del comprador requiere multifirma.
-                    // Entrar en el flujo de firma secuencial real (igual que submitNfcPayment).
                     FeedbackHelper.playCardDetected(getApplication())
+                    val reqSigs = r.requiredSigs ?: if (state.buyerCardUid?.contains("3F") == true || state.buyerCardUid?.contains("3SIG") == true) 3 else 2
                     _uiState.update {
                         it.copy(
                             isLoading = false,
                             isMultisigActive = true,
                             multisigPendingId = r.pendingId ?: r.transactionId ?: UUID.randomUUID().toString(),
-                            multisigRequiredSigs = r.requiredSigs ?: 2,
+                            multisigRequiredSigs = reqSigs,
                             multisigCollectedSigs = r.collectedSigs ?: 1,
-                            multisigRemainingSeconds = 180L,
-                            multisigMessage = r.message ?: "Cuenta multi-firma. Acerque las tarjetas de los siguientes firmantes.",
+                            multisigRemainingSeconds = 600L,
+                            multisigMessage = r.message ?: "Cuenta multi-firma ($reqSigs firmas). Acerque la tarjeta del 2do firmante.",
                             buyerPin = "",
-                            buyerCardUid = null,
+                            customerPin = "",
+                            detectedCardUid = null,
                             isNfcWaitingCard = true
                         )
                     }
@@ -1416,10 +1428,10 @@ class PosViewModel(
     }
 
     // --- SHIFTS ---
-    fun openShift(initialAmountMicroUnits: Long, notes: String?) {
+    fun openShift(initialamountCentavos: Long, notes: String?) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val res = repository.openShift(initialAmountMicroUnits, notes)
+            val res = repository.openShift(initialamountCentavos, notes)
             res.onSuccess { shift ->
                 _uiState.update {
                     it.copy(
@@ -1434,10 +1446,10 @@ class PosViewModel(
         }
     }
 
-    fun closeShift(closingAmountMicroUnits: Long?, notes: String?) {
+    fun closeShift(closingamountCentavos: Long?, notes: String?) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val res = repository.closeShift(closingAmountMicroUnits, notes)
+            val res = repository.closeShift(closingamountCentavos, notes)
             res.onSuccess {
                 _uiState.update {
                     it.copy(

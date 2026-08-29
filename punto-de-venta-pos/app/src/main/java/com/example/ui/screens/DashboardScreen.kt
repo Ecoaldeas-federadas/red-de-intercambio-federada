@@ -130,7 +130,10 @@ fun DashboardScreen(
                 ) {
                     if (isShiftOpen) {
                         AssistChip(
-                            onClick = { viewModel.navigateTo(PosScreen.Settings) },
+                            onClick = {
+                                FeedbackHelper.playButtonClick(context)
+                                viewModel.navigateTo(PosScreen.Settings)
+                            },
                             label = {
                                 Text(
                                     text = "Abierto",
@@ -426,13 +429,17 @@ fun PosActionTile(
     tag: String,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .height(108.dp)
             .testTag(tag)
             .clip(RoundedCornerShape(20.dp))
-            .clickable { onClick() },
+            .clickable {
+                FeedbackHelper.playButtonClick(context)
+                onClick()
+            },
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = PosSlate800),
         border = CardDefaults.outlinedCardBorder().copy(
@@ -505,12 +512,16 @@ fun SecondaryMenuButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
     Card(
         modifier = modifier
             .height(84.dp)
             .testTag(tag)
             .clip(RoundedCornerShape(16.dp))
-            .clickable { onClick() },
+            .clickable {
+                FeedbackHelper.playButtonClick(context)
+                onClick()
+            },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = PosSlate800)
     ) {

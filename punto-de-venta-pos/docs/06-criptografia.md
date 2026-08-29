@@ -319,7 +319,45 @@ La clave compartida se invalida (`cachedSharedKey = null`) en estos casos:
 
 ## 5. Cifrado de Payloads con AES-256-GCM
 
-### 5.1. Estructura EncryptedPayload
+### 5.0. EphemeralMessage con Handshake (Perfect Forward Secrecy)
+
+> **IMPORTANTE:** El backend (`internal/payments/nfc_terminal.go` `DecodePayload`) espera un `EphemeralMessage` con `handshake` que provee **perfect forward secrecy**. Cada transacción usa una clave efímera (temporal, de un solo uso) generada por el terminal. Esto significa que incluso si la clave compartida ECDH del terminal se compromete en el futuro, las transacciones pasadas siguen siendo indescifrables porque cada una usó una clave efímera diferente que ya no existe.
+
+**Estructura esperada por el backend (`internal/crypto/terminal_crypto.go`):**
+
+```go
+type EphemeralHandshake struct {
+    EphemeralPublicKey string `json:"ephemeral_public_key"`  // hex Ed25519 efímera
+    IdentitySignature  string `json:"identity_signature"`    // hex firma Ed25519 del terminal
+    Nonce              string `json:"nonce"`                 // hex nonce del handshake
+}
+
+type EphemeralMessage struct {
+    Handshake  EphemeralHandshake `json:"handshake"`
+    Nonce      string             `json:"nonce"`      // hex nonce AES-GCM
+    Ciphertext string             `json:"ciphertext"` // hex ciphertext + GCM tag
+    Signature  string             `json:"signature"`  // hex firma Ed25519 del ciphertext
+}
+```
+
+**Flujo del handshake:**
+1. El terminal genera un keypair efímero Ed25519 de un solo uso.
+2. Firma `(ephemeral_public_key || nonce)` con su clave privada de identidad → `identity_signature`.
+3. Deriva una clave compartida efímera via ECDH entre la clave efímera y la clave pública del servidor.
+4. Cifra el payload con AES-256-GCM usando la clave efímera compartida.
+5. Firma el ciphertext con la clave privada de identidad del terminal.
+6. Envía `EphemeralMessage{handshake, nonce, ciphertext, signature}`.
+
+El backend:
+1. Verifica `identity_signature` con la clave pública de identidad del terminal.
+2. Genera su propio keypair efímero.
+3. Deriva la misma clave compartida efímera via ECDH.
+4. Verifica la firma del ciphertext.
+5. Descifra con AES-256-GCM.
+
+> **BRECHA DE IMPLEMENTACIÓN:** El código Android actual (`CryptoEngine.kt`, `PosApiModels.kt`) envía un `EncryptedPayload` simple (`{nonce, ciphertext, signature}`) **sin** el campo `handshake`. El backend rechazaría estos payloads. El Android POS necesita ser actualizado para implementar el `EphemeralMessage` con handshake. Ver `TAREAS_PENDIENTES.md`.
+
+### 5.1. Estructura EncryptedPayload (formato actual del Android)
 
 **Archivo:** `CryptoEngine.kt` líneas 20-24
 
@@ -640,9 +678,9 @@ Elimina la clave maestra del Keystore. Se usa solo cuando el usuario resetea el 
 
 ## 8. Modelos de Datos para Pagos Cifrados
 
-### 8.1. EncryptedPayloadModel (JSON de red)
+### 8.1. EncryptedPayloadModel (JSON de red — formato actual Android)
 
-**Archivo:** `PosApiModels.kt` líneas 180-184
+**Archivo:** `PosApiModels.kt`
 
 ```kotlin
 data class EncryptedPayloadModel(
@@ -652,9 +690,11 @@ data class EncryptedPayloadModel(
 )
 ```
 
+> **Nota:** Este es el formato actual del Android. El backend espera un `EphemeralMessage` con `handshake` (ver sección 5.0). El Android necesita ser actualizado.
+
 ### 8.2. EncryptedPaymentRequest (request al servidor)
 
-**Archivo:** `PosApiModels.kt` líneas 187-190
+**Archivo:** `PosApiModels.kt`
 
 ```kotlin
 data class EncryptedPaymentRequest(
@@ -663,12 +703,30 @@ data class EncryptedPaymentRequest(
 )
 ```
 
-**Estructura JSON enviada:**
+**Estructura JSON enviada (formato actual Android):**
 
 ```json
 {
   "terminal_id": "TERM-ANDROID-A1B2C3D4E5F6",
   "encrypted_payload": {
+    "nonce": "a1b2c3d4e5f6a7b8c9d0e1f2",
+    "ciphertext": "9e8f... (hex del ciphertext + GCM tag)",
+    "signature": "1a2b... (hex de la firma Ed25519 del ciphertext)"
+  }
+}
+```
+
+**Estructura JSON esperada por el backend (EphemeralMessage):**
+
+```json
+{
+  "terminal_id": "TERM-ANDROID-A1B2C3D4E5F6",
+  "encrypted_payload": {
+    "handshake": {
+      "ephemeral_public_key": "a1b2... (hex Ed25519 efímera)",
+      "identity_signature": "c3d4... (hex firma Ed25519 de identidad)",
+      "nonce": "e5f6... (hex nonce del handshake)"
+    },
     "nonce": "a1b2c3d4e5f6a7b8c9d0e1f2",
     "ciphertext": "9e8f... (hex del ciphertext + GCM tag)",
     "signature": "1a2b... (hex de la firma Ed25519 del ciphertext)"

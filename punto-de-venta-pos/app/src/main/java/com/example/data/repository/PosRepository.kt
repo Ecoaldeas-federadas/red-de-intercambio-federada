@@ -339,10 +339,10 @@ class PosRepository(
     }
 
     // --- QR PAYMENT FLOW ---
-    suspend fun createQrCharge(amountMicroUnits: Long, description: String?): Result<CreateChargeResponse> = withContext(Dispatchers.IO) {
+    suspend fun createQrCharge(amountCentavos: Long, description: String?): Result<CreateChargeResponse> = withContext(Dispatchers.IO) {
         try {
             val service = apiClient.getService()
-            val response = service.createCharge(CreateChargeRequest(amountMicroUnits, description))
+            val response = service.createCharge(CreateChargeRequest(amountCentavos, description))
             if (response.isSuccessful && response.body()?.chargeToken != null) {
                 Result.success(response.body()!!)
             } else if (apiClient.isDemoNode) {
@@ -352,7 +352,7 @@ class PosRepository(
                 val simResp = CreateChargeResponse(
                     chargeId = demoChargeId,
                     chargeToken = demoToken,
-                    amount = amountMicroUnits,
+                    amount = amountCentavos,
                     status = "pending",
                     expiresIn = 180
                 )
@@ -368,7 +368,7 @@ class PosRepository(
                 val simResp = CreateChargeResponse(
                     chargeId = demoChargeId,
                     chargeToken = demoToken,
-                    amount = amountMicroUnits,
+                    amount = amountCentavos,
                     status = "pending",
                     expiresIn = 180
                 )
@@ -618,7 +618,7 @@ class PosRepository(
         cardUid: String,
         isDesfire: Boolean,
         pin: String,
-        amountMicroUnits: Long,
+        amountCentavos: Long,
         idDocType: String? = null,
         idDocNumber: String? = null
     ): Result<PaymentResultDecrypted> = withContext(Dispatchers.IO) {
@@ -633,7 +633,7 @@ class PosRepository(
                 cardUid = cardUid,
                 cryptoToken = cryptoToken,
                 pin = pin,
-                amount = amountMicroUnits,
+                amount = amountCentavos,
                 timestamp = timestamp,
                 nonce = nonce,
                 idDocumentType = idDocType,
@@ -682,7 +682,7 @@ class PosRepository(
                     transactionDao.insertTransaction(
                         TransactionEntity(
                             id = result.transactionId ?: UUID.randomUUID().toString(),
-                            amount = amountMicroUnits,
+                            amount = amountCentavos,
                             paymentMethod = "nfc_single",
                             status = "approved",
                             cardUid = cardUid,
@@ -729,7 +729,7 @@ class PosRepository(
                         transactionDao.insertTransaction(
                             TransactionEntity(
                                 id = simulatedResult.transactionId!!,
-                                amount = amountMicroUnits,
+                                amount = amountCentavos,
                                 paymentMethod = "nfc_single",
                                 status = "approved",
                                 cardUid = cardUid,
@@ -787,7 +787,7 @@ class PosRepository(
                     transactionDao.insertTransaction(
                         TransactionEntity(
                             id = simulatedResult.transactionId!!,
-                            amount = amountMicroUnits,
+                            amount = amountCentavos,
                             paymentMethod = "nfc_single",
                             status = "approved",
                             cardUid = cardUid,
@@ -811,7 +811,7 @@ class PosRepository(
         sellerPin: String,
         buyerCardUid: String,
         buyerPin: String,
-        amountMicroUnits: Long,
+        amountCentavos: Long,
         buyerIdDocType: String? = null,
         buyerIdDocNumber: String? = null
     ): Result<PaymentResultDecrypted> = withContext(Dispatchers.IO) {
@@ -828,7 +828,7 @@ class PosRepository(
                 buyerCardUid = buyerCardUid,
                 buyerCryptoToken = "uid_only_token",
                 buyerPin = buyerPin,
-                amount = amountMicroUnits,
+                amount = amountCentavos,
                 timestamp = timestamp,
                 nonce = nonce,
                 buyerIdDocumentType = buyerIdDocType,
@@ -877,7 +877,7 @@ class PosRepository(
                     transactionDao.insertTransaction(
                         TransactionEntity(
                             id = result.transactionId ?: UUID.randomUUID().toString(),
-                            amount = amountMicroUnits,
+                            amount = amountCentavos,
                             paymentMethod = "nfc_community",
                             status = "approved",
                             cardUid = buyerCardUid,
@@ -889,24 +889,52 @@ class PosRepository(
                 Result.success(result)
             } else {
                 if (apiClient.isDemoNode) {
-                    val simulated = PaymentResultDecrypted(
-                        status = "approved",
-                        transactionId = UUID.randomUUID().toString(),
-                        message = "Transacción comunitaria simulada aprobada (Modo Demo)",
-                        userBalance = 150000L
-                    )
-                    transactionDao.insertTransaction(
-                        TransactionEntity(
-                            id = simulated.transactionId!!,
-                            amount = amountMicroUnits,
-                            paymentMethod = "nfc_community",
-                            status = "approved",
-                            cardUid = buyerCardUid,
-                            vendorName = "Vendedor $sellerCardUid",
-                            receiptNumber = "COM-${UUID.randomUUID().toString().take(8).uppercase()}"
+                    val isMultisig3 = buyerCardUid.contains("3SIG") || buyerCardUid.contains("3F")
+                    val isMultisig2 = buyerCardUid.contains("MULTISIG") || buyerCardUid.contains("2SIG") || buyerCardUid.contains("2F") || buyerCardUid.contains("FIRM")
+                    if (isMultisig3) {
+                        val sim = PaymentResultDecrypted(
+                            status = "pending_multisig",
+                            transactionId = "TX-MV-MS3-${UUID.randomUUID().toString().take(6).uppercase()}",
+                            pendingId = "PENDING-MV-MS3-${UUID.randomUUID().toString().take(6).uppercase()}",
+                            requiredSigs = 3,
+                            collectedSigs = 1,
+                            remainingSigs = 2,
+                            message = "Cuenta multi-firma (3 Firmas requeridas). Firma 1 de 3 validada para la venta multi-vendedor. Acerque la tarjeta del 2do firmante.",
+                            userBalance = 250000L
                         )
-                    )
-                    Result.success(simulated)
+                        Result.success(sim)
+                    } else if (isMultisig2) {
+                        val sim = PaymentResultDecrypted(
+                            status = "pending_multisig",
+                            transactionId = "TX-MV-MS2-${UUID.randomUUID().toString().take(6).uppercase()}",
+                            pendingId = "PENDING-MV-MS2-${UUID.randomUUID().toString().take(6).uppercase()}",
+                            requiredSigs = 2,
+                            collectedSigs = 1,
+                            remainingSigs = 1,
+                            message = "Cuenta multi-firma (2 Firmas requeridas). Firma 1 de 2 validada para la venta multi-vendedor. Acerque la tarjeta del 2do firmante.",
+                            userBalance = 250000L
+                        )
+                        Result.success(sim)
+                    } else {
+                        val simulated = PaymentResultDecrypted(
+                            status = "approved",
+                            transactionId = UUID.randomUUID().toString(),
+                            message = "Transacción comunitaria simulada aprobada (Modo Demo)",
+                            userBalance = 150000L
+                        )
+                        transactionDao.insertTransaction(
+                            TransactionEntity(
+                                id = simulated.transactionId!!,
+                                amount = amountCentavos,
+                                paymentMethod = "nfc_community",
+                                status = "approved",
+                                cardUid = buyerCardUid,
+                                vendorName = "Vendedor $sellerCardUid",
+                                receiptNumber = "COM-${UUID.randomUUID().toString().take(8).uppercase()}"
+                            )
+                        )
+                        Result.success(simulated)
+                    }
                 } else {
                     val errorBodyStr = response.errorBody()?.string().orEmpty()
                     val serverMsg = try {
@@ -920,24 +948,52 @@ class PosRepository(
             }
         } catch (e: Exception) {
             if (apiClient.isDemoNode) {
-                val simulated = PaymentResultDecrypted(
-                    status = "approved",
-                    transactionId = UUID.randomUUID().toString(),
-                    message = "Transacción comunitaria simulada aprobada (Modo Demo)",
-                    userBalance = 150000L
-                )
-                transactionDao.insertTransaction(
-                    TransactionEntity(
-                        id = simulated.transactionId!!,
-                        amount = amountMicroUnits,
-                        paymentMethod = "nfc_community",
-                        status = "approved",
-                        cardUid = buyerCardUid,
-                        vendorName = "Vendedor $sellerCardUid",
-                        receiptNumber = "COM-${UUID.randomUUID().toString().take(8).uppercase()}"
+                val isMultisig3 = buyerCardUid.contains("3SIG") || buyerCardUid.contains("3F")
+                val isMultisig2 = buyerCardUid.contains("MULTISIG") || buyerCardUid.contains("2SIG") || buyerCardUid.contains("2F") || buyerCardUid.contains("FIRM")
+                if (isMultisig3) {
+                    val sim = PaymentResultDecrypted(
+                        status = "pending_multisig",
+                        transactionId = "TX-MV-MS3-${UUID.randomUUID().toString().take(6).uppercase()}",
+                        pendingId = "PENDING-MV-MS3-${UUID.randomUUID().toString().take(6).uppercase()}",
+                        requiredSigs = 3,
+                        collectedSigs = 1,
+                        remainingSigs = 2,
+                        message = "Cuenta multi-firma (3 Firmas requeridas). Firma 1 de 3 validada para la venta multi-vendedor. Acerque la tarjeta del 2do firmante.",
+                        userBalance = 250000L
                     )
-                )
-                Result.success(simulated)
+                    Result.success(sim)
+                } else if (isMultisig2) {
+                    val sim = PaymentResultDecrypted(
+                        status = "pending_multisig",
+                        transactionId = "TX-MV-MS2-${UUID.randomUUID().toString().take(6).uppercase()}",
+                        pendingId = "PENDING-MV-MS2-${UUID.randomUUID().toString().take(6).uppercase()}",
+                        requiredSigs = 2,
+                        collectedSigs = 1,
+                        remainingSigs = 1,
+                        message = "Cuenta multi-firma (2 Firmas requeridas). Firma 1 de 2 validada para la venta multi-vendedor. Acerque la tarjeta del 2do firmante.",
+                        userBalance = 250000L
+                    )
+                    Result.success(sim)
+                } else {
+                    val simulated = PaymentResultDecrypted(
+                        status = "approved",
+                        transactionId = UUID.randomUUID().toString(),
+                        message = "Transacción comunitaria simulada aprobada (Modo Demo)",
+                        userBalance = 150000L
+                    )
+                    transactionDao.insertTransaction(
+                        TransactionEntity(
+                            id = simulated.transactionId!!,
+                            amount = amountCentavos,
+                            paymentMethod = "nfc_community",
+                            status = "approved",
+                            cardUid = buyerCardUid,
+                            vendorName = "Vendedor $sellerCardUid",
+                            receiptNumber = "COM-${UUID.randomUUID().toString().take(8).uppercase()}"
+                        )
+                    )
+                    Result.success(simulated)
+                }
             } else {
                 Result.failure(Exception("Error en cobro multi-vendedor: ${e.localizedMessage}"))
             }
@@ -1112,14 +1168,15 @@ class PosRepository(
                 Result.success(res.body()!!)
             } else {
                 if (apiClient.isDemoNode) {
-                    // Modo Demo: simular estado pendiente
+                    // Modo Demo: simular estado pendiente sin degradar contadores locales
+                    val is3Sigs = pendingId.contains("MS3")
                     Result.success(
                         MultisigStatusResponse(
                             id = pendingId,
                             status = "pending",
-                            requiredSignatures = 2,
-                            collectedCount = 1,
-                            remainingSigs = 1,
+                            requiredSignatures = if (is3Sigs) 3 else 2,
+                            collectedCount = null,
+                            remainingSigs = null,
                             remainingSeconds = 480L
                         )
                     )
@@ -1130,13 +1187,14 @@ class PosRepository(
         } catch (e: Exception) {
             if (apiClient.isDemoNode) {
                 // Modo Demo: simular estado pendiente en caso de error de red
+                val is3Sigs = pendingId.contains("MS3")
                 Result.success(
                     MultisigStatusResponse(
                         id = pendingId,
                         status = "pending",
-                        requiredSignatures = 2,
-                        collectedCount = 1,
-                        remainingSigs = 1,
+                        requiredSignatures = if (is3Sigs) 3 else 2,
+                        collectedCount = null,
+                        remainingSigs = null,
                         remainingSeconds = 480L
                     )
                 )
@@ -1147,7 +1205,7 @@ class PosRepository(
     }
 
     // --- SHIFT MANAGEMENT ---
-    suspend fun openShift(openingAmountMicroUnits: Long, notes: String? = null): Result<ShiftEntity> = withContext(Dispatchers.IO) {
+    suspend fun openShift(openingamountCentavos: Long, notes: String? = null): Result<ShiftEntity> = withContext(Dispatchers.IO) {
         try {
             val config = getOrInitTerminalConfig()
             val shiftId = UUID.randomUUID().toString()
@@ -1155,7 +1213,7 @@ class PosRepository(
                 id = shiftId,
                 status = "open",
                 openedAt = System.currentTimeMillis(),
-                openingAmount = openingAmountMicroUnits,
+                openingAmount = openingamountCentavos,
                 totalSales = 0L,
                 transactionsCount = 0,
                 notes = notes
@@ -1163,7 +1221,7 @@ class PosRepository(
             shiftDao.insertShift(shift)
 
             try {
-                apiClient.getService().openShift(config.terminalId, OpenShiftRequest(openingAmountMicroUnits, notes))
+                apiClient.getService().openShift(config.terminalId, OpenShiftRequest(openingamountCentavos, notes))
             } catch (e: Exception) {}
 
             Result.success(shift)
@@ -1172,7 +1230,7 @@ class PosRepository(
         }
     }
 
-    suspend fun closeShift(closingAmountMicroUnits: Long? = null, notes: String? = null): Result<ShiftEntity> = withContext(Dispatchers.IO) {
+    suspend fun closeShift(closingamountCentavos: Long? = null, notes: String? = null): Result<ShiftEntity> = withContext(Dispatchers.IO) {
         try {
             val current = shiftDao.getOpenShift()
             if (current == null) return@withContext Result.failure(Exception("No hay turno abierto"))
@@ -1180,14 +1238,14 @@ class PosRepository(
             val updated = current.copy(
                 status = "closed",
                 closedAt = System.currentTimeMillis(),
-                closingAmount = closingAmountMicroUnits,
+                closingAmount = closingamountCentavos,
                 notes = notes
             )
             shiftDao.updateShift(updated)
 
             val config = getOrInitTerminalConfig()
             try {
-                apiClient.getService().closeShift(config.terminalId, CloseShiftRequest(closingAmountMicroUnits, notes))
+                apiClient.getService().closeShift(config.terminalId, CloseShiftRequest(closingamountCentavos, notes))
             } catch (e: Exception) {}
 
             Result.success(updated)

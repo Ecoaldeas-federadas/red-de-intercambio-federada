@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.Flow
 @Entity(tableName = "pos_transactions")
 data class TransactionEntity(
     @PrimaryKey val id: String,
-    val amount: Long, // in micro-units TQ
+    val amount: Long, // in centavos TQ
     val paymentMethod: String, // "qr", "nfc_single", "nfc_community", "multisig"
     val status: String, // "approved", "rejected", "pending", "cancelled", "expired"
     val cardUid: String? = null,

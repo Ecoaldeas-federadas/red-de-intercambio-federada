@@ -39,10 +39,10 @@ fun KioskAmountDisplay(
     modifier: Modifier = Modifier,
     label: String = "Monto a Cobrar"
 ) {
-    // POS-style decimal: input is in centimos. "1" = 0.01 TQ, "100" = 1.00 TQ
-    val centimos = amountInput.replace(Regex("[^0-9]"), "").ifEmpty { "0" }.toLong()
-    val microUnits = centimos // centimos map directly to micro-units
-    val formatted = CurrencyHelper.formatMicroUnits(microUnits)
+    // POS-style decimal: input is in centavos. "1" = 0.01 TQ, "100" = 1.00 TQ
+    val centavos = amountInput.replace(Regex("[^0-9]"), "").ifEmpty { "0" }.toLong()
+    val centavos = centavos // centavos map directly to centavos
+    val formatted = CurrencyHelper.formatCentavos(centavos)
 
     Card(
         modifier = modifier
@@ -66,9 +66,9 @@ fun KioskAmountDisplay(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = if (centimos == 0L) CurrencyHelper.formatMicroUnits(0L) else formatted,
+                text = if (centavos == 0L) CurrencyHelper.formatCentavos(0L) else formatted,
                 style = MaterialTheme.typography.displayMedium,
-                color = if (centimos > 0) PosPrimaryLight else PosSlate600,
+                color = if (centavos > 0) PosPrimaryLight else PosSlate600,
                 fontWeight = FontWeight.Black
             )
         }
@@ -82,7 +82,7 @@ fun KioskNumericKeypad(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    // POS-style decimal keypad: digits enter as centimos from the right.
+    // POS-style decimal keypad: digits enter as centavos from the right.
     // "1" → 0.01, "10" → 0.10, "100" → 1.00, "1234" → 12.34
     // No decimal point button, no quick-add buttons.
     Column(

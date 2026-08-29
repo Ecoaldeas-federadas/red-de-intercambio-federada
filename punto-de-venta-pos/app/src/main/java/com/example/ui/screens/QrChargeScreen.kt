@@ -241,8 +241,8 @@ fun QrChargeScreen(
                         )
 
                         Text(
-                            text = CurrencyHelper.formatMicroUnits(
-                                CurrencyHelper.parseInputToMicroUnits(uiState.amountInput)
+                            text = CurrencyHelper.formatCentavos(
+                                CurrencyHelper.parseInputToCentavos(uiState.amountInput)
                             ),
                             style = MaterialTheme.typography.displayMedium,
                             color = PosGoldLight,
@@ -347,8 +347,8 @@ fun QrChargeScreen(
                         )
 
                         Text(
-                            text = CurrencyHelper.formatMicroUnits(
-                                CurrencyHelper.parseInputToMicroUnits(uiState.amountInput)
+                            text = CurrencyHelper.formatCentavos(
+                                CurrencyHelper.parseInputToCentavos(uiState.amountInput)
                             ),
                             style = MaterialTheme.typography.headlineMedium,
                             color = PosGoldLight,
@@ -576,8 +576,8 @@ fun QrChargeScreen(
                         )
 
                         Text(
-                            text = CurrencyHelper.formatMicroUnits(
-                                CurrencyHelper.parseInputToMicroUnits(uiState.amountInput)
+                            text = CurrencyHelper.formatCentavos(
+                                CurrencyHelper.parseInputToCentavos(uiState.amountInput)
                             ),
                             style = MaterialTheme.typography.headlineLarge,
                             color = PosGoldLight,

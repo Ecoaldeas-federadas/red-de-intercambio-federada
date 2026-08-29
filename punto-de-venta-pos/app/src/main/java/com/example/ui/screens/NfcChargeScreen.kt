@@ -251,8 +251,8 @@ fun NfcChargeScreen(
                         )
 
                         Text(
-                            text = CurrencyHelper.formatMicroUnits(
-                                CurrencyHelper.parseInputToMicroUnits(uiState.amountInput)
+                            text = CurrencyHelper.formatCentavos(
+                                CurrencyHelper.parseInputToCentavos(uiState.amountInput)
                             ),
                             style = MaterialTheme.typography.displayMedium,
                             color = PosGoldLight,
@@ -460,8 +460,8 @@ fun NfcChargeScreen(
             } else if (!isCardDetected) {
                 // --- NFC FLOW: 3 steps ---
                 // Step 1: amount_input → Step 2: confirm → Step 3: tap_card
-                val centimos = uiState.amountInput.replace(Regex("[^0-9]"), "").ifEmpty { "0" }.toLong()
-                val hasAmount = centimos > 0
+                val centavos = uiState.amountInput.replace(Regex("[^0-9]"), "").ifEmpty { "0" }.toLong()
+                val hasAmount = centavos > 0
 
                 when (nfcStep) {
                     "amount_input" -> {

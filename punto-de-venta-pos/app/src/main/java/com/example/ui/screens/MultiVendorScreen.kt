@@ -385,6 +385,37 @@ fun MultiVendorScreen(
                                 fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Center
                             )
+                            Text(
+                                text = "La firma anterior fue validada exitosamente por el nodo. Coloque la tarjeta del siguiente titular al reverso del dispositivo.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = PosSlate300,
+                                textAlign = TextAlign.Center
+                            )
+
+                            if (uiState.isDemoNode) {
+                                val nextSignerIdx = uiState.multisigCollectedSigs + 1
+                                val simUid = if (uiState.multisigRequiredSigs == 3) "BUYER_MULTISIG_3F_FIRM$nextSignerIdx" else "BUYER_MULTISIG_2F_FIRM$nextSignerIdx"
+                                Button(
+                                    onClick = {
+                                        FeedbackHelper.playButtonClick(context)
+                                        viewModel.onCardTapped(simUid, isDesfire = true)
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(52.dp)
+                                        .testTag("sim_mv_next_signer_btn"),
+                                    shape = RoundedCornerShape(14.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = PosGold)
+                                ) {
+                                    Icon(Icons.Default.Contactless, contentDescription = null, tint = PosNavyDark)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        "Simular Tarjeta Firmante $nextSignerIdx de ${uiState.multisigRequiredSigs}",
+                                        color = PosNavyDark,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
                         }
 
                         TextButton(
@@ -633,7 +664,7 @@ fun MultiVendorScreen(
                                         Column {
                                             Text("Monto a Pagar", color = PosNavyDark.copy(alpha = 0.8f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                             Text(
-                                                CurrencyHelper.formatMicroUnits(CurrencyHelper.parseInputToMicroUnits(uiState.amountInput)),
+                                                CurrencyHelper.formatCentavos(CurrencyHelper.parseInputToCentavos(uiState.amountInput)),
                                                 color = PosNavyDark,
                                                 fontSize = 18.sp,
                                                 fontWeight = FontWeight.Black
@@ -681,7 +712,7 @@ fun MultiVendorScreen(
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                         Text("Total a debitar:", color = PosSlate400, fontSize = 12.sp)
                                         Text(
-                                            CurrencyHelper.formatMicroUnits(CurrencyHelper.parseInputToMicroUnits(uiState.amountInput)),
+                                            CurrencyHelper.formatCentavos(CurrencyHelper.parseInputToCentavos(uiState.amountInput)),
                                             color = PosSlate100,
                                             fontWeight = FontWeight.Black,
                                             fontSize = 13.sp
@@ -858,9 +889,9 @@ fun MultiVendorScreen(
                                         Icon(Icons.Default.Groups, contentDescription = null, tint = PosGoldLight, modifier = Modifier.size(18.dp))
                                         Text(
                                             text = if (uiState.mvMultisigCollected == 0) {
-                                                "Firmante 1 de 2: Ingrese PIN de autorización"
+                                                "Firmante 1 de ${uiState.mvMultisigRequired}: Ingrese PIN de autorización"
                                             } else {
-                                                "Firmante 2 de 2: Ingrese PIN del segundo autorizador"
+                                                "Firmante ${uiState.mvMultisigCollected + 1} de ${uiState.mvMultisigRequired}: Ingrese PIN del siguiente autorizador"
                                             },
                                             style = MaterialTheme.typography.bodySmall,
                                             color = PosGoldLight,
@@ -952,7 +983,7 @@ fun MultiVendorScreen(
                                 }
                             )
 
-                            val isIntermediateSignature = (uiState.isMultiVendorMultisig && uiState.mvMultisigCollected < uiState.mvMultisigRequired - 1)
+                            val isMultisigFlow = uiState.isMultiVendorMultisig && uiState.mvMultisigRequired > 1
 
                             Button(
                                 onClick = {
@@ -965,21 +996,21 @@ fun MultiVendorScreen(
                                     .testTag("mv_submit_payment_btn"),
                                 shape = RoundedCornerShape(16.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isIntermediateSignature) PosGold else PosSuccessGreen
+                                    containerColor = if (isMultisigFlow) PosGold else PosSuccessGreen
                                 )
                             ) {
                                 if (uiState.isLoading) {
                                     CircularProgressIndicator(color = PosNavyDark, modifier = Modifier.size(24.dp))
                                 } else {
                                     Icon(
-                                        imageVector = if (isIntermediateSignature) Icons.Default.Groups else Icons.Default.CheckCircle,
+                                        imageVector = if (isMultisigFlow) Icons.Default.Groups else Icons.Default.CheckCircle,
                                         contentDescription = null,
                                         tint = PosNavyDark
                                     )
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Text(
-                                        text = if (isIntermediateSignature) {
-                                            "Validar Firma ${uiState.mvMultisigCollected + 1} de ${uiState.mvMultisigRequired}"
+                                        text = if (isMultisigFlow) {
+                                            "Validar Firma 1 de ${uiState.mvMultisigRequired}"
                                         } else {
                                             "Aprobar y Transferir al Vendedor"
                                         },
@@ -1034,8 +1065,8 @@ fun MultiVendorScreen(
                             )
 
                             Text(
-                                text = CurrencyHelper.formatMicroUnits(
-                                    CurrencyHelper.parseInputToMicroUnits(uiState.amountInput)
+                                text = CurrencyHelper.formatCentavos(
+                                    CurrencyHelper.parseInputToCentavos(uiState.amountInput)
                                 ),
                                 style = MaterialTheme.typography.displayMedium,
                                 color = PosGoldLight,

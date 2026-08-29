@@ -245,7 +245,7 @@ fun ShiftManagementScreen(
                             ) {
                                 Text("Apertura:", color = PosSlate300)
                                 Text(
-                                    CurrencyHelper.formatMicroUnits(shift.openingAmount),
+                                    CurrencyHelper.formatCentavos(shift.openingAmount),
                                     color = PosSlate100,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -256,7 +256,7 @@ fun ShiftManagementScreen(
                             ) {
                                 Text("Ventas del turno:", color = PosSlate300)
                                 Text(
-                                    CurrencyHelper.formatMicroUnits(shift.totalSales),
+                                    CurrencyHelper.formatCentavos(shift.totalSales),
                                     color = PosGoldLight,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -278,7 +278,7 @@ fun ShiftManagementScreen(
                             ) {
                                 Text("Cierre esperado:", color = PosSlate300)
                                 Text(
-                                    CurrencyHelper.formatMicroUnits(shift.openingAmount + shift.totalSales),
+                                    CurrencyHelper.formatCentavos(shift.openingAmount + shift.totalSales),
                                     color = PosPrimaryLight,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -328,11 +328,11 @@ fun ShiftManagementScreen(
                                 color = PosSlate300
                             )
                             // POS-style amount display
-                            val centimos = shiftInitialAmount.replace(Regex("[^0-9]"), "").ifEmpty { "0" }.toLong()
+                            val centavos = shiftInitialAmount.replace(Regex("[^0-9]"), "").ifEmpty { "0" }.toLong()
                             Text(
-                                text = CurrencyHelper.formatMicroUnits(centimos),
+                                text = CurrencyHelper.formatCentavos(centavos),
                                 style = MaterialTheme.typography.headlineLarge,
-                                color = if (centimos > 0) PosPrimaryLight else PosSlate600,
+                                color = if (centavos > 0) PosPrimaryLight else PosSlate600,
                                 fontWeight = FontWeight.Black,
                                 modifier = Modifier.fillMaxWidth(),
                                 textAlign = TextAlign.Center
@@ -344,12 +344,12 @@ fun ShiftManagementScreen(
                             Button(
                                 onClick = {
                                     FeedbackHelper.playButtonClick(context)
-                                    val micro = CurrencyHelper.parseInputToMicroUnits(shiftInitialAmount)
+                                    val micro = CurrencyHelper.parseInputToCentavos(shiftInitialAmount)
                                     viewModel.openShift(micro, "Apertura de punto")
                                     shiftInitialAmount = ""
                                     pinVerified = false
                                 },
-                                enabled = centimos > 0,
+                                enabled = centavos > 0,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(56.dp)

@@ -104,7 +104,7 @@ fun TransactionsScreen(
                             letterSpacing = 1.sp
                         )
                         Text(
-                            text = CurrencyHelper.formatMicroUnits(totalSales),
+                            text = CurrencyHelper.formatCentavos(totalSales),
                             style = MaterialTheme.typography.headlineMedium,
                             color = PosGoldLight,
                             fontWeight = FontWeight.Black
@@ -191,7 +191,7 @@ fun TransactionsScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Monto:", color = PosSlate300)
-                        Text(CurrencyHelper.formatMicroUnits(tx.amount), color = PosGoldLight, fontWeight = FontWeight.Black)
+                        Text(CurrencyHelper.formatCentavos(tx.amount), color = PosGoldLight, fontWeight = FontWeight.Black)
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Método:", color = PosSlate300)
@@ -301,7 +301,7 @@ fun TransactionItemCard(
 
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "+${CurrencyHelper.formatMicroUnits(transaction.amount)}",
+                    text = "+${CurrencyHelper.formatCentavos(transaction.amount)}",
                     style = MaterialTheme.typography.titleMedium,
                     color = PosGoldLight,
                     fontWeight = FontWeight.Black

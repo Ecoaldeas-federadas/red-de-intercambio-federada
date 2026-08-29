@@ -50,29 +50,30 @@ object FormatConfig {
 
 object CurrencyHelper {
     /**
-     * Converts micro-units integer (e.g. 50000) to formatted TQ string (e.g. "500.00 TQ")
+     * Converts centavos integer (e.g. 50000) to formatted TQ string (e.g. "500.00 TQ")
+     * 1 TQ = 100 centavos. El nombre "centavo" es configurable por nodo en el futuro.
      */
-    fun formatMicroUnits(microUnits: Long): String {
+    fun formatCentavos(centavos: Long): String {
         val locale = parseLocale(FormatConfig.numberLocale)
         val formatter = NumberFormat.getNumberInstance(locale).apply {
             minimumFractionDigits = 2
             maximumFractionDigits = 2
         }
-        val amount = microUnits / 100.0
+        val amount = centavos / 100.0
         return "${formatter.format(amount)} TQ"
     }
 
     /**
-     * Converts raw string input from POS keypad to integer micro-units.
-     * POS-style decimal entry: the input string represents CENTIMOS directly.
-     * "1" → 1 centimo → 0.01 TQ → 1 micro-unit
-     * "100" → 100 centimos → 1.00 TQ → 100 micro-units
-     * "12345" → 123.45 TQ → 12345 micro-units
+     * Converts raw string input from POS keypad to integer centavos.
+     * POS-style decimal entry: the input string represents centavos directly.
+     * "1" → 1 centavo → 0.01 TQ
+     * "100" → 100 centavos → 1.00 TQ
+     * "12345" → 123.45 TQ → 12345 centavos
      *
      * This matches how real POS keypads work: digits enter from the right
      * as the least significant decimal position.
      */
-    fun parseInputToMicroUnits(input: String): Long {
+    fun parseInputToCentavos(input: String): Long {
         val clean = input.replace(Regex("[^0-9]"), "").trim()
         if (clean.isEmpty()) return 0L
         return clean.toLongOrNull() ?: 0L

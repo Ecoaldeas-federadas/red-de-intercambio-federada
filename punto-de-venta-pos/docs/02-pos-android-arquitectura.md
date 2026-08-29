@@ -39,9 +39,8 @@ com.example/
 │   ├── components/
 │   │   ├── DemoWatermarkOverlay.kt     # Overlay "MODO DEMO" cuando isDemoNode
 │   │   ├── FeedbackModifier.kt         # Modifier para feedback háptico/visual
-│   │   └── KioskComponents.kt          # Componentes de modo kiosco (teclado, botones)
-│   │   # NOTA: NfcWaveAnimation.kt y MultisigCountdownHeader.kt están
-│   │   # planificados pero no implementados aún. Ver TAREAS_PENDIENTES.md
+│   │   └── KioskComponents.kt          # Componentes de modo kiosco (teclado, botones,
+│   │                                      # NfcWaveAnimation, MultisigCountdownHeader)
 │   ├── viewmodel/
 │   │   └── PosViewModel.kt             # ViewModel central (StateFlow, lógica de negocio)
 │   ├── util/
