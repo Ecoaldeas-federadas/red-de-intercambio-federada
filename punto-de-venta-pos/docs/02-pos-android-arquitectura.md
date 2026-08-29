@@ -39,9 +39,9 @@ com.example/
 │   ├── components/
 │   │   ├── DemoWatermarkOverlay.kt     # Overlay "MODO DEMO" cuando isDemoNode
 │   │   ├── FeedbackModifier.kt         # Modifier para feedback háptico/visual
-│   │   ├── KioskComponents.kt          # Componentes de modo kiosco (teclado, botones)
-│   │   ├── NfcWaveAnimation.kt         # Animación de onda NFC al esperar tarjeta
-│   │   └── MultisigCountdownHeader.kt  # Header con cuenta regresiva de multisig
+│   │   └── KioskComponents.kt          # Componentes de modo kiosco (teclado, botones)
+│   │   # NOTA: NfcWaveAnimation.kt y MultisigCountdownHeader.kt están
+│   │   # planificados pero no implementados aún. Ver TAREAS_PENDIENTES.md
 │   ├── viewmodel/
 │   │   └── PosViewModel.kt             # ViewModel central (StateFlow, lógica de negocio)
 │   ├── util/
@@ -373,7 +373,7 @@ El repositorio orquesta API, DB y criptografía:
 | `login(username, password)` | Login del comerciante. Persiste token. Crea sesión de terminal. Maneja 403 (terminal no registrado). |
 | `processNfcPayment(cardUid, isDesfire, pin, amount, idDoc)` | Pago NFC simple encriptado. |
 | `processCommunityPayment(sellerCard, sellerPin, buyerCard, buyerPin, amount, buyerIdDoc)` | Pago comunitario encriptado. |
-| `signMultisigPayment(pendingId, cardUid, pin, idDoc)` | Firma un pago multisig pendiente. |
+| `signMultisigNfc(pendingId, cardUid, pin, idDoc)` | Firma un pago multisig pendiente. |
 | `createQrCharge(amount, description)` | Crea cargo QR. Simula en modo demo. |
 | `pollQrChargeStatus(chargeId)` | Polling de estado del cargo QR. |
 | `initiatePairing()` | Inicia emparejamiento por código corto. |
@@ -716,7 +716,7 @@ Feedback sonoro y háptico:
 1. MainActivity.onCreate()
    ├── Crea AppDatabase (Room)
    ├── Crea PosViewModel(application, database)
-   └── setContent { PosAppTheme { PosAppScreen(viewModel) } }
+   └── setContent { MyApplicationTheme { PosMainContent(viewModel) } }
 
 2. PosViewModel.init
    ├── getOrInitTerminalConfig()

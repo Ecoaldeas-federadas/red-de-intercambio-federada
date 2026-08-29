@@ -203,11 +203,11 @@ POST /api/pos/charge/{id}/cancel  — Cancelar carga
    Respuesta:
    ```json
    {
-     "charge_id": "chg-uuid",
+     "charge_id": "uuid",
      "charge_token": "token-uuid",
      "amount": 12500,
      "status": "pending",
-     "expires_in": 180
+     "expires_at": "2026-08-28T22:05:00Z"
    }
    ```
 

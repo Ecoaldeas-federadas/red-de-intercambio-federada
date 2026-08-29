@@ -74,6 +74,14 @@ Tarjetas NFC asignadas a usuarios.
 | `is_active` | BOOLEAN | `true` | Activa |
 | `issued_at` | TIMESTAMPTZ | `NOW()` | Fecha de emisión |
 | `deactivated_at` | TIMESTAMPTZ | — | Fecha de desactivación |
+| `card_type` | TEXT | `'uid_only'` | `uid_only`, `desfire`, `dual` (migración 004) |
+| `crypto_enabled` | BOOLEAN | `false` | Crypto NFC habilitado (migración 119) |
+| `pin_hash` | TEXT | — | Hash bcrypt del PIN (migración 004) |
+| `pin_attempts` | INT | `0` | Intentos fallidos (migración 004) |
+| `blocked_until` | TIMESTAMPTZ | — | Bloqueada hasta (migración 004) |
+| `last_token_at` | TIMESTAMPTZ | — | Último token usado (migración 119) |
+| `card_error` | TEXT | — | Error de tarjeta (migración 119) |
+| `error_at` | TIMESTAMPTZ | — | Fecha del error (migración 119) |
 
 **Constraint**: `UNIQUE(card_uid)`
 
@@ -92,6 +100,14 @@ Claves criptográficas de tarjetas NFC (DESFire).
 | `is_active` | BOOLEAN | `true` | Activa |
 | `issued_at` | TIMESTAMPTZ | `NOW()` | — |
 | `deactivated_at` | TIMESTAMPTZ | — | — |
+| `aes_key_encrypted` | BYTEA | — | Clave AES cifrada (migración 118) |
+| `key_version` | INT | `1` | Versión de clave (migración 119) |
+| `rotation_status` | TEXT | — | Estado de rotación de clave (migración 119) |
+| `crypto_blocked_until` | TIMESTAMPTZ | — | Bloqueo crypto (migración 118) |
+| `auth_fail_count` | INT | `0` | Contador fallos auth (migración 118) |
+| `sun_counter` | BIGINT | `0` | Contador SUN (migración 118) |
+| `last_auth_at` | TIMESTAMPTZ | — | Última autenticación (migración 118) |
+| `provisioned_at` | TIMESTAMPTZ | — | Fecha de provisión (migración 118) |
 
 ### nfc_terminals (migración 004 + 098)
 Terminales NFC (POS Android, ESP32, POS web).
@@ -104,7 +120,6 @@ Terminales NFC (POS Android, ESP32, POS web).
 | `label` | TEXT | — | Etiqueta visible |
 | `terminal_type` | TEXT | `'keypad'` | `keypad`, `web_pos`, `esp32` |
 | `location` | TEXT | — | Ubicación |
-| `wifi_ssid` | TEXT | — | SSID (ESP32) |
 | `terminal_public_key` | TEXT | — | Clave pública Ed25519 del terminal |
 | `server_public_key` | TEXT | — | Clave pública del servidor |
 | `registration_token` | TEXT | — | Token de registro |
@@ -117,6 +132,13 @@ Terminales NFC (POS Android, ESP32, POS web).
 | `merchant_user_id` | UUID | — | Comerciante asignado (098) |
 | `organization_id` | UUID | — | Organización dueña (098) |
 | `department_id` | UUID | — | Departamento asignado (098) |
+| `chip_id` | TEXT | — | ID del chip ESP32 (migración 005) |
+| `firmware_binary_path` | TEXT | — | Ruta del firmware (migración 005) |
+| `device_model` | TEXT | — | Modelo de dispositivo Android (migración 127) |
+| `device_manufacturer` | TEXT | — | Fabricante del dispositivo (migración 127) |
+| `android_version` | TEXT | — | Versión de Android (migración 127) |
+| `web_session_expires_at` | TIMESTAMPTZ | — | Expiración sesión web (migración 130) |
+| `web_session_requested_at` | TIMESTAMPTZ | — | Solicitud sesión web (migración 130) |
 | `created_at` | TIMESTAMPTZ | `NOW()` | — |
 | `updated_at` | TIMESTAMPTZ | `NOW()` | — |
 
@@ -175,7 +197,8 @@ Contador de intentos fallidos de PIN y bloqueo temporal de tarjetas.
 
 | Columna | Tipo | Descripción |
 |---------|------|-------------|
-| `card_uid` | TEXT | PK, UID de la tarjeta |
+| `id` | UUID | PK (`gen_random_uuid()`) |
+| `card_uid` | TEXT | UID de la tarjeta (UNIQUE) |
 | `attempt_count` | INT | Número de intentos fallidos |
 | `last_attempt_at` | TIMESTAMPTZ | Timestamp del último intento |
 | `blocked_until` | TIMESTAMPTZ | Bloqueada hasta esta fecha (NULL = no bloqueada) |
@@ -247,7 +270,7 @@ Pagos pendientes de multi-firma.
 | `pos_charge_id` | UUID | — | FK → pos_charges(id) |
 | `description` | TEXT | — | Concepto |
 | `metadata` | JSONB | — | Metadata |
-| `expires_at` | TIMESTAMPTZ | `NOW() + 24h` | Expiración (reset por firma) |
+| `expires_at` | TIMESTAMPTZ | `NOW() + 10 min` | Expiración (reset por firma, migración 124 cambia de 24h a 10min) |
 | `created_at` | TIMESTAMPTZ | `NOW()` | — |
 | `updated_at` | TIMESTAMPTZ | `NOW()` | — |
 | `executed_at` | TIMESTAMPTZ | — | Fecha de ejecución |
@@ -342,8 +365,8 @@ Passkeys WebAuthn de usuarios.
 ### terminal_pairing_requests (migración 125)
 Solicitudes de emparejamiento de terminales.
 
-### multisig_expiration_config (migración 124)
-Configuración de expiración de multi-sig.
+### multisig_config (migración 124)
+Configuración de expiración de multi-sig. (Nota: la migración se llama `124_multisig_expiration_config.sql` pero la tabla se llama `multisig_config`.)
 
 ### node_config (migración 006)
 Configuración del nodo (key-value, JSONB settings).

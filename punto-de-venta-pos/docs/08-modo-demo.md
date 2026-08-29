@@ -63,7 +63,7 @@ val isDemoNode: Boolean
 val serverUrl: String = "https://<dominio-del-nodo>/demo" // valor por defecto, configurable
 ```
 
-La URL por defecto del terminal es un nodo demo. Esto significa que la app viene preconfigurada en modo demo.
+La URL por defecto del terminal es un nodo real (`/main`). Esto significa que la app arranca en modo real por defecto. Para usar modo demo, el usuario debe cambiar la URL en Settings a una URL que contenga `/demo`.
 
 ### 2.3. Propagación del estado isDemoNode
 
@@ -336,7 +336,7 @@ suspend fun createQrCharge(amountMicroUnits: Long, description: String?):
 
 **IDs simulados:**
 - `chargeId`: `DEMO-CHG-{8 chars hex uppercase}` (ej: `DEMO-CHG-A1B2C3D4`)
-- `chargeToken`: `DEMO-TOKEN-{12 chars hex}` (ej: `DEMO-TOKEN-a1b2c3d4e5f6`)
+- `chargeToken`: `DEMO-TOKEN-{UUID.take(12)}` (ej: `DEMO-TOKEN-a1b2c3d4-e5`)
 - `status`: `"pending"`
 - `expiresIn`: 180 segundos
 

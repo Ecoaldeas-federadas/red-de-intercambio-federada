@@ -19,35 +19,61 @@ Este documento lista todos los endpoints del backend Go que el POS Android (y ot
 | `Content-Type: application/json` | Tipo de contenido |
 
 ### Cifrado de payloads NFC
-Los endpoints de pago NFC (`/api/nfc/terminal/payment`, `/api/nfc/terminal/payment/community`, `/api/nfc/terminal/payment/multisig-sign`) usan payloads cifrados con AES-256-GCM. La estructura es:
+Los endpoints de pago NFC (`/api/nfc/terminal/payment`, `/api/nfc/terminal/payment/community`, `/api/nfc/terminal/payment/multisig-sign`) usan payloads cifrados con AES-256-GCM usando **claves efímeras** (EphemeralMessage con handshake). La estructura es:
 
 ```json
 {
   "terminal_id": "TERM-001",
   "encrypted_payload": {
-    "nonce": "<hex>",
-    "ciphertext": "<hex>",
-    "signature": "<hex>"
+    "handshake": {
+      "ephemeral_public_key": "<hex-clave-efimera-publica>",
+      "identity_signature": "<hex-firma-ed25519-de-la-clave-efimera>",
+      "nonce": "<hex-nonce-handshake>"
+    },
+    "nonce": "<hex-nonce-aes>",
+    "ciphertext": "<hex-aes-256-gcm-ciphertext>",
+    "signature": "<hex-ed25519-firma-del-ciphertext>"
   }
 }
 ```
 
-El `ciphertext` contiene el JSON real (por ejemplo `NFCPaymentPayload`) cifrado con la clave compartida ECDH. Ver `06-criptografia.md` para detalles.
+El `ciphertext` contiene el JSON real (por ejemplo `NFCPaymentPayload`) cifrado con AES-256-GCM usando una clave efímera derivada por ECDH. El `handshake` provee **perfect forward secrecy**: cada transacción usa una clave temporal única. Ver `06-criptografia.md` para detalles completos.
 
 ---
 
 ## 1. Terminal NFC — Registro y Autenticación
 
 ### POST /api/nfc/terminal/register
-Registra un nuevo terminal NFC generando su identidad Ed25519.
+Registra un nuevo terminal NFC (requiere permiso `nfc.register_terminal`).
 
-**Request** (no cifrado):
+**Request** (`RegisterTerminalRequest`):
 ```json
 {
   "terminal_id": "TERM-001",
-  "terminal_name": "POS Feria",
-  "public_key_hex": "<ed25519-public-key-hex>",
-  "merchant_user_id": "uuid-del-comerciante",
+  "label": "POS Feria",
+  "terminal_type": "keypad",
+  "location": "Feria San Juan",
+  "device_fingerprint": "<fingerprint-hash>"
+}
+```
+
+**Response** `201 Created`:
+```json
+{
+  "terminal": { ... },
+  "registration_token": "<token-para-complete-registration>"
+}
+```
+
+### POST /api/nfc/terminal/complete-registration
+Completa el registro tras recibir el `registration_token`.
+
+**Request** (`CompleteRegistrationRequest`):
+```json
+{
+  "terminal_id": "TERM-001",
+  "registration_token": "<token-del-paso-anterior>",
+  "terminal_public_key": "<ed25519-public-key-hex>",
   "device_fingerprint": "<fingerprint-hash>"
 }
 ```
@@ -55,57 +81,29 @@ Registra un nuevo terminal NFC generando su identidad Ed25519.
 **Response** `200 OK`:
 ```json
 {
-  "terminal_id": "TERM-001",
-  "server_public_key_hex": "<ed25519-server-public-key-hex>",
+  "server_public_key": "<ed25519-server-public-key-hex>",
   "status": "registered"
-}
-```
-
-### POST /api/nfc/terminal/complete-registration
-Completa el registro tras el emparejamiento con código de 6 dígitos.
-
-**Request**:
-```json
-{
-  "terminal_id": "TERM-001",
-  "pairing_code": "123456",
-  "public_key_hex": "<ed25519-public-key-hex>"
-}
-```
-
-**Response** `200 OK`:
-```json
-{
-  "status": "active",
-  "terminal_id": "TERM-001",
-  "server_public_key_hex": "..."
 }
 ```
 
 ### POST /api/nfc/terminal/auth
 Autentica el terminal y retorna un session token + format settings.
 
-**Request** (con firma Ed25519):
+**Request** (`TerminalAuthRequest`):
 ```json
 {
   "terminal_id": "TERM-001",
-  "timestamp": 1696234567,
-  "signature_hex": "<ed25519-signature-hex>"
+  "signature": "<ed25519-signature-hex>",
+  "nonce": "<nonce-aleatorio>",
+  "device_fingerprint": "<fingerprint-hash>"
 }
 ```
 
 **Response** `200 OK`:
 ```json
 {
-  "status": "ok",
   "session_token": "<jwt-terminal>",
-  "terminal": {
-    "id": "uuid",
-    "terminal_id": "TERM-001",
-    "terminal_name": "POS Feria",
-    "is_active": true,
-    "merchant_user_id": "uuid"
-  },
+  "signature": "<ed25519-server-signature-hex>",
   "format_settings": {
     "locale": "es",
     "number_locale": "es-VE",
@@ -118,19 +116,33 @@ Autentica el terminal y retorna un session token + format settings.
 ```
 
 ### POST /api/nfc/terminal/heartbeat
-Heartbeat periódico del terminal.
+Heartbeat periódico del terminal. Retorna estado activo/registrado + firma del servidor.
 
 **Request**:
 ```json
 {
-  "terminal_id": "TERM-001",
-  "timestamp": 1696234567
+  "terminal_id": "TERM-001"
 }
 ```
 
 **Response** `200 OK`:
 ```json
-{ "status": "ok", "server_time": 1696234567 }
+{
+  "status": "ok",
+  "active": true,
+  "registered": true,
+  "signature": "<ed25519-server-signature-hex>"
+}
+```
+
+Si el terminal no se encuentra:
+```json
+{
+  "status": "ok",
+  "active": false,
+  "registered": false,
+  "not_found": true
+}
 ```
 
 ### GET /api/nfc/terminal/{id}/status
@@ -151,22 +163,29 @@ Consulta el estado de un terminal.
 ## 2. Terminal NFC — Emparejamiento
 
 ### POST /api/nfc/terminal/pair/initiate
-Inicia el emparejamiento generando un código de 6 dígitos.
+Inicia el emparejamiento generando un código de 6 dígitos. No requiere auth.
 
 **Request**:
 ```json
 {
+  "terminal_public_key": "<ed25519-public-key-hex>",
+  "device_fingerprint": "<fingerprint-hash>",
   "terminal_id": "TERM-001",
-  "public_key_hex": "<ed25519-public-key-hex>",
-  "merchant_user_id": "uuid"
+  "terminal_label": "POS Feria",
+  "chip_id": "",
+  "device_model": "",
+  "device_manufacturer": "",
+  "android_version": "",
+  "terminal_type": "keypad"
 }
 ```
 
-**Response** `200 OK`:
+**Response** `201 Created`:
 ```json
 {
   "pairing_code": "123456",
-  "expires_at": "2026-08-28T22:10:00Z"
+  "expires_in": 60,
+  "message": "Pida al administrador que apruebe este codigo en su panel."
 }
 ```
 
@@ -378,14 +397,16 @@ Consulta el estado de un pago multifirma pendiente.
   "remaining_seconds": 145,
   "collected_signatures": [
     {
-      "signer_user_id": "uuid",
-      "signed_at": "2026-08-28T22:30:00Z"
+      "signer_id": "uuid",
+      "method": "nfc_card",
+      "card_uid": "04A3B2C1D2E3F4",
+      "timestamp": "2026-08-28T22:30:00Z"
     }
   ]
 }
 ```
 
-Estados posibles: `pending`, `ready`, `executed`, `expired`, `cancelled`.
+Estados posibles: `pending`, `executed`, `expired`, `cancelled`.
 
 ---
 
@@ -463,7 +484,7 @@ El bloqueo es **automático** y está **hardcodeado** en el backend:
 ### POST /api/pos/charge
 Crea una carga QR (requiere auth del merchant).
 
-**Request**:
+**Request** (`CreateChargeRequest`):
 ```json
 {
   "amount": 12500,
@@ -471,10 +492,10 @@ Crea una carga QR (requiere auth del merchant).
 }
 ```
 
-**Response** `200 OK` (`ChargeResponse`):
+**Response** `201 Created` (`ChargeResponse`):
 ```json
 {
-  "charge_id": "chg-uuid",
+  "charge_id": "uuid",
   "charge_token": "token-uuid",
   "amount": 12500,
   "status": "pending",
@@ -482,17 +503,19 @@ Crea una carga QR (requiere auth del merchant).
 }
 ```
 
+> **Nota:** `expires_at` es RFC3339 (timestamp absoluto). El timeout es de 3 minutos.
+
 ### GET /api/pos/charge/{id}/status
 Consulta el estado de una carga (requiere auth del merchant).
 
 **Response** `200 OK`:
 ```json
 {
-  "charge_id": "chg-uuid",
-  "status": "pending|paid|expired|cancelled",
+  "charge_id": "uuid",
   "amount": 12500,
-  "paid_at": "2026-08-28T22:03:00Z",
-  "transaction_id": "uuid"
+  "status": "pending|paid|expired|cancelled",
+  "payment_method": "qr",
+  "paid_at": "2026-08-28T22:03:00Z"
 }
 ```
 
@@ -505,11 +528,10 @@ Info pública de la carga (sin auth — el cliente ve esto antes de iniciar sesi
 **Response** `200 OK`:
 ```json
 {
-  "charge_token": "token-uuid",
   "amount": 12500,
+  "status": "pending",
   "description": "Compra de productos",
   "merchant_name": "Feria San Juan",
-  "status": "pending",
   "expires_at": "2026-08-28T22:05:00Z"
 }
 ```
@@ -517,11 +539,10 @@ Info pública de la carga (sin auth — el cliente ve esto antes de iniciar sesi
 ### POST /api/pos/charge/{token}/pay
 Paga la carga (requiere auth del cliente/pagador).
 
-**Request**:
+**Request** (`PayChargeRequest`):
 ```json
 {
-  "id_document_type": "cedula",
-  "id_document_number": "V12345678"
+  "payment_method": "qr"
 }
 ```
 
@@ -529,8 +550,9 @@ Paga la carga (requiere auth del cliente/pagador).
 ```json
 {
   "status": "paid",
-  "transaction_id": "uuid",
-  "message": "pago procesado"
+  "amount": 12500,
+  "new_balance": 175000,
+  "payment_method": "qr"
 }
 ```
 
@@ -624,8 +646,9 @@ Configuración pública del nodo (incluye `format_settings` con defaults del nod
 {
   "node_domain": "<dominio-del-nodo>",
   "node_name": "Feria San Juan",
-  "currency_code": "TQ",
-  "currency_symbol": "TQ",
+  "currency_name": "TQ",
+  "currency_full_name": "Trueque",
+  "app_name": "Red de Intercambio",
   "format_settings": {
     "locale": "es",
     "number_locale": "es-VE",
@@ -639,9 +662,6 @@ Configuración pública del nodo (incluye `format_settings` con defaults del nod
 
 ### GET /api/health
 Health check del nodo.
-
-### GET /api/public/settings
-Settings públicos (no requieren auth).
 
 ### GET /api/public/products
 Lista pública de productos.
@@ -662,10 +682,7 @@ Obtiene el balance de una cuenta.
 **Response** `200 OK`:
 ```json
 {
-  "account_id": "uuid",
-  "balance": 250000,
-  "credit_limit": -500000,
-  "debit_limit": 1000000
+  "balance": 250000
 }
 ```
 
@@ -675,12 +692,11 @@ Historial de transacciones de una cuenta.
 ### POST /api/transfer
 Transferencia entre cuentas (P2P).
 
-**Request**:
+**Request** (`TransferRequest`):
 ```json
 {
-  "to_account_id": "uuid",
-  "amount": 5000,
-  "description": "Transferencia"
+  "receiver_id": "uuid",
+  "amount": 5000
 }
 ```
 
@@ -739,6 +755,27 @@ Lista constantes de gobernanza federada.
 
 ### GET /api/federation-gov/constants/{key}
 Obtiene una constante específica.
+
+---
+
+## 13. Endpoints adicionales no documentados en detalle
+
+> **Nota:** El backend expone muchos más endpoints de los listados arriba. Los siguientes grupos de endpoints existen en el código pero no están documentados en detalle aquí porque el POS Android no los usa directamente. Para una referencia completa, revisa `internal/api/federation.go`, `internal/api/system.go`, `internal/api/nfc_terminal.go` y `internal/api/handlers.go`.
+
+- **Federación bilateral:** `/api/federation/bilateral`, `/api/federation/bilateral/{remoteNode}`, `/api/federation/bilateral/propose`, `/api/federation/bilateral/{remoteNode}/confirm`, `/api/federation/bilateral/{remoteNode}/history`
+- **Federación volumen/paridad:** `/api/federation/volume`, `/api/federation/parity`, `/api/federation/parity/{remoteNode}`
+- **Federación peers:** `/api/federation/peers` (GET/POST/DELETE)
+- **Federación node-levels:** `/api/federation/node-levels`, `/api/federation/nodes/{domain}/membership`, `/api/federation/nodes/{domain}/check-upgrade`
+- **Federación sponsorships:** `/api/federation/sponsorships`
+- **Páginas públicas:** `/api/public/pages`, `/api/public/pages/{slug}`, `/api/public/page/{slug}/html`
+- **Productos públicos:** `/api/public/products`
+- **Solicitudes de admisión:** `/api/public/admission-form` (GET), `/api/public/admission-request` (POST), `/api/admission/apply`, `/api/admission/requests`
+- **POS Web sesiones:** `/api/pos-web/request-session`, `/api/pos-web/session-status/{reqId}`, `/api/pos-web/pending-sessions`
+- **NFC tarjetas (admin):** `/api/nfc/cards` (GET), `/api/nfc/cards/issue` (POST), `/api/nfc/cards/{uid}` (DELETE), `/api/nfc/cards/pin` (PUT), `/api/nfc/cards/{uid}/pin/reset` (PUT)
+- **NFC transacciones:** `/api/nfc/transactions` (GET)
+- **NFC mis terminales:** `/api/nfc/my-terminals/*`
+- **NFC terminales de organización:** `/api/nfc/org-terminals/*`
+- **Calculadora:** `/api/calculator/internal`, `/api/calculator/external`, `/api/calculator/labor`
 
 ---
 
@@ -805,20 +842,30 @@ type NFCPaymentResult struct {
 }
 ```
 
-### EncryptedPayloadModel
+### EphemeralHandshake
 ```go
-type EncryptedPayloadModel struct {
-    Nonce      string `json:"nonce"`
-    Ciphertext string `json:"ciphertext"`
-    Signature  string `json:"signature"`
+type EphemeralHandshake struct {
+    EphemeralPublicKey string `json:"ephemeral_public_key"`
+    IdentitySignature  string `json:"identity_signature"`
+    Nonce              string `json:"nonce"`
+}
+```
+
+### EphemeralMessage
+```go
+type EphemeralMessage struct {
+    Handshake  EphemeralHandshake `json:"handshake"`
+    Nonce      string             `json:"nonce"`
+    Ciphertext string             `json:"ciphertext"`
+    Signature  string             `json:"signature"`
 }
 ```
 
 ### EncryptedPaymentRequest
 ```go
 type EncryptedPaymentRequest struct {
-    TerminalID       string                `json:"terminal_id"`
-    EncryptedPayload EncryptedPayloadModel `json:"encrypted_payload"`
+    TerminalID       string          `json:"terminal_id"`
+    EncryptedPayload EphemeralMessage `json:"encrypted_payload"`
 }
 ```
 
