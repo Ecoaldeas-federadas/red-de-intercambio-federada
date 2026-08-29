@@ -971,6 +971,37 @@ func (h *AssemblyHandler) executeProposal(w http.ResponseWriter, r *http.Request
 	} else {
 		_, _ = h.Pool.Exec(r.Context(), `UPDATE assembly_decisions SET status = 'rejected' WHERE id = $1`, decisionID)
 
+		// Si es una propuesta de admision, actualizar la solicitud
+		if decisionType == "admission_approve" {
+			var params map[string]interface{}
+			if newValue != nil {
+				json.Unmarshal(*newValue, &params)
+			}
+			if admissionReqID, ok := params["admission_request_id"].(string); ok && admissionReqID != "" {
+				var createdUserID *uuid.UUID
+				_ = h.Pool.QueryRow(r.Context(), `
+					SELECT created_user_id FROM admission_requests WHERE id = $1::uuid`,
+					admissionReqID).Scan(&createdUserID)
+				reasonStr := fmt.Sprintf("No aprobado por asamblea (votacion: %d a favor, %d en contra)", votesFor, votesAgainst)
+				_, _ = h.Pool.Exec(r.Context(), `
+					UPDATE admission_requests SET
+						status = 'rejected',
+						rejection_reason = $2,
+						rejection_expires_at = NOW() + INTERVAL '30 days'
+					WHERE id = $1::uuid`,
+					admissionReqID, reasonStr)
+				// Notificar al postulante
+				if createdUserID != nil {
+					notify := NewNotifyService(h.Pool)
+					nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.nodeDomain)
+					notify.Notify(r.Context(), nodeDomain, *createdUserID, "admission_rejected",
+						"Solicitud rechazada",
+						fmt.Sprintf("La asamblea no aprobo tu admision (a favor: %d, en contra: %d). Tienes 30 dias para enviar una defensa.", votesFor, votesAgainst),
+						"/app/admission-status", nil)
+				}
+			}
+		}
+
 		// Auto-agregar a la minuta
 		appendToMinutes(h.Pool, assemblyID, fmt.Sprintf("- [RECHAZADA] %s: %s (a favor: %d, en contra: %d, abstencion: %d)", decisionType, description, votesFor, votesAgainst, votesAbstain))
 
@@ -1338,6 +1369,63 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 				WHERE node_domain = $1 AND peer_domain = $2`,
 				nodeDomain, otherNodeDomain)
 		}
+
+	case "admission_approve":
+		// Asamblea aprobo la admision de un nuevo miembro
+		// Activar usuario preliminar con nivel 'new'
+		admissionReqID, _ := params["admission_request_id"].(string)
+		if admissionReqID == "" {
+			return fmt.Errorf("admission_request_id no encontrado en parametros")
+		}
+
+		// Buscar la solicitud y el usuario creado
+		var createdUserID *uuid.UUID
+		var proposedUsername string
+		err := h.Pool.QueryRow(r.Context(), `
+			SELECT created_user_id, proposed_username FROM admission_requests WHERE id = $1::uuid`,
+			admissionReqID).Scan(&createdUserID, &proposedUsername)
+		if err != nil {
+			return fmt.Errorf("solicitud de admision no encontrada: %w", err)
+		}
+		if createdUserID == nil {
+			return fmt.Errorf("la solicitud no tiene usuario preliminar asociado")
+		}
+
+		// Obtener limites del nivel 'new'
+		var levelID string
+		var creditLimit, debitLimit int64
+		_ = h.Pool.QueryRow(r.Context(), `
+			SELECT id::text, credit_limit, debit_limit FROM member_levels WHERE id = 'new' OR name = 'new' LIMIT 1`).Scan(&levelID, &creditLimit, &debitLimit)
+
+		// Activar usuario: membership_status='active', is_approved=true, nivel 'new'
+		_, err = h.Pool.Exec(r.Context(), `
+			UPDATE users SET
+				membership_status = 'active', is_approved = true,
+				member_level_id = NULLIF($1, '')::uuid,
+				credit_limit = $2, debit_limit = $3
+			WHERE id = $4`,
+			levelID, creditLimit, debitLimit, *createdUserID)
+		if err != nil {
+			return fmt.Errorf("error activando usuario: %w", err)
+		}
+
+		// Marcar solicitud como aprobada y borrar password preliminar
+		_, err = h.Pool.Exec(r.Context(), `
+			UPDATE admission_requests SET
+				status = 'approved', approved_at = NOW(), proposed_password = NULL
+			WHERE id = $1::uuid`,
+			admissionReqID)
+		if err != nil {
+			return fmt.Errorf("error actualizando solicitud: %w", err)
+		}
+
+		// Notificar al nuevo miembro
+		notify := NewNotifyService(h.Pool)
+		nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.Header.Get("X-Node-Domain"), h.nodeDomain)
+		notify.Notify(r.Context(), nodeDomain, *createdUserID, "admission_approved",
+			"¡Bienvenido/a!",
+			fmt.Sprintf("Tu solicitud de admision ha sido APROBADA por la asamblea. Ya eres miembro activo con nivel 'new'. Usuario: %s", proposedUsername),
+			"/app/dashboard", nil)
 	}
 	return nil
 }
@@ -1808,6 +1896,13 @@ func deref(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+func truncate(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "..."
 }
 
 func derefTime(t *time.Time) string {

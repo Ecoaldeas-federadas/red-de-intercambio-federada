@@ -812,10 +812,38 @@ export default function WebsiteAdmin() {
     }
   }
 
-  // Review admission request
-  const reviewAdmission = async (id: string, status: 'approved' | 'rejected') => {
+  // Elevate admission request to assembly
+  const elevateAdmission = async (id: string) => {
     try {
-      await api.put(`/admission-requests/${id}`, { status })
+      await api.post(`/admission-requests/${id}/elevate`, {})
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error')
+    }
+  }
+
+  // Reject admission request with reason
+  const rejectAdmission = async (id: string) => {
+    const reason = prompt('Motivo del rechazo (mínimo 10 caracteres):')
+    if (!reason || reason.length < 10) {
+      if (reason !== null) alert('El motivo debe tener al menos 10 caracteres')
+      return
+    }
+    try {
+      await api.post(`/admission-requests/${id}/reject`, { rejection_reason: reason })
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error')
+    }
+  }
+
+  // Review defense (accept or reject)
+  const reviewDefense = async (id: string, action: 'accept' | 'reject') => {
+    const notes = action === 'reject'
+      ? prompt('Notas sobre el rechazo de la defensa:') || ''
+      : ''
+    try {
+      await api.post(`/admission-requests/${id}/review-defense`, { action, notes })
       load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error')
@@ -1696,6 +1724,10 @@ export default function WebsiteAdmin() {
                                 ? 'bg-emerald-100 text-emerald-800'
                                 : req.status === 'rejected'
                                 ? 'bg-red-100 text-red-800'
+                                : req.status === 'elevated_to_assembly'
+                                ? 'bg-blue-100 text-blue-800'
+                                : req.status === 'defense_pending'
+                                ? 'bg-purple-100 text-purple-800'
                                 : 'bg-amber-100 text-amber-800'
                             }`}
                           >
@@ -1703,7 +1735,11 @@ export default function WebsiteAdmin() {
                               ? 'Aprobada'
                               : req.status === 'rejected'
                               ? 'Rechazada'
-                              : 'Pendiente de Asamblea'}
+                              : req.status === 'elevated_to_assembly'
+                              ? 'Elevada a Asamblea'
+                              : req.status === 'defense_pending'
+                              ? 'Defensa Pendiente'
+                              : 'Pendiente de Revisión'}
                           </span>
                         </div>
 
@@ -1752,22 +1788,59 @@ export default function WebsiteAdmin() {
                           </>
                         )}
 
-                        {req.status === 'pending' && (
+                        {(req.status === 'pending' || req.status === 'pending_review') && (
                           <div className="flex gap-2 pt-2 border-t border-gray-100">
                             <button
-                              onClick={() => reviewAdmission(req.id, 'approved')}
+                              onClick={() => elevateAdmission(req.id)}
                               className="btn-primary text-xs flex items-center gap-1.5"
                             >
                               <CheckCircle size={14} />
-                              Aprobar Postulación
+                              Elevar a Asamblea
                             </button>
                             <button
-                              onClick={() => reviewAdmission(req.id, 'rejected')}
+                              onClick={() => rejectAdmission(req.id)}
                               className="btn-secondary text-xs text-red-600 hover:bg-red-50 flex items-center gap-1.5 border-red-200"
                             >
                               <XCircle size={14} />
                               Rechazar
                             </button>
+                          </div>
+                        )}
+
+                        {req.status === 'defense_pending' && (
+                          <div className="space-y-3 pt-2 border-t border-gray-100">
+                            <div className="text-xs text-purple-700 bg-purple-50 p-3 rounded-xl border border-purple-200">
+                              <b>Defensa del postulante:</b>
+                              <p className="mt-1 italic">{req.defense_text || 'Sin texto'}</p>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => reviewDefense(req.id, 'accept')}
+                                className="btn-primary text-xs flex items-center gap-1.5"
+                              >
+                                <CheckCircle size={14} />
+                                Aceptar Defensa y Elevar
+                              </button>
+                              <button
+                                onClick={() => reviewDefense(req.id, 'reject')}
+                                className="btn-secondary text-xs text-red-600 hover:bg-red-50 flex items-center gap-1.5 border-red-200"
+                              >
+                                <XCircle size={14} />
+                                Rechazar Defensa
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {req.status === 'rejected' && req.rejection_reason && (
+                          <div className="text-xs text-red-700 bg-red-50 p-3 rounded-xl border border-red-200 pt-2">
+                            <b>Motivo del rechazo:</b>
+                            <p className="mt-1">{req.rejection_reason}</p>
+                            {req.rejection_expires_at && (
+                              <p className="mt-1 text-red-500">
+                                Expira: {new Date(req.rejection_expires_at).toLocaleDateString()}
+                              </p>
+                            )}
                           </div>
                         )}
                       </div>

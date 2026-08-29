@@ -63,8 +63,9 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 
 	// Solicitudes de admision (admin)
 	r.With(am.RequireAuth).Get("/api/admission-requests", h.listAdmissionRequests)
-	r.With(am.RequirePermission("admission.manage")).Post("/api/admission-requests/{id}/approve", h.approveAdmissionRequest)
+	r.With(am.RequirePermission("admission.manage")).Post("/api/admission-requests/{id}/elevate", h.elevateAdmissionRequest)
 	r.With(am.RequirePermission("admission.manage")).Post("/api/admission-requests/{id}/reject", h.rejectAdmissionRequest)
+	r.With(am.RequirePermission("admission.manage")).Post("/api/admission-requests/{id}/review-defense", h.reviewAdmissionDefense)
 
 	// Auditoria
 	r.With(am.RequireAuth).Get("/api/audit", h.listAudit)
@@ -3322,8 +3323,14 @@ func (h *SystemHandler) listAdmissionRequests(w http.ResponseWriter, r *http.Req
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 
+	// Limpiar solicitudes expiradas automaticamente
+	h.CleanupExpiredAdmissionRequests(r.Context())
+
 	status := r.URL.Query().Get("status")
-	query := `SELECT id::text, full_name, email, phone, location, reason, skills, how_heard, status, created_at, COALESCE(custom_fields, '{}'::jsonb)
+	query := `SELECT id::text, full_name, email, phone, location, reason, skills, how_heard,
+		         status, created_at, COALESCE(custom_fields, '{}'::jsonb),
+		         proposed_username, rejection_reason, rejection_expires_at,
+		         defense_text, defense_status, defense_submitted_at, elevated_at
 		FROM admission_requests WHERE node_domain = $1`
 	args := []interface{}{nodeDomain}
 	if status != "" {
@@ -3345,21 +3352,33 @@ func (h *SystemHandler) listAdmissionRequests(w http.ResponseWriter, r *http.Req
 		var email, phone, location, reason, skills, howHeard *string
 		var createdAt time.Time
 		var customFields json.RawMessage
-		if err := rows.Scan(&id, &fullName, &email, &phone, &location, &reason, &skills, &howHeard, &status, &createdAt, &customFields); err != nil {
+		var proposedUsername, rejectionReason, defenseText, defenseStatus *string
+		var rejectionExpiresAt, defenseSubmittedAt, elevatedAt *time.Time
+		if err := rows.Scan(&id, &fullName, &email, &phone, &location, &reason, &skills, &howHeard,
+			&status, &createdAt, &customFields,
+			&proposedUsername, &rejectionReason, &rejectionExpiresAt,
+			&defenseText, &defenseStatus, &defenseSubmittedAt, &elevatedAt); err != nil {
 			continue
 		}
 		requests = append(requests, map[string]interface{}{
-			"id":            id,
-			"full_name":     fullName,
-			"email":         deref(email),
-			"phone":         deref(phone),
-			"location":      deref(location),
-			"reason":        deref(reason),
-			"skills":        deref(skills),
-			"how_heard":     deref(howHeard),
-			"status":        status,
-			"created_at":    createdAt,
-			"custom_fields": customFields,
+			"id":                   id,
+			"full_name":            fullName,
+			"email":                deref(email),
+			"phone":                deref(phone),
+			"location":             deref(location),
+			"reason":               deref(reason),
+			"skills":               deref(skills),
+			"how_heard":            deref(howHeard),
+			"status":               status,
+			"created_at":           createdAt,
+			"custom_fields":        customFields,
+			"proposed_username":    deref(proposedUsername),
+			"rejection_reason":     deref(rejectionReason),
+			"rejection_expires_at": rejectionExpiresAt,
+			"defense_text":         deref(defenseText),
+			"defense_status":       deref(defenseStatus),
+			"defense_submitted_at": defenseSubmittedAt,
+			"elevated_at":          elevatedAt,
 		})
 	}
 	if requests == nil {
@@ -3405,34 +3424,245 @@ func (h *SystemHandler) updateSiteAdmissionForm(w http.ResponseWriter, r *http.R
 	writeJSON(w, 200, map[string]interface{}{"message": "Formulario de admision actualizado con exito"})
 }
 
-func (h *SystemHandler) approveAdmissionRequest(w http.ResponseWriter, r *http.Request) {
+func (h *SystemHandler) elevateAdmissionRequest(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	userID, _ := h.Auth.GetUserID(r)
 
-	_, err := h.Pool.Exec(r.Context(), `
-		UPDATE admission_requests SET status = 'approved', reviewed_by = $1, reviewed_at = NOW() WHERE id = $2::uuid`,
-		userID, id)
+	// Obtener datos de la solicitud para la propuesta de asamblea
+	var fullName, proposedUsername, reason, skills string
+	var createdUserID *uuid.UUID
+	err := h.Pool.QueryRow(r.Context(), `
+		SELECT full_name, proposed_username, COALESCE(reason, ''), COALESCE(skills, ''), created_user_id
+		FROM admission_requests WHERE id = $1::uuid`, id).Scan(
+		&fullName, &proposedUsername, &reason, &skills, &createdUserID)
+	if err != nil {
+		writeError(w, 404, "solicitud no encontrada")
+		return
+	}
+
+	// Crear sesion de asamblea si no existe una activa
+	var sessionID uuid.UUID
+	err = h.Pool.QueryRow(r.Context(), `
+		SELECT id FROM assembly_sessions WHERE status IN ('scheduled', 'active') ORDER BY created_at DESC LIMIT 1`).Scan(&sessionID)
+	if err != nil {
+		sessionID = uuid.New()
+		nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.URL.Query().Get("node"), h.nodeDomain)
+		_, _ = h.Pool.Exec(r.Context(), `
+			INSERT INTO assembly_sessions (id, node_domain, session_type, title, start_time, status)
+			VALUES ($1, $2, 'ordinaria', 'Sesion automatica - Admision', NOW(), 'active')`,
+			sessionID, nodeDomain)
+	}
+
+	// Crear propuesta de asamblea para admision
+	decisionID := uuid.New()
+	proposalDesc := fmt.Sprintf("Admision de nuevo miembro: %s (usuario: %s). Razon: %s. Habilidades: %s",
+		fullName, proposedUsername, truncate(reason, 200), truncate(skills, 200))
+	params, _ := json.Marshal(map[string]interface{}{
+		"admission_request_id": id,
+		"proposed_username":    proposedUsername,
+		"full_name":            fullName,
+		"created_user_id":      derefUUID(createdUserID),
+	})
+	_, err = h.Pool.Exec(r.Context(), `
+		INSERT INTO assembly_decisions (id, assembly_id, decision_type, description, new_value, required_signatures, status, voting_duration_minutes)
+		VALUES ($1, $2, 'admission_approve', $3, $4, 1, 'proposed', 1440)`,
+		decisionID, sessionID, proposalDesc, params)
+	if err != nil {
+		writeError(w, 500, "error creando propuesta de asamblea: "+err.Error())
+		return
+	}
+
+	// Actualizar solicitud: elevada a asamblea
+	_, err = h.Pool.Exec(r.Context(), `
+		UPDATE admission_requests SET
+			status = 'elevated_to_assembly', elevated_at = NOW(), elevated_by = $1,
+			assembly_decision_id = $2, reviewed_by = $1, reviewed_at = NOW()
+		WHERE id = $3::uuid`,
+		userID, decisionID, id)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
 	}
 
-	writeJSON(w, 200, map[string]interface{}{"message": "Solicitud aprobada"})
+	writeJSON(w, 200, map[string]interface{}{
+		"message":              "Solicitud elevada a asamblea para votacion",
+		"status":               "elevated_to_assembly",
+		"assembly_decision_id": decisionID.String(),
+	})
 }
 
 func (h *SystemHandler) rejectAdmissionRequest(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	userID, _ := h.Auth.GetUserID(r)
 
+	var req struct {
+		RejectionReason string `json:"rejection_reason"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// Permitir body vacio (compatibilidad) pero requerir motivo
+		req.RejectionReason = ""
+	}
+	if req.RejectionReason == "" || len(req.RejectionReason) < 10 {
+		writeError(w, 400, "rejection_reason es obligatorio y debe tener al menos 10 caracteres")
+		return
+	}
+
 	_, err := h.Pool.Exec(r.Context(), `
-		UPDATE admission_requests SET status = 'rejected', reviewed_by = $1, reviewed_at = NOW() WHERE id = $2::uuid`,
-		userID, id)
+		UPDATE admission_requests SET
+			status = 'rejected', rejection_reason = $1, reviewed_by = $2, reviewed_at = NOW(),
+			rejection_expires_at = NOW() + INTERVAL '30 days'
+		WHERE id = $3::uuid`,
+		req.RejectionReason, userID, id)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return
 	}
 
-	writeJSON(w, 200, map[string]interface{}{"message": "Solicitud rechazada"})
+	writeJSON(w, 200, map[string]interface{}{
+		"message": "Solicitud rechazada. El postulante tiene 30 dias para enviar una defensa.",
+		"status":  "rejected",
+	})
+}
+
+func (h *SystemHandler) reviewAdmissionDefense(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	userID, _ := h.Auth.GetUserID(r)
+
+	var req struct {
+		Action string `json:"action"` // "accept" | "reject"
+		Notes  string `json:"notes"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.Action != "accept" && req.Action != "reject" {
+		writeError(w, 400, "action debe ser 'accept' o 'reject'")
+		return
+	}
+
+	// Verificar que la solicitud tiene defensa pendiente
+	var fullName, proposedUsername, reason, skills string
+	var createdUserID *uuid.UUID
+	err := h.Pool.QueryRow(r.Context(), `
+		SELECT full_name, proposed_username, COALESCE(reason, ''), COALESCE(skills, ''), created_user_id
+		FROM admission_requests WHERE id = $1::uuid AND status = 'defense_pending'`,
+		id).Scan(&fullName, &proposedUsername, &reason, &skills, &createdUserID)
+	if err != nil {
+		writeError(w, 404, "solicitud no encontrada o no tiene defensa pendiente")
+		return
+	}
+
+	if req.Action == "accept" {
+		// Aceptar defensa: elevar a asamblea
+		var sessionID uuid.UUID
+		err = h.Pool.QueryRow(r.Context(), `
+			SELECT id FROM assembly_sessions WHERE status IN ('scheduled', 'active') ORDER BY created_at DESC LIMIT 1`).Scan(&sessionID)
+		if err != nil {
+			sessionID = uuid.New()
+			nodeDomain := db.ResolveNodeDomain(r.Context(), h.Pool, r.URL.Query().Get("node"), h.nodeDomain)
+			_, _ = h.Pool.Exec(r.Context(), `
+				INSERT INTO assembly_sessions (id, node_domain, session_type, title, start_time, status)
+				VALUES ($1, $2, 'ordinaria', 'Sesion automatica - Admision (defensa aceptada)', NOW(), 'active')`,
+				sessionID, nodeDomain)
+		}
+
+		decisionID := uuid.New()
+		proposalDesc := fmt.Sprintf("Admision (defensa aceptada): %s (usuario: %s). Razon: %s.",
+			fullName, proposedUsername, truncate(reason, 200))
+		params, _ := json.Marshal(map[string]interface{}{
+			"admission_request_id": id,
+			"proposed_username":    proposedUsername,
+			"full_name":            fullName,
+			"created_user_id":      derefUUID(createdUserID),
+		})
+		_, err = h.Pool.Exec(r.Context(), `
+			INSERT INTO assembly_decisions (id, assembly_id, decision_type, description, new_value, required_signatures, status, voting_duration_minutes)
+			VALUES ($1, $2, 'admission_approve', $3, $4, 1, 'proposed', 1440)`,
+			decisionID, sessionID, proposalDesc, params)
+		if err != nil {
+			writeError(w, 500, "error creando propuesta de asamblea: "+err.Error())
+			return
+		}
+
+		_, err = h.Pool.Exec(r.Context(), `
+			UPDATE admission_requests SET
+				status = 'elevated_to_assembly', defense_status = 'accepted',
+				defense_reviewed_at = NOW(), defense_reviewed_by = $1,
+				assembly_decision_id = $2
+			WHERE id = $3::uuid`,
+			userID, decisionID, id)
+		if err != nil {
+			writeError(w, 500, err.Error())
+			return
+		}
+
+		writeJSON(w, 200, map[string]interface{}{
+			"message": "Defensa aceptada. Solicitud elevada a asamblea.",
+			"status":  "elevated_to_assembly",
+		})
+	} else {
+		// Rechazar defensa: confirmar rechazo
+		notes := req.Notes
+		if notes == "" {
+			notes = "Defensa rechazada por la comision"
+		}
+		_, err = h.Pool.Exec(r.Context(), `
+			UPDATE admission_requests SET
+				defense_status = 'rejected', defense_reviewed_at = NOW(), defense_reviewed_by = $1,
+				rejection_reason = rejection_reason || ' | Defensa rechazada: ' || $2
+			WHERE id = $3::uuid`,
+			userID, notes, id)
+		if err != nil {
+			writeError(w, 500, err.Error())
+			return
+		}
+
+		writeJSON(w, 200, map[string]interface{}{
+			"message": "Defensa rechazada. El rechazo se mantiene.",
+			"status":  "rejected",
+		})
+	}
+}
+
+// ===== CLEANUP DE SOLICITUDES EXPIRADAS =====
+
+// CleanupExpiredAdmissionRequests borra usuarios preliminares cuyas solicitudes
+// fueron rechazadas y cuyo plazo de defensa de 30 dias ha expirado sin resolucion.
+// Debe llamarse periodicamente (ej: en cada listado de solicitudes del admin).
+func (h *SystemHandler) CleanupExpiredAdmissionRequests(ctx context.Context) {
+	// Buscar solicitudes rechazadas expiradas con defensa no aceptada
+	rows, err := h.Pool.Query(ctx, `
+		SELECT id::text, created_user_id FROM admission_requests
+		WHERE status = 'rejected'
+		  AND rejection_expires_at < NOW()
+		  AND (defense_status IS NULL OR defense_status != 'accepted')
+		  AND created_user_id IS NOT NULL`)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	type expiredReq struct {
+		ID            string
+		CreatedUserID uuid.UUID
+	}
+	var expired []expiredReq
+	for rows.Next() {
+		var req expiredReq
+		if err := rows.Scan(&req.ID, &req.CreatedUserID); err == nil {
+			expired = append(expired, req)
+		}
+	}
+
+	for _, req := range expired {
+		// Borrar usuario preliminar (ON DELETE SET NULL preserva el registro de admision)
+		_, _ = h.Pool.Exec(ctx, `DELETE FROM users WHERE id = $1 AND membership_status = 'pending_admission'`, req.CreatedUserID)
+		// Marcar solicitud como expirada
+		_, _ = h.Pool.Exec(ctx, `
+			UPDATE admission_requests SET status = 'expired', created_user_id = NULL WHERE id = $1::uuid`,
+			req.ID)
+	}
 }
 
 // ===== HELPER =====
