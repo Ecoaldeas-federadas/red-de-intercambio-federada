@@ -1,0 +1,9 @@
+fix(migration): remover NOW() de predicado de indice en 138 (no es IMMUTABLE)
+
+PostgreSQL/YugabyteDB no permite funciones STABLE como NOW() en predicados
+de indices parciales. Se remueve el WHERE expires_at > NOW() del indice
+idx_nfc_classic_pending_expiry, dejandolo como indice simple sobre expires_at.
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

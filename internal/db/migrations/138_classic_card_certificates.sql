@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS nfc_classic_pending (
 );
 
 CREATE INDEX IF NOT EXISTS idx_nfc_classic_pending_card ON nfc_classic_pending(card_uid, expires_at);
-CREATE INDEX IF NOT EXISTS idx_nfc_classic_pending_expiry ON nfc_classic_pending(expires_at) WHERE expires_at > NOW();
+CREATE INDEX IF NOT EXISTS idx_nfc_classic_pending_expiry ON nfc_classic_pending(expires_at);
 
 COMMENT ON TABLE nfc_card_sectors IS 'Certificados dinamicos rotativos para MIFARE Classic 1K. 15 sectores por tarjeta, cada uno con claves A/B unicas y un certificado de 16 bytes.';
 COMMENT ON TABLE nfc_classic_pending IS 'Pre-aprobaciones pendientes de confirmacion de lectura/escritura en tarjeta Classic. TTL 30 segundos.';
