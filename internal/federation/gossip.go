@@ -15,18 +15,21 @@ import (
 // within the same package — both are in package federation.)
 
 type Gossip struct {
-	Pool       *pgxpool.Pool
-	NodeDomain string
-	Interval   time.Duration
-	Client     PeerClient  // optional: if nil, sync functions only refresh local state
-	Reconciler *Reconciler // optional: if set, reconcileChain invokes real reconciliation
+	Pool         *pgxpool.Pool
+	NodeDomain   string
+	Interval     time.Duration
+	Client       PeerClient  // optional: if nil, sync functions only refresh local state
+	Reconciler   *Reconciler // optional: if set, reconcileChain invokes real reconciliation
+	Propagator   *Propagator // optional: if set, handles catch-up and propagation
+	needsCatchUp bool        // if true, request catch-up from peers on next tick
 }
 
 func NewGossip(pool *pgxpool.Pool, nodeDomain string, interval time.Duration) *Gossip {
 	return &Gossip{
-		Pool:       pool,
-		NodeDomain: nodeDomain,
-		Interval:   interval,
+		Pool:         pool,
+		NodeDomain:   nodeDomain,
+		Interval:     interval,
+		needsCatchUp: true, // always catch-up on startup
 	}
 }
 
@@ -37,9 +40,23 @@ func (g *Gossip) SetClient(client PeerClient, reconciler *Reconciler) {
 	g.Reconciler = reconciler
 }
 
+// SetPropagator sets the propagator for automatic federation catch-up.
+func (g *Gossip) SetPropagator(p *Propagator) {
+	g.Propagator = p
+}
+
 func (g *Gossip) Start(ctx context.Context) {
+	if g.Interval == 0 {
+		g.Interval = 60 * time.Second
+	}
 	ticker := time.NewTicker(g.Interval)
 	defer ticker.Stop()
+
+	// Do catch-up immediately on startup
+	if g.needsCatchUp && g.Propagator != nil {
+		g.Propagator.CatchUpFromPeers(ctx)
+		g.needsCatchUp = false
+	}
 
 	for {
 		select {

@@ -1,4 +1,5 @@
--- 130_pos_web_sessions.sql
+-- 136_pos_web_sessions.sql
+-- (Originalmente 130, renombrado por conflicto con 130_federation_pairing.sql)
 -- Sesiones web expirables para el POS web.
 -- A diferencia de Android/ESP32 (pairing permanente), el POS web usa
 -- sesiones temporales por navegador que el dueño del terminal aprueba.

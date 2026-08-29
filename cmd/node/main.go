@@ -260,6 +260,36 @@ func main() {
 	handler := api.NewHandler(ledgerSvc, accountsSvc, pricingSvc, cryptoSvc, db.LOCAL_NODE_DOMAIN, database.Pool)
 	handler.MultiSig = payments.NewMultiSigPayments(database.Pool, db.LOCAL_NODE_DOMAIN)
 	federationHandler := api.NewFederationHandler(database.Pool, cfg.Node.Domain)
+
+	// Load node's Ed25519 private key for E2E encrypted federation transport.
+	// The key is loaded from NODE_PRIVATE_KEY env var (base64-encoded).
+	// If not set, the transport operates in verify-only mode (can verify
+	// incoming signatures but can't sign/encrypt outgoing messages).
+	nodePrivKeyB64 := os.Getenv("NODE_PRIVATE_KEY")
+	if nodePrivKeyB64 != "" && nodePrivKeyB64 != "PENDIENTE" {
+		if err := federationHandler.SetTransportPrivateKey(nodePrivKeyB64); err != nil {
+			log.Printf("Warning: failed to load NODE_PRIVATE_KEY for federation transport: %v", err)
+			log.Printf("         Federation propagation will be limited (verify-only mode)")
+		} else {
+			log.Printf("Federation transport: node private key loaded (E2E encryption active)")
+		}
+	} else {
+		log.Printf("Warning: NODE_PRIVATE_KEY not set. Federation propagation in verify-only mode.")
+		log.Printf("         Set NODE_PRIVATE_KEY env var (base64) to enable full E2E propagation.")
+	}
+
+	// Start federation gossip in background for automatic catch-up and sync.
+	// The gossip loop runs every 60 seconds and handles:
+	//   - Balance sync with peers
+	//   - Bilateral limits sync
+	//   - Node levels sync
+	//   - Sponsorships sync
+	//   - Chain reconciliation
+	//   - Catch-up from peers (on startup)
+	go func() {
+		federationHandler.Gossip.Start(ctx)
+	}()
+
 	orgsSvc := accounts.NewOrganizations(database.Pool)
 	orgHandler := api.NewOrganizationHandler(orgsSvc, cfg.Node.Domain)
 	paymentsSvc := payments.New(database.Pool, cfg.Node.Domain)

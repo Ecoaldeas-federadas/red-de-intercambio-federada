@@ -178,7 +178,7 @@ export default function NodeDiscovery() {
       await api.post(`/federation/pair/request/${reqId}/confirm`, {
         selected_code: fedSelectedCode,
       })
-      showMsg('success', 'Nodo federado y confirmado exitosamente')
+      showMsg('success', 'Nodo federado y confirmado exitosamente. Propagando a toda la red automaticamente...')
       setFedApprovingId('')
       setFedPairingOptions([])
       setFedSelectedCode('')
@@ -440,7 +440,8 @@ export default function NodeDiscovery() {
       {tab === 'requests' && (
         <div className="space-y-4">
           <div className="bg-blue-50 p-3 rounded-lg text-sm text-gray-700">
-            <p>Las solicitudes de contacto <strong>no federan automaticamente</strong>. Son una forma de expresar interes y compartir informacion de contacto. La federacion se hace personalmente: las personas se contactan, se reúnen, las asambleas aprueban, y luego comparten las claves publicas en persona.</p>
+            <p>Las solicitudes de contacto <strong>no federan automaticamente</strong>. Son una forma de expresar interes y compartir informacion de contacto.</p>
+            <p className="mt-2"><strong>Federacion automatica global:</strong> Al confirmar un emparejamiento con verificacion de 4 opciones, el nuevo nodo entra automaticamente a toda la red federada. El sponsor propaga la info del nuevo nodo a todos sus peers en cadena exponencial, y cada nodo establece una relacion 1-a-1 individual. No necesitas federarte manualmente con cada nodo.</p>
           </div>
 
           {/* Emparejamientos federados pendientes (4 opciones) */}
@@ -451,7 +452,8 @@ export default function NodeDiscovery() {
               </h3>
               <p className="text-xs text-amber-700">
                 Un nodo nuevo solicita federarse. El nodo nuevo le comunico un codigo de 6 digitos por telefono.
-                Haga clic en Confirmar para ver 4 opciones y elegir la correcta.
+                Haga clic en Confirmar para ver 4 opciones y elegir la correcta. Al confirmar, el nodo entrara
+                automaticamente a toda la red federada via propagacion en cadena.
               </p>
               {fedPairings.map((p: any) => (
                 <div key={p.id} className="border border-amber-200 bg-white rounded-lg p-4 space-y-2">

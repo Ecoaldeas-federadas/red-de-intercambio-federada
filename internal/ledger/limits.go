@@ -142,6 +142,18 @@ func (lc *LimitsChecker) GetBilateralLimit(ctx context.Context, localNode, remot
 }
 
 func (lc *LimitsChecker) ValidateCrossNodeTransfer(ctx context.Context, senderID uuid.UUID, senderNode, receiverNode string, amount int64) error {
+	// Check unilateral blocks first — if either node blocked the other, reject
+	var blocked bool
+	err := lc.Pool.QueryRow(ctx, `
+		SELECT EXISTS(SELECT 1 FROM federation_unilateral_blocks
+		 WHERE (blocker_domain = $1 AND blocked_domain = $2)
+		    OR (blocker_domain = $2 AND blocked_domain = $1))`,
+		senderNode, receiverNode,
+	).Scan(&blocked)
+	if err == nil && blocked {
+		return fmt.Errorf("comercio bloqueado unilateralmente entre %s y %s", senderNode, receiverNode)
+	}
+
 	balance, err := lc.GetBalance(ctx, senderID)
 	if err != nil {
 		return err

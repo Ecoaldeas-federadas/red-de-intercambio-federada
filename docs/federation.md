@@ -52,12 +52,118 @@ para la intranet**. Si federas por Internet normal, no necesitas esos datos.
 - `internal/federation/reconcile.go` - Reconciliacion de cadena de transacciones (NUEVO)
 - `internal/federation/node_levels.go` - Niveles de nodo, padrino, limite promedio (NUEVO)
 - `internal/federation/pairing.go` - Verificacion de 4 opciones para federation pairing (NUEVO)
+- `internal/federation/transport.go` - Transporte cifrado E2E con Ed25519 + ECDH + AES-256-GCM (NUEVO)
+- `internal/federation/propagation.go` - Propagacion en cadena de credenciales y expulsion (NUEVO)
 - `internal/api/federation.go` - Handlers API REST
 - `internal/api/federation_gov.go` - Gobernanza federada (propuestas, votos, niveles)
 - `internal/api/net_sync.go` - Sincronizacion automatica de informacion de red y servicios
 - `internal/ledger/transaction.go` - Ledger con piscina global vs bilateral (ACTUALIZADO)
-- `internal/ledger/limits.go` - Validacion de limites con piscina global primaria (ACTUALIZADO)
+- `internal/ledger/limits.go` - Validacion de limites con piscina global primaria + bloqueo unilateral (ACTUALIZADO)
 - `internal/payments/pairing.go` - Emparejamiento POS con verificacion de 4 opciones (ACTUALIZADO)
+
+## Federacion Automatica Global (NUEVO)
+
+### Problema anterior
+
+Antes, cada nodo debia federarse manualmente con cada otro nodo. Para una red
+de N nodos, habia que configurar N*(N-1) relaciones manuales. Esto no escalaba.
+
+### Solucion: Sponsor + Propagacion en Cadena
+
+Ahora un nodo nuevo solo se federa con **un sponsor** via verificacion de 4
+opciones. El sponsor propaga automaticamente la identidad del nuevo nodo a
+toda la red federada en cadena exponencial.
+
+### Flujo de admision
+
+1. El nodo nuevo inicia el emparejamiento con el sponsor
+2. El sponsor confirma con la verificacion de 4 opciones (codigo de 6 digitos)
+3. El nodo nuevo se registra localmente como **Nivel 1** (sin voto, limite 1.000 TQ)
+4. El sponsor crea una relacion de patrocinio y retiene parte de su limite
+5. El sponsor crea un **evento de propagacion** firmado
+6. El evento se envia a todos los peers del sponsor
+7. Cada peer que recibe el evento:
+   - Verifica la firma Ed25519 del originador
+   - Verifica la autorizacion del sponsor
+   - Almacena la credencial del nuevo nodo localmente
+   - Reenvia el evento a sus propios peers (con TTL decrementado)
+8. Los nodos que estan offline reciben el evento al reconectar (catch-up)
+9. No se requiere aprobacion humana adicional de otros nodos
+
+### Transporte cifrado E2E
+
+La propagacion viaja por el mismo reverse proxy publico (HTTPS) pero el
+payload esta **cifrado extremo a extremo**:
+
+- **Firma Ed25519**: cada mensaje esta firmado por el nodo originador
+- **ECDH + AES-256-GCM**: el payload se cifra con una clave derivada por ECDH
+  entre el originador y el destinatario
+- **Replay protection**: timestamp + nonce + deduplicacion por message_id
+- **El reverse proxy no puede leer el contenido** de los mensajes federados
+
+### Claves individuales (no compartidas)
+
+- **Cada nodo tiene su propia clave privada Ed25519**
+- **No existe una clave privada compartida de la federacion**
+- Comprometer un nodo solo afecta a ese nodo y sus relaciones pairwise
+- La revocacion es individual: un nodo puede revocar a un peer sin afectar a otros
+- La expulsion federada es una orden firmada ejecutada independientemente por cada nodo
+
+### Bloqueo unilateral de comercio
+
+Un nodo puede **bloquear unilateralmente** el comercio con otro nodo especifico:
+
+- El bloqueo es **local**: solo afecta al nodo que bloquea
+- Los demas nodos siguen comerciando normalmente con el nodo bloqueado
+- El bloqueo impide transacciones cross-node con ese peer
+- El bloqueo es **auditable y revocable**
+- El bloqueo **no es expulsion federada**
+
+### Expulsion federada
+
+La expulsion federada es una decision de gobernanza que afecta a toda la red:
+
+1. Se propone una expulsion en la gobernanza federada
+2. Los nodos con derecho a voto votan
+3. Si se aprueba, se genera una **orden firmada de expulsion**
+4. La orden se propaga a todos los nodos (mismo mecanismo que la admision)
+5. Cada nodo **independientemente** verifica la orden y la ejecuta localmente
+6. La ejecucion local deshabilita/revoca las credenciales del nodo expulsado
+7. Los nodos offline aplican la orden al reconectar
+8. **No depende de una clave global compartida**
+
+### Diferencias clave
+
+| Concepto | Alcance | Mecanismo |
+|----------|---------|-----------|
+| Propagacion de credenciales | Toda la red | Sponsor propaga en cadena |
+| Gossip de transacciones | Toda la red | Sincronizacion periodica |
+| Acuerdo bilateral | Un par | Configuracion opcional |
+| Bloqueo unilateral | Un nodo (local) | Decision local auditada |
+| Expulsion federada | Toda la red | Votacion + orden firmada |
+
+### Endpoints de propagacion
+
+- `POST /api/federation/propagation/receive` - Recibir evento de propagacion
+- `GET /api/federation/propagation/pending` - Eventos pendientes de envio
+- `POST /api/federation/propagation/{id}/retry` - Reintentar envio
+- `POST /api/federation/block/{peerDomain}` - Bloquear comercio unilateral
+- `DELETE /api/federation/block/{peerDomain}` - Desbloquear comercio
+- `GET /api/federation/blocks` - Listar bloqueos activos
+
+### Migracion
+
+La migracion `137_federation_propagation.sql` crea las tablas:
+- `federation_propagation_events` - Eventos de propagacion (admission/expulsion)
+- `federation_propagation_deliveries` - Estado de entrega por peer
+- `federation_node_blocks` - Bloqueos unilaterales de comercio
+- `federation_expulsion_orders` - Ordenes de expulsion firmadas
+
+**Nota sobre numeracion:** La migracion `130_pos_web_sessions.sql` fue renombrada
+a `133_pos_web_sessions.sql` para resolver un conflicto de numeracion con
+`130_federation_pairing.sql`. Si un deployment ya aplico el nombre antiguo,
+debe marcar manualmente el nuevo nombre como aplicado en `schema_migrations`.
+
 
 ## Sincronizacion Automatica de Informacion de Red
 

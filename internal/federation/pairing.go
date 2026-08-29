@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,10 +19,17 @@ type FederationPairing struct {
 	Pool       *pgxpool.Pool
 	NodeDomain string
 	NodeLevels *NodeLevels
+	Propagator *Propagator // optional: if set, propagates new peer to all federation nodes
 }
 
 func NewFederationPairing(pool *pgxpool.Pool, nodeDomain string, nodeLevels *NodeLevels) *FederationPairing {
 	return &FederationPairing{Pool: pool, NodeDomain: nodeDomain, NodeLevels: nodeLevels}
+}
+
+// SetPropagator sets the propagator so confirmed pairings are auto-propagated
+// to all federation nodes (exponential chain).
+func (fp *FederationPairing) SetPropagator(p *Propagator) {
+	fp.Propagator = p
 }
 
 // FederationPairingRequest represents a federation pairing request
@@ -227,13 +235,35 @@ func (fp *FederationPairing) ConfirmFederationPairing(ctx context.Context, code,
 		return nil, fmt.Errorf("error confirmando pairing: %w", err)
 	}
 
+	// Propagate the new node to all federation peers (exponential chain).
+	// The sponsor acts as intermediary: presents the new node to all its peers,
+	// and each peer re-propagates to its own peers. This establishes individual
+	// 1-to-1 relationships between the new node and every node in the federation.
+	if fp.Propagator != nil {
+		go func() {
+			bgCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+			defer cancel()
+			if err := fp.Propagator.PropagateNewPeer(bgCtx,
+				req.RequestingDomain,
+				req.RequestingPublicKey,
+				req.RequestingEndpoint,
+				"", // node name not available here
+				sponsorDomain,
+				"new",
+				level1.GlobalCreditLimit,
+			); err != nil {
+				log.Printf("FederationPairing: propagation of %s failed: %v", req.RequestingDomain, err)
+			}
+		}()
+	}
+
 	return &FederationPairingResult{
 		RequestingDomain: req.RequestingDomain,
 		SponsorDomain:    sponsorDomain,
 		Status:           "confirmed",
 		Level:            "new",
 		Limit:            level1.GlobalCreditLimit,
-		Message:          "Nodo ingresado a la federacion como nivel 1 (Nodo Nuevo). El sponsor es responsable.",
+		Message:          "Nodo ingresado a la federacion como nivel 1 (Nodo Nuevo). El sponsor es responsable. Propagando a toda la red automaticamente.",
 	}, nil
 }
 

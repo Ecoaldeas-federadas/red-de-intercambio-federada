@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useConfig } from '../hooks/useConfig'
-import { Globe, Plus, Trash2, Key, Copy, CheckCircle, AlertCircle, Link2, HelpCircle, ArrowUpCircle, ArrowDownCircle, FileText, Award, Handshake, Shield } from 'lucide-react'
+import { Globe, Plus, Trash2, Key, Copy, CheckCircle, AlertCircle, Link2, HelpCircle, ArrowUpCircle, ArrowDownCircle, FileText, Award, Handshake, Shield, Ban, Unlock } from 'lucide-react'
 import { fmtTQ } from '../lib/format'
 
 interface Peer {
@@ -14,6 +14,15 @@ interface Peer {
   mutual_verified: boolean
   notes?: string
   created_at: string
+  auto_accepted?: boolean
+  propagated_by?: string
+}
+
+interface Block {
+  blocker_domain: string
+  blocked_domain: string
+  reason: string
+  blocked_at: string
 }
 
 interface NodeKeys {
@@ -60,6 +69,7 @@ export default function FederationPeers() {
   const [loadingTxs, setLoadingTxs] = useState(false)
   const [nodeLevels, setNodeLevels] = useState<Record<string, NodeLevel>>({})
   const [sponsorships, setSponsorships] = useState<Sponsorship[]>([])
+  const [blocks, setBlocks] = useState<Block[]>([])
 
   const canManage = hasPermission('federation.change_config')
 
@@ -77,6 +87,7 @@ export default function FederationPeers() {
     loadBalances()
     loadNodeLevels()
     loadSponsorships()
+    loadBlocks()
   }, [])
 
   const loadBalances = async () => {
@@ -130,6 +141,51 @@ export default function FederationPeers() {
       setSponsorships(list)
     } catch {
       // Los patrocinios pueden no estar disponibles aun
+    }
+  }
+
+  const loadBlocks = async () => {
+    try {
+      const res = await api.get<any>('/federation/blocks')
+      const list = Array.isArray(res) ? res : res?.blocks ?? []
+      setBlocks(list)
+    } catch {
+      // Los bloqueos pueden no estar disponibles aun
+    }
+  }
+
+  const isBlocked = (peerDomain: string) => {
+    return blocks.some(b =>
+      (b.blocker_domain === peerDomain && b.blocked_domain === nodeKeys?.node_domain) ||
+      (b.blocker_domain === nodeKeys?.node_domain && b.blocked_domain === peerDomain)
+    )
+  }
+
+  const isBlockedByMe = (peerDomain: string) => {
+    return blocks.some(b => b.blocker_domain === nodeKeys?.node_domain && b.blocked_domain === peerDomain)
+  }
+
+  const blockPeer = async (peerDomain: string) => {
+    if (!confirm(`Bloquear comercio con ${peerDomain}? Esto detendra todas las transacciones con ese nodo. Solo afecta a tu nodo.`)) return
+    try {
+      const reason = prompt('Razon del bloqueo (opcional):') || ''
+      await api.post(`/federation/block/${peerDomain}`, { reason })
+      setSuccess(`Comercio bloqueado con ${peerDomain}. Propagado a todos los peers.`)
+      setTimeout(() => setSuccess(''), 4000)
+      loadBlocks()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al bloquear')
+    }
+  }
+
+  const unblockPeer = async (peerDomain: string) => {
+    try {
+      await api.delete(`/federation/block/${peerDomain}`)
+      setSuccess(`Comercio reactivado con ${peerDomain}.`)
+      setTimeout(() => setSuccess(''), 4000)
+      loadBlocks()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al desbloquear')
     }
   }
 
@@ -236,6 +292,8 @@ export default function FederationPeers() {
           <p><strong>Limite efectivo:</strong> El limite efectivo de un nodo es su limite nominal menos el limite retenido por patrocinios activos. Cuando un nodo patrocina a otro, su limite se reduce temporalmente. Se libera cuando el nodo patrocinado alcanza el Nivel 2.</p>
           <p><strong>Piscina global multilateral:</strong> Ademas de los saldos bilaterales entre pares de nodos, existe una piscina global compartida. El saldo que ganas en un nodo es gastable en cualquier otro nodo federado.</p>
           <p><strong>Como usar esta pagina:</strong> Copia tu clave publica y enviasela al admin del otro nodo. Pide la clave publica del otro nodo. Registra el otro nodo aqui (dominio + clave publica). Pide al otro nodo que te registre a ti. Cuando ambos se han registrado, la federacion esta activa.</p>
+          <p><strong>Federacion automatica global (NUEVO):</strong> Cuando un nodo nuevo se federa con un sponsor via verificacion de 4 opciones, el sponsor propaga automaticamente la info del nuevo nodo a todos sus peers en cadena exponencial. Cada nodo establece una relacion 1-a-1 individual con el nuevo nodo. No necesitas federarte manualmente con cada nodo — al federarte con uno, entras a toda la red. Los nodos marcados como <strong>Auto-registrado</strong> fueron agregados via propagacion automatica.</p>
+          <p><strong>Bloqueo unilateral (NUEVO):</strong> Puedes bloquear comercio con un nodo especifico sin necesidad de acuerdo. Solo afecta a tu nodo — los demas siguen comerciando. Util para dejar de comerciar con un nodo problematico sin afectar a la red.</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
         </div>
       )}
@@ -311,6 +369,21 @@ export default function FederationPeers() {
                       <CheckCircle size={12} /> Mutuo
                     </span>
                   )}
+                  {p.auto_accepted && (
+                    <span className="text-xs bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded flex items-center gap-1">
+                      <Link2 size={12} /> Auto-registrado
+                    </span>
+                  )}
+                  {p.propagated_by && (
+                    <span className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded">
+                      via {p.propagated_by}
+                    </span>
+                  )}
+                  {isBlocked(p.peer_domain) && (
+                    <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded flex items-center gap-1">
+                      <Ban size={12} /> Bloqueado
+                    </span>
+                  )}
                   {levelBadge && (
                     <span className={`text-xs px-2 py-0.5 rounded flex items-center gap-1 ${levelBadge.class}`}>
                       <Award size={12} /> {levelBadge.label}
@@ -371,9 +444,28 @@ export default function FederationPeers() {
                   {isExpanded ? 'Ocultar' : 'Ver historial'}
                 </button>
                 {canManage && (
-                  <button onClick={() => removePeer(p.peer_domain)} className="text-red-500 hover:text-red-700">
-                    <Trash2 size={16} />
-                  </button>
+                  <div className="flex gap-2">
+                    {isBlockedByMe(p.peer_domain) ? (
+                      <button
+                        onClick={() => unblockPeer(p.peer_domain)}
+                        className="text-green-600 hover:text-green-700"
+                        title="Desbloquear comercio"
+                      >
+                        <Unlock size={16} />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => blockPeer(p.peer_domain)}
+                        className="text-amber-600 hover:text-amber-700"
+                        title="Bloquear comercio unilateralmente"
+                      >
+                        <Ban size={16} />
+                      </button>
+                    )}
+                    <button onClick={() => removePeer(p.peer_domain)} className="text-red-500 hover:text-red-700" title="Eliminar peer">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -555,13 +647,18 @@ export default function FederationPeers() {
       {/* Info: como federar */}
       <div className="card bg-amber-50 border-amber-200">
         <h3 className="font-medium text-amber-800 mb-2">Como federar dos nodos</h3>
-        <ol className="text-sm text-amber-700 space-y-1 list-decimal list-inside">
-          <li>Copia tu clave publica (arriba) y enviasela al admin del otro nodo</li>
-          <li>Pide la clave publica del otro nodo</li>
-          <li>Registra el otro nodo aqui (dominio + clave publica)</li>
-          <li>Pide al otro nodo que te registre a ti</li>
-          <li>Cuando ambos se han registrado, la federacion esta activa</li>
-        </ol>
+        <div className="text-sm text-amber-700 space-y-2">
+          <p><strong>Metodo recomendado (automatico):</strong> Usa la verificacion de 4 opciones en la pagina de Descubrimiento de Nodos. Al confirmar, el nodo se federara automaticamente con toda la red via propagacion en cadena.</p>
+          <p><strong>Metodo manual (casos especiales):</strong></p>
+          <ol className="space-y-1 list-decimal list-inside">
+            <li>Copia tu clave publica (arriba) y enviasela al admin del otro nodo</li>
+            <li>Pide la clave publica del otro nodo</li>
+            <li>Registra el otro nodo aqui (dominio + clave publica)</li>
+            <li>Pide al otro nodo que te registre a ti</li>
+            <li>Cuando ambos se han registrado, la federacion esta activa</li>
+          </ol>
+          <p className="text-xs text-amber-600 mt-2">Nota: El metodo manual solo registra el peer localmente. Para que el nuevo nodo entre a toda la red automaticamente, usa la verificacion de 4 opciones.</p>
+        </div>
       </div>
 
       {/* Modal: Registrar peer */}

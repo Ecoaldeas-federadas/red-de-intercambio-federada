@@ -1,0 +1,24 @@
+feat(federacion): admision automatica con propagacion en cadena y bloqueo unilateral
+
+Reemplaza el modelo obsoleto de emparejamiento manual N*(N-1) con admision
+automatica via sponsor + propagacion en cadena exponencial. Un nodo nuevo
+solo se federa con un sponsor (verificacion de 4 opciones); el sponsor
+propaga la identidad del nuevo nodo a toda la red. Cada nodo establece
+relaciones 1-a-1 individuales con claves Ed25519 propias (no compartidas).
+
+Cambios principales:
+- Transporte E2E: Ed25519 + ECDH + AES-256-GCM a traves del reverse proxy
+- Propagacion en cadena con TTL, deduplicacion y catch-up offline
+- Bloqueo unilateral de comercio (local, auditable, revocable)
+- Expulsion federada como orden firmada ejecutada independientemente
+- Integracion en gossip y startup en main.go
+- Frontend actualizado con badges auto-registrado, bloqueo/desbloqueo
+- Documentacion completa del nuevo modelo
+
+Migraciones:
+- 130_pos_web_sessions.sql renombrada a 136 (conflicto con 130_federation_pairing)
+- 137_federation_propagation.sql: tablas de propagacion, bloqueos y expulsion
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>
