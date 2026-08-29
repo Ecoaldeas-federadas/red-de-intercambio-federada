@@ -84,28 +84,23 @@ conocidos.
 
 ### Endpoints
 
-| Metodo | Endpoint | Descripcion |
-|--------|----------|-------------|
-| GET | `/api/federation/node-info` | Informacion de red del nodo actual |
-| POST | `/api/federation/node-info/publish` | Publicar info a peers |
-| POST | `/api/federation/node-info/receive` | Recibir info de un peer |
-| POST | `/api/federation/node-info/sync` | Sincronizar con todos los peers |
+> **Nota:** Los endpoints de node-info federados no están implementados como handlers HTTP dedicados en `internal/api/`. La tabla `federation_node_info` existe (migración 079) pero el intercambio de info de red entre nodos se hace via endpoints mTLS de reconciliación. Ver sección de endpoints mTLS más abajo.
 
 ### Tabla `federation_node_info`
 
 | Campo | Tipo | Descripcion |
 |-------|------|-------------|
-| node_domain | TEXT PK | Dominio del nodo |
-| node_name | TEXT | Nombre descriptivo |
-| public_domain | TEXT | Dominio publico (OpenWrt) |
-| public_ip | TEXT | IP publica |
-| intranet_domain | TEXT | Dominio intranet |
-| ipv6_ula | TEXT | IPv6 ULA |
-| wireguard_endpoint | TEXT | Endpoint WireGuard |
+| node_domain | VARCHAR(128) PK | Dominio del nodo |
+| node_name | VARCHAR(128) | Nombre descriptivo |
+| public_domain | VARCHAR(128) | Dominio o IP publica |
+| ipv6_ula | VARCHAR(64) | IPv6 ULA (fdXX:XXXX:XXXX::/48) |
+| wireguard_endpoint | VARCHAR(128) | Endpoint WireGuard (direccion:puerto) |
 | wireguard_public_key | TEXT | Clave publica WireGuard |
 | wireguard_port | INT | Puerto WireGuard |
+| network_mode | VARCHAR(20) | `internet`, `intranet`, `both` |
 | services | JSONB | Lista de servicios disponibles |
 | last_updated | TIMESTAMPTZ | Ultima actualizacion |
+| is_active | BOOLEAN | Si el nodo esta activo |
 
 ### Pagina de Federacion (Frontend)
 La pagina `/app/federation` tiene tres tabs:

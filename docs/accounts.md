@@ -71,7 +71,7 @@ Estos limites estan definidos por el nivel de miembro y pueden aumentarse por la
 ## Admision de Nuevos Miembros
 
 ### Flujo
-1. Solicitud de admision: `POST /api/accounts/admission` (o via codigo de invitacion)
+1. Solicitud de admision: `POST /api/admission/apply` (o via codigo de invitacion)
 2. Revisión por asamblea o regla configurada
 3. Aprobacion: crea usuario con nivel propuesto, registra en `membership_history`
 4. Rechazo: con razon documentada

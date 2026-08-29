@@ -46,8 +46,8 @@ para evitar que alguien intercepte el codigo y lo confirme por error o fraude:
 5. Si no se confirma en **60 segundos**, el codigo expira y se debe generar uno nuevo.
 
 **Endpoints:**
-- `GET /api/nfc/terminal/pair/{code}/options` — Devuelve las 4 opciones de codigo.
-- `POST /api/nfc/terminal/pair/{code}/approve` — Aprueba con el `selected_code` (opcional).
+- `GET /api/nfc/terminal/pair/request/{reqId}/options` — Devuelve las 4 opciones de codigo.
+- `POST /api/nfc/terminal/pair/request/{reqId}/approve` — Aprueba con el `selected_code` (opcional).
 
 **Razon:** Con un solo codigo, cualquiera que lo vea puede confirmar. Con 4
 opciones, solo quien ve la pantalla del terminal sabe cual es el correcto. Esto

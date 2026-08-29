@@ -16,7 +16,7 @@
 
 #### Generacion
 - `POST /api/payments/qr/generate`
-- Parametros: amount, recipient (user_id o username)
+- Parametros: display_name, amount, label
 - Retorna: codigo QR (string) con datos de pago embebidos
 
 #### Parseo y Procesamiento
@@ -30,7 +30,7 @@
 #### Tarjetas NFC
 - `nfc_cards`: vinculadas a usuarios (card_uid unico)
 - `POST /api/payments/nfc/lookup`: busca usuario por card_uid
-- `POST /api/payments/nfc/assign`: asigna tarjeta a usuario (requiere permiso)
+- `POST /api/nfc/terminal/{id}/assign`: asigna terminal a usuario (requiere permiso)
 
 #### Flujo
 1. Comercio lee tarjeta NFC del cliente
@@ -81,7 +81,7 @@ Ver `nfc_hardware.md` y `firmware/` para mas detalles.
 ### 4. Pago Manual
 
 - `POST /api/payments/manual`
-- Parametros: recipient (username), amount, description
+- Parametros: receiver_id (uuid), amount, reference (string opcional)
 - Transaccion directa entre usuarios autenticados
 - Valida limites de credito/debito
 

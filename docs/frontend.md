@@ -205,7 +205,7 @@ colors: {
 cd web
 npm install
 npx vite build    # genera dist/
-npx vite dev      # dev server en :5173
+npx vite dev      # dev server en :3000
 ```
 
 ### Salida

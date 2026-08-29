@@ -5,13 +5,13 @@
 Aplicacion Android para actuar como terminal NFC movil conectada a un lector
 Bluetooth BLE (ESP32 + PN532) o directamente al NFC del telefono.
 
-## Arquitectura recomendada
+## Arquitectura implementada
 
-**React Native** (TypeScript) - permite compartir codigo con el POS web existente
-y reutilizar el modulo `crypto.ts` (Ed25519, device fingerprint, etc).
-
-Alternativa: **Kotlin nativo** si se prefiere maximo rendimiento y acceso directo
-al NFC del telefono.
+**Kotlin nativo con Jetpack Compose** — la app está implementada en Kotlin nativo
+para máximo rendimiento, acceso directo al NFC del teléfono, Android Keystore para
+criptografía Ed25519, y feedback sonoro/háptico nativo. Ver `punto-de-venta-pos/`
+para el código fuente y `punto-de-venta-pos/docs/` para la documentación técnica
+completa de la app Android.
 
 ## Componentes principales
 
@@ -101,7 +101,7 @@ Pantallas:
 
 | Endpoint | Metodo | Funcion |
 |---|---|---|
-| `/api/auth/login` | POST | Login comerciante |
+| `/api/auth/login/password` | POST | Login comerciante |
 | `/api/nfc/terminal/register` | POST | Registrar terminal movil |
 | `/api/nfc/terminal/complete-registration` | POST | Completar registro con clave publica |
 | `/api/nfc/terminal/auth` | POST | Autenticar terminal |

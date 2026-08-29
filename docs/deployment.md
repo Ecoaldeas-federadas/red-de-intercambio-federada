@@ -79,36 +79,62 @@ database:
 ### docker-compose.yml
 ```yaml
 services:
-  node:
-    build: .
+  node-app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
     ports:
       - "8080:8080"
-    environment:
-      CONFIG_PATH: /app/config.yaml
-      JWT_SECRET: ${JWT_SECRET}
-      MIGRATIONS_DIR: /app/internal/db/migrations
+      - "8443:8443"
     volumes:
-      - ./config.yaml:/app/config.yaml
+      - ./secrets:/secrets:ro
+      - ./config.yaml:/app/config.yaml:ro
+      - ./firmware:/app/firmware:ro
+      - firmware_builds:/tmp/firmware-builds
+      - uploads:/app/uploads
+      - db_backups:/backups
+      - .:/project:rw
+      - update_state:/update-state
     depends_on:
-      - db
+      - yugabytedb
 
-  db:
+  yugabytedb:
     image: yugabytedb/yugabyte:latest
     ports:
       - "5433:5433"  # YSQL
     volumes:
       - yugabyte-data:/var/yugabyte
 
-  web:
-    build: ./web
+  updater-controller:
+    build: ./docker/updater-controller
+    volumes:
+      - .:/project:rw
+      - update_state:/update-state
+
+  arduino-compiler:
+    build: ./docker/arduino-compiler
+    volumes:
+      - firmware_builds:/firmware-builds
+
+  db-backup:
+    build: ./docker/db-backup
+    volumes:
+      - db_backups:/backups
+
+  demo-app:
+    build: ./docker/demo-app
     ports:
-      - "3000:80"
-    depends_on:
-      - node
+      - "3001:3001"
 
 volumes:
   yugabyte-data:
+  firmware_builds:
+  uploads:
+  db_backups:
+  update_state:
 ```
+
+> **Nota:** El frontend web (`web/`) se construye con `npm run build` y se sirve como archivos estáticos, no como un servicio Docker separado. Ver `docs/frontend.md` para detalles.
 
 ## Instalacion de Nuevo Nodo
 
@@ -142,7 +168,7 @@ Las migraciones se ejecutan automaticamente al arrancar el nodo. Las migraciones
 
 | Migracion | Descripcion |
 |-----------|-------------|
-| `128_global_pool_cross_node_tx_chain.sql` | Piscina global multilateral real + tabla `cross_node_tx_chain` para transacciones inter-nodos con firma dual y hashes encadenados |
+| `128_federation_global_pool.sql` | Piscina global multilateral real + tabla `cross_node_tx_chain` para transacciones inter-nodos con firma dual y hashes encadenados |
 | `129_federation_node_levels.sql` | Niveles de nodo federado (`federation_node_levels`), membresia (`federation_node_membership`) y padrinos (`federation_sponsorships`) |
 | `130_federation_pairing.sql` | Tabla `federation_pairing_requests` para emparejamiento federado con verificacion de 4 opciones |
 | `131_terminal_pairing_failed_attempts.sql` | Anade columna `failed_attempts` a `terminal_pairing_requests` para rate-limiting (5 intentos fallidos expira la solicitud) |

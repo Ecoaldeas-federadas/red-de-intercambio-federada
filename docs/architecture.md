@@ -13,7 +13,7 @@ El sistema de credito mutuo federado es una red descentralizada de nodos indepen
 
 ### 2. Base de Datos
 - **YugabyteDB / PostgreSQL**: Compatible con ambos
-- **Migraciones**: `internal/db/migrations/` (71 migraciones, 001-071)
+- **Migraciones**: `internal/db/migrations/` (139 migraciones, 001-133)
 - **Pool de conexiones**: `pgx/v5`
 - **Backups**: `internal/api/backups.go` — export/import `.sql`
 - **Nodos YugabyteDB**: `internal/api/yugabyte_nodes.go` — gestion de cluster

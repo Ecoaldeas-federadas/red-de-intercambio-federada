@@ -24,7 +24,7 @@ Ver `departments.md` para la lista completa de permisos.
 | POST | `/api/auth/login/finish` | Completa login, devuelve JWT |
 | POST | `/api/auth/login/password` | Login con usuario + contrasena (bcrypt) |
 | GET | `/api/auth/me` | Info del usuario autenticado |
-| POST | `/api/auth/passkey/list` | Lista passkeys del usuario |
+| GET | `/api/auth/passkey/list` | Lista passkeys del usuario |
 | DELETE | `/api/auth/passkey/{id}` | Elimina un passkey |
 
 ### Transacciones (`internal/api/handlers.go`)
@@ -32,29 +32,31 @@ Ver `departments.md` para la lista completa de permisos.
 | Metodo | Ruta | Descripcion |
 |--------|------|-------------|
 | GET | `/api/accounts/me` | Datos y balance del usuario |
-| POST | `/api/transactions` | Crea transaccion (transferencia interna) |
-| GET | `/api/transactions` | Lista transacciones (con filtros) |
-| GET | `/api/transactions/{id}` | Detalle de transaccion |
+| POST | `/api/transfer` | Crea transferencia (requiere `receiver_id`, `amount`) |
+| GET | `/api/ledger/transactions` | Lista transacciones del usuario (con filtros) |
 | GET | `/api/products` | Lista productos del catalogo (con paginacion limit/offset) |
 | POST | `/api/products` | Crea producto (requiere aprobacion de asamblea) |
 | POST | `/api/products/{id}/approve` | Aprueba producto (permiso products.manage) |
 | GET | `/api/products/categories` | Lista jerarquia de 3 niveles (parent_category, category, subcategory) |
-| GET | `/api/pricing/calculate` | Calcula precio energetico |
+| POST | `/api/calculator/internal` | Calcula precio energetico interno |
+| POST | `/api/calculator/external` | Calcula precio energetico externo |
+| POST | `/api/calculator/labor` | Calcula precio de mano de obra |
+| GET | `/api/calculator/tariff` | Obtiene tarifas del calculador |
 
 ### Dashboard y Profile (`internal/api/handlers.go`, `internal/api/system.go`)
 
 | Metodo | Ruta | Descripcion |
 |--------|------|-------------|
-| GET | `/api/dashboard` | Resumen del dashboard (balance, alertas, asambleas, orgs) |
-| GET | `/api/profile` | Perfil del usuario autenticado |
-| PUT | `/api/profile` | Actualizar perfil |
-| GET | `/api/wallet` | Billetera con balance, limites y movimientos |
-| GET | `/api/history` | Historial de transacciones |
-| GET | `/api/my-membership` | Organizaciones y departamentos del usuario |
+| GET | `/api/auth/me` | Info del usuario autenticado (perfil, balance) |
+| PUT | `/api/auth/me/contacts` | Actualizar contactos del usuario |
+| GET | `/api/ledger/transactions` | Historial de transacciones del usuario |
+| GET | `/api/my/organizations` | Organizaciones del usuario |
+| GET | `/api/my/departments` | Departamentos del usuario |
+| GET | `/api/my/assembly` | Asambleas del usuario |
 | GET | `/api/countries` | Lista de paises (ISO 3166-1) |
 | GET | `/api/document-types` | Tipos de documento de identidad |
-| POST | `/api/user/documents` | Subir documento de identidad |
-| GET | `/api/user/documents` | Listar documentos del usuario |
+| GET | `/api/auth/me/documents` | Listar documentos del usuario |
+| POST | `/api/auth/me/documents` | Subir documento de identidad |
 
 ### Asamblea del Nodo (`internal/api/assembly.go`)
 
@@ -172,8 +174,8 @@ Ver `departments.md` para la lista completa de permisos.
 
 | Metodo | Ruta | Descripcion |
 |--------|------|-------------|
-| GET | `/api/node/settings` | Configuracion del nodo |
-| PUT | `/api/node/settings` | Actualizar configuracion |
+| GET | `/api/config` | Configuracion del nodo |
+| PUT | `/api/config` | Actualizar configuracion |
 | GET | `/api/member-levels` | Niveles de miembro |
 | POST | `/api/member-levels` | Crear nivel |
 | PUT | `/api/member-levels/{id}` | Actualizar nivel |
@@ -185,8 +187,7 @@ Ver `departments.md` para la lista completa de permisos.
 
 | Metodo | Ruta | Descripcion |
 |--------|------|-------------|
-| GET | `/api/fund` | Estado del fondo comunitario |
-| GET | `/api/fund/distributions` | Distribuciones del fondo |
+| GET | `/api/fund/balance` | Balance del fondo comunitario |
 
 ### Backups y YugabyteDB (`internal/api/backups.go`, `internal/api/yugabyte_nodes.go`)
 
@@ -262,8 +263,9 @@ Ver `departments.md` para la lista completa de permisos.
 | Metodo | Ruta | Body | Descripcion |
 |--------|------|------|-------------|
 | POST | `/api/federation/pair/initiate` | `requesting_domain`, `requesting_public_key`, `requesting_endpoint` | Inicia emparejamiento federado |
-| GET | `/api/federation/pair/{code}/options` | - | Devuelve 4 opciones de codigo + `message` |
-| POST | `/api/federation/pair/{code}/confirm` | `selected_code`, `sponsor_domain` | Confirma emparejamiento con codigo seleccionado |
+| GET | `/api/federation/pair/pending` | - | Lista emparejamientos pendientes |
+| GET | `/api/federation/pair/request/{reqId}/options` | - | Devuelve 4 opciones de codigo + `message` |
+| POST | `/api/federation/pair/request/{reqId}/confirm` | `selected_code`, `sponsor_domain` | Confirma emparejamiento con codigo seleccionado |
 
 El emparejamiento usa **verificacion de 4 opciones**: el confirmador ve 4
 codigos y debe elegir el correcto. Expira en 60 segundos.
@@ -385,22 +387,24 @@ Estos endpoints se consumen entre nodos via mTLS (no requieren JWT):
 | PUT | `/api/nfc/cards/pin` | JWT | Cambiar PIN |
 | PUT | `/api/nfc/cards/{uid}/pin/reset` | JWT + `nfc.reset_pin` | Resetear PIN |
 | GET | `/api/nfc/transactions` | JWT | Lista transacciones NFC |
-| GET | `/api/nfc/terminal/pair/{code}/options` | JWT | Devuelve 4 opciones de codigo para verificacion de emparejamiento POS |
-| POST | `/api/nfc/terminal/pair/{code}/approve` | JWT | Aprueba emparejamiento POS (acepta `selected_code` opcional) |
+| GET | `/api/nfc/terminal/pair/request/{reqId}/options` | JWT | Devuelve 4 opciones de codigo para verificacion de emparejamiento POS |
+| POST | `/api/nfc/terminal/pair/request/{reqId}/approve` | JWT | Aprueba emparejamiento POS (acepta `selected_code` opcional) |
 
-### Auditoria (`internal/api/handler.go`)
+### Auditoria (`internal/api/handlers.go`)
 
 | Metodo | Ruta | Descripcion |
 |--------|------|-------------|
 | GET | `/api/audit` | Entradas de auditoria (con filtros) |
 
-### Admision (`internal/api/handler.go`)
+### Admision (`internal/api/handlers.go`, `internal/api/system.go`)
 
 | Metodo | Ruta | Descripcion |
 |--------|------|-------------|
-| GET | `/api/accounts/pending` | Lista solicitudes de admision pendientes |
-| POST | `/api/accounts/admission/{id}/approve` | Aprueba admision |
-| POST | `/api/accounts/admission/{id}/reject` | Rechaza admision |
+| POST | `/api/admission/apply` | Enviar solicitud de admision (publico) |
+| GET | `/api/admission/requests` | Lista solicitudes de admision |
+| GET | `/api/admission-requests` | Lista solicitudes de admision pendientes |
+| POST | `/api/admission-requests/{id}/approve` | Aprueba admision |
+| POST | `/api/admission-requests/{id}/reject` | Rechaza admision |
 
 ### Sitio Web Publico (`internal/api/system.go`)
 
