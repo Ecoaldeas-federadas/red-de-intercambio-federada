@@ -30,6 +30,7 @@ sealed class PosScreen {
     object Admin : PosScreen()
     object Settings : PosScreen()
     object ShiftManagement : PosScreen()
+    object ProvisionCard : PosScreen()
 }
 
 data class PosUiState(
@@ -78,6 +79,14 @@ data class PosUiState(
     val selectedDocType: String = "cedula",
     val idDocNumber: String = "",
     val nfcPaymentResult: PaymentResultDecrypted? = null,
+
+    // MIFARE Classic Dynamic Certificates
+    val isClassicFlow: Boolean = false, // true cuando se detecta tarjeta Classic con certificados
+    val classicPreAuth: ClassicPreAuthResponse? = null,
+    val classicStep: String = "idle", // "idle", "auth", "tap_card", "writing", "done"
+    val isWritingCard: Boolean = false,
+    val writeProgress: String = "",
+    val classicRemainingSeconds: Int = 30,
 
     // Multi-Vendor Flow
     val mvStep: Int = 1, // 1: Tap Seller, 2: Amount, 3: Tap Buyer, 4: Buyer PIN & ID, 5: Result
@@ -1187,7 +1196,247 @@ class PosViewModel(
         }
     }
 
-    // --- MULTI-SIG LIVE SIGNING & POLLING ---
+    // --- MIFARE CLASSIC DYNAMIC CERTIFICATES WORKFLOW ---
+
+    /**
+     * Inicia el flujo de pago con tarjeta Classic.
+     * El usuario ingresa documento + PIN PRIMERO (sin tarjeta).
+     * El servidor valida y responde con el sector a leer y escribir.
+     */
+    fun submitClassicPayment() {
+        val state = _uiState.value
+        val centavos = CurrencyHelper.parseInputToCentavos(state.amountInput)
+
+        if (state.idDocNumber.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Ingrese el número de documento de identidad") }
+            return
+        }
+        if (state.customerPin.length < 4) {
+            _uiState.update { it.copy(errorMessage = "Ingrese el PIN de 4 dígitos") }
+            return
+        }
+
+        viewModelScope.launch {
+            if (!verifyTerminalStatus()) return@launch
+
+            _uiState.update { it.copy(isLoading = true, errorMessage = null, classicStep = "auth") }
+
+            val result = repository.classicPreAuth(
+                docType = state.selectedDocType,
+                docNumber = state.idDocNumber,
+                pin = state.customerPin,
+                amountCentavos = centavos
+            )
+
+            result.onSuccess { resp ->
+                if (resp.preApproved && resp.cardUid != null) {
+                    FeedbackHelper.playCardDetected(getApplication())
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            classicPreAuth = resp,
+                            classicStep = "tap_card",
+                            detectedCardUid = resp.cardUid,
+                            classicRemainingSeconds = 30,
+                            isNfcWaitingCard = true
+                        )
+                    }
+                    startClassicTimeout()
+                } else {
+                    FeedbackHelper.playError(getApplication())
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            classicStep = "idle",
+                            errorMessage = resp.message ?: "Pre-autenticación rechazada"
+                        )
+                    }
+                }
+            }.onFailure { err ->
+                FeedbackHelper.playError(getApplication())
+                _uiState.update {
+                    it.copy(isLoading = false, classicStep = "idle", errorMessage = err.message)
+                }
+            }
+        }
+    }
+
+    private var classicTimeoutJob: Job? = null
+
+    private fun startClassicTimeout() {
+        classicTimeoutJob?.cancel()
+        classicTimeoutJob = viewModelScope.launch {
+            while (isActive && _uiState.value.classicRemainingSeconds > 0) {
+                delay(1000)
+                _uiState.update {
+                    it.copy(classicRemainingSeconds = it.classicRemainingSeconds - 1)
+                }
+            }
+            if (_uiState.value.classicStep == "tap_card") {
+                cancelClassicPayment("Tiempo agotado. Acerque la tarjeta más rápido la próxima vez.")
+            }
+        }
+    }
+
+    fun cancelClassicPayment(reason: String) {
+        classicTimeoutJob?.cancel()
+        _uiState.update {
+            it.copy(
+                classicStep = "idle",
+                classicPreAuth = null,
+                isNfcWaitingCard = false,
+                isWritingCard = false,
+                errorMessage = reason,
+                detectedCardUid = null
+            )
+        }
+    }
+
+    /**
+     * Procesa la tarjeta Classic cuando se acerca al lector.
+     * Lee el sector activo, verifica el certificado, escribe el nuevo certificado,
+     * y confirma al servidor.
+     *
+     * @param tag el Tag NFC de Android
+     * @param reader el lector MIFARE Classic
+     */
+    fun onClassicCardTapped(tag: android.nfc.Tag, reader: com.example.data.nfc.MifareClassicReader) {
+        val state = _uiState.value
+        val preAuth = state.classicPreAuth ?: return
+        if (state.classicStep != "tap_card") return
+
+        classicTimeoutJob?.cancel()
+
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(isWritingCard = true, classicStep = "writing", writeProgress = "Leyendo tarjeta...")
+            }
+
+            // 1. Verificar UID
+            val uid = reader.readUid(tag)
+            if (uid != preAuth.cardUid) {
+                FeedbackHelper.playError(getApplication())
+                _uiState.update {
+                    it.copy(
+                        isWritingCard = false,
+                        classicStep = "idle",
+                        errorMessage = "La tarjeta no coincide con el usuario autenticado"
+                    )
+                }
+                return@launch
+            }
+
+            // 2. Leer sector activo
+            val keyA = hexToBytes(preAuth.readKeyA ?: "")
+            val expectedCert = hexToBytes(preAuth.expectedCertificate ?: "")
+            val blocks = reader.readSectorBlocks(tag, preAuth.readSector, keyA)
+
+            if (blocks == null || !reader.verifyCertificate(blocks, expectedCert)) {
+                FeedbackHelper.playError(getApplication())
+                _uiState.update {
+                    it.copy(
+                        isWritingCard = false,
+                        classicStep = "idle",
+                        errorMessage = "No se pudo leer el certificado de la tarjeta"
+                    )
+                }
+                // Confirmar fallo al servidor
+                repository.confirmClassicTransaction(preAuth.cardUid!!, false, false, 0)
+                return@launch
+            }
+
+            // 3. Escribir nuevo certificado
+            _uiState.update { it.copy(writeProgress = "Escribiendo nueva clave en tarjeta...") }
+            val keyB = hexToBytes(preAuth.writeKeyB ?: "")
+            val newCert = hexToBytes(preAuth.newCertificate ?: "")
+            val writeOk = reader.writeSectorBlocks(tag, preAuth.writeSector, newCert, keyB)
+
+            // 4. Verificar escritura
+            var writtenBlocks = 0
+            if (writeOk) {
+                _uiState.update { it.copy(writeProgress = "Verificando escritura...") }
+                writtenBlocks = reader.verifyWrite(tag, preAuth.writeSector, keyA, newCert)
+            }
+
+            // 5. Confirmar al servidor
+            _uiState.update { it.copy(writeProgress = "Confirmando transacción...") }
+            val confirmResult = repository.confirmClassicTransaction(
+                cardUid = preAuth.cardUid!!,
+                readOk = true,
+                writeOk = writeOk && writtenBlocks > 0,
+                writtenBlocks = writtenBlocks
+            )
+
+            confirmResult.onSuccess { res ->
+                if (res.status == "approved") {
+                    FeedbackHelper.playSuccess(getApplication())
+                    val centavos = CurrencyHelper.parseInputToCentavos(state.amountInput)
+                    _uiState.update {
+                        it.copy(
+                            isWritingCard = false,
+                            classicStep = "done",
+                            writeProgress = "",
+                            nfcPaymentResult = res,
+                            isNfcWaitingCard = false,
+                            successMessage = "¡Cobro NFC aprobado exitosamente por ${CurrencyHelper.formatCentavos(centavos)}!"
+                        )
+                    }
+                } else {
+                    FeedbackHelper.playError(getApplication())
+                    _uiState.update {
+                        it.copy(
+                            isWritingCard = false,
+                            classicStep = "idle",
+                            writeProgress = "",
+                            isNfcWaitingCard = false,
+                            errorMessage = res.message ?: "Transacción rechazada"
+                        )
+                    }
+                }
+            }.onFailure { err ->
+                FeedbackHelper.playError(getApplication())
+                _uiState.update {
+                    it.copy(
+                        isWritingCard = false,
+                        classicStep = "idle",
+                        writeProgress = "",
+                        isNfcWaitingCard = false,
+                        errorMessage = err.message
+                    )
+                }
+            }
+        }
+    }
+
+    private fun hexToBytes(hex: String): ByteArray {
+        return hex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+    }
+
+    fun resetClassicFlow() {
+        classicTimeoutJob?.cancel()
+        _uiState.update {
+            it.copy(
+                classicStep = "idle",
+                classicPreAuth = null,
+                isWritingCard = false,
+                writeProgress = "",
+                isNfcWaitingCard = false,
+                classicRemainingSeconds = 30,
+                customerPin = "",
+                idDocNumber = "",
+                detectedCardUid = null,
+                nfcPaymentResult = null
+            )
+        }
+    }
+
+    /**
+     * Establece el UID de la tarjeta leida durante el provisionamiento.
+     */
+    fun setProvisionCardUid(uid: String) {
+        // Guardar en estado para que ProvisionCardScreen lo use
+        _uiState.update { it.copy(detectedCardUid = uid) }
+    }
     private fun startMultisigPolling(pendingId: String) {
         multisigPollJob?.cancel()
         multisigPollJob = viewModelScope.launch {

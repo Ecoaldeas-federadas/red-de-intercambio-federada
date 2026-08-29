@@ -429,12 +429,27 @@ Cuando `isDemoNode` es true, el POS muestra un watermark de demostración y simu
 - **AES-256-GCM:** Los payloads de pago se encriptan con AES-256-GCM usando la clave compartida ECDH.
 - **Firma Ed25519:** El ciphertext se firma con la clave privada del terminal; el servidor verifica con la clave pública registrada.
 
-### 12.2 Autenticación de tarjetas NFC
+### 12.2 Autenticacion de tarjetas NFC
 
-- **PIN:** Las tarjetas tienen un PIN de 4 dígitos hasheado con bcrypt (`pin_hash`).
-- **Bloqueo por intentos:** Después de **3 intentos fallidos** de PIN, la tarjeta se bloquea temporalmente por **15 minutos** (`nfc_card_attempts` tabla). Estos valores están **hardcodeados** en `internal/payments/nfc_terminal.go` (`incrementCardAttempt`), **no son configurables** desde la UI ni desde la API actualmente. Para desbloquear una tarjeta antes de que expire el timeout, un admin con permiso `nfc.reset_pin` debe usar `PUT /api/nfc/cards/{uid}/pin/reset` para resetear el PIN (lo cual también limpia los intentos y el bloqueo). No hay un endpoint dedicado de "desbloquear tarjeta" sin resetear el PIN.
-- **Documento de identidad:** Para tarjetas UID-only (clonables), el nodo puede requerir verificación de documento de identidad además del PIN.
-- **Tipos de tarjeta:** `uid_only` (sin crypto), `desfire` (con crypto AES), `dual` (ambos).
+- **PIN:** Las tarjetas tienen un PIN de 4 digitos hasheado con bcrypt (`pin_hash`).
+- **Bloqueo por intentos:** Despues de **3 intentos fallidos** de PIN, la tarjeta se bloquea temporalmente por **15 minutos** (`nfc_card_attempts` tabla). Para desbloquear antes de que expire el timeout, un admin con permiso `nfc.reset_pin` debe usar `PUT /api/nfc/cards/{uid}/pin/reset`.
+- **Documento de identidad:** Para tarjetas MIFARE Classic con certificados dinamicos, el documento es **OBLIGATORIO** (no configurable). Para tarjetas UID-only legacy, depende de la configuracion del nodo. DESFire no requiere documento.
+- **Tipos de tarjeta:** `uid_only` (sin crypto), `desfire` (con crypto AES), `dual` (ambos), `classic_cert` (MIFARE Classic con certificados dinamicos).
+
+### 12.2.1 MIFARE Classic con Certificados Dinamicos
+
+Las tarjetas MIFARE Classic 1K pueden usar certificados dinamicos rotativos para mitigar la clonacion:
+
+- **15 sectores** con claves A/B unicas por sector por tarjeta
+- **Certificados de 16 bytes** con triple redundancia (3 bloques por sector)
+- **Rotacion aleatoria** por transaccion (no secuencial)
+- **Documento + PIN obligatorios** (2FA)
+- **Solo 2 claves enviadas por transaccion** (encriptadas con EphemeralMessage)
+- **Aislamiento entre tarjetas** (claves unicas por usuario)
+
+El flujo de pago es: auth primero (doc + PIN), servidor pre-aprueba, luego el cliente acerca la tarjeta para lectura/escritura en un solo paso.
+
+Ver `docs/nfc_hardware.md` para mas detalles del modelo de seguridad.
 
 ### 12.3 Device fingerprint
 

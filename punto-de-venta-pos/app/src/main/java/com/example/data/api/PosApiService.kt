@@ -82,6 +82,13 @@ interface PosApiService {
     @GET("nfc/terminal/payment/multisig/{pendingId}/status")
     suspend fun getMultisigPaymentStatus(@Path("pendingId") pendingId: String): Response<MultisigStatusResponse>
 
+    // --- MIFARE Classic Dynamic Certificates (Encrypted) ---
+    @POST("nfc/terminal/classic/pre-auth")
+    suspend fun classicPreAuth(@Body request: EncryptedPaymentRequest): Response<EncryptedPaymentResponse>
+
+    @POST("nfc/terminal/classic/confirm")
+    suspend fun classicConfirm(@Body request: EncryptedPaymentRequest): Response<EncryptedPaymentResponse>
+
     // --- Multi-Sig Web/App (JWT) ---
     @GET("multisig/payments")
     suspend fun listPendingMultisigPayments(): Response<List<MultisigStatusResponse>>
@@ -112,6 +119,9 @@ interface PosApiService {
 
     @POST("nfc/cards/issue")
     suspend fun issueCard(@Body request: IssueCardRequest): Response<CardItem>
+
+    @POST("nfc/cards/provision-classic")
+    suspend fun provisionClassicCard(@Body request: ProvisionClassicRequest): Response<ProvisionClassicResponse>
 
     @PUT("nfc/cards/pin")
     suspend fun changePin(@Body request: ChangePinRequest): Response<GenericStatusResponse>

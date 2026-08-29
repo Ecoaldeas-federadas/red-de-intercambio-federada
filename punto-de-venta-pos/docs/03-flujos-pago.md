@@ -44,6 +44,31 @@ POST /api/nfc/terminal/payment
 8. Si no requiere multifirma: debitar de `card.UserID`, acreditar al `merchant_user_id` del terminal
 9. Retornar `status="approved"` con `transaction_id` y `user_balance`
 
+### Flujo alternativo: MIFARE Classic con Certificados Dinámicos
+
+Para tarjetas MIFARE Classic con `has_dynamic_certs=true`, el flujo es diferente:
+
+1. **Comerciante ingresa monto** → confirma
+2. **Cliente ingresa documento + PIN** (sin tarjeta)
+3. POS envía `POST /api/nfc/terminal/classic/pre-auth` (cifrado)
+4. Servidor valida: usuario (por doc), PIN, saldo → bloquea monto
+5. Servidor busca sector activo en `nfc_card_sectors`, genera nuevo cert, elige sector aleatorio
+6. Servidor responde: `card_uid`, `read_sector`, `read_key_a`, `expected_certificate`, `write_sector`, `write_key_b`, `new_certificate`
+7. POS muestra "ACERQUE SU TARJETA"
+8. POS lee UID → verifica, lee sector con Key A → verifica cert (triple redundancia)
+9. POS escribe nuevo cert en sector destino con Key B (3 bloques)
+10. POS re-lee para verificar escritura
+11. POS envía `POST /api/nfc/terminal/classic/confirm` (cifrado)
+12. Servidor procesa pago, desactiva sector viejo, activa nuevo
+13. POS muestra resultado
+
+**Diferencias clave:**
+- Auth primero (doc + PIN), tarjeta al final
+- Documento OBLIGATORIO (no configurable)
+- Rotación aleatoria de certificado por transacción
+- Triple redundancia (3 bloques por sector)
+- Recuperación de escritura parcial (`needs_repair`)
+
 ### Respuesta (NFCPaymentResult)
 ```json
 {

@@ -1097,6 +1097,335 @@ func (nt *NFCTerminals) GetTerminalPublicKey(ctx context.Context, terminalID str
 	return ed25519.PublicKey(pub), nil
 }
 
+// ===== CERTIFICADOS DINAMICOS PARA MIFARE CLASSIC =====
+
+// ClassicSectorData representa los datos de un sector para provisionamiento
+type ClassicSectorData struct {
+	SectorNumber int    `json:"sector_number"`
+	KeyA         string `json:"key_a"`       // hex (6 bytes)
+	KeyB         string `json:"key_b"`       // hex (6 bytes)
+	AccessBits   string `json:"access_bits"` // hex (4 bytes)
+	Certificate  string `json:"certificate"` // hex (16 bytes)
+	IsActive     bool   `json:"is_active"`
+}
+
+// ProvisionClassicResponse es la respuesta del provisionamiento
+type ProvisionClassicResponse struct {
+	CardUID string              `json:"card_uid"`
+	Sectors []ClassicSectorData `json:"sectors"`
+}
+
+// ProvisionClassicCard genera 15 sectores con claves y certificados unicos
+// y los guarda en nfc_card_sectors. Retorna la data para que el POS escriba.
+func (nt *NFCTerminals) ProvisionClassicCard(ctx context.Context, userID uuid.UUID, cardUID, initialPIN string) (*ProvisionClassicResponse, error) {
+	// Hashear PIN
+	pinHash, err := bcrypt.GenerateFromPassword([]byte(initialPIN), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("hashing PIN: %w", err)
+	}
+
+	// Registrar tarjeta en nfc_cards con has_dynamic_certs=true
+	var card NFCCard
+	err = nt.Pool.QueryRow(ctx, `
+		INSERT INTO nfc_cards (user_id, card_uid, is_active, card_type, crypto_enabled, pin_hash, has_dynamic_certs)
+		VALUES ($1, $2, true, 'uid_only', false, $3, true)
+		ON CONFLICT (card_uid) DO UPDATE SET is_active = true, card_type = 'uid_only', pin_hash = $3, has_dynamic_certs = true
+		RETURNING id, user_id, card_uid, is_active, issued_at, deactivated_at`,
+		userID, cardUID, string(pinHash),
+	).Scan(&card.ID, &card.UserID, &card.CardUID, &card.IsActive, &card.IssuedAt, &card.DeactivatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("issuing classic card: %w", err)
+	}
+
+	// Elegir sector activo aleatorio (1-15)
+	activeSector := make([]byte, 1)
+	if _, err := rand.Read(activeSector); err != nil {
+		return nil, fmt.Errorf("generating random sector: %w", err)
+	}
+	activeSectorNum := int(activeSector[0])%15 + 1 // 1-15
+
+	// Access bits estandar: Key A lee, Key B escribe
+	// Configuracion comun para MIFARE Classic
+	accessBits := []byte{0x78, 0x77, 0x88, 0x69}
+
+	var sectors []ClassicSectorData
+
+	// Generar 15 sectores
+	for sectorNum := 1; sectorNum <= 15; sectorNum++ {
+		// Generar Key A aleatoria (6 bytes)
+		keyA := make([]byte, 6)
+		if _, err := rand.Read(keyA); err != nil {
+			return nil, fmt.Errorf("generating key A: %w", err)
+		}
+
+		// Generar Key B aleatoria (6 bytes)
+		keyB := make([]byte, 6)
+		if _, err := rand.Read(keyB); err != nil {
+			return nil, fmt.Errorf("generating key B: %w", err)
+		}
+
+		// Generar certificado (16 bytes)
+		cert := make([]byte, 16)
+		if _, err := rand.Read(cert); err != nil {
+			return nil, fmt.Errorf("generating certificate: %w", err)
+		}
+
+		isActive := (sectorNum == activeSectorNum)
+
+		// Guardar en BD
+		_, err = nt.Pool.Exec(ctx, `
+			INSERT INTO nfc_card_sectors (card_uid, node_domain, sector_number, key_a_encrypted, key_b_encrypted, access_bits, certificate, is_active, written_blocks)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0)
+			ON CONFLICT (card_uid, sector_number) DO UPDATE SET
+				key_a_encrypted = $4, key_b_encrypted = $5, access_bits = $6,
+				certificate = $7, is_active = $8, written_blocks = 0, needs_repair = false, updated_at = NOW()`,
+			cardUID, nt.NodeDomain, sectorNum, keyA, keyB, accessBits, cert, isActive,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("inserting sector %d: %w", sectorNum, err)
+		}
+
+		sectors = append(sectors, ClassicSectorData{
+			SectorNumber: sectorNum,
+			KeyA:         hex.EncodeToString(keyA),
+			KeyB:         hex.EncodeToString(keyB),
+			AccessBits:   hex.EncodeToString(accessBits),
+			Certificate:  hex.EncodeToString(cert),
+			IsActive:     isActive,
+		})
+	}
+
+	return &ProvisionClassicResponse{
+		CardUID: cardUID,
+		Sectors: sectors,
+	}, nil
+}
+
+// ClassicPreAuthResponse contiene todo lo que el POS necesita para
+// leer y escribir la tarjeta en un solo paso.
+type ClassicPreAuthResponse struct {
+	PreApproved         bool   `json:"pre_approved"`
+	CardUID             string `json:"card_uid"`
+	ReadSector          int    `json:"read_sector"`
+	ReadKeyA            string `json:"read_key_a"`           // hex (6 bytes)
+	ExpectedCertificate string `json:"expected_certificate"` // hex (16 bytes)
+	WriteSector         int    `json:"write_sector"`
+	WriteKeyB           string `json:"write_key_b"`     // hex (6 bytes)
+	NewCertificate      string `json:"new_certificate"` // hex (16 bytes)
+	Message             string `json:"message,omitempty"`
+}
+
+// ClassicPreAuth valida documento + PIN + saldo, y prepara la rotacion
+// del certificado. NO procesa el pago hasta que el POS confirme la escritura.
+func (nt *NFCTerminals) ClassicPreAuth(ctx context.Context, terminalID, docType, docNumber, pin string, amount int64) (*ClassicPreAuthResponse, error) {
+	// 1. Buscar usuario por documento (national_id o user_documents)
+	var userID uuid.UUID
+	err := nt.Pool.QueryRow(ctx, `SELECT id FROM users WHERE national_id = $1`, docNumber).Scan(&userID)
+	if err != nil {
+		// Intentar buscar en user_documents
+		err = nt.Pool.QueryRow(ctx, `
+			SELECT user_id FROM user_documents WHERE document_number = $1 AND ($2 = '' OR document_type_code = $2) LIMIT 1`,
+			docNumber, docType).Scan(&userID)
+		if err != nil {
+			return &ClassicPreAuthResponse{PreApproved: false, Message: "documento de identidad no encontrado"}, nil
+		}
+	}
+
+	// 2. Buscar tarjeta activa del usuario con certificados dinamicos
+	var cardUID string
+	err = nt.Pool.QueryRow(ctx, `
+		SELECT card_uid FROM nfc_cards WHERE user_id = $1 AND is_active = true AND has_dynamic_certs = true LIMIT 1`,
+		userID).Scan(&cardUID)
+	if err != nil {
+		return &ClassicPreAuthResponse{PreApproved: false, Message: "no se encontro tarjeta con certificados dinamicos"}, nil
+	}
+
+	// 3. Verificar PIN
+	var pinHash *string
+	err = nt.Pool.QueryRow(ctx, `SELECT pin_hash FROM nfc_cards WHERE card_uid = $1 AND is_active = true`, cardUID).Scan(&pinHash)
+	if err != nil || pinHash == nil {
+		return &ClassicPreAuthResponse{PreApproved: false, Message: "tarjeta no encontrada"}, nil
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(*pinHash), []byte(pin)); err != nil {
+		return &ClassicPreAuthResponse{PreApproved: false, Message: "PIN incorrecto"}, nil
+	}
+
+	// 4. Verificar saldo (filosofia moneda cero: puede ser negativo hasta credit_limit)
+	var balance, creditLimit int64
+	err = nt.Pool.QueryRow(ctx, `SELECT balance, credit_limit FROM users WHERE id = $1`, userID).Scan(&balance, &creditLimit)
+	if err != nil {
+		return nil, fmt.Errorf("getting user balance: %w", err)
+	}
+	if balance-amount < creditLimit {
+		return &ClassicPreAuthResponse{PreApproved: false, Message: "has llegado al tope de tu credito comunitario"}, nil
+	}
+
+	// 5. Buscar sector activo
+	var readSector int
+	var keyABytes, certBytes []byte
+	err = nt.Pool.QueryRow(ctx, `
+		SELECT sector_number, key_a_encrypted, certificate FROM nfc_card_sectors
+		WHERE card_uid = $1 AND is_active = true LIMIT 1`,
+		cardUID).Scan(&readSector, &keyABytes, &certBytes)
+	if err != nil {
+		return &ClassicPreAuthResponse{PreApproved: false, Message: "no hay sector activo en la tarjeta"}, nil
+	}
+
+	// 6. Generar nuevo certificado (16 bytes aleatorios)
+	newCert := make([]byte, 16)
+	if _, err := rand.Read(newCert); err != nil {
+		return nil, fmt.Errorf("generating new certificate: %w", err)
+	}
+
+	// 7. Elegir sector aleatorio para escribir (1-15, != sector activo)
+	writeSector := readSector
+	for writeSector == readSector {
+		randByte := make([]byte, 1)
+		rand.Read(randByte)
+		writeSector = int(randByte[0])%15 + 1
+	}
+
+	// 8. Obtener Key B del sector destino
+	var keyBBytes []byte
+	err = nt.Pool.QueryRow(ctx, `
+		SELECT key_b_encrypted FROM nfc_card_sectors WHERE card_uid = $1 AND sector_number = $2`,
+		cardUID, writeSector).Scan(&keyBBytes)
+	if err != nil {
+		return nil, fmt.Errorf("getting key B for sector %d: %w", writeSector, err)
+	}
+
+	// 9. Guardar pre-aprobacion (TTL 30s)
+	pendingID := uuid.New()
+	_, err = nt.Pool.Exec(ctx, `
+		INSERT INTO nfc_classic_pending (id, card_uid, terminal_id, user_id, amount, read_sector, write_sector, new_certificate)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		pendingID, cardUID, terminalID, userID, amount, readSector, writeSector, newCert)
+	if err != nil {
+		return nil, fmt.Errorf("saving pre-auth: %w", err)
+	}
+
+	return &ClassicPreAuthResponse{
+		PreApproved:         true,
+		CardUID:             cardUID,
+		ReadSector:          readSector,
+		ReadKeyA:            hex.EncodeToString(keyABytes),
+		ExpectedCertificate: hex.EncodeToString(certBytes),
+		WriteSector:         writeSector,
+		WriteKeyB:           hex.EncodeToString(keyBBytes),
+		NewCertificate:      hex.EncodeToString(newCert),
+	}, nil
+}
+
+// ConfirmClassicTransaction confirma la lectura/escritura de la tarjeta
+// y procesa el pago si todo fue exitoso.
+func (nt *NFCTerminals) ConfirmClassicTransaction(ctx context.Context, terminalID, cardUID string, readOK, writeOK bool, writtenBlocks int) (*NFCPaymentResult, error) {
+	// 1. Buscar pre-aprobacion pendiente
+	var pendingID uuid.UUID
+	var userID uuid.UUID
+	var amount int64
+	var readSector, writeSector int
+	var newCert []byte
+	err := nt.Pool.QueryRow(ctx, `
+		SELECT id, user_id, amount, read_sector, write_sector, new_certificate
+		FROM nfc_classic_pending
+		WHERE card_uid = $1 AND terminal_id = $2 AND expires_at > NOW()
+		ORDER BY created_at DESC LIMIT 1`,
+		cardUID, terminalID).Scan(&pendingID, &userID, &amount, &readSector, &writeSector, &newCert)
+	if err != nil {
+		return &NFCPaymentResult{Status: "rejected", Message: "no hay pre-aprobacion pendiente o ha expirado"}, nil
+	}
+
+	// 2. Si fallo la lectura o escritura, cancelar
+	if !readOK || !writeOK {
+		nt.Pool.Exec(ctx, `DELETE FROM nfc_classic_pending WHERE id = $1`, pendingID)
+		msg := "lectura o escritura de tarjeta fallo"
+		if !readOK {
+			msg = "no se pudo leer el certificado de la tarjeta"
+		} else if !writeOK {
+			msg = "no se pudo escribir el nuevo certificado en la tarjeta"
+		}
+		return &NFCPaymentResult{Status: "rejected", Message: msg}, nil
+	}
+
+	// 3. Procesar pago: debitar balance
+	_, err = nt.Pool.Exec(ctx, `UPDATE users SET balance = balance - $2, updated_at = NOW() WHERE id = $1`, userID, amount)
+	if err != nil {
+		return nil, fmt.Errorf("debiting user: %w", err)
+	}
+
+	// 4. Rotar sector: desactivar viejo, activar nuevo
+	nt.Pool.Exec(ctx, `UPDATE nfc_card_sectors SET is_active = false, updated_at = NOW() WHERE card_uid = $1 AND sector_number = $2`, cardUID, readSector)
+
+	needsRepair := writtenBlocks < 3
+	nt.Pool.Exec(ctx, `
+		UPDATE nfc_card_sectors SET is_active = true, certificate = $3, written_blocks = $4, needs_repair = $5, updated_at = NOW()
+		WHERE card_uid = $1 AND sector_number = $2`,
+		cardUID, writeSector, newCert, writtenBlocks, needsRepair)
+
+	// 5. Borrar pre-aprobacion
+	nt.Pool.Exec(ctx, `DELETE FROM nfc_classic_pending WHERE id = $1`, pendingID)
+
+	// 6. Log transaccion
+	var termDBID uuid.UUID
+	nt.Pool.QueryRow(ctx, `SELECT id FROM nfc_terminals WHERE terminal_id = $1`, terminalID).Scan(&termDBID)
+	nt.logTransaction(ctx, termDBID, cardUID, &userID, amount, "approved", hex.EncodeToString(newCert), true, "single", "", "")
+
+	// 7. Calcular nuevo balance
+	var newBalance int64
+	nt.Pool.QueryRow(ctx, `SELECT balance FROM users WHERE id = $1`, userID).Scan(&newBalance)
+
+	txID := uuid.New()
+	return &NFCPaymentResult{
+		Status:        "approved",
+		TransactionID: txID.String(),
+		Message:       "transaccion aprobada",
+		UserBalance:   &newBalance,
+	}, nil
+}
+
+// CleanupExpiredClassicPending borra pre-aprobaciones expiradas
+func (nt *NFCTerminals) CleanupExpiredClassicPending(ctx context.Context) {
+	nt.Pool.Exec(ctx, `DELETE FROM nfc_classic_pending WHERE expires_at < NOW()`)
+}
+
+// GetClassicCardSectors retorna todos los sectores de una tarjeta
+func (nt *NFCTerminals) GetClassicCardSectors(ctx context.Context, cardUID string) ([]ClassicSectorData, error) {
+	rows, err := nt.Pool.Query(ctx, `
+		SELECT sector_number, key_a_encrypted, key_b_encrypted, access_bits, certificate, is_active
+		FROM nfc_card_sectors WHERE card_uid = $1 ORDER BY sector_number`, cardUID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var sectors []ClassicSectorData
+	for rows.Next() {
+		var s ClassicSectorData
+		var keyA, keyB, accessBits, cert []byte
+		if err := rows.Scan(&s.SectorNumber, &keyA, &keyB, &accessBits, &cert, &s.IsActive); err != nil {
+			continue
+		}
+		s.KeyA = hex.EncodeToString(keyA)
+		s.KeyB = hex.EncodeToString(keyB)
+		s.AccessBits = hex.EncodeToString(accessBits)
+		if cert != nil {
+			s.Certificate = hex.EncodeToString(cert)
+		}
+		sectors = append(sectors, s)
+	}
+	return sectors, nil
+}
+
+// HasClassicCerts verifica si una tarjeta tiene certificados dinamicos
+func (nt *NFCTerminals) HasClassicCerts(ctx context.Context, cardUID string) bool {
+	var has bool
+	err := nt.Pool.QueryRow(ctx, `SELECT has_dynamic_certs FROM nfc_cards WHERE card_uid = $1`, cardUID).Scan(&has)
+	if err != nil {
+		return false
+	}
+	return has
+}
+
 func (nt *NFCTerminals) DecodePayload(ctx context.Context, terminalID string, encMsg json.RawMessage) (json.RawMessage, []byte, error) {
 	terminalIdentityPub, err := nt.GetTerminalPublicKey(ctx, terminalID)
 	if err != nil {

@@ -1293,6 +1293,200 @@ class PosRepository(
         }
     }
 
+    // ===== MIFARE CLASSIC DYNAMIC CERTIFICATES =====
+
+    /**
+     * Pre-autenticacion para tarjeta MIFARE Classic.
+     * El usuario ingresa documento + PIN. El servidor valida y responde
+     * con el sector a leer, clave A, certificado esperado, sector a escribir,
+     * clave B y certificado nuevo.
+     */
+    suspend fun classicPreAuth(
+        docType: String,
+        docNumber: String,
+        pin: String,
+        amountCentavos: Long
+    ): Result<ClassicPreAuthResponse> = withContext(Dispatchers.IO) {
+        try {
+            val config = getOrInitTerminalConfig()
+            val serverPubKey = config.serverPublicKeyHex
+                ?: return@withContext Result.failure(Exception("Terminal no registrado: sin clave pública del servidor"))
+
+            val payload = ClassicPreAuthDecryptedPayload(
+                terminalId = config.terminalId,
+                docType = docType,
+                docNumber = docNumber,
+                pin = pin,
+                amount = amountCentavos
+            )
+
+            val adapter = apiClient.moshi.adapter(ClassicPreAuthDecryptedPayload::class.java)
+            val jsonPlain = adapter.toJson(payload)
+
+            val (ephemeralMsg, ephemeralSharedKey) = CryptoEngine.encryptPayloadEphemeral(
+                plaintextJson = jsonPlain,
+                terminalPrivateKeyHex = config.terminalPrivateKeyHex,
+                serverPublicKeyHex = serverPubKey
+            )
+
+            val service = apiClient.getService()
+            val request = EncryptedPaymentRequest(
+                terminalId = config.terminalId,
+                encryptedPayload = EphemeralMessageModel(
+                    handshake = EphemeralHandshakeModel(
+                        ephemeralPublicKey = ephemeralMsg.handshake.ephemeralPublicKey,
+                        identitySignature = ephemeralMsg.handshake.identitySignature,
+                        nonce = ephemeralMsg.handshake.nonce
+                    ),
+                    nonce = ephemeralMsg.nonce,
+                    ciphertext = ephemeralMsg.ciphertext,
+                    signature = ephemeralMsg.signature
+                )
+            )
+
+            val response = service.classicPreAuth(request)
+            if (response.isSuccessful && response.body()?.ciphertext != null) {
+                val encResp = response.body()!!
+                val plainResp = CryptoEngine.decryptResponseEphemeral(
+                    encryptedPayload = EncryptedPayload(
+                        nonce = encResp.nonce.orEmpty(),
+                        ciphertext = encResp.ciphertext.orEmpty(),
+                        signature = encResp.signature.orEmpty()
+                    ),
+                    ephemeralSharedKey = ephemeralSharedKey,
+                    serverPublicKeyHex = config.serverPublicKeyHex
+                )
+
+                val resAdapter = apiClient.moshi.adapter(ClassicPreAuthResponse::class.java)
+                val result = resAdapter.fromJson(plainResp) ?: ClassicPreAuthResponse(
+                    preApproved = false,
+                    message = "Respuesta del servidor inválida"
+                )
+                Result.success(result)
+            } else {
+                Result.failure(Exception("Error en pre-auth (HTTP ${response.code()})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión en pre-auth: ${e.localizedMessage}"))
+        }
+    }
+
+    /**
+     * Confirma la lectura/escritura de la tarjeta Classic.
+     * El servidor procesa el pago si readOk y writeOk son true.
+     */
+    suspend fun confirmClassicTransaction(
+        cardUid: String,
+        readOk: Boolean,
+        writeOk: Boolean,
+        writtenBlocks: Int
+    ): Result<PaymentResultDecrypted> = withContext(Dispatchers.IO) {
+        try {
+            val config = getOrInitTerminalConfig()
+            val serverPubKey = config.serverPublicKeyHex
+                ?: return@withContext Result.failure(Exception("Terminal no registrado: sin clave pública del servidor"))
+
+            val payload = ClassicConfirmDecryptedPayload(
+                terminalId = config.terminalId,
+                cardUid = cardUid,
+                readOk = readOk,
+                writeOk = writeOk,
+                writtenBlocks = writtenBlocks
+            )
+
+            val adapter = apiClient.moshi.adapter(ClassicConfirmDecryptedPayload::class.java)
+            val jsonPlain = adapter.toJson(payload)
+
+            val (ephemeralMsg, ephemeralSharedKey) = CryptoEngine.encryptPayloadEphemeral(
+                plaintextJson = jsonPlain,
+                terminalPrivateKeyHex = config.terminalPrivateKeyHex,
+                serverPublicKeyHex = serverPubKey
+            )
+
+            val service = apiClient.getService()
+            val request = EncryptedPaymentRequest(
+                terminalId = config.terminalId,
+                encryptedPayload = EphemeralMessageModel(
+                    handshake = EphemeralHandshakeModel(
+                        ephemeralPublicKey = ephemeralMsg.handshake.ephemeralPublicKey,
+                        identitySignature = ephemeralMsg.handshake.identitySignature,
+                        nonce = ephemeralMsg.handshake.nonce
+                    ),
+                    nonce = ephemeralMsg.nonce,
+                    ciphertext = ephemeralMsg.ciphertext,
+                    signature = ephemeralMsg.signature
+                )
+            )
+
+            val response = service.classicConfirm(request)
+            if (response.isSuccessful && response.body()?.ciphertext != null) {
+                val encResp = response.body()!!
+                val plainResp = CryptoEngine.decryptResponseEphemeral(
+                    encryptedPayload = EncryptedPayload(
+                        nonce = encResp.nonce.orEmpty(),
+                        ciphertext = encResp.ciphertext.orEmpty(),
+                        signature = encResp.signature.orEmpty()
+                    ),
+                    ephemeralSharedKey = ephemeralSharedKey,
+                    serverPublicKeyHex = config.serverPublicKeyHex
+                )
+
+                val resAdapter = apiClient.moshi.adapter(PaymentResultDecrypted::class.java)
+                val result = resAdapter.fromJson(plainResp) ?: PaymentResultDecrypted(
+                    status = "error",
+                    message = "Respuesta del servidor inválida"
+                )
+
+                if (result.status == "approved") {
+                    transactionDao.insertTransaction(
+                        TransactionEntity(
+                            id = result.transactionId ?: UUID.randomUUID().toString(),
+                            amount = 0, // El monto se maneja en el servidor
+                            paymentMethod = "nfc_classic",
+                            status = "approved",
+                            cardUid = cardUid,
+                            receiptNumber = "NFC-${UUID.randomUUID().toString().take(8).uppercase()}"
+                        )
+                    )
+                }
+                Result.success(result)
+            } else {
+                Result.failure(Exception("Error en confirm (HTTP ${response.code()})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión en confirm: ${e.localizedMessage}"))
+        }
+    }
+
+    /**
+     * Provisiona una tarjeta MIFARE Classic con 15 sectores de certificados.
+     * Requiere permisos de admin (nfc.issue_card).
+     */
+    suspend fun provisionClassicCard(
+        userId: String,
+        cardUid: String,
+        initialPin: String
+    ): Result<ProvisionClassicResponse> = withContext(Dispatchers.IO) {
+        try {
+            val service = apiClient.getService()
+            val response = service.provisionClassicCard(
+                ProvisionClassicRequest(
+                    userId = userId,
+                    cardUid = cardUid,
+                    initialPin = initialPin
+                )
+            )
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                val errBody = response.errorBody()?.string() ?: "Error desconocido"
+                Result.failure(Exception("Error provisionando tarjeta (HTTP ${response.code()}): $errBody"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión en provisionamiento: ${e.localizedMessage}"))
+        }
+    }
+
     /**
      * checkRegistrationByKey consulta al servidor si la clave publica de este
      * terminal ya esta registrada. Esto permite al POS descubrir que fue

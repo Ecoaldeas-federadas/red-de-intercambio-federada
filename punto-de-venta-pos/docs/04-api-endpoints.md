@@ -431,6 +431,84 @@ Lista las tarjetas NFC registradas (requiere auth).
 ### POST /api/nfc/cards/issue
 Emite una nueva tarjeta NFC crypto (requiere permiso `nfc.issue_card`).
 
+### POST /api/nfc/cards/provision-classic
+Provisiona una tarjeta MIFARE Classic 1K con certificados dinámicos (requiere permiso `nfc.issue_card`).
+
+Genera 15 sectores con claves A/B únicas y certificados (14 basura + 1 real).
+
+**Request**:
+```json
+{
+  "user_id": "550e8400-e29b-41d4-a716-446655440000",
+  "card_uid": "AABBCCDD",
+  "initial_pin": "1234"
+}
+```
+
+**Response**:
+```json
+{
+  "card_uid": "AABBCCDD",
+  "sectors": [
+    {
+      "sector_number": 1,
+      "key_a": "a1b2c3d4e5f6",
+      "key_b": "f6e5d4c3b2a1",
+      "access_bits": "78778869",
+      "certificate": "00112233445566778899aabbccddeeff",
+      "is_active": true
+    },
+    ...
+  ]
+}
+```
+
+### POST /api/nfc/terminal/classic/pre-auth
+Pre-autenticación para tarjeta MIFARE Classic (terminal-facing, Ed25519 auth).
+
+El usuario ingresa documento + PIN. El servidor valida y responde con el sector a leer y escribir.
+
+**Payload cifrado**:
+```json
+{
+  "terminal_id": "TERM-ANDROID-XXXXXXXXXXXX",
+  "doc_type": "cedula",
+  "doc_number": "12345678",
+  "pin": "1234",
+  "amount": 5000
+}
+```
+
+**Response cifrada**:
+```json
+{
+  "pre_approved": true,
+  "card_uid": "AABBCCDD",
+  "read_sector": 3,
+  "read_key_a": "a1b2c3d4e5f6",
+  "expected_certificate": "00112233445566778899aabbccddeeff",
+  "write_sector": 9,
+  "write_key_b": "f6e5d4c3b2a1",
+  "new_certificate": "ffeeddccbbaa99887766554433221100"
+}
+```
+
+### POST /api/nfc/terminal/classic/confirm
+Confirma la lectura/escritura de la tarjeta Classic (terminal-facing, Ed25519 auth).
+
+**Payload cifrado**:
+```json
+{
+  "terminal_id": "TERM-ANDROID-XXXXXXXXXXXX",
+  "card_uid": "AABBCCDD",
+  "read_ok": true,
+  "write_ok": true,
+  "written_blocks": 3
+}
+```
+
+**Response cifrada**: `PaymentResultDecrypted` (status, transaction_id, user_balance)
+
 ### DELETE /api/nfc/cards/{uid}
 Desactiva una tarjeta NFC (requiere permiso `nfc.deactivate_card`).
 

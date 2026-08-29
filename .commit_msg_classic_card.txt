@@ -1,0 +1,36 @@
+feat(classic-card): certificados dinamicos rotativos para MIFARE Classic 1K
+
+Implementa un modelo de seguridad de 6 capas para tarjetas MIFARE Classic:
+- 15 sectores con claves A/B unicas por sector por tarjeta
+- Certificados dinamicos de 16 bytes con triple redundancia (3 bloques por sector)
+- Rotacion aleatoria por transaccion (no secuencial)
+- Documento de identidad OBLIGATORIO para Classic (no configurable)
+- Solo 2 claves enviadas por transaccion (encriptadas con EphemeralMessage)
+- Aislamiento entre tarjetas (claves unicas por usuario)
+
+Flujo de pago: auth primero (doc + PIN), servidor pre-aprueba y envia al POS
+que sector leer y en cual escribir, luego el cliente acerca la tarjeta para
+lectura/escritura en un solo paso.
+
+Backend:
+- Migracion 138: nfc_card_sectors + nfc_classic_pending
+- ProvisionClassicCard: genera 15 sectores con claves y certificados
+- ClassicPreAuth: valida doc + PIN + saldo, prepara rotacion
+- ConfirmClassicTransaction: procesa pago tras confirmar escritura
+- Endpoints: /api/nfc/cards/provision-classic, /api/nfc/terminal/classic/pre-auth,
+  /api/nfc/terminal/classic/confirm
+
+Android POS:
+- MifareClassicReader.kt: lector/escritor de sectores MIFARE Classic
+- Modelos API: ClassicPreAuth, ClassicConfirm, ProvisionClassic
+- Repositorio: classicPreAuth, confirmClassicTransaction, provisionClassicCard
+- ViewModel: flujo Classic con timeout de 30s y recovery
+- UI: seccion "ACERQUE SU TARJETA" y "NO RETIRE LA TARJETA"
+- ProvisionCardScreen: provisionamiento de tarjetas en maquina dedicada
+
+Documentacion actualizada: nfc_hardware.md, arquitectura, flujos de pago,
+modelo de datos, endpoints API.
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

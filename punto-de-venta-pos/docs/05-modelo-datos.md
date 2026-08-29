@@ -82,8 +82,46 @@ Tarjetas NFC asignadas a usuarios.
 | `last_token_at` | TIMESTAMPTZ | — | Último token usado (migración 119) |
 | `card_error` | TEXT | — | Error de tarjeta (migración 119) |
 | `error_at` | TIMESTAMPTZ | — | Fecha del error (migración 119) |
+| `has_dynamic_certs` | BOOLEAN | `false` | Tiene certificados dinámicos Classic (migración 138) |
 
 **Constraint**: `UNIQUE(card_uid)`
+
+### nfc_card_sectors (migración 138)
+Certificados dinámicos rotativos para MIFARE Classic 1K. Un registro por sector por tarjeta.
+
+| Columna | Tipo | Default | Descripción |
+|---------|------|---------|-------------|
+| `id` | UUID | `gen_random_uuid()` | PK |
+| `card_uid` | TEXT | — | UID de la tarjeta |
+| `node_domain` | TEXT | — | Nodo |
+| `sector_number` | INT | — | Número de sector (1-15) |
+| `key_a_encrypted` | BYTEA | — | Key A (6 bytes, lectura) |
+| `key_b_encrypted` | BYTEA | — | Key B (6 bytes, escritura) |
+| `access_bits` | BYTEA | — | Access bits (4 bytes) |
+| `certificate` | BYTEA | — | Certificado actual (16 bytes) |
+| `is_active` | BOOLEAN | `false` | Sector con cert válido |
+| `written_blocks` | INT | `0` | Bloques confirmados (0-3) |
+| `needs_repair` | BOOLEAN | `false` | Necesita reparación |
+| `created_at` | TIMESTAMPTZ | `NOW()` | Fecha de creación |
+| `updated_at` | TIMESTAMPTZ | `NOW()` | Fecha de actualización |
+
+**Constraint**: `UNIQUE(card_uid, sector_number)`
+
+### nfc_classic_pending (migración 138)
+Pre-aprobaciones pendientes de confirmación de lectura/escritura en tarjeta Classic. TTL 30 segundos.
+
+| Columna | Tipo | Default | Descripción |
+|---------|------|---------|-------------|
+| `id` | UUID | `gen_random_uuid()` | PK |
+| `card_uid` | TEXT | — | UID de la tarjeta |
+| `terminal_id` | TEXT | — | Terminal que inició |
+| `user_id` | UUID | — | FK → users(id) |
+| `amount` | BIGINT | — | Monto a pagar |
+| `read_sector` | INT | — | Sector a leer |
+| `write_sector` | INT | — | Sector a escribir |
+| `new_certificate` | BYTEA | — | Cert nuevo (16 bytes) |
+| `expires_at` | TIMESTAMPTZ | `NOW() + 30s` | Expiración |
+| `created_at` | TIMESTAMPTZ | `NOW()` | Fecha de creación |
 
 ### nfc_card_keys (migración 004)
 Claves criptográficas de tarjetas NFC (DESFire).

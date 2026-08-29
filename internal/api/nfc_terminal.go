@@ -43,6 +43,10 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.Get("/api/nfc/terminal/payment/multisig/{pendingId}/status", h.getMultisigPaymentStatus)
 	r.Get("/api/nfc/terminal/{id}/session", h.getTerminalSession)
 
+	// Classic card dynamic certificates (terminal-facing, Ed25519 auth)
+	r.Post("/api/nfc/terminal/classic/pre-auth", h.classicPreAuth)
+	r.Post("/api/nfc/terminal/classic/confirm", h.classicConfirm)
+
 	// Terminal pairing by short code (no auth required for initiate/status)
 	r.Post("/api/nfc/terminal/pair/initiate", h.initiatePairing)
 	r.Get("/api/nfc/terminal/pair/{code}/status", h.getPairingStatus)
@@ -109,6 +113,7 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequireAuth).Get("/api/nfc/my-terminals/{id}/shift", h.getActiveShift)
 
 	r.With(am.RequirePermission("nfc.issue_card")).Post("/api/nfc/cards/issue", h.issueCryptoCard)
+	r.With(am.RequirePermission("nfc.issue_card")).Post("/api/nfc/cards/provision-classic", h.provisionClassicCard)
 	r.With(am.RequireAuth).Get("/api/nfc/cards", h.listCards)
 	r.With(am.RequirePermission("nfc.deactivate_card")).Delete("/api/nfc/cards/{uid}", h.deactivateCard)
 	r.With(am.RequireAuth).Put("/api/nfc/cards/pin", h.changeCardPIN)
@@ -2528,4 +2533,128 @@ func (h *NFCTerminalHandler) revokeWebSession(w http.ResponseWriter, r *http.Req
 		return
 	}
 	writeJSON(w, 200, map[string]string{"status": "revoked"})
+}
+
+// ===== CERTIFICADOS DINAMICOS PARA MIFARE CLASSIC =====
+
+// provisionClassicCard genera 15 sectores con claves y certificados unicos
+func (h *NFCTerminalHandler) provisionClassicCard(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		UserID     string `json:"user_id"`
+		CardUID    string `json:"card_uid"`
+		InitialPIN string `json:"initial_pin"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.CardUID == "" || req.InitialPIN == "" || req.UserID == "" {
+		writeError(w, 400, "user_id, card_uid and initial_pin are required")
+		return
+	}
+
+	userID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		writeError(w, 400, "invalid user_id")
+		return
+	}
+
+	resp, err := h.NFC.ProvisionClassicCard(r.Context(), userID, req.CardUID, req.InitialPIN)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	writeJSON(w, 201, resp)
+}
+
+// classicPreAuth valida documento + PIN + saldo y prepara la rotacion
+func (h *NFCTerminalHandler) classicPreAuth(w http.ResponseWriter, r *http.Request) {
+	var req ProcessPaymentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	plaintext, sharedKey, err := h.NFC.DecodePayload(r.Context(), req.TerminalID, req.EncryptedPayload)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+
+	var payload struct {
+		TerminalID string `json:"terminal_id"`
+		DocType    string `json:"doc_type"`
+		DocNumber  string `json:"doc_number"`
+		PIN        string `json:"pin"`
+		Amount     int64  `json:"amount"`
+	}
+	if err := json.Unmarshal(plaintext, &payload); err != nil {
+		writeError(w, 400, "invalid payload format")
+		return
+	}
+
+	if payload.DocNumber == "" || payload.PIN == "" {
+		writeError(w, 400, "doc_number and pin are required")
+		return
+	}
+
+	resp, err := h.NFC.ClassicPreAuth(r.Context(), payload.TerminalID, payload.DocType, payload.DocNumber, payload.PIN, payload.Amount)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	respBytes, _ := json.Marshal(resp)
+	encResp, err := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, encResp)
+}
+
+// classicConfirm confirma la lectura/escritura de la tarjeta
+func (h *NFCTerminalHandler) classicConfirm(w http.ResponseWriter, r *http.Request) {
+	var req ProcessPaymentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	plaintext, sharedKey, err := h.NFC.DecodePayload(r.Context(), req.TerminalID, req.EncryptedPayload)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+
+	var payload struct {
+		TerminalID    string `json:"terminal_id"`
+		CardUID       string `json:"card_uid"`
+		ReadOK        bool   `json:"read_ok"`
+		WriteOK       bool   `json:"write_ok"`
+		WrittenBlocks int    `json:"written_blocks"`
+	}
+	if err := json.Unmarshal(plaintext, &payload); err != nil {
+		writeError(w, 400, "invalid payload format")
+		return
+	}
+
+	if payload.CardUID == "" {
+		writeError(w, 400, "card_uid is required")
+		return
+	}
+
+	resp, err := h.NFC.ConfirmClassicTransaction(r.Context(), payload.TerminalID, payload.CardUID, payload.ReadOK, payload.WriteOK, payload.WrittenBlocks)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	respBytes, _ := json.Marshal(resp)
+	encResp, err := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, encResp)
 }

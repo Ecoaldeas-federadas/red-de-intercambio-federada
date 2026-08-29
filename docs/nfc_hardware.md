@@ -97,13 +97,82 @@ para verificar que la tarjeta pertenece a quien dice ser.
 
 | Tipo | Seguridad | Precio | Recomendacion |
 |------|-----------|--------|---------------|
-| UID-only | Solo UID (sin crypto) | $0.20 | Basico |
+| UID-only (sin cert) | Solo UID (sin crypto) | $0.20 | Basico |
+| MIFARE Classic 1K (con cert dinamicos) | 15 sectores con certificados rotativos + claves A/B unicas | $0.30 | Medio (con doc obligatorio) |
 | NTAG424 DNA | SUN MAC, AES-128 | $0.50 | Recomendado |
 | MIFARE DESFire EV3 | AES-128, multi-app | $1.50 | Alta seguridad |
 
-### Recomendacion
+### MIFARE Classic 1K con Certificados Dinamicos
 
-Para la mayoria de casos, **NTAG424 DNA** ofrece el mejor balance entre seguridad y costo. Proporciona autenticacion criptografica (SUN MAC) que previene clonacion simple.
+El sistema soporta MIFARE Classic 1K con un modelo de seguridad de 6 capas que mitiga la clonacion:
+
+**Capa 1: Claves A/B unicas por sector por tarjeta**
+- 15 sectores × (Key A + Key B) = 30 claves, todas diferentes
+- Cada tarjeta tiene claves TOTALMENTE diferentes a otras tarjetas
+- Key A = solo lectura, Key B = solo escritura (access bits)
+- Escritas UNA SOLA VEZ en provisionamiento (bloque 3/trailer)
+- NUNCA se modifican en caliente (evita corrupcion irreversible)
+- Guardadas en el servidor, solo el servidor las conoce
+
+**Capa 2: Certificados dinamicos (16 bytes por sector)**
+- 15 sectores × 3 bloques = 45 copias de certificados
+- Solo 1 sector tiene el certificado VALIDO (is_active=true)
+- Los otros 14 tienen certificados basura (aleatorios, indistinguibles)
+- Solo el servidor sabe cual sector es el activo
+
+**Capa 3: Rotacion aleatoria por transaccion**
+- Cada transaccion: servidor lee sector activo, escribe nuevo cert en sector aleatorio
+- Sector viejo → is_active=false (cert queda como basura)
+- Sector nuevo → is_active=true (cert recien escrito)
+- No es secuencial: salta aleatoriamente entre los 15 sectores
+
+**Capa 4: Doble factor de autenticacion (2FA)**
+- Documento de identidad (OBLIGATORIO para Classic, no configurable)
+- PIN de 4 digitos
+- Tarjeta fisica
+- Los tres se verifican ANTES de procesar el pago
+
+**Capa 5: Claves en transito minimizadas**
+- Por transaccion solo se envian 2 claves al POS: Key A del sector a leer + Key B del sector a escribir
+- Viajan encriptadas (EphemeralMessage AES-256-GCM)
+- Si se interceptan, solo sirven para esa tarjeta, esa transaccion
+
+**Capa 6: Aislamiento entre tarjetas**
+- Cada usuario/tarjeta tiene claves unicas
+- Si vulneran una tarjeta, esas claves no sirven para otra
+
+### Flujo de pago con tarjeta Classic
+
+1. Comerciante ingresa monto
+2. Cliente ingresa documento de identidad + PIN (sin tarjeta)
+3. Servidor valida usuario, PIN, saldo → bloquea monto (pre-aprobacion)
+4. Servidor busca sector activo, genera nuevo cert, elige sector aleatorio
+5. Servidor envia al POS: card_uid + sector leer + key A + cert esperado + sector escribir + key B + cert nuevo
+6. POS muestra "ACERQUE SU TARJETA"
+7. POS lee UID → verifica, lee sector con key A → verifica cert, escribe nuevo cert con key B
+8. POS confirma al servidor: read_ok + write_ok
+9. Servidor procesa pago, desactiva sector viejo, activa nuevo
+10. POS muestra resultado
+
+### Provisionamiento de tarjeta Classic
+
+Se hace en una maquina dedicada donde la tarjeta se monta y se deja quieta:
+1. Admin vincula tarjeta a usuario (user_id + PIN inicial)
+2. Servidor genera 15 pares de claves A/B aleatorios + 15 certificados (14 basura + 1 real)
+3. POS escribe TODOS los sectores (claves + access bits + certificados)
+4. POS confirma provisionamiento completo
+
+### Limitaciones de MIFARE Classic
+
+MIFARE Classic usa Crypto1, que es criptograficamente debil. El ataque Nested/Hardnested
+puede obtener TODAS las claves A/B y TODO el contenido de la tarjeta. El sistema mitiga
+esto porque:
+- El atacante no sabe cual sector es el activo (solo el servidor lo sabe)
+- Necesita PIN + documento (2FA)
+- Despues de una transaccion legitima, el clon queda obsoleto
+- Cada tarjeta tiene claves unicas (no sirven para otra tarjeta)
+
+Para alta seguridad, se recomienda DESFire EV3.
 
 ## Esquema de conexiones
 

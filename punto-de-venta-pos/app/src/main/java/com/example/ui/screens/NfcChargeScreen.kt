@@ -738,6 +738,8 @@ fun NfcChargeScreen(
                                     FeedbackHelper.playButtonClick(context)
                                     if (uiState.isMultisigActive) {
                                         viewModel.resetNfcPaymentState()
+                                    } else if (uiState.isClassicFlow) {
+                                        viewModel.cancelClassicPayment("Operación cancelada")
                                     } else {
                                         viewModel.navigateTo(PosScreen.NfcCharge)
                                     }
@@ -747,8 +749,85 @@ fun NfcChargeScreen(
                             }
                         }
 
+                        // ===== MIFARE CLASSIC: TAP CARD / WRITING STATES =====
+                        if (uiState.isClassicFlow && uiState.classicStep == "tap_card") {
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = PosGold),
+                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(20.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Nfc,
+                                        contentDescription = null,
+                                        tint = PosNavyDark,
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                    Text(
+                                        text = "ACERQUE SU TARJETA",
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        color = PosNavyDark,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "No retire la tarjeta hasta que termine",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = PosNavyDark
+                                    )
+                                    Text(
+                                        text = "Tiempo restante: ${uiState.classicRemainingSeconds}s",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = PosNavyDark
+                                    )
+                                }
+                            }
+                        }
+
+                        if (uiState.isClassicFlow && uiState.isWritingCard) {
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = PosSlate800),
+                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(20.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    CircularProgressIndicator(
+                                        color = PosGoldLight,
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                    Text(
+                                        text = uiState.writeProgress.ifBlank { "Procesando..." },
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = PosGoldLight,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "NO RETIRE LA TARJETA",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = PosSlate100,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+
                         // ID DOCUMENT VERIFICATION (SECTION 12)
-                        if (uiState.requireIdVerification) {
+                        // Para tarjetas Classic con certificados dinamicos, el documento
+                        // es SIEMPRE obligatorio (no configurable).
+                        // Para uid_only legacy, depende de la configuracion del nodo.
+                        val showDocSection = uiState.requireIdVerification || uiState.isClassicFlow
+                        if (showDocSection) {
                             Card(
                                 colors = CardDefaults.cardColors(containerColor = PosSlate800),
                                 shape = RoundedCornerShape(12.dp)
@@ -760,7 +839,11 @@ fun NfcChargeScreen(
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Text(
-                                        text = "Verificación de Identidad Requerida (Tarjeta UID)",
+                                        text = if (uiState.isClassicFlow) {
+                                            "Verificación de Identidad (OBLIGATORIO — Tarjeta Classic)"
+                                        } else {
+                                            "Verificación de Identidad Requerida (Tarjeta UID)"
+                                        },
                                         style = MaterialTheme.typography.labelMedium,
                                         color = PosGoldLight,
                                         fontWeight = FontWeight.Bold
@@ -840,6 +923,8 @@ fun NfcChargeScreen(
                                         docType = if (uiState.requireIdVerification) uiState.selectedDocType else null,
                                         docNum = if (uiState.requireIdVerification) uiState.idDocNumber else null
                                     )
+                                } else if (uiState.isClassicFlow) {
+                                    viewModel.submitClassicPayment()
                                 } else {
                                     viewModel.submitNfcPayment()
                                 }
@@ -852,7 +937,8 @@ fun NfcChargeScreen(
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (uiState.isMultisigActive) PosGold else PosPrimaryBlue
                             ),
-                            enabled = !uiState.isLoading && uiState.customerPin.length == 4
+                            enabled = !uiState.isLoading && uiState.customerPin.length == 4 &&
+                                (!showDocSection || uiState.idDocNumber.isNotBlank())
                         ) {
                             if (uiState.isLoading) {
                                 CircularProgressIndicator(color = PosWhite, modifier = Modifier.size(24.dp))
@@ -870,6 +956,8 @@ fun NfcChargeScreen(
                                         } else {
                                             "Validar Firma Final y Aprobar Pago"
                                         }
+                                    } else if (uiState.isClassicFlow) {
+                                        "Autenticar y Preparar Pago"
                                     } else {
                                         "Procesar Cobro Cifrado"
                                     },

@@ -395,6 +395,64 @@ val DEFAULT_DOCUMENT_TYPES = listOf(
 )
 
 // ============================================
+// MIFARE Classic Dynamic Certificates
+// ============================================
+
+@JsonClass(generateAdapter = true)
+data class ClassicPreAuthDecryptedPayload(
+    @Json(name = "terminal_id") val terminalId: String,
+    @Json(name = "doc_type") val docType: String,
+    @Json(name = "doc_number") val docNumber: String,
+    @Json(name = "pin") val pin: String,
+    @Json(name = "amount") val amount: Long
+)
+
+@JsonClass(generateAdapter = true)
+data class ClassicPreAuthResponse(
+    @Json(name = "pre_approved") val preApproved: Boolean = false,
+    @Json(name = "card_uid") val cardUid: String? = null,
+    @Json(name = "read_sector") val readSector: Int = 0,
+    @Json(name = "read_key_a") val readKeyA: String? = null,
+    @Json(name = "expected_certificate") val expectedCertificate: String? = null,
+    @Json(name = "write_sector") val writeSector: Int = 0,
+    @Json(name = "write_key_b") val writeKeyB: String? = null,
+    @Json(name = "new_certificate") val newCertificate: String? = null,
+    @Json(name = "message") val message: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class ClassicConfirmDecryptedPayload(
+    @Json(name = "terminal_id") val terminalId: String,
+    @Json(name = "card_uid") val cardUid: String,
+    @Json(name = "read_ok") val readOk: Boolean = true,
+    @Json(name = "write_ok") val writeOk: Boolean = true,
+    @Json(name = "written_blocks") val writtenBlocks: Int = 3
+)
+
+@JsonClass(generateAdapter = true)
+data class ProvisionClassicRequest(
+    @Json(name = "user_id") val userId: String,
+    @Json(name = "card_uid") val cardUid: String,
+    @Json(name = "initial_pin") val initialPin: String
+)
+
+@JsonClass(generateAdapter = true)
+data class ProvisionClassicResponse(
+    @Json(name = "card_uid") val cardUid: String = "",
+    @Json(name = "sectors") val sectors: List<SectorData> = emptyList()
+)
+
+@JsonClass(generateAdapter = true)
+data class SectorData(
+    @Json(name = "sector_number") val sectorNumber: Int = 0,
+    @Json(name = "key_a") val keyA: String = "",
+    @Json(name = "key_b") val keyB: String = "",
+    @Json(name = "access_bits") val accessBits: String = "",
+    @Json(name = "certificate") val certificate: String = "",
+    @Json(name = "is_active") val isActive: Boolean = false
+)
+
+// ============================================
 // Terminal Pairing by Short Code
 // ============================================
 

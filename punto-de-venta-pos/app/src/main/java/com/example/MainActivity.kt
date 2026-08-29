@@ -178,6 +178,8 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         }
     }
 
+    private var lastDiscoveredTag: Tag? = null
+
     override fun onTagDiscovered(tag: Tag?) {
         if (tag == null) return
         val tagId = tag.id ?: return
@@ -186,19 +188,33 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         val isDesfire = techList.any {
             it.contains("IsoDep", ignoreCase = true) || it.contains("Desfire", ignoreCase = true)
         }
+        val isMifareClassic = techList.any { it == "android.nfc.tech.MifareClassic" }
+
+        // Guardar el tag para el flujo Classic (lectura/escritura de sectores)
+        if (isMifareClassic) {
+            lastDiscoveredTag = tag
+        }
 
         runOnUiThread {
-            processCardTap(cardUid, isDesfire)
+            processCardTap(cardUid, isDesfire, isMifareClassic, if (isMifareClassic) tag else null)
         }
     }
 
-    private fun processCardTap(cardUid: String, isDesfire: Boolean) {
+    private fun processCardTap(cardUid: String, isDesfire: Boolean, isMifareClassic: Boolean = false, tag: Tag? = null) {
         val currentScreen = viewModel.uiState.value.currentScreen
         when (currentScreen) {
             is PosScreen.NfcCharge -> {
-                // If on NFC charge screen and amount is set or waiting for card
                 val state = viewModel.uiState.value
                 val hasAmount = state.amountInput.replace(Regex("[^0-9]"), "").ifEmpty { "0" }.toLong() > 0
+
+                // Flujo Classic: si estamos en step "tap_card", procesar la tarjeta
+                if (state.isClassicFlow && state.classicStep == "tap_card" && tag != null) {
+                    val reader = com.example.data.nfc.MifareClassicReader()
+                    viewModel.onClassicCardTapped(tag, reader)
+                    return
+                }
+
+                // Flujo normal: detectar tarjeta
                 if (hasAmount && state.nfcPaymentResult == null && !state.isLoading) {
                     viewModel.onCardTapped(cardUid, isDesfire)
                 }
@@ -211,9 +227,15 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                     viewModel.onMultiVendorBuyerTapped(cardUid)
                 }
             }
+            is PosScreen.ProvisionCard -> {
+                // En provisionamiento, leer el UID de la tarjeta en blanco
+                if (isMifareClassic && tag != null) {
+                    // El UID ya se leyo, solo actualizar el estado
+                    viewModel.setProvisionCardUid(cardUid)
+                }
+            }
             else -> {
-                // SILENTLY IGNORE on all other screens (Dashboard, Settings, Login, Admin, etc.)
-                // Never pop up system dialogues or trigger unwanted actions.
+                // SILENTLY IGNORE on all other screens
             }
         }
     }
@@ -264,6 +286,7 @@ fun PosMainContent(viewModel: PosViewModel) {
                 is PosScreen.Admin -> AdminScreen(viewModel = viewModel)
                 is PosScreen.Settings -> SettingsScreen(viewModel = viewModel)
                 is PosScreen.ShiftManagement -> ShiftManagementScreen(viewModel = viewModel)
+                is PosScreen.ProvisionCard -> ProvisionCardScreen(viewModel = viewModel)
             }
         }
     }
