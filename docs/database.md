@@ -79,7 +79,9 @@
 - **`users`**: Cuentas individuales, organizaciones, instituciones publicas. Campos: node_domain, username, account_type, member_level_id, credit/debit_limit, public_key, encrypted_private_key, required_signatures, authorized_signers
 - **`user_passkeys`**: Credenciales WebAuthn (credential_id, public_key, sign_count)
 - **`user_credentials`**: Credenciales de contrasena (password_hash bcrypt) para login por contrasena
-- **`nfc_cards`**: Tarjetas NFC vinculadas a usuarios (card_type, pin_hash, crypto_enabled)
+- **`nfc_cards`**: Tarjetas NFC vinculadas a usuarios (card_type, pin_hash, crypto_enabled, has_dynamic_certs para MIFARE Classic)
+- **`nfc_card_sectors`**: Sectores MIFARE Classic con claves A/B y certificados dinamicos (migracion 138)
+- **`nfc_classic_pending`**: Pre-aprobaciones pendientes de confirmacion de lectura/escritura Classic (TTL 30s, migracion 138)
 - **`member_levels`**: Niveles de miembro con limites y permisos
 - **`member_groups`**: Grupos de miembros (consejos, departamentos)
 - **`member_group_members`**: Membresia de grupos

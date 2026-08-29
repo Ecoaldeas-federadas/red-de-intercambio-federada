@@ -456,6 +456,14 @@ data class PosUiState(
     val idDocNumber: String = "",
     val nfcPaymentResult: PaymentResultDecrypted? = null,
 
+    // MIFARE Classic Dynamic Certificates
+    val isClassicFlow: Boolean = false, // true cuando se detecta tarjeta Classic con certificados
+    val classicPreAuth: ClassicPreAuthResponse? = null,
+    val classicStep: String = "idle", // "idle", "auth", "tap_card", "writing", "done"
+    val isWritingCard: Boolean = false,
+    val writeProgress: String = "",
+    val classicRemainingSeconds: Int = 30,
+
     // Multi-Vendor Flow
     val mvStep: Int = 1,                    // 1: Tap Seller, 2: Amount, 3: Tap Buyer, 4: Buyer PIN & ID, 5: Result
     val sellerCardUid: String? = null,

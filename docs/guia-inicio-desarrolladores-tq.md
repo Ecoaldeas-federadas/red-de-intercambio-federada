@@ -87,9 +87,9 @@ El ecosistema está construido utilizando tecnologías modernas, eficientes y 10
   - Cobros por NFC (lee tarjeta del cliente con NFC nativo del teléfono).
   - Emparejamiento por código de 6 dígitos con el servidor del nodo.
   - Gestión de turnos (apertura/cierre de caja).
-  - Transacciones con tarjetas DESFire (encriptadas, solo PIN) y UID-only (sencillas, documento ID + PIN).
-  - Pantallas: Login, Dashboard, Cobro NFC, Cobro QR, Transacciones, Admin, Configuración, Registro de Terminal.
-  - Criptografía: Ed25519 para firmas, AES-256-GCM para cifrado, Curve25519/X25519 para ECDH.
+  - Transacciones con tarjetas DESFire (encriptadas, solo PIN), UID-only (sencillas, documento ID + PIN) y MIFARE Classic (certificados dinamicos rotativos, documento OBLIGATORIO + PIN + lectura/escritura de sectores).
+  - Pantallas: Login, Dashboard, Cobro NFC, Cobro QR, Transacciones, Admin, Configuración, Registro de Terminal, Provisionar Tarjeta Classic.
+  - Criptografía: Ed25519 para firmas, AES-256-GCM para cifrado, Curve25519/X25519 para ECDH, bcrypt para PIN, certificados dinamicos para MIFARE Classic.
 
 ### Firmware ESP32 (Terminales Físicos)
 - **Lenguaje:** C/C++ con Arduino Framework.

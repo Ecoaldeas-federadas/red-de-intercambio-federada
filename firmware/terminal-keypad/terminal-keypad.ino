@@ -399,5 +399,233 @@ void loop() {
   // Ver pin_helper.h para la implementacion del encoder.
 }
 
+// ===== PAGO MIFARE CLASSIC (certificados dinamicos) =====
+// Flujo: monto → documento + PIN → pre-auth → tarjeta → confirm
+// Difiere del flujo normal: auth PRIMERO, tarjeta DESPUES.
+
+void processClassicPayment(int64_t amount) {
+  // Step 1: Pedir documento de identidad (OBLIGATORIO para Classic)
+  // El terminal keypad usa rotary encoder: girar para cambiar numero, click para confirmar
+  showText("Documento:", 2, 16);
+  showText("Gira=numero", 1, 32);
+  showText("Click=OK", 1, 48);
+  encoderPos = 0;
+  int64_t docNum = 0;
+  while (true) {
+    docNum = abs(encoderPos);
+    showText("Doc: " + String((long)docNum), 1, 16);
+    if (digitalRead(BUTTON_PIN) == LOW) {
+      delay(200);  // debounce
+      break;
+    }
+    delay(50);
+  }
+  String docNumber = String((long)docNum);
+  if (docNumber.length() == 0 || docNumber == "0") {
+    showText("Cancelado", 2, 24);
+    delay(2000);
+    showReady();
+    return;
+  }
+
+  // Step 2: Pedir PIN
+  showPINPrompt("usuario");
+  String pin = inputPIN("Ingrese PIN");
+  if (pin.length() < 4) {
+    showText("PIN corto", 2, 24);
+    delay(2000);
+    showReady();
+    return;
+  }
+
+  // Step 3: Enviar pre-auth al servidor
+  showText("Validando...", 1, 16);
+  showText("No acerque", 1, 32);
+  showText("tarjeta aun", 1, 48);
+
+  StaticJsonDocument<256> preAuthPayload;
+  preAuthPayload["terminal_id"] = config.terminalId;
+  preAuthPayload["doc_type"] = "cedula";
+  preAuthPayload["doc_number"] = docNumber;
+  preAuthPayload["pin"] = pin;
+  preAuthPayload["amount"] = amount;
+
+  String preAuthStr;
+  serializeJson(preAuthPayload, preAuthStr);
+
+  String preAuthResponse = sendPayment(&config, sharedKey, preAuthStr,
+                                        terminalKeys.private_key,
+                                        "/api/nfc/terminal/classic/pre-auth");
+
+  if (preAuthResponse.length() == 0) {
+    showText("Error red", 2, 24);
+    showText("(pre-auth)", 1, 40);
+    delay(3000);
+    showReady();
+    return;
+  }
+
+  // Parsear respuesta del pre-auth
+  StaticJsonDocument<512> preAuthResp;
+  DeserializationError err = deserializeJson(preAuthResp, preAuthResponse);
+  if (err) {
+    showText("Error parse", 2, 24);
+    delay(3000);
+    showReady();
+    return;
+  }
+
+  if (!preAuthResp["pre_approved"] || !preAuthResp["pre_approved"].as<bool>()) {
+    String msg = preAuthResp["message"] | "Rechazado";
+    showText("Rechazado", 2, 16);
+    showText(msg, 1, 32);
+    digitalWrite(BUZZER_PIN, HIGH); delay(300);
+    digitalWrite(BUZZER_PIN, LOW);
+    delay(3000);
+    showReady();
+    return;
+  }
+
+  // Extraer datos del pre-auth
+  String cardUid = preAuthResp["card_uid"] | "";
+  int readSector = preAuthResp["read_sector"] | 0;
+  String readKeyAHex = preAuthResp["read_key_a"] | "";
+  String expectedCertHex = preAuthResp["expected_certificate"] | "";
+  int writeSector = preAuthResp["write_sector"] | 0;
+  String writeKeyBHex = preAuthResp["write_key_b"] | "";
+  String newCertHex = preAuthResp["new_certificate"] | "";
+
+  if (cardUid.length() == 0 || readKeyAHex.length() == 0 || newCertHex.length() == 0) {
+    showText("Respuesta", 2, 16);
+    showText("incompleta", 1, 32);
+    delay(3000);
+    showReady();
+    return;
+  }
+
+  // Step 4: Pedir tarjeta al usuario
+  showText("ACERQUE", 2, 16);
+  showText("TARJETA", 1, 32);
+  showText("No retire!", 1, 48);
+
+  NFCCard card;
+  unsigned long cardTimeout = millis() + 30000;  // 30s timeout
+  do {
+    card = readNFCCard(500);
+    if (millis() > cardTimeout) {
+      showText("Timeout", 2, 24);
+      showText("No acerco", 1, 40);
+      delay(3000);
+      showReady();
+      return;
+    }
+  } while (!card.valid);
+
+  // Beep on card detected
+  digitalWrite(BUZZER_PIN, HIGH); delay(100);
+  digitalWrite(BUZZER_PIN, LOW);
+
+  // Step 5: Verificar UID
+  if (card.uid != cardUid) {
+    showText("UID no", 2, 16);
+    showText("coincide", 1, 32);
+    digitalWrite(BUZZER_PIN, HIGH); delay(300);
+    digitalWrite(BUZZER_PIN, LOW);
+    delay(3000);
+    showReady();
+    return;
+  }
+
+  // Convertir hex strings a bytes
+  uint8_t keyA[6], keyB[6], expectedCert[16], newCert[16];
+  hexStringToBytes(readKeyAHex, keyA, 6);
+  hexStringToBytes(writeKeyBHex, keyB, 6);
+  hexStringToBytes(expectedCertHex, expectedCert, 16);
+  hexStringToBytes(newCertHex, newCert, 16);
+
+  // Step 6: Leer sector activo con Key A y verificar cert
+  showText("Leyendo...", 1, 16);
+  if (!verifyClassicCertificate(readSector, keyA, expectedCert)) {
+    showText("Cert no", 2, 16);
+    showText("coincide", 1, 32);
+    digitalWrite(BUZZER_PIN, HIGH); delay(300);
+    digitalWrite(BUZZER_PIN, LOW);
+    // Reportar fallo al servidor
+    sendClassicConfirm(cardUid, false, false, 0);
+    delay(3000);
+    showReady();
+    return;
+  }
+
+  // Step 7: Escribir nuevo cert en sector destino con Key B
+  showText("Escribiendo...", 1, 16);
+  showText("NO RETIRE!", 1, 32);
+  uint8_t writtenBlocks = writeClassicSectorBlocks(writeSector, keyB, newCert);
+
+  if (writtenBlocks == 0) {
+    showText("Escritura", 2, 16);
+    showText("fallo", 1, 32);
+    digitalWrite(BUZZER_PIN, HIGH); delay(300);
+    digitalWrite(BUZZER_PIN, LOW);
+    sendClassicConfirm(cardUid, true, false, 0);
+    delay(3000);
+    showReady();
+    return;
+  }
+
+  // Step 8: Confirmar al servidor
+  showText("Confirmando...", 1, 16);
+  bool confirmOK = sendClassicConfirm(cardUid, true, true, writtenBlocks);
+
+  if (confirmOK) {
+    // Success beep
+    digitalWrite(BUZZER_PIN, HIGH); delay(100);
+    digitalWrite(BUZZER_PIN, LOW); delay(100);
+    digitalWrite(BUZZER_PIN, HIGH); delay(100);
+    digitalWrite(BUZZER_PIN, LOW);
+    showText("APROBADO!", 2, 16);
+  } else {
+    digitalWrite(BUZZER_PIN, HIGH); delay(300);
+    digitalWrite(BUZZER_PIN, LOW);
+    showText("Error", 2, 16);
+    showText("confirm", 1, 32);
+  }
+
+  // Limpiar claves de memoria
+  clearKeyFromMemory(keyA, 6);
+  clearKeyFromMemory(keyB, 6);
+  clearKeyFromMemory(expectedCert, 16);
+  clearKeyFromMemory(newCert, 16);
+
+  delay(3000);
+  showReady();
+}
+
+// Helper: convertir hex string a bytes
+void hexStringToBytes(const String& hex, uint8_t* out, size_t len) {
+  for (size_t i = 0; i < len; i++) {
+    String byteStr = hex.substring(i * 2, i * 2 + 2);
+    out[i] = (uint8_t)strtol(byteStr.c_str(), NULL, 16);
+  }
+}
+
+// Helper: enviar confirmacion Classic al servidor
+bool sendClassicConfirm(const String& cardUid, bool readOk, bool writeOk, uint8_t writtenBlocks) {
+  StaticJsonDocument<256> confirmPayload;
+  confirmPayload["terminal_id"] = config.terminalId;
+  confirmPayload["card_uid"] = cardUid;
+  confirmPayload["read_ok"] = readOk;
+  confirmPayload["write_ok"] = writeOk;
+  confirmPayload["written_blocks"] = writtenBlocks;
+
+  String confirmStr;
+  serializeJson(confirmPayload, confirmStr);
+
+  String response = sendPayment(&config, sharedKey, confirmStr,
+                                 terminalKeys.private_key,
+                                 "/api/nfc/terminal/classic/confirm");
+  return response.length() > 0;
+}
+
 // Need config as global
 ServerConfig config;

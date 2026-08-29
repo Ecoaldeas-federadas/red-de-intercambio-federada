@@ -18,6 +18,18 @@ Ver `wiring.md` para conexiones.
 4. **PIN**: Teclado numerico en pantalla tactil (4 digitos)
 5. **Resultado**: Muestra APROBADA/RECHAZADA en color + buzzer
 
+## Soporte MIFARE Classic (certificados dinamicos)
+
+El terminal touch puede soportar MIFARE Classic con certificados dinamicos. El flujo Classic
+difiere del flujo normal: el documento + PIN se ingresan ANTES de acercar la tarjeta.
+
+Para activar el flujo Classic, ver `processClassicPayment()` en `terminal-keypad/terminal-keypad.ino`
+como referencia. Las funciones de lectura/escritura de sectores estan en `shared/nfc_reader.h`:
+- `authenticateClassicSector()`, `readClassicSectorBlocks()`, `verifyClassicCertificate()`,
+  `writeClassicSectorBlocks()`, `writeFullClassicSector()`
+
+Ver `docs/tarjeta-classic-certificados.md` para detalles del modelo de 6 capas.
+
 ## Ventajas
 
 - UI completa en pantalla a color

@@ -1,0 +1,42 @@
+docs(classic-card): documentacion completa de MIFARE Classic con certificados dinamicos
+
+Crea documento dedicado docs/tarjeta-classic-certificados.md (426 lineas) que explica:
+- Modelo de seguridad de 6 capas
+- Estructura fisica de MIFARE Classic 1K (15 sectores, 4 bloques cada uno)
+- Provisionamiento inicial (maquina dedicada)
+- Flujo de pago (auth primero, tarjeta al final)
+- Rotacion aleatoria por transaccion con ejemplo
+- Recuperacion de escritura interrumpida (tearing recovery)
+- Endpoints de la API
+- Esquema de base de datos (migracion 138)
+- Implementacion por plataforma (Go, Android, ESP32, Web)
+- Limitaciones de MIFARE Classic (Crypto1 debil)
+- Comparacion de tarjetas (UID-only vs Classic vs DESFire)
+
+Actualiza documentacion existente que referencia tarjetas NFC:
+- docs/INDEX.md: anade entrada 30
+- docs/payments.md: anade endpoints Classic y flujo de pago
+- docs/security.md: anade seccion de 6 capas de seguridad
+- docs/api.md: anade tabla de endpoints NFC Terminal
+- docs/database.md: anade tablas nfc_card_sectors y nfc_classic_pending
+- docs/android-app-spec.md: anade flujo Classic con certificados
+- docs/guia-usuario.md: explica los 3 tipos de tarjeta NFC
+- docs/guia-inicio-desarrolladores-tq.md: actualiza funcionalidades del POS
+- firmware/README.md: anade tabla de tipos de tarjeta y flujo Classic
+- firmware/docs/security_model.md: anade seccion MIFARE Classic
+- firmware/shared/nfc_reader.h: anade funciones de lectura/escritura de sectores
+  (authenticateClassicSector, readClassicSectorBlocks, verifyClassicCertificate,
+   writeClassicSectorBlocks, writeFullClassicSector)
+- firmware/terminal-keypad/terminal-keypad.ino: anade processClassicPayment()
+  con flujo completo (documento + PIN → pre-auth → tarjeta → confirm)
+- firmware/terminal-touch/README.md: anade nota sobre soporte Classic
+- firmware/terminal-community/README.md: anade nota sobre soporte Classic
+- firmware/terminal-ble-reader/README.md: anade comandos BLE para Classic
+- punto-de-venta-pos/docs/README.md: actualiza descripcion de 06-criptografia.md
+- punto-de-venta-pos/docs/02-pos-android-arquitectura.md: anade campos Classic al UiState
+- punto-de-venta-pos/docs/06-criptografia.md: anade seccion 15 sobre certificados dinamicos
+- web/src/pages/Pos.tsx: actualiza descripcion de pago NFC con 3 tipos de tarjeta
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

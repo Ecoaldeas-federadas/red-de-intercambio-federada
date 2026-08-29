@@ -174,12 +174,20 @@ export default function Pos() {
                   <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-700">
                     <p className="font-medium mb-1">Pago NFC</p>
                     <p className="text-xs">
-                      El cliente acerca su tarjeta NFC al lector. Si la tarjeta es segura (DESFire), solo pide PIN.
-                      Si es sencilla (UID-only), pide documento de identidad + PIN.
+                      El cliente acerca su tarjeta NFC al lector. Hay tres tipos:
                     </p>
+                    <ul className="text-xs mt-1 ml-4 list-disc space-y-0.5">
+                      <li><b>UID-only (básica):</b> PIN + documento (si el nodo lo requiere)</li>
+                      <li><b>MIFARE Classic (cert dinámicos):</b> PIN + documento OBLIGATORIO + lectura/escritura de sectores</li>
+                      <li><b>DESFire EV3 (segura):</b> Solo PIN</li>
+                    </ul>
                     <p className="text-xs mt-2 text-blue-500">
                       Nota: El pago NFC desde el navegador requiere un lector Bluetooth conectado.
-                      Sin lector Bluetooth, usa QR.
+                      Sin lector Bluetooth, usa QR. El flujo Classic requiere un lector BLE que
+                      soporte lectura/escritura de sectores MIFARE Classic.
+                    </p>
+                    <p className="text-xs mt-1 text-blue-400">
+                      Ver <code>docs/tarjeta-classic-certificados.md</code> para detalles del modelo de 6 capas.
                     </p>
                   </div>
                 )}

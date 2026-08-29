@@ -153,6 +153,103 @@ String readUIDOnlyToken(const NFCCard& card) {
   return card.uid;
 }
 
+// === LECTURA/ESCRITURA MIFARE CLASSIC (certificados dinamicos) ===
+
+// Autenticar un sector MIFARE Classic con una clave (A o B)
+// sector: 0-15, key: 6 bytes, keyType: 0 = Key A (MIFARE_KEY_A), 1 = Key B (MIFARE_KEY_B)
+bool authenticateClassicSector(uint8_t sector, const uint8_t* key, uint8_t keyType) {
+  uint8_t block = sector * 4;  // primer bloque del sector
+  return nfc.mifareclassic_AuthenticateBlock(card.uidBytes, card.uidLength,
+                                              block, keyType, key);
+}
+
+// Leer los 3 bloques de datos de un sector (0,1,2 — NO el trailer 3)
+// Retorna true si al menos 1 bloque se leyo correctamente
+// outBlocks: 3 buffers de 16 bytes cada uno
+// outValid: 3 bools indicando cuales bloques se leyeron OK
+bool readClassicSectorBlocks(uint8_t sector, const uint8_t* keyA,
+                              uint8_t outBlocks[3][16], bool outValid[3]) {
+  if (!authenticateClassicSector(sector, keyA, 0 /* MIFARE_KEY_A */)) {
+    outValid[0] = outValid[1] = outValid[2] = false;
+    return false;
+  }
+
+  uint8_t baseBlock = sector * 4;
+  bool anyOK = false;
+  for (uint8_t i = 0; i < 3; i++) {
+    outValid[i] = nfc.mifareclassic_ReadDataBlock(baseBlock + i, outBlocks[i]);
+    if (outValid[i]) anyOK = true;
+  }
+  return anyOK;
+}
+
+// Verificar que al menos 1 de los 3 bloques coincide con el certificado esperado
+bool verifyClassicCertificate(uint8_t sector, const uint8_t* keyA,
+                               const uint8_t* expectedCert /* 16 bytes */) {
+  uint8_t blocks[3][16];
+  bool valid[3];
+  if (!readClassicSectorBlocks(sector, keyA, blocks, valid)) {
+    return false;
+  }
+  for (uint8_t i = 0; i < 3; i++) {
+    if (valid[i] && memcmp(blocks[i], expectedCert, 16) == 0) {
+      return true;  // al menos 1 bloque coincide
+    }
+  }
+  return false;
+}
+
+// Escribir el certificado en los 3 bloques de datos de un sector (0,1,2)
+// Usa Key B para autenticacion de escritura
+// Retorna el numero de bloques escritos correctamente (0-3)
+uint8_t writeClassicSectorBlocks(uint8_t sector, const uint8_t* keyB,
+                                  const uint8_t* cert /* 16 bytes */) {
+  if (!authenticateClassicSector(sector, keyB, 1 /* MIFARE_KEY_B */)) {
+    return 0;
+  }
+
+  uint8_t baseBlock = sector * 4;
+  uint8_t written = 0;
+  for (uint8_t i = 0; i < 3; i++) {
+    if (nfc.mifareclassic_WriteDataBlock(baseBlock + i, (uint8_t*)cert)) {
+      written++;
+    }
+  }
+  return written;
+}
+
+// Escribir un sector completo (provisionamiento): trailer + 3 bloques de datos
+// SOLO se usa en provisionamiento inicial. NUNCA en transacciones en caliente.
+// keyA, keyB: 6 bytes cada uno, accessBits: 4 bytes, cert: 16 bytes
+bool writeFullClassicSector(uint8_t sector, const uint8_t* keyA,
+                             const uint8_t* keyB, const uint8_t* accessBits,
+                             const uint8_t* cert) {
+  // Autenticar con clave por defecto (F F F F F F) para sector nuevo
+  uint8_t defaultKey[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+  if (!authenticateClassicSector(sector, defaultKey, 0 /* Key A */)) {
+    return false;
+  }
+
+  uint8_t baseBlock = sector * 4;
+
+  // Escribir trailer (bloque 3): Key A (6) + Access Bits (4) + Key B (6)
+  uint8_t trailer[16];
+  memcpy(trailer, keyA, 6);
+  memcpy(trailer + 6, accessBits, 4);
+  memcpy(trailer + 10, keyB, 6);
+  if (!nfc.mifareclassic_WriteDataBlock(baseBlock + 3, trailer)) {
+    return false;
+  }
+
+  // Escribir certificado en bloques 0,1,2 (triple redundancia)
+  for (uint8_t i = 0; i < 3; i++) {
+    if (!nfc.mifareclassic_WriteDataBlock(baseBlock + i, (uint8_t*)cert)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 // === COMPATIBILIDAD CON FUNCIONES ANTERIORES ===
 
 // NTAG424 SUN (placeholder - requiere implementacion especifica)

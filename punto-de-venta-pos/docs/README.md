@@ -19,7 +19,7 @@ The **POS Android** application (`punto-de-venta-pos/`) is a Kotlin/Jetpack Comp
 | [03-flujos-pago.md](03-flujos-pago.md) | Detailed payment flows: NFC simple, NFC community/multi-vendor, QR, and multi-signature (mancomunada) with ASCII sequence diagrams. |
 | [04-api-endpoints.md](04-api-endpoints.md) | Complete API reference: every endpoint with method, path, auth, request/response bodies, grouped by functional area. |
 | [05-modelo-datos.md](05-modelo-datos.md) | Data model: backend PostgreSQL/YugabyteDB tables, Android Room entities, FormatSettings, relationships, and monetary representation. |
-| [06-criptografia.md](06-criptografia.md) | Cryptography: Ed25519 terminal identity, ECDH shared key, AES-256-GCM payload encryption, Keystore, CryptoEngine. |
+| [06-criptografia.md](06-criptografia.md) | Cryptography: Ed25519 terminal identity, ECDH shared key, AES-256-GCM payload encryption, Keystore, CryptoEngine, MIFARE Classic certificados dinamicos. |
 | [07-formato-configurable.md](07-formato-configurable.md) | Configurable formatting: server-driven FormatSettings, locale/number/date/time preferences, Room persistence, MIGRATION_2_3. |
 | [08-modo-demo.md](08-modo-demo.md) | Demo mode: isDemoNode detection, DemoWatermarkOverlay, local simulations, server isolation, offline operation. |
 | [09-feedback-sonoro.md](09-feedback-sonoro.md) | Sound and haptic feedback: FeedbackHelper, PCM synthesis, playKeyClick vs playButtonClick, volume control, feedbackClickable modifier. |

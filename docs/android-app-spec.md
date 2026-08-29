@@ -63,6 +63,27 @@ completa de la app Android.
 9. Mostrar resultado
 ```
 
+#### Tarjeta MIFARE Classic (certificados dinamicos):
+```
+1. Comerciante ingresa monto
+2. Cliente ingresa documento de identidad + PIN (sin tarjeta)
+3. POST /api/nfc/terminal/classic/pre-auth { doc_type, doc_number, pin, amount }
+   → Servidor valida y responde:
+     { card_uid, read_sector, read_key_a, expected_certificate,
+       write_sector, write_key_b, new_certificate }
+4. POS muestra "ACERQUE SU TARJETA"
+5. POS lee UID (NfcAdapter) → verifica coincide con card_uid
+6. POS autentica sector read_sector con Key A → lee bloques 0,1,2
+   → Verifica que al menos 1 bloque coincide con expected_certificate
+7. POS autentica sector write_sector con Key B → escribe new_certificate en bloques 0,1,2
+8. POS re-lee sector write_sector para verificar escritura
+9. POST /api/nfc/terminal/classic/confirm { card_uid, read_ok, write_ok, written_blocks }
+   → Servidor procesa pago, rota sector activo
+10. Mostrar resultado
+```
+
+Ver `docs/tarjeta-classic-certificados.md` para detalles completos del modelo de 6 capas.
+
 ### 4. UI/UX
 
 Pantallas:

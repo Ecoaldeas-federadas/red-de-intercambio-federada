@@ -77,8 +77,31 @@ Cada mensaje entre terminal y servidor:
 | Tipo | Seguridad | Uso |
 |------|-----------|-----|
 | UID-only | Solo lee UID | Basico, sin crypto en tarjeta |
+| MIFARE Classic 1K (cert dinamicos) | 15 sectores con claves A/B unicas + cert rotativo | Economico con anti-clonacion |
 | NTAG424 DNA | SUN MAC, AES | Cripto en tarjeta, anti-clonacion |
 | MIFARE DESFire EV3 | AES, archivos | Alta seguridad, multi-app |
+
+### MIFARE Classic 1K con certificados dinamicos
+
+El firmware ESP32 (PN532) soporta MIFARE Classic 1K con certificados dinamicos rotativos:
+
+- **Deteccion:** `detectCardType()` ya detecta MIFARE Classic como `CARD_UID_ONLY`. Para distinguir
+  Classic con cert dinamicos, el servidor responde con `has_dynamic_certs=true` al hacer lookup.
+- **Lectura:** `nfc.mifareclassic_AuthenticateBlock(sector, keyA)` + `nfc.mifareclassic_ReadDataBlock(block)`
+- **Escritura:** `nfc.mifareclassic_AuthenticateBlock(sector, keyB)` + `nfc.mifareclassic_WriteDataBlock(block, data)`
+- **Triple redundancia:** 3 bloques por sector (0,1,2), al menos 1 debe coincidir con el cert esperado
+- **NO escribir trailer (bloque 3):** Solo se escriben bloques 0,1,2 en caliente. El trailer se escribe
+  una sola vez en provisionamiento.
+
+**Flujo de pago Classic (firmware ESP32):**
+1. Comerciante ingresa monto + documento + PIN del cliente
+2. ESP32 envia pre-auth al servidor → servidor responde con sector a leer + Key A + cert esperado + sector a escribir + Key B + cert nuevo
+3. ESP32 lee UID → verifica
+4. ESP32 autentica sector a leer con Key A → lee 3 bloques → verifica cert
+5. ESP32 autentica sector a escribir con Key B → escribe 3 bloques con cert nuevo
+6. ESP32 confirma al servidor → servidor procesa pago
+
+Ver `docs/tarjeta-classic-certificados.md` para detalles completos del modelo de 6 capas.
 
 ## Permisos NFC
 

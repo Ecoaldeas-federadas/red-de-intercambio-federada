@@ -313,6 +313,19 @@ La tarjeta NFC es como una **tarjeta de identidad del trueque**. La acercas
 al terminal POS y este reconoce quien eres. Cada tarjeta tiene un chip que
 la hace unica e inimitable.
 
+Hay tres tipos de tarjetas NFC:
+
+- **UID-only (basica):** Solo tiene un UID unico. Es la mas barata pero
+  tambien la mas facil de clonar. Por eso, si tu comunidad la usa, es posible
+  que te pidan documento de identidad ademas del PIN.
+- **MIFARE Classic (con certificados dinamicos):** Es una tarjeta economica
+  que usa un sistema de **certificados rotativos**: cada vez que pagas, el
+  sistema cambia el certificado activo a un sector aleatorio de la tarjeta.
+  Si alguien la clona, esa copia queda obsoleta despues de tu proximo pago.
+  **Siempre** te pedira documento de identidad + PIN.
+- **DESFire EV3 (alta seguridad):** Usa criptografia AES-128 real. Es la mas
+  segura y recomendada para grandes volumenes. Solo pide PIN.
+
 Con ella puedes:
 - Recibir pagos por tus productos
 - Pagar por lo que recibes

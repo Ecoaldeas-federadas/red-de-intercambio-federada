@@ -17,6 +17,20 @@ El celular hace todo el trabajo:
 - Procesamiento de transacciones
 - Encriptacion end-to-end con el servidor
 
+## Soporte MIFARE Classic (certificados dinamicos)
+
+Para MIFARE Classic con certificados dinamicos, el lector BLE necesita comandos adicionales
+mas alla de leer el UID:
+
+- **Leer sector:** El celular envia `{sector, key_a}` via BLE → ESP32 lee 3 bloques → responde con datos
+- **Escribir sector:** El celular envia `{sector, key_b, certificate}` via BLE → ESP32 escribe 3 bloques → responde con resultado
+- **Provisionar:** El celular envia `{sector, key_a, key_b, access_bits, certificate}` → ESP32 escribe sector completo
+
+Las funciones de lectura/escritura estan en `shared/nfc_reader.h`:
+- `readClassicSectorBlocks()`, `writeClassicSectorBlocks()`, `writeFullClassicSector()`
+
+Ver `docs/tarjeta-classic-certificados.md` para detalles del modelo de 6 capas.
+
 ## Hardware
 
 | Componente | Modelo | Notas |

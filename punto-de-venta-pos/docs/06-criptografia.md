@@ -1122,4 +1122,41 @@ private val authInterceptor = Interceptor { chain ->
 | Fingerprint del dispositivo | SHA-256 | JDK | 256 bits |
 | Terminal ID | SHA-256 (12 chars) | JDK | 48 bits efectivos |
 | Nonce AES-GCM | SecureRandom | JDK | 96 bits (12 bytes) |
+| Hash de PIN | bcrypt | Go (servidor) | costo default |
+| Claves A/B MIFARE Classic | crypto/rand | Go (servidor) | 48 bits (6 bytes) |
+| Certificados Classic | crypto/rand | Go (servidor) | 128 bits (16 bytes) |
+
+---
+
+## 15. MIFARE Classic — Certificados Dinámicos
+
+### Modelo de seguridad
+
+Las tarjetas MIFARE Classic 1K usan **6 capas de seguridad** para mitigar la clonación:
+
+1. **Claves A/B únicas por sector por tarjeta** — 30 claves aleatorias diferentes por tarjeta
+2. **Certificados dinámicos con triple redundancia** — 45 copias, solo 1 sector válido
+3. **Rotación aleatoria por transacción** — no secuencial, salta entre 15 sectores
+4. **Documento + PIN obligatorios** — 2FA hardcoded, no configurable
+5. **Claves minimizadas en tránsito** — solo 2 claves por transacción (encriptadas)
+6. **Aislamiento entre tarjetas** — claves únicas por usuario
+
+### Criptografía del flujo Classic
+
+El flujo Classic usa el **mismo esquema criptográfico** que el resto del POS:
+
+1. **Pre-auth:** POS envía `{doc_type, doc_number, pin, amount}` cifrado con EphemeralMessage (AES-256-GCM)
+2. **Respuesta pre-auth:** Servidor responde con `{card_uid, read_sector, read_key_a, expected_certificate, write_sector, write_key_b, new_certificate}` cifrado con la misma clave efímera
+3. **Confirmación:** POS envía `{card_uid, read_ok, write_ok, written_blocks}` cifrado con un nuevo EphemeralMessage
+
+Las claves A/B y certificados viajan **dentro del payload cifrado**, nunca en claro.
+
+### Archivos clave
+
+- `app/src/main/java/com/example/data/nfc/MifareClassicReader.kt` — lectura/escritura de sectores
+- `app/src/main/java/com/example/data/api/PosApiModels.kt` — modelos `ClassicPreAuthDecryptedPayload`, `ClassicPreAuthResponse`, `ClassicConfirmDecryptedPayload`
+- `app/src/main/java/com/example/data/repository/PosRepository.kt` — `classicPreAuth()`, `confirmClassicTransaction()`, `provisionClassicCard()`
+- `app/src/main/java/com/example/ui/viewmodel/PosViewModel.kt` — `submitClassicPayment()`, `onClassicCardTapped()`
+
+Ver `docs/tarjeta-classic-certificados.md` para detalles completos del modelo de 6 capas.
 | Nonce de payload | SecureRandom | JDK | 128 bits (16 bytes) |

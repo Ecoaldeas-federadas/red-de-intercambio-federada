@@ -122,6 +122,19 @@ Esto previene ataques de intermediario y confirmaciones por error.
 - Maximo 3 intentos antes de bloqueo temporal (15 minutos).
 - El admin puede resetear el PIN con permiso `nfc.reset_pin`.
 
+### Tarjetas MIFARE Classic con certificados dinamicos
+- Las tarjetas MIFARE Classic 1K usan **6 capas de seguridad** para mitigar la clonacion:
+  1. Claves A/B unicas por sector por tarjeta (30 claves unicas)
+  2. Certificados dinamicos de 16 bytes con triple redundancia (45 copias, solo 1 valida)
+  3. Rotacion aleatoria por transaccion (no secuencial)
+  4. Documento de identidad OBLIGATORIO + PIN + tarjeta (2FA)
+  5. Solo 2 claves enviadas por transaccion (encriptadas con EphemeralMessage)
+  6. Aislamiento entre tarjetas (claves unicas por usuario)
+- MIFARE Classic usa Crypto1 (debil), pero el diseño compensa porque el atacante no sabe
+  cual sector es el activo, necesita PIN + documento, y el clon queda obsoleto tras una transaccion legitima.
+- Para alta seguridad, se recomienda DESFire EV3 (AES-128).
+- Ver `docs/tarjeta-classic-certificados.md` para detalles completos.
+
 ### Login
 - Intentos fallidos de login se registran en `audit_log` con accion `login_failed`.
 - El sistema puede aplicar rate-limiting configurable por IP y por usuario.

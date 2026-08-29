@@ -52,12 +52,15 @@
 - `POST /api/nfc/terminal/heartbeat` — Heartbeat
 - `POST /api/nfc/terminal/payment` — Pago individual (cifrado)
 - `POST /api/nfc/terminal/payment/community` — Pago comunitario (doble tarjeta)
+- `POST /api/nfc/terminal/classic/pre-auth` — Pre-autenticacion tarjeta Classic (cert dinamicos)
+- `POST /api/nfc/terminal/classic/confirm` — Confirmar lectura/escritura tarjeta Classic
 
 #### Endpoints de gestion (JWT + permisos)
 - `POST /api/nfc/terminal/register` — Registrar terminal (permiso: `nfc.register_terminal`)
 - `GET /api/nfc/terminals` — Listar terminales
 - `DELETE /api/nfc/terminal/{id}` — Desactivar (permiso: `nfc.deactivate_terminal`)
 - `POST /api/nfc/cards/issue` — Emitir tarjeta (permiso: `nfc.issue_card`)
+- `POST /api/nfc/cards/provision-classic` — Provisionar tarjeta MIFARE Classic con cert dinamicos (permiso: `nfc.issue_card`)
 - `PUT /api/nfc/cards/pin` — Cambiar PIN
 - `PUT /api/nfc/cards/{uid}/pin/reset` — Resetear PIN (permiso: `nfc.reset_pin`)
 - `GET /api/nfc/transactions` — Listar transacciones
@@ -69,6 +72,20 @@
 4. Servidor verifica firma, descifra, valida PIN (bcrypt)
 5. Servidor debita, cifra respuesta, firma
 6. Terminal descifra, muestra resultado
+
+#### Flujo de pago con MIFARE Classic (certificados dinamicos)
+1. Comerciante ingresa monto
+2. Cliente ingresa documento de identidad + PIN (sin tarjeta)
+3. POS envia pre-auth al servidor (cifrado)
+4. Servidor valida usuario, PIN, saldo → bloquea monto
+5. Servidor responde: sector a leer + Key A + cert esperado + sector a escribir + Key B + cert nuevo
+6. POS muestra "ACERQUE SU TARJETA"
+7. POS lee UID, lee sector con Key A, verifica cert (triple redundancia)
+8. POS escribe nuevo cert en sector destino con Key B
+9. POS confirma al servidor
+10. Servidor procesa pago, rota sector activo
+
+Ver `docs/tarjeta-classic-certificados.md` para detalles completos.
 
 #### Flujo de pago comunitario
 1. Vendedor acerca tarjeta + PIN

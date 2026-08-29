@@ -28,6 +28,35 @@ firmware/
 └── docs/                  (documentacion general)
 ```
 
+## Tipos de tarjeta NFC soportados
+
+| Tipo | Seguridad | Soporte firmware |
+|------|-----------|------------------|
+| UID-only | Solo UID | Todos los terminales |
+| MIFARE Classic 1K (cert dinamicos) | 6 capas: claves A/B unicas + cert rotativo | terminal-keypad (processClassicPayment) |
+| NTAG424 DNA | SUN MAC, AES | Placeholder (TODO) |
+| MIFARE DESFire EV3 | AES-128, multi-app | Todos los terminales (authenticateDESFire) |
+
+### MIFARE Classic con certificados dinamicos
+
+El firmware soporta MIFARE Classic 1K con certificados dinamicos rotativos. El flujo es:
+
+1. Comerciante ingresa monto + documento + PIN del cliente (sin tarjeta)
+2. ESP32 envia pre-auth al servidor → servidor responde con sector a leer + Key A + cert esperado + sector a escribir + Key B + cert nuevo
+3. ESP32 pide tarjeta al cliente
+4. ESP32 lee UID → verifica, lee sector con Key A → verifica cert (triple redundancia)
+5. ESP32 escribe nuevo cert en sector destino con Key B
+6. ESP32 confirma al servidor → servidor procesa pago
+
+Funciones en `shared/nfc_reader.h`:
+- `authenticateClassicSector(sector, key, keyType)` — autentica con Key A o B
+- `readClassicSectorBlocks(sector, keyA, outBlocks, outValid)` — lee 3 bloques
+- `verifyClassicCertificate(sector, keyA, expectedCert)` — verifica cert
+- `writeClassicSectorBlocks(sector, keyB, cert)` — escribe 3 bloques
+- `writeFullClassicSector(sector, keyA, keyB, accessBits, cert)` — provisionamiento completo
+
+Ver `docs/tarjeta-classic-certificados.md` para detalles del modelo de 6 capas.
+
 ## Provisioning (flujo de instalacion)
 
 Hay dos formas de registrar un terminal ESP32:

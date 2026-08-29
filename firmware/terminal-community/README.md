@@ -23,6 +23,18 @@ Ver `wiring.md` para conexiones.
 7. **PROCESSING**: Envia al servidor (endpoint community), descifra respuesta
 8. **DONE**: Muestra resultado + buzzer. Vuelve a IDLE.
 
+## Soporte MIFARE Classic (certificados dinamicos)
+
+El terminal comunitario puede soportar MIFARE Classic con certificados dinamicos. El flujo Classic
+difiere del flujo normal: el documento + PIN del comprador se ingresan ANTES de acercar la tarjeta
+del comprador. La tarjeta del vendedor sigue el flujo normal (UID o DESFire).
+
+Para activar el flujo Classic en el paso del comprador, ver `processClassicPayment()` en
+`terminal-keypad/terminal-keypad.ino` como referencia. Las funciones de lectura/escritura de
+sectores estan en `shared/nfc_reader.h`.
+
+Ver `docs/tarjeta-classic-certificados.md` para detalles del modelo de 6 capas.
+
 ## Seguridad
 
 - Servidor valida PIN de vendedor Y comprador (bcrypt)

@@ -302,6 +302,25 @@ Estos endpoints se consumen entre nodos via mTLS (no requieren JWT):
 | POST | `/api/payments/nfc/assign` | Asigna tarjeta NFC a usuario |
 | POST | `/api/payments/manual` | Pago manual entre usuarios |
 
+### NFC Terminal y tarjetas Classic (`internal/api/nfc_terminal.go`)
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| POST | `/api/nfc/terminal/complete-registration` | Registro mutual terminal |
+| POST | `/api/nfc/terminal/auth` | Autenticacion Ed25519 |
+| POST | `/api/nfc/terminal/heartbeat` | Heartbeat |
+| POST | `/api/nfc/terminal/payment` | Pago individual (cifrado) |
+| POST | `/api/nfc/terminal/payment/community` | Pago comunitario (doble tarjeta) |
+| POST | `/api/nfc/terminal/payment/multisig-sign` | Firma multi-sig |
+| POST | `/api/nfc/terminal/classic/pre-auth` | Pre-autenticacion tarjeta Classic (cert dinamicos) |
+| POST | `/api/nfc/terminal/classic/confirm` | Confirmar lectura/escritura tarjeta Classic |
+| POST | `/api/nfc/cards/issue` | Emitir tarjeta (permiso: `nfc.issue_card`) |
+| POST | `/api/nfc/cards/provision-classic` | Provisionar MIFARE Classic con cert dinamicos (permiso: `nfc.issue_card`) |
+| PUT | `/api/nfc/cards/pin` | Cambiar PIN |
+| PUT | `/api/nfc/cards/{uid}/pin/reset` | Resetear PIN (permiso: `nfc.reset_pin`) |
+
+Ver `docs/tarjeta-classic-certificados.md` para detalles del flujo Classic.
+
 ### Comercio Externo y Tienda (`internal/api/external.go`)
 
 | Metodo | Ruta | Descripcion |
