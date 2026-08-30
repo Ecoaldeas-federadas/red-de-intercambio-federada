@@ -260,6 +260,22 @@ else
 fi
 
 # ============================================================
+# 3b. Verificar si Caddy (proxy inverso) necesita actualizarse
+# Caddy usa imagen pre-construida (caddy:2-alpine), no necesita build.
+# Solo necesita reinicio si cambio el Caddyfile o maintenance.html.
+# Como estos se montan como volumenes, Caddy auto-recarga el Caddyfile.
+# Solo hacemos force-recreate si cambio docker-compose.yml (ej: puertos).
+# ============================================================
+CADDY_NEEDS_UPDATE=false
+CADDY_CHANGED=$(git -C "$PROJECT_DIR" diff --name-only HEAD~1 HEAD 2>/dev/null | grep -E 'Caddyfile|maintenance\.html|docker-compose\.yml' || echo "")
+if [ -n "$CADDY_CHANGED" ]; then
+  log "Cambios detectados en archivos de Caddy: $CADDY_CHANGED"
+  CADDY_NEEDS_UPDATE=true
+else
+  log "Sin cambios en archivos de Caddy"
+fi
+
+# ============================================================
 # 4. docker compose build --no-cache node-app (30% -> 60%)
 # CRITICO: --no-cache garantiza que migraciones y assets se copien frescos
 # Si falla, reintentar sin --no-cache (como update.ps1)
@@ -311,13 +327,17 @@ log "Imagen demo-app construida (o cacheada)"
 check_cancelled
 write_state "running" "Reiniciando nodo con nueva imagen..." "$NEW_COMMIT" "$STARTED" "" 70
 
-# Iniciar/actualizar Caddy (proxy inverso) si existe en docker-compose.yml
-# Caddy debe estar corriendo ANTES que node-app para que el puerto 8080
-# este disponible inmediatamente.
-if grep -q '^\s*caddy:' "$COMPOSE_FILE" 2>/dev/null; then
-  log "--- docker compose up -d --no-deps caddy ---"
+# Asegurar que Caddy (proxy inverso) este corriendo ANTES de recrear node-app.
+# Caddy es como el updater-controller: SIEMPRE debe estar corriendo.
+# NO se reinicia aqui (se reinicia al final si sus archivos cambiaron).
+# Solo se inicia si no esta corriendo, para no interrumpir el proxy.
+CADDY_RUNNING=$(docker inspect -f '{{.State.Running}}' "${PROJECT_NAME}-caddy-1" 2>/dev/null || echo "false")
+if [ "$CADDY_RUNNING" != "true" ]; then
+  log "Caddy no estaba corriendo. Arrancandolo..."
   dc_up up -d --no-deps caddy >> "$LOG_FILE" 2>&1 || true
-  log "Caddy iniciado/actualizado"
+  log "Caddy arrancado"
+else
+  log "Caddy ya esta corriendo (no se toca)"
 fi
 
 log "--- docker compose up -d --no-deps --force-recreate node-app ---"
@@ -419,6 +439,25 @@ UPDATER_RUNNING=$(docker inspect -f '{{.State.Running}}' "${PROJECT_NAME}-update
 if [ "$UPDATER_RUNNING" != "true" ]; then
   log "Updater-controller no estaba corriendo. Arrancandolo..."
   dc_up up -d --no-deps updater-controller >> "$LOG_FILE" 2>&1 || true
+fi
+
+# ============================================================
+# 11. Si Caddy necesita actualizarse, reiniciarlo AHORA
+# Caddy usa imagen pre-construida, solo se reinicia si cambiaron
+# sus archivos de configuracion (Caddyfile, maintenance.html, docker-compose).
+# El reinicio es rapido (segundos) y no afecta al updater-controller.
+# ============================================================
+if [ "$CADDY_NEEDS_UPDATE" = "true" ]; then
+  log "=== REINICIANDO CADDY CON NUEVA CONFIGURACION ==="
+  dc_up up -d --no-deps --force-recreate caddy >> "$LOG_FILE" 2>&1 || true
+  log "Caddy reiniciado con nueva configuracion"
+else
+  # Asegurar que Caddy siga corriendo
+  CADDY_RUNNING=$(docker inspect -f '{{.State.Running}}' "${PROJECT_NAME}-caddy-1" 2>/dev/null || echo "false")
+  if [ "$CADDY_RUNNING" != "true" ]; then
+    log "Caddy no estaba corriendo. Arrancandolo..."
+    dc_up up -d --no-deps caddy >> "$LOG_FILE" 2>&1 || true
+  fi
 fi
 
 log "=== ACTUALIZACION COMPLETADA ==="

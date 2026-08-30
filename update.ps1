@@ -222,8 +222,16 @@ Write-OK "Imagenes reconstruidas"
 
 # 6. Arrancar todos los servicios que deben estar siempre corriendo
 #    NO arrancar demo-app (se arranca desde la web con un boton)
+#    Caddy (proxy inverso) se arranca PRIMERO, antes que node-app,
+#    para que el puerto 8080 este disponible inmediatamente.
 Write-Host ""
 Write-Step "Arrancando servicios principales..."
+# Caddy primero (proxy inverso, siempre debe estar corriendo)
+$caddyUpCode = Invoke-Compose @("up", "-d", "--no-deps", "caddy")
+if ($caddyUpCode -ne 0) {
+    Write-Warn "No se pudo arrancar Caddy (codigo $caddyUpCode)"
+    Write-Warn "Si Caddy no existe en docker-compose.yml, esto es normal (version anterior)"
+}
 $servicesToStart = @("yugabytedb", "db-backup", "demo-controller", "demo-stopper", "updater-controller", "node-app")
 # Invoke-Compose no maneja arrays bien, usar ejecucion directa
 $allUpArgs = $composeArgs + @("up", "-d", "--no-deps") + $servicesToStart
