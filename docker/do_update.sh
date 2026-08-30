@@ -310,6 +310,16 @@ log "Imagen demo-app construida (o cacheada)"
 # ============================================================
 check_cancelled
 write_state "running" "Reiniciando nodo con nueva imagen..." "$NEW_COMMIT" "$STARTED" "" 70
+
+# Iniciar/actualizar Caddy (proxy inverso) si existe en docker-compose.yml
+# Caddy debe estar corriendo ANTES que node-app para que el puerto 8080
+# este disponible inmediatamente.
+if grep -q '^\s*caddy:' "$COMPOSE_FILE" 2>/dev/null; then
+  log "--- docker compose up -d --no-deps caddy ---"
+  dc_up up -d --no-deps caddy >> "$LOG_FILE" 2>&1 || true
+  log "Caddy iniciado/actualizado"
+fi
+
 log "--- docker compose up -d --no-deps --force-recreate node-app ---"
 log "CRITICO: --force-recreate asegura que el contenedor viejo se reemplace"
 if ! dc_up up -d --no-deps --force-recreate node-app >> "$LOG_FILE" 2>&1; then
