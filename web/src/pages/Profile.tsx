@@ -516,7 +516,7 @@ export default function Profile() {
                 type="text"
                 value={newDoc.document_number}
                 onChange={(e) => setNewDoc({ ...newDoc, document_number: e.target.value })}
-                placeholder="Ej: V-12345678"
+                placeholder="Solo el numero, sin letras (ej: 12345678)"
                 className="input"
               />
             </div>
@@ -801,8 +801,8 @@ export default function Profile() {
                 >
                   <option value="">Usar el default del usuario</option>
                   {documents.map((d: any, i: number) => (
-                    <option key={i} value={d.document_type_code}>
-                      {d.document_type_code}: {d.document_number}
+                    <option key={i} value={d.document_type}>
+                      {d.document_type_name || d.document_type}: {d.document_number}
                     </option>
                   ))}
                 </select>
