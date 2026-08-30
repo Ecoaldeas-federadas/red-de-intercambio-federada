@@ -75,7 +75,7 @@ El ecosistema está construido utilizando tecnologías modernas, eficientes y 10
 
 ### Frontend Web
 - **Aplicación Web:** **React + TypeScript + Vite** (PWA). Instalable en navegador de celular o computadora. Funciona en iPhone, Android, computadoras, o cualquier dispositivo con navegador.
-- **Páginas principales:** Dashboard, Billetera, Transferencias, Productos, Tienda, Calculadora de energía, Asamblea, Gobernanza, Organizaciones, Terminales NFC, Punto de Venta Web (`/app/pos`), Servicios Federados, Federación, Auditoría, Configuración del Nodo, Sitio Web Público configurable.
+- **Páginas principales:** Dashboard, Billetera, Transferencias, Productos, Tienda, Calculadora de energía, Asamblea, Gobernanza, Organizaciones, Terminales NFC, Servicios Federados, Federación, Auditoría, Configuración del Nodo, Sitio Web Público configurable.
 - **Compilación:** `cd web && npm run build`
 
 ### Aplicación Android Nativa (POS)
@@ -110,13 +110,14 @@ El ecosistema está construido utilizando tecnologías modernas, eficientes y 10
 - **Código compartido:** `firmware/shared/` — crypto_helper.h, server_client.h, hardware_binding.h, nfc_reader.h, display_helper.h, wifi_provisioning.h, desfire_crypto.h, card_rotation.h.
 
 ### Punto de Venta Web (POS Web)
-- **Ubicación:** `web/src/pages/Pos.tsx` — ruta `/app/pos`
+- **Ubicación:** `pos/` (proyecto separado, React/Vite, puerto 3001)
 - **Para:** iPhone, computadoras, o cualquier dispositivo sin app Android. Ideal cuando no se puede instalar la app Android.
-- **Funcionalidades:** Crear cobros QR, mostrar QR en pantalla, esperar pago del cliente vía polling. Soporte para lector NFC Bluetooth (Web Bluetooth API, solo Chrome/Edge).
+- **Funcionalidades:** Crear cobros QR, mostrar QR en pantalla, esperar pago del cliente vía polling. Pago NFC con flujo unificado (documento + PIN antes de tarjeta). Soporte para lector NFC Bluetooth (Web Bluetooth API, solo Chrome/Edge).
+- **Autenticación:** 3 niveles (admin registra terminal → dueño aprueba sesión → sesión temporal expirable 1h/5h/24h).
 - **Confirmación de pagos:**
   - **QR code:** Cliente escanea QR → va a `/pay?t=token` → confirma pago desde su sesión.
-  - **NFC DESFire (tarjeta segura):** Tarjeta + PIN en el terminal. No requiere celular.
-  - **NFC UID-only (tarjeta sencilla):** Tarjeta + documento de identidad + PIN en el terminal. No requiere celular.
+  - **NFC (todos los tipos):** Documento + PIN primero → servidor identifica tipo de tarjeta → cliente acerca tarjeta → POS procesa según tipo (Classic/UID/DESFire).
+- **Documentación:** Ver `pos/README.md` para detalles completos.
 
 ---
 

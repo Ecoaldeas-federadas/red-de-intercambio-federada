@@ -1,0 +1,20 @@
+chore: eliminar web/src/pages/Pos.tsx (pagina vieja del POS web duplicada)
+
+Elimina la pagina Pos.tsx del panel web (web/) que fue creada por error
+como un POS web alternativo dentro del panel, en vez de usar el POS Web
+separado (pos/). Esta pagina no deberia existir — el POS Web es el
+directorio pos/, no una pagina del panel web.
+
+Cambios:
+- Eliminado web/src/pages/Pos.tsx
+- Actualizadas todas las referencias en documentacion:
+  - docs/tarjeta-classic-certificados.md: "Web POS" → "POS Web (pos/)"
+  - docs/guia-inicio-desarrolladores-tq.md: ubicacion corregida a pos/
+  - docs/nfc_hardware.md: referencia corregida a pos/
+  - firmware/README.md: referencia corregida a pos/
+
+No hay imports rotos — Pos.tsx no era importado por ningun archivo.
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

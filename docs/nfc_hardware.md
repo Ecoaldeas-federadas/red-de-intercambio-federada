@@ -13,8 +13,8 @@ El sistema soporta terminales de pago NFC basados en ESP32 que se comunican con 
 | **Community** | ESP32 + PN532 + OLED + encoder | Doble tarjeta | Punto comunitario |
 | **BLE Reader** | ESP32 + PN532 (sin pantalla/WiFi) | Lector NFC Bluetooth | Accesorio del POS (Android o web) |
 
-**Nota:** El "terminal web" es ahora puro software en el navegador (`/app/pos`). No requiere ESP32.
-El merchant usa la pagina web para crear cobros QR. Para NFC en el navegador, se conecta
+**Nota:** El "terminal web" es ahora puro software en el navegador (POS Web, directorio `pos/`). No requiere ESP32.
+El merchant usa el POS Web para crear cobros QR. Para NFC en el navegador, se conecta
 un lector BLE Reader via Web Bluetooth (solo Chrome/Edge, no Safari de iPhone).
 
 ## Emparejamiento

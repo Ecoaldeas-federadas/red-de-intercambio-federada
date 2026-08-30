@@ -373,22 +373,22 @@ Confirma la lectura/escritura de la tarjeta Classic (terminal-facing, Ed25519 au
 3. Escribir sectores con Key B
 4. Enviar certificado leído al servidor en el payload
 
-### Web POS (React/TypeScript)
+### POS Web (React/TypeScript)
 
-**Archivo:** `web/src/pages/Pos.tsx`
+**Directorio:** `pos/` (separado del panel web `web/`)
 
-El POS web usa **Web Bluetooth** para conectar un lector BLE. El flujo unificado requiere:
+El POS Web usa **Web Bluetooth** para conectar un lector BLE. El flujo unificado requiere:
 1. El comerciante ingresa documento + PIN del cliente (para todos los tipos de tarjeta)
-2. El POS web envía pre-auth al servidor
+2. El POS Web envía pre-auth al servidor
 3. El servidor responde con `card_type`:
    - Classic: sector a leer + claves + certificados
    - UID-only/DESFire: solo card_uid para verificar
-4. El POS web envía comandos al lector BLE:
+4. El POS Web envía comandos al lector BLE:
    - Classic: leer/escribir sectores MIFARE Classic
    - UID/DESFire: leer UID y verificar
-5. El POS web confirma al servidor (Classic) o procesa pago (UID/DESFire)
+5. El POS Web confirma al servidor (Classic) o procesa pago (UID/DESFire)
 
-**Nota:** El POS web actualmente solo crea cargos QR/NFC básicos. El flujo unificado completo requiere implementar la comunicación con el lector BLE para lectura/escritura de sectores MIFARE Classic y la verificación de UID para UID-only/DESFire.
+**Nota:** El POS Web (`pos/`) es un proyecto separado del panel web (`web/`). El flujo NFC unificado completo requiere implementar la comunicación con el lector BLE para lectura/escritura de sectores MIFARE Classic y la verificación de UID para UID-only/DESFire. Ver `pos/README.md` para detalles.
 
 ---
 

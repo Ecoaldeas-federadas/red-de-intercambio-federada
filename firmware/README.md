@@ -11,8 +11,8 @@ Firmware para terminales de pago NFC basadas en ESP32. Cuatro tipos de terminal 
 | **Community** | ESP32 + PN532 + OLED + encoder | Doble tarjeta (vendedor + comprador) | `terminal-community/` |
 | **BLE Reader** | ESP32 + PN532 (sin pantalla/WiFi) | Lector NFC via Bluetooth al POS (accesorio) | `terminal-ble-reader/` |
 
-**Nota:** El "terminal web" es ahora puro software en el navegador (ver `web/src/pages/Pos.tsx`).
-No requiere ESP32. El merchant usa la pagina web `/app/pos` para crear cobros QR.
+**Nota:** El "terminal web" es ahora puro software en el navegador (ver `pos/` — POS Web).
+No requiere ESP32. El merchant usa el POS Web para crear cobros QR y pagos NFC.
 Para NFC en el navegador, se usa un lector BLE Reader conectado via Web Bluetooth.
 
 ## Estructura
