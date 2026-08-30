@@ -82,6 +82,22 @@ export default function Profile() {
   const [showDocModal, setShowDocModal] = useState(false)
   const [docPhoto, setDocPhoto] = useState<File | null>(null)
 
+  // === Modales de tarjetas NFC (sin prompt/alert nativos) ===
+  const [cardModal, setCardModal] = useState<{
+    type: 'changePin' | 'toggle' | 'changeDoc'
+    cardUid: string
+    cardType?: string
+    isActive?: boolean
+    currentDoc?: string
+  } | null>(null)
+  const [authPassword, setAuthPassword] = useState('')
+  const [newPin1, setNewPin1] = useState('')
+  const [newPin2, setNewPin2] = useState('')
+  const [selectedDocType, setSelectedDocType] = useState('')
+  const [cardActionLoading, setCardActionLoading] = useState(false)
+  const [cardActionMsg, setCardActionMsg] = useState('')
+  const [cardActionError, setCardActionError] = useState('')
+
   const load = () => {
     api.get('/auth/me').then((d: any) => {
       setMe(d)
@@ -129,39 +145,104 @@ export default function Profile() {
     api.get('/auth/me/documents').then((d: any) => setDocuments(Array.isArray(d) ? d : [])).catch(() => {})
   }, [])
 
-  const changePin = async (cardUid: string) => {
-    const newPin = prompt('Nuevo PIN (4 digitos):')
-    if (!newPin || newPin.length !== 4) return
+  // === Acciones de tarjetas NFC — abren modales internos ===
+
+  const openChangePinModal = (cardUid: string) => {
+    setCardModal({ type: 'changePin', cardUid })
+    setAuthPassword('')
+    setNewPin1('')
+    setNewPin2('')
+    setCardActionMsg('')
+    setCardActionError('')
+  }
+
+  const openToggleCardModal = (cardUid: string, isActive: boolean) => {
+    setCardModal({ type: 'toggle', cardUid, isActive })
+    setAuthPassword('')
+    setCardActionMsg('')
+    setCardActionError('')
+  }
+
+  const openChangeDocModal = (cardUid: string, currentDoc?: string) => {
+    setCardModal({ type: 'changeDoc', cardUid, currentDoc })
+    setAuthPassword('')
+    setSelectedDocType(currentDoc || '')
+    setCardActionMsg('')
+    setCardActionError('')
+  }
+
+  // Re-autenticar al usuario antes de una acción sensible
+  const reauthenticate = async (): Promise<boolean> => {
+    if (!me?.username) {
+      setCardActionError('No se pudo determinar el usuario actual')
+      return false
+    }
     try {
-      await api.put('/nfc/cards/pin', { card_uid: cardUid, new_pin: newPin })
-      alert('PIN cambiado')
-      load()
+      // El endpoint de login valida la contraseña y devuelve un token nuevo
+      // No reemplazamos el token de sesión — solo validamos que la contraseña es correcta
+      await api.post('/auth/login/password', {
+        username: me.username,
+        password: authPassword,
+      })
+      return true
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error')
+      setCardActionError('Contraseña incorrecta — no se pudo verificar tu identidad')
+      return false
     }
   }
 
-  const toggleCard = async (cardUid: string, currentlyActive: boolean) => {
-    const action = currentlyActive ? 'desactivar' : 'activar'
-    if (!confirm(`¿Seguro que quieres ${action} esta tarjeta?`)) return
-    try {
-      await api.put(`/nfc/cards/${cardUid}/toggle`, { is_active: !currentlyActive })
-      if (userId) loadNfcCards(userId)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error')
+  const executeCardAction = async () => {
+    if (!cardModal) return
+    setCardActionLoading(true)
+    setCardActionError('')
+    setCardActionMsg('')
+
+    // Re-autenticar
+    const authOk = await reauthenticate()
+    if (!authOk) {
+      setCardActionLoading(false)
+      return
     }
+
+    try {
+      if (cardModal.type === 'changePin') {
+        if (newPin1.length !== 4 || !/^\d{4}$/.test(newPin1)) {
+          setCardActionError('El PIN debe ser 4 dígitos numéricos')
+          setCardActionLoading(false)
+          return
+        }
+        if (newPin1 !== newPin2) {
+          setCardActionError('Los PINs no coinciden')
+          setCardActionLoading(false)
+          return
+        }
+        await api.put('/nfc/cards/pin', { card_uid: cardModal.cardUid, new_pin: newPin1 })
+        setCardActionMsg('PIN cambiado correctamente')
+        if (me?.id) loadNfcCards(me.id)
+      } else if (cardModal.type === 'toggle') {
+        await api.put(`/nfc/cards/${cardModal.cardUid}/toggle`, { is_active: !cardModal.isActive })
+        setCardActionMsg(cardModal.isActive ? 'Tarjeta desactivada' : 'Tarjeta activada')
+        if (me?.id) loadNfcCards(me.id)
+      } else if (cardModal.type === 'changeDoc') {
+        await api.put(`/nfc/cards/${cardModal.cardUid}/document`, { document_type_code: selectedDocType.trim() })
+        setCardActionMsg('Documento de la tarjeta actualizado')
+        if (me?.id) loadNfcCards(me.id)
+      }
+    } catch (err) {
+      setCardActionError(err instanceof Error ? err.message : 'Error al procesar la acción')
+    }
+    setCardActionLoading(false)
   }
 
-  const changeCardDocument = async (cardUid: string, currentDoc?: string) => {
-    const options = documents.map((d: any) => `${d.document_type_code}: ${d.document_number}`).join('\n')
-    const selection = prompt(`Selecciona el documento para esta tarjeta (escribe el código):\n\n${options}\n\nDocumento actual: ${currentDoc || 'Ninguno'}\n\nEscribe el código del documento (ej: V, E, P) o deja vacío para usar el default:`)
-    if (selection === null) return
-    try {
-      await api.put(`/nfc/cards/${cardUid}/document`, { document_type_code: selection.trim() })
-      if (userId) loadNfcCards(userId)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error')
-    }
+  const closeCardModal = () => {
+    setCardModal(null)
+    setAuthPassword('')
+    setNewPin1('')
+    setNewPin2('')
+    setSelectedDocType('')
+    setCardActionMsg('')
+    setCardActionError('')
+    setCardActionLoading(false)
   }
 
   const saveNationalID = async () => {
@@ -606,15 +687,15 @@ export default function Profile() {
                   </span>
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                  <button onClick={() => changePin(c.card_uid)} className="btn-secondary text-xs">Cambiar PIN</button>
+                  <button onClick={() => openChangePinModal(c.card_uid)} className="btn-secondary text-xs">Cambiar PIN</button>
                   <button
-                    onClick={() => toggleCard(c.card_uid, c.is_active)}
+                    onClick={() => openToggleCardModal(c.card_uid, c.is_active)}
                     className={`text-xs px-3 py-1 rounded ${c.is_active ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}`}
                   >
                     {c.is_active ? 'Desactivar' : 'Activar'}
                   </button>
                   <button
-                    onClick={() => changeCardDocument(c.card_uid, c.required_doc_type)}
+                    onClick={() => openChangeDocModal(c.card_uid, c.required_doc_type)}
                     className="text-xs px-3 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200"
                   >
                     Cambiar Documento
@@ -647,6 +728,118 @@ export default function Profile() {
           </div>
         )}
       </div>
+
+      {/* === Modal interno para acciones de tarjetas NFC === */}
+      {cardModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={closeCardModal}>
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold">
+                {cardModal.type === 'changePin' && 'Cambiar PIN de Tarjeta'}
+                {cardModal.type === 'toggle' && (cardModal.isActive ? 'Desactivar Tarjeta' : 'Activar Tarjeta')}
+                {cardModal.type === 'changeDoc' && 'Cambiar Documento de Tarjeta'}
+              </h3>
+              <button onClick={closeCardModal} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+            </div>
+
+            <p className="text-xs text-gray-500 bg-gray-50 rounded p-2">
+              Tarjeta: <b>{cardModal.cardUid.slice(0, 16)}...</b>
+            </p>
+
+            {/* Re-autenticación obligatoria */}
+            <div className="space-y-2">
+              <label className="label flex items-center gap-1"><Shield size={14} /> Verifica tu identidad</label>
+              <input
+                type="password"
+                className="input w-full"
+                placeholder="Tu contraseña actual"
+                value={authPassword}
+                onChange={(e) => setAuthPassword(e.target.value)}
+                autoFocus
+              />
+              <p className="text-xs text-gray-400">Por seguridad, confirma tu contraseña antes de continuar. Esto evita que alguien más cambie tu tarjeta si dejaste la sesión abierta.</p>
+            </div>
+
+            {/* Campos según el tipo de acción */}
+            {cardModal.type === 'changePin' && (
+              <>
+                <div className="space-y-2">
+                  <label className="label">Nuevo PIN (4 dígitos)</label>
+                  <input
+                    type="password"
+                    className="input w-full"
+                    placeholder="Ej: 5678"
+                    maxLength={4}
+                    value={newPin1}
+                    onChange={(e) => setNewPin1(e.target.value.replace(/\D/g, ''))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="label">Confirmar nuevo PIN</label>
+                  <input
+                    type="password"
+                    className="input w-full"
+                    placeholder="Repite el PIN"
+                    maxLength={4}
+                    value={newPin2}
+                    onChange={(e) => setNewPin2(e.target.value.replace(/\D/g, ''))}
+                  />
+                  {newPin1 && newPin2 && newPin1 !== newPin2 && (
+                    <p className="text-xs text-red-500">Los PINs no coinciden</p>
+                  )}
+                </div>
+              </>
+            )}
+
+            {cardModal.type === 'changeDoc' && (
+              <div className="space-y-2">
+                <label className="label">Documento a usar en la tarjeta</label>
+                <select
+                  className="input w-full"
+                  value={selectedDocType}
+                  onChange={(e) => setSelectedDocType(e.target.value)}
+                >
+                  <option value="">Usar el default del usuario</option>
+                  {documents.map((d: any, i: number) => (
+                    <option key={i} value={d.document_type_code}>
+                      {d.document_type_code}: {d.document_number}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-400">El POS pedirá este documento al pagar con esta tarjeta.</p>
+              </div>
+            )}
+
+            {cardModal.type === 'toggle' && (
+              <p className="text-sm text-gray-600">
+                {cardModal.isActive
+                  ? 'La tarjeta se desactivará y no podrá usarse para pagos hasta que la vuelvas a activar.'
+                  : 'La tarjeta se activará y podrá usarse para pagos nuevamente.'}
+              </p>
+            )}
+
+            {/* Mensajes */}
+            {cardActionError && <p className="text-sm text-red-600 bg-red-50 rounded p-2">{cardActionError}</p>}
+            {cardActionMsg && <p className="text-sm text-green-600 bg-green-50 rounded p-2">{cardActionMsg}</p>}
+
+            {/* Botones */}
+            <div className="flex gap-2 justify-end">
+              <button onClick={closeCardModal} className="btn-secondary text-sm">
+                {cardActionMsg ? 'Cerrar' : 'Cancelar'}
+              </button>
+              {!cardActionMsg && (
+                <button
+                  onClick={executeCardAction}
+                  disabled={cardActionLoading || !authPassword || (cardModal.type === 'changePin' && (newPin1.length !== 4 || newPin1 !== newPin2))}
+                  className="btn-primary text-sm"
+                >
+                  {cardActionLoading ? 'Procesando...' : 'Confirmar'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
