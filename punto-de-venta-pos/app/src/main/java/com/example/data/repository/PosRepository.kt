@@ -1563,6 +1563,8 @@ class PosRepository(
             val adapter = apiClient.moshi.adapter(UserLookupDecryptedPayload::class.java)
             val jsonPlain = adapter.toJson(payload)
 
+            android.util.Log.d("PosRepository", "userLookup: terminalId=${config.terminalId} username=${payload.username} serverUrl=${apiClient.serverUrl}")
+
             val (ephemeralMsg, ephemeralSharedKey) = CryptoEngine.encryptPayloadEphemeral(
                 plaintextJson = jsonPlain,
                 terminalPrivateKeyHex = config.terminalPrivateKeyHex,
@@ -1604,7 +1606,8 @@ class PosRepository(
                 )
                 Result.success(result)
             } else {
-                Result.failure(Exception("Error en user-lookup (HTTP ${response.code()})"))
+                val errBody = response.errorBody()?.string() ?: ""
+                Result.failure(Exception("Error en user-lookup (HTTP ${response.code()}): $errBody"))
             }
         } catch (e: Exception) {
             Result.failure(Exception("Error de conexión en user-lookup: ${e.localizedMessage}"))
