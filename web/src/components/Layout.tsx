@@ -56,17 +56,23 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [showNotif, setShowNotif] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [notifications, setNotifications] = useState<any[]>([])
-  const [membershipStatus, setMembershipStatus] = useState<string>('active')
+  const [membershipStatus, setMembershipStatus] = useState<string>('unknown')
 
-  // Cargar membership_status del usuario
+  // Cargar membership_status del usuario.
+  // Por defecto es 'unknown' hasta que se confirme, para no mostrar
+  // accidentalmente el menu completo a usuarios no admitidos.
   useEffect(() => {
     api.get<any>('/auth/me').then((d: any) => {
       setMembershipStatus(d?.membership_status || 'active')
-    }).catch(() => {})
+    }).catch(() => {
+      // Si no podemos verificar, asumir pendiente por seguridad
+      setMembershipStatus('pending_admission')
+    })
   }, [])
 
-  // Si el usuario es preliminar (pending_admission), mostrar solo 3 items
-  const isPendingAdmission = membershipStatus === 'pending_admission'
+  // Si el usuario es preliminar (pending_admission) o no sabemos su estado,
+  // mostrar solo 3 items hasta que se confirme que es active.
+  const isPendingAdmission = membershipStatus !== 'active'
 
   // Filtrar items segun permisos del usuario y estado de membresia
   const visibleItems = isPendingAdmission
@@ -116,7 +122,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const handleLogout = () => {
     logout()
-    // No redirigir. App.tsx muestra el login cuando isAuthenticated es false.
+    // Redirigir al sitio publico despues de cerrar sesion
+    navigate('/p/inicio')
   }
 
   return (

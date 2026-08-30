@@ -223,6 +223,17 @@ export function DynamicAdmissionForm() {
         return
       }
 
+      // Construir custom_fields excluyendo campos sensibles (passwords).
+      // Las passwords se envian por separado (proposed_password) y nunca
+      // deben guardarse en custom_fields donde el admin podria verlas.
+      const sanitizedCustomFields: Record<string, any> = {}
+      for (const [key, value] of Object.entries(answers)) {
+        if (key.toLowerCase().includes('password') || key.toLowerCase().includes('contrasena') || key.toLowerCase().includes('clave')) {
+          continue
+        }
+        sanitizedCustomFields[key] = value
+      }
+
       const payload = {
         full_name: answers.full_name || answers[fields[0]?.id] || 'Anónimo',
         email: answers.email || '',
@@ -231,7 +242,7 @@ export function DynamicAdmissionForm() {
         reason: answers.reason || '',
         skills: answers.skills || '',
         how_heard: answers.how_heard || '',
-        custom_fields: answers,
+        custom_fields: sanitizedCustomFields,
         proposed_username: username,
         proposed_password: pw,
       }

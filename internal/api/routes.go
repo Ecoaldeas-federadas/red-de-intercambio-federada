@@ -52,16 +52,15 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 	r.Use(middleware.Timeout(60 * time.Second))
 	r.Use(corsMiddleware(corsOrigins))
 
-	// Middleware global: restringir acceso de usuarios preliminares (pending_admission)
-	// a solo las rutas whitelisted (status, perfil, notificaciones, passkey).
-	// Las rutas publicas (sin auth) no se ven afectadas porque el middleware
-	// verifica el JWT y si no hay JWT, deja pasar (RequireAuth maneja el 401).
-	r.Use(am.RequireActiveMembership)
-
 	// Cuando basePath esta seteado (ej: nodo padre con basePath="/main"
 	// o nodo demo con basePath="/demo"), strip basePath de las llamadas API
 	// para que funcionen las rutas internas.
 	// Ej: /main/api/users -> /api/users, /demo/api/users -> /api/users
+	// IMPORTANTE: Este middleware debe ejecutarse ANTES de RequireActiveMembership
+	// para que la whitelist de rutas (que usa paths sin prefijo como /api/auth/me)
+	// coincida correctamente. Si se ejecuta despues, la whitelist compara
+	// /main/api/auth/me contra /api/auth/me y nunca coincide, bloqueando
+	// a los usuarios pending_admission en todas las rutas.
 	if basePath != "" {
 		r.Use(func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -73,6 +72,14 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 			})
 		})
 	}
+
+	// Middleware global: restringir acceso de usuarios preliminares (pending_admission)
+	// a solo las rutas whitelisted (status, perfil, notificaciones, passkey).
+	// Las rutas publicas (sin auth) no se ven afectadas porque el middleware
+	// verifica el JWT y si no hay JWT, deja pasar (RequireAuth maneja el 401).
+	// NOTA: Debe ejecutarse DESPUES del stripping de basePath para que la
+	// whitelist coincida con paths normalizados (sin /main o /demo).
+	r.Use(am.RequireActiveMembership)
 
 	// Proxy reverso dinamico: en el nodo principal (basePath="/main").
 	// El nodo demo (basePath="/demo") no necesita proxy porque se accede

@@ -950,7 +950,7 @@ export default function WebsiteAdmin() {
           }`}
         >
           <Mail size={16} />
-          Admisión & Formulario Dinámico ({admissionRequests.filter((r) => r.status === 'pending').length} pendientes)
+          Admisión & Formulario Dinámico ({admissionRequests.filter((r) => r.status === 'pending' || r.status === 'pending_review').length} pendientes)
         </button>
       </div>
 
@@ -1751,6 +1751,9 @@ export default function WebsiteAdmin() {
                             </b>
                             {Object.entries(customAnswers).map(([key, val]) => {
                               if (['full_name', 'email', 'phone'].includes(key)) return null
+                              // Nunca mostrar campos que contengan password/contrasena/clave
+                              const lowerKey = key.toLowerCase()
+                              if (lowerKey.includes('password') || lowerKey.includes('contrasena') || lowerKey.includes('contraseña') || lowerKey.includes('clave')) return null
                               const displayVal = Array.isArray(val) ? val.join(', ') : String(val)
                               if (!displayVal) return null
 

@@ -47,6 +47,44 @@ import MyTerminals from './pages/MyTerminals'
 import SoftwareAdaptations from './pages/SoftwareAdaptations'
 import Settings from './pages/Settings'
 
+// Rutas permitidas para usuarios pending_admission.
+// Cualquier otra ruta /app/* redirige a /app/admission-status.
+const PENDING_ADMISSION_ALLOWED = new Set([
+  '/app/admission-status',
+  '/app/profile',
+  '/app/notifications/settings',
+  '/app/notifications',
+  '/app/display-settings',
+])
+
+// PendingAdmissionGuard envuelve rutas /app/* y redirige a los usuarios
+// que no estan fully admitted a su pagina de estado de solicitud.
+// Esto previene que usuarios preliminares accedan a funciones del sistema
+// navegando directamente por URL.
+function PendingAdmissionGuard({ children }: { children: React.ReactNode }) {
+  const [membershipStatus, setMembershipStatus] = useState<string>('unknown')
+
+  useEffect(() => {
+    api.get<any>('/auth/me').then((d: any) => {
+      setMembershipStatus(d?.membership_status || 'active')
+    }).catch(() => {
+      setMembershipStatus('pending_admission')
+    })
+  }, [])
+
+  // Mientras no sepamos el estado, dejar pasar (Layout.tsx tambien protege)
+  if (membershipStatus === 'unknown') return <>{children}</>
+
+  if (membershipStatus !== 'active') {
+    const path = window.location.pathname
+    if (!PENDING_ADMISSION_ALLOWED.has(path)) {
+      return <Navigate to="/app/admission-status" replace />
+    }
+  }
+
+  return <>{children}</>
+}
+
 // updateFavicon cambia el favicon del navegador dinamicamente.
 // Si se pasa una URL de logo, lo usa como favicon.
 // Si se pasa null, restaura el favicon por defecto.
@@ -116,46 +154,48 @@ function AppInner() {
   }
 
   // Rutas del backend (requieren auth) - prefijo /app
+  // PendingAdmissionGuard envuelve cada ruta para redirigir a usuarios
+  // no admitidos a su pagina de estado de solicitud.
   if (isAuthenticated) {
     return (
       <Routes>
         <Route path="/app" element={<Navigate to="/app/dashboard" replace />} />
-        <Route path="/app/dashboard" element={<Layout><Dashboard /></Layout>} />
-        <Route path="/app/transfer" element={<Layout><Transfer /></Layout>} />
-        <Route path="/app/wallet" element={<Layout><Wallet /></Layout>} />
-        <Route path="/app/my-services" element={<Layout><MyServices /></Layout>} />
-        <Route path="/app/history" element={<Layout><Wallet /></Layout>} />
-        <Route path="/app/payments" element={<Layout><Payments /></Layout>} />
-        <Route path="/app/products" element={<Layout><Products /></Layout>} />
-        <Route path="/app/calculator" element={<Layout><Calculator /></Layout>} />
-        <Route path="/app/store" element={<Layout><Store /></Layout>} />
-        <Route path="/app/federation/limits" element={<Layout><FederationLimits /></Layout>} />
-        <Route path="/app/federation/parity" element={<Layout><Parity /></Layout>} />
-        <Route path="/app/organizations" element={<Layout><Organizations /></Layout>} />
-        <Route path="/app/organizations/:id" element={<Layout><OrganizationDetail /></Layout>} />
-        <Route path="/app/assembly" element={<Layout><Assembly /></Layout>} />
-        <Route path="/app/audit" element={<Layout><Audit /></Layout>} />
-        <Route path="/app/external" element={<Layout><ExternalBridge /></Layout>} />
-        <Route path="/app/admission" element={<Layout><Admission /></Layout>} />
+        <Route path="/app/dashboard" element={<PendingAdmissionGuard><Layout><Dashboard /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/transfer" element={<PendingAdmissionGuard><Layout><Transfer /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/wallet" element={<PendingAdmissionGuard><Layout><Wallet /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/my-services" element={<PendingAdmissionGuard><Layout><MyServices /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/history" element={<PendingAdmissionGuard><Layout><Wallet /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/payments" element={<PendingAdmissionGuard><Layout><Payments /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/products" element={<PendingAdmissionGuard><Layout><Products /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/calculator" element={<PendingAdmissionGuard><Layout><Calculator /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/store" element={<PendingAdmissionGuard><Layout><Store /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/federation/limits" element={<PendingAdmissionGuard><Layout><FederationLimits /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/federation/parity" element={<PendingAdmissionGuard><Layout><Parity /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/organizations" element={<PendingAdmissionGuard><Layout><Organizations /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/organizations/:id" element={<PendingAdmissionGuard><Layout><OrganizationDetail /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/assembly" element={<PendingAdmissionGuard><Layout><Assembly /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/audit" element={<PendingAdmissionGuard><Layout><Audit /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/external" element={<PendingAdmissionGuard><Layout><ExternalBridge /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/admission" element={<PendingAdmissionGuard><Layout><Admission /></Layout></PendingAdmissionGuard>} />
         <Route path="/app/admission-status" element={<Layout><AdmissionStatus /></Layout>} />
-        <Route path="/app/recovery" element={<Layout><Recovery /></Layout>} />
-        <Route path="/app/departments" element={<Layout><Departments /></Layout>} />
-        <Route path="/app/departments/:id" element={<Layout><DepartmentDetail /></Layout>} />
-        <Route path="/app/governance" element={<Layout><Governance /></Layout>} />
-        <Route path="/app/nfc-terminals" element={<Layout><NFCTerminals /></Layout>} />
-      <Route path="/app/my-terminals" element={<Layout><MyTerminals /></Layout>} />
-        <Route path="/app/federation/peers" element={<Layout><Federation /></Layout>} />
-        <Route path="/app/federation/conflicts" element={<Layout><MergeConflicts /></Layout>} />
-        <Route path="/app/settings" element={<Layout><NodeSettings /></Layout>} />
-        <Route path="/app/services" element={<Layout><FederatedServices /></Layout>} />
-        <Route path="/app/federation" element={<Layout><Federation /></Layout>} />
+        <Route path="/app/recovery" element={<PendingAdmissionGuard><Layout><Recovery /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/departments" element={<PendingAdmissionGuard><Layout><Departments /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/departments/:id" element={<PendingAdmissionGuard><Layout><DepartmentDetail /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/governance" element={<PendingAdmissionGuard><Layout><Governance /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/nfc-terminals" element={<PendingAdmissionGuard><Layout><NFCTerminals /></Layout></PendingAdmissionGuard>} />
+      <Route path="/app/my-terminals" element={<PendingAdmissionGuard><Layout><MyTerminals /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/federation/peers" element={<PendingAdmissionGuard><Layout><Federation /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/federation/conflicts" element={<PendingAdmissionGuard><Layout><MergeConflicts /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/settings" element={<PendingAdmissionGuard><Layout><NodeSettings /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/services" element={<PendingAdmissionGuard><Layout><FederatedServices /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/federation" element={<PendingAdmissionGuard><Layout><Federation /></Layout></PendingAdmissionGuard>} />
         <Route path="/app/notifications/settings" element={<Layout><NotificationSettings /></Layout>} />
         <Route path="/app/notifications" element={<Layout><Notifications /></Layout>} />
         <Route path="/app/profile" element={<Layout><Profile /></Layout>} />
         <Route path="/app/display-settings" element={<Layout><Settings /></Layout>} />
-        <Route path="/app/fund" element={<Layout><CommunityFund /></Layout>} />
-        <Route path="/app/calculator/params" element={<Layout><CalculatorParams /></Layout>} />
-        <Route path="/app/website" element={<Layout><WebsiteAdmin /></Layout>} />
+        <Route path="/app/fund" element={<PendingAdmissionGuard><Layout><CommunityFund /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/calculator/params" element={<PendingAdmissionGuard><Layout><CalculatorParams /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/website" element={<PendingAdmissionGuard><Layout><WebsiteAdmin /></Layout></PendingAdmissionGuard>} />
         <Route path="/pay" element={<Pay />} />
         <Route path="/login" element={<Navigate to="/app/dashboard" replace />} />
         {/* Sitio publico tambien accesible cuando estas logueado */}

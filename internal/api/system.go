@@ -2865,6 +2865,11 @@ func (h *SystemHandler) submitAdmissionRequest(w http.ResponseWriter, r *http.Re
 		customJSON = "{}"
 	}
 
+	// Sanitizar custom_fields: eliminar cualquier clave que contenga "password",
+	// "contrasena" o "clave" para evitar que se guarden contraseñas en texto plano
+	// en la BD donde el admin podria verlas.
+	customJSON = sanitizeCustomFields(customJSON)
+
 	// Crear admission_request con created_user_id y proposed_password
 	var id uuid.UUID
 	err = h.Pool.QueryRow(r.Context(), `
@@ -2879,12 +2884,82 @@ func (h *SystemHandler) submitAdmissionRequest(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Notificar a los administradores (usuarios con permiso admission.manage)
+	// que hay una nueva solicitud de admisión pendiente.
+	notify := NewNotifyService(h.Pool)
+	resolvedDomain := db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+	// Buscar usuarios con permiso admission.manage
+	rows, _ := h.Pool.Query(r.Context(), `
+		SELECT u.id FROM users u
+		JOIN user_permissions up ON up.user_id = u.id
+		JOIN permissions p ON p.id = up.permission_id
+		WHERE p.name = 'admission.manage'
+		AND (up.expires_at IS NULL OR up.expires_at > NOW())
+		AND u.membership_status = 'active'`)
+	var adminIDs []uuid.UUID
+	if rows != nil {
+		for rows.Next() {
+			var uid uuid.UUID
+			if err := rows.Scan(&uid); err == nil {
+				adminIDs = append(adminIDs, uid)
+			}
+		}
+		rows.Close()
+	}
+	// Tambien incluir super_admins
+	superRows, _ := h.Pool.Query(r.Context(), `
+		SELECT id FROM users WHERE is_super_admin = true AND super_admin_enabled = true AND membership_status = 'active'`)
+	if superRows != nil {
+		for superRows.Next() {
+			var uid uuid.UUID
+			if err := superRows.Scan(&uid); err == nil {
+				adminIDs = append(adminIDs, uid)
+			}
+		}
+		superRows.Close()
+	}
+	if len(adminIDs) > 0 {
+		notify.NotifyMany(r.Context(), resolvedDomain, adminIDs, "admission_request",
+			"Nueva solicitud de admisión",
+			fmt.Sprintf("Nueva solicitud de %s (%s). Revisa y evalúa antes de elevar a asamblea.", req.FullName, username),
+			"/app/website?tab=admission", map[string]interface{}{
+				"request_id": id.String(),
+				"full_name":  req.FullName,
+				"username":   username,
+			})
+	}
+
 	writeJSON(w, 201, map[string]interface{}{
 		"id":       id.String(),
 		"message":  "Solicitud enviada. Puedes iniciar sesion con tu usuario y contrasena para ver el estado de tu solicitud.",
 		"status":   "pending_review",
 		"username": username,
 	})
+}
+
+// sanitizeCustomFields elimina del JSON de custom_fields cualquier clave
+// que contenga "password", "contrasena" o "clave" (case-insensitive).
+// Esto previene que las contraseñas propuestas se guarden en texto plano
+// en la BD donde podrian ser vistas por administradores.
+func sanitizeCustomFields(jsonStr string) string {
+	var fields map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonStr), &fields); err != nil {
+		return jsonStr // si no es JSON valido, devolver tal cual
+	}
+	for key := range fields {
+		lowerKey := strings.ToLower(key)
+		if strings.Contains(lowerKey, "password") ||
+			strings.Contains(lowerKey, "contrasena") ||
+			strings.Contains(lowerKey, "contraseña") ||
+			strings.Contains(lowerKey, "clave") {
+			delete(fields, key)
+		}
+	}
+	sanitized, err := json.Marshal(fields)
+	if err != nil {
+		return jsonStr
+	}
+	return string(sanitized)
 }
 
 // ===== STATUS DE ADMISION (para usuarios preliminares) =====
