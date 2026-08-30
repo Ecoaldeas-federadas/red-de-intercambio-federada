@@ -37,6 +37,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.api.DEFAULT_DOCUMENT_TYPES
+import com.example.data.api.DocumentTypeItem
 import com.example.ui.theme.*
 import com.example.ui.util.CurrencyHelper
 import com.example.ui.util.FeedbackHelper
@@ -751,7 +752,7 @@ fun KioskDocumentKeypad(
             // Compact Alphanumeric On-Screen Keyboard
             val numberRow = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
             val row1 = listOf("Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P")
-            val row2 = listOf("A", "S", "D", "F", "G", "H", "J", "K", "L", "-")
+            val row2 = listOf("A", "S", "D", "F", "G", "H", "J", "K", "L", "@")
             val row3 = listOf("Z", "X", "C", "V", "B", "N", "M")
 
             // Top Numbers Row
