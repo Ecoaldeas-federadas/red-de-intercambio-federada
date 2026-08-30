@@ -477,3 +477,175 @@ npx vite build
 - `log.Fatalf` para errores fatales
 - `log.Println` para eventos de inicio/shutdown
 - Warning si `JWT_SECRET` no esta configurado
+
+## Actualizacion del Nodo
+
+El nodo tiene dos sistemas de actualizacion: manual (PowerShell) y automatico
+(updater-controller via web). Ambos descargan el codigo de `origin/main`,
+reconstruyen las imagenes Docker y reinician el node-app.
+
+### Arquitectura de actualizacion
+
+```
+[Usuario] --> [Caddy:8080] --> [node-app] (API, frontend, proxy de servicios)
+                    |
+                    +--> /updater/* --> [updater-controller:9110] (siempre corriendo)
+```
+
+| Servicio | Puerto | Se reinicia en cada update? | Funcion |
+|----------|--------|------------------------------|---------|
+| Caddy | 8080 | Solo si cambiaron sus archivos | Proxy inverso (siempre disponible) |
+| node-app | 8080 (interno) | Si (force-recreate) | API, frontend, proxy de servicios |
+| updater-controller | 9110 | Solo si cambiaron sus archivos | Gestiona actualizaciones |
+| yugabytedb | 5433 | Nunca | Base de datos (datos persistentes) |
+
+**Caddy** y **updater-controller** son servicios estables: siempre estan
+corriendo y no se reinician durante actualizaciones normales. Solo se
+reinician si sus propios archivos cambiaron. Esto asegura que即使 si una
+actualizacion falla, el proxy inverso y el gestor de actualizaciones siguen
+disponibles para recuperar el nodo.
+
+### Actualizacion Manual (PowerShell)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File update.ps1
+```
+
+Este script:
+1. Descarga el codigo de `origin/main` (el remoto siempre gana)
+2. Si el propio script cambio, se re-ejecuta con la nueva version
+3. Limpia contenedores huerfanos de actualizaciones fallidas
+4. Reconstruye las imagenes Docker (node-app, demo-app, updater-controller)
+5. Arranca Caddy primero, luego todos los servicios principales
+6. Espera a que el nodo responda HTTP
+
+### Actualizacion Automatica (updater-controller)
+
+El updater-controller es un contenedor ligero que siempre esta corriendo
+en el puerto 9110. Maneja las actualizaciones desde la web o via API.
+
+#### Endpoints del updater-controller
+
+| Metodo | Endpoint | Descripcion |
+|--------|----------|-------------|
+| GET | `http://localhost:9110/` | Pagina web de control (HTML) |
+| POST | `http://localhost:9110/update` | Iniciar actualizacion |
+| GET | `http://localhost:9110/status` | Ver estado de la actualizacion |
+| GET | `http://localhost:9110/node-status` | Ver estado del node-app |
+| GET | `http://localhost:9110/check` | Verificar si hay actualizaciones disponibles |
+| POST | `http://localhost:9110/cancel` | Cancelar actualizacion en curso |
+| POST | `http://localhost:9110/reset` | Resetear estado (despues de error/cancel) |
+| POST | `http://localhost:9110/start` | Arrancar node-app |
+| POST | `http://localhost:9110/stop` | Detener node-app |
+| POST | `http://localhost:9110/restart` | Reiniciar node-app |
+
+#### Comandos utiles (cmd.exe)
+
+```cmd
+REM Iniciar actualizacion
+curl -X POST http://localhost:9110/update
+
+REM Ver estado de la actualizacion (una sola vez)
+curl http://localhost:9110/status
+
+REM Ver actualizacion en tiempo real (loop cada 3 segundos)
+watch-update.cmd
+
+REM Ver actualizacion en tiempo real (PowerShell, mas detallado)
+powershell -ExecutionPolicy Bypass -File watch-update.ps1
+
+REM Cancelar actualizacion en curso
+curl -X POST http://localhost:9110/cancel
+
+REM Resetear estado (despues de cancel o error)
+curl -X POST http://localhost:9110/reset
+
+REM Verificar si hay actualizaciones disponibles
+curl http://localhost:9110/check
+```
+
+#### Comandos utiles (PowerShell)
+
+```powershell
+# Iniciar actualizacion
+Invoke-RestMethod -Uri "http://localhost:9110/update" -Method POST
+
+# Ver estado
+Invoke-RestMethod -Uri "http://localhost:9110/status"
+
+# Ver en tiempo real
+powershell -ExecutionPolicy Bypass -File watch-update.ps1
+
+# Cancelar
+Invoke-RestMethod -Uri "http://localhost:9110/cancel" -Method POST
+
+# Resetear
+Invoke-RestMethod -Uri "http://localhost:9110/reset" -Method POST
+```
+
+#### Actualizacion desde la web
+
+La pagina de Configuracion del Nodo tiene una seccion de actualizacion que
+usa el endpoint `/updater/*` (ruteado por Caddy). Esto funciona incluso
+cuando el node-app esta caido, porque Caddy y el updater-controller siguen
+corriendo.
+
+Si el node-app esta caido y el frontend no responde, puedes acceder
+directamente a:
+
+```
+http://localhost:9110/
+```
+
+Esta pagina tiene botones para arrancar, detener, reiniciar y actualizar
+el nodo.
+
+### Recuperacion cuando el nodo no arranca
+
+Si el node-app esta en bucle de reinicio (ej: migracion rota):
+
+1. **Identificar el error**: Ver logs del nodo
+   ```cmd
+   docker logs --tail 50 red-de-intercambio-federada-node-app-1
+   ```
+
+2. **Corregir el codigo**: Subir el fix a `origin/main`
+
+3. **Actualizar desde el updater-controller**:
+   ```cmd
+   curl -X POST http://localhost:9110/reset
+   curl -X POST http://localhost:9110/update
+   ```
+
+4. **Monitorear la actualizacion**:
+   ```cmd
+   watch-update.cmd
+   ```
+
+El updater-controller descargara el fix, reconstruira la imagen y reiniciara
+el node-app. Caddy y el updater-controller no se ven afectados.
+
+### Que hace do_update.sh (actualizacion automatica)
+
+El script `docker/do_update.sh` se ejecuta dentro del updater-controller
+cuando se llama a `/update`:
+
+1. `git fetch origin main` y `git reset --hard origin/main`
+2. Limpiar contenedores huerfanos
+3. Detectar si el updater-controller cambio (reconstruir si es necesario)
+4. Detectar si Caddy cambio (reiniciar al final si es necesario)
+5. `docker compose build --no-cache node-app` (con fallback a build con cache)
+6. `docker compose build demo-app`
+7. Asegurar que Caddy este corriendo (sin reiniciar si no cambio)
+8. `docker compose up -d --force-recreate node-app`
+9. Esperar a que el nodo responda HTTP (90 segundos max)
+10. Si el updater-controller cambio, reiniciarlo al final
+11. Si Caddy cambio, reiniciarlo al final
+12. Marcar actualizacion como completada
+
+**Servicios que NUNCA se reinician durante una actualizacion normal:**
+- Caddy (solo si cambiaron Caddyfile/maintenance.html/docker-compose.yml)
+- updater-controller (solo si cambiaron sus scripts)
+- yugabytedb (nunca)
+- db-backup (nunca)
+
