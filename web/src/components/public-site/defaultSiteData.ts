@@ -1505,6 +1505,53 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
           },
         ],
       },
+      {
+        type: 'faq',
+        title: 'Sobre la Gobernanza del Sistema',
+        items: [
+          {
+            question: '¿Cómo funciona exactamente la gobernanza que propone el software?',
+            answer:
+              'La gobernanza se basa en una Asamblea Digital con votos formales. El software no impone una ideología única; su rol es automatizar y hacer cumplir las normas locales (la "Ley de la Aldea") que cada comunidad decide establecer en su propio servidor descentralizado. Cada nodo es autónomo y define sus propias reglas de convivencia.',
+          },
+          {
+            question: '¿Cómo se toman las decisiones? ¿Por consenso, votación, delegación? ¿Qué ocurre cuando hay desacuerdos?',
+            answer:
+              'Las decisiones se toman por votación digital donde cada miembro tiene un voto que se firma con criptografía Ed25519 (un sistema de firmas digitales que hace que cada voto sea inalterable y verificable). Cada comunidad configura sus propios porcentajes de aprobación: mayoría simple (51%) para lo cotidiano, consenso alto (90%) para decisiones críticas como admitir nuevos miembros. Para evitar la parálisis, la Asamblea delega tareas administrativas en una Junta Directiva. Si una propuesta no alcanza el porcentaje requerido, el sistema bloquea su aplicación automáticamente. Ante desacuerdos insalvables, cualquier miembro puede retirarse y unirse a otro nodo de la red.',
+          },
+          {
+            question: '¿Qué sucede cuando alguien incumple las reglas?',
+            answer:
+              'Las normas se registran clasificadas por severidad (leves, graves, muy graves) con sus sanciones correspondientes. Ante infracciones graves, la Asamblea General puede votar digitalmente la suspensión temporal o expulsión del miembro, requiriendo 75% de aprobación para la expulsión. El sistema garantiza que las sanciones se apliquen de forma transparente y registrada.',
+          },
+          {
+            question: '¿Cómo evita que una persona o pequeño grupo concentre demasiado poder?',
+            answer:
+              'Tres mecanismos lo evitan: 1) Ningún administrador puede cambiar reglas unilateralmente; todo pasa por la asamblea y queda registrado públicamente. 2) Topes de saldo simétricos: el sistema bloquea automáticamente la cuenta de quien alcanza su techo positivo (igual al límite negativo), impidiendo el acaparamiento y obligando a gastar o reinvertir en la comunidad. 3) Multi-firma: las transacciones grandes requieren la firma conjunta de múltiples signatarios autorizados, neutralizando que un solo individuo controle los activos colectivos.',
+          },
+        ],
+      },
+      {
+        type: 'faq',
+        title: 'Sobre la Aplicación Práctica y el Estado del Proyecto',
+        items: [
+          {
+            question: 'Háblanos más acerca de este software... ¿Qué aplicación concreta tiene en el día a día... para que las comunidades lo quieran instalar?',
+            answer:
+              'Funciona como un sistema operativo de soberanía económica y de convivencia. En el día a día: intercambiar productos en la feria sin dinero convencional (mediante tarjetas NFC y un punto de venta de bajo costo); organizar y recompensar el trabajo comunitario (1 TQ por hora de trabajo base, con multiplicadores según intensidad); desplegar servicios locales con un clic (Matrix para mensajería cifrada que reemplaza WhatsApp, Nextcloud para archivos, Asterisk para llamadas gratuitas); llevar la asamblea en el bolsillo (votar propuestas desde el móvil); y para comunidades religiosas, el "Sabbath Lock" congela automáticamente todas las transacciones durante el sábado.',
+          },
+          {
+            question: '¿Qué problemas concretos soluciona?',
+            answer:
+              '1) Parálisis económica por escasez de dinero o inflación: el trueque TQ permite comerciar sin capital previo, anclado a 1 kWh de energía. 2) Burnout y parasitismo: los límites simétricos de saldo obligan a la circularidad. 3) Falta de internet en zonas rurales: funciona 100% off-grid con servidor local. 4) Estancamiento del trueque tradicional: el crédito mutuo diferido permite intercambios multilaterales. 5) Filtración de datos: todo se almacena local y encriptado. 6) Aislamiento entre ecoaldeas: la federación mediante conexiones seguras (mTLS, un sistema de encriptación mutua entre servidores) permite comerciar entre comunidades distantes.',
+          },
+          {
+            question: '¿Hay ecoaldeas que ya lo estén usando?',
+            answer:
+              'Al 30 de agosto de 2026, ninguna ecoaldea está usando el sistema en producción. El proyecto nació hace apenas un mes desde la Feria Conuquera Agroecológica de Caracas, donde los productores tenemos parcelas aisladas y nos reunimos los primeros sábados de cada mes. El sistema está en desarrollo activo y se buscan personas que quieran sumarse a co-crear: ideas, programación, todos los aportes son válidos. El software es de código abierto y 100% adaptable a cada comunidad. Si quieres verlo en acción, podemos organizar una videollamada para mostrar el panel de administración, la app de Android y las tarjetas NFC funcionando.',
+          },
+        ],
+      },
     ],
   },
   {

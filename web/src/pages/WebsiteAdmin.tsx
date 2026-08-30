@@ -2498,6 +2498,67 @@ function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (upd
           />
         </div>
       )}
+
+      {/* FAQ items */}
+      {block.type === 'faq' && (block as any).items && (
+        <div className="space-y-3 pt-2 border-t border-gray-100">
+          <div className="flex items-center justify-between">
+            <h4 className="font-bold text-xs text-gray-800">Preguntas y Respuestas ({(block as any).items.length})</h4>
+            <button
+              onClick={() => {
+                const newItems = [
+                  ...(block as any).items,
+                  { question: 'Nueva pregunta', answer: 'Respuesta a la pregunta' },
+                ]
+                updateField('items', newItems)
+              }}
+              className="btn-secondary text-[11px] py-1 px-2.5"
+            >
+              + Añadir Pregunta
+            </button>
+          </div>
+
+          <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+            {(block as any).items.map((it: any, i: number) => (
+              <div key={i} className="p-3 bg-gray-50 rounded-xl border border-gray-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-gray-700">Pregunta #{i + 1}</span>
+                  <button
+                    onClick={() => {
+                      const newItems = (block as any).items.filter((_: any, idx: number) => idx !== i)
+                      updateField('items', newItems)
+                    }}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+                <input
+                  className="input text-xs"
+                  placeholder="Pregunta"
+                  value={it.question || ''}
+                  onChange={(e) => {
+                    const newItems = [...(block as any).items]
+                    newItems[i].question = e.target.value
+                    updateField('items', newItems)
+                  }}
+                />
+                <textarea
+                  rows={3}
+                  className="input text-xs"
+                  placeholder="Respuesta"
+                  value={it.answer || ''}
+                  onChange={(e) => {
+                    const newItems = [...(block as any).items]
+                    newItems[i].answer = e.target.value
+                    updateField('items', newItems)
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
