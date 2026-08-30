@@ -29,6 +29,8 @@ import com.example.ui.util.FeedbackHelper
 import com.example.ui.viewmodel.PosScreen
 import com.example.ui.viewmodel.PosViewModel
 import com.example.ui.viewmodel.PosUiState
+import com.example.data.api.DEFAULT_DOCUMENT_TYPES
+import com.example.data.api.DocumentTypeItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,6 +44,14 @@ fun NfcChargeScreen(
 
     // Multi-signer sub-step for multisig: 1 (Doc) -> 2 (PIN) -> 3 (Card)
     var multisigSignerStep by remember { mutableIntStateOf(1) }
+
+    // Tipos de documento dinamicos desde el servidor (userLookupResult)
+    // Si el servidor envia document_types, usar esos; sino, usar DEFAULT_DOCUMENT_TYPES
+    val availableDocTypes = uiState.userLookupResult?.documentTypes?.let { types ->
+        types.map { code ->
+            DEFAULT_DOCUMENT_TYPES.find { it.code == code } ?: DocumentTypeItem(code, code)
+        }
+    } ?: DEFAULT_DOCUMENT_TYPES
 
     LaunchedEffect(uiState.multisigCollectedSigs) {
         if (uiState.isMultisigActive) {
@@ -418,7 +428,8 @@ fun NfcChargeScreen(
                                     onDocTypeChange = { viewModel.setIdDocInfo(it, uiState.idDocNumber) },
                                     onClear = { viewModel.setIdDocInfo(uiState.selectedDocType, "") },
                                     accentColor = PosGoldLight,
-                                    testTag = "multisig_signer_doc_input"
+                                    testTag = "multisig_signer_doc_input",
+                                    availableDocTypes = availableDocTypes
                                 )
 
                                 KioskDocumentKeypad(
@@ -793,7 +804,8 @@ fun NfcChargeScreen(
                             onDocTypeChange = { viewModel.setIdDocInfo(it, uiState.idDocNumber) },
                             onClear = { viewModel.setIdDocInfo(uiState.selectedDocType, "") },
                             accentColor = PosPrimaryLight,
-                            testTag = "id_doc_number_input"
+                            testTag = "id_doc_number_input",
+                            availableDocTypes = availableDocTypes
                         )
 
                         // Internal on-screen numeric/alphanumeric keypad

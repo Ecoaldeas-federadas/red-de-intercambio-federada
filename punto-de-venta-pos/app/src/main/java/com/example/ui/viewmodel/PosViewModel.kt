@@ -1210,6 +1210,13 @@ class PosViewModel(
                     // Classic (requiresDocument=true):  1=Monto, 2=Username, 3=Doc, 4=PIN, 5=Tap
                     // UID/DESFire (requiresDocument=false): 1=Monto, 2=Username, 3=PIN, 4=Tap
                     val pinStep = if (resp.requiresDocument) 4 else 3
+                    // Si el servidor envia required_doc_type, pre-seleccionarlo
+                    // Si no, usar el primer tipo de document_types, o mantener el default
+                    val preSelectedDocType = when {
+                        !resp.requiredDocType.isNullOrEmpty() -> resp.requiredDocType
+                        !resp.documentTypes.isNullOrEmpty() -> resp.documentTypes.first()
+                        else -> "cedula_v"
+                    }
                     _uiState.update {
                         it.copy(
                             isLoading = false,
@@ -1217,6 +1224,7 @@ class PosViewModel(
                             requiresDocument = resp.requiresDocument,
                             detectedCardType = resp.cardType ?: "uid_only",
                             isClassicFlow = resp.requiresDocument,
+                            selectedDocType = preSelectedDocType,
                             nfcStep = pinStep
                         )
                     }
@@ -1249,7 +1257,7 @@ class PosViewModel(
             userId = "demo-user-$username",
             cardType = if (isClassic) "classic" else "uid_only",
             requiresDocument = isClassic,
-            documentTypes = if (isClassic) listOf("cedula", "dni") else null,
+            documentTypes = if (isClassic) listOf("cedula_v", "cedula_e", "dni") else null,
             displayName = "Usuario Demo $username"
         )
         val pinStep = if (resp.requiresDocument) 4 else 3
@@ -1260,6 +1268,7 @@ class PosViewModel(
                 requiresDocument = resp.requiresDocument,
                 detectedCardType = resp.cardType ?: "uid_only",
                 isClassicFlow = resp.requiresDocument,
+                selectedDocType = "cedula_v",
                 nfcStep = pinStep
             )
         }

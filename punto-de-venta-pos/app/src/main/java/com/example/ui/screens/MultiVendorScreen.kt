@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.api.DEFAULT_DOCUMENT_TYPES
+import com.example.data.api.DocumentTypeItem
 import com.example.ui.components.*
 import com.example.ui.theme.*
 import com.example.ui.util.CurrencyHelper
@@ -40,6 +41,13 @@ fun MultiVendorScreen(
     val context = LocalContext.current
     var buyerDocExpanded by remember { mutableStateOf(false) }
     var multisigDocExpanded by remember { mutableStateOf(false) }
+
+    // Tipos de documento dinamicos desde el servidor (userLookupResult)
+    val availableDocTypes = uiState.userLookupResult?.documentTypes?.let { types ->
+        types.map { code ->
+            DEFAULT_DOCUMENT_TYPES.find { it.code == code } ?: DocumentTypeItem(code, code)
+        }
+    } ?: DEFAULT_DOCUMENT_TYPES
 
     // Multi-signer step for multisig flow: doc_input → pin_input → tap_card
     var multisigSignerStep by remember { mutableStateOf("doc_input") }
@@ -420,7 +428,8 @@ fun MultiVendorScreen(
                                     onClear = { viewModel.setIdDocInfo(uiState.selectedDocType, "") },
                                     label = "Documento del Firmante $nextSignerIdx",
                                     accentColor = PosGoldLight,
-                                    testTag = "mv_multisig_signer_doc_input"
+                                    testTag = "mv_multisig_signer_doc_input",
+                                    availableDocTypes = availableDocTypes
                                 )
 
                                 KioskDocumentKeypad(
@@ -815,7 +824,8 @@ fun MultiVendorScreen(
                         onClear = { viewModel.setBuyerDocInfo(uiState.buyerDocType, "") },
                         label = "Documento del Cliente • Monto: ${CurrencyHelper.formatCentavos(CurrencyHelper.parseInputToCentavos(uiState.amountInput))}",
                         accentColor = PosPrimaryLight,
-                        testTag = "buyer_doc_input"
+                        testTag = "buyer_doc_input",
+                        availableDocTypes = availableDocTypes
                     )
 
                     // TECLADO EN PANTALLA (NUMERICO Y ALFANUMERICO)

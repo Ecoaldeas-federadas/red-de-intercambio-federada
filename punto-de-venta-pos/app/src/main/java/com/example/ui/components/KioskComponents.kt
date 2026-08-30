@@ -412,11 +412,12 @@ fun KioskDocumentDisplay(
     modifier: Modifier = Modifier,
     label: String = "Documento de Identidad",
     accentColor: Color = PosPrimaryLight,
-    testTag: String = "id_doc_number_input"
+    testTag: String = "id_doc_number_input",
+    availableDocTypes: List<DocumentTypeItem> = DEFAULT_DOCUMENT_TYPES
 ) {
     val context = LocalContext.current
     var docTypeDropdownExpanded by remember { mutableStateOf(false) }
-    val currentDocTypeObj = DEFAULT_DOCUMENT_TYPES.find { it.code == docType }
+    val currentDocTypeObj = availableDocTypes.find { it.code == docType }
     val currentDocTypeName = currentDocTypeObj?.spanishName ?: docType
 
     // Two-line layout: Top line for Document Type selector & Clear action, Bottom line for multiline Document number
@@ -486,7 +487,7 @@ fun KioskDocumentDisplay(
                         onDismissRequest = { docTypeDropdownExpanded = false },
                         modifier = Modifier.background(PosSlate800)
                     ) {
-                        DEFAULT_DOCUMENT_TYPES.forEach { item ->
+                        availableDocTypes.forEach { item ->
                             DropdownMenuItem(
                                 text = {
                                     Text(

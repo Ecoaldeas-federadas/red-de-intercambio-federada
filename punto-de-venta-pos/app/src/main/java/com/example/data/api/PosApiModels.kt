@@ -416,6 +416,8 @@ data class DocumentTypeItem(
 )
 
 val DEFAULT_DOCUMENT_TYPES = listOf(
+    DocumentTypeItem("cedula_v", "Cédula de identidad (V - Nacional)"),
+    DocumentTypeItem("cedula_e", "Cédula de identidad (E - Extranjero)"),
     DocumentTypeItem("cedula", "Cédula de identidad"),
     DocumentTypeItem("dni", "Documento Nacional de Identidad (DNI)"),
     DocumentTypeItem("pasaporte", "Pasaporte"),
