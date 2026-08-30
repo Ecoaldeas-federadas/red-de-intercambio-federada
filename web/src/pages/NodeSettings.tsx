@@ -3129,10 +3129,11 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
   const [nodeLogs, setNodeLogs] = useState<string | null>(null)
   const [showNodeLogs, setShowNodeLogs] = useState(false)
 
-  // Llamar al updater-controller directamente (puerto 9110)
+  // Llamar al updater-controller via Caddy (mismo origen, sin CORS)
+  // Caddy rutea /updater/* -> updater-controller:9110
+  // Esto funciona incluso cuando node-app esta caido.
   const updaterApi = async (endpoint: string, method: string = 'POST') => {
-    const host = window.location.hostname
-    const resp = await fetch(`http://${host}:9110${endpoint}`, { method })
+    const resp = await fetch(`/updater${endpoint}`, { method })
     return resp.json()
   }
 
@@ -3142,10 +3143,9 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
       const res: any = await api.get('/node/status')
       setNodeRunning(res.running === true)
     } catch {
-      // Si el nodo no responde, intentar via updater-controller
+      // Si el nodo no responde, intentar via Caddy -> updater-controller
       try {
-        const host = window.location.hostname
-        const resp = await fetch(`http://${host}:9110/node-status`)
+        const resp = await fetch('/updater/node-status')
         const result = await resp.json()
         setNodeRunning(result.running === true)
       } catch {
@@ -3162,10 +3162,9 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
       const res: any = await api.get('/node/logs')
       setNodeLogs(res.logs || 'Sin logs disponibles')
     } catch {
-      // Si el nodo no responde, intentar via updater-controller
+      // Si el nodo no responde, intentar via Caddy -> updater-controller
       try {
-        const host = window.location.hostname
-        const resp = await fetch(`http://${host}:9110/node-status`)
+        const resp = await fetch('/updater/node-status')
         const result = await resp.json()
         setNodeLogs(`Nodo no responde (estado: ${result.status}). No se pueden obtener logs via API.`)
       } catch {
@@ -3228,7 +3227,7 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
     }).catch(() => {
       // Si el nodo no responde, intentar via updater-controller
       const host = window.location.hostname
-      fetch(`http://${host}:9110/status`).then(resp => resp.json()).then((res: any) => {
+      fetch(`/updater/status`).then(resp => resp.json()).then((res: any) => {
         if (res && res.status === 'running') {
           setUpdating(true)
           setUpdateStatus(res)
@@ -3290,7 +3289,7 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
         if (consecutiveFailures >= 2) {
           try {
             const host = window.location.hostname
-            const resp = await fetch(`http://${host}:9110/status`)
+            const resp = await fetch(`/updater/status`)
             const status = await resp.json()
             if (status && status.status) {
               setUpdateStatus(status)
@@ -3357,7 +3356,7 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
       // Si el nodo no responde, intentar via updater-controller directamente
       try {
         const host = window.location.hostname
-        const resp = await fetch(`http://${host}:9110/check?_t=${Date.now()}`)
+        const resp = await fetch(`/updater/check?_t=${Date.now()}`)
         const result = await resp.json()
         if (result) {
           setUpdateInfo({
@@ -3390,7 +3389,7 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
       // El puerto 9110 esta expuesto en el host
       try {
         const host = window.location.hostname
-        await fetch(`http://${host}:9110/cancel`, { method: 'POST' })
+        await fetch(`/updater/cancel`, { method: 'POST' })
         setMsg({ type: 'info', text: 'Cancelacion enviada directamente al updater-controller.' })
       } catch (err2) {
         setMsg({ type: 'error', text: 'No se pudo cancelar. El nodo y el updater-controller no responden.' })
@@ -3413,7 +3412,7 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
       } catch {
         // Si el nodo no responde, intentar directamente via updater-controller
         const host = window.location.hostname
-        await fetch(`http://${host}:9110/reset`, { method: 'POST' })
+        await fetch(`/updater/reset`, { method: 'POST' })
       }
       setUpdateStatus(null)
       setUpdateInfo(null)
@@ -3445,7 +3444,7 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
       // Si el nodo no responde, intentar directamente via updater-controller
       try {
         const host = window.location.hostname
-        const resp = await fetch(`http://${host}:9110/update`, { method: 'POST' })
+        const resp = await fetch(`/updater/update`, { method: 'POST' })
         const result = await resp.json()
         if (result.success) {
           setMsg({ type: 'info', text: 'Actualizacion iniciada via updater-controller. El nodo se reiniciara automaticamente.' })

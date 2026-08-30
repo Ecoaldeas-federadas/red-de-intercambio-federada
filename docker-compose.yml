@@ -1,13 +1,35 @@
 services:
+  # === Proxy Inverso Caddy ===
+  # Siempre corriendo, independiente del node-app.
+  # Ruta /updater/* -> updater-controller:9110 (siempre disponible)
+  # Todo lo demas -> node-app:8080 (API, frontend, servicios)
+  # Si node-app esta caido, /updater/* sigue funcionando.
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./docker/maintenance.html:/srv/maintenance.html:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - node-app
+      - updater-controller
+    restart: unless-stopped
+
   node-app:
     build:
       context: .
       dockerfile: docker/Dockerfile
       args:
         - BUILD_COMMIT=${BUILD_COMMIT:-unknown}
+    # El puerto 8080 ya no se expone en el host — Caddy lo proxya.
+    # El puerto 8443 se mantiene para federation mTLS (conexion directa).
     ports:
-      - "8080:8080"
       - "8443:8443"
+    expose:
+      - "8080"
     volumes:
       - ./secrets:/secrets:ro
       - ./config.yaml:/app/config.yaml:ro
@@ -301,3 +323,5 @@ volumes:
   uploads:
   demo_uploads:
   update_state:
+  caddy_data:
+  caddy_config:

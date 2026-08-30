@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nodo en mantenimiento</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f0fdf4;color:#064e3b;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem}
+.card{background:#fff;border-radius:1rem;padding:2rem;max-width:520px;width:100%;box-shadow:0 4px 6px rgba(0,0,0,.1);border:1px solid #d1fae5}
+h1{font-size:1.25rem;margin-bottom:.5rem;text-align:center;color:#991b1b}
+.subtitle{text-align:center;color:#6b7280;font-size:.8rem;margin-bottom:1.5rem}
+.status-box{padding:1rem;border-radius:.5rem;margin-bottom:1rem;text-align:center;font-weight:600;background:#fee2e2;color:#991b1b}
+.btn{display:block;width:100%;padding:.75rem 1rem;border:none;border-radius:.5rem;font-weight:700;cursor:pointer;margin-bottom:.5rem;transition:all .15s;font-size:.9rem;background:#2563eb;color:#fff;text-decoration:none;text-align:center}
+.btn:hover{background:#1d4ed8}
+.btn:active{transform:scale(.97)}
+.info{font-size:.8rem;color:#9ca3af;margin-top:1rem;text-align:center;line-height:1.4}
+code{background:#f3f4f6;padding:.1rem .3rem;border-radius:.25rem;font-family:monospace;font-size:.8rem}
+</style>
+</head>
+<body>
+<div class="card">
+<h1>Nodo no disponible</h1>
+<p class="subtitle">El servidor del nodo no esta respondiendo</p>
+<div class="status-box">El node-app esta caido o reiniciandose</div>
+<a class="btn" href="/updater/">Ir al panel de actualizacion</a>
+<p class="info">
+Desde el panel de actualizacion puedes:<br>
+- Verificar si hay actualizaciones disponibles<br>
+- Iniciar una actualizacion<br>
+- Reiniciar el nodo<br>
+- Ver los logs del nodo<br>
+<br>
+Si el nodo esta en bucle de reinicio por una migracion rota,<br>
+actualiza el codigo y el nodo se reiniciara con el fix.
+</p>
+</div>
+</body>
+</html>

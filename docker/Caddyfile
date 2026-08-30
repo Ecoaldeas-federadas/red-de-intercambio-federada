@@ -1,0 +1,50 @@
+# Caddyfile - Proxy inverso independiente
+# Siempre corriendo, incluso cuando node-app esta caido.
+# Ruta /updater/* -> updater-controller:9110 (siempre disponible)
+# Todo lo demas -> node-app:8080 (API, frontend, proxy de servicios)
+
+:8080 {
+	# Logging
+	log {
+		output stdout
+		format console
+	}
+
+	# === Updater Controller ===
+	# Siempre disponible, incluso cuando node-app esta caido.
+	# Permite actualizar el servidor desde el navegador cuando el nodo no responde.
+	handle /updater/* {
+		uri strip_prefix /updater
+		reverse_proxy updater-controller:9110 {
+			# Si el updater-controller tambien esta caido, devolver error claro
+			transport http {
+				dial_timeout 5s
+				response_header_timeout 30s
+			}
+		}
+	}
+
+	handle /updater {
+		rewrite * /updater/
+		reverse_proxy updater-controller:9110
+	}
+
+	# === Node App ===
+	# Todo lo demas (API, frontend, servicios instalados, demo) va al node-app.
+	# Si node-app esta caido, Caddy devuelve 502 pero /updater/* sigue funcionando.
+	handle {
+		reverse_proxy node-app:8080 {
+			transport http {
+				dial_timeout 5s
+				response_header_timeout 60s
+			}
+			# Mostrar pagina de mantenimiento si node-app no responde
+			@bad status 502 503
+			handle_response @bad {
+				root * /srv
+				rewrite * /maintenance.html
+				file_server
+			}
+		}
+	}
+}
