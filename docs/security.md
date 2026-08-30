@@ -301,3 +301,331 @@ del TLS del navegador.
 - Login por contrasena via `POST /api/auth/login/password`
 - Login por Passkey (WebAuthn) sigue disponible como alternativa
 - Ambos metodos retornan JWT con mismo formato
+
+## Almacenamiento de Contrasenas
+
+### Archivos
+- `internal/api/auth.go` — Hash y verificacion de contrasenas de login
+- `internal/api/system.go` — Hash de contrasena en solicitud de admision
+- `internal/payments/nfc_terminal.go` — Hash de PIN de tarjetas NFC
+- `internal/db/migrations/139_sanitize_custom_fields_passwords.sql` — Limpieza de datos
+
+### Como se guardan las contrasenas
+
+**NUNCA se almacenan en texto plano.** Todas las contrasenas se hashean con
+**bcrypt** (`golang.org/x/crypto/bcrypt`) antes de guardarse en la base de datos.
+
+| Ubicacion | Tabla | Columna | Algoritmo | Costo |
+|-----------|-------|---------|-----------|-------|
+| Login de usuario | `user_credentials` | `password_hash` | bcrypt | DefaultCost (10) |
+| Solicitud de admision | `admission_requests` | `proposed_password` | bcrypt | DefaultCost (10) |
+| PIN de tarjeta NFC | `nfc_cards` | `pin_hash` | bcrypt | DefaultCost (10) |
+
+### Por que bcrypt es seguro
+
+- **Unidireccional**: No se puede descifrar el hash para obtener la contrasena original.
+- **Sal integrada**: bcrypt genera una sal aleatoria unica para cada contrasena.
+- **Costo configurable**: El costo (10 por defecto) hace que cada hash tome ~100ms,
+  dificultando ataques de fuerza bruta.
+- **Verificacion**: El servidor compara con `bcrypt.CompareHashAndPassword()`,
+  que recalcula el hash y lo compara en tiempo constante.
+
+### Quien puede ver las contrasenas
+
+**Nadie.** Ni el administrador, ni el servidor, ni nadie puede ver la contrasena
+original de un usuario. El servidor solo puede *verificar* si una contrasena
+es correcta, pero no puede *recuperarla*.
+
+Si un usuario olvida su contrasena:
+1. No se puede recuperar — no hay forma de "ver" la contrasena.
+2. El administrador puede resetearla (generar una nueva) con el permiso adecuado.
+3. El usuario puede usar el flujo de **Recuperacion de Cuenta** (ver seccion
+   correspondiente arriba), que requiere multiples aprobaciones.
+
+### Defensa en profundidad: sanitizacion de custom_fields
+
+El formulario de admision dinamico permite campos personalizados. Antes, las
+contrasenas propuestas (`proposed_password`, `proposed_password_confirm`) se
+incluian en el JSON de `custom_fields`, donde el administrador podria verlas
+en texto plano. Se implementaron **4 capas de defensa**:
+
+| Capa | Archivo | Que hace |
+|------|---------|----------|
+| 1. Frontend (envio) | `web/src/components/public-site/DynamicAdmissionForm.tsx` | Excluye claves con `password`/`contrasena`/`clave` del objeto `custom_fields` antes de enviarlo al servidor |
+| 2. Backend (guardado) | `internal/api/system.go` `sanitizeCustomFields()` | Elimina claves sensibles del JSON antes de guardarlo en la BD |
+| 3. Frontend (visualizacion) | `web/src/pages/WebsiteAdmin.tsx` | Filtra claves con `password`/`contrasena`/`clave` al mostrar `custom_fields` |
+| 4. Migracion (limpieza) | `internal/db/migrations/139_sanitize_custom_fields_passwords.sql` | Limpia registros existentes en la BD que ya contenian contrasenas en texto plano |
+
+### Migracion 139: limpieza de datos existentes
+
+La migracion `139_sanitize_custom_fields_passwords.sql` elimina de los
+registros existentes en `admission_requests.custom_fields` cualquier clave
+que contenga `password`, `contrasena`, `contraseña` o `clave` (case-insensitive),
+usando `jsonb_object_agg` con filtro `ILIKE`.
+
+## Permisos y Autorizacion
+
+### Archivos
+- `internal/api/auth.go` — Middleware de permisos (`RequirePermission`, `RequireActiveMembership`)
+- `web/src/components/Layout.tsx` — Filtrado de menu por permisos y estado de membresia
+- `web/src/App.tsx` — `PendingAdmissionGuard` para proteccion de rutas
+- `web/src/hooks/usePermissions.ts` — Carga de permisos en el frontend
+
+### Sistema de permisos
+
+Los permisos se verifican en **dos niveles**:
+
+1. **Backend (autoridad real)**: `RequirePermission(perm)` consulta la BD:
+   - Permisos directos: `user_permissions` (con `expires_at` opcional)
+   - Permisos por rol: `department_members` → `role_permissions` → `permissions`
+   - Super admin: `is_super_admin = true AND super_admin_enabled = true` → bypass total
+   - Si no tiene el permiso → HTTP 403
+
+2. **Frontend (UX)**: `usePermissions()` carga `/api/users/me/permissions` y
+   `Layout.tsx` filtra las pestanas del menu segun `item.perm`.
+   - Esto es solo para UX — la seguridad real esta en el backend.
+   - Un usuario sin permiso no ve la pestana, pero si navega por URL,
+     el backend retorna 403.
+
+### Estados de membresia
+
+| Estado | Que puede hacer |
+|--------|----------------|
+| `active` | Acceso completo segun sus permisos |
+| `pending_admission` | Solo ver su solicitud, perfil, notificaciones y ajustes |
+| `unknown` (frontend) | Tratado como pendiente hasta que se confirme |
+
+### Usuarios preliminares (`pending_admission`)
+
+**Middleware backend** (`RequireActiveMembership` en `auth.go`):
+- Usuarios con `membership_status = 'pending_admission'` solo pueden acceder
+  a una whitelist de rutas:
+  - `/api/auth/me`, `/api/auth/me/contacts`, `/api/auth/me/documents`
+  - `/api/my/admission-status`, `/api/my/admission-defense`
+  - `/api/notifications/*`
+  - `/api/auth/passkey/*`
+- Cualquier otra ruta API → HTTP 403 con mensaje "Tu cuenta esta pendiente
+  de aprobacion."
+
+**Guard frontend** (`PendingAdmissionGuard` en `App.tsx`):
+- Redirige automaticamente a `/app/admission-status` si el usuario
+  no es `active` e intenta acceder a una ruta no permitida.
+- Rutas permitidas: `/app/admission-status`, `/app/profile`,
+  `/app/notifications`, `/app/notifications/settings`, `/app/display-settings`
+
+**Menu lateral** (`Layout.tsx`):
+- Si `membershipStatus !== 'active'`, solo muestra 3 items:
+  Mi Solicitud, Mi Perfil, Notificaciones.
+- Valor por defecto `'unknown'` (no `'active'`) para no mostrar
+  accidentalmente el menu completo si falla la carga.
+
+### Orden critico del middleware
+
+El middleware de stripping de basePath debe ejecutarse **ANTES** de
+`RequireActiveMembership`. Si no, la whitelist compara
+`/main/api/auth/me` contra `/api/auth/me` y nunca coincide, bloqueando
+a los usuarios preliminares en todas las rutas.
+
+```
+Peticion: /main/api/auth/me
+  → Strip basePath: /api/auth/me     (debe ejecutarse PRIMERO)
+  → RequireActiveMembership: whitelist coincide  (despues)
+  → RequireAuth: valida JWT
+  → Handler: responde
+```
+
+## Flujo de Admision Seguro
+
+### Archivos
+- `internal/api/system.go` — `submitAdmissionRequest`, `getMyAdmissionStatus`
+- `web/src/components/public-site/DynamicAdmissionForm.tsx` — Formulario publico
+- `web/src/pages/AdmissionStatus.tsx` — Estado para el solicitante
+- `web/src/pages/WebsiteAdmin.tsx` — Panel de admin para revisar solicitudes
+- `internal/db/migrations/135_admission_flow_complete.sql` — Esquema
+
+### Flujo completo
+
+1. **Solicitante** llena el formulario publico (`/p/unirse`)
+   - Datos: nombre, email, telefono, ubicacion, razon, habilidades
+   - Campos personalizados del formulario dinamico
+   - Usuario y contrasena propuestos
+   - Las contrasenas se envian por separado (`proposed_password`),
+     NO en `custom_fields`
+
+2. **Backend** (`submitAdmissionRequest`):
+   - Valida username unico
+   - Hashea contrasena con bcrypt
+   - Crea usuario preliminar con `membership_status = 'pending_admission'`
+   - Crea credenciales (`user_credentials.password_hash`)
+   - Crea `admission_requests` con `proposed_password` (hash bcrypt)
+   - Sanitiza `custom_fields` (elimina claves de password)
+   - **Notifica a los administradores** con permiso `admission.manage`
+
+3. **Solicitante** puede iniciar sesion inmediatamente:
+   - Login permite `pending_admission` (auth.go)
+   - Ve solo "Mi Solicitud", "Mi Perfil", "Notificaciones"
+   - Puede ver el estado: `pending_review` → `elevated_to_assembly` → `approved`/`rejected`
+
+4. **Administrador** revisa en `/app/website?tab=admission`:
+   - Ve las solicitudes recibidas
+   - **No ve las contrasenas** (filtradas en 4 capas)
+   - Puede "Elevar a Asamblea" o "Rechazar"
+
+5. **Asamblea** vota (si fue elevada):
+   - Aprobado → `membership_status` cambia a `active`, usuario tiene acceso completo
+   - Rechazado → usuario puede enviar defensa (30 dias)
+
+### Notificacion a administradores
+
+Cuando llega una solicitud nueva, el backend busca usuarios con permiso
+`admission.manage` y super_admins activos, y les envia una notificacion
+in-app con `NotifyMany`:
+
+```
+Tipo: admission_request
+Titulo: "Nueva solicitud de admision"
+Mensaje: "Nueva solicitud de {nombre} ({username}). Revisa y evalua..."
+Link: /app/website?tab=admission
+```
+
+## Demo vs Produccion
+
+### Archivos
+- `cmd/node/main.go` — Configuracion de modo demo
+- `internal/api/routes.go` — basePath, proxy de servicios
+- `internal/db/demo_seed.go` — Reset y seed de datos demo
+- `web/src/hooks/useAuth.ts` — Separacion de sesiones por basePath
+
+### Aislamiento de demo
+
+| Aspecto | Demo | Produccion |
+|---------|------|------------|
+| basePath | `/demo` | `/main` o `` |
+| JWT secret | `demo-jwt-secret` | Variable de entorno `JWT_SECRET` |
+| Expiracion JWT | 2 horas | 7 dias |
+| localStorage | `fmc_demo_*` | `fmc_main_*` o `fmc_*` |
+| Reset automatico | Cada 24 horas | Nunca |
+| CORS | `["*"]` | Configurado por `cors_origins` |
+| Operaciones mutantes | Bloqueadas (`BlockDemo`) | Permitidas |
+
+### Invariante de seguridad
+
+**Los nodos de produccion NUNCA deben simular.** El modo demo se detecta
+por `DEMO_MODE=true` en la configuracion. El middleware `BlockDemo`
+impide operaciones mutantes (POST/PUT/PATCH/DELETE) a usuarios con
+claim `is_demo = true`.
+
+### Reset de demo
+
+El reset automatico (`db.DemoReset`) limpia las tablas del dominio demo
+y re-seedea con datos de ejemplo. Esto asegura que el demo siempre
+tenga un estado limpio y predecible.
+
+## Headers HTTP y CORS
+
+### CORS
+
+- Configurado via `config.yaml: cors_origins`
+- Permite credenciales (`Access-Control-Allow-Credentials: true`)
+- Responde a preflight OPTIONS
+- **Demo**: `cors_origins: ["*"]` (permisivo para desarrollo)
+- **Produccion**: debe configurarse con los dominios especificos del nodo
+
+### Headers de seguridad (recomendacion)
+
+Actualmente no se envian headers de seguridad HTTP. Se recomienda anadir
+en el reverse proxy (Nginx/Caddy) o en un middleware dedicado:
+
+| Header | Funcion |
+|--------|---------|
+| `Strict-Transport-Security` | Forzar HTTPS |
+| `X-Frame-Options: DENY` | Prevenir clickjacking |
+| `X-Content-Type-Options: nosniff` | Prevenir MIME sniffing |
+| `Content-Security-Policy` | Prevenir XSS y inyeccion |
+| `Referrer-Policy` | Controlar referrer |
+
+## Rate Limiting
+
+### Implementado
+- **Emparejamiento POS**: 3 solicitudes / 5 min por fingerprint
+- **Emparejamiento federado**: 5 intentos fallidos expiran el codigo
+- **PIN NFC**: 3 intentos → bloqueo 15 minutos
+- **Login**: Intentos fallidos registrados en `audit_log`
+
+### Pendiente
+- Rate limiting general de API (`api.rate_limit` en config, no aplicado
+  actualmente en middleware global). Se recomienda implementar con
+  `golang.org/x/time/rate`.
+
+## Auditoria
+
+### Tabla `audit_log`
+
+Cada evento importante se registra con:
+- `actor_id`: Quien realizo la accion
+- `action`: Tipo de accion (ej: `admission_approve`, `login_failed`)
+- `target_id`: A quien afecta
+- `details`: JSONB con detalles del evento
+- `ip`, `user_agent`: Metadatos de la peticion
+- `created_at`: Timestamp
+
+### Eventos auditados
+
+- Aprobacion/rechazo de admision
+- Transferencias entre cuentas
+- Toggle de super admin
+- Emparejamiento de terminales
+- Intentos fallidos de login
+- Operaciones de recuperacion de cuenta
+- Elevacion a asamblea
+
+### Hash Chain de transacciones
+
+Las transacciones forman una cadena inmutable:
+- Cada transaccion tiene `prev_hash` y `current_hash`
+- `current_hash = SHA256(prev_hash + tx_data_serializada)`
+- Cualquier modificacion altera la cadena y es detectable en auditoria
+
+## Limitaciones Conocidas y Recomendaciones
+
+### Limitaciones actuales
+
+1. **JWT sin revocacion del lado servidor**: El token sigue siendo valido
+   hasta su expiracion (7 dias). El logout del frontend solo limpia
+   localStorage. Se recomienda implementar una lista de revocacion o
+   usar tokens de corta duracion + refresh tokens.
+
+2. **Rate limiting global no implementado**: El campo `api.rate_limit`
+   existe en config pero no se aplica en middleware. Solo hay rate
+   limit en endpoints especificos (pairing, PIN).
+
+3. **Headers HTTP de seguridad ausentes**: No se envian CSP, HSTS,
+   X-Frame-Options, etc. Se recomienda configurarlos en el reverse proxy.
+
+4. **SSL/TLS a BD deshabilitado por defecto**: `ssl_mode=disable` en
+   la configuracion por defecto. En produccion se debe usar
+   `ssl_mode=require` o `verify-full`.
+
+5. **Sin RLS en la BD**: Toda la autorizacion esta en la aplicacion.
+   Se recomienda habilitar Row-Level Security en tablas criticas como
+   capa adicional.
+
+6. **Backups sin cifrado**: Los archivos de backup son SQL plano.
+   Se recomienda cifrarlos o almacenarlos en ubicacion encriptada.
+
+7. **MIFARE Classic es inherentemente debil**: Crypto1 es vulnerable.
+   Los certificados dinamicos mitigan pero no eliminan el riesgo.
+   Para alta seguridad, usar DESFire EV3 (AES-128).
+
+### Recomendaciones de produccion
+
+1. **Cambiar `JWT_SECRET`** por un valor aleatorio de >=256 bits.
+2. **Habilitar SSL/TLS** en la conexion a la base de datos.
+3. **Configurar CORS** con los dominios especificos (no `*`).
+4. **Anadir headers de seguridad** en el reverse proxy.
+5. **Implementar rate limiting** global de API.
+6. **Cifrar backups** antes de almacenarlos.
+7. **Rotar claves** del nodo y de terminales periodicamente.
+8. **Monitorear `audit_log`** para detectar actividad sospechosa.
+9. **Usar DESFire EV3** en lugar de MIFARE Classic cuando sea posible.
+10. **Configurar expiracion de sesion** adecuada al contexto de la comunidad.
