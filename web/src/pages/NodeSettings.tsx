@@ -3212,27 +3212,35 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
   // Al cargar, verificar si ya hay una actualizacion en curso.
   // Esto permite restaurar la consola despues de una recarga de pagina.
   // Tambien detecta estado stale (status=running pero proceso murio).
+  // IMPORTANTE: Siempre consultamos el updater-controller directamente porque
+  // es la fuente de verdad. El nodo puede tener estado stale o no saber
+  // de una actualizacion iniciada desde otro navegador/usuario.
   useEffect(() => {
-    api.get('/node/update-status').then((res: any) => {
+    // Consultar el updater-controller SIEMPRE (no solo como fallback)
+    fetch(`/updater/status`).then(resp => resp.json()).then((res: any) => {
       if (res && res.status === 'running') {
         setUpdating(true)
         setUpdateStatus(res)
-        setMsg({ type: 'info', text: 'Actualizacion en curso (restaurada despues de recargar).' })
+        setMsg({ type: 'info', text: 'Actualizacion en curso (detectada via updater-controller).' })
         startPolling(true)
       } else if (res && res.status === 'error') {
-        // Estado de error previo - mostrar con boton de reset
         setUpdateStatus(res)
         setMsg({ type: 'error', text: res.message || 'La ultima actualizacion fallo.' })
+      } else if (res && res.status === 'cancelled') {
+        setUpdateStatus(res)
+        setMsg({ type: 'info', text: 'La ultima actualizacion fue cancelada. Presiona Reset para reintentar.' })
       }
     }).catch(() => {
-      // Si el nodo no responde, intentar via updater-controller
-      const host = window.location.hostname
-      fetch(`/updater/status`).then(resp => resp.json()).then((res: any) => {
+      // Si el updater-controller no responde via Caddy, intentar via nodo
+      api.get('/node/update-status').then((res: any) => {
         if (res && res.status === 'running') {
           setUpdating(true)
           setUpdateStatus(res)
-          setMsg({ type: 'info', text: 'Actualizacion en curso (detectada via updater-controller - nodo posiblemente reiniciando).' })
+          setMsg({ type: 'info', text: 'Actualizacion en curso (restaurada despues de recargar).' })
           startPolling(true)
+        } else if (res && res.status === 'error') {
+          setUpdateStatus(res)
+          setMsg({ type: 'error', text: res.message || 'La ultima actualizacion fallo.' })
         }
       }).catch(() => {})
     })
@@ -3242,15 +3250,61 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
     let consecutiveFailures = 0
     let localSawRunning = initialSawRunning
     const interval = setInterval(async () => {
+      // Siempre consultar el updater-controller PRIMERO (fuente de verdad)
+      // El updater-controller nunca se apaga durante la actualizacion.
+      // Esto permite que cualquier navegador vea el progreso incluso si
+      // la actualizacion fue iniciada por otra persona en otro navegador.
+      try {
+        const resp = await fetch(`/updater/status`)
+        const status = await resp.json()
+        if (status && status.status) {
+          setUpdateStatus(status)
+          consecutiveFailures = 0
+          setNodeRestarting(false)
+          setReconnectAttempts(0)
+          if (status.status === 'running') {
+            localSawRunning = true
+          }
+          if (status.status === 'completed' && localSawRunning) {
+            clearInterval(interval)
+            setPollInterval(null)
+            setUpdating(false)
+            setNodeRestarting(false)
+            setUpdateCompleted(true)
+            setUpdateInfo(null)
+            setMsg({ type: 'success', text: 'Nodo actualizado correctamente. Verificando nueva version...' })
+            setTimeout(() => checkUpdates(1), 2000)
+            setTimeout(() => checkUpdates(1), 5000)
+            setTimeout(() => checkUpdates(1), 8000)
+            return
+          } else if (status.status === 'error' && localSawRunning) {
+            clearInterval(interval)
+            setPollInterval(null)
+            setUpdating(false)
+            setNodeRestarting(false)
+            setMsg({ type: 'error', text: status.message || 'Error en la actualizacion' })
+            return
+          } else if (status.status === 'cancelled' && localSawRunning) {
+            clearInterval(interval)
+            setPollInterval(null)
+            setUpdating(false)
+            setNodeRestarting(false)
+            setMsg({ type: 'info', text: 'Actualizacion cancelada.' })
+            return
+          }
+          // Si status === 'running', seguir esperando
+          return
+        }
+      } catch {
+        // El updater-controller no responde via Caddy, intentar via nodo
+      }
+      // Fallback: intentar via nodo
       try {
         const res: any = await api.get('/node/update-status')
         setUpdateStatus(res)
         consecutiveFailures = 0
         setNodeRestarting(false)
         setReconnectAttempts(0)
-        // Solo considerar completed/error/cancelled si YA vimos running
-        // Esto evita que el frontend confunda el estado completed de una
-        // actualizacion ANTERIOR con el de la nueva actualizacion.
         if (res.status === 'running') {
           localSawRunning = true
         }
@@ -3261,8 +3315,6 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
           setUpdateCompleted(true)
           setUpdateInfo(null)
           setMsg({ type: 'success', text: 'Nodo actualizado correctamente. Verificando nueva version...' })
-          // Re-verificar actualizaciones varias veces despues de completar
-          // El servidor acaba de reiniciar y puede tardar en responder correctamente
           setTimeout(() => checkUpdates(1), 2000)
           setTimeout(() => checkUpdates(1), 5000)
           setTimeout(() => checkUpdates(1), 8000)
@@ -3283,48 +3335,6 @@ function NodeUpdateSection({ canManage }: { canManage: boolean }) {
         if (consecutiveFailures >= 2) {
           setNodeRestarting(true)
           setMsg({ type: 'info', text: `El nodo se esta reiniciando... obteniendo log del updater-controller (${consecutiveFailures})` })
-        }
-        // Despues de 2 fallos, intentar obtener estado Y LOG directamente del updater-controller
-        // El updater-controller NUNCA se apaga durante la actualizacion, asi que siempre tiene el log
-        if (consecutiveFailures >= 2) {
-          try {
-            const host = window.location.hostname
-            const resp = await fetch(`/updater/status`)
-            const status = await resp.json()
-            if (status && status.status) {
-              setUpdateStatus(status)
-              if (status.status === 'running') {
-                localSawRunning = true
-              }
-              if (status.status === 'completed' && localSawRunning) {
-                clearInterval(interval)
-                setPollInterval(null)
-                setUpdating(false)
-                setNodeRestarting(false)
-                setUpdateCompleted(true)
-                setUpdateInfo(null)
-                setMsg({ type: 'success', text: 'Nodo actualizado correctamente. Verificando nueva version...' })
-                // Re-verificar actualizaciones varias veces despues de completar
-                setTimeout(() => checkUpdates(1), 2000)
-                setTimeout(() => checkUpdates(1), 5000)
-                setTimeout(() => checkUpdates(1), 8000)
-              } else if (status.status === 'error' && localSawRunning) {
-                clearInterval(interval)
-                setPollInterval(null)
-                setUpdating(false)
-                setNodeRestarting(false)
-                setMsg({ type: 'error', text: status.message || 'Error en la actualizacion' })
-              } else if (status.status === 'cancelled' && localSawRunning) {
-                clearInterval(interval)
-                setPollInterval(null)
-                setUpdating(false)
-                setNodeRestarting(false)
-                setMsg({ type: 'info', text: 'Actualizacion cancelada.' })
-              }
-            }
-          } catch {
-            // updater-controller tambien inaccesible, continuar reintentando
-          }
         }
         // Despues de 60 fallos (120 seg), mostrar error mas grave
         if (consecutiveFailures >= 60) {
