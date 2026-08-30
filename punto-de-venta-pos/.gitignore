@@ -1,7 +1,1 @@
 /build
-/.gradle
-/local.properties
-/debug.keystore
-/src
-*.apk
-*.aab

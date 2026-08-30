@@ -244,7 +244,7 @@ class PosRepository(
     suspend fun login(username: String, password: String): Result<LoginResponse> = withContext(Dispatchers.IO) {
         try {
             val service = apiClient.getService()
-            val response = service.login(LoginRequest(username.trim().lowercase(), password))
+            val response = service.login(LoginRequest(username.trim(), password))
             if (response.isSuccessful && response.body()?.token != null) {
                 val body = response.body()!!
                 apiClient.authToken = body.token
@@ -1413,7 +1413,7 @@ class PosRepository(
 
             val payload = ClassicPreAuthDecryptedPayload(
                 terminalId = config.terminalId,
-                username = username.trim().lowercase(),
+                username = username,
                 pin = pin,
                 amount = amountCentavos
             )
@@ -1487,7 +1487,7 @@ class PosRepository(
 
             val payload = ClassicPreAuthWithDocumentDecryptedPayload(
                 terminalId = config.terminalId,
-                username = username.trim().lowercase(),
+                username = username,
                 docType = docType,
                 docNumber = docNumber,
                 pin = pin,
@@ -1557,7 +1557,7 @@ class PosRepository(
 
             val payload = UserLookupDecryptedPayload(
                 terminalId = config.terminalId,
-                username = username.trim().lowercase()
+                username = username
             )
 
             val adapter = apiClient.moshi.adapter(UserLookupDecryptedPayload::class.java)
