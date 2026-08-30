@@ -8,22 +8,60 @@
 - `internal/api/nfc_terminal.go` - Handlers API NFC terminales
 - `web/src/pages/Payments.tsx` - Frontend con tabs QR/NFC/Manual
 - `web/src/pages/NFCTerminals.tsx` - Frontend gestion terminales NFC
+- `pos/` - POS Web (React/Vite) — punto de venta web
+- `punto-de-venta-pos/` - POS Android (Kotlin/Jetpack Compose) — punto de venta Android
 - `firmware/` - Firmware ESP32 para terminales NFC
+
+## Puntos de Venta
+
+Hay **2 puntos de venta** (POS) en el sistema:
+
+| | POS Android | POS Web |
+|---|---|---|
+| Directorio | `punto-de-venta-pos/` | `pos/` |
+| Stack | Kotlin + Jetpack Compose | React + TypeScript + Vite |
+| Auth | Emparejamiento por codigo corto (Ed25519 persistente) | 3 niveles (admin → dueno → sesion temporal) |
+| NFC | Nativo (MIFARE Classic, DESFire, UID) | Web NFC API + lector Bluetooth |
+| QR | Si | Si |
+| Multisig | Si | Si |
+
+**Importante:** El panel web (`web/`) **no** es un POS. Es el panel de gestion del usuario. El POS Web (`pos/`) es exclusivamente para cobros. La pagina `/pay?token=...` que se abre al escanear un QR no es un POS tampoco — es solo la pagina de confirmacion del pago.
 
 ## Tipos de Pago
 
 ### 1. Pago QR
 
-#### Generacion
-- `POST /api/payments/qr/generate`
-- Parametros: display_name, amount, label
-- Retorna: codigo QR (string) con datos de pago embebidos
+#### Flujo de cargo QR (POS Android y POS Web)
 
-#### Parseo y Procesamiento
-- `POST /api/payments/qr/parse`
-- Recibe: codigo QR escaneado
-- Valida: formato, destinatario, monto
-- Crea transaccion: debit del pagador, credit del receptor, impuesto si aplica
+El POS genera una carga (charge) y muestra un código QR. El cliente escanea el QR, abre la web, se autentica y confirma el pago.
+
+**Endpoints:**
+- `POST /api/pos/charge` — Crear carga
+- `GET /api/pos/charge/{id}/status` — Consultar estado
+- `GET /api/pos/charge/{token}/info` — Info pública por token
+- `POST /api/pos/charge/{id}/cancel` — Cancelar carga
+
+**Orden del flujo:**
+1. POS crea la carga: `POST /api/pos/charge` con `{amount, description}`
+2. Respuesta: `{charge_id, charge_token, amount, status: "pending", expires_at}`
+3. POS genera URL QR: `{serverUrl}/pay?token={charge_token}`
+4. **Cliente escanea QR** → abre URL en navegador → ve preview pública (monto, comerciante, concepto)
+5. Cliente inicia sesión → ve página de confirmación con:
+   - Identidad del pagador
+   - Receptor
+   - Balance actual y proyectado
+   - Límites comunitarios (`credit_limit`, `debit_limit`)
+   - Cuentas involucradas (debit y credit)
+6. Cliente confirma → backend procesa pago (debit pagador, credit receptor, impuesto si aplica)
+7. POS hace polling cada 2-3 segundos: `GET /api/pos/charge/{id}/status`
+8. Cuando `status = "paid"` → POS muestra comprobante
+9. Expiración: 3 minutos. Si no se paga, `status = "expired"`
+
+**Importante:** En el pago QR, el pago lo emite el **comprador** (quien escanea el QR desde su app), no el vendedor. El POS solo genera el cargo y espera. La página web `/pay?token=...` es solo para confirmar el pago, no es un POS.
+
+#### Generación y parseo directo (legacy)
+- `POST /api/payments/qr/generate` — Genera código QR con datos embebidos
+- `POST /api/payments/qr/parse` — Parsea QR escaneado, valida, crea transacción
 
 ### 2. Pago NFC (Tarjetas)
 

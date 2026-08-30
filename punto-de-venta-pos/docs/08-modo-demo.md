@@ -617,87 +617,107 @@ fun simulateQrRejection() {
 2. Reproduce sonido de error (`playError`).
 3. Actualiza estado: `qrStatus = "expired"`, muestra mensaje de rechazo.
 
-### 6.4. simulateClassicTapDemo() — Simulación de tap Classic
+### 6.4. simulateClassicCardWrite() — Simulación de escritura Classic
 
 **Archivo:** `PosViewModel.kt`
 
+En modo demo, cuando el usuario toca "Simular Tarjeta" y el `card_type` del pre-auth es `classic`, el ViewModel llama a `simulateClassicCardWrite()`:
+
 ```kotlin
-fun simulateClassicTapDemo() {
+private fun simulateClassicCardWrite() {
     val state = _uiState.value
     val preAuth = state.classicPreAuth ?: return
-    if (state.classicStep != "tap_card") return
-
-    classicTimeoutJob?.cancel()
 
     viewModelScope.launch {
         _uiState.update {
-            it.copy(isWritingCard = true, classicStep = "writing", writeProgress = "Leyendo tarjeta...")
+            it.copy(isWritingCard = true, classicStep = "writing", writeProgress = "Leyendo sector...")
         }
-        // Simular lectura de sector
-        kotlinx.coroutines.delay(500)
+        delay(500)
         _uiState.update { it.copy(writeProgress = "Verificando certificado...") }
-        kotlinx.coroutines.delay(500)
+        delay(500)
         _uiState.update { it.copy(writeProgress = "Escribiendo nuevo certificado...") }
-        kotlinx.coroutines.delay(500)
+        delay(500)
         _uiState.update { it.copy(writeProgress = "Confirmando transacción...") }
 
-        val confirmResult = repository.confirmClassicTransaction(
+        val result = repository.confirmClassicTransaction(
             cardUid = preAuth.cardUid!!,
             readOk = true,
             writeOk = true,
-            writtenBlocks = 16
+            writtenBlocks = 3
         )
-        // ... manejo de resultado (approved/error)
+        // Si el servidor no responde (demo offline), simular exito
+        result.onFailure {
+            _uiState.update {
+                it.copy(
+                    isWritingCard = false,
+                    classicStep = "done",
+                    nfcPaymentResult = PaymentResultDecrypted(
+                        status = "approved",
+                        transactionId = "DEMO-${UUID.randomUUID().toString().take(8)}",
+                        message = "Pago demo aprobado"
+                    )
+                )
+            }
+        }
     }
 }
 ```
 
 **Acciones:**
-1. Cancela el timeout del tap.
-2. Simula progreso visual de lectura/escritura de sectores (4 pasos con delay de 500ms).
-3. Llama a `confirmClassicTransaction` (que en modo demo retorna aprobado).
-4. Muestra resultado al cliente.
+1. Simula progreso visual de lectura/escritura (4 pasos con delay de 500ms).
+2. Llama a `confirmClassicTransaction` (que en demo offline falla y se simula éxito).
+3. Muestra resultado al cliente.
 
-### 6.5. onCardTappedForVerification() — Simulación de tap UID/DESFire
+### 6.5. onCardTapped() — Simulación de tap UID/DESFire
 
 **Archivo:** `PosViewModel.kt`
 
-Para tarjetas UID-only/DESFire en el flujo unificado, el modo demo usa el botón "Simular Tap UID/DESFire" que llama a `onCardTappedForVerification` con el `expectedCardUid` del pre-auth. Esta función:
+Para tarjetas UID-only/DESFire en el flujo unificado, el modo demo usa el botón "Simular Tarjeta" que llama a `onCardTapped()` con el `card_uid` del pre-auth simulado. Esta función:
 
-1. Verifica que el UID coincida con el esperado (siempre coincide en demo).
-2. Llama a `processNfcPayment` con card_uid + PIN + amount.
-3. `processNfcPayment` en modo demo retorna aprobado (o pending_multisig según el card_uid).
+1. Verifica que el UID coincida con el del pre-auth (siempre coincide en demo).
+2. Si `card_type == "uid_only"` o `"desfire"`: llama a `processNfcAfterPreAuth()`.
+3. `processNfcAfterPreAuth` llama a `processNfcPayment` con card_uid + PIN + amount.
+4. `processNfcPayment` en modo demo retorna aprobado (o pending_multisig según el card_uid).
 
-### 6.6. Simulación de pre-auth unificada (PosRepository)
+### 6.6. Simulación de pre-auth unificada (PosViewModel)
 
-**Archivo:** `PosRepository.kt` — `classicPreAuth()`
+**Archivo:** `PosViewModel.kt` — `simulatePreAuth()`
 
-En modo demo, `classicPreAuth` retorna una respuesta simulada sin llamar al servidor:
+En modo demo, `submitUnifiedPreAuth()` detecta `isDemoNode` y llama a `simulatePreAuth()` en vez de contactar al servidor:
 
 ```kotlin
-if (apiClient.isDemoNode) {
-    val isMultisig3 = docNumber.contains("3SIG") || docNumber.contains("3F")
-    val isMultisig2 = docNumber.contains("MULTISIG") || docNumber.contains("2SIG") || docNumber.contains("FIRM")
-    if (isMultisig3 || isMultisig2) {
-        // Simular tarjeta DESFire con multifirma
-        return@withContext Result.success(ClassicPreAuthResponse(
+private fun simulatePreAuth(centavos: Long) {
+    val state = _uiState.value
+    val docNum = state.idDocNumber
+
+    val isMultisig = docNum.contains("MULTISIG", ignoreCase = true) ||
+                     docNum.contains("2SIG", ignoreCase = true) ||
+                     docNum.contains("3SIG", ignoreCase = true) ||
+                     docNum.contains("FIRM", ignoreCase = true)
+
+    val cardType = if (isMultisig) "desfire" else "classic"
+    val cardUid = if (isMultisig) "DEMO-DESFire-${docNum.take(6)}" else "DEMO-CLASSIC-${docNum.take(6)}"
+
+    val fakePreAuth = if (cardType == "classic") {
+        ClassicPreAuthResponse(
             preApproved = true,
-            cardType = "desfire",
-            cardUid = if (isMultisig3) "CARD-MULTISIG-3F-FIRM1" else "CARD-MULTISIG-2F-FIRM1"
-        ))
+            cardUid = cardUid,
+            cardType = cardType,
+            readSector = 5,
+            readKeyA = "aabbccddeeff",
+            expectedCertificate = "11223344556677889900aabbccddeeff",
+            writeSector = 10,
+            writeKeyB = "112233445566",
+            newCertificate = "ffeeddccbbaa99887766554433221100"
+        )
+    } else {
+        ClassicPreAuthResponse(
+            preApproved = true,
+            cardUid = cardUid,
+            cardType = cardType
+        )
     }
-    // Simular tarjeta Classic con certificados dinamicos
-    return@withContext Result.success(ClassicPreAuthResponse(
-        preApproved = true,
-        cardType = "classic",
-        cardUid = "DEMO-CLASSIC-${docNumber.take(6)}",
-        readSector = 5,
-        readKeyA = "aabbccddeeff",
-        expectedCertificate = "11223344556677889900aabbccddeeff",
-        writeSector = 10,
-        writeKeyB = "112233445566",
-        newCertificate = "ffeeddccbbaa99887766554433221100"
-    ))
+    // ... actualizar estado
 }
 ```
 
@@ -709,24 +729,30 @@ if (apiClient.isDemoNode) {
 | `3SIG`, `3F` | DESFire con multifirma (3 firmas) |
 | (cualquier otro) | Classic con certificados dinámicos |
 
-### 6.7. Simulación de confirm Classic (PosRepository)
+### 6.7. Simulación de confirm Classic (PosViewModel)
 
-**Archivo:** `PosRepository.kt` — `confirmClassicTransaction()`
+**Archivo:** `PosViewModel.kt` — `simulateClassicCardWrite()`
+
+En modo demo offline, `confirmClassicTransaction` del repositorio falla (no hay servidor), y `simulateClassicCardWrite` captura el error y simula `approved`:
 
 ```kotlin
-if (apiClient.isDemoNode) {
-    val simulatedResult = PaymentResultDecrypted(
-        status = "approved",
-        transactionId = "TX-CLASSIC-DEMO-${UUID.randomUUID().toString().take(6).uppercase()}",
-        message = "Transacción Classic simulada aprobada (Modo Demo)",
-        userBalance = 180000L
-    )
-    transactionDao.insertTransaction(...)
-    return@withContext Result.success(simulatedResult)
+result.onFailure {
+    FeedbackHelper.playSuccess(getApplication())
+    _uiState.update {
+        it.copy(
+            isWritingCard = false,
+            classicStep = "done",
+            nfcPaymentResult = PaymentResultDecrypted(
+                status = "approved",
+                transactionId = "DEMO-${UUID.randomUUID().toString().take(8)}",
+                message = "Pago demo aprobado"
+            )
+        )
+    }
 }
 ```
 
-Siempre simula `approved` para el flujo Classic.
+Siempre simula `approved` para el flujo Classic en modo demo.
 
 ---
 
@@ -750,10 +776,10 @@ El modo demo **no requiere un servidor en ejecución**. Todas las simulaciones e
 | Aprobación QR | `simulateQrApproval()` | Aprobado (via ViewModel) |
 | Firma QR multi-sig | `simulateQrMultisigSignature()` | Parcial o completo (via ViewModel) |
 | Rechazo QR | `simulateQrRejection()` | Expired (via ViewModel) |
-| Pre-auth unificado | `classicPreAuth()` | Classic con sectores o DESFire con multifirma según docNumber |
-| Confirm Classic | `confirmClassicTransaction()` | Aprobado |
-| Tap Classic demo | `simulateClassicTapDemo()` | Progreso visual + confirm (via ViewModel) |
-| Tap UID/DESFire demo | `onCardTappedForVerification()` | Verifica UID + processNfcPayment (via ViewModel) |
+| Pre-auth unificado | `submitUnifiedPreAuth()` → `simulatePreAuth()` | Classic con sectores o DESFire con multifirma según docNumber (via ViewModel) |
+| Confirm Classic | `simulateClassicCardWrite()` | Progreso visual + confirm simulado (via ViewModel) |
+| Tap Classic demo | `simulateClassicCardWrite()` | Progreso visual + confirm (via ViewModel) |
+| Tap UID/DESFire demo | `onCardTapped()` → `processNfcAfterPreAuth()` | Verifica UID + processNfcPayment (via ViewModel) |
 
 ### 7.3. Flujos que NO funcionan offline
 
@@ -769,13 +795,35 @@ Sin embargo, el terminal puede usar los botones de simulación de la UI sin esta
 
 ### 8.1. Ausencia total de simulación en modo real
 
-En modo real (`isDemoNode = false`), el código **nunca** entra en los bloques `if (apiClient.isDemoNode)`. Esto significa:
+En modo real (`isDemoNode = false`), el código **nunca** entra en los bloques `if (apiClient.isDemoNode)` ni `if (isSimulatedOrDemo(...))`. Esto significa:
 
 - **Errores del servidor** → se propagan como `Result.failure(Exception(...))` al usuario.
 - **Errores de red** → se propagan como `Result.failure(Exception("Error de conexión..."))`.
 - **No se generan IDs falsos** — no hay `DEMO-CHG-*` ni `DEMO-TOKEN-*`.
 - **No se insertan transacciones simuladas** en Room.
 - **No se simulan aprobaciones** — el estado del pago depende exclusivamente de la respuesta del servidor.
+
+### 8.1.1. isSimulatedOrDemo() — detección de tarjetas simuladas
+
+**Archivo:** `PosRepository.kt`
+
+Además de `isDemoNode`, el repositorio usa `isSimulatedOrDemo(cardUid, pendingId)` para detectar tarjetas con UIDs que comienzan con `CARD-`, `BUYER_`, `SELLER_`, `DEMO_`, o contienen `MULTISIG`, `3F`, `2F`, `FIRM`, `SIM`, etc. Esto permite que即使在 modo real, si se usa una tarjeta de prueba con UID simulado, el repositorio simule la respuesta en vez de fallar.
+
+```kotlin
+private fun isSimulatedOrDemo(cardUid: String? = null, pendingId: String? = null): Boolean {
+    if (apiClient.isDemoNode) return true
+    val uCard = cardUid?.uppercase().orEmpty()
+    val uPid = pendingId?.uppercase().orEmpty()
+    return uCard.startsWith("CARD-") || uCard.startsWith("BUYER_") || uCard.startsWith("SELLER_") ||
+            uCard.startsWith("DEMO_") || uCard.contains("MULTISIG") || uCard.contains("3F") ||
+            uCard.contains("2F") || uCard.contains("3SIG") || uCard.contains("2SIG") ||
+            uCard.contains("FIRM") || uCard.contains("SIM") ||
+            uPid.contains("MS3") || uPid.contains("MS2") || uPid.contains("PENDING-") ||
+            uPid.contains("TX-MS") || uPid.contains("MV-MS")
+}
+```
+
+Esto reemplaza las verificaciones `if (apiClient.isDemoNode)` en `processNfcPayment`, `processCommunityPayment`, `signMultisigNfc`, y `getMultisigStatus` del repositorio.
 
 ### 8.2. Ejemplo: processNfcPayment() en modo real
 

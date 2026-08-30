@@ -432,6 +432,35 @@ Ver `docs/tarjeta-classic-certificados.md` para detalles del flujo Classic.
 | GET | `/api/public/settings` | Configuracion publica del nodo |
 | GET | `/api/public/pages` | Paginas del sitio publico |
 
+### POS Web — Sesiones (3 niveles de auth)
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| POST | `/api/pos-web/request-session` | Solicitar sesion (navegador → dueno) |
+| GET | `/api/pos-web/session-status` | Consultar estado de la solicitud |
+| POST | `/api/pos-web/approve-session` | Aprobar sesion (dueno, elegir duracion 1h/5h/24h) |
+| POST | `/api/pos-web/reject-session` | Rechazar sesion (dueno) |
+| POST | `/api/pos-web/revoke-session` | Anular sesion activa (dueno) |
+| GET | `/api/pos-web/sessions` | Listar sesiones del terminal (dueno) |
+| POST | `/api/pos-web/cleanup-expired` | Limpiar sesiones expiradas (auto) |
+
+### POS — Cargos QR
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| POST | `/api/pos/charge` | Crear cargo QR (monto, descripcion) |
+| GET | `/api/pos/charge/{id}/status` | Consultar estado del cargo (polling) |
+| GET | `/api/pos/charge/{token}/info` | Info publica del cargo por token (sin auth) |
+| POST | `/api/pos/charge/{id}/cancel` | Cancelar cargo |
+
+### NFC Terminal — Flujo unificado (todos los tipos de tarjeta)
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| POST | `/api/nfc/terminal/classic/pre-auth` | Pre-autenticacion unificada (doc + PIN → card_type) |
+| POST | `/api/nfc/terminal/classic/confirm` | Confirmar lectura/escritura Classic (cert dinamicos) |
+| POST | `/api/nfc/cards/provision-classic` | Provisionar tarjeta MIFARE Classic (permiso: `nfc.issue_card`) |
+
 ## Formato de Respuesta
 
 ### Exito

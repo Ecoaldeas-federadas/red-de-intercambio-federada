@@ -50,17 +50,16 @@ El flujo NFC unificado pide **documento + PIN primero** para **todos** los tipos
 
 #### Steps de la UI (`NfcChargeScreen.kt`)
 
-1. **`amount_input`** — Comerciante ingresa monto
-2. **`confirm`** — Comerciante confirma monto
-3. **`credentials`** — Cliente ingresa documento + PIN (nuevo step, siempre se muestra)
-4. **`tap_card`** — POS muestra "ACERQUE SU TARJETA" (después del pre-auth)
-5. **`writing`** (solo Classic) — POS lee/escribe sectores
-6. **`done`** — POS muestra resultado
+1. **`amount_input`** — Comerciante ingresa monto, botón "Cobrar"
+2. **`credentials`** — Cliente ingresa documento + PIN (siempre obligatorio, sin tarjeta)
+3. **`tap_card`** — POS muestra "ACERQUE SU TARJETA" (después del pre-auth del servidor)
+4. **`writing`** (solo Classic) — POS lee/escribe sectores con animación de progreso
+5. **`done`** — POS muestra resultado (aprobado/rechazado)
 
 #### Flujo detallado
 
-1. **Comerciante ingresa monto** → confirma
-2. **Cliente ingresa documento + PIN** (sin tarjeta) — para todos los tipos
+1. **Comerciante ingresa monto** → botón "Cobrar"
+2. **Cliente ingresa documento + PIN** (sin tarjeta) — para todos los tipos, siempre obligatorio
 3. POS envía `POST /api/nfc/terminal/classic/pre-auth` (cifrado)
 4. Servidor valida: usuario (por doc), PIN, saldo → bloquea monto, identifica tipo de tarjeta
 5. Servidor responde con `card_type`:

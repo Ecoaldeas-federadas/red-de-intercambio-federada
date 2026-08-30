@@ -571,12 +571,20 @@ Pantalla principal post-login. Muestra:
 
 ### 8.5 NfcChargeScreen
 
-- Input de monto.
-- Espera tarjeta NFC (animación de onda).
-- Al detectar tarjeta: input de PIN (+ documento si requiere).
-- Envía pago encriptado.
-- Resultado: approved / rejected / pending_multisig.
-- Si multisig: inicia polling de estado.
+Flujo unificado (documento + PIN antes de tarjeta, para todos los tipos de tarjeta):
+
+1. **`amount_input`** — Comerciante ingresa monto, botón "Cobrar"
+2. **`credentials`** — Cliente ingresa documento de identidad (siempre obligatorio) + PIN, botón "Autenticar"
+3. POS envía pre-auth al servidor (`submitUnifiedPreAuth`)
+4. Servidor responde con `card_type` (`classic`, `uid_only`, o `desfire`)
+5. **`tap_card`** — POS muestra "ACERQUE SU TARJETA" según el tipo retornado
+6. Cliente acerca tarjeta → POS verifica UID contra pre-auth
+7. Si es Classic: lee/escribe sectores (`writing`), confirma al servidor
+8. Si es UID/DESFire: llama a `processNfcPayment` con card_uid + PIN + amount
+9. **`done`** — Resultado: approved / rejected / pending_multisig
+10. Si multisig: inicia polling de estado, pide PIN del siguiente firmante
+
+**Modo demo:** `simulatePreAuth()` genera una respuesta falsa según el documento ingresado. Un solo botón "Simular Tarjeta" usa el `card_uid` del pre-auth simulado.
 
 ### 8.6 MultiVendorScreen
 

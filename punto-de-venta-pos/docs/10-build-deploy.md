@@ -62,7 +62,9 @@ punto-de-venta-pos/
 
 ## 3. Configuración del build
 
-### app/build.gradle.kts — puntos clave
+### build.gradle.kts (raíz) — puntos clave
+
+La configuración de Android está en el `build.gradle.kts` raíz del proyecto (no en `app/build.gradle.kts`):
 
 ```kotlin
 plugins {
@@ -84,6 +86,31 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
+    }
+
+    signingConfigs {
+        create("release") {
+            val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
+            storeFile = file(keystorePath)
+            storePassword = System.getenv("STORE_PASSWORD")
+            keyAlias = "upload"
+            keyPassword = System.getenv("KEY_PASSWORD")
+        }
+        create("debugConfig") {
+            storeFile = file("${rootDir}/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("release")
+        }
+        debug { signingConfig = signingConfigs.getByName("debugConfig") }
     }
 
     compileOptions {

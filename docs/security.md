@@ -215,6 +215,53 @@ Esto previene ataques de intermediario y confirmaciones por error.
 - El nodo origen responde con: userID, username, displayName, balance, isActive
 - La transaccion se procesa via `CrossNodeTransfer` entre los nodos federados
 
+## POS Web — Autenticacion de 3 Niveles
+
+El POS Web (`pos/`) usa un modelo de autenticacion diferente al POS Android y los terminales ESP32. No usa emparejamiento por codigo corto ni registro mutual con clave publica del navegador. En su lugar, usa 3 niveles:
+
+### Nivel 1: Registro del terminal (admin)
+- El admin registra un terminal de tipo `web` desde el panel web (`web/`)
+- El admin asigna el terminal a un usuario (el "dueno" del terminal)
+- No se guardan datos del navegador en este paso
+- Endpoint: `POST /api/nfc/terminal/register` (permiso: `nfc.register_terminal`)
+
+### Nivel 2: Solicitud de sesion (navegador → dueno)
+- El navegador del POS Web ingresa el `terminal_id`
+- El POS Web genera un keypair Ed25519 efimero y un fingerprint del dispositivo
+- Envía: `POST /api/pos-web/request-session` con `{terminal_id, public_key, fingerprint}`
+- El backend genera un codigo de 4 digitos y lo muestra al dueno del terminal en su panel
+- Migracion 130: tabla `pos_web_session_requests` + `web_session_expires_at`
+
+### Nivel 3: Aprobacion del dueno (dueno → navegador)
+- El dueno del terminal ve la solicitud en su panel (`MyTerminals.tsx`)
+- El dueno aprueba o rechaza, y elige la duracion: 1h, 5h, o 24h
+- Si aprueba: el backend marca la sesion como `approved` con `expires_at`
+- El POS Web hace polling hasta ver `approved`
+- Una vez aprobado, el POS Web usa la sesion para autenticarse
+
+### Expiracion de sesion
+- La sesion expira automaticamente segun la duracion elegida
+- El backend verifica `web_session_expires_at` en cada llamada (`terminalAuth`, `heartbeat`, `passwordLogin`)
+- Si expira: el POS Web debe solicitar una nueva sesion (nivel 2 de nuevo)
+- El dueno puede anular la sesion en cualquier momento desde su panel
+
+### Endpoints de sesion web
+- `POST /api/pos-web/request-session` — Solicitar sesion (nivel 2)
+- `GET /api/pos-web/session-status` — Consultar estado de la solicitud
+- `POST /api/pos-web/approve-session` — Aprobar sesion (dueno, nivel 3)
+- `POST /api/pos-web/reject-session` — Rechazar sesion (dueno)
+- `POST /api/pos-web/revoke-session` — Anular sesion (dueno)
+- `GET /api/pos-web/sessions` — Listar sesiones del terminal (dueno)
+- `POST /api/pos-web/cleanup-expired` — Limpiar sesiones expiradas (auto)
+
+### Diferencia con POS Android y ESP32
+| | POS Web | POS Android | ESP32 |
+|---|---|---|---|
+| Auth | 3 niveles (admin → dueno → sesion) | Emparejamiento por codigo corto | Registro mutual (clave publica) |
+| Claves | Ed25519 efimero por sesion | Ed25519 persistente (Keystore) | Ed25519 persistente (NVS) |
+| Expiracion | Si (1h/5h/24h) | No (persistente) | No (persistente) |
+| Aprobacion | Dueno del terminal aprueba cada sesion | Admin aprueba una vez | Admin aprueba una vez |
+
 ## Pagos por Codigo QR
 
 ### Formato del QR (protocolo fmc/1.0)

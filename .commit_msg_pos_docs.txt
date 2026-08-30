@@ -1,0 +1,64 @@
+docs(pos): actualizar documentacion de flujo NFC unificado, 2 POS y 3 niveles de auth
+
+Actualiza toda la documentacion del POS para reflejar el flujo NFC unificado
+(documento + PIN antes de tarjeta) y aclarar los 2 puntos de venta:
+
+1. POS Android (punto-de-venta-pos/) — Kotlin/Jetpack Compose
+2. POS Web (pos/) — React/TypeScript/Vite
+
+El panel web (web/) NO es un POS. La pagina /pay?token=... NO es un POS.
+
+Cambios:
+
+punto-de-venta-pos/docs/03-flujos-pago.md:
+- Step "confirm" eliminado, reemplazado por "credentials" (doc+PIN)
+- Flujo detallado actualizado
+
+punto-de-venta-pos/docs/02-pos-android-arquitectura.md:
+- Seccion 8.5 NfcChargeScreen reescrita con flujo unificado
+- Modo demo documentado
+
+punto-de-venta-pos/docs/08-modo-demo.md:
+- simulateClassicTapDemo → simulateClassicCardWrite
+- onCardTappedForVerification → onCardTapped
+- simulatePreAuth documentado (ViewModel, no Repository)
+- isSimulatedOrDemo() documentado
+- Tabla 7.2 actualizada
+
+punto-de-venta-pos/docs/10-build-deploy.md:
+- build.gradle.kts raiz documentado (signingConfigs, buildTypes)
+
+punto-de-venta-pos/docs/01-arquitectura-plataforma.md:
+- Seccion 3.2 POS Web aclarada (diferente del panel web)
+
+pos/README.md (nuevo):
+- Documentacion completa del POS Web
+- Flujos QR y NFC
+- Limitacion Web NFC
+- Modo demo
+- Estructura
+
+docs/security.md:
+- Seccion "POS Web — Autenticacion de 3 Niveles" anadida
+- Nivel 1: registro terminal (admin)
+- Nivel 2: solicitud sesion (navegador → dueno)
+- Nivel 3: aprobacion dueno (1h/5h/24h)
+- Tabla comparativa POS Web vs Android vs ESP32
+
+docs/api.md:
+- Endpoints de POS Web (sesiones) anadidos
+- Endpoints de cargo QR anadidos
+- Endpoints NFC unificado anadidos
+
+docs/payments.md:
+- Seccion "Puntos de Venta" anadida (2 POS)
+- Flujo de cargo QR completo documentado
+- Aclaracion: panel web no es POS
+
+docs/INDEX.md:
+- Entrada 31: POS Android docs
+- Entrada 32: POS Web docs
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

@@ -32,6 +32,8 @@
 28. [Principios Innegociables para Desarrollar](PRINCIPIOS_INNEGOCIABLES.md) - 10 reglas basicas: codigo abierto, codigo base unico, ajustes de nodo, que requiere aprobacion
 29. [Guia de Usuario](guia-usuario.md) - Como saber si puedes entrar, que aporta cada quien, saldo cero, trueque, asambleas, tarjetas NFC
 30. [Tarjeta MIFARE Classic — Certificados Dinamicos](tarjeta-classic-certificados.md) - Modelo de 6 capas, provisionamiento, rotacion, recuperacion, limitaciones
+31. [POS Android — Documentacion](../punto-de-venta-pos/docs/README.md) - Arquitectura, flujos de pago, API, criptografia, modo demo, build/deploy (13 documentos)
+32. [POS Web — Documentacion](../pos/README.md) - Punto de venta web (React/Vite), flujo QR, flujo NFC unificado, terminal auth
 
 ## Estado de Implementacion
 
