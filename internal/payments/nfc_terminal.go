@@ -900,6 +900,16 @@ func (nt *NFCTerminals) ListTransactions(ctx context.Context, nodeDomain string,
 }
 
 func (nt *NFCTerminals) IssueCryptoCard(ctx context.Context, userID uuid.UUID, cardUID, cardType, initialPIN string) (*NFCCard, error) {
+	// Validar que el usuario tenga al menos un documento de identidad registrado
+	// para tarjetas uid_only (el POS pedirá documento al pagar)
+	if cardType == "uid_only" || cardType == "classic" {
+		var docCount int
+		nt.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM user_documents WHERE user_id = $1`, userID).Scan(&docCount)
+		if docCount == 0 {
+			return nil, fmt.Errorf("el usuario no tiene documentos de identidad registrados. Debe registrar al menos un documento antes de emitir una tarjeta %s", cardType)
+		}
+	}
+
 	pinHash, err := bcrypt.GenerateFromPassword([]byte(initialPIN), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, fmt.Errorf("hashing PIN: %w", err)

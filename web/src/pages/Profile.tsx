@@ -141,6 +141,29 @@ export default function Profile() {
     }
   }
 
+  const toggleCard = async (cardUid: string, currentlyActive: boolean) => {
+    const action = currentlyActive ? 'desactivar' : 'activar'
+    if (!confirm(`¿Seguro que quieres ${action} esta tarjeta?`)) return
+    try {
+      await api.put(`/nfc/cards/${cardUid}/toggle`, { is_active: !currentlyActive })
+      if (userId) loadNfcCards(userId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error')
+    }
+  }
+
+  const changeCardDocument = async (cardUid: string, currentDoc?: string) => {
+    const options = documents.map((d: any) => `${d.document_type_code}: ${d.document_number}`).join('\n')
+    const selection = prompt(`Selecciona el documento para esta tarjeta (escribe el código):\n\n${options}\n\nDocumento actual: ${currentDoc || 'Ninguno'}\n\nEscribe el código del documento (ej: V, E, P) o deja vacío para usar el default:`)
+    if (selection === null) return
+    try {
+      await api.put(`/nfc/cards/${cardUid}/document`, { document_type_code: selection.trim() })
+      if (userId) loadNfcCards(userId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error')
+    }
+  }
+
   const saveNationalID = async () => {
     setSavingID(true)
     setIdMsg('')
@@ -569,14 +592,34 @@ export default function Profile() {
         {nfcCards.length === 0 ? (
           <p className="text-gray-500 text-sm">No tienes tarjetas NFC asociadas.</p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {nfcCards.map((c, i) => (
-              <div key={i} className="flex items-center justify-between text-sm border-b border-gray-100 py-2 last:border-0">
-                <div>
-                  <b>UID: {c.card_uid?.slice(0, 16)}...</b>
-                  {c.card_type && <p className="text-xs text-gray-400">Tipo: {c.card_type}</p>}
+              <div key={i} className="border border-gray-200 rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <b className="text-sm">UID: {c.card_uid?.slice(0, 16)}...</b>
+                    {c.card_type && <p className="text-xs text-gray-400">Tipo: {c.card_type}</p>}
+                    {c.required_doc_type && <p className="text-xs text-blue-600">Documento: {c.required_doc_type}</p>}
+                  </div>
+                  <span className={`text-xs px-2 py-1 rounded ${c.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    {c.is_active ? 'Activa' : 'Inactiva'}
+                  </span>
                 </div>
-                <button onClick={() => changePin(c.card_uid)} className="btn-secondary text-xs">Cambiar PIN</button>
+                <div className="flex gap-2 flex-wrap">
+                  <button onClick={() => changePin(c.card_uid)} className="btn-secondary text-xs">Cambiar PIN</button>
+                  <button
+                    onClick={() => toggleCard(c.card_uid, c.is_active)}
+                    className={`text-xs px-3 py-1 rounded ${c.is_active ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}`}
+                  >
+                    {c.is_active ? 'Desactivar' : 'Activar'}
+                  </button>
+                  <button
+                    onClick={() => changeCardDocument(c.card_uid, c.required_doc_type)}
+                    className="text-xs px-3 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200"
+                  >
+                    Cambiar Documento
+                  </button>
+                </div>
               </div>
             ))}
           </div>

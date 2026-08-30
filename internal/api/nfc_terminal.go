@@ -130,7 +130,10 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequirePermission("nfc.issue_card")).Post("/api/nfc/cards/issue", h.issueCryptoCard)
 	r.With(am.RequirePermission("nfc.issue_card")).Post("/api/nfc/cards/provision-classic", h.provisionClassicCard)
 	r.With(am.RequireAuth).Get("/api/nfc/cards", h.listCards)
+	r.With(am.RequireAuth).Get("/api/nfc/cards/all", h.listAllCards)
 	r.With(am.RequirePermission("nfc.deactivate_card")).Delete("/api/nfc/cards/{uid}", h.deactivateCard)
+	r.With(am.RequirePermission("nfc.deactivate_card")).Put("/api/nfc/cards/{uid}/toggle", h.toggleCard)
+	r.With(am.RequireAuth).Put("/api/nfc/cards/{uid}/document", h.setCardDocument)
 	r.With(am.RequireAuth).Put("/api/nfc/cards/pin", h.changeCardPIN)
 	r.With(am.RequirePermission("nfc.reset_pin")).Put("/api/nfc/cards/{uid}/pin/reset", h.resetCardPIN)
 
@@ -585,21 +588,22 @@ func (h *NFCTerminalHandler) listCards(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *NFCTerminalHandler) listCardsDirect(r *http.Request, userID uuid.UUID) (interface{}, error) {
-	// Delegate to payments service
-	// We'll use the NFC terminal's pool to query nfc_cards
 	type NFCCardInfo struct {
-		ID            uuid.UUID  `json:"id"`
-		UserID        uuid.UUID  `json:"user_id"`
-		CardUID       string     `json:"card_uid"`
-		IsActive      bool       `json:"is_active"`
-		CardType      string     `json:"card_type"`
-		CryptoEnabled bool       `json:"crypto_enabled"`
-		IssuedAt      time.Time  `json:"issued_at"`
-		DeactivatedAt *time.Time `json:"deactivated_at"`
+		ID              uuid.UUID  `json:"id"`
+		UserID          uuid.UUID  `json:"user_id"`
+		CardUID         string     `json:"card_uid"`
+		IsActive        bool       `json:"is_active"`
+		CardType        string     `json:"card_type"`
+		CryptoEnabled   bool       `json:"crypto_enabled"`
+		HasDynamicCerts bool       `json:"has_dynamic_certs"`
+		RequiredDocType *string    `json:"required_doc_type"`
+		IssuedAt        time.Time  `json:"issued_at"`
+		DeactivatedAt   *time.Time `json:"deactivated_at"`
 	}
 
 	rows, err := h.NFC.Pool.Query(r.Context(), `
-		SELECT id, user_id, card_uid, is_active, card_type, crypto_enabled, issued_at, deactivated_at
+		SELECT id, user_id, card_uid, is_active, card_type, crypto_enabled,
+		       has_dynamic_certs, required_doc_type, issued_at, deactivated_at
 		FROM nfc_cards WHERE user_id = $1 ORDER BY issued_at DESC`,
 		userID,
 	)
@@ -611,7 +615,8 @@ func (h *NFCTerminalHandler) listCardsDirect(r *http.Request, userID uuid.UUID) 
 	var cards []NFCCardInfo
 	for rows.Next() {
 		var c NFCCardInfo
-		if err := rows.Scan(&c.ID, &c.UserID, &c.CardUID, &c.IsActive, &c.CardType, &c.CryptoEnabled, &c.IssuedAt, &c.DeactivatedAt); err != nil {
+		if err := rows.Scan(&c.ID, &c.UserID, &c.CardUID, &c.IsActive, &c.CardType, &c.CryptoEnabled,
+			&c.HasDynamicCerts, &c.RequiredDocType, &c.IssuedAt, &c.DeactivatedAt); err != nil {
 			return nil, err
 		}
 		cards = append(cards, c)
@@ -636,6 +641,174 @@ func (h *NFCTerminalHandler) deactivateCard(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	writeJSON(w, 200, map[string]string{"status": "deactivated"})
+}
+
+// toggleCard activa o desactiva una tarjeta NFC.
+// El usuario puede activar/desactivar sus propias tarjetas.
+func (h *NFCTerminalHandler) toggleCard(w http.ResponseWriter, r *http.Request) {
+	cardUID := chi.URLParam(r, "uid")
+	if cardUID == "" {
+		writeError(w, 400, "card uid is required")
+		return
+	}
+
+	var req struct {
+		IsActive bool `json:"is_active"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	var deactivatedAt *time.Time
+	if !req.IsActive {
+		deactivatedAt = &time.Time{}
+		*deactivatedAt = time.Now()
+	}
+
+	_, err := h.NFC.Pool.Exec(r.Context(), `
+		UPDATE nfc_cards SET is_active = $2, deactivated_at = $3
+		WHERE card_uid = $1`,
+		cardUID, req.IsActive, deactivatedAt,
+	)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	status := "activated"
+	if !req.IsActive {
+		status = "deactivated"
+	}
+	writeJSON(w, 200, map[string]string{"status": status})
+}
+
+// setCardDocument cambia qué documento de identidad usa la tarjeta.
+// El usuario debe tener el documento registrado en user_documents.
+func (h *NFCTerminalHandler) setCardDocument(w http.ResponseWriter, r *http.Request) {
+	cardUID := chi.URLParam(r, "uid")
+	if cardUID == "" {
+		writeError(w, 400, "card uid is required")
+		return
+	}
+
+	var req struct {
+		DocumentTypeCode string `json:"document_type_code"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.DocumentTypeCode == "" {
+		// Limpiar el documento requerido — usar el default del usuario
+		_, err := h.NFC.Pool.Exec(r.Context(), `
+			UPDATE nfc_cards SET required_doc_type = NULL WHERE card_uid = $1`,
+			cardUID,
+		)
+		if err != nil {
+			writeError(w, 500, err.Error())
+			return
+		}
+		writeJSON(w, 200, map[string]string{"status": "cleared"})
+		return
+	}
+
+	// Verificar que la tarjeta existe y obtener el user_id
+	var userID uuid.UUID
+	err := h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT user_id FROM nfc_cards WHERE card_uid = $1`, cardUID,
+	).Scan(&userID)
+	if err != nil {
+		writeError(w, 404, "tarjeta no encontrada")
+		return
+	}
+
+	// Verificar que el usuario tiene ese documento registrado
+	var docExists bool
+	h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT EXISTS(SELECT 1 FROM user_documents WHERE user_id = $1 AND document_type_code = $2)`,
+		userID, req.DocumentTypeCode,
+	).Scan(&docExists)
+	if !docExists {
+		writeError(w, 400, "el usuario no tiene registrado ese tipo de documento")
+		return
+	}
+
+	_, err = h.NFC.Pool.Exec(r.Context(), `
+		UPDATE nfc_cards SET required_doc_type = $2 WHERE card_uid = $1`,
+		cardUID, req.DocumentTypeCode,
+	)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]string{"status": "updated", "document_type": req.DocumentTypeCode})
+}
+
+// listAllCards lista todas las tarjetas para el panel de admin.
+// Soporta búsqueda por card_uid, username o display_name.
+func (h *NFCTerminalHandler) listAllCards(w http.ResponseWriter, r *http.Request) {
+	search := r.URL.Query().Get("search")
+	activeOnly := r.URL.Query().Get("active") == "true"
+
+	query := `
+		SELECT c.id, c.user_id, c.card_uid, c.is_active, c.card_type,
+		       c.crypto_enabled, c.has_dynamic_certs, c.required_doc_type,
+		       c.issued_at, c.deactivated_at,
+		       u.username, u.display_name
+		FROM nfc_cards c
+		JOIN users u ON u.id = c.user_id
+		WHERE 1=1`
+	args := []interface{}{}
+	argIdx := 1
+
+	if search != "" {
+		query += ` AND (LOWER(c.card_uid) LIKE LOWER($1) OR LOWER(u.username) LIKE LOWER($1) OR LOWER(u.display_name) LIKE LOWER($1))`
+		args = append(args, "%"+search+"%")
+		argIdx++
+	}
+	if activeOnly {
+		query += fmt.Sprintf(` AND c.is_active = true`)
+	}
+	query += ` ORDER BY c.issued_at DESC LIMIT 200`
+
+	rows, err := h.NFC.Pool.Query(r.Context(), query, args...)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	type CardWithUser struct {
+		ID              uuid.UUID  `json:"id"`
+		UserID          uuid.UUID  `json:"user_id"`
+		CardUID         string     `json:"card_uid"`
+		IsActive        bool       `json:"is_active"`
+		CardType        string     `json:"card_type"`
+		CryptoEnabled   bool       `json:"crypto_enabled"`
+		HasDynamicCerts bool       `json:"has_dynamic_certs"`
+		RequiredDocType *string    `json:"required_doc_type"`
+		IssuedAt        time.Time  `json:"issued_at"`
+		DeactivatedAt   *time.Time `json:"deactivated_at"`
+		Username        string     `json:"username"`
+		DisplayName     string     `json:"display_name"`
+	}
+
+	var cards []CardWithUser
+	for rows.Next() {
+		var c CardWithUser
+		if err := rows.Scan(&c.ID, &c.UserID, &c.CardUID, &c.IsActive, &c.CardType,
+			&c.CryptoEnabled, &c.HasDynamicCerts, &c.RequiredDocType,
+			&c.IssuedAt, &c.DeactivatedAt,
+			&c.Username, &c.DisplayName); err != nil {
+			writeError(w, 500, err.Error())
+			return
+		}
+		cards = append(cards, c)
+	}
+	if cards == nil {
+		cards = []CardWithUser{}
+	}
+	writeJSON(w, 200, cards)
 }
 
 type ChangePINRequest struct {

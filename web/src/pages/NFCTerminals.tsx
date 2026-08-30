@@ -88,6 +88,39 @@ export default function NFCTerminals() {
   const canDeactivateTerminal = hasPermission('nfc.deactivate_terminal')
   const canIssueCard = hasPermission('nfc.issue_card')
   const canResetPIN = hasPermission('nfc.reset_pin')
+  const canDeactivateCard = hasPermission('nfc.deactivate_card')
+
+  // Card list state (admin)
+  const [allCards, setAllCards] = useState<any[]>([])
+  const [cardSearch, setCardSearch] = useState('')
+  const [cardActiveOnly, setCardActiveOnly] = useState(false)
+  const [cardListLoading, setCardListLoading] = useState(false)
+  const [cardListError, setCardListError] = useState('')
+
+  const loadAllCards = async (activeOnly?: boolean) => {
+    setCardListLoading(true)
+    setCardListError('')
+    try {
+      const params = new URLSearchParams()
+      if (cardSearch) params.set('search', cardSearch)
+      if (activeOnly ?? cardActiveOnly) params.set('active', 'true')
+      const res = await api.get<any[]>(`/nfc/cards/all?${params.toString()}`)
+      setAllCards(Array.isArray(res) ? res : [])
+    } catch (err) {
+      setCardListError(err instanceof Error ? err.message : 'Error al cargar tarjetas')
+      setAllCards([])
+    }
+    setCardListLoading(false)
+  }
+
+  const toggleCardActive = async (cardUid: string, currentlyActive: boolean) => {
+    try {
+      await api.put(`/nfc/cards/${cardUid}/toggle`, { is_active: !currentlyActive })
+      loadAllCards()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cambiar estado de la tarjeta')
+    }
+  }
 
   useEffect(() => {
     loadTerminals()
@@ -102,6 +135,13 @@ export default function NFCTerminals() {
       const interval = setInterval(loadPendingPairings, 3000)
       setPairingPoll(interval)
       return () => { clearInterval(interval); setPairingPoll(null) }
+    }
+  }, [tab])
+
+  // Load cards when entering cards tab
+  useEffect(() => {
+    if (tab === 'cards' && canIssueCard) {
+      loadAllCards()
     }
   }, [tab])
 
@@ -794,10 +834,70 @@ export default function NFCTerminals() {
             )}
           </div>
 
-          {/* Emitir tarjeta - solo admin */}
+          {/* Lista de tarjetas con búsqueda (admin) */}
           {canIssueCard && (
-            <div className="card bg-blue-50 border-blue-200 text-sm text-blue-700">
-              <p>Como administrador, puedes emitir tarjetas NFC para los usuarios. La tarjeta se entrega al usuario con un PIN por defecto. El usuario debe cambiar su PIN la primera vez que la use.</p>
+            <div className="card space-y-3">
+              <h3 className="font-medium flex items-center gap-2"><CreditCard size={16} /> Tarjetas emitidas</h3>
+              <div className="flex gap-2">
+                <input
+                  className="input flex-1"
+                  placeholder="Buscar por UID, usuario o nombre..."
+                  value={cardSearch}
+                  onChange={(e) => { setCardSearch(e.target.value); setCardSearchTimer(Date.now()) }}
+                />
+                <button onClick={() => loadAllCards()} className="btn-secondary">Buscar</button>
+              </div>
+              <label className="flex items-center gap-2 text-xs text-gray-500">
+                <input type="checkbox" checked={cardActiveOnly} onChange={(e) => { setCardActiveOnly(e.target.checked); loadAllCards(e.target.checked) }} />
+                Solo activas
+              </label>
+              {cardListLoading && <p className="text-xs text-gray-400">Cargando...</p>}
+              {cardListError && <p className="text-xs text-red-500">{cardListError}</p>}
+              {!cardListLoading && allCards.length === 0 && (
+                <p className="text-xs text-gray-400">No hay tarjetas que coincidan con la búsqueda.</p>
+              )}
+              {allCards.length > 0 && (
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {allCards.map((c) => (
+                    <div key={c.id} className="border border-gray-200 rounded-lg p-3 text-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <b className="text-xs">{c.card_uid.slice(0, 16)}...</b>
+                            <span className={`text-xs px-2 py-0.5 rounded ${c.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                              {c.is_active ? 'Activa' : 'Inactiva'}
+                            </span>
+                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{c.card_type}</span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Usuario: <b>{c.username}</b> {c.display_name && `(${c.display_name})`}
+                          </p>
+                          <p className="text-xs text-gray-400">Emitida: {fmtDateTime(c.issued_at)}</p>
+                          {c.required_doc_type && <p className="text-xs text-blue-600">Doc: {c.required_doc_type}</p>}
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          {canDeactivateCard && (
+                            <button
+                              onClick={() => toggleCardActive(c.card_uid, c.is_active)}
+                              className={`text-xs px-2 py-1 rounded ${c.is_active ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}`}
+                            >
+                              {c.is_active ? 'Desactivar' : 'Activar'}
+                            </button>
+                          )}
+                          {canResetPIN && (
+                            <button
+                              onClick={() => setShowResetPIN(c.card_uid)}
+                              className="text-xs px-2 py-1 rounded bg-amber-100 text-amber-700 hover:bg-amber-200"
+                            >
+                              Reset PIN
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -822,16 +922,6 @@ export default function NFCTerminals() {
             </div>
             <button onClick={changePIN} className="btn-primary">Cambiar PIN</button>
           </div>
-
-          {/* Reset PIN - solo admin, para resetear a PIN por defecto */}
-          {canResetPIN && (
-            <div className="card space-y-3 border-amber-200">
-              <h3 className="font-medium flex items-center gap-2"><Lock size={16} /> Resetear PIN de tarjeta (Admin)</h3>
-              <p className="text-xs text-amber-600">Solo usar si un usuario olvida su PIN. Esto resetea la tarjeta a un PIN por defecto. El usuario debera cambiarlo despues.</p>
-              <p className="text-xs text-gray-500">Lista de tarjetas para resetear:</p>
-              {/* TODO: cargar lista de tarjetas y permitir seleccionar */}
-            </div>
-          )}
         </div>
       )}
 
