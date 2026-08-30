@@ -1,0 +1,36 @@
+Corregir permisos, admision y seguridad del flujo de registro
+
+7 problemas criticos corregidos:
+
+1. routes.go: Mover stripping de basePath ANTES de RequireActiveMembership.
+   El middleware de auth ejecutaba antes de normalizar /main/api/* a /api/*,
+   por lo que la whitelist comparaba /main/api/auth/me contra /api/auth/me
+   y bloqueaba a los usuarios pending_admission en TODAS las rutas.
+
+2. Layout.tsx: membershipStatus por defecto 'unknown' (no 'active').
+   En catch de /auth/me, asumir 'pending_admission' por seguridad.
+   Logout ahora redirige a /p/inicio.
+
+3. App.tsx: Anadir PendingAdmissionGuard que redirige usuarios no
+   admitidos a /app/admission-status. Solo se permiten:
+   admission-status, profile, notifications, display-settings.
+
+4. DynamicAdmissionForm.tsx: Excluir proposed_password y
+   proposed_password_confirm de custom_fields antes de enviar al server.
+
+5. system.go: Sanitizar custom_fields (eliminar claves con password/
+   contrasena/clave) antes de guardar en BD. Notificar a admins con
+   permiso admission.manage + super_admins cuando llega una solicitud
+   nueva, usando NewNotifyService inline (patron existente).
+
+6. WebsiteAdmin.tsx: Filtrar claves con password/contrasena/clave al
+   mostrar custom_fields. Corregir conteo de pendientes: ahora incluye
+   'pending_review' (antes solo filtraba 'pending' que nunca coincide).
+
+Causa raiz: El orden del middleware hacia que los usuarios preliminares
+recibieran 403 en todas las rutas whitelisted, lo que cascaded a que el
+frontend no detectaba pending_admission y mostraba todo el menu completo.
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

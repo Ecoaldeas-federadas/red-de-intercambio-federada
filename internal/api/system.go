@@ -1340,7 +1340,7 @@ func (h *SystemHandler) addProducer(w http.ResponseWriter, r *http.Request) {
 	producerID, err := uuid.Parse(req.ProducerID)
 	if err != nil {
 		// Buscar por username
-		err = h.Pool.QueryRow(r.Context(), `SELECT id FROM users WHERE username = $1`, req.ProducerID).Scan(&producerID)
+		err = h.Pool.QueryRow(r.Context(), `SELECT id FROM users WHERE LOWER(username) = LOWER($1)`, req.ProducerID).Scan(&producerID)
 		if err != nil {
 			writeError(w, 404, "producer not found")
 			return
@@ -2824,7 +2824,7 @@ func (h *SystemHandler) submitAdmissionRequest(w http.ResponseWriter, r *http.Re
 	// Verificar que el username no exista ya
 	var existingID *uuid.UUID
 	_ = h.Pool.QueryRow(r.Context(), `
-		SELECT id FROM users WHERE username = $1 AND node_domain = $2`,
+		SELECT id FROM users WHERE LOWER(username) = LOWER($1) AND node_domain = $2`,
 		username, nodeDomain).Scan(&existingID)
 	if existingID != nil {
 		writeError(w, 409, "El nombre de usuario ya existe. Elige otro.")

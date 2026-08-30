@@ -1248,7 +1248,7 @@ func (nt *NFCTerminals) localUserLookup(ctx context.Context, username string) (*
 	var userID string
 	var displayName string
 	err := nt.Pool.QueryRow(ctx,
-		`SELECT id::text, display_name FROM users WHERE username = $1 AND node_domain = $2`,
+		`SELECT id::text, display_name FROM users WHERE LOWER(username) = LOWER($1) AND node_domain = $2`,
 		username, nt.NodeDomain,
 	).Scan(&userID, &displayName)
 	if err != nil {
@@ -1359,7 +1359,7 @@ func (nt *NFCTerminals) ClassicPreAuth(ctx context.Context, terminalID, username
 	var err error
 	if lookupNode == localNode {
 		err = nt.Pool.QueryRow(ctx,
-			`SELECT id FROM users WHERE username = $1 AND node_domain = $2`,
+			`SELECT id FROM users WHERE LOWER(username) = LOWER($1) AND node_domain = $2`,
 			lookupUsername, localNode,
 		).Scan(&userID)
 		if err != nil {
@@ -1486,7 +1486,7 @@ func (nt *NFCTerminals) lookupRemoteUserWithRetry(ctx context.Context, username,
 	for i := 0; i < maxRetries; i++ {
 		var userID uuid.UUID
 		err := nt.Pool.QueryRow(ctx,
-			`SELECT id FROM users WHERE username = $1 AND node_domain = $2`,
+			`SELECT id FROM users WHERE LOWER(username) = LOWER($1) AND node_domain = $2`,
 			username, remoteNode,
 		).Scan(&userID)
 		if err == nil {
@@ -1509,7 +1509,7 @@ func (nt *NFCTerminals) ClassicPreAuthWithDocument(ctx context.Context, terminal
 	var userID uuid.UUID
 	if lookupNode == localNode {
 		err := nt.Pool.QueryRow(ctx,
-			`SELECT id FROM users WHERE username = $1 AND node_domain = $2`,
+			`SELECT id FROM users WHERE LOWER(username) = LOWER($1) AND node_domain = $2`,
 			lookupUsername, localNode,
 		).Scan(&userID)
 		if err != nil {

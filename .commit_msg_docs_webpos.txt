@@ -1,0 +1,34 @@
+Actualizar POS Web y documentacion con flujo NFC unificado
+
+POS Web (pos/):
+- NFCScreen.tsx reescrito con flujo unificado: credentials (doc+PIN)
+  → tap_card → writing/processing → approved/rejected
+- Antes pedia tarjeta primero, luego PIN. Ahora pide doc+PIN primero
+  para todos los tipos de tarjeta (igual que Android POS)
+- Modo demo: simula pre-auth y tap con botones
+- Classic: simula lectura/escritura de sectores + confirm
+- UID/DESFire: verifica UID + processPayment
+- api.ts ya tenia endpoints classicPreAuth y classicConfirm
+
+Android POS:
+- NfcChargeScreen: boton Cancelar ahora maneja isWaitingCardVerify
+  ademas de isClassicFlow
+
+Documentacion servidor (docs/):
+- tarjeta-classic-certificados.md: flujo unificado, endpoints
+  actualizados con card_type, tabla comparativa actualizada,
+  seccion Web POS actualizada
+- payments.md: flujo NFC unificado, endpoint pre-auth actualizado
+
+Documentacion POS (punto-de-venta-pos/docs/):
+- 03-flujos-pago.md: flujo unificado con steps de UI y detalle
+  por tipo de tarjeta
+- 08-modo-demo.md: nuevas secciones 6.4-6.7 sobre simulacion
+  Classic unificada (simulateClassicTapDemo,
+  onCardTappedForVerification, classicPreAuth demo,
+  confirmClassicTransaction demo), tabla de flujos offline
+  actualizada
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

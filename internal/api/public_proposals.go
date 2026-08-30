@@ -647,7 +647,7 @@ func (h *PublicProposalsHandler) demoLogin(w http.ResponseWriter, r *http.Reques
 	var dbUsername, displayName, dbNodeDomain string
 	err := h.Pool.QueryRow(r.Context(), `
 		SELECT id, username, display_name, node_domain
-		FROM users WHERE username = $1 AND membership_status = 'active' AND node_domain = $2 LIMIT 1`,
+		FROM users WHERE LOWER(username) = LOWER($1) AND membership_status = 'active' AND node_domain = $2 LIMIT 1`,
 		username, db.LOCAL_NODE_DOMAIN).Scan(&userID, &dbUsername, &displayName, &dbNodeDomain)
 	if err != nil {
 		writeError(w, 404, "usuario no encontrado")

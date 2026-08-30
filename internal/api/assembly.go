@@ -6,6 +6,7 @@ import (
 	"federated-credit-node/internal/db"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -1250,7 +1251,7 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 		h.Pool.Exec(r.Context(), `
 			INSERT INTO users (node_domain, username, display_name, account_type, membership_status, is_approved, credit_limit, debit_limit)
 			VALUES ($1, $2, $3, $4, 'active', true, 0, 0)`,
-			nodeDomain, accountName, accountName, accountType)
+			nodeDomain, strings.ToLower(accountName), accountName, accountType)
 
 	case "product_approval":
 		// Aprobar un producto en el catalogo (aprobado por Asamblea/Junta/Consejo)
@@ -1493,7 +1494,7 @@ func (h *AssemblyHandler) assignBoardMember(w http.ResponseWriter, r *http.Reque
 	userID, err := uuid.Parse(req.UserID)
 	if err != nil {
 		// Buscar por username
-		err = h.Pool.QueryRow(r.Context(), `SELECT id FROM users WHERE username = $1`, req.UserID).Scan(&userID)
+		err = h.Pool.QueryRow(r.Context(), `SELECT id FROM users WHERE LOWER(username) = LOWER($1)`, req.UserID).Scan(&userID)
 		if err != nil {
 			writeError(w, 404, "user not found")
 			return

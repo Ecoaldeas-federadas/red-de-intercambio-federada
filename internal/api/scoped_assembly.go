@@ -6,6 +6,7 @@ import (
 	"federated-credit-node/internal/db"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -1256,7 +1257,7 @@ func (h *ScopedAssemblyHandler) executeScopedDecision(r *http.Request, scope str
 		h.Pool.Exec(r.Context(), `
 			INSERT INTO users (node_domain, username, display_name, account_type, membership_status, is_approved, credit_limit, debit_limit)
 			VALUES ($1, $2, $3, 'assembly_account', 'active', true, 0, 0)`,
-			nodeDomain, accountName, accountName)
+			nodeDomain, strings.ToLower(accountName), accountName)
 
 	case "free_proposal":
 		// Propuesta libre - no requiere accion automatica, queda registrada en la minuta

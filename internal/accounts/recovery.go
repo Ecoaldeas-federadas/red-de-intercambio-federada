@@ -20,37 +20,37 @@ func NewRecovery(pool *pgxpool.Pool) *Recovery {
 }
 
 type RecoveryConfig struct {
-	ID                          int       `json:"id"`
-	NodeDomain                  string    `json:"node_domain"`
-	ApprovalMode                string    `json:"approval_mode"`
-	RequiredApprovals           int       `json:"required_approvals"`
-	CouncilGroupID              *uuid.UUID `json:"council_group_id"`
-	AutoExpireHours             int       `json:"auto_expire_hours"`
-	RequiresIdentityVerification bool      `json:"requires_identity_verification"`
-	UpdatedAt                   time.Time `json:"updated_at"`
+	ID                           int        `json:"id"`
+	NodeDomain                   string     `json:"node_domain"`
+	ApprovalMode                 string     `json:"approval_mode"`
+	RequiredApprovals            int        `json:"required_approvals"`
+	CouncilGroupID               *uuid.UUID `json:"council_group_id"`
+	AutoExpireHours              int        `json:"auto_expire_hours"`
+	RequiresIdentityVerification bool       `json:"requires_identity_verification"`
+	UpdatedAt                    time.Time  `json:"updated_at"`
 }
 
 type RecoveryRequest struct {
-	ID                uuid.UUID  `json:"id"`
-	NodeDomain        string     `json:"node_domain"`
-	TargetUserID      *uuid.UUID `json:"target_user_id"`
-	TargetUsername    string     `json:"target_username"`
-	RequesterID       *uuid.UUID `json:"requester_id"`
-	Reason            string     `json:"reason"`
+	ID                   uuid.UUID              `json:"id"`
+	NodeDomain           string                 `json:"node_domain"`
+	TargetUserID         *uuid.UUID             `json:"target_user_id"`
+	TargetUsername       string                 `json:"target_username"`
+	RequesterID          *uuid.UUID             `json:"requester_id"`
+	Reason               string                 `json:"reason"`
 	IdentityVerification map[string]interface{} `json:"identity_verification"`
-	Status            string     `json:"status"`
-	ApprovalMode      string     `json:"approval_mode"`
-	RequiredApprovals int        `json:"required_approvals"`
-	CouncilGroupID    *uuid.UUID `json:"council_group_id"`
-	ApprovedBy        []uuid.UUID `json:"approved_by"`
-	RejectedBy        []uuid.UUID `json:"rejected_by"`
-	RejectionReason   string     `json:"rejection_reason"`
-	ExpiresAt         time.Time  `json:"expires_at"`
-	ApprovedAt        *time.Time `json:"approved_at"`
-	RejectedAt        *time.Time `json:"rejected_at"`
-	CompletedAt       *time.Time `json:"completed_at"`
-	NewPublicKey      *string    `json:"new_public_key"`
-	CreatedAt         time.Time  `json:"created_at"`
+	Status               string                 `json:"status"`
+	ApprovalMode         string                 `json:"approval_mode"`
+	RequiredApprovals    int                    `json:"required_approvals"`
+	CouncilGroupID       *uuid.UUID             `json:"council_group_id"`
+	ApprovedBy           []uuid.UUID            `json:"approved_by"`
+	RejectedBy           []uuid.UUID            `json:"rejected_by"`
+	RejectionReason      string                 `json:"rejection_reason"`
+	ExpiresAt            time.Time              `json:"expires_at"`
+	ApprovedAt           *time.Time             `json:"approved_at"`
+	RejectedAt           *time.Time             `json:"rejected_at"`
+	CompletedAt          *time.Time             `json:"completed_at"`
+	NewPublicKey         *string                `json:"new_public_key"`
+	CreatedAt            time.Time              `json:"created_at"`
 }
 
 type RecoveryApproval struct {
@@ -65,18 +65,18 @@ type RecoveryApproval struct {
 }
 
 type InvitationCode struct {
-	ID           uuid.UUID  `json:"id"`
-	NodeDomain   string     `json:"node_domain"`
-	CodeHash     string     `json:"code_hash"`
-	CreatedBy    *uuid.UUID `json:"created_by"`
-	UsedBy       *uuid.UUID `json:"used_by"`
-	MaxUses      int        `json:"max_uses"`
-	UseCount     int        `json:"use_count"`
-	ProposedLevel string    `json:"proposed_level"`
-	ExpiresAt    *time.Time `json:"expires_at"`
-	IsActive     bool       `json:"is_active"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UsedAt       *time.Time `json:"used_at"`
+	ID            uuid.UUID  `json:"id"`
+	NodeDomain    string     `json:"node_domain"`
+	CodeHash      string     `json:"code_hash"`
+	CreatedBy     *uuid.UUID `json:"created_by"`
+	UsedBy        *uuid.UUID `json:"used_by"`
+	MaxUses       int        `json:"max_uses"`
+	UseCount      int        `json:"use_count"`
+	ProposedLevel string     `json:"proposed_level"`
+	ExpiresAt     *time.Time `json:"expires_at"`
+	IsActive      bool       `json:"is_active"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UsedAt        *time.Time `json:"used_at"`
 }
 
 func (r *Recovery) GetConfig(ctx context.Context, nodeDomain string) (*RecoveryConfig, error) {
@@ -116,7 +116,7 @@ func (r *Recovery) CreateRequest(ctx context.Context, nodeDomain, targetUsername
 	}
 
 	var targetUserID *uuid.UUID
-	err = r.Pool.QueryRow(ctx, `SELECT id FROM users WHERE node_domain = $1 AND username = $2`, nodeDomain, targetUsername).Scan(&targetUserID)
+	err = r.Pool.QueryRow(ctx, `SELECT id FROM users WHERE node_domain = $1 AND LOWER(username) = LOWER($2)`, nodeDomain, targetUsername).Scan(&targetUserID)
 	if err != nil {
 		targetUserID = nil
 	}

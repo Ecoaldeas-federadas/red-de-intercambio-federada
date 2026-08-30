@@ -114,7 +114,7 @@ func (a *Accounts) FindUserByUsername(ctx context.Context, nodeDomain, username 
 		SELECT id, node_domain, username, display_name, account_type, member_level_id,
 			   has_voice, has_vote, counts_in_quorum, membership_status, admitted_at,
 			   credit_limit, debit_limit, public_key, created_at
-		FROM users WHERE node_domain = $1 AND username = $2`,
+		FROM users WHERE node_domain = $1 AND LOWER(username) = LOWER($2)`,
 		nodeDomain, username,
 	).Scan(&u.ID, &u.NodeDomain, &u.Username, &u.DisplayName, &u.AccountType, &u.MemberLevelID,
 		&u.HasVoice, &u.HasVote, &u.CountsInQuorum, &u.MembershipStatus, &u.AdmittedAt,

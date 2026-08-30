@@ -196,7 +196,7 @@ func (p *Protocol) HandleUserLookup(ctx context.Context, payload *UserLookupPayl
 	var userID string
 	var displayName string
 	err := p.Pool.QueryRow(ctx,
-		`SELECT id::text, display_name FROM users WHERE username = $1 AND node_domain = $2`,
+		`SELECT id::text, display_name FROM users WHERE LOWER(username) = LOWER($1) AND node_domain = $2`,
 		payload.Username, p.NodeDomain,
 	).Scan(&userID, &displayName)
 	if err != nil {

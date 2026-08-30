@@ -611,7 +611,7 @@ func (ah *AuthHandlers) beginLogin(w http.ResponseWriter, r *http.Request) {
 	var userDisplayName string
 	err := ah.Pool.QueryRow(r.Context(), `
 		SELECT id, COALESCE(display_name, username) FROM users
-		WHERE username = $1 AND node_domain = $2 AND membership_status IN ('active', 'pending_admission')`,
+		WHERE LOWER(username) = LOWER($1) AND node_domain = $2 AND membership_status IN ('active', 'pending_admission')`,
 		username, nodeDomain).Scan(&userID, &userDisplayName)
 	if err != nil {
 		writeError(w, 404, "usuario no encontrado")
@@ -1226,7 +1226,7 @@ func (ah *AuthHandlers) passwordLogin(w http.ResponseWriter, r *http.Request) {
 		SELECT u.id, uc.password_hash, u.node_domain
 		FROM users u
 		JOIN user_credentials uc ON uc.user_id = u.id
-		WHERE u.username = $1 AND u.node_domain = $2 AND u.membership_status IN ('active', 'pending_admission')
+		WHERE LOWER(u.username) = LOWER($1) AND u.node_domain = $2 AND u.membership_status IN ('active', 'pending_admission')
 	`, username, nodeDomain).Scan(&userID, &passwordHash, &userNodeDomain)
 	if err != nil {
 		writeError(w, 401, "invalid credentials")

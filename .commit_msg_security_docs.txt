@@ -1,0 +1,29 @@
+Documentar todas las medidas de seguridad del sistema
+
+Ampliar docs/security.md con secciones que faltaban:
+
+- Almacenamiento de contrasenas: como se guardan con bcrypt, donde,
+  quien puede verlas (nadie), que pasa si se olvida, defensa en
+  profundidad de custom_fields (4 capas), migracion 139
+- Permisos y autorizacion: sistema de 2 niveles (backend + frontend),
+  estados de membresia, usuarios preliminares, whitelist de rutas,
+  PendingAdmissionGuard, orden critico del middleware
+- Flujo de admision seguro: flujo completo de 5 pasos, notificacion
+  a administradores, que puede ver cada rol
+- Demo vs produccion: tabla comparativa, aislamiento, invariante
+  de seguridad, reset automatico
+- Headers HTTP y CORS: configuracion actual, headers recomendados
+- Rate limiting: lo implementado y lo pendiente
+- Auditoria: tabla audit_log, eventos auditados, hash chain
+- Limitaciones conocidas y recomendaciones de produccion (10 puntos)
+
+La documentacion ya existia y cubria: passkeys/WebAuthn, JWT, Ed25519,
+hash chain, firma dual inter-nodos, verificacion de 4 opciones,
+rate-limiting de intentos, encriptacion de claves privadas,
+recuperacion de cuenta, codigos de invitacion, terminales NFC ESP32,
+pagos QR, TLS/SSL, mTLS entre nodos, MIFARE Classic con certificados
+dinamicos.
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>
