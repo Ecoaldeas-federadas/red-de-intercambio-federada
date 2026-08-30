@@ -77,13 +77,13 @@ Esta configuración se escribe **una sola vez** en el provisionamiento (bloque 3
 
 ### Capa 4: Doble factor de autenticación (2FA)
 
-- **Documento de identidad** (lo que el usuario ES) — **OBLIGATORIO** para Classic
+- **Documento de identidad** (lo que el usuario ES) — **OBLIGATORIO** para todos los tipos (flujo unificado)
 - **PIN de 4 dígitos** (lo que el usuario SABE)
 - **Tarjeta física** (lo que el usuario TIENE)
 - Los tres se verifican **ANTES** de procesar el pago
 - El documento es ingresado por el comerciante en el POS y validado contra `users.national_id` o `user_documents`
 
-**Importante:** Para tarjetas Classic con certificados dinámicos, el documento es **SIEMPRE obligatorio** (hardcoded en el código, no configurable). Esto difiere de las tarjetas UID-only legacy donde el documento es configurable.
+**Importante:** Con el flujo unificado, el documento es **SIEMPRE obligatorio** para todos los tipos de tarjeta (Classic, UID-only, DESFire). El servidor identifica el tipo de tarjeta del usuario desde el documento, sin necesidad de escanear la tarjeta primero.
 
 ### Capa 5: Claves en tránsito minimizadas
 
@@ -103,7 +103,9 @@ Esta configuración se escribe **una sola vez** en el provisionamiento (bloque 3
 
 ---
 
-## Flujo de pago (auth primero, tarjeta al final)
+## Flujo de pago unificado (auth primero, tarjeta al final)
+
+El flujo NFC unificado pide **documento + PIN primero** para **todos** los tipos de tarjeta (Classic, UID-only, DESFire). El servidor identifica el tipo de tarjeta del usuario desde el documento y responde según corresponda.
 
 ```
 1. COMERCIANTE ingresa monto → confirma
@@ -115,45 +117,59 @@ Esta configuración se escribe **una sola vez** en el provisionamiento (bloque 3
    - PIN correcto (bcrypt) ✓
    - Saldo suficiente (balance - amount >= credit_limit) ✓
    - Bloquea el monto (pre-aprobación, NO procesa aún)
-5. Servidor busca tarjeta del usuario:
-   - card_uid en nfc_cards (con has_dynamic_certs=true)
-   - sector activo en nfc_card_sectors (is_active=true)
-   - Genera nuevo certificado aleatorio (16 bytes, crypto/rand)
-   - Elige sector aleatorio para escribir (1-15, != sector activo)
+5. Servidor busca tarjeta activa del usuario (cualquier tipo):
+   - Si has_dynamic_certs=true → tarjeta Classic
+   - Si card_type="uid_only" → tarjeta UID-only
+   - Si card_type="desfire" → tarjeta DESFire
 6. Servidor responde al POS (todo encriptado):
-   {
-     pre_approved: true,
-     card_uid: "AABBCCDD",
-     read_sector: 3,
-     read_key_a: "hex...",              // Key A del sector 3
-     expected_certificate: "hex...",    // cert que debe estar en sector 3
-     write_sector: 9,
-     write_key_b: "hex...",             // Key B del sector 9
-     new_certificate: "hex..."          // cert nuevo para sector 9
-   }
-7. POS muestra: "ACERQUE SU TARJETA — No la retire"
+   - Para Classic:
+     {
+       pre_approved: true,
+       card_type: "classic",
+       card_uid: "AABBCCDD",
+       read_sector: 3,
+       read_key_a: "hex...",              // Key A del sector 3
+       expected_certificate: "hex...",    // cert que debe estar en sector 3
+       write_sector: 9,
+       write_key_b: "hex...",             // Key B del sector 9
+       new_certificate: "hex..."          // cert nuevo para sector 9
+     }
+   - Para UID-only/DESFire:
+     {
+       pre_approved: true,
+       card_type: "uid_only" | "desfire",
+       card_uid: "AABBCCDD"
+       // sin datos de sectores
+     }
+7. POS muestra: "ACERQUE SU TARJETA"
+   - Classic: "No la retire hasta que termine"
+   - UID/DESFire: "Tarjeta del cliente para verificar identidad"
 8. CLIENTE acerca tarjeta
 9. POS lee UID (sector 0, read-only) → verifica coincide con card_uid
-10. POS autentica sector 3 con Key A → lee bloques 0,1,2
-    - Triple redundancia: al menos 1 de 3 bloques debe coincidir con expected_certificate
-11. POS autentica sector 9 con Key B → escribe new_certificate en bloques 0,1,2
-12. POS re-lee sector 9 para verificar escritura (¿cuántos bloques coinciden?)
-13. POS envía confirmación al servidor:
-    {card_uid, read_ok: true, write_ok: true, written_blocks: 3}
-14. Servidor:
-    - Si confirmed: procesa pago (debita balance)
-      - Sector 3 → is_active=false (cert viejo = basura)
-      - Sector 9 → is_active=true, certificate=new_cert
-    - Si failed: cancela pre-aprobación, libera monto, sector 3 sigue activo
-15. Servidor responde: {approved/rejected, transaction_id, balance}
-16. POS muestra resultado al cliente
+10. Si es Classic:
+    a. POS autentica sector 3 con Key A → lee bloques 0,1,2
+       - Triple redundancia: al menos 1 de 3 bloques debe coincidir con expected_certificate
+    b. POS autentica sector 9 con Key B → escribe new_certificate en bloques 0,1,2
+    c. POS re-lee sector 9 para verificar escritura (¿cuántos bloques coinciden?)
+    d. POS envía confirmación al servidor:
+       {card_uid, read_ok: true, write_ok: true, written_blocks: 3}
+    e. Servidor procesa pago y rota certificados:
+       - Sector 3 → is_active=false (cert viejo = basura)
+       - Sector 9 → is_active=true, certificate=new_cert
+11. Si es UID-only/DESFire:
+    a. POS verifica UID coincide con card_uid del pre-auth
+    b. POS llama a processNfcPayment con card_uid + PIN + amount
+    c. Servidor procesa pago normal
+12. Servidor responde: {approved/rejected, transaction_id, balance}
+13. POS muestra resultado al cliente
 ```
 
 ### Por qué este orden es mejor
 
 - **El servidor ya sabe quién es el usuario** antes de tocar la tarjeta
-- **El POS recibe TODO antes de acercar la tarjeta**: sector a leer, clave A, sector a escribir, clave B, certificados
+- **El POS recibe TODO antes de acercar la tarjeta**: sector a leer, clave A, sector a escribir, clave B, certificados (para Classic) o solo card_uid (para UID/DESFire)
 - **La tarjeta es el último paso**: solo prueba posesión física del token
+- **Flujo unificado**: todos los tipos de tarjeta siguen el mismo orden (doc + PIN → tarjeta), simplificando la UI y la lógica
 - **No hay petición extra**: una sola ida (auth) y una sola vuelta (pre-aprobación con todo), luego confirmación
 - **Si el usuario no tiene tarjeta o no la acerca**: el servidor cancela la pre-aprobación después de un timeout (30 segundos)
 
@@ -249,14 +265,17 @@ Provisiona una tarjeta MIFARE Classic 1K con certificados dinámicos.
 - **Response:** `{card_uid, sectors: [{sector_number, key_a, key_b, access_bits, certificate, is_active}]}`
 
 ### POST /api/nfc/terminal/classic/pre-auth
-Pre-autenticación para tarjeta Classic (terminal-facing, Ed25519 auth).
+Pre-autenticación unificada para todos los tipos de tarjeta (terminal-facing, Ed25519 auth).
 - **Payload cifrado:** `{terminal_id, doc_type, doc_number, pin, amount}`
-- **Response cifrada:** `{pre_approved, card_uid, read_sector, read_key_a, expected_certificate, write_sector, write_key_b, new_certificate}`
+- **Response cifrada (Classic):** `{pre_approved, card_type: "classic", card_uid, read_sector, read_key_a, expected_certificate, write_sector, write_key_b, new_certificate}`
+- **Response cifrada (UID-only/DESFire):** `{pre_approved, card_type: "uid_only"|"desfire", card_uid}` (sin datos de sectores)
+- El POS usa `card_type` para decidir si hace lectura/escritura de sectores (Classic) o solo verificación de UID (UID/DESFire)
 
 ### POST /api/nfc/terminal/classic/confirm
 Confirma la lectura/escritura de la tarjeta Classic (terminal-facing, Ed25519 auth).
 - **Payload cifrado:** `{terminal_id, card_uid, read_ok, write_ok, written_blocks}`
 - **Response cifrada:** `PaymentResultDecrypted` (status, transaction_id, user_balance)
+- Solo se llama para tarjetas Classic. Para UID-only/DESFire, el POS llama a `processNfcPayment` directamente después de verificar el UID.
 
 ---
 
@@ -358,14 +377,18 @@ Confirma la lectura/escritura de la tarjeta Classic (terminal-facing, Ed25519 au
 
 **Archivo:** `web/src/pages/Pos.tsx`
 
-El POS web usa **Web Bluetooth** para conectar un lector BLE. El flujo Classic requiere:
-1. El comerciante ingresa documento + PIN del cliente
+El POS web usa **Web Bluetooth** para conectar un lector BLE. El flujo unificado requiere:
+1. El comerciante ingresa documento + PIN del cliente (para todos los tipos de tarjeta)
 2. El POS web envía pre-auth al servidor
-3. El servidor responde con sector a leer + claves
-4. El POS web envía comandos al lector BLE para leer/escribir sectores
-5. El POS web confirma al servidor
+3. El servidor responde con `card_type`:
+   - Classic: sector a leer + claves + certificados
+   - UID-only/DESFire: solo card_uid para verificar
+4. El POS web envía comandos al lector BLE:
+   - Classic: leer/escribir sectores MIFARE Classic
+   - UID/DESFire: leer UID y verificar
+5. El POS web confirma al servidor (Classic) o procesa pago (UID/DESFire)
 
-**Nota:** El POS web actualmente solo crea cargos QR/NFC básicos. El flujo Classic completo requiere implementar la comunicación con el lector BLE para lectura/escritura de sectores MIFARE Classic.
+**Nota:** El POS web actualmente solo crea cargos QR/NFC básicos. El flujo unificado completo requiere implementar la comunicación con el lector BLE para lectura/escritura de sectores MIFARE Classic y la verificación de UID para UID-only/DESFire.
 
 ---
 
@@ -401,10 +424,11 @@ Para **alta seguridad**, se recomienda **DESFire EV3** que tiene criptografía A
 | Precio | $0.20 | $0.30 | $1.50 |
 | Criptografía | Ninguna | Crypto1 (débil) | AES-128 (fuerte) |
 | Clonable | Sí (fácil) | Sí (pero cert rotativo mitiga) | No (difícil) |
-| Documento obligatorio | Configurable | **Sí (siempre)** | No |
+| Documento obligatorio | **Sí (flujo unificado)** | **Sí (siempre)** | **Sí (flujo unificado)** |
 | Certificados dinámicos | No | Sí (15 sectores) | No (usa AES) |
 | Rotación por transacción | No | Sí | Opcional |
 | Triple redundancia | No | Sí (3 bloques) | No |
+| Flujo unificado (doc+PIN primero) | Sí | Sí | Sí |
 | Recomendado para | Básico | Económico con seguridad | Alta seguridad |
 
 ---

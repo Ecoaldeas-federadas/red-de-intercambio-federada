@@ -32,11 +32,20 @@
 - `POST /api/payments/nfc/lookup`: busca usuario por card_uid
 - `POST /api/nfc/terminal/{id}/assign`: asigna terminal a usuario (requiere permiso)
 
-#### Flujo
-1. Comercio lee tarjeta NFC del cliente
-2. Sistema busca usuario asociado
-3. Comercio ingresa monto
-4. Sistema procesa transaccion
+#### Flujo unificado (doc + PIN primero para todos los tipos)
+1. Comercio ingresa monto
+2. Cliente ingresa documento de identidad + PIN (sin tarjeta)
+3. POS envia pre-auth al servidor (cifrado): `{terminal_id, doc_type, doc_number, pin, amount}`
+4. Servidor valida documento + PIN, busca tarjeta activa del usuario, identifica el tipo
+5. Servidor responde con `card_type`:
+   - `classic`: datos de sectores para leer/escribir (certificados dinamicos)
+   - `uid_only` / `desfire`: solo `card_uid` para verificar
+6. POS muestra "ACERQUE SU TARJETA"
+7. Cliente acerca tarjeta
+8. POS verifica UID coincide con `card_uid` del pre-auth
+9. Si es Classic: lee/escribe sectores, confirma al servidor
+10. Si es UID/DESFire: llama a `processNfcPayment` con card_uid + PIN + amount
+11. Servidor procesa pago, responde con resultado
 
 ### 3. Pago NFC (Terminales ESP32)
 
@@ -52,8 +61,8 @@
 - `POST /api/nfc/terminal/heartbeat` — Heartbeat
 - `POST /api/nfc/terminal/payment` — Pago individual (cifrado)
 - `POST /api/nfc/terminal/payment/community` — Pago comunitario (doble tarjeta)
-- `POST /api/nfc/terminal/classic/pre-auth` — Pre-autenticacion tarjeta Classic (cert dinamicos)
-- `POST /api/nfc/terminal/classic/confirm` — Confirmar lectura/escritura tarjeta Classic
+- `POST /api/nfc/terminal/classic/pre-auth` — Pre-autenticacion unificada (todos los tipos de tarjeta)
+- `POST /api/nfc/terminal/classic/confirm` — Confirmar lectura/escritura tarjeta Classic (cert dinamicos)
 
 #### Endpoints de gestion (JWT + permisos)
 - `POST /api/nfc/terminal/register` — Registrar terminal (permiso: `nfc.register_terminal`)
@@ -73,17 +82,19 @@
 5. Servidor debita, cifra respuesta, firma
 6. Terminal descifra, muestra resultado
 
-#### Flujo de pago con MIFARE Classic (certificados dinamicos)
+#### Flujo de pago unificado (MIFARE Classic, UID-only, DESFire)
 1. Comerciante ingresa monto
-2. Cliente ingresa documento de identidad + PIN (sin tarjeta)
+2. Cliente ingresa documento de identidad + PIN (sin tarjeta) — para todos los tipos
 3. POS envia pre-auth al servidor (cifrado)
-4. Servidor valida usuario, PIN, saldo → bloquea monto
-5. Servidor responde: sector a leer + Key A + cert esperado + sector a escribir + Key B + cert nuevo
+4. Servidor valida usuario, PIN, saldo → bloquea monto, identifica tipo de tarjeta
+5. Servidor responde con `card_type`:
+   - `classic`: sector a leer + Key A + cert esperado + sector a escribir + Key B + cert nuevo
+   - `uid_only`/`desfire`: solo `card_uid` para verificar
 6. POS muestra "ACERQUE SU TARJETA"
-7. POS lee UID, lee sector con Key A, verifica cert (triple redundancia)
-8. POS escribe nuevo cert en sector destino con Key B
-9. POS confirma al servidor
-10. Servidor procesa pago, rota sector activo
+7. Si es Classic: POS lee UID, lee sector con Key A, verifica cert (triple redundancia), escribe nuevo cert con Key B
+8. Si es UID/DESFire: POS verifica UID, llama a `processNfcPayment`
+9. POS confirma al servidor (solo Classic)
+10. Servidor procesa pago, rota sector activo (solo Classic)
 
 Ver `docs/tarjeta-classic-certificados.md` para detalles completos.
 

@@ -862,7 +862,7 @@ fun NfcChargeScreen(
                                     FeedbackHelper.playButtonClick(context)
                                     if (uiState.isMultisigActive) {
                                         viewModel.resetNfcPaymentState()
-                                    } else if (uiState.isClassicFlow) {
+                                    } else if (uiState.isClassicFlow || uiState.isWaitingCardVerify) {
                                         viewModel.cancelClassicPayment("Operación cancelada")
                                     } else {
                                         viewModel.navigateTo(PosScreen.NfcCharge)

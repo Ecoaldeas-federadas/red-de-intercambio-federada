@@ -44,30 +44,48 @@ POST /api/nfc/terminal/payment
 8. Si no requiere multifirma: debitar de `card.UserID`, acreditar al `merchant_user_id` del terminal
 9. Retornar `status="approved"` con `transaction_id` y `user_balance`
 
-### Flujo alternativo: MIFARE Classic con Certificados Dinámicos
+### Flujo unificado: NFC con pre-autenticación (todos los tipos de tarjeta)
 
-Para tarjetas MIFARE Classic con `has_dynamic_certs=true`, el flujo es diferente:
+El flujo NFC unificado pide **documento + PIN primero** para **todos** los tipos de tarjeta (Classic, UID-only, DESFire). El servidor identifica el tipo de tarjeta del usuario desde el documento y responde según corresponda.
+
+#### Steps de la UI (`NfcChargeScreen.kt`)
+
+1. **`amount_input`** — Comerciante ingresa monto
+2. **`confirm`** — Comerciante confirma monto
+3. **`credentials`** — Cliente ingresa documento + PIN (nuevo step, siempre se muestra)
+4. **`tap_card`** — POS muestra "ACERQUE SU TARJETA" (después del pre-auth)
+5. **`writing`** (solo Classic) — POS lee/escribe sectores
+6. **`done`** — POS muestra resultado
+
+#### Flujo detallado
 
 1. **Comerciante ingresa monto** → confirma
-2. **Cliente ingresa documento + PIN** (sin tarjeta)
+2. **Cliente ingresa documento + PIN** (sin tarjeta) — para todos los tipos
 3. POS envía `POST /api/nfc/terminal/classic/pre-auth` (cifrado)
-4. Servidor valida: usuario (por doc), PIN, saldo → bloquea monto
-5. Servidor busca sector activo en `nfc_card_sectors`, genera nuevo cert, elige sector aleatorio
-6. Servidor responde: `card_uid`, `read_sector`, `read_key_a`, `expected_certificate`, `write_sector`, `write_key_b`, `new_certificate`
-7. POS muestra "ACERQUE SU TARJETA"
-8. POS lee UID → verifica, lee sector con Key A → verifica cert (triple redundancia)
-9. POS escribe nuevo cert en sector destino con Key B (3 bloques)
-10. POS re-lee para verificar escritura
-11. POS envía `POST /api/nfc/terminal/classic/confirm` (cifrado)
-12. Servidor procesa pago, desactiva sector viejo, activa nuevo
-13. POS muestra resultado
+4. Servidor valida: usuario (por doc), PIN, saldo → bloquea monto, identifica tipo de tarjeta
+5. Servidor responde con `card_type`:
+   - `classic`: `card_uid`, `read_sector`, `read_key_a`, `expected_certificate`, `write_sector`, `write_key_b`, `new_certificate`
+   - `uid_only`/`desfire`: solo `card_uid` para verificar
+6. POS muestra "ACERQUE SU TARJETA"
+7. **Si es Classic:**
+   - POS lee UID → verifica, lee sector con Key A → verifica cert (triple redundancia)
+   - POS escribe nuevo cert en sector destino con Key B (3 bloques)
+   - POS re-lee para verificar escritura
+   - POS envía `POST /api/nfc/terminal/classic/confirm` (cifrado)
+   - Servidor procesa pago, desactiva sector viejo, activa nuevo
+8. **Si es UID-only/DESFire:**
+   - POS verifica UID coincide con `card_uid` del pre-auth
+   - POS llama a `processNfcPayment` con card_uid + PIN + amount
+   - Servidor procesa pago normal
+9. POS muestra resultado
 
-**Diferencias clave:**
-- Auth primero (doc + PIN), tarjeta al final
-- Documento OBLIGATORIO (no configurable)
-- Rotación aleatoria de certificado por transacción
-- Triple redundancia (3 bloques por sector)
-- Recuperación de escritura parcial (`needs_repair`)
+**Diferencias clave del flujo unificado:**
+- Auth primero (doc + PIN), tarjeta al final — para todos los tipos
+- Documento OBLIGATORIO para todos (no configurable)
+- El servidor identifica el tipo de tarjeta desde el documento
+- Classic: rotación aleatoria de certificado por transacción + triple redundancia
+- UID/DESFire: verificación simple de UID + processNfcPayment
+- Recuperación de escritura parcial (`needs_repair`) solo para Classic
 
 ### Respuesta (NFCPaymentResult)
 ```json

@@ -283,6 +283,49 @@ export class API {
     })
   }
 
+  // ===== NFC UNIFIED PRE-AUTH (doc + PIN first, all card types) =====
+  async classicPreAuth(terminalID: string, payload: {
+    doc_type: string
+    doc_number: string
+    pin: string
+    amount: number
+  }): Promise<any> {
+    return this.request('/api/nfc/terminal/classic/pre-auth', {
+      method: 'POST',
+      body: JSON.stringify({
+        terminal_id: terminalID,
+        encrypted_payload: {
+          plaintext: JSON.stringify({
+            terminal_id: terminalID,
+            doc_type: payload.doc_type,
+            doc_number: payload.doc_number,
+            pin: payload.pin,
+            amount: payload.amount,
+          }),
+        },
+      }),
+    })
+  }
+
+  // ===== NFC CLASSIC CONFIRM (after card read/write) =====
+  async classicConfirm(terminalID: string, cardUID: string, readOK: boolean, writeOK: boolean, writtenBlocks: number): Promise<any> {
+    return this.request('/api/nfc/terminal/classic/confirm', {
+      method: 'POST',
+      body: JSON.stringify({
+        terminal_id: terminalID,
+        encrypted_payload: {
+          plaintext: JSON.stringify({
+            terminal_id: terminalID,
+            card_uid: cardUID,
+            read_ok: readOK,
+            write_ok: writeOK,
+            written_blocks: writtenBlocks,
+          }),
+        },
+      }),
+    })
+  }
+
   // ===== TERMINAL STATUS =====
   async getTerminalStatus(terminalID: string): Promise<any> {
     return this.request(`/api/nfc/terminal/${terminalID}/status`)

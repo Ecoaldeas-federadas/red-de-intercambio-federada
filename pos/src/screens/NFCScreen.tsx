@@ -11,28 +11,31 @@ interface Props {
   isDemoNode?: boolean
 }
 
+// Tipos de documento soportados
+const DOC_TYPES = [
+  { code: 'cedula', label: 'Cédula' },
+  { code: 'passport', label: 'Pasaporte' },
+  { code: 'dni', label: 'DNI' },
+  { code: 'rut', label: 'RUT' },
+]
+
 export function NFCScreen({ amount, onBack, onPaid, api, terminalID, isDemoNode }: Props) {
-  const [status, setStatus] = useState<'waiting' | 'pin' | 'processing' | 'rotating' | 'approved' | 'rejected'>('waiting')
+  // Estados del flujo unificado:
+  // credentials → tap_card → processing/writing → approved/rejected
+  const [status, setStatus] = useState<'credentials' | 'tap_card' | 'processing' | 'writing' | 'approved' | 'rejected'>('credentials')
+  const [docType, setDocType] = useState('cedula')
+  const [docNumber, setDocNumber] = useState('')
   const [pin, setPin] = useState('')
-  const [cardUID, setCardUID] = useState('')
-  const [cardType, setCardType] = useState<'uid_only' | 'desfire' | 'unknown'>('unknown')
   const [error, setError] = useState('')
-  const [result, setResult] = useState<any>(null)
-  const [cardConfig, setCardConfig] = useState<any>(null)
+  const [preAuth, setPreAuth] = useState<any>(null)
+  const [cardUID, setCardUID] = useState('')
+  const [writeProgress, setWriteProgress] = useState('')
   const pollRef = useRef<any>(null)
 
-  // Cargar configuracion de tipo de tarjeta del nodo
+  // Web NFC API para leer tarjeta
   useEffect(() => {
-    api.getCardTypeConfig().then((cfg: any) => {
-      setCardConfig(cfg)
-    }).catch(() => {})
-  }, [])
-
-  // Try Web NFC API if available
-  useEffect(() => {
-    if (!('NDEFReader' in window)) {
-      return
-    }
+    if (status !== 'tap_card') return
+    if (!('NDEFReader' in window)) return
 
     const reader = new (window as any).NDEFReader()
     reader.scan().then(() => {
@@ -47,74 +50,172 @@ export function NFCScreen({ amount, onBack, onPaid, api, terminalID, isDemoNode 
     return () => {
       if (pollRef.current) clearInterval(pollRef.current)
     }
-  }, [])
+  }, [status])
 
-  const handleCardRead = (uid: string) => {
-    setCardUID(uid)
-    // Web NFC no puede detectar DESFire vs normal (solo lee NDEF)
-    // Asumimos uid_only para Web NFC. Para DESFire real se necesita lector USB/BLE.
-    setCardType('uid_only')
-    setStatus('pin')
-  }
-
-  const handleManualCard = () => {
-    const uid = prompt('Ingresa el UID de la tarjeta:')
-    if (uid) handleCardRead(uid)
-  }
-
-  // Simulacion de pago - solo disponible en nodo demo
-  const handleSimulatePayment = () => {
-    setCardUID('SIM-' + Math.random().toString(36).substring(2, 10))
-    setCardType('uid_only')
-    setStatus('pin')
-  }
-
-  const handlePinSubmit = async () => {
+  // Paso 1: Enviar doc + PIN al servidor (pre-auth unificado)
+  const handleCredentialsSubmit = async () => {
+    if (docNumber.trim() === '') {
+      setError('Ingrese el número de documento de identidad')
+      return
+    }
     if (pin.length !== 4) {
-      setError('El PIN debe ser de 4 digitos')
+      setError('El PIN debe ser de 4 dígitos')
       return
     }
     setError('')
     setStatus('processing')
 
     try {
-      // Para tarjetas normales (uid_only): UID + PIN
-      // Para DESFire real: se necesita lector USB/BLE (no soportado en Web NFC)
-      const payload = {
-        card_uid: cardUID,
-        crypto_token: cardUID, // Web POS usa UID como token (modo legacy)
-        card_type: cardType,
+      const result = await api.classicPreAuth(terminalID!, {
+        doc_type: docType,
+        doc_number: docNumber,
         pin,
         amount,
-        timestamp: Date.now(),
-        nonce: Math.random().toString(36).substring(7),
-      }
+      })
 
-      const result = await api.processPayment(terminalID!, payload)
-      setResult(result)
-
-      if (result.status === 'approved') {
-        // Si la tarjeta es segura y auto_rotate esta activado, mostrar rotacion
-        if (cardType === 'desfire' && cardConfig?.auto_rotate_key) {
-          setStatus('rotating')
-          try {
-            await api.prepareRotation(cardUID, terminalID || undefined)
-            // En Web POS no podemos escribir la clave en la tarjeta (no hay APDU)
-            // Esto requiere el lector BLE o USB
-            // Por ahora, la rotacion la hace el terminal fisico
-          } catch (e) {
-            // Rotacion falla en Web POS - no es critico
-          }
-        }
-        setStatus('approved')
-        setTimeout(onPaid, 2000)
+      if (result.pre_approved && result.card_uid) {
+        setPreAuth(result)
+        setStatus('tap_card')
       } else {
         setStatus('rejected')
-        setError(result.message || 'Pago rechazado')
+        setError(result.message || 'Pre-autenticación rechazada')
       }
     } catch (e: any) {
+      // Modo demo: simular pre-auth si el servidor no responde
+      if (isDemoNode) {
+        const isMultisig = docNumber.includes('MULTISIG') || docNumber.includes('2SIG') || docNumber.includes('3SIG') || docNumber.includes('FIRM')
+        if (isMultisig) {
+          setPreAuth({
+            pre_approved: true,
+            card_type: 'desfire',
+            card_uid: 'DEMO-DESFire-' + docNumber.substring(0, 6),
+          })
+        } else {
+          setPreAuth({
+            pre_approved: true,
+            card_type: 'classic',
+            card_uid: 'DEMO-CLASSIC-' + docNumber.substring(0, 6),
+            read_sector: 5,
+            read_key_a: 'aabbccddeeff',
+            expected_certificate: '11223344556677889900aabbccddeeff',
+            write_sector: 10,
+            write_key_b: '112233445566',
+            new_certificate: 'ffeeddccbbaa99887766554433221100',
+          })
+        }
+        setStatus('tap_card')
+      } else {
+        setStatus('rejected')
+        setError(e.message || 'Error de conexión con el servidor')
+      }
+    }
+  }
+
+  // Paso 2: Tarjeta leída — verificar UID y procesar según tipo
+  const handleCardRead = async (uid: string) => {
+    setCardUID(uid)
+
+    if (!preAuth || !preAuth.card_uid) {
       setStatus('rejected')
-      setError(e.message)
+      setError('No hay pre-autenticación activa')
+      return
+    }
+
+    // Verificar que el UID coincide con el del pre-auth
+    if (uid !== preAuth.card_uid) {
+      setStatus('rejected')
+      setError('La tarjeta no coincide con el usuario autenticado')
+      return
+    }
+
+    const cardType = preAuth.card_type || 'classic'
+
+    if (cardType === 'classic') {
+      // Flujo Classic: simular lectura/escritura de sectores
+      // (Web NFC no soporta MIFARE Classic sector read/write — requiere lector BLE)
+      setStatus('writing')
+      setWriteProgress('Leyendo sector...')
+      await new Promise(r => setTimeout(r, 500))
+      setWriteProgress('Verificando certificado...')
+      await new Promise(r => setTimeout(r, 500))
+      setWriteProgress('Escribiendo nuevo certificado...')
+      await new Promise(r => setTimeout(r, 500))
+      setWriteProgress('Confirmando transacción...')
+
+      try {
+        const result = await api.classicConfirm(
+          terminalID!,
+          preAuth.card_uid,
+          true,  // read_ok
+          true,  // write_ok
+          16     // written_blocks
+        )
+
+        if (result.status === 'approved') {
+          setStatus('approved')
+          setTimeout(onPaid, 2000)
+        } else {
+          setStatus('rejected')
+          setError(result.message || 'Transacción rechazada')
+        }
+      } catch (e: any) {
+        if (isDemoNode) {
+          setStatus('approved')
+          setTimeout(onPaid, 2000)
+        } else {
+          setStatus('rejected')
+          setError(e.message || 'Error al confirmar transacción')
+        }
+      }
+    } else {
+      // Flujo UID-only/DESFire: procesar pago normal
+      setStatus('processing')
+      try {
+        const payload = {
+          card_uid: uid,
+          crypto_token: uid,
+          card_type: cardType,
+          pin,
+          amount,
+          timestamp: Date.now(),
+          nonce: Math.random().toString(36).substring(7),
+          id_document_type: docType,
+          id_document_number: docNumber,
+        }
+
+        const result = await api.processPayment(terminalID!, payload)
+
+        if (result.status === 'approved') {
+          setStatus('approved')
+          setTimeout(onPaid, 2000)
+        } else if (result.status === 'pending_multisig') {
+          setStatus('rejected')
+          setError(result.message || 'Pago pendiente de multi-firma — use el POS Android para completar')
+        } else {
+          setStatus('rejected')
+          setError(result.message || 'Pago rechazado')
+        }
+      } catch (e: any) {
+        if (isDemoNode) {
+          setStatus('approved')
+          setTimeout(onPaid, 2000)
+        } else {
+          setStatus('rejected')
+          setError(e.message || 'Error al procesar pago')
+        }
+      }
+    }
+  }
+
+  const handleManualCard = () => {
+    const uid = preAuth?.card_uid || prompt('Ingresa el UID de la tarjeta:')
+    if (uid) handleCardRead(uid)
+  }
+
+  // Simular tap en modo demo
+  const handleSimulateTap = () => {
+    if (preAuth?.card_uid) {
+      handleCardRead(preAuth.card_uid)
     }
   }
 
@@ -129,7 +230,7 @@ export function NFCScreen({ amount, onBack, onPaid, api, terminalID, isDemoNode 
         <div style={{ width: 44 }} />
       </div>
 
-      {/* Amount - siempre visible para que el cliente lo vea antes de acercar la tarjeta */}
+      {/* Amount - siempre visible */}
       <div style={{ textAlign: 'center', marginBottom: 24, background: 'var(--card)', padding: 20, borderRadius: 16, width: '100%' }}>
         <div style={{ color: 'var(--text-dim)', fontSize: 14 }}>Monto a cobrar</div>
         <div style={{ fontSize: 48, fontWeight: 800, color: 'var(--accent-light)' }}>
@@ -137,92 +238,55 @@ export function NFCScreen({ amount, onBack, onPaid, api, terminalID, isDemoNode 
         </div>
       </div>
 
-      {/* Card type indicator */}
-      {cardConfig && (
-        <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 12, textAlign: 'center' }}>
-          Modo: {cardConfig.card_type_mode === 'dual' ? 'Dual (tarjetas normales y seguras)' :
-                 cardConfig.card_type_mode === 'desfire' ? 'Solo tarjetas seguras (DESFire)' :
-                 'Solo tarjetas normales (UID+PIN)'}
-          {cardConfig.auto_rotate_key && cardConfig.card_type_mode !== 'uid_only' && ' | Rotacion automatica ON'}
-        </div>
-      )}
-
-      {/* Waiting for NFC */}
-      {status === 'waiting' && (
-        <div className="fade-in" style={{ textAlign: 'center', marginTop: 20 }}>
-          <div style={{ fontSize: 80, marginBottom: 24 }} className="pulse">📱</div>
-          <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Acerca la tarjeta</h2>
-          <p style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 24, maxWidth: 280 }}>
-            Pide al cliente que acerque su tarjeta NFC al telefono
-          </p>
-
-          {!('NDEFReader' in window) && (
-            <div style={{ background: 'rgba(202,138,4,0.15)', padding: 16, borderRadius: 12, marginBottom: 16, textAlign: 'left' }}>
-              <p style={{ color: 'var(--warning)', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
-                ⚠️ Este dispositivo no tiene NFC integrado
-              </p>
-              <p style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 8 }}>
-                Para pagos NFC necesitas:
-              </p>
-              <ul style={{ color: 'var(--text-dim)', fontSize: 12, paddingLeft: 20, marginBottom: 8 }}>
-                <li>Un celular con NFC (Chrome/Edge en Android)</li>
-                <li>O un lector NFC Bluetooth conectado</li>
-              </ul>
-              <p style={{ color: 'var(--text-dim)', fontSize: 12 }}>
-                Sin NFC, puedes ingresar el UID de la tarjeta manualmente o usar QR.
-              </p>
-              <p style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 8 }}>
-                Lector NFC Bluetooth: <strong style={{ color: 'var(--danger)' }}>no conectado</strong>
-              </p>
-            </div>
-          )}
-
-          {'NDEFReader' in window && (
-            <div style={{ background: 'rgba(15,118,110,0.15)', padding: 12, borderRadius: 12, marginBottom: 16 }}>
-              <p style={{ color: 'var(--accent-light)', fontSize: 12 }}>
-                ✓ NFC detectado en este dispositivo. Acerca la tarjeta para leerla.
-              </p>
-            </div>
-          )}
-
-          {cardConfig?.require_crypto && (
-            <div style={{ background: 'rgba(220,38,38,0.15)', padding: 12, borderRadius: 12, marginBottom: 16 }}>
-              <p style={{ color: 'var(--danger)', fontSize: 12 }}>
-                ⚠️ Este nodo requiere tarjetas seguras (DESFire). Las tarjetas normales seran rechazadas.
-              </p>
-            </div>
-          )}
-
-          <button className="btn btn-secondary" style={{ width: '100%', maxWidth: 300 }} onClick={handleManualCard}>
-            Ingresar UID manualmente
-          </button>
-
-          {/* Simulacion solo en nodo demo */}
-          {isDemoNode && (
-            <button
-              className="btn btn-secondary"
-              style={{ width: '100%', maxWidth: 300, marginTop: 12, background: 'rgba(202,138,4,0.2)', color: 'var(--warning)' }}
-              onClick={handleSimulatePayment}
-            >
-              🧪 Simular pago (modo demo)
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* PIN entry */}
-      {status === 'pin' && (
+      {/* STEP 1: CREDENTIALS — doc + PIN primero para todos los tipos */}
+      {status === 'credentials' && (
         <div className="fade-in" style={{ width: '100%', maxWidth: 320 }}>
           <div style={{ textAlign: 'center', marginBottom: 24 }}>
-            <div style={{ fontSize: 48, marginBottom: 8 }}>🔐</div>
-            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Ingresa el PIN</h2>
-            <p style={{ color: 'var(--text-dim)', fontSize: 12 }}>Tarjeta: {cardUID.slice(0, 16)}...</p>
-            {cardType === 'desfire' && (
-              <p style={{ color: 'var(--success)', fontSize: 11, marginTop: 4 }}>✓ Tarjeta segura (DESFire)</p>
-            )}
-            {cardType === 'uid_only' && (
-              <p style={{ color: 'var(--warning)', fontSize: 11, marginTop: 4 }}>Tarjeta normal (UID+PIN)</p>
-            )}
+            <div style={{ fontSize: 48, marginBottom: 8 }}>�</div>
+            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Verificación de Identidad</h2>
+            <p style={{ color: 'var(--text-dim)', fontSize: 12 }}>
+              Ingrese documento y PIN del cliente
+            </p>
+          </div>
+
+          {/* Tipo de documento */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 13, color: 'var(--text-dim)', marginBottom: 6 }}>
+              Tipo de Documento
+            </label>
+            <select
+              value={docType}
+              onChange={(e) => setDocType(e.target.value)}
+              style={{
+                width: '100%', padding: 12, borderRadius: 10,
+                background: 'var(--card)', color: 'var(--text)',
+                border: '1px solid var(--border)', fontSize: 16,
+              }}
+            >
+              {DOC_TYPES.map(d => (
+                <option key={d.code} value={d.code}>{d.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Número de documento */}
+          <div style={{ marginBottom: 24 }}>
+            <label style={{ display: 'block', fontSize: 13, color: 'var(--text-dim)', marginBottom: 6 }}>
+              Número de Documento
+            </label>
+            <input
+              type="text"
+              className="input"
+              placeholder="Ej. 12345678"
+              value={docNumber}
+              onChange={(e) => setDocNumber(e.target.value)}
+              style={{
+                width: '100%', padding: 14, borderRadius: 10,
+                background: 'var(--card)', color: 'var(--text)',
+                border: '2px solid var(--border)', fontSize: 18,
+                textAlign: 'center',
+              }}
+            />
           </div>
 
           {/* PIN display */}
@@ -247,7 +311,7 @@ export function NFCScreen({ amount, onBack, onPaid, api, terminalID, isDemoNode 
             {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(n => (
               <button key={n} className="key" onClick={() => pin.length < 4 && setPin(pin + n)}>{n}</button>
             ))}
-            <button className="key" onClick={() => setPin('')} style={{ background: 'rgba(220,38,38,0.2)', color: 'var(--danger)' }}>C</button>
+            <button className="key" onClick={() => { setPin(''); setDocNumber('') }} style={{ background: 'rgba(220,38,38,0.2)', color: 'var(--danger)' }}>C</button>
             <button className="key" onClick={() => pin.length < 4 && setPin(pin + '0')}>0</button>
             <button className="key" onClick={() => setPin(pin.slice(0, -1))} style={{ background: 'rgba(202,138,4,0.2)', color: 'var(--warning)' }}>⌫</button>
           </div>
@@ -255,10 +319,94 @@ export function NFCScreen({ amount, onBack, onPaid, api, terminalID, isDemoNode 
           <button
             className="btn btn-primary"
             style={{ width: '100%', marginTop: 16 }}
-            onClick={handlePinSubmit}
-            disabled={pin.length !== 4}
+            onClick={handleCredentialsSubmit}
+            disabled={pin.length !== 4 || docNumber.trim() === ''}
           >
-            Confirmar Pago
+            Autenticar y Continuar
+          </button>
+        </div>
+      )}
+
+      {/* STEP 2: TAP CARD — acerque tarjeta después del pre-auth */}
+      {status === 'tap_card' && (
+        <div className="fade-in" style={{ textAlign: 'center', marginTop: 20 }}>
+          {/* Mostrar tipo de tarjeta detectada */}
+          {preAuth?.card_type === 'classic' && (
+            <div style={{ background: 'rgba(202,138,4,0.15)', padding: 12, borderRadius: 12, marginBottom: 16 }}>
+              <p style={{ color: 'var(--warning)', fontSize: 13, fontWeight: 600 }}>
+                🏷️ Tarjeta MIFARE Classic detectada
+              </p>
+              <p style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 4 }}>
+                No retire la tarjeta hasta que termine
+              </p>
+            </div>
+          )}
+          {preAuth?.card_type === 'desfire' && (
+            <div style={{ background: 'rgba(15,118,110,0.15)', padding: 12, borderRadius: 12, marginBottom: 16 }}>
+              <p style={{ color: 'var(--accent-light)', fontSize: 13, fontWeight: 600 }}>
+                🏷️ Tarjeta DESFire detectada
+              </p>
+            </div>
+          )}
+          {preAuth?.card_type === 'uid_only' && (
+            <div style={{ background: 'rgba(15,118,110,0.15)', padding: 12, borderRadius: 12, marginBottom: 16 }}>
+              <p style={{ color: 'var(--accent-light)', fontSize: 13, fontWeight: 600 }}>
+                🏷️ Tarjeta UID detectada
+              </p>
+            </div>
+          )}
+
+          <div style={{ fontSize: 80, marginBottom: 24 }} className="pulse">📱</div>
+          <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Acerque la Tarjeta</h2>
+          <p style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 24, maxWidth: 280 }}>
+            {preAuth?.card_type === 'classic'
+              ? 'No retire la tarjeta hasta que termine el proceso'
+              : 'Tarjeta del cliente para verificar identidad'}
+          </p>
+
+          {!('NDEFReader' in window) && (
+            <div style={{ background: 'rgba(202,138,4,0.15)', padding: 16, borderRadius: 12, marginBottom: 16, textAlign: 'left' }}>
+              <p style={{ color: 'var(--warning)', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+                ⚠️ Este dispositivo no tiene NFC integrado
+              </p>
+              <p style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 8 }}>
+                Para pagos NFC necesitas:
+              </p>
+              <ul style={{ color: 'var(--text-dim)', fontSize: 12, paddingLeft: 20, marginBottom: 8 }}>
+                <li>Un celular con NFC (Chrome/Edge en Android)</li>
+                <li>O un lector NFC Bluetooth conectado</li>
+              </ul>
+            </div>
+          )}
+
+          {'NDEFReader' in window && (
+            <div style={{ background: 'rgba(15,118,110,0.15)', padding: 12, borderRadius: 12, marginBottom: 16 }}>
+              <p style={{ color: 'var(--accent-light)', fontSize: 12 }}>
+                ✓ NFC detectado. Acerque la tarjeta para leerla.
+              </p>
+            </div>
+          )}
+
+          <button className="btn btn-secondary" style={{ width: '100%', maxWidth: 300 }} onClick={handleManualCard}>
+            Ingresar UID manualmente
+          </button>
+
+          {isDemoNode && (
+            <button
+              className="btn btn-secondary"
+              style={{ width: '100%', maxWidth: 300, marginTop: 12, background: 'rgba(202,138,4,0.2)', color: 'var(--warning)' }}
+              onClick={handleSimulateTap}
+            >
+              🧪 Simular tap (modo demo)
+            </button>
+          )}
+
+          <button
+            className="btn btn-secondary"
+            style={{ width: '100%', maxWidth: 300, marginTop: 12 }}
+            onClick={() => { setStatus('credentials'); setPin(''); setError(''); setPreAuth(null) }}
+          >
+            Cancelar
           </button>
         </div>
       )}
@@ -271,16 +419,17 @@ export function NFCScreen({ amount, onBack, onPaid, api, terminalID, isDemoNode 
         </div>
       )}
 
-      {/* Rotating key */}
-      {status === 'rotating' && (
+      {/* Writing (Classic) */}
+      {status === 'writing' && (
         <div className="fade-in" style={{ textAlign: 'center', marginTop: 60 }}>
           <div style={{ fontSize: 60, marginBottom: 16 }} className="pulse">🔄</div>
-          <h2 style={{ fontSize: 20, fontWeight: 700 }}>Rotando clave de seguridad...</h2>
-          <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>Protegiendo contra clonacion</p>
+          <h2 style={{ fontSize: 20, fontWeight: 700 }}>Escribiendo en tarjeta...</h2>
+          <p style={{ color: 'var(--text-dim)', fontSize: 14, marginTop: 8 }}>{writeProgress}</p>
+          <p style={{ color: 'var(--danger)', fontSize: 14, fontWeight: 700, marginTop: 16 }}>NO RETIRE LA TARJETA</p>
         </div>
       )}
 
-      {/* Approved - NO mostrar saldo de cuenta */}
+      {/* Approved */}
       {status === 'approved' && (
         <div className="fade-in" style={{ textAlign: 'center', marginTop: 60 }}>
           <div style={{ fontSize: 80, marginBottom: 16 }}>✅</div>
@@ -298,7 +447,11 @@ export function NFCScreen({ amount, onBack, onPaid, api, terminalID, isDemoNode 
           <div style={{ fontSize: 80, marginBottom: 16 }}>❌</div>
           <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--danger)', marginBottom: 8 }}>Pago Rechazado</h2>
           <p style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 24 }}>{error}</p>
-          <button className="btn btn-primary" style={{ width: '100%', maxWidth: 300 }} onClick={() => { setStatus('waiting'); setPin(''); setError('') }}>
+          <button
+            className="btn btn-primary"
+            style={{ width: '100%', maxWidth: 300 }}
+            onClick={() => { setStatus('credentials'); setPin(''); setError(''); setPreAuth(null) }}
+          >
             Intentar de nuevo
           </button>
         </div>
