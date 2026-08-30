@@ -9,32 +9,29 @@
 -- 2. Crear un índice único en (LOWER(username), node_domain) para evitar duplicados
 -- 3. Las consultas deben usar LOWER(username) = LOWER($1)
 
--- Paso 1: Normalizar usernames existentes a minúsculas
--- Si hay duplicados después de lower() (ej: "Admin" y "admin"), mantener el más antiguo
-UPDATE users SET username = LOWER(username)
-WHERE username != LOWER(username)
-  AND id = (
-    SELECT MIN(id) FROM users u2
-    WHERE LOWER(u2.username) = LOWER(users.username)
-      AND u2.node_domain = users.node_domain
-  );
-
--- Eliminar duplicados que queden (mantener el de menor id)
+-- Paso 1: Identificar y eliminar duplicados case-insensitive antes de normalizar
+-- Si hay "Admin" y "admin" en el mismo nodo, eliminar el duplicado (mantener el de menor id)
 DELETE FROM users
 WHERE id NOT IN (
-  SELECT MIN(id) FROM users GROUP BY LOWER(username), node_domain
-)
-AND username != LOWER(username);
+  SELECT id FROM (
+    SELECT id, ROW_NUMBER() OVER (
+      PARTITION BY LOWER(username), node_domain
+      ORDER BY created_at ASC, id ASC
+    ) AS rn
+    FROM users
+  ) ranked
+  WHERE ranked.rn = 1
+);
 
--- Asegurar que todos queden en minúsculas
+-- Paso 2: Normalizar todos los usernames restantes a minúsculas
 UPDATE users SET username = LOWER(username) WHERE username != LOWER(username);
 
--- Paso 2: Crear índice único case-insensitive
+-- Paso 3: Crear índice único case-insensitive
 -- Esto previene que se creen dos usuarios con el mismo nombre ignorando mayúsculas
 DROP INDEX IF EXISTS users_username_node_domain_lower_uniq;
 CREATE UNIQUE INDEX users_username_node_domain_lower_uniq
   ON users (LOWER(username), node_domain);
 
--- Paso 3: Índice regular para búsquedas rápidas (opcional, el único ya sirve)
+-- Paso 4: Índice regular para búsquedas rápidas
 DROP INDEX IF EXISTS idx_users_username_lower;
 CREATE INDEX idx_users_username_lower ON users (LOWER(username));
