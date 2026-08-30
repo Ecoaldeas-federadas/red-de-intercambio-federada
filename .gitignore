@@ -55,3 +55,4 @@ desktop.ini
 /volumes/
 
 .commit_msg.txt
+.commit_msg_*.txt
