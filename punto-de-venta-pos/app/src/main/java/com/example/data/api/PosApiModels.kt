@@ -410,6 +410,7 @@ data class ClassicPreAuthDecryptedPayload(
 @JsonClass(generateAdapter = true)
 data class ClassicPreAuthResponse(
     @Json(name = "pre_approved") val preApproved: Boolean = false,
+    @Json(name = "card_type") val cardType: String? = null, // "classic", "uid_only", "desfire"
     @Json(name = "card_uid") val cardUid: String? = null,
     @Json(name = "read_sector") val readSector: Int = 0,
     @Json(name = "read_key_a") val readKeyA: String? = null,

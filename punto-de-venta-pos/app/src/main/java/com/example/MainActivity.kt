@@ -214,8 +214,15 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                     return
                 }
 
-                // Flujo normal: detectar tarjeta
-                if (hasAmount && state.nfcPaymentResult == null && !state.isLoading) {
+                // Flujo UID/DESFire unificado: si estamos esperando verificacion de tarjeta
+                if (state.isWaitingCardVerify && state.classicStep == "tap_card") {
+                    viewModel.onCardTappedForVerification(cardUid, isDesfire)
+                    return
+                }
+
+                // Flujo normal legacy: detectar tarjeta (solo si no estamos en flujo unificado)
+                if (hasAmount && state.nfcPaymentResult == null && !state.isLoading &&
+                    state.classicStep == "idle" && !state.isWaitingCardVerify) {
                     viewModel.onCardTapped(cardUid, isDesfire)
                 }
             }

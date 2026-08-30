@@ -42,18 +42,14 @@ fun NfcChargeScreen(
 
     var docTypeExpanded by remember { mutableStateOf(false) }
 
-    // NFC flow steps: amount_input → confirm → tap_card
-    // Only show "tap card" AFTER the operator confirms the amount
+    // NFC flow steps: amount_input → confirm → credentials → tap_card
+    // Unified flow: doc + PIN are entered BEFORE tapping the card
     var nfcStep by remember { mutableStateOf("amount_input") }
 
     // Reset step when entering screen or after payment completes
-    LaunchedEffect(isPaymentApproved, isCardDetected) {
+    LaunchedEffect(isPaymentApproved) {
         if (isPaymentApproved) {
             nfcStep = "amount_input"
-        }
-        // If card is detected, we must be in tap_card step
-        if (isCardDetected && nfcStep != "tap_card") {
-            nfcStep = "tap_card"
         }
     }
 
@@ -457,9 +453,9 @@ fun NfcChargeScreen(
                         }
                     }
                 }
-            } else if (!isCardDetected) {
-                // --- NFC FLOW: 3 steps ---
-                // Step 1: amount_input → Step 2: confirm → Step 3: tap_card
+            } else if (!isCardDetected && uiState.classicStep != "tap_card") {
+                // --- NFC FLOW: 4 steps (unified) ---
+                // Step 1: amount_input → Step 2: confirm → Step 3: credentials → Step 4: tap_card
                 val centavos = uiState.amountInput.replace(Regex("[^0-9]"), "").ifEmpty { "0" }.toLong()
                 val hasAmount = centavos > 0
 
@@ -529,7 +525,7 @@ fun NfcChargeScreen(
                             Button(
                                 onClick = {
                                     FeedbackHelper.playButtonClick(context)
-                                    nfcStep = "tap_card"
+                                    nfcStep = "credentials"
                                 },
                                 modifier = Modifier
                                     .weight(1f)
@@ -539,6 +535,132 @@ fun NfcChargeScreen(
                                 colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue)
                             ) {
                                 Text("Confirmar", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            }
+                        }
+                    }
+
+                    "credentials" -> {
+                        // STEP 2.5: Enter document + PIN BEFORE tapping card
+                        // This is the unified flow: doc + PIN first for ALL card types
+                        KioskAmountDisplay(
+                            amountInput = uiState.amountInput,
+                            label = "Monto a Pagar"
+                        )
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = PosSlate900),
+                            shape = RoundedCornerShape(20.dp),
+                            border = CardDefaults.outlinedCardBorder().copy(
+                                brush = androidx.compose.ui.graphics.SolidColor(PosPrimaryLight)
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text(
+                                    text = "Verificación de Identidad",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = PosGoldLight,
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                // Document type selector
+                                ExposedDropdownMenuBox(
+                                    expanded = docTypeExpanded,
+                                    onExpandedChange = { docTypeExpanded = !docTypeExpanded }
+                                ) {
+                                    OutlinedTextField(
+                                        value = DEFAULT_DOCUMENT_TYPES.find { it.code == uiState.selectedDocType }?.spanishName ?: "Cédula",
+                                        onValueChange = {},
+                                        readOnly = true,
+                                        label = { Text("Tipo de Documento") },
+                                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = docTypeExpanded) },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .menuAnchor(),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedTextColor = PosSlate100,
+                                            unfocusedTextColor = PosSlate100
+                                        )
+                                    )
+                                    ExposedDropdownMenu(
+                                        expanded = docTypeExpanded,
+                                        onDismissRequest = { docTypeExpanded = false }
+                                    ) {
+                                        DEFAULT_DOCUMENT_TYPES.forEach { doc ->
+                                            DropdownMenuItem(
+                                                text = { Text(doc.spanishName) },
+                                                onClick = {
+                                                    viewModel.setIdDocInfo(doc.code, uiState.idDocNumber)
+                                                    docTypeExpanded = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+
+                                OutlinedTextField(
+                                    value = uiState.idDocNumber,
+                                    onValueChange = { viewModel.setIdDocInfo(uiState.selectedDocType, it) },
+                                    label = { Text("Número de Documento") },
+                                    placeholder = { Text("Ej. 12345678") },
+                                    singleLine = true,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("id_doc_number_input"),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedTextColor = PosSlate100,
+                                        unfocusedTextColor = PosSlate100
+                                    )
+                                )
+
+                                // PIN Input Pad
+                                PinInputPad(
+                                    pin = uiState.customerPin,
+                                    onPinChange = { viewModel.setCustomerPin(it) },
+                                    title = "PIN del Cliente"
+                                )
+                            }
+                        }
+
+                        // Botones: Cancelar y Procesar
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    FeedbackHelper.playButtonClick(context)
+                                    nfcStep = "amount_input"
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(56.dp)
+                                    .testTag("nfc_cancel_credentials_btn"),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = PosSlate300)
+                            ) {
+                                Text("Cancelar", fontWeight = FontWeight.Bold)
+                            }
+
+                            Button(
+                                onClick = {
+                                    FeedbackHelper.playButtonClick(context)
+                                    viewModel.submitClassicPayment()
+                                },
+                                enabled = uiState.idDocNumber.isNotBlank() && uiState.customerPin.length >= 4,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(56.dp)
+                                    .testTag("nfc_process_unified_btn"),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue)
+                            ) {
+                                Text("Procesar", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                             }
                         }
                     }
@@ -712,6 +834,8 @@ fun NfcChargeScreen(
                                     Text(
                                         text = if (uiState.isMultisigActive) {
                                             "Firmante ${uiState.multisigCollectedSigs + 1} de ${uiState.multisigRequiredSigs}"
+                                        } else if (uiState.classicStep == "tap_card") {
+                                            "Esperando tarjeta del cliente"
                                         } else {
                                             "Tarjeta: ${uiState.detectedCardUid}"
                                         },
@@ -749,8 +873,8 @@ fun NfcChargeScreen(
                             }
                         }
 
-                        // ===== MIFARE CLASSIC: TAP CARD / WRITING STATES =====
-                        if (uiState.isClassicFlow && uiState.classicStep == "tap_card") {
+                        // ===== TAP CARD STATE (Classic y UID/DESFire unificado) =====
+                        if ((uiState.isClassicFlow || uiState.isWaitingCardVerify) && uiState.classicStep == "tap_card") {
                             Card(
                                 colors = CardDefaults.cardColors(containerColor = PosGold),
                                 shape = RoundedCornerShape(16.dp),
@@ -776,7 +900,11 @@ fun NfcChargeScreen(
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = "No retire la tarjeta hasta que termine",
+                                        text = if (uiState.isClassicFlow) {
+                                            "No retire la tarjeta hasta que termine"
+                                        } else {
+                                            "Tarjeta del cliente para verificar identidad"
+                                        },
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = PosNavyDark
                                     )
@@ -785,6 +913,68 @@ fun NfcChargeScreen(
                                         style = MaterialTheme.typography.bodySmall,
                                         color = PosNavyDark
                                     )
+                                }
+                            }
+                        }
+
+                        // SIMULATION BUTTONS FOR DEMO NODE - TAP CARD STATE
+                        if (uiState.isDemoNode && (uiState.isClassicFlow || uiState.isWaitingCardVerify) && uiState.classicStep == "tap_card") {
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = PosSlate800),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = "Simulación Demo",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = PosGoldLight,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    if (uiState.isClassicFlow) {
+                                        Button(
+                                            onClick = {
+                                                FeedbackHelper.playButtonClick(context)
+                                                val preAuth = uiState.classicPreAuth
+                                                if (preAuth != null && preAuth.cardUid != null) {
+                                                    // Simular escritura exitosa de sectores
+                                                    viewModel.simulateClassicTapDemo()
+                                                }
+                                            },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .testTag("sim_classic_tap_btn"),
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = PosGold)
+                                        ) {
+                                            Icon(Icons.Default.Nfc, contentDescription = null, modifier = Modifier.size(18.dp), tint = PosNavyDark)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("Simular Tap Classic", color = PosNavyDark, fontWeight = FontWeight.Bold)
+                                        }
+                                    } else if (uiState.isWaitingCardVerify) {
+                                        Button(
+                                            onClick = {
+                                                FeedbackHelper.playButtonClick(context)
+                                                val expectedUid = uiState.expectedCardUid ?: ""
+                                                val isDesfire = uiState.preAuthCardType == "desfire"
+                                                viewModel.onCardTappedForVerification(expectedUid, isDesfire)
+                                            },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .testTag("sim_verify_tap_btn"),
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue)
+                                        ) {
+                                            Icon(Icons.Default.Nfc, contentDescription = null, modifier = Modifier.size(18.dp), tint = PosWhite)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("Simular Tap ${uiState.preAuthCardType ?: "UID"}", color = PosWhite, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -826,6 +1016,8 @@ fun NfcChargeScreen(
                         // Para tarjetas Classic con certificados dinamicos, el documento
                         // es SIEMPRE obligatorio (no configurable).
                         // Para uid_only legacy, depende de la configuracion del nodo.
+                        // Solo mostrar si NO estamos esperando tap (el doc + PIN ya se pidio antes)
+                        if (uiState.classicStep != "tap_card") {
                         val showDocSection = uiState.requireIdVerification || uiState.isClassicFlow
                         if (showDocSection) {
                             Card(
@@ -967,6 +1159,7 @@ fun NfcChargeScreen(
                                 )
                             }
                         }
+                        } // fin if (classicStep != "tap_card")
                     }
                 }
             }

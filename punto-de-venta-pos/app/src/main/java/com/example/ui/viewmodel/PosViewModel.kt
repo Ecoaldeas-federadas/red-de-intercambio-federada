@@ -88,6 +88,11 @@ data class PosUiState(
     val writeProgress: String = "",
     val classicRemainingSeconds: Int = 30,
 
+    // Flujo unificado: para UID-only/DESFire despues de pre-auth
+    val isWaitingCardVerify: Boolean = false, // true cuando esperamos tap para verificar UID
+    val expectedCardUid: String? = null, // UID esperado del pre-auth
+    val preAuthCardType: String? = null, // "classic", "uid_only", "desfire"
+
     // Multi-Vendor Flow
     val mvStep: Int = 1, // 1: Tap Seller, 2: Amount, 3: Tap Buyer, 4: Buyer PIN & ID, 5: Result
     val sellerCardUid: String? = null,
@@ -1199,9 +1204,11 @@ class PosViewModel(
     // --- MIFARE CLASSIC DYNAMIC CERTIFICATES WORKFLOW ---
 
     /**
-     * Inicia el flujo de pago con tarjeta Classic.
+     * Inicia el flujo unificado de pago NFC.
      * El usuario ingresa documento + PIN PRIMERO (sin tarjeta).
-     * El servidor valida y responde con el sector a leer y escribir.
+     * El servidor valida, identifica el tipo de tarjeta del usuario y responde:
+     * - Classic: datos de sectores para leer/escribir
+     * - UID-only/DESFire: card_uid para verificar
      */
     fun submitClassicPayment() {
         val state = _uiState.value
@@ -1231,17 +1238,42 @@ class PosViewModel(
             result.onSuccess { resp ->
                 if (resp.preApproved && resp.cardUid != null) {
                     FeedbackHelper.playCardDetected(getApplication())
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            classicPreAuth = resp,
-                            classicStep = "tap_card",
-                            detectedCardUid = resp.cardUid,
-                            classicRemainingSeconds = 30,
-                            isNfcWaitingCard = true
-                        )
+                    val cardType = resp.cardType ?: "classic"
+
+                    if (cardType == "classic") {
+                        // Flujo Classic: esperar tap para leer/escribir sectores
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                classicPreAuth = resp,
+                                classicStep = "tap_card",
+                                detectedCardUid = resp.cardUid,
+                                classicRemainingSeconds = 30,
+                                isNfcWaitingCard = true,
+                                isClassicFlow = true,
+                                isWaitingCardVerify = false,
+                                preAuthCardType = "classic"
+                            )
+                        }
+                        startClassicTimeout()
+                    } else {
+                        // Flujo UID-only/DESFire: esperar tap para verificar UID y procesar pago
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                classicPreAuth = resp,
+                                classicStep = "tap_card",
+                                detectedCardUid = resp.cardUid,
+                                classicRemainingSeconds = 30,
+                                isNfcWaitingCard = true,
+                                isClassicFlow = false,
+                                isWaitingCardVerify = true,
+                                expectedCardUid = resp.cardUid,
+                                preAuthCardType = cardType
+                            )
+                        }
+                        startClassicTimeout()
                     }
-                    startClassicTimeout()
                 } else {
                     FeedbackHelper.playError(getApplication())
                     _uiState.update {
@@ -1286,9 +1318,107 @@ class PosViewModel(
                 classicPreAuth = null,
                 isNfcWaitingCard = false,
                 isWritingCard = false,
+                isWaitingCardVerify = false,
+                expectedCardUid = null,
+                preAuthCardType = null,
                 errorMessage = reason,
                 detectedCardUid = null
             )
+        }
+    }
+
+    /**
+     * Procesa el tap de tarjeta para verificacion UID-only/DESFire.
+     * Se llama cuando isWaitingCardVerify = true y el usuario acerca la tarjeta.
+     * Verifica que el UID coincida y luego procesa el pago normal.
+     */
+    fun onCardTappedForVerification(cardUid: String, isDesfire: Boolean) {
+        val state = _uiState.value
+        val expectedUid = state.expectedCardUid ?: return
+        if (!state.isWaitingCardVerify) return
+
+        classicTimeoutJob?.cancel()
+
+        if (cardUid != expectedUid) {
+            FeedbackHelper.playError(getApplication())
+            _uiState.update {
+                it.copy(
+                    isWaitingCardVerify = false,
+                    isNfcWaitingCard = false,
+                    classicStep = "idle",
+                    errorMessage = "La tarjeta no coincide con el usuario autenticado"
+                )
+            }
+            return
+        }
+
+        // UID coincide, procesar pago normal
+        val centavos = CurrencyHelper.parseInputToCentavos(state.amountInput)
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isWaitingCardVerify = false,
+                    isNfcWaitingCard = false,
+                    isLoading = true,
+                    detectedCardUid = cardUid,
+                    detectedCardType = if (isDesfire) "desfire" else "uid_only"
+                )
+            }
+
+            val result = repository.processNfcPayment(
+                cardUid = cardUid,
+                isDesfire = isDesfire,
+                pin = state.customerPin,
+                amountCentavos = centavos,
+                idDocType = state.selectedDocType,
+                idDocNumber = state.idDocNumber
+            )
+
+            result.onSuccess { res ->
+                if (res.status == "approved") {
+                    FeedbackHelper.playSuccess(getApplication())
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            classicStep = "done",
+                            nfcPaymentResult = res,
+                            successMessage = "¡Cobro NFC aprobado exitosamente por ${CurrencyHelper.formatCentavos(centavos)}!"
+                        )
+                    }
+                } else if (res.status == "pending_multisig") {
+                    FeedbackHelper.playCardDetected(getApplication())
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            classicStep = "idle",
+                            isMultisigActive = true,
+                            multisigPendingId = res.transactionId ?: res.pendingId ?: UUID.randomUUID().toString(),
+                            multisigRequiredSigs = res.requiredSigs ?: 2,
+                            multisigCollectedSigs = res.collectedSigs ?: 1,
+                            multisigRemainingSeconds = 600L,
+                            multisigMessage = res.message ?: "Cuenta multi-firma. Acerque las tarjetas de los siguientes firmantes.",
+                            customerPin = "",
+                            detectedCardUid = null,
+                            isNfcWaitingCard = true
+                        )
+                    }
+                    startMultisigPolling(_uiState.value.multisigPendingId!!)
+                } else {
+                    FeedbackHelper.playError(getApplication())
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            classicStep = "idle",
+                            errorMessage = res.message ?: "Transacción rechazada"
+                        )
+                    }
+                }
+            }.onFailure { err ->
+                FeedbackHelper.playError(getApplication())
+                _uiState.update {
+                    it.copy(isLoading = false, classicStep = "idle", errorMessage = err.message)
+                }
+            }
         }
     }
 
@@ -1421,12 +1551,88 @@ class PosViewModel(
                 isWritingCard = false,
                 writeProgress = "",
                 isNfcWaitingCard = false,
+                isWaitingCardVerify = false,
+                expectedCardUid = null,
+                preAuthCardType = null,
+                isClassicFlow = false,
                 classicRemainingSeconds = 30,
                 customerPin = "",
                 idDocNumber = "",
                 detectedCardUid = null,
                 nfcPaymentResult = null
             )
+        }
+    }
+
+    /**
+     * Simula el tap de tarjeta Classic en modo demo.
+     * Llama al confirm del servidor (que en modo demo retorna aprobado).
+     */
+    fun simulateClassicTapDemo() {
+        val state = _uiState.value
+        val preAuth = state.classicPreAuth ?: return
+        if (state.classicStep != "tap_card") return
+
+        classicTimeoutJob?.cancel()
+
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(isWritingCard = true, classicStep = "writing", writeProgress = "Leyendo tarjeta...")
+            }
+
+            // Simular lectura de sector
+            kotlinx.coroutines.delay(500)
+            _uiState.update { it.copy(writeProgress = "Verificando certificado...") }
+            kotlinx.coroutines.delay(500)
+            _uiState.update { it.copy(writeProgress = "Escribiendo nuevo certificado...") }
+            kotlinx.coroutines.delay(500)
+            _uiState.update { it.copy(writeProgress = "Confirmando transacción...") }
+
+            val confirmResult = repository.confirmClassicTransaction(
+                cardUid = preAuth.cardUid!!,
+                readOk = true,
+                writeOk = true,
+                writtenBlocks = 16
+            )
+
+            confirmResult.onSuccess { res ->
+                if (res.status == "approved") {
+                    FeedbackHelper.playSuccess(getApplication())
+                    val centavos = CurrencyHelper.parseInputToCentavos(state.amountInput)
+                    _uiState.update {
+                        it.copy(
+                            isWritingCard = false,
+                            classicStep = "done",
+                            writeProgress = "",
+                            nfcPaymentResult = res,
+                            isNfcWaitingCard = false,
+                            successMessage = "¡Cobro NFC aprobado exitosamente por ${CurrencyHelper.formatCentavos(centavos)}!"
+                        )
+                    }
+                } else {
+                    FeedbackHelper.playError(getApplication())
+                    _uiState.update {
+                        it.copy(
+                            isWritingCard = false,
+                            classicStep = "idle",
+                            writeProgress = "",
+                            isNfcWaitingCard = false,
+                            errorMessage = res.message ?: "Transacción rechazada"
+                        )
+                    }
+                }
+            }.onFailure { err ->
+                FeedbackHelper.playError(getApplication())
+                _uiState.update {
+                    it.copy(
+                        isWritingCard = false,
+                        classicStep = "idle",
+                        writeProgress = "",
+                        isNfcWaitingCard = false,
+                        errorMessage = err.message
+                    )
+                }
+            }
         }
     }
 

@@ -1203,8 +1203,11 @@ func (nt *NFCTerminals) ProvisionClassicCard(ctx context.Context, userID uuid.UU
 
 // ClassicPreAuthResponse contiene todo lo que el POS necesita para
 // leer y escribir la tarjeta en un solo paso.
+// Para tarjetas UID-only/DESFire, los campos de sectores van vacios
+// y el POS solo necesita verificar el card_uid.
 type ClassicPreAuthResponse struct {
 	PreApproved         bool   `json:"pre_approved"`
+	CardType            string `json:"card_type"` // "classic", "uid_only", "desfire"
 	CardUID             string `json:"card_uid"`
 	ReadSector          int    `json:"read_sector"`
 	ReadKeyA            string `json:"read_key_a"`           // hex (6 bytes)
@@ -1231,13 +1234,17 @@ func (nt *NFCTerminals) ClassicPreAuth(ctx context.Context, terminalID, docType,
 		}
 	}
 
-	// 2. Buscar tarjeta activa del usuario con certificados dinamicos
+	// 2. Buscar tarjeta activa del usuario (cualquier tipo)
 	var cardUID string
+	var cardType string
+	var hasDynamicCerts bool
 	err = nt.Pool.QueryRow(ctx, `
-		SELECT card_uid FROM nfc_cards WHERE user_id = $1 AND is_active = true AND has_dynamic_certs = true LIMIT 1`,
-		userID).Scan(&cardUID)
+		SELECT card_uid, card_type, has_dynamic_certs FROM nfc_cards
+		WHERE user_id = $1 AND is_active = true
+		ORDER BY has_dynamic_certs DESC, issued_at DESC LIMIT 1`,
+		userID).Scan(&cardUID, &cardType, &hasDynamicCerts)
 	if err != nil {
-		return &ClassicPreAuthResponse{PreApproved: false, Message: "no se encontro tarjeta con certificados dinamicos"}, nil
+		return &ClassicPreAuthResponse{PreApproved: false, Message: "no se encontro tarjeta activa para este usuario"}, nil
 	}
 
 	// 3. Verificar PIN
@@ -1260,7 +1267,21 @@ func (nt *NFCTerminals) ClassicPreAuth(ctx context.Context, terminalID, docType,
 		return &ClassicPreAuthResponse{PreApproved: false, Message: "has llegado al tope de tu credito comunitario"}, nil
 	}
 
-	// 5. Buscar sector activo
+	// 5. Si NO es Classic, retornar respuesta simple para UID-only/DESFire
+	// El POS solo necesita verificar el card_uid y luego llamar a processNfcPayment
+	if !hasDynamicCerts {
+		respType := cardType
+		if respType == "" {
+			respType = "uid_only"
+		}
+		return &ClassicPreAuthResponse{
+			PreApproved: true,
+			CardType:    respType,
+			CardUID:     cardUID,
+		}, nil
+	}
+
+	// 6. Buscar sector activo (solo para Classic)
 	var readSector int
 	var keyABytes, certBytes []byte
 	err = nt.Pool.QueryRow(ctx, `
@@ -1306,6 +1327,7 @@ func (nt *NFCTerminals) ClassicPreAuth(ctx context.Context, terminalID, docType,
 
 	return &ClassicPreAuthResponse{
 		PreApproved:         true,
+		CardType:            "classic",
 		CardUID:             cardUID,
 		ReadSector:          readSector,
 		ReadKeyA:            hex.EncodeToString(keyABytes),

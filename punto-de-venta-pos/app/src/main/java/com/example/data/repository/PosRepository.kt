@@ -1307,6 +1307,31 @@ class PosRepository(
         pin: String,
         amountCentavos: Long
     ): Result<ClassicPreAuthResponse> = withContext(Dispatchers.IO) {
+        // Modo Demo: simular pre-auth unificada
+        if (apiClient.isDemoNode) {
+            val isMultisig3 = docNumber.contains("3SIG") || docNumber.contains("3F")
+            val isMultisig2 = docNumber.contains("MULTISIG") || docNumber.contains("2SIG") || docNumber.contains("FIRM")
+            if (isMultisig3 || isMultisig2) {
+                // Simular tarjeta DESFire con multifirma
+                return@withContext Result.success(ClassicPreAuthResponse(
+                    preApproved = true,
+                    cardType = "desfire",
+                    cardUid = if (isMultisig3) "CARD-MULTISIG-3F-FIRM1" else "CARD-MULTISIG-2F-FIRM1"
+                ))
+            }
+            // Simular tarjeta Classic con certificados dinamicos
+            return@withContext Result.success(ClassicPreAuthResponse(
+                preApproved = true,
+                cardType = "classic",
+                cardUid = "DEMO-CLASSIC-${docNumber.take(6)}",
+                readSector = 5,
+                readKeyA = "aabbccddeeff",
+                expectedCertificate = "11223344556677889900aabbccddeeff",
+                writeSector = 10,
+                writeKeyB = "112233445566",
+                newCertificate = "ffeeddccbbaa99887766554433221100"
+            ))
+        }
         try {
             val config = getOrInitTerminalConfig()
             val serverPubKey = config.serverPublicKeyHex
@@ -1381,6 +1406,26 @@ class PosRepository(
         writeOk: Boolean,
         writtenBlocks: Int
     ): Result<PaymentResultDecrypted> = withContext(Dispatchers.IO) {
+        // Modo Demo: simular confirmacion Classic
+        if (apiClient.isDemoNode) {
+            val simulatedResult = PaymentResultDecrypted(
+                status = "approved",
+                transactionId = "TX-CLASSIC-DEMO-${UUID.randomUUID().toString().take(6).uppercase()}",
+                message = "Transacción Classic simulada aprobada (Modo Demo)",
+                userBalance = 180000L
+            )
+            transactionDao.insertTransaction(
+                TransactionEntity(
+                    id = simulatedResult.transactionId!!,
+                    amount = 0,
+                    paymentMethod = "nfc_classic",
+                    status = "approved",
+                    cardUid = cardUid,
+                    receiptNumber = "NFC-${UUID.randomUUID().toString().take(8).uppercase()}"
+                )
+            )
+            return@withContext Result.success(simulatedResult)
+        }
         try {
             val config = getOrInitTerminalConfig()
             val serverPubKey = config.serverPublicKeyHex
