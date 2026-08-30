@@ -34,6 +34,9 @@ send_response() {
   LEN=$(printf '%s' "$BODY" | wc -c)
   printf 'HTTP/1.1 200 OK\r\n'
   printf 'Content-Type: application/json\r\n'
+  printf 'Access-Control-Allow-Origin: *\r\n'
+  printf 'Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n'
+  printf 'Access-Control-Allow-Headers: Content-Type, Authorization\r\n'
   printf 'Content-Length: %d\r\n' "$LEN"
   printf '\r\n'
   printf '%s' "$BODY"
@@ -44,6 +47,9 @@ send_html() {
   LEN=$(printf '%s' "$BODY" | wc -c)
   printf 'HTTP/1.1 200 OK\r\n'
   printf 'Content-Type: text/html; charset=utf-8\r\n'
+  printf 'Access-Control-Allow-Origin: *\r\n'
+  printf 'Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n'
+  printf 'Access-Control-Allow-Headers: Content-Type, Authorization\r\n'
   printf 'Content-Length: %d\r\n' "$LEN"
   printf '\r\n'
   printf '%s' "$BODY"
@@ -86,6 +92,17 @@ check_node_status() {
 }
 
 # === RUTAS ===
+
+# Manejar OPTIONS preflight de CORS
+if [ "$METHOD" = "OPTIONS" ]; then
+  printf 'HTTP/1.1 204 No Content\r\n'
+  printf 'Access-Control-Allow-Origin: *\r\n'
+  printf 'Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n'
+  printf 'Access-Control-Allow-Headers: Content-Type, Authorization\r\n'
+  printf 'Access-Control-Max-Age: 86400\r\n'
+  printf '\r\n'
+  exit 0
+fi
 
 # Pagina HTML de control (GET /)
 if [ "$METHOD" = "GET" ] && { [ "$PATH_REQ" = "/" ] || [ "$PATH_REQ" = "/index.html" ]; }; then
