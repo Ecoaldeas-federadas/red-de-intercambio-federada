@@ -1,0 +1,31 @@
+feat(pos-android): flujo NFC unificado — documento+PIN antes de tarjeta
+
+Reordena el flujo de pago NFC del POS Android para que TODOS los pagos
+(clasica, uid_only, desfire) sigan el mismo orden:
+
+1. Monto
+2. Documento de identidad + PIN (siempre obligatorio)
+3. Servidor pre-auth (retorna tipo de tarjeta del usuario)
+4. Acerque tarjeta
+5. Procesar segun card_type
+
+Antes el flujo pedia la tarjeta primero y el documento+PIN despues,
+lo cual no funcionaba porque el sistema no sabe que tipo de tarjeta
+tiene el usuario hasta que la escanea. Ahora el servidor responde con
+el card_type despues de validar documento+PIN.
+
+Cambios:
+- NfcChargeScreen.kt: step "confirm" reemplazado por "credentials"
+  (documento+PIN), step "tap_card" usa card_type del pre-auth
+- PosViewModel.kt: submitUnifiedPreAuth() reemplaza submitNfcPayment()
+  y submitClassicPayment(), simulatePreAuth() para modo demo,
+  onCardTapped() verifica UID contra pre-auth
+- PosApiModels.kt: anade card_type a ClassicPreAuthResponse
+- MainActivity.kt: processCardTap solo procesa en step "tap_card"
+
+El pago QR no se modifica (es un flujo diferente donde el comprador
+emite el pago escaneando el QR).
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

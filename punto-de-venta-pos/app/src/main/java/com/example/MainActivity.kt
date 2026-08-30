@@ -205,26 +205,22 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         when (currentScreen) {
             is PosScreen.NfcCharge -> {
                 val state = viewModel.uiState.value
-                val hasAmount = state.amountInput.replace(Regex("[^0-9]"), "").ifEmpty { "0" }.toLong() > 0
 
-                // Flujo Classic: si estamos en step "tap_card", procesar la tarjeta
-                if (state.isClassicFlow && state.classicStep == "tap_card" && tag != null) {
+                // Solo procesar tarjetas si estamos en step "tap_card" (despues del pre-auth)
+                if (state.classicStep != "tap_card") {
+                    // Ignorar tap si no estamos esperando tarjeta
+                    return
+                }
+
+                // Flujo Classic: si tenemos tag fisico, leer/escribir sectores
+                if (state.isClassicFlow && tag != null) {
                     val reader = com.example.data.nfc.MifareClassicReader()
                     viewModel.onClassicCardTapped(tag, reader)
                     return
                 }
 
-                // Flujo UID/DESFire unificado: si estamos esperando verificacion de tarjeta
-                if (state.isWaitingCardVerify && state.classicStep == "tap_card") {
-                    viewModel.onCardTappedForVerification(cardUid, isDesfire)
-                    return
-                }
-
-                // Flujo normal legacy: detectar tarjeta (solo si no estamos en flujo unificado)
-                if (hasAmount && state.nfcPaymentResult == null && !state.isLoading &&
-                    state.classicStep == "idle" && !state.isWaitingCardVerify) {
-                    viewModel.onCardTapped(cardUid, isDesfire)
-                }
+                // Flujo uid_only/desfire: onCardTapped verifica UID contra pre-auth
+                viewModel.onCardTapped(cardUid, isDesfire)
             }
             is PosScreen.MultiVendor -> {
                 val step = viewModel.uiState.value.mvStep
