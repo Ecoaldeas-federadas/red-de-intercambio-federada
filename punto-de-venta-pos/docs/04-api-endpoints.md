@@ -466,14 +466,13 @@ Genera 15 sectores con claves A/B únicas y certificados (14 basura + 1 real).
 ### POST /api/nfc/terminal/classic/pre-auth
 Pre-autenticación para tarjeta MIFARE Classic (terminal-facing, Ed25519 auth).
 
-El usuario ingresa documento + PIN. El servidor valida y responde con el sector a leer y escribir.
+**Flujo username-first (actual):** Este endpoint se usa para tarjetas UID-only y DESFire (sin documento). El usuario ingresa username + PIN. El servidor valida y responde con el card_uid y tipo de tarjeta.
 
 **Payload cifrado**:
 ```json
 {
   "terminal_id": "TERM-ANDROID-XXXXXXXXXXXX",
-  "doc_type": "cedula",
-  "doc_number": "12345678",
+  "username": "juan",
   "pin": "1234",
   "amount": 5000
 }
@@ -484,12 +483,91 @@ El usuario ingresa documento + PIN. El servidor valida y responde con el sector 
 {
   "pre_approved": true,
   "card_uid": "AABBCCDD",
+  "card_type": "uid_only",
+  "message": ""
+}
+```
+
+Si es Classic, la respuesta incluye sectores y certificados:
+```json
+{
+  "pre_approved": true,
+  "card_uid": "AABBCCDD",
+  "card_type": "classic",
   "read_sector": 3,
   "read_key_a": "a1b2c3d4e5f6",
   "expected_certificate": "00112233445566778899aabbccddeeff",
   "write_sector": 9,
   "write_key_b": "f6e5d4c3b2a1",
   "new_certificate": "ffeeddccbbaa99887766554433221100"
+}
+```
+
+### POST /api/nfc/terminal/classic/pre-auth-document
+Pre-autenticación para tarjeta MIFARE Classic **con documento de identidad** (terminal-facing, Ed25519 auth).
+
+**Flujo username-first (actual):** Este endpoint se usa para tarjetas Classic que requieren documento. El usuario ingresa username + documento + PIN.
+
+**Payload cifrado**:
+```json
+{
+  "terminal_id": "TERM-ANDROID-XXXXXXXXXXXX",
+  "username": "juan",
+  "doc_type": "cedula",
+  "doc_number": "12345678",
+  "pin": "1234",
+  "amount": 5000
+}
+```
+
+**Response cifrada**: Igual que `pre-auth` pero incluye sectores y certificados para Classic.
+
+### POST /api/nfc/terminal/user-lookup
+Lookup de usuario por username (terminal-facing, Ed25519 auth).
+
+**Propósito:** El POS llama esto primero para saber qué tipo de tarjeta tiene el usuario y si necesita pedir documento de identidad (solo para Classic). Soporta usuarios remotos con `@nodo`.
+
+**Payload cifrado**:
+```json
+{
+  "terminal_id": "TERM-ANDROID-XXXXXXXXXXXX",
+  "username": "juan"
+}
+```
+
+**Response cifrada** (`UserLookupResponse`):
+```json
+{
+  "found": true,
+  "user_id": "uuid",
+  "card_type": "classic",
+  "requires_document": true,
+  "required_doc_type": "cedula",
+  "document_types": ["cedula", "dni"],
+  "display_name": "Juan Pérez",
+  "is_remote": false,
+  "message": ""
+}
+```
+
+Si el usuario es remoto (`username@nodo-remoto`):
+```json
+{
+  "found": true,
+  "user_id": "uuid",
+  "card_type": "uid_only",
+  "requires_document": false,
+  "is_remote": true,
+  "remote_node": "nodo-remoto.example.org",
+  "display_name": "Juan Pérez"
+}
+```
+
+Si no se encuentra:
+```json
+{
+  "found": false,
+  "message": "usuario no encontrado"
 }
 ```
 
@@ -557,7 +635,291 @@ El bloqueo es **automático** y está **hardcodeado** en el backend:
 
 ---
 
-## 6. POS Web — Cargas QR
+## 5.2. Turnos y PIN del Turno (My Terminals)
+
+> **Auth:** Todos requieren JWT del usuario (`Authorization: Bearer <jwt>`).
+> El `{id}` en la URL es el `terminal_id` del terminal.
+
+### POST /api/nfc/my-terminals/{id}/shift
+Abre un turno. **Requiere PIN del turno** configurado por el dueño.
+
+**Request**:
+```json
+{
+  "opening_amount": 50000,
+  "notes": "Apertura de punto",
+  "pin": "1234"
+}
+```
+
+**Response** `201 Created`:
+```json
+{
+  "shift_id": "uuid",
+  "status": "open",
+  "opening_amount": 50000
+}
+```
+
+**Errores**:
+- `400`: `"el dueño del terminal debe configurar el PIN del turno desde su panel web"`
+- `400`: `"pin is required to open shift"`
+- `400`: `"there is already an open shift - close it first"`
+- `403`: `"PIN del turno incorrecto"`
+
+### POST /api/nfc/my-terminals/{id}/shift/close
+Cierra un turno. **Requiere PIN del turno**.
+
+**Request**:
+```json
+{
+  "closing_amount": null,
+  "notes": "Cierre de punto",
+  "pin": "1234"
+}
+```
+
+**Response** `200 OK`:
+```json
+{
+  "status": "closed",
+  "opening_amount": 50000,
+  "total_sales": 5000,
+  "transactions_count": 3,
+  "expected_close": 55000
+}
+```
+
+**Errores**:
+- `400`: `"el dueño del terminal no ha configurado el PIN del turno"`
+- `403`: `"PIN del turno incorrecto"`
+
+### POST /api/nfc/my-terminals/{id}/shift/sync-close
+Sincroniza un cierre de turno que se hizo offline. **No requiere PIN** — usa JWT auth del terminal.
+
+**Resolución de conflictos:** Si el turno ya fue cerrado en el backend (por un admin desde el panel web), los datos del POS **prevalecen** porque el POS es donde están las transacciones. El `closed_at`, `closing_amount`, `notes` del POS reemplazan los del backend.
+
+**Request**:
+```json
+{
+  "closed_at": 1705320000,
+  "closing_amount": 55000,
+  "notes": "Cierre offline"
+}
+```
+
+**Response** `200 OK` (sin conflicto):
+```json
+{
+  "status": "closed",
+  "opening_amount": 50000,
+  "total_sales": 5000,
+  "transactions_count": 3,
+  "expected_close": 55000,
+  "synced": true,
+  "conflict_resolved": false
+}
+```
+
+**Response** `200 OK` (conflicto resuelto — POS prevaleció):
+```json
+{
+  "status": "closed",
+  "opening_amount": 50000,
+  "total_sales": 5000,
+  "transactions_count": 3,
+  "expected_close": 55000,
+  "synced": true,
+  "conflict_resolved": true,
+  "message": "Cierre del POS prevaleció sobre el cierre del backend"
+}
+```
+
+**Errores**:
+- `400`: `"no shift found for this terminal"`
+- `404`: `"terminal not found"`
+
+### GET /api/nfc/my-terminals/{id}/shift
+Consulta el turno activo.
+
+**Response** `200 OK` (con turno activo):
+```json
+{
+  "active": true,
+  "shift_id": "uuid",
+  "user_id": "uuid",
+  "status": "open",
+  "opened_at": "2026-01-15T10:30:00Z",
+  "opening_amount": 50000,
+  "total_sales": 5000,
+  "transactions_count": 3,
+  "expected_close": 55000
+}
+```
+
+**Response** `200 OK` (sin turno):
+```json
+{
+  "active": false
+}
+```
+
+### POST /api/nfc/my-terminals/{id}/shift-pin
+Configura el PIN del turno. **Solo el dueño del terminal** (`merchant_user_id`).
+
+**Request**:
+```json
+{
+  "pin": "1234"
+}
+```
+
+**Response** `200 OK`:
+```json
+{
+  "status": "configured",
+  "message": "PIN del turno configurado correctamente"
+}
+```
+
+**Errores**:
+- `404`: `"terminal not found or you are not the owner"`
+- `400`: `"PIN must be between 4 and 32 characters"`
+
+### POST /api/nfc/my-terminals/{id}/shift-pin/verify
+Verifica el PIN del turno contra el hash bcrypt del backend.
+
+**Request**:
+```json
+{
+  "pin": "1234"
+}
+```
+
+**Response** `200 OK` (válido):
+```json
+{
+  "valid": true,
+  "configured": true
+}
+```
+
+**Response** `200 OK` (incorrecto):
+```json
+{
+  "valid": false,
+  "configured": true,
+  "message": "PIN incorrecto"
+}
+```
+
+**Response** `200 OK` (no configurado):
+```json
+{
+  "valid": false,
+  "configured": false,
+  "message": "el dueño del terminal no ha configurado el PIN del turno"
+}
+```
+
+### GET /api/nfc/my-terminals/{id}/shift-pin/configured
+Consulta si el dueño ha configurado el PIN del turno.
+
+**Response** `200 OK`:
+```json
+{
+  "configured": true
+}
+```
+
+### GET /api/nfc/my-terminals/{id}/shifts?from=&to=
+Historial de turnos con filtro de fechas. **Sin LIMIT artificial** — devuelve todos los turnos en el rango (máximo 1 año por defecto).
+
+**Query params**:
+- `from` (YYYY-MM-DD, opcional)
+- `to` (YYYY-MM-DD, opcional)
+
+**Response** `200 OK` (array de `ShiftHistoryItem`):
+```json
+[
+  {
+    "id": "uuid",
+    "user_name": "juan",
+    "status": "closed",
+    "opened_at": "2026-01-15T10:30:00Z",
+    "closed_at": "2026-01-15T18:00:00Z",
+    "opening_amount": 50000,
+    "closing_amount": 55000,
+    "total_sales": 5000,
+    "transactions_count": 3,
+    "notes": "Apertura de punto"
+  }
+]
+```
+
+### GET /api/nfc/my-terminals/{id}/export/transactions?from=&to=
+Exporta transacciones del terminal en formato CSV.
+
+**Response** `200 OK`: CSV plano (text/csv)
+
+**Campos CSV**: ID, UID tarjeta, monto (centavos), estado, PIN verificado, tipo, error, fecha/hora
+
+### GET /api/nfc/my-terminals/{id}/export/shifts?from=&to=
+Exporta turnos del terminal en formato CSV.
+
+**Response** `200 OK`: CSV plano (text/csv)
+
+**Campos CSV**: ID, usuario, estado, apertura, cierre, monto apertura, monto cierre, ventas, transacciones, notas
+
+---
+
+## 5.3. Retención de datos (admin)
+
+> **Auth:** Requiere permiso `config.manage`.
+
+### GET /api/nfc/retention/config
+Consulta la configuración de retención de datos del nodo.
+
+**Response** `200 OK`:
+```json
+{
+  "retention_days": 365,
+  "enabled": true,
+  "last_purge_at": "2026-01-01T00:00:00Z"
+}
+```
+
+### PUT /api/nfc/retention/config
+Actualiza la configuración de retención.
+
+**Request**:
+```json
+{
+  "retention_days": 180,
+  "enabled": true
+}
+```
+
+**Response** `200 OK`:
+```json
+{
+  "retention_days": 180,
+  "enabled": true
+}
+```
+
+### POST /api/nfc/retention/purge
+Ejecuta purga manual de datos viejos.
+
+**Response** `200 OK`:
+```json
+{
+  "status": "purged",
+  "cutoff_date": "2025-07-01T00:00:00Z"
+}
+```
+
+---
 
 ### POST /api/pos/charge
 Crea una carga QR (requiere auth del merchant).

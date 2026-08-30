@@ -24,6 +24,9 @@ The **POS Android** application (`punto-de-venta-pos/`) is a Kotlin/Jetpack Comp
 | [08-modo-demo.md](08-modo-demo.md) | Demo mode: isDemoNode detection, DemoWatermarkOverlay, local simulations, server isolation, offline operation. |
 | [09-feedback-sonoro.md](09-feedback-sonoro.md) | Sound and haptic feedback: FeedbackHelper, PCM synthesis, playKeyClick vs playButtonClick, volume control, feedbackClickable modifier. |
 | [10-build-deploy.md](10-build-deploy.md) | Build and deployment: requirements, commands, Room migrations, OTA updates, terminal registration and pairing flows. |
+| [ESTADO_DESARROLLO_ANDROID.md](ESTADO_DESARROLLO_ANDROID.md) | Estado de desarrollo actual: cambios recientes, PIN del turno (backend), flujo username-first, historial de turnos, endpoints del backend, verificación para la plataforma que compila. |
+| [AUDITORIA.md](AUDITORIA.md) | Auditoría de documentación: discrepancias detectadas entre docs y código (histórico). |
+| [TAREAS_PENDIENTES.md](TAREAS_PENDIENTES.md) | Tareas pendientes y decisiones del usuario (histórico). |
 
 ---
 

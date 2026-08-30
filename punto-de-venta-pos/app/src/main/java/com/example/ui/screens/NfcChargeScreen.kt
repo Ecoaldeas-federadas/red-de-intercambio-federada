@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -21,13 +22,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.data.api.DEFAULT_DOCUMENT_TYPES
 import com.example.ui.components.*
 import com.example.ui.theme.*
 import com.example.ui.util.CurrencyHelper
 import com.example.ui.util.FeedbackHelper
 import com.example.ui.viewmodel.PosScreen
 import com.example.ui.viewmodel.PosViewModel
+import com.example.ui.viewmodel.PosUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,27 +38,27 @@ fun NfcChargeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    val isCardDetected = !uiState.detectedCardUid.isNullOrBlank()
-    val isPaymentApproved = (uiState.nfcPaymentResult?.status == "approved")
+    val isPaymentApproved = (uiState.nfcPaymentResult?.status == "approved" || uiState.classicStep == "done")
 
-    var docTypeExpanded by remember { mutableStateOf(false) }
+    // Multi-signer sub-step for multisig: 1 (Doc) -> 2 (PIN) -> 3 (Card)
+    var multisigSignerStep by remember { mutableIntStateOf(1) }
 
-    // NFC flow steps: amount_input → confirm → tap_card
-    // Only show "tap card" AFTER the operator confirms the amount
-    var nfcStep by remember { mutableStateOf("amount_input") }
-
-    // Reset step when entering screen or after payment completes
-    LaunchedEffect(isPaymentApproved, isCardDetected, uiState.classicStep) {
-        if (isPaymentApproved || uiState.classicStep == "done") {
-            nfcStep = "amount_input"
+    LaunchedEffect(uiState.multisigCollectedSigs) {
+        if (uiState.isMultisigActive) {
+            multisigSignerStep = 1
         }
-        // Si el pre-auth fue aprobado, ir a tap_card
-        if (uiState.classicStep == "tap_card") {
-            nfcStep = "tap_card"
-        }
-        // If card is detected, we must be in tap_card step
-        if (isCardDetected && nfcStep != "tap_card" && uiState.classicStep == "tap_card") {
-            nfcStep = "tap_card"
+    }
+
+    // Intercept physical and gesture back button for strict step-by-step retreat
+    BackHandler {
+        if (uiState.isMultisigActive) {
+            if (multisigSignerStep > 1) {
+                multisigSignerStep -= 1
+            } else {
+                viewModel.goBackNfcStep()
+            }
+        } else {
+            viewModel.goBackNfcStep()
         }
     }
 
@@ -75,14 +76,17 @@ fun NfcChargeScreen(
                     IconButton(
                         onClick = {
                             FeedbackHelper.playButtonClick(context)
-                            viewModel.resetNfcPaymentState()
-                            viewModel.navigateTo(PosScreen.Dashboard)
+                            if (uiState.isMultisigActive && multisigSignerStep > 1) {
+                                multisigSignerStep -= 1
+                            } else {
+                                viewModel.goBackNfcStep()
+                            }
                         },
                         modifier = Modifier.testTag("nfc_back_btn")
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Volver",
+                            contentDescription = "Volver al paso anterior",
                             tint = PosSlate100
                         )
                     }
@@ -99,7 +103,7 @@ fun NfcChargeScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             // NFC HARDWARE / ENABLED WARNING BANNER
             if (!uiState.hasNfcHardware) {
@@ -144,7 +148,7 @@ fun NfcChargeScreen(
                             )
                         }
                         Text(
-                            text = "Para poder leer las tarjetas de los clientes, debe activar la función NFC en los ajustes de Android.",
+                            text = "Para poder leer las tarjetas de los clientes, active la función NFC en los ajustes de Android.",
                             style = MaterialTheme.typography.bodySmall,
                             color = PosSlate200
                         )
@@ -171,7 +175,7 @@ fun NfcChargeScreen(
                 }
             }
 
-            // SERVER ERROR BANNER
+            // SERVER / ERROR BANNER
             if (!uiState.errorMessage.isNullOrBlank() && !isPaymentApproved) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -188,7 +192,7 @@ fun NfcChargeScreen(
                         ) {
                             Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = PosErrorRedLight)
                             Text(
-                                text = "No se pudo procesar el cobro",
+                                text = "Aviso de Transacción",
                                 style = MaterialTheme.typography.titleSmall,
                                 color = PosErrorRedLight,
                                 fontWeight = FontWeight.Bold
@@ -203,7 +207,7 @@ fun NfcChargeScreen(
                 }
             }
 
-            // MULTI-SIG LIVE COUNTDOWN HEADER
+            // LIVE MULTISIG COUNTDOWN HEADER
             if (uiState.isMultisigActive) {
                 MultisigCountdownHeader(
                     remainingSeconds = uiState.multisigRemainingSeconds,
@@ -213,11 +217,13 @@ fun NfcChargeScreen(
             }
 
             if (isPaymentApproved) {
-                // --- SUCCESS RECEIPT SCREEN ---
+                // =========================================================================
+                // SUCCESS RECEIPT SCREEN
+                // =========================================================================
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 12.dp),
+                        .padding(vertical = 8.dp),
                     colors = CardDefaults.cardColors(containerColor = PosSlate900),
                     shape = RoundedCornerShape(24.dp),
                     border = CardDefaults.outlinedCardBorder().copy(
@@ -277,12 +283,8 @@ fun NfcChargeScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Tipo de Tarjeta:", color = PosSlate300)
-                            Text(
-                                text = if (uiState.detectedCardType == "desfire") "DESFire EV3 Criptográfica" else "UID Estándar",
-                                color = PosPrimaryLight,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                            Text("Documento Identificado:", color = PosSlate300)
+                            Text("${uiState.selectedDocType.uppercase()} ${uiState.idDocNumber}", color = PosSlate100, fontWeight = FontWeight.Bold)
                         }
 
                         Row(
@@ -307,7 +309,6 @@ fun NfcChargeScreen(
                                 onClick = {
                                     FeedbackHelper.playButtonClick(context)
                                     viewModel.resetNfcPaymentState()
-                                    nfcStep = "amount_input"
                                 },
                                 modifier = Modifier
                                     .weight(1f)
@@ -337,8 +338,12 @@ fun NfcChargeScreen(
                         }
                     }
                 }
-            } else if (uiState.isMultisigActive && !isCardDetected) {
-                // --- MULTI-SIG WAITING FOR NEXT SIGNER CARD ---
+            } else if (uiState.isMultisigActive) {
+                // =========================================================================
+                // MULTI-SIG RECURSIVE FLOW (Doc -> PIN -> Tap Card for next signer)
+                // =========================================================================
+                val nextSignerIndex = uiState.multisigCollectedSigs + 1
+
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = PosSlate900),
@@ -348,11 +353,10 @@ fun NfcChargeScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(20.dp),
+                            .padding(18.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        // Header info
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -369,79 +373,192 @@ fun NfcChargeScreen(
                                 )
                             }
                             Text(
-                                text = "Firma ${uiState.multisigCollectedSigs} de ${uiState.multisigRequiredSigs}",
+                                text = "Firmante $nextSignerIndex de ${uiState.multisigRequiredSigs}",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = PosSlate200,
                                 fontWeight = FontWeight.Bold
                             )
                         }
 
-                        // Countdown
-                        val min = uiState.multisigRemainingSeconds / 60
-                        val sec = uiState.multisigRemainingSeconds % 60
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = PosSlate800),
-                            shape = RoundedCornerShape(10.dp)
+                        // Stepper indicator
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Timer, contentDescription = null, tint = PosGoldLight, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Tiempo restante: ${String.format("%02d:%02d", min, sec)}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = PosGoldLight,
-                                    fontWeight = FontWeight.SemiBold
-                                )
+                            listOf("1. Documento", "2. Clave Secreta", "3. Escanear Tarjeta").forEachIndexed { idx, sName ->
+                                val active = (idx + 1) == multisigSignerStep
+                                Surface(
+                                    color = if (active) PosGold else PosSlate800,
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text(
+                                        text = sName,
+                                        color = if (active) PosNavyDark else PosSlate400,
+                                        fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+                                        fontSize = 11.sp,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
                             }
                         }
 
-                        NfcWaveAnimation(isCardDetected = false)
-
-                        Text(
-                            text = "ACERQUE LA TARJETA DEL FIRMANTE ${uiState.multisigCollectedSigs + 1} de ${uiState.multisigRequiredSigs}",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = PosGoldLight,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center
-                        )
-
-                        Text(
-                            text = "La firma anterior fue validada por el servidor. Coloque la tarjeta del siguiente titular o firmante autorizado en el reverso del dispositivo.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = PosSlate300,
-                            textAlign = TextAlign.Center
-                        )
-
-                        // SIMULATION BUTTON FOR NEXT SIGNER (DEMO NODE)
-                        if (uiState.isDemoNode) {
-                            val nextSignerIndex = uiState.multisigCollectedSigs + 1
-                            Button(
-                                onClick = {
-                                    FeedbackHelper.playButtonClick(context)
-                                    val simUid = if (uiState.multisigRequiredSigs == 3) {
-                                        "CARD-MULTISIG-3F-FIRM$nextSignerIndex"
-                                    } else {
-                                        "CARD-MULTISIG-2F-FIRM$nextSignerIndex"
-                                    }
-                                    viewModel.onCardTapped(simUid, isDesfire = true)
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp)
-                                    .testTag("sim_next_signer_btn"),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = PosGold)
-                            ) {
-                                Icon(Icons.Default.Contactless, contentDescription = null, tint = PosNavyDark)
-                                Spacer(modifier = Modifier.width(8.dp))
+                        when (multisigSignerStep) {
+                            1 -> {
                                 Text(
-                                    text = "Simular Tarjeta Firmante $nextSignerIndex de ${uiState.multisigRequiredSigs}",
-                                    color = PosNavyDark,
-                                    fontWeight = FontWeight.Bold
+                                    text = "Documento del Firmante $nextSignerIndex (Vendedor)",
+                                    color = PosGoldLight,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
                                 )
+
+                                KioskDocumentDisplay(
+                                    docType = uiState.selectedDocType,
+                                    documentNumber = uiState.idDocNumber,
+                                    onDocTypeChange = { viewModel.setIdDocInfo(it, uiState.idDocNumber) },
+                                    onClear = { viewModel.setIdDocInfo(uiState.selectedDocType, "") },
+                                    accentColor = PosGoldLight,
+                                    testTag = "multisig_signer_doc_input"
+                                )
+
+                                KioskDocumentKeypad(
+                                    documentNumber = uiState.idDocNumber,
+                                    onDocumentChange = { viewModel.setIdDocInfo(uiState.selectedDocType, it) }
+                                )
+
+                                Button(
+                                    onClick = {
+                                        FeedbackHelper.playButtonClick(context)
+                                        multisigSignerStep = 2
+                                    },
+                                    enabled = uiState.idDocNumber.isNotBlank(),
+                                    modifier = Modifier.fillMaxWidth().height(54.dp).testTag("multisig_next_to_pin_btn"),
+                                    shape = RoundedCornerShape(14.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = PosGold)
+                                ) {
+                                    Text("Continuar a Clave Secreta", color = PosNavyDark, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Icon(Icons.Default.ArrowForward, contentDescription = null, tint = PosNavyDark)
+                                }
+                            }
+
+                            2 -> {
+                                Text(
+                                    text = "Clave Secreta del Firmante $nextSignerIndex (Comprador)",
+                                    color = PosGoldLight,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                )
+
+                                PinInputPad(
+                                    pin = uiState.customerPin,
+                                    onPinChange = { viewModel.setCustomerPin(it) },
+                                    title = "PIN del Firmante $nextSignerIndex (4 dígitos)"
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            FeedbackHelper.playButtonClick(context)
+                                            multisigSignerStep = 1
+                                        },
+                                        modifier = Modifier.weight(1f).height(52.dp),
+                                        shape = RoundedCornerShape(14.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PosSlate300)
+                                    ) {
+                                        Text("Volver a Doc.", fontSize = 13.sp)
+                                    }
+
+                                    Button(
+                                        onClick = {
+                                            FeedbackHelper.playButtonClick(context)
+                                            multisigSignerStep = 3
+                                        },
+                                        enabled = uiState.customerPin.length == 4,
+                                        modifier = Modifier.weight(1.2f).height(52.dp).testTag("multisig_next_to_tap_btn"),
+                                        shape = RoundedCornerShape(14.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = PosGold)
+                                    ) {
+                                        Text("Continuar a Tarjeta", color = PosNavyDark, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    }
+                                }
+                            }
+
+                            3 -> {
+                                Text(
+                                    text = "Acerque la Tarjeta del Firmante $nextSignerIndex de ${uiState.multisigRequiredSigs}",
+                                    color = PosGoldLight,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    textAlign = TextAlign.Center
+                                )
+
+                                NfcWaveAnimation(isCardDetected = false)
+
+                                Text(
+                                    text = "Coloque la tarjeta en el reverso del dispositivo para registrar la firma.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = PosSlate300,
+                                    textAlign = TextAlign.Center
+                                )
+
+                                if (uiState.isDemoNode) {
+                                    Button(
+                                        onClick = {
+                                            FeedbackHelper.playButtonClick(context)
+                                            val simUid = if (uiState.multisigRequiredSigs == 3) {
+                                                "CARD-MULTISIG-3F-FIRM$nextSignerIndex"
+                                            } else {
+                                                "CARD-MULTISIG-2F-FIRM$nextSignerIndex"
+                                            }
+                                            viewModel.submitMultisigSigner(
+                                                cardUid = simUid,
+                                                pin = uiState.customerPin,
+                                                docType = uiState.selectedDocType,
+                                                docNum = uiState.idDocNumber
+                                            )
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(50.dp)
+                                            .testTag("sim_next_signer_btn"),
+                                        shape = RoundedCornerShape(14.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = PosGold),
+                                        enabled = !uiState.isLoading
+                                    ) {
+                                        if (uiState.isLoading) {
+                                            CircularProgressIndicator(color = PosNavyDark, modifier = Modifier.size(24.dp))
+                                        } else {
+                                            Icon(Icons.Default.Contactless, contentDescription = null, tint = PosNavyDark)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = "Simular Tarjeta Firmante $nextSignerIndex",
+                                                color = PosNavyDark,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            FeedbackHelper.playButtonClick(context)
+                                            multisigSignerStep = 2
+                                        },
+                                        modifier = Modifier.weight(1f).height(48.dp),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PosSlate300)
+                                    ) {
+                                        Text("Cambiar Clave")
+                                    }
+                                }
                             }
                         }
 
@@ -461,15 +578,62 @@ fun NfcChargeScreen(
                         }
                     }
                 }
-            } else if (!isCardDetected) {
-                // --- NFC FLOW: 3 steps ---
-                // Step 1: amount_input → Step 2: confirm → Step 3: tap_card
+            } else {
+                // =========================================================================
+                // STRICT 4-STEP PROGRESSIVE NFC CHARGE FLOW
+                // Step 1: Monto (Vendedor)
+                // Step 2: Documento de Identidad (Vendedor con teclado en pantalla)
+                // Step 3: Clave Secreta (Comprador con teclado numérico PIN)
+                // Step 4: Escanear Tarjeta NFC (SOLO DESPUÉS DE VALIDAR CLAVE Y PRE-AUTH)
+                // =========================================================================
                 val centavos = uiState.amountInput.replace(Regex("[^0-9]"), "").ifEmpty { "0" }.toLong()
                 val hasAmount = centavos > 0
 
-                when (nfcStep) {
-                    "amount_input" -> {
-                        // STEP 1: Enter amount
+                // Progress Step Chips Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Step labels depend on whether document is required (Classic)
+                    val stepLabels = if (uiState.requiresDocument) {
+                        listOf("1. Monto", "2. Usuario", "3. Doc", "4. Clave", "5. Tarjeta")
+                    } else {
+                        listOf("1. Monto", "2. Usuario", "3. Clave", "4. Tarjeta")
+                    }
+                    stepLabels.forEachIndexed { index, name ->
+                        val stepNumber = index + 1
+                        val isCurrent = (stepNumber == uiState.nfcStep)
+                        val isCompleted = (stepNumber < uiState.nfcStep)
+
+                        Surface(
+                            color = when {
+                                isCurrent -> PosPrimaryLight
+                                isCompleted -> PosSuccessGreen.copy(alpha = 0.25f)
+                                else -> PosSlate800
+                            },
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = name,
+                                color = when {
+                                    isCurrent -> PosNavyDark
+                                    isCompleted -> PosSuccessGreenLight
+                                    else -> PosSlate400
+                                },
+                                fontWeight = if (isCurrent || isCompleted) FontWeight.Bold else FontWeight.Normal,
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
+
+                when (uiState.nfcStep) {
+                    1 -> {
+                        // -------------------------------------------------------------
+                        // PASO 1: MONTO A COBRAR
+                        // -------------------------------------------------------------
                         KioskAmountDisplay(
                             amountInput = uiState.amountInput,
                             label = "Monto a Cobrar por NFC"
@@ -483,7 +647,7 @@ fun NfcChargeScreen(
                         Button(
                             onClick = {
                                 FeedbackHelper.playButtonClick(context)
-                                nfcStep = "credentials"
+                                viewModel.setNfcStep(2)
                             },
                             enabled = hasAmount,
                             modifier = Modifier
@@ -493,112 +657,233 @@ fun NfcChargeScreen(
                             shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue)
                         ) {
-                            Text("Cobrar", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Text("Continuar a Usuario", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(Icons.Default.ArrowForward, contentDescription = null)
                         }
                     }
 
-                    "credentials" -> {
-                        // STEP 2: Documento + PIN (SIEMPRE obligatorio para NFC)
-                        // El servidor pre-autentica y retorna el tipo de tarjeta
-                        KioskAmountDisplay(
-                            amountInput = uiState.amountInput,
-                            label = "Monto a Pagar"
-                        )
+                    2 -> {
+                        // -------------------------------------------------------------
+                        // PASO 2: USERNAME DEL CLIENTE (VENDEDOR)
+                        // -------------------------------------------------------------
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Paso 2 • Usuario del Cliente (Vendedor)",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = PosPrimaryLight,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = CurrencyHelper.formatCentavos(CurrencyHelper.parseInputToCentavos(uiState.amountInput)),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = PosGoldLight,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
 
-                        // Seccion de documento (SIEMPRE visible)
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = PosSlate800),
-                            shape = RoundedCornerShape(12.dp)
+                        // Username input display
+                        Surface(
+                            color = PosSlate800,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
+                                modifier = Modifier.padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
-                                    text = "Verificación de Identidad (OBLIGATORIO)",
+                                    text = "Nombre de usuario del cliente",
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = PosGoldLight,
-                                    fontWeight = FontWeight.Bold
+                                    color = PosSlate400
                                 )
-
-                                // Document type selector
-                                ExposedDropdownMenuBox(
-                                    expanded = docTypeExpanded,
-                                    onExpandedChange = { docTypeExpanded = !docTypeExpanded }
-                                ) {
-                                    OutlinedTextField(
-                                        value = DEFAULT_DOCUMENT_TYPES.find { it.code == uiState.selectedDocType }?.spanishName ?: "Cédula",
-                                        onValueChange = {},
-                                        readOnly = true,
-                                        label = { Text("Tipo de Documento") },
-                                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = docTypeExpanded) },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .menuAnchor(),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedTextColor = PosSlate100,
-                                            unfocusedTextColor = PosSlate100
-                                        )
-                                    )
-                                    ExposedDropdownMenu(
-                                        expanded = docTypeExpanded,
-                                        onDismissRequest = { docTypeExpanded = false }
-                                    ) {
-                                        DEFAULT_DOCUMENT_TYPES.forEach { doc ->
-                                            DropdownMenuItem(
-                                                text = { Text(doc.spanishName) },
-                                                onClick = {
-                                                    viewModel.setIdDocInfo(doc.code, uiState.idDocNumber)
-                                                    docTypeExpanded = false
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
-
-                                OutlinedTextField(
-                                    value = uiState.idDocNumber,
-                                    onValueChange = { viewModel.setIdDocInfo(uiState.selectedDocType, it) },
-                                    label = { Text("Número de Documento") },
-                                    placeholder = { Text("Ej. 12345678") },
-                                    singleLine = true,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .testTag("id_doc_number_input"),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedTextColor = PosSlate100,
-                                        unfocusedTextColor = PosSlate100
-                                    )
+                                Text(
+                                    text = uiState.customerUsername.ifBlank { "—" },
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    color = PosWhite,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 24.sp
                                 )
                             }
                         }
 
-                        // PIN Input Pad
-                        PinInputPad(
-                            pin = uiState.customerPin,
-                            onPinChange = { viewModel.setCustomerPin(it) },
-                            title = "PIN del Cliente"
+                        // Alphanumeric keypad for username
+                        KioskDocumentKeypad(
+                            documentNumber = uiState.customerUsername,
+                            onDocumentChange = { viewModel.setCustomerUsername(it) }
                         )
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             OutlinedButton(
                                 onClick = {
                                     FeedbackHelper.playButtonClick(context)
-                                    nfcStep = "amount_input"
+                                    viewModel.setNfcStep(1)
                                 },
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(56.dp)
-                                    .testTag("nfc_cancel_credentials_btn"),
-                                shape = RoundedCornerShape(16.dp),
+                                    .height(54.dp)
+                                    .testTag("nfc_back_to_amount_step_btn"),
+                                shape = RoundedCornerShape(14.dp),
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = PosSlate300)
                             ) {
-                                Text("Cambiar Monto", fontWeight = FontWeight.Bold)
+                                Text("Volver a Monto", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+
+                            Button(
+                                onClick = {
+                                    FeedbackHelper.playButtonClick(context)
+                                    viewModel.submitUserLookup()
+                                },
+                                modifier = Modifier
+                                    .weight(1.3f)
+                                    .height(54.dp)
+                                    .testTag("nfc_lookup_user_btn"),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue),
+                                enabled = uiState.customerUsername.isNotBlank() && !uiState.isLoading
+                            ) {
+                                if (uiState.isLoading) {
+                                    CircularProgressIndicator(color = PosWhite, modifier = Modifier.size(22.dp))
+                                } else {
+                                    Text("Buscar Usuario", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Icon(Icons.Default.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
+                                }
+                            }
+                        }
+                    }
+
+                    3 -> {
+                        // -------------------------------------------------------------
+                        // PASO 3: DOCUMENTO DE IDENTIDAD (VENDEDOR) — solo si requiresDocument=true
+                        // O PASO 3: CLAVE SECRETA (COMPRADOR) — si requiresDocument=false
+                        // -------------------------------------------------------------
+                        if (uiState.requiresDocument) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Paso 3 • Documento del Cliente (Vendedor)",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = PosPrimaryLight,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Usuario: ${uiState.customerUsername}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = PosGoldLight,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
+
+                        // Compact single-line document display bar (56dp)
+                        KioskDocumentDisplay(
+                            docType = uiState.selectedDocType,
+                            documentNumber = uiState.idDocNumber,
+                            onDocTypeChange = { viewModel.setIdDocInfo(it, uiState.idDocNumber) },
+                            onClear = { viewModel.setIdDocInfo(uiState.selectedDocType, "") },
+                            accentColor = PosPrimaryLight,
+                            testTag = "id_doc_number_input"
+                        )
+
+                        // Internal on-screen numeric/alphanumeric keypad
+                        KioskDocumentKeypad(
+                            documentNumber = uiState.idDocNumber,
+                            onDocumentChange = { viewModel.setIdDocInfo(uiState.selectedDocType, it) }
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    FeedbackHelper.playButtonClick(context)
+                                    viewModel.setNfcStep(2)
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(54.dp)
+                                    .testTag("nfc_back_to_username_step_btn"),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = PosSlate300)
+                            ) {
+                                Text("Volver a Usuario", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+
+                            Button(
+                                onClick = {
+                                    FeedbackHelper.playButtonClick(context)
+                                    viewModel.setNfcStep(4)
+                                },
+                                modifier = Modifier
+                                    .weight(1.3f)
+                                    .height(54.dp)
+                                    .testTag("nfc_go_to_pin_btn"),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue),
+                                enabled = uiState.idDocNumber.isNotBlank()
+                            ) {
+                                Text("Continuar a Clave", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(Icons.Default.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
+                            }
+                        }
+                    } else {
+                        // requiresDocument=false: este paso 3 es PIN (UID/DESFire)
+                        // Mostrar el bloque de PIN aquí
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Paso 3 • Clave Secreta (Comprador)",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = PosGoldLight,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Usuario: ${uiState.customerUsername}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = PosSlate200,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        PinInputPad(
+                            pin = uiState.customerPin,
+                            onPinChange = { viewModel.setCustomerPin(it) },
+                            title = "Clave Secreta del Comprador (4 dígitos)"
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    FeedbackHelper.playButtonClick(context)
+                                    viewModel.setNfcStep(2)
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(54.dp)
+                                    .testTag("nfc_back_to_username_btn"),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = PosSlate300)
+                            ) {
+                                Text("Volver a Usuario", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
 
                             Button(
@@ -607,246 +892,304 @@ fun NfcChargeScreen(
                                     viewModel.submitUnifiedPreAuth()
                                 },
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .height(56.dp)
+                                    .weight(1.3f)
+                                    .height(54.dp)
                                     .testTag("nfc_auth_btn"),
-                                shape = RoundedCornerShape(16.dp),
+                                shape = RoundedCornerShape(14.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue),
                                 enabled = !uiState.isLoading &&
-                                    uiState.customerPin.length == 4 &&
-                                    uiState.idDocNumber.isNotBlank()
+                                        uiState.customerPin.length == 4 &&
+                                        uiState.customerUsername.isNotBlank()
                             ) {
                                 if (uiState.isLoading) {
-                                    CircularProgressIndicator(color = PosWhite, modifier = Modifier.size(24.dp))
+                                    CircularProgressIndicator(color = PosWhite, modifier = Modifier.size(22.dp))
                                 } else {
                                     Icon(
-                                        imageVector = Icons.Default.Lock,
+                                        imageVector = Icons.Default.LockOpen,
                                         contentDescription = null,
-                                        tint = PosWhite
+                                        tint = PosWhite,
+                                        modifier = Modifier.size(18.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Autenticar", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Validar y Continuar", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                 }
                             }
                         }
                     }
-
-                    else -> {
-                        // STEP 3: tap_card - NOW ask for the NFC card
-                        // Show the amount so the customer can see it
-                        KioskAmountDisplay(
-                            amountInput = uiState.amountInput,
-                            label = "Monto a Pagar"
-                        )
-
-                        // NFC Pulsing Wave Visualizer
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = PosSlate900),
-                            shape = RoundedCornerShape(20.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(20.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                NfcWaveAnimation(isCardDetected = false)
-
-                                Text(
-                                    text = "ACERQUE LA TARJETA NFC",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = PosPrimaryLight,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 1.sp
-                                )
-
-                                Text(
-                                    text = "Coloque la tarjeta del cliente en el reverso del celular.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = PosSlate300,
-                                    textAlign = TextAlign.Center
-                                )
-
-                                // SIMULATION BUTTON - ONLY ON DEMO NODE (/demo)
-                                // Un solo boton: usa el card_uid del pre-auth
-                                if (uiState.isDemoNode) {
-                                    val simCardUid = uiState.classicPreAuth?.cardUid ?: ""
-                                    val simCardType = uiState.classicPreAuth?.cardType ?: "uid_only"
-                                    val isSimDesfire = (simCardType == "desfire")
-                                    Button(
-                                        onClick = {
-                                            FeedbackHelper.playButtonClick(context)
-                                            viewModel.onCardTapped(simCardUid, isDesfire = isSimDesfire)
-                                        },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(48.dp)
-                                            .testTag("sim_card_btn"),
-                                        shape = RoundedCornerShape(12.dp),
-                                        colors = ButtonDefaults.buttonColors(containerColor = PosGold)
-                                    ) {
-                                        Icon(Icons.Default.Contactless, contentDescription = null, tint = PosNavyDark)
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = "Simular Tarjeta (${simCardType})",
-                                            color = PosNavyDark,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // CLASSIC WRITING STATE: mostrar progreso de escritura
-                        if (uiState.isClassicFlow && uiState.isWritingCard) {
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = PosSlate800),
-                                shape = RoundedCornerShape(16.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(20.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    CircularProgressIndicator(
-                                        color = PosGoldLight,
-                                        modifier = Modifier.size(48.dp)
-                                    )
-                                    Text(
-                                        text = uiState.writeProgress.ifBlank { "Procesando..." },
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = PosGoldLight,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = "NO RETIRE LA TARJETA",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = PosSlate100,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-
-                        // Back button to return to amount input
-                        OutlinedButton(
-                            onClick = {
-                                FeedbackHelper.playButtonClick(context)
-                                viewModel.resetNfcPaymentState()
-                                nfcStep = "amount_input"
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp)
-                                .testTag("nfc_back_to_amount_btn"),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PosSlate300)
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Cambiar Monto")
-                        }
                     }
-                }
-            } else if (uiState.isMultisigActive && isCardDetected) {
-                // --- MULTI-SIG: CARD DETECTED -> ENTER PIN FOR NEXT SIGNER ---
-                // Solo para multi-sig: el PIN del firmante se pide despues de tap
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = PosSlate900),
-                    shape = RoundedCornerShape(20.dp),
-                    border = CardDefaults.outlinedCardBorder().copy(
-                        brush = androidx.compose.ui.graphics.SolidColor(PosGold)
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
+
+                    4 -> {
+                        // -------------------------------------------------------------
+                        // PASO 4: CLAVE SECRETA (COMPRADOR) — solo si requiresDocument=true
+                        // O PASO 4: ESCANEAR TARJETA NFC — si requiresDocument=false
+                        // -------------------------------------------------------------
+                        if (uiState.requiresDocument) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Group, contentDescription = null, tint = PosGoldLight)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column {
-                                    Text(
-                                        text = "Firmante ${uiState.multisigCollectedSigs + 1} de ${uiState.multisigRequiredSigs}",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = PosSlate100,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = "UID: ${uiState.detectedCardUid}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = PosGoldLight
-                                    )
-                                }
-                            }
-
-                            TextButton(
-                                onClick = {
-                                    FeedbackHelper.playButtonClick(context)
-                                    viewModel.resetNfcPaymentState()
-                                }
-                            ) {
-                                Text("Cancelar", color = PosSlate300)
-                            }
+                            Text(
+                                text = "Paso 4 • Clave Secreta (Comprador)",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = PosGoldLight,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "${uiState.selectedDocType.uppercase()}: ${uiState.idDocNumber}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = PosSlate200,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
 
-                        // PIN Input Pad para el firmante
+                        // PIN Input Pad
                         PinInputPad(
                             pin = uiState.customerPin,
                             onPinChange = { viewModel.setCustomerPin(it) },
-                            title = "PIN del Firmante ${uiState.multisigCollectedSigs + 1} de ${uiState.multisigRequiredSigs}"
+                            title = "Clave Secreta del Comprador (4 dígitos)"
                         )
 
-                        Button(
-                            onClick = {
-                                FeedbackHelper.playButtonClick(context)
-                                viewModel.submitMultisigSigner(
-                                    cardUid = uiState.detectedCardUid ?: "",
-                                    pin = uiState.customerPin,
-                                    docType = uiState.selectedDocType,
-                                    docNum = uiState.idDocNumber
-                                )
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(58.dp)
-                                .testTag("process_nfc_btn"),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = PosGold),
-                            enabled = !uiState.isLoading && uiState.customerPin.length == 4
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            if (uiState.isLoading) {
-                                CircularProgressIndicator(color = PosNavyDark, modifier = Modifier.size(24.dp))
-                            } else {
-                                Icon(Icons.Default.VpnKey, contentDescription = null, tint = PosNavyDark)
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Text(
-                                    text = if (uiState.multisigCollectedSigs + 1 < uiState.multisigRequiredSigs) {
-                                        "Validar Firma ${uiState.multisigCollectedSigs + 1} de ${uiState.multisigRequiredSigs}"
-                                    } else {
-                                        "Validar Firma Final y Aprobar Pago"
-                                    },
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = PosNavyDark,
-                                    fontWeight = FontWeight.Bold
-                                )
+                            OutlinedButton(
+                                onClick = {
+                                    FeedbackHelper.playButtonClick(context)
+                                    viewModel.setNfcStep(3)
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(54.dp)
+                                    .testTag("nfc_back_to_doc_btn"),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = PosSlate300)
+                            ) {
+                                Text("Volver a Doc.", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+
+                            Button(
+                                onClick = {
+                                    FeedbackHelper.playButtonClick(context)
+                                    viewModel.submitUnifiedPreAuth()
+                                },
+                                modifier = Modifier
+                                    .weight(1.3f)
+                                    .height(54.dp)
+                                    .testTag("nfc_auth_btn"),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue),
+                                enabled = !uiState.isLoading &&
+                                        uiState.customerPin.length == 4 &&
+                                        uiState.idDocNumber.isNotBlank()
+                            ) {
+                                if (uiState.isLoading) {
+                                    CircularProgressIndicator(color = PosWhite, modifier = Modifier.size(22.dp))
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.LockOpen,
+                                        contentDescription = null,
+                                        tint = PosWhite,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Validar y Continuar", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                }
                             }
                         }
+                    } else {
+                        // requiresDocument=false: este paso 4 es Tap Card (UID/DESFire)
+                        // Mostrar el bloque de tap card aquí
+                        // (duplicado del step 5 para Classic)
+                        NfcTapCardContent(uiState, viewModel, context)
+                    }
+                    }
+
+                    5 -> {
+                        // -------------------------------------------------------------
+                        // PASO 5: ESCANEAR TARJETA NFC (SOLO PARA CLASSIC)
+                        // -------------------------------------------------------------
+                        NfcTapCardContent(uiState, viewModel, context)
+                    }
+
+                    else -> {
+                        viewModel.setNfcStep(1)
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun NfcTapCardContent(
+    uiState: PosUiState,
+    viewModel: PosViewModel,
+    context: android.content.Context
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = PosSlate900),
+        shape = RoundedCornerShape(20.dp),
+        border = androidx.compose.foundation.BorderStroke(2.dp, PosPrimaryLight.copy(alpha = 0.6f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Surface(
+                color = PosSuccessGreen.copy(alpha = 0.15f),
+                shape = RoundedCornerShape(10.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, PosSuccessGreen.copy(alpha = 0.4f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = PosSuccessGreenLight, modifier = Modifier.size(16.dp))
+                    Text("ACERQUE LA TARJETA NFC", color = PosSuccessGreenLight, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+            }
+
+            // Transaction summary card
+            Card(
+                colors = CardDefaults.cardColors(containerColor = PosSlate800),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Usuario:", color = PosSlate400, fontSize = 12.sp)
+                        Text(uiState.customerUsername, color = PosSlate100, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                    if (uiState.requiresDocument) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Documento Validado:", color = PosSlate400, fontSize = 12.sp)
+                            Text("${uiState.selectedDocType.uppercase()}: ${uiState.idDocNumber}", color = PosSlate100, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Clave Secreta:", color = PosSlate400, fontSize = 12.sp)
+                        Text("•••• (Correcta)", color = PosSuccessGreenLight, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                    HorizontalDivider(color = PosSlate700, modifier = Modifier.padding(vertical = 2.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Total a Cobrar:", color = PosSlate300, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            CurrencyHelper.formatCentavos(CurrencyHelper.parseInputToCentavos(uiState.amountInput)),
+                            color = PosGoldLight,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 16.sp
+                        )
+                    }
+                }
+            }
+
+            NfcWaveAnimation(isCardDetected = false)
+
+            Text(
+                text = "ACERQUE LA TARJETA DEL CLIENTE",
+                style = MaterialTheme.typography.titleLarge,
+                color = PosPrimaryLight,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+
+            Text(
+                text = "Coloque la tarjeta del comprador en el reverso del dispositivo para procesar el débito.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = PosSlate300,
+                textAlign = TextAlign.Center
+            )
+
+            if (uiState.isLoading) {
+                CircularProgressIndicator(color = PosPrimaryLight, modifier = Modifier.size(32.dp))
+            }
+
+            // DEMO MODE SIMULATION BUTTON
+            if (uiState.isDemoNode) {
+                val simCardUid = uiState.classicPreAuth?.cardUid ?: "DEMO-NFC-CARD"
+                val simCardType = uiState.classicPreAuth?.cardType ?: "uid_only"
+                val isSimDesfire = (simCardType == "desfire")
+
+                Button(
+                    onClick = {
+                        FeedbackHelper.playButtonClick(context)
+                        viewModel.onCardTapped(simCardUid, isDesfire = isSimDesfire)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .testTag("sim_card_btn"),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PosGold),
+                    enabled = !uiState.isLoading
+                ) {
+                    Icon(Icons.Default.Contactless, contentDescription = null, tint = PosNavyDark)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Simular Tarjeta ($simCardType)",
+                        color = PosNavyDark,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+
+            // Mifare Classic dynamic certificates write progress
+            if (uiState.isClassicFlow && uiState.isWritingCard) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = PosSlate800),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        CircularProgressIndicator(color = PosGoldLight, modifier = Modifier.size(36.dp))
+                        Text(
+                            text = uiState.writeProgress.ifBlank { "Escribiendo certificados..." },
+                            style = MaterialTheme.typography.titleMedium,
+                            color = PosGoldLight,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "NO RETIRE LA TARJETA",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = PosSlate100,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            OutlinedButton(
+                onClick = {
+                    FeedbackHelper.playButtonClick(context)
+                    viewModel.goBackNfcStep()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .testTag("nfc_back_to_pin_btn"),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = PosSlate300)
+            ) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Volver a Clave Secreta", fontSize = 13.sp)
             }
         }
     }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api, apiFetch } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
-import { Smartphone, Lock, Unlock, Eye, Activity, Power, ShoppingBag, Edit2, Globe, Clock, XCircle, CheckCircle } from 'lucide-react'
+import { Smartphone, Lock, Unlock, Eye, Activity, Power, ShoppingBag, Edit2, Globe, Clock, XCircle, CheckCircle, KeyRound, History, Download } from 'lucide-react'
 import { fmtTQ, fmtDateTime } from '../lib/format'
 
 interface MyTerminal {
@@ -38,6 +38,18 @@ export default function MyTerminals() {
   const [renaming, setRenaming] = useState<MyTerminal | null>(null)
   const [renameLabel, setRenameLabel] = useState('')
   const [renameSaving, setRenameSaving] = useState(false)
+
+  // Shift PIN state
+  const [shiftPinModal, setShiftPinModal] = useState<MyTerminal | null>(null)
+  const [shiftPinValue, setShiftPinValue] = useState('')
+  const [shiftPinSaving, setShiftPinSaving] = useState(false)
+
+  // Shift history state
+  const [shiftHistoryModal, setShiftHistoryModal] = useState<MyTerminal | null>(null)
+  const [shifts, setShifts] = useState<any[]>([])
+  const [shiftsLoading, setShiftsLoading] = useState(false)
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
 
   // POS Web session state
   const [pendingWebSessions, setPendingWebSessions] = useState<any[]>([])
@@ -206,6 +218,86 @@ export default function MyTerminals() {
     }
   }
 
+  // Shift PIN management
+  const handleSetShiftPin = async () => {
+    if (!shiftPinModal || shiftPinValue.length < 4) return
+    setShiftPinSaving(true)
+    try {
+      await apiFetch(`/nfc/my-terminals/${shiftPinModal.terminal_id}/shift-pin`, {
+        method: 'POST',
+        body: JSON.stringify({ pin: shiftPinValue }),
+      })
+      setShiftPinModal(null)
+      setShiftPinValue('')
+      setError('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al configurar PIN')
+    } finally {
+      setShiftPinSaving(false)
+    }
+  }
+
+  // Shift history
+  const handleViewShiftHistory = async (terminal: MyTerminal) => {
+    setShiftHistoryModal(terminal)
+    await loadShifts(terminal.terminal_id)
+  }
+
+  const loadShifts = async (terminalId: string) => {
+    setShiftsLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (fromDate) params.set('from', fromDate)
+      if (toDate) params.set('to', toDate)
+      const qs = params.toString()
+      const res = await api.get<any[]>(`/nfc/my-terminals/${terminalId}/shifts${qs ? '?' + qs : ''}`)
+      setShifts(res || [])
+    } catch (err) {
+      setShifts([])
+    } finally {
+      setShiftsLoading(false)
+    }
+  }
+
+  // CSV Export
+  const handleExportTransactions = async (terminalId: string) => {
+    try {
+      const params = new URLSearchParams()
+      if (fromDate) params.set('from', fromDate)
+      if (toDate) params.set('to', toDate)
+      const qs = params.toString()
+      const resp = await apiFetch(`/nfc/my-terminals/${terminalId}/export/transactions${qs ? '?' + qs : ''}`)
+      const text = await resp.text()
+      downloadCSV(text, `transacciones_${terminalId}.csv`)
+    } catch (err) {
+      setError('Error al exportar transacciones')
+    }
+  }
+
+  const handleExportShifts = async (terminalId: string) => {
+    try {
+      const params = new URLSearchParams()
+      if (fromDate) params.set('from', fromDate)
+      if (toDate) params.set('to', toDate)
+      const qs = params.toString()
+      const resp = await apiFetch(`/nfc/my-terminals/${terminalId}/export/shifts${qs ? '?' + qs : ''}`)
+      const text = await resp.text()
+      downloadCSV(text, `turnos_${terminalId}.csv`)
+    } catch (err) {
+      setError('Error al exportar turnos')
+    }
+  }
+
+  const downloadCSV = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const formatTime = (ts: string | null) => {
     if (!ts) return 'Nunca'
     return fmtDateTime(ts)
@@ -346,7 +438,7 @@ export default function MyTerminals() {
                 <p>🕐 Ultima actividad: {formatTime(term.last_seen)}</p>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <button
                   onClick={() => handleViewTransactions(term)}
                   className="flex-1 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-100 flex items-center justify-center gap-1"
@@ -355,22 +447,35 @@ export default function MyTerminals() {
                   Transacciones
                 </button>
                 <button
+                  onClick={() => handleViewShiftHistory(term)}
+                  className="px-3 py-2 bg-purple-50 text-purple-600 rounded-lg text-sm font-medium hover:bg-purple-100 flex items-center justify-center gap-1"
+                >
+                  <History size={16} />
+                  Turnos
+                </button>
+                <button
+                  onClick={() => { setShiftPinModal(term); setShiftPinValue('') }}
+                  className="px-3 py-2 bg-amber-50 text-amber-600 rounded-lg text-sm font-medium hover:bg-amber-100 flex items-center justify-center gap-1"
+                >
+                  <KeyRound size={16} />
+                  PIN Turno
+                </button>
+                <button
                   onClick={() => { setRenaming(term); setRenameLabel(term.label || '') }}
                   className="px-3 py-2 bg-gray-50 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-100 flex items-center justify-center gap-1"
                 >
                   <Edit2 size={16} />
-                  Renombrar
                 </button>
                 {!term.is_blocked && (
                   <button
                     onClick={() => handleToggle(term)}
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1 ${
+                    className={`px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1 ${
                       term.is_active
                         ? 'bg-red-50 text-red-600 hover:bg-red-100'
                         : 'bg-green-50 text-green-600 hover:bg-green-100'
                     }`}
                   >
-                    {term.is_active ? <><Power size={16} /> Desactivar</> : <><Power size={16} /> Activar</>}
+                    {term.is_active ? <><Power size={16} /> Off</> : <><Power size={16} /> On</>}
                   </button>
                 )}
               </div>
@@ -587,6 +692,157 @@ export default function MyTerminals() {
           <li>Aqui puedes ver todas tus transacciones y gestionar tus terminales</li>
         </ol>
       </div>
+
+      {/* Modal de configurar PIN del turno */}
+      {shiftPinModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 max-w-sm w-full">
+            <h2 className="font-bold text-lg mb-2 flex items-center gap-2">
+              <KeyRound size={20} />
+              PIN del Turno
+            </h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Configura el PIN que se requerira para abrir y cerrar turnos en este terminal.
+              El POS lo usara localmente para funcionar sin internet.
+              <br />
+              <span className="font-mono text-xs">{shiftPinModal.label}</span>
+            </p>
+            <input
+              type="password"
+              value={shiftPinValue}
+              onChange={(e) => setShiftPinValue(e.target.value)}
+              placeholder="PIN (minimo 4 digitos)"
+              className="input w-full mb-4"
+              autoFocus
+              onKeyDown={(e) => { if (e.key === 'Enter' && shiftPinValue.length >= 4) handleSetShiftPin() }}
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={handleSetShiftPin}
+                disabled={shiftPinValue.length < 4 || shiftPinSaving}
+                className="btn-primary flex-1 disabled:opacity-50"
+              >
+                {shiftPinSaving ? 'Guardando...' : 'Guardar PIN'}
+              </button>
+              <button
+                onClick={() => { setShiftPinModal(null); setShiftPinValue('') }}
+                className="btn-secondary"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de historial de turnos */}
+      {shiftHistoryModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-lg flex items-center gap-2">
+                <History size={20} />
+                Historial de Turnos: {shiftHistoryModal.label}
+              </h2>
+              <button
+                onClick={() => { setShiftHistoryModal(null); setShifts([]); setFromDate(''); setToDate('') }}
+                className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            {/* Filtro de fechas */}
+            <div className="flex gap-2 mb-4">
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="input flex-1"
+                placeholder="Desde"
+              />
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="input flex-1"
+                placeholder="Hasta"
+              />
+              <button
+                onClick={() => loadShifts(shiftHistoryModal.terminal_id)}
+                className="btn-primary px-4"
+              >
+                Buscar
+              </button>
+            </div>
+
+            {/* Export buttons */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => handleExportShifts(shiftHistoryModal.terminal_id)}
+                className="px-3 py-2 bg-green-50 text-green-600 rounded-lg text-sm font-medium hover:bg-green-100 flex items-center gap-1"
+              >
+                <Download size={16} />
+                Exportar Turnos CSV
+              </button>
+              <button
+                onClick={() => handleExportTransactions(shiftHistoryModal.terminal_id)}
+                className="px-3 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-100 flex items-center gap-1"
+              >
+                <Download size={16} />
+                Exportar Transacciones CSV
+              </button>
+            </div>
+
+            {/* Lista de turnos */}
+            {shiftsLoading ? (
+              <div className="text-center py-8 text-gray-500">Cargando...</div>
+            ) : shifts.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                No hay turnos en el rango seleccionado
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {shifts.map((s, i) => (
+                  <div key={s.id || i} className="border rounded-lg p-3">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <span className="font-medium text-sm">{s.user_name || '—'}</span>
+                        <span className={`ml-2 px-2 py-0.5 text-xs rounded-full font-medium ${
+                          s.status === 'closed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                        }`}>
+                          {s.status === 'closed' ? 'Cerrado' : 'Abierto'}
+                        </span>
+                      </div>
+                      <span className="text-xs text-gray-400">{fmtDateTime(s.opened_at)}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div>
+                        <span className="text-gray-500">Apertura: </span>
+                        <span className="font-medium">{fmtTQ(s.opening_amount || 0)} TQ</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Ventas: </span>
+                        <span className="font-medium text-green-600">{fmtTQ(s.total_sales || 0)} TQ</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Trans: </span>
+                        <span className="font-medium">{s.transactions_count || 0}</span>
+                      </div>
+                    </div>
+                    {s.closed_at && (
+                      <div className="text-xs text-gray-400 mt-1">
+                        Cerrado: {fmtDateTime(s.closed_at)}
+                        {s.closing_amount != null && ` · Cierre: ${fmtTQ(s.closing_amount)} TQ`}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Modal de renombrar */}
       {renaming && (

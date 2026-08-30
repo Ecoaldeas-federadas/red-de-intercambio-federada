@@ -98,7 +98,7 @@ api:
 - **Dependencias clave:** `react`, `qrcode`
 - **Función:** Punto de venta web. Es la versión web del POS Android. Soporta:
   - **Pago QR:** Crea cargos QR, muestra el código QR al cliente, hace polling del estado hasta que se paga o expira. El cliente escanea el QR desde su app, abre la URL de confirmación (`/pay?token=...`), se autentica y confirma el pago.
-  - **Pago NFC:** Flujo unificado (documento + PIN antes de tarjeta). Usa Web NFC API cuando el navegador lo soporta, o un lector Bluetooth externo. El flujo NFC del POS Web sigue el mismo orden que el POS Android: monto → documento + PIN → pre-auth → tap card.
+  - **Pago NFC:** Flujo username-first (username → documento solo si Classic → PIN → tarjeta). Usa Web NFC API cuando el navegador lo soporta, o un lector Bluetooth externo. El flujo NFC del POS Web sigue el mismo orden que el POS Android: monto → username → lookup → (documento si Classic) → PIN → pre-auth → tap card.
 - **Importante:** El POS Web (`pos/`) es **diferente** del panel web principal (`web/`). El panel web (`web/`) es para gestión de cuenta, no es un POS. El POS Web (`pos/`) es exclusivamente para cobros.
 
 ### 3.3 POS Android (`punto-de-venta-pos/`)

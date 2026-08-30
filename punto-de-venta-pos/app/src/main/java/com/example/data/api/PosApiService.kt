@@ -86,8 +86,14 @@ interface PosApiService {
     @POST("nfc/terminal/classic/pre-auth")
     suspend fun classicPreAuth(@Body request: EncryptedPaymentRequest): Response<EncryptedPaymentResponse>
 
+    @POST("nfc/terminal/classic/pre-auth-document")
+    suspend fun classicPreAuthWithDocument(@Body request: EncryptedPaymentRequest): Response<EncryptedPaymentResponse>
+
     @POST("nfc/terminal/classic/confirm")
     suspend fun classicConfirm(@Body request: EncryptedPaymentRequest): Response<EncryptedPaymentResponse>
+
+    @POST("nfc/terminal/user-lookup")
+    suspend fun userLookup(@Body request: EncryptedPaymentRequest): Response<EncryptedPaymentResponse>
 
     // --- Multi-Sig Web/App (JWT) ---
     @GET("multisig/payments")
@@ -108,6 +114,28 @@ interface PosApiService {
         @Path("id") terminalId: String,
         @Body request: CloseShiftRequest
     ): Response<ShiftResponse>
+
+    @POST("nfc/my-terminals/{id}/shift/sync-close")
+    suspend fun syncOfflineShiftClose(
+        @Path("id") terminalId: String,
+        @Body request: Map<String, Any?>
+    ): Response<ShiftResponse>
+
+    @POST("nfc/my-terminals/{id}/shift-pin/verify")
+    suspend fun verifyShiftPin(
+        @Path("id") terminalId: String,
+        @Body request: VerifyShiftPinRequest
+    ): Response<VerifyShiftPinResponse>
+
+    @GET("nfc/my-terminals/{id}/shift-pin/configured")
+    suspend fun getShiftPinConfigured(@Path("id") terminalId: String): Response<ShiftPinConfiguredResponse>
+
+    @GET("nfc/my-terminals/{id}/shifts")
+    suspend fun listShifts(
+        @Path("id") terminalId: String,
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null
+    ): Response<List<ShiftHistoryItem>>
 
     // --- Card Type Config ---
     @GET("nfc/card-type/config")

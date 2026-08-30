@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -38,6 +39,20 @@ fun MultiVendorScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     var buyerDocExpanded by remember { mutableStateOf(false) }
+    var multisigDocExpanded by remember { mutableStateOf(false) }
+
+    // Multi-signer step for multisig flow: doc_input → pin_input → tap_card
+    var multisigSignerStep by remember { mutableStateOf("doc_input") }
+
+    BackHandler {
+        viewModel.goBackMultiVendorStep()
+    }
+
+    LaunchedEffect(uiState.multisigCollectedSigs) {
+        if (uiState.isMultisigActive) {
+            multisigSignerStep = "doc_input"
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -53,13 +68,13 @@ fun MultiVendorScreen(
                     IconButton(
                         onClick = {
                             FeedbackHelper.playButtonClick(context)
-                            viewModel.navigateTo(PosScreen.Dashboard)
+                            viewModel.goBackMultiVendorStep()
                         },
                         modifier = Modifier.testTag("mv_back_btn")
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Volver",
+                            contentDescription = "Volver al paso anterior",
                             tint = PosSlate100
                         )
                     }
@@ -68,6 +83,7 @@ fun MultiVendorScreen(
                     TextButton(
                         onClick = {
                             FeedbackHelper.playButtonClick(context)
+                            viewModel.resetMultiVendorSale()
                             viewModel.navigateTo(PosScreen.Dashboard)
                         },
                         modifier = Modifier.testTag("exit_mv_btn")
@@ -89,7 +105,7 @@ fun MultiVendorScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // ERROR MODAL FOR SAME CARD ERROR
+            // ERROR MODAL FOR SAME CARD ERROR (Seller and Buyer same person/card)
             if (uiState.isSameCardError) {
                 AlertDialog(
                     onDismissRequest = { viewModel.dismissSameCardError() },
@@ -135,7 +151,7 @@ fun MultiVendorScreen(
                 )
             }
 
-            // Alerts / Normal Error Messages
+            // Normal Error Messages
             if (!uiState.errorMessage.isNullOrBlank() && !uiState.isSameCardError) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -156,7 +172,8 @@ fun MultiVendorScreen(
                 }
             }
 
-            if (!uiState.successMessage.isNullOrBlank() && uiState.mvStep != 5) {
+            // Success Messages
+            if (!uiState.successMessage.isNullOrBlank() && uiState.mvStep != 6) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = PosSuccessGreen.copy(alpha = 0.2f)),
@@ -175,6 +192,7 @@ fun MultiVendorScreen(
                     }
                 }
             }
+
             // NFC STATUS BANNER
             if (!uiState.hasNfcHardware) {
                 Card(
@@ -238,13 +256,13 @@ fun MultiVendorScreen(
                 }
             }
 
-            // STEP PROGRESS INDICATOR
+            // STEP PROGRESS INDICATOR (6 STEPS: Vendedor, Monto, Documento, Clave, Tarjeta, Fin)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val steps = listOf("Vendedor", "Monto", "Cliente", "PIN", "Fin")
+                val steps = listOf("Vendedor", "Monto", "Doc", "Clave", "Tarjeta", "Fin")
                 steps.forEachIndexed { index, stepName ->
                     val stepNum = index + 1
                     val isDone = uiState.mvStep > stepNum
@@ -253,7 +271,7 @@ fun MultiVendorScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(
                             modifier = Modifier
-                                .size(32.dp)
+                                .size(28.dp)
                                 .clip(CircleShape)
                                 .background(
                                     when {
@@ -269,14 +287,14 @@ fun MultiVendorScreen(
                                     imageVector = Icons.Default.Check,
                                     contentDescription = null,
                                     tint = PosNavyDark,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(16.dp)
                                 )
                             } else {
                                 Text(
                                     text = "$stepNum",
                                     color = if (isCurrent) PosNavyDark else PosSlate300,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp
+                                    fontSize = 12.sp
                                 )
                             }
                         }
@@ -285,7 +303,7 @@ fun MultiVendorScreen(
                             text = stepName,
                             style = MaterialTheme.typography.labelSmall,
                             color = if (isCurrent) PosPrimaryLight else PosSlate600,
-                            fontSize = 11.sp
+                            fontSize = 10.sp
                         )
                     }
                 }
@@ -293,10 +311,10 @@ fun MultiVendorScreen(
 
             HorizontalDivider(color = PosSlate800)
 
-            // --- MULTI-SIG ACTIVE: Mostrar UI de firma secuencial real ---
-            // Cuando el servidor responde pending_multisig, entramos en este flujo
-            // que reutiliza el mismo patron que NfcChargeScreen.
+            // --- MULTI-SIG ACTIVE: Sequential Signer Flow (Doc -> Clave Secreta -> Escanear Tarjeta) ---
             if (uiState.isMultisigActive) {
+                val nextSignerIdx = uiState.multisigCollectedSigs + 1
+
                 MultisigCountdownHeader(
                     remainingSeconds = uiState.multisigRemainingSeconds,
                     requiredSignatures = uiState.multisigRequiredSigs,
@@ -311,109 +329,279 @@ fun MultiVendorScreen(
                     border = androidx.compose.foundation.BorderStroke(2.dp, PosGold)
                 ) {
                     Column(
-                        modifier = Modifier.fillMaxWidth().padding(24.dp),
+                        modifier = Modifier.fillMaxWidth().padding(20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Text(
-                            text = "Cuenta Mancomunada",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = PosGoldLight,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = uiState.multisigMessage
-                                ?: "Acerque la tarjeta del firmante ${uiState.multisigCollectedSigs + 1} de ${uiState.multisigRequiredSigs}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = PosSlate300,
-                            textAlign = TextAlign.Center
-                        )
-
-                        if (!uiState.isNfcWaitingCard && uiState.detectedCardUid != null) {
-                            // Tarjeta detectada - mostrar campo de PIN
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Groups, contentDescription = null, tint = PosGoldLight, modifier = Modifier.size(22.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "CUENTA MANCOMUNADA",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = PosGoldLight,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                             Text(
-                                text = "Tarjeta: ${uiState.detectedCardUid}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = PosGoldLight,
+                                text = "Firmante $nextSignerIdx de ${uiState.multisigRequiredSigs}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = PosSlate200,
                                 fontWeight = FontWeight.Bold
                             )
-                            PinInputPad(
-                                pin = uiState.customerPin,
-                                onPinChange = { viewModel.setCustomerPin(it) },
-                                title = "PIN del Firmante ${uiState.multisigCollectedSigs + 1} de ${uiState.multisigRequiredSigs}",
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Button(
-                                onClick = {
-                                    FeedbackHelper.playButtonClick(context)
-                                    viewModel.submitMultisigSigner(
-                                        cardUid = uiState.detectedCardUid ?: "",
-                                        pin = uiState.customerPin,
-                                        docType = if (uiState.requireIdVerification) uiState.selectedDocType else null,
-                                        docNum = if (uiState.requireIdVerification) uiState.idDocNumber else null
-                                    )
-                                },
-                                modifier = Modifier.fillMaxWidth().height(56.dp),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = PosGold),
-                                enabled = !uiState.isLoading && uiState.customerPin.length == 4
-                            ) {
-                                if (uiState.isLoading) {
-                                    CircularProgressIndicator(color = PosNavyDark, modifier = Modifier.size(24.dp))
-                                } else {
-                                    Icon(Icons.Default.VpnKey, contentDescription = null, tint = PosNavyDark)
-                                    Spacer(modifier = Modifier.width(10.dp))
+                        }
+
+                        // Stepper indicator for signer cycle
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val subSteps = listOf("1. Documento", "2. Clave Secreta", "3. Escanear Tarjeta")
+                            subSteps.forEachIndexed { idx, sName ->
+                                val active = when (idx) {
+                                    0 -> multisigSignerStep == "doc_input"
+                                    1 -> multisigSignerStep == "pin_input"
+                                    else -> multisigSignerStep == "tap_card"
+                                }
+                                Surface(
+                                    color = if (active) PosGold else PosSlate800,
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
                                     Text(
-                                        text = if (uiState.multisigCollectedSigs + 1 < uiState.multisigRequiredSigs) {
-                                            "Validar Firma ${uiState.multisigCollectedSigs + 1} de ${uiState.multisigRequiredSigs}"
-                                        } else {
-                                            "Aprobar Pago Multi-Firma"
-                                        },
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = PosNavyDark,
-                                        fontWeight = FontWeight.Bold
+                                        text = sName,
+                                        color = if (active) PosNavyDark else PosSlate400,
+                                        fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+                                        fontSize = 11.sp,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                     )
                                 }
                             }
-                        } else {
-                            // Esperando tarjeta del siguiente firmante
-                            NfcWaveAnimation()
-                            Text(
-                                text = "Acerque la tarjeta del Firmante ${uiState.multisigCollectedSigs + 1} de ${uiState.multisigRequiredSigs}",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = PosGoldLight,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center
-                            )
-                            Text(
-                                text = "La firma anterior fue validada exitosamente por el nodo. Coloque la tarjeta del siguiente titular al reverso del dispositivo.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = PosSlate300,
-                                textAlign = TextAlign.Center
-                            )
+                        }
 
-                            if (uiState.isDemoNode) {
-                                val nextSignerIdx = uiState.multisigCollectedSigs + 1
-                                val simUid = if (uiState.multisigRequiredSigs == 3) "BUYER_MULTISIG_3F_FIRM$nextSignerIdx" else "BUYER_MULTISIG_2F_FIRM$nextSignerIdx"
+                        when (multisigSignerStep) {
+                            "doc_input" -> {
+                                Surface(
+                                    color = PosGold.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(Icons.Default.Badge, contentDescription = null, tint = PosGoldLight)
+                                        Column {
+                                            Text(
+                                                text = "Paso 1 de 3 • Documento del Firmante $nextSignerIdx (Vendedor)",
+                                                color = PosGoldLight,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 12.sp
+                                            )
+                                            Text(
+                                                text = "El vendedor ingresa el documento del firmante con el teclado",
+                                                color = PosSlate300,
+                                                fontSize = 11.sp
+                                            )
+                                        }
+                                    }
+                                }
+
+                                KioskDocumentDisplay(
+                                    docType = uiState.selectedDocType,
+                                    documentNumber = uiState.idDocNumber,
+                                    onDocTypeChange = { viewModel.setIdDocInfo(it, uiState.idDocNumber) },
+                                    onClear = { viewModel.setIdDocInfo(uiState.selectedDocType, "") },
+                                    label = "Documento del Firmante $nextSignerIdx",
+                                    accentColor = PosGoldLight,
+                                    testTag = "mv_multisig_signer_doc_input"
+                                )
+
+                                KioskDocumentKeypad(
+                                    documentNumber = uiState.idDocNumber,
+                                    onDocumentChange = { viewModel.setIdDocInfo(uiState.selectedDocType, it) }
+                                )
+
                                 Button(
                                     onClick = {
                                         FeedbackHelper.playButtonClick(context)
-                                        viewModel.onCardTapped(simUid, isDesfire = true)
+                                        multisigSignerStep = "pin_input"
                                     },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(52.dp)
-                                        .testTag("sim_mv_next_signer_btn"),
+                                    enabled = uiState.idDocNumber.isNotBlank(),
+                                    modifier = Modifier.fillMaxWidth().height(54.dp).testTag("mv_multisig_to_pin_btn"),
                                     shape = RoundedCornerShape(14.dp),
                                     colors = ButtonDefaults.buttonColors(containerColor = PosGold)
                                 ) {
-                                    Icon(Icons.Default.Contactless, contentDescription = null, tint = PosNavyDark)
+                                    Text("Continuar a Clave Secreta", color = PosNavyDark, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        "Simular Tarjeta Firmante $nextSignerIdx de ${uiState.multisigRequiredSigs}",
-                                        color = PosNavyDark,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    Icon(Icons.Default.ArrowForward, contentDescription = null, tint = PosNavyDark)
+                                }
+                            }
+
+                            "pin_input" -> {
+                                Surface(
+                                    color = PosGold.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(Icons.Default.Lock, contentDescription = null, tint = PosGoldLight)
+                                        Column {
+                                            Text(
+                                                text = "Paso 2 de 3 • Clave Secreta del Firmante $nextSignerIdx (Comprador)",
+                                                color = PosGoldLight,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 12.sp
+                                            )
+                                            Text(
+                                                text = "El firmante ingresa su clave secreta confidencialmente",
+                                                color = PosSlate300,
+                                                fontSize = 11.sp
+                                            )
+                                        }
+                                    }
+                                }
+
+                                PinInputPad(
+                                    pin = uiState.customerPin,
+                                    onPinChange = { viewModel.setCustomerPin(it) },
+                                    title = "PIN del Firmante $nextSignerIdx de ${uiState.multisigRequiredSigs}"
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            FeedbackHelper.playButtonClick(context)
+                                            multisigSignerStep = "doc_input"
+                                        },
+                                        modifier = Modifier.weight(1f).height(52.dp),
+                                        shape = RoundedCornerShape(14.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PosSlate300)
+                                    ) {
+                                        Text("Volver a Doc", fontSize = 13.sp)
+                                    }
+
+                                    Button(
+                                        onClick = {
+                                            FeedbackHelper.playButtonClick(context)
+                                            multisigSignerStep = "tap_card"
+                                        },
+                                        enabled = uiState.customerPin.length == 4,
+                                        modifier = Modifier.weight(1f).height(52.dp).testTag("mv_multisig_to_tap_btn"),
+                                        shape = RoundedCornerShape(14.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = PosGold)
+                                    ) {
+                                        Text("Continuar a Tarjeta", color = PosNavyDark, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    }
+                                }
+                            }
+
+                            "tap_card" -> {
+                                Surface(
+                                    color = PosGold.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(Icons.Default.Contactless, contentDescription = null, tint = PosGoldLight)
+                                        Column {
+                                            Text(
+                                                text = "Paso 3 de 3 • Escanear Tarjeta del Firmante $nextSignerIdx",
+                                                color = PosGoldLight,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 12.sp
+                                            )
+                                            Text(
+                                                text = "Acerque la tarjeta física al reverso del dispositivo",
+                                                color = PosSlate300,
+                                                fontSize = 11.sp
+                                            )
+                                        }
+                                    }
+                                }
+
+                                NfcWaveAnimation(isCardDetected = false)
+
+                                Text(
+                                    text = "ACERQUE LA TARJETA DEL FIRMANTE $nextSignerIdx de ${uiState.multisigRequiredSigs}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = PosGoldLight,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center
+                                )
+
+                                Text(
+                                    text = "Coloque la tarjeta del siguiente titular en el reverso del teléfono para registrar su firma.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = PosSlate300,
+                                    textAlign = TextAlign.Center
+                                )
+
+                                if (uiState.isDemoNode) {
+                                    Button(
+                                        onClick = {
+                                            FeedbackHelper.playButtonClick(context)
+                                            val simUid = if (uiState.multisigRequiredSigs == 3) {
+                                                "BUYER_MULTISIG_3F_FIRM$nextSignerIdx"
+                                            } else {
+                                                "BUYER_MULTISIG_2F_FIRM$nextSignerIdx"
+                                            }
+                                            viewModel.submitMultisigSigner(
+                                                cardUid = simUid,
+                                                pin = uiState.customerPin,
+                                                docType = uiState.selectedDocType,
+                                                docNum = uiState.idDocNumber
+                                            )
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(52.dp)
+                                            .testTag("sim_mv_next_signer_btn"),
+                                        shape = RoundedCornerShape(14.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = PosGold),
+                                        enabled = !uiState.isLoading
+                                    ) {
+                                        if (uiState.isLoading) {
+                                            CircularProgressIndicator(color = PosNavyDark, modifier = Modifier.size(24.dp))
+                                        } else {
+                                            Icon(Icons.Default.Contactless, contentDescription = null, tint = PosNavyDark)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                "Simular Tarjeta Firmante $nextSignerIdx de ${uiState.multisigRequiredSigs}",
+                                                color = PosNavyDark,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+
+                                OutlinedButton(
+                                    onClick = {
+                                        FeedbackHelper.playButtonClick(context)
+                                        multisigSignerStep = "pin_input"
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = PosSlate300)
+                                ) {
+                                    Text("Cambiar Clave Secreta")
                                 }
                             }
                         }
@@ -445,7 +633,6 @@ fun MultiVendorScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            // Banner distintivo Vendedor
                             Surface(
                                 color = PosGold.copy(alpha = 0.15f),
                                 shape = RoundedCornerShape(12.dp),
@@ -461,7 +648,6 @@ fun MultiVendorScreen(
                                 }
                             }
 
-                            // Grafico Ilustrativo de Tarjeta de Vendedor
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -524,7 +710,6 @@ fun MultiVendorScreen(
                                 textAlign = TextAlign.Center
                             )
 
-                            // Quick simulation button for tests - ONLY ON DEMO NODE
                             if (uiState.isDemoNode) {
                                 OutlinedButton(
                                     onClick = {
@@ -589,12 +774,171 @@ fun MultiVendorScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue),
                         enabled = uiState.amountInput.isNotBlank() && uiState.amountInput != "0"
                     ) {
-                        Text("Confirmar Monto y Pasar al Cliente", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                        Text("Confirmar Monto y Continuar a Documento", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     }
                 }
 
                 3 -> {
-                    // --- PASO 3: TAP BUYER (CUSTOMER) CARD ---
+                    // --- PASO 3: BUYER DOCUMENT ID (Vendedor escribe documento de identidad del comprador) ---
+                    Surface(
+                        color = PosPrimaryLight.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(Icons.Default.Badge, contentDescription = null, tint = PosPrimaryLight, modifier = Modifier.size(24.dp))
+                            Column {
+                                Text(
+                                    text = "PASO 3 • DOCUMENTO DEL COMPRADOR (VENDEDOR)",
+                                    color = PosPrimaryLight,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
+                                Text(
+                                    text = "El vendedor ingresa el tipo y número de documento de identidad del cliente usando el teclado en pantalla.",
+                                    color = PosSlate300,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
+
+                    // Document Display (Non-editable container: no phone keyboard popup)
+                    KioskDocumentDisplay(
+                        docType = uiState.buyerDocType,
+                        documentNumber = uiState.buyerDocNumber,
+                        onDocTypeChange = { viewModel.setBuyerDocInfo(it, uiState.buyerDocNumber) },
+                        onClear = { viewModel.setBuyerDocInfo(uiState.buyerDocType, "") },
+                        label = "Documento del Cliente • Monto: ${CurrencyHelper.formatCentavos(CurrencyHelper.parseInputToCentavos(uiState.amountInput))}",
+                        accentColor = PosPrimaryLight,
+                        testTag = "buyer_doc_input"
+                    )
+
+                    // TECLADO EN PANTALLA (NUMERICO Y ALFANUMERICO)
+                    KioskDocumentKeypad(
+                        documentNumber = uiState.buyerDocNumber,
+                        onDocumentChange = { viewModel.setBuyerDocInfo(uiState.buyerDocType, it) }
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                FeedbackHelper.playButtonClick(context)
+                                viewModel.setMvStep(2)
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PosSlate300)
+                        ) {
+                            Text("Volver a Monto", fontSize = 14.sp)
+                        }
+
+                        Button(
+                            onClick = {
+                                FeedbackHelper.playButtonClick(context)
+                                viewModel.onMultiVendorDocSet()
+                            },
+                            modifier = Modifier
+                                .weight(1.3f)
+                                .height(56.dp)
+                                .testTag("mv_doc_next_btn"),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue),
+                            enabled = uiState.buyerDocNumber.isNotBlank()
+                        ) {
+                            Text("Continuar a Clave Secreta", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(Icons.Default.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
+
+                4 -> {
+                    // --- PASO 4: BUYER SECRET PIN (Comprador ingresa su clave secreta en privado) ---
+                    Surface(
+                        color = PosPrimaryLight.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(Icons.Default.Lock, contentDescription = null, tint = PosPrimaryLight, modifier = Modifier.size(24.dp))
+                            Column {
+                                Text(
+                                    text = "PASO 4 • CLAVE SECRETA DEL COMPRADOR (CLIENTE)",
+                                    color = PosPrimaryLight,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
+                                Text(
+                                    text = "Por seguridad, el cliente debe ingresar su clave secreta (PIN de 4 dígitos) de manera privada.",
+                                    color = PosSlate300,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
+
+                    PinInputPad(
+                        pin = uiState.buyerPin,
+                        onPinChange = { pin ->
+                            viewModel.setBuyerPin(pin)
+                        },
+                        title = "Clave Secreta del Comprador (4 dígitos)"
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                FeedbackHelper.playButtonClick(context)
+                                viewModel.setMvStep(3)
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PosSlate300)
+                        ) {
+                            Text("Volver a Documento", fontSize = 14.sp)
+                        }
+
+                        Button(
+                            onClick = {
+                                FeedbackHelper.playButtonClick(context)
+                                viewModel.onMultiVendorPinSet()
+                            },
+                            modifier = Modifier
+                                .weight(1.3f)
+                                .height(56.dp)
+                                .testTag("mv_pin_next_btn"),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue),
+                            enabled = uiState.buyerPin.length == 4
+                        ) {
+                            Text("Continuar a Escanear Tarjeta", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(Icons.Default.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
+
+                5 -> {
+                    // --- PASO 5: ESCANEAR TARJETA DEL CLIENTE (SOLO DESPUES DE DOCUMENTO Y PIN) ---
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = PosSlate900),
@@ -604,11 +948,10 @@ fun MultiVendorScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(24.dp),
+                                .padding(20.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            // Banner distintivo Comprador
                             Surface(
                                 color = PosPrimaryLight.copy(alpha = 0.15f),
                                 shape = RoundedCornerShape(12.dp),
@@ -619,58 +962,42 @@ fun MultiVendorScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Icon(Icons.Default.CreditCard, contentDescription = null, tint = PosPrimaryLight, modifier = Modifier.size(18.dp))
-                                    Text("PASO 3 • COBRO AL CLIENTE", color = PosPrimaryLight, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    Icon(Icons.Default.Contactless, contentDescription = null, tint = PosPrimaryLight, modifier = Modifier.size(18.dp))
+                                    Text("PASO 5 • ESCANEAR TARJETA DEL CLIENTE", color = PosPrimaryLight, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                 }
                             }
 
-                            // Grafico Ilustrativo de Tarjeta de Comprador / Cliente
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(130.dp)
-                                    .clip(RoundedCornerShape(18.dp))
-                                    .background(
-                                        androidx.compose.ui.graphics.Brush.linearGradient(
-                                            listOf(androidx.compose.ui.graphics.Color(0xFF0284C7), androidx.compose.ui.graphics.Color(0xFF38BDF8))
-                                        )
-                                    )
-                                    .padding(16.dp)
+                            // Summary card of transaction
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = PosSlate800),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier.fillMaxWidth()
                             ) {
                                 Column(
-                                    modifier = Modifier.fillMaxSize(),
-                                    verticalArrangement = Arrangement.SpaceBetween
+                                    modifier = Modifier.padding(14.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            Icon(Icons.Default.Person, contentDescription = null, tint = PosNavyDark, modifier = Modifier.size(24.dp))
-                                            Text("TARJETA CLIENTE / COMPRADOR", color = PosNavyDark, fontWeight = FontWeight.Black, fontSize = 13.sp)
-                                        }
-                                        Icon(Icons.Default.Contactless, contentDescription = null, tint = PosNavyDark, modifier = Modifier.size(26.dp))
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("Cobro para Vendedor:", color = PosSlate400, fontSize = 12.sp)
+                                        Text(uiState.sellerName ?: "Vendedor", color = PosGoldLight, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                     }
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.Bottom
-                                    ) {
-                                        Column {
-                                            Text("Monto a Pagar", color = PosNavyDark.copy(alpha = 0.8f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                            Text(
-                                                CurrencyHelper.formatCentavos(CurrencyHelper.parseInputToCentavos(uiState.amountInput)),
-                                                color = PosNavyDark,
-                                                fontSize = 18.sp,
-                                                fontWeight = FontWeight.Black
-                                            )
-                                        }
-                                        Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, tint = PosNavyDark.copy(alpha = 0.5f), modifier = Modifier.size(32.dp))
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("Documento Cliente:", color = PosSlate400, fontSize = 12.sp)
+                                        Text("${uiState.buyerDocType.uppercase()}: ${uiState.buyerDocNumber}", color = PosSlate100, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    }
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("Clave Secreta:", color = PosSlate400, fontSize = 12.sp)
+                                        Text("•••• (Ingresada)", color = PosSuccessGreenLight, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    }
+                                    HorizontalDivider(color = PosSlate700, modifier = Modifier.padding(vertical = 2.dp))
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("Total a debitar:", color = PosSlate300, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                        Text(
+                                            CurrencyHelper.formatCentavos(CurrencyHelper.parseInputToCentavos(uiState.amountInput)),
+                                            color = PosGoldLight,
+                                            fontWeight = FontWeight.Black,
+                                            fontSize = 16.sp
+                                        )
                                     }
                                 }
                             }
@@ -678,50 +1005,25 @@ fun MultiVendorScreen(
                             NfcWaveAnimation()
 
                             Text(
-                                text = if (uiState.isMultiVendorMultisig && uiState.mvMultisigCollected > 0) {
-                                    "Acerque la Tarjeta del FIRMANTE ${uiState.mvMultisigCollected + 1} de ${uiState.mvMultisigRequired}"
-                                } else {
-                                    "Acerque la Tarjeta del CLIENTE"
-                                },
+                                text = "Acerque la Tarjeta del CLIENTE",
                                 style = MaterialTheme.typography.titleLarge,
-                                color = if (uiState.isMultiVendorMultisig && uiState.mvMultisigCollected > 0) PosGoldLight else PosPrimaryLight,
+                                color = PosPrimaryLight,
                                 fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Center
                             )
 
-                            if (uiState.isMultiVendorMultisig && uiState.mvMultisigCollected > 0) {
-                                Text(
-                                    text = "La firma ${uiState.mvMultisigCollected} de ${uiState.mvMultisigRequired} fue aprobada. Acerque la tarjeta del siguiente titular al reverso del teléfono.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = PosSlate300,
-                                    textAlign = TextAlign.Center
-                                )
+                            Text(
+                                text = "Coloque la tarjeta del comprador en el reverso del dispositivo para procesar el pago.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = PosSlate300,
+                                textAlign = TextAlign.Center
+                            )
+
+                            if (uiState.isLoading) {
+                                CircularProgressIndicator(color = PosPrimaryLight, modifier = Modifier.size(32.dp))
                             }
 
-                            // Resumen de la operacion
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = PosSlate800),
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text("Cobro para el Vendedor:", color = PosSlate400, fontSize = 12.sp)
-                                        Text(uiState.sellerName ?: "Vendedor", color = PosGoldLight, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                    }
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text("Total a debitar:", color = PosSlate400, fontSize = 12.sp)
-                                        Text(
-                                            CurrencyHelper.formatCentavos(CurrencyHelper.parseInputToCentavos(uiState.amountInput)),
-                                            color = PosSlate100,
-                                            fontWeight = FontWeight.Black,
-                                            fontSize = 13.sp
-                                        )
-                                    }
-                                }
-                            }
-
-                            // Quick simulation buttons for tests - ONLY ON DEMO NODE
+                            // Simulation buttons in demo mode
                             if (uiState.isDemoNode) {
                                 Text(
                                     text = "Simulaciones de Prueba (Modo Demo):",
@@ -730,302 +1032,96 @@ fun MultiVendorScreen(
                                     fontWeight = FontWeight.Bold
                                 )
 
-                                if (uiState.isMultiVendorMultisig && uiState.mvMultisigCollected > 0) {
-                                    val nextSignerIdx = uiState.mvMultisigCollected + 1
-                                    Button(
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    OutlinedButton(
                                         onClick = {
                                             FeedbackHelper.playButtonClick(context)
-                                            val simUid = "BUYER_MULTISIG_FIRM$nextSignerIdx"
-                                            viewModel.onMultiVendorBuyerTapped(simUid, isMultisig = true, requiredSigs = uiState.mvMultisigRequired, isDesfire = true)
+                                            viewModel.onMultiVendorBuyerTapped("BUYER_1SIG_DESFIRE", isMultisig = false, isDesfire = true)
                                         },
                                         modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(48.dp)
-                                            .testTag("sim_buyer_next_signer_btn"),
+                                            .weight(1f)
+                                            .testTag("sim_buyer_1sig_btn"),
                                         shape = RoundedCornerShape(12.dp),
-                                        colors = ButtonDefaults.buttonColors(containerColor = PosGold)
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PosPrimaryLight),
+                                        enabled = !uiState.isLoading
                                     ) {
-                                        Icon(Icons.Default.Groups, contentDescription = null, tint = PosNavyDark)
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            "Simular Tarjeta Firmante $nextSignerIdx de ${uiState.mvMultisigRequired}",
-                                            color = PosNavyDark,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                } else {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        OutlinedButton(
-                                            onClick = {
-                                                FeedbackHelper.playButtonClick(context)
-                                                viewModel.onMultiVendorBuyerTapped("BUYER_1SIG_DESFIRE", isMultisig = false, isDesfire = true)
-                                            },
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .testTag("sim_buyer_1sig_btn"),
-                                            shape = RoundedCornerShape(12.dp),
-                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PosPrimaryLight)
-                                        ) {
-                                            Text("1 Firma (DESFire)", fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                                        }
-
-                                        OutlinedButton(
-                                            onClick = {
-                                                FeedbackHelper.playButtonClick(context)
-                                                viewModel.onMultiVendorBuyerTapped("BUYER_MULTISIG_2F_CARD", isMultisig = true, requiredSigs = 2, isDesfire = true)
-                                            },
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .testTag("sim_buyer_multisig_btn"),
-                                            shape = RoundedCornerShape(12.dp),
-                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PosGoldLight)
-                                        ) {
-                                            Text("Multifirma (2 Firmas)", fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                                        }
+                                        Text("1 Firma (DESFire)", fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
                                     }
 
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        OutlinedButton(
-                                            onClick = {
-                                                FeedbackHelper.playButtonClick(context)
-                                                viewModel.onMultiVendorBuyerTapped("BUYER_MULTISIG_3F_CARD", isMultisig = true, requiredSigs = 3, isDesfire = true)
-                                            },
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .testTag("sim_buyer_multisig_3f_btn"),
-                                            shape = RoundedCornerShape(12.dp),
-                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PosGold)
-                                        ) {
-                                            Text("Multifirma (3 Firmas)", fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                                        }
-
-                                        // Button to test same card validation error
-                                        OutlinedButton(
-                                            onClick = {
-                                                FeedbackHelper.playButtonClick(context)
-                                                viewModel.onMultiVendorBuyerTapped(uiState.sellerCardUid ?: "DEMO_SELLER_01")
-                                            },
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .testTag("sim_buyer_same_card_btn"),
-                                            shape = RoundedCornerShape(12.dp),
-                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PosErrorRedLight)
-                                        ) {
-                                            Text("Probar Misma Tarjeta", fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                4 -> {
-                    // --- PASO 4: BUYER PIN & ID VERIFICATION ---
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = PosSlate900),
-                        shape = RoundedCornerShape(20.dp),
-                        border = CardDefaults.outlinedCardBorder().copy(
-                            brush = androidx.compose.ui.graphics.SolidColor(PosPrimaryLight)
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text(
-                                        text = "Comprador: ${uiState.buyerCardUid}",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = PosSlate100,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    if (uiState.isMultiVendorMultisig) {
-                                        Text(
-                                            text = "Cuenta Mancomunada (${uiState.mvMultisigCollected} / ${uiState.mvMultisigRequired} firmas)",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = PosGoldLight,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-
-                                TextButton(
-                                    onClick = {
-                                        FeedbackHelper.playButtonClick(context)
-                                        viewModel.navigateTo(PosScreen.MultiVendor)
-                                    }
-                                ) {
-                                    Text("Reiniciar", color = PosSlate400, fontSize = 12.sp)
-                                }
-                            }
-
-                            if (uiState.isMultiVendorMultisig) {
-                                Surface(
-                                    color = PosGold.copy(alpha = 0.15f),
-                                    shape = RoundedCornerShape(10.dp),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, PosGold.copy(alpha = 0.5f)),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(10.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Icon(Icons.Default.Groups, contentDescription = null, tint = PosGoldLight, modifier = Modifier.size(18.dp))
-                                        Text(
-                                            text = if (uiState.mvMultisigCollected == 0) {
-                                                "Firmante 1 de ${uiState.mvMultisigRequired}: Ingrese PIN de autorización"
-                                            } else {
-                                                "Firmante ${uiState.mvMultisigCollected + 1} de ${uiState.mvMultisigRequired}: Ingrese PIN del siguiente autorizador"
-                                            },
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = PosGoldLight,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-                            }
-
-                            if (uiState.requireIdVerification) {
-                                Card(
-                                    colors = CardDefaults.cardColors(containerColor = PosSlate800),
-                                    shape = RoundedCornerShape(12.dp)
-                                ) {
-                                    Column(
+                                    OutlinedButton(
+                                        onClick = {
+                                            FeedbackHelper.playButtonClick(context)
+                                            viewModel.onMultiVendorBuyerTapped("BUYER_MULTISIG_2F_CARD", isMultisig = true, requiredSigs = 2, isDesfire = true)
+                                        },
                                         modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(12.dp),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                            .weight(1f)
+                                            .testTag("sim_buyer_multisig_btn"),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PosGoldLight),
+                                        enabled = !uiState.isLoading
                                     ) {
-                                        Text(
-                                            text = "Verificación de Identidad del Comprador (Tarjeta Clásica)",
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = PosGoldLight,
-                                            fontWeight = FontWeight.Bold
-                                        )
+                                        Text("Multifirma (2 Firmas)", fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                                    }
+                                }
 
-                                        ExposedDropdownMenuBox(
-                                            expanded = buyerDocExpanded,
-                                            onExpandedChange = { buyerDocExpanded = !buyerDocExpanded }
-                                        ) {
-                                            OutlinedTextField(
-                                                value = DEFAULT_DOCUMENT_TYPES.find { it.code == uiState.buyerDocType }?.spanishName ?: "Cédula",
-                                                onValueChange = {},
-                                                readOnly = true,
-                                                label = { Text("Tipo de Documento") },
-                                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = buyerDocExpanded) },
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .menuAnchor(),
-                                                colors = OutlinedTextFieldDefaults.colors(
-                                                    focusedTextColor = PosSlate100,
-                                                    unfocusedTextColor = PosSlate100
-                                                )
-                                            )
-                                            ExposedDropdownMenu(
-                                                expanded = buyerDocExpanded,
-                                                onDismissRequest = { buyerDocExpanded = false }
-                                            ) {
-                                                DEFAULT_DOCUMENT_TYPES.forEach { doc ->
-                                                    DropdownMenuItem(
-                                                        text = { Text(doc.spanishName) },
-                                                        onClick = {
-                                                            viewModel.setBuyerDocInfo(doc.code, uiState.buyerDocNumber)
-                                                            buyerDocExpanded = false
-                                                        }
-                                                    )
-                                                }
-                                            }
-                                        }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            FeedbackHelper.playButtonClick(context)
+                                            viewModel.onMultiVendorBuyerTapped("BUYER_MULTISIG_3F_CARD", isMultisig = true, requiredSigs = 3, isDesfire = true)
+                                        },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .testTag("sim_buyer_multisig_3f_btn"),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PosGold),
+                                        enabled = !uiState.isLoading
+                                    ) {
+                                        Text("Multifirma (3 Firmas)", fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                                    }
 
-                                        OutlinedTextField(
-                                            value = uiState.buyerDocNumber,
-                                            onValueChange = { viewModel.setBuyerDocInfo(uiState.buyerDocType, it) },
-                                            label = { Text("Número de Documento del Cliente") },
-                                            placeholder = { Text("Ej. 98765432") },
-                                            singleLine = true,
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .testTag("buyer_doc_input"),
-                                            colors = OutlinedTextFieldDefaults.colors(
-                                                focusedTextColor = PosSlate100,
-                                                unfocusedTextColor = PosSlate100
-                                            )
-                                        )
+                                    OutlinedButton(
+                                        onClick = {
+                                            FeedbackHelper.playButtonClick(context)
+                                            viewModel.onMultiVendorBuyerTapped(uiState.sellerCardUid ?: "DEMO_SELLER_01")
+                                        },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .testTag("sim_buyer_same_card_btn"),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PosErrorRedLight),
+                                        enabled = !uiState.isLoading
+                                    ) {
+                                        Text("Probar Misma Tarjeta", fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
                                     }
                                 }
                             }
 
-                            PinInputPad(
-                                pin = uiState.buyerPin,
-                                onPinChange = { pin ->
-                                    viewModel.setBuyerPin(pin)
-                                },
-                                title = if (uiState.isMultiVendorMultisig) {
-                                    "PIN del Firmante ${uiState.mvMultisigCollected + 1} de ${uiState.mvMultisigRequired}"
-                                } else {
-                                    "PIN del Comprador (4 dígitos)"
-                                }
-                            )
-
-                            val isMultisigFlow = uiState.isMultiVendorMultisig && uiState.mvMultisigRequired > 1
-
-                            Button(
+                            OutlinedButton(
                                 onClick = {
                                     FeedbackHelper.playButtonClick(context)
-                                    viewModel.submitMultiVendorPayment()
+                                    viewModel.setMvStep(4)
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(58.dp)
-                                    .testTag("mv_submit_payment_btn"),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isMultisigFlow) PosGold else PosSuccessGreen
-                                )
+                                    .height(48.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = PosSlate300)
                             ) {
-                                if (uiState.isLoading) {
-                                    CircularProgressIndicator(color = PosNavyDark, modifier = Modifier.size(24.dp))
-                                } else {
-                                    Icon(
-                                        imageVector = if (isMultisigFlow) Icons.Default.Groups else Icons.Default.CheckCircle,
-                                        contentDescription = null,
-                                        tint = PosNavyDark
-                                    )
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(
-                                        text = if (isMultisigFlow) {
-                                            "Validar Firma 1 de ${uiState.mvMultisigRequired}"
-                                        } else {
-                                            "Aprobar y Transferir al Vendedor"
-                                        },
-                                        color = PosNavyDark,
-                                        fontWeight = FontWeight.Black,
-                                        style = MaterialTheme.typography.titleMedium
-                                    )
-                                }
+                                Text("Modificar Clave Secreta o Documento")
                             }
                         }
                     }
                 }
 
-                5 -> {
-                    // --- PASO 5: SUCCESS RECEIPT & NEXT SALE ---
+                6 -> {
+                    // --- PASO 6: FIN / COMPROBANTE DE VENTA EXITOSA ---
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = PosSlate900),
@@ -1088,7 +1184,17 @@ fun MultiVendorScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text("Debitado de:", color = PosSlate300)
-                                Text("Cliente ${uiState.buyerCardUid}", color = PosSlate100, fontWeight = FontWeight.Bold)
+                                Text("${uiState.buyerDocType.uppercase()}: ${uiState.buyerDocNumber}", color = PosSlate100, fontWeight = FontWeight.Bold)
+                            }
+
+                            if (!uiState.buyerCardUid.isNullOrBlank()) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Tarjeta Cliente:", color = PosSlate300)
+                                    Text(uiState.buyerCardUid ?: "", color = PosSlate100, fontWeight = FontWeight.Bold)
+                                }
                             }
 
                             Spacer(modifier = Modifier.height(10.dp))
@@ -1113,6 +1219,7 @@ fun MultiVendorScreen(
                             OutlinedButton(
                                 onClick = {
                                     FeedbackHelper.playButtonClick(context)
+                                    viewModel.resetMultiVendorSale()
                                     viewModel.navigateTo(PosScreen.Dashboard)
                                 },
                                 modifier = Modifier

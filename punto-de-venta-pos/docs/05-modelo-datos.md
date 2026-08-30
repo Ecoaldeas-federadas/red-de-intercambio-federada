@@ -177,6 +177,7 @@ Terminales NFC (POS Android, ESP32, POS web).
 | `android_version` | TEXT | — | Versión de Android (migración 127) |
 | `web_session_expires_at` | TIMESTAMPTZ | — | Expiración sesión web (migración 130) |
 | `web_session_requested_at` | TIMESTAMPTZ | — | Solicitud sesión web (migración 130) |
+| `shift_pin_hash` | TEXT | — | Hash bcrypt del PIN del turno (migración 141). Lo configura el dueño desde el panel web. |
 | `created_at` | TIMESTAMPTZ | `NOW()` | — |
 | `updated_at` | TIMESTAMPTZ | `NOW()` | — |
 
@@ -409,6 +410,26 @@ Configuración de expiración de multi-sig. (Nota: la migración se llama `124_m
 ### node_config (migración 006)
 Configuración del nodo (key-value, JSONB settings).
 
+### pos_retention_config (migración 143)
+Configuración de retención de datos del POS.
+
+| Columna | Tipo | Default | Descripción |
+|---------|------|---------|-------------|
+| `node_domain` | TEXT | — | PK, nodo |
+| `retention_days` | INT | `365` | Días de retención |
+| `enabled` | BOOLEAN | `true` | Purga automática activada |
+| `last_purge_at` | TIMESTAMPTZ | — | Última purga ejecutada |
+| `updated_at` | TIMESTAMPTZ | `NOW()` | — |
+
+### Migraciones recientes (140-143)
+
+| Migración | Descripción |
+|-----------|-------------|
+| `140_classic_required_doc_type.sql` | Añade `required_doc_type` a `nfc_cards` (tipo de documento exigido por tarjeta Classic) |
+| `141_terminal_shift_pin.sql` | Añade `shift_pin_hash` a `nfc_terminals` (PIN del turno, bcrypt) |
+| `142_shift_transaction_indexes.sql` | Añade índices a `pos_shifts` y `nfc_transactions` para consultas por rango de fechas |
+| `143_pos_retention_config.sql` | Crea tabla `pos_retention_config` para retención de datos |
+
 ---
 
 ## 3. Android — Entidades Room
@@ -467,14 +488,17 @@ Turnos del POS (locales).
 | `totalSales` | Long | Total ventas |
 | `transactionsCount` | Int | Número de transacciones |
 | `notes` | String? | Notas |
+| `pendingSync` | Boolean | true si se cerró offline y falta sincronizar (migración 3→4) |
+| `closedOffline` | Boolean | true si el cierre se hizo sin conexión (migración 3→4) |
 
-### ShiftPinEntity (tabla: `shift_pin`)
-PIN de turno (hash local).
+### ShiftPinEntity (tabla: `shift_pin`) — Caché offline del PIN del turno
+
+> **Propósito:** Esta entidad ahora se usa como **caché local** para verificación offline del PIN del turno. Cuando la verificación online es exitosa, el POS computa `SHA-256(salt + pin)` y lo guarda aquí. Cuando no hay conexión, el POS verifica el PIN contra este hash. El PIN original nunca se guarda.
 
 | Columna | Tipo | Descripción |
 |---------|------|-------------|
 | `id` | Int | PK (singleton, id=1) |
-| `pinHash` | String | SHA-256 hash del PIN |
+| `pinHash` | String | SHA-256(salt + pin) — caché para verificación offline |
 
 ---
 
@@ -564,13 +588,25 @@ val db = Room.databaseBuilder(context, AppDatabase::class.java, "pos.db")
 
 > **Nota**: `fallbackToDestructiveMigration()` se mantiene como red de seguridad para migraciones futuras, pero `MIGRATION_2_3` se ejecuta primero y preserva los datos. **Nunca** quitar `.addMigrations(MIGRATION_2_3)` — sin él, Room destruiría la base de datos al actualizar.
 
-### Versión actual: 3
+### Versión actual: 4
 ```kotlin
 @Database(
     entities = [TransactionEntity::class, ShiftEntity::class, TerminalConfigEntity::class, ShiftPinEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
+```
+
+### MIGRATION_3_4 (versión 3 → 4)
+Añade las columnas de cierre offline a `pos_shifts` **sin perder datos**:
+
+```kotlin
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE pos_shifts ADD COLUMN pendingSync INTEGER NOT NULL DEFAULT 0")
+        database.execSQL("ALTER TABLE pos_shifts ADD COLUMN closedOffline INTEGER NOT NULL DEFAULT 0")
+    }
+}
 ```
 
 ---

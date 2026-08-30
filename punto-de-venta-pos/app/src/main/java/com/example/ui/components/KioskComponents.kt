@@ -13,11 +13,18 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Backspace
+import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.api.DEFAULT_DOCUMENT_TYPES
 import com.example.ui.theme.*
 import com.example.ui.util.CurrencyHelper
 import com.example.ui.util.FeedbackHelper
@@ -41,7 +49,6 @@ fun KioskAmountDisplay(
 ) {
     // POS-style decimal: input is in centavos. "1" = 0.01 TQ, "100" = 1.00 TQ
     val centavos = amountInput.replace(Regex("[^0-9]"), "").ifEmpty { "0" }.toLong()
-    val centavos = centavos // centavos map directly to centavos
     val formatted = CurrencyHelper.formatCentavos(centavos)
 
     Card(
@@ -395,3 +402,518 @@ fun MultisigCountdownHeader(
         }
     }
 }
+
+@Composable
+fun KioskDocumentDisplay(
+    docType: String,
+    documentNumber: String,
+    onDocTypeChange: (String) -> Unit,
+    onClear: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+    label: String = "Documento de Identidad",
+    accentColor: Color = PosPrimaryLight,
+    testTag: String = "id_doc_number_input"
+) {
+    val context = LocalContext.current
+    var docTypeDropdownExpanded by remember { mutableStateOf(false) }
+    val currentDocTypeObj = DEFAULT_DOCUMENT_TYPES.find { it.code == docType }
+    val currentDocTypeName = currentDocTypeObj?.spanishName ?: docType
+
+    // Two-line layout: Top line for Document Type selector & Clear action, Bottom line for multiline Document number
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag(testTag),
+        colors = CardDefaults.cardColors(containerColor = PosNavyDark.copy(alpha = 0.95f)),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            1.5.dp,
+            if (documentNumber.isNotEmpty()) accentColor.copy(alpha = 0.8f) else PosSlate700
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // LÍNEA SUPERIOR: Tipo de Documento + Botón de Limpiar
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Selector de Tipo de Documento con Menú Desplegable
+                Box {
+                    Surface(
+                        onClick = {
+                            FeedbackHelper.playButtonClick(context)
+                            docTypeDropdownExpanded = true
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        color = accentColor.copy(alpha = 0.18f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, accentColor.copy(alpha = 0.5f)),
+                        modifier = Modifier.testTag("doc_type_selector_btn")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Badge,
+                                contentDescription = null,
+                                tint = accentColor,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "$currentDocTypeName (${docType.uppercase()})",
+                                color = accentColor,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = "Seleccionar tipo de documento",
+                                tint = accentColor,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+
+                    DropdownMenu(
+                        expanded = docTypeDropdownExpanded,
+                        onDismissRequest = { docTypeDropdownExpanded = false },
+                        modifier = Modifier.background(PosSlate800)
+                    ) {
+                        DEFAULT_DOCUMENT_TYPES.forEach { item ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = "${item.spanishName} (${item.code})",
+                                        color = if (item.code == docType) accentColor else PosSlate100,
+                                        fontWeight = if (item.code == docType) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                },
+                                onClick = {
+                                    FeedbackHelper.playButtonClick(context)
+                                    onDocTypeChange(item.code)
+                                    docTypeDropdownExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // Botón de Borrar / Limpiar si hay texto
+                if (documentNumber.isNotEmpty() && onClear != null) {
+                    Surface(
+                        onClick = {
+                            FeedbackHelper.playKeyClick(context)
+                            onClear()
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        color = PosErrorRed.copy(alpha = 0.15f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, PosErrorRed.copy(alpha = 0.3f)),
+                        modifier = Modifier.testTag("clear_doc_display_btn")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Limpiar documento",
+                                tint = PosErrorRedLight,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "Borrar",
+                                color = PosErrorRedLight,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+
+            // LÍNEA INFERIOR: Visualización Multilínea del Número de Documento (100% visible, sin recortes)
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = PosSlate900.copy(alpha = 0.8f),
+                shape = RoundedCornerShape(10.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, PosSlate700)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    if (documentNumber.isEmpty()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "${docType.uppercase()}-",
+                                color = PosSlate500,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp
+                            )
+                            Text(
+                                text = "Ingrese número con el teclado abajo...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = PosSlate500,
+                                fontSize = 13.sp
+                            )
+                        }
+                    } else {
+                        Row(
+                            verticalAlignment = Alignment.Top,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "${docType.uppercase()}-",
+                                color = accentColor,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 20.sp
+                            )
+                            // Text multilínea que nunca se corta ni se trunca aunque sea muy largo
+                            Text(
+                                text = documentNumber,
+                                style = MaterialTheme.typography.titleLarge,
+                                color = PosSlate100,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp,
+                                letterSpacing = 1.2.sp,
+                                softWrap = true,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+enum class DocumentKeypadMode {
+    NUMERIC,
+    ALPHANUMERIC
+}
+
+@Composable
+fun KioskDocumentKeypad(
+    documentNumber: String,
+    onDocumentChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    initialMode: DocumentKeypadMode = DocumentKeypadMode.NUMERIC
+) {
+    val context = LocalContext.current
+    var keypadMode by remember(initialMode) { mutableStateOf(initialMode) }
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Mode Switcher Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (keypadMode == DocumentKeypadMode.NUMERIC) "Teclado Numérico" else "Teclado Alfanumérico",
+                style = MaterialTheme.typography.labelSmall,
+                color = PosSlate400,
+                fontWeight = FontWeight.SemiBold
+            )
+            TextButton(
+                onClick = {
+                    FeedbackHelper.playKeyClick(context)
+                    keypadMode = if (keypadMode == DocumentKeypadMode.NUMERIC) {
+                        DocumentKeypadMode.ALPHANUMERIC
+                    } else {
+                        DocumentKeypadMode.NUMERIC
+                    }
+                },
+                colors = ButtonDefaults.textButtonColors(contentColor = PosPrimaryLight),
+                modifier = Modifier.testTag("toggle_doc_keypad_mode")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Keyboard,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = if (keypadMode == DocumentKeypadMode.NUMERIC) "Letras (ABC)" else "Números (123)",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
+            }
+        }
+
+        if (keypadMode == DocumentKeypadMode.NUMERIC) {
+            // 3x4 Numeric Keypad with ABC and DEL
+            val rows = listOf(
+                listOf("1", "2", "3"),
+                listOf("4", "5", "6"),
+                listOf("7", "8", "9"),
+                listOf("ABC", "0", "DEL")
+            )
+
+            rows.forEach { row ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    row.forEach { key ->
+                        val bgColor = when (key) {
+                            "DEL" -> PosSlate700
+                            "ABC" -> PosPrimaryDark.copy(alpha = 0.6f)
+                            else -> PosSlate800
+                        }
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(bgColor)
+                                .clickable {
+                                    FeedbackHelper.playKeyClick(context)
+                                    when (key) {
+                                        "DEL" -> {
+                                            if (documentNumber.isNotEmpty()) {
+                                                onDocumentChange(documentNumber.dropLast(1))
+                                            }
+                                        }
+                                        "ABC" -> {
+                                            keypadMode = DocumentKeypadMode.ALPHANUMERIC
+                                        }
+                                        else -> {
+                                            if (documentNumber.length < 25) {
+                                                onDocumentChange(documentNumber + key)
+                                            }
+                                        }
+                                    }
+                                }
+                                .testTag("doc_key_${key}"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (key == "DEL") {
+                                Icon(
+                                    imageVector = Icons.Default.Backspace,
+                                    contentDescription = "Borrar",
+                                    tint = PosSlate100,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            } else if (key == "ABC") {
+                                Text(
+                                    text = "ABC",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = PosPrimaryLight,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            } else {
+                                Text(
+                                    text = key,
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    color = PosSlate100,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            if (documentNumber.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(
+                        onClick = {
+                            FeedbackHelper.playKeyClick(context)
+                            onDocumentChange("")
+                        }
+                    ) {
+                        Text("Limpiar Todo", color = PosErrorRedLight, fontSize = 12.sp)
+                    }
+                }
+            }
+        } else {
+            // Compact Alphanumeric On-Screen Keyboard
+            val numberRow = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
+            val row1 = listOf("Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P")
+            val row2 = listOf("A", "S", "D", "F", "G", "H", "J", "K", "L", "-")
+            val row3 = listOf("Z", "X", "C", "V", "B", "N", "M")
+
+            // Top Numbers Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                numberRow.forEach { key ->
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(PosSlate700)
+                            .clickable {
+                                FeedbackHelper.playKeyClick(context)
+                                if (documentNumber.length < 25) {
+                                    onDocumentChange(documentNumber + key)
+                                }
+                            }
+                            .testTag("doc_alpha_key_$key"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = key, color = PosSlate100, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    }
+                }
+            }
+
+            // QWERTY Row 1
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                row1.forEach { key ->
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(PosSlate800)
+                            .clickable {
+                                FeedbackHelper.playKeyClick(context)
+                                if (documentNumber.length < 25) {
+                                    onDocumentChange(documentNumber + key)
+                                }
+                            }
+                            .testTag("doc_alpha_key_$key"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = key, color = PosSlate100, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+                }
+            }
+
+            // Row 2
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                row2.forEach { key ->
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(PosSlate800)
+                            .clickable {
+                                FeedbackHelper.playKeyClick(context)
+                                if (documentNumber.length < 25) {
+                                    onDocumentChange(documentNumber + key)
+                                }
+                            }
+                            .testTag("doc_alpha_key_$key"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = key, color = PosSlate100, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+                }
+            }
+
+            // Row 3 (123 Toggle + Letters + DEL)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                // 123 button
+                Box(
+                    modifier = Modifier
+                        .weight(1.5f)
+                        .height(44.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(PosPrimaryDark.copy(alpha = 0.7f))
+                        .clickable {
+                            FeedbackHelper.playKeyClick(context)
+                            keypadMode = DocumentKeypadMode.NUMERIC
+                        }
+                        .testTag("doc_alpha_123"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = "123", color = PosPrimaryLight, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+
+                row3.forEach { key ->
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(PosSlate800)
+                            .clickable {
+                                FeedbackHelper.playKeyClick(context)
+                                if (documentNumber.length < 25) {
+                                    onDocumentChange(documentNumber + key)
+                                }
+                            }
+                            .testTag("doc_alpha_key_$key"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = key, color = PosSlate100, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+                }
+
+                // DEL button
+                Box(
+                    modifier = Modifier
+                        .weight(1.5f)
+                        .height(44.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(PosSlate700)
+                        .clickable {
+                            FeedbackHelper.playKeyClick(context)
+                            if (documentNumber.isNotEmpty()) {
+                                onDocumentChange(documentNumber.dropLast(1))
+                            }
+                        }
+                        .testTag("doc_alpha_del"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Backspace,
+                        contentDescription = "Borrar",
+                        tint = PosSlate100,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            if (documentNumber.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(
+                        onClick = {
+                            FeedbackHelper.playKeyClick(context)
+                            onDocumentChange("")
+                        }
+                    ) {
+                        Text("Limpiar Todo", color = PosErrorRedLight, fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+

@@ -1201,6 +1201,135 @@ func (nt *NFCTerminals) ProvisionClassicCard(ctx context.Context, userID uuid.UU
 	}, nil
 }
 
+// UserLookupResponse es la respuesta del lookup de usuario por username.
+// El POS llama esto primero para saber que tipo de tarjeta tiene el usuario
+// y si necesita pedir documento de identidad (solo para Classic).
+type UserLookupResponse struct {
+	Found            bool     `json:"found"`
+	UserID           string   `json:"user_id,omitempty"`
+	CardType         string   `json:"card_type,omitempty"`         // "classic", "uid_only", "desfire"
+	RequiresDocument bool     `json:"requires_document"`           // true si es Classic
+	RequiredDocType  string   `json:"required_doc_type,omitempty"` // tipo especifico si la tarjeta lo exige
+	DocumentTypes    []string `json:"document_types,omitempty"`    // tipos de documento del usuario
+	DisplayName      string   `json:"display_name,omitempty"`
+	IsRemote         bool     `json:"is_remote"`             // true si el usuario es de otro nodo
+	RemoteNode       string   `json:"remote_node,omitempty"` // nodo del usuario si es remoto
+	Message          string   `json:"message,omitempty"`
+}
+
+// parseUsername separa "maria@nodo1.trueque.local" en ("maria", "nodo1.trueque.local").
+// Si no tiene @, asume que es del nodo local.
+func parseUsername(username, localNode string) (string, string) {
+	for i := 0; i < len(username); i++ {
+		if username[i] == '@' {
+			return username[:i], username[i+1:]
+		}
+	}
+	return username, localNode
+}
+
+// UserLookup busca un usuario por username para determinar el tipo de tarjeta
+// y si necesita documento de identidad (solo para Classic).
+// Si el usuario es remoto (tiene @nodo), consulta al nodo origen via federation.
+func (nt *NFCTerminals) UserLookup(ctx context.Context, terminalID, username string) (*UserLookupResponse, error) {
+	localNode := nt.NodeDomain
+	lookupUsername, lookupNode := parseUsername(username, localNode)
+
+	// Usuario local
+	if lookupNode == localNode {
+		return nt.localUserLookup(ctx, lookupUsername)
+	}
+
+	// Usuario remoto: consultar al nodo origen via federation
+	return nt.remoteUserLookup(ctx, lookupUsername, lookupNode)
+}
+
+func (nt *NFCTerminals) localUserLookup(ctx context.Context, username string) (*UserLookupResponse, error) {
+	var userID string
+	var displayName string
+	err := nt.Pool.QueryRow(ctx,
+		`SELECT id::text, display_name FROM users WHERE username = $1 AND node_domain = $2`,
+		username, nt.NodeDomain,
+	).Scan(&userID, &displayName)
+	if err != nil {
+		return &UserLookupResponse{Found: false, Message: "usuario no encontrado"}, nil
+	}
+
+	// Buscar tarjeta activa del usuario
+	var cardType string
+	var hasDynamicCerts bool
+	var requiredDocType *string
+	err = nt.Pool.QueryRow(ctx, `
+		SELECT card_type, has_dynamic_certs, required_doc_type FROM nfc_cards
+		WHERE user_id = $1::uuid AND is_active = true
+		ORDER BY has_dynamic_certs DESC, issued_at DESC LIMIT 1`,
+		userID,
+	).Scan(&cardType, &hasDynamicCerts, &requiredDocType)
+	if err != nil {
+		return &UserLookupResponse{Found: false, Message: "no se encontro tarjeta activa para este usuario"}, nil
+	}
+
+	respType := cardType
+	if respType == "" {
+		respType = "uid_only"
+	}
+
+	// Solo Classic requiere documento
+	requiresDoc := hasDynamicCerts || respType == "classic"
+
+	// Obtener tipos de documento del usuario
+	var docTypes []string
+	rows, err := nt.Pool.Query(ctx,
+		`SELECT document_type_code FROM user_documents WHERE user_id = $1::uuid ORDER BY document_type_code`,
+		userID,
+	)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var dt string
+			if err := rows.Scan(&dt); err == nil {
+				docTypes = append(docTypes, dt)
+			}
+		}
+	}
+
+	// Si no hay user_documents, intentar con national_id
+	if len(docTypes) == 0 {
+		var nationalID string
+		err = nt.Pool.QueryRow(ctx,
+			`SELECT COALESCE(national_id, '') FROM users WHERE id = $1::uuid`,
+			userID,
+		).Scan(&nationalID)
+		if err == nil && nationalID != "" {
+			docTypes = append(docTypes, "cedula")
+		}
+	}
+
+	resp := &UserLookupResponse{
+		Found:            true,
+		UserID:           userID,
+		CardType:         respType,
+		RequiresDocument: requiresDoc,
+		DocumentTypes:    docTypes,
+		DisplayName:      displayName,
+	}
+	if requiredDocType != nil && *requiredDocType != "" {
+		resp.RequiredDocType = *requiredDocType
+	}
+	return resp, nil
+}
+
+func (nt *NFCTerminals) remoteUserLookup(ctx context.Context, username, remoteNode string) (*UserLookupResponse, error) {
+	// TODO: consultar al nodo remoto via federation (mTLS)
+	// Por ahora retornar error — se implementa en federation/server.go
+	return &UserLookupResponse{
+		Found:      false,
+		IsRemote:   true,
+		RemoteNode: remoteNode,
+		Message:    "lookup de usuario remoto no implementado — requiere federation mTLS",
+	}, nil
+}
+
 // ClassicPreAuthResponse contiene todo lo que el POS necesita para
 // leer y escribir la tarjeta en un solo paso.
 // Para tarjetas UID-only/DESFire, los campos de sectores van vacios
@@ -1218,19 +1347,29 @@ type ClassicPreAuthResponse struct {
 	Message             string `json:"message,omitempty"`
 }
 
-// ClassicPreAuth valida documento + PIN + saldo, y prepara la rotacion
+// ClassicPreAuth valida username + PIN + saldo, y prepara la rotacion
 // del certificado. NO procesa el pago hasta que el POS confirme la escritura.
-func (nt *NFCTerminals) ClassicPreAuth(ctx context.Context, terminalID, docType, docNumber, pin string, amount int64) (*ClassicPreAuthResponse, error) {
-	// 1. Buscar usuario por documento (national_id o user_documents)
+// Para tarjetas Classic, el documento se verifica en ClassicPreAuthWithDocument.
+func (nt *NFCTerminals) ClassicPreAuth(ctx context.Context, terminalID, username, pin string, amount int64) (*ClassicPreAuthResponse, error) {
+	// 1. Buscar usuario por username
+	localNode := nt.NodeDomain
+	lookupUsername, lookupNode := parseUsername(username, localNode)
+
 	var userID uuid.UUID
-	err := nt.Pool.QueryRow(ctx, `SELECT id FROM users WHERE national_id = $1`, docNumber).Scan(&userID)
-	if err != nil {
-		// Intentar buscar en user_documents
-		err = nt.Pool.QueryRow(ctx, `
-			SELECT user_id FROM user_documents WHERE document_number = $1 AND ($2 = '' OR document_type_code = $2) LIMIT 1`,
-			docNumber, docType).Scan(&userID)
+	var err error
+	if lookupNode == localNode {
+		err = nt.Pool.QueryRow(ctx,
+			`SELECT id FROM users WHERE username = $1 AND node_domain = $2`,
+			lookupUsername, localNode,
+		).Scan(&userID)
 		if err != nil {
-			return &ClassicPreAuthResponse{PreApproved: false, Message: "documento de identidad no encontrado"}, nil
+			return &ClassicPreAuthResponse{PreApproved: false, Message: "usuario no encontrado"}, nil
+		}
+	} else {
+		// Usuario remoto: consultar al nodo origen via federation (3 reintentos)
+		userID, err = nt.lookupRemoteUserWithRetry(ctx, lookupUsername, lookupNode, 3)
+		if err != nil {
+			return &ClassicPreAuthResponse{PreApproved: false, Message: "no se pudo contactar al nodo del usuario"}, nil
 		}
 	}
 
@@ -1316,6 +1455,172 @@ func (nt *NFCTerminals) ClassicPreAuth(ctx context.Context, terminalID, docType,
 	}
 
 	// 9. Guardar pre-aprobacion (TTL 30s)
+	pendingID := uuid.New()
+	_, err = nt.Pool.Exec(ctx, `
+		INSERT INTO nfc_classic_pending (id, card_uid, terminal_id, user_id, amount, read_sector, write_sector, new_certificate)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		pendingID, cardUID, terminalID, userID, amount, readSector, writeSector, newCert)
+	if err != nil {
+		return nil, fmt.Errorf("saving pre-auth: %w", err)
+	}
+
+	return &ClassicPreAuthResponse{
+		PreApproved:         true,
+		CardType:            "classic",
+		CardUID:             cardUID,
+		ReadSector:          readSector,
+		ReadKeyA:            hex.EncodeToString(keyABytes),
+		ExpectedCertificate: hex.EncodeToString(certBytes),
+		WriteSector:         writeSector,
+		WriteKeyB:           hex.EncodeToString(keyBBytes),
+		NewCertificate:      hex.EncodeToString(newCert),
+	}, nil
+}
+
+// lookupRemoteUserWithRetry consulta al nodo remoto para obtener el user_id.
+// Hace hasta maxRetries intentos con timeout de 5s cada uno.
+// TODO: implementar con federation mTLS cuando este disponible.
+func (nt *NFCTerminals) lookupRemoteUserWithRetry(ctx context.Context, username, remoteNode string, maxRetries int) (uuid.UUID, error) {
+	// Por ahora, buscar en la base de datos local si tenemos una referencia
+	// al usuario remoto (por ejemplo, si ya hizo una transaccion cross-node antes)
+	for i := 0; i < maxRetries; i++ {
+		var userID uuid.UUID
+		err := nt.Pool.QueryRow(ctx,
+			`SELECT id FROM users WHERE username = $1 AND node_domain = $2`,
+			username, remoteNode,
+		).Scan(&userID)
+		if err == nil {
+			return userID, nil
+		}
+		// Si no se encuentra localmente, no reintentar — necesitamos federation
+		break
+	}
+	return uuid.Nil, fmt.Errorf("usuario remoto no encontrado — requiere federation mTLS con %s", remoteNode)
+}
+
+// ClassicPreAuthWithDocument valida username + documento + PIN + saldo.
+// Se usa para tarjetas Classic que requieren documento de identidad adicional.
+// El documento debe coincidir con el required_doc_type de la tarjeta (si esta configurado).
+func (nt *NFCTerminals) ClassicPreAuthWithDocument(ctx context.Context, terminalID, username, docType, docNumber, pin string, amount int64) (*ClassicPreAuthResponse, error) {
+	// 1. Buscar usuario por username
+	localNode := nt.NodeDomain
+	lookupUsername, lookupNode := parseUsername(username, localNode)
+
+	var userID uuid.UUID
+	if lookupNode == localNode {
+		err := nt.Pool.QueryRow(ctx,
+			`SELECT id FROM users WHERE username = $1 AND node_domain = $2`,
+			lookupUsername, localNode,
+		).Scan(&userID)
+		if err != nil {
+			return &ClassicPreAuthResponse{PreApproved: false, Message: "usuario no encontrado"}, nil
+		}
+	} else {
+		var err error
+		userID, err = nt.lookupRemoteUserWithRetry(ctx, lookupUsername, lookupNode, 3)
+		if err != nil {
+			return &ClassicPreAuthResponse{PreApproved: false, Message: "no se pudo contactar al nodo del usuario"}, nil
+		}
+	}
+
+	// 2. Buscar tarjeta activa del usuario
+	var cardUID string
+	var cardType string
+	var hasDynamicCerts bool
+	var requiredDocType *string
+	err := nt.Pool.QueryRow(ctx, `
+		SELECT card_uid, card_type, has_dynamic_certs, required_doc_type FROM nfc_cards
+		WHERE user_id = $1 AND is_active = true
+		ORDER BY has_dynamic_certs DESC, issued_at DESC LIMIT 1`,
+		userID).Scan(&cardUID, &cardType, &hasDynamicCerts, &requiredDocType)
+	if err != nil {
+		return &ClassicPreAuthResponse{PreApproved: false, Message: "no se encontro tarjeta activa para este usuario"}, nil
+	}
+
+	// 3. Verificar que el documento coincida con el required_doc_type de la tarjeta
+	if requiredDocType != nil && *requiredDocType != "" {
+		if docType != *requiredDocType {
+			return &ClassicPreAuthResponse{PreApproved: false, Message: "tipo de documento incorrecto para esta tarjeta"}, nil
+		}
+	}
+
+	// 4. Verificar documento del usuario
+	docOK, err := nt.verifyIDDocument(ctx, userID, docType, docNumber)
+	if err != nil {
+		return nil, fmt.Errorf("verifying document: %w", err)
+	}
+	if !docOK {
+		return &ClassicPreAuthResponse{PreApproved: false, Message: "documento de identidad no coincide"}, nil
+	}
+
+	// 5. Verificar PIN
+	var pinHash *string
+	err = nt.Pool.QueryRow(ctx, `SELECT pin_hash FROM nfc_cards WHERE card_uid = $1 AND is_active = true`, cardUID).Scan(&pinHash)
+	if err != nil || pinHash == nil {
+		return &ClassicPreAuthResponse{PreApproved: false, Message: "tarjeta no encontrada"}, nil
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(*pinHash), []byte(pin)); err != nil {
+		return &ClassicPreAuthResponse{PreApproved: false, Message: "PIN incorrecto"}, nil
+	}
+
+	// 6. Verificar saldo
+	var balance, creditLimit int64
+	err = nt.Pool.QueryRow(ctx, `SELECT balance, credit_limit FROM users WHERE id = $1`, userID).Scan(&balance, &creditLimit)
+	if err != nil {
+		return nil, fmt.Errorf("getting user balance: %w", err)
+	}
+	if balance-amount < creditLimit {
+		return &ClassicPreAuthResponse{PreApproved: false, Message: "has llegado al tope de tu credito comunitario"}, nil
+	}
+
+	// 7. Si NO es Classic, retornar respuesta simple
+	if !hasDynamicCerts {
+		respType := cardType
+		if respType == "" {
+			respType = "uid_only"
+		}
+		return &ClassicPreAuthResponse{
+			PreApproved: true,
+			CardType:    respType,
+			CardUID:     cardUID,
+		}, nil
+	}
+
+	// 8. Buscar sector activo (solo para Classic)
+	var readSector int
+	var keyABytes, certBytes []byte
+	err = nt.Pool.QueryRow(ctx, `
+		SELECT sector_number, key_a_encrypted, certificate FROM nfc_card_sectors
+		WHERE card_uid = $1 AND is_active = true LIMIT 1`,
+		cardUID).Scan(&readSector, &keyABytes, &certBytes)
+	if err != nil {
+		return &ClassicPreAuthResponse{PreApproved: false, Message: "no hay sector activo en la tarjeta"}, nil
+	}
+
+	// 9. Generar nuevo certificado (16 bytes aleatorios)
+	newCert := make([]byte, 16)
+	if _, err := rand.Read(newCert); err != nil {
+		return nil, fmt.Errorf("generating new certificate: %w", err)
+	}
+
+	// 10. Elegir sector aleatorio para escribir (1-15, != sector activo)
+	writeSector := readSector
+	for writeSector == readSector {
+		randByte := make([]byte, 1)
+		rand.Read(randByte)
+		writeSector = int(randByte[0])%15 + 1
+	}
+
+	// 11. Obtener Key B del sector destino
+	var keyBBytes []byte
+	err = nt.Pool.QueryRow(ctx, `
+		SELECT key_b_encrypted FROM nfc_card_sectors WHERE card_uid = $1 AND sector_number = $2`,
+		cardUID, writeSector).Scan(&keyBBytes)
+	if err != nil {
+		return nil, fmt.Errorf("getting key B for sector %d: %w", writeSector, err)
+	}
+
+	// 12. Guardar pre-aprobacion (TTL 30s)
 	pendingID := uuid.New()
 	_, err = nt.Pool.Exec(ctx, `
 		INSERT INTO nfc_classic_pending (id, card_uid, terminal_id, user_id, amount, read_sector, write_sector, new_certificate)

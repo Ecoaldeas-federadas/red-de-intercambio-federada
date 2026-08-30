@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/ed25519"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/hex"
@@ -85,6 +86,7 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("/federation/bilateral/confirm", s.handleBilateralConfirm)
 	mux.HandleFunc("/federation/bilateral/query", s.handleBilateralQuery)
 	mux.HandleFunc("/federation/card/lookup", s.handleCardLookup)
+	mux.HandleFunc("/federation/user/lookup", s.handleUserLookup)
 	mux.HandleFunc("/federation/parity", s.handleParity)
 	mux.HandleFunc("/federation/warnings", s.handleWarnings)
 	mux.HandleFunc("/federation/health", s.handleHealth)
@@ -212,6 +214,107 @@ func (s *Server) handleTransferMessage(w http.ResponseWriter, r *http.Request, m
 	if err != nil {
 		writeFederationJSON(w, 500, map[string]string{"error": "processing message"})
 		return
+	}
+
+	// Registrar las entradas del ledger en el nodo RECEPTOR:
+	// 1. Debitar el pool de federacion (la deuda del nodo receptor al nodo emisor disminuye)
+	// 2. Acreditar al receptor local (su balance aumenta)
+	// 3. Aplicar el tax del nodo receptor si corresponde
+	senderIDStr, _ := payload["sender_id"].(string)
+	receiverIDStr, _ := payload["receiver_id"].(string)
+	taxAmount, _ := payload["tax_amount"].(float64)
+	_ = senderIDStr // sender ID is used by the sender node; we only need receiverID here
+
+	if receiverIDStr != "" {
+		receiverID, err := uuid.Parse(receiverIDStr)
+		if err == nil {
+			// Determinar el tipo de pool (global o bilateral)
+			poolTypeStr, _ := payload["pool_type"].(string)
+			bridgeCategory := "node_bridge_global"
+			if poolTypeStr == "bilateral" {
+				bridgeCategory = "node_bridge_bilateral"
+			}
+
+			// Insertar la transaccion en el ledger del nodo receptor
+			var txUUID uuid.UUID
+			if txID != "" {
+				txUUID, _ = uuid.Parse(txID)
+			}
+			if txUUID == uuid.Nil {
+				txUUID = uuid.New()
+			}
+
+			// 1. Debitar el pool (node_bridge) - counterpart es el nodo emisor
+			_, err = s.Pool.Exec(r.Context(), `
+				INSERT INTO ledger_entries (transaction_id, account_id, entry_type, amount, account_category, counterpart_node)
+				VALUES ($1, $2, 'debit', $3, $4, $5)`,
+				txUUID, receiverID, int64(amount), bridgeCategory, senderNode,
+			)
+			if err != nil {
+				// Log error but don't fail the message acceptance
+				// The sender side already recorded the transaction
+			}
+
+			// 2. Acreditar al receptor local
+			_, err = s.Pool.Exec(r.Context(), `
+				INSERT INTO ledger_entries (transaction_id, account_id, entry_type, amount, account_category)
+				VALUES ($1, $2, 'credit', $3, 'user_balance')`,
+				txUUID, receiverID, int64(amount),
+			)
+			if err != nil {
+				// Log error
+			}
+
+			// 3. Aplicar tax del nodo receptor si corresponde
+			if taxAmount > 0 {
+				// Buscar la cuenta de fondo de tax del nodo receptor
+				var taxAccountID uuid.UUID
+				err = s.Pool.QueryRow(r.Context(),
+					`SELECT id FROM accounts WHERE account_type = 'fund' AND fund_type = 'tax' LIMIT 1`,
+				).Scan(&taxAccountID)
+				if err == nil {
+					// Debitar tax del receptor (o del pool, segun politica)
+					_, _ = s.Pool.Exec(r.Context(), `
+						INSERT INTO ledger_entries (transaction_id, account_id, entry_type, amount, account_category)
+						VALUES ($1, $2, 'debit', $3, 'user_balance')`,
+						txUUID, receiverID, int64(taxAmount),
+					)
+					// Acreditar tax al fondo
+					_, _ = s.Pool.Exec(r.Context(), `
+						INSERT INTO ledger_entries (transaction_id, account_id, entry_type, amount, account_category)
+						VALUES ($1, $2, 'credit', $3, 'fund')`,
+						txUUID, taxAccountID, int64(taxAmount),
+					)
+				}
+			}
+
+			// Guardar en cross_node_tx_chain del nodo receptor
+			signedDataForChain := fmt.Sprintf("%s|%s|%s|%d|%s", txID, senderNode, receiverNode, int64(amount), createdAtStr)
+			hash := sha256.Sum256([]byte(signedDataForChain + receiverSignature))
+			hashHex := hex.EncodeToString(hash[:])
+
+			// Obtener prev_hash para este par de nodos
+			var prevHash *string
+			_ = s.Pool.QueryRow(r.Context(),
+				`SELECT tx_hash FROM cross_node_tx_chain
+				 WHERE sender_node = $1 AND receiver_node = $2
+				 ORDER BY created_at DESC LIMIT 1`,
+				senderNode, receiverNode,
+			).Scan(&prevHash)
+
+			prevHashStr := ""
+			if prevHash != nil {
+				prevHashStr = *prevHash
+			}
+
+			_, _ = s.Pool.Exec(r.Context(), `
+				INSERT INTO cross_node_tx_chain
+				(tx_id, sender_node, receiver_node, amount, sender_signature, receiver_signature, prev_hash, tx_hash, synced)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)`,
+				txUUID, senderNode, receiverNode, int64(amount),
+				senderSignature, receiverSignature, prevHashStr, hashHex,
+			)
+		}
 	}
 
 	writeFederationJSON(w, 200, map[string]interface{}{
@@ -491,6 +594,31 @@ func (s *Server) handleCardLookup(w http.ResponseWriter, r *http.Request) {
 	writeFederationJSON(w, 200, resp)
 }
 
+func (s *Server) handleUserLookup(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeFederationJSON(w, 405, map[string]string{"error": "method not allowed"})
+		return
+	}
+
+	var req UserLookupPayload
+	if err := decodeFederationJSON(r, &req); err != nil {
+		writeFederationJSON(w, 400, map[string]string{"error": "invalid request"})
+		return
+	}
+	if req.Username == "" {
+		writeFederationJSON(w, 400, map[string]string{"error": "username required"})
+		return
+	}
+
+	resp, err := s.Protocol.HandleUserLookup(r.Context(), &req)
+	if err != nil {
+		writeFederationJSON(w, 500, map[string]string{"error": err.Error()})
+		return
+	}
+
+	writeFederationJSON(w, 200, resp)
+}
+
 func NewClient(nodeDomain string, certPath, keyPath, caCertPath string) (*Client, error) {
 	tlsConfig, err := buildTLSConfig(certPath, keyPath, caCertPath)
 	if err != nil {
@@ -551,6 +679,36 @@ func (c *Client) QueryRemoteCard(ctx context.Context, remoteNodeURL, cardUID str
 	var result CardLookupResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("decoding card lookup response: %w", err)
+	}
+	return &result, nil
+}
+
+// QueryRemoteUser queries a remote node for user lookup by username.
+// Returns user_id, card_type, and document requirements.
+func (c *Client) QueryRemoteUser(ctx context.Context, remoteNodeURL, username string) (*UserLookupResponse, error) {
+	body, _ := json.Marshal(UserLookupPayload{
+		Username: username,
+		FromNode: c.NodeDomain,
+	})
+	req, err := http.NewRequestWithContext(ctx, "POST", remoteNodeURL+"/federation/user/lookup", bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("querying remote user: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("remote node returned status %d", resp.StatusCode)
+	}
+
+	var result UserLookupResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decoding user lookup response: %w", err)
 	}
 	return &result, nil
 }

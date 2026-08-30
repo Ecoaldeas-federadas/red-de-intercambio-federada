@@ -19,7 +19,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.ui.theme.*
 import com.example.ui.util.FeedbackHelper
+import com.example.ui.viewmodel.PosScreen
 import com.example.ui.viewmodel.PosViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * Pantalla para provisionar una tarjeta MIFARE Classic con certificados dinamicos.
@@ -29,6 +32,7 @@ import com.example.ui.viewmodel.PosViewModel
  *
  * Esto se hace en una maquina dedicada donde la tarjeta se monta y se deja quieta.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProvisionCardScreen(
     viewModel: PosViewModel,
@@ -36,6 +40,7 @@ fun ProvisionCardScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     var userId by remember { mutableStateOf("") }
     var cardUid by remember { mutableStateOf("") }
@@ -114,7 +119,7 @@ fun ProvisionCardScreen(
                     Text(
                         text = "ADVERTENCIA: No retire la tarjeta hasta que termine de escribir los 15 sectores.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = PosError,
+                        color = PosErrorRedLight,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -209,7 +214,7 @@ fun ProvisionCardScreen(
                         Text(
                             text = "UID: $cardUid",
                             style = MaterialTheme.typography.titleMedium,
-                            color = PosSuccess,
+                            color = PosSuccessGreen,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -229,7 +234,7 @@ fun ProvisionCardScreen(
                     provisionResult = "Solicitando datos al servidor..."
 
                     // Llamar al repositorio para provisionar
-                    kotlinx.coroutines.MainScope().launch {
+                    coroutineScope.launch {
                         val result = viewModel.repository.provisionClassicCard(
                             userId = userId,
                             cardUid = cardUid,
@@ -246,7 +251,7 @@ fun ProvisionCardScreen(
                             resp.sectors.forEachIndexed { index, sector ->
                                 provisionedSectors = index + 1
                                 provisionResult = "Escribiendo sector ${index + 1}/${resp.sectors.size}..."
-                                kotlinx.coroutines.delay(500)
+                                delay(500)
                             }
 
                             provisionResult = "Provisionamiento completado. ${resp.sectors.size} sectores escritos.\n" +

@@ -71,6 +71,7 @@ data class PosUiState(
     val isNfcEnabled: Boolean = true,
 
     // NFC Charge Flow
+    val nfcStep: Int = 1, // 1: Amount, 2: Document, 3: Secret PIN, 4: Tap NFC Card
     val isNfcWaitingCard: Boolean = false,
     val detectedCardUid: String? = null,
     val detectedCardType: String = "uid_only", // "uid_only" or "desfire"
@@ -78,6 +79,10 @@ data class PosUiState(
     val requireIdVerification: Boolean = false,
     val selectedDocType: String = "cedula",
     val idDocNumber: String = "",
+    // Username-based NFC flow
+    val customerUsername: String = "",
+    val userLookupResult: UserLookupResponse? = null,
+    val requiresDocument: Boolean = false, // true si el servidor dice que la tarjeta es Classic
     val nfcPaymentResult: PaymentResultDecrypted? = null,
 
     // MIFARE Classic Dynamic Certificates
@@ -313,7 +318,10 @@ class PosViewModel(
                 amountInput = "",
                 customerPin = "",
                 detectedCardUid = null,
-                isNfcWaitingCard = (screen == PosScreen.NfcCharge),
+                nfcStep = 1,
+                classicStep = "idle",
+                classicPreAuth = null,
+                isNfcWaitingCard = false,
                 nfcPaymentResult = null,
                 qrChargeResponse = null,
                 qrPayUrl = null,
@@ -332,11 +340,110 @@ class PosViewModel(
         }
     }
 
-    fun handleBackPress(): Boolean {
-        val state = _uiState.value
+    fun setNfcStep(step: Int) {
+        _uiState.update { it.copy(nfcStep = step, errorMessage = null) }
+    }
 
-        // If in MultiVendor flow past step 1, step backwards in the wizard
-        if (state.currentScreen == PosScreen.MultiVendor && state.mvStep > 1) {
+    fun goBackNfcStep(): Boolean {
+        val state = _uiState.value
+        if (state.nfcPaymentResult != null || state.classicStep == "done") {
+            resetNfcPaymentState()
+            _uiState.update { it.copy(nfcStep = 1, classicStep = "idle") }
+            return true
+        }
+        if (state.isMultisigActive) {
+            resetNfcPaymentState()
+            _uiState.update { it.copy(nfcStep = 1, classicStep = "idle") }
+            return true
+        }
+        return when (state.nfcStep) {
+            5 -> {
+                // Return from Tap Card to PIN step (Classic: step 4)
+                _uiState.update {
+                    it.copy(
+                        nfcStep = 4,
+                        classicStep = "idle",
+                        isNfcWaitingCard = false,
+                        detectedCardUid = null,
+                        classicPreAuth = null,
+                        errorMessage = null
+                    )
+                }
+                true
+            }
+            4 -> {
+                if (state.requiresDocument) {
+                    // Return from PIN to Document step
+                    _uiState.update {
+                        it.copy(
+                            nfcStep = 3,
+                            customerPin = "",
+                            errorMessage = null
+                        )
+                    }
+                } else {
+                    // Return from Tap Card to PIN step (UID/DESFire)
+                    _uiState.update {
+                        it.copy(
+                            nfcStep = 3,
+                            classicStep = "idle",
+                            isNfcWaitingCard = false,
+                            detectedCardUid = null,
+                            classicPreAuth = null,
+                            errorMessage = null
+                        )
+                    }
+                }
+                true
+            }
+            3 -> {
+                if (state.requiresDocument) {
+                    // Return from Document to Username step
+                    _uiState.update {
+                        it.copy(
+                            nfcStep = 2,
+                            errorMessage = null
+                        )
+                    }
+                } else {
+                    // Return from PIN to Username step (UID/DESFire)
+                    _uiState.update {
+                        it.copy(
+                            nfcStep = 2,
+                            customerPin = "",
+                            errorMessage = null
+                        )
+                    }
+                }
+                true
+            }
+            2 -> {
+                // Return from Username to Amount step
+                _uiState.update {
+                    it.copy(
+                        nfcStep = 1,
+                        errorMessage = null
+                    )
+                }
+                true
+            }
+            1 -> {
+                // On step 1 (Amount), return to Dashboard
+                resetNfcPaymentState()
+                navigateTo(PosScreen.Dashboard)
+                true
+            }
+            else -> false
+        }
+    }
+
+    fun goBackMultiVendorStep(): Boolean {
+        val state = _uiState.value
+        if (state.isMultisigActive) {
+            resetMultiVendorSale()
+            return true
+        }
+        return if (state.mvStep > 1) {
             _uiState.update {
                 it.copy(
                     mvStep = it.mvStep - 1,
@@ -345,7 +452,25 @@ class PosViewModel(
                     isSameCardError = false
                 )
             }
-            return true
+            true
+        } else {
+            resetMultiVendorSale()
+            navigateTo(PosScreen.Dashboard)
+            true
+        }
+    }
+
+    fun handleBackPress(): Boolean {
+        val state = _uiState.value
+
+        // Step backwards inside NFC Charge flow
+        if (state.currentScreen == PosScreen.NfcCharge) {
+            return goBackNfcStep()
+        }
+
+        // Step backwards inside MultiVendor flow
+        if (state.currentScreen == PosScreen.MultiVendor) {
+            return goBackMultiVendorStep()
         }
 
         // If root screen, do not navigate back; let root handler prompt to exit
@@ -379,7 +504,10 @@ class PosViewModel(
                     amountInput = "",
                     customerPin = "",
                     detectedCardUid = null,
-                    isNfcWaitingCard = (previousScreen == PosScreen.NfcCharge),
+                    nfcStep = 1,
+                    classicStep = "idle",
+                    classicPreAuth = null,
+                    isNfcWaitingCard = false,
                     nfcPaymentResult = null,
                     qrChargeResponse = null,
                     qrPayUrl = null,
@@ -413,16 +541,22 @@ class PosViewModel(
             it.copy(
                 detectedCardUid = null,
                 customerPin = "",
+                customerUsername = "",
+                userLookupResult = null,
+                requiresDocument = false,
                 nfcPaymentResult = null,
                 amountInput = "",
                 idDocNumber = "",
+                nfcStep = 1,
+                classicStep = "idle",
+                classicPreAuth = null,
                 isMultisigActive = false,
                 multisigPendingId = null,
                 multisigCollectedSigs = 0,
                 multisigRequiredSigs = 1,
                 errorMessage = null,
                 successMessage = null,
-                isNfcWaitingCard = true
+                isNfcWaitingCard = false
             )
         }
     }
@@ -437,6 +571,10 @@ class PosViewModel(
 
     fun setCustomerPin(pin: String) {
         _uiState.update { it.copy(customerPin = pin) }
+    }
+
+    fun setCustomerUsername(username: String) {
+        _uiState.update { it.copy(customerUsername = username) }
     }
 
     fun setBuyerPin(pin: String) {
@@ -1040,12 +1178,104 @@ class PosViewModel(
      * El servidor valida y responde con el tipo de tarjeta que tiene el usuario.
      * Luego el POS sabe como procesar la tarjeta cuando se acerque.
      */
+    /**
+     * Lookup de usuario por username.
+     * Determina el tipo de tarjeta y si requiere documento de identidad.
+     */
+    fun submitUserLookup() {
+        val state = _uiState.value
+
+        if (state.customerUsername.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Ingrese el nombre de usuario del cliente") }
+            return
+        }
+
+        viewModelScope.launch {
+            if (!verifyTerminalStatus()) return@launch
+
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+            // Modo demo: simular lookup
+            if (state.isDemoNode) {
+                simulateUserLookup(state.customerUsername)
+                return@launch
+            }
+
+            // Modo real: llamar al servidor
+            val result = repository.userLookup(state.customerUsername)
+
+            result.onSuccess { resp ->
+                if (resp.found) {
+                    // Step numbering:
+                    // Classic (requiresDocument=true):  1=Monto, 2=Username, 3=Doc, 4=PIN, 5=Tap
+                    // UID/DESFire (requiresDocument=false): 1=Monto, 2=Username, 3=PIN, 4=Tap
+                    val pinStep = if (resp.requiresDocument) 4 else 3
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            userLookupResult = resp,
+                            requiresDocument = resp.requiresDocument,
+                            detectedCardType = resp.cardType ?: "uid_only",
+                            isClassicFlow = resp.requiresDocument,
+                            nfcStep = pinStep
+                        )
+                    }
+                    // Si requiere documento, cargar los tipos de documento del usuario
+                    // Si no requiere documento, ir directo al PIN
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = resp.message ?: "Usuario no encontrado"
+                        )
+                    }
+                }
+            }.onFailure { err ->
+                _uiState.update {
+                    it.copy(isLoading = false, errorMessage = err.message)
+                }
+            }
+        }
+    }
+
+    /**
+     * Simula lookup de usuario en modo demo.
+     */
+    private fun simulateUserLookup(username: String) {
+        val isClassic = username.contains("classic", ignoreCase = true) ||
+                        username.contains("clasica", ignoreCase = true)
+        val resp = UserLookupResponse(
+            found = true,
+            userId = "demo-user-$username",
+            cardType = if (isClassic) "classic" else "uid_only",
+            requiresDocument = isClassic,
+            documentTypes = if (isClassic) listOf("cedula", "dni") else null,
+            displayName = "Usuario Demo $username"
+        )
+        val pinStep = if (resp.requiresDocument) 4 else 3
+        _uiState.update {
+            it.copy(
+                isLoading = false,
+                userLookupResult = resp,
+                requiresDocument = resp.requiresDocument,
+                detectedCardType = resp.cardType ?: "uid_only",
+                isClassicFlow = resp.requiresDocument,
+                nfcStep = pinStep
+            )
+        }
+    }
+
     fun submitUnifiedPreAuth() {
         val state = _uiState.value
         val centavos = CurrencyHelper.parseInputToCentavos(state.amountInput)
 
-        // Documento SIEMPRE obligatorio para NFC (no condicional)
-        if (state.idDocNumber.isBlank()) {
+        // Username siempre obligatorio
+        if (state.customerUsername.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Ingrese el nombre de usuario del cliente") }
+            return
+        }
+        // Si requiere documento (Classic), validar documento
+        if (state.requiresDocument && state.idDocNumber.isBlank()) {
             _uiState.update { it.copy(errorMessage = "Ingrese el número de documento de identidad") }
             return
         }
@@ -1066,22 +1296,35 @@ class PosViewModel(
             }
 
             // Modo real: llamar al servidor
-            val result = repository.classicPreAuth(
-                docType = state.selectedDocType,
-                docNumber = state.idDocNumber,
-                pin = state.customerPin,
-                amountCentavos = centavos
-            )
+            // Si requiere documento (Classic), usar classicPreAuthWithDocument
+            // Si no (UID/DESFire), usar classicPreAuth con solo username + PIN
+            val result = if (state.requiresDocument) {
+                repository.classicPreAuthWithDocument(
+                    username = state.customerUsername,
+                    docType = state.selectedDocType,
+                    docNumber = state.idDocNumber,
+                    pin = state.customerPin,
+                    amountCentavos = centavos
+                )
+            } else {
+                repository.classicPreAuth(
+                    username = state.customerUsername,
+                    pin = state.customerPin,
+                    amountCentavos = centavos
+                )
+            }
 
             result.onSuccess { resp ->
                 if (resp.preApproved && resp.cardUid != null) {
                     FeedbackHelper.playCardDetected(getApplication())
                     val isClassic = (resp.cardType == "classic")
+                    val tapStep = if (state.requiresDocument) 5 else 4
                     _uiState.update {
                         it.copy(
                             isLoading = false,
                             classicPreAuth = resp,
                             classicStep = "tap_card",
+                            nfcStep = tapStep,
                             detectedCardUid = resp.cardUid,
                             detectedCardType = resp.cardType ?: "uid_only",
                             isClassicFlow = isClassic,
@@ -1108,6 +1351,10 @@ class PosViewModel(
             }
         }
     }
+
+    // The tap card step depends on whether document was required:
+    // Classic: 1=Monto, 2=Username, 3=Doc, 4=PIN, 5=Tap
+    // UID/DESFire: 1=Monto, 2=Username, 3=PIN, 4=Tap
 
     /**
      * Simula pre-auth en modo demo.
@@ -1152,6 +1399,7 @@ class PosViewModel(
                 isLoading = false,
                 classicPreAuth = fakePreAuth,
                 classicStep = "tap_card",
+                nfcStep = 4,
                 detectedCardUid = cardUid,
                 detectedCardType = cardType,
                 isClassicFlow = (cardType == "classic"),
@@ -1600,11 +1848,18 @@ class PosViewModel(
                 delay(2500)
                 val res = repository.getMultisigStatus(pendingId)
                 res.onSuccess { status ->
-                    if (status.status == "executed") {
+                    if (status.status == "executed" || status.status == "approved" || (status.remainingSigs != null && status.remainingSigs == 0)) {
                         FeedbackHelper.playSuccess(getApplication())
                         _uiState.update {
                             it.copy(
                                 isMultisigActive = false,
+                                mvStep = 6, // Factura / Comprobante de venta
+                                classicStep = "done",
+                                customerPin = "",
+                                buyerPin = "",
+                                idDocNumber = "",
+                                buyerDocNumber = "",
+                                detectedCardUid = null,
                                 successMessage = "¡Pago multi-firma completado y ejecutado!",
                                 nfcPaymentResult = PaymentResultDecrypted(
                                     status = "approved",
@@ -1651,7 +1906,13 @@ class PosViewModel(
                         it.copy(
                             isLoading = false,
                             isMultisigActive = false,
-                            mvStep = 5,
+                            mvStep = 6, // Paso 6: Pantalla de Factura/Comprobante final
+                            classicStep = "done",
+                            customerPin = "",
+                            buyerPin = "",
+                            idDocNumber = "",
+                            buyerDocNumber = "",
+                            detectedCardUid = null,
                             successMessage = "¡Todas las firmas requeridas han sido validadas! Pago multi-firma aprobado con éxito.",
                             nfcPaymentResult = r
                         )
@@ -1667,9 +1928,11 @@ class PosViewModel(
                             multisigRequiredSigs = newRequired,
                             customerPin = "",
                             buyerPin = "",
+                            idDocNumber = "",       // Limpiar campo de documento para el siguiente firmante
+                            buyerDocNumber = "",    // Limpiar campo de documento para el siguiente firmante
                             detectedCardUid = null,
                             isNfcWaitingCard = true,
-                            successMessage = "Firma $newCollected de $newRequired registrada exitosamente. Acerque la tarjeta del siguiente firmante."
+                            successMessage = "Firma $newCollected de $newRequired registrada exitosamente. Ingrese los datos del siguiente firmante."
                         )
                     }
                 }
@@ -1687,6 +1950,10 @@ class PosViewModel(
     }
 
     // --- MULTI-VENDOR WORKFLOW ---
+    fun setMvStep(step: Int) {
+        _uiState.update { it.copy(mvStep = step, errorMessage = null) }
+    }
+
     fun onMultiVendorSellerTapped(cardUid: String) {
         FeedbackHelper.playCardDetected(getApplication())
         _uiState.update {
@@ -1704,7 +1971,25 @@ class PosViewModel(
             _uiState.update { it.copy(errorMessage = "Ingrese un monto válido") }
             return
         }
-        _uiState.update { it.copy(mvStep = 3, errorMessage = null) } // Move to Tap Buyer
+        _uiState.update { it.copy(mvStep = 3, errorMessage = null) } // Move to Buyer Document ID
+    }
+
+    fun onMultiVendorDocSet() {
+        val state = _uiState.value
+        if (state.buyerDocNumber.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Ingrese el documento de identidad del cliente") }
+            return
+        }
+        _uiState.update { it.copy(mvStep = 4, errorMessage = null) } // Move to Buyer Secret PIN
+    }
+
+    fun onMultiVendorPinSet() {
+        val state = _uiState.value
+        if (state.buyerPin.length < 4) {
+            _uiState.update { it.copy(errorMessage = "El comprador debe ingresar su clave secreta (PIN de 4 dígitos)") }
+            return
+        }
+        _uiState.update { it.copy(mvStep = 5, errorMessage = null) } // Move to Scan / Tap Buyer Card
     }
 
     fun onMultiVendorBuyerTapped(cardUid: String, isMultisig: Boolean = false, requiredSigs: Int = 2, isDesfire: Boolean = false) {
@@ -1728,13 +2013,14 @@ class PosViewModel(
                 isSameCardError = false,
                 buyerCardUid = cardUid,
                 requireIdVerification = mustAskId,
-                buyerPin = "",
                 isMultiVendorMultisig = isMulti,
                 mvMultisigRequired = req,
-                mvMultisigCollected = 0,
-                mvStep = 4 // Move to Buyer PIN & ID
+                mvMultisigCollected = 0
             )
         }
+
+        // Proceder directamente con el cobro ya que doc y pin fueron ingresados en pasos 3 y 4
+        submitMultiVendorPayment()
     }
 
     fun submitMultiVendorPayment() {
@@ -1742,10 +2028,10 @@ class PosViewModel(
         val centavos = CurrencyHelper.parseInputToCentavos(state.amountInput)
 
         if (state.buyerPin.length < 4) {
-            _uiState.update { it.copy(errorMessage = "El comprador/firmante debe ingresar su PIN de 4 dígitos") }
+            _uiState.update { it.copy(errorMessage = "El comprador debe ingresar su PIN de 4 dígitos") }
             return
         }
-        if (state.requireIdVerification && state.buyerDocNumber.isBlank()) {
+        if (state.buyerDocNumber.isBlank()) {
             _uiState.update { it.copy(errorMessage = "Ingrese el documento de identidad del comprador") }
             return
         }
@@ -1761,8 +2047,8 @@ class PosViewModel(
                 buyerCardUid = state.buyerCardUid ?: "BUYER001",
                 buyerPin = state.buyerPin,
                 amountCentavos = centavos,
-                buyerIdDocType = if (state.requireIdVerification) state.buyerDocType else null,
-                buyerIdDocNumber = if (state.requireIdVerification) state.buyerDocNumber else null
+                buyerIdDocType = state.buyerDocType,
+                buyerIdDocNumber = state.buyerDocNumber
             )
 
             res.onSuccess { r ->
@@ -1771,7 +2057,7 @@ class PosViewModel(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            mvStep = 5, // Result
+                            mvStep = 6, // Receipt Screen
                             nfcPaymentResult = r,
                             successMessage = "¡Venta comunitaria aprobada exitosamente!"
                         )
@@ -1791,6 +2077,8 @@ class PosViewModel(
                             multisigMessage = r.message ?: "Cuenta multi-firma ($reqSigs firmas). Acerque la tarjeta del 2do firmante.",
                             buyerPin = "",
                             customerPin = "",
+                            idDocNumber = "",
+                            buyerDocNumber = "",
                             detectedCardUid = null,
                             isNfcWaitingCard = true
                         )
@@ -1801,8 +2089,25 @@ class PosViewModel(
                     _uiState.update { it.copy(isLoading = false, errorMessage = r.message ?: "Cobro rechazado") }
                 }
             }.onFailure { err ->
-                FeedbackHelper.playPaymentError(getApplication())
-                _uiState.update { it.copy(isLoading = false, errorMessage = err.message) }
+                // Fallback en demo node para asegurar flujo fluido
+                if (state.isDemoNode) {
+                    FeedbackHelper.playPaymentApprovedCoins(getApplication())
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            mvStep = 6,
+                            nfcPaymentResult = PaymentResultDecrypted(
+                                status = "approved",
+                                transactionId = "DEMO-MV-${UUID.randomUUID().toString().take(8)}",
+                                message = "Venta multi-vendedor demo aprobada"
+                            ),
+                            successMessage = "¡Venta comunitaria demo aprobada!"
+                        )
+                    }
+                } else {
+                    FeedbackHelper.playPaymentError(getApplication())
+                    _uiState.update { it.copy(isLoading = false, errorMessage = err.message) }
+                }
             }
         }
     }
@@ -1816,7 +2121,10 @@ class PosViewModel(
                 sellerCardUid = null,
                 buyerCardUid = null,
                 buyerPin = "",
+                customerPin = "",
                 buyerDocNumber = "",
+                idDocNumber = "",
+                detectedCardUid = null,
                 isSameCardError = false,
                 isMultiVendorMultisig = false,
                 mvMultisigRequired = 1,
@@ -1833,10 +2141,10 @@ class PosViewModel(
     }
 
     // --- SHIFTS ---
-    fun openShift(initialamountCentavos: Long, notes: String?) {
+    fun openShift(initialamountCentavos: Long, pin: String, notes: String?) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val res = repository.openShift(initialamountCentavos, notes)
+            val res = repository.openShift(initialamountCentavos, pin, notes)
             res.onSuccess { shift ->
                 _uiState.update {
                     it.copy(
@@ -1851,10 +2159,10 @@ class PosViewModel(
         }
     }
 
-    fun closeShift(closingamountCentavos: Long?, notes: String?) {
+    fun closeShift(pin: String, closingamountCentavos: Long?, notes: String?) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val res = repository.closeShift(closingamountCentavos, notes)
+            val res = repository.closeShift(pin, closingamountCentavos, notes)
             res.onSuccess {
                 _uiState.update {
                     it.copy(
@@ -1869,24 +2177,66 @@ class PosViewModel(
         }
     }
 
-    // --- SHIFT PIN ---
+    // --- SHIFT PIN (verifica contra el backend) ---
     fun hasShiftPin(callback: (Boolean) -> Unit) {
         viewModelScope.launch {
             callback(repository.hasShiftPin())
         }
     }
 
-    fun setShiftPin(pin: String, callback: () -> Unit) {
+    fun verifyShiftPin(pin: String, callback: (Boolean, String?, Boolean) -> Unit) {
         viewModelScope.launch {
-            repository.setShiftPin(pin)
-            callback()
+            val res = repository.verifyShiftPin(pin)
+            res.onSuccess { (valid, offline) ->
+                callback(valid, null, offline)
+            }.onFailure { err ->
+                callback(false, err.message, false)
+            }
         }
     }
 
-    fun verifyShiftPin(pin: String, callback: (Boolean) -> Unit) {
+    // --- SYNC OFFLINE CLOSE ---
+    fun syncPendingClose(callback: (Boolean) -> Unit) {
         viewModelScope.launch {
-            val res = repository.verifyShiftPin(pin)
-            callback(res.getOrDefault(false))
+            val synced = repository.syncPendingShiftClose()
+            if (synced) {
+                _uiState.update { it.copy(successMessage = "Cierre de turno sincronizado con el servidor") }
+            }
+            callback(synced)
+        }
+    }
+
+    fun hasPendingSyncShift(callback: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            callback(repository.hasPendingSyncShift())
+        }
+    }
+
+    // --- CHECK BACKEND SHIFT STATUS ---
+    // Verifica si el backend ya cerró el turno que el POS tiene abierto localmente.
+    // Si es así, descarga los datos de cierre del backend y actualiza el estado local.
+    fun checkBackendShiftStatus(callback: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val updated = repository.checkBackendShiftStatus()
+            if (updated) {
+                _uiState.update { it.copy(activeShift = null, successMessage = "Turno cerrado por el backend — datos sincronizados") }
+            }
+            callback(updated)
+        }
+    }
+
+    // --- SHIFT HISTORY (consulta al backend) ---
+    fun loadShiftHistory(from: String? = null, to: String? = null, callback: (List<ShiftHistoryItem>) -> Unit) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            val result = repository.listShiftsForCurrentTerminal(from, to)
+            result.onSuccess { shifts ->
+                _uiState.update { it.copy(isLoading = false) }
+                callback(shifts)
+            }.onFailure { err ->
+                _uiState.update { it.copy(isLoading = false, errorMessage = err.message) }
+                callback(emptyList())
+            }
         }
     }
 

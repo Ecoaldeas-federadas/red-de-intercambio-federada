@@ -33,6 +33,7 @@ import androidx.room.Room
 import com.example.data.crypto.CryptoEngine
 import com.example.data.db.AppDatabase
 import com.example.data.db.MIGRATION_2_3
+import com.example.data.db.MIGRATION_3_4
 import com.example.ui.components.DemoWatermarkOverlay
 import com.example.ui.screens.*
 import com.example.ui.theme.MyApplicationTheme
@@ -50,9 +51,9 @@ object DatabaseProvider {
                 AppDatabase::class.java,
                 "pos_terminal_db.db"
             )
-            .addMigrations(MIGRATION_2_3)
+            .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
             // fallback solo como ultima opcion para migraciones futuras no previstas,
-            // pero MIGRATION_2_3 preserva los datos existentes al actualizar de v2 a v3.
+            // pero MIGRATION_2_3 y MIGRATION_3_4 preservan los datos existentes al actualizar.
             .fallbackToDestructiveMigration()
             .build().also { instance = it }
         }
@@ -223,11 +224,19 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                 viewModel.onCardTapped(cardUid, isDesfire)
             }
             is PosScreen.MultiVendor -> {
-                val step = viewModel.uiState.value.mvStep
+                val state = viewModel.uiState.value
+                val step = state.mvStep
                 if (step == 1) {
                     viewModel.onMultiVendorSellerTapped(cardUid)
-                } else if (step == 3) {
-                    viewModel.onMultiVendorBuyerTapped(cardUid)
+                } else if (step == 5 && !state.isMultisigActive) {
+                    viewModel.onMultiVendorBuyerTapped(cardUid, isDesfire = isDesfire)
+                } else if (state.isMultisigActive) {
+                    viewModel.submitMultisigSigner(
+                        cardUid = cardUid,
+                        pin = if (state.customerPin.isNotBlank()) state.customerPin else state.buyerPin,
+                        docType = if (state.selectedDocType.isNotBlank()) state.selectedDocType else state.buyerDocType,
+                        docNum = if (state.idDocNumber.isNotBlank()) state.idDocNumber else state.buyerDocNumber
+                    )
                 }
             }
             is PosScreen.ProvisionCard -> {

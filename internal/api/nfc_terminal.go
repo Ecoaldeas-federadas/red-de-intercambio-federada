@@ -2,6 +2,7 @@ package api
 
 import (
 	"crypto/ed25519"
+	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -45,7 +46,9 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 
 	// Classic card dynamic certificates (terminal-facing, Ed25519 auth)
 	r.Post("/api/nfc/terminal/classic/pre-auth", h.classicPreAuth)
+	r.Post("/api/nfc/terminal/classic/pre-auth-document", h.classicPreAuthWithDocument)
 	r.Post("/api/nfc/terminal/classic/confirm", h.classicConfirm)
+	r.Post("/api/nfc/terminal/user-lookup", h.userLookup)
 
 	// Terminal pairing by short code (no auth required for initiate/status)
 	r.Post("/api/nfc/terminal/pair/initiate", h.initiatePairing)
@@ -110,7 +113,19 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequireAuth).Get("/api/nfc/my-terminals/{id}/transactions", h.listMyTerminalTransactions)
 	r.With(am.RequireAuth).Post("/api/nfc/my-terminals/{id}/shift", h.openShift)
 	r.With(am.RequireAuth).Post("/api/nfc/my-terminals/{id}/shift/close", h.closeShift)
+	r.With(am.RequireAuth).Post("/api/nfc/my-terminals/{id}/shift/sync-close", h.syncOfflineShiftClose)
 	r.With(am.RequireAuth).Get("/api/nfc/my-terminals/{id}/shift", h.getActiveShift)
+	r.With(am.RequireAuth).Post("/api/nfc/my-terminals/{id}/shift-pin", h.setShiftPin)
+	r.With(am.RequireAuth).Post("/api/nfc/my-terminals/{id}/shift-pin/verify", h.verifyShiftPin)
+	r.With(am.RequireAuth).Get("/api/nfc/my-terminals/{id}/shift-pin/configured", h.getShiftPinConfigured)
+	r.With(am.RequireAuth).Get("/api/nfc/my-terminals/{id}/shifts", h.listMyTerminalShifts)
+	r.With(am.RequireAuth).Get("/api/nfc/my-terminals/{id}/export/transactions", h.exportMyTerminalTransactionsCSV)
+	r.With(am.RequireAuth).Get("/api/nfc/my-terminals/{id}/export/shifts", h.exportMyTerminalShiftsCSV)
+
+	// Retention config (admin)
+	r.With(am.RequirePermission("config.manage")).Get("/api/nfc/retention/config", h.getRetentionConfig)
+	r.With(am.RequirePermission("config.manage")).Put("/api/nfc/retention/config", h.updateRetentionConfig)
+	r.With(am.RequirePermission("config.manage")).Post("/api/nfc/retention/purge", h.purgeNow)
 
 	r.With(am.RequirePermission("nfc.issue_card")).Post("/api/nfc/cards/issue", h.issueCryptoCard)
 	r.With(am.RequirePermission("nfc.issue_card")).Post("/api/nfc/cards/provision-classic", h.provisionClassicCard)
@@ -1327,15 +1342,35 @@ func (h *NFCTerminalHandler) listTerminalShifts(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	// Parse date range (default: last 1 year)
+	from := r.URL.Query().Get("from")
+	to := r.URL.Query().Get("to")
+	if from == "" {
+		from = time.Now().AddDate(-1, 0, 0).Format("2006-01-02")
+	}
+	if to == "" {
+		to = time.Now().Format("2006-01-02")
+	}
+	fromTime, err := time.Parse("2006-01-02", from)
+	if err != nil {
+		writeError(w, 400, "invalid from date format (use YYYY-MM-DD)")
+		return
+	}
+	toTime, err := time.Parse("2006-01-02", to)
+	if err != nil {
+		writeError(w, 400, "invalid to date format (use YYYY-MM-DD)")
+		return
+	}
+	toTime = toTime.Add(24*time.Hour - time.Second)
+
 	rows, err := h.NFC.Pool.Query(r.Context(), `
 		SELECT s.id, s.user_id, u.display_name, s.status,
 		       s.opened_at, s.closed_at, s.total_sales, s.transactions_count, s.notes
 		FROM pos_shifts s
 		JOIN users u ON u.id = s.user_id
-		WHERE s.terminal_id = $1
-		ORDER BY s.opened_at DESC
-		LIMIT 100`,
-		termDBID,
+		WHERE s.terminal_id = $1 AND s.opened_at >= $2 AND s.opened_at <= $3
+		ORDER BY s.opened_at DESC`,
+		termDBID, fromTime, toTime,
 	)
 	if err != nil {
 		writeError(w, 500, "failed to list shifts")
@@ -1403,14 +1438,34 @@ func (h *NFCTerminalHandler) listOrgTerminalTransactions(w http.ResponseWriter, 
 		return
 	}
 
+	// Parse date range (default: last 1 year)
+	from := r.URL.Query().Get("from")
+	to := r.URL.Query().Get("to")
+	if from == "" {
+		from = time.Now().AddDate(-1, 0, 0).Format("2006-01-02")
+	}
+	if to == "" {
+		to = time.Now().Format("2006-01-02")
+	}
+	fromTime, err := time.Parse("2006-01-02", from)
+	if err != nil {
+		writeError(w, 400, "invalid from date format (use YYYY-MM-DD)")
+		return
+	}
+	toTime, err := time.Parse("2006-01-02", to)
+	if err != nil {
+		writeError(w, 400, "invalid to date format (use YYYY-MM-DD)")
+		return
+	}
+	toTime = toTime.Add(24*time.Hour - time.Second)
+
 	rows, err := h.NFC.Pool.Query(r.Context(), `
 		SELECT id, card_uid, amount, status, pin_verified, transaction_type,
 		       error_message, created_at
 		FROM nfc_transactions
-		WHERE terminal_id = $1
-		ORDER BY created_at DESC
-		LIMIT 100`,
-		termDBID,
+		WHERE terminal_id = $1 AND created_at >= $2 AND created_at <= $3
+		ORDER BY created_at DESC`,
+		termDBID, fromTime, toTime,
 	)
 	if err != nil {
 		writeError(w, 500, "failed to list transactions")
@@ -1457,19 +1512,35 @@ func (h *NFCTerminalHandler) openShift(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		OpeningAmount int64  `json:"opening_amount"`
 		Notes         string `json:"notes"`
+		PIN           string `json:"pin"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&req)
 
 	// Get terminal DB id and org
 	var termDBID uuid.UUID
 	var orgID *uuid.UUID
+	var shiftPinHash *string
 	err = h.NFC.Pool.QueryRow(r.Context(), `
-		SELECT id, organization_id FROM nfc_terminals
+		SELECT id, organization_id, shift_pin_hash FROM nfc_terminals
 		WHERE terminal_id = $1 AND (merchant_user_id = $2 OR organization_id IS NOT NULL)`,
 		terminalID, userID,
-	).Scan(&termDBID, &orgID)
+	).Scan(&termDBID, &orgID, &shiftPinHash)
 	if err != nil {
 		writeError(w, 404, "terminal not found or not authorized")
+		return
+	}
+
+	// Verificar PIN del turno (configurado por el dueño)
+	if shiftPinHash == nil || *shiftPinHash == "" {
+		writeError(w, 400, "el dueño del terminal debe configurar el PIN del turno desde su panel web")
+		return
+	}
+	if req.PIN == "" {
+		writeError(w, 400, "pin is required to open shift")
+		return
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(*shiftPinHash), []byte(req.PIN)); err != nil {
+		writeError(w, 403, "PIN del turno incorrecto")
 		return
 	}
 
@@ -1576,13 +1647,33 @@ func (h *NFCTerminalHandler) closeShift(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	var req struct {
+		PIN string `json:"pin"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
 	var termDBID uuid.UUID
+	var shiftPinHash *string
 	err = h.NFC.Pool.QueryRow(r.Context(), `
-		SELECT id FROM nfc_terminals WHERE terminal_id = $1`,
+		SELECT id, shift_pin_hash FROM nfc_terminals WHERE terminal_id = $1`,
 		terminalID,
-	).Scan(&termDBID)
+	).Scan(&termDBID, &shiftPinHash)
 	if err != nil {
 		writeError(w, 404, "terminal not found")
+		return
+	}
+
+	// Verificar PIN del turno
+	if shiftPinHash == nil || *shiftPinHash == "" {
+		writeError(w, 400, "el dueño del terminal no ha configurado el PIN del turno")
+		return
+	}
+	if req.PIN == "" {
+		writeError(w, 400, "pin is required to close shift")
+		return
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(*shiftPinHash), []byte(req.PIN)); err != nil {
+		writeError(w, 403, "PIN del turno incorrecto")
 		return
 	}
 
@@ -1623,6 +1714,633 @@ func (h *NFCTerminalHandler) closeShift(w http.ResponseWriter, r *http.Request) 
 		"total_sales":        totalSales,
 		"transactions_count": txCount,
 		"expected_close":     openingAmount + totalSales,
+	})
+}
+
+// syncOfflineShiftClose sincroniza un cierre de turno que se hizo offline.
+// No requiere PIN (el terminal ya está autenticado via JWT).
+// Acepta un closed_at timestamp del cliente para registrar la hora real del cierre.
+//
+// RESOLUCIÓN DE CONFLICTOS: Si el turno ya fue cerrado en el backend (por un admin
+// desde el panel web) y el POS también lo cerró offline, el cierre del POS PREVALECE
+// porque el POS es donde están las transacciones. Los datos del POS (closed_at,
+// closing_amount, notes) reemplazan los del backend.
+func (h *NFCTerminalHandler) syncOfflineShiftClose(w http.ResponseWriter, r *http.Request) {
+	terminalID := chi.URLParam(r, "id")
+	userID, err := getUserID(r)
+	if err != nil {
+		writeError(w, 401, "not authenticated")
+		return
+	}
+
+	var req struct {
+		ClosedAt      *time.Time `json:"closed_at"`
+		ClosingAmount *int64     `json:"closing_amount"`
+		Notes         *string    `json:"notes"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	var termDBID uuid.UUID
+	err = h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT id FROM nfc_terminals WHERE terminal_id = $1`,
+		terminalID,
+	).Scan(&termDBID)
+	if err != nil {
+		writeError(w, 404, "terminal not found")
+		return
+	}
+
+	// Buscar el turno más reciente de este terminal y usuario.
+	// Puede estar abierto (caso normal) o cerrado (conflicto: backend cerró primero).
+	var shiftID uuid.UUID
+	var openingAmount int64
+	var openedAt time.Time
+	var currentStatus string
+	var wasClosedInBackend bool
+
+	err = h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT id, opening_amount, opened_at, status FROM pos_shifts
+		WHERE terminal_id = $1 AND user_id = $2
+		ORDER BY opened_at DESC LIMIT 1`,
+		termDBID, userID,
+	).Scan(&shiftID, &openingAmount, &openedAt, &currentStatus)
+	if err != nil {
+		writeError(w, 400, "no shift found for this terminal")
+		return
+	}
+
+	wasClosedInBackend = (currentStatus == "closed")
+
+	// Calcular total de ventas desde nfc_transactions (desde opened_at hasta ahora)
+	var totalSales int64
+	var txCount int
+	h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT COALESCE(SUM(amount), 0), COUNT(*)
+		FROM nfc_transactions
+		WHERE terminal_id = $1 AND status = 'approved'
+		  AND created_at >= $2`,
+		termDBID, openedAt,
+	).Scan(&totalSales, &txCount)
+
+	// Usar el closed_at del POS (cliente) si se proporciona, sino NOW()
+	closedAt := time.Now()
+	if req.ClosedAt != nil {
+		closedAt = *req.ClosedAt
+	}
+
+	// Notas: usar las del POS si se proporcionan
+	var notes interface{}
+	if req.Notes != nil {
+		notes = *req.Notes
+	} else {
+		notes = nil
+	}
+
+	// Actualizar el turno con los datos del POS.
+	// Si estaba abierto: se cierra con los datos del POS.
+	// Si ya estaba cerrado (conflicto): los datos del POS PREVALECEN y reemplazan los del backend.
+	_, err = h.NFC.Pool.Exec(r.Context(), `
+		UPDATE pos_shifts
+		SET status = 'closed', closed_at = $3, total_sales = $4, transactions_count = $5, notes = COALESCE($6, notes)
+		WHERE id = $7`,
+		termDBID, userID, closedAt, totalSales, txCount, notes, shiftID,
+	)
+	if err != nil {
+		writeError(w, 500, "failed to sync offline close")
+		return
+	}
+
+	response := map[string]interface{}{
+		"status":             "closed",
+		"opening_amount":     openingAmount,
+		"total_sales":        totalSales,
+		"transactions_count": txCount,
+		"expected_close":     openingAmount + totalSales,
+		"synced":             true,
+		"conflict_resolved":  wasClosedInBackend,
+	}
+	if wasClosedInBackend {
+		response["message"] = "Cierre del POS prevaleció sobre el cierre del backend"
+	}
+	writeJSON(w, 200, response)
+}
+
+// --- Shift PIN management (configured by terminal owner) ---
+
+// setShiftPin allows the terminal owner to configure the shift PIN
+func (h *NFCTerminalHandler) setShiftPin(w http.ResponseWriter, r *http.Request) {
+	terminalID := chi.URLParam(r, "id")
+	userID, err := getUserID(r)
+	if err != nil {
+		writeError(w, 401, "not authenticated")
+		return
+	}
+
+	var req struct {
+		PIN string `json:"pin"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if len(req.PIN) < 4 || len(req.PIN) > 32 {
+		writeError(w, 400, "PIN must be between 4 and 32 characters")
+		return
+	}
+
+	// Verify the user is the owner of the terminal
+	var termDBID uuid.UUID
+	err = h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT id FROM nfc_terminals
+		WHERE terminal_id = $1 AND merchant_user_id = $2`,
+		terminalID, userID,
+	).Scan(&termDBID)
+	if err != nil {
+		writeError(w, 404, "terminal not found or you are not the owner")
+		return
+	}
+
+	// Hash the PIN with bcrypt
+	hashedPIN, err := bcrypt.GenerateFromPassword([]byte(req.PIN), bcrypt.DefaultCost)
+	if err != nil {
+		writeError(w, 500, "failed to hash PIN")
+		return
+	}
+
+	_, err = h.NFC.Pool.Exec(r.Context(), `
+		UPDATE nfc_terminals SET shift_pin_hash = $1 WHERE id = $2`,
+		string(hashedPIN), termDBID,
+	)
+	if err != nil {
+		writeError(w, 500, "failed to save PIN")
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"status":  "configured",
+		"message": "PIN del turno configurado correctamente",
+	})
+}
+
+// verifyShiftPin allows the POS to verify a shift PIN
+func (h *NFCTerminalHandler) verifyShiftPin(w http.ResponseWriter, r *http.Request) {
+	terminalID := chi.URLParam(r, "id")
+
+	var req struct {
+		PIN string `json:"pin"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.PIN == "" {
+		writeError(w, 400, "pin is required")
+		return
+	}
+
+	var shiftPinHash *string
+	err := h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT shift_pin_hash FROM nfc_terminals WHERE terminal_id = $1`,
+		terminalID,
+	).Scan(&shiftPinHash)
+	if err != nil {
+		writeError(w, 404, "terminal not found")
+		return
+	}
+
+	if shiftPinHash == nil || *shiftPinHash == "" {
+		writeJSON(w, 200, map[string]interface{}{
+			"valid":      false,
+			"configured": false,
+			"message":    "el dueño del terminal no ha configurado el PIN del turno",
+		})
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(*shiftPinHash), []byte(req.PIN)); err != nil {
+		writeJSON(w, 200, map[string]interface{}{
+			"valid":      false,
+			"configured": true,
+			"message":    "PIN incorrecto",
+		})
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"valid":      true,
+		"configured": true,
+	})
+}
+
+// getShiftPinConfigured returns whether the terminal has a shift PIN configured
+func (h *NFCTerminalHandler) getShiftPinConfigured(w http.ResponseWriter, r *http.Request) {
+	terminalID := chi.URLParam(r, "id")
+
+	var shiftPinHash *string
+	err := h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT shift_pin_hash FROM nfc_terminals WHERE terminal_id = $1`,
+		terminalID,
+	).Scan(&shiftPinHash)
+	if err != nil {
+		writeError(w, 404, "terminal not found")
+		return
+	}
+
+	configured := shiftPinHash != nil && *shiftPinHash != ""
+	writeJSON(w, 200, map[string]interface{}{
+		"configured": configured,
+	})
+}
+
+// listMyTerminalShifts lists shifts for a terminal owned by the authenticated user.
+// Supports date range filtering with from/to query params (YYYY-MM-DD).
+// No artificial LIMIT — returns all shifts in the range (max 1 year default).
+func (h *NFCTerminalHandler) listMyTerminalShifts(w http.ResponseWriter, r *http.Request) {
+	terminalID := chi.URLParam(r, "id")
+	userID, err := getUserID(r)
+	if err != nil {
+		writeError(w, 401, "not authenticated")
+		return
+	}
+
+	var termDBID uuid.UUID
+	err = h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT id FROM nfc_terminals
+		WHERE terminal_id = $1 AND (merchant_user_id = $2 OR organization_id IS NOT NULL)`,
+		terminalID, userID,
+	).Scan(&termDBID)
+	if err != nil {
+		writeError(w, 404, "terminal not found or not authorized")
+		return
+	}
+
+	// Parse date range (default: last 1 year)
+	from := r.URL.Query().Get("from")
+	to := r.URL.Query().Get("to")
+	if from == "" {
+		from = time.Now().AddDate(-1, 0, 0).Format("2006-01-02")
+	}
+	if to == "" {
+		to = time.Now().Format("2006-01-02")
+	}
+	fromTime, err := time.Parse("2006-01-02", from)
+	if err != nil {
+		writeError(w, 400, "invalid from date format (use YYYY-MM-DD)")
+		return
+	}
+	toTime, err := time.Parse("2006-01-02", to)
+	if err != nil {
+		writeError(w, 400, "invalid to date format (use YYYY-MM-DD)")
+		return
+	}
+	toTime = toTime.Add(24*time.Hour - time.Second) // include the full "to" day
+
+	rows, err := h.NFC.Pool.Query(r.Context(), `
+		SELECT s.id, s.user_id, u.display_name, s.status,
+		       s.opened_at, s.closed_at, s.opening_amount, s.closing_amount,
+		       s.total_sales, s.transactions_count, s.notes
+		FROM pos_shifts s
+		JOIN users u ON u.id = s.user_id
+		WHERE s.terminal_id = $1 AND s.opened_at >= $2 AND s.opened_at <= $3
+		ORDER BY s.opened_at DESC`,
+		termDBID, fromTime, toTime,
+	)
+	if err != nil {
+		writeError(w, 500, "failed to list shifts")
+		return
+	}
+	defer rows.Close()
+
+	var shifts []map[string]interface{}
+	for rows.Next() {
+		var id, userID uuid.UUID
+		var userName, status string
+		var openedAt time.Time
+		var closedAt *time.Time
+		var openingAmount, totalSales int64
+		var closingAmount *int64
+		var txCount int
+		var notes *string
+
+		if err := rows.Scan(&id, &userID, &userName, &status, &openedAt, &closedAt,
+			&openingAmount, &closingAmount, &totalSales, &txCount, &notes); err != nil {
+			continue
+		}
+
+		s := map[string]interface{}{
+			"id":                 id,
+			"user_id":            userID,
+			"user_name":          userName,
+			"status":             status,
+			"opened_at":          openedAt,
+			"opening_amount":     openingAmount,
+			"total_sales":        totalSales,
+			"transactions_count": txCount,
+		}
+		if closedAt != nil {
+			s["closed_at"] = *closedAt
+		}
+		if closingAmount != nil {
+			s["closing_amount"] = *closingAmount
+		}
+		if notes != nil {
+			s["notes"] = *notes
+		}
+		shifts = append(shifts, s)
+	}
+	if shifts == nil {
+		shifts = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, shifts)
+}
+
+// exportMyTerminalTransactionsCSV exports transactions as CSV for download
+func (h *NFCTerminalHandler) exportMyTerminalTransactionsCSV(w http.ResponseWriter, r *http.Request) {
+	terminalID := chi.URLParam(r, "id")
+	userID, err := getUserID(r)
+	if err != nil {
+		writeError(w, 401, "not authenticated")
+		return
+	}
+
+	var termDBID uuid.UUID
+	err = h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT id FROM nfc_terminals
+		WHERE terminal_id = $1 AND (merchant_user_id = $2 OR organization_id IS NOT NULL)`,
+		terminalID, userID,
+	).Scan(&termDBID)
+	if err != nil {
+		writeError(w, 404, "terminal not found or not authorized")
+		return
+	}
+
+	from := r.URL.Query().Get("from")
+	to := r.URL.Query().Get("to")
+	if from == "" {
+		from = time.Now().AddDate(-1, 0, 0).Format("2006-01-02")
+	}
+	if to == "" {
+		to = time.Now().Format("2006-01-02")
+	}
+	fromTime, err := time.Parse("2006-01-02", from)
+	if err != nil {
+		writeError(w, 400, "invalid from date format")
+		return
+	}
+	toTime, err := time.Parse("2006-01-02", to)
+	if err != nil {
+		writeError(w, 400, "invalid to date format")
+		return
+	}
+	toTime = toTime.Add(24*time.Hour - time.Second)
+
+	rows, err := h.NFC.Pool.Query(r.Context(), `
+		SELECT id, card_uid, amount, status, pin_verified, transaction_type,
+		       error_message, created_at
+		FROM nfc_transactions
+		WHERE terminal_id = $1 AND created_at >= $2 AND created_at <= $3
+		ORDER BY created_at DESC`,
+		termDBID, fromTime, toTime,
+	)
+	if err != nil {
+		writeError(w, 500, "failed to query transactions")
+		return
+	}
+	defer rows.Close()
+
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition",
+		fmt.Sprintf("attachment; filename=transacciones_%s_%s_a_%s.csv", terminalID, from, to))
+
+	writer := csv.NewWriter(w)
+	writer.Write([]string{"ID Transaccion", "UID Tarjeta", "Monto (centavos)", "Estado",
+		"PIN Verificado", "Tipo Transaccion", "Mensaje Error", "Fecha/Hora"})
+
+	for rows.Next() {
+		var id uuid.UUID
+		var cardUID string
+		var amount int64
+		var status string
+		var pinVerified bool
+		var txType string
+		var errMsg *string
+		var createdAt time.Time
+
+		if err := rows.Scan(&id, &cardUID, &amount, &status, &pinVerified, &txType, &errMsg, &createdAt); err != nil {
+			continue
+		}
+		errStr := ""
+		if errMsg != nil {
+			errStr = *errMsg
+		}
+		pinStr := "no"
+		if pinVerified {
+			pinStr = "si"
+		}
+		writer.Write([]string{
+			id.String(), cardUID, fmt.Sprintf("%d", amount), status,
+			pinStr, txType, errStr, createdAt.Format("2006-01-02 15:04:05"),
+		})
+	}
+	writer.Flush()
+}
+
+// exportMyTerminalShiftsCSV exports shifts as CSV for download
+func (h *NFCTerminalHandler) exportMyTerminalShiftsCSV(w http.ResponseWriter, r *http.Request) {
+	terminalID := chi.URLParam(r, "id")
+	userID, err := getUserID(r)
+	if err != nil {
+		writeError(w, 401, "not authenticated")
+		return
+	}
+
+	var termDBID uuid.UUID
+	err = h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT id FROM nfc_terminals
+		WHERE terminal_id = $1 AND (merchant_user_id = $2 OR organization_id IS NOT NULL)`,
+		terminalID, userID,
+	).Scan(&termDBID)
+	if err != nil {
+		writeError(w, 404, "terminal not found or not authorized")
+		return
+	}
+
+	from := r.URL.Query().Get("from")
+	to := r.URL.Query().Get("to")
+	if from == "" {
+		from = time.Now().AddDate(-1, 0, 0).Format("2006-01-02")
+	}
+	if to == "" {
+		to = time.Now().Format("2006-01-02")
+	}
+	fromTime, err := time.Parse("2006-01-02", from)
+	if err != nil {
+		writeError(w, 400, "invalid from date format")
+		return
+	}
+	toTime, err := time.Parse("2006-01-02", to)
+	if err != nil {
+		writeError(w, 400, "invalid to date format")
+		return
+	}
+	toTime = toTime.Add(24*time.Hour - time.Second)
+
+	rows, err := h.NFC.Pool.Query(r.Context(), `
+		SELECT s.id, u.display_name, s.status, s.opened_at, s.closed_at,
+		       s.opening_amount, s.closing_amount, s.total_sales, s.transactions_count, s.notes
+		FROM pos_shifts s
+		JOIN users u ON u.id = s.user_id
+		WHERE s.terminal_id = $1 AND s.opened_at >= $2 AND s.opened_at <= $3
+		ORDER BY s.opened_at DESC`,
+		termDBID, fromTime, toTime,
+	)
+	if err != nil {
+		writeError(w, 500, "failed to query shifts")
+		return
+	}
+	defer rows.Close()
+
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition",
+		fmt.Sprintf("attachment; filename=turnos_%s_%s_a_%s.csv", terminalID, from, to))
+
+	writer := csv.NewWriter(w)
+	writer.Write([]string{"ID Turno", "Usuario", "Estado", "Apertura",
+		"Cierre", "Monto Apertura (centavos)", "Monto Cierre (centavos)",
+		"Ventas Totales (centavos)", "Numero Transacciones", "Notas"})
+
+	for rows.Next() {
+		var id uuid.UUID
+		var userName, status string
+		var openedAt time.Time
+		var closedAt *time.Time
+		var openingAmount, totalSales int64
+		var closingAmount *int64
+		var txCount int
+		var notes *string
+
+		if err := rows.Scan(&id, &userName, &status, &openedAt, &closedAt,
+			&openingAmount, &closingAmount, &totalSales, &txCount, &notes); err != nil {
+			continue
+		}
+		closedStr := ""
+		if closedAt != nil {
+			closedStr = closedAt.Format("2006-01-02 15:04:05")
+		}
+		closingStr := ""
+		if closingAmount != nil {
+			closingStr = fmt.Sprintf("%d", *closingAmount)
+		}
+		notesStr := ""
+		if notes != nil {
+			notesStr = *notes
+		}
+		writer.Write([]string{
+			id.String(), userName, status,
+			openedAt.Format("2006-01-02 15:04:05"), closedStr,
+			fmt.Sprintf("%d", openingAmount), closingStr,
+			fmt.Sprintf("%d", totalSales), fmt.Sprintf("%d", txCount), notesStr,
+		})
+	}
+	writer.Flush()
+}
+
+// --- Retention config (admin) ---
+
+// getRetentionConfig returns the current retention configuration
+func (h *NFCTerminalHandler) getRetentionConfig(w http.ResponseWriter, r *http.Request) {
+	var retentionDays int
+	var enabled bool
+	var lastPurgeAt *time.Time
+	err := h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT retention_days, enabled, last_purge_at
+		FROM pos_retention_config WHERE node_domain = $1`,
+		"__LOCAL__",
+	).Scan(&retentionDays, &enabled, &lastPurgeAt)
+	if err != nil {
+		writeJSON(w, 200, map[string]interface{}{
+			"retention_days": 365,
+			"enabled":        true,
+			"last_purge_at":  nil,
+		})
+		return
+	}
+	resp := map[string]interface{}{
+		"retention_days": retentionDays,
+		"enabled":        enabled,
+	}
+	if lastPurgeAt != nil {
+		resp["last_purge_at"] = *lastPurgeAt
+	}
+	writeJSON(w, 200, resp)
+}
+
+// updateRetentionConfig updates the retention configuration
+func (h *NFCTerminalHandler) updateRetentionConfig(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		RetentionDays int   `json:"retention_days"`
+		Enabled       *bool `json:"enabled"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.RetentionDays < 1 {
+		writeError(w, 400, "retention_days must be at least 1")
+		return
+	}
+	enabled := true
+	if req.Enabled != nil {
+		enabled = *req.Enabled
+	}
+
+	_, err := h.NFC.Pool.Exec(r.Context(), `
+		INSERT INTO pos_retention_config (node_domain, retention_days, enabled, updated_at)
+		VALUES ('__LOCAL__', $1, $2, NOW())
+		ON CONFLICT (node_domain)
+		DO UPDATE SET retention_days = $1, enabled = $2, updated_at = NOW()`,
+		req.RetentionDays, enabled,
+	)
+	if err != nil {
+		writeError(w, 500, "failed to update retention config")
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"retention_days": req.RetentionDays,
+		"enabled":        enabled,
+	})
+}
+
+// purgeNow triggers a manual purge of old transactions
+func (h *NFCTerminalHandler) purgeNow(w http.ResponseWriter, r *http.Request) {
+	var retentionDays int
+	err := h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT retention_days FROM pos_retention_config WHERE node_domain = $1`,
+		"__LOCAL__",
+	).Scan(&retentionDays)
+	if err != nil {
+		retentionDays = 365
+	}
+
+	cutoff := time.Now().AddDate(0, 0, -retentionDays)
+	txResult, _ := h.NFC.Pool.Exec(r.Context(),
+		`DELETE FROM nfc_transactions WHERE created_at < $1`, cutoff)
+	shiftResult, _ := h.NFC.Pool.Exec(r.Context(),
+		`DELETE FROM pos_shifts WHERE opened_at < $1`, cutoff)
+
+	h.NFC.Pool.Exec(r.Context(),
+		`UPDATE pos_retention_config SET last_purge_at = NOW() WHERE node_domain = $1`,
+		"__LOCAL__")
+
+	writeJSON(w, 200, map[string]interface{}{
+		"status":               "purged",
+		"cutoff":               cutoff,
+		"transactions_deleted": txResult.RowsAffected(),
+		"shifts_deleted":       shiftResult.RowsAffected(),
 	})
 }
 
@@ -1802,14 +2520,34 @@ func (h *NFCTerminalHandler) listMyTerminalTransactions(w http.ResponseWriter, r
 		return
 	}
 
+	// Parse date range (default: last 1 year)
+	from := r.URL.Query().Get("from")
+	to := r.URL.Query().Get("to")
+	if from == "" {
+		from = time.Now().AddDate(-1, 0, 0).Format("2006-01-02")
+	}
+	if to == "" {
+		to = time.Now().Format("2006-01-02")
+	}
+	fromTime, err := time.Parse("2006-01-02", from)
+	if err != nil {
+		writeError(w, 400, "invalid from date format (use YYYY-MM-DD)")
+		return
+	}
+	toTime, err := time.Parse("2006-01-02", to)
+	if err != nil {
+		writeError(w, 400, "invalid to date format (use YYYY-MM-DD)")
+		return
+	}
+	toTime = toTime.Add(24*time.Hour - time.Second)
+
 	rows, err := h.NFC.Pool.Query(r.Context(), `
 		SELECT id, card_uid, amount, status, pin_verified, transaction_type,
 		       error_message, created_at
 		FROM nfc_transactions
-		WHERE terminal_id = $1
-		ORDER BY created_at DESC
-		LIMIT 100`,
-		termDBID,
+		WHERE terminal_id = $1 AND created_at >= $2 AND created_at <= $3
+		ORDER BY created_at DESC`,
+		termDBID, fromTime, toTime,
 	)
 	if err != nil {
 		writeError(w, 500, "failed to list transactions")
@@ -2567,7 +3305,7 @@ func (h *NFCTerminalHandler) provisionClassicCard(w http.ResponseWriter, r *http
 	writeJSON(w, 201, resp)
 }
 
-// classicPreAuth valida documento + PIN + saldo y prepara la rotacion
+// classicPreAuth valida username + PIN + saldo y prepara la rotacion
 func (h *NFCTerminalHandler) classicPreAuth(w http.ResponseWriter, r *http.Request) {
 	var req ProcessPaymentRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -2583,6 +3321,52 @@ func (h *NFCTerminalHandler) classicPreAuth(w http.ResponseWriter, r *http.Reque
 
 	var payload struct {
 		TerminalID string `json:"terminal_id"`
+		Username   string `json:"username"`
+		PIN        string `json:"pin"`
+		Amount     int64  `json:"amount"`
+	}
+	if err := json.Unmarshal(plaintext, &payload); err != nil {
+		writeError(w, 400, "invalid payload format")
+		return
+	}
+
+	if payload.Username == "" || payload.PIN == "" {
+		writeError(w, 400, "username and pin are required")
+		return
+	}
+
+	resp, err := h.NFC.ClassicPreAuth(r.Context(), payload.TerminalID, payload.Username, payload.PIN, payload.Amount)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	respBytes, _ := json.Marshal(resp)
+	encResp, err := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, encResp)
+}
+
+// classicPreAuthWithDocument valida username + documento + PIN + saldo (para Classic)
+func (h *NFCTerminalHandler) classicPreAuthWithDocument(w http.ResponseWriter, r *http.Request) {
+	var req ProcessPaymentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	plaintext, sharedKey, err := h.NFC.DecodePayload(r.Context(), req.TerminalID, req.EncryptedPayload)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+
+	var payload struct {
+		TerminalID string `json:"terminal_id"`
+		Username   string `json:"username"`
 		DocType    string `json:"doc_type"`
 		DocNumber  string `json:"doc_number"`
 		PIN        string `json:"pin"`
@@ -2593,12 +3377,55 @@ func (h *NFCTerminalHandler) classicPreAuth(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if payload.DocNumber == "" || payload.PIN == "" {
-		writeError(w, 400, "doc_number and pin are required")
+	if payload.Username == "" || payload.DocNumber == "" || payload.PIN == "" {
+		writeError(w, 400, "username, doc_number and pin are required")
 		return
 	}
 
-	resp, err := h.NFC.ClassicPreAuth(r.Context(), payload.TerminalID, payload.DocType, payload.DocNumber, payload.PIN, payload.Amount)
+	resp, err := h.NFC.ClassicPreAuthWithDocument(r.Context(), payload.TerminalID, payload.Username, payload.DocType, payload.DocNumber, payload.PIN, payload.Amount)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	respBytes, _ := json.Marshal(resp)
+	encResp, err := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, encResp)
+}
+
+// userLookup busca un usuario por username para determinar el tipo de tarjeta
+func (h *NFCTerminalHandler) userLookup(w http.ResponseWriter, r *http.Request) {
+	var req ProcessPaymentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	plaintext, sharedKey, err := h.NFC.DecodePayload(r.Context(), req.TerminalID, req.EncryptedPayload)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+
+	var payload struct {
+		TerminalID string `json:"terminal_id"`
+		Username   string `json:"username"`
+	}
+	if err := json.Unmarshal(plaintext, &payload); err != nil {
+		writeError(w, 400, "invalid payload format")
+		return
+	}
+
+	if payload.Username == "" {
+		writeError(w, 400, "username is required")
+		return
+	}
+
+	resp, err := h.NFC.UserLookup(r.Context(), payload.TerminalID, payload.Username)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return

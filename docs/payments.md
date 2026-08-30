@@ -70,20 +70,32 @@ El POS genera una carga (charge) y muestra un código QR. El cliente escanea el 
 - `POST /api/payments/nfc/lookup`: busca usuario por card_uid
 - `POST /api/nfc/terminal/{id}/assign`: asigna terminal a usuario (requiere permiso)
 
-#### Flujo unificado (doc + PIN primero para todos los tipos)
+#### Flujo unificado (username primero, documento solo para Classic)
 1. Comercio ingresa monto
-2. Cliente ingresa documento de identidad + PIN (sin tarjeta)
-3. POS envia pre-auth al servidor (cifrado): `{terminal_id, doc_type, doc_number, pin, amount}`
-4. Servidor valida documento + PIN, busca tarjeta activa del usuario, identifica el tipo
-5. Servidor responde con `card_type`:
-   - `classic`: datos de sectores para leer/escribir (certificados dinamicos)
-   - `uid_only` / `desfire`: solo `card_uid` para verificar
-6. POS muestra "ACERQUE SU TARJETA"
-7. Cliente acerca tarjeta
-8. POS verifica UID coincide con `card_uid` del pre-auth
-9. Si es Classic: lee/escribe sectores, confirma al servidor
-10. Si es UID/DESFire: llama a `processNfcPayment` con card_uid + PIN + amount
-11. Servidor procesa pago, responde con resultado
+2. Cliente ingresa **username** (con `@nodo` opcional para usuarios remotos)
+3. POS envia lookup al servidor (cifrado): `{terminal_id, username}`
+4. Servidor responde con `card_type` y `requires_document`:
+   - Si `requires_document = true` (Classic): pedir documento de identidad
+   - Si `requires_document = false` (UID/DESFire): saltar documento
+5. Si es Classic, cliente ingresa documento (tipo y numero). El tipo de documento debe coincidir con el configurado para la tarjeta
+6. Cliente ingresa PIN (4 digitos)
+7. POS envia pre-auth al servidor (cifrado):
+   - Classic: `{terminal_id, username, doc_type, doc_number, pin, amount}`
+   - UID/DESFire: `{terminal_id, username, pin, amount}`
+8. Servidor valida, busca tarjeta activa, identifica tipo
+9. Servidor responde con datos para leer/escribir (Classic) o solo `card_uid` (UID/DESFire)
+10. POS muestra "ACERQUE SU TARJETA"
+11. Cliente acerca tarjeta
+12. POS verifica UID coincide con `card_uid` del pre-auth
+13. Si es Classic: lee/escribe sectores, confirma al servidor
+14. Si es UID/DESFire: llama a `processNfcPayment` con card_uid + PIN + amount
+15. Servidor procesa pago, responde con resultado
+
+**Endpoints NFC unificados:**
+- `POST /api/nfc/terminal/user-lookup` — Buscar usuario por username (cifrado)
+- `POST /api/nfc/terminal/classic/pre-auth` — Pre-auth para UID/DESFire (username + PIN, cifrado)
+- `POST /api/nfc/terminal/classic/pre-auth-document` — Pre-auth para Classic (username + doc + PIN, cifrado)
+- `POST /api/nfc/terminal/classic/confirm` — Confirmar lectura/escritura tarjeta Classic
 
 ### 3. Pago NFC (Terminales ESP32)
 
@@ -122,17 +134,20 @@ El POS genera una carga (charge) y muestra un código QR. El cliente escanea el 
 
 #### Flujo de pago unificado (MIFARE Classic, UID-only, DESFire)
 1. Comerciante ingresa monto
-2. Cliente ingresa documento de identidad + PIN (sin tarjeta) — para todos los tipos
-3. POS envia pre-auth al servidor (cifrado)
-4. Servidor valida usuario, PIN, saldo → bloquea monto, identifica tipo de tarjeta
-5. Servidor responde con `card_type`:
+2. Cliente ingresa **username** (con `@nodo` para remotos)
+3. POS hace lookup de usuario (cifrado) → servidor responde con `card_type` y `requires_document`
+4. Si `requires_document` (Classic): cliente ingresa documento (tipo configurado para la tarjeta) + PIN
+5. Si no (UID/DESFire): cliente ingresa solo PIN
+6. POS envia pre-auth al servidor (cifrado)
+7. Servidor valida usuario, PIN, saldo → bloquea monto, identifica tipo de tarjeta
+8. Servidor responde con `card_type`:
    - `classic`: sector a leer + Key A + cert esperado + sector a escribir + Key B + cert nuevo
    - `uid_only`/`desfire`: solo `card_uid` para verificar
-6. POS muestra "ACERQUE SU TARJETA"
-7. Si es Classic: POS lee UID, lee sector con Key A, verifica cert (triple redundancia), escribe nuevo cert con Key B
-8. Si es UID/DESFire: POS verifica UID, llama a `processNfcPayment`
-9. POS confirma al servidor (solo Classic)
-10. Servidor procesa pago, rota sector activo (solo Classic)
+9. POS muestra "ACERQUE SU TARJETA"
+10. Si es Classic: POS lee UID, lee sector con Key A, verifica cert (triple redundancia), escribe nuevo cert con Key B
+11. Si es UID/DESFire: POS verifica UID, llama a `processNfcPayment`
+12. POS confirma al servidor (solo Classic)
+13. Servidor procesa pago, rota sector activo (solo Classic)
 
 Ver `docs/tarjeta-classic-certificados.md` para detalles completos.
 
@@ -169,3 +184,62 @@ Ver `nfc_hardware.md` y `firmware/` para mas detalles.
 - Cada pago genera transaccion con hash chain
 - prev_hash + datos -> current_hash
 - Inmutable y auditable
+
+## Gestion de Turnos (Shift Management)
+
+### PIN del Turno
+- El **dueno del terminal** configura el PIN del turno desde su panel web (`MyTerminals.tsx`)
+- El PIN se almacena como **hash bcrypt** en `nfc_terminals.shift_pin_hash`
+- El POS lo sincroniza localmente para permitir abrir/cerrar turnos **sin internet**
+- Los **empleados** no pueden abrir/cerrar turnos ni acceder a la configuracion del terminal
+- Endpoints:
+  - `POST /api/nfc/my-terminals/{id}/shift-pin` — Configurar PIN (solo dueno)
+  - `POST /api/nfc/my-terminals/{id}/shift-pin/verify` — Verificar PIN
+  - `GET /api/nfc/my-terminals/{id}/shift-pin/configured` — Consultar si hay PIN configurado
+
+### Historial de Turnos
+- Los turnos se almacenan tanto en el **POS local** como en el **backend**
+- No hay limite de 100 registros — se soporta **al menos un ano** de historial
+- Filtro por rango de fechas (`from`, `to` en formato YYYY-MM-DD)
+- Detalle por turno: usuario, hora de apertura, monto inicial, ventas, transacciones, cierre, notas
+- Endpoints:
+  - `GET /api/nfc/my-terminals/{id}/shifts?from=&to=` — Listar turnos por rango
+  - `GET /api/nfc/org-terminals/{orgID}/{terminalID}/shifts?from=&to=` — Listar turnos (organizacion)
+
+### Exportacion CSV
+- Exportacion de transacciones y turnos en formato CSV (compatible con Excel, Google Sheets, LibreOffice)
+- Endpoints:
+  - `GET /api/nfc/my-terminals/{id}/export/transactions?from=&to=` — CSV de transacciones
+  - `GET /api/nfc/my-terminals/{id}/export/shifts?from=&to=` — CSV de turnos
+- Campos exportados: ID, UID tarjeta, monto (centavos), estado, PIN verificado, tipo, error, fecha/hora
+- No se exportan secretos (PINs, claves de tarjeta, tokens cifrados)
+
+### Retencion y Purga
+- Retencion por defecto: **365 dias**
+- Configurable via `pos_retention_config` (tabla de migracion 143)
+- Purga automatica cada **24 horas** (goroutine `StartRetentionPurger`)
+- Purga manual disponible para administradores
+- La purga solo borra transacciones/turnos cerrados mayores al periodo de retencion
+- El usuario puede **exportar datos antes de la purga** para preservarlos
+- La eliminacion de historial local en el POS **no afecta** el historial del backend
+- Endpoints:
+  - `GET /api/nfc/retention/config` — Ver configuracion
+  - `PUT /api/nfc/retention/config` — Actualizar (admin)
+  - `POST /api/nfc/retention/purge` — Purga manual (admin)
+
+## Transacciones Cross-Node
+
+### Flujo de debito/credito entre nodos
+1. El **comprador remoto** es debitado en su **nodo de origen** (`user_balance`)
+2. El **pool de federacion** del nodo de origen es acreditado (`node_bridge_global` o `node_bridge_bilateral`)
+3. El nodo de origen envia un mensaje `Transfer` al nodo receptor (firma dual Ed25519)
+4. El **nodo receptor** recibe el mensaje y:
+   - Debita el pool de federacion (`node_bridge`)
+   - Acredita al **receptor local** (`user_balance`)
+   - Aplica el tax del nodo receptor si corresponde
+5. Ambos nodos guardan la transaccion en `cross_node_tx_chain` (hash encadenado, firma dual)
+6. Si el nodo de origen **no puede ser contactado** despues de 3 intentos, la transaccion **no se completa**
+
+### Verificacion de permisos
+- El usuario debe tener `can_cross_node_trade = true` (verificado en `ledger/limits.go`)
+- Los limites bilaterales/global se verifican antes de procesar

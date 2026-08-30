@@ -323,12 +323,45 @@ data class ShiftResponse(
 @JsonClass(generateAdapter = true)
 data class OpenShiftRequest(
     @Json(name = "opening_amount") val openingAmount: Long = 0L,
-    @Json(name = "notes") val notes: String? = null
+    @Json(name = "notes") val notes: String? = null,
+    @Json(name = "pin") val pin: String = ""
 )
 
 @JsonClass(generateAdapter = true)
 data class CloseShiftRequest(
     @Json(name = "closing_amount") val closingAmount: Long? = null,
+    @Json(name = "notes") val notes: String? = null,
+    @Json(name = "pin") val pin: String = ""
+)
+
+@JsonClass(generateAdapter = true)
+data class VerifyShiftPinRequest(
+    @Json(name = "pin") val pin: String
+)
+
+@JsonClass(generateAdapter = true)
+data class VerifyShiftPinResponse(
+    @Json(name = "valid") val valid: Boolean = false,
+    @Json(name = "configured") val configured: Boolean = false,
+    @Json(name = "message") val message: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class ShiftPinConfiguredResponse(
+    @Json(name = "configured") val configured: Boolean = false
+)
+
+@JsonClass(generateAdapter = true)
+data class ShiftHistoryItem(
+    @Json(name = "id") val id: String,
+    @Json(name = "user_name") val userName: String? = null,
+    @Json(name = "status") val status: String,
+    @Json(name = "opened_at") val openedAt: String,
+    @Json(name = "closed_at") val closedAt: String? = null,
+    @Json(name = "opening_amount") val openingAmount: Long = 0L,
+    @Json(name = "closing_amount") val closingAmount: Long? = null,
+    @Json(name = "total_sales") val totalSales: Long = 0L,
+    @Json(name = "transactions_count") val transactionsCount: Int = 0,
     @Json(name = "notes") val notes: String? = null
 )
 
@@ -399,8 +432,37 @@ val DEFAULT_DOCUMENT_TYPES = listOf(
 // ============================================
 
 @JsonClass(generateAdapter = true)
+data class UserLookupDecryptedPayload(
+    @Json(name = "terminal_id") val terminalId: String,
+    @Json(name = "username") val username: String
+)
+
+@JsonClass(generateAdapter = true)
+data class UserLookupResponse(
+    @Json(name = "found") val found: Boolean = false,
+    @Json(name = "user_id") val userId: String? = null,
+    @Json(name = "card_type") val cardType: String? = null,
+    @Json(name = "requires_document") val requiresDocument: Boolean = false,
+    @Json(name = "required_doc_type") val requiredDocType: String? = null,
+    @Json(name = "document_types") val documentTypes: List<String>? = null,
+    @Json(name = "display_name") val displayName: String? = null,
+    @Json(name = "is_remote") val isRemote: Boolean = false,
+    @Json(name = "remote_node") val remoteNode: String? = null,
+    @Json(name = "message") val message: String? = null
+)
+
+@JsonClass(generateAdapter = true)
 data class ClassicPreAuthDecryptedPayload(
     @Json(name = "terminal_id") val terminalId: String,
+    @Json(name = "username") val username: String,
+    @Json(name = "pin") val pin: String,
+    @Json(name = "amount") val amount: Long
+)
+
+@JsonClass(generateAdapter = true)
+data class ClassicPreAuthWithDocumentDecryptedPayload(
+    @Json(name = "terminal_id") val terminalId: String,
+    @Json(name = "username") val username: String,
     @Json(name = "doc_type") val docType: String,
     @Json(name = "doc_number") val docNumber: String,
     @Json(name = "pin") val pin: String,

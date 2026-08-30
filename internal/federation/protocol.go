@@ -172,6 +172,87 @@ func (p *Protocol) HandleCardLookup(ctx context.Context, payload *CardLookupPayl
 	}, nil
 }
 
+// UserLookupPayload es la solicitud de lookup de usuario por username.
+type UserLookupPayload struct {
+	Username string `json:"username"`
+	FromNode string `json:"from_node"`
+}
+
+// UserLookupResponse es la respuesta del lookup de usuario remoto.
+type UserLookupResponse struct {
+	Found            bool     `json:"found"`
+	UserID           string   `json:"user_id,omitempty"`
+	CardType         string   `json:"card_type,omitempty"`
+	RequiresDocument bool     `json:"requires_document"`
+	RequiredDocType  string   `json:"required_doc_type,omitempty"`
+	DocumentTypes    []string `json:"document_types,omitempty"`
+	DisplayName      string   `json:"display_name,omitempty"`
+	Message          string   `json:"message,omitempty"`
+}
+
+// HandleUserLookup busca un usuario local por username para un nodo remoto.
+// Retorna el tipo de tarjeta y si requiere documento de identidad.
+func (p *Protocol) HandleUserLookup(ctx context.Context, payload *UserLookupPayload) (*UserLookupResponse, error) {
+	var userID string
+	var displayName string
+	err := p.Pool.QueryRow(ctx,
+		`SELECT id::text, display_name FROM users WHERE username = $1 AND node_domain = $2`,
+		payload.Username, p.NodeDomain,
+	).Scan(&userID, &displayName)
+	if err != nil {
+		return &UserLookupResponse{Found: false, Message: "usuario no encontrado"}, nil
+	}
+
+	// Buscar tarjeta activa
+	var cardType string
+	var hasDynamicCerts bool
+	var requiredDocType *string
+	err = p.Pool.QueryRow(ctx, `
+		SELECT card_type, has_dynamic_certs, required_doc_type FROM nfc_cards
+		WHERE user_id = $1::uuid AND is_active = true
+		ORDER BY has_dynamic_certs DESC, issued_at DESC LIMIT 1`,
+		userID,
+	).Scan(&cardType, &hasDynamicCerts, &requiredDocType)
+	if err != nil {
+		return &UserLookupResponse{Found: false, Message: "no se encontro tarjeta activa"}, nil
+	}
+
+	respType := cardType
+	if respType == "" {
+		respType = "uid_only"
+	}
+	requiresDoc := hasDynamicCerts || respType == "classic"
+
+	// Tipos de documento del usuario
+	var docTypes []string
+	rows, err := p.Pool.Query(ctx,
+		`SELECT document_type_code FROM user_documents WHERE user_id = $1::uuid ORDER BY document_type_code`,
+		userID,
+	)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var dt string
+			if err := rows.Scan(&dt); err == nil {
+				docTypes = append(docTypes, dt)
+			}
+		}
+	}
+
+	resp := &UserLookupResponse{
+		Found:            true,
+		UserID:           userID,
+		CardType:         respType,
+		RequiresDocument: requiresDoc,
+		DocumentTypes:    docTypes,
+		DisplayName:      displayName,
+	}
+	if requiredDocType != nil && *requiredDocType != "" {
+		resp.RequiredDocType = *requiredDocType
+	}
+	return resp, nil
+}
+
 func (p *Protocol) ProposeBilateralLimit(ctx context.Context, remoteNode string, creditLimit, debitLimit int64) error {
 	_, err := p.Pool.Exec(ctx, `
 		INSERT INTO bilateral_limits (local_node, remote_node, credit_limit, debit_limit, is_customized, local_approved)

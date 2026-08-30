@@ -305,6 +305,7 @@ func main() {
 	departmentsSvc := accounts.NewDepartments(database.Pool)
 	departmentsHandler := api.NewDepartmentsHandler(departmentsSvc, cfg.Node.Domain, authMiddleware, database.Pool)
 	nfcTerminalsSvc := payments.NewNFCTerminals(database.Pool, db.LOCAL_NODE_DOMAIN)
+	nfcTerminalsSvc.StartRetentionPurger(ctx)
 
 	// Firmware compiler (opcional — solo si Docker esta disponible)
 	firmwareDir := os.Getenv("FIRMWARE_DIR")

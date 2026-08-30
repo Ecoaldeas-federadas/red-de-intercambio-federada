@@ -89,7 +89,7 @@ com.example/
 @Database(
     entities = [TransactionEntity::class, ShiftEntity::class,
                 TerminalConfigEntity::class, ShiftPinEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -100,7 +100,7 @@ abstract class AppDatabase : RoomDatabase() {
 }
 ```
 
-- **Versión:** 3
+- **Versión:** 4
 - **exportSchema:** false
 
 ### 3.2 Entidades
@@ -136,7 +136,9 @@ data class ShiftEntity(
     val closingAmount: Long? = null,
     val totalSales: Long = 0L,
     val transactionsCount: Int = 0,
-    val notes: String? = null
+    val notes: String? = null,
+    val pendingSync: Boolean = false,   // true si se cerró offline y falta sincronizar (migración 3→4)
+    val closedOffline: Boolean = false  // true si el cierre se hizo sin conexión (migración 3→4)
 )
 ```
 
@@ -165,13 +167,15 @@ data class TerminalConfigEntity(
 )
 ```
 
-#### ShiftPinEntity (tabla: `shift_pin`)
+#### ShiftPinEntity (tabla: `shift_pin`) — Caché offline del PIN del turno
+
+> **Propósito:** Esta entidad ahora se usa como **caché local** para verificación offline del PIN del turno. Cuando la verificación online es exitosa, el POS computa `SHA-256(salt + pin)` y lo guarda aquí. Cuando no hay conexión, el POS verifica el PIN contra este hash. El PIN original nunca se guarda.
 
 ```kotlin
 @Entity(tableName = "shift_pin")
 data class ShiftPinEntity(
     @PrimaryKey val id: Int = 1,       // Singleton
-    val pinHash: String                // SHA-256 hash del PIN de turno
+    val pinHash: String                // SHA-256(salt + pin) — caché para verificación offline
 )
 ```
 
@@ -308,8 +312,13 @@ interface PosApiService {
 
     // Shifts
     @GET("nfc/my-terminals")                    suspend fun listMyTerminals()
-    @POST("nfc/my-terminals/{id}/shift")        suspend fun openShift(...)
-    @POST("nfc/my-terminals/{id}/shift/close")  suspend fun closeShift(...)
+    @POST("nfc/my-terminals/{id}/shift")        suspend fun openShift(...)       // con pin
+    @POST("nfc/my-terminals/{id}/shift/close")  suspend fun closeShift(...)      // con pin
+    @GET("nfc/my-terminals/{id}/shift")         suspend fun getActiveShift(...)
+    @POST("nfc/my-terminals/{id}/shift-pin")    suspend fun setShiftPin(...)     // solo dueño (web)
+    @POST("nfc/my-terminals/{id}/shift-pin/verify")    suspend fun verifyShiftPin(...)
+    @GET("nfc/my-terminals/{id}/shift-pin/configured") suspend fun getShiftPinConfigured(...)
+    @GET("nfc/my-terminals/{id}/shifts")        suspend fun listShifts(...)      // historial con from/to
 
     // Cards
     @GET("nfc/cards")               suspend fun listCards(...)
@@ -381,6 +390,15 @@ El repositorio orquesta API, DB y criptografía:
 | `heartbeat()` | Verifica que el terminal sigue activo en el servidor. |
 | `checkRegistrationByKey()` | Lookup por clave pública (descubre registro tardío). |
 | `resetTerminalRegistration()` | Genera nuevas claves, resetea registro. |
+| `openShift(amount, pin, notes)` | Abre turno enviando PIN al backend. Si el backend rechaza, no abre localmente. |
+| `closeShift(pin, amount?, notes)` | Cierra turno enviando PIN al backend. Si el backend rechaza, no cierra localmente. |
+| `verifyShiftPin(pin)` | Verifica PIN del turno contra el backend (bcrypt). |
+| `hasShiftPin()` | Consulta al backend si el dueño configuró el PIN del turno. |
+| `listShiftsForCurrentTerminal(from, to)` | Consulta historial de turnos al backend con filtro de fechas. |
+| `userLookup(username)` | Lookup de usuario por username (cifrado). Determina tipo de tarjeta y si requiere documento. |
+| `classicPreAuth(username, pin, amount)` | Pre-auth UID/DESFire (sin documento, cifrado). |
+| `classicPreAuthWithDocument(username, docType, docNumber, pin, amount)` | Pre-auth Classic (con documento, cifrado). |
+| `confirmClassicTransaction(cardUid, readOk, writeOk, writtenBlocks)` | Confirma lectura/escritura Classic al backend. |
 
 ---
 
@@ -571,20 +589,27 @@ Pantalla principal post-login. Muestra:
 
 ### 8.5 NfcChargeScreen
 
-Flujo unificado (documento + PIN antes de tarjeta, para todos los tipos de tarjeta):
+Flujo username-first (username → documento solo si Classic → PIN → tarjeta):
 
-1. **`amount_input`** — Comerciante ingresa monto, botón "Cobrar"
-2. **`credentials`** — Cliente ingresa documento de identidad (siempre obligatorio) + PIN, botón "Autenticar"
-3. POS envía pre-auth al servidor (`submitUnifiedPreAuth`)
-4. Servidor responde con `card_type` (`classic`, `uid_only`, o `desfire`)
-5. **`tap_card`** — POS muestra "ACERQUE SU TARJETA" según el tipo retornado
-6. Cliente acerca tarjeta → POS verifica UID contra pre-auth
-7. Si es Classic: lee/escribe sectores (`writing`), confirma al servidor
-8. Si es UID/DESFire: llama a `processNfcPayment` con card_uid + PIN + amount
-9. **`done`** — Resultado: approved / rejected / pending_multisig
-10. Si multisig: inicia polling de estado, pide PIN del siguiente firmante
+**Classic (requiresDocument = true):**
+1. **Monto** (step 1) — Comerciante ingresa monto, botón "Cobrar"
+2. **Username** (step 2) — Cliente ingresa username (con `@nodo` si es remoto)
+3. **Documento** (step 3) — Solo si `requires_document = true` (Classic)
+4. **PIN** (step 4) — Cliente ingresa PIN de 4 dígitos
+5. **Tap card** (step 5) — POS muestra "ACERQUE SU TARJETA"
+6. **Writing** — POS lee/escribe sectores (`writing`), confirma al servidor
+7. **Done** — Resultado: approved / rejected / pending_multisig
 
-**Modo demo:** `simulatePreAuth()` genera una respuesta falsa según el documento ingresado. Un solo botón "Simular Tarjeta" usa el `card_uid` del pre-auth simulado.
+**UID/DESFire (requiresDocument = false):**
+1. **Monto** (step 1) — Comerciante ingresa monto
+2. **Username** (step 2) — Cliente ingresa username
+3. **PIN** (step 3) — Cliente ingresa PIN (sin documento)
+4. **Tap card** (step 4) — POS muestra "ACERQUE SU TARJETA"
+5. **Done** — Resultado: approved / rejected / pending_multisig
+
+Flujo: POS llama `submitUserLookup()` → servidor responde con `card_type` y `requires_document` → si Classic, pide documento → `submitUnifiedPreAuth()` → servidor responde con pre-auth → `onCardTapped()` o `onClassicCardTapped()` → resultado.
+
+**Modo demo:** `simulateUserLookup()` y `simulatePreAuth()` generan respuestas falsas según el username. Botones de simulación solo visibles cuando `isDemoNode = true`.
 
 ### 8.6 MultiVendorScreen
 
@@ -619,10 +644,24 @@ Gestión de tarjetas NFC y terminales:
 
 ### 8.10 ShiftManagementScreen
 
-- Abrir turno (con monto inicial y notas).
-- Cerrar turno (con monto final y notas).
-- Ver turno activo.
-- PIN de turno (protección para abrir/cerrar).
+Gestión de turnos con PIN del turno verificado contra el backend (online) o hash local (offline):
+
+- Al entrar, consulta al backend si el dueño configuró el PIN (`GET /shift-pin/configured`)
+- Si no hay PIN configurado: muestra mensaje "El dueño del terminal debe configurar el PIN del turno desde su panel web"
+- Si hay PIN configurado: pide el PIN y lo verifica:
+  - **Online:** verifica contra el backend (`POST /shift-pin/verify`). Si es exitoso, actualiza el hash local caché.
+  - **Offline:** verifica contra el hash local caché (SHA-256). Muestra indicador "Modo sin conexión".
+- **Abrir turno:** SOLO online. Pide monto inicial + PIN, envía ambos al backend (`POST /shift` con `pin`). **Bloqueado** si hay cierre pendiente de sincronizar o si está offline.
+- **Cerrar turno:**
+  - **Online:** pide PIN, lo envía al backend (`POST /shift/close` con `pin`)
+  - **Offline:** pide PIN, verifica localmente, guarda cierre con `pendingSync = true`
+- Si el backend rechaza (PIN incorrecto, no configurado, ya hay turno abierto), **no se abre/cierra localmente**
+- **Sincronización:** al recuperar conexión, botón "Sincronizar ahora" envía el cierre pendiente al backend (`POST /shift/sync-close`)
+- **Bloqueo de reapertura:** si hay turno con `pendingSync = true`, el botón "Abrir Punto" está deshabilitado
+- **Historial:** botón "Historial" consulta turnos al backend (`GET /shifts?from=&to=`) con filtro de fechas
+- **Detalle de turno:** al seleccionar un turno, muestra usuario, estado, fechas, montos, transacciones
+- **Sin exportación CSV:** la exportación CSV se hace desde el panel web, no desde el POS Android
+- **Sin crear PIN local:** el POS no puede crear ni cambiar el PIN del turno (solo el dueño desde el panel web)
 
 ---
 

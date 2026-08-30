@@ -283,10 +283,25 @@ export class API {
     })
   }
 
-  // ===== NFC UNIFIED PRE-AUTH (doc + PIN first, all card types) =====
+  // ===== NFC USER LOOKUP (username-first flow) =====
+  async userLookup(terminalID: string, username: string): Promise<any> {
+    return this.request('/api/nfc/terminal/user-lookup', {
+      method: 'POST',
+      body: JSON.stringify({
+        terminal_id: terminalID,
+        encrypted_payload: {
+          plaintext: JSON.stringify({
+            terminal_id: terminalID,
+            username,
+          }),
+        },
+      }),
+    })
+  }
+
+  // ===== NFC UNIFIED PRE-AUTH (username + PIN, for UID/DESFire) =====
   async classicPreAuth(terminalID: string, payload: {
-    doc_type: string
-    doc_number: string
+    username: string
     pin: string
     amount: number
   }): Promise<any> {
@@ -297,6 +312,31 @@ export class API {
         encrypted_payload: {
           plaintext: JSON.stringify({
             terminal_id: terminalID,
+            username: payload.username,
+            pin: payload.pin,
+            amount: payload.amount,
+          }),
+        },
+      }),
+    })
+  }
+
+  // ===== NFC PRE-AUTH WITH DOCUMENT (username + doc + PIN, for Classic) =====
+  async classicPreAuthWithDocument(terminalID: string, payload: {
+    username: string
+    doc_type: string
+    doc_number: string
+    pin: string
+    amount: number
+  }): Promise<any> {
+    return this.request('/api/nfc/terminal/classic/pre-auth-document', {
+      method: 'POST',
+      body: JSON.stringify({
+        terminal_id: terminalID,
+        encrypted_payload: {
+          plaintext: JSON.stringify({
+            terminal_id: terminalID,
+            username: payload.username,
             doc_type: payload.doc_type,
             doc_number: payload.doc_number,
             pin: payload.pin,
@@ -438,19 +478,82 @@ export class API {
   }
 
   // ===== SHIFT MANAGEMENT =====
-  async openShift(terminalID: string, openingAmount: number, notes?: string): Promise<any> {
+  async openShift(terminalID: string, openingAmount: number, pin: string, notes?: string): Promise<any> {
     return this.request(`/api/nfc/my-terminals/${terminalID}/shift`, {
       method: 'POST',
-      body: JSON.stringify({ opening_amount: openingAmount, notes: notes || '' }),
+      body: JSON.stringify({ opening_amount: openingAmount, notes: notes || '', pin }),
     })
   }
 
-  async closeShift(terminalID: string): Promise<any> {
-    return this.request(`/api/nfc/my-terminals/${terminalID}/shift/close`, { method: 'POST' })
+  async closeShift(terminalID: string, pin: string, closingAmount?: number, notes?: string): Promise<any> {
+    return this.request(`/api/nfc/my-terminals/${terminalID}/shift/close`, {
+      method: 'POST',
+      body: JSON.stringify({ closing_amount: closingAmount || 0, notes: notes || '', pin }),
+    })
   }
 
   async getActiveShift(terminalID: string): Promise<any> {
     return this.request(`/api/nfc/my-terminals/${terminalID}/shift`)
+  }
+
+  // ===== SHIFT PIN =====
+  async verifyShiftPin(terminalID: string, pin: string): Promise<any> {
+    return this.request(`/api/nfc/my-terminals/${terminalID}/shift-pin/verify`, {
+      method: 'POST',
+      body: JSON.stringify({ pin }),
+    })
+  }
+
+  async getShiftPinConfigured(terminalID: string): Promise<any> {
+    return this.request(`/api/nfc/my-terminals/${terminalID}/shift-pin/configured`)
+  }
+
+  // ===== SHIFT HISTORY (date range) =====
+  async listShifts(terminalID: string, from?: string, to?: string): Promise<any> {
+    const params = new URLSearchParams()
+    if (from) params.set('from', from)
+    if (to) params.set('to', to)
+    const qs = params.toString()
+    return this.request(`/api/nfc/my-terminals/${terminalID}/shifts${qs ? '?' + qs : ''}`)
+  }
+
+  // ===== CSV EXPORT =====
+  async exportTransactionsCSV(terminalID: string, from?: string, to?: string): Promise<string> {
+    const params = new URLSearchParams()
+    if (from) params.set('from', from)
+    if (to) params.set('to', to)
+    const qs = params.toString()
+    const url = `${this.baseURL}/api/nfc/my-terminals/${terminalID}/export/transactions${qs ? '?' + qs : ''}`
+    const headers: Record<string, string> = {}
+    const jwt = storage.get('merchantToken')
+    if (jwt) headers['Authorization'] = `Bearer ${jwt}`
+    const terminalIDStored = storage.get('terminalID')
+    const sessionToken = storage.get('sessionToken')
+    if (terminalIDStored && sessionToken) {
+      headers['X-Terminal-ID'] = terminalIDStored
+      headers['X-Session-Token'] = sessionToken
+    }
+    const resp = await fetch(url, { headers })
+    return resp.text()
+  }
+
+  async exportShiftsCSV(terminalID: string, from?: string, to?: string): Promise<string> {
+    const params = new URLSearchParams()
+    if (from) params.set('from', from)
+    if (to) params.set('to', to)
+    const qs = params.toString()
+    const url = `${this.baseURL}/api/nfc/my-terminals/${terminalID}/export/shifts${qs ? '?' + qs : ''}`
+    const headers: Record<string, string> = {}
+    const jwt = storage.get('merchantToken')
+    if (jwt) headers['Authorization'] = `Bearer ${jwt}`
+    const terminalIDStored = storage.get('terminalID')
+    const sessionToken = storage.get('sessionToken')
+    if (terminalIDStored && sessionToken) {
+      headers['X-Terminal-ID'] = terminalIDStored
+      headers['X-Session-Token'] = sessionToken
+    }
+    const resp = await fetch(url, { headers })
+    return resp.text()
   }
 
   // ===== DEMO NODE DETECTION =====

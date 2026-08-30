@@ -44,44 +44,62 @@ POST /api/nfc/terminal/payment
 8. Si no requiere multifirma: debitar de `card.UserID`, acreditar al `merchant_user_id` del terminal
 9. Retornar `status="approved"` con `transaction_id` y `user_balance`
 
-### Flujo unificado: NFC con pre-autenticación (todos los tipos de tarjeta)
+### Flujo unificado: NFC con pre-autenticación (username-first)
 
-El flujo NFC unificado pide **documento + PIN primero** para **todos** los tipos de tarjeta (Classic, UID-only, DESFire). El servidor identifica el tipo de tarjeta del usuario desde el documento y responde según corresponda.
+El flujo NFC unificado pide **username primero**, luego **documento solo si el servidor dice que es necesario** (tarjeta Classic), luego **PIN**, y finalmente **tarjeta**. El servidor identifica el tipo de tarjeta del usuario desde el username y responde si requiere documento.
 
 #### Steps de la UI (`NfcChargeScreen.kt`)
 
-1. **`amount_input`** — Comerciante ingresa monto, botón "Cobrar"
-2. **`credentials`** — Cliente ingresa documento + PIN (siempre obligatorio, sin tarjeta)
-3. **`tap_card`** — POS muestra "ACERQUE SU TARJETA" (después del pre-auth del servidor)
-4. **`writing`** (solo Classic) — POS lee/escribe sectores con animación de progreso
-5. **`done`** — POS muestra resultado (aprobado/rechazado)
+**Classic (requiresDocument = true):**
+1. **Monto** (step 1) — Comerciante ingresa monto, botón "Cobrar"
+2. **Username** (step 2) — Cliente ingresa username (con `@nodo` si es remoto)
+3. **Documento** (step 3) — Solo si `requires_document = true` (Classic)
+4. **PIN** (step 4) — Cliente ingresa PIN de 4 dígitos
+5. **Tap card** (step 5) — POS muestra "ACERQUE SU TARJETA"
+6. **Writing** (solo Classic) — POS lee/escribe sectores con animación de progreso
+7. **Done** — POS muestra resultado (aprobado/rechazado)
+
+**UID/DESFire (requiresDocument = false):**
+1. **Monto** (step 1) — Comerciante ingresa monto
+2. **Username** (step 2) — Cliente ingresa username
+3. **PIN** (step 3) — Cliente ingresa PIN (sin documento)
+4. **Tap card** (step 4) — POS muestra "ACERQUE SU TARJETA"
+5. **Done** — POS muestra resultado
 
 #### Flujo detallado
 
 1. **Comerciante ingresa monto** → botón "Cobrar"
-2. **Cliente ingresa documento + PIN** (sin tarjeta) — para todos los tipos, siempre obligatorio
-3. POS envía `POST /api/nfc/terminal/classic/pre-auth` (cifrado)
-4. Servidor valida: usuario (por doc), PIN, saldo → bloquea monto, identifica tipo de tarjeta
-5. Servidor responde con `card_type`:
+2. **Cliente ingresa username** (sin tarjeta) — con `@nodo` para usuarios remotos
+3. POS envía `POST /api/nfc/terminal/user-lookup` (cifrado)
+4. Servidor responde con `found`, `card_type`, `requires_document`, `required_doc_type`, `document_types`
+5. **Si `requires_document = true` (Classic):** cliente ingresa documento del tipo `required_doc_type`
+6. **Cliente ingresa PIN** (sin tarjeta)
+7. POS envía pre-auth al servidor:
+   - Si requiere documento: `POST /api/nfc/terminal/classic/pre-auth-document` (cifrado)
+   - Si no requiere documento: `POST /api/nfc/terminal/classic/pre-auth` (cifrado)
+8. Servidor valida: usuario (por username), PIN, saldo → bloquea monto, identifica tipo de tarjeta
+9. Servidor responde con `card_type`:
    - `classic`: `card_uid`, `read_sector`, `read_key_a`, `expected_certificate`, `write_sector`, `write_key_b`, `new_certificate`
    - `uid_only`/`desfire`: solo `card_uid` para verificar
-6. POS muestra "ACERQUE SU TARJETA"
-7. **Si es Classic:**
-   - POS lee UID → verifica, lee sector con Key A → verifica cert (triple redundancia)
-   - POS escribe nuevo cert en sector destino con Key B (3 bloques)
-   - POS re-lee para verificar escritura
-   - POS envía `POST /api/nfc/terminal/classic/confirm` (cifrado)
-   - Servidor procesa pago, desactiva sector viejo, activa nuevo
-8. **Si es UID-only/DESFire:**
-   - POS verifica UID coincide con `card_uid` del pre-auth
-   - POS llama a `processNfcPayment` con card_uid + PIN + amount
-   - Servidor procesa pago normal
-9. POS muestra resultado
+10. POS muestra "ACERQUE SU TARJETA"
+11. **Si es Classic:**
+    - POS lee UID → verifica, lee sector con Key A → verifica cert (triple redundancia)
+    - POS escribe nuevo cert en sector destino con Key B (3 bloques)
+    - POS re-lee para verificar escritura
+    - POS envía `POST /api/nfc/terminal/classic/confirm` (cifrado)
+    - Servidor procesa pago, desactiva sector viejo, activa nuevo
+12. **Si es UID-only/DESFire:**
+    - POS verifica UID coincide con `card_uid` del pre-auth
+    - POS llama a `processNfcPayment` con card_uid + PIN + amount
+    - Servidor procesa pago normal
+13. POS muestra resultado
 
-**Diferencias clave del flujo unificado:**
-- Auth primero (doc + PIN), tarjeta al final — para todos los tipos
-- Documento OBLIGATORIO para todos (no configurable)
-- El servidor identifica el tipo de tarjeta desde el documento
+**Diferencias clave del flujo username-first:**
+- Username primero (no documento) para todos los tipos
+- Documento OBLIGATORIO solo para Classic (`requires_document = true`)
+- UID/DESFire no pide documento
+- El servidor identifica el tipo de tarjeta desde el username (user-lookup)
+- Soporta usuarios remotos con `@nodo` (federation user lookup)
 - Classic: rotación aleatoria de certificado por transacción + triple redundancia
 - UID/DESFire: verificación simple de UID + processNfcPayment
 - Recuperación de escritura parcial (`needs_repair`) solo para Classic

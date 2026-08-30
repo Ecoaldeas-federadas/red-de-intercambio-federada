@@ -312,12 +312,26 @@ Estos endpoints se consumen entre nodos via mTLS (no requieren JWT):
 | POST | `/api/nfc/terminal/payment` | Pago individual (cifrado) |
 | POST | `/api/nfc/terminal/payment/community` | Pago comunitario (doble tarjeta) |
 | POST | `/api/nfc/terminal/payment/multisig-sign` | Firma multi-sig |
-| POST | `/api/nfc/terminal/classic/pre-auth` | Pre-autenticacion tarjeta Classic (cert dinamicos) |
+| POST | `/api/nfc/terminal/classic/pre-auth` | Pre-auth UID/DESFire (username + PIN, cifrado) |
+| POST | `/api/nfc/terminal/classic/pre-auth-document` | Pre-auth Classic (username + doc + PIN, cifrado) |
 | POST | `/api/nfc/terminal/classic/confirm` | Confirmar lectura/escritura tarjeta Classic |
+| POST | `/api/nfc/terminal/user-lookup` | Buscar usuario por username (cifrado) |
 | POST | `/api/nfc/cards/issue` | Emitir tarjeta (permiso: `nfc.issue_card`) |
 | POST | `/api/nfc/cards/provision-classic` | Provisionar MIFARE Classic con cert dinamicos (permiso: `nfc.issue_card`) |
 | PUT | `/api/nfc/cards/pin` | Cambiar PIN |
 | PUT | `/api/nfc/cards/{uid}/pin/reset` | Resetear PIN (permiso: `nfc.reset_pin`) |
+| POST | `/api/nfc/my-terminals/{id}/shift` | Abrir turno (requiere PIN del turno) |
+| POST | `/api/nfc/my-terminals/{id}/shift/close` | Cerrar turno (requiere PIN del turno) |
+| GET | `/api/nfc/my-terminals/{id}/shift` | Turno activo |
+| POST | `/api/nfc/my-terminals/{id}/shift-pin` | Configurar PIN del turno (solo dueno) |
+| POST | `/api/nfc/my-terminals/{id}/shift-pin/verify` | Verificar PIN del turno |
+| GET | `/api/nfc/my-terminals/{id}/shift-pin/configured` | Consultar si hay PIN configurado |
+| GET | `/api/nfc/my-terminals/{id}/shifts?from=&to=` | Historial de turnos por rango de fecha |
+| GET | `/api/nfc/my-terminals/{id}/export/transactions?from=&to=` | Exportar transacciones CSV |
+| GET | `/api/nfc/my-terminals/{id}/export/shifts?from=&to=` | Exportar turnos CSV |
+| GET | `/api/nfc/retention/config` | Ver configuracion de retencion |
+| PUT | `/api/nfc/retention/config` | Actualizar retencion (admin) |
+| POST | `/api/nfc/retention/purge` | Purga manual (admin) |
 
 Ver `docs/tarjeta-classic-certificados.md` para detalles del flujo Classic.
 
@@ -453,11 +467,13 @@ Ver `docs/tarjeta-classic-certificados.md` para detalles del flujo Classic.
 | GET | `/api/pos/charge/{token}/info` | Info publica del cargo por token (sin auth) |
 | POST | `/api/pos/charge/{id}/cancel` | Cancelar cargo |
 
-### NFC Terminal — Flujo unificado (todos los tipos de tarjeta)
+### NFC Terminal — Flujo unificado (username-first, todos los tipos de tarjeta)
 
 | Metodo | Ruta | Descripcion |
 |--------|------|-------------|
-| POST | `/api/nfc/terminal/classic/pre-auth` | Pre-autenticacion unificada (doc + PIN → card_type) |
+| POST | `/api/nfc/terminal/user-lookup` | Buscar usuario por username (cifrado) |
+| POST | `/api/nfc/terminal/classic/pre-auth` | Pre-auth UID/DESFire (username + PIN, cifrado) |
+| POST | `/api/nfc/terminal/classic/pre-auth-document` | Pre-auth Classic (username + doc + PIN, cifrado) |
 | POST | `/api/nfc/terminal/classic/confirm` | Confirmar lectura/escritura Classic (cert dinamicos) |
 | POST | `/api/nfc/cards/provision-classic` | Provisionar tarjeta MIFARE Classic (permiso: `nfc.issue_card`) |
 

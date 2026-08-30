@@ -13,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import java.util.UUID
+import java.security.MessageDigest
 
 class PosRepository(
     private val context: Context,
@@ -23,6 +24,28 @@ class PosRepository(
     val shiftDao: ShiftDao = database.shiftDao()
     val shiftPinDao: ShiftPinDao = database.shiftPinDao()
     val terminalConfigDao: TerminalConfigDao = database.terminalConfigDao()
+
+    // Salt fijo para el hash local del PIN del turno (offline fallback).
+    // No es lo mismo que el bcrypt del backend — es solo para verificación offline.
+    private val SHIFT_PIN_SALT = "POS_SHIFT_PIN_OFFLINE_SALT_v1"
+
+    // Computa SHA-256(salt + pin) en hex — para caché local offline
+    private fun hashPinLocal(pin: String): String {
+        val md = MessageDigest.getInstance("SHA-256")
+        val input = (SHIFT_PIN_SALT + pin).toByteArray(Charsets.UTF_8)
+        return md.digest(input).joinToString("") { "%02x".format(it) }
+    }
+
+    // Guarda el hash local del PIN (caché offline)
+    private suspend fun cacheShiftPinHash(pin: String) = withContext(Dispatchers.IO) {
+        shiftPinDao.savePin(ShiftPinEntity(id = 1, pinHash = hashPinLocal(pin)))
+    }
+
+    // Verifica el PIN contra el hash local caché (offline)
+    private suspend fun verifyShiftPinLocal(pin: String): Boolean = withContext(Dispatchers.IO) {
+        val cached = shiftPinDao.getPin() ?: return@withContext false
+        hashPinLocal(pin) == cached.pinHash
+    }
 
     val allTransactions: Flow<List<TransactionEntity>> = transactionDao.getAllTransactions()
     val latestShift: Flow<ShiftEntity?> = shiftDao.getLatestShiftFlow()
@@ -613,6 +636,18 @@ class PosRepository(
         derived
     }
 
+    private fun isSimulatedOrDemo(cardUid: String? = null, pendingId: String? = null): Boolean {
+        if (apiClient.isDemoNode) return true
+        val uCard = cardUid?.uppercase().orEmpty()
+        val uPid = pendingId?.uppercase().orEmpty()
+        return uCard.startsWith("CARD-") || uCard.startsWith("BUYER_") || uCard.startsWith("SELLER_") ||
+                uCard.startsWith("DEMO_") || uCard.contains("MULTISIG") || uCard.contains("3F") ||
+                uCard.contains("2F") || uCard.contains("3SIG") || uCard.contains("2SIG") ||
+                uCard.contains("FIRM") || uCard.contains("SIM") ||
+                uPid.contains("MS3") || uPid.contains("MS2") || uPid.contains("PENDING-") ||
+                uPid.contains("TX-MS") || uPid.contains("MV-MS")
+    }
+
     // --- NFC SINGLE PAYMENT ---
     suspend fun processNfcPayment(
         cardUid: String,
@@ -697,7 +732,7 @@ class PosRepository(
                 }
                 Result.success(result)
             } else {
-                if (apiClient.isDemoNode) {
+                if (isSimulatedOrDemo(cardUid = cardUid)) {
                     val isMultisig3 = cardUid.contains("3SIG") || cardUid.contains("3F")
                     val isMultisig2 = cardUid.contains("MULTISIG") || cardUid.contains("2SIG") || cardUid.contains("FIRM")
                     if (isMultisig3) {
@@ -755,7 +790,7 @@ class PosRepository(
                 }
             }
         } catch (e: Exception) {
-            if (apiClient.isDemoNode) {
+            if (isSimulatedOrDemo(cardUid = cardUid)) {
                 val isMultisig3 = cardUid.contains("3SIG") || cardUid.contains("3F")
                 val isMultisig2 = cardUid.contains("MULTISIG") || cardUid.contains("2SIG") || cardUid.contains("FIRM")
                 if (isMultisig3) {
@@ -898,7 +933,7 @@ class PosRepository(
                 }
                 Result.success(result)
             } else {
-                if (apiClient.isDemoNode) {
+                if (isSimulatedOrDemo(cardUid = buyerCardUid)) {
                     val isMultisig3 = buyerCardUid.contains("3SIG") || buyerCardUid.contains("3F")
                     val isMultisig2 = buyerCardUid.contains("MULTISIG") || buyerCardUid.contains("2SIG") || buyerCardUid.contains("2F") || buyerCardUid.contains("FIRM")
                     if (isMultisig3) {
@@ -957,7 +992,7 @@ class PosRepository(
                 }
             }
         } catch (e: Exception) {
-            if (apiClient.isDemoNode) {
+            if (isSimulatedOrDemo(cardUid = buyerCardUid)) {
                 val isMultisig3 = buyerCardUid.contains("3SIG") || buyerCardUid.contains("3F")
                 val isMultisig2 = buyerCardUid.contains("MULTISIG") || buyerCardUid.contains("2SIG") || buyerCardUid.contains("2F") || buyerCardUid.contains("FIRM")
                 if (isMultisig3) {
@@ -1089,10 +1124,10 @@ class PosRepository(
                 }
                 Result.success(result)
             } else {
-                if (apiClient.isDemoNode) {
-                    // Modo Demo: simular respuesta de firma multisig
-                    val is3SigsFlow = pendingPaymentId.contains("MS3") || cardUid.contains("3SIG") || cardUid.contains("3F")
-                    val isFirm2Of3 = is3SigsFlow && (cardUid.contains("2") || cardUid.contains("FIRM2") || cardUid.contains("SIG2"))
+                if (isSimulatedOrDemo(cardUid = cardUid, pendingId = pendingPaymentId)) {
+                    // Modo Demo / Simulación: simular respuesta de firma multisig
+                    val is3SigsFlow = pendingPaymentId.contains("MS3") || pendingPaymentId.contains("3F") || cardUid.contains("3SIG") || cardUid.contains("3F")
+                    val isFirm2Of3 = is3SigsFlow && (cardUid.contains("FIRM2") || cardUid.contains("SIG2") || cardUid.endsWith("2") || cardUid.contains("_2"))
                     if (isFirm2Of3) {
                         Result.success(
                             PaymentResultDecrypted(
@@ -1132,10 +1167,10 @@ class PosRepository(
                 }
             }
         } catch (e: Exception) {
-            if (apiClient.isDemoNode) {
-                // Modo Demo: simular respuesta de firma multisig en caso de error de red
-                val is3SigsFlow = pendingPaymentId.contains("MS3") || cardUid.contains("3SIG") || cardUid.contains("3F")
-                val isFirm2Of3 = is3SigsFlow && (cardUid.contains("2") || cardUid.contains("FIRM2") || cardUid.contains("SIG2"))
+            if (isSimulatedOrDemo(cardUid = cardUid, pendingId = pendingPaymentId)) {
+                // Modo Demo / Simulación: simular respuesta de firma multisig en caso de error de red
+                val is3SigsFlow = pendingPaymentId.contains("MS3") || pendingPaymentId.contains("3F") || cardUid.contains("3SIG") || cardUid.contains("3F")
+                val isFirm2Of3 = is3SigsFlow && (cardUid.contains("FIRM2") || cardUid.contains("SIG2") || cardUid.endsWith("2") || cardUid.contains("_2"))
                 if (isFirm2Of3) {
                     Result.success(
                         PaymentResultDecrypted(
@@ -1182,9 +1217,9 @@ class PosRepository(
             if (res.isSuccessful && res.body() != null) {
                 Result.success(res.body()!!)
             } else {
-                if (apiClient.isDemoNode) {
+                if (isSimulatedOrDemo(pendingId = pendingId)) {
                     // Modo Demo: simular estado pendiente sin degradar contadores locales
-                    val is3Sigs = pendingId.contains("MS3")
+                    val is3Sigs = pendingId.contains("MS3") || pendingId.contains("3F")
                     Result.success(
                         MultisigStatusResponse(
                             id = pendingId,
@@ -1200,9 +1235,9 @@ class PosRepository(
                 }
             }
         } catch (e: Exception) {
-            if (apiClient.isDemoNode) {
+            if (isSimulatedOrDemo(pendingId = pendingId)) {
                 // Modo Demo: simular estado pendiente en caso de error de red
-                val is3Sigs = pendingId.contains("MS3")
+                val is3Sigs = pendingId.contains("MS3") || pendingId.contains("3F")
                 Result.success(
                     MultisigStatusResponse(
                         id = pendingId,
@@ -1220,10 +1255,38 @@ class PosRepository(
     }
 
     // --- SHIFT MANAGEMENT ---
-    suspend fun openShift(openingamountCentavos: Long, notes: String? = null): Result<ShiftEntity> = withContext(Dispatchers.IO) {
+    suspend fun openShift(openingamountCentavos: Long, pin: String, notes: String? = null): Result<ShiftEntity> = withContext(Dispatchers.IO) {
         try {
+            // Verificar si hay un cierre pendiente de sincronizar
+            val pendingShift = shiftDao.getPendingSyncShift()
+            if (pendingShift != null) {
+                return@withContext Result.failure(Exception(
+                    "Hay un cierre de turno pendiente de sincronizar con el servidor. " +
+                    "Conéctese a internet para sincronizar antes de abrir un nuevo turno."
+                ))
+            }
+
             val config = getOrInitTerminalConfig()
-            val shiftId = UUID.randomUUID().toString()
+
+            // Llamar al backend con el PIN — si el backend rechaza, no abrir localmente
+            val response = apiClient.getService().openShift(
+                config.terminalId,
+                OpenShiftRequest(openingamountCentavos, notes, pin)
+            )
+            if (!response.isSuccessful) {
+                val errorBody = response.errorBody()?.string() ?: ""
+                val msg = when {
+                    errorBody.contains("PIN del turno incorrecto", ignoreCase = true) -> "PIN del turno incorrecto"
+                    errorBody.contains("no ha configurado", ignoreCase = true) -> "El dueño del terminal no ha configurado el PIN del turno"
+                    errorBody.contains("pin is required", ignoreCase = true) -> "Se requiere el PIN del turno"
+                    errorBody.contains("already an open shift", ignoreCase = true) -> "Ya hay un turno abierto — ciérrelo primero"
+                    else -> "Error al abrir turno (HTTP ${response.code()})"
+                }
+                return@withContext Result.failure(Exception(msg))
+            }
+
+            // El backend aceptó — guardar localmente
+            val shiftId = response.body()?.id ?: UUID.randomUUID().toString()
             val shift = ShiftEntity(
                 id = shiftId,
                 status = "open",
@@ -1231,41 +1294,77 @@ class PosRepository(
                 openingAmount = openingamountCentavos,
                 totalSales = 0L,
                 transactionsCount = 0,
-                notes = notes
+                notes = notes,
+                pendingSync = false,
+                closedOffline = false
             )
             shiftDao.insertShift(shift)
-
-            try {
-                apiClient.getService().openShift(config.terminalId, OpenShiftRequest(openingamountCentavos, notes))
-            } catch (e: Exception) {}
-
             Result.success(shift)
         } catch (e: Exception) {
-            Result.failure(Exception("Error al abrir turno: ${e.localizedMessage}"))
+            Result.failure(Exception("Error de conexión: ${e.localizedMessage}"))
         }
     }
 
-    suspend fun closeShift(closingamountCentavos: Long? = null, notes: String? = null): Result<ShiftEntity> = withContext(Dispatchers.IO) {
+    suspend fun closeShift(pin: String, closingamountCentavos: Long? = null, notes: String? = null): Result<ShiftEntity> = withContext(Dispatchers.IO) {
         try {
             val current = shiftDao.getOpenShift()
             if (current == null) return@withContext Result.failure(Exception("No hay turno abierto"))
+
+            val config = getOrInitTerminalConfig()
+
+            // Intentar cerrar en el backend
+            val response = apiClient.getService().closeShift(
+                config.terminalId,
+                CloseShiftRequest(closingamountCentavos, notes, pin)
+            )
+            if (response.isSuccessful) {
+                // El backend aceptó — actualizar localmente
+                val updated = current.copy(
+                    status = "closed",
+                    closedAt = System.currentTimeMillis(),
+                    closingAmount = closingamountCentavos,
+                    notes = notes,
+                    pendingSync = false,
+                    closedOffline = false
+                )
+                shiftDao.updateShift(updated)
+                Result.success(updated)
+            } else {
+                val errorBody = response.errorBody()?.string() ?: ""
+                val msg = when {
+                    errorBody.contains("PIN del turno incorrecto", ignoreCase = true) -> "PIN del turno incorrecto"
+                    errorBody.contains("no ha configurado", ignoreCase = true) -> "El dueño del terminal no ha configurado el PIN del turno"
+                    errorBody.contains("pin is required", ignoreCase = true) -> "Se requiere el PIN del turno"
+                    else -> "Error al cerrar turno (HTTP ${response.code()})"
+                }
+                Result.failure(Exception(msg))
+            }
+        } catch (e: Exception) {
+            // Sin conexión — cerrar offline
+            // Primero verificar el PIN localmente
+            val pinValid = verifyShiftPinLocal(pin)
+            if (!pinValid) {
+                val hasCache = shiftPinDao.getPin() != null
+                return@withContext Result.failure(Exception(
+                    if (hasCache) "PIN incorrecto (sin conexión)"
+                    else "Sin conexión y no hay PIN guardado localmente. Conéctese a internet primero."
+                ))
+            }
+
+            // Cerrar offline — guardar local con pendingSync = true
+            val current = shiftDao.getOpenShift()
+                ?: return@withContext Result.failure(Exception("No hay turno abierto"))
 
             val updated = current.copy(
                 status = "closed",
                 closedAt = System.currentTimeMillis(),
                 closingAmount = closingamountCentavos,
-                notes = notes
+                notes = notes,
+                pendingSync = true,
+                closedOffline = true
             )
             shiftDao.updateShift(updated)
-
-            val config = getOrInitTerminalConfig()
-            try {
-                apiClient.getService().closeShift(config.terminalId, CloseShiftRequest(closingamountCentavos, notes))
-            } catch (e: Exception) {}
-
             Result.success(updated)
-        } catch (e: Exception) {
-            Result.failure(Exception("Error al cerrar turno: ${e.localizedMessage}"))
         }
     }
 
@@ -1297,41 +1396,16 @@ class PosRepository(
 
     /**
      * Pre-autenticacion para tarjeta MIFARE Classic.
-     * El usuario ingresa documento + PIN. El servidor valida y responde
+     * El usuario ingresa username + PIN. El servidor valida y responde
      * con el sector a leer, clave A, certificado esperado, sector a escribir,
      * clave B y certificado nuevo.
+     * Para tarjetas Classic que requieren documento, usar classicPreAuthWithDocument.
      */
     suspend fun classicPreAuth(
-        docType: String,
-        docNumber: String,
+        username: String,
         pin: String,
         amountCentavos: Long
     ): Result<ClassicPreAuthResponse> = withContext(Dispatchers.IO) {
-        // Modo Demo: simular pre-auth unificada
-        if (apiClient.isDemoNode) {
-            val isMultisig3 = docNumber.contains("3SIG") || docNumber.contains("3F")
-            val isMultisig2 = docNumber.contains("MULTISIG") || docNumber.contains("2SIG") || docNumber.contains("FIRM")
-            if (isMultisig3 || isMultisig2) {
-                // Simular tarjeta DESFire con multifirma
-                return@withContext Result.success(ClassicPreAuthResponse(
-                    preApproved = true,
-                    cardType = "desfire",
-                    cardUid = if (isMultisig3) "CARD-MULTISIG-3F-FIRM1" else "CARD-MULTISIG-2F-FIRM1"
-                ))
-            }
-            // Simular tarjeta Classic con certificados dinamicos
-            return@withContext Result.success(ClassicPreAuthResponse(
-                preApproved = true,
-                cardType = "classic",
-                cardUid = "DEMO-CLASSIC-${docNumber.take(6)}",
-                readSector = 5,
-                readKeyA = "aabbccddeeff",
-                expectedCertificate = "11223344556677889900aabbccddeeff",
-                writeSector = 10,
-                writeKeyB = "112233445566",
-                newCertificate = "ffeeddccbbaa99887766554433221100"
-            ))
-        }
         try {
             val config = getOrInitTerminalConfig()
             val serverPubKey = config.serverPublicKeyHex
@@ -1339,8 +1413,7 @@ class PosRepository(
 
             val payload = ClassicPreAuthDecryptedPayload(
                 terminalId = config.terminalId,
-                docType = docType,
-                docNumber = docNumber,
+                username = username,
                 pin = pin,
                 amount = amountCentavos
             )
@@ -1397,6 +1470,199 @@ class PosRepository(
     }
 
     /**
+     * Pre-autenticacion para tarjeta MIFARE Classic con documento de identidad.
+     * Se usa cuando el servidor indica que la tarjeta requiere documento (requires_document = true).
+     */
+    suspend fun classicPreAuthWithDocument(
+        username: String,
+        docType: String,
+        docNumber: String,
+        pin: String,
+        amountCentavos: Long
+    ): Result<ClassicPreAuthResponse> = withContext(Dispatchers.IO) {
+        try {
+            val config = getOrInitTerminalConfig()
+            val serverPubKey = config.serverPublicKeyHex
+                ?: return@withContext Result.failure(Exception("Terminal no registrado: sin clave pública del servidor"))
+
+            val payload = ClassicPreAuthWithDocumentDecryptedPayload(
+                terminalId = config.terminalId,
+                username = username,
+                docType = docType,
+                docNumber = docNumber,
+                pin = pin,
+                amount = amountCentavos
+            )
+
+            val adapter = apiClient.moshi.adapter(ClassicPreAuthWithDocumentDecryptedPayload::class.java)
+            val jsonPlain = adapter.toJson(payload)
+
+            val (ephemeralMsg, ephemeralSharedKey) = CryptoEngine.encryptPayloadEphemeral(
+                plaintextJson = jsonPlain,
+                terminalPrivateKeyHex = config.terminalPrivateKeyHex,
+                serverPublicKeyHex = serverPubKey
+            )
+
+            val service = apiClient.getService()
+            val request = EncryptedPaymentRequest(
+                terminalId = config.terminalId,
+                encryptedPayload = EphemeralMessageModel(
+                    handshake = EphemeralHandshakeModel(
+                        ephemeralPublicKey = ephemeralMsg.handshake.ephemeralPublicKey,
+                        identitySignature = ephemeralMsg.handshake.identitySignature,
+                        nonce = ephemeralMsg.handshake.nonce
+                    ),
+                    nonce = ephemeralMsg.nonce,
+                    ciphertext = ephemeralMsg.ciphertext,
+                    signature = ephemeralMsg.signature
+                )
+            )
+
+            val response = service.classicPreAuthWithDocument(request)
+            if (response.isSuccessful && response.body()?.ciphertext != null) {
+                val encResp = response.body()!!
+                val plainResp = CryptoEngine.decryptResponseEphemeral(
+                    encryptedPayload = EncryptedPayload(
+                        nonce = encResp.nonce.orEmpty(),
+                        ciphertext = encResp.ciphertext.orEmpty(),
+                        signature = encResp.signature.orEmpty()
+                    ),
+                    ephemeralSharedKey = ephemeralSharedKey,
+                    serverPublicKeyHex = config.serverPublicKeyHex
+                )
+
+                val resAdapter = apiClient.moshi.adapter(ClassicPreAuthResponse::class.java)
+                val result = resAdapter.fromJson(plainResp) ?: ClassicPreAuthResponse(
+                    preApproved = false,
+                    message = "Respuesta del servidor inválida"
+                )
+                Result.success(result)
+            } else {
+                Result.failure(Exception("Error en pre-auth-document (HTTP ${response.code()})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión en pre-auth-document: ${e.localizedMessage}"))
+        }
+    }
+
+    /**
+     * Lookup de usuario por username.
+     * Retorna el tipo de tarjeta y si requiere documento de identidad.
+     */
+    suspend fun userLookup(username: String): Result<UserLookupResponse> = withContext(Dispatchers.IO) {
+        try {
+            val config = getOrInitTerminalConfig()
+            val serverPubKey = config.serverPublicKeyHex
+                ?: return@withContext Result.failure(Exception("Terminal no registrado: sin clave pública del servidor"))
+
+            val payload = UserLookupDecryptedPayload(
+                terminalId = config.terminalId,
+                username = username
+            )
+
+            val adapter = apiClient.moshi.adapter(UserLookupDecryptedPayload::class.java)
+            val jsonPlain = adapter.toJson(payload)
+
+            val (ephemeralMsg, ephemeralSharedKey) = CryptoEngine.encryptPayloadEphemeral(
+                plaintextJson = jsonPlain,
+                terminalPrivateKeyHex = config.terminalPrivateKeyHex,
+                serverPublicKeyHex = serverPubKey
+            )
+
+            val service = apiClient.getService()
+            val request = EncryptedPaymentRequest(
+                terminalId = config.terminalId,
+                encryptedPayload = EphemeralMessageModel(
+                    handshake = EphemeralHandshakeModel(
+                        ephemeralPublicKey = ephemeralMsg.handshake.ephemeralPublicKey,
+                        identitySignature = ephemeralMsg.handshake.identitySignature,
+                        nonce = ephemeralMsg.handshake.nonce
+                    ),
+                    nonce = ephemeralMsg.nonce,
+                    ciphertext = ephemeralMsg.ciphertext,
+                    signature = ephemeralMsg.signature
+                )
+            )
+
+            val response = service.userLookup(request)
+            if (response.isSuccessful && response.body()?.ciphertext != null) {
+                val encResp = response.body()!!
+                val plainResp = CryptoEngine.decryptResponseEphemeral(
+                    encryptedPayload = EncryptedPayload(
+                        nonce = encResp.nonce.orEmpty(),
+                        ciphertext = encResp.ciphertext.orEmpty(),
+                        signature = encResp.signature.orEmpty()
+                    ),
+                    ephemeralSharedKey = ephemeralSharedKey,
+                    serverPublicKeyHex = config.serverPublicKeyHex
+                )
+
+                val resAdapter = apiClient.moshi.adapter(UserLookupResponse::class.java)
+                val result = resAdapter.fromJson(plainResp) ?: UserLookupResponse(
+                    found = false,
+                    message = "Respuesta del servidor inválida"
+                )
+                Result.success(result)
+            } else {
+                Result.failure(Exception("Error en user-lookup (HTTP ${response.code()})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión en user-lookup: ${e.localizedMessage}"))
+        }
+    }
+
+    /**
+     * Verifica el PIN del turno contra el backend.
+     */
+    suspend fun verifyShiftPin(terminalId: String, pin: String): Result<VerifyShiftPinResponse> = withContext(Dispatchers.IO) {
+        try {
+            val service = apiClient.getService()
+            val response = service.verifyShiftPin(terminalId, VerifyShiftPinRequest(pin))
+            if (response.isSuccessful) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception("Error verificando PIN (HTTP ${response.code()})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión: ${e.localizedMessage}"))
+        }
+    }
+
+    /**
+     * Verifica si el terminal tiene PIN del turno configurado.
+     */
+    suspend fun getShiftPinConfigured(terminalId: String): Result<ShiftPinConfiguredResponse> = withContext(Dispatchers.IO) {
+        try {
+            val service = apiClient.getService()
+            val response = service.getShiftPinConfigured(terminalId)
+            if (response.isSuccessful) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception("Error (HTTP ${response.code()})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión: ${e.localizedMessage}"))
+        }
+    }
+
+    /**
+     * Lista turnos del terminal por rango de fechas.
+     */
+    suspend fun listShifts(terminalId: String, from: String? = null, to: String? = null): Result<List<ShiftHistoryItem>> = withContext(Dispatchers.IO) {
+        try {
+            val service = apiClient.getService()
+            val response = service.listShifts(terminalId, from, to)
+            if (response.isSuccessful) {
+                Result.success(response.body() ?: emptyList())
+            } else {
+                Result.failure(Exception("Error listando turnos (HTTP ${response.code()})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión: ${e.localizedMessage}"))
+        }
+    }
+
+    /**
      * Confirma la lectura/escritura de la tarjeta Classic.
      * El servidor procesa el pago si readOk y writeOk son true.
      */
@@ -1406,26 +1672,6 @@ class PosRepository(
         writeOk: Boolean,
         writtenBlocks: Int
     ): Result<PaymentResultDecrypted> = withContext(Dispatchers.IO) {
-        // Modo Demo: simular confirmacion Classic
-        if (apiClient.isDemoNode) {
-            val simulatedResult = PaymentResultDecrypted(
-                status = "approved",
-                transactionId = "TX-CLASSIC-DEMO-${UUID.randomUUID().toString().take(6).uppercase()}",
-                message = "Transacción Classic simulada aprobada (Modo Demo)",
-                userBalance = 180000L
-            )
-            transactionDao.insertTransaction(
-                TransactionEntity(
-                    id = simulatedResult.transactionId!!,
-                    amount = 0,
-                    paymentMethod = "nfc_classic",
-                    status = "approved",
-                    cardUid = cardUid,
-                    receiptNumber = "NFC-${UUID.randomUUID().toString().take(8).uppercase()}"
-                )
-            )
-            return@withContext Result.success(simulatedResult)
-        }
         try {
             val config = getOrInitTerminalConfig()
             val serverPubKey = config.serverPublicKeyHex
@@ -1575,41 +1821,218 @@ class PosRepository(
     }
 
     // ============================================
-    // Shift PIN management
+    // Shift PIN management (verifica contra el backend)
     // ============================================
 
-    suspend fun setShiftPin(pin: String): Result<Unit> = withContext(Dispatchers.IO) {
+    /**
+     * Verifica el PIN del turno contra el backend.
+     * El PIN lo configura el dueño del terminal desde el panel web.
+     * El POS no puede crear ni cambiar el PIN.
+     */
+    /**
+     * Verifica el PIN del turno.
+     * - Online: verifica contra el backend (bcrypt). Si es exitoso, actualiza el caché local.
+     * - Offline (sin conexión): verifica contra el hash local caché (SHA-256).
+     * Retorna Pair(valid, offline) donde offline=true significa que se verificó localmente.
+     */
+    suspend fun verifyShiftPin(pin: String): Result<Pair<Boolean, Boolean>> = withContext(Dispatchers.IO) {
         try {
-            val hash = hashPin(pin)
-            shiftPinDao.savePin(ShiftPinEntity(id = 1, pinHash = hash))
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(Exception("Error al guardar PIN: ${e.localizedMessage}"))
-        }
-    }
-
-    suspend fun verifyShiftPin(pin: String): Result<Boolean> = withContext(Dispatchers.IO) {
-        try {
-            val stored = shiftPinDao.getPin()
-            if (stored == null) {
-                Result.success(false) // No PIN set
+            val config = getOrInitTerminalConfig()
+            val service = apiClient.getService()
+            val response = service.verifyShiftPin(config.terminalId, VerifyShiftPinRequest(pin))
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null && !body.configured) {
+                    Result.failure(Exception("El dueño del terminal no ha configurado el PIN del turno"))
+                } else {
+                    val valid = body?.valid == true
+                    // Si la verificación online fue exitosa, actualizar el caché local
+                    if (valid) {
+                        cacheShiftPinHash(pin)
+                    }
+                    Result.success(valid to false)
+                }
             } else {
-                val hash = hashPin(pin)
-                Result.success(hash == stored.pinHash)
+                Result.failure(Exception("Error al verificar PIN (HTTP ${response.code()})"))
             }
         } catch (e: Exception) {
-            Result.failure(Exception("Error al verificar PIN: ${e.localizedMessage}"))
+            // Sin conexión — fallback a verificación local
+            val localValid = verifyShiftPinLocal(pin)
+            if (localValid) {
+                Result.success(true to true)
+            } else {
+                // Verificar si hay caché local — si no hay, el error es diferente
+                val hasCache = shiftPinDao.getPin() != null
+                if (hasCache) {
+                    Result.failure(Exception("PIN incorrecto (sin conexión — verificación local)"))
+                } else {
+                    Result.failure(Exception("Sin conexión y no hay PIN guardado localmente. Conéctese a internet primero."))
+                }
+            }
         }
     }
 
+    /**
+     * Consulta si el dueño ha configurado el PIN del turno en el backend.
+     */
+    /**
+     * Consulta si el dueño ha configurado el PIN del turno.
+     * - Online: consulta al backend.
+     * - Offline: verifica si hay hash local caché.
+     */
     suspend fun hasShiftPin(): Boolean = withContext(Dispatchers.IO) {
-        shiftPinDao.getPin() != null
+        try {
+            val config = getOrInitTerminalConfig()
+            val service = apiClient.getService()
+            val response = service.getShiftPinConfigured(config.terminalId)
+            response.isSuccessful && response.body()?.configured == true
+        } catch (e: Exception) {
+            // Sin conexión — usar caché local
+            shiftPinDao.getPin() != null
+        }
     }
 
-    private fun hashPin(pin: String): String {
-        val md = java.security.MessageDigest.getInstance("SHA-256")
-        val salt = "POS_SHIFT_PIN_SALT"
-        val digest = md.digest("$salt$pin".toByteArray(Charsets.UTF_8))
-        return digest.toHex()
+    // ============================================
+    // Shift History (consulta al backend)
+    // ============================================
+
+    /**
+     * Lista turnos del terminal actual por rango de fechas.
+     * Consulta al backend para obtener el historial completo.
+     */
+    suspend fun listShiftsForCurrentTerminal(from: String? = null, to: String? = null): Result<List<ShiftHistoryItem>> = withContext(Dispatchers.IO) {
+        try {
+            val config = getOrInitTerminalConfig()
+            val service = apiClient.getService()
+            val response = service.listShifts(config.terminalId, from, to)
+            if (response.isSuccessful) {
+                Result.success(response.body() ?: emptyList())
+            } else {
+                Result.failure(Exception("Error listando turnos (HTTP ${response.code()})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión: ${e.localizedMessage}"))
+        }
+    }
+
+    // ============================================
+    // Sync de cierre offline
+    // ============================================
+
+    /**
+     * Sincroniza un cierre de turno que se hizo offline.
+     * Se llama cuando se recupera la conexión a internet.
+     * Usa el endpoint sync-close que no requiere PIN (usa JWT auth).
+     * Retorna true si había un cierre pendiente y se sincronizó correctamente.
+     */
+    suspend fun syncPendingShiftClose(): Boolean = withContext(Dispatchers.IO) {
+        val pending = shiftDao.getPendingSyncShift() ?: return@withContext false
+        try {
+            val config = getOrInitTerminalConfig()
+            val service = apiClient.getService()
+
+            // Construir el request con el timestamp de cierre offline
+            val syncRequest = mapOf(
+                "closed_at" to (pending.closedAt?.let { it / 1000 }), // epoch seconds
+                "closing_amount" to pending.closingAmount,
+                "notes" to pending.notes
+            )
+
+            // Usar el endpoint sync-close (no requiere PIN)
+            val response = service.syncOfflineShiftClose(
+                config.terminalId,
+                syncRequest
+            )
+            if (response.isSuccessful) {
+                // Marcar como sincronizado
+                val synced = pending.copy(pendingSync = false)
+                shiftDao.updateShift(synced)
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Verifica si hay un cierre de turno pendiente de sincronizar.
+     */
+    suspend fun hasPendingSyncShift(): Boolean = withContext(Dispatchers.IO) {
+        shiftDao.getPendingSyncShift() != null
+    }
+
+    /**
+     * Verifica si el backend ya cerró el turno que el POS tiene abierto localmente.
+     * Esto puede pasar si un admin cerró el turno desde el panel web mientras
+     * el POS estaba offline o sin sincronizar.
+     *
+     * Si el backend ya cerró y el POS tiene un turno abierto local:
+     * - El POS descarga los datos de cierre del backend
+     * - Actualiza el turno local con los datos del backend
+     * - Marca el turno como cerrado localmente
+     *
+     * Retorna true si el estado local fue actualizado.
+     */
+    suspend fun checkBackendShiftStatus(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val localOpen = shiftDao.getOpenShift() ?: return@withContext false
+            val config = getOrInitTerminalConfig()
+            val service = apiClient.getService()
+
+            // Consultar el turno activo en el backend
+            val response = service.getActiveShift(config.terminalId)
+            if (!response.isSuccessful) return@withContext false
+
+            val body = response.body() ?: return@withContext false
+
+            // Si el backend dice que no hay turno activo, pero el POS tiene uno abierto,
+            // significa que el backend ya cerró. Descargar los datos del backend.
+            if (body.active != true) {
+                // El backend ya cerró — actualizar el turno local con los datos del backend
+                // Buscar el turno más reciente en el historial del backend
+                val historyResponse = service.listShifts(config.terminalId, null, null)
+                if (historyResponse.isSuccessful) {
+                    val history = historyResponse.body() ?: emptyList()
+                    val backendShift = history.firstOrNull { it.id == localOpen.id }
+                        ?: history.firstOrNull()
+
+                    if (backendShift != null) {
+                        val updated = localOpen.copy(
+                            status = "closed",
+                            closedAt = backendShift.closedAt?.let {
+                                try {
+                                    val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault())
+                                    sdf.parse(it)?.time
+                                } catch (_: Exception) { System.currentTimeMillis() }
+                            } ?: System.currentTimeMillis(),
+                            closingAmount = backendShift.closingAmount,
+                            totalSales = backendShift.totalSales,
+                            transactionsCount = backendShift.transactionsCount,
+                            notes = backendShift.notes ?: localOpen.notes,
+                            pendingSync = false,
+                            closedOffline = false
+                        )
+                        shiftDao.updateShift(updated)
+                        return@withContext true
+                    }
+                }
+
+                // Si no encontramos el turno en el historial, simplemente cerrar localmente
+                val updated = localOpen.copy(
+                    status = "closed",
+                    closedAt = System.currentTimeMillis(),
+                    pendingSync = false,
+                    closedOffline = false
+                )
+                shiftDao.updateShift(updated)
+                return@withContext true
+            }
+
+            false
+        } catch (e: Exception) {
+            false
+        }
     }
 }

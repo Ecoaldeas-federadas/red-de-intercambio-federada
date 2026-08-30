@@ -1145,9 +1145,10 @@ Las tarjetas MIFARE Classic 1K usan **6 capas de seguridad** para mitigar la clo
 
 El flujo Classic usa el **mismo esquema criptográfico** que el resto del POS:
 
-1. **Pre-auth:** POS envía `{doc_type, doc_number, pin, amount}` cifrado con EphemeralMessage (AES-256-GCM)
-2. **Respuesta pre-auth:** Servidor responde con `{card_uid, read_sector, read_key_a, expected_certificate, write_sector, write_key_b, new_certificate}` cifrado con la misma clave efímera
-3. **Confirmación:** POS envía `{card_uid, read_ok, write_ok, written_blocks}` cifrado con un nuevo EphemeralMessage
+1. **User lookup:** POS envía `{terminal_id, username}` cifrado con EphemeralMessage (AES-256-GCM). Servidor responde con `{found, card_type, requires_document, required_doc_type, ...}`.
+2. **Pre-auth (sin documento, UID/DESFire):** POS envía `{terminal_id, username, pin, amount}` cifrado con EphemeralMessage. Servidor responde con `{pre_approved, card_uid, card_type}`.
+3. **Pre-auth (con documento, Classic):** POS envía `{terminal_id, username, doc_type, doc_number, pin, amount}` cifrado con EphemeralMessage. Servidor responde con `{pre_approved, card_uid, card_type, read_sector, read_key_a, expected_certificate, write_sector, write_key_b, new_certificate}`.
+4. **Confirmación:** POS envía `{terminal_id, card_uid, read_ok, write_ok, written_blocks}` cifrado con un nuevo EphemeralMessage. Servidor responde con `{status, transaction_id, message}`.
 
 Las claves A/B y certificados viajan **dentro del payload cifrado**, nunca en claro.
 

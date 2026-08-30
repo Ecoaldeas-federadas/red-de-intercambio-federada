@@ -154,3 +154,9 @@ Indicaste que el backend está correcto (es más avanzado) y que la documentaci�
 | 3 | Nombre unidad fraccional | Estandarizar "centavo" en todo el código Android | ✅ Corregido |
 | 4 | Payload cifrado con handshake | Documentar EphemeralMessage en doc 06 | ✅ Documentado |
 | 5 | BRECHA: Android no envía EphemeralMessage | Implementar handshake efímero en CryptoEngine.kt | ✅ Resuelto |
+| 6 | PIN del turno: local vs backend | Eliminar PIN local, verificar contra backend con bcrypt | ✅ Corregido |
+| 7 | Exportación CSV en Android | Eliminada del Android — la exportación es del backend | ✅ Corregido |
+| 8 | Flujo NFC: documento-first → username-first | Cambiado a username-first, documento solo para Classic | ✅ Corregido |
+| 9 | Historial de turnos en Android | Implementado visor de historial consultando al backend | ✅ Corregido |
+| 10 | Turno funciona sin estar abierto | Ahora el backend requiere PIN para abrir/cerrar | ✅ Corregido |
+| 11 | Modo offline: PIN local + cierre offline | Caché de hash local, cierre offline con sync-close, bloqueo de reapertura | ✅ Implementado |
