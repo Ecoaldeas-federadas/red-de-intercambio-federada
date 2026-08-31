@@ -1544,105 +1544,22 @@ export default function NodeSettings() {
       {/* ===== TARJETAS CRIPTOGRAFICAS ===== */}
       {tab === 'cards' && (
         <div className="card space-y-6">
-          <h2 className="font-semibold flex items-center gap-2"><Lock size={18} />Tarjetas NFC Criptograficas</h2>
-          <p className="text-sm text-gray-600">
-            Las tarjetas NFC tienen claves AES-128 embebidas que prueban criptograficamente
-            que son legitimas. Nadie puede clonar una tarjeta solo copiando el UID.
-            La tarjeta debe responder a un challenge criptografico con su clave.
-          </p>
-
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+          <h2 className="font-semibold flex items-center gap-2"><Lock size={18} />Tarjetas NFC</h2>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
             <Info size={16} className="inline mr-1" />
-            Como funciona: El servidor genera una clave AES-128 por tarjeta. La clave se escribe
-            en la tarjeta (DESFire EV3 o NTAG424) y se guarda cifrada en el servidor. Cuando una
-            terminal lee la tarjeta, pide la clave al servidor (canal cifrado), hace challenge-response
-            con la tarjeta, y solo si la tarjeta responde correctamente se procesa el pago.
+            La gestión de tarjetas NFC se ha unificado en la página de <strong>Terminales NFC</strong>.
+            Allí puedes registrar y provisionar tarjetas de los 3 tipos soportados:
+            <ul className="list-disc list-inside mt-2 space-y-1">
+              <li><strong>MIFARE Classic</strong> — económica, 15 sectores con certificados dinámicos</li>
+              <li><strong>NTAG424 DNA</strong> — cifrado AES-128, anti-clonación</li>
+              <li><strong>DESFire EV3</strong> — alta seguridad, challenge-response AES-128</li>
+            </ul>
+            <a href="/app/nfc-terminals" className="inline-block mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+              Ir a Terminales NFC →
+            </a>
           </div>
 
-          {/* Provisionar nueva tarjeta */}
-          <div className="space-y-3 border rounded-lg p-4 bg-gray-50">
-            <h3 className="font-medium text-sm">Provisionar nueva tarjeta criptografica</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <input type="text" className="input" placeholder="UID de la tarjeta (ej: 04A3B2C1D0E5F6)"
-                value={newCard.card_uid} onChange={(e) => setNewCard({ ...newCard, card_uid: e.target.value })} />
-              <input type="text" className="input" placeholder="ID del usuario"
-                value={newCard.user_id} onChange={(e) => setNewCard({ ...newCard, user_id: e.target.value })} />
-              <select className="input" value={newCard.card_type} onChange={(e) => setNewCard({ ...newCard, card_type: e.target.value })}>
-                <option value="ntag424">NTAG424 SUN (recomendado)</option>
-                <option value="desfire">DESFire EV3 (mas seguro)</option>
-                <option value="mifare_classic">MIFARE Classic (legacy)</option>
-              </select>
-            </div>
-            <button onClick={async () => {
-              if (!newCard.card_uid.trim() || !newCard.user_id.trim()) {
-                setCardCryptoMsg({ type: 'error', text: 'UID y user_id son obligatorios' }); return
-              }
-              try {
-                const res = await api.post('/nfc/cards/provision-crypto', newCard)
-                setProvisionedKey(res)
-                setCardCryptoMsg({ type: 'success', text: 'Clave generada. Escribela en la tarjeta ahora.' })
-              } catch (e: any) { setCardCryptoMsg({ type: 'error', text: e?.message || 'Error' }) }
-            }} className="btn-primary text-sm flex items-center gap-2"><Plus size={16} /> Generar clave AES</button>
-
-            {provisionedKey && (
-              <div className="bg-red-50 border border-red-300 rounded-lg p-4 space-y-2">
-                <h4 className="font-bold text-red-800 text-sm">CLAVE DE LA TARJETA - Guardar de forma segura</h4>
-                <p className="text-xs text-red-700">Escribe esta clave en la tarjeta usando tu herramienta NFC. No se volvera a mostrar.</p>
-                <div className="bg-white rounded p-2 font-mono text-xs break-all">
-                  <div><strong>AES Key (hex):</strong> {provisionedKey.aes_key_hex}</div>
-                  <div className="mt-1"><strong>AES Key (base64):</strong> {provisionedKey.aes_key_b64}</div>
-                </div>
-                <button onClick={() => {
-                  navigator.clipboard.writeText(provisionedKey.aes_key_hex)
-                  setCardCryptoMsg({ type: 'success', text: 'Clave copiada al portapapeles' })
-                }} className="px-3 py-1 bg-gray-200 rounded text-xs">Copiar hex</button>
-              </div>
-            )}
-            {cardCryptoMsg && <div className={`text-xs p-2 rounded-lg ${cardCryptoMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{cardCryptoMsg.text}</div>}
-          </div>
-
-          {/* Consultar estado criptografico */}
-          <div className="space-y-3 border rounded-lg p-4">
-            <h3 className="font-medium text-sm">Consultar estado de una tarjeta</h3>
-            <div className="flex gap-2">
-              <input type="text" className="input" placeholder="UID de la tarjeta"
-                value={statusUid} onChange={(e) => setStatusUid(e.target.value)} />
-              <button onClick={async () => {
-                if (!statusUid.trim()) return
-                try {
-                  const res = await api.get<any>(`/nfc/cards/${statusUid}/crypto-status`)
-                  setCryptoStatus(res)
-                } catch (e: any) { setCardCryptoMsg({ type: 'error', text: e?.message || 'Error' }) }
-              }} className="btn-primary text-sm">Consultar</button>
-            </div>
-            {cryptoStatus && (
-              <div className="bg-gray-50 rounded p-3 text-sm space-y-1">
-                <div><strong>UID:</strong> {cryptoStatus.card_uid}</div>
-                <div><strong>Crypto habilitado:</strong> {cryptoStatus.crypto_enabled ? 'Si' : 'No (modo uid_only)'}</div>
-                {cryptoStatus.crypto_enabled && (
-                  <>
-                    <div><strong>Tipo:</strong> {cryptoStatus.card_type}</div>
-                    <div><strong>Version de clave:</strong> {cryptoStatus.key_version}</div>
-                    <div><strong>Activa:</strong> {cryptoStatus.is_active ? 'Si' : 'No'}</div>
-                    <div><strong>Bloqueada:</strong> {cryptoStatus.blocked ? 'Si' : 'No'}</div>
-                    <div><strong>Fallos de auth:</strong> {cryptoStatus.auth_fail_count}</div>
-                    <div><strong>Ultima auth:</strong> {cryptoStatus.last_auth_at || 'Nunca'}</div>
-                    <div><strong>Counter SUN:</strong> {cryptoStatus.sun_counter}</div>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
-            <Info size={16} className="inline mr-1" />
-            <strong>Para la app Android + lector Bluetooth:</strong> La app pedira la clave AES al
-            servidor (canal cifrado Ed25519+AES), la descifrara en memoria, hara challenge-response
-            con la tarjeta via el lector Bluetooth, y enviara la prueba al servidor. La clave nunca
-            se guarda en disco en el celular. Si la app se cierra, la clave se borra de memoria.
-          </div>
-
-          {/* CONFIG DUAL DE TARJETAS */}
+          {/* CONFIG DUAL DE TARJETAS — se mantiene aquí porque es configuración del nodo */}
           <div className="space-y-3 border rounded-lg p-4 bg-gray-50">
             <h3 className="font-medium text-sm">Configuracion de tipo de tarjeta</h3>
             <p className="text-xs text-gray-600">
@@ -1669,9 +1586,9 @@ export default function NodeSettings() {
                     } catch (e: any) { setCardCryptoMsg({ type: 'error', text: e?.message || 'Error' }) }
                     setCardTypeCfgLoading(false)
                   }}>
-                  <option value="dual">Dual (tarjetas normales y seguras) - Recomendado</option>
-                  <option value="uid_only">Solo tarjetas normales (UID + PIN)</option>
-                  <option value="desfire">Solo tarjetas seguras (DESFire EV3)</option>
+                  <option value="dual">Dual (Classic y seguras) - Recomendado</option>
+                  <option value="classic">Solo MIFARE Classic (económicas)</option>
+                  <option value="desfire">Solo tarjetas seguras (NTAG424/DESFire)</option>
                 </select>
               </div>
               <div className="flex items-center gap-2">
@@ -1700,22 +1617,7 @@ export default function NodeSettings() {
                       max_write_fails: newCfg.max_write_fails || 3,
                     })
                   }} />
-                <label htmlFor="auto_rotate" className="text-sm">Rotar clave automaticamente en cada transaccion (solo DESFire)</label>
-              </div>
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="require_id_uid" checked={cardTypeCfg?.require_id_document_for_uid_only ?? false}
-                  onChange={async (e) => {
-                    const newCfg = { ...cardTypeCfg, require_id_document_for_uid_only: e.target.checked }
-                    setCardTypeCfg(newCfg)
-                    await api.post('/nfc/card-type/config', {
-                      card_type_mode: newCfg.card_type_mode || 'dual',
-                      require_crypto: newCfg.require_crypto || false,
-                      auto_rotate_key: newCfg.auto_rotate_key ?? true,
-                      max_write_fails: newCfg.max_write_fails || 3,
-                      require_id_document_for_uid_only: e.target.checked,
-                    })
-                  }} />
-                <label htmlFor="require_id_uid" className="text-sm">Pedir documento de identidad para tarjetas UID (sin crypto)</label>
+                <label htmlFor="auto_rotate" className="text-sm">Rotar clave automaticamente en cada transaccion (solo DESFire/NTAG424)</label>
               </div>
             </div>
             {cardTypeCfgLoading && <p className="text-xs text-gray-500">Guardando...</p>}

@@ -595,7 +595,13 @@ func (h *NFCTerminalHandler) issueCryptoCard(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	if req.CardType == "" {
-		req.CardType = "uid_only"
+		req.CardType = "classic"
+	}
+	// uid_only no es soportado: las tarjetas simples solo con UID son inseguras
+	// para un sistema bancario. Solo se soportan classic, ntag424 y desfire.
+	if req.CardType == "uid_only" {
+		writeError(w, 400, "tipo de tarjeta no soportado. Use classic, ntag424 o desfire.")
+		return
 	}
 
 	card, err := h.NFC.IssueCryptoCard(r.Context(), req.UserID, req.CardUID, req.CardType, req.InitialPIN)

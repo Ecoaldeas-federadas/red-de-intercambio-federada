@@ -9,8 +9,8 @@ const DEFAULT_SETTINGS: FormatSettings = {
   locale: 'es',
   number_locale: 'es-VE',
   date_format: 'DD/MM/YYYY',
-  time_format: '24h',
-  first_day_of_week: 1,
+  time_format: '12h',
+  first_day_of_week: 0,
   timezone: 'America/Caracas',
 }
 

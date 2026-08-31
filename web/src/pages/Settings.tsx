@@ -182,8 +182,8 @@ export default function Settings() {
           onChange={(e) => set('first_day_of_week', Number(e.target.value))}
           className="input"
         >
-          <option value="1">Lunes</option>
           <option value="0">Domingo</option>
+          <option value="1">Lunes</option>
         </select>
       </div>
 

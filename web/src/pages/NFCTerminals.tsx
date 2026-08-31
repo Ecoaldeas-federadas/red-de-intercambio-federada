@@ -322,15 +322,38 @@ export default function NFCTerminals() {
     }
   }
 
-  const [newCard, setNewCard] = useState({ user_id: '', card_uid: '', card_type: 'uid_only', initial_pin: '' })
+  const [newCard, setNewCard] = useState({ user_id: '', card_uid: '', card_type: 'classic', initial_pin: '' })
+  const [cardCryptoResult, setCardCryptoResult] = useState<any>(null)
   const issueCard = async () => {
     setError('')
+    setCardCryptoResult(null)
     try {
-      await api.post('/nfc/cards/issue', newCard)
+      if (newCard.card_type === 'classic') {
+        // MIFARE Classic con certificados dinámicos
+        const res = await api.post('/nfc/cards/provision-classic', {
+          user_id: newCard.user_id,
+          card_uid: newCard.card_uid,
+          initial_pin: newCard.initial_pin,
+        })
+        setCardCryptoResult(res)
+      } else if (newCard.card_type === 'ntag424' || newCard.card_type === 'desfire') {
+        // NTAG424 o DESFire con clave AES
+        const res = await api.post('/nfc/cards/provision-crypto', {
+          user_id: newCard.user_id,
+          card_uid: newCard.card_uid,
+          card_type: newCard.card_type,
+        })
+        setCardCryptoResult(res)
+      } else {
+        // Tipos no soportados (uid_only eliminado)
+        setError('Tipo de tarjeta no soportado. Use Classic, NTAG424 o DESFire EV3.')
+        return
+      }
       setShowIssueCard(false)
-      setNewCard({ user_id: '', card_uid: '', card_type: 'uid_only', initial_pin: '' })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error')
+      setNewCard({ user_id: '', card_uid: '', card_type: 'classic', initial_pin: '' })
+      loadCards()
+    } catch (err: any) {
+      setError(err?.message || (err instanceof Error ? err.message : 'Error'))
     }
   }
 
@@ -1332,11 +1355,21 @@ export default function NFCTerminals() {
             <div>
               <label className="label">Tipo de tarjeta</label>
               <select className="input" value={newCard.card_type} onChange={(e) => setNewCard({ ...newCard, card_type: e.target.value })}>
-                <option value="uid_only">UID Only</option>
-                <option value="ntag424">NTAG424 DNA</option>
-                <option value="desfire">MIFARE DESFire EV3</option>
+                <option value="classic">MIFARE Classic (económica, certificados dinámicos)</option>
+                <option value="ntag424">NTAG424 DNA (cifrado AES, anti-clonación)</option>
+                <option value="desfire">MIFARE DESFire EV3 (alta seguridad, v3)</option>
               </select>
-              <p className="text-xs text-gray-400 mt-1">Tipo de tarjeta NFC. <strong>UID Only</strong> = tarjeta simple con solo UID, <strong>NTAG424 DNA</strong> = tarjeta con cifrado, <strong>DESFire EV3</strong> = tarjeta de alta seguridad.</p>
+              <div className="text-xs text-gray-500 mt-2 space-y-1 bg-gray-50 rounded p-2 border border-gray-200">
+                {newCard.card_type === 'classic' && (
+                  <p><strong>MIFARE Classic:</strong> Tarjeta económica con 15 sectores. Cada sector tiene Key A (lectura) y Key B (escritura) independientes. Se graba un certificado de 16 bytes replicado 3 veces en los 3 bloques de cada sector. Solo 1 sector es el activo en cada momento. Después de cada pago, el certificado rota a otro sector aleatorio. Requiere documento de identidad al pagar.</p>
+                )}
+                {newCard.card_type === 'ntag424' && (
+                  <p><strong>NTAG424 DNA:</strong> Tarjeta con cifrado AES-128. En cada tap genera automáticamente un código criptográfico (MAC) que el servidor verifica. Anti-clonación: nadie puede copiar la tarjeta sin la clave AES. Más económica que DESFire EV3.</p>
+                )}
+                {newCard.card_type === 'desfire' && (
+                  <p><strong>DESFire EV3:</strong> Tarjeta de alta seguridad con challenge-response AES-128 completo. El servidor envía un desafío, la tarjeta responde con cifrado AES. La opción más segura. EV3 = tercera generación del estándar DESFire.</p>
+                )}
+              </div>
             </div>
             <div>
               <label className="label">PIN inicial (4 digitos)</label>
