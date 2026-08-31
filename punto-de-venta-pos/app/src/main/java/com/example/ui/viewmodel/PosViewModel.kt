@@ -157,6 +157,7 @@ class PosViewModel(
     private var qrTimerJob: Job? = null
     private var multisigPollJob: Job? = null
     private var pairingPollJob: Job? = null
+    private var heartbeatJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -232,6 +233,55 @@ class PosViewModel(
                 refreshCurrentUser()
             }
         }
+
+        // Heartbeat periodico: cada 60 segundos verifica que el terminal
+        // sigue registrado, activo y que las claves coinciden.
+        // Si las claves no coinciden, cierra la sesion y envia a re-pairing.
+        startPeriodicHeartbeat()
+    }
+
+    private fun startPeriodicHeartbeat() {
+        heartbeatJob?.cancel()
+        heartbeatJob = viewModelScope.launch {
+            while (true) {
+                delay(60_000) // 60 segundos
+                val state = _uiState.value
+                if (!state.isRegistered) continue
+                val hbRes = repository.heartbeat()
+                hbRes.onSuccess { hb ->
+                    if (hb.notFound == true) {
+                        repository.resetTerminalRegistration()
+                        _uiState.update {
+                            it.copy(
+                                isRegistered = false,
+                                isLoggedIn = false,
+                                currentUser = null,
+                                currentScreen = PosScreen.RegisterTerminal,
+                                errorMessage = "El terminal fue eliminado del servidor. Debe emparejar nuevamente."
+                            )
+                        }
+                    } else if (hb.keyMatches == false) {
+                        repository.resetTerminalRegistration()
+                        _uiState.update {
+                            it.copy(
+                                isRegistered = false,
+                                isLoggedIn = false,
+                                currentUser = null,
+                                currentScreen = PosScreen.RegisterTerminal,
+                                errorMessage = "Las claves criptográficas del terminal no coinciden con el servidor. Debe emparejar nuevamente."
+                            )
+                        }
+                    } else if (hb.active == false) {
+                        _uiState.update {
+                            it.copy(
+                                errorMessage = "Este terminal está desactivado. Contacte al administrador."
+                            )
+                        }
+                    }
+                }
+                // Si el heartbeat falla por red, no hacer nada (puede ser temporal)
+            }
+        }
     }
 
     // Reintentar verificacion con el servidor sin resetear las claves
@@ -243,6 +293,19 @@ class PosViewModel(
             // Primero intentar heartbeat (si el terminal ya esta registrado en el servidor)
             val hbResult = repository.heartbeat()
             hbResult.onSuccess { hb ->
+                if (hb.keyMatches == false) {
+                    // Las claves no coinciden — resetear y re-parear
+                    repository.resetTerminalRegistration()
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isRegistered = false,
+                            currentScreen = PosScreen.RegisterTerminal,
+                            errorMessage = "Las claves criptográficas no coinciden con el servidor. Debe emparejar nuevamente."
+                        )
+                    }
+                    return@launch
+                }
                 if (hb.notFound != true && hb.registered != false && hb.active != false) {
                     // El servidor confirma que el terminal esta registrado y activo
                     val config = repository.getOrInitTerminalConfig()
@@ -972,9 +1035,10 @@ class PosViewModel(
     // ============================================
 
     /**
-     * Verifica con el servidor que el terminal sigue registrado y activo
-     * antes de iniciar una transaccion. Si el terminal fue desactivado o
-     * borrado, resetea el registro y vuelve a la pantalla de emparejamiento.
+     * Verifica con el servidor que el terminal sigue registrado, activo y que
+     * las claves criptograficas coinciden antes de iniciar una transaccion.
+     * Si el terminal fue desactivado, borrado, o las claves no coinciden,
+     * resetea el registro y vuelve a la pantalla de emparejamiento.
      * Retorna false si no se puede continuar con la transaccion.
      */
     private suspend fun verifyTerminalStatus(): Boolean {
@@ -990,6 +1054,18 @@ class PosViewModel(
                         currentScreen = PosScreen.RegisterTerminal,
                         isLoading = false,
                         errorMessage = "Este terminal fue eliminado del servidor. Vuelva a emparejar."
+                    )
+                }
+                canProceed = false
+            } else if (hb.keyMatches == false) {
+                // Las claves criptograficas no coinciden — resetear y re-parear
+                repository.resetTerminalRegistration()
+                _uiState.update {
+                    it.copy(
+                        isRegistered = false,
+                        currentScreen = PosScreen.RegisterTerminal,
+                        isLoading = false,
+                        errorMessage = "Las claves criptográficas del terminal no coinciden con el servidor. Debe emparejar nuevamente."
                     )
                 }
                 canProceed = false
