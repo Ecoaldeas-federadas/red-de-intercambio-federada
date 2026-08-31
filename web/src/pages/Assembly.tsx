@@ -1018,7 +1018,7 @@ export default function Assembly() {
                             <button
                               onClick={() => {
                                 if (confirm('Eliminar esta propuesta?')) {
-                                  api.delete(`/assembly/proposals/${p.id}`).then(() => loadProposals()).catch(() => {})
+                                  api.delete(`/assembly/proposals/${p.id}`).then(() => load()).catch(() => {})
                                 }
                               }}
                               className="text-xs px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"

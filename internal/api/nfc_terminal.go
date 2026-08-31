@@ -139,6 +139,8 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequirePermission("nfc.issue_card")).Post("/api/nfc/cards/provision-classic", h.provisionClassicCard)
 	r.With(am.RequireAuth).Get("/api/nfc/cards", h.listCards)
 	r.With(am.RequireAuth).Get("/api/nfc/cards/all", h.listAllCards)
+	r.With(am.RequirePermission("nfc.issue_card")).Get("/api/nfc/cards/pending-initialization", h.listPendingInitializationCards)
+	r.With(am.RequirePermission("nfc.issue_card")).Post("/api/nfc/cards/{uid}/confirm-initialization", h.confirmCardInitialization)
 	r.With(am.RequirePermission("nfc.deactivate_card")).Delete("/api/nfc/cards/{uid}", h.deactivateCard)
 	r.With(am.RequirePermission("nfc.deactivate_card")).Put("/api/nfc/cards/{uid}/toggle", h.toggleCard)
 	r.With(am.RequireAuth).Put("/api/nfc/cards/{uid}/document", h.setCardDocument)
@@ -3713,6 +3715,116 @@ func (h *NFCTerminalHandler) provisionClassicCard(w http.ResponseWriter, r *http
 		return
 	}
 	writeJSON(w, 201, resp)
+}
+
+// listPendingInitializationCards retorna tarjetas registradas pero no inicializadas.
+// El POS Android usa esto para mostrar la lista de tarjetas pendientes de grabar.
+func (h *NFCTerminalHandler) listPendingInitializationCards(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	if nodeDomain == "" {
+		nodeDomain = h.NodeDomain
+	}
+
+	// Tarjetas Classic pendientes (nfc_cards con has_dynamic_certs y initialized_at IS NULL)
+	rows, err := h.NFC.Pool.Query(r.Context(), `
+		SELECT c.card_uid, c.card_type, c.user_id, u.username, u.display_name,
+		       c.issued_at, c.has_dynamic_certs
+		FROM nfc_cards c
+		JOIN users u ON u.id = c.user_id
+		WHERE c.is_active = true
+		  AND c.node_domain = $1
+		  AND c.initialized_at IS NULL
+		ORDER BY c.issued_at DESC`,
+		nodeDomain)
+	if err != nil {
+		writeError(w, 500, "error querying pending cards: "+err.Error())
+		return
+	}
+	defer rows.Close()
+
+	type PendingCard struct {
+		CardUID         string `json:"card_uid"`
+		CardType        string `json:"card_type"`
+		UserID          string `json:"user_id"`
+		Username        string `json:"username"`
+		DisplayName     string `json:"display_name"`
+		HasDynamicCerts bool   `json:"has_dynamic_certs"`
+		IssuedAt        string `json:"issued_at"`
+	}
+
+	var cards []PendingCard
+	for rows.Next() {
+		var c PendingCard
+		var cardType *string
+		var issuedAt time.Time
+		if err := rows.Scan(&c.CardUID, &cardType, &c.UserID, &c.Username, &c.DisplayName,
+			&issuedAt, &c.HasDynamicCerts); err != nil {
+			continue
+		}
+		if cardType != nil {
+			c.CardType = *cardType
+		}
+		if c.CardType == "" {
+			c.CardType = "classic"
+		}
+		c.IssuedAt = issuedAt.Format(time.RFC3339)
+		cards = append(cards, c)
+	}
+
+	if cards == nil {
+		cards = []PendingCard{}
+	}
+	writeJSON(w, 200, map[string]interface{}{
+		"pending_cards": cards,
+		"count":         len(cards),
+	})
+}
+
+// confirmCardInitialization marca una tarjeta como inicializada (grabada fisicamente).
+// El POS Android llama esto despues de escribir los datos en la tarjeta NFC.
+func (h *NFCTerminalHandler) confirmCardInitialization(w http.ResponseWriter, r *http.Request) {
+	cardUID := chi.URLParam(r, "uid")
+	if cardUID == "" {
+		writeError(w, 400, "uid requerido")
+		return
+	}
+
+	userIDStr := r.Header.Get("X-User-ID")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		writeError(w, 401, "authentication required")
+		return
+	}
+
+	// Verificar que la tarjeta existe y no ha sido inicializada
+	var initializedAt *time.Time
+	err = h.NFC.Pool.QueryRow(r.Context(),
+		`SELECT initialized_at FROM nfc_cards WHERE card_uid = $1 AND is_active = true`,
+		cardUID).Scan(&initializedAt)
+	if err != nil {
+		writeError(w, 404, "tarjeta no encontrada")
+		return
+	}
+	if initializedAt != nil {
+		writeError(w, 400, "esta tarjeta ya fue inicializada")
+		return
+	}
+
+	_, err = h.NFC.Pool.Exec(r.Context(), `
+		UPDATE nfc_cards SET initialized_at = NOW(), initialized_by = $1
+		WHERE card_uid = $2`,
+		userID, cardUID)
+	if err != nil {
+		writeError(w, 500, "error confirmando inicializacion: "+err.Error())
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"card_uid":       cardUID,
+		"initialized":    true,
+		"initialized_at": time.Now().Format(time.RFC3339),
+		"message":        "Tarjeta marcada como inicializada correctamente.",
+	})
 }
 
 // classicPreAuth valida username + PIN + saldo y prepara la rotacion

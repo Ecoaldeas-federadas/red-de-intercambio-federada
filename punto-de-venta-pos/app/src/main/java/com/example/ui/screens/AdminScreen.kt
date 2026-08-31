@@ -253,6 +253,48 @@ fun AdminScreen(
                     }
                 }
             }
+
+            // GRABAR TARJETA BUTTON
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = PosSlate900),
+                shape = RoundedCornerShape(18.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Grabar Tarjeta NFC",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = PosSlate100,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Inicializa tarjetas registradas en el servidor pero aún no grabadas. Coloca la tarjeta en el lector NFC del celular y sigue las instrucciones.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = PosSlate300
+                    )
+                    Button(
+                        onClick = {
+                            FeedbackHelper.playButtonClick(context)
+                            viewModel.navigateTo(PosScreen.ProvisionCard)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                            .testTag("admin_grab_card_btn"),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = PosPrimaryBlue)
+                    ) {
+                        Icon(imageVector = Icons.Default.Nfc, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Grabar Tarjeta", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
         }
     }
 }

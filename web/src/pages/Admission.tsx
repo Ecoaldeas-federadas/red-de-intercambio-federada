@@ -245,10 +245,10 @@ export default function Admission() {
                       <span className="font-medium">{username}</span>
                       <span className={`text-xs px-2 py-0.5 rounded ${
                         status === 'approved' ? 'bg-green-100 text-green-700' :
-                        status === 'rejected' ? 'bg-red-100 text-red-700' :
+                        status === 'rejected' || status === 'expired' ? 'bg-red-100 text-red-700' :
                         'bg-yellow-100 text-yellow-700'
                       }`}>
-                        {status === 'approved' ? 'Aprobada' : status === 'rejected' ? 'Rechazada' : 'Pendiente'}
+                        {status === 'approved' ? 'Aprobada' : status === 'rejected' ? 'Rechazada' : status === 'expired' ? 'Expirada' : status === 'elevated_to_assembly' ? 'En asamblea' : status === 'defense_pending' ? 'Esperando defensa' : 'Pendiente'}
                       </span>
                       {level && <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">Nivel: {level}</span>}
                     </div>
@@ -257,9 +257,9 @@ export default function Admission() {
                     {submittedAt && <p className="text-xs text-gray-400 mt-1">Solicitada: {submittedAt}</p>}
                   </div>
                   <div className="flex gap-2">
-                    {status === 'pending' && (
+                    {(status === 'pending' || status === 'pending_review' || status === 'elevated_to_assembly' || status === 'defense_pending') && (
                       <>
-                        <button onClick={() => approve(u.id)} className="btn-primary flex items-center gap-1"><Check size={16} />Aprobar</button>
+                        <button onClick={() => approve(u.id)} className="btn-primary flex items-center gap-1"><Check size={16} />Aprobar directamente</button>
                         <button onClick={() => reject(u.id)} className="btn-danger flex items-center gap-1"><X size={16} />Rechazar</button>
                       </>
                     )}

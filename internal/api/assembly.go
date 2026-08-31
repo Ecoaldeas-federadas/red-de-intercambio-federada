@@ -593,6 +593,18 @@ func (h *AssemblyHandler) openVoting(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if status == "pending" {
+		writeError(w, 400, "esta propuesta ya fue aprobada para votacion y esta en curso")
+		return
+	}
+	if status == "approved" || status == "executed" {
+		writeError(w, 400, "esta propuesta ya fue aprobada y ejecutada")
+		return
+	}
+	if status == "rejected" || status == "expired" {
+		writeError(w, 400, "esta propuesta fue rechazada o expirada")
+		return
+	}
 	if status != "proposed" {
 		writeError(w, 400, "esta propuesta no esta pendiente de revision (estado: "+status+")")
 		return

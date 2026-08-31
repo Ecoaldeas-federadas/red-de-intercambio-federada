@@ -2831,6 +2831,19 @@ func (h *SystemHandler) submitAdmissionRequest(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Verificar si ya existe una solicitud pendiente del mismo username
+	var existingReqID *string
+	h.Pool.QueryRow(r.Context(), `
+		SELECT id::text FROM admission_requests
+		WHERE proposed_username = $1 AND node_domain = $2
+		AND status IN ('pending_review', 'elevated_to_assembly', 'defense_pending')
+		LIMIT 1`,
+		username, nodeDomain).Scan(&existingReqID)
+	if existingReqID != nil {
+		writeError(w, 409, "Ya tienes una solicitud de admisión pendiente. Espera la respuesta de la asamblea.")
+		return
+	}
+
 	// Hashear password con bcrypt
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.ProposedPassword), bcrypt.DefaultCost)
 	if err != nil {

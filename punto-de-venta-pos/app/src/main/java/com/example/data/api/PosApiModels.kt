@@ -556,6 +556,34 @@ data class SectorData(
 )
 
 // ============================================
+// Card Initialization (Grabado de tarjetas)
+// ============================================
+
+@JsonClass(generateAdapter = true)
+data class PendingCardResponse(
+    @Json(name = "pending_cards") val pendingCards: List<PendingCard> = emptyList(),
+    @Json(name = "count") val count: Int = 0
+)
+
+@JsonClass(generateAdapter = true)
+data class PendingCard(
+    @Json(name = "card_uid") val cardUid: String = "",
+    @Json(name = "card_type") val cardType: String = "classic",
+    @Json(name = "user_id") val userId: String = "",
+    @Json(name = "username") val username: String = "",
+    @Json(name = "display_name") val displayName: String = "",
+    @Json(name = "has_dynamic_certs") val hasDynamicCerts: Boolean = false,
+    @Json(name = "issued_at") val issuedAt: String = ""
+)
+
+@JsonClass(generateAdapter = true)
+data class ConfirmInitResponse(
+    @Json(name = "card_uid") val cardUid: String = "",
+    @Json(name = "initialized") val initialized: Boolean = false,
+    @Json(name = "message") val message: String = ""
+)
+
+// ============================================
 // Terminal Pairing by Short Code
 // ============================================
 

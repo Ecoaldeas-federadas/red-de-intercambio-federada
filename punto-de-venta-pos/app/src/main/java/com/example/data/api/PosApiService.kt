@@ -160,6 +160,12 @@ interface PosApiService {
     @POST("nfc/cards/provision-classic")
     suspend fun provisionClassicCard(@Body request: ProvisionClassicRequest): Response<ProvisionClassicResponse>
 
+    @GET("nfc/cards/pending-initialization")
+    suspend fun getPendingInitializationCards(): Response<PendingCardResponse>
+
+    @POST("nfc/cards/{uid}/confirm-initialization")
+    suspend fun confirmCardInitialization(@Path("uid") cardUid: String): Response<ConfirmInitResponse>
+
     @PUT("nfc/cards/pin")
     suspend fun changePin(@Body request: ChangePinRequest): Response<GenericStatusResponse>
 

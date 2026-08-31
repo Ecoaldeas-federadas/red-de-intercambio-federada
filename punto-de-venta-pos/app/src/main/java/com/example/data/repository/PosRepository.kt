@@ -1896,6 +1896,44 @@ class PosRepository(
     }
 
     /**
+     * Obtiene la lista de tarjetas registradas pero no inicializadas (grabadas físicamente).
+     * El admin usa esto en el POS para saber qué tarjetas faltan por grabar.
+     */
+    suspend fun getPendingInitializationCards(): Result<PendingCardResponse> = withContext(Dispatchers.IO) {
+        try {
+            val service = apiClient.getService()
+            val response = service.getPendingInitializationCards()
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                val errBody = response.errorBody()?.string() ?: "Error desconocido"
+                Result.failure(Exception("Error obteniendo tarjetas pendientes (HTTP ${response.code()}): $errBody"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión: ${e.localizedMessage}"))
+        }
+    }
+
+    /**
+     * Confirma que una tarjeta fue inicializada (grabada físicamente) en el POS.
+     * El servidor marca la tarjeta como initialized_at = NOW().
+     */
+    suspend fun confirmCardInitialization(cardUid: String): Result<ConfirmInitResponse> = withContext(Dispatchers.IO) {
+        try {
+            val service = apiClient.getService()
+            val response = service.confirmCardInitialization(cardUid)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                val errBody = response.errorBody()?.string() ?: "Error desconocido"
+                Result.failure(Exception("Error confirmando inicialización (HTTP ${response.code()}): $errBody"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión: ${e.localizedMessage}"))
+        }
+    }
+
+    /**
      * checkRegistrationByKey consulta al servidor si la clave publica de este
      * terminal ya esta registrada. Esto permite al POS descubrir que fue
      * aprobado incluso si el polling del emparejamiento expiro antes de
