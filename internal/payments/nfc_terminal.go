@@ -1172,12 +1172,11 @@ func (nt *NFCTerminals) EnsureServerKeys(ctx context.Context) error {
 	}
 
 	pubHex := hex.EncodeToString(pub)
-	privHex := hex.EncodeToString(priv)
 
 	_, err = nt.Pool.Exec(ctx, `
 		INSERT INTO nfc_server_keys (node_domain, public_key, private_key_encrypted)
 		VALUES ($1, $2, $3)`,
-		nt.NodeDomain, pubHex, []byte(privHex),
+		nt.NodeDomain, pubHex, priv,
 	)
 	if err != nil {
 		return fmt.Errorf("storing server keys: %w", err)
@@ -1204,6 +1203,17 @@ func (nt *NFCTerminals) GetServerPrivateKey(ctx context.Context) (ed25519.Privat
 	if err != nil {
 		return nil, fmt.Errorf("decoding server private key: %w", err)
 	}
+
+	// Si la clave tiene 128 bytes, fue doble-codificada:
+	// EnsureServerKeys guardaba []byte(hex.EncodeToString(priv)) en BYTEA,
+	// lo que produce el doble de bytes al leer. Decodificar de nuevo.
+	if len(priv) == 128 {
+		priv, err = hex.DecodeString(string(priv))
+		if err != nil {
+			return nil, fmt.Errorf("decoding double-encoded server private key: %w", err)
+		}
+	}
+
 	return ed25519.PrivateKey(priv), nil
 }
 
