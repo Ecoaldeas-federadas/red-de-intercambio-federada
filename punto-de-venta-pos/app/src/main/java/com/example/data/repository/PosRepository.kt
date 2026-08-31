@@ -168,10 +168,14 @@ class PosRepository(
 
     /**
      * Auto-renueva las claves del terminal cuando se detecta un mismatch.
+     * REQUIERE que haya un usuario logueado con JWT activo — el servidor
+     * verifica que el usuario logueado es el merchant_user_id asignado al
+     * terminal. Si no hay sesion activa, el servidor rechaza con 401.
+     *
      * El POS genera nuevas claves, las envia al servidor junto con el
-     * terminal_id y device_fingerprint. Si el servidor reconoce el terminal
-     * y el fingerprint coincide, actualiza la clave y devuelve el server_public_key.
-     * Esto evita que el usuario tenga que re-parear manualmente.
+     * terminal_id y device_fingerprint. Si el servidor reconoce el terminal,
+     * el fingerprint coincide, y el usuario logueado es el merchant asignado,
+     * actualiza la clave y devuelve el server_public_key.
      *
      * Retorna true si la renovacion fue exitosa.
      */

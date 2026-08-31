@@ -272,11 +272,36 @@ class PosViewModel(
     // Reintentar verificacion con el servidor sin resetear las claves
     /**
      * Intenta auto-renovar las claves del terminal cuando se detecta un mismatch.
-     * Si tiene exito, el terminal sigue funcionando sin necesidad de re-parear.
-     * Si falla, envia a la pantalla de emparejamiento manual.
+     * SOLO funciona si hay un usuario logueado con sesion JWT activa — el
+     * servidor verifica que el usuario logueado es el merchant_user_id asignado
+     * al terminal. Esto previene que alguien falsifique un terminal y renueve
+     * claves sin autorizacion.
+     *
+     * Si hay sesion activa y la renovacion tiene exito, el terminal sigue
+     * funcionando sin necesidad de re-parear.
+     * Si NO hay sesion activa, o la renovacion falla, envia a re-parear manual.
      * Retorna true si la renovacion fue exitosa.
      */
     private suspend fun handleKeyMismatch(): Boolean {
+        // 1. Verificar que hay un usuario logueado con JWT activo
+        val state = _uiState.value
+        if (!state.isLoggedIn || state.currentUser == null) {
+            // No hay sesion activa — no se puede auto-renovar
+            // El usuario debe re-parear manualmente
+            repository.resetTerminalRegistration()
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    isRegistered = false,
+                    isLoggedIn = false,
+                    currentUser = null,
+                    currentScreen = PosScreen.RegisterTerminal,
+                    errorMessage = "Las claves del terminal no coinciden y no hay usuario logueado. Debe emparejar nuevamente."
+                )
+            }
+            return false
+        }
+
         _uiState.update {
             it.copy(
                 isLoading = true,

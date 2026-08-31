@@ -49,7 +49,6 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.Post("/api/nfc/terminal/classic/pre-auth-document", h.classicPreAuthWithDocument)
 	r.Post("/api/nfc/terminal/classic/confirm", h.classicConfirm)
 	r.Post("/api/nfc/terminal/user-lookup", h.userLookup)
-	r.Post("/api/nfc/terminal/auto-renew", h.autoRenewKeys)
 
 	// Terminal pairing by short code (no auth required for initiate/status)
 	r.Post("/api/nfc/terminal/pair/initiate", h.initiatePairing)
@@ -122,6 +121,10 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequireAuth).Get("/api/nfc/my-terminals/{id}/shifts", h.listMyTerminalShifts)
 	r.With(am.RequireAuth).Get("/api/nfc/my-terminals/{id}/export/transactions", h.exportMyTerminalTransactionsCSV)
 	r.With(am.RequireAuth).Get("/api/nfc/my-terminals/{id}/export/shifts", h.exportMyTerminalShiftsCSV)
+
+	// Auto-renovacion de claves del terminal (requiere JWT — solo el merchant
+	// asignado al terminal puede renovar las claves cuando se pierden)
+	r.With(am.RequireAuth).Post("/api/nfc/terminal/auto-renew", h.autoRenewKeys)
 
 	// Retention config (admin)
 	r.With(am.RequirePermission("config.manage")).Get("/api/nfc/retention/config", h.getRetentionConfig)
@@ -3626,9 +3629,25 @@ func (h *NFCTerminalHandler) userLookup(w http.ResponseWriter, r *http.Request) 
 
 // autoRenewKeys permite a un terminal renovar sus claves criptograficas
 // automaticamente cuando se pierden (app reinstalada, datos borrados, etc.).
-// No requiere encriptacion (las claves viejas se perdieron, no se puede encriptar).
-// Verifica terminal_id + device_fingerprint para autorizar la renovacion.
+// REQUIERE JWT: solo el merchant_user_id asignado al terminal puede renovar.
+// Esto previene que alguien falsifique un terminal y renueve claves con
+// credenciales arbitrarias.
+//
+// Flujo seguro:
+// 1. El usuario se loguea en el POS (login JWT, no requiere claves del terminal)
+// 2. Si el terminal pierde sus claves, el usuario YA esta logueado
+// 3. El POS llama a /auto-renew con el JWT del usuario logueado
+// 4. El servidor verifica que el usuario logueado es el merchant_user_id del terminal
+// 5. Si coincide, actualiza la clave y devuelve server_public_key
+// 6. Si no coincide, rechaza (no es el dueño del terminal)
 func (h *NFCTerminalHandler) autoRenewKeys(w http.ResponseWriter, r *http.Request) {
+	// 1. Verificar JWT — el usuario debe estar logueado
+	userID, err := getUserID(r)
+	if err != nil {
+		writeError(w, 401, "not authenticated: user must be logged in to renew keys")
+		return
+	}
+
 	var req struct {
 		TerminalID        string `json:"terminal_id"`
 		TerminalPublicKey string `json:"terminal_public_key"`
@@ -3652,6 +3671,24 @@ func (h *NFCTerminalHandler) autoRenewKeys(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// 2. Verificar que el usuario logueado es el merchant_user_id del terminal
+	var storedMerchantID *uuid.UUID
+	err = h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT merchant_user_id FROM nfc_terminals
+		WHERE terminal_id = $1 AND is_registered = true AND is_active = true`,
+		req.TerminalID,
+	).Scan(&storedMerchantID)
+	if err != nil {
+		writeError(w, 404, "terminal not found or not registered")
+		return
+	}
+
+	if storedMerchantID == nil || *storedMerchantID != userID {
+		writeError(w, 403, "not authorized: you are not the assigned merchant for this terminal")
+		return
+	}
+
+	// 3. Auto-renovar (AutoRenewKeys tambien verifica device_fingerprint internamente)
 	serverPubKey, err := h.NFC.AutoRenewKeys(r.Context(), req.TerminalID, req.TerminalPublicKey, req.DeviceFingerprint)
 	if err != nil {
 		writeError(w, 400, err.Error())
