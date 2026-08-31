@@ -100,6 +100,12 @@ data class HeartbeatResponse(
 )
 
 @JsonClass(generateAdapter = true)
+data class ServerPubKeyResponse(
+    @Json(name = "server_public_key") val serverPublicKey: String? = null,
+    @Json(name = "node_domain") val nodeDomain: String? = null
+)
+
+@JsonClass(generateAdapter = true)
 data class RegisterTerminalApiRequest(
     @Json(name = "terminal_id") val terminalId: String,
     @Json(name = "label") val label: String,

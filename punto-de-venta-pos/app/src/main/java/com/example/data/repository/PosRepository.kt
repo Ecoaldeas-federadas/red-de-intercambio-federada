@@ -1635,6 +1635,28 @@ class PosRepository(
     }
 
     /**
+     * Diagnóstico: compara el server_public_key guardado localmente con el del servidor.
+     * Retorna un mensaje descriptivo de la comparación.
+     */
+    suspend fun diagnoseServerKey(): String = withContext(Dispatchers.IO) {
+        try {
+            val config = getOrInitTerminalConfig()
+            val localKey = config.serverPublicKeyHex ?: "null"
+            val service = apiClient.getService()
+            val response = service.getServerPubKey()
+            if (response.isSuccessful && response.body() != null) {
+                val serverKey = response.body()!!.serverPublicKey ?: "null"
+                val match = localKey.equals(serverKey, ignoreCase = true)
+                "Local: ${localKey.take(20)}...\nServidor: ${serverKey.take(20)}...\nCoinciden: $match"
+            } else {
+                "Local: ${localKey.take(20)}...\nServidor: error HTTP ${response.code()}"
+            }
+        } catch (e: Exception) {
+            "Error de diagnóstico: ${e.localizedMessage}"
+        }
+    }
+
+    /**
      * Lookup de usuario por username.
      * Retorna el tipo de tarjeta y si requiere documento de identidad.
      */
@@ -1643,6 +1665,9 @@ class PosRepository(
             val config = getOrInitTerminalConfig()
             val serverPubKey = config.serverPublicKeyHex
                 ?: return@withContext Result.failure(Exception("Terminal no registrado: sin clave pública del servidor"))
+
+            android.util.Log.d("PosRepository", "userLookup: terminalId=${config.terminalId} username=${username.trim().lowercase()} serverUrl=${apiClient.serverUrl}")
+            android.util.Log.d("PosRepository", "userLookup: serverPubKey=${serverPubKey.take(16)}... terminalPubKey=${config.terminalPublicKeyHex?.take(16) ?: "null"}...")
 
             val payload = UserLookupDecryptedPayload(
                 terminalId = config.terminalId,

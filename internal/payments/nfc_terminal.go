@@ -1943,6 +1943,11 @@ func (nt *NFCTerminals) DecodePayload(ctx context.Context, terminalID string, en
 		return nil, nil, fmt.Errorf("getting server identity private key: %w", err)
 	}
 
+	// Log de depuración: comparar claves para diagnosticar mismatch
+	serverIdentityPub, _ := nt.GetServerPublicKey(ctx)
+	log.Printf("DecodePayload: terminal=%s terminalPub=%x ephPub=%x serverPrivLen=%d serverPub=%x",
+		terminalID, terminalIdentityPub, ed25519.PublicKey(ephPub), len(serverIdentityPriv), serverIdentityPub)
+
 	sharedKey, err := crypto.DeriveSharedKey(serverIdentityPriv, ed25519.PublicKey(ephPub))
 	if err != nil {
 		return nil, nil, fmt.Errorf("deriving ephemeral shared key: %w", err)

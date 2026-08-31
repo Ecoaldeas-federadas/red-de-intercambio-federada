@@ -35,6 +35,7 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.Post("/api/nfc/terminal/complete-registration", h.completeRegistration)
 	r.Post("/api/nfc/terminal/auth", h.terminalAuth)
 	r.Post("/api/nfc/terminal/heartbeat", h.terminalHeartbeat)
+	r.Get("/api/nfc/terminal/server-pubkey", h.getServerPubKey) // diagnóstico
 	r.Get("/api/nfc/terminal/{id}/status", h.terminalStatus)
 	r.Post("/api/nfc/terminal/session", h.createSession)
 	r.Put("/api/nfc/terminal/session/amount", h.setSessionAmount)
@@ -230,6 +231,20 @@ func (h *NFCTerminalHandler) terminalAuth(w http.ResponseWriter, r *http.Request
 		"session_token":   sessionToken,
 		"signature":       hexEncodeBytes(serverSig),
 		"format_settings": fs,
+	})
+}
+
+// getServerPubKey devuelve la clave pública del servidor para diagnóstico.
+// No requiere autenticación — es solo la clave pública, no expone nada secreto.
+func (h *NFCTerminalHandler) getServerPubKey(w http.ResponseWriter, r *http.Request) {
+	pub, err := h.NFC.GetServerPublicKey(r.Context())
+	if err != nil {
+		writeError(w, 500, "server keys not configured: "+err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{
+		"server_public_key": hexEncodeBytes(pub),
+		"node_domain":       h.NFC.NodeDomain,
 	})
 }
 
