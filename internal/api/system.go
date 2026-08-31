@@ -159,6 +159,10 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	// Buscar usuarios y organizaciones (para asignar terminales, tarjetas, etc.)
 	r.With(am.RequireAuth).Get("/api/search/users", h.searchUsers)
 	r.With(am.RequireAuth).Get("/api/search/organizations", h.searchOrganizations)
+
+	// Perfil religioso/filosofico del nodo (del nodo completo, no por organizacion)
+	r.With(am.RequireAuth).Get("/api/node/faith-profile", h.getNodeFaithProfile)
+	r.With(am.RequirePermission("config.manage")).Put("/api/node/faith-profile", h.updateNodeFaithProfile)
 }
 
 // ===== AUDITORIA =====
@@ -5052,4 +5056,45 @@ func (h *SystemHandler) searchOrganizations(w http.ResponseWriter, r *http.Reque
 		})
 	}
 	writeJSON(w, 200, orgs)
+}
+
+// ===== PERFIL RELIGIOSO/FILOSOFICO DEL NODO =====
+
+func (h *SystemHandler) getNodeFaithProfile(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+
+	var profile, description string
+	err := h.Pool.QueryRow(r.Context(), `
+		SELECT COALESCE(faith_profile, ''), COALESCE(faith_description, '')
+		FROM public_settings WHERE node_domain = $1`, nodeDomain).Scan(&profile, &description)
+	if err != nil {
+		writeJSON(w, 200, map[string]string{"faith_profile": "", "description": ""})
+		return
+	}
+	writeJSON(w, 200, map[string]string{"faith_profile": profile, "description": description})
+}
+
+func (h *SystemHandler) updateNodeFaithProfile(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+
+	var req struct {
+		FaithProfile string `json:"faith_profile"`
+		Description  string `json:"description"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	_, err := h.Pool.Exec(r.Context(), `
+		UPDATE public_settings SET faith_profile = $2, faith_description = $3, updated_at = NOW()
+		WHERE node_domain = $1`,
+		nodeDomain, req.FaithProfile, req.Description)
+	if err != nil {
+		writeError(w, 500, "error updating node faith profile")
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{"success": true})
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"federated-credit-node/internal/accounts"
@@ -40,6 +41,15 @@ func (dh *DepartmentsHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 		r.Get("/api/roles/{id}/permissions", dh.listRolePermissions)
 		r.Get("/api/permissions", dh.listAllPermissions)
 		r.Get("/api/users/me/permissions", dh.listMyPermissions)
+
+		// Gestion de permisos de usuarios individuales (para la Asamblea)
+		r.Get("/api/users/all", dh.listAllUsersWithPermissions)
+		r.Get("/api/users/{id}/permissions", dh.listUserPermissions)
+		r.With(am.RequirePermission("config.manage")).Post("/api/users/{id}/permissions/grant", dh.grantUserPermission)
+		r.With(am.RequirePermission("config.manage")).Delete("/api/users/{id}/permissions/{permName}", dh.revokeUserPermission)
+
+		// Listar todos los departamentos con info de organizacion padre
+		r.Get("/api/departments/all", dh.listAllDepartments)
 	})
 }
 
@@ -359,4 +369,217 @@ func (dh *DepartmentsHandler) listMyPermissions(w http.ResponseWriter, r *http.R
 		"is_super_admin":      isSuperAdmin,
 		"super_admin_enabled": superAdminEnabled,
 	})
+}
+
+// ===== GESTION DE PERMISOS DE USUARIOS INDIVIDUALES =====
+
+// listAllUsersWithPermissions lista todos los miembros del nodo con sus permisos.
+// Para que la Asamblea pueda buscar personas y ver/asignar/quitar permisos.
+func (dh *DepartmentsHandler) listAllUsersWithPermissions(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	nodeDomain = db.ResolveNodeDomain(r.Context(), dh.Pool, nodeDomain, db.LOCAL_NODE_DOMAIN)
+
+	q := r.URL.Query().Get("q")
+	var rows pgx.Rows
+	var err error
+	if q != "" {
+		rows, err = dh.Pool.Query(r.Context(), `
+			SELECT u.id, u.username, COALESCE(u.display_name, u.username), u.account_type,
+			       u.membership_status, u.is_super_admin, u.super_admin_enabled
+			FROM users u
+			WHERE u.node_domain = $1 AND u.membership_status = 'active'
+			  AND (LOWER(u.username) LIKE '%' || LOWER($2) || '%' OR LOWER(COALESCE(u.display_name, '')) LIKE '%' || LOWER($2) || '%')
+			ORDER BY u.username
+			LIMIT 100`,
+			nodeDomain, q)
+	} else {
+		rows, err = dh.Pool.Query(r.Context(), `
+			SELECT u.id, u.username, COALESCE(u.display_name, u.username), u.account_type,
+			       u.membership_status, u.is_super_admin, u.super_admin_enabled
+			FROM users u
+			WHERE u.node_domain = $1 AND u.membership_status = 'active'
+			ORDER BY u.username
+			LIMIT 100`,
+			nodeDomain)
+	}
+	if err != nil {
+		writeError(w, 500, "error listing users")
+		return
+	}
+	defer rows.Close()
+
+	type UserWithPerms struct {
+		ID                string   `json:"id"`
+		Username          string   `json:"username"`
+		DisplayName       string   `json:"display_name"`
+		AccountType       string   `json:"account_type"`
+		MembershipStatus  string   `json:"membership_status"`
+		IsSuperAdmin      bool     `json:"is_super_admin"`
+		SuperAdminEnabled bool     `json:"super_admin_enabled"`
+		Permissions       []string `json:"permissions"`
+	}
+
+	var users []UserWithPerms
+	for rows.Next() {
+		var u UserWithPerms
+		if err := rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.AccountType,
+			&u.MembershipStatus, &u.IsSuperAdmin, &u.SuperAdminEnabled); err != nil {
+			continue
+		}
+		uid, _ := uuid.Parse(u.ID)
+		perms, _ := dh.Departments.ListUserPermissions(r.Context(), uid)
+		if perms == nil {
+			perms = []string{}
+		}
+		u.Permissions = perms
+		users = append(users, u)
+	}
+	if users == nil {
+		users = []UserWithPerms{}
+	}
+	writeJSON(w, 200, users)
+}
+
+// listUserPermissions lista los permisos de un usuario especifico.
+func (dh *DepartmentsHandler) listUserPermissions(w http.ResponseWriter, r *http.Request) {
+	userIDStr := chi.URLParam(r, "id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		writeError(w, 400, "invalid user id")
+		return
+	}
+
+	perms, err := dh.Departments.ListUserPermissions(r.Context(), userID)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	if perms == nil {
+		perms = []string{}
+	}
+
+	var isSuperAdmin, superAdminEnabled bool
+	_ = dh.Pool.QueryRow(r.Context(), `SELECT is_super_admin, super_admin_enabled FROM users WHERE id = $1`, userID).Scan(&isSuperAdmin, &superAdminEnabled)
+
+	writeJSON(w, 200, map[string]interface{}{
+		"user_id":             userID.String(),
+		"permissions":         perms,
+		"is_super_admin":      isSuperAdmin,
+		"super_admin_enabled": superAdminEnabled,
+	})
+}
+
+// grantUserPermission asigna un permiso directo a un usuario.
+func (dh *DepartmentsHandler) grantUserPermission(w http.ResponseWriter, r *http.Request) {
+	userIDStr := chi.URLParam(r, "id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		writeError(w, 400, "invalid user id")
+		return
+	}
+
+	var req struct {
+		PermissionName string `json:"permission_name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.PermissionName == "" {
+		writeError(w, 400, "permission_name is required")
+		return
+	}
+
+	// Buscar el permiso por nombre
+	var permID uuid.UUID
+	err = dh.Pool.QueryRow(r.Context(), `SELECT id FROM permissions WHERE name = $1`, req.PermissionName).Scan(&permID)
+	if err != nil {
+		writeError(w, 404, "permission not found: "+req.PermissionName)
+		return
+	}
+
+	grantedBy, _ := dh.Auth.GetUserID(r)
+	var grantedByPtr *uuid.UUID
+	if grantedBy != uuid.Nil {
+		grantedByPtr = &grantedBy
+	}
+
+	if err := dh.Departments.GrantUserPermission(r.Context(), userID, permID, grantedByPtr, nil); err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{"success": true})
+}
+
+// revokeUserPermission quita un permiso directo de un usuario.
+func (dh *DepartmentsHandler) revokeUserPermission(w http.ResponseWriter, r *http.Request) {
+	userIDStr := chi.URLParam(r, "id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		writeError(w, 400, "invalid user id")
+		return
+	}
+
+	permName := chi.URLParam(r, "permName")
+	if permName == "" {
+		writeError(w, 400, "permission name is required")
+		return
+	}
+
+	_, err = dh.Pool.Exec(r.Context(), `
+		DELETE FROM user_permissions
+		WHERE user_id = $1 AND permission_id = (
+			SELECT id FROM permissions WHERE name = $2
+		)`,
+		userID, permName)
+	if err != nil {
+		writeError(w, 500, "error revoking permission")
+		return
+	}
+	writeJSON(w, 200, map[string]interface{}{"success": true})
+}
+
+// listAllDepartments lista todos los departamentos con info de organizacion padre.
+func (dh *DepartmentsHandler) listAllDepartments(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	nodeDomain = db.ResolveNodeDomain(r.Context(), dh.Pool, nodeDomain, db.LOCAL_NODE_DOMAIN)
+
+	rows, err := dh.Pool.Query(r.Context(), `
+		SELECT d.id, d.name, d.description, d.group_type, d.is_active,
+		       d.parent_organization_id,
+		       COALESCE(o.display_name, o.username, '') AS org_name
+		FROM departments d
+		LEFT JOIN users o ON d.parent_organization_id = o.id
+		WHERE d.node_domain = $1
+		ORDER BY d.name`,
+		nodeDomain)
+	if err != nil {
+		writeError(w, 500, "error listing departments")
+		return
+	}
+	defer rows.Close()
+
+	var depts []map[string]interface{}
+	for rows.Next() {
+		var id, name, groupType string
+		var description, orgName string
+		var isActive bool
+		var parentOrgID *uuid.UUID
+		if err := rows.Scan(&id, &name, &description, &groupType, &isActive, &parentOrgID, &orgName); err != nil {
+			continue
+		}
+		depts = append(depts, map[string]interface{}{
+			"id":                     id,
+			"name":                   name,
+			"description":            description,
+			"group_type":             groupType,
+			"is_active":              isActive,
+			"parent_organization_id": parentOrgID,
+			"org_name":               orgName,
+		})
+	}
+	if depts == nil {
+		depts = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, depts)
 }

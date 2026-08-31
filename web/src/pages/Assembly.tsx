@@ -4,7 +4,7 @@ import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useConfig } from '../hooks/useConfig'
 import { EntitySelector } from '../components/EntitySelector'
-import { Plus, Check, X, HelpCircle, Users, Calendar, Shield, Vote as VoteIcon, DollarSign, Crown, Trash2, FileText, Clock } from 'lucide-react'
+import { Plus, Check, X, HelpCircle, Users, Calendar, Shield, Vote as VoteIcon, DollarSign, Crown, Trash2, FileText, Clock, Building2, Search, KeyRound } from 'lucide-react'
 import { fmtTQ, fmtDateTime, fmtNumber } from '../lib/format'
 
 type ProposalType =
@@ -360,6 +360,7 @@ export default function Assembly() {
   const { currency } = useConfig()
   const canManageBoard = hasPermission('assembly.manage_board')
   const canManageTax = hasPermission('tax.manage')
+  const canManage = hasPermission('config.manage') || hasPermission('assembly.manage')
   // El secretario o quien tenga permiso de gestion de asamblea puede aprobar propuestas
   const canApproveProposals = canManageBoard || hasPermission('assembly.manage')
   const [currentUser, setCurrentUser] = useState<any>(null)
@@ -369,9 +370,9 @@ export default function Assembly() {
   }, [])
 
   const [searchParams, setSearchParams] = useSearchParams()
-  const initialTab = (searchParams.get('tab') as 'members' | 'board' | 'sessions' | 'proposals' | 'reports' | 'tax' | 'config' | 'wallet') || 'proposals'
-  const [tab, setTab] = useState<'members' | 'board' | 'sessions' | 'proposals' | 'reports' | 'tax' | 'config' | 'wallet'>(initialTab)
-  const changeTab = (t: 'members' | 'board' | 'sessions' | 'proposals' | 'reports' | 'tax' | 'config' | 'wallet') => {
+  const initialTab = (searchParams.get('tab') as 'members' | 'board' | 'sessions' | 'proposals' | 'reports' | 'tax' | 'config' | 'wallet' | 'departments') || 'proposals'
+  const [tab, setTab] = useState<'members' | 'board' | 'sessions' | 'proposals' | 'reports' | 'tax' | 'config' | 'wallet' | 'departments'>(initialTab)
+  const changeTab = (t: 'members' | 'board' | 'sessions' | 'proposals' | 'reports' | 'tax' | 'config' | 'wallet' | 'departments') => {
     setTab(t)
     setSearchParams({ tab: t })
   }
@@ -391,6 +392,17 @@ export default function Assembly() {
   const [departments, setDepartments] = useState<any[]>([])
   const [orgList, setOrgList] = useState<any[]>([])
   const [userList, setUserList] = useState<any[]>([])
+
+  // Gestion de permisos de miembros (dentro de la pestaña members)
+  const [memberSearch, setMemberSearch] = useState('')
+  const [allMembers, setAllMembers] = useState<any[]>([])
+  const [selectedMember, setSelectedMember] = useState<any | null>(null)
+  const [memberPerms, setMemberPerms] = useState<string[]>([])
+  const [allPerms, setAllPerms] = useState<any[]>([])
+  const [permMsg, setPermMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+
+  // Departamentos de la Asamblea (para la pestaña departments)
+  const [allDepts, setAllDepts] = useState<any[]>([])
   const [newSignerType, setNewSignerType] = useState<'person' | 'organization'>('person')
   const [newSignerId, setNewSignerId] = useState('')
   const [fundData, setFundData] = useState<any>(null)
@@ -472,6 +484,15 @@ export default function Assembly() {
           }).catch(() => setFundTxs([]))
         }
       }).catch(() => {})
+    }
+    if (tab === 'members') {
+      // Cargar todos los miembros del nodo (no solo con voto) + todos los permisos disponibles
+      api.get('/users/all').then((d: any) => setAllMembers(Array.isArray(d) ? d : [])).catch(() => setAllMembers([]))
+      api.get('/permissions').then((d: any) => setAllPerms(Array.isArray(d) ? d : [])).catch(() => setAllPerms([]))
+    }
+    if (tab === 'departments') {
+      // Cargar todos los departamentos del nodo
+      api.get('/departments/all').then((d: any) => setAllDepts(Array.isArray(d) ? d : [])).catch(() => setAllDepts([]))
     }
   }, [sessionFilter, tab, meetingType])
 
@@ -889,6 +910,7 @@ export default function Assembly() {
         <button onClick={() => changeTab('board')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'board' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Junta Directiva</button>
         <button onClick={() => changeTab('sessions')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'sessions' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Sesiones</button>
         <button onClick={() => changeTab('tax')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'tax' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Impuestos</button>
+        <button onClick={() => changeTab('departments')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'departments' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Building2 size={14} className="inline mr-1" />Departamentos</button>
         <button onClick={() => changeTab('config')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'config' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Configuracion</button>
       </div>
 
@@ -1389,9 +1411,11 @@ export default function Assembly() {
 
       {tab === 'members' && (
         <div className="space-y-4">
-          <h2 className="font-semibold flex items-center gap-2"><Users size={18} />Miembros con Derecho a Voto</h2>
+          <h2 className="font-semibold flex items-center gap-2"><Users size={18} />Miembros de la Asamblea</h2>
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
-            <p>Los miembros de la asamblea son los miembros de la comunidad con derecho a voto. No se registran aparte. El nivel de miembro define si tienen voz, voto, y si cuentan para el quorum.</p>
+            <p>Los miembros de la asamblea son los miembros de la comunidad. No se registran aparte.
+            El nivel de miembro define si tienen voz, voto, y si cuentan para el quorum.
+            Aqui puedes buscar cualquier miembro y gestionar sus permisos individuales.</p>
           </div>
 
           {/* Niveles de miembro */}
@@ -1420,15 +1444,160 @@ export default function Assembly() {
             </div>
           )}
 
-          {/* Lista de miembros con voto */}
-          {votingMembers.length === 0 ? (
-            <div className="card text-center text-gray-500 py-8">
-              <p>No hay miembros con derecho a voto.</p>
-              <p className="text-xs mt-2">Los miembros aparecen aqui cuando se les asigna un nivel con derecho a voto.</p>
+          {/* Buscador de miembros */}
+          <div className="card">
+            <h3 className="font-medium mb-3 flex items-center gap-2"><Search size={16} />Buscar Miembros</h3>
+            <input
+              type="text"
+              className="input mb-3"
+              placeholder="Buscar por nombre o usuario..."
+              value={memberSearch}
+              onChange={(e) => setMemberSearch(e.target.value)}
+            />
+
+            {/* Lista de miembros */}
+            {allMembers.length === 0 ? (
+              <p className="text-sm text-gray-500 py-4">No hay miembros cargados.</p>
+            ) : (
+              <div className="space-y-1 max-h-64 overflow-y-auto">
+                {allMembers
+                  .filter((m: any) => {
+                    if (!memberSearch) return true
+                    const q = memberSearch.toLowerCase()
+                    return (m.username || '').toLowerCase().includes(q) ||
+                           (m.display_name || '').toLowerCase().includes(q)
+                  })
+                  .map((m: any) => (
+                    <div
+                      key={m.id}
+                      className={`flex items-center justify-between p-2 rounded border cursor-pointer transition ${selectedMember?.id === m.id ? 'bg-trueque-50 border-trueque-300' : 'border-gray-200 hover:bg-gray-50'}`}
+                      onClick={() => {
+                        setSelectedMember(m)
+                        setMemberPerms(m.permissions || [])
+                        setPermMsg(null)
+                      }}
+                    >
+                      <div>
+                        <span className="font-medium text-sm">{m.display_name || m.username}</span>
+                        <span className="text-xs text-gray-500 ml-2">@{m.username}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {m.is_super_admin && m.super_admin_enabled && (
+                          <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">Super Admin</span>
+                        )}
+                        {m.permissions && m.permissions.length > 0 && (
+                          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{m.permissions.length} permisos</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+
+          {/* Panel de permisos del miembro seleccionado */}
+          {selectedMember && (
+            <div className="card space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium flex items-center gap-2">
+                  <KeyRound size={16} />
+                  Permisos de {selectedMember.display_name || selectedMember.username}
+                </h3>
+                <button onClick={() => setSelectedMember(null)} className="text-gray-400 hover:text-gray-600 text-sm">Cerrar</button>
+              </div>
+
+              {selectedMember.is_super_admin && selectedMember.super_admin_enabled && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                  Este usuario es Super Admin habilitado: tiene TODOS los permisos automaticamente.
+                </div>
+              )}
+
+              {/* Permisos actuales */}
+              <div>
+                <h4 className="text-sm font-medium mb-2">Permisos actuales ({memberPerms.length})</h4>
+                {memberPerms.length === 0 ? (
+                  <p className="text-sm text-gray-500">No tiene permisos directos.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {memberPerms.map((p: string) => (
+                      <div key={p} className="flex items-center gap-1 bg-gray-100 rounded-lg px-2 py-1 text-xs">
+                        <span className="font-medium">{p}</span>
+                        {canManage && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                await api.delete(`/users/${selectedMember.id}/permissions/${encodeURIComponent(p)}`)
+                                setMemberPerms(memberPerms.filter(x => x !== p))
+                                setPermMsg({ type: 'success', text: `Permiso "${p}" removido` })
+                                // Actualizar lista
+                                setAllMembers(allMembers.map(m => m.id === selectedMember.id ? { ...m, permissions: m.permissions.filter((x: string) => x !== p) } : m))
+                              } catch (e: any) {
+                                setPermMsg({ type: 'error', text: e?.message || 'Error al remover permiso' })
+                              }
+                            }}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <X size={12} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Asignar nuevo permiso */}
+              {canManage && (
+                <div>
+                  <h4 className="text-sm font-medium mb-2">Asignar nuevo permiso</h4>
+                  <div className="space-y-1 max-h-48 overflow-y-auto border rounded-lg p-2">
+                    {allPerms
+                      .filter((p: any) => !memberPerms.includes(p.name))
+                      .map((p: any) => (
+                        <div key={p.id} className="flex items-center justify-between p-1 hover:bg-gray-50 rounded">
+                          <div>
+                            <span className="text-sm font-medium">{p.name}</span>
+                            <span className="text-xs text-gray-500 ml-2">({p.category})</span>
+                            {p.requires_multisig && <span className="text-xs text-amber-600 ml-1">[multisig]</span>}
+                          </div>
+                          <button
+                            onClick={async () => {
+                              try {
+                                await api.post(`/users/${selectedMember.id}/permissions/grant`, { permission_name: p.name })
+                                setMemberPerms([...memberPerms, p.name])
+                                setPermMsg({ type: 'success', text: `Permiso "${p.name}" asignado` })
+                                // Actualizar lista
+                                setAllMembers(allMembers.map(m => m.id === selectedMember.id ? { ...m, permissions: [...(m.permissions || []), p.name] } : m))
+                              } catch (e: any) {
+                                setPermMsg({ type: 'error', text: e?.message || 'Error al asignar permiso' })
+                              }
+                            }}
+                            className="text-xs text-trueque-600 hover:text-trueque-700 font-medium"
+                          >
+                            + Asignar
+                          </button>
+                        </div>
+                      ))}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Los permisos marcados como [multisig] requieren votacion de la Asamblea.
+                    Al asignarlos directamente, se otorgan sin votacion (requiere permiso config.manage).
+                  </p>
+                </div>
+              )}
+
+              {permMsg && (
+                <div className={`text-xs p-2 rounded-lg ${permMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                  {permMsg.text}
+                </div>
+              )}
             </div>
-          ) : (
+          )}
+
+          {/* Lista de miembros con voto (seccion existente) */}
+          {votingMembers.length > 0 && (
             <div className="card">
-              <h3 className="font-medium mb-3">Miembros ({votingMembers.length})</h3>
+              <h3 className="font-medium mb-3">Miembros con Derecho a Voto ({votingMembers.length})</h3>
               <div className="space-y-2">
                 {votingMembers.map((m, i) => (
                   <div key={i} className="flex items-center justify-between border-b border-gray-100 py-2 last:border-0">
@@ -2020,6 +2189,52 @@ export default function Assembly() {
               <p className="text-xs text-gray-500">
                 Para distribuir los fondos recaudados, crea una propuesta de "Distribucion de fondos" indicando la cuenta destino y el monto.
               </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'departments' && (
+        <div className="space-y-4">
+          <h2 className="font-semibold flex items-center gap-2"><Building2 size={18} />Departamentos</h2>
+          <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
+            <p>
+              Aqui puedes ver todos los departamentos del nodo, incluyendo los de la Asamblea y los de otras organizaciones.
+              La Asamblea no aparece en la pagina de Organizaciones, por eso sus departamentos se gestionan aqui.
+              Para ver los departamentos de una organizacion especifica, ve a la pagina de esa organizacion.
+            </p>
+          </div>
+
+          {allDepts.length === 0 ? (
+            <div className="card text-center text-gray-500 py-8">
+              <Building2 size={32} className="mx-auto mb-2 text-gray-300" />
+              <p>No hay departamentos creados.</p>
+              <p className="text-xs mt-2">Los departamentos se crean desde la pagina de cada organizacion o desde aqui.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {allDepts.map((d: any) => (
+                <div key={d.id} className="card border rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-medium">{d.name}</span>
+                      {d.org_name && (
+                        <span className="text-xs text-gray-500 ml-2">({d.org_name})</span>
+                      )}
+                      {!d.org_name && (
+                        <span className="text-xs text-purple-600 ml-2">(Asamblea)</span>
+                      )}
+                    </div>
+                    <span className={`text-xs px-2 py-0.5 rounded ${d.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {d.is_active ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </div>
+                  {d.description && <p className="text-xs text-gray-600 mt-1">{d.description}</p>}
+                  <div className="mt-2">
+                    <span className="text-xs text-gray-400">{d.group_type}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

@@ -27,7 +27,7 @@ export default function NodeSettings() {
 
   const [searchParams, setSearchParams] = useSearchParams()
   const initialTab = (searchParams.get('tab') as any) || 'general'
-  const [tab, setTab] = useState<'general' | 'levels' | 'org_levels' | 'tariff' | 'commerce' | 'catalog' | 'orgs' | 'work' | 'seeds' | 'cayapa' | 'cards' | 'frne' | 'biodynamic' | 'pages' | 'backup' | 'database' | 'demo'>(initialTab)
+  const [tab, setTab] = useState<'general' | 'levels' | 'org_levels' | 'tariff' | 'commerce' | 'orgs' | 'work' | 'seeds' | 'cayapa' | 'cards' | 'frne' | 'biodynamic' | 'pages' | 'backup' | 'database' | 'demo'>(initialTab)
   const [clusterStatus, setClusterStatus] = useState<any>(null)
   const [clusterChecking, setClusterChecking] = useState(false)
   const [clusterConfig, setClusterConfig] = useState<any>(null)
@@ -59,12 +59,6 @@ export default function NodeSettings() {
   const [demoPresetSel, setDemoPresetSel] = useState('gen_ecoaldea')
   const [demoPresetsLoading, setDemoPresetsLoading] = useState(false)
 
-  // Catalog rules
-  const [catalogRules, setCatalogRules] = useState<any[]>([])
-  const [catalogRulesLoading, setCatalogRulesLoading] = useState(false)
-  const [newRule, setNewRule] = useState({ category_name: '', is_prohibited: true, reason: '' })
-  const [catalogMsg, setCatalogMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
-
   // Community work
   const [workSessions, setWorkSessions] = useState<any[]>([])
   const [workSessionsLoading, setWorkSessionsLoading] = useState(false)
@@ -75,6 +69,28 @@ export default function NodeSettings() {
   const [orgProfiles, setOrgProfiles] = useState<any[]>([])
   const [orgProfilesLoading, setOrgProfilesLoading] = useState(false)
   const [orgMsg, setOrgMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+
+  // Perfil del nodo (religion/filosofia del nodo completo)
+  const [nodeFaithProfile, setNodeFaithProfile] = useState('')
+  const [nodeFaithDescription, setNodeFaithDescription] = useState('')
+  const [faithProfiles] = useState([
+    { id: 'adventista', name: 'Adventista', rules: 'Sin alcohol, tabaco, cerdo, cafe' },
+    { id: 'iskcon', name: 'ISKCON', rules: 'Sin carne, huevo, ajo, cebolla, cafe, alcohol' },
+    { id: 'plum_village', name: 'Plum Village', rules: 'Sin carne, pescado, alcohol' },
+    { id: 'halal', name: 'Halal Islamico', rules: 'Sin alcohol, cerdo, carne no-halal' },
+    { id: 'kosher', name: 'Kosher Judio', rules: 'Sin cerdo, mariscos, mezcla carne+leche' },
+    { id: 'jain', name: 'Jain', rules: 'Sin carne, huevo, raices, ajo, cebolla' },
+    { id: 'vegano', name: 'Vegano secular', rules: 'Sin carne, lacteos, huevos, miel' },
+    { id: 'ital', name: 'Ital Rastafari', rules: 'Sin carne, sal, quimicos procesados' },
+  ])
+
+  // Horarios de comercio
+  const [commerceSchedules, setCommerceSchedules] = useState<any[]>([])
+  const [commerceSchedulesLoading, setCommerceSchedulesLoading] = useState(false)
+  const [commerceHoursEnabled, setCommerceHoursEnabled] = useState(false)
+  const [commerceHoursMessage, setCommerceHoursMessage] = useState('')
+  const [newSchedule, setNewSchedule] = useState({ day_of_week: '', start_time: '', end_time: '', crosses_midnight: false, reason: '' })
+  const [scheduleMsg, setScheduleMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
   // FRNE (Salida Justa)
   const [frneRequests, setFrneRequests] = useState<any[]>([])
@@ -194,18 +210,17 @@ export default function NodeSettings() {
     }
   }
 
-  // Cargar reglas de catalogo
-  const loadCatalogRules = async () => {
-    setCatalogRulesLoading(true)
-    try {
-      const data = await api.get<{ rules: any[] }>('/catalog/rules')
-      setCatalogRules(data.rules || [])
-    } catch (e) {
-      // silencioso
-    } finally {
-      setCatalogRulesLoading(false)
-    }
-  }
+  useEffect(() => {
+    if (tab === 'backup') { loadAutoBackups(); loadBackupConfig() }
+    if (tab === 'database') { loadYbNodes(); loadClusterStatus(); loadClusterConfig() }
+    if (tab === 'orgs') { loadOrgProfiles() }
+    if (tab === 'work') { loadWorkSessions() }
+    if (tab === 'frne') { loadFrneRequests() }
+    if (tab === 'biodynamic') { loadBioConfig() }
+    if (tab === 'pages') { loadPageSettings() }
+    if (tab === 'seeds') { loadSeedLoans() }
+    if (tab === 'commerce') { loadCommerceSchedules() }
+  }, [tab])
 
   // Cargar sesiones de trabajo comunitario
   const loadWorkSessions = async () => {
@@ -230,6 +245,29 @@ export default function NodeSettings() {
       // silencioso
     } finally {
       setOrgProfilesLoading(false)
+    }
+    // Cargar perfil del nodo
+    try {
+      const fp = await api.get<{ faith_profile: string, description: string }>('/node/faith-profile')
+      setNodeFaithProfile(fp.faith_profile || '')
+      setNodeFaithDescription(fp.description || '')
+    } catch (e) {
+      // silencioso
+    }
+  }
+
+  // Cargar horarios de comercio
+  const loadCommerceSchedules = async () => {
+    setCommerceSchedulesLoading(true)
+    try {
+      const data = await api.get<{ schedules: any[], commerce_hours_enabled: boolean, commerce_hours_message: string }>('/node/commerce-schedule')
+      setCommerceSchedules(data.schedules || [])
+      setCommerceHoursEnabled(data.commerce_hours_enabled || false)
+      setCommerceHoursMessage(data.commerce_hours_message || '')
+    } catch (e) {
+      // silencioso
+    } finally {
+      setCommerceSchedulesLoading(false)
     }
   }
 
@@ -619,8 +657,7 @@ export default function NodeSettings() {
         <button onClick={() => changeTab('org_levels')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'org_levels' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Building2 size={14} className="inline mr-1" />Niveles de Organizacion</button>
         <button onClick={() => changeTab('tariff')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'tariff' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Tarifa Energetica</button>
         <button onClick={() => changeTab('commerce')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'commerce' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Horarios</button>
-        <button onClick={() => changeTab('catalog')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'catalog' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Reglas Catalogo</button>
-        <button onClick={() => changeTab('orgs')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'orgs' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Building2 size={14} className="inline mr-1" />Orgs y Religion</button>
+        <button onClick={() => changeTab('orgs')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'orgs' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Building2 size={14} className="inline mr-1" />Perfil del Nodo</button>
         <button onClick={() => changeTab('work')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'work' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Trabajo Comunitario</button>
         <button onClick={() => changeTab('seeds')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'seeds' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Banco Semillas</button>
         <button onClick={() => changeTab('cayapa')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'cayapa' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Asistencia Cayapa</button>
@@ -1151,187 +1188,260 @@ export default function NodeSettings() {
             Puedes bloquear dias completos (ej: Sabado), rangos horarios, o ventanas
             que cruzan medianoche (ej: viernes al ponerse el sol hasta sabado al ponerse el sol).
           </p>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
-            <Info size={16} className="inline mr-1" />
-            Las reglas desactivadas no afectan el comportamiento del nodo.
-            Si no hay reglas activas, todas las transacciones estan permitidas.
+
+          {/* Toggle on/off */}
+          <div className="flex items-center justify-between border rounded-lg p-4 bg-gray-50">
+            <div>
+              <span className="font-medium text-sm">Sistema de horarios activo</span>
+              <p className="text-xs text-gray-500 mt-1">Si esta activado, las transacciones se bloquean segun las reglas. Si esta desactivado, todo esta permitido.</p>
+            </div>
+            {canManage && (
+              <button
+                onClick={async () => {
+                  try {
+                    await api.put('/node/commerce-hours-toggle', { enabled: !commerceHoursEnabled, message: commerceHoursMessage })
+                    setCommerceHoursEnabled(!commerceHoursEnabled)
+                    setScheduleMsg({ type: 'success', text: commerceHoursEnabled ? 'Horarios desactivados' : 'Horarios activados' })
+                  } catch (e: any) {
+                    setScheduleMsg({ type: 'error', text: e?.message || 'Error' })
+                  }
+                }}
+                className={`px-4 py-2 rounded-lg text-sm font-medium ${commerceHoursEnabled ? 'bg-green-600 text-white' : 'bg-gray-300 text-gray-700'}`}
+              >
+                {commerceHoursEnabled ? 'Activado' : 'Desactivado'}
+              </button>
+            )}
           </div>
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-            <AlertTriangle size={16} className="inline mr-1" />
-            Los cambios en horarios pueden requerir aprobacion de la Asamblea segun la configuracion de gobernanza.
-          </div>
-          <p className="text-xs text-gray-500">
-            Para crear y editar reglas de horario, usa la seccion de Horarios en el panel principal.
-            Esta seccion muestra el estado actual de la configuracion.
-          </p>
+
+          {/* Mensaje configurable */}
+          {canManage && (
+            <div>
+              <label className="label">Mensaje cuando el comercio esta cerrado</label>
+              <input
+                type="text"
+                className="input"
+                placeholder="Ej: Las transacciones estan cerradas por descanso sabatico."
+                value={commerceHoursMessage}
+                onChange={(e) => setCommerceHoursMessage(e.target.value)}
+                onBlur={async () => {
+                  try {
+                    await api.put('/node/commerce-hours-toggle', { enabled: commerceHoursEnabled, message: commerceHoursMessage })
+                  } catch (e: any) {
+                    setScheduleMsg({ type: 'error', text: e?.message || 'Error al guardar mensaje' })
+                  }
+                }}
+              />
+              <p className="text-xs text-gray-400 mt-1">Este mensaje se muestra cuando alguien intenta transar fuera del horario permitido.</p>
+            </div>
+          )}
+
+          {/* Formulario para nueva regla */}
+          {canManage && (
+            <div className="space-y-3 border rounded-lg p-4 bg-gray-50">
+              <h3 className="font-medium text-sm">Nueva regla de horario</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Dia de la semana</label>
+                  <select
+                    className="input"
+                    value={newSchedule.day_of_week}
+                    onChange={(e) => setNewSchedule({ ...newSchedule, day_of_week: e.target.value })}
+                  >
+                    <option value="">Seleccionar dia...</option>
+                    <option value="0">Domingo</option>
+                    <option value="1">Lunes</option>
+                    <option value="2">Martes</option>
+                    <option value="3">Miercoles</option>
+                    <option value="4">Jueves</option>
+                    <option value="5">Viernes</option>
+                    <option value="6">Sabado</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Motivo (opcional)</label>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="Ej: Descanso sabatico"
+                    value={newSchedule.reason}
+                    onChange={(e) => setNewSchedule({ ...newSchedule, reason: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="label">Hora de inicio (dejar vacio = todo el dia)</label>
+                  <input
+                    type="time"
+                    className="input"
+                    value={newSchedule.start_time}
+                    onChange={(e) => setNewSchedule({ ...newSchedule, start_time: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="label">Hora de fin</label>
+                  <input
+                    type="time"
+                    className="input"
+                    value={newSchedule.end_time}
+                    onChange={(e) => setNewSchedule({ ...newSchedule, end_time: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="crosses_midnight"
+                  checked={newSchedule.crosses_midnight}
+                  onChange={(e) => setNewSchedule({ ...newSchedule, crosses_midnight: e.target.checked })}
+                />
+                <label htmlFor="crosses_midnight" className="text-sm text-gray-600">Cruza medianoche (ej: viernes 18:00 hasta sabado 06:00)</label>
+              </div>
+              <button
+                onClick={async () => {
+                  if (!newSchedule.day_of_week) {
+                    setScheduleMsg({ type: 'error', text: 'Selecciona un dia' })
+                    return
+                  }
+                  try {
+                    await api.post('/node/commerce-schedule', newSchedule)
+                    setScheduleMsg({ type: 'success', text: 'Regla creada' })
+                    setNewSchedule({ day_of_week: '', start_time: '', end_time: '', crosses_midnight: false, reason: '' })
+                    loadCommerceSchedules()
+                  } catch (e: any) {
+                    setScheduleMsg({ type: 'error', text: e?.message || 'Error al crear regla' })
+                  }
+                }}
+                className="btn-primary text-sm flex items-center gap-2"
+              >
+                <Plus size={16} /> Crear regla
+              </button>
+            </div>
+          )}
+
+          {/* Lista de reglas */}
+          {commerceSchedulesLoading && <p className="text-sm text-gray-500">Cargando reglas...</p>}
+          {!commerceSchedulesLoading && commerceSchedules.length === 0 && (
+            <p className="text-sm text-gray-500">No hay reglas configuradas. Todas las transacciones estan permitidas.</p>
+          )}
+          {commerceSchedules.length > 0 && (
+            <div className="space-y-2">
+              {commerceSchedules.map((s: any) => {
+                const days = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado']
+                return (
+                  <div key={s.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <span className="font-medium text-sm">{days[s.day_of_week] || `Dia ${s.day_of_week}`}</span>
+                      {s.start_time && s.end_time ? (
+                        <span className="ml-2 text-xs text-gray-600">{s.start_time} - {s.end_time}{s.crosses_midnight ? ' (cruza medianoche)' : ''}</span>
+                      ) : (
+                        <span className="ml-2 text-xs px-2 py-0.5 rounded bg-red-100 text-red-700">Todo el dia bloqueado</span>
+                      )}
+                      {s.reason && <p className="text-xs text-gray-600 mt-1">{s.reason}</p>}
+                    </div>
+                    {canManage && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await api.delete(`/node/commerce-schedule/${s.id}`)
+                            loadCommerceSchedules()
+                          } catch (e: any) {
+                            setScheduleMsg({ type: 'error', text: e?.message || 'Error al eliminar' })
+                          }
+                        }}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {scheduleMsg && (
+            <div className={`text-xs p-2 rounded-lg ${scheduleMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+              {scheduleMsg.text}
+            </div>
+          )}
         </div>
       )}
 
-      {/* ===== REGLAS DE CATALOGO ===== */}
-      {tab === 'catalog' && (
+      {/* ===== PERFIL DEL NODO ===== */}
+      {tab === 'orgs' && (
         <div className="card space-y-6">
-          <h2 className="font-semibold flex items-center gap-2"><Shield size={18} />Reglas de Catalogo</h2>
+          <h2 className="font-semibold flex items-center gap-2"><Building2 size={18} />Perfil del Nodo</h2>
           <p className="text-sm text-gray-600">
-            Configura que productos pueden o no pueden estar en el catalogo segun la filosofia
-            de tu comunidad. Ej: prohibir carne, alcohol, ajo, cebolla, tabaco, etc.
-            Estas reglas son especificas de este nodo y no afectan a otros nodos federados.
+            El perfil religioso/filosofico del nodo determina que productos se permiten o prohiben
+            para <strong>todo el nodo</strong>. Esta politica aplica hacia otros nodos federados
+            y a todas las organizaciones dentro del nodo. Las organizaciones pueden ser mas
+            restrictivas pero no menos.
           </p>
 
-          {/* Formulario para nueva regla */}
-          <div className="space-y-3 border rounded-lg p-4 bg-gray-50">
-            <h3 className="font-medium text-sm">Nueva regla</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <input
-                type="text"
-                className="input"
-                placeholder="Categoria (ej: carne, alcohol, ajo)"
-                value={newRule.category_name}
-                onChange={(e) => setNewRule({ ...newRule, category_name: e.target.value })}
-              />
-              <select
-                className="input"
-                value={newRule.is_prohibited ? 'prohibited' : 'label'}
-                onChange={(e) => setNewRule({ ...newRule, is_prohibited: e.target.value === 'prohibited' })}
-              >
-                <option value="prohibited">Prohibido</option>
-                <option value="label">Requiere etiqueta</option>
-              </select>
-              <input
-                type="text"
-                className="input"
-                placeholder="Razon (ej: No se consume en ISKCON)"
-                value={newRule.reason}
-                onChange={(e) => setNewRule({ ...newRule, reason: e.target.value })}
-              />
-            </div>
-            <button
-              onClick={async () => {
-                if (!newRule.category_name.trim()) {
-                  setCatalogMsg({ type: 'error', text: 'La categoria es obligatoria' })
-                  return
-                }
-                try {
-                  await api.post('/catalog/rules', newRule)
-                  setCatalogMsg({ type: 'success', text: 'Regla guardada' })
-                  setNewRule({ category_name: '', is_prohibited: true, reason: '' })
-                  loadCatalogRules()
-                } catch (e: any) {
-                  setCatalogMsg({ type: 'error', text: e?.message || 'Error al guardar regla' })
-                }
-              }}
-              className="btn-primary text-sm flex items-center gap-2"
-            >
-              <Plus size={16} /> Anadir regla
-            </button>
-            {catalogMsg && (
-              <div className={`text-xs p-2 rounded-lg ${catalogMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                {catalogMsg.text}
+          {/* Perfil actual del nodo */}
+          <div className="border rounded-lg p-4 bg-gray-50">
+            <h3 className="font-medium text-sm mb-3">Perfil actual del nodo</h3>
+            {nodeFaithProfile === '' ? (
+              <p className="text-sm text-gray-500">No hay perfil configurado. Todos los productos estan permitidos.</p>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-xs px-3 py-1 rounded-full bg-purple-100 text-purple-700 font-medium">
+                  {faithProfiles.find(p => p.id === nodeFaithProfile)?.name || nodeFaithProfile}
+                </span>
+                {nodeFaithDescription && <span className="text-xs text-gray-600">{nodeFaithDescription}</span>}
               </div>
             )}
           </div>
 
-          {/* Lista de reglas */}
-          {catalogRulesLoading && <p className="text-sm text-gray-500">Cargando reglas...</p>}
-          {!catalogRulesLoading && catalogRules.length === 0 && (
-            <p className="text-sm text-gray-500">No hay reglas configuradas. Todas las categorias estan permitidas.</p>
-          )}
-          {catalogRules.length > 0 && (
-            <div className="space-y-2">
-              {catalogRules.map((rule: any) => (
-                <div key={rule.id} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div>
-                    <span className="font-medium text-sm">{rule.category_name}</span>
-                    {rule.is_prohibited && <span className="ml-2 text-xs px-2 py-0.5 rounded bg-red-100 text-red-700">Prohibido</span>}
-                    {rule.requires_label && <span className="ml-2 text-xs px-2 py-0.5 rounded bg-yellow-100 text-yellow-700">Etiqueta</span>}
-                    {rule.reason && <p className="text-xs text-gray-600 mt-1">{rule.reason}</p>}
-                  </div>
-                  <button
-                    onClick={async () => {
-                      try {
-                        await api.delete(`/catalog/rules/${encodeURIComponent(rule.category_name)}`)
-                        loadCatalogRules()
-                      } catch (e: any) {
-                        setCatalogMsg({ type: 'error', text: e?.message || 'Error al eliminar' })
-                      }
-                    }}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
+          {/* Selector de perfil */}
+          <div className="space-y-3">
+            <h3 className="font-medium text-sm">Seleccionar perfil del nodo</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {faithProfiles.map(p => (
+                <button
+                  key={p.id}
+                  onClick={async () => {
+                    try {
+                      await api.put('/node/faith-profile', { faith_profile: p.id, description: p.rules })
+                      setNodeFaithProfile(p.id)
+                      setNodeFaithDescription(p.rules)
+                      setOrgMsg({ type: 'success', text: `Perfil "${p.name}" aplicado al nodo` })
+                    } catch (e: any) {
+                      setOrgMsg({ type: 'error', text: e?.message || 'Error al aplicar perfil' })
+                    }
+                  }}
+                  className={`text-left border rounded-lg p-3 transition ${nodeFaithProfile === p.id ? 'border-purple-400 bg-purple-50' : 'border-gray-200 hover:border-gray-300'}`}
+                >
+                  <div className="font-medium text-sm">{p.name}</div>
+                  <div className="text-xs text-gray-500 mt-1">{p.rules}</div>
+                </button>
               ))}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* ===== ORGANIZACIONES Y RELIGION ===== */}
-      {tab === 'orgs' && (
-        <div className="card space-y-6">
-          <h2 className="font-semibold flex items-center gap-2"><Building2 size={18} />Organizaciones y Perfil Religioso</h2>
-          <p className="text-sm text-gray-600">
-            Cada organizacion dentro del nodo puede tener su propio perfil religioso/filosofico.
-            Esto determina que productos puede o no puede ofrecer en el catalogo.
-            Las reglas del nodo son el limite superior: si el nodo prohibe alcohol,
-            ninguna organizacion puede vender alcohol. Las reglas de la organizacion
-            son adicionales: la organizacion puede ser mas restrictiva pero no menos.
-          </p>
-
-          {/* Lista de organizaciones con perfil */}
-          {orgProfilesLoading && <p className="text-sm text-gray-500">Cargando organizaciones...</p>}
-          {!orgProfilesLoading && orgProfiles.length === 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
-              <Info size={16} className="inline mr-1" />
-              No hay organizaciones con perfil religioso configurado.
-              Para asignar un perfil a una organizacion, ve a la pagina de la organizacion
-              y selecciona su perfil filosofico/religioso.
-            </div>
-          )}
-          {orgProfiles.length > 0 && (
-            <div className="space-y-3">
-              {orgProfiles.map((org: any) => (
-                <div key={org.organization_id} className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="font-medium">{org.display_name || org.username}</span>
-                      {org.faith_profile && (
-                        <span className="ml-2 text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700">
-                          {org.faith_profile}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  {org.description && <p className="text-xs text-gray-600 mt-1">{org.description}</p>}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Perfiles disponibles */}
-          <div className="border-t pt-4">
-            <h3 className="font-medium text-sm mb-2">Perfiles religiosos/filosoficos disponibles</h3>
-            <p className="text-xs text-gray-500 mb-3">
-              Estos perfiles se pueden asignar a organizaciones. Cada perfil trae
-              reglas preconfiguradas sobre que productos puede ofrecer la organizacion.
-            </p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-              {[
-                { id: 'adventista', name: 'Adventista', rules: 'Sin alcohol, tabaco, cerdo, cafe' },
-                { id: 'iskcon', name: 'ISKCON', rules: 'Sin carne, huevo, ajo, cebolla, cafe, alcohol' },
-                { id: 'plum_village', name: 'Plum Village', rules: 'Sin carne, pescado, alcohol' },
-                { id: 'halal', name: 'Halal Islamico', rules: 'Sin alcohol, cerdo, carne no-halal' },
-                { id: 'kosher', name: 'Kosher Judio', rules: 'Sin cerdo, mariscos, mezcla carne+leche' },
-                { id: 'jain', name: 'Jain', rules: 'Sin carne, huevo, raices, ajo, cebolla' },
-                { id: 'vegano', name: 'Vegano secular', rules: 'Sin carne, lacteos, huevos, miel' },
-                { id: 'ital', name: 'Ital Rastafari', rules: 'Sin carne, sal, quimicos procesados' },
-              ].map(p => (
-                <div key={p.id} className="border rounded-lg p-2 bg-gray-50">
-                  <div className="font-medium">{p.name}</div>
-                  <div className="text-gray-500 mt-1">{p.rules}</div>
-                </div>
-              ))}
-            </div>
+            {/* Boton para quitar perfil */}
+            {nodeFaithProfile !== '' && (
+              <button
+                onClick={async () => {
+                  try {
+                    await api.put('/node/faith-profile', { faith_profile: '', description: '' })
+                    setNodeFaithProfile('')
+                    setNodeFaithDescription('')
+                    setOrgMsg({ type: 'success', text: 'Perfil removido del nodo' })
+                  } catch (e: any) {
+                    setOrgMsg({ type: 'error', text: e?.message || 'Error al remover perfil' })
+                  }
+                }}
+                className="text-sm text-red-600 hover:text-red-700"
+              >
+                Quitar perfil del nodo
+              </button>
+            )}
           </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+            <Info size={16} className="inline mr-1" />
+            Para permitir o prohibir productos individuales, usa la pagina de <strong>Productos</strong> en el menu principal.
+            Ahi puedes marcar cada producto como permitido o no permitido en tu nodo.
+          </div>
+
           {orgMsg && (
             <div className={`text-xs p-2 rounded-lg ${orgMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
               {orgMsg.text}
