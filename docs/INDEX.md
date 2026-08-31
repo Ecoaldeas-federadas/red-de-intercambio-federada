@@ -179,6 +179,8 @@ red de intercambio federada/
 | 128 | Piscina global federada: pool_type en ledger_entries + tabla cross_node_tx_chain (NUEVO) |
 | 129 | Niveles de nodo federado + membresia + patrocinios (NUEVO) |
 | 130 | Federation pairing requests para verificacion de 4 opciones (NUEVO) |
+| 148 | Permiso separado `nfc.initialize_card` para grabar tarjetas fisicamente |
+| 149 | Perfil religioso/filosofico del nodo (`faith_profile` en `public_settings`) |
 
 ## Cambios Recientes
 
@@ -265,6 +267,46 @@ El sistema de asambleas ahora soporta tres niveles de decision:
 - Obligatorios o voluntarios
 - Cada servicio define obligaciones, derechos y deberes
 - Scheduler cobra/paga automaticamente
+
+### Reorganizacion de Permisos y NodeSettings (migraciones 148-149)
+
+**Permisos NFC separados (migracion 148):**
+- `nfc.issue_card`: provisionar/registrar tarjeta en el servidor (web admin). Restrictivo.
+- `nfc.initialize_card`: grabar/inicializar tarjeta fisica desde POS Android. Menos restrictivo.
+- El POS Android muestra "Grabar Tarjeta" solo si el usuario tiene `nfc.initialize_card`.
+
+**Perfil religioso/filosofico del nodo (migracion 149):**
+- `faith_profile` y `faith_description` en `public_settings` (del nodo completo, no por organizacion)
+- Endpoint `GET/PUT /api/node/faith-profile`
+- UI en NodeSettings → pestaña "Perfil del Nodo"
+- Perfiles disponibles: Adventista, ISKCON, Plum Village, Halal, Kosher, Jain, Vegano, Ital Rastafari
+
+**Limpieza de NodeSettings:**
+- Eliminada "Reglas de Catalogo" (ya existe en la Tienda con productos reales)
+- "Organizaciones y Perfil Religioso" reemplazada por "Perfil del Nodo"
+- "Horarios de Comercio" completado con UI real: crear/editar/eliminar reglas, toggle on/off, mensaje configurable
+
+**Asamblea - pestaña Miembros mejorada:**
+- Buscador de miembros por nombre o usuario
+- Lista TODOS los miembros del nodo (no solo con voto)
+- Gestion de permisos individuales al seleccionar un miembro
+- Asignar/quitar permisos (requiere `config.manage` o `assembly.manage`)
+- Indica permisos que requieren multisig
+
+**Asamblea - nueva pestaña Departamentos:**
+- Lista todos los departamentos del nodo
+- Muestra departamentos de la Asamblea (no aparecen en Organizaciones)
+- Muestra departamentos de otras organizaciones con su org padre
+
+**Sidebar:**
+- Removida la pestaña global "Departamentos". Los departamentos se gestionan dentro de cada organizacion o desde la Asamblea.
+
+**Nuevos endpoints de permisos de usuarios:**
+- `GET /api/users/all` — lista miembros del nodo con sus permisos
+- `GET /api/users/{id}/permissions` — permisos de un usuario especifico
+- `POST /api/users/{id}/permissions/grant` — asignar permiso (requiere `config.manage`)
+- `DELETE /api/users/{id}/permissions/{permName}` — quitar permiso (requiere `config.manage`)
+- `GET /api/departments/all` — todos los departamentos con organizacion padre
 
 **Organizaciones de la Asamblea:**
 - `is_assembly_owned = true` marca organizaciones que pertenecen a la Asamblea

@@ -175,12 +175,16 @@ El flujo NFC unificado pide **documento + PIN primero** para **todos** los tipos
 
 ---
 
-## Provisionamiento inicial (en máquina dedicada)
+## Provisionamiento inicial (dos permisos separados)
 
-El provisionamiento se hace en un **punto fijo** donde la tarjeta se monta y se deja quieta. No se hace en el POS de venta.
+El provisionamiento se divide en dos pasos con permisos diferentes:
+
+### Paso 1: Registrar/provisionar en el servidor (permiso `nfc.issue_card`)
+
+Se hace desde la **web admin** por una persona con permiso `nfc.issue_card` (restrictivo):
 
 ```
-1. Admin vincula tarjeta a usuario (card_uid + user_id + PIN inicial)
+1. Admin vincula tarjeta a usuario (card_uid + user_id + PIN inicial + tipo)
 2. Servidor genera (todo con crypto/rand):
    - 15 pares de claves A/B aleatorios (6 bytes cada uno, únicos por sector)
      Cada par es diferente entre sectores Y diferente entre tarjetas
@@ -188,16 +192,38 @@ El provisionamiento se hace en un **punto fijo** donde la tarjeta se monta y se 
    - 15 certificados de 16 bytes:
      14 basura aleatoria + 1 real (en un sector aleatorio = activo)
 3. Servidor guarda todo en nfc_card_sectors (claves en BD)
-4. Servidor responde con toda la data para que la máquina escriba:
+4. La tarjeta queda "registrada pero no inicializada"
+```
+
+### Paso 2: Grabar/inicializar la tarjeta física (permiso `nfc.initialize_card`)
+
+Se hace desde el **POS Android** por una persona con permiso `nfc.initialize_card` (menos restrictivo).
+Se hace en un **punto fijo** donde la tarjeta se monta y se deja quieta:
+
+```
+1. Operador abre POS Android → Administración → Grabar Tarjeta
+2. Selecciona una tarjeta de la lista de pendientes de inicialización
+3. Coloca la tarjeta física en el lector NFC del celular
+4. POS descarga del servidor:
    - Por cada sector 1-15: key_a, key_b, access_bits, certificate
-5. Máquina escribe TODOS los sectores (con calma, tarjeta montada):
+5. POS escribe TODOS los sectores (con calma, tarjeta montada):
    - Por cada sector:
      a) Escribir bloque 3 (trailer): Key A + Access Bits + Key B
      b) Escribir bloques 0,1,2: el certificado (basura o real)
    - Progreso visual: "Escribiendo sector 3/15..."
-6. Máquina confirma provisionamiento completo al servidor
-7. Servidor marca tarjeta como provisionada (has_dynamic_certs=true)
+6. POS verifica la escritura re-leyendo cada sector
+7. POS confirma inicialización al servidor
+8. Servidor marca tarjeta como provisionada (has_dynamic_certs=true)
 ```
+
+### Por qué dos permisos separados
+
+- **`nfc.issue_card`** es restrictivo: solo personas específicas pueden registrar tarjetas
+  (asociar a usuario, definir PIN, tipo de tarjeta).
+- **`nfc.initialize_card`** es menos restrictivo: el operador solo asegura que la tarjeta
+  quede bien posicionada durante la escritura.
+- Esto permite que una persona registre la tarjeta y otra persona la grabe físicamente,
+  distribuyendo responsabilidades.
 
 **NOTA:** Las claves A/B se escriben UNA SOLA VEZ aquí. Nunca más se tocan. Solo cambian los certificados (bloques 0,1,2) en transacciones.
 
@@ -259,10 +285,21 @@ Transacción:
 ## Endpoints de la API
 
 ### POST /api/nfc/cards/provision-classic
-Provisiona una tarjeta MIFARE Classic 1K con certificados dinámicos.
+Provisiona una tarjeta MIFARE Classic 1K con certificados dinámicos (Paso 1: registro en servidor).
 - **Permiso:** `nfc.issue_card`
 - **Request:** `{user_id, card_uid, initial_pin}`
 - **Response:** `{card_uid, sectors: [{sector_number, key_a, key_b, access_bits, certificate, is_active}]}`
+
+### GET /api/nfc/cards/pending-initialization
+Lista tarjetas registradas pero no inicializadas físicamente (Paso 2: grabado desde POS Android).
+- **Permiso:** `nfc.initialize_card`
+- **Response:** `[{card_uid, user_id, username, display_name, card_type, created_at}]`
+
+### POST /api/nfc/cards/{uid}/confirm-initialization
+Confirma que la tarjeta fue grabada físicamente desde el POS Android.
+- **Permiso:** `nfc.initialize_card`
+- **Request:** `{card_uid}`
+- **Response:** `{success: true, card_uid}`
 
 ### POST /api/nfc/terminal/classic/pre-auth
 Pre-autenticación unificada para todos los tipos de tarjeta (terminal-facing, Ed25519 auth).

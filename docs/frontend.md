@@ -67,14 +67,14 @@ web/
         ├── Organizations.tsx      # Lista de organizaciones
         ├── OrganizationDetail.tsx # Detalle de organizacion (info, junta, miembros, servicios, asamblea, reuniones)
         ├── Governance.tsx         # Gestion de reglas de gobernanza (Ley de la Aldea)
-        ├── Assembly.tsx           # Propuestas de asamblea del nodo
+        ├── Assembly.tsx           # Asamblea: propuestas, miembros+permisos, departamentos, sesiones
         ├── Audit.tsx              # Log de auditoria
         ├── ExternalBridge.tsx     # Comercio externo (FC, operaciones)
         ├── Admission.tsx          # Admision de miembros (documentos, paises)
         ├── Recovery.tsx           # Recuperacion de cuenta
-        ├── Departments.tsx        # Departamentos, roles, permisos, miembros
+        ├── Departments.tsx        # Detalle de departamento (accedido desde organizacion o asamblea)
         ├── DepartmentDetail.tsx   # Detalle de departamento
-        ├── NodeSettings.tsx       # Configuracion del nodo
+        ├── NodeSettings.tsx       # Configuracion del nodo (general, niveles, tarifa, horarios, perfil del nodo)
         ├── NotificationSettings.tsx # Preferencias de notificaciones
         ├── Notifications.tsx      # Historial de notificaciones
         ├── Profile.tsx            # Perfil del usuario, documentos

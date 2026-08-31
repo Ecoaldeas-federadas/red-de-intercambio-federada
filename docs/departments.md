@@ -102,9 +102,25 @@ Los departamentos pueden transferir dinero a:
 ### NFC
 - `nfc.register_terminal` — Registrar terminal ESP32
 - `nfc.deactivate_terminal` — Desactivar terminal
-- `nfc.issue_card` — Emitir tarjeta NFC con PIN
+- `nfc.issue_card` — Provisionar/registrar tarjeta NFC en el sistema (web). Mas restrictivo: solo personas especificas pueden registrar tarjetas.
+- `nfc.initialize_card` — Grabar/inicializar tarjeta NFC fisicamente desde el POS Android. Menos restrictivo: cualquiera con este permiso puede grabar la tarjeta fisica.
 - `nfc.deactivate_card` — Desactivar tarjeta NFC
 - `nfc.reset_pin` — Resetear PIN de tarjeta
+- `nfc.view_transactions` — Ver transacciones NFC
+
+**Distincion entre `nfc.issue_card` y `nfc.initialize_card`:**
+
+| Permiso | Que permite | Donde se usa | Quien lo debe tener |
+|---------|-------------|--------------|---------------------|
+| `nfc.issue_card` | Provisionar/registrar tarjeta en el servidor (user_id, UID, PIN, tipo) | Web admin | Personas muy especificas, restrictivo |
+| `nfc.initialize_card` | Grabar/inicializar la tarjeta fisica ya registrada | POS Android | Mas personas, menos restrictivo |
+
+Flujo completo:
+1. Admin con `nfc.issue_card` registra la tarjeta en la web (user_id, card_uid, tipo, PIN)
+2. La tarjeta queda "registrada pero no inicializada"
+3. Cualquiera con `nfc.initialize_card` abre el POS Android → Administracion → Grabar Tarjeta
+4. Coloca la tarjeta fisica en el celular → presiona Grabar → el POS escribe los datos
+5. El POS confirma la inicializacion al servidor
 
 ### Gobernanza
 - `governance.manage` — Gestionar reglas de gobernanza (Ley de la Aldea)
@@ -159,17 +175,30 @@ La configuracion de multisig se establece en la tabla `permissions` con `require
 
 ### Permisos
 
-| Metodo | Endpoint | Permiso |
-|--------|----------|---------|
-| GET | `/api/permissions` | - |
-| GET | `/api/permissions/categories` | - |
-| GET | `/api/users/me/permissions` | - |
+| Metodo | Endpoint | Permiso | Descripcion |
+|--------|----------|---------|-------------|
+| GET | `/api/permissions` | - | Listar todos los permisos disponibles |
+| GET | `/api/users/me/permissions` | - | Permisos del usuario actual |
+| GET | `/api/users/all` | - | Listar todos los miembros del nodo con sus permisos (para la Asamblea) |
+| GET | `/api/users/{id}/permissions` | - | Permisos de un usuario especifico |
+| POST | `/api/users/{id}/permissions/grant` | `config.manage` | Asignar permiso directo a usuario |
+| DELETE | `/api/users/{id}/permissions/{permName}` | `config.manage` | Quitar permiso directo de usuario |
+| GET | `/api/departments/all` | - | Listar todos los departamentos con info de organizacion padre |
 
 ## Frontend
 
-- **Pagina**: `/departments` — Gestion de departamentos, roles, miembros y permisos
+- **Asamblea → pestaña Miembros**: Buscador de miembros + gestion de permisos individuales.
+  - Lista TODOS los miembros del nodo (no solo con voto)
+  - Busqueda por nombre o usuario
+  - Al seleccionar un miembro, muestra sus permisos actuales
+  - Permite asignar/quitar permisos (requiere `config.manage` o `assembly.manage`)
+  - Indica permisos que requieren multisig
+- **Asamblea → pestaña Departamentos**: Lista todos los departamentos del nodo
+  - Muestra departamentos de la Asamblea (no aparecen en Organizaciones)
+  - Muestra departamentos de otras organizaciones con su org padre
+- **Organizacion → pestaña Departamentos**: Gestion de departamentos dentro de cada organizacion
 - **Hook**: `usePermissions()` — Hook de React para verificar permisos del usuario actual
-- **Componentes**: `Departments.tsx` con UI completa para CRUD
+- **Sidebar**: La pestaña global "Departamentos" fue removida. Los departamentos se gestionan dentro de cada organizacion o desde la Asamblea.
 
 ## Base de datos
 

@@ -383,6 +383,42 @@ Donde `scope` es `organization` o `department`.
 
 - `internal/api/assembly.go` - Handlers de la asamblea del nodo
 - `internal/api/scoped_assembly.go` - Handlers de asambleas y juntas de org/depto
+- `internal/api/departments.go` - Handlers de departamentos, roles, permisos y gestion de permisos de usuarios
 - `web/src/pages/Assembly.tsx` - UI de la asamblea del nodo
 - `web/src/components/ScopedAssembly.tsx` - UI de asambleas y juntas de org/depto
-- `web/src/pages/OrganizationDetail.tsx` - UI de organizacion con tabs de asamblea y junta
+- `web/src/pages/OrganizationDetail.tsx` - UI de organizacion con tabs de asamblea, junta y departamentos
+
+## Pestañas de la Asamblea
+
+La pagina de la Asamblea (`/app/assembly`) tiene las siguientes pestañas:
+
+| Pestaña | Descripcion |
+|---------|-------------|
+| Propuestas | Propuestas de asamblea (crear, votar, ejecutar) |
+| Billetera / Fondo | Fondo comunitario y transacciones |
+| Informes de Votacion | Reportes de votaciones pasadas |
+| Miembros | Buscador de miembros + gestion de permisos individuales. Lista TODOS los miembros del nodo (no solo con voto). Al seleccionar un miembro, muestra sus permisos y permite asignar/quitar (requiere `config.manage` o `assembly.manage`). |
+| Junta Directiva | Gestion de la junta directiva del nodo |
+| Sesiones | Sesiones de asamblea (ordinarias, extraordinarias) |
+| Impuestos | Configuracion de impuestos |
+| Departamentos | Lista todos los departamentos del nodo, incluyendo los de la Asamblea (que no aparecen en Organizaciones) y los de otras organizaciones. |
+| Configuracion | Configuracion de quorum y metodos de aprobacion por tipo de propuesta |
+
+### Gestion de Permisos desde la Asamblea
+
+La Asamblea es la entidad que decide por votacion quien tiene permisos. Desde la pestaña "Miembros":
+
+1. **Buscar miembro**: Escribir nombre o usuario en el buscador
+2. **Ver permisos**: Hacer clic en un miembro para ver sus permisos actuales
+3. **Asignar permiso**: Seleccionar de la lista de permisos disponibles (agrupados por categoria)
+4. **Quitar permiso**: Boton X junto a cada permiso
+5. **Permisos multisig**: Los permisos con `requires_multisig=true` se indican visualmente. Asignarlos directamente requiere `config.manage`.
+
+Modelo jerarquico de delegacion:
+```
+Asamblea (vota) -> puede delegar a:
+  - Si misma (no revota, solo elige ejecutor)
+  - Organizacion (la org decide internamente)
+  - Departamento (el dept decide internamente)
+  - Persona directamente
+```

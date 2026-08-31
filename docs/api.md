@@ -319,6 +319,8 @@ Estos endpoints se consumen entre nodos via mTLS (no requieren JWT):
 | POST | `/api/nfc/terminal/auto-renew` | Auto-renovar claves del terminal (JWT — requiere usuario logueado asignado al terminal) |
 | POST | `/api/nfc/cards/issue` | Emitir tarjeta (permiso: `nfc.issue_card`) |
 | POST | `/api/nfc/cards/provision-classic` | Provisionar MIFARE Classic con cert dinamicos (permiso: `nfc.issue_card`) |
+| GET | `/api/nfc/cards/pending-initialization` | Listar tarjetas registradas pero no inicializadas (permiso: `nfc.initialize_card`) |
+| POST | `/api/nfc/cards/{uid}/confirm-initialization` | Confirmar inicializacion fisica de tarjeta (permiso: `nfc.initialize_card`) |
 | PUT | `/api/nfc/cards/pin` | Cambiar PIN |
 | PUT | `/api/nfc/cards/{uid}/pin/reset` | Resetear PIN (permiso: `nfc.reset_pin`) |
 | POST | `/api/nfc/my-terminals/{id}/shift` | Abrir turno (requiere PIN del turno) |
@@ -417,7 +419,9 @@ Ver `docs/tarjeta-classic-certificados.md` para detalles del flujo Classic.
 | POST | `/api/nfc/terminal/payment/community` | Terminal | Pago comunitario (cifrado) |
 | GET | `/api/nfc/terminals` | JWT | Lista terminales |
 | DELETE | `/api/nfc/terminal/{id}` | JWT + `nfc.deactivate_terminal` | Desactivar |
-| POST | `/api/nfc/cards/issue` | JWT + `nfc.issue_card` | Emitir tarjeta |
+| POST | `/api/nfc/cards/issue` | JWT + `nfc.issue_card` | Emitir/registrar tarjeta en el servidor |
+| GET | `/api/nfc/cards/pending-initialization` | JWT + `nfc.initialize_card` | Listar tarjetas pendientes de grabar |
+| POST | `/api/nfc/cards/{uid}/confirm-initialization` | JWT + `nfc.initialize_card` | Confirmar grabado fisico de tarjeta |
 | PUT | `/api/nfc/cards/pin` | JWT | Cambiar PIN |
 | PUT | `/api/nfc/cards/{uid}/pin/reset` | JWT + `nfc.reset_pin` | Resetear PIN |
 | GET | `/api/nfc/transactions` | JWT | Lista transacciones NFC |
@@ -489,6 +493,19 @@ Ver `docs/tarjeta-classic-certificados.md` para detalles del flujo Classic.
 | POST | `/api/nfc/terminal/classic/pre-auth-document` | Pre-auth Classic (username + doc + PIN, cifrado) |
 | POST | `/api/nfc/terminal/classic/confirm` | Confirmar lectura/escritura Classic (cert dinamicos) |
 | POST | `/api/nfc/cards/provision-classic` | Provisionar tarjeta MIFARE Classic (permiso: `nfc.issue_card`) |
+| GET | `/api/nfc/cards/pending-initialization` | Listar tarjetas pendientes de grabar (permiso: `nfc.initialize_card`) |
+| POST | `/api/nfc/cards/{uid}/confirm-initialization` | Confirmar grabado fisico (permiso: `nfc.initialize_card`) |
+| GET | `/api/users/all` | Listar miembros del nodo con permisos (para gestion en Asamblea) |
+| GET | `/api/users/{id}/permissions` | Permisos de un usuario especifico |
+| POST | `/api/users/{id}/permissions/grant` | Asignar permiso a usuario (permiso: `config.manage`) |
+| DELETE | `/api/users/{id}/permissions/{permName}` | Quitar permiso a usuario (permiso: `config.manage`) |
+| GET | `/api/departments/all` | Listar todos los departamentos con organizacion padre |
+| GET | `/api/node/faith-profile` | Perfil religioso/filosofico del nodo |
+| PUT | `/api/node/faith-profile` | Actualizar perfil del nodo (permiso: `config.manage`) |
+| GET | `/api/node/commerce-schedule` | Horarios de comercio del nodo |
+| POST | `/api/node/commerce-schedule` | Crear regla de horario (permiso: `config.manage`) |
+| DELETE | `/api/node/commerce-schedule/{id}` | Eliminar regla de horario (permiso: `config.manage`) |
+| PUT | `/api/node/commerce-hours-toggle` | Activar/desactivar horarios (permiso: `config.manage`) |
 
 ## Formato de Respuesta
 

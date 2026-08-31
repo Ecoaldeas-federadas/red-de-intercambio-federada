@@ -329,3 +329,42 @@ El ESP32 POS está en desarrollo y no se ha probado en producción todavía. Los
 
 - **Grabado desde POS Android**: Las tarjetas se graban físicamente desde el POS Android
   usando el NFC del celular, no desde la web.
+
+## 9. Permisos NFC separados
+
+El sistema distingue dos permisos diferentes para tarjetas NFC:
+
+| Permiso | Qué permite | Dónde se usa |
+|---------|-------------|--------------|
+| `nfc.issue_card` | Provisionar/registrar tarjeta en el servidor (user_id, UID, PIN, tipo) | Web admin |
+| `nfc.initialize_card` | Grabar/inicializar la tarjeta física ya registrada | POS Android |
+
+### Flujo completo de tarjetas
+
+1. **Admin con `nfc.issue_card`** registra la tarjeta en la web: user_id, card_uid, tipo, PIN
+2. La tarjeta queda "registrada pero no inicializada" en el servidor
+3. **Cualquiera con `nfc.initialize_card`** abre el POS Android → Administración → Grabar Tarjeta
+4. El botón "Grabar Tarjeta" solo aparece si el usuario tiene `nfc.initialize_card`
+5. El operador selecciona una tarjeta de la lista de pendientes
+6. Coloca la tarjeta física en el celular → presiona Grabar → el POS escribe los datos
+7. El POS verifica la escritura y confirma la inicialización al servidor
+
+### Endpoints del POS Android
+
+| Endpoint | Permiso | Descripción |
+|----------|---------|-------------|
+| `GET /api/nfc/cards/pending-initialization` | `nfc.initialize_card` | Listar tarjetas pendientes de grabar |
+| `POST /api/nfc/cards/{uid}/confirm-initialization` | `nfc.initialize_card` | Confirmar grabado físico |
+
+### Endpoints de la web admin
+
+| Endpoint | Permiso | Descripción |
+|----------|---------|-------------|
+| `POST /api/nfc/cards/issue` | `nfc.issue_card` | Registrar tarjeta en el servidor |
+| `POST /api/nfc/cards/provision-classic` | `nfc.issue_card` | Provisionar MIFARE Classic con certificados dinámicos |
+
+### Permisos del usuario en el POS
+
+El POS Android recibe los permisos del usuario en `GET /api/auth/me` (campo `permissions`).
+El botón "Grabar Tarjeta" en `AdminScreen.kt` solo se muestra si el usuario tiene
+`nfc.initialize_card` en su lista de permisos.

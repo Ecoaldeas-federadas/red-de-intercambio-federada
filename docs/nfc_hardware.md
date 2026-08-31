@@ -156,11 +156,25 @@ El sistema soporta MIFARE Classic 1K con un modelo de seguridad de 6 capas que m
 
 ### Provisionamiento de tarjeta Classic
 
-Se hace en una maquina dedicada donde la tarjeta se monta y se deja quieta:
-1. Admin vincula tarjeta a usuario (user_id + PIN inicial)
+El provisionamiento de tarjetas se divide en dos permisos diferentes:
+
+**Paso 1: Registrar/provisionar (permiso `nfc.issue_card`)** — Web admin
+1. Admin vincula tarjeta a usuario (user_id + PIN inicial + tipo de tarjeta)
 2. Servidor genera 15 pares de claves A/B aleatorios + 15 certificados (14 basura + 1 real)
-3. POS escribe TODOS los sectores (claves + access bits + certificados)
-4. POS confirma provisionamiento completo
+3. La tarjeta queda "registrada pero no inicializada" en el servidor
+
+**Paso 2: Grabar/inicializar (permiso `nfc.initialize_card`)** — POS Android
+1. Operador abre POS Android → Administracion → Grabar Tarjeta
+2. Selecciona una tarjeta de la lista de pendientes de inicializacion
+3. Coloca la tarjeta fisica en el lector NFC del celular
+4. POS escribe TODOS los sectores (claves + access bits + certificados)
+5. POS verifica que la escritura fue correcta
+6. POS confirma inicializacion al servidor
+
+**Por que dos permisos separados:**
+- `nfc.issue_card` es mas restrictivo: solo personas especificas pueden registrar tarjetas (asociar a usuario, definir PIN, tipo)
+- `nfc.initialize_card` es menos restrictivo: el operador solo asegura que la tarjeta quede bien posicionada durante la escritura
+- Esto permite que una persona registre la tarjeta y otra persona la grabe fisicamente
 
 ### Limitaciones de MIFARE Classic
 
