@@ -49,6 +49,7 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.Post("/api/nfc/terminal/classic/pre-auth-document", h.classicPreAuthWithDocument)
 	r.Post("/api/nfc/terminal/classic/confirm", h.classicConfirm)
 	r.Post("/api/nfc/terminal/user-lookup", h.userLookup)
+	r.Post("/api/nfc/terminal/auto-renew", h.autoRenewKeys)
 
 	// Terminal pairing by short code (no auth required for initiate/status)
 	r.Post("/api/nfc/terminal/pair/initiate", h.initiatePairing)
@@ -3621,6 +3622,47 @@ func (h *NFCTerminalHandler) userLookup(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	writeJSON(w, 200, encResp)
+}
+
+// autoRenewKeys permite a un terminal renovar sus claves criptograficas
+// automaticamente cuando se pierden (app reinstalada, datos borrados, etc.).
+// No requiere encriptacion (las claves viejas se perdieron, no se puede encriptar).
+// Verifica terminal_id + device_fingerprint para autorizar la renovacion.
+func (h *NFCTerminalHandler) autoRenewKeys(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		TerminalID        string `json:"terminal_id"`
+		TerminalPublicKey string `json:"terminal_public_key"`
+		DeviceFingerprint string `json:"device_fingerprint"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	if req.TerminalID == "" {
+		writeError(w, 400, "terminal_id is required")
+		return
+	}
+	if req.TerminalPublicKey == "" {
+		writeError(w, 400, "terminal_public_key is required")
+		return
+	}
+	if req.DeviceFingerprint == "" {
+		writeError(w, 400, "device_fingerprint is required")
+		return
+	}
+
+	serverPubKey, err := h.NFC.AutoRenewKeys(r.Context(), req.TerminalID, req.TerminalPublicKey, req.DeviceFingerprint)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"status":            "ok",
+		"server_public_key": serverPubKey,
+		"terminal_id":       req.TerminalID,
+	})
 }
 
 // classicConfirm confirma la lectura/escritura de la tarjeta

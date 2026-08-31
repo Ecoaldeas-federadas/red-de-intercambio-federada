@@ -166,6 +166,57 @@ class PosRepository(
         }
     }
 
+    /**
+     * Auto-renueva las claves del terminal cuando se detecta un mismatch.
+     * El POS genera nuevas claves, las envia al servidor junto con el
+     * terminal_id y device_fingerprint. Si el servidor reconoce el terminal
+     * y el fingerprint coincide, actualiza la clave y devuelve el server_public_key.
+     * Esto evita que el usuario tenga que re-parear manualmente.
+     *
+     * Retorna true si la renovacion fue exitosa.
+     */
+    suspend fun autoRenewKeys(): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val config = getOrInitTerminalConfig()
+            val fingerprint = CryptoEngine.getDeviceFingerprint(context)
+            val service = apiClient.getService()
+
+            // Generar nuevas claves
+            val keyPair = CryptoEngine.generateEd25519KeyPair()
+
+            val request = AutoRenewRequest(
+                terminalId = config.terminalId,
+                terminalPublicKey = keyPair.publicKeyHex,
+                deviceFingerprint = fingerprint
+            )
+
+            android.util.Log.d("PosRepository", "autoRenewKeys: terminalId=${config.terminalId} fingerprint=$fingerprint")
+
+            val response = service.autoRenewKeys(request)
+            if (response.isSuccessful && response.body()?.serverPublicKey != null) {
+                val body = response.body()!!
+                // Guardar las nuevas claves y el server_public_key
+                val updated = config.copy(
+                    isRegistered = true,
+                    terminalPrivateKeyHex = keyPair.privateKeyHex,
+                    terminalPublicKeyHex = keyPair.publicKeyHex,
+                    serverPublicKeyHex = body.serverPublicKey
+                )
+                saveConfigSecure(updated)
+                apiClient.updateConfig(updated.serverUrl, apiClient.authToken, updated.terminalId, updated.terminalPublicKeyHex)
+                cachedSharedKey = null
+                android.util.Log.d("PosRepository", "autoRenewKeys: SUCCESS — claves renovadas")
+                Result.success(true)
+            } else {
+                val errBody = response.errorBody()?.string() ?: response.body()?.error ?: "Error desconocido"
+                android.util.Log.d("PosRepository", "autoRenewKeys: FAILED — $errBody")
+                Result.failure(Exception("Auto-renovación falló: $errBody"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión en auto-renovación: ${e.localizedMessage}"))
+        }
+    }
+
     suspend fun toggleMultiVendor(enabled: Boolean) = withContext(Dispatchers.IO) {
         val current = getOrInitTerminalConfig()
         saveConfigSecure(current.copy(isMultiVendorEnabled = enabled))

@@ -196,15 +196,8 @@ class PosViewModel(
                             )
                         }
                     } else if (hb.keyMatches == false) {
-                        // Las claves criptograficas no coinciden — el terminal fue
-                        // reseteado en el POS o en el servidor. Re-parear.
-                        _uiState.update {
-                            it.copy(
-                                isRegistered = false,
-                                currentScreen = PosScreen.RegisterTerminal,
-                                errorMessage = "Las claves criptográficas del terminal no coinciden con el servidor. Debe emparejar nuevamente."
-                            )
-                        }
+                        // Las claves no coinciden — intentar auto-renovar
+                        handleKeyMismatch()
                     }
                 }
                 // Si el heartbeat falla por error 500 o red, NO cambiar estado (mantiene registro)
@@ -261,16 +254,8 @@ class PosViewModel(
                             )
                         }
                     } else if (hb.keyMatches == false) {
-                        repository.resetTerminalRegistration()
-                        _uiState.update {
-                            it.copy(
-                                isRegistered = false,
-                                isLoggedIn = false,
-                                currentUser = null,
-                                currentScreen = PosScreen.RegisterTerminal,
-                                errorMessage = "Las claves criptográficas del terminal no coinciden con el servidor. Debe emparejar nuevamente."
-                            )
-                        }
+                        // Las claves no coinciden — intentar auto-renovar
+                        handleKeyMismatch()
                     } else if (hb.active == false) {
                         _uiState.update {
                             it.copy(
@@ -285,6 +270,48 @@ class PosViewModel(
     }
 
     // Reintentar verificacion con el servidor sin resetear las claves
+    /**
+     * Intenta auto-renovar las claves del terminal cuando se detecta un mismatch.
+     * Si tiene exito, el terminal sigue funcionando sin necesidad de re-parear.
+     * Si falla, envia a la pantalla de emparejamiento manual.
+     * Retorna true si la renovacion fue exitosa.
+     */
+    private suspend fun handleKeyMismatch(): Boolean {
+        _uiState.update {
+            it.copy(
+                isLoading = true,
+                errorMessage = "Renovando claves del terminal automáticamente..."
+            )
+        }
+
+        val renewResult = repository.autoRenewKeys()
+        return if (renewResult.isSuccess && renewResult.getOrNull() == true) {
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    isRegistered = true,
+                    errorMessage = null,
+                    successMessage = "Claves del terminal renovadas automáticamente."
+                )
+            }
+            true
+        } else {
+            // Auto-renovacion fallo — enviar a re-parear manual
+            repository.resetTerminalRegistration()
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    isRegistered = false,
+                    isLoggedIn = false,
+                    currentUser = null,
+                    currentScreen = PosScreen.RegisterTerminal,
+                    errorMessage = "No se pudieron renovar las claves automáticamente. ${(renewResult.exceptionOrNull()?.message ?: "")}. Debe emparejar nuevamente."
+                )
+            }
+            false
+        }
+    }
+
     // Usa las claves existentes para verificar si el servidor ya reconoce este terminal
     fun retryVerification() {
         viewModelScope.launch {
@@ -294,17 +321,11 @@ class PosViewModel(
             val hbResult = repository.heartbeat()
             hbResult.onSuccess { hb ->
                 if (hb.keyMatches == false) {
-                    // Las claves no coinciden — resetear y re-parear
-                    repository.resetTerminalRegistration()
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            isRegistered = false,
-                            currentScreen = PosScreen.RegisterTerminal,
-                            errorMessage = "Las claves criptográficas no coinciden con el servidor. Debe emparejar nuevamente."
-                        )
+                    // Las claves no coinciden — intentar auto-renovar
+                    if (!handleKeyMismatch()) {
+                        return@launch
                     }
-                    return@launch
+                    // Si la auto-renovacion tuvo exito, continuar
                 }
                 if (hb.notFound != true && hb.registered != false && hb.active != false) {
                     // El servidor confirma que el terminal esta registrado y activo
@@ -1058,17 +1079,11 @@ class PosViewModel(
                 }
                 canProceed = false
             } else if (hb.keyMatches == false) {
-                // Las claves criptograficas no coinciden — resetear y re-parear
-                repository.resetTerminalRegistration()
-                _uiState.update {
-                    it.copy(
-                        isRegistered = false,
-                        currentScreen = PosScreen.RegisterTerminal,
-                        isLoading = false,
-                        errorMessage = "Las claves criptográficas del terminal no coinciden con el servidor. Debe emparejar nuevamente."
-                    )
+                // Las claves no coinciden — intentar auto-renovar
+                if (!handleKeyMismatch()) {
+                    canProceed = false
                 }
-                canProceed = false
+                // Si la auto-renovacion tuvo exito, canProceed sigue true
             } else if (hb.active == false) {
                 // Terminal desactivado pero no borrado
                 _uiState.update {
@@ -1326,18 +1341,50 @@ class PosViewModel(
                 }
             }.onFailure { err ->
                 val msg = err.message ?: ""
-                // Si el error es de desencriptacion (claves no coinciden), enviar a re-pairing
+                // Si el error es de desencriptacion (claves no coinciden), intentar auto-renovar
                 val isCryptoError = msg.contains("message authentication failed") ||
                     msg.contains("signature verification failed") ||
                     msg.contains("decrypting payload")
                 if (isCryptoError) {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            isRegistered = false,
-                            currentScreen = PosScreen.RegisterTerminal,
-                            errorMessage = "Las claves criptográficas del terminal no coinciden con el servidor. Debe emparejar nuevamente."
-                        )
+                    // Intentar auto-renovar; si falla, handleKeyMismatch envia a re-pairing
+                    if (!handleKeyMismatch()) {
+                        return@launch
+                    }
+                    // Si la auto-renovacion tuvo exito, reintentar el user-lookup
+                    val retryResult = repository.userLookup(state.customerUsername)
+                    retryResult.onSuccess { resp ->
+                        if (resp.found) {
+                            val pinStep = if (resp.requiresDocument) 4 else 3
+                            val preSelectedDocType = when {
+                                !resp.requiredDocType.isNullOrEmpty() -> resp.requiredDocType
+                                !resp.documentTypes.isNullOrEmpty() -> resp.documentTypes.first()
+                                else -> "cedula_v"
+                            }
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    customerUserId = resp.userId,
+                                    customerDisplayName = resp.displayName,
+                                    customerCardType = resp.cardType,
+                                    requiresDocument = resp.requiresDocument,
+                                    detectedCardType = resp.cardType ?: "uid_only",
+                                    isClassicFlow = resp.requiresDocument,
+                                    selectedDocType = preSelectedDocType,
+                                    nfcStep = pinStep
+                                )
+                            }
+                        } else {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    errorMessage = resp.message ?: "Usuario no encontrado"
+                                )
+                            }
+                        }
+                    }.onFailure { retryErr ->
+                        _uiState.update {
+                            it.copy(isLoading = false, errorMessage = retryErr.message)
+                        }
                     }
                 } else {
                     _uiState.update {

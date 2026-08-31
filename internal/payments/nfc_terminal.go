@@ -187,6 +187,64 @@ func (nt *NFCTerminals) CompleteRegistration(ctx context.Context, terminalID, re
 	return serverPubKey, nil
 }
 
+// AutoRenewKeys permite a un terminal actualizar sus claves criptograficas
+// automaticamente cuando se pierden (app reinstalada, datos borrados, etc.).
+// Verifica que el terminal_id existe Y que el device_fingerprint coincide
+// con el registrado. Si coincide, actualiza terminal_public_key y devuelve
+// el server_public_key. Esto evita que el usuario tenga que re-parear manualmente
+// despues de actualizar o reinstalar la app.
+func (nt *NFCTerminals) AutoRenewKeys(ctx context.Context, terminalID, newTerminalPublicKey, deviceFingerprint string) (string, error) {
+	// 1. Verificar que el terminal existe y que el device_fingerprint coincide
+	var storedFingerprint string
+	var isActive bool
+	err := nt.Pool.QueryRow(ctx, `
+		SELECT COALESCE(device_fingerprint, ''), is_active FROM nfc_terminals
+		WHERE terminal_id = $1 AND is_registered = true`,
+		terminalID,
+	).Scan(&storedFingerprint, &isActive)
+	if err != nil {
+		return "", fmt.Errorf("terminal not found: %w", err)
+	}
+
+	if !isActive {
+		return "", fmt.Errorf("terminal is not active")
+	}
+
+	// 2. Verificar que el device_fingerprint coincide
+	// Si el stored fingerprint esta vacio (terminal viejo sin fingerprint),
+	// permitir la renovacion (migracion)
+	if storedFingerprint != "" && deviceFingerprint != "" && storedFingerprint != deviceFingerprint {
+		return "", fmt.Errorf("device fingerprint mismatch: terminal may belong to a different device")
+	}
+
+	// 3. Actualizar la clave publica del terminal
+	_, err = nt.Pool.Exec(ctx, `
+		UPDATE nfc_terminals
+		SET terminal_public_key = $2, updated_at = NOW()
+		WHERE terminal_id = $1 AND is_active = true`,
+		terminalID, newTerminalPublicKey,
+	)
+	if err != nil {
+		return "", fmt.Errorf("updating terminal public key: %w", err)
+	}
+
+	// 4. Devolver el server_public_key
+	if err := nt.EnsureServerKeys(ctx); err != nil {
+		return "", fmt.Errorf("ensuring server keys: %w", err)
+	}
+
+	var serverPubKey string
+	err = nt.Pool.QueryRow(ctx, `
+		SELECT public_key FROM nfc_server_keys WHERE node_domain = $1`,
+		nt.NodeDomain,
+	).Scan(&serverPubKey)
+	if err != nil {
+		return "", fmt.Errorf("getting server public key: %w", err)
+	}
+
+	return serverPubKey, nil
+}
+
 // AuthenticateTerminal verifica la firma Ed25519 del terminal Y la huella del dispositivo.
 // El mensaje firmado por el terminal es: terminal_id:nonce:device_fingerprint
 // Esto asegura que incluso si alguien copia la clave privada, no puede autenticar

@@ -95,6 +95,9 @@ interface PosApiService {
     @POST("nfc/terminal/user-lookup")
     suspend fun userLookup(@Body request: EncryptedPaymentRequest): Response<EncryptedPaymentResponse>
 
+    @POST("nfc/terminal/auto-renew")
+    suspend fun autoRenewKeys(@Body request: AutoRenewRequest): Response<AutoRenewResponse>
+
     // --- Multi-Sig Web/App (JWT) ---
     @GET("multisig/payments")
     suspend fun listPendingMultisigPayments(): Response<List<MultisigStatusResponse>>
@@ -102,6 +105,9 @@ interface PosApiService {
     // --- Shifts & My Terminals ---
     @GET("nfc/my-terminals")
     suspend fun listMyTerminals(): Response<List<TerminalItem>>
+
+    @GET("nfc/my-terminals/{id}/shift")
+    suspend fun getActiveShift(@Path("id") terminalId: String): Response<ActiveShiftResponse>
 
     @POST("nfc/my-terminals/{id}/shift")
     suspend fun openShift(

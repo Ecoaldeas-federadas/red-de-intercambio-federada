@@ -453,6 +453,21 @@ data class UserLookupDecryptedPayload(
 )
 
 @JsonClass(generateAdapter = true)
+data class AutoRenewRequest(
+    @Json(name = "terminal_id") val terminalId: String,
+    @Json(name = "terminal_public_key") val terminalPublicKey: String,
+    @Json(name = "device_fingerprint") val deviceFingerprint: String
+)
+
+@JsonClass(generateAdapter = true)
+data class AutoRenewResponse(
+    @Json(name = "status") val status: String? = null,
+    @Json(name = "server_public_key") val serverPublicKey: String? = null,
+    @Json(name = "terminal_id") val terminalId: String? = null,
+    @Json(name = "error") val error: String? = null
+)
+
+@JsonClass(generateAdapter = true)
 data class UserLookupResponse(
     @Json(name = "found") val found: Boolean = false,
     @Json(name = "user_id") val userId: String? = null,
