@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math/big"
 
 	"golang.org/x/crypto/curve25519"
 )
@@ -221,15 +222,62 @@ func ed25519PrivateKeyToCurve25519(priv ed25519.PrivateKey) ([]byte, error) {
 	return digest[:32], nil
 }
 
+// ed25519PublicKeyToCurve25519 convierte una clave pública Ed25519 a su
+// equivalente en Curve25519 (X25519) usando el mapa birracional:
+//
+//	u = (1 + y) / (1 - y) mod p
+//
+// donde y es la coordenada y del punto Ed25519 (little-endian, 32 bytes)
+// y p = 2^255 - 19 es el primo del campo de Curve25519.
+//
+// NOTA: SHA-512 NO es válido para claves públicas. Solo funciona para
+// la clave privada (seed → scalar). Usar SHA-512 para la pública produce
+// un X25519 público que NO corresponde al X25519 privado derivado del seed.
 func ed25519PublicKeyToCurve25519(pub ed25519.PublicKey) ([]byte, error) {
 	if len(pub) != ed25519.PublicKeySize {
 		return nil, fmt.Errorf("invalid ed25519 public key size")
 	}
-	h := sha512.New()
-	h.Write(pub)
-	digest := h.Sum(nil)
-	digest[0] &= 248
-	digest[31] &= 127
-	digest[31] |= 64
-	return digest[:32], nil
+
+	// El primo del campo de Curve25519: p = 2^255 - 19
+	p, _ := new(big.Int).SetString("57896044618658097711785492504343953926634992332820282019728792003956564819949", 10)
+
+	// La clave pública Ed25519 está en little-endian. El byte 31 contiene
+	// el bit de signo en el bit más significativo. Enmascararlo para
+	// obtener solo la coordenada y.
+	yBytes := make([]byte, 32)
+	copy(yBytes, pub)
+	yBytes[31] &= 0x7f // mask sign bit
+
+	// Convertir de little-endian a big.Int (big-endian)
+	y := new(big.Int).SetBytes(reverseBytes(yBytes))
+	y.Mod(y, p)
+
+	// u = (1 + y) / (1 - y) mod p
+	one := big.NewInt(1)
+	num := new(big.Int).Add(one, y) // 1 + y
+	num.Mod(num, p)
+
+	den := new(big.Int).Sub(one, y) // 1 - y
+	den.Mod(den, p)
+
+	denInv := new(big.Int).ModInverse(den, p)
+	if denInv == nil {
+		return nil, fmt.Errorf("no modular inverse for public key (denominator is zero)")
+	}
+
+	u := new(big.Int).Mul(num, denInv)
+	u.Mod(u, p)
+
+	// Convertir de big.Int a little-endian 32 bytes
+	uBytes := u.FillBytes(make([]byte, 32))
+	return reverseBytes(uBytes), nil
+}
+
+// reverseBytes invierte el orden de los bytes (little-endian ↔ big-endian).
+func reverseBytes(b []byte) []byte {
+	r := make([]byte, len(b))
+	for i := range b {
+		r[i] = b[len(b)-1-i]
+	}
+	return r
 }

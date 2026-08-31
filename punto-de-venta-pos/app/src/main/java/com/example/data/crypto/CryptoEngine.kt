@@ -12,6 +12,7 @@ import org.bouncycastle.crypto.agreement.X25519Agreement
 import org.bouncycastle.crypto.signers.Ed25519Signer
 import java.security.MessageDigest
 import java.security.SecureRandom
+import java.math.BigInteger
 import java.util.Arrays
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
@@ -61,6 +62,9 @@ object CryptoEngine {
     /**
      * Converts Ed25519 key bytes to Curve25519 key bytes via SHA-512 + clamping
      * as specified in section 6.3
+     *
+     * SOLO válido para la clave PRIVADA (seed → scalar).
+     * NO usar para claves públicas — usar ed25519PublicKeyToCurve25519 en su lugar.
      */
     fun ed25519ToCurve25519Clamped(edBytes: ByteArray): ByteArray {
         val md = MessageDigest.getInstance("SHA-512")
@@ -73,7 +77,51 @@ object CryptoEngine {
     }
 
     /**
+     * Convierte una clave pública Ed25519 a su equivalente en Curve25519 (X25519)
+     * usando el mapa birracional:
+     *
+     *   u = (1 + y) / (1 - y) mod p
+     *
+     * donde y es la coordenada y del punto Ed25519 (little-endian, 32 bytes)
+     * y p = 2^255 - 19 es el primo del campo de Curve25519.
+     *
+     * SHA-512 NO es válido para claves públicas. Solo funciona para la clave
+     * privada (seed → scalar). Usar SHA-512 para la pública produce un X25519
+     * público que NO corresponde al X25519 privado derivado del seed.
+     */
+    fun ed25519PublicKeyToCurve25519(pubBytes: ByteArray): ByteArray {
+        // El primo del campo de Curve25519: p = 2^255 - 19
+        val p = BigInteger("57896044618658097711785492504343953926634992332820282019728792003956564819949")
+
+        // La clave pública Ed25519 está en little-endian. El byte 31 contiene
+        // el bit de signo en el bit más significativo. Enmascararlo.
+        val yBytes = pubBytes.copyOf()
+        yBytes[31] = (yBytes[31].toInt() and 0x7f).toByte() // mask sign bit
+
+        // Convertir de little-endian a BigInteger (big-endian)
+        val y = BigInteger(1, yBytes.reversedArray()).mod(p)
+
+        // u = (1 + y) / (1 - y) mod p
+        val one = BigInteger.ONE
+        val num = one.add(y).mod(p)       // 1 + y
+        val den = one.subtract(y).mod(p)  // 1 - y
+        val denInv = den.modInverse(p)
+        val u = num.multiply(denInv).mod(p)
+
+        // Convertir de BigInteger a little-endian 32 bytes
+        val uBigEndian = u.toByteArray()
+        // Asegurar 32 bytes (BigInteger puede tener 33 con bit de signo)
+        val uPadded = ByteArray(32)
+        val src = if (uBigEndian.size > 32) uBigEndian.copyOfRange(uBigEndian.size - 32, uBigEndian.size) else uBigEndian
+        System.arraycopy(src, 0, uPadded, 32 - src.size, src.size)
+        return uPadded.reversedArray() // big-endian → little-endian
+    }
+
+    /**
      * Computes ECDH shared key (32 bytes AES key) using Curve25519 + SHA-256
+     *
+     * La clave privada se convierte con SHA-512+clamp (seed → scalar).
+     * La clave pública se convierte con el mapa birracional (Edwards → Montgomery).
      */
     fun deriveSharedKey(
         terminalPrivateKeyHex: String,
@@ -83,7 +131,7 @@ object CryptoEngine {
         val pubBytes = serverPublicKeyHex.hexToBytes()
 
         val curvePriv = ed25519ToCurve25519Clamped(privBytes)
-        val curvePub = ed25519ToCurve25519Clamped(pubBytes)
+        val curvePub = ed25519PublicKeyToCurve25519(pubBytes)
 
         val x25519Priv = X25519PrivateKeyParameters(curvePriv, 0)
         val x25519Pub = X25519PublicKeyParameters(curvePub, 0)
