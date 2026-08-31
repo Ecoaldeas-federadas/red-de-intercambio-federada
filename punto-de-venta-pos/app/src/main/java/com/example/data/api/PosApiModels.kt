@@ -95,7 +95,8 @@ data class HeartbeatResponse(
     @Json(name = "registered") val registered: Boolean? = null,
     @Json(name = "not_found") val notFound: Boolean? = null,
     @Json(name = "key_matches") val keyMatches: Boolean? = null,
-    @Json(name = "signature") val signature: String? = null
+    @Json(name = "signature") val signature: String? = null,
+    @Json(name = "server_public_key") val serverPublicKey: String? = null
 )
 
 @JsonClass(generateAdapter = true)

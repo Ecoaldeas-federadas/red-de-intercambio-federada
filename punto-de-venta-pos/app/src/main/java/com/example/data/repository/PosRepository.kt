@@ -1457,7 +1457,17 @@ class PosRepository(
             )
             val response = service.terminalHeartbeat(body)
             if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!)
+                val hb = response.body()!!
+                // Si el servidor envia server_public_key y es diferente al guardado,
+                // actualizarlo automaticamente. Esto pasa si el servidor fue
+                // reinstalado/migrado y las claves cambiaron.
+                if (!hb.serverPublicKey.isNullOrBlank() && hb.serverPublicKey != config.serverPublicKeyHex) {
+                    android.util.Log.d("PosRepository", "heartbeat: server_public_key cambio — actualizando")
+                    val updated = config.copy(serverPublicKeyHex = hb.serverPublicKey)
+                    saveConfigSecure(updated)
+                    cachedSharedKey = null
+                }
+                Result.success(hb)
             } else if (response.code() == 404) {
                 // Solo si el servidor responde 404 explicitamente, considerar no registrado
                 Result.success(HeartbeatResponse(status = "not_found", active = false, registered = false, notFound = true))

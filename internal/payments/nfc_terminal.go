@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"federated-credit-node/internal/crypto"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -1899,6 +1900,7 @@ func (nt *NFCTerminals) HasClassicCerts(ctx context.Context, cardUID string) boo
 func (nt *NFCTerminals) DecodePayload(ctx context.Context, terminalID string, encMsg json.RawMessage) (json.RawMessage, []byte, error) {
 	terminalIdentityPub, err := nt.GetTerminalPublicKey(ctx, terminalID)
 	if err != nil {
+		log.Printf("DecodePayload: terminal %s not found: %v", terminalID, err)
 		return nil, nil, err
 	}
 
@@ -1921,12 +1923,17 @@ func (nt *NFCTerminals) DecodePayload(ctx context.Context, terminalID string, en
 		return nil, nil, fmt.Errorf("terminal identity signature verification failed")
 	}
 
-	serverEphemeral, err := crypto.GenerateEphemeralKeyPair()
+	// Derivar shared key usando la clave de IDENTIDAD del servidor (no una efímera).
+	// El POS usa ECDH(ephemeral_priv, server_identity_pub) para derivar el shared key,
+	// por lo que el servidor debe usar ECDH(server_identity_priv, ephemeral_pub) para
+	// obtener el mismo shared key. Usar una efímera nueva del servidor ROMPE el ECDH
+	// porque el POS no conoce esa efímera.
+	serverIdentityPriv, err := nt.GetServerPrivateKey(ctx)
 	if err != nil {
-		return nil, nil, fmt.Errorf("generating server ephemeral keypair: %w", err)
+		return nil, nil, fmt.Errorf("getting server identity private key: %w", err)
 	}
 
-	sharedKey, err := crypto.PerformEphemeralECDH(serverEphemeral.PrivateKey, ed25519.PublicKey(ephPub))
+	sharedKey, err := crypto.DeriveSharedKey(serverIdentityPriv, ed25519.PublicKey(ephPub))
 	if err != nil {
 		return nil, nil, fmt.Errorf("deriving ephemeral shared key: %w", err)
 	}
@@ -1950,9 +1957,12 @@ func (nt *NFCTerminals) DecodePayload(ctx context.Context, terminalID string, en
 
 	plaintext, err := cryptoDecrypt(sharedKey, nonce, ciphertext)
 	if err != nil {
+		log.Printf("DecodePayload: decrypt failed for terminal %s: %v (sharedKey len=%d, nonce len=%d, ciphertext len=%d)",
+			terminalID, err, len(sharedKey), len(nonce), len(ciphertext))
 		return nil, nil, fmt.Errorf("decrypting payload: %w", err)
 	}
 
+	log.Printf("DecodePayload: success for terminal %s, plaintext len=%d", terminalID, len(plaintext))
 	return plaintext, sharedKey, nil
 }
 

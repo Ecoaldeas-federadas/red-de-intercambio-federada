@@ -275,13 +275,21 @@ func (h *NFCTerminalHandler) terminalHeartbeat(w http.ResponseWriter, r *http.Re
 		})
 		return
 	}
+	// Incluir server_public_key para que el POS pueda detectar si cambio
+	// y actualizarlo si es necesario (ej: servidor reinstalado)
+	serverPub, _ := h.NFC.GetServerPublicKey(r.Context())
+	serverPubHex := ""
+	if serverPub != nil {
+		serverPubHex = hexEncodeBytes(serverPub)
+	}
 	sig := ed25519.Sign(serverPriv, []byte(req.TerminalID))
 	writeJSON(w, 200, map[string]interface{}{
-		"status":      "ok",
-		"active":      isActive,
-		"registered":  isRegistered,
-		"key_matches": keyMatches,
-		"signature":   hexEncodeBytes(sig),
+		"status":            "ok",
+		"active":            isActive,
+		"registered":        isRegistered,
+		"key_matches":       keyMatches,
+		"signature":         hexEncodeBytes(sig),
+		"server_public_key": serverPubHex,
 	})
 }
 
