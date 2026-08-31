@@ -15,7 +15,10 @@ data class LoginResponse(
     @Json(name = "username") val username: String? = null,
     @Json(name = "node") val node: String? = null,
     @Json(name = "user_id") val userId: String? = null,
-    @Json(name = "error") val error: String? = null
+    @Json(name = "error") val error: String? = null,
+    // Presente solo si el backend auto-renovo las claves del terminal durante el login
+    @Json(name = "keys_renewed") val keysRenewed: Boolean? = null,
+    @Json(name = "server_public_key") val serverPublicKey: String? = null
 )
 
 @JsonClass(generateAdapter = true)

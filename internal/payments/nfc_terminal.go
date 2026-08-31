@@ -245,6 +245,78 @@ func (nt *NFCTerminals) AutoRenewKeys(ctx context.Context, terminalID, newTermin
 	return serverPubKey, nil
 }
 
+// IsUserAuthorizedForTerminal verifica si un usuario tiene permiso para usar
+// un terminal. Verifica en orden:
+// 1. merchant_user_id == userID (persona asignada directamente)
+// 2. Existe en nfc_terminal_authorized_users (personas adicionales)
+// 3. department_id IS NOT NULL → userID es miembro del departamento
+// 4. organization_id IS NOT NULL → userID es board member de la organizacion
+// 5. Todo NULL (sin asignar) → true (admin asigna despues)
+// 6. Todo lo demas → false
+func (nt *NFCTerminals) IsUserAuthorizedForTerminal(ctx context.Context, terminalID string, userID uuid.UUID) (bool, error) {
+	var merchantUserID *uuid.UUID
+	var orgID *uuid.UUID
+	var deptID *uuid.UUID
+
+	err := nt.Pool.QueryRow(ctx, `
+		SELECT merchant_user_id, organization_id, department_id
+		FROM nfc_terminals WHERE terminal_id = $1`,
+		terminalID,
+	).Scan(&merchantUserID, &orgID, &deptID)
+	if err != nil {
+		return false, fmt.Errorf("terminal not found: %w", err)
+	}
+
+	// 1. Sin asignar — permitir (admin asigna despues)
+	if merchantUserID == nil && orgID == nil && deptID == nil {
+		return true, nil
+	}
+
+	// 2. merchant_user_id coincide
+	if merchantUserID != nil && *merchantUserID == userID {
+		return true, nil
+	}
+
+	// 3. En nfc_terminal_authorized_users
+	var authCount int
+	err = nt.Pool.QueryRow(ctx, `
+		SELECT COUNT(*) FROM nfc_terminal_authorized_users
+		WHERE terminal_id = $1 AND user_id = $2`,
+		terminalID, userID,
+	).Scan(&authCount)
+	if err == nil && authCount > 0 {
+		return true, nil
+	}
+
+	// 4. Miembro del departamento
+	if deptID != nil {
+		var deptCount int
+		err = nt.Pool.QueryRow(ctx, `
+			SELECT COUNT(*) FROM department_members
+			WHERE department_id = $1 AND user_id = $2`,
+			*deptID, userID,
+		).Scan(&deptCount)
+		if err == nil && deptCount > 0 {
+			return true, nil
+		}
+	}
+
+	// 5. Board member de la organizacion
+	if orgID != nil {
+		var boardCount int
+		err = nt.Pool.QueryRow(ctx, `
+			SELECT COUNT(*) FROM organization_board_members
+			WHERE organization_id = $1 AND user_id = $2`,
+			*orgID, userID,
+		).Scan(&boardCount)
+		if err == nil && boardCount > 0 {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 // AuthenticateTerminal verifica la firma Ed25519 del terminal Y la huella del dispositivo.
 // El mensaje firmado por el terminal es: terminal_id:nonce:device_fingerprint
 // Esto asegura que incluso si alguien copia la clave privada, no puede autenticar

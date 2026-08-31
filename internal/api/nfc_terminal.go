@@ -103,6 +103,9 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequireAuth).Post("/api/nfc/org-terminals/{orgID}/{terminalID}/assign-user", h.orgAssignTerminalToUser)
 	r.With(am.RequireAuth).Post("/api/nfc/org-terminals/{orgID}/{terminalID}/assign-dept", h.orgAssignTerminalToDept)
 	r.With(am.RequireAuth).Post("/api/nfc/org-terminals/{orgID}/{terminalID}/toggle", h.orgToggleTerminal)
+	r.With(am.RequireAuth).Get("/api/nfc/org-terminals/{orgID}/{terminalID}/authorized-users", h.listAuthorizedUsers)
+	r.With(am.RequireAuth).Post("/api/nfc/org-terminals/{orgID}/{terminalID}/authorized-users", h.addAuthorizedUser)
+	r.With(am.RequireAuth).Delete("/api/nfc/org-terminals/{orgID}/{terminalID}/authorized-users/{userID}", h.removeAuthorizedUser)
 	r.With(am.RequireAuth).Get("/api/nfc/org-terminals/{orgID}/{terminalID}/shifts", h.listTerminalShifts)
 	r.With(am.RequireAuth).Get("/api/nfc/org-terminals/{orgID}/{terminalID}/transactions", h.listOrgTerminalTransactions)
 
@@ -1428,6 +1431,14 @@ func (h *NFCTerminalHandler) orgAssignTerminalToUser(w http.ResponseWriter, r *h
 		writeError(w, 500, "failed to assign terminal to user")
 		return
 	}
+	// Tambien insertar en nfc_terminal_authorized_users para que el usuario
+	// aparezca en la lista de personas autorizadas y pueda usar el terminal.
+	_, _ = h.NFC.Pool.Exec(r.Context(), `
+		INSERT INTO nfc_terminal_authorized_users (terminal_id, user_id, assigned_by)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (terminal_id, user_id) DO NOTHING`,
+		terminalID, userID, orgID,
+	)
 	writeJSON(w, 200, map[string]string{"status": "assigned_to_user"})
 }
 
@@ -1504,6 +1515,189 @@ func (h *NFCTerminalHandler) orgToggleTerminal(w http.ResponseWriter, r *http.Re
 		status = "deactivated"
 	}
 	writeJSON(w, 200, map[string]string{"status": status})
+}
+
+// --- Organization: list authorized users for a terminal ---
+
+func (h *NFCTerminalHandler) listAuthorizedUsers(w http.ResponseWriter, r *http.Request) {
+	orgIDStr := chi.URLParam(r, "orgID")
+	terminalID := chi.URLParam(r, "terminalID")
+	orgID, err := uuid.Parse(orgIDStr)
+	if err != nil {
+		writeError(w, 400, "invalid org id")
+		return
+	}
+
+	// Verificar que el terminal pertenece a la organizacion
+	var count int
+	err = h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT COUNT(*) FROM nfc_terminals
+		WHERE terminal_id = $1 AND organization_id = $2`,
+		terminalID, orgID,
+	).Scan(&count)
+	if err != nil || count == 0 {
+		writeError(w, 404, "terminal not found or not assigned to this organization")
+		return
+	}
+
+	// Listar personas en nfc_terminal_authorized_users
+	rows, err := h.NFC.Pool.Query(r.Context(), `
+		SELECT au.user_id, u.username, COALESCE(u.display_name, u.username), au.assigned_at
+		FROM nfc_terminal_authorized_users au
+		JOIN users u ON u.id = au.user_id
+		WHERE au.terminal_id = $1
+		ORDER BY au.assigned_at DESC`,
+		terminalID,
+	)
+	if err != nil {
+		writeError(w, 500, "failed to list authorized users")
+		return
+	}
+	defer rows.Close()
+
+	users := []map[string]interface{}{}
+	for rows.Next() {
+		var userID uuid.UUID
+		var username, displayName string
+		var assignedAt time.Time
+		if err := rows.Scan(&userID, &username, &displayName, &assignedAt); err != nil {
+			continue
+		}
+		users = append(users, map[string]interface{}{
+			"user_id":      userID.String(),
+			"username":     username,
+			"display_name": displayName,
+			"assigned_at":  assignedAt,
+		})
+	}
+
+	// Si el terminal tiene department_id, tambien listar miembros del departamento
+	var deptID *uuid.UUID
+	_ = h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT department_id FROM nfc_terminals WHERE terminal_id = $1`,
+		terminalID,
+	).Scan(&deptID)
+	if deptID != nil {
+		deptRows, _ := h.NFC.Pool.Query(r.Context(), `
+			SELECT dm.user_id, u.username, COALESCE(u.display_name, u.username), r.name
+			FROM department_members dm
+			JOIN users u ON u.id = dm.user_id
+			JOIN department_roles r ON r.id = dm.role_id
+			WHERE dm.department_id = $1
+			ORDER BY u.username`,
+			*deptID,
+		)
+		if deptRows != nil {
+			defer deptRows.Close()
+			for deptRows.Next() {
+				var userID uuid.UUID
+				var username, displayName, roleName string
+				if err := deptRows.Scan(&userID, &username, &displayName, &roleName); err != nil {
+					continue
+				}
+				users = append(users, map[string]interface{}{
+					"user_id":      userID.String(),
+					"username":     username,
+					"display_name": displayName,
+					"role":         roleName,
+					"source":       "department",
+				})
+			}
+		}
+	}
+
+	writeJSON(w, 200, users)
+}
+
+// --- Organization: add authorized user to a terminal ---
+
+func (h *NFCTerminalHandler) addAuthorizedUser(w http.ResponseWriter, r *http.Request) {
+	orgIDStr := chi.URLParam(r, "orgID")
+	terminalID := chi.URLParam(r, "terminalID")
+	orgID, err := uuid.Parse(orgIDStr)
+	if err != nil {
+		writeError(w, 400, "invalid org id")
+		return
+	}
+
+	var req struct {
+		UserID string `json:"user_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	userID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		writeError(w, 400, "invalid user_id")
+		return
+	}
+
+	// Verificar que el terminal pertenece a la organizacion
+	var count int
+	err = h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT COUNT(*) FROM nfc_terminals
+		WHERE terminal_id = $1 AND organization_id = $2`,
+		terminalID, orgID,
+	).Scan(&count)
+	if err != nil || count == 0 {
+		writeError(w, 404, "terminal not found or not assigned to this organization")
+		return
+	}
+
+	// Insertar en nfc_terminal_authorized_users
+	_, err = h.NFC.Pool.Exec(r.Context(), `
+		INSERT INTO nfc_terminal_authorized_users (terminal_id, user_id, assigned_by)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (terminal_id, user_id) DO NOTHING`,
+		terminalID, userID, orgID,
+	)
+	if err != nil {
+		writeError(w, 500, "failed to add authorized user")
+		return
+	}
+	writeJSON(w, 200, map[string]string{"status": "added"})
+}
+
+// --- Organization: remove authorized user from a terminal ---
+
+func (h *NFCTerminalHandler) removeAuthorizedUser(w http.ResponseWriter, r *http.Request) {
+	orgIDStr := chi.URLParam(r, "orgID")
+	terminalID := chi.URLParam(r, "terminalID")
+	userIDStr := chi.URLParam(r, "userID")
+	orgID, err := uuid.Parse(orgIDStr)
+	if err != nil {
+		writeError(w, 400, "invalid org id")
+		return
+	}
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		writeError(w, 400, "invalid user id")
+		return
+	}
+
+	// Verificar que el terminal pertenece a la organizacion
+	var count int
+	err = h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT COUNT(*) FROM nfc_terminals
+		WHERE terminal_id = $1 AND organization_id = $2`,
+		terminalID, orgID,
+	).Scan(&count)
+	if err != nil || count == 0 {
+		writeError(w, 404, "terminal not found or not assigned to this organization")
+		return
+	}
+
+	_, err = h.NFC.Pool.Exec(r.Context(), `
+		DELETE FROM nfc_terminal_authorized_users
+		WHERE terminal_id = $1 AND user_id = $2`,
+		terminalID, userID,
+	)
+	if err != nil {
+		writeError(w, 500, "failed to remove authorized user")
+		return
+	}
+	writeJSON(w, 200, map[string]string{"status": "removed"})
 }
 
 // --- Organization: list shifts for a terminal ---

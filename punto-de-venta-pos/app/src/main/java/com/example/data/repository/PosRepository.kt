@@ -303,10 +303,30 @@ class PosRepository(
             if (response.isSuccessful && response.body()?.token != null) {
                 val body = response.body()!!
                 apiClient.authToken = body.token
-                
+
                 // Persist session token in secure terminal config
                 val currentConfig = getOrInitTerminalConfig()
-                saveConfigSecure(currentConfig.copy(sessionToken = body.token))
+
+                // Si el backend auto-renovo las claves durante el login (key mismatch
+                // + usuario autorizado), guardar el server_public_key actualizado y
+                // generar nuevas claves locales para coincidir con las que el backend
+                // ya registro.
+                if (body.keysRenewed == true && body.serverPublicKey != null) {
+                    val keyPair = CryptoEngine.generateEd25519KeyPair()
+                    val updated = currentConfig.copy(
+                        sessionToken = body.token,
+                        isRegistered = true,
+                        terminalPrivateKeyHex = keyPair.privateKeyHex,
+                        terminalPublicKeyHex = keyPair.publicKeyHex,
+                        serverPublicKeyHex = body.serverPublicKey
+                    )
+                    saveConfigSecure(updated)
+                    apiClient.updateConfig(updated.serverUrl, body.token, updated.terminalId, updated.terminalPublicKeyHex)
+                    cachedSharedKey = null
+                    android.util.Log.d("PosRepository", "login: claves auto-renovadas durante login")
+                } else {
+                    saveConfigSecure(currentConfig.copy(sessionToken = body.token))
+                }
                 
                 val meResult = fetchCurrentUser()
                 

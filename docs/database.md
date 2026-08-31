@@ -77,6 +77,7 @@
 | `141_terminal_shift_pin.sql` | Campo shift_pin_hash en nfc_terminals (PIN del turno hasheado bcrypt) |
 | `142_shift_transaction_indexes.sql` | Indices para pos_shifts.opened_at, closed_at y nfc_transactions.created_at |
 | `143_pos_retention_config.sql` | Tabla pos_retention_config (retencion configurable, purga automatica) |
+| `146_terminal_authorized_users.sql` | Tabla nfc_terminal_authorized_users (personas adicionales autorizadas por terminal) |
 
 ## Tablas Principales
 
@@ -87,7 +88,8 @@
 - **`nfc_cards`**: Tarjetas NFC vinculadas a usuarios (card_type, pin_hash, crypto_enabled, has_dynamic_certs para MIFARE Classic, required_doc_type para tipo de documento requerido en Classic — migracion 140)
 - **`nfc_card_sectors`**: Sectores MIFARE Classic con claves A/B y certificados dinamicos (migracion 138)
 - **`nfc_classic_pending`**: Pre-aprobaciones pendientes de confirmacion de lectura/escritura Classic (TTL 30s, migracion 138)
-- **`nfc_terminals`**: Terminales NFC (terminal_id, merchant_user_id, organization_id, shift_pin_hash para PIN del turno — migracion 141)
+- **`nfc_terminals`**: Terminales NFC (terminal_id, merchant_user_id, organization_id, department_id, shift_pin_hash para PIN del turno — migracion 141)
+- **`nfc_terminal_authorized_users`**: Personas adicionales autorizadas para usar un terminal (terminal_id, user_id, assigned_by — migracion 146)
 - **`pos_shifts`**: Turnos de POS (terminal_id, user_id, status, opened_at, closed_at, opening_amount, closing_amount, total_sales, transactions_count — migracion 098)
 - **`pos_retention_config`**: Configuracion de retencion (node_domain, retention_days, enabled, last_purge_at — migracion 143)
 - **`member_levels`**: Niveles de miembro con limites y permisos

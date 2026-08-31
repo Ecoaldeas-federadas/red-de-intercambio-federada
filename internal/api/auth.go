@@ -1163,9 +1163,13 @@ func (ah *AuthHandlers) passwordLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validar terminal si el POS envia X-Terminal-ID y X-Terminal-Public-Key
-	// Esto bloquea el login en terminales no registrados o con clave publica incorrecta
+	// Esto bloquea el login en terminales no registrados o con clave publica incorrecta.
+	// Si las claves no coinciden, NO rechazamos inmediatamente — primero verificamos
+	// credenciales y autorizacion, y si el usuario es el merchant asignado (o esta
+	// autorizado), auto-renovamos las claves durante el login.
 	terminalIDHeader := r.Header.Get("X-Terminal-ID")
 	terminalPubKeyHeader := r.Header.Get("X-Terminal-Public-Key")
+	keyMismatch := false
 	if terminalIDHeader != "" && terminalPubKeyHeader != "" {
 		var dbPubKey string
 		var dbIsRegistered, dbIsActive bool
@@ -1181,8 +1185,9 @@ func (ah *AuthHandlers) passwordLogin(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if dbPubKey != terminalPubKeyHeader {
-			writeError(w, 403, "terminal_key_mismatch")
-			return
+			// NO rechazar — guardar flag y continuar con verificacion de credenciales.
+			// Si el usuario resulta ser el merchant asignado, auto-renovamos.
+			keyMismatch = true
 		}
 		if !dbIsRegistered || !dbIsActive {
 			writeError(w, 403, "terminal_not_registered")
@@ -1245,6 +1250,40 @@ func (ah *AuthHandlers) passwordLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Verificar autorizacion del usuario sobre el terminal (si se envio terminal_id)
+	keysRenewed := false
+	serverPubKey := ""
+	if terminalIDHeader != "" {
+		authorized, authErr := isUserAuthorizedForTerminal(r.Context(), ah.Pool, terminalIDHeader, userID)
+		if authErr != nil {
+			writeError(w, 403, "terminal_not_registered")
+			return
+		}
+		if !authorized {
+			writeError(w, 403, "not_authorized_for_terminal")
+			return
+		}
+
+		// Si hubo key mismatch y el usuario esta autorizado, auto-renovar las claves
+		if keyMismatch {
+			_, err := ah.Pool.Exec(r.Context(), `
+				UPDATE nfc_terminals
+				SET terminal_public_key = $2, updated_at = NOW()
+				WHERE terminal_id = $1`,
+				terminalIDHeader, terminalPubKeyHeader,
+			)
+			if err != nil {
+				writeError(w, 500, "failed to renew terminal keys")
+				return
+			}
+			keysRenewed = true
+			// Obtener server_public_key para devolver al POS
+			_ = ah.Pool.QueryRow(r.Context(), `
+				SELECT node_public_key FROM node_config LIMIT 1`,
+			).Scan(&serverPubKey)
+		}
+	}
+
 	am := NewAuthMiddleware(ah.JWTSecret)
 	token, err := am.GenerateToken(userID, username, jwtDomain)
 	if err != nil {
@@ -1252,10 +1291,84 @@ func (ah *AuthHandlers) passwordLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, 200, map[string]interface{}{
+	resp := map[string]interface{}{
 		"token":    token,
 		"username": req.Username,
 		"node":     ah.NodeDomain,
 		"user_id":  userID.String(),
-	})
+	}
+	if keysRenewed {
+		resp["keys_renewed"] = true
+		if serverPubKey != "" {
+			resp["server_public_key"] = serverPubKey
+		}
+	}
+	writeJSON(w, 200, resp)
+}
+
+// isUserAuthorizedForTerminal verifica si un usuario tiene permiso para usar un terminal.
+// Verifica en orden: merchant_user_id, nfc_terminal_authorized_users,
+// department_members, organization_board_members, o sin asignar (permitido).
+func isUserAuthorizedForTerminal(ctx context.Context, pool *pgxpool.Pool, terminalID string, userID uuid.UUID) (bool, error) {
+	var merchantUserID *uuid.UUID
+	var orgID *uuid.UUID
+	var deptID *uuid.UUID
+
+	err := pool.QueryRow(ctx, `
+		SELECT merchant_user_id, organization_id, department_id
+		FROM nfc_terminals WHERE terminal_id = $1`,
+		terminalID,
+	).Scan(&merchantUserID, &orgID, &deptID)
+	if err != nil {
+		return false, err
+	}
+
+	// Sin asignar — permitir (admin asigna despues)
+	if merchantUserID == nil && orgID == nil && deptID == nil {
+		return true, nil
+	}
+
+	// merchant_user_id coincide
+	if merchantUserID != nil && *merchantUserID == userID {
+		return true, nil
+	}
+
+	// En nfc_terminal_authorized_users
+	var authCount int
+	err = pool.QueryRow(ctx, `
+		SELECT COUNT(*) FROM nfc_terminal_authorized_users
+		WHERE terminal_id = $1 AND user_id = $2`,
+		terminalID, userID,
+	).Scan(&authCount)
+	if err == nil && authCount > 0 {
+		return true, nil
+	}
+
+	// Miembro del departamento
+	if deptID != nil {
+		var deptCount int
+		err = pool.QueryRow(ctx, `
+			SELECT COUNT(*) FROM department_members
+			WHERE department_id = $1 AND user_id = $2`,
+			*deptID, userID,
+		).Scan(&deptCount)
+		if err == nil && deptCount > 0 {
+			return true, nil
+		}
+	}
+
+	// Board member de la organizacion
+	if orgID != nil {
+		var boardCount int
+		err = pool.QueryRow(ctx, `
+			SELECT COUNT(*) FROM organization_board_members
+			WHERE organization_id = $1 AND user_id = $2`,
+			*orgID, userID,
+		).Scan(&boardCount)
+		if err == nil && boardCount > 0 {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }

@@ -316,6 +316,7 @@ Estos endpoints se consumen entre nodos via mTLS (no requieren JWT):
 | POST | `/api/nfc/terminal/classic/pre-auth-document` | Pre-auth Classic (username + doc + PIN, cifrado) |
 | POST | `/api/nfc/terminal/classic/confirm` | Confirmar lectura/escritura tarjeta Classic |
 | POST | `/api/nfc/terminal/user-lookup` | Buscar usuario por username (cifrado) |
+| POST | `/api/nfc/terminal/auto-renew` | Auto-renovar claves del terminal (JWT — requiere usuario logueado asignado al terminal) |
 | POST | `/api/nfc/cards/issue` | Emitir tarjeta (permiso: `nfc.issue_card`) |
 | POST | `/api/nfc/cards/provision-classic` | Provisionar MIFARE Classic con cert dinamicos (permiso: `nfc.issue_card`) |
 | PUT | `/api/nfc/cards/pin` | Cambiar PIN |
@@ -422,6 +423,18 @@ Ver `docs/tarjeta-classic-certificados.md` para detalles del flujo Classic.
 | GET | `/api/nfc/transactions` | JWT | Lista transacciones NFC |
 | GET | `/api/nfc/terminal/pair/request/{reqId}/options` | JWT | Devuelve 4 opciones de codigo para verificacion de emparejamiento POS |
 | POST | `/api/nfc/terminal/pair/request/{reqId}/approve` | JWT | Aprueba emparejamiento POS (acepta `selected_code` opcional) |
+| POST | `/api/nfc/terminal/{id}/assign` | JWT + `nfc.register_terminal` | Asignar terminal a organizacion |
+| POST | `/api/nfc/terminal/auto-renew` | JWT | Auto-renovar claves del terminal (requiere usuario logueado asignado) |
+| GET | `/api/nfc/org-terminals/{orgID}` | JWT | Lista terminales de la organizacion |
+| POST | `/api/nfc/org-terminals/{orgID}/{terminalID}/assign-user` | JWT | Asignar terminal a persona (merchant_user_id) |
+| POST | `/api/nfc/org-terminals/{orgID}/{terminalID}/assign-dept` | JWT | Asignar terminal a departamento |
+| POST | `/api/nfc/org-terminals/{orgID}/{terminalID}/toggle` | JWT | Activar/desactivar terminal |
+| GET | `/api/nfc/org-terminals/{orgID}/{terminalID}/authorized-users` | JWT | Listar personas autorizadas + miembros del departamento |
+| POST | `/api/nfc/org-terminals/{orgID}/{terminalID}/authorized-users` | JWT | Agregar persona autorizada al terminal |
+| DELETE | `/api/nfc/org-terminals/{orgID}/{terminalID}/authorized-users/{userID}` | JWT | Quitar persona autorizada del terminal |
+| GET | `/api/nfc/org-terminals/{orgID}/{terminalID}/shifts` | JWT | Historial de turnos del terminal |
+| GET | `/api/nfc/org-terminals/{orgID}/{terminalID}/transactions` | JWT | Transacciones del terminal |
+| GET | `/api/nfc/my-terminals` | JWT | Lista terminales asignados al usuario actual |
 
 ### Auditoria (`internal/api/handlers.go`)
 

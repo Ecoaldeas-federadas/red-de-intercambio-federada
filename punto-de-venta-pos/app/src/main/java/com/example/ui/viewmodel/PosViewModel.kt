@@ -240,6 +240,25 @@ class PosViewModel(
                 delay(60_000) // 60 segundos
                 val state = _uiState.value
                 if (!state.isRegistered) continue
+
+                // 1. Verificar sesion JWT si hay usuario logueado
+                if (state.isLoggedIn) {
+                    val meResult = repository.fetchCurrentUser()
+                    if (meResult.isFailure) {
+                        // Sesión expirada o invalida — enviar a login
+                        _uiState.update {
+                            it.copy(
+                                isLoggedIn = false,
+                                currentUser = null,
+                                currentScreen = PosScreen.Login,
+                                errorMessage = "Sesión expirada. Por favor inicie sesión nuevamente."
+                            )
+                        }
+                        continue
+                    }
+                }
+
+                // 2. Heartbeat del terminal
                 val hbRes = repository.heartbeat()
                 hbRes.onSuccess { hb ->
                     if (hb.notFound == true) {
@@ -279,24 +298,28 @@ class PosViewModel(
      *
      * Si hay sesion activa y la renovacion tiene exito, el terminal sigue
      * funcionando sin necesidad de re-parear.
-     * Si NO hay sesion activa, o la renovacion falla, envia a re-parear manual.
+     * Si NO hay sesion activa, envia a Login (no a RegisterTerminal) — el terminal
+     * sigue registrado, solo perdio la sesion. Al iniciar sesion, el backend
+     * auto-renueva las claves si el usuario es el merchant asignado.
+     * Si la renovacion falla con sesion activa, envia a re-parear manual.
      * Retorna true si la renovacion fue exitosa.
      */
     private suspend fun handleKeyMismatch(): Boolean {
         // 1. Verificar que hay un usuario logueado con JWT activo
         val state = _uiState.value
         if (!state.isLoggedIn || state.currentUser == null) {
-            // No hay sesion activa — no se puede auto-renovar
-            // El usuario debe re-parear manualmente
-            repository.resetTerminalRegistration()
+            // No hay sesion activa — NO resetear claves ni enviar a registro.
+            // El terminal sigue registrado, solo perdio la sesion.
+            // Al iniciar sesion, el backend auto-renueva las claves si el usuario
+            // es el merchant asignado o esta autorizado.
             _uiState.update {
                 it.copy(
                     isLoading = false,
-                    isRegistered = false,
+                    isRegistered = true,  // sigue registrado
                     isLoggedIn = false,
                     currentUser = null,
-                    currentScreen = PosScreen.RegisterTerminal,
-                    errorMessage = "Las claves del terminal no coinciden y no hay usuario logueado. Debe emparejar nuevamente."
+                    currentScreen = PosScreen.Login,
+                    errorMessage = "La sesión expiró. Inicie sesión para renovar las claves del terminal automáticamente."
                 )
             }
             return false
@@ -737,18 +760,28 @@ class PosViewModel(
                 }
             }.onFailure { err ->
                 val msg = err.message ?: ""
-                // Si el servidor rechazo por terminal no registrado o clave incorrecta,
-                // actualizar el estado y enviar a registro
-                val isTerminalRejected = msg.contains("no coincide") || msg.contains("no esta registrado") ||
-                    msg.contains("terminal_not_registered") || msg.contains("terminal_key_mismatch")
+                // Si el servidor rechazo por terminal no registrado, enviar a registro
+                val isTerminalNotRegistered = msg.contains("no esta registrado") ||
+                    msg.contains("terminal_not_registered")
+                // Si el servidor rechazo por no autorizado, mostrar mensaje claro
+                val isNotAuthorized = msg.contains("not_authorized_for_terminal") ||
+                    msg.contains("No tiene permiso")
                 _uiState.update { state ->
                     state.copy(
                         isLoading = false,
                         isLoggedIn = false,
                         currentUser = null,
-                        isRegistered = if (isTerminalRejected) false else state.isRegistered,
-                        currentScreen = if (isTerminalRejected) PosScreen.RegisterTerminal else state.currentScreen,
-                        errorMessage = msg.ifEmpty { "Error al autenticar con el nodo" }
+                        isRegistered = if (isTerminalNotRegistered) false else state.isRegistered,
+                        currentScreen = when {
+                            isTerminalNotRegistered -> PosScreen.RegisterTerminal
+                            isNotAuthorized -> state.currentScreen
+                            else -> state.currentScreen
+                        },
+                        errorMessage = when {
+                            isNotAuthorized -> "No tiene permiso para usar este terminal. Contacte al administrador de la organización."
+                            isTerminalNotRegistered -> "Este terminal no está registrado en el servidor. Debe emparejar nuevamente."
+                            else -> msg.ifEmpty { "Error al autenticar con el nodo" }
+                        }
                     )
                 }
             }
