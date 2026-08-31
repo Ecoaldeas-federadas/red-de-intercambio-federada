@@ -355,8 +355,498 @@ const BOARD_POSITIONS = [
   { value: 'fiscal', label: 'Fiscal' },
 ]
 
+// Componente reutilizable para lista de departamentos con gestion de roles
+function DeptListWithRoles({
+  depts, expandedDept, setExpandedDept,
+  deptRoles, setDeptRoles,
+  deptMembers, setDeptMembers,
+  showCreateRole, setShowCreateRole,
+  showAssignMember, setShowAssignMember,
+  newRole, setNewRole,
+  newMember, setNewMember,
+  allPerms, allMembers,
+  rolePermsList, setRolePermsList,
+  showRolePerms, setShowRolePerms,
+  canManage,
+}: {
+  depts: any[]
+  expandedDept: string | null
+  setExpandedDept: (s: string | null) => void
+  deptRoles: any[]
+  setDeptRoles: (r: any[]) => void
+  deptMembers: any[]
+  setDeptMembers: (m: any[]) => void
+  showCreateRole: string | null
+  setShowCreateRole: (s: string | null) => void
+  showAssignMember: string | null
+  setShowAssignMember: (s: string | null) => void
+  newRole: { name: string, description: string }
+  setNewRole: (r: { name: string, description: string }) => void
+  newMember: { user_id: string, role_id: string }
+  setNewMember: (m: { user_id: string, role_id: string }) => void
+  allPerms: any[]
+  allMembers: any[]
+  rolePermsList: any[]
+  setRolePermsList: (p: any[]) => void
+  showRolePerms: string | null
+  setShowRolePerms: (s: string | null) => void
+  canManage: boolean
+}) {
+  const loadRoles = async (deptId: string) => {
+    try {
+      const res = await api.get<any[]>(`/departments/${deptId}/roles`)
+      setDeptRoles(res || [])
+    } catch { setDeptRoles([]) }
+  }
+
+  const loadMembers = async (deptId: string) => {
+    try {
+      const res = await api.get<any[]>(`/departments/${deptId}/members`)
+      setDeptMembers(res || [])
+    } catch { setDeptMembers([]) }
+  }
+
+  const loadRolePerms = async (roleId: string) => {
+    try {
+      const res = await api.get<any[]>(`/roles/${roleId}/permissions`)
+      setRolePermsList(res || [])
+    } catch { setRolePermsList([]) }
+  }
+
+  const createRole = async (deptId: string) => {
+    if (!newRole.name) return
+    try {
+      await api.post(`/departments/${deptId}/roles`, newRole)
+      setShowCreateRole(null)
+      setNewRole({ name: '', description: '' })
+      loadRoles(deptId)
+    } catch (e: any) {
+      alert(e?.message || 'Error al crear rol')
+    }
+  }
+
+  const assignMember = async (deptId: string) => {
+    if (!newMember.user_id || !newMember.role_id) return
+    try {
+      await api.post(`/departments/${deptId}/members`, newMember)
+      setShowAssignMember(null)
+      setNewMember({ user_id: '', role_id: '' })
+      loadMembers(deptId)
+    } catch (e: any) {
+      alert(e?.message || 'Error al asignar miembro')
+    }
+  }
+
+  const toggleRolePerm = async (roleId: string, permId: string, has: boolean) => {
+    try {
+      if (has) {
+        // Quitar: enviar lista sin ese permiso
+        const current = rolePermsList.map((p: any) => p.id)
+        await api.put(`/roles/${roleId}/permissions`, { permission_ids: current.filter((id: string) => id !== permId) })
+      } else {
+        // Agregar: enviar lista con ese permiso
+        const current = rolePermsList.map((p: any) => p.id)
+        await api.put(`/roles/${roleId}/permissions`, { permission_ids: [...current, permId] })
+      }
+      loadRolePerms(roleId)
+    } catch (e: any) {
+      alert(e?.message || 'Error al cambiar permiso')
+    }
+  }
+
+  const removeMember = async (deptId: string, userId: string) => {
+    try {
+      await api.delete(`/departments/${deptId}/members/${userId}`)
+      loadMembers(deptId)
+    } catch (e: any) {
+      alert(e?.message || 'Error al remover miembro')
+    }
+  }
+
+  if (depts.length === 0) {
+    return <p className="text-sm text-gray-500 py-4">No hay departamentos en esta categoria.</p>
+  }
+
+  return (
+    <div className="space-y-2">
+      {depts.map((d: any) => (
+        <div key={d.id} className="border rounded-lg overflow-hidden">
+          {/* Header del departamento */}
+          <div
+            className="flex items-center justify-between p-3 bg-gray-50 cursor-pointer hover:bg-gray-100"
+            onClick={() => {
+              if (expandedDept === d.id) {
+                setExpandedDept(null)
+              } else {
+                setExpandedDept(d.id)
+                loadRoles(d.id)
+                loadMembers(d.id)
+                setShowCreateRole(null)
+                setShowAssignMember(null)
+                setShowRolePerms(null)
+              }
+            }}
+          >
+            <div>
+              <span className="font-medium text-sm">{d.name}</span>
+              {d.description && <span className="text-xs text-gray-500 ml-2">- {d.description}</span>}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400">{d.group_type}</span>
+              <span className={`text-xs px-2 py-0.5 rounded ${d.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                {d.is_active ? 'Activo' : 'Inactivo'}
+              </span>
+              <span className="text-gray-400 text-xs">{expandedDept === d.id ? '▼' : '▶'}</span>
+            </div>
+          </div>
+
+          {/* Contenido expandido: roles + miembros */}
+          {expandedDept === d.id && (
+            <div className="p-3 bg-white space-y-3">
+              {/* Roles */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-medium">Roles</h4>
+                  {canManage && (
+                    <button
+                      onClick={() => { setShowCreateRole(showCreateRole === d.id ? null : d.id); setShowRolePerms(null); setShowAssignMember(null) }}
+                      className="text-xs text-trueque-600 hover:text-trueque-700 flex items-center gap-1"
+                    >
+                      <Plus size={12} /> Nuevo Rol
+                    </button>
+                  )}
+                </div>
+                {deptRoles.length === 0 && <p className="text-xs text-gray-400">Sin roles</p>}
+                <div className="space-y-1">
+                  {deptRoles.map((role: any) => (
+                    <div key={role.id} className="flex items-center justify-between bg-gray-50 rounded-lg p-2">
+                      <div>
+                        <span className="font-medium text-sm">{role.name}</span>
+                        {role.description && <p className="text-xs text-gray-500">{role.description}</p>}
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (showRolePerms === role.id) {
+                            setShowRolePerms(null)
+                          } else {
+                            setShowRolePerms(role.id)
+                            loadRolePerms(role.id)
+                          }
+                        }}
+                        className="text-xs text-trueque-600"
+                      >
+                        Permisos
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Panel de permisos del rol */}
+              {showRolePerms && deptRoles.some((r: any) => r.id === showRolePerms) && (
+                <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                  <h4 className="text-sm font-medium">Permisos del rol "{deptRoles.find((r: any) => r.id === showRolePerms)?.name}"</h4>
+                  {/* Agrupar por categoria */}
+                  {(() => {
+                    const grouped: Record<string, any[]> = {}
+                    allPerms.forEach((p: any) => {
+                      if (!grouped[p.category]) grouped[p.category] = []
+                      grouped[p.category].push(p)
+                    })
+                    return Object.entries(grouped).map(([cat, perms]) => (
+                      <div key={cat}>
+                        <p className="text-xs text-gray-500 uppercase mb-1">{cat}</p>
+                        <div className="space-y-1">
+                          {perms.map((perm: any) => {
+                            const has = rolePermsList.some((p: any) => p.id === perm.id)
+                            return (
+                              <label key={perm.id} className="flex items-center gap-2 text-xs cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={has}
+                                  disabled={!canManage}
+                                  onChange={() => toggleRolePerm(showRolePerms, perm.id, has)}
+                                  className="accent-trueque-600"
+                                />
+                                <span>{perm.name}</span>
+                                {perm.requires_multisig && <span className="text-amber-600">[multisig]</span>}
+                              </label>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ))
+                  })()}
+                </div>
+              )}
+
+              {/* Formulario crear rol */}
+              {showCreateRole === d.id && (
+                <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                  <h4 className="text-sm font-medium">Nuevo Rol</h4>
+                  <input
+                    className="input"
+                    placeholder="Nombre del rol (ej: Coordinador)"
+                    value={newRole.name}
+                    onChange={(e) => setNewRole({ ...newRole, name: e.target.value })}
+                  />
+                  <input
+                    className="input"
+                    placeholder="Descripcion (opcional)"
+                    value={newRole.description}
+                    onChange={(e) => setNewRole({ ...newRole, description: e.target.value })}
+                  />
+                  <button onClick={() => createRole(d.id)} className="btn-primary text-sm">Crear Rol</button>
+                </div>
+              )}
+
+              {/* Miembros del departamento */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-medium">Miembros ({deptMembers.length})</h4>
+                  {canManage && (
+                    <button
+                      onClick={() => { setShowAssignMember(showAssignMember === d.id ? null : d.id); setShowCreateRole(null); setShowRolePerms(null) }}
+                      className="text-xs text-trueque-600 hover:text-trueque-700 flex items-center gap-1"
+                    >
+                      <Plus size={12} /> Asignar Miembro
+                    </button>
+                  )}
+                </div>
+                {deptMembers.length === 0 && <p className="text-xs text-gray-400">Sin miembros asignados</p>}
+                <div className="space-y-1">
+                  {deptMembers.map((m: any) => (
+                    <div key={m.user_id || m.id} className="flex items-center justify-between bg-gray-50 rounded-lg p-2">
+                      <div>
+                        <span className="text-sm font-medium">{m.display_name || m.username}</span>
+                        {m.role_name && <span className="text-xs text-gray-500 ml-2">({m.role_name})</span>}
+                      </div>
+                      {canManage && (
+                        <button
+                          onClick={() => removeMember(d.id, m.user_id || m.id)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Formulario asignar miembro */}
+              {showAssignMember === d.id && (
+                <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                  <h4 className="text-sm font-medium">Asignar Miembro</h4>
+                  <select
+                    className="input"
+                    value={newMember.user_id}
+                    onChange={(e) => setNewMember({ ...newMember, user_id: e.target.value })}
+                  >
+                    <option value="">Seleccionar miembro...</option>
+                    {allMembers.map((m: any) => (
+                      <option key={m.id} value={m.id}>{m.display_name || m.username} (@{m.username})</option>
+                    ))}
+                  </select>
+                  <select
+                    className="input"
+                    value={newMember.role_id}
+                    onChange={(e) => setNewMember({ ...newMember, role_id: e.target.value })}
+                  >
+                    <option value="">Seleccionar rol...</option>
+                    {deptRoles.map((r: any) => (
+                      <option key={r.id} value={r.id}>{r.name}</option>
+                    ))}
+                  </select>
+                  <button onClick={() => assignMember(d.id)} className="btn-primary text-sm">Asignar</button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Componente reutilizable para buscar miembros y gestionar permisos
+function MemberSearchAndPerms({
+  members, memberSearch, setMemberSearch,
+  selectedMember, setSelectedMember,
+  memberPerms, setMemberPerms,
+  allPerms, canManage, permMsg, setPermMsg, setAllMembers,
+  badgeLabel, badgeColor,
+}: {
+  members: any[]
+  memberSearch: string
+  setMemberSearch: (s: string) => void
+  selectedMember: any | null
+  setSelectedMember: (m: any) => void
+  memberPerms: string[]
+  setMemberPerms: (p: string[]) => void
+  allPerms: any[]
+  canManage: boolean
+  permMsg: { type: 'success' | 'error', text: string } | null
+  setPermMsg: (m: { type: 'success' | 'error', text: string } | null) => void
+  setAllMembers: (fn: (prev: any[]) => any[]) => void
+  badgeLabel: string | ((m: any) => string)
+  badgeColor: string | ((m: any) => string)
+}) {
+  const getBadgeLabel = (m: any) => typeof badgeLabel === 'function' ? badgeLabel(m) : badgeLabel
+  const getBadgeColor = (m: any) => typeof badgeColor === 'function' ? badgeColor(m) : badgeColor
+
+  return (
+    <>
+      {/* Buscador de miembros */}
+      <div className="card">
+        <h3 className="font-medium mb-3 flex items-center gap-2"><Search size={16} />Buscar Miembros ({members.length})</h3>
+        <input
+          type="text"
+          className="input mb-3"
+          placeholder="Buscar por nombre o usuario..."
+          value={memberSearch}
+          onChange={(e) => setMemberSearch(e.target.value)}
+        />
+
+        {members.length === 0 ? (
+          <p className="text-sm text-gray-500 py-4">No hay miembros en esta categoria.</p>
+        ) : (
+          <div className="space-y-1 max-h-64 overflow-y-auto">
+            {members
+              .filter((m: any) => {
+                if (!memberSearch) return true
+                const q = memberSearch.toLowerCase()
+                return (m.username || '').toLowerCase().includes(q) ||
+                       (m.display_name || '').toLowerCase().includes(q)
+              })
+              .map((m: any) => (
+                <div
+                  key={m.id}
+                  className={`flex items-center justify-between p-2 rounded border cursor-pointer transition ${selectedMember?.id === m.id ? 'bg-trueque-50 border-trueque-300' : 'border-gray-200 hover:bg-gray-50'}`}
+                  onClick={() => setSelectedMember(m)}
+                >
+                  <div>
+                    <span className="font-medium text-sm">{m.display_name || m.username}</span>
+                    <span className="text-xs text-gray-500 ml-2">@{m.username}</span>
+                    {m.level_name && <span className="text-xs text-gray-400 ml-2">({m.level_name})</span>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {m.is_super_admin && m.super_admin_enabled && (
+                      <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">Super Admin</span>
+                    )}
+                    <span className={`text-xs px-2 py-0.5 rounded ${getBadgeColor(m)}`}>{getBadgeLabel(m)}</span>
+                    {m.permissions && m.permissions.length > 0 && (
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{m.permissions.length} permisos</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+          </div>
+        )}
+      </div>
+
+      {/* Panel de permisos del miembro seleccionado */}
+      {selectedMember && (
+        <div className="card space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-medium flex items-center gap-2">
+              <KeyRound size={16} />
+              Permisos de {selectedMember.display_name || selectedMember.username}
+            </h3>
+            <button onClick={() => setSelectedMember(null)} className="text-gray-400 hover:text-gray-600 text-sm">Cerrar</button>
+          </div>
+
+          {selectedMember.is_super_admin && selectedMember.super_admin_enabled && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+              Este usuario es Super Admin habilitado: tiene TODOS los permisos automaticamente.
+            </div>
+          )}
+
+          {/* Permisos actuales */}
+          <div>
+            <h4 className="text-sm font-medium mb-2">Permisos actuales ({memberPerms.length})</h4>
+            {memberPerms.length === 0 ? (
+              <p className="text-sm text-gray-500">No tiene permisos directos.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {memberPerms.map((p: string) => (
+                  <div key={p} className="flex items-center gap-1 bg-gray-100 rounded-lg px-2 py-1 text-xs">
+                    <span className="font-medium">{p}</span>
+                    {canManage && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await api.delete(`/users/${selectedMember.id}/permissions/${encodeURIComponent(p)}`)
+                            setMemberPerms(memberPerms.filter(x => x !== p))
+                            setPermMsg({ type: 'success', text: `Permiso "${p}" removido` })
+                            setAllMembers((prev: any[]) => prev.map(m => m.id === selectedMember.id ? { ...m, permissions: m.permissions.filter((x: string) => x !== p) } : m))
+                          } catch (e: any) {
+                            setPermMsg({ type: 'error', text: e?.message || 'Error al remover permiso' })
+                          }
+                        }}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Asignar nuevo permiso */}
+          {canManage && (
+            <div>
+              <h4 className="text-sm font-medium mb-2">Asignar nuevo permiso</h4>
+              <div className="space-y-1 max-h-48 overflow-y-auto border rounded-lg p-2">
+                {allPerms
+                  .filter((p: any) => !memberPerms.includes(p.name))
+                  .map((p: any) => (
+                    <div key={p.id} className="flex items-center justify-between p-1 hover:bg-gray-50 rounded">
+                      <div>
+                        <span className="text-sm font-medium">{p.name}</span>
+                        <span className="text-xs text-gray-500 ml-2">({p.category})</span>
+                        {p.requires_multisig && <span className="text-xs text-amber-600 ml-1">[multisig]</span>}
+                      </div>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await api.post(`/users/${selectedMember.id}/permissions/grant`, { permission_name: p.name })
+                            setMemberPerms([...memberPerms, p.name])
+                            setPermMsg({ type: 'success', text: `Permiso "${p.name}" asignado` })
+                            setAllMembers((prev: any[]) => prev.map(m => m.id === selectedMember.id ? { ...m, permissions: [...(m.permissions || []), p.name] } : m))
+                          } catch (e: any) {
+                            setPermMsg({ type: 'error', text: e?.message || 'Error al asignar permiso' })
+                          }
+                        }}
+                        className="text-xs text-trueque-600 hover:text-trueque-700 font-medium"
+                      >
+                        + Asignar
+                      </button>
+                    </div>
+                  ))}
+              </div>
+              <p className="text-xs text-gray-400 mt-2">
+                Los permisos marcados como [multisig] requieren votacion de la Asamblea.
+                Al asignarlos directamente, se otorgan sin votacion (requiere permiso config.manage).
+              </p>
+            </div>
+          )}
+
+          {permMsg && (
+            <div className={`text-xs p-2 rounded-lg ${permMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+              {permMsg.text}
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  )
+}
+
 export default function Assembly() {
-  const { hasPermission } = usePermissions()
+  const { hasPermission, isSuperAdmin, superAdminEnabled } = usePermissions()
   const { currency } = useConfig()
   const canManageBoard = hasPermission('assembly.manage_board')
   const canManageTax = hasPermission('tax.manage')
@@ -401,8 +891,30 @@ export default function Assembly() {
   const [allPerms, setAllPerms] = useState<any[]>([])
   const [permMsg, setPermMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
+  // Sub-pestanas de Miembros
+  const [memberSubTab, setMemberSubTab] = useState<'voice' | 'voice_vote' | 'levels' | 'orgs'>('voice_vote')
+
+  // Organizaciones (para gestion de permisos separada de personas)
+  const [allOrgs, setAllOrgs] = useState<any[]>([])
+  const [orgSearch, setOrgSearch] = useState('')
+  const [selectedOrg, setSelectedOrg] = useState<any | null>(null)
+  const [orgPerms, setOrgPerms] = useState<string[]>([])
+  const [orgPermMsg, setOrgPermMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+
   // Departamentos de la Asamblea (para la pestaña departments)
   const [allDepts, setAllDepts] = useState<any[]>([])
+
+  // Sub-pestanas de Departamentos
+  const [deptSubTab, setDeptSubTab] = useState<'assembly' | 'organizations'>('assembly')
+  const [expandedDept, setExpandedDept] = useState<string | null>(null)
+  const [deptRoles, setDeptRoles] = useState<any[]>([])
+  const [deptMembers, setDeptMembers] = useState<any[]>([])
+  const [showCreateRole, setShowCreateRole] = useState<string | null>(null)
+  const [showAssignMember, setShowAssignMember] = useState<string | null>(null)
+  const [newRole, setNewRole] = useState({ name: '', description: '' })
+  const [newMember, setNewMember] = useState({ user_id: '', role_id: '' })
+  const [rolePermsList, setRolePermsList] = useState<any[]>([])
+  const [showRolePerms, setShowRolePerms] = useState<string | null>(null)
   const [newSignerType, setNewSignerType] = useState<'person' | 'organization'>('person')
   const [newSignerId, setNewSignerId] = useState('')
   const [fundData, setFundData] = useState<any>(null)
@@ -486,9 +998,11 @@ export default function Assembly() {
       }).catch(() => {})
     }
     if (tab === 'members') {
-      // Cargar todos los miembros del nodo (no solo con voto) + todos los permisos disponibles
+      // Cargar todos los miembros del nodo (solo personas) + todos los permisos disponibles
       api.get('/users/all').then((d: any) => setAllMembers(Array.isArray(d) ? d : [])).catch(() => setAllMembers([]))
       api.get('/permissions').then((d: any) => setAllPerms(Array.isArray(d) ? d : [])).catch(() => setAllPerms([]))
+      // Cargar organizaciones para la sub-pestan de organizaciones
+      api.get('/organizations/all').then((d: any) => setAllOrgs(Array.isArray(d) ? d : [])).catch(() => setAllOrgs([]))
     }
     if (tab === 'departments') {
       // Cargar todos los departamentos del nodo
@@ -906,7 +1420,7 @@ export default function Assembly() {
         <button onClick={() => changeTab('proposals')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'proposals' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Propuestas</button>
         <button onClick={() => changeTab('wallet')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'wallet' ? 'bg-amber-600 text-white' : 'bg-gray-200'}`}>Billetera / Fondo</button>
         <button onClick={() => changeTab('reports')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'reports' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Informes de Votacion</button>
-        <button onClick={() => changeTab('members')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'members' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Miembros con voto</button>
+        <button onClick={() => changeTab('members')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'members' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Miembros</button>
         <button onClick={() => changeTab('board')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'board' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Junta Directiva</button>
         <button onClick={() => changeTab('sessions')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'sessions' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Sesiones</button>
         <button onClick={() => changeTab('tax')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'tax' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Impuestos</button>
@@ -1065,7 +1579,24 @@ export default function Assembly() {
                             Aprobar y abrir votacion
                           </button>
                         )}
-                        {!canApproveProposals && !p.created_by && (
+                        {/* Super admin o persona autorizada puede aprobar directamente sin votacion */}
+                        {isSuperAdmin && superAdminEnabled && (
+                          <button
+                            onClick={async () => {
+                              if (!confirm('Aprobar y ejecutar esta propuesta directamente sin votacion?')) return
+                              try {
+                                await api.post(`/assembly/proposals/${p.id}/direct-approve`, {})
+                                load()
+                              } catch (e: any) {
+                                setError(e?.message || 'Error al aprobar directamente')
+                              }
+                            }}
+                            className="text-xs px-3 py-1 bg-amber-600 text-white rounded hover:bg-amber-700"
+                          >
+                            Aprobar directamente
+                          </button>
+                        )}
+                        {!canApproveProposals && !isSuperAdmin && !p.created_by && (
                           <span className="text-xs text-gray-400 italic">Esperando aprobacion del Secretario</span>
                         )}
                       </div>
@@ -1411,207 +1942,241 @@ export default function Assembly() {
 
       {tab === 'members' && (
         <div className="space-y-4">
-          <h2 className="font-semibold flex items-center gap-2"><Users size={18} />Miembros de la Asamblea</h2>
-          <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
-            <p>Los miembros de la asamblea son los miembros de la comunidad. No se registran aparte.
-            El nivel de miembro define si tienen voz, voto, y si cuentan para el quorum.
-            Aqui puedes buscar cualquier miembro y gestionar sus permisos individuales.</p>
+          <h2 className="font-semibold flex items-center gap-2"><Users size={18} />Miembros</h2>
+
+          {/* Sub-pestanas de Miembros */}
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={() => setMemberSubTab('voice_vote')} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${memberSubTab === 'voice_vote' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Con Voz y Voto</button>
+            <button onClick={() => setMemberSubTab('voice')} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${memberSubTab === 'voice' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Con Voz</button>
+            <button onClick={() => setMemberSubTab('levels')} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${memberSubTab === 'levels' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Niveles de Miembro</button>
+            <button onClick={() => setMemberSubTab('orgs')} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${memberSubTab === 'orgs' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Building2 size={14} className="inline mr-1" />Organizaciones</button>
           </div>
 
-          {/* Niveles de miembro */}
-          {memberLevels.length > 0 && (
-            <div className="card">
-              <h3 className="font-medium mb-3">Niveles de Miembro</h3>
-              <div className="space-y-2">
-                {memberLevels.map((ml, i) => (
-                  <div key={i} className="border-b border-gray-100 py-2 last:border-0">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">{ml.name} (Nivel {ml.level})</span>
-                      <div className="flex gap-2 text-xs">
-                        {ml.has_voice && <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Voz</span>}
-                        {ml.has_vote && <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded">Voto</span>}
-                        {ml.counts_in_quorum && <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Quorum</span>}
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">{ml.description}</p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Limite credito: {fmtTQ(ml.credit_limit)} {currency} | Limite debito: {fmtTQ(ml.debit_limit)} {currency}
-                      {ml.tax_rate && ` | Impuesto: ${fmtNumber(ml.tax_rate * 100, 2)}%`}
-                    </p>
-                  </div>
-                ))}
+          {/* ===== SUB-PESTANA: Niveles de Miembro ===== */}
+          {memberSubTab === 'levels' && (
+            <div className="space-y-4">
+              <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
+                <p>Los niveles de miembro definen si tienen voz, voto, y si cuentan para el quorum.
+                Cada nivel tiene sus propios limites de credito/debito y tasa de impuesto.</p>
               </div>
+              {memberLevels.length > 0 ? (
+                <div className="card">
+                  <h3 className="font-medium mb-3">Niveles de Miembro</h3>
+                  <div className="space-y-2">
+                    {memberLevels.map((ml, i) => (
+                      <div key={i} className="border-b border-gray-100 py-2 last:border-0">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">{ml.name} (Nivel {ml.level})</span>
+                          <div className="flex gap-2 text-xs">
+                            {ml.has_voice && <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Voz</span>}
+                            {ml.has_vote && <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded">Voto</span>}
+                            {ml.counts_in_quorum && <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Quorum</span>}
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">{ml.description}</p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          Limite credito: {fmtTQ(ml.credit_limit)} {currency} | Limite debito: {fmtTQ(ml.debit_limit)} {currency}
+                          {ml.tax_rate && ` | Impuesto: ${fmtNumber(ml.tax_rate * 100, 2)}%`}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="card text-center text-gray-500 py-8">
+                  <p>No hay niveles de miembro configurados.</p>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Buscador de miembros */}
-          <div className="card">
-            <h3 className="font-medium mb-3 flex items-center gap-2"><Search size={16} />Buscar Miembros</h3>
-            <input
-              type="text"
-              className="input mb-3"
-              placeholder="Buscar por nombre o usuario..."
-              value={memberSearch}
-              onChange={(e) => setMemberSearch(e.target.value)}
-            />
-
-            {/* Lista de miembros */}
-            {allMembers.length === 0 ? (
-              <p className="text-sm text-gray-500 py-4">No hay miembros cargados.</p>
-            ) : (
-              <div className="space-y-1 max-h-64 overflow-y-auto">
-                {allMembers
-                  .filter((m: any) => {
-                    if (!memberSearch) return true
-                    const q = memberSearch.toLowerCase()
-                    return (m.username || '').toLowerCase().includes(q) ||
-                           (m.display_name || '').toLowerCase().includes(q)
-                  })
-                  .map((m: any) => (
-                    <div
-                      key={m.id}
-                      className={`flex items-center justify-between p-2 rounded border cursor-pointer transition ${selectedMember?.id === m.id ? 'bg-trueque-50 border-trueque-300' : 'border-gray-200 hover:bg-gray-50'}`}
-                      onClick={() => {
-                        setSelectedMember(m)
-                        setMemberPerms(m.permissions || [])
-                        setPermMsg(null)
-                      }}
-                    >
-                      <div>
-                        <span className="font-medium text-sm">{m.display_name || m.username}</span>
-                        <span className="text-xs text-gray-500 ml-2">@{m.username}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {m.is_super_admin && m.super_admin_enabled && (
-                          <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">Super Admin</span>
-                        )}
-                        {m.permissions && m.permissions.length > 0 && (
-                          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{m.permissions.length} permisos</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+          {/* ===== SUB-PESTANA: Con Voz y Voto ===== */}
+          {memberSubTab === 'voice_vote' && (
+            <div className="space-y-4">
+              <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
+                <p>Miembros con voz y voto en la asamblea. Pueden participar en debates y votar decisiones.</p>
               </div>
-            )}
-          </div>
+              <MemberSearchAndPerms
+                members={allMembers.filter((m: any) => m.has_voice && m.has_vote)}
+                memberSearch={memberSearch}
+                setMemberSearch={setMemberSearch}
+                selectedMember={selectedMember}
+                setSelectedMember={(m: any) => { setSelectedMember(m); setMemberPerms(m?.permissions || []); setPermMsg(null) }}
+                memberPerms={memberPerms}
+                setMemberPerms={setMemberPerms}
+                allPerms={allPerms}
+                canManage={canManage}
+                permMsg={permMsg}
+                setPermMsg={setPermMsg}
+                setAllMembers={setAllMembers}
+                badgeLabel="Voz + Voto"
+                badgeColor="bg-green-100 text-green-700"
+              />
+            </div>
+          )}
 
-          {/* Panel de permisos del miembro seleccionado */}
-          {selectedMember && (
-            <div className="card space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-medium flex items-center gap-2">
-                  <KeyRound size={16} />
-                  Permisos de {selectedMember.display_name || selectedMember.username}
-                </h3>
-                <button onClick={() => setSelectedMember(null)} className="text-gray-400 hover:text-gray-600 text-sm">Cerrar</button>
+          {/* ===== SUB-PESTANA: Con Voz ===== */}
+          {memberSubTab === 'voice' && (
+            <div className="space-y-4">
+              <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
+                <p>Todos los miembros con voz en la asamblea. Incluye los que tienen voto y los que solo tienen voz (sin voto).</p>
+              </div>
+              <MemberSearchAndPerms
+                members={allMembers.filter((m: any) => m.has_voice)}
+                memberSearch={memberSearch}
+                setMemberSearch={setMemberSearch}
+                selectedMember={selectedMember}
+                setSelectedMember={(m: any) => { setSelectedMember(m); setMemberPerms(m?.permissions || []); setPermMsg(null) }}
+                memberPerms={memberPerms}
+                setMemberPerms={setMemberPerms}
+                allPerms={allPerms}
+                canManage={canManage}
+                permMsg={permMsg}
+                setPermMsg={setPermMsg}
+                setAllMembers={setAllMembers}
+                badgeLabel={(_m: any) => _m.has_vote ? 'Voz + Voto' : 'Solo Voz'}
+                badgeColor={(_m: any) => _m.has_vote ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}
+              />
+            </div>
+          )}
+
+          {/* ===== SUB-PESTANA: Organizaciones ===== */}
+          {memberSubTab === 'orgs' && (
+            <div className="space-y-4">
+              <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
+                <p>Las organizaciones del nodo. Tambien pueden tener permisos asignados.
+                Las organizaciones de la Asamblea (is_assembly_owned) pertenecen directamente al nodo.</p>
               </div>
 
-              {selectedMember.is_super_admin && selectedMember.super_admin_enabled && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-                  Este usuario es Super Admin habilitado: tiene TODOS los permisos automaticamente.
-                </div>
-              )}
+              {/* Buscador de organizaciones */}
+              <div className="card">
+                <h3 className="font-medium mb-3 flex items-center gap-2"><Search size={16} />Buscar Organizaciones</h3>
+                <input
+                  type="text"
+                  className="input mb-3"
+                  placeholder="Buscar por nombre o usuario..."
+                  value={orgSearch}
+                  onChange={(e) => setOrgSearch(e.target.value)}
+                />
 
-              {/* Permisos actuales */}
-              <div>
-                <h4 className="text-sm font-medium mb-2">Permisos actuales ({memberPerms.length})</h4>
-                {memberPerms.length === 0 ? (
-                  <p className="text-sm text-gray-500">No tiene permisos directos.</p>
+                {allOrgs.length === 0 ? (
+                  <p className="text-sm text-gray-500 py-4">No hay organizaciones cargadas.</p>
                 ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {memberPerms.map((p: string) => (
-                      <div key={p} className="flex items-center gap-1 bg-gray-100 rounded-lg px-2 py-1 text-xs">
-                        <span className="font-medium">{p}</span>
-                        {canManage && (
-                          <button
-                            onClick={async () => {
-                              try {
-                                await api.delete(`/users/${selectedMember.id}/permissions/${encodeURIComponent(p)}`)
-                                setMemberPerms(memberPerms.filter(x => x !== p))
-                                setPermMsg({ type: 'success', text: `Permiso "${p}" removido` })
-                                // Actualizar lista
-                                setAllMembers(allMembers.map(m => m.id === selectedMember.id ? { ...m, permissions: m.permissions.filter((x: string) => x !== p) } : m))
-                              } catch (e: any) {
-                                setPermMsg({ type: 'error', text: e?.message || 'Error al remover permiso' })
-                              }
-                            }}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            <X size={12} />
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                  <div className="space-y-1 max-h-64 overflow-y-auto">
+                    {allOrgs
+                      .filter((o: any) => {
+                        if (!orgSearch) return true
+                        const q = orgSearch.toLowerCase()
+                        return (o.username || '').toLowerCase().includes(q) ||
+                               (o.display_name || '').toLowerCase().includes(q)
+                      })
+                      .map((o: any) => (
+                        <div
+                          key={o.id}
+                          className={`flex items-center justify-between p-2 rounded border cursor-pointer transition ${selectedOrg?.id === o.id ? 'bg-trueque-50 border-trueque-300' : 'border-gray-200 hover:bg-gray-50'}`}
+                          onClick={() => { setSelectedOrg(o); setOrgPerms(o.permissions || []); setOrgPermMsg(null) }}
+                        >
+                          <div>
+                            <span className="font-medium text-sm">{o.display_name || o.username}</span>
+                            <span className="text-xs text-gray-500 ml-2">@{o.username}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {o.is_assembly_owned && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Asamblea</span>}
+                            {o.permissions && o.permissions.length > 0 && (
+                              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{o.permissions.length} permisos</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                   </div>
                 )}
               </div>
 
-              {/* Asignar nuevo permiso */}
-              {canManage && (
-                <div>
-                  <h4 className="text-sm font-medium mb-2">Asignar nuevo permiso</h4>
-                  <div className="space-y-1 max-h-48 overflow-y-auto border rounded-lg p-2">
-                    {allPerms
-                      .filter((p: any) => !memberPerms.includes(p.name))
-                      .map((p: any) => (
-                        <div key={p.id} className="flex items-center justify-between p-1 hover:bg-gray-50 rounded">
-                          <div>
-                            <span className="text-sm font-medium">{p.name}</span>
-                            <span className="text-xs text-gray-500 ml-2">({p.category})</span>
-                            {p.requires_multisig && <span className="text-xs text-amber-600 ml-1">[multisig]</span>}
+              {/* Panel de permisos de la organizacion seleccionada */}
+              {selectedOrg && (
+                <div className="card space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-medium flex items-center gap-2">
+                      <KeyRound size={16} />
+                      Permisos de {selectedOrg.display_name || selectedOrg.username}
+                    </h3>
+                    <button onClick={() => setSelectedOrg(null)} className="text-gray-400 hover:text-gray-600 text-sm">Cerrar</button>
+                  </div>
+
+                  {/* Permisos actuales */}
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">Permisos actuales ({orgPerms.length})</h4>
+                    {orgPerms.length === 0 ? (
+                      <p className="text-sm text-gray-500">No tiene permisos directos.</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {orgPerms.map((p: string) => (
+                          <div key={p} className="flex items-center gap-1 bg-gray-100 rounded-lg px-2 py-1 text-xs">
+                            <span className="font-medium">{p}</span>
+                            {canManage && (
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await api.delete(`/users/${selectedOrg.id}/permissions/${encodeURIComponent(p)}`)
+                                    setOrgPerms(orgPerms.filter(x => x !== p))
+                                    setOrgPermMsg({ type: 'success', text: `Permiso "${p}" removido` })
+                                    setAllOrgs(allOrgs.map(o => o.id === selectedOrg.id ? { ...o, permissions: o.permissions.filter((x: string) => x !== p) } : o))
+                                  } catch (e: any) {
+                                    setOrgPermMsg({ type: 'error', text: e?.message || 'Error al remover permiso' })
+                                  }
+                                }}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                <X size={12} />
+                              </button>
+                            )}
                           </div>
-                          <button
-                            onClick={async () => {
-                              try {
-                                await api.post(`/users/${selectedMember.id}/permissions/grant`, { permission_name: p.name })
-                                setMemberPerms([...memberPerms, p.name])
-                                setPermMsg({ type: 'success', text: `Permiso "${p.name}" asignado` })
-                                // Actualizar lista
-                                setAllMembers(allMembers.map(m => m.id === selectedMember.id ? { ...m, permissions: [...(m.permissions || []), p.name] } : m))
-                              } catch (e: any) {
-                                setPermMsg({ type: 'error', text: e?.message || 'Error al asignar permiso' })
-                              }
-                            }}
-                            className="text-xs text-trueque-600 hover:text-trueque-700 font-medium"
-                          >
-                            + Asignar
-                          </button>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <p className="text-xs text-gray-400 mt-2">
-                    Los permisos marcados como [multisig] requieren votacion de la Asamblea.
-                    Al asignarlos directamente, se otorgan sin votacion (requiere permiso config.manage).
-                  </p>
-                </div>
-              )}
 
-              {permMsg && (
-                <div className={`text-xs p-2 rounded-lg ${permMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                  {permMsg.text}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Lista de miembros con voto (seccion existente) */}
-          {votingMembers.length > 0 && (
-            <div className="card">
-              <h3 className="font-medium mb-3">Miembros con Derecho a Voto ({votingMembers.length})</h3>
-              <div className="space-y-2">
-                {votingMembers.map((m, i) => (
-                  <div key={i} className="flex items-center justify-between border-b border-gray-100 py-2 last:border-0">
+                  {/* Asignar nuevo permiso */}
+                  {canManage && (
                     <div>
-                      <span className="font-medium">{m.display_name || m.username}</span>
-                      <span className="text-xs text-gray-500 ml-2">@{m.username}</span>
+                      <h4 className="text-sm font-medium mb-2">Asignar nuevo permiso</h4>
+                      <div className="space-y-1 max-h-48 overflow-y-auto border rounded-lg p-2">
+                        {allPerms
+                          .filter((p: any) => !orgPerms.includes(p.name))
+                          .map((p: any) => (
+                            <div key={p.id} className="flex items-center justify-between p-1 hover:bg-gray-50 rounded">
+                              <div>
+                                <span className="text-sm font-medium">{p.name}</span>
+                                <span className="text-xs text-gray-500 ml-2">({p.category})</span>
+                              </div>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await api.post(`/users/${selectedOrg.id}/permissions/grant`, { permission_name: p.name })
+                                    setOrgPerms([...orgPerms, p.name])
+                                    setOrgPermMsg({ type: 'success', text: `Permiso "${p.name}" asignado` })
+                                    setAllOrgs(allOrgs.map(o => o.id === selectedOrg.id ? { ...o, permissions: [...(o.permissions || []), p.name] } : o))
+                                  } catch (e: any) {
+                                    setOrgPermMsg({ type: 'error', text: e?.message || 'Error al asignar permiso' })
+                                  }
+                                }}
+                                className="text-xs text-trueque-600 hover:text-trueque-700 font-medium"
+                              >
+                                + Asignar
+                              </button>
+                            </div>
+                          ))}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">{m.level_name}</span>
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Voto</span>
+                  )}
+
+                  {orgPermMsg && (
+                    <div className={`text-xs p-2 rounded-lg ${orgPermMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                      {orgPermMsg.text}
                     </div>
-                  </div>
-                ))}
-              </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -2197,44 +2762,121 @@ export default function Assembly() {
       {tab === 'departments' && (
         <div className="space-y-4">
           <h2 className="font-semibold flex items-center gap-2"><Building2 size={18} />Departamentos</h2>
-          <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
-            <p>
-              Aqui puedes ver todos los departamentos del nodo, incluyendo los de la Asamblea y los de otras organizaciones.
-              La Asamblea no aparece en la pagina de Organizaciones, por eso sus departamentos se gestionan aqui.
-              Para ver los departamentos de una organizacion especifica, ve a la pagina de esa organizacion.
-            </p>
+
+          {/* Sub-pestanas de Departamentos */}
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={() => setDeptSubTab('assembly')} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${deptSubTab === 'assembly' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>De la Asamblea</button>
+            <button onClick={() => setDeptSubTab('organizations')} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${deptSubTab === 'organizations' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>De Organizaciones</button>
           </div>
 
-          {allDepts.length === 0 ? (
-            <div className="card text-center text-gray-500 py-8">
-              <Building2 size={32} className="mx-auto mb-2 text-gray-300" />
-              <p>No hay departamentos creados.</p>
-              <p className="text-xs mt-2">Los departamentos se crean desde la pagina de cada organizacion o desde aqui.</p>
+          {/* ===== SUB-PESTANA: Departamentos de la Asamblea ===== */}
+          {deptSubTab === 'assembly' && (
+            <div className="space-y-4">
+              <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
+                <p>Departamentos de la Asamblea. La Asamblea no aparece en la pagina de Organizaciones, por eso sus departamentos se gestionan aqui.</p>
+              </div>
+              <DeptListWithRoles
+                depts={allDepts.filter((d: any) => !d.parent_organization_id || d.org_name === 'Asamblea General')}
+                expandedDept={expandedDept}
+                setExpandedDept={setExpandedDept}
+                deptRoles={deptRoles}
+                setDeptRoles={setDeptRoles}
+                deptMembers={deptMembers}
+                setDeptMembers={setDeptMembers}
+                showCreateRole={showCreateRole}
+                setShowCreateRole={setShowCreateRole}
+                showAssignMember={showAssignMember}
+                setShowAssignMember={setShowAssignMember}
+                newRole={newRole}
+                setNewRole={setNewRole}
+                newMember={newMember}
+                setNewMember={setNewMember}
+                allPerms={allPerms}
+                allMembers={allMembers}
+                rolePermsList={rolePermsList}
+                setRolePermsList={setRolePermsList}
+                showRolePerms={showRolePerms}
+                setShowRolePerms={setShowRolePerms}
+                canManage={canManage}
+              />
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {allDepts.map((d: any) => (
-                <div key={d.id} className="card border rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="font-medium">{d.name}</span>
-                      {d.org_name && (
-                        <span className="text-xs text-gray-500 ml-2">({d.org_name})</span>
-                      )}
-                      {!d.org_name && (
-                        <span className="text-xs text-purple-600 ml-2">(Asamblea)</span>
-                      )}
-                    </div>
-                    <span className={`text-xs px-2 py-0.5 rounded ${d.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {d.is_active ? 'Activo' : 'Inactivo'}
-                    </span>
+          )}
+
+          {/* ===== SUB-PESTANA: Departamentos de Organizaciones (acordeon por org) ===== */}
+          {deptSubTab === 'organizations' && (
+            <div className="space-y-4">
+              <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
+                <p>Departamentos de otras organizaciones. Haz clic en una organizacion para desplegar sus departamentos.</p>
+              </div>
+
+              {/* Agrupar por organizacion */}
+              {(() => {
+                const orgDepts = allDepts.filter((d: any) => d.parent_organization_id && d.org_name !== 'Asamblea General')
+                // Agrupar por org_name
+                const grouped: Record<string, any[]> = {}
+                orgDepts.forEach((d: any) => {
+                  const key = d.org_name || 'Sin organizacion'
+                  if (!grouped[key]) grouped[key] = []
+                  grouped[key].push(d)
+                })
+                const orgNames = Object.keys(grouped).sort()
+
+                if (orgNames.length === 0) {
+                  return <p className="text-sm text-gray-500 py-4">No hay departamentos de otras organizaciones.</p>
+                }
+
+                return (
+                  <div className="space-y-2">
+                    {orgNames.map((orgName: string) => (
+                      <div key={orgName} className="border rounded-lg overflow-hidden">
+                        <div
+                          className="flex items-center justify-between p-3 bg-gray-50 cursor-pointer hover:bg-gray-100"
+                          onClick={() => {
+                            // Toggle: si ya esta expandido para esta org, colapsar
+                            const orgExpanded = expandedDept === `org:${orgName}` ? null : `org:${orgName}`
+                            setExpandedDept(orgExpanded)
+                          }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Building2 size={16} className="text-gray-500" />
+                            <span className="font-medium text-sm">{orgName}</span>
+                            <span className="text-xs text-gray-500">({grouped[orgName].length} deptos)</span>
+                          </div>
+                          <span className="text-gray-400 text-xs">{expandedDept === `org:${orgName}` ? '▼' : '▶'}</span>
+                        </div>
+                        {expandedDept === `org:${orgName}` && (
+                          <div className="p-3 bg-white">
+                            <DeptListWithRoles
+                              depts={grouped[orgName]}
+                              expandedDept={expandedDept}
+                              setExpandedDept={setExpandedDept}
+                              deptRoles={deptRoles}
+                              setDeptRoles={setDeptRoles}
+                              deptMembers={deptMembers}
+                              setDeptMembers={setDeptMembers}
+                              showCreateRole={showCreateRole}
+                              setShowCreateRole={setShowCreateRole}
+                              showAssignMember={showAssignMember}
+                              setShowAssignMember={setShowAssignMember}
+                              newRole={newRole}
+                              setNewRole={setNewRole}
+                              newMember={newMember}
+                              setNewMember={setNewMember}
+                              allPerms={allPerms}
+                              allMembers={allMembers}
+                              rolePermsList={rolePermsList}
+                              setRolePermsList={setRolePermsList}
+                              showRolePerms={showRolePerms}
+                              setShowRolePerms={setShowRolePerms}
+                              canManage={canManage}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                  {d.description && <p className="text-xs text-gray-600 mt-1">{d.description}</p>}
-                  <div className="mt-2">
-                    <span className="text-xs text-gray-400">{d.group_type}</span>
-                  </div>
-                </div>
-              ))}
+                )
+              })()}
             </div>
           )}
         </div>

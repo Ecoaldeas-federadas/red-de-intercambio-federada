@@ -63,6 +63,7 @@ func (h *AssemblyHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequirePermission("assembly.open_voting")).Post("/api/assembly/proposals/{id}/open-voting", h.openVoting)
 	r.With(am.RequireAuth).Post("/api/assembly/proposals/{id}/vote", h.voteProposal)
 	r.With(am.RequireAuth).Post("/api/assembly/proposals/{id}/execute", h.executeProposal)
+	r.With(am.RequireAuth).Post("/api/assembly/proposals/{id}/direct-approve", h.directApproveProposal)
 
 	// Informes de votacion
 	r.With(am.RequireAuth).Get("/api/assembly/proposals/{id}/report", h.getProposalReport)
@@ -1043,6 +1044,123 @@ func (h *AssemblyHandler) executeProposal(w http.ResponseWriter, r *http.Request
 	}
 }
 
+// directApproveProposal permite al super admin (o persona autorizada) aprobar y ejecutar
+// una propuesta sin necesidad de votacion. Marca la propuesta como approved+executed.
+func (h *AssemblyHandler) directApproveProposal(w http.ResponseWriter, r *http.Request) {
+	decisionID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, 400, "invalid id")
+		return
+	}
+
+	userID, _ := h.Auth.GetUserID(r)
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+
+	// Verificar si el usuario es super admin habilitado
+	var isSuperAdmin, superAdminEnabled bool
+	_ = h.Pool.QueryRow(r.Context(), `SELECT is_super_admin, super_admin_enabled FROM users WHERE id = $1`, userID).Scan(&isSuperAdmin, &superAdminEnabled)
+
+	if !(isSuperAdmin && superAdminEnabled) {
+		// Verificar si es persona autorizada para este tipo de propuesta
+		var decisionType string
+		_ = h.Pool.QueryRow(r.Context(), `SELECT decision_type FROM assembly_decisions WHERE id = $1`, decisionID).Scan(&decisionType)
+
+		var approvalMethod string
+		var authorizedPersonID *uuid.UUID
+		err := h.Pool.QueryRow(r.Context(), `
+			SELECT approval_method, authorized_person_id
+			FROM assembly_config WHERE node_domain = $1 AND proposal_type = $2 AND is_active = true`,
+			nodeDomain, decisionType).Scan(&approvalMethod, &authorizedPersonID)
+		if err != nil {
+			writeError(w, 403, "no tienes permiso para aprobar directamente esta propuesta")
+			return
+		}
+
+		canDirect := false
+		switch approvalMethod {
+		case "person":
+			if authorizedPersonID != nil && *authorizedPersonID == userID {
+				canDirect = true
+			}
+		case "authorized_any":
+			var signerUserID *uuid.UUID
+			_ = h.Pool.QueryRow(r.Context(), `
+				SELECT user_id FROM assembly_config_signers
+				WHERE config_id = (SELECT id FROM assembly_config WHERE node_domain = $1 AND proposal_type = $2)
+				AND user_id = $3 AND signer_type = 'person' LIMIT 1`,
+				nodeDomain, decisionType, userID).Scan(&signerUserID)
+			if signerUserID != nil {
+				canDirect = true
+			}
+		}
+
+		if !canDirect {
+			writeError(w, 403, "no tienes permiso para aprobar directamente esta propuesta. Se requiere votacion.")
+			return
+		}
+	}
+
+	// Obtener datos de la propuesta
+	var status, decisionType, description string
+	var newValue *[]byte
+	var targetAccount *uuid.UUID
+	var assemblyID uuid.UUID
+	err = h.Pool.QueryRow(r.Context(), `
+		SELECT status, decision_type, description, new_value, target_account, assembly_id
+		FROM assembly_decisions WHERE id = $1`,
+		decisionID).Scan(&status, &decisionType, &description, &newValue, &targetAccount, &assemblyID)
+	if err != nil {
+		writeError(w, 404, "decision not found")
+		return
+	}
+
+	if status == "executed" {
+		writeError(w, 400, "la propuesta ya fue ejecutada")
+		return
+	}
+	if status == "rejected" || status == "expired" {
+		writeError(w, 400, "la propuesta no puede ser aprobada (estado: "+status+")")
+		return
+	}
+
+	// Marcar como aprobada y ejecutada
+	_, err = h.Pool.Exec(r.Context(), `
+		UPDATE assembly_decisions
+		SET status = 'executed', executed_at = NOW(),
+		    votes_for = 1, votes_against = 0, votes_abstain = 0
+		WHERE id = $1`,
+		decisionID)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	// Auto-agregar a la minuta
+	appendToMinutes(h.Pool, assemblyID, fmt.Sprintf("- [APROBADA DIRECTAMENTE] %s: %s (super admin / persona autorizada)", decisionType, description))
+
+	// Ejecutar la decision
+	var params map[string]interface{}
+	if newValue != nil {
+		json.Unmarshal(*newValue, &params)
+	}
+	_ = h.executeDecision(r, decisionType, targetAccount, params)
+
+	// Audit log
+	execDetails, _ := json.Marshal(map[string]interface{}{
+		"decision_type": decisionType,
+		"approved_by":   "direct",
+		"user_id":       userID.String(),
+	})
+	h.Pool.Exec(r.Context(), `INSERT INTO audit_log (actor_id, action, target_id, details) VALUES ($1, 'assembly_direct_approve', $2, $3)`,
+		userID, decisionID, execDetails)
+
+	writeJSON(w, 200, map[string]interface{}{
+		"status":  "executed",
+		"message": "Propuesta aprobada y ejecutada directamente",
+	})
+}
+
 // executeDecision ejecuta la decision segun su tipo
 func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, targetAccount *uuid.UUID, params map[string]interface{}) error {
 	switch decisionType {
@@ -1846,6 +1964,18 @@ func (h *AssemblyHandler) checkDirectPermission(w http.ResponseWriter, r *http.R
 	userID, _ := h.Auth.GetUserID(r)
 	nodeDomain := r.Header.Get("X-Node-Domain")
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
+
+	// Super admin habilitado puede hacer cualquier cambio directamente
+	var isSuperAdmin, superAdminEnabled bool
+	_ = h.Pool.QueryRow(r.Context(), `SELECT is_super_admin, super_admin_enabled FROM users WHERE id = $1`, userID).Scan(&isSuperAdmin, &superAdminEnabled)
+	if isSuperAdmin && superAdminEnabled {
+		writeJSON(w, 200, map[string]interface{}{
+			"can_direct": true,
+			"method":     "super_admin",
+			"reason":     "Eres Super Admin habilitado: puedes aprobar y ejecutar directamente.",
+		})
+		return
+	}
 
 	var approvalMethod string
 	var authorizedPersonID *uuid.UUID

@@ -50,6 +50,9 @@ func (dh *DepartmentsHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 
 		// Listar todos los departamentos con info de organizacion padre
 		r.Get("/api/departments/all", dh.listAllDepartments)
+
+		// Listar todas las organizaciones del nodo con sus permisos (para gestion desde Asamblea)
+		r.Get("/api/organizations/all", dh.listAllOrganizationsWithPermissions)
 	})
 }
 
@@ -373,7 +376,8 @@ func (dh *DepartmentsHandler) listMyPermissions(w http.ResponseWriter, r *http.R
 
 // ===== GESTION DE PERMISOS DE USUARIOS INDIVIDUALES =====
 
-// listAllUsersWithPermissions lista todos los miembros del nodo con sus permisos.
+// listAllUsersWithPermissions lista todos los miembros PERSONAS del nodo con sus permisos.
+// Solo devuelve account_type = 'individual' (excluye organization, fund, system).
 // Para que la Asamblea pueda buscar personas y ver/asignar/quitar permisos.
 func (dh *DepartmentsHandler) listAllUsersWithPermissions(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.Header.Get("X-Node-Domain")
@@ -384,21 +388,29 @@ func (dh *DepartmentsHandler) listAllUsersWithPermissions(w http.ResponseWriter,
 	var err error
 	if q != "" {
 		rows, err = dh.Pool.Query(r.Context(), `
-			SELECT u.id, u.username, COALESCE(u.display_name, u.username), u.account_type,
-			       u.membership_status, u.is_super_admin, u.super_admin_enabled
+			SELECT u.id, u.username, COALESCE(u.display_name, u.username),
+			       u.membership_status, u.is_super_admin, u.super_admin_enabled,
+			       COALESCE(ml.name, '') AS level_name, COALESCE(ml.level, 0) AS level,
+			       COALESCE(u.has_voice, true), COALESCE(u.has_vote, true)
 			FROM users u
+			LEFT JOIN member_levels ml ON ml.id = u.member_level_id AND ml.node_domain = u.node_domain
 			WHERE u.node_domain = $1 AND u.membership_status = 'active'
+			  AND u.account_type = 'individual'
 			  AND (LOWER(u.username) LIKE '%' || LOWER($2) || '%' OR LOWER(COALESCE(u.display_name, '')) LIKE '%' || LOWER($2) || '%')
-			ORDER BY u.username
+			ORDER BY ml.level DESC, u.username
 			LIMIT 100`,
 			nodeDomain, q)
 	} else {
 		rows, err = dh.Pool.Query(r.Context(), `
-			SELECT u.id, u.username, COALESCE(u.display_name, u.username), u.account_type,
-			       u.membership_status, u.is_super_admin, u.super_admin_enabled
+			SELECT u.id, u.username, COALESCE(u.display_name, u.username),
+			       u.membership_status, u.is_super_admin, u.super_admin_enabled,
+			       COALESCE(ml.name, '') AS level_name, COALESCE(ml.level, 0) AS level,
+			       COALESCE(u.has_voice, true), COALESCE(u.has_vote, true)
 			FROM users u
+			LEFT JOIN member_levels ml ON ml.id = u.member_level_id AND ml.node_domain = u.node_domain
 			WHERE u.node_domain = $1 AND u.membership_status = 'active'
-			ORDER BY u.username
+			  AND u.account_type = 'individual'
+			ORDER BY ml.level DESC, u.username
 			LIMIT 100`,
 			nodeDomain)
 	}
@@ -412,18 +424,22 @@ func (dh *DepartmentsHandler) listAllUsersWithPermissions(w http.ResponseWriter,
 		ID                string   `json:"id"`
 		Username          string   `json:"username"`
 		DisplayName       string   `json:"display_name"`
-		AccountType       string   `json:"account_type"`
 		MembershipStatus  string   `json:"membership_status"`
 		IsSuperAdmin      bool     `json:"is_super_admin"`
 		SuperAdminEnabled bool     `json:"super_admin_enabled"`
+		LevelName         string   `json:"level_name"`
+		Level             int      `json:"level"`
+		HasVoice          bool     `json:"has_voice"`
+		HasVote           bool     `json:"has_vote"`
 		Permissions       []string `json:"permissions"`
 	}
 
 	var users []UserWithPerms
 	for rows.Next() {
 		var u UserWithPerms
-		if err := rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.AccountType,
-			&u.MembershipStatus, &u.IsSuperAdmin, &u.SuperAdminEnabled); err != nil {
+		if err := rows.Scan(&u.ID, &u.Username, &u.DisplayName,
+			&u.MembershipStatus, &u.IsSuperAdmin, &u.SuperAdminEnabled,
+			&u.LevelName, &u.Level, &u.HasVoice, &u.HasVote); err != nil {
 			continue
 		}
 		uid, _ := uuid.Parse(u.ID)
@@ -582,4 +598,71 @@ func (dh *DepartmentsHandler) listAllDepartments(w http.ResponseWriter, r *http.
 		depts = []map[string]interface{}{}
 	}
 	writeJSON(w, 200, depts)
+}
+
+// listAllOrganizationsWithPermissions lista todas las organizaciones del nodo con sus permisos.
+// Para que la Asamblea pueda gestionar permisos de organizaciones separadamente de personas.
+func (dh *DepartmentsHandler) listAllOrganizationsWithPermissions(w http.ResponseWriter, r *http.Request) {
+	nodeDomain := r.Header.Get("X-Node-Domain")
+	nodeDomain = db.ResolveNodeDomain(r.Context(), dh.Pool, nodeDomain, db.LOCAL_NODE_DOMAIN)
+
+	q := r.URL.Query().Get("q")
+	var rows pgx.Rows
+	var err error
+	if q != "" {
+		rows, err = dh.Pool.Query(r.Context(), `
+			SELECT u.id, u.username, COALESCE(u.display_name, u.username),
+			       u.organization_subtype, u.is_assembly_owned, u.is_approved
+			FROM users u
+			WHERE u.node_domain = $1 AND u.account_type IN ('organization', 'public_institution')
+			  AND u.membership_status = 'active'
+			  AND (LOWER(u.username) LIKE '%' || LOWER($2) || '%' OR LOWER(COALESCE(u.display_name, '')) LIKE '%' || LOWER($2) || '%')
+			ORDER BY u.is_assembly_owned DESC, u.username
+			LIMIT 100`,
+			nodeDomain, q)
+	} else {
+		rows, err = dh.Pool.Query(r.Context(), `
+			SELECT u.id, u.username, COALESCE(u.display_name, u.username),
+			       u.organization_subtype, u.is_assembly_owned, u.is_approved
+			FROM users u
+			WHERE u.node_domain = $1 AND u.account_type IN ('organization', 'public_institution')
+			  AND u.membership_status = 'active'
+			ORDER BY u.is_assembly_owned DESC, u.username
+			LIMIT 100`,
+			nodeDomain)
+	}
+	if err != nil {
+		writeError(w, 500, "error listing organizations")
+		return
+	}
+	defer rows.Close()
+
+	type OrgWithPerms struct {
+		ID              string   `json:"id"`
+		Username        string   `json:"username"`
+		DisplayName     string   `json:"display_name"`
+		Subtype         string   `json:"subtype"`
+		IsAssemblyOwned bool     `json:"is_assembly_owned"`
+		IsApproved      bool     `json:"is_approved"`
+		Permissions     []string `json:"permissions"`
+	}
+
+	var orgs []OrgWithPerms
+	for rows.Next() {
+		var o OrgWithPerms
+		if err := rows.Scan(&o.ID, &o.Username, &o.DisplayName, &o.Subtype, &o.IsAssemblyOwned, &o.IsApproved); err != nil {
+			continue
+		}
+		uid, _ := uuid.Parse(o.ID)
+		perms, _ := dh.Departments.ListUserPermissions(r.Context(), uid)
+		if perms == nil {
+			perms = []string{}
+		}
+		o.Permissions = perms
+		orgs = append(orgs, o)
+	}
+	if orgs == nil {
+		orgs = []OrgWithPerms{}
+	}
+	writeJSON(w, 200, orgs)
 }
