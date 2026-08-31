@@ -311,3 +311,21 @@ El ESP32 POS está en desarrollo y no se ha probado en producción todavía. Los
 | `department_members` | Miembros de departamentos |
 | `organization_board_members` | Board members de organizaciones |
 | `user_credentials` | Credenciales (password hash) de usuarios |
+
+## Correcciones de seguridad (2026)
+
+- **ECDH birracial**: La conversión Ed25519 → X25519 usa el mapa birracional correcto
+  (u = (1+y)/(1-y) mod p) en lugar de intentar usar la clave Ed25519 directamente como
+  clave X25519.
+
+- **Doble codificación de clave privada**: Se corrigió un bug donde la clave privada se
+  codificaba dos veces antes de enviarla al servidor.
+
+- **Auto-pago rechazado**: El sistema verifica que el merchant no sea el mismo usuario
+  que el customer, rechazando pagos a uno mismo.
+
+- **uid_only eliminado**: Las tarjetas que solo se identifican por UID fueron eliminadas
+  por ser inseguras. Solo se soportan Classic, NTAG424 y DESFire EV3.
+
+- **Grabado desde POS Android**: Las tarjetas se graban físicamente desde el POS Android
+  usando el NFC del celular, no desde la web.

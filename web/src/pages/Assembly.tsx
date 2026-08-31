@@ -519,6 +519,7 @@ export default function Assembly() {
 
   const [votingModal, setVotingModal] = useState<{ id: string; title: string } | null>(null)
   const [votingMode, setVotingMode] = useState<'presencial' | 'remoto'>('remoto')
+  const [showProposalDetail, setShowProposalDetail] = useState<any | null>(null)
 
   const openVoting = async (id: string) => {
     try {
@@ -1027,6 +1028,12 @@ export default function Assembly() {
                             </button>
                           </>
                         )}
+                        <button
+                          onClick={() => setShowProposalDetail(p)}
+                          className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                        >
+                          Ver detalles
+                        </button>
                         {/* Solo el secretario/autorizado puede abrir votacion */}
                         {canApproveProposals && (
                           <button
@@ -1111,6 +1118,16 @@ export default function Assembly() {
                       <button onClick={() => execute(p.id)} className="btn-primary ml-auto">Ejecutar decision</button>
                     </div>
                   )}
+
+                  {/* Boton ver detalles */}
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={() => setShowProposalDetail(p)}
+                      className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                    >
+                      Ver detalles
+                    </button>
+                  </div>
                 </div>
                   ))}
                 </div>
@@ -2770,6 +2787,136 @@ export default function Assembly() {
                   Abrir votacion
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de detalles de propuesta */}
+      {showProposalDetail && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowProposalDetail(null)}>
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-lg">Detalles de la propuesta</h3>
+              <button onClick={() => setShowProposalDetail(null)} className="text-gray-500 hover:text-gray-700">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-sm">
+              <div>
+                <span className="text-gray-500">Tipo:</span>{' '}
+                <span className="font-medium">{PROPOSAL_LABELS[showProposalDetail.proposal_type as ProposalType] || showProposalDetail.proposal_type}</span>
+              </div>
+
+              <div>
+                <span className="text-gray-500">Estado:</span>{' '}
+                <span className="font-medium">{showProposalDetail.status === 'expired' ? 'vencida' : showProposalDetail.status === 'pending' ? 'en votacion' : showProposalDetail.status === 'approved' ? 'aprobada' : showProposalDetail.status === 'executed' ? 'ejecutada' : showProposalDetail.status === 'rejected' ? 'rechazada' : showProposalDetail.status === 'proposed' ? 'pendiente de revision' : showProposalDetail.status}</span>
+              </div>
+
+              {showProposalDetail.created_at && (
+                <div>
+                  <span className="text-gray-500">Fecha de creacion:</span>{' '}
+                  <span className="font-medium">{fmtDateTime(showProposalDetail.created_at)}</span>
+                </div>
+              )}
+
+              {showProposalDetail.title && (
+                <div>
+                  <span className="text-gray-500">Titulo:</span>{' '}
+                  <span className="font-medium">{showProposalDetail.title}</span>
+                </div>
+              )}
+
+              <div>
+                <span className="text-gray-500 block mb-1">Descripcion:</span>
+                <p className="text-gray-700 whitespace-pre-wrap">{showProposalDetail.description}</p>
+              </div>
+
+              {/* Parametros de la propuesta */}
+              {showProposalDetail.parameters && Object.keys(showProposalDetail.parameters).length > 0 && (
+                <div>
+                  <span className="text-gray-500 block mb-1">Parametros:</span>
+                  <div className="bg-gray-50 rounded-lg p-3 space-y-1">
+                    {Object.entries(showProposalDetail.parameters).map(([key, value]: [string, any]) => (
+                      <div key={key} className="flex justify-between text-xs">
+                        <span className="text-gray-500">{key}:</span>
+                        <span className="font-medium text-right">{typeof value === 'object' ? JSON.stringify(value) : String(value)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Respuestas del formulario de admision */}
+              {showProposalDetail.form_responses && (
+                <div>
+                  <span className="text-gray-500 block mb-1">Respuestas del formulario:</span>
+                  <div className="bg-gray-50 rounded-lg p-3 space-y-1">
+                    {typeof showProposalDetail.form_responses === 'string' ? (
+                      <p className="text-gray-700 whitespace-pre-wrap">{showProposalDetail.form_responses}</p>
+                    ) : Object.keys(showProposalDetail.form_responses).length > 0 ? (
+                      Object.entries(showProposalDetail.form_responses).map(([key, value]: [string, any]) => (
+                        <div key={key} className="flex justify-between text-xs">
+                          <span className="text-gray-500">{key}:</span>
+                          <span className="font-medium text-right">{typeof value === 'object' ? JSON.stringify(value) : String(value)}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-gray-400 italic text-xs">Sin respuestas</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Metadata adicional */}
+              {showProposalDetail.metadata && (
+                <div>
+                  <span className="text-gray-500 block mb-1">Metadata:</span>
+                  <div className="bg-gray-50 rounded-lg p-3 space-y-1">
+                    {typeof showProposalDetail.metadata === 'string' ? (
+                      <p className="text-gray-700 whitespace-pre-wrap">{showProposalDetail.metadata}</p>
+                    ) : Object.keys(showProposalDetail.metadata).length > 0 ? (
+                      Object.entries(showProposalDetail.metadata).map(([key, value]: [string, any]) => (
+                        <div key={key} className="flex justify-between text-xs">
+                          <span className="text-gray-500">{key}:</span>
+                          <span className="font-medium text-right">{typeof value === 'object' ? JSON.stringify(value) : String(value)}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-gray-400 italic text-xs">Sin metadata</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Votos (si aplica) */}
+              {(showProposalDetail.votes_for != null || showProposalDetail.votes_against != null || showProposalDetail.votes_abstain != null) && (
+                <div>
+                  <span className="text-gray-500 block mb-1">Votos:</span>
+                  <div className="flex gap-4 text-sm">
+                    <span className="text-green-600 font-medium">A favor: {showProposalDetail.votes_for || 0}</span>
+                    <span className="text-red-600 font-medium">En contra: {showProposalDetail.votes_against || 0}</span>
+                    <span className="text-gray-500 font-medium">Abstencion: {showProposalDetail.votes_abstain || 0}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Cualquier otro campo disponible */}
+              {Object.entries(showProposalDetail)
+                .filter(([k]: [string, any]) => !['id', 'proposal_type', 'status', 'created_at', 'title', 'description', 'parameters', 'form_responses', 'metadata', 'votes_for', 'votes_against', 'votes_abstain', 'votes_not_cast', 'total_voting_members', 'voting_deadline', 'created_by'].includes(k))
+                .map(([key, value]: [string, any]) => (
+                  <div key={key}>
+                    <span className="text-gray-500">{key}:</span>{' '}
+                    <span className="font-medium">{typeof value === 'object' ? JSON.stringify(value) : String(value)}</span>
+                  </div>
+                ))}
+            </div>
+
+            <div className="flex justify-end mt-6">
+              <button onClick={() => setShowProposalDetail(null)} className="btn-secondary">
+                Cerrar
+              </button>
             </div>
           </div>
         </div>

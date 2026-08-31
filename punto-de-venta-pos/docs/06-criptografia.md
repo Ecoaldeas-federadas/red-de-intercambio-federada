@@ -1161,3 +1161,89 @@ Las claves A/B y certificados viajan **dentro del payload cifrado**, nunca en cl
 
 Ver `docs/tarjeta-classic-certificados.md` para detalles completos del modelo de 6 capas.
 | Nonce de payload | SecureRandom | JDK | 128 bits (16 bytes) |
+
+---
+
+## Correcciones criptográficas (2026)
+
+### ECDH con mapa birracional Ed25519 → X25519
+
+El intercambio de claves ECDH entre el POS y el servidor usa X25519 (Curve25519 Montgomery),
+pero las claves de identidad del terminal se generan como Ed25519 (Edwards).
+La conversión se realiza mediante el mapa birracional:
+
+  u = (1 + y) / (1 - y) mod p
+
+donde `y` es la coordenada Y de la clave pública Ed25519 (primeros 32 bytes, little-endian)
+y `u` es la coordenada U de la clave pública X25519 equivalente.
+
+Esto permite reutilizar el par de claves Ed25519 del terminal para el intercambio ECDH
+sin generar un par X25519 separado.
+
+### Doble codificación de clave privada
+
+Se corrigió un bug donde la clave privada Ed25519 se codificaba dos veces en base64/hex
+antes de ser enviada al servidor, causando que el servidor rechazara la clave por tamaño
+inválido. La clave privada ahora se codifica una sola vez antes de la transmisión.
+
+### Auto-pago rechazado
+
+El POS y el backend ahora verifican que el usuario que cobra (merchant) no sea el mismo
+que el usuario que paga (customer). Si el terminal merchant user ID es igual al customer
+user ID, el pago se rechaza con el error "no puedes pagarte a ti mismo".
+
+Esto aplica tanto al flujo Classic (ClassicPreAuth y ClassicPreAuthWithDocument) como
+al flujo regular de NFC.
+
+### Logging de balance y credit_limit
+
+Se agregó logging diagnóstico en la pre-autenticación Classic que registra:
+- Username del cliente
+- Balance actual
+- Monto del pago (en centavos)
+- Credit limit
+- Balance calculado post-pago
+- Resultado de la comparación
+
+El monto siempre se maneja en centavos (1 TQ = 100 centavos).
+
+### Tipos de tarjeta NFC soportados
+
+El sistema soporta 3 tipos de tarjeta NFC (uid_only fue eliminado por inseguro):
+
+1. **MIFARE Classic** (`classic`): Tarjeta económica con 15 sectores. Cada sector tiene
+   Key A (lectura) y Key B (escritura) independientes. Se graba un certificado de 16 bytes
+   replicado 3 veces en los 3 bloques de cada sector. Solo 1 sector es el activo en cada
+   momento. Después de cada pago, el certificado rota a otro sector aleatorio. Requiere
+   documento de identidad al pagar.
+
+2. **NTAG424 DNA** (`ntag424`): Tarjeta con cifrado AES-128. En cada tap genera
+   automáticamente un código criptográfico (MAC) que el servidor verifica. Anti-clonación:
+   nadie puede copiar la tarjeta sin la clave AES. Más económica que DESFire EV3.
+
+3. **DESFire EV3** (`desfire`): Tarjeta de alta seguridad con challenge-response AES-128
+   completo. El servidor envía un desafío, la tarjeta responde con cifrado AES. La opción
+   más segura. EV3 = tercera generación del estándar DESFire.
+
+### Grabado de tarjetas desde el POS Android
+
+El provisionamiento físico de tarjetas se realiza desde el POS Android usando el NFC del
+celular. El flujo es:
+
+1. El admin registra la tarjeta en la web (Terminales NFC): user_id, card_uid, tipo, PIN
+2. La tarjeta queda "registrada pero no inicializada" en el servidor
+3. El admin abre el POS Android → Administración → Grabar Tarjeta
+4. El POS carga la lista de tarjetas pendientes del servidor
+5. El admin coloca la tarjeta física en el celular (sin retirarla)
+6. El POS detecta la tarjeta y muestra "Tarjeta detectada: [UID]"
+7. El admin presiona "Grabar"
+8. El POS escribe los datos según el tipo de tarjeta
+9. El POS confirma la inicialización al servidor
+10. Muestra "Tarjeta inicializada correctamente. Puede retirarla."
+
+### Eliminación de uid_only
+
+Las tarjetas UID-only (que solo se identifican por su UID sin cifrado) fueron eliminadas
+completamente del sistema por ser inseguras para un sistema bancario. Un atacante puede
+clonar una tarjeta UID-only copiando su UID. El backend rechaza cualquier intento de
+crear una tarjeta uid_only con el error "tipo de tarjeta no soportado".
