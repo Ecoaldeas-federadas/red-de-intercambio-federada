@@ -806,6 +806,33 @@ func (ah *AuthHandlers) getMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp["format_settings"] = fs
+
+	// Incluir permisos del usuario (directos + por rol)
+	var perms []string
+	rows, err := ah.Pool.Query(r.Context(), `
+		SELECT p.name FROM user_permissions up
+		JOIN permissions p ON p.id = up.permission_id
+		WHERE up.user_id = $1 AND (up.expires_at IS NULL OR up.expires_at > NOW())
+		UNION
+		SELECT p.name FROM department_members dm
+		JOIN role_permissions rp ON rp.role_id = dm.role_id
+		JOIN permissions p ON p.id = rp.permission_id
+		WHERE dm.user_id = $1`,
+		userID)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var p string
+			if err := rows.Scan(&p); err == nil {
+				perms = append(perms, p)
+			}
+		}
+	}
+	if perms == nil {
+		perms = []string{}
+	}
+	resp["permissions"] = perms
+
 	writeJSON(w, 200, resp)
 }
 
