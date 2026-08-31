@@ -1527,6 +1527,14 @@ func (nt *NFCTerminals) ClassicPreAuth(ctx context.Context, terminalID, username
 		}
 	}
 
+	// 1b. Verificar que el usuario no se esté pagando a sí mismo
+	// (el merchant del terminal no puede ser el mismo que el cliente que paga)
+	var merchantUserID *uuid.UUID
+	_ = nt.Pool.QueryRow(ctx, `SELECT merchant_user_id FROM nfc_terminals WHERE terminal_id = $1`, terminalID).Scan(&merchantUserID)
+	if merchantUserID != nil && *merchantUserID == userID {
+		return &ClassicPreAuthResponse{PreApproved: false, Message: "no puedes pagarte a ti mismo"}, nil
+	}
+
 	// 2. Buscar tarjeta activa del usuario (cualquier tipo)
 	var cardUID string
 	var cardType string
@@ -1556,6 +1564,8 @@ func (nt *NFCTerminals) ClassicPreAuth(ctx context.Context, terminalID, username
 	if err != nil {
 		return nil, fmt.Errorf("getting user balance: %w", err)
 	}
+	log.Printf("ClassicPreAuth: user=%s balance=%d amount=%d creditLimit=%d check=%v (balance-amount=%d < creditLimit=%d = %v)",
+		username, balance, amount, creditLimit, balance-amount < creditLimit, balance-amount, creditLimit, balance-amount < creditLimit)
 	if balance-amount < creditLimit {
 		return &ClassicPreAuthResponse{PreApproved: false, Message: "has llegado al tope de tu credito comunitario"}, nil
 	}
@@ -1677,6 +1687,13 @@ func (nt *NFCTerminals) ClassicPreAuthWithDocument(ctx context.Context, terminal
 		}
 	}
 
+	// 1b. Verificar que el usuario no se esté pagando a sí mismo
+	var merchantUserID *uuid.UUID
+	_ = nt.Pool.QueryRow(ctx, `SELECT merchant_user_id FROM nfc_terminals WHERE terminal_id = $1`, terminalID).Scan(&merchantUserID)
+	if merchantUserID != nil && *merchantUserID == userID {
+		return &ClassicPreAuthResponse{PreApproved: false, Message: "no puedes pagarte a ti mismo"}, nil
+	}
+
 	// 2. Buscar tarjeta activa del usuario
 	var cardUID string
 	var cardType string
@@ -1723,6 +1740,8 @@ func (nt *NFCTerminals) ClassicPreAuthWithDocument(ctx context.Context, terminal
 	if err != nil {
 		return nil, fmt.Errorf("getting user balance: %w", err)
 	}
+	log.Printf("ClassicPreAuthWithDocument: user=%s balance=%d amount=%d creditLimit=%d (balance-amount=%d < creditLimit=%d = %v)",
+		username, balance, amount, creditLimit, balance-amount, creditLimit, balance-amount < creditLimit)
 	if balance-amount < creditLimit {
 		return &ClassicPreAuthResponse{PreApproved: false, Message: "has llegado al tope de tu credito comunitario"}, nil
 	}
