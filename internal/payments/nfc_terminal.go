@@ -294,21 +294,24 @@ func (nt *NFCTerminals) HeartbeatWithStatus(ctx context.Context, terminalID stri
 	return isActive, nil
 }
 
-// HeartbeatFull retorna el estado completo del terminal: is_active e is_registered.
-// El terminal usa esto para verificar que sigue registrado y activo antes de
-// cada transaccion. Si is_registered=false o el terminal no existe, el cliente
-// debe volver a la pantalla de emparejamiento.
-func (nt *NFCTerminals) HeartbeatFull(ctx context.Context, terminalID string) (isActive, isRegistered bool, err error) {
+// HeartbeatFull retorna el estado completo del terminal: is_active, is_registered
+// y la terminal_public_key registrada en el servidor.
+// El terminal usa esto para verificar que sigue registrado, activo y que las
+// claves criptograficas coinciden antes de cada transaccion.
+// Si is_registered=false o el terminal no existe, el cliente debe volver a
+// la pantalla de emparejamiento. Si key_mismatch=true, las claves del terminal
+// cambiaron y debe re-parear.
+func (nt *NFCTerminals) HeartbeatFull(ctx context.Context, terminalID string) (isActive, isRegistered bool, registeredPubKey string, err error) {
 	err = nt.Pool.QueryRow(ctx, `
 		UPDATE nfc_terminals SET last_seen = NOW()
 		WHERE terminal_id = $1
-		RETURNING is_active, is_registered`,
+		RETURNING is_active, is_registered, COALESCE(terminal_public_key, '')`,
 		terminalID,
-	).Scan(&isActive, &isRegistered)
+	).Scan(&isActive, &isRegistered, &registeredPubKey)
 	if err != nil {
-		return false, false, fmt.Errorf("heartbeat: %w", err)
+		return false, false, "", fmt.Errorf("heartbeat: %w", err)
 	}
-	return isActive, isRegistered, nil
+	return isActive, isRegistered, registeredPubKey, nil
 }
 
 func (nt *NFCTerminals) GetTerminalStatus(ctx context.Context, terminalID string) (*NFCTerminal, error) {

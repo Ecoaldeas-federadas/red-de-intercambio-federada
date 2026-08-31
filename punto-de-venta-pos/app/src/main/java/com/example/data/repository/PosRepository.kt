@@ -1376,7 +1376,11 @@ class PosRepository(
         try {
             val config = getOrInitTerminalConfig()
             val service = apiClient.getService()
-            val response = service.terminalHeartbeat(mapOf("terminal_id" to config.terminalId))
+            val body = mapOf(
+                "terminal_id" to config.terminalId,
+                "terminal_public_key" to (config.terminalPublicKeyHex ?: "")
+            )
+            val response = service.terminalHeartbeat(body)
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else if (response.code() == 404) {

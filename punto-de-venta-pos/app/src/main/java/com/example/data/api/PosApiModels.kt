@@ -91,6 +91,7 @@ data class HeartbeatResponse(
     @Json(name = "active") val active: Boolean? = null,
     @Json(name = "registered") val registered: Boolean? = null,
     @Json(name = "not_found") val notFound: Boolean? = null,
+    @Json(name = "key_matches") val keyMatches: Boolean? = null,
     @Json(name = "signature") val signature: String? = null
 )
 
@@ -303,6 +304,18 @@ data class TerminalItem(
     @Json(name = "is_active") val isActive: Boolean? = true,
     @Json(name = "is_registered") val isRegistered: Boolean? = false,
     @Json(name = "last_seen") val lastSeen: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class ActiveShiftResponse(
+    @Json(name = "active") val active: Boolean? = false,
+    @Json(name = "shift_id") val shiftId: String? = null,
+    @Json(name = "status") val status: String? = null,
+    @Json(name = "opened_at") val openedAt: String? = null,
+    @Json(name = "opening_amount") val openingAmount: Long? = 0L,
+    @Json(name = "total_sales") val totalSales: Long? = 0L,
+    @Json(name = "transactions_count") val transactionsCount: Int? = 0,
+    @Json(name = "expected_close") val expectedClose: Long? = null
 )
 
 @JsonClass(generateAdapter = true)

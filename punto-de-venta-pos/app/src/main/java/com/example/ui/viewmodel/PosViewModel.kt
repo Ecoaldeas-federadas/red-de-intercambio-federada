@@ -194,6 +194,16 @@ class PosViewModel(
                                 errorMessage = "El terminal no fue encontrado en el servidor. Empareje nuevamente si fue eliminado."
                             )
                         }
+                    } else if (hb.keyMatches == false) {
+                        // Las claves criptograficas no coinciden — el terminal fue
+                        // reseteado en el POS o en el servidor. Re-parear.
+                        _uiState.update {
+                            it.copy(
+                                isRegistered = false,
+                                currentScreen = PosScreen.RegisterTerminal,
+                                errorMessage = "Las claves criptográficas del terminal no coinciden con el servidor. Debe emparejar nuevamente."
+                            )
+                        }
                     }
                 }
                 // Si el heartbeat falla por error 500 o red, NO cambiar estado (mantiene registro)
@@ -1239,8 +1249,24 @@ class PosViewModel(
                     }
                 }
             }.onFailure { err ->
-                _uiState.update {
-                    it.copy(isLoading = false, errorMessage = err.message)
+                val msg = err.message ?: ""
+                // Si el error es de desencriptacion (claves no coinciden), enviar a re-pairing
+                val isCryptoError = msg.contains("message authentication failed") ||
+                    msg.contains("signature verification failed") ||
+                    msg.contains("decrypting payload")
+                if (isCryptoError) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isRegistered = false,
+                            currentScreen = PosScreen.RegisterTerminal,
+                            errorMessage = "Las claves criptográficas del terminal no coinciden con el servidor. Debe emparejar nuevamente."
+                        )
+                    }
+                } else {
+                    _uiState.update {
+                        it.copy(isLoading = false, errorMessage = msg)
+                    }
                 }
             }
         }

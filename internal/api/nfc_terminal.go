@@ -228,16 +228,18 @@ func (h *NFCTerminalHandler) terminalAuth(w http.ResponseWriter, r *http.Request
 
 func (h *NFCTerminalHandler) terminalHeartbeat(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		TerminalID string `json:"terminal_id"`
+		TerminalID     string `json:"terminal_id"`
+		TerminalPubKey string `json:"terminal_public_key"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")
 		return
 	}
 
-	// Heartbeat con estado completo: active + registered
-	// El terminal usa esto para saber si el dueño lo desactivo o si fue borrado
-	isActive, isRegistered, err := h.NFC.HeartbeatFull(r.Context(), req.TerminalID)
+	// Heartbeat con estado completo: active + registered + key verification
+	// El terminal usa esto para saber si el dueño lo desactivo o si fue borrado.
+	// Tambien verifica que las claves criptograficas coincidan.
+	isActive, isRegistered, registeredPubKey, err := h.NFC.HeartbeatFull(r.Context(), req.TerminalID)
 	if err != nil {
 		// Terminal no encontrado: responder con registered=false para que el
 		// cliente vuelva a la pantalla de emparejamiento
@@ -250,21 +252,29 @@ func (h *NFCTerminalHandler) terminalHeartbeat(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Verificar si las claves coinciden (si el terminal envio su clave publica)
+	keyMatches := true
+	if req.TerminalPubKey != "" && registeredPubKey != "" {
+		keyMatches = (req.TerminalPubKey == registeredPubKey)
+	}
+
 	serverPriv, err := h.NFC.GetServerPrivateKey(r.Context())
 	if err != nil {
 		writeJSON(w, 200, map[string]interface{}{
-			"status":     "ok",
-			"active":     isActive,
-			"registered": isRegistered,
+			"status":      "ok",
+			"active":      isActive,
+			"registered":  isRegistered,
+			"key_matches": keyMatches,
 		})
 		return
 	}
 	sig := ed25519.Sign(serverPriv, []byte(req.TerminalID))
 	writeJSON(w, 200, map[string]interface{}{
-		"status":     "ok",
-		"active":     isActive,
-		"registered": isRegistered,
-		"signature":  hexEncodeBytes(sig),
+		"status":      "ok",
+		"active":      isActive,
+		"registered":  isRegistered,
+		"key_matches": keyMatches,
+		"signature":   hexEncodeBytes(sig),
 	})
 }
 
