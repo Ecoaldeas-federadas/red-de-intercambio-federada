@@ -38,6 +38,7 @@
 34. [Protocolo NTAG215](tarjeta-ntag215-protocolo.md) - 30 slots, PWD unica, rotacion aleatoria, compatible con todos los telefonos
 35. [Protocolo Ultralight C](tarjeta-ultralight-c-protocolo.md) - 8 slots, 3DES 112-bit, baja capacidad, fallback si no hay NTAG215
 36. [Drivers de Tarjetas NFC](card-drivers/) - Manifiestos JSON modulares por tipo de tarjeta
+37. [Guia: Como Agregar una Nueva Tarjeta NFC](guia-agregar-tarjeta-nfc.md) - Paso a paso para agregar un nuevo driver de tarjeta al sistema modular
 
 ## Estado de Implementacion
 
