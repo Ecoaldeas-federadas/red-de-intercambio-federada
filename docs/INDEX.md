@@ -39,6 +39,7 @@
 35. [Protocolo Ultralight C](tarjeta-ultralight-c-protocolo.md) - 8 slots, 3DES 112-bit, baja capacidad, fallback si no hay NTAG215
 36. [Drivers de Tarjetas NFC](card-drivers/) - Manifiestos JSON modulares por tipo de tarjeta
 37. [Guia: Como Agregar una Nueva Tarjeta NFC](guia-agregar-tarjeta-nfc.md) - Paso a paso para agregar un nuevo driver de tarjeta al sistema modular
+38. [Diseno: Drivers Auto-Instalables](diseno-drivers-auto-instalables.md) - Sistema de paquetes .nfcpkg firmados, auto-instalables desde la web admin, con sharing federado entre nodos
 
 ## Estado de Implementacion
 
