@@ -226,7 +226,7 @@ export default function Profile() {
         setCardActionMsg('PIN cambiado correctamente')
         if (me?.id) loadNfcCards(me.id)
       } else if (cardModal.type === 'toggle') {
-        await api.put(`/nfc/cards/${cardModal.cardUid}/toggle`, { is_active: !cardModal.isActive })
+        await api.put(`/nfc/my-cards/${cardModal.cardUid}/toggle`, { is_active: !cardModal.isActive })
         setCardActionMsg(cardModal.isActive ? 'Tarjeta desactivada' : 'Tarjeta activada')
         if (me?.id) loadNfcCards(me.id)
       } else if (cardModal.type === 'changeDoc') {
@@ -448,6 +448,11 @@ export default function Profile() {
             <div className="flex justify-between"><span className="text-gray-500">Tipo:</span> <b>{me.account_type}</b></div>
             <div className="flex justify-between"><span className="text-gray-500">Balance:</span> <b>{fmtTQ(me.balance)} {currency}</b></div>
             <div className="flex justify-between"><span className="text-gray-500">Estado:</span> <b>{me.membership_status}</b></div>
+            {me.is_over_limit && (
+              <div className="bg-red-50 border border-red-300 rounded-lg p-2 mt-2 text-sm text-red-800">
+                <strong>⚠ Sobre límite de crédito</strong> — Tu saldo está por debajo de tu límite. No puedes hacer nuevas compras hasta regularizar.
+              </div>
+            )}
             {me.id && (
               <div className="border-t pt-2 mt-2">
                 <div className="text-gray-500 text-xs mb-1">ID de cuenta (UUID) para pagos manuales:</div>

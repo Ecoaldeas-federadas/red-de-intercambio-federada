@@ -159,6 +159,9 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequirePermission("nfc.initialize_card")).Post("/api/nfc/cards/{uid}/confirm-initialization", h.confirmCardInitialization)
 	r.With(am.RequirePermission("nfc.deactivate_card")).Delete("/api/nfc/cards/{uid}", h.deactivateCard)
 	r.With(am.RequirePermission("nfc.deactivate_card")).Put("/api/nfc/cards/{uid}/toggle", h.toggleCard)
+	// Auto-servicio: el usuario puede desactivar/activar SU PROPIA tarjeta
+	// sin permiso de admin. Verifica propiedad y que el admin no la haya bloqueado.
+	r.With(am.RequireAuth).Put("/api/nfc/my-cards/{uid}/toggle", h.toggleMyCard)
 	r.With(am.RequirePermission("nfc.issue_card")).Delete("/api/nfc/cards/{uid}/permanent", h.deleteCardPermanent)
 	r.With(am.RequirePermission("nfc.issue_card")).Put("/api/nfc/cards/{uid}/label", h.updateCardLabel)
 	r.With(am.RequireAuth).Put("/api/nfc/cards/{uid}/document", h.setCardDocument)
@@ -703,7 +706,7 @@ func (h *NFCTerminalHandler) deactivateCard(w http.ResponseWriter, r *http.Reque
 	}
 
 	_, err := h.NFC.Pool.Exec(r.Context(), `
-		UPDATE nfc_cards SET is_active = false, deactivated_at = NOW()
+		UPDATE nfc_cards SET is_active = false, deactivated_at = NOW(), deactivated_by_admin = true
 		WHERE card_uid = $1 AND is_active = true`,
 		cardUID,
 	)
@@ -741,6 +744,76 @@ func (h *NFCTerminalHandler) toggleCard(w http.ResponseWriter, r *http.Request) 
 		UPDATE nfc_cards SET is_active = $2, deactivated_at = $3
 		WHERE card_uid = $1`,
 		cardUID, req.IsActive, deactivatedAt,
+	)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	status := "activated"
+	if !req.IsActive {
+		status = "deactivated"
+	}
+	writeJSON(w, 200, map[string]string{"status": status})
+}
+
+// toggleMyCard permite al usuario activar/desactivar SU PROPIA tarjeta sin
+// permiso de admin. Verifica que la tarjeta pertenezca al usuario y que no
+// haya sido bloqueada por un admin (deactivated_by_admin = true).
+func (h *NFCTerminalHandler) toggleMyCard(w http.ResponseWriter, r *http.Request) {
+	cardUID := chi.URLParam(r, "uid")
+	if cardUID == "" {
+		writeError(w, 400, "card uid is required")
+		return
+	}
+
+	userID, err := getUserID(r)
+	if err != nil {
+		writeError(w, 401, "unauthorized")
+		return
+	}
+
+	var req struct {
+		IsActive bool `json:"is_active"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	// Verificar que la tarjeta pertenezca al usuario
+	var ownerID uuid.UUID
+	var deactivatedByAdmin bool
+	err = h.NFC.Pool.QueryRow(r.Context(), `
+		SELECT user_id, COALESCE(deactivated_by_admin, false) FROM nfc_cards
+		WHERE card_uid = $1`,
+		cardUID,
+	).Scan(&ownerID, &deactivatedByAdmin)
+	if err != nil {
+		writeError(w, 404, "tarjeta no encontrada")
+		return
+	}
+
+	if ownerID != userID {
+		writeError(w, 403, "no tienes permiso para modificar esta tarjeta")
+		return
+	}
+
+	// Si el admin la desactivo, el usuario no puede reactivarla
+	if deactivatedByAdmin && req.IsActive {
+		writeError(w, 403, "esta tarjeta fue bloqueada por un administrador. Contacta al admin para reactivarla")
+		return
+	}
+
+	var deactivatedAt *time.Time
+	if !req.IsActive {
+		deactivatedAt = &time.Time{}
+		*deactivatedAt = time.Now()
+	}
+
+	_, err = h.NFC.Pool.Exec(r.Context(), `
+		UPDATE nfc_cards SET is_active = $2, deactivated_at = $3
+		WHERE card_uid = $1 AND user_id = $4`,
+		cardUID, req.IsActive, deactivatedAt, userID,
 	)
 	if err != nil {
 		writeError(w, 400, err.Error())

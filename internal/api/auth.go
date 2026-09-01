@@ -833,6 +833,11 @@ func (ah *AuthHandlers) getMe(w http.ResponseWriter, r *http.Request) {
 	}
 	resp["permissions"] = perms
 
+	// Incluir is_over_limit para que el frontend muestre el banner de advertencia
+	var isOverLimit bool
+	_ = ah.Pool.QueryRow(r.Context(), `SELECT COALESCE(is_over_limit, false) FROM users WHERE id = $1`, userID).Scan(&isOverLimit)
+	resp["is_over_limit"] = isOverLimit
+
 	writeJSON(w, 200, resp)
 }
 

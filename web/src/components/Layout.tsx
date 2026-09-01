@@ -58,13 +58,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [unreadCount, setUnreadCount] = useState(0)
   const [notifications, setNotifications] = useState<any[]>([])
   const [membershipStatus, setMembershipStatus] = useState<string>('unknown')
+  const [isOverLimit, setIsOverLimit] = useState(false)
 
-  // Cargar membership_status del usuario.
+  // Cargar membership_status e is_over_limit del usuario.
   // Por defecto es 'unknown' hasta que se confirme, para no mostrar
   // accidentalmente el menu completo a usuarios no admitidos.
   useEffect(() => {
     api.get<any>('/auth/me').then((d: any) => {
       setMembershipStatus(d?.membership_status || 'active')
+      setIsOverLimit(!!d?.is_over_limit)
     }).catch(() => {
       // Si no podemos verificar, asumir pendiente por seguridad
       setMembershipStatus('pending_admission')
@@ -259,6 +261,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <main className="flex-1 p-4 lg:p-6 overflow-y-auto">
+          {isOverLimit && !isPendingAdmission && (
+            <div className="mb-4 bg-red-50 border border-red-300 rounded-lg p-3 flex items-start gap-2">
+              <span className="text-red-600 text-lg">⚠</span>
+              <div className="text-sm text-red-800">
+                <strong>Tu cuenta está sobre el límite de crédito.</strong> No puedes hacer nuevas compras hasta regularizar tu saldo. Debes recibir TQ (vendiendo o recibiendo transferencias) para volver a estar dentro de tu límite. Si no regularizas pronto, podrías ser penalizado por la asamblea.
+              </div>
+            </div>
+          )}
           {isPendingAdmission && !window.location.pathname.includes('/app/admission-status') && !window.location.pathname.includes('/app/profile') && !window.location.pathname.includes('/app/notifications') ? (
             <div className="max-w-2xl mx-auto py-12 text-center space-y-4">
               <Clock size={32} className="mx-auto text-amber-500" />

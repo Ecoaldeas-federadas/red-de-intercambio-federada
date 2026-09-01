@@ -23,18 +23,19 @@ type UserLimits struct {
 	DailyLimit          *int64
 	MonthlyLimit        *int64
 	CanCrossNodeTrade   bool
+	IsOverLimit         bool
 }
 
 func (lc *LimitsChecker) GetUserLimits(ctx context.Context, userID uuid.UUID) (*UserLimits, error) {
 	var limits UserLimits
 	var perTx, daily, monthly *int64
 	err := lc.Pool.QueryRow(ctx, `
-		SELECT u.credit_limit, u.debit_limit, ml.per_transaction_limit, ml.daily_limit, ml.monthly_limit, ml.can_cross_node_trade
+		SELECT u.credit_limit, u.debit_limit, ml.per_transaction_limit, ml.daily_limit, ml.monthly_limit, ml.can_cross_node_trade, COALESCE(u.is_over_limit, false)
 		FROM users u
 		LEFT JOIN member_levels ml ON u.member_level_id = ml.id AND u.node_domain = ml.node_domain
 		WHERE u.id = $1`,
 		userID,
-	).Scan(&limits.CreditLimit, &limits.DebitLimit, &perTx, &daily, &monthly, &limits.CanCrossNodeTrade)
+	).Scan(&limits.CreditLimit, &limits.DebitLimit, &perTx, &daily, &monthly, &limits.CanCrossNodeTrade, &limits.IsOverLimit)
 	if err != nil {
 		return nil, fmt.Errorf("getting user limits: %w", err)
 	}
@@ -66,6 +67,10 @@ func (lc *LimitsChecker) ValidateInternalTransfer(ctx context.Context, senderID 
 	limits, err := lc.GetUserLimits(ctx, senderID)
 	if err != nil {
 		return err
+	}
+
+	if limits.IsOverLimit {
+		return fmt.Errorf("cuenta sobre limite por transacciones offline pendientes. Debe regularizar su saldo antes de transar")
 	}
 
 	newBalance := balance - amount
@@ -162,6 +167,10 @@ func (lc *LimitsChecker) ValidateCrossNodeTransfer(ctx context.Context, senderID
 	limits, err := lc.GetUserLimits(ctx, senderID)
 	if err != nil {
 		return err
+	}
+
+	if limits.IsOverLimit {
+		return fmt.Errorf("cuenta sobre limite por transacciones offline pendientes. Debe regularizar su saldo antes de transar")
 	}
 
 	if !limits.CanCrossNodeTrade {
@@ -284,6 +293,32 @@ func (lc *LimitsChecker) GetGlobalPoolBalance(ctx context.Context) (int64, error
 		return 0, fmt.Errorf("getting global pool balance: %w", err)
 	}
 	return balance, nil
+}
+
+// CheckAndUpdateOverLimit verifica si el usuario esta sobre su limite de credito
+// y actualiza el flag is_over_limit. Debe llamarse despues de transacciones que
+// puedan dejar al usuario sobre su limite (ej: sincronizacion de transacciones
+// offline del nodo satelite). Retorna true si el usuario quedo sobre limite.
+func (lc *LimitsChecker) CheckAndUpdateOverLimit(ctx context.Context, userID uuid.UUID) (bool, error) {
+	balance, err := lc.GetBalance(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+
+	limits, err := lc.GetUserLimits(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+
+	overLimit := balance < limits.CreditLimit
+
+	_, err = lc.Pool.Exec(ctx, `UPDATE users SET is_over_limit = $1 WHERE id = $2`,
+		overLimit, userID)
+	if err != nil {
+		return overLimit, fmt.Errorf("updating is_over_limit: %w", err)
+	}
+
+	return overLimit, nil
 }
 
 func (lc *LimitsChecker) GetBilateralBalance(ctx context.Context, localNode, remoteNode string) (int64, error) {
