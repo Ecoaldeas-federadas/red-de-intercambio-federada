@@ -89,7 +89,7 @@ export default function NodeSettings() {
   const [commerceSchedulesLoading, setCommerceSchedulesLoading] = useState(false)
   const [commerceHoursEnabled, setCommerceHoursEnabled] = useState(false)
   const [commerceHoursMessage, setCommerceHoursMessage] = useState('')
-  const [newSchedule, setNewSchedule] = useState({ day_of_week: '', start_time: '', end_time: '', crosses_midnight: false, reason: '' })
+  const [newSchedule, setNewSchedule] = useState({ day_of_week: '', end_day_of_week: '', start_time: '', end_time: '', crosses_midnight: false, reason: '' })
   const [scheduleMsg, setScheduleMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
   // FRNE (Salida Justa)
@@ -1291,20 +1291,55 @@ export default function NodeSettings() {
                   type="checkbox"
                   id="crosses_midnight"
                   checked={newSchedule.crosses_midnight}
-                  onChange={(e) => setNewSchedule({ ...newSchedule, crosses_midnight: e.target.checked })}
+                  onChange={(e) => setNewSchedule({ ...newSchedule, crosses_midnight: e.target.checked, end_day_of_week: e.target.checked ? newSchedule.end_day_of_week : '' })}
                 />
-                <label htmlFor="crosses_midnight" className="text-sm text-gray-600">Cruza medianoche (ej: viernes 18:00 hasta sabado 06:00)</label>
+                <label htmlFor="crosses_midnight" className="text-sm text-gray-600">Cruza medianoche (ej: viernes 18:00 hasta domingo 06:00)</label>
               </div>
+              {newSchedule.crosses_midnight && (
+                <div>
+                  <label className="label">Dia de fin</label>
+                  <select
+                    className="input"
+                    value={newSchedule.end_day_of_week}
+                    onChange={(e) => setNewSchedule({ ...newSchedule, end_day_of_week: e.target.value })}
+                  >
+                    <option value="">Seleccionar dia final...</option>
+                    <option value="0">Domingo</option>
+                    <option value="1">Lunes</option>
+                    <option value="2">Martes</option>
+                    <option value="3">Miercoles</option>
+                    <option value="4">Jueves</option>
+                    <option value="5">Viernes</option>
+                    <option value="6">Sabado</option>
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1">El bloqueo va desde el dia de inicio a la hora de inicio hasta este dia a la hora de fin.</p>
+                </div>
+              )}
               <button
                 onClick={async () => {
                   if (!newSchedule.day_of_week) {
                     setScheduleMsg({ type: 'error', text: 'Selecciona un dia' })
                     return
                   }
+                  if (newSchedule.crosses_midnight && !newSchedule.end_day_of_week) {
+                    setScheduleMsg({ type: 'error', text: 'Selecciona el dia de fin' })
+                    return
+                  }
                   try {
-                    await api.post('/node/commerce-schedule', newSchedule)
+                    const payload: any = {
+                      name: newSchedule.reason || 'Regla de horario',
+                      is_active: true,
+                      day_of_week: parseInt(newSchedule.day_of_week),
+                      start_time: newSchedule.start_time || null,
+                      end_time: newSchedule.end_time || null,
+                      crosses_midnight: newSchedule.crosses_midnight,
+                      end_day_of_week: newSchedule.crosses_midnight ? parseInt(newSchedule.end_day_of_week) : null,
+                      block_type: 'block',
+                      block_message: commerceHoursMessage || newSchedule.reason || 'Comercio cerrado',
+                    }
+                    await api.post('/node/commerce-schedule', payload)
                     setScheduleMsg({ type: 'success', text: 'Regla creada' })
-                    setNewSchedule({ day_of_week: '', start_time: '', end_time: '', crosses_midnight: false, reason: '' })
+                    setNewSchedule({ day_of_week: '', end_day_of_week: '', start_time: '', end_time: '', crosses_midnight: false, reason: '' })
                     loadCommerceSchedules()
                   } catch (e: any) {
                     setScheduleMsg({ type: 'error', text: e?.message || 'Error al crear regla' })
@@ -1330,12 +1365,16 @@ export default function NodeSettings() {
                   <div key={s.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div>
                       <span className="font-medium text-sm">{days[s.day_of_week] || `Dia ${s.day_of_week}`}</span>
-                      {s.start_time && s.end_time ? (
+                      {s.crosses_midnight && s.end_day_of_week != null ? (
+                        <span className="ml-2 text-xs text-gray-600">
+                          {s.start_time || '00:00'} ({days[s.day_of_week]}) → {s.end_time || '23:59'} ({days[s.end_day_of_week]})
+                        </span>
+                      ) : s.start_time && s.end_time ? (
                         <span className="ml-2 text-xs text-gray-600">{s.start_time} - {s.end_time}{s.crosses_midnight ? ' (cruza medianoche)' : ''}</span>
                       ) : (
                         <span className="ml-2 text-xs px-2 py-0.5 rounded bg-red-100 text-red-700">Todo el dia bloqueado</span>
                       )}
-                      {s.reason && <p className="text-xs text-gray-600 mt-1">{s.reason}</p>}
+                      {s.block_message && s.block_message !== commerceHoursMessage && <p className="text-xs text-gray-600 mt-1">{s.block_message}</p>}
                     </div>
                     {canManage && (
                       <button
