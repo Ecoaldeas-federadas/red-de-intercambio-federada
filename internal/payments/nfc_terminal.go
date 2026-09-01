@@ -654,6 +654,15 @@ func (nt *NFCTerminals) ProcessNFCPayment(ctx context.Context, terminalID string
 		}
 	}
 
+	// Verificar que el usuario no se esté pagando a sí mismo (defensa adicional:
+	// ClassicPreAuth ya lo verifica, pero ProcessNFCPayment puede llamarse directo)
+	var merchantUserID *uuid.UUID
+	_ = nt.Pool.QueryRow(ctx, `SELECT merchant_user_id FROM nfc_terminals WHERE id = $1`, termDBID).Scan(&merchantUserID)
+	if merchantUserID != nil && *merchantUserID == card.UserID {
+		nt.logTransaction(ctx, termDBID, payload.CardUID, &card.UserID, payload.Amount, "rejected", payload.CryptoToken, true, "single", "", "self payment")
+		return &NFCPaymentResult{Status: "rejected", Message: "no puedes pagarte a ti mismo"}, nil
+	}
+
 	var balance, creditLimit int64
 	err = nt.Pool.QueryRow(ctx, `SELECT balance, credit_limit FROM users WHERE id = $1`, card.UserID).Scan(&balance, &creditLimit)
 	if err != nil {
@@ -1528,14 +1537,6 @@ func (nt *NFCTerminals) ClassicPreAuth(ctx context.Context, terminalID, username
 		}
 	}
 
-	// 1b. Verificar que el usuario no se esté pagando a sí mismo
-	// (el merchant del terminal no puede ser el mismo que el cliente que paga)
-	var merchantUserID *uuid.UUID
-	_ = nt.Pool.QueryRow(ctx, `SELECT merchant_user_id FROM nfc_terminals WHERE terminal_id = $1`, terminalID).Scan(&merchantUserID)
-	if merchantUserID != nil && *merchantUserID == userID {
-		return &ClassicPreAuthResponse{PreApproved: false, Message: "no puedes pagarte a ti mismo"}, nil
-	}
-
 	// 2. Buscar tarjeta activa del usuario (cualquier tipo)
 	var cardUID string
 	var cardType string
@@ -1549,7 +1550,8 @@ func (nt *NFCTerminals) ClassicPreAuth(ctx context.Context, terminalID, username
 		return &ClassicPreAuthResponse{PreApproved: false, Message: "no se encontro tarjeta activa para este usuario"}, nil
 	}
 
-	// 3. Verificar PIN
+	// 3. Verificar PIN (seguridad primero: validar PIN antes de cualquier
+	// check de logica de negocio como self-payment o saldo)
 	var pinHash *string
 	err = nt.Pool.QueryRow(ctx, `SELECT pin_hash FROM nfc_cards WHERE card_uid = $1 AND is_active = true`, cardUID).Scan(&pinHash)
 	if err != nil || pinHash == nil {
@@ -1557,6 +1559,15 @@ func (nt *NFCTerminals) ClassicPreAuth(ctx context.Context, terminalID, username
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(*pinHash), []byte(pin)); err != nil {
 		return &ClassicPreAuthResponse{PreApproved: false, Message: "PIN incorrecto"}, nil
+	}
+
+	// 3b. Verificar que el usuario no se esté pagando a sí mismo
+	// (el merchant del terminal no puede ser el mismo que el cliente que paga)
+	// Se hace despues del PIN para no revelar informacion sin validar credenciales
+	var merchantUserID *uuid.UUID
+	_ = nt.Pool.QueryRow(ctx, `SELECT merchant_user_id FROM nfc_terminals WHERE terminal_id = $1`, terminalID).Scan(&merchantUserID)
+	if merchantUserID != nil && *merchantUserID == userID {
+		return &ClassicPreAuthResponse{PreApproved: false, Message: "no puedes pagarte a ti mismo"}, nil
 	}
 
 	// 4. Verificar saldo (filosofia moneda cero: puede ser negativo hasta credit_limit)
@@ -1688,13 +1699,6 @@ func (nt *NFCTerminals) ClassicPreAuthWithDocument(ctx context.Context, terminal
 		}
 	}
 
-	// 1b. Verificar que el usuario no se esté pagando a sí mismo
-	var merchantUserID *uuid.UUID
-	_ = nt.Pool.QueryRow(ctx, `SELECT merchant_user_id FROM nfc_terminals WHERE terminal_id = $1`, terminalID).Scan(&merchantUserID)
-	if merchantUserID != nil && *merchantUserID == userID {
-		return &ClassicPreAuthResponse{PreApproved: false, Message: "no puedes pagarte a ti mismo"}, nil
-	}
-
 	// 2. Buscar tarjeta activa del usuario
 	var cardUID string
 	var cardType string
@@ -1725,7 +1729,8 @@ func (nt *NFCTerminals) ClassicPreAuthWithDocument(ctx context.Context, terminal
 		return &ClassicPreAuthResponse{PreApproved: false, Message: "documento de identidad no coincide"}, nil
 	}
 
-	// 5. Verificar PIN
+	// 5. Verificar PIN (seguridad primero: validar PIN antes de cualquier
+	// check de logica de negocio como self-payment o saldo)
 	var pinHash *string
 	err = nt.Pool.QueryRow(ctx, `SELECT pin_hash FROM nfc_cards WHERE card_uid = $1 AND is_active = true`, cardUID).Scan(&pinHash)
 	if err != nil || pinHash == nil {
@@ -1733,6 +1738,14 @@ func (nt *NFCTerminals) ClassicPreAuthWithDocument(ctx context.Context, terminal
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(*pinHash), []byte(pin)); err != nil {
 		return &ClassicPreAuthResponse{PreApproved: false, Message: "PIN incorrecto"}, nil
+	}
+
+	// 5b. Verificar que el usuario no se esté pagando a sí mismo
+	// Se hace despues del PIN para no revelar informacion sin validar credenciales
+	var merchantUserID *uuid.UUID
+	_ = nt.Pool.QueryRow(ctx, `SELECT merchant_user_id FROM nfc_terminals WHERE terminal_id = $1`, terminalID).Scan(&merchantUserID)
+	if merchantUserID != nil && *merchantUserID == userID {
+		return &ClassicPreAuthResponse{PreApproved: false, Message: "no puedes pagarte a ti mismo"}, nil
 	}
 
 	// 6. Verificar saldo
