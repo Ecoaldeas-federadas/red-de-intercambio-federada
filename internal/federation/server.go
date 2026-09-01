@@ -106,6 +106,9 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("/federation/profile-prohibitions/list", s.handleProfileProhibitionsList)
 	mux.HandleFunc("/federation/profile-prohibitions/sync", s.handleProfileProhibitionsSync)
 
+	// Satellite endpoints (snapshot pull + sync push)
+	s.RegisterSatelliteEndpoints(mux)
+
 	srv := &http.Server{
 		Addr:      fmt.Sprintf(":%d", s.ListenPort),
 		Handler:   mux,

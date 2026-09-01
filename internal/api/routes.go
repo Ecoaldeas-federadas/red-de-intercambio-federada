@@ -318,6 +318,10 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 	servicesH := NewServicesHandler(pool)
 	servicesH.RegisterRoutes(r, am)
 
+	// Satellite handler (nodo satelite para ferias offline)
+	satH := NewSatelliteAPIHandler(pool, h.nodeDomain)
+	satH.RegisterRoutes(r, am)
+
 	// Servir imagenes subidas desde /uploads/
 	r.Get("/uploads/*", func(w http.ResponseWriter, r *http.Request) {
 		uploadDir := "/app/uploads"
