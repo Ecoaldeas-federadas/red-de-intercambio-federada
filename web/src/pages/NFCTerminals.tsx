@@ -96,6 +96,8 @@ export default function NFCTerminals() {
   const [cardActiveOnly, setCardActiveOnly] = useState(false)
   const [cardListLoading, setCardListLoading] = useState(false)
   const [cardListError, setCardListError] = useState('')
+  const [editingCardLabel, setEditingCardLabel] = useState<string | null>(null)
+  const [labelValue, setLabelValue] = useState('')
 
   const loadAllCards = async (activeOnly?: boolean) => {
     setCardListLoading(true)
@@ -119,6 +121,27 @@ export default function NFCTerminals() {
       loadAllCards()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cambiar estado de la tarjeta')
+    }
+  }
+
+  const deleteCardPermanent = async (cardUid: string) => {
+    if (!confirm(`Eliminar permanentemente la tarjeta ${cardUid.slice(0, 16)}...?\n\nEsta accion no se puede deshacer. La tarjeta y todos sus datos seran borrados.`)) return
+    try {
+      await api.delete(`/nfc/cards/${cardUid}/permanent`)
+      loadAllCards()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al eliminar tarjeta')
+    }
+  }
+
+  const saveCardLabel = async (cardUid: string) => {
+    try {
+      await api.put(`/nfc/cards/${cardUid}/label`, { label: labelValue })
+      setEditingCardLabel(null)
+      setLabelValue('')
+      loadAllCards()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al actualizar etiqueta')
     }
   }
 
@@ -864,7 +887,7 @@ export default function NFCTerminals() {
               <div className="flex gap-2">
                 <input
                   className="input flex-1"
-                  placeholder="Buscar por UID, usuario o nombre..."
+                  placeholder="Buscar por UID, usuario, nombre o etiqueta..."
                   value={cardSearch}
                   onChange={(e) => { setCardSearch(e.target.value); setCardSearchTimer(Date.now()) }}
                 />
@@ -885,18 +908,32 @@ export default function NFCTerminals() {
                     <div key={c.id} className="border border-gray-200 rounded-lg p-3 text-sm">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <b className="text-xs">{c.card_uid.slice(0, 16)}...</b>
                             <span className={`text-xs px-2 py-0.5 rounded ${c.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                               {c.is_active ? 'Activa' : 'Inactiva'}
                             </span>
                             <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{c.card_type}</span>
+                            {c.label && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{c.label}</span>}
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
                             Usuario: <b>{c.username}</b> {c.display_name && `(${c.display_name})`}
                           </p>
                           <p className="text-xs text-gray-400">Emitida: {fmtDateTime(c.issued_at)}</p>
                           {c.required_doc_type && <p className="text-xs text-blue-600">Doc: {c.required_doc_type}</p>}
+                          {editingCardLabel === c.card_uid && (
+                            <div className="flex gap-1 mt-2">
+                              <input
+                                className="input flex-1 text-xs"
+                                placeholder="Etiqueta (ej: Tarjeta principal)"
+                                value={labelValue}
+                                onChange={(e) => setLabelValue(e.target.value)}
+                                autoFocus
+                              />
+                              <button onClick={() => saveCardLabel(c.card_uid)} className="text-xs px-2 py-1 bg-green-600 text-white rounded">OK</button>
+                              <button onClick={() => { setEditingCardLabel(null); setLabelValue('') }} className="text-xs px-2 py-1 bg-gray-400 text-white rounded">x</button>
+                            </div>
+                          )}
                         </div>
                         <div className="flex flex-col gap-1">
                           {canDeactivateCard && (
@@ -913,6 +950,22 @@ export default function NFCTerminals() {
                               className="text-xs px-2 py-1 rounded bg-amber-100 text-amber-700 hover:bg-amber-200"
                             >
                               Reset PIN
+                            </button>
+                          )}
+                          {canIssueCard && editingCardLabel !== c.card_uid && (
+                            <button
+                              onClick={() => { setEditingCardLabel(c.card_uid); setLabelValue(c.label || '') }}
+                              className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 flex items-center gap-1"
+                            >
+                              <Edit size={12} /> Etiqueta
+                            </button>
+                          )}
+                          {canIssueCard && (
+                            <button
+                              onClick={() => deleteCardPermanent(c.card_uid)}
+                              className="text-xs px-2 py-1 rounded bg-red-600 text-white hover:bg-red-700 flex items-center gap-1"
+                            >
+                              <Trash2 size={12} /> Eliminar
                             </button>
                           )}
                         </div>

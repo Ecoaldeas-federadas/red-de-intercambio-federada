@@ -159,6 +159,8 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequirePermission("nfc.initialize_card")).Post("/api/nfc/cards/{uid}/confirm-initialization", h.confirmCardInitialization)
 	r.With(am.RequirePermission("nfc.deactivate_card")).Delete("/api/nfc/cards/{uid}", h.deactivateCard)
 	r.With(am.RequirePermission("nfc.deactivate_card")).Put("/api/nfc/cards/{uid}/toggle", h.toggleCard)
+	r.With(am.RequirePermission("nfc.issue_card")).Delete("/api/nfc/cards/{uid}/permanent", h.deleteCardPermanent)
+	r.With(am.RequirePermission("nfc.issue_card")).Put("/api/nfc/cards/{uid}/label", h.updateCardLabel)
 	r.With(am.RequireAuth).Put("/api/nfc/cards/{uid}/document", h.setCardDocument)
 	r.With(am.RequireAuth).Put("/api/nfc/cards/pin", h.changeCardPIN)
 	r.With(am.RequirePermission("nfc.reset_pin")).Put("/api/nfc/cards/{uid}/pin/reset", h.resetCardPIN)
@@ -751,6 +753,53 @@ func (h *NFCTerminalHandler) toggleCard(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, 200, map[string]string{"status": status})
 }
 
+// deleteCardPermanent elimina una tarjeta completamente de la base de datos.
+// Solo admin con nfc.issue_card. A diferencia de deactivateCard (que solo
+// marca is_active=false), este borra la fila y sus sectores asociados.
+func (h *NFCTerminalHandler) deleteCardPermanent(w http.ResponseWriter, r *http.Request) {
+	cardUID := chi.URLParam(r, "uid")
+	if cardUID == "" {
+		writeError(w, 400, "card uid is required")
+		return
+	}
+
+	// Eliminar sectores asociados (si es Classic)
+	_, _ = h.NFC.Pool.Exec(r.Context(), `DELETE FROM nfc_card_sectors WHERE card_uid = $1`, cardUID)
+	// Eliminar la tarjeta
+	ct, err := h.NFC.Pool.Exec(r.Context(), `DELETE FROM nfc_cards WHERE card_uid = $1`, cardUID)
+	if err != nil {
+		writeError(w, 500, "error al eliminar tarjeta: "+err.Error())
+		return
+	}
+	if ct.RowsAffected() == 0 {
+		writeError(w, 404, "tarjeta no encontrada")
+		return
+	}
+	writeJSON(w, 200, map[string]string{"status": "deleted"})
+}
+
+// updateCardLabel actualiza el label (nombre descriptivo) de una tarjeta.
+func (h *NFCTerminalHandler) updateCardLabel(w http.ResponseWriter, r *http.Request) {
+	cardUID := chi.URLParam(r, "uid")
+	if cardUID == "" {
+		writeError(w, 400, "card uid is required")
+		return
+	}
+	var req struct {
+		Label string `json:"label"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	_, err := h.NFC.Pool.Exec(r.Context(), `UPDATE nfc_cards SET label = $1 WHERE card_uid = $2`, req.Label, cardUID)
+	if err != nil {
+		writeError(w, 500, "error al actualizar label: "+err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]string{"status": "updated"})
+}
+
 // setCardDocument cambia qué documento de identidad usa la tarjeta.
 // El usuario debe tener el documento registrado en user_documents.
 func (h *NFCTerminalHandler) setCardDocument(w http.ResponseWriter, r *http.Request) {
@@ -822,7 +871,7 @@ func (h *NFCTerminalHandler) listAllCards(w http.ResponseWriter, r *http.Request
 	query := `
 		SELECT c.id, c.user_id, c.card_uid, c.is_active, c.card_type,
 		       c.crypto_enabled, c.has_dynamic_certs, c.required_doc_type,
-		       c.issued_at, c.deactivated_at,
+		       c.issued_at, c.deactivated_at, c.label,
 		       u.username, u.display_name
 		FROM nfc_cards c
 		JOIN users u ON u.id = c.user_id
@@ -831,7 +880,8 @@ func (h *NFCTerminalHandler) listAllCards(w http.ResponseWriter, r *http.Request
 	argIdx := 1
 
 	if search != "" {
-		query += ` AND (LOWER(c.card_uid) LIKE LOWER($1) OR LOWER(u.username) LIKE LOWER($1) OR LOWER(u.display_name) LIKE LOWER($1))`
+		query += fmt.Sprintf(` AND (LOWER(c.card_uid) LIKE LOWER($%d) OR LOWER(u.username) LIKE LOWER($%d) OR LOWER(u.display_name) LIKE LOWER($%d) OR LOWER(c.label) LIKE LOWER($%d))`,
+			argIdx, argIdx, argIdx, argIdx)
 		args = append(args, "%"+search+"%")
 		argIdx++
 	}
@@ -848,18 +898,20 @@ func (h *NFCTerminalHandler) listAllCards(w http.ResponseWriter, r *http.Request
 	defer rows.Close()
 
 	type CardWithUser struct {
-		ID              uuid.UUID  `json:"id"`
-		UserID          uuid.UUID  `json:"user_id"`
-		CardUID         string     `json:"card_uid"`
-		IsActive        bool       `json:"is_active"`
-		CardType        string     `json:"card_type"`
-		CryptoEnabled   bool       `json:"crypto_enabled"`
-		HasDynamicCerts bool       `json:"has_dynamic_certs"`
-		RequiredDocType *string    `json:"required_doc_type"`
-		IssuedAt        time.Time  `json:"issued_at"`
-		DeactivatedAt   *time.Time `json:"deactivated_at"`
-		Username        string     `json:"username"`
-		DisplayName     string     `json:"display_name"`
+		ID               uuid.UUID  `json:"id"`
+		UserID           uuid.UUID  `json:"user_id"`
+		CardUID          string     `json:"card_uid"`
+		IsActive         bool       `json:"is_active"`
+		CardType         string     `json:"card_type"`
+		CryptoEnabled    bool       `json:"crypto_enabled"`
+		HasDynamicCerts  bool       `json:"has_dynamic_certs"`
+		RequiredDocType  *string    `json:"required_doc_type"`
+		IssuedAt         time.Time  `json:"issued_at"`
+		DeactivatedAt    *time.Time `json:"deactivated_at"`
+		Label            string     `json:"label"`
+		Username         string     `json:"username"`
+		DisplayName      string     `json:"display_name"`
+		OrganizationName *string    `json:"organization_name"`
 	}
 
 	var cards []CardWithUser
@@ -867,7 +919,7 @@ func (h *NFCTerminalHandler) listAllCards(w http.ResponseWriter, r *http.Request
 		var c CardWithUser
 		if err := rows.Scan(&c.ID, &c.UserID, &c.CardUID, &c.IsActive, &c.CardType,
 			&c.CryptoEnabled, &c.HasDynamicCerts, &c.RequiredDocType,
-			&c.IssuedAt, &c.DeactivatedAt,
+			&c.IssuedAt, &c.DeactivatedAt, &c.Label,
 			&c.Username, &c.DisplayName); err != nil {
 			writeError(w, 500, err.Error())
 			return
