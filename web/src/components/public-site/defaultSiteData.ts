@@ -1080,12 +1080,12 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
           {
             question: '¿Cuándo y en qué horario se realiza el mercado mensual?',
             answer:
-              '',
+              'Se realiza el primer sábado de cada mes en el Parque Los Caobos de Caracas (área sur, cerca del estacionamiento y la Fuente Venezuela), desde las 9:00 AM hasta la 1:00 PM aproximadamente.',
           },
           {
             question: '¿Cómo llegar en transporte público?',
             answer:
-              '',
+              'Puedes llegar cómodamente en Metro de Caracas bajándote en la estación Bellas Artes o Colegio de Ingenieros (Línea 1). Desde ambas estaciones caminas unos 5 minutos hacia el Parque Los Caobos.',
           },
           {
             question: '¿Por qué está prohibido el uso de bolsas plásticas desechables?',

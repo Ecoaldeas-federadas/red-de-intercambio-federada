@@ -68,6 +68,7 @@ func (h *Handler) RegisterRoutesWithAuth(r chi.Router, am *AuthMiddleware) {
 	r.Get("/api/admission/requests", h.listAdmissionRequests)
 	r.With(am.RequirePermission("accounts.approve_admission")).Post("/api/admission/requests/{id}/approve", h.approveAdmission)
 	r.With(am.RequirePermission("accounts.reject_admission")).Post("/api/admission/requests/{id}/reject", h.rejectAdmission)
+	r.With(am.RequireAuth).Post("/api/admission/requests/{id}/sponsor", h.sponsorAdmissionRequest)
 
 	r.Post("/api/calculator/internal", h.calcInternal)
 	r.Post("/api/calculator/external", h.calcExternal)
@@ -326,16 +327,19 @@ func (h *Handler) listMemberLevels(w http.ResponseWriter, r *http.Request) {
 }
 
 type ApplyAdmissionRequest struct {
-	Username          string                 `json:"username"`
-	DisplayName       string                 `json:"display_name"`
-	ProposedLevel     string                 `json:"proposed_level"`
-	ContactInfo       map[string]interface{} `json:"contact_info"`
-	NationalID        string                 `json:"national_id"`
-	NationalIDType    string                 `json:"national_id_type"`
-	NationalIDCountry string                 `json:"national_id_country"`
-	PassportNumber    string                 `json:"passport_number"`
-	PassportCountry   string                 `json:"passport_country"`
-	Documents         []AdmissionDocument    `json:"documents"`
+	Username             string                 `json:"username"`
+	DisplayName          string                 `json:"display_name"`
+	ProposedLevel        string                 `json:"proposed_level"`
+	ContactInfo          map[string]interface{} `json:"contact_info"`
+	NationalID           string                 `json:"national_id"`
+	NationalIDType       string                 `json:"national_id_type"`
+	NationalIDCountry    string                 `json:"national_id_country"`
+	PassportNumber       string                 `json:"passport_number"`
+	PassportCountry      string                 `json:"passport_country"`
+	Documents            []AdmissionDocument    `json:"documents"`
+	SponsorAmountHeld    int64                  `json:"sponsor_amount_held"`
+	RequestedCreditLimit int64                  `json:"requested_credit_limit"`
+	RequestedDebitLimit  int64                  `json:"requested_debit_limit"`
 }
 
 type AdmissionDocument struct {
@@ -358,7 +362,25 @@ func (h *Handler) applyAdmission(w http.ResponseWriter, r *http.Request) {
 	if level == "" {
 		level = "new"
 	}
-	admissionReq, err := h.accounts.CreateAdmissionRequest(r.Context(), h.nodeDomain, req.Username, req.DisplayName, level, req.ContactInfo, req.NationalID, req.NationalIDType, req.NationalIDCountry, req.PassportNumber, req.PassportCountry)
+	// Si el usuario esta autenticado, es un apadrinamiento (el es el padrino)
+	var sponsorID *uuid.UUID
+	if sponsorIDStr := r.Header.Get("X-User-ID"); sponsorIDStr != "" {
+		if sid, err := uuid.Parse(sponsorIDStr); err == nil {
+			sponsorID = &sid
+		}
+	}
+	// Si hay apadrinamiento, verificar que el padrino tiene suficiente limite
+	if sponsorID != nil && req.SponsorAmountHeld > 0 {
+		if err := h.accounts.SponsorAdmissionRequest(r.Context(), uuid.Nil, *sponsorID, req.SponsorAmountHeld); err != nil {
+			// Solo validacion previa, el check real se hace al aprobar
+			// Pero si ya no tiene limite, fallar aqui
+			if err.Error() != "la solicitud ya tiene padrino o no esta pendiente" {
+				writeError(w, 400, err.Error())
+				return
+			}
+		}
+	}
+	admissionReq, err := h.accounts.CreateAdmissionRequestWithSponsor(r.Context(), h.nodeDomain, req.Username, req.DisplayName, level, req.ContactInfo, req.NationalID, req.NationalIDType, req.NationalIDCountry, req.PassportNumber, req.PassportCountry, sponsorID, req.SponsorAmountHeld, req.RequestedCreditLimit, req.RequestedDebitLimit)
 	if err != nil {
 		writeError(w, 400, err.Error())
 		return
@@ -465,6 +487,39 @@ func (h *Handler) rejectAdmission(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, 200, map[string]string{"status": "rejected"})
+}
+
+// sponsorAdmissionRequest permite que un miembro se agregue como padrino
+// de una solicitud de admision pendiente, asignando un monto de su propio limite.
+func (h *Handler) sponsorAdmissionRequest(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeError(w, 400, "invalid request id")
+		return
+	}
+	sponsorIDStr := r.Header.Get("X-User-ID")
+	sponsorID, err := uuid.Parse(sponsorIDStr)
+	if err != nil {
+		writeError(w, 401, "authentication required")
+		return
+	}
+	var req struct {
+		AmountHeld int64 `json:"amount_held"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.AmountHeld <= 0 {
+		writeError(w, 400, "el monto debe ser mayor que 0")
+		return
+	}
+	if err := h.accounts.SponsorAdmissionRequest(r.Context(), id, sponsorID, req.AmountHeld); err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]string{"status": "sponsored"})
 }
 
 func (h *Handler) listProducts(w http.ResponseWriter, r *http.Request) {

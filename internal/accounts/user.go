@@ -229,27 +229,35 @@ func (a *Accounts) ListMemberLevels(ctx context.Context, nodeDomain string) ([]M
 }
 
 type AdmissionRequest struct {
-	ID               uuid.UUID              `json:"id"`
-	NodeDomain       string                 `json:"node_domain"`
-	ProposedUsername string                 `json:"proposed_username"`
-	DisplayName      string                 `json:"display_name"`
-	ContactInfo      map[string]interface{} `json:"contact_info"`
-	ProposedLevel    string                 `json:"proposed_level"`
-	Status           string                 `json:"status"`
-	SubmittedAt      time.Time              `json:"submitted_at"`
-	ReviewedAt       *time.Time             `json:"reviewed_at"`
-	ApprovedAt       *time.Time             `json:"approved_at"`
-	RejectedAt       *time.Time             `json:"rejected_at"`
-	RejectionReason  string                 `json:"rejection_reason"`
+	ID                   uuid.UUID              `json:"id"`
+	NodeDomain           string                 `json:"node_domain"`
+	ProposedUsername     string                 `json:"proposed_username"`
+	DisplayName          string                 `json:"display_name"`
+	ContactInfo          map[string]interface{} `json:"contact_info"`
+	ProposedLevel        string                 `json:"proposed_level"`
+	Status               string                 `json:"status"`
+	SubmittedAt          time.Time              `json:"submitted_at"`
+	ReviewedAt           *time.Time             `json:"reviewed_at"`
+	ApprovedAt           *time.Time             `json:"approved_at"`
+	RejectedAt           *time.Time             `json:"rejected_at"`
+	RejectionReason      string                 `json:"rejection_reason"`
+	SponsoredBy          *uuid.UUID             `json:"sponsored_by"`
+	SponsorAmountHeld    int64                  `json:"sponsor_amount_held"`
+	RequestedCreditLimit int64                  `json:"requested_credit_limit"`
+	RequestedDebitLimit  int64                  `json:"requested_debit_limit"`
 }
 
 func (a *Accounts) CreateAdmissionRequest(ctx context.Context, nodeDomain, username, displayName, proposedLevel string, contactInfo map[string]interface{}, nationalID, nationalIDType, nationalIDCountry, passportNumber, passportCountry string) (*AdmissionRequest, error) {
+	return a.CreateAdmissionRequestWithSponsor(ctx, nodeDomain, username, displayName, proposedLevel, contactInfo, nationalID, nationalIDType, nationalIDCountry, passportNumber, passportCountry, nil, 0, 0, 0)
+}
+
+func (a *Accounts) CreateAdmissionRequestWithSponsor(ctx context.Context, nodeDomain, username, displayName, proposedLevel string, contactInfo map[string]interface{}, nationalID, nationalIDType, nationalIDCountry, passportNumber, passportCountry string, sponsoredBy *uuid.UUID, sponsorAmountHeld, requestedCreditLimit, requestedDebitLimit int64) (*AdmissionRequest, error) {
 	var req AdmissionRequest
 	err := a.Pool.QueryRow(ctx, `
-		INSERT INTO admission_requests (node_domain, proposed_username, display_name, proposed_level, contact_info, status, national_id, national_id_type, national_id_country, passport_number, passport_country)
-		VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, $10)
+		INSERT INTO admission_requests (node_domain, proposed_username, display_name, proposed_level, contact_info, status, national_id, national_id_type, national_id_country, passport_number, passport_country, sponsored_by, sponsor_amount_held, requested_credit_limit, requested_debit_limit)
+		VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		RETURNING id, node_domain, proposed_username, display_name, proposed_level, contact_info, status, submitted_at`,
-		nodeDomain, username, displayName, proposedLevel, contactInfo, nationalID, nationalIDType, nationalIDCountry, passportNumber, passportCountry,
+		nodeDomain, username, displayName, proposedLevel, contactInfo, nationalID, nationalIDType, nationalIDCountry, passportNumber, passportCountry, sponsoredBy, sponsorAmountHeld, requestedCreditLimit, requestedDebitLimit,
 	).Scan(&req.ID, &req.NodeDomain, &req.ProposedUsername, &req.DisplayName, &req.ProposedLevel, &req.ContactInfo, &req.Status, &req.SubmittedAt)
 	if err != nil {
 		return nil, fmt.Errorf("creating admission request: %w", err)
@@ -258,7 +266,7 @@ func (a *Accounts) CreateAdmissionRequest(ctx context.Context, nodeDomain, usern
 }
 
 func (a *Accounts) ListAdmissionRequests(ctx context.Context, nodeDomain, status string) ([]AdmissionRequest, error) {
-	query := `SELECT id, node_domain, proposed_username, display_name, proposed_level, status, submitted_at, reviewed_at, approved_at, rejected_at, COALESCE(rejection_reason, '') FROM admission_requests WHERE node_domain = $1`
+	query := `SELECT id, node_domain, COALESCE(proposed_username, ''), COALESCE(display_name, ''), COALESCE(proposed_level, 'new'), status, submitted_at, reviewed_at, approved_at, rejected_at, COALESCE(rejection_reason, ''), sponsored_by, sponsor_amount_held, requested_credit_limit, requested_debit_limit FROM admission_requests WHERE node_domain = $1`
 	args := []interface{}{nodeDomain}
 	if status != "" {
 		query += ` AND status = $2`
@@ -275,7 +283,7 @@ func (a *Accounts) ListAdmissionRequests(ctx context.Context, nodeDomain, status
 	var reqs []AdmissionRequest
 	for rows.Next() {
 		var req AdmissionRequest
-		err := rows.Scan(&req.ID, &req.NodeDomain, &req.ProposedUsername, &req.DisplayName, &req.ProposedLevel, &req.Status, &req.SubmittedAt, &req.ReviewedAt, &req.ApprovedAt, &req.RejectedAt, &req.RejectionReason)
+		err := rows.Scan(&req.ID, &req.NodeDomain, &req.ProposedUsername, &req.DisplayName, &req.ProposedLevel, &req.Status, &req.SubmittedAt, &req.ReviewedAt, &req.ApprovedAt, &req.RejectedAt, &req.RejectionReason, &req.SponsoredBy, &req.SponsorAmountHeld, &req.RequestedCreditLimit, &req.RequestedDebitLimit)
 		if err != nil {
 			return nil, fmt.Errorf("scanning admission request: %w", err)
 		}
@@ -293,18 +301,32 @@ func (a *Accounts) ApproveAdmissionRequest(ctx context.Context, reqID uuid.UUID,
 		WHERE id = $1 AND status IN ('pending', 'under_review')
 		RETURNING node_domain, proposed_username, display_name, proposed_level,
 		          COALESCE(national_id, ''), COALESCE(national_id_type, ''), COALESCE(national_id_country, ''),
-		          COALESCE(passport_number, ''), COALESCE(passport_country, '')`,
+		          COALESCE(passport_number, ''), COALESCE(passport_country, ''),
+		          sponsored_by, sponsor_amount_held, requested_credit_limit, requested_debit_limit`,
 		reqID, reviewerID,
-	).Scan(&req.NodeDomain, &req.ProposedUsername, &req.DisplayName, &req.ProposedLevel, &nationalID, &nationalIDType, &nationalIDCountry, &passportNumber, &passportCountry)
+	).Scan(&req.NodeDomain, &req.ProposedUsername, &req.DisplayName, &req.ProposedLevel, &nationalID, &nationalIDType, &nationalIDCountry, &passportNumber, &passportCountry,
+		&req.SponsoredBy, &req.SponsorAmountHeld, &req.RequestedCreditLimit, &req.RequestedDebitLimit)
 	if err != nil {
 		return nil, fmt.Errorf("approving admission request: %w", err)
 	}
 
+	// Determinar limites: si hay apadrinamiento con monto, usar ese monto (simetrico)
+	// Si no, usar los limites del nivel propuesto
 	var levelCredit, levelDebit int64
-	err = a.Pool.QueryRow(ctx, `SELECT credit_limit, debit_limit FROM member_levels WHERE id = $1 AND node_domain = $2`, req.ProposedLevel, req.NodeDomain).Scan(&levelCredit, &levelDebit)
-	if err != nil {
-		levelCredit = -20000
-		levelDebit = 20000
+	if req.SponsorAmountHeld > 0 {
+		// El apadrinamiento asigna limites simetricos: +monto y -monto
+		levelCredit = req.SponsorAmountHeld
+		levelDebit = req.SponsorAmountHeld
+	} else if req.RequestedCreditLimit > 0 {
+		// Si el solicitante pidio limites especificos, usarlos
+		levelCredit = req.RequestedCreditLimit
+		levelDebit = req.RequestedDebitLimit
+	} else {
+		err = a.Pool.QueryRow(ctx, `SELECT credit_limit, debit_limit FROM member_levels WHERE id = $1 AND node_domain = $2`, req.ProposedLevel, req.NodeDomain).Scan(&levelCredit, &levelDebit)
+		if err != nil {
+			levelCredit = -20000
+			levelDebit = 20000
+		}
 	}
 
 	user, err := a.CreateUser(ctx, CreateUserParams{
@@ -330,6 +352,24 @@ func (a *Accounts) ApproveAdmissionRequest(ctx context.Context, reqID uuid.UUID,
 		return nil, fmt.Errorf("linking user to admission request: %w", err)
 	}
 
+	// Si hay padrino, vincular al nuevo usuario con su padrino y descontar el limite del padrino
+	if req.SponsoredBy != nil && req.SponsorAmountHeld > 0 {
+		_, err = a.Pool.Exec(ctx, `
+			UPDATE users SET sponsored_by = $2, sponsor_amount_held = $3 WHERE id = $1`,
+			user.ID, *req.SponsoredBy, req.SponsorAmountHeld)
+		if err != nil {
+			// No es fatal, continuamos
+		}
+		// Descontar el limite del padrino (simetrico: credito y debito)
+		_, err = a.Pool.Exec(ctx, `
+			UPDATE users SET credit_limit = credit_limit - $2, debit_limit = debit_limit - $2
+			WHERE id = $1`,
+			*req.SponsoredBy, req.SponsorAmountHeld)
+		if err != nil {
+			// No es fatal, continuamos
+		}
+	}
+
 	// Transferir documentos de admission_documents a user_documents
 	_, err = a.Pool.Exec(ctx, `
 		INSERT INTO user_documents (user_id, document_type_code, document_number, country_iso2, country_name)
@@ -350,6 +390,50 @@ func (a *Accounts) ApproveAdmissionRequest(ctx context.Context, reqID uuid.UUID,
 	}
 
 	return user, nil
+}
+
+// SponsorAdmissionRequest permite que un miembro se agregue como padrino
+// de una solicitud de admision pendiente, asignando un monto de su propio limite.
+func (a *Accounts) SponsorAdmissionRequest(ctx context.Context, reqID, sponsorID uuid.UUID, amountHeld int64) error {
+	// Verificar que el padrino tiene suficiente limite disponible
+	var sponsorCredit, sponsorDebit, sponsorBalance int64
+	err := a.Pool.QueryRow(ctx, `SELECT credit_limit, debit_limit, balance FROM users WHERE id = $1`, sponsorID).
+		Scan(&sponsorCredit, &sponsorDebit, &sponsorBalance)
+	if err != nil {
+		return fmt.Errorf("error obteniendo datos del padrino: %w", err)
+	}
+
+	// El limite efectivo del padrino es su limite menos lo que ya tiene comprometido
+	// El limite es simetrico: credit_limit es negativo (maximo negativo), debit_limit es positivo (maximo positivo)
+	// Para apadrinar, el padrino necesita tener al menos amountHeld disponible en ambos lados
+	effectiveCredit := -sponsorCredit // convertir a positivo para comparar
+	effectiveDebit := sponsorDebit
+	// Considerar el balance actual: si esta en negativo, su capacidad de credito se reduce
+	// si esta en positivo, su capacidad de debito se reduce
+	availableCredit := effectiveCredit + sponsorBalance // si balance es negativo, resta capacidad
+	availableDebit := effectiveDebit - sponsorBalance   // si balance es positivo, resta capacidad
+	if availableCredit < amountHeld || availableDebit < amountHeld {
+		return fmt.Errorf("no tienes suficiente limite disponible para apadrinar. Disponible credito: %.2f TQ, disponible debito: %.2f TQ, solicitado: %.2f TQ",
+			float64(availableCredit)/100, float64(availableDebit)/100, float64(amountHeld)/100)
+	}
+
+	// Asignar el padrino a la solicitud
+	_, err = a.Pool.Exec(ctx, `
+		UPDATE admission_requests SET sponsored_by = $2, sponsor_amount_held = $3
+		WHERE id = $1 AND status = 'pending' AND sponsored_by IS NULL`,
+		reqID, sponsorID, amountHeld)
+	if err != nil {
+		return fmt.Errorf("error asignando padrino: %w", err)
+	}
+	if err == nil {
+		// Verificar que se actualizo
+		var cnt int
+		a.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM admission_requests WHERE id = $1 AND sponsored_by = $2`, reqID, sponsorID).Scan(&cnt)
+		if cnt == 0 {
+			return fmt.Errorf("la solicitud ya tiene padrino o no esta pendiente")
+		}
+	}
+	return nil
 }
 
 func (a *Accounts) RejectAdmissionRequest(ctx context.Context, reqID, reviewerID uuid.UUID, reason string) error {

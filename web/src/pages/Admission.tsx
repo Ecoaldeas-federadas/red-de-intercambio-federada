@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
-import { Check, X, Plus, HelpCircle, UserPlus, Clock } from 'lucide-react'
-import { toCents } from '../lib/format'
+import { Check, X, HelpCircle, UserPlus, Heart, Shield } from 'lucide-react'
+import { toCents, fmtTQ } from '../lib/format'
 
 export default function Admission() {
   const { currency } = useConfig()
@@ -18,11 +18,14 @@ export default function Admission() {
     requested_debit_limit: 100,
     reason: '',
     invited_by: '',
+    sponsor_amount_held: 100,
   })
   const [countries, setCountries] = useState<any[]>([])
   const [docTypes, setDocTypes] = useState<any[]>([])
   const [documents, setDocuments] = useState<any[]>([])
   const [newDoc, setNewDoc] = useState({ document_type: '', document_number: '', country_iso2: '' })
+  const [sponsoringId, setSponsoringId] = useState<string | null>(null)
+  const [sponsorAmount, setSponsorAmount] = useState(100)
 
   const load = () =>
     api.get('/admission/requests').then((d: any) => {
@@ -72,15 +75,44 @@ export default function Admission() {
       setError('Debes agregar al menos un documento de identidad')
       return
     }
+    if (form.sponsor_amount_held <= 0) {
+      setError('El monto de apadrinamiento debe ser mayor que 0')
+      return
+    }
     try {
-      await api.post('/accounts/request', { ...form, documents })
-      setSuccess('Solicitud de admision creada. Un administrador o la asamblea debe aprobarla.')
+      await api.post('/admission/apply', {
+        username: form.username,
+        display_name: form.display_name,
+        documents: documents.map(d => ({ document_type: d.document_type, document_number: d.document_number, country_iso2: d.country_iso2 })),
+        sponsor_amount_held: toCents(String(form.sponsor_amount_held)),
+        requested_credit_limit: toCents(String(form.requested_credit_limit)),
+        requested_debit_limit: toCents(String(form.requested_debit_limit)),
+      })
+      setSuccess('Solicitud de apadrinamiento creada. Tu ahijado sera evaluado por la asamblea.')
       setShowForm(false)
-      setForm({ username: '', display_name: '', requested_credit_limit: 100, requested_debit_limit: 100, reason: '', invited_by: '' })
+      setForm({ username: '', display_name: '', requested_credit_limit: 100, requested_debit_limit: 100, reason: '', invited_by: '', sponsor_amount_held: 100 })
       setDocuments([])
       load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear solicitud')
+    }
+  }
+
+  const sponsorExisting = async (id: string) => {
+    setError('')
+    setSuccess('')
+    if (sponsorAmount <= 0) {
+      setError('El monto debe ser mayor que 0')
+      return
+    }
+    try {
+      await api.post(`/admission/requests/${id}/sponsor`, { amount_held: toCents(String(sponsorAmount)) })
+      setSuccess('Te has agregado como padrino de esta solicitud.')
+      setSponsoringId(null)
+      setSponsorAmount(100)
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al apadrinar')
     }
   }
 
@@ -107,70 +139,75 @@ export default function Admission() {
             <HelpCircle size={20} />
           </button>
           <button onClick={() => setShowForm(!showForm)} className="btn-primary flex items-center gap-2">
-            <Plus size={18} /> Nueva Solicitud
+            <Heart size={18} /> Apadrinar nuevo miembro
           </button>
         </div>
       </div>
 
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
-          <p><strong>Admision - Ayuda</strong></p>
-          <p><strong>Como funciona:</strong> Una persona que quiere unirse a la comunidad crea una solicitud de admision. El administrador o la asamblea revisa y aprueba/rechaza.</p>
-          <p><strong>Limites:</strong> El solicitante indica cuanto credito y debito solicita. La asamblea puede modificar estos limites al aprobar.</p>
-          <p><strong>Invitacion:</strong> Si alguien invito al solicitante, se indica quien. Esto ayuda a verificar la identidad.</p>
-          <p><strong>Despues de aprobar:</strong> El usuario puede iniciar sesion y participar en el sistema.</p>
+          <p><strong>Admision con Apadrinamiento - Ayuda</strong></p>
+          <p><strong>Como funciona:</strong> Como miembro de la comunidad, puedes apadrinar a una persona nueva. Tu eres su padrino: le asignas parte de tu limite de credito/debito para que pueda empezar a intercambiar.</p>
+          <p><strong>Apadrinamiento:</strong> El monto que asignas se descuenta de tu limite. Si tienes 5000 y asignas 1000, te quedan 4000. El monto es simetrico: el ahijado tiene +1000 y -1000.</p>
+          <p><strong>Responsabilidad:</strong> Si tu ahijado no cumple, la asamblea puede pedirte que cubras su deuda. Por eso, solo apadrina a personas en las que confias.</p>
+          <p><strong>Solicitudes publicas:</strong> Las solicitudes que llegan desde la pagina web publica aparecen aqui sin padrino. Cualquier miembro puede apadrinarlas haciendo clic en "Apadrinar".</p>
+          <p><strong>Aprobacion:</strong> La asamblea revisa y aprueba/rechaza. No se puede aprobar una solicitud sin padrino.</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
         </div>
       )}
 
       {success && <div className="text-trueque-700 text-sm bg-trueque-50 p-3 rounded-lg">{success}</div>}
+      {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</div>}
 
       {showForm && (
         <div className="card space-y-4">
-          <h2 className="font-semibold">Solicitar Admision a la Comunidad</h2>
-          <p className="text-xs text-gray-500">Completa tus datos. Un administrador o la asamblea revisara tu solicitud.</p>
+          <h2 className="font-semibold flex items-center gap-2"><Heart size={18} /> Apadrinar a un Nuevo Miembro</h2>
+          <p className="text-xs text-gray-500">Completa los datos de la persona que vas a apadrinar. Tu seras su padrino y le asignaras parte de tu limite.</p>
 
           <div>
-            <label className="label">Nombre de usuario</label>
+            <label className="label">Nombre de usuario del ahijado</label>
             <input className="input" placeholder="Ej: maria" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
-            <p className="text-xs text-gray-400 mt-1">Nombre con el que iniciaras sesion. Sin espacios ni @.</p>
+            <p className="text-xs text-gray-400 mt-1">Nombre con el que el ahijado iniciara sesion. Sin espacios ni @.</p>
           </div>
 
           <div>
             <label className="label">Nombre para mostrar</label>
             <input className="input" placeholder="Ej: Maria Gonzalez" value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} />
-            <p className="text-xs text-gray-400 mt-1">Tu nombre real como lo veran los demas miembros.</p>
+            <p className="text-xs text-gray-400 mt-1">Nombre real del ahijado como lo veran los demas miembros.</p>
+          </div>
+
+          <div className="border-t pt-3">
+            <h3 className="font-medium text-sm flex items-center gap-2"><Shield size={16} /> Apadrinamiento</h3>
+            <p className="text-xs text-gray-500 mt-1 mb-3">El monto que asignas se descuenta de tu limite (simetrico: +monto y -monto). El ahijado recibe ese mismo monto como su limite.</p>
+            <div>
+              <label className="label">Monto a apadrinar ({currency})</label>
+              <input type="number" className="input" placeholder="Ej: 1000" value={form.sponsor_amount_held} onChange={(e) => setForm({ ...form, sponsor_amount_held: parseFloat(e.target.value) || 0 })} />
+              <p className="text-xs text-gray-400 mt-1">Cuanto de tu limite le asignas al ahijado. Si tienes 5000 y asignas 1000, te quedan 4000.</p>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Limite de credito solicitado ({currency})</label>
-              <input type="number" className="input" value={form.requested_credit_limit} onChange={(e) => setForm({ ...form, requested_credit_limit: toCents(e.target.value) })} />
-              <p className="text-xs text-gray-400 mt-1">Maximo saldo positivo que puedes acumular.</p>
+              <input type="number" className="input" value={form.requested_credit_limit} onChange={(e) => setForm({ ...form, requested_credit_limit: parseFloat(e.target.value) || 0 })} />
+              <p className="text-xs text-gray-400 mt-1">Maximo saldo positivo. La asamblea puede modificarlo.</p>
             </div>
             <div>
               <label className="label">Limite de debito solicitado ({currency})</label>
-              <input type="number" className="input" value={form.requested_debit_limit} onChange={(e) => setForm({ ...form, requested_debit_limit: toCents(e.target.value) })} />
-              <p className="text-xs text-gray-400 mt-1">Maximo saldo negativo (deuda) permitido.</p>
+              <input type="number" className="input" value={form.requested_debit_limit} onChange={(e) => setForm({ ...form, requested_debit_limit: parseFloat(e.target.value) || 0 })} />
+              <p className="text-xs text-gray-400 mt-1">Maximo saldo negativo. La asamblea puede modificarlo.</p>
             </div>
           </div>
 
           <div>
             <label className="label">Razon de la solicitud (opcional)</label>
-            <textarea className="input" rows={3} placeholder="Ej: Quiero unirme para intercambiar productos agricolas" value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
+            <textarea className="input" rows={3} placeholder="Ej: Maria es productora de hortalizas y quiere unirse a la feria" value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
           </div>
 
-          <div>
-            <label className="label">Invitado por (opcional)</label>
-            <input className="input" placeholder="Ej: @juan@localhost" value={form.invited_by} onChange={(e) => setForm({ ...form, invited_by: e.target.value })} />
-            <p className="text-xs text-gray-400 mt-1">Si un miembro te invito, indica su usuario. Ayuda a verificar tu identidad.</p>
-          </div>
+          <div className="border-t pt-3">
+            <h3 className="font-medium text-sm mb-2">Documentos de Identidad del ahijado (al menos uno obligatorio)</h3>
+            <p className="text-xs text-gray-500 mb-3">Agrega los documentos del ahijado: cedula, pasaporte, etc.</p>
 
-          <div className="border-t pt-3 mt-3">
-            <h3 className="font-medium text-sm mb-2">Documentos de Identidad (al menos uno obligatorio)</h3>
-            <p className="text-xs text-gray-500 mb-3">Agrega todos los documentos que tengas: cedula, pasaporte, carnet de conducir, etc. La comparacion entre nodos se hace por tipo + numero. Al federar dos nodos, si hay duplicados, ambas asambleas deciden donde te quedas.</p>
-
-            {/* Lista de documentos agregados */}
             {documents.length > 0 && (
               <div className="space-y-2 mb-3">
                 {documents.map((doc, i) => (
@@ -186,7 +223,6 @@ export default function Admission() {
               </div>
             )}
 
-            {/* Formulario para agregar documento */}
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="label">Tipo de documento</label>
@@ -215,10 +251,9 @@ export default function Admission() {
           </div>
 
           <div className="flex gap-2">
-            <button onClick={submitRequest} className="btn-primary">Enviar Solicitud</button>
+            <button onClick={submitRequest} className="btn-primary flex items-center gap-2"><Heart size={16} /> Apadrinar</button>
             <button onClick={() => setShowForm(false)} className="btn-secondary">Cancelar</button>
           </div>
-          {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</div>}
         </div>
       )}
 
@@ -226,7 +261,7 @@ export default function Admission() {
         <div className="card text-center text-gray-500 py-8">
           No hay solicitudes de admision.
           <br />
-          <span className="text-sm">Crea una nueva solicitud con el boton de arriba.</span>
+          <span className="text-sm">Apadrina a un nuevo miembro con el boton de arriba.</span>
         </div>
       ) : (
         <div className="space-y-2">
@@ -237,11 +272,13 @@ export default function Admission() {
             const level = u.proposed_level || u.requested_level || ''
             const reason = u.reason || u.rejection_reason || ''
             const submittedAt = u.submitted_at ? String(u.submitted_at).slice(0, 10) : ''
+            const hasSponsor = !!u.sponsored_by
+            const sponsorAmount = u.sponsor_amount_held || 0
             return (
               <div key={i} className="card">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium">{username}</span>
                       <span className={`text-xs px-2 py-0.5 rounded ${
                         status === 'approved' ? 'bg-green-100 text-green-700' :
@@ -251,20 +288,49 @@ export default function Admission() {
                         {status === 'approved' ? 'Aprobada' : status === 'rejected' ? 'Rechazada' : status === 'expired' ? 'Expirada' : status === 'elevated_to_assembly' ? 'En asamblea' : status === 'defense_pending' ? 'Esperando defensa' : 'Pendiente'}
                       </span>
                       {level && <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">Nivel: {level}</span>}
+                      {hasSponsor ? (
+                        <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded flex items-center gap-1">
+                          <Shield size={12} /> Apadrinado ({fmtTQ(sponsorAmount)} {currency})
+                        </span>
+                      ) : (
+                        <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">Sin padrino</span>
+                      )}
                     </div>
                     <p className="text-sm text-gray-600">{displayName}</p>
                     {reason && <p className="text-xs text-gray-500 mt-1">{reason}</p>}
                     {submittedAt && <p className="text-xs text-gray-400 mt-1">Solicitada: {submittedAt}</p>}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-col">
                     {(status === 'pending' || status === 'pending_review' || status === 'elevated_to_assembly' || status === 'defense_pending') && (
                       <>
-                        <button onClick={() => approve(u.id)} className="btn-primary flex items-center gap-1"><Check size={16} />Aprobar directamente</button>
-                        <button onClick={() => reject(u.id)} className="btn-danger flex items-center gap-1"><X size={16} />Rechazar</button>
+                        {!hasSponsor && sponsoringId !== u.id && (
+                          <button onClick={() => { setSponsoringId(u.id); setSponsorAmount(100) }} className="btn-secondary flex items-center gap-1 text-sm">
+                            <Heart size={16} /> Apadrinar
+                          </button>
+                        )}
+                        {sponsoringId === u.id && (
+                          <div className="flex flex-col gap-1 bg-amber-50 p-2 rounded-lg">
+                            <label className="text-xs text-gray-600">Monto a apadrinar ({currency}):</label>
+                            <input type="number" className="input text-sm" value={sponsorAmount} onChange={(e) => setSponsorAmount(parseFloat(e.target.value) || 0)} />
+                            <div className="flex gap-1">
+                              <button onClick={() => sponsorExisting(u.id)} className="btn-primary text-xs flex-1">Confirmar</button>
+                              <button onClick={() => setSponsoringId(null)} className="btn-secondary text-xs">x</button>
+                            </div>
+                          </div>
+                        )}
+                        {hasSponsor && (
+                          <button onClick={() => approve(u.id)} className="btn-primary flex items-center gap-1 text-sm"><Check size={16} />Aprobar</button>
+                        )}
+                        <button onClick={() => reject(u.id)} className="btn-danger flex items-center gap-1 text-sm"><X size={16} />Rechazar</button>
                       </>
                     )}
                   </div>
                 </div>
+                {!hasSponsor && (status === 'pending' || status === 'pending_review') && (
+                  <div className="text-xs text-amber-600 mt-2 border-t pt-2">
+                    Esta solicitud no tiene padrino. No se puede aprobar sin padrino. Apadrinala asignando un monto de tu limite.
+                  </div>
+                )}
               </div>
             )
           })}

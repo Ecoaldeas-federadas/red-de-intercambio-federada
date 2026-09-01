@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
-import { HelpCircle, User, Key, CreditCard, History, Shield, TrendingUp, Plus, Trash2, Globe } from 'lucide-react'
+import { HelpCircle, User, Key, CreditCard, History, Shield, TrendingUp, Plus, Trash2, Globe, Copy, Check } from 'lucide-react'
 import { fmtTQ } from '../lib/format'
 
 // === Utilidades WebAuthn ===
@@ -55,6 +55,7 @@ export default function Profile() {
   const { currency } = useConfig()
   const [showHelp, setShowHelp] = useState(false)
   const [me, setMe] = useState<any>(null)
+  const [copiedUuid, setCopiedUuid] = useState(false)
   const [myLevel, setMyLevel] = useState<any>(null)
   const [levelLoading, setLevelLoading] = useState(true)
   const [passkeys, setPasskeys] = useState<any[]>([])
@@ -442,6 +443,22 @@ export default function Profile() {
             <div className="flex justify-between"><span className="text-gray-500">Tipo:</span> <b>{me.account_type}</b></div>
             <div className="flex justify-between"><span className="text-gray-500">Balance:</span> <b>{fmtTQ(me.balance)} {currency}</b></div>
             <div className="flex justify-between"><span className="text-gray-500">Estado:</span> <b>{me.membership_status}</b></div>
+            {me.id && (
+              <div className="border-t pt-2 mt-2">
+                <div className="text-gray-500 text-xs mb-1">ID de cuenta (UUID) para pagos manuales:</div>
+                <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-2">
+                  <code className="text-xs text-gray-700 flex-1 break-all">{me.id}</code>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(me.id); setCopiedUuid(true); setTimeout(() => setCopiedUuid(false), 2000) }}
+                    className="flex-shrink-0 p-1.5 rounded hover:bg-gray-200 transition"
+                    title="Copiar UUID"
+                  >
+                    {copiedUuid ? <Check size={14} className="text-green-600" /> : <Copy size={14} className="text-gray-500" />}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Comparte este ID con quien quiera enviarte un pago manual. Tambien esta dentro de tu codigo QR.</p>
+              </div>
+            )}
           </div>
         ) : (
           <p className="text-gray-500 text-sm">Cargando...</p>
