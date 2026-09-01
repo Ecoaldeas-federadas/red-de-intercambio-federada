@@ -641,3 +641,166 @@ data class TerminalLookupResponse(
     @Json(name = "server_public_key") val serverPublicKey: String? = null,
     @Json(name = "message") val message: String? = null
 )
+
+// ============================================
+// NTAG215 Dynamic Certificates
+// ============================================
+
+@JsonClass(generateAdapter = true)
+data class NTAG215PreAuthResponse(
+    @Json(name = "pre_approved") val preApproved: Boolean = false,
+    @Json(name = "card_uid") val cardUid: String? = null,
+    @Json(name = "card_type") val cardType: String? = null,
+    @Json(name = "pwd") val pwd: String? = null, // hex 4 bytes
+    @Json(name = "read_slot") val readSlot: Int = 0,
+    @Json(name = "expected_certificate") val expectedCertificate: String? = null, // hex 16 bytes
+    @Json(name = "write_slot") val writeSlot: Int = 0,
+    @Json(name = "backup_slot") val backupSlot: Int = 0,
+    @Json(name = "new_certificate") val newCertificate: String? = null, // hex 16 bytes
+    @Json(name = "message") val message: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class NTAG215ConfirmDecryptedPayload(
+    @Json(name = "terminal_id") val terminalId: String,
+    @Json(name = "card_uid") val cardUid: String,
+    @Json(name = "read_ok") val readOk: Boolean = true,
+    @Json(name = "write_ok") val writeOk: Boolean = true,
+    @Json(name = "written_pages") val writtenPages: Int = 4
+)
+
+@JsonClass(generateAdapter = true)
+data class ProvisionNTAG215Request(
+    @Json(name = "user_id") val userId: String,
+    @Json(name = "card_uid") val cardUid: String,
+    @Json(name = "initial_pin") val initialPin: String
+)
+
+@JsonClass(generateAdapter = true)
+data class ProvisionNTAG215Response(
+    @Json(name = "card_uid") val cardUid: String = "",
+    @Json(name = "card_type") val cardType: String = "ntag215",
+    @Json(name = "pwd") val pwd: String = "", // hex 4 bytes
+    @Json(name = "pack") val pack: String = "", // hex 2 bytes
+    @Json(name = "custom_card_id") val customCardId: String = "", // hex 8 bytes
+    @Json(name = "auth0") val auth0: Int = 10,
+    @Json(name = "slots") val slots: List<NTAG215SlotData> = emptyList()
+)
+
+@JsonClass(generateAdapter = true)
+data class NTAG215SlotData(
+    @Json(name = "slot_number") val slotNumber: Int = 0,
+    @Json(name = "certificate") val certificate: String = "", // hex 16 bytes
+    @Json(name = "is_active") val isActive: Boolean = false,
+    @Json(name = "is_backup") val isBackup: Boolean = false,
+    @Json(name = "backup_of_slot") val backupOfSlot: Int? = null
+)
+
+// ============================================
+// Ultralight C Dynamic Certificates
+// ============================================
+
+@JsonClass(generateAdapter = true)
+data class UltralightCPreAuthResponse(
+    @Json(name = "pre_approved") val preApproved: Boolean = false,
+    @Json(name = "card_uid") val cardUid: String? = null,
+    @Json(name = "card_type") val cardType: String? = null,
+    @Json(name = "des_key") val desKey: String? = null, // hex 16 bytes
+    @Json(name = "read_slot") val readSlot: Int = 0,
+    @Json(name = "expected_certificate") val expectedCertificate: String? = null, // hex 16 bytes
+    @Json(name = "write_slot") val writeSlot: Int = 0,
+    @Json(name = "backup_slot") val backupSlot: Int = 0,
+    @Json(name = "new_certificate") val newCertificate: String? = null, // hex 16 bytes
+    @Json(name = "message") val message: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class UltralightCConfirmDecryptedPayload(
+    @Json(name = "terminal_id") val terminalId: String,
+    @Json(name = "card_uid") val cardUid: String,
+    @Json(name = "read_ok") val readOk: Boolean = true,
+    @Json(name = "write_ok") val writeOk: Boolean = true,
+    @Json(name = "written_pages") val writtenPages: Int = 4
+)
+
+@JsonClass(generateAdapter = true)
+data class ProvisionUltralightCRequest(
+    @Json(name = "user_id") val userId: String,
+    @Json(name = "card_uid") val cardUid: String,
+    @Json(name = "initial_pin") val initialPin: String
+)
+
+@JsonClass(generateAdapter = true)
+data class ProvisionUltralightCResponse(
+    @Json(name = "card_uid") val cardUid: String = "",
+    @Json(name = "card_type") val cardType: String = "ultralight_c",
+    @Json(name = "des_key") val desKey: String = "", // hex 16 bytes
+    @Json(name = "custom_card_id") val customCardId: String = "", // hex 8 bytes
+    @Json(name = "slots") val slots: List<UltralightCSlotData> = emptyList()
+)
+
+@JsonClass(generateAdapter = true)
+data class UltralightCSlotData(
+    @Json(name = "slot_number") val slotNumber: Int = 0,
+    @Json(name = "certificate") val certificate: String = "", // hex 16 bytes
+    @Json(name = "is_active") val isActive: Boolean = false,
+    @Json(name = "is_backup") val isBackup: Boolean = false,
+    @Json(name = "backup_of_slot") val backupOfSlot: Int? = null
+)
+
+// ============================================
+// Card Types Registry (sistema modular)
+// ============================================
+
+@JsonClass(generateAdapter = true)
+data class CardTypeManifest(
+    @Json(name = "type") val type: String = "",
+    @Json(name = "display_name") val displayName: String = "",
+    @Json(name = "description") val description: String = "",
+    @Json(name = "manufacturer") val manufacturer: String = "",
+    @Json(name = "capacity") val capacity: String = "full", // "full", "low"
+    @Json(name = "security") val security: CardTypeSecurity? = null,
+    @Json(name = "compatibility") val compatibility: CardTypeCompatibility? = null,
+    @Json(name = "protocol") val protocol: CardTypeProtocol? = null,
+    @Json(name = "availability") val availability: CardTypeAvailability? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class CardTypeSecurity(
+    @Json(name = "level") val level: String = "",
+    @Json(name = "algorithm") val algorithm: String = "",
+    @Json(name = "key_length_bits") val keyLengthBits: Int = 0,
+    @Json(name = "mutual_auth") val mutualAuth: Boolean = false,
+    @Json(name = "secure_messaging") val secureMessaging: Boolean = false,
+    @Json(name = "originality_signature") val originalitySignature: Boolean = false,
+    @Json(name = "notes") val notes: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class CardTypeCompatibility(
+    @Json(name = "android") val android: String = "",
+    @Json(name = "ios") val ios: String = "",
+    @Json(name = "esp32_pn532") val esp32Pn532: String = "",
+    @Json(name = "phone_reader") val phoneReader: Boolean = false,
+    @Json(name = "nfc_forum_type") val nfcForumType: Int = 2,
+    @Json(name = "notes") val notes: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class CardTypeProtocol(
+    @Json(name = "slots") val slots: Int = 0,
+    @Json(name = "active_slots") val activeSlots: Int = 0,
+    @Json(name = "backup_slots") val backupSlots: Int = 0,
+    @Json(name = "certificate_size") val certificateSize: Int = 16,
+    @Json(name = "auth_method") val authMethod: String = "",
+    @Json(name = "rotation") val rotation: String = "",
+    @Json(name = "pre_auth_ttl_seconds") val preAuthTtlSeconds: Int = 30
+)
+
+@JsonClass(generateAdapter = true)
+data class CardTypeAvailability(
+    @Json(name = "venezuela") val venezuela: Boolean = false,
+    @Json(name = "price_usd") val priceUsd: Double = 0.0,
+    @Json(name = "notes") val notes: String? = null
+)
+

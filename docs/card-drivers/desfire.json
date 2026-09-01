@@ -1,0 +1,52 @@
+{
+  "type": "desfire",
+  "display_name": "MIFARE DESFire EV3",
+  "description": "Tarjeta NFC Type 4 con AES-128/256, multi-aplicacion y per-file access control. Alta seguridad certificada EAL5+.",
+  "manufacturer": "NXP Semiconductors",
+  "capacity": "full",
+  "memory": {
+    "total_bytes": 4096,
+    "user_bytes": 4000,
+    "nfc_forum_type": 4
+  },
+  "security": {
+    "level": "aes",
+    "algorithm": "AES-128/192/256",
+    "key_length_bits": 128,
+    "key_count": 28,
+    "mutual_auth": true,
+    "secure_messaging": true,
+    "crypto_per_slot": false,
+    "originality_signature": true,
+    "certification": "Common Criteria EAL5+",
+    "notes": "AES real. No necesita certificados rotativos."
+  },
+  "compatibility": {
+    "android": "full",
+    "ios": "full",
+    "esp32_pn532": "full",
+    "phone_reader": true,
+    "nfc_forum_type": 4,
+    "notes": "Universal — funciona en todos los telefonos NFC Android y iOS"
+  },
+  "protocol": {
+    "slots": 0,
+    "auth_method": "AES-128_mutual",
+    "rotation": "none",
+    "pre_auth_ttl_seconds": 30,
+    "notes": "No usa certificados rotativos. AES-128 es suficiente."
+  },
+  "availability": {
+    "venezuela": false,
+    "price_usd": 1.50,
+    "notes": "Muy dificil de conseguir en Venezuela. Maxima seguridad si se consigue."
+  },
+  "endpoints": {
+    "provision": "/api/nfc/cards/provision-desfire",
+    "pre_auth": "/api/nfc/terminal/desfire/pre-auth",
+    "confirm": "/api/nfc/terminal/desfire/confirm"
+  },
+  "docs": [
+    "docs/nfc_hardware.md"
+  ]
+}

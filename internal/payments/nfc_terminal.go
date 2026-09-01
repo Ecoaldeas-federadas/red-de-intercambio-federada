@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"federated-credit-node/internal/crypto"
+	"federated-credit-node/internal/payments/cards"
 	"fmt"
 	"log"
 	"time"
@@ -2056,4 +2057,115 @@ func strPtr(n sql.NullString) *string {
 	}
 	s := n.String
 	return &s
+}
+
+// ===== HELPERS PARA DRIVERS MODULARES (NTAG215, Ultralight C, etc.) =====
+
+// LookupUserByUsername busca un usuario por username (case-insensitive) y devuelve
+// su ID. Soporta usuarios locales y remotos (vía federation).
+func (nt *NFCTerminals) LookupUserByUsername(ctx context.Context, username string) (uuid.UUID, error) {
+	localNode := nt.NodeDomain
+	lookupUsername, lookupNode := parseUsername(username, localNode)
+
+	if lookupNode == localNode {
+		var userID uuid.UUID
+		err := nt.Pool.QueryRow(ctx,
+			`SELECT id FROM users WHERE LOWER(username) = LOWER($1) AND node_domain = $2`,
+			lookupUsername, localNode,
+		).Scan(&userID)
+		if err != nil {
+			return uuid.Nil, fmt.Errorf("usuario no encontrado")
+		}
+		return userID, nil
+	}
+
+	userID, err := nt.lookupRemoteUserWithRetry(ctx, lookupUsername, lookupNode, 3)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("no se pudo contactar al nodo del usuario")
+	}
+	return userID, nil
+}
+
+// VerifyCardPIN verifica el PIN de una tarjeta activa por card_uid.
+func (nt *NFCTerminals) VerifyCardPIN(ctx context.Context, cardUID, pin string) error {
+	var pinHash *string
+	err := nt.Pool.QueryRow(ctx,
+		`SELECT pin_hash FROM nfc_cards WHERE card_uid = $1 AND is_active = true`,
+		cardUID,
+	).Scan(&pinHash)
+	if err != nil || pinHash == nil {
+		return fmt.Errorf("tarjeta no encontrada")
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(*pinHash), []byte(pin)); err != nil {
+		return fmt.Errorf("PIN incorrecto")
+	}
+	return nil
+}
+
+// VerifyUserDocument verifica el documento de identidad de un usuario.
+func (nt *NFCTerminals) VerifyUserDocument(ctx context.Context, userID uuid.UUID, docType, docNumber string) (bool, error) {
+	return nt.verifyIDDocument(ctx, userID, docType, docNumber)
+}
+
+// GetCardRequiredDocType obtiene el required_doc_type de una tarjeta.
+func (nt *NFCTerminals) GetCardRequiredDocType(ctx context.Context, cardUID string) (*string, error) {
+	var docType *string
+	err := nt.Pool.QueryRow(ctx,
+		`SELECT required_doc_type FROM nfc_cards WHERE card_uid = $1 AND is_active = true`,
+		cardUID,
+	).Scan(&docType)
+	if err != nil {
+		return nil, err
+	}
+	return docType, nil
+}
+
+// FindActiveCardByType busca la tarjeta activa de un usuario de un tipo específico.
+func (nt *NFCTerminals) FindActiveCardByType(ctx context.Context, userID uuid.UUID, cardType string) (cardUID string, err error) {
+	err = nt.Pool.QueryRow(ctx,
+		`SELECT card_uid FROM nfc_cards WHERE user_id = $1 AND is_active = true AND card_type = $2 ORDER BY issued_at DESC LIMIT 1`,
+		userID, cardType,
+	).Scan(&cardUID)
+	if err != nil {
+		return "", fmt.Errorf("no se encontro tarjeta %s activa para este usuario", cardType)
+	}
+	return cardUID, nil
+}
+
+// ProvisionNTAG215Card delega al driver NTAG215 del registry modular.
+func (nt *NFCTerminals) ProvisionNTAG215Card(ctx context.Context, userID uuid.UUID, cardUID, initialPIN string) (interface{}, error) {
+	return cards.ProvisionNTAG215(ctx, nt.Pool, nt.NodeDomain, userID, cardUID, initialPIN)
+}
+
+// ProvisionUltralightCCard delega al driver Ultralight C del registry modular.
+func (nt *NFCTerminals) ProvisionUltralightCCard(ctx context.Context, userID uuid.UUID, cardUID, initialPIN string) (interface{}, error) {
+	return cards.ProvisionUltralightC(ctx, nt.Pool, nt.NodeDomain, userID, cardUID, initialPIN)
+}
+
+// NTAG215PreAuth delega al driver NTAG215 del registry modular.
+func (nt *NFCTerminals) NTAG215PreAuth(ctx context.Context, terminalID string, userID uuid.UUID, amount int64) (interface{}, error) {
+	return cards.NTAG215PreAuth(ctx, nt.Pool, nt.NodeDomain, terminalID, userID, amount)
+}
+
+// NTAG215Confirm delega al driver NTAG215 del registry modular.
+func (nt *NFCTerminals) NTAG215Confirm(ctx context.Context, terminalID, cardUID string, readOK, writeOK bool, writtenPages int) (*cards.NFCPaymentResult, error) {
+	return cards.NTAG215Confirm(ctx, nt.Pool, nt.NodeDomain, terminalID, cardUID, cards.ConfirmData{
+		ReadOK:       readOK,
+		WriteOK:      writeOK,
+		WrittenPages: writtenPages,
+	})
+}
+
+// UltralightCPreAuth delega al driver Ultralight C del registry modular.
+func (nt *NFCTerminals) UltralightCPreAuth(ctx context.Context, terminalID string, userID uuid.UUID, amount int64) (interface{}, error) {
+	return cards.UltralightCPreAuth(ctx, nt.Pool, nt.NodeDomain, terminalID, userID, amount)
+}
+
+// UltralightCConfirm delega al driver Ultralight C del registry modular.
+func (nt *NFCTerminals) UltralightCConfirm(ctx context.Context, terminalID, cardUID string, readOK, writeOK bool, writtenPages int) (*cards.NFCPaymentResult, error) {
+	return cards.UltralightCConfirm(ctx, nt.Pool, nt.NodeDomain, terminalID, cardUID, cards.ConfirmData{
+		ReadOK:       readOK,
+		WriteOK:      writeOK,
+		WrittenPages: writtenPages,
+	})
 }

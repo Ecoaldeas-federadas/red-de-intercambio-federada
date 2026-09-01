@@ -1,0 +1,61 @@
+{
+  "type": "ultralight_c",
+  "display_name": "MIFARE Ultralight C",
+  "description": "Tarjeta NFC Type 2 con 3DES (112-bit), mejor cripto que Classic pero solo 148 bytes = 8 slots. Baja capacidad. Usar si no se consigue NTAG215.",
+  "manufacturer": "NXP Semiconductors",
+  "capacity": "low",
+  "memory": {
+    "total_bytes": 192,
+    "user_bytes": 148,
+    "page_size": 4,
+    "total_pages": 48,
+    "user_pages": 37
+  },
+  "security": {
+    "level": "3des",
+    "algorithm": "3DES-112bit",
+    "key_length_bits": 112,
+    "key_count": 1,
+    "mutual_auth": true,
+    "secure_messaging": false,
+    "crypto_per_slot": false,
+    "originality_signature": false,
+    "auth_limit_configurable": false,
+    "notes": "Mejor criptografia que Classic. Sin secure messaging post-auth."
+  },
+  "compatibility": {
+    "android": "partial",
+    "ios": "partial",
+    "esp32_pn532": "full",
+    "phone_reader": true,
+    "nfc_forum_type": 2,
+    "notes": "Implementacion de MifareUltralight es opcional en Android — puede no funcionar en todos los telefonos"
+  },
+  "protocol": {
+    "slots": 8,
+    "active_slots": 4,
+    "backup_slots": 4,
+    "certificate_size": 16,
+    "redundancy": 2,
+    "public_zone_pages": 4,
+    "public_zone_start_page": 4,
+    "private_zone_start_page": 8,
+    "private_zone_end_page": 39,
+    "auth_method": "3DES_3pass_mutual",
+    "rotation": "random_per_transaction",
+    "pre_auth_ttl_seconds": 30
+  },
+  "availability": {
+    "venezuela": true,
+    "price_usd": 0.15,
+    "notes": "Usar solo si no se consigue NTAG215. Menos slots pero mejor cripto que Classic."
+  },
+  "endpoints": {
+    "provision": "/api/nfc/cards/provision-ultralight-c",
+    "pre_auth": "/api/nfc/terminal/ultralight-c/pre-auth",
+    "confirm": "/api/nfc/terminal/ultralight-c/confirm"
+  },
+  "docs": [
+    "docs/tarjeta-ultralight-c-protocolo.md"
+  ]
+}

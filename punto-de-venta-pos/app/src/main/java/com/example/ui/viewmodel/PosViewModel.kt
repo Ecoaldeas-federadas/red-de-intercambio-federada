@@ -1421,9 +1421,7 @@ class PosViewModel(
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
-                                    customerUserId = resp.userId,
-                                    customerDisplayName = resp.displayName,
-                                    customerCardType = resp.cardType,
+                                    userLookupResult = resp,
                                     requiresDocument = resp.requiresDocument,
                                     detectedCardType = resp.cardType ?: "uid_only",
                                     isClassicFlow = resp.requiresDocument,
@@ -2022,6 +2020,116 @@ class PosViewModel(
                         writeProgress = "",
                         isNfcWaitingCard = false,
                         errorMessage = err.message
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Flujo generico de tarjeta con certificados dinamicos usando CardReaderRegistry.
+     * Soporta MIFARE Classic, NTAG215, Ultralight C y DESFire.
+     *
+     * Se llama desde MainActivity cuando se detecta un tag NFC y estamos en
+     * el paso "tap_card" de un flujo con certificados dinamicos.
+     *
+     * @param tag el Tag NFC de Android
+     * @param cardReader el reader detectado por CardReaderRegistry
+     * @param readSlot slot a leer
+     * @param writeSlot slot a escribir
+     * @param authData datos de autenticacion (Key A, PWD, clave 3DES, etc.)
+     * @param expectedCert certificado esperado en el slot de lectura
+     * @param newCert nuevo certificado a escribir
+     * @param confirmCallback funcion que confirma al servidor (readOk, writeOk, writtenPages)
+     */
+    fun onDynamicCardTapped(
+        tag: android.nfc.Tag,
+        cardReader: com.example.data.nfc.CardReader,
+        readSlot: Int,
+        writeSlot: Int,
+        authData: ByteArray,
+        expectedCert: ByteArray,
+        newCert: ByteArray,
+        confirmCallback: suspend (Boolean, Boolean, Int) -> com.example.data.api.PaymentResultDecrypted
+    ) {
+        val state = _uiState.value
+        if (state.classicStep != "tap_card") return
+
+        classicTimeoutJob?.cancel()
+
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(isWritingCard = true, classicStep = "writing", writeProgress = "Leyendo tarjeta...")
+            }
+
+            // 1. Verificar UID
+            val uid = cardReader.readUid(tag)
+            if (uid != state.detectedCardUid) {
+                FeedbackHelper.playError(getApplication())
+                _uiState.update {
+                    it.copy(
+                        isWritingCard = false,
+                        classicStep = "idle",
+                        errorMessage = "La tarjeta no coincide con el usuario autenticado"
+                    )
+                }
+                return@launch
+            }
+
+            // 2. Leer certificado del slot activo
+            val readCert = cardReader.readCertificate(tag, readSlot, authData)
+
+            if (readCert == null || !readCert.contentEquals(expectedCert)) {
+                FeedbackHelper.playError(getApplication())
+                _uiState.update {
+                    it.copy(
+                        isWritingCard = false,
+                        classicStep = "idle",
+                        errorMessage = "No se pudo leer el certificado de la tarjeta"
+                    )
+                }
+                // Confirmar fallo al servidor
+                confirmCallback(false, false, 0)
+                return@launch
+            }
+
+            // 3. Escribir nuevo certificado
+            _uiState.update { it.copy(writeProgress = "Escribiendo nueva clave en tarjeta...") }
+            val writeOk = cardReader.writeCertificate(tag, writeSlot, newCert, authData)
+
+            // 4. Verificar escritura
+            var writtenPages = 0
+            if (writeOk) {
+                _uiState.update { it.copy(writeProgress = "Verificando escritura...") }
+                writtenPages = cardReader.verifyWrite(tag, writeSlot, newCert, authData)
+            }
+
+            // 5. Confirmar al servidor
+            _uiState.update { it.copy(writeProgress = "Confirmando transacción...") }
+            val confirmResult = confirmCallback(true, writeOk && writtenPages > 0, writtenPages)
+
+            if (confirmResult.status == "approved") {
+                FeedbackHelper.playSuccess(getApplication())
+                val centavos = CurrencyHelper.parseInputToCentavos(state.amountInput)
+                _uiState.update {
+                    it.copy(
+                        isWritingCard = false,
+                        classicStep = "done",
+                        writeProgress = "",
+                        nfcPaymentResult = confirmResult,
+                        isNfcWaitingCard = false,
+                        successMessage = "¡Cobro NFC aprobado exitosamente por ${CurrencyHelper.formatCentavos(centavos)}!"
+                    )
+                }
+            } else {
+                FeedbackHelper.playError(getApplication())
+                _uiState.update {
+                    it.copy(
+                        isWritingCard = false,
+                        classicStep = "idle",
+                        writeProgress = "",
+                        isNfcWaitingCard = false,
+                        errorMessage = confirmResult.message ?: "Transacción rechazada"
                     )
                 }
             }

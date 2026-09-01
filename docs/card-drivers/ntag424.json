@@ -1,0 +1,53 @@
+{
+  "type": "ntag424",
+  "display_name": "NTAG424 DNA",
+  "description": "Tarjeta NFC Type 4 con AES-128 y SUN (Secure Unique Messaging). MAC dinamico por lectura. Alta seguridad.",
+  "manufacturer": "NXP Semiconductors",
+  "capacity": "full",
+  "memory": {
+    "total_bytes": 416,
+    "user_bytes": 416,
+    "page_size": 4,
+    "nfc_forum_type": 4
+  },
+  "security": {
+    "level": "aes",
+    "algorithm": "AES-128",
+    "key_length_bits": 128,
+    "key_count": 5,
+    "mutual_auth": true,
+    "secure_messaging": true,
+    "crypto_per_slot": false,
+    "originality_signature": true,
+    "sun_mac": true,
+    "notes": "SUN genera MAC dinamico por lectura. No necesita certificados rotativos."
+  },
+  "compatibility": {
+    "android": "full",
+    "ios": "full",
+    "esp32_pn532": "full",
+    "phone_reader": true,
+    "nfc_forum_type": 4,
+    "notes": "Universal — funciona en todos los telefonos NFC Android y iOS"
+  },
+  "protocol": {
+    "slots": 0,
+    "auth_method": "AES-128_SUN",
+    "rotation": "none",
+    "pre_auth_ttl_seconds": 30,
+    "notes": "No usa certificados rotativos. El MAC SUN es dinamico por lectura."
+  },
+  "availability": {
+    "venezuela": false,
+    "price_usd": 0.50,
+    "notes": "Dificil de conseguir en Venezuela. Alta seguridad si se consigue."
+  },
+  "endpoints": {
+    "provision": "/api/nfc/cards/provision-ntag424",
+    "pre_auth": "/api/nfc/terminal/ntag424/pre-auth",
+    "confirm": "/api/nfc/terminal/ntag424/confirm"
+  },
+  "docs": [
+    "docs/nfc_hardware.md"
+  ]
+}

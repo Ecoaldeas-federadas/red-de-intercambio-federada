@@ -34,6 +34,10 @@
 30. [Tarjeta MIFARE Classic — Certificados Dinamicos](tarjeta-classic-certificados.md) - Modelo de 6 capas, provisionamiento, rotacion, recuperacion, limitaciones
 31. [POS Android — Documentacion](../punto-de-venta-pos/docs/README.md) - Arquitectura, flujos de pago, API, criptografia, modo demo, build/deploy (13 documentos)
 32. [POS Web — Documentacion](../pos/README.md) - Punto de venta web (React/Vite), flujo QR, flujo NFC unificado, terminal auth
+33. [Catalogo de Tarjetas NFC](nfc_tipos_tarjetas.md) - Tipos soportados, compatibilidad, seguridad, memoria, disponibilidad en Venezuela
+34. [Protocolo NTAG215](tarjeta-ntag215-protocolo.md) - 30 slots, PWD unica, rotacion aleatoria, compatible con todos los telefonos
+35. [Protocolo Ultralight C](tarjeta-ultralight-c-protocolo.md) - 8 slots, 3DES 112-bit, baja capacidad, fallback si no hay NTAG215
+36. [Drivers de Tarjetas NFC](card-drivers/) - Manifiestos JSON modulares por tipo de tarjeta
 
 ## Estado de Implementacion
 

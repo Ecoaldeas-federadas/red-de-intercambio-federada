@@ -186,18 +186,24 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         val tagId = tag.id ?: return
         val cardUid = CryptoEngine.bytesToHex(tagId)
         val techList = tag.techList.toList()
-        val isDesfire = techList.any {
+
+        // Detectar tipo de tarjeta usando el registry modular
+        val detectedReader = com.example.data.nfc.CardReaderRegistry.detectReader(tag)
+        val cardType = detectedReader?.cardType
+        val isDesfire = cardType == "desfire" || techList.any {
             it.contains("IsoDep", ignoreCase = true) || it.contains("Desfire", ignoreCase = true)
         }
-        val isMifareClassic = techList.any { it == "android.nfc.tech.MifareClassic" }
+        val isMifareClassic = cardType == "classic" || techList.any { it == "android.nfc.tech.MifareClassic" }
+        val isNtag215 = cardType == "ntag215"
+        val isUltralightC = cardType == "ultralight_c"
 
-        // Guardar el tag para el flujo Classic (lectura/escritura de sectores)
-        if (isMifareClassic) {
+        // Guardar el tag para flujos que requieren lectura/escritura fisica
+        if (isMifareClassic || isNtag215 || isUltralightC) {
             lastDiscoveredTag = tag
         }
 
         runOnUiThread {
-            processCardTap(cardUid, isDesfire, isMifareClassic, if (isMifareClassic) tag else null)
+            processCardTap(cardUid, isDesfire, isMifareClassic, if (isMifareClassic || isNtag215 || isUltralightC) tag else null)
         }
     }
 
@@ -214,7 +220,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                 }
 
                 // Flujo Classic: si tenemos tag fisico, leer/escribir sectores
-                if (state.isClassicFlow && tag != null) {
+                if (state.isClassicFlow && tag != null && isMifareClassic) {
                     val reader = com.example.data.nfc.MifareClassicReader()
                     viewModel.onClassicCardTapped(tag, reader)
                     return
@@ -241,9 +247,12 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             }
             is PosScreen.ProvisionCard -> {
                 // En provisionamiento, leer el UID de la tarjeta en blanco
-                if (isMifareClassic && tag != null) {
-                    // El UID ya se leyo, solo actualizar el estado
-                    viewModel.setProvisionCardUid(cardUid)
+                // Aceptar cualquier tipo de tarjeta soportada
+                if (tag != null) {
+                    val detectedReader = com.example.data.nfc.CardReaderRegistry.detectReader(tag)
+                    if (detectedReader != null || isMifareClassic) {
+                        viewModel.setProvisionCardUid(cardUid)
+                    }
                 }
             }
             else -> {

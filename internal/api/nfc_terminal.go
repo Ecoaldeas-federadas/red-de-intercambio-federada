@@ -17,6 +17,7 @@ import (
 
 	"federated-credit-node/internal/db"
 	"federated-credit-node/internal/payments"
+	"federated-credit-node/internal/payments/cards"
 )
 
 type NFCTerminalHandler struct {
@@ -50,6 +51,19 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.Post("/api/nfc/terminal/classic/pre-auth-document", h.classicPreAuthWithDocument)
 	r.Post("/api/nfc/terminal/classic/confirm", h.classicConfirm)
 	r.Post("/api/nfc/terminal/user-lookup", h.userLookup)
+
+	// NTAG215 dynamic certificates (terminal-facing, Ed25519 auth)
+	r.Post("/api/nfc/terminal/ntag215/pre-auth", h.ntag215PreAuth)
+	r.Post("/api/nfc/terminal/ntag215/pre-auth-document", h.ntag215PreAuthWithDocument)
+	r.Post("/api/nfc/terminal/ntag215/confirm", h.ntag215Confirm)
+
+	// Ultralight C dynamic certificates (terminal-facing, Ed25519 auth)
+	r.Post("/api/nfc/terminal/ultralight-c/pre-auth", h.ultralightCPreAuth)
+	r.Post("/api/nfc/terminal/ultralight-c/pre-auth-document", h.ultralightCPreAuthWithDocument)
+	r.Post("/api/nfc/terminal/ultralight-c/confirm", h.ultralightCConfirm)
+
+	// Card types registry (lista tipos soportados desde el sistema modular)
+	r.With(am.RequireAuth).Get("/api/nfc/card-types", h.listCardTypes)
 
 	// Terminal pairing by short code (no auth required for initiate/status)
 	r.Post("/api/nfc/terminal/pair/initiate", h.initiatePairing)
@@ -137,6 +151,8 @@ func (h *NFCTerminalHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 
 	r.With(am.RequirePermission("nfc.issue_card")).Post("/api/nfc/cards/issue", h.issueCryptoCard)
 	r.With(am.RequirePermission("nfc.issue_card")).Post("/api/nfc/cards/provision-classic", h.provisionClassicCard)
+	r.With(am.RequirePermission("nfc.issue_card")).Post("/api/nfc/cards/provision-ntag215", h.provisionNTAG215Card)
+	r.With(am.RequirePermission("nfc.issue_card")).Post("/api/nfc/cards/provision-ultralight-c", h.provisionUltralightCCard)
 	r.With(am.RequireAuth).Get("/api/nfc/cards", h.listCards)
 	r.With(am.RequireAuth).Get("/api/nfc/cards/all", h.listAllCards)
 	r.With(am.RequirePermission("nfc.initialize_card")).Get("/api/nfc/cards/pending-initialization", h.listPendingInitializationCards)
@@ -600,9 +616,14 @@ func (h *NFCTerminalHandler) issueCryptoCard(w http.ResponseWriter, r *http.Requ
 		req.CardType = "classic"
 	}
 	// uid_only no es soportado: las tarjetas simples solo con UID son inseguras
-	// para un sistema bancario. Solo se soportan classic, ntag424 y desfire.
+	// para un sistema bancario. Solo se soportan tipos del registry modular.
 	if req.CardType == "uid_only" {
-		writeError(w, 400, "tipo de tarjeta no soportado. Use classic, ntag424 o desfire.")
+		writeError(w, 400, "tipo de tarjeta no soportado. Use classic, ntag215, ultralight_c, ntag424 o desfire.")
+		return
+	}
+	// Validar que el tipo esté en el registry modular
+	if !cards.IsSupportedCardType(req.CardType) {
+		writeError(w, 400, "tipo de tarjeta no soportado. Use classic, ntag215, ultralight_c, ntag424 o desfire.")
 		return
 	}
 
@@ -4069,6 +4090,577 @@ func (h *NFCTerminalHandler) classicConfirm(w http.ResponseWriter, r *http.Reque
 	}
 
 	resp, err := h.NFC.ConfirmClassicTransaction(r.Context(), payload.TerminalID, payload.CardUID, payload.ReadOK, payload.WriteOK, payload.WrittenBlocks)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	respBytes, _ := json.Marshal(resp)
+	encResp, err := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, encResp)
+}
+
+// ===== DRIVERS MODULARES: NTAG215 + Ultralight C =====
+
+// listCardTypes devuelve la lista de tipos de tarjeta soportados desde el registry modular.
+func (h *NFCTerminalHandler) listCardTypes(w http.ResponseWriter, r *http.Request) {
+	manifests := cards.ListDrivers()
+	if manifests == nil {
+		manifests = []cards.CardManifest{}
+	}
+	writeJSON(w, 200, manifests)
+}
+
+// provisionNTAG215Card genera 30 slots con certificados y PWD única.
+func (h *NFCTerminalHandler) provisionNTAG215Card(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		UserID     string `json:"user_id"`
+		CardUID    string `json:"card_uid"`
+		InitialPIN string `json:"initial_pin"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.CardUID == "" || req.InitialPIN == "" || req.UserID == "" {
+		writeError(w, 400, "user_id, card_uid and initial_pin are required")
+		return
+	}
+
+	userID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		writeError(w, 400, "invalid user_id")
+		return
+	}
+
+	resp, err := h.NFC.ProvisionNTAG215Card(r.Context(), userID, req.CardUID, req.InitialPIN)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	writeJSON(w, 201, resp)
+}
+
+// provisionUltralightCCard genera 8 slots con certificados y clave 3DES.
+func (h *NFCTerminalHandler) provisionUltralightCCard(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		UserID     string `json:"user_id"`
+		CardUID    string `json:"card_uid"`
+		InitialPIN string `json:"initial_pin"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.CardUID == "" || req.InitialPIN == "" || req.UserID == "" {
+		writeError(w, 400, "user_id, card_uid and initial_pin are required")
+		return
+	}
+
+	userID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		writeError(w, 400, "invalid user_id")
+		return
+	}
+
+	resp, err := h.NFC.ProvisionUltralightCCard(r.Context(), userID, req.CardUID, req.InitialPIN)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	writeJSON(w, 201, resp)
+}
+
+// ntag215PreAuth valida username + PIN + saldo y prepara la rotación NTAG215.
+func (h *NFCTerminalHandler) ntag215PreAuth(w http.ResponseWriter, r *http.Request) {
+	var req ProcessPaymentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	plaintext, sharedKey, err := h.NFC.DecodePayload(r.Context(), req.TerminalID, req.EncryptedPayload)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+
+	var payload struct {
+		TerminalID string `json:"terminal_id"`
+		Username   string `json:"username"`
+		PIN        string `json:"pin"`
+		Amount     int64  `json:"amount"`
+	}
+	if err := json.Unmarshal(plaintext, &payload); err != nil {
+		writeError(w, 400, "invalid payload format")
+		return
+	}
+
+	if payload.Username == "" || payload.PIN == "" {
+		writeError(w, 400, "username and pin are required")
+		return
+	}
+
+	// 1. Buscar usuario por username
+	userID, err := h.NFC.LookupUserByUsername(r.Context(), payload.Username)
+	if err != nil {
+		resp := map[string]interface{}{"pre_approved": false, "message": err.Error()}
+		respBytes, _ := json.Marshal(resp)
+		encResp, encErr := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+		if encErr != nil {
+			writeError(w, 500, encErr.Error())
+			return
+		}
+		writeJSON(w, 200, encResp)
+		return
+	}
+
+	// 2. Buscar tarjeta NTAG215 activa
+	cardUID, err := h.NFC.FindActiveCardByType(r.Context(), userID, "ntag215")
+	if err != nil {
+		resp := map[string]interface{}{"pre_approved": false, "message": err.Error()}
+		respBytes, _ := json.Marshal(resp)
+		encResp, encErr := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+		if encErr != nil {
+			writeError(w, 500, encErr.Error())
+			return
+		}
+		writeJSON(w, 200, encResp)
+		return
+	}
+
+	// 3. Verificar PIN
+	if err := h.NFC.VerifyCardPIN(r.Context(), cardUID, payload.PIN); err != nil {
+		resp := map[string]interface{}{"pre_approved": false, "message": err.Error()}
+		respBytes, _ := json.Marshal(resp)
+		encResp, encErr := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+		if encErr != nil {
+			writeError(w, 500, encErr.Error())
+			return
+		}
+		writeJSON(w, 200, encResp)
+		return
+	}
+
+	// 4. Llamar al driver NTAG215
+	resp, err := h.NFC.NTAG215PreAuth(r.Context(), payload.TerminalID, userID, payload.Amount)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	respBytes, _ := json.Marshal(resp)
+	encResp, err := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, encResp)
+}
+
+// ntag215PreAuthWithDocument valida username + documento + PIN + saldo.
+func (h *NFCTerminalHandler) ntag215PreAuthWithDocument(w http.ResponseWriter, r *http.Request) {
+	var req ProcessPaymentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	plaintext, sharedKey, err := h.NFC.DecodePayload(r.Context(), req.TerminalID, req.EncryptedPayload)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+
+	var payload struct {
+		TerminalID string `json:"terminal_id"`
+		Username   string `json:"username"`
+		DocType    string `json:"doc_type"`
+		DocNumber  string `json:"doc_number"`
+		PIN        string `json:"pin"`
+		Amount     int64  `json:"amount"`
+	}
+	if err := json.Unmarshal(plaintext, &payload); err != nil {
+		writeError(w, 400, "invalid payload format")
+		return
+	}
+
+	if payload.Username == "" || payload.DocNumber == "" || payload.PIN == "" {
+		writeError(w, 400, "username, doc_number and pin are required")
+		return
+	}
+
+	// 1. Buscar usuario por username
+	userID, err := h.NFC.LookupUserByUsername(r.Context(), payload.Username)
+	if err != nil {
+		resp := map[string]interface{}{"pre_approved": false, "message": err.Error()}
+		respBytes, _ := json.Marshal(resp)
+		encResp, encErr := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+		if encErr != nil {
+			writeError(w, 500, encErr.Error())
+			return
+		}
+		writeJSON(w, 200, encResp)
+		return
+	}
+
+	// 2. Buscar tarjeta NTAG215 activa
+	cardUID, err := h.NFC.FindActiveCardByType(r.Context(), userID, "ntag215")
+	if err != nil {
+		resp := map[string]interface{}{"pre_approved": false, "message": err.Error()}
+		respBytes, _ := json.Marshal(resp)
+		encResp, encErr := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+		if encErr != nil {
+			writeError(w, 500, encErr.Error())
+			return
+		}
+		writeJSON(w, 200, encResp)
+		return
+	}
+
+	// 3. Verificar required_doc_type
+	reqDocType, _ := h.NFC.GetCardRequiredDocType(r.Context(), cardUID)
+	if reqDocType != nil && *reqDocType != "" && payload.DocType != *reqDocType {
+		resp := map[string]interface{}{"pre_approved": false, "message": "tipo de documento incorrecto para esta tarjeta"}
+		respBytes, _ := json.Marshal(resp)
+		encResp, encErr := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+		if encErr != nil {
+			writeError(w, 500, encErr.Error())
+			return
+		}
+		writeJSON(w, 200, encResp)
+		return
+	}
+
+	// 4. Verificar documento
+	docOK, err := h.NFC.VerifyUserDocument(r.Context(), userID, payload.DocType, payload.DocNumber)
+	if err != nil || !docOK {
+		resp := map[string]interface{}{"pre_approved": false, "message": "documento de identidad no coincide"}
+		respBytes, _ := json.Marshal(resp)
+		encResp, encErr := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+		if encErr != nil {
+			writeError(w, 500, encErr.Error())
+			return
+		}
+		writeJSON(w, 200, encResp)
+		return
+	}
+
+	// 5. Verificar PIN
+	if err := h.NFC.VerifyCardPIN(r.Context(), cardUID, payload.PIN); err != nil {
+		resp := map[string]interface{}{"pre_approved": false, "message": err.Error()}
+		respBytes, _ := json.Marshal(resp)
+		encResp, encErr := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+		if encErr != nil {
+			writeError(w, 500, encErr.Error())
+			return
+		}
+		writeJSON(w, 200, encResp)
+		return
+	}
+
+	// 6. Llamar al driver NTAG215
+	resp, err := h.NFC.NTAG215PreAuth(r.Context(), payload.TerminalID, userID, payload.Amount)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	respBytes, _ := json.Marshal(resp)
+	encResp, err := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, encResp)
+}
+
+// ntag215Confirm confirma la lectura/escritura de la tarjeta NTAG215.
+func (h *NFCTerminalHandler) ntag215Confirm(w http.ResponseWriter, r *http.Request) {
+	var req ProcessPaymentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	plaintext, sharedKey, err := h.NFC.DecodePayload(r.Context(), req.TerminalID, req.EncryptedPayload)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+
+	var payload struct {
+		TerminalID   string `json:"terminal_id"`
+		CardUID      string `json:"card_uid"`
+		ReadOK       bool   `json:"read_ok"`
+		WriteOK      bool   `json:"write_ok"`
+		WrittenPages int    `json:"written_pages"`
+	}
+	if err := json.Unmarshal(plaintext, &payload); err != nil {
+		writeError(w, 400, "invalid payload format")
+		return
+	}
+
+	if payload.CardUID == "" {
+		writeError(w, 400, "card_uid is required")
+		return
+	}
+
+	resp, err := h.NFC.NTAG215Confirm(r.Context(), payload.TerminalID, payload.CardUID, payload.ReadOK, payload.WriteOK, payload.WrittenPages)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	respBytes, _ := json.Marshal(resp)
+	encResp, err := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, encResp)
+}
+
+// ultralightCPreAuth valida username + PIN + saldo y prepara la rotación Ultralight C.
+func (h *NFCTerminalHandler) ultralightCPreAuth(w http.ResponseWriter, r *http.Request) {
+	var req ProcessPaymentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	plaintext, sharedKey, err := h.NFC.DecodePayload(r.Context(), req.TerminalID, req.EncryptedPayload)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+
+	var payload struct {
+		TerminalID string `json:"terminal_id"`
+		Username   string `json:"username"`
+		PIN        string `json:"pin"`
+		Amount     int64  `json:"amount"`
+	}
+	if err := json.Unmarshal(plaintext, &payload); err != nil {
+		writeError(w, 400, "invalid payload format")
+		return
+	}
+
+	if payload.Username == "" || payload.PIN == "" {
+		writeError(w, 400, "username and pin are required")
+		return
+	}
+
+	// 1. Buscar usuario por username
+	userID, err := h.NFC.LookupUserByUsername(r.Context(), payload.Username)
+	if err != nil {
+		resp := map[string]interface{}{"pre_approved": false, "message": err.Error()}
+		respBytes, _ := json.Marshal(resp)
+		encResp, encErr := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+		if encErr != nil {
+			writeError(w, 500, encErr.Error())
+			return
+		}
+		writeJSON(w, 200, encResp)
+		return
+	}
+
+	// 2. Buscar tarjeta Ultralight C activa
+	cardUID, err := h.NFC.FindActiveCardByType(r.Context(), userID, "ultralight_c")
+	if err != nil {
+		resp := map[string]interface{}{"pre_approved": false, "message": err.Error()}
+		respBytes, _ := json.Marshal(resp)
+		encResp, encErr := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+		if encErr != nil {
+			writeError(w, 500, encErr.Error())
+			return
+		}
+		writeJSON(w, 200, encResp)
+		return
+	}
+
+	// 3. Verificar PIN
+	if err := h.NFC.VerifyCardPIN(r.Context(), cardUID, payload.PIN); err != nil {
+		resp := map[string]interface{}{"pre_approved": false, "message": err.Error()}
+		respBytes, _ := json.Marshal(resp)
+		encResp, encErr := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+		if encErr != nil {
+			writeError(w, 500, encErr.Error())
+			return
+		}
+		writeJSON(w, 200, encResp)
+		return
+	}
+
+	// 4. Llamar al driver Ultralight C
+	resp, err := h.NFC.UltralightCPreAuth(r.Context(), payload.TerminalID, userID, payload.Amount)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	respBytes, _ := json.Marshal(resp)
+	encResp, err := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, encResp)
+}
+
+// ultralightCPreAuthWithDocument valida username + documento + PIN + saldo.
+func (h *NFCTerminalHandler) ultralightCPreAuthWithDocument(w http.ResponseWriter, r *http.Request) {
+	var req ProcessPaymentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	plaintext, sharedKey, err := h.NFC.DecodePayload(r.Context(), req.TerminalID, req.EncryptedPayload)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+
+	var payload struct {
+		TerminalID string `json:"terminal_id"`
+		Username   string `json:"username"`
+		DocType    string `json:"doc_type"`
+		DocNumber  string `json:"doc_number"`
+		PIN        string `json:"pin"`
+		Amount     int64  `json:"amount"`
+	}
+	if err := json.Unmarshal(plaintext, &payload); err != nil {
+		writeError(w, 400, "invalid payload format")
+		return
+	}
+
+	if payload.Username == "" || payload.DocNumber == "" || payload.PIN == "" {
+		writeError(w, 400, "username, doc_number and pin are required")
+		return
+	}
+
+	// 1. Buscar usuario por username
+	userID, err := h.NFC.LookupUserByUsername(r.Context(), payload.Username)
+	if err != nil {
+		resp := map[string]interface{}{"pre_approved": false, "message": err.Error()}
+		respBytes, _ := json.Marshal(resp)
+		encResp, encErr := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+		if encErr != nil {
+			writeError(w, 500, encErr.Error())
+			return
+		}
+		writeJSON(w, 200, encResp)
+		return
+	}
+
+	// 2. Buscar tarjeta Ultralight C activa
+	cardUID, err := h.NFC.FindActiveCardByType(r.Context(), userID, "ultralight_c")
+	if err != nil {
+		resp := map[string]interface{}{"pre_approved": false, "message": err.Error()}
+		respBytes, _ := json.Marshal(resp)
+		encResp, encErr := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+		if encErr != nil {
+			writeError(w, 500, encErr.Error())
+			return
+		}
+		writeJSON(w, 200, encResp)
+		return
+	}
+
+	// 3. Verificar required_doc_type
+	reqDocType, _ := h.NFC.GetCardRequiredDocType(r.Context(), cardUID)
+	if reqDocType != nil && *reqDocType != "" && payload.DocType != *reqDocType {
+		resp := map[string]interface{}{"pre_approved": false, "message": "tipo de documento incorrecto para esta tarjeta"}
+		respBytes, _ := json.Marshal(resp)
+		encResp, encErr := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+		if encErr != nil {
+			writeError(w, 500, encErr.Error())
+			return
+		}
+		writeJSON(w, 200, encResp)
+		return
+	}
+
+	// 4. Verificar documento
+	docOK, err := h.NFC.VerifyUserDocument(r.Context(), userID, payload.DocType, payload.DocNumber)
+	if err != nil || !docOK {
+		resp := map[string]interface{}{"pre_approved": false, "message": "documento de identidad no coincide"}
+		respBytes, _ := json.Marshal(resp)
+		encResp, encErr := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+		if encErr != nil {
+			writeError(w, 500, encErr.Error())
+			return
+		}
+		writeJSON(w, 200, encResp)
+		return
+	}
+
+	// 5. Verificar PIN
+	if err := h.NFC.VerifyCardPIN(r.Context(), cardUID, payload.PIN); err != nil {
+		resp := map[string]interface{}{"pre_approved": false, "message": err.Error()}
+		respBytes, _ := json.Marshal(resp)
+		encResp, encErr := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+		if encErr != nil {
+			writeError(w, 500, encErr.Error())
+			return
+		}
+		writeJSON(w, 200, encResp)
+		return
+	}
+
+	// 6. Llamar al driver Ultralight C
+	resp, err := h.NFC.UltralightCPreAuth(r.Context(), payload.TerminalID, userID, payload.Amount)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+
+	respBytes, _ := json.Marshal(resp)
+	encResp, err := h.NFC.EncodeResponseWithSharedKey(r.Context(), payload.TerminalID, respBytes, sharedKey)
+	if err != nil {
+		writeError(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, encResp)
+}
+
+// ultralightCConfirm confirma la lectura/escritura de la tarjeta Ultralight C.
+func (h *NFCTerminalHandler) ultralightCConfirm(w http.ResponseWriter, r *http.Request) {
+	var req ProcessPaymentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	plaintext, sharedKey, err := h.NFC.DecodePayload(r.Context(), req.TerminalID, req.EncryptedPayload)
+	if err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+
+	var payload struct {
+		TerminalID   string `json:"terminal_id"`
+		CardUID      string `json:"card_uid"`
+		ReadOK       bool   `json:"read_ok"`
+		WriteOK      bool   `json:"write_ok"`
+		WrittenPages int    `json:"written_pages"`
+	}
+	if err := json.Unmarshal(plaintext, &payload); err != nil {
+		writeError(w, 400, "invalid payload format")
+		return
+	}
+
+	if payload.CardUID == "" {
+		writeError(w, 400, "card_uid is required")
+		return
+	}
+
+	resp, err := h.NFC.UltralightCConfirm(r.Context(), payload.TerminalID, payload.CardUID, payload.ReadOK, payload.WriteOK, payload.WrittenPages)
 	if err != nil {
 		writeError(w, 500, err.Error())
 		return

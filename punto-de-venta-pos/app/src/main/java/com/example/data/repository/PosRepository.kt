@@ -2190,4 +2190,526 @@ class PosRepository(
             false
         }
     }
+
+    // ============================================
+    // NTAG215 Dynamic Certificates
+    // ============================================
+
+    suspend fun ntag215PreAuth(
+        username: String,
+        pin: String,
+        amountCentavos: Long
+    ): Result<NTAG215PreAuthResponse> = withContext(Dispatchers.IO) {
+        try {
+            val config = getOrInitTerminalConfig()
+            val serverPubKey = config.serverPublicKeyHex
+                ?: return@withContext Result.failure(Exception("Terminal no registrado: sin clave pública del servidor"))
+
+            val payload = ClassicPreAuthDecryptedPayload(
+                terminalId = config.terminalId,
+                username = username.trim().lowercase(),
+                pin = pin,
+                amount = amountCentavos
+            )
+
+            val adapter = apiClient.moshi.adapter(ClassicPreAuthDecryptedPayload::class.java)
+            val jsonPlain = adapter.toJson(payload)
+
+            val (ephemeralMsg, ephemeralSharedKey) = CryptoEngine.encryptPayloadEphemeral(
+                plaintextJson = jsonPlain,
+                terminalPrivateKeyHex = config.terminalPrivateKeyHex,
+                serverPublicKeyHex = serverPubKey
+            )
+
+            val service = apiClient.getService()
+            val request = EncryptedPaymentRequest(
+                terminalId = config.terminalId,
+                encryptedPayload = EphemeralMessageModel(
+                    handshake = EphemeralHandshakeModel(
+                        ephemeralPublicKey = ephemeralMsg.handshake.ephemeralPublicKey,
+                        identitySignature = ephemeralMsg.handshake.identitySignature,
+                        nonce = ephemeralMsg.handshake.nonce
+                    ),
+                    nonce = ephemeralMsg.nonce,
+                    ciphertext = ephemeralMsg.ciphertext,
+                    signature = ephemeralMsg.signature
+                )
+            )
+
+            val response = service.ntag215PreAuth(request)
+            if (response.isSuccessful && response.body()?.ciphertext != null) {
+                val encResp = response.body()!!
+                val plainResp = CryptoEngine.decryptResponseEphemeral(
+                    encryptedPayload = EncryptedPayload(
+                        nonce = encResp.nonce.orEmpty(),
+                        ciphertext = encResp.ciphertext.orEmpty(),
+                        signature = encResp.signature.orEmpty()
+                    ),
+                    ephemeralSharedKey = ephemeralSharedKey,
+                    serverPublicKeyHex = config.serverPublicKeyHex
+                )
+
+                val resAdapter = apiClient.moshi.adapter(NTAG215PreAuthResponse::class.java)
+                val result = resAdapter.fromJson(plainResp) ?: NTAG215PreAuthResponse(
+                    preApproved = false,
+                    message = "Respuesta del servidor inválida"
+                )
+                Result.success(result)
+            } else {
+                Result.failure(Exception("Error en pre-auth NTAG215 (HTTP ${response.code()})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión en pre-auth NTAG215: ${e.localizedMessage}"))
+        }
+    }
+
+    suspend fun ntag215PreAuthWithDocument(
+        username: String,
+        docType: String,
+        docNumber: String,
+        pin: String,
+        amountCentavos: Long
+    ): Result<NTAG215PreAuthResponse> = withContext(Dispatchers.IO) {
+        try {
+            val config = getOrInitTerminalConfig()
+            val serverPubKey = config.serverPublicKeyHex
+                ?: return@withContext Result.failure(Exception("Terminal no registrado: sin clave pública del servidor"))
+
+            val payload = ClassicPreAuthWithDocumentDecryptedPayload(
+                terminalId = config.terminalId,
+                username = username.trim().lowercase(),
+                docType = docType,
+                docNumber = docNumber,
+                pin = pin,
+                amount = amountCentavos
+            )
+
+            val adapter = apiClient.moshi.adapter(ClassicPreAuthWithDocumentDecryptedPayload::class.java)
+            val jsonPlain = adapter.toJson(payload)
+
+            val (ephemeralMsg, ephemeralSharedKey) = CryptoEngine.encryptPayloadEphemeral(
+                plaintextJson = jsonPlain,
+                terminalPrivateKeyHex = config.terminalPrivateKeyHex,
+                serverPublicKeyHex = serverPubKey
+            )
+
+            val service = apiClient.getService()
+            val request = EncryptedPaymentRequest(
+                terminalId = config.terminalId,
+                encryptedPayload = EphemeralMessageModel(
+                    handshake = EphemeralHandshakeModel(
+                        ephemeralPublicKey = ephemeralMsg.handshake.ephemeralPublicKey,
+                        identitySignature = ephemeralMsg.handshake.identitySignature,
+                        nonce = ephemeralMsg.handshake.nonce
+                    ),
+                    nonce = ephemeralMsg.nonce,
+                    ciphertext = ephemeralMsg.ciphertext,
+                    signature = ephemeralMsg.signature
+                )
+            )
+
+            val response = service.ntag215PreAuthWithDocument(request)
+            if (response.isSuccessful && response.body()?.ciphertext != null) {
+                val encResp = response.body()!!
+                val plainResp = CryptoEngine.decryptResponseEphemeral(
+                    encryptedPayload = EncryptedPayload(
+                        nonce = encResp.nonce.orEmpty(),
+                        ciphertext = encResp.ciphertext.orEmpty(),
+                        signature = encResp.signature.orEmpty()
+                    ),
+                    ephemeralSharedKey = ephemeralSharedKey,
+                    serverPublicKeyHex = config.serverPublicKeyHex
+                )
+
+                val resAdapter = apiClient.moshi.adapter(NTAG215PreAuthResponse::class.java)
+                val result = resAdapter.fromJson(plainResp) ?: NTAG215PreAuthResponse(
+                    preApproved = false,
+                    message = "Respuesta del servidor inválida"
+                )
+                Result.success(result)
+            } else {
+                Result.failure(Exception("Error en pre-auth NTAG215 (HTTP ${response.code()})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión en pre-auth NTAG215: ${e.localizedMessage}"))
+        }
+    }
+
+    suspend fun confirmNTAG215Transaction(
+        cardUid: String,
+        readOk: Boolean,
+        writeOk: Boolean,
+        writtenPages: Int
+    ): Result<PaymentResultDecrypted> = withContext(Dispatchers.IO) {
+        try {
+            val config = getOrInitTerminalConfig()
+            val serverPubKey = config.serverPublicKeyHex
+                ?: return@withContext Result.failure(Exception("Terminal no registrado: sin clave pública del servidor"))
+
+            val payload = NTAG215ConfirmDecryptedPayload(
+                terminalId = config.terminalId,
+                cardUid = cardUid,
+                readOk = readOk,
+                writeOk = writeOk,
+                writtenPages = writtenPages
+            )
+
+            val adapter = apiClient.moshi.adapter(NTAG215ConfirmDecryptedPayload::class.java)
+            val jsonPlain = adapter.toJson(payload)
+
+            val (ephemeralMsg, ephemeralSharedKey) = CryptoEngine.encryptPayloadEphemeral(
+                plaintextJson = jsonPlain,
+                terminalPrivateKeyHex = config.terminalPrivateKeyHex,
+                serverPublicKeyHex = serverPubKey
+            )
+
+            val service = apiClient.getService()
+            val request = EncryptedPaymentRequest(
+                terminalId = config.terminalId,
+                encryptedPayload = EphemeralMessageModel(
+                    handshake = EphemeralHandshakeModel(
+                        ephemeralPublicKey = ephemeralMsg.handshake.ephemeralPublicKey,
+                        identitySignature = ephemeralMsg.handshake.identitySignature,
+                        nonce = ephemeralMsg.handshake.nonce
+                    ),
+                    nonce = ephemeralMsg.nonce,
+                    ciphertext = ephemeralMsg.ciphertext,
+                    signature = ephemeralMsg.signature
+                )
+            )
+
+            val response = service.ntag215Confirm(request)
+            if (response.isSuccessful && response.body()?.ciphertext != null) {
+                val encResp = response.body()!!
+                val plainResp = CryptoEngine.decryptResponseEphemeral(
+                    encryptedPayload = EncryptedPayload(
+                        nonce = encResp.nonce.orEmpty(),
+                        ciphertext = encResp.ciphertext.orEmpty(),
+                        signature = encResp.signature.orEmpty()
+                    ),
+                    ephemeralSharedKey = ephemeralSharedKey,
+                    serverPublicKeyHex = config.serverPublicKeyHex
+                )
+
+                val resAdapter = apiClient.moshi.adapter(PaymentResultDecrypted::class.java)
+                val result = resAdapter.fromJson(plainResp) ?: PaymentResultDecrypted(
+                    status = "error",
+                    message = "Respuesta del servidor inválida"
+                )
+
+                if (result.status == "approved") {
+                    transactionDao.insertTransaction(
+                        TransactionEntity(
+                            id = result.transactionId ?: UUID.randomUUID().toString(),
+                            amount = 0,
+                            paymentMethod = "nfc_ntag215",
+                            status = "approved",
+                            cardUid = cardUid,
+                            receiptNumber = "NFC-${UUID.randomUUID().toString().take(8).uppercase()}"
+                        )
+                    )
+                }
+                Result.success(result)
+            } else {
+                Result.failure(Exception("Error en confirm NTAG215 (HTTP ${response.code()})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión en confirm NTAG215: ${e.localizedMessage}"))
+        }
+    }
+
+    suspend fun provisionNTAG215Card(
+        userId: String,
+        cardUid: String,
+        initialPin: String
+    ): Result<ProvisionNTAG215Response> = withContext(Dispatchers.IO) {
+        try {
+            val service = apiClient.getService()
+            val response = service.provisionNTAG215Card(
+                ProvisionNTAG215Request(
+                    userId = userId,
+                    cardUid = cardUid,
+                    initialPin = initialPin
+                )
+            )
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                val errBody = response.errorBody()?.string() ?: "Error desconocido"
+                Result.failure(Exception("Error provisionando NTAG215 (HTTP ${response.code()}): $errBody"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión en provisionamiento NTAG215: ${e.localizedMessage}"))
+        }
+    }
+
+    // ============================================
+    // Ultralight C Dynamic Certificates
+    // ============================================
+
+    suspend fun ultralightCPreAuth(
+        username: String,
+        pin: String,
+        amountCentavos: Long
+    ): Result<UltralightCPreAuthResponse> = withContext(Dispatchers.IO) {
+        try {
+            val config = getOrInitTerminalConfig()
+            val serverPubKey = config.serverPublicKeyHex
+                ?: return@withContext Result.failure(Exception("Terminal no registrado: sin clave pública del servidor"))
+
+            val payload = ClassicPreAuthDecryptedPayload(
+                terminalId = config.terminalId,
+                username = username.trim().lowercase(),
+                pin = pin,
+                amount = amountCentavos
+            )
+
+            val adapter = apiClient.moshi.adapter(ClassicPreAuthDecryptedPayload::class.java)
+            val jsonPlain = adapter.toJson(payload)
+
+            val (ephemeralMsg, ephemeralSharedKey) = CryptoEngine.encryptPayloadEphemeral(
+                plaintextJson = jsonPlain,
+                terminalPrivateKeyHex = config.terminalPrivateKeyHex,
+                serverPublicKeyHex = serverPubKey
+            )
+
+            val service = apiClient.getService()
+            val request = EncryptedPaymentRequest(
+                terminalId = config.terminalId,
+                encryptedPayload = EphemeralMessageModel(
+                    handshake = EphemeralHandshakeModel(
+                        ephemeralPublicKey = ephemeralMsg.handshake.ephemeralPublicKey,
+                        identitySignature = ephemeralMsg.handshake.identitySignature,
+                        nonce = ephemeralMsg.handshake.nonce
+                    ),
+                    nonce = ephemeralMsg.nonce,
+                    ciphertext = ephemeralMsg.ciphertext,
+                    signature = ephemeralMsg.signature
+                )
+            )
+
+            val response = service.ultralightCPreAuth(request)
+            if (response.isSuccessful && response.body()?.ciphertext != null) {
+                val encResp = response.body()!!
+                val plainResp = CryptoEngine.decryptResponseEphemeral(
+                    encryptedPayload = EncryptedPayload(
+                        nonce = encResp.nonce.orEmpty(),
+                        ciphertext = encResp.ciphertext.orEmpty(),
+                        signature = encResp.signature.orEmpty()
+                    ),
+                    ephemeralSharedKey = ephemeralSharedKey,
+                    serverPublicKeyHex = config.serverPublicKeyHex
+                )
+
+                val resAdapter = apiClient.moshi.adapter(UltralightCPreAuthResponse::class.java)
+                val result = resAdapter.fromJson(plainResp) ?: UltralightCPreAuthResponse(
+                    preApproved = false,
+                    message = "Respuesta del servidor inválida"
+                )
+                Result.success(result)
+            } else {
+                Result.failure(Exception("Error en pre-auth Ultralight C (HTTP ${response.code()})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión en pre-auth Ultralight C: ${e.localizedMessage}"))
+        }
+    }
+
+    suspend fun ultralightCPreAuthWithDocument(
+        username: String,
+        docType: String,
+        docNumber: String,
+        pin: String,
+        amountCentavos: Long
+    ): Result<UltralightCPreAuthResponse> = withContext(Dispatchers.IO) {
+        try {
+            val config = getOrInitTerminalConfig()
+            val serverPubKey = config.serverPublicKeyHex
+                ?: return@withContext Result.failure(Exception("Terminal no registrado: sin clave pública del servidor"))
+
+            val payload = ClassicPreAuthWithDocumentDecryptedPayload(
+                terminalId = config.terminalId,
+                username = username.trim().lowercase(),
+                docType = docType,
+                docNumber = docNumber,
+                pin = pin,
+                amount = amountCentavos
+            )
+
+            val adapter = apiClient.moshi.adapter(ClassicPreAuthWithDocumentDecryptedPayload::class.java)
+            val jsonPlain = adapter.toJson(payload)
+
+            val (ephemeralMsg, ephemeralSharedKey) = CryptoEngine.encryptPayloadEphemeral(
+                plaintextJson = jsonPlain,
+                terminalPrivateKeyHex = config.terminalPrivateKeyHex,
+                serverPublicKeyHex = serverPubKey
+            )
+
+            val service = apiClient.getService()
+            val request = EncryptedPaymentRequest(
+                terminalId = config.terminalId,
+                encryptedPayload = EphemeralMessageModel(
+                    handshake = EphemeralHandshakeModel(
+                        ephemeralPublicKey = ephemeralMsg.handshake.ephemeralPublicKey,
+                        identitySignature = ephemeralMsg.handshake.identitySignature,
+                        nonce = ephemeralMsg.handshake.nonce
+                    ),
+                    nonce = ephemeralMsg.nonce,
+                    ciphertext = ephemeralMsg.ciphertext,
+                    signature = ephemeralMsg.signature
+                )
+            )
+
+            val response = service.ultralightCPreAuthWithDocument(request)
+            if (response.isSuccessful && response.body()?.ciphertext != null) {
+                val encResp = response.body()!!
+                val plainResp = CryptoEngine.decryptResponseEphemeral(
+                    encryptedPayload = EncryptedPayload(
+                        nonce = encResp.nonce.orEmpty(),
+                        ciphertext = encResp.ciphertext.orEmpty(),
+                        signature = encResp.signature.orEmpty()
+                    ),
+                    ephemeralSharedKey = ephemeralSharedKey,
+                    serverPublicKeyHex = config.serverPublicKeyHex
+                )
+
+                val resAdapter = apiClient.moshi.adapter(UltralightCPreAuthResponse::class.java)
+                val result = resAdapter.fromJson(plainResp) ?: UltralightCPreAuthResponse(
+                    preApproved = false,
+                    message = "Respuesta del servidor inválida"
+                )
+                Result.success(result)
+            } else {
+                Result.failure(Exception("Error en pre-auth Ultralight C (HTTP ${response.code()})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión en pre-auth Ultralight C: ${e.localizedMessage}"))
+        }
+    }
+
+    suspend fun confirmUltralightCTransaction(
+        cardUid: String,
+        readOk: Boolean,
+        writeOk: Boolean,
+        writtenPages: Int
+    ): Result<PaymentResultDecrypted> = withContext(Dispatchers.IO) {
+        try {
+            val config = getOrInitTerminalConfig()
+            val serverPubKey = config.serverPublicKeyHex
+                ?: return@withContext Result.failure(Exception("Terminal no registrado: sin clave pública del servidor"))
+
+            val payload = UltralightCConfirmDecryptedPayload(
+                terminalId = config.terminalId,
+                cardUid = cardUid,
+                readOk = readOk,
+                writeOk = writeOk,
+                writtenPages = writtenPages
+            )
+
+            val adapter = apiClient.moshi.adapter(UltralightCConfirmDecryptedPayload::class.java)
+            val jsonPlain = adapter.toJson(payload)
+
+            val (ephemeralMsg, ephemeralSharedKey) = CryptoEngine.encryptPayloadEphemeral(
+                plaintextJson = jsonPlain,
+                terminalPrivateKeyHex = config.terminalPrivateKeyHex,
+                serverPublicKeyHex = serverPubKey
+            )
+
+            val service = apiClient.getService()
+            val request = EncryptedPaymentRequest(
+                terminalId = config.terminalId,
+                encryptedPayload = EphemeralMessageModel(
+                    handshake = EphemeralHandshakeModel(
+                        ephemeralPublicKey = ephemeralMsg.handshake.ephemeralPublicKey,
+                        identitySignature = ephemeralMsg.handshake.identitySignature,
+                        nonce = ephemeralMsg.handshake.nonce
+                    ),
+                    nonce = ephemeralMsg.nonce,
+                    ciphertext = ephemeralMsg.ciphertext,
+                    signature = ephemeralMsg.signature
+                )
+            )
+
+            val response = service.ultralightCConfirm(request)
+            if (response.isSuccessful && response.body()?.ciphertext != null) {
+                val encResp = response.body()!!
+                val plainResp = CryptoEngine.decryptResponseEphemeral(
+                    encryptedPayload = EncryptedPayload(
+                        nonce = encResp.nonce.orEmpty(),
+                        ciphertext = encResp.ciphertext.orEmpty(),
+                        signature = encResp.signature.orEmpty()
+                    ),
+                    ephemeralSharedKey = ephemeralSharedKey,
+                    serverPublicKeyHex = config.serverPublicKeyHex
+                )
+
+                val resAdapter = apiClient.moshi.adapter(PaymentResultDecrypted::class.java)
+                val result = resAdapter.fromJson(plainResp) ?: PaymentResultDecrypted(
+                    status = "error",
+                    message = "Respuesta del servidor inválida"
+                )
+
+                if (result.status == "approved") {
+                    transactionDao.insertTransaction(
+                        TransactionEntity(
+                            id = result.transactionId ?: UUID.randomUUID().toString(),
+                            amount = 0,
+                            paymentMethod = "nfc_ultralight_c",
+                            status = "approved",
+                            cardUid = cardUid,
+                            receiptNumber = "NFC-${UUID.randomUUID().toString().take(8).uppercase()}"
+                        )
+                    )
+                }
+                Result.success(result)
+            } else {
+                Result.failure(Exception("Error en confirm Ultralight C (HTTP ${response.code()})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión en confirm Ultralight C: ${e.localizedMessage}"))
+        }
+    }
+
+    suspend fun provisionUltralightCCard(
+        userId: String,
+        cardUid: String,
+        initialPin: String
+    ): Result<ProvisionUltralightCResponse> = withContext(Dispatchers.IO) {
+        try {
+            val service = apiClient.getService()
+            val response = service.provisionUltralightCCard(
+                ProvisionUltralightCRequest(
+                    userId = userId,
+                    cardUid = cardUid,
+                    initialPin = initialPin
+                )
+            )
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                val errBody = response.errorBody()?.string() ?: "Error desconocido"
+                Result.failure(Exception("Error provisionando Ultralight C (HTTP ${response.code()}): $errBody"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión en provisionamiento Ultralight C: ${e.localizedMessage}"))
+        }
+    }
+
+    // ============================================
+    // Card Types Registry (sistema modular)
+    // ============================================
+
+    suspend fun listCardTypes(): Result<List<CardTypeManifest>> = withContext(Dispatchers.IO) {
+        try {
+            val service = apiClient.getService()
+            val response = service.listCardTypes()
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception("Error obteniendo tipos de tarjeta (HTTP ${response.code()})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión: ${e.localizedMessage}"))
+        }
+    }
 }

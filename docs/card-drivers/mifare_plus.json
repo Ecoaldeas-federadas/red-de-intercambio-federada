@@ -1,0 +1,51 @@
+{
+  "type": "mifare_plus",
+  "display_name": "MIFARE Plus EV2",
+  "description": "Tarjeta con AES-128 (SL3) y compatibilidad hacia atras con MIFARE Classic (SL1). Certificada EAL5+.",
+  "manufacturer": "NXP Semiconductors",
+  "capacity": "full",
+  "memory": {
+    "total_bytes": 4096,
+    "user_bytes": 4000,
+    "sectors": 40
+  },
+  "security": {
+    "level": "aes",
+    "algorithm": "AES-128",
+    "key_length_bits": 128,
+    "key_count": 2,
+    "mutual_auth": true,
+    "secure_messaging": true,
+    "crypto_per_slot": true,
+    "originality_signature": true,
+    "certification": "Common Criteria EAL5+",
+    "notes": "Migracion de Classic a AES sin cambiar infraestructura. SL1=Classic, SL3=AES."
+  },
+  "compatibility": {
+    "android": "full",
+    "ios": "full",
+    "esp32_pn532": "full",
+    "phone_reader": true,
+    "nfc_forum_type": 4,
+    "notes": "Universal — funciona en todos los telefonos NFC Android y iOS"
+  },
+  "protocol": {
+    "slots": 0,
+    "auth_method": "AES-128_SL3",
+    "rotation": "none",
+    "pre_auth_ttl_seconds": 30,
+    "notes": "No usa certificados rotativos en SL3. AES-128 es suficiente."
+  },
+  "availability": {
+    "venezuela": false,
+    "price_usd": 0.80,
+    "notes": "Dificil de conseguir en Venezuela. Alternativa a DESFire si se consigue."
+  },
+  "endpoints": {
+    "provision": "/api/nfc/cards/provision-mifare-plus",
+    "pre_auth": "/api/nfc/terminal/mifare-plus/pre-auth",
+    "confirm": "/api/nfc/terminal/mifare-plus/confirm"
+  },
+  "docs": [],
+  "status": "future"
+}

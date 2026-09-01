@@ -160,6 +160,36 @@ interface PosApiService {
     @POST("nfc/cards/provision-classic")
     suspend fun provisionClassicCard(@Body request: ProvisionClassicRequest): Response<ProvisionClassicResponse>
 
+    @POST("nfc/cards/provision-ntag215")
+    suspend fun provisionNTAG215Card(@Body request: ProvisionNTAG215Request): Response<ProvisionNTAG215Response>
+
+    @POST("nfc/cards/provision-ultralight-c")
+    suspend fun provisionUltralightCCard(@Body request: ProvisionUltralightCRequest): Response<ProvisionUltralightCResponse>
+
+    // --- NTAG215 Dynamic Certificates (Encrypted) ---
+    @POST("nfc/terminal/ntag215/pre-auth")
+    suspend fun ntag215PreAuth(@Body request: EncryptedPaymentRequest): Response<EncryptedPaymentResponse>
+
+    @POST("nfc/terminal/ntag215/pre-auth-document")
+    suspend fun ntag215PreAuthWithDocument(@Body request: EncryptedPaymentRequest): Response<EncryptedPaymentResponse>
+
+    @POST("nfc/terminal/ntag215/confirm")
+    suspend fun ntag215Confirm(@Body request: EncryptedPaymentRequest): Response<EncryptedPaymentResponse>
+
+    // --- Ultralight C Dynamic Certificates (Encrypted) ---
+    @POST("nfc/terminal/ultralight-c/pre-auth")
+    suspend fun ultralightCPreAuth(@Body request: EncryptedPaymentRequest): Response<EncryptedPaymentResponse>
+
+    @POST("nfc/terminal/ultralight-c/pre-auth-document")
+    suspend fun ultralightCPreAuthWithDocument(@Body request: EncryptedPaymentRequest): Response<EncryptedPaymentResponse>
+
+    @POST("nfc/terminal/ultralight-c/confirm")
+    suspend fun ultralightCConfirm(@Body request: EncryptedPaymentRequest): Response<EncryptedPaymentResponse>
+
+    // --- Card Types Registry (sistema modular) ---
+    @GET("nfc/card-types")
+    suspend fun listCardTypes(): Response<List<CardTypeManifest>>
+
     @GET("nfc/cards/pending-initialization")
     suspend fun getPendingInitializationCards(): Response<PendingCardResponse>
 

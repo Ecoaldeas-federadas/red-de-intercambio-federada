@@ -1,0 +1,60 @@
+{
+  "type": "ntag215",
+  "display_name": "NTAG215",
+  "description": "Tarjeta NFC Type 2 con 504 bytes de usuario, PWD de 32 bits. Compatible con todos los telefonos. Disponible en Venezuela.",
+  "manufacturer": "NXP Semiconductors",
+  "capacity": "full",
+  "memory": {
+    "total_bytes": 540,
+    "user_bytes": 504,
+    "page_size": 4,
+    "total_pages": 135,
+    "user_pages": 126
+  },
+  "security": {
+    "level": "password",
+    "algorithm": "PWD-32bit",
+    "key_length_bits": 32,
+    "key_count": 1,
+    "mutual_auth": false,
+    "secure_messaging": false,
+    "crypto_per_slot": false,
+    "originality_signature": true,
+    "auth_limit_configurable": true
+  },
+  "compatibility": {
+    "android": "full",
+    "ios": "full",
+    "esp32_pn532": "full",
+    "phone_reader": true,
+    "nfc_forum_type": 2,
+    "notes": "Universal — funciona en todos los telefonos NFC Android y iOS"
+  },
+  "protocol": {
+    "slots": 30,
+    "active_slots": 15,
+    "backup_slots": 15,
+    "certificate_size": 16,
+    "redundancy": 2,
+    "public_zone_pages": 6,
+    "public_zone_start_page": 4,
+    "private_zone_start_page": 10,
+    "private_zone_end_page": 129,
+    "auth_method": "PWD_AUTH",
+    "rotation": "random_per_transaction",
+    "pre_auth_ttl_seconds": 30
+  },
+  "availability": {
+    "venezuela": true,
+    "price_usd": 0.15,
+    "notes": "Disponible en Venezuela. Recomendada como tarjeta principal."
+  },
+  "endpoints": {
+    "provision": "/api/nfc/cards/provision-ntag215",
+    "pre_auth": "/api/nfc/terminal/ntag215/pre-auth",
+    "confirm": "/api/nfc/terminal/ntag215/confirm"
+  },
+  "docs": [
+    "docs/tarjeta-ntag215-protocolo.md"
+  ]
+}

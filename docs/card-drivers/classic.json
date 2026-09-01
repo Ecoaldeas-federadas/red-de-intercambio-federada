@@ -1,0 +1,59 @@
+{
+  "type": "classic",
+  "display_name": "MIFARE Classic 1K",
+  "description": "Tarjeta legacy con 15 sectores, claves A/B por sector y Crypto1 (roto). Compatible con lectores ESP32 pero no con todos los telefonos.",
+  "manufacturer": "NXP Semiconductors",
+  "capacity": "full",
+  "memory": {
+    "total_bytes": 1024,
+    "user_bytes": 752,
+    "page_size": 16,
+    "total_pages": 64,
+    "user_pages": 47,
+    "sectors": 16,
+    "usable_sectors": 15
+  },
+  "security": {
+    "level": "crypto1",
+    "algorithm": "Crypto1",
+    "key_length_bits": 48,
+    "key_count": 30,
+    "mutual_auth": true,
+    "secure_messaging": false,
+    "crypto_per_slot": true,
+    "originality_signature": false,
+    "notes": "Crypto1 roto desde 2008. Las claves se recuperan en segundos con Nested/Hardnested."
+  },
+  "compatibility": {
+    "android": "partial",
+    "ios": "none",
+    "esp32_pn532": "full",
+    "phone_reader": false,
+    "nfc_forum_type": null,
+    "notes": "Samsung si, Google Pixel no, iOS no. NO es estandar NFC Forum. Requiere lector ESP32 dedicado."
+  },
+  "protocol": {
+    "slots": 15,
+    "active_slots": 15,
+    "backup_slots": 0,
+    "certificate_size": 16,
+    "redundancy": 3,
+    "auth_method": "Crypto1_AB_keys",
+    "rotation": "random_per_transaction",
+    "pre_auth_ttl_seconds": 30,
+    "notes": "Triple redundancia (3 copias por sector). 30 claves unicas (A+B por sector)."
+  },
+  "availability": {
+    "venezuela": true,
+    "price_usd": 0.08,
+    "notes": "Disponible en Venezuela. Mas barata pero insegura y con compatibilidad limitada."
+  },
+  "endpoints": {
+    "provision": "/api/nfc/cards/provision-classic",
+    "pre_auth": "/api/nfc/terminal/classic/pre-auth",
+    "confirm": "/api/nfc/terminal/classic/confirm"
+  },
+  "docs": [
+    "docs/tarjeta-classic-certificados.md"
+  ]
+}

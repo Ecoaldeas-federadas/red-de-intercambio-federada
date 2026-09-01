@@ -230,3 +230,57 @@ El PN532 y el OLED comparten el bus I2C:
 - `firmware/docs/flashing_guide.md` — Guia de flasheo
 - `firmware/docs/hardware_list.md` — Lista completa de componentes
 - `firmware/docs/troubleshooting.md` — Solucion de problemas
+
+## Sistema modular de drivers de tarjetas NFC
+
+El sistema ahora soporta multiples tipos de tarjeta NFC mediante un **sistema modular de drivers**.
+Cada tipo de tarjeta es un modulo independiente (driver Go + reader Kotlin + manifiesto JSON + migracion DB).
+
+### Tarjetas soportadas
+
+| Tipo | Memoria | Seguridad | Slots | Telefonos | Venezuela |
+|------|---------|-----------|-------|-----------|-----------|
+| **NTAG215** | 504 bytes | PWD 32-bit | 30 (15+15) | Todos | Si |
+| **NTAG216** | 888 bytes | PWD 32-bit | 55 (27+28) | Todos | Dificil |
+| **NTAG424 DNA** | 416 bytes | AES-128 + SUN | 0 (no necesita) | Todos | Dificil |
+| **DESFire EV3** | 4096 bytes | AES-128/256 | 0 (no necesita) | Todos | Muy dificil |
+| **MIFARE Plus EV2** | 4096 bytes | AES-128 | 0 (no necesita) | Todos | Dificil |
+| **Ultralight C** | 148 bytes | 3DES 112-bit | 8 (4+4) | Parcial | Si |
+| **MIFARE Classic 1K** | 752 bytes | Crypto1 48-bit (roto) | 15 | Parcial | Si |
+
+### NTAG215 (recomendada)
+
+- **Compatible con TODOS los telefonos NFC** (Android + iOS)
+- 30 slots de certificados dinamicos (15 activos + 15 backups)
+- PWD unica por tarjeta + rotacion aleatoria por transaccion
+- Disponible en Venezuela, economica (~$0.20)
+
+### Ultralight C (baja capacidad)
+
+- 3DES 112-bit (MÁS FUERTE que Crypto1 de Classic)
+- Solo 8 slots (4 activos + 4 backups) por limitacion de memoria
+- Usar solo si no se consigue NTAG215
+- Implementacion de MifareUltralight es opcional en Android
+
+### MIFARE Classic (legacy)
+
+- Crypto1 48-bit (roto desde 2008)
+- No soportado en Google Pixel ni iOS
+- Requiere lector ESP32/PN532 para telefono no compatible
+- 15 sectores con claves A/B independientes
+
+### Como agregar una nueva tarjeta
+
+1. Crear manifiesto JSON en `docs/card-drivers/<tipo>.json`
+2. Crear driver Go en `internal/payments/cards/<tipo>_driver.go`
+3. Crear reader Kotlin en `punto-de-venta-pos/.../data/nfc/<Tipo>Reader.kt`
+4. Registrar el reader en `CardReaderRegistry.kt`
+5. No se necesita modificar codigo existente
+
+### Documentacion
+
+- `docs/nfc_tipos_tarjetas.md` — Catalogo completo de tarjetas
+- `docs/tarjeta-ntag215-protocolo.md` — Protocolo NTAG215
+- `docs/tarjeta-ultralight-c-protocolo.md` — Protocolo Ultralight C
+- `docs/card-drivers/` — Manifiestos JSON de cada driver
+- `GET /api/nfc/card-types` — API para listar tipos soportados

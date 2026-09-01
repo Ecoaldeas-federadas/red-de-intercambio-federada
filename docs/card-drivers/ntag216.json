@@ -1,0 +1,60 @@
+{
+  "type": "ntag216",
+  "display_name": "NTAG216",
+  "description": "Tarjeta NFC Type 2 con 888 bytes de usuario, PWD de 32 bits. Compatible con todos los telefonos. Mas memoria que NTAG215 = mas slots.",
+  "manufacturer": "NXP Semiconductors",
+  "capacity": "full",
+  "memory": {
+    "total_bytes": 924,
+    "user_bytes": 888,
+    "page_size": 4,
+    "total_pages": 231,
+    "user_pages": 222
+  },
+  "security": {
+    "level": "password",
+    "algorithm": "PWD-32bit",
+    "key_length_bits": 32,
+    "key_count": 1,
+    "mutual_auth": false,
+    "secure_messaging": false,
+    "crypto_per_slot": false,
+    "originality_signature": true,
+    "auth_limit_configurable": true
+  },
+  "compatibility": {
+    "android": "full",
+    "ios": "full",
+    "esp32_pn532": "full",
+    "phone_reader": true,
+    "nfc_forum_type": 2,
+    "notes": "Universal — funciona en todos los telefonos NFC Android y iOS"
+  },
+  "protocol": {
+    "slots": 55,
+    "active_slots": 27,
+    "backup_slots": 28,
+    "certificate_size": 16,
+    "redundancy": 2,
+    "public_zone_pages": 6,
+    "public_zone_start_page": 4,
+    "private_zone_start_page": 10,
+    "private_zone_end_page": 229,
+    "auth_method": "PWD_AUTH",
+    "rotation": "random_per_transaction",
+    "pre_auth_ttl_seconds": 30,
+    "notes": "Mas slots que NTAG215 = mas confusion para el atacante."
+  },
+  "availability": {
+    "venezuela": false,
+    "price_usd": 0.20,
+    "notes": "Disponibilidad limitada en Venezuela. Si se consigue, preferir sobre NTAG215 por mas slots."
+  },
+  "endpoints": {
+    "provision": "/api/nfc/cards/provision-ntag216",
+    "pre_auth": "/api/nfc/terminal/ntag216/pre-auth",
+    "confirm": "/api/nfc/terminal/ntag216/confirm"
+  },
+  "docs": [],
+  "status": "future"
+}
