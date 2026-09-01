@@ -1,0 +1,54 @@
+# Docker Compose para Nodo Satelite
+# Nodo portatil para ferias sin señal. Usa PostgreSQL (mas liviano que YugabyteDB).
+#
+# Uso:
+#   1. Copiar este archivo a la laptop que se llevara a la feria
+#   2. Configurar variables de entorno (ver .env.satellite.example)
+#   3. docker compose -f docker-compose.satellite.yml up -d
+#   4. Abrir http://localhost:8080 -> Federacion > Satelite > Descargar Snapshot
+#   5. Desconectar y llevar a la feria
+#   6. Al volver: Federacion > Satelite > Sincronizar Transacciones
+
+services:
+  satellite-app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    volumes:
+      - ./secrets:/secrets:ro
+      - ./config.satellite.yaml:/app/config.yaml:ro
+      - satellite_uploads:/app/uploads
+    depends_on:
+      - satellite-db
+    environment:
+      - DB_HOST=satellite-db
+      - DB_PORT=5432
+      - DB_NAME=fmc_satellite
+      - DB_USER=fmc
+      - DB_PASSWORD=${DB_PASSWORD:-fmcpassword}
+      - JWT_SECRET=${JWT_SECRET:-satellite-jwt-secret-change-me}
+      - NODE_PRIVATE_KEY=${NODE_PRIVATE_KEY:-}
+      - NODE_TYPE=satellite
+      - PARENT_NODE=${PARENT_NODE:-}
+      - CONFIG_PATH=/app/config.yaml
+      - MIGRATIONS_DIR=/app/internal/db/migrations
+    restart: unless-stopped
+
+  satellite-db:
+    image: postgres:16-alpine
+    ports:
+      - "5433:5432"
+    volumes:
+      - satellite_db_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=fmc_satellite
+      - POSTGRES_USER=fmc
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-fmcpassword}
+    restart: unless-stopped
+
+volumes:
+  satellite_db_data:
+  satellite_uploads:

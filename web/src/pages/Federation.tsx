@@ -1,25 +1,27 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Network, Globe, Scale, Server, RefreshCw, MapPin, Wifi, Compass } from 'lucide-react'
+import { Network, Globe, Scale, Server, RefreshCw, MapPin, Wifi, Compass, Satellite } from 'lucide-react'
 import { fmtDateTime } from '../lib/format'
 import { api } from '../api'
 import NetworkConfig from './NetworkConfig'
 import FederationPeers from './FederationPeers'
 import FederationGov from './FederationGov'
 import NodeDiscovery from './NodeDiscovery'
+import SatelliteSetup from './SatelliteSetup'
 
-// Pagina unificada de Federacion con 5 tabs:
+// Pagina unificada de Federacion con 6 tabs:
 // 1. Red del Nodo: registro de red (IP, OpenWrt, servicios, instalador)
 // 2. Federar Aldeas: agregar y gestionar aldeas federadas (Internet + Intranet)
 // 3. Nodos Federados: info de red y servicios de nodos federados (auto-sincronizada)
 // 4. Descubrir Nodos: nodos descubiertos via gossip + solicitudes de federacion
 // 5. Gobernanza: propuestas, votacion, constantes federadas
+// 6. Satelite: configurar nodo satelite para ferias offline
 export default function Federation() {
   const [searchParams, setSearchParams] = useSearchParams()
   const initialTab = (searchParams.get('tab') as any) || 'network'
-  const [tab, setTab] = useState<'network' | 'peers' | 'nodes' | 'discover' | 'gov'>(initialTab)
+  const [tab, setTab] = useState<'network' | 'peers' | 'nodes' | 'discover' | 'gov' | 'satellite'>(initialTab)
 
-  const changeTab = (t: 'network' | 'peers' | 'nodes' | 'discover' | 'gov') => {
+  const changeTab = (t: 'network' | 'peers' | 'nodes' | 'discover' | 'gov' | 'satellite') => {
     setTab(t)
     setSearchParams({ tab: t })
   }
@@ -68,6 +70,13 @@ export default function Federation() {
           <Scale size={14} />
           Gobernanza
         </button>
+        <button
+          onClick={() => changeTab('satellite')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 ${tab === 'satellite' ? 'bg-trueque-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
+        >
+          <Satellite size={14} />
+          Satelite
+        </button>
       </div>
 
       {/* Tab: Red del Nodo */}
@@ -84,6 +93,9 @@ export default function Federation() {
 
       {/* Tab: Gobernanza */}
       {tab === 'gov' && <FederationGov />}
+
+      {/* Tab: Satelite (nodo portatil para ferias offline) */}
+      {tab === 'satellite' && <SatelliteSetup />}
     </div>
   )
 }

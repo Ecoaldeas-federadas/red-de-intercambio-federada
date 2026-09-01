@@ -480,3 +480,95 @@ Para que dos nodos se comuniquen, **ambos deben registrarse mutuamente**:
 | GET | `/api/federation/peers` | - | Lista peers registrados |
 | POST | `/api/federation/peers` | `federation.change_config` | Registra peer |
 | DELETE | `/api/federation/peers/{peerDomain}` | `federation.change_config` | Elimina peer |
+
+---
+
+## Nodo Satelite (Ferias Offline)
+
+### Diferencia con la federacion normal
+
+La federacion normal conecta **nodos autonomos** que tienen su propia base de datos, asamblea, miembros y gobernanza. Intercambian **mensajes firmados** (transferencias, productos, perfiles) pero **no replican la base de datos**. Cada nodo es soberano.
+
+El **nodo satelite** es diferente:
+- **No es soberano**: no tiene asamblea, miembros, ni gobernanza propia.
+- **Cachea datos** de uno o mas nodos origen (usuarios, saldos, tarjetas NFC).
+- **Procesa pagos offline** contra el cache local.
+- **Encola transacciones** y las sincroniza al reconectar.
+- **No es una replica de base de datos**: es un cache temporal + cola de eventos.
+
+### Arquitectura
+
+```
+[Nodo Origen] <--mTLS--> [Nodo Satelite]
+  - DB autoritativa         - Cache local (PostgreSQL)
+  - Usuarios reales         - satellite_cached_users
+  - Ledger TQ               - satellite_cached_cards
+  - NFC cards               - satellite_pending_tx
+                            - Procesa pagos offline
+                            - Firma transacciones con Ed25519
+```
+
+### Flujo de operacion
+
+1. **Antes de la feria** (con internet):
+   - Iniciar el nodo satelite: `docker compose -f docker-compose.satellite.yml up -d`
+   - Abrir la web: `http://localhost:8080`
+   - Ir a **Federacion > Satelite > Descargar Snapshot**
+   - Ingresar la URL del nodo origen (ej: `https://nodo1.com:8443`)
+   - El satelite descarga usuarios activos, saldos actuales y tarjetas NFC
+   - Desconectar y llevar el equipo a la feria
+
+2. **Durante la feria** (sin internet):
+   - El satelite sirve la web y la API localmente
+   - Los POS se conectan al satelite via Wi-Fi local
+   - Los pagos NFC se validan contra el cache local
+   - Las transacciones se registran en `satellite_pending_tx`
+   - El balance en cache se actualiza inmediatamente
+
+3. **Despues de la feria** (al reconectar):
+   - Ir a **Federacion > Satelite > Sincronizar Transacciones**
+   - Ingresar la URL del nodo origen
+   - El satelite envia todas las transacciones pendientes firmadas
+   - El nodo origen las registra sin validar limites (son hechos consumados)
+   - Si un usuario quedo sobre su limite, se activa `is_over_limit`
+
+### Seguridad
+
+- **mTLS**: el satelite se conecta al nodo origen via mTLS con certificados mutuos.
+- **Firma Ed25519**: cada transaccion del satelite va firmada con la clave privada del nodo satelite.
+- **Verificacion**: el nodo origen verifica la firma antes de aceptar la transaccion.
+- **Idempotencia**: cada transaccion tiene un UUID unico. El nodo origen no la procesa dos veces.
+- **Autorizacion**: el satelite debe estar registrado en `node_federation_keys` con `is_satellite = true`.
+
+### Limitaciones y responsabilidades
+
+- **Doble gasto offline**: si dos satelites desconectados procesan pagos del mismo usuario, ambos pueden aprobar basandose en saldo stale. Al sincronizar, el usuario puede quedar sobre su limite.
+- **Responsabilidad del usuario**: el usuario es responsable de no exceder su limite. Si lo excede por actividad offline concurrente, su cuenta se marca como `is_over_limit` y no puede hacer nuevas compras hasta regularizar.
+- **Cache stale**: mientras el satelite este desconectado, los saldos en cache pueden estar desactualizados. No hay forma de evitarlo sin conexion.
+- **No es autoritativo**: el satelite nunca es la fuente de verdad. El nodo origen siempre tiene el saldo real despues de la sincronizacion.
+
+### Endpoints del satelite
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| POST | `/api/satellite/snapshot/pull` | Descarga snapshot del nodo origen |
+| GET | `/api/satellite/snapshot/status` | Estado del cache local |
+| GET | `/api/satellite/pending-tx` | Lista transacciones pendientes |
+| POST | `/api/satellite/sync-all` | Envia transacciones al nodo origen |
+| GET | `/api/satellite/cached-users` | Lista usuarios en cache |
+
+### Endpoints federados (nodo origen)
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| GET | `/federation/satellite/snapshot` | Devuelve usuarios + tarjetas para el satelite |
+| POST | `/federation/satellite/sync` | Recibe transacciones offline del satelite |
+
+### Migraciones
+
+| Numero | Nombre | Descripcion |
+|--------|--------|-------------|
+| 160 | `satellite_node_type` | `node_type` en `node_config` (standard/satellite) |
+| 161 | `satellite_cache_tables` | Tablas `satellite_cached_users`, `satellite_cached_cards`, `satellite_pending_tx` |
+| 162 | `satellite_federation_flag` | `is_satellite` en `node_federation_keys` |
+

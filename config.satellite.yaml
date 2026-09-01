@@ -1,0 +1,23 @@
+# Configuracion del Nodo Satelite
+# Nodo portatil para ferias sin señal.
+
+node_domain: satellite.feria
+node_name: "Nodo Satelite - Feria"
+node_type: satellite
+listen_port: 8080
+federation_port: 8443
+
+# El nodo origen del que se descargaran snapshots
+# parent_node_url: https://nodo1.com:8443
+# parent_node_domain: nodo1.com
+
+# No tiene asamblea ni gobernanza propia
+enable_assembly: false
+enable_governance: false
+
+# No emite tarjetas ni crea usuarios
+enable_card_issuance: false
+enable_user_registration: false
+
+# Solo procesa pagos contra cache
+enable_offline_payments: true
