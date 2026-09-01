@@ -67,6 +67,7 @@ func (g *Gossip) Start(ctx context.Context) {
 			g.syncBilateralLimits(ctx)
 			g.syncNodeLevels(ctx)
 			g.syncSponsorships(ctx)
+			g.syncDrivers(ctx)
 			g.reconcileWithAllPeers(ctx)
 		}
 	}

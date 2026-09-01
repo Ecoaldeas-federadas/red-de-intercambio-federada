@@ -2,6 +2,12 @@
 
 ## Diseno tecnico completo
 
+> **ESTADO: IMPLEMENTADO** — Este documento describe el sistema que ya esta
+> implementado en el codigo. Para usarlo, ver:
+> - [Guia para admin: Instalar driver desde la web](guia-instalar-driver-web.md)
+> - [Guia para programadores: Crear paquete .nfcpkg](guia-crear-paquete-nfcpkg.md)
+> - [Plantilla de driver](../templates/nfc-driver-template/)
+
 > **Objetivo:** Permitir que cualquier persona de la comunidad, sin saber
 > programar, pueda instalar soporte para un nuevo tipo de tarjeta NFC
 > simplemente subiendo un archivo `.nfcpkg` desde la pagina admin web.
@@ -1227,17 +1233,17 @@ necesarios para crear un driver nuevo, incluyendo:
 
 | Fase | Que | Estado |
 |------|-----|--------|
-| 1 | Formato .nfcpkg + firma | Pendiente |
-| 2 | Sandbox Goja + API | Pendiente |
-| 3 | Migracion automatica | Pendiente |
-| 4 | Endpoints API admin | Pendiente |
-| 5 | UI web admin (Drivers tab) | Pendiente |
-| 6 | Motor declarativo Android | Pendiente |
-| 7 | Sharing federado | Pendiente |
-| 8 | Auto-descarga cross-node | Pendiente |
-| 9 | Herramienta CLI nfc-pkg | Pendiente |
-| 10 | Plantilla + documentacion | Pendiente |
-| 11 | Migrar drivers existentes a .nfcpkg | Pendiente |
+| 1 | Formato .nfcpkg + firma | Implementado |
+| 2 | Sandbox Goja + API | Implementado |
+| 3 | Migracion automatica | Implementado |
+| 4 | Endpoints API admin | Implementado |
+| 5 | UI web admin (Drivers tab) | Implementado |
+| 6 | Motor declarativo Android | Implementado |
+| 7 | Sharing federado | Implementado |
+| 8 | Auto-descarga cross-node | Implementado |
+| 9 | Herramienta CLI nfc-pkg | Implementado |
+| 10 | Plantilla + documentacion | Implementado |
+| 11 | Migrar drivers existentes a .nfcpkg | Pendiente (los built-in siguen funcionando) |
 
 ### Archivos nuevos a crear
 

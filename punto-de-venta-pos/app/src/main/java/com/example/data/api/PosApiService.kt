@@ -190,6 +190,13 @@ interface PosApiService {
     @GET("nfc/card-types")
     suspend fun listCardTypes(): Response<List<CardTypeManifest>>
 
+    // --- NFC Drivers (auto-instalable .nfcpkg) ---
+    @GET("nfc/card-drivers")
+    suspend fun listCardDrivers(): Response<List<CardDriverInfo>>
+
+    @GET("nfc/card-drivers/{type}/reader")
+    suspend fun getCardDriverReader(@Path("type") type: String): Response<String>
+
     @GET("nfc/cards/pending-initialization")
     suspend fun getPendingInitializationCards(): Response<PendingCardResponse>
 

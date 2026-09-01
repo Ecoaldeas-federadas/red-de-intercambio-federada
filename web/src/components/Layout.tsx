@@ -22,6 +22,7 @@ const navItems: { to: string; label: string; icon: any; perm?: string; end?: boo
   { to: '/app/my-services', label: 'Mis Servicios', icon: Plug },
   { to: '/app/payments', label: 'Pagos', icon: Wallet },
   { to: '/app/nfc-terminals', label: 'Terminales NFC', icon: Nfc, perm: 'nfc.register_terminal' },
+  { to: '/app/nfc-drivers', label: 'Drivers NFC', icon: Package, perm: 'nfc.issue_card' },
   { to: '/app/my-terminals', label: 'Mis Puntos de Venta', icon: ShoppingBag },
   { to: '/app/products', label: 'Productos', icon: Package },
   { to: '/app/calculator', label: 'Calculadora', icon: Calculator },

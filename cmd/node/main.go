@@ -27,6 +27,7 @@ import (
 	"federated-credit-node/internal/external"
 	"federated-credit-node/internal/ledger"
 	"federated-credit-node/internal/payments"
+	"federated-credit-node/internal/payments/cards"
 	"federated-credit-node/internal/pricing"
 )
 
@@ -325,6 +326,14 @@ func main() {
 	nfcTerminalHandler := api.NewNFCTerminalHandler(nfcTerminalsSvc, cfg.Node.Domain, firmwareCompiler)
 	nfcTerminalHandler.MultiSig = handler.MultiSig
 
+	// NFC Driver handler (sistema de drivers auto-instalables .nfcpkg)
+	nfcDriverHandler := api.NewNFCDriverHandler(database.Pool, cfg.Node.Domain)
+
+	// Cargar drivers dinamicos instalados desde la DB
+	if err := cards.LoadDynamicDriversFromDB(context.Background(), database.Pool); err != nil {
+		log.Printf("warning: no se pudieron cargar drivers dinamicos: %v", err)
+	}
+
 	setupHandler := api.NewSetupHandler(database.Pool, accountsSvc, jwtSecret, cfg.Node.Domain, cfg.Node.Name)
 
 	// Network handler (red privada federada con OpenWrt - opcional)
@@ -333,7 +342,7 @@ func main() {
 	// Services handler (catalogo de servicios federados/autohospedados)
 	federatedServicesHandler := api.NewFederatedServicesHandler(database.Pool, cfg.Node.Domain)
 
-	router := api.NewRouterWithAuthAndBasePath(handler, authHandlers, federationHandler, orgHandler, paymentsHandler, externalHandler, recoveryHandler, departmentsHandler, nfcTerminalHandler, setupHandler, networkHandler, federatedServicesHandler, cfg.API.CORSOrigins, authMiddleware, database.Pool, demoBasePath, cfg)
+	router := api.NewRouterWithAuthAndBasePath(handler, authHandlers, federationHandler, orgHandler, paymentsHandler, externalHandler, recoveryHandler, departmentsHandler, nfcTerminalHandler, setupHandler, networkHandler, federatedServicesHandler, nfcDriverHandler, cfg.API.CORSOrigins, authMiddleware, database.Pool, demoBasePath, cfg)
 
 	// Iniciar scheduler de notificaciones automaticas (avisos de votacion por cerrar, asambleas proximas)
 	notifScheduler := api.NewNotificationScheduler(database.Pool, cfg.Node.Domain)

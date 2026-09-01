@@ -111,4 +111,26 @@ export const api = {
   put: <T>(path: string, body?: unknown) =>
     apiFetch<T>(path, { method: 'PUT', body: body ? JSON.stringify(body) : undefined }),
   delete: <T>(path: string) => apiFetch<T>(path, { method: 'DELETE' }),
+  upload: async <T>(path: string, formData: FormData): Promise<T> => {
+    const token = getToken()
+    const headers: Record<string, string> = {
+      'X-Node-Domain': getNodeDomain(),
+    }
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    const res = await fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      headers,
+      body: formData,
+      cache: 'no-store',
+    })
+    if (res.status === 401) {
+      handleUnauthorized()
+      throw new Error('Sesion expirada')
+    }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Upload failed' }))
+      throw new Error(err.error || `HTTP ${res.status}`)
+    }
+    return res.json()
+  },
 }

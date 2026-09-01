@@ -714,6 +714,16 @@ data class UltralightCPreAuthResponse(
     @Json(name = "message") val message: String? = null
 )
 
+// ===== NFC Driver (auto-instalable .nfcpkg) =====
+
+@JsonClass(generateAdapter = true)
+data class CardDriverInfo(
+    @Json(name = "type") val type: String = "",
+    @Json(name = "display_name") val displayName: String = "",
+    @Json(name = "version") val version: String = "",
+    @Json(name = "reader_json") val readerJson: String = ""
+)
+
 @JsonClass(generateAdapter = true)
 data class UltralightCConfirmDecryptedPayload(
     @Json(name = "terminal_id") val terminalId: String,

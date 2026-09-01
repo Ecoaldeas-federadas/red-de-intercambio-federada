@@ -7,6 +7,8 @@ import com.example.data.crypto.EncryptedPayload
 import com.example.data.crypto.KeystoreCrypto
 import com.example.data.crypto.toHex
 import com.example.data.db.*
+import com.example.data.nfc.CardReaderConfigStore
+import com.example.data.nfc.CardReaderRegistry
 import com.example.ui.util.FormatConfig
 import com.squareup.moshi.Moshi
 import kotlinx.coroutines.Dispatchers
@@ -2707,6 +2709,40 @@ class PosRepository(
                 Result.success(response.body()!!)
             } else {
                 Result.failure(Exception("Error obteniendo tipos de tarjeta (HTTP ${response.code()})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión: ${e.localizedMessage}"))
+        }
+    }
+
+    // ============================================
+    // NFC Drivers — sincronizacion de reader.json
+    // ============================================
+
+    /**
+     * Sincroniza los drivers NFC instalados en el servidor.
+     * Descarga los reader.json de cada driver y los guarda localmente
+     * para que CardReaderRegistry los pueda usar sin recompilar el APK.
+     *
+     * Se llama al iniciar sesion y periodicamente.
+     */
+    suspend fun syncCardDrivers(): Result<List<CardDriverInfo>> = withContext(Dispatchers.IO) {
+        try {
+            val service = apiClient.getService()
+            val response = service.listCardDrivers()
+            if (response.isSuccessful && response.body() != null) {
+                val drivers = response.body()!!
+                // Guardar cada reader.json localmente
+                for (driver in drivers) {
+                    if (driver.readerJson.isNotEmpty()) {
+                        CardReaderConfigStore.save(driver.type, driver.readerJson)
+                    }
+                }
+                // Recargar el registry con los nuevos readers
+                CardReaderRegistry.reloadDynamicReaders()
+                Result.success(drivers)
+            } else {
+                Result.failure(Exception("Error sincronizando drivers (HTTP ${response.code()})"))
             }
         } catch (e: Exception) {
             Result.failure(Exception("Error de conexión: ${e.localizedMessage}"))

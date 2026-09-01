@@ -95,6 +95,11 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("/federation/reconcile/import", s.handleReconcileImport)
 	mux.HandleFunc("/federation/audit/chain", s.handleAuditChain)
 
+	// NFC driver sharing (auto-instalable .nfcpkg packages)
+	mux.HandleFunc("/federation/drivers/list", s.handleDriversList)
+	mux.HandleFunc("/federation/drivers/download/", s.handleDriversDownload)
+	mux.HandleFunc("/federation/drivers/sync", s.handleDriversSync)
+
 	srv := &http.Server{
 		Addr:      fmt.Sprintf(":%d", s.ListenPort),
 		Handler:   mux,

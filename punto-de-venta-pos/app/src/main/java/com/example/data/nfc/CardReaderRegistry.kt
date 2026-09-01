@@ -1,13 +1,20 @@
 package com.example.data.nfc
 
 import android.nfc.Tag
+import android.util.Log
 import com.example.data.crypto.CryptoEngine
 
 /**
  * Registry central de lectores de tarjetas NFC.
  *
  * Detecta el tipo de tarjeta desde tag.techList y devuelve el CardReader
- * apropiado. Para agregar una nueva tarjeta, solo se registra su reader aqui.
+ * apropiado.
+ *
+ * Soporta dos tipos de readers:
+ * 1. Built-in: compilados en el APK (MifareClassic, Ntag215, UltralightC, Desfire).
+ *    Siempre disponibles. Tienen prioridad sobre los dinamicos.
+ * 2. Dinamicos: cargados desde reader.json (descargados del servidor).
+ *    Se interpretan con CardReaderEngine. No requieren recompilar el APK.
  *
  * Uso:
  *   val reader = CardReaderRegistry.detectReader(tag)
@@ -18,54 +25,89 @@ import com.example.data.crypto.CryptoEngine
  */
 object CardReaderRegistry {
 
-    private val readers = mutableListOf<CardReader>()
+    private const val TAG = "CardReaderRegistry"
+
+    private val builtinReaders = mutableListOf<CardReader>()
+    private val dynamicReaders = mutableListOf<CardReader>()
+    private val allReaders: List<CardReader>
+        get() = builtinReaders + dynamicReaders
 
     init {
-        // Registrar todos los readers soportados
-        register(MifareClassicCardReader())
-        register(Ntag215Reader())
-        register(UltralightCReader())
-        register(DesfireCardReader())
+        // Registrar readers built-in (compilados)
+        builtinReaders.add(MifareClassicCardReader())
+        builtinReaders.add(Ntag215Reader())
+        builtinReaders.add(UltralightCReader())
+        builtinReaders.add(DesfireCardReader())
+
+        // Cargar readers dinamicos desde el store local
+        reloadDynamicReaders()
     }
 
     /**
-     * Registra un nuevo reader. Se llama automaticamente desde el init,
-     * pero puede usarse para agregar readers dinamicamente.
+     * Recarga los readers dinamicos desde CardReaderConfigStore.
+     * Se llama al iniciar y despues de syncCardDrivers().
+     */
+    fun reloadDynamicReaders() {
+        dynamicReaders.clear()
+        if (!CardReaderConfigStore.isInitialized()) {
+            Log.w(TAG, "CardReaderConfigStore no inicializado — readers dinamicos no disponibles")
+            return
+        }
+        val configs = CardReaderConfigStore.getAll()
+        for (config in configs) {
+            // No duplicar si ya hay un built-in con el mismo tipo
+            if (builtinReaders.none { it.cardType == config.type }) {
+                dynamicReaders.add(CardReaderEngine(config))
+                Log.i(TAG, "Reader dinamico cargado: ${config.type}")
+            }
+        }
+    }
+
+    /**
+     * Registra un nuevo reader built-in. Se llama automaticamente desde init.
      */
     fun register(reader: CardReader) {
-        // No duplicar
-        if (readers.none { it.cardType == reader.cardType }) {
-            readers.add(reader)
+        if (builtinReaders.none { it.cardType == reader.cardType }) {
+            builtinReaders.add(reader)
         }
     }
 
     /**
      * Detecta el tipo de tarjeta y devuelve el reader apropiado.
      * Retorna null si no hay reader que pueda manejar el tag.
+     * Prioridad: built-in primero, luego dinamicos.
      */
     fun detectReader(tag: Tag): CardReader? {
-        return readers.firstOrNull { it.canHandle(tag) }
+        // Probar built-in primero
+        for (reader in builtinReaders) {
+            if (reader.canHandle(tag)) return reader
+        }
+        // Luego dinamicos
+        for (reader in dynamicReaders) {
+            if (reader.canHandle(tag)) return reader
+        }
+        return null
     }
 
     /**
      * Retorna el reader por tipo de tarjeta, o null si no esta registrado.
      */
     fun getReader(cardType: String): CardReader? {
-        return readers.firstOrNull { it.cardType == cardType }
+        return allReaders.firstOrNull { it.cardType == cardType }
     }
 
     /**
-     * Retorna la lista de todos los readers registrados.
+     * Retorna la lista de todos los readers registrados (built-in + dinamicos).
      */
     fun listReaders(): List<CardReader> {
-        return readers.toList()
+        return allReaders
     }
 
     /**
      * Verifica si un tipo de tarjeta esta soportado.
      */
     fun isSupported(cardType: String): Boolean {
-        return readers.any { it.cardType == cardType }
+        return allReaders.any { it.cardType == cardType }
     }
 
     /**
@@ -81,5 +123,12 @@ object CardReaderRegistry {
      */
     fun detectCardType(tag: Tag): String? {
         return detectReader(tag)?.cardType
+    }
+
+    /**
+     * Retorna la lista de tipos de tarjeta soportados dinamicamente.
+     */
+    fun listDynamicTypes(): List<String> {
+        return dynamicReaders.map { it.cardType }
     }
 }

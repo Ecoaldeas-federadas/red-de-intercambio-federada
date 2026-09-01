@@ -30,6 +30,7 @@ import Departments from './pages/Departments'
 import DepartmentDetail from './pages/DepartmentDetail'
 import Governance from './pages/Governance'
 import NFCTerminals from './pages/NFCTerminals'
+import NFCDrivers from './pages/NFCDrivers'
 import FederationPeers from './pages/FederationPeers'
 import MergeConflicts from './pages/MergeConflicts'
 import NodeSettings from './pages/NodeSettings'
@@ -183,6 +184,7 @@ function AppInner() {
         <Route path="/app/departments/:id" element={<PendingAdmissionGuard><Layout><DepartmentDetail /></Layout></PendingAdmissionGuard>} />
         <Route path="/app/governance" element={<PendingAdmissionGuard><Layout><Governance /></Layout></PendingAdmissionGuard>} />
         <Route path="/app/nfc-terminals" element={<PendingAdmissionGuard><Layout><NFCTerminals /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/nfc-drivers" element={<PendingAdmissionGuard><Layout><NFCDrivers /></Layout></PendingAdmissionGuard>} />
       <Route path="/app/my-terminals" element={<PendingAdmissionGuard><Layout><MyTerminals /></Layout></PendingAdmissionGuard>} />
         <Route path="/app/federation/peers" element={<PendingAdmissionGuard><Layout><Federation /></Layout></PendingAdmissionGuard>} />
         <Route path="/app/federation/conflicts" element={<PendingAdmissionGuard><Layout><MergeConflicts /></Layout></PendingAdmissionGuard>} />

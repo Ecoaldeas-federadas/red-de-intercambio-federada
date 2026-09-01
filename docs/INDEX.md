@@ -38,8 +38,11 @@
 34. [Protocolo NTAG215](tarjeta-ntag215-protocolo.md) - 30 slots, PWD unica, rotacion aleatoria, compatible con todos los telefonos
 35. [Protocolo Ultralight C](tarjeta-ultralight-c-protocolo.md) - 8 slots, 3DES 112-bit, baja capacidad, fallback si no hay NTAG215
 36. [Drivers de Tarjetas NFC](card-drivers/) - Manifiestos JSON modulares por tipo de tarjeta
-37. [Guia: Como Agregar una Nueva Tarjeta NFC](guia-agregar-tarjeta-nfc.md) - Paso a paso para agregar un nuevo driver de tarjeta al sistema modular
+37. [Guia: Como Agregar una Nueva Tarjeta NFC](guia-agregar-tarjeta-nfc.md) - Paso a paso para agregar un nuevo driver de tarjeta al sistema modular (sistema antiguo, compilado)
 38. [Diseno: Drivers Auto-Instalables](diseno-drivers-auto-instalables.md) - Sistema de paquetes .nfcpkg firmados, auto-instalables desde la web admin, con sharing federado entre nodos
+39. [Guia: Crear Paquete .nfcpkg](guia-crear-paquete-nfcpkg.md) - Para programadores: como crear, firmar y distribuir un driver .nfcpkg
+40. [Guia: Instalar Driver desde la Web](guia-instalar-driver-web.md) - Para admin de comunidad: como instalar un driver sin saber programar
+41. [Plantilla de Driver NFC](../templates/nfc-driver-template/) - Plantilla base con todos los archivos para crear un driver nuevo
 
 ## Estado de Implementacion
 

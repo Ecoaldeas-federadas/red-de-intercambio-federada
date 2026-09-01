@@ -1,0 +1,77 @@
+{
+  "package_version": 1,
+  "driver_version": "1.0.0",
+  "type": "MIDRIVER",
+  "display_name": "Mi Tarjeta NFC",
+  "description": "Descripcion de la tarjeta.",
+  "manufacturer": "Fabricante",
+  "capacity": "full",
+  "min_server_version": "1.0.0",
+  "min_pos_version": "1.0.0",
+
+  "memory": {
+    "total_bytes": 0,
+    "user_bytes": 0,
+    "page_size": 4,
+    "total_pages": 0,
+    "user_pages": 0
+  },
+
+  "security": {
+    "level": "password",
+    "algorithm": "PWD-32bit",
+    "key_length_bits": 32,
+    "key_count": 1,
+    "mutual_auth": false,
+    "secure_messaging": false,
+    "originality_signature": false,
+    "auth_limit_configurable": true
+  },
+
+  "compatibility": {
+    "android": "full",
+    "ios": "full",
+    "esp32_pn532": "full",
+    "phone_reader": true,
+    "nfc_forum_type": 2
+  },
+
+  "protocol": {
+    "slots": 0,
+    "active_slots": 0,
+    "backup_slots": 0,
+    "certificate_size": 16,
+    "public_zone_start_page": 4,
+    "public_zone_end_page": 9,
+    "private_zone_start_page": 10,
+    "private_zone_end_page": 0,
+    "auth_method": "PWD_AUTH",
+    "rotation": "random_per_transaction",
+    "pre_auth_ttl_seconds": 30
+  },
+
+  "availability": {
+    "venezuela": false,
+    "price_usd": 0
+  },
+
+  "endpoints": {
+    "provision": "/api/nfc/cards/provision-MIDRIVER",
+    "pre_auth": "/api/nfc/terminal/MIDRIVER/pre-auth",
+    "confirm": "/api/nfc/terminal/MIDRIVER/confirm"
+  },
+
+  "files": {
+    "driver": "driver.js",
+    "reader": "reader.json",
+    "migration": "migration.sql",
+    "protocol_doc": "protocol.md",
+    "icon": "icon.svg"
+  },
+
+  "author": {
+    "name": "Tu Nombre",
+    "contact": "email@ejemplo.com",
+    "license": "LPF-1.0"
+  }
+}
