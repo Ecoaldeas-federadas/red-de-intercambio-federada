@@ -22,8 +22,18 @@ com.example/
 │   │   └── KeystoreCrypto.kt           # Encriptación de clave privada via Android Keystore
 │   ├── db/
 │   │   └── AppDatabase.kt              # Room database, entidades, DAOs, migraciones
+│   ├── nfc/                            # Lectores de tarjetas NFC
+│   │   ├── CardReader.kt               # Interfaz comun para todos los lectores
+│   │   ├── CardReaderRegistry.kt       # Registry: built-in + dinamicos (descargados del server)
+│   │   ├── CardReaderEngine.kt         # Motor declarativo que interpreta reader.json (dinamico)
+│   │   ├── ReaderConfig.kt             # Modelo data class para reader.json
+│   │   ├── CardReaderConfigStore.kt    # Persistencia local de reader.json (SharedPreferences)
+│   │   ├── MifareClassicCardReader.kt  # Reader built-in: MIFARE Classic
+│   │   ├── Ntag215Reader.kt            # Reader built-in: NTAG215
+│   │   ├── UltralightCReader.kt        # Reader built-in: Ultralight C
+│   │   └── DesfireCardReader.kt        # Reader built-in: DESFire
 │   └── repository/
-│       └── PosRepository.kt            # Capa de repositorio: orquesta API + DB + crypto
+│       └── PosRepository.kt            # Capa de repositorio: orquesta API + DB + crypto + NFC sync
 ├── ui/
 │   ├── screens/
 │   │   ├── AdminScreen.kt              # Administración: tarjetas, terminales
@@ -249,6 +259,38 @@ Encripta la clave privada del terminal usando Android Keystore:
 8. POS verifica firma del servidor, desencripta respuesta
 ```
 
+### 4.4 Drivers NFC auto-instalables (motor declarativo)
+
+El POS Android soporta dos tipos de lectores de tarjetas NFC:
+
+1. **Built-in (compilados):** MifareClassicCardReader, Ntag215Reader,
+   UltralightCReader, DesfireCardReader. Siempre disponibles. Tienen
+   prioridad sobre los dinamicos.
+
+2. **Dinamicos (descargados del servidor):** Se cargan desde `reader.json`
+   descargado del servidor via `PosRepository.syncCardDrivers()`. Se
+   interpretan con `CardReaderEngine` sin necesidad de recompilar el APK.
+
+**Flujo de sincronizacion de drivers:**
+
+```
+1. POS llama a syncCardDrivers() al iniciar sesion
+2. GET /api/nfc/card-drivers → lista de drivers instalados en el servidor
+3. Cada driver trae su reader.json embebido
+4. CardReaderConfigStore.save() guarda reader.json en SharedPreferences
+5. CardReaderRegistry.reloadDynamicReaders() recarga el registry
+6. Los nuevos readers dinamicos aparecen en listReaders()
+7. detectReader(tag) ahora puede detectar tipos de tarjeta nuevos
+```
+
+**Limitaciones del motor declarativo:**
+- Soporta: NfcA READ (0x30), WRITE (0xA2), PWD_AUTH (0x1B), MifareClassic
+- NO soporta: DESFire (APDU complejo), MIFARE Plus (AES), NTAG424 DNA (SUN MAC)
+- Las tarjetas que requieren logica compleja necesitan un reader built-in
+
+Ver: [Drivers auto-instalables](../docs/diseno-drivers-auto-instalables.md) |
+[Guia para programadores](../docs/guia-crear-paquete-nfcpkg.md)
+
 ---
 
 ## 5. Capa de API (`data/api/`)
@@ -329,6 +371,10 @@ interface PosApiService {
 
     // Card Type Config
     @GET("nfc/card-type/config")    suspend fun getCardTypeConfig()
+
+    // NFC Drivers (auto-instalable .nfcpkg)
+    @GET("nfc/card-drivers")                suspend fun listCardDrivers()
+    @GET("nfc/card-drivers/{type}/reader")  suspend fun getCardDriverReader(...)
 
     // Transactions
     @GET("nfc/transactions")        suspend fun listNfcTransactions(...)

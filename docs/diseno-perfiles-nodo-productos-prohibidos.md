@@ -2,8 +2,8 @@
 
 ## Diseno tecnico
 
-> **ESTADO: DISENO** — Este documento describe el sistema propuesto.
-> No esta implementado aun. Pendiente de revision.
+> **ESTADO: IMPLEMENTADO** — Este sistema ya esta implementado en el codigo.
+> Para usarlo, ver [Guia: Perfiles de Nodo y Productos Prohibidos](guia-perfiles-nodo.md).
 
 ## Objetivo
 
@@ -361,15 +361,15 @@ Lo nuevo es **aditivo**: prohibiciones por producto individual + sharing federad
 
 | Fase | Que | Estado |
 |------|-----|--------|
-| 1 | Migracion 152 + tablas nuevas | Pendiente |
-| 2 | API: perfiles dinamicos (CRUD) | Pendiente |
-| 3 | API: prohibiciones por producto | Pendiente |
-| 4 | API: cola de aprobacion pendiente | Pendiente |
-| 5 | Federation: sync perfiles + prohibiciones | Pendiente |
-| 6 | Web UI: crear perfil, prohibiciones, cola | Pendiente |
-| 7 | Migrar perfiles hardcodeados a DB | Pendiente |
-| 8 | Documentacion | Pendiente |
-| 9 | Verificacion y commit | Pendiente |
+| 1 | Migracion 152 + tablas nuevas | Implementado |
+| 2 | API: perfiles dinamicos (CRUD) | Implementado |
+| 3 | API: prohibiciones por producto | Implementado |
+| 4 | API: cola de aprobacion pendiente | Implementado |
+| 5 | Federation: sync perfiles + prohibiciones | Implementado |
+| 6 | Web UI: crear perfil, prohibiciones, cola | Implementado |
+| 7 | Migrar perfiles hardcodeados a DB | Implementado |
+| 8 | Documentacion | Implementado |
+| 9 | Verificacion y commit | Implementado |
 
 ## Preguntas abiertas
 

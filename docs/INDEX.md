@@ -43,6 +43,8 @@
 39. [Guia: Crear Paquete .nfcpkg](guia-crear-paquete-nfcpkg.md) - Para programadores: como crear, firmar y distribuir un driver .nfcpkg
 40. [Guia: Instalar Driver desde la Web](guia-instalar-driver-web.md) - Para admin de comunidad: como instalar un driver sin saber programar
 41. [Plantilla de Driver NFC](../templates/nfc-driver-template/) - Plantilla base con todos los archivos para crear un driver nuevo
+42. [Diseno: Perfiles de Nodo con Prohibiciones Compartidas](diseno-perfiles-nodo-productos-prohibidos.md) - Perfiles dinamicos (adventista, ISKCON, etc.) con prohibiciones de productos compartidas via federation
+43. [Guia: Perfiles de Nodo y Productos Prohibidos](guia-perfiles-nodo.md) - Para admin: como configurar perfil del nodo, marcar productos prohibidos, y compartir con otros nodos
 
 ## Estado de Implementacion
 
@@ -98,6 +100,16 @@
 | 17.2 | Niveles de nodo federado (Nuevo, Aceptado, Pleno) + padrino | Completado |
 | 17.3 | Verificacion de 4 opciones para POS y federation pairing | Completado |
 | 17.4 | Reconciliacion de cadena al reconectar nodos | Completado |
+| 18 | Drivers NFC auto-instalables (.nfcpkg) | Completado |
+| 18.1 | Sandbox Goja + parser + firma Ed25519 por-nodo | Completado |
+| 18.2 | Motor declarativo Android + descarga automatica | Completado |
+| 18.3 | Sharing federado de drivers via gossip | Completado |
+| 18.4 | CLI nfc-pkg + plantilla + documentacion | Completado |
+| 19 | Perfiles de nodo dinamicos + prohibiciones compartidas | Completado |
+| 19.1 | Perfiles en DB (no hardcodeados) + crear nuevos perfiles | Completado |
+| 19.2 | Prohibiciones por producto individual + cola de aprobacion | Completado |
+| 19.3 | Sharing federado de perfiles y prohibiciones via gossip | Completado |
+| 19.4 | Auto-aprobacion opcional + independencia por nodo | Completado |
 
 ## Estructura del Proyecto
 
@@ -114,9 +126,9 @@ red de intercambio federada/
 │   ├── crypto/               # Passkeys, Ed25519, encriptacion, terminal crypto
 │   ├── db/                   # Pool de conexion, migraciones, seed
 │   ├── external/             # DEX, tienda comunitaria, productos compuestos
-│   ├── federation/           # Servidor federacion, mTLS, gossip, productos federados
+│   ├── federation/           # Servidor federacion, mTLS, gossip, productos federados, drivers NFC, perfiles
 │   ├── ledger/               # Ledger doble entrada, hash chain
-│   ├── payments/             # QR, NFC, manual, terminales NFC ESP32
+│   ├── payments/             # QR, NFC, manual, terminales NFC ESP32, cards (drivers auto-instalables)
 │   └── pricing/              # Calculadora energetica, productos
 ├── firmware/                 # Firmware ESP32 para terminales NFC
 │   ├── shared/               # Codigo compartido (crypto, NFC, display, server, pairing)
@@ -128,14 +140,21 @@ red de intercambio federada/
 │   └── docs/                 # Hardware, seguridad, flasheo, troubleshooting
 ├── web/                      # Frontend PWA React
 │   ├── src/
-│   │   ├── api.ts            # Cliente API con JWT
+│   │   ├── api.ts            # Cliente API con JWT + upload helper
 │   │   ├── App.tsx           # Rutas
 │   │   ├── components/       # Layout, navegacion, public-site
 │   │   ├── hooks/            # useAuth, usePermissions, useConfig
-│   │   ├── pages/            # 42+ paginas (Setup, Dashboard, Pos, NFCTerminals, Assembly, Store, etc.)
+│   │   ├── pages/            # 44+ paginas (Setup, Dashboard, Pos, NFCTerminals, NFCDrivers, Assembly, Store, NodeSettings, etc.)
 │   │   └── main.tsx          # Entry point + service worker
 │   ├── public/               # manifest, sw.js, icon
 │   └── package.json
+├── cmd/
+│   ├── node/main.go          # Punto de entrada del nodo
+│   ├── install/main.go       # Instalador CLI
+│   ├── installer/main.go     # Instalador web
+│   └── nfc-pkg/main.go       # CLI para crear, firmar, verificar .nfcpkg
+├── templates/
+│   └── nfc-driver-template/  # Plantilla para crear drivers NFC (.nfcpkg)
 ├── docs/                     # Esta documentacion
 └── docker/                   # Dockerfile, docker-compose
 ```
@@ -190,6 +209,8 @@ red de intercambio federada/
 | 130 | Federation pairing requests para verificacion de 4 opciones (NUEVO) |
 | 148 | Permiso separado `nfc.initialize_card` para grabar tarjetas fisicamente |
 | 149 | Perfil religioso/filosofico del nodo (`faith_profile` en `public_settings`) |
+| 151 | Registry de drivers NFC auto-instalables (`nfc_card_drivers`, `nfc_driver_signing_keys`, `nfc_driver_packages_cache`) |
+| 152 | Perfiles de nodo dinamicos + prohibiciones compartidas (`node_faith_profiles`, `node_profile_settings`, `profile_product_prohibitions`, `profile_product_prohibition_queue`) |
 
 ## Cambios Recientes
 
@@ -284,11 +305,18 @@ El sistema de asambleas ahora soporta tres niveles de decision:
 - `nfc.initialize_card`: grabar/inicializar tarjeta fisica desde POS Android. Menos restrictivo.
 - El POS Android muestra "Grabar Tarjeta" solo si el usuario tiene `nfc.initialize_card`.
 
-**Perfil religioso/filosofico del nodo (migracion 149):**
+**Perfil religioso/filosofico del nodo (migraciones 149 + 152):**
 - `faith_profile` y `faith_description` en `public_settings` (del nodo completo, no por organizacion)
-- Endpoint `GET/PUT /api/node/faith-profile`
+- Endpoint `GET/PUT /api/node/faith-profile` (legacy) y `GET/PUT /api/node/profile` (nuevo)
 - UI en NodeSettings → pestaña "Perfil del Nodo"
-- Perfiles disponibles: Adventista, ISKCON, Plum Village, Halal, Kosher, Jain, Vegano, Ital Rastafari
+- Perfiles almacenados en DB (`node_faith_profiles`), no hardcodeados
+- 8 perfiles oficiales: Adventista, ISKCON, Plum Village, Halal, Kosher, Jain, Vegano, Ital Rastafari
+- **Crear nuevos perfiles** desde la UI (ej: Adventista Reforma) — se comparten via federation
+- **Prohibiciones por producto individual** (no solo por categoria) — tabla `profile_product_prohibitions`
+- **Sharing federado**: nodos con el mismo perfil comparten prohibiciones via gossip cada 60s
+- **Auto-aprobacion opcional**: cada nodo decide si aprueba automaticamente o revisa manualmente
+- **Cola de aprobacion**: prohibiciones recibidas de peers aparecen para revision
+- **Independencia**: cada nodo puede desaprobar localmente cualquier prohibicion (falso positivo)
 
 **Limpieza de NodeSettings:**
 - Eliminada "Reglas de Catalogo" (ya existe en la Tienda con productos reales)
@@ -316,6 +344,48 @@ El sistema de asambleas ahora soporta tres niveles de decision:
 - `POST /api/users/{id}/permissions/grant` — asignar permiso (requiere `config.manage`)
 - `DELETE /api/users/{id}/permissions/{permName}` — quitar permiso (requiere `config.manage`)
 - `GET /api/departments/all` — todos los departamentos con organizacion padre
+
+### Drivers NFC Auto-Instalables (migracion 151)
+
+Sistema completo de paquetes `.nfcpkg` que permite instalar soporte para
+nuevos tipos de tarjetas NFC sin programar ni recompilar:
+
+- **Paquete .nfcpkg:** ZIP firmado con Ed25519 con manifest.json, driver.js,
+  reader.json, migration.sql, signature.sig
+- **Sandbox Goja:** driver.js se ejecuta en JavaScript ES5.1 con API segura
+  (db, crypto, bcrypt), timeout 5s, sin I/O
+- **Firma por-nodo:** cada nodo genera su propia clave Ed25519. No hay clave
+  centralizada. Los nodos federados verifican automaticamente.
+- **Motor declarativo Android:** el POS interpreta reader.json sin ejecutar
+  JavaScript. No requiere recompilar el APK para cada driver nuevo.
+- **Sharing federado:** los drivers se comparten via gossip entre nodos
+- **CLI nfc-pkg:** herramienta para crear, firmar, verificar e inspeccionar .nfcpkg
+- **Plantilla:** `templates/nfc-driver-template/` con todos los archivos base
+- Ver: [Guia para programadores](guia-crear-paquete-nfcpkg.md) |
+  [Guia para admin](guia-instalar-driver-web.md) |
+  [Diseno](diseno-drivers-auto-instalables.md)
+
+### Perfiles de Nodo Dinamicos + Prohibiciones Compartidas (migracion 152)
+
+Sistema de perfiles religioso/filosoficos con prohibiciones de productos
+individuales compartidas via federation:
+
+- **Perfiles en DB:** los perfiles ya no estan hardcodeados en el frontend.
+  Se almacenan en `node_faith_profiles` y se cargan dinamicamente.
+- **Crear nuevos perfiles:** cualquier nodo puede crear un perfil custom
+  (ej: "Adventista Reforma") desde la web admin. Se comparte via gossip.
+- **Prohibiciones por producto:** ademas de por categoria, se puede marcar
+  productos especificos como prohibidos (ej: "Salchicha de cerdo").
+- **Sharing federado:** nodos con el mismo perfil comparten prohibiciones
+  via gossip cada 60s.
+- **Auto-aprobacion opcional:** cada nodo decide si aprueba automaticamente
+  o revisa manualmente las prohibiciones recibidas.
+- **Cola de aprobacion:** prohibiciones recibidas de peers aparecen para
+  revision manual.
+- **Independencia:** cada nodo puede desaprobar localmente cualquier
+  prohibicion (falso positivo).
+- Ver: [Guia de perfiles](guia-perfiles-nodo.md) |
+  [Diseno](diseno-perfiles-nodo-productos-prohibidos.md)
 
 **Organizaciones de la Asamblea:**
 - `is_assembly_owned = true` marca organizaciones que pertenecen a la Asamblea
