@@ -4,7 +4,7 @@ import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useConfig } from '../hooks/useConfig'
 import { EntitySelector } from '../components/EntitySelector'
-import { Plus, Check, X, HelpCircle, Users, Calendar, Shield, Vote as VoteIcon, DollarSign, Crown, Trash2, FileText, Clock, Building2, Search, KeyRound } from 'lucide-react'
+import { Plus, Check, X, HelpCircle, Users, Calendar, Shield, Vote as VoteIcon, DollarSign, Crown, Trash2, FileText, Clock, Building2, Search, KeyRound, Pencil } from 'lucide-react'
 import { fmtTQ, fmtDateTime, fmtNumber } from '../lib/format'
 
 type ProposalType =
@@ -946,6 +946,9 @@ export default function Assembly() {
   const [rescheduleSession, setRescheduleSession] = useState<any>(null)
   const [rescheduleTime, setRescheduleTime] = useState('')
   const [rescheduleDate, setRescheduleDate] = useState('')
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editDescription, setEditDescription] = useState('')
   const [freqConfig, setFreqConfig] = useState<any>({ ordinary_frequency_months: 3, preferred_day_of_month: 15, preferred_hour: 15, notification_days_before: 7, assemblies_enabled: true, attendance_window_hours: 1 })
   const [freqLoaded, setFreqLoaded] = useState(false)
   const [freqEditing, setFreqEditing] = useState(false)
@@ -1226,6 +1229,29 @@ export default function Assembly() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al confirmar presencia')
     }
+  }
+
+  const saveSessionEdit = async (sessionId: string) => {
+    setError('')
+    if (!editTitle.trim()) {
+      setError('El titulo no puede estar vacio')
+      return
+    }
+    try {
+      await api.put(`/assembly/sessions/${sessionId}`, { title: editTitle.trim(), description: editDescription })
+      setSessions(sessions.map(s => s.id === sessionId ? { ...s, title: editTitle.trim(), description: editDescription } : s))
+      setEditingSessionId(null)
+      setEditTitle('')
+      setEditDescription('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al actualizar sesion')
+    }
+  }
+
+  const startEditSession = (s: any) => {
+    setEditingSessionId(s.id)
+    setEditTitle(s.title || '')
+    setEditDescription(s.description || '')
   }
 
   const createSession = async () => {
@@ -2377,13 +2403,32 @@ export default function Assembly() {
               {sessions.map((s, i) => (
                 <div key={i} className="card">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{s.title}</span>
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {editingSessionId === s.id ? (
+                        <input
+                          className="input flex-1"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          placeholder="Titulo de la asamblea"
+                          autoFocus
+                        />
+                      ) : (
+                        <span className="font-medium">{s.title}</span>
+                      )}
                       {s.is_presential && (
                         <span className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700">Presencial</span>
                       )}
                       {!s.is_presential && (
                         <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700">Remota</span>
+                      )}
+                      {canManage && editingSessionId !== s.id && (
+                        <button
+                          onClick={() => startEditSession(s)}
+                          className="text-gray-400 hover:text-blue-600"
+                          title="Editar titulo y descripcion"
+                        >
+                          <Pencil size={14} />
+                        </button>
                       )}
                     </div>
                     <span className={`text-xs px-2 py-0.5 rounded ${
@@ -2400,7 +2445,33 @@ export default function Assembly() {
                       s.status
                     }</span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">{s.description}</p>
+                  {editingSessionId === s.id ? (
+                    <div className="mt-2 space-y-2">
+                      <textarea
+                        className="input"
+                        rows={2}
+                        value={editDescription}
+                        onChange={(e) => setEditDescription(e.target.value)}
+                        placeholder="Descripcion / temas a tratar"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => saveSessionEdit(s.id)}
+                          className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                        >
+                          Guardar
+                        </button>
+                        <button
+                          onClick={() => { setEditingSessionId(null); setEditTitle(''); setEditDescription('') }}
+                          className="text-xs px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500 mt-1">{s.description}</p>
+                  )}
                   <p className="text-xs text-gray-400 mt-1">
                     Tipo: {s.session_type} | {s.start_time?.slice(0, 16).replace('T', ' ')}
                     {s.recall_number > 0 && <span className="text-orange-600"> | Llamado #{s.recall_number + 1}</span>}
