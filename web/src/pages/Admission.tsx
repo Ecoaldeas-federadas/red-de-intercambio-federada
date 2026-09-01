@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
-import { Check, X, HelpCircle, UserPlus, Heart, Shield } from 'lucide-react'
+import { Check, X, HelpCircle, UserPlus, Heart, Shield, Users } from 'lucide-react'
 import { toCents, fmtTQ } from '../lib/format'
 
 export default function Admission() {
@@ -9,6 +9,8 @@ export default function Admission() {
   const [pending, setPending] = useState<any[]>([])
   const [showForm, setShowForm] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
+  const [showSponsorships, setShowSponsorships] = useState(false)
+  const [allSponsorships, setAllSponsorships] = useState<any[]>([])
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [form, setForm] = useState({
@@ -32,11 +34,26 @@ export default function Admission() {
       const list = Array.isArray(d) ? d : d?.requests ?? d?.users ?? []
       setPending(list)
     }).catch(() => {})
+  const loadSponsorships = () =>
+    api.get('/user/sponsorships/all').then((d: any) => setAllSponsorships(Array.isArray(d) ? d : [])).catch(() => {})
   useEffect(() => {
     load()
     api.get('/countries').then((d: any) => setCountries(Array.isArray(d) ? d : [])).catch(() => {})
     api.get('/document-types').then((d: any) => setDocTypes(Array.isArray(d) ? d : [])).catch(() => {})
   }, [])
+
+  const defaultToSponsor = async (id: string) => {
+    if (!confirm('Confirmas que este usuario incumplio? Su deuda se transferira a su padrino.')) return
+    setError('')
+    setSuccess('')
+    try {
+      await api.post(`/users/${id}/default-to-sponsor`, {})
+      setSuccess('Deuda transferida al padrino. El usuario ha sido suspendido.')
+      loadSponsorships()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al transferir deuda')
+    }
+  }
 
   const approve = async (id: string) => {
     setError('')
@@ -138,11 +155,62 @@ export default function Admission() {
           <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
             <HelpCircle size={20} />
           </button>
+          <button
+            onClick={() => { setShowSponsorships(!showSponsorships); if (!showSponsorships) loadSponsorships() }}
+            className="btn-secondary flex items-center gap-2 text-sm"
+          >
+            <Users size={18} /> Ver apadrinamientos
+          </button>
           <button onClick={() => setShowForm(!showForm)} className="btn-primary flex items-center gap-2">
             <Heart size={18} /> Apadrinar nuevo miembro
           </button>
         </div>
       </div>
+
+      {showSponsorships && (
+        <div className="card space-y-3">
+          <h2 className="font-semibold flex items-center gap-2"><Users size={18} />Apadrinamientos Registrados</h2>
+          {allSponsorships.length === 0 ? (
+            <p className="text-gray-500 text-sm">No hay apadrinamientos registrados.</p>
+          ) : (
+            <div className="space-y-2">
+              {allSponsorships.map((s, i) => (
+                <div key={i} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg text-sm">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs text-gray-500">Padrino:</span>
+                      <span className="font-medium">{s.sponsor_id?.slice(0, 8)}...</span>
+                      <span className="text-xs text-gray-500 ml-2">Ahijado:</span>
+                      <span className="font-medium">{s.sponsored_id?.slice(0, 8)}...</span>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Monto: {fmtTQ(s.amount_held)} {currency} | Fecha: {s.created_at?.slice(0, 10)}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs px-2 py-0.5 rounded ${
+                      s.status === 'active' ? 'bg-emerald-100 text-emerald-700' :
+                      s.status === 'released' ? 'bg-blue-100 text-blue-700' :
+                      s.status === 'defaulted' ? 'bg-red-100 text-red-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      {s.status === 'active' ? 'Activo' : s.status === 'released' ? 'Liberado' : s.status === 'defaulted' ? 'Incumplido' : s.status}
+                    </span>
+                    {s.status === 'active' && (
+                      <button
+                        onClick={() => defaultToSponsor(s.sponsored_id)}
+                        className="btn-danger text-xs flex items-center gap-1"
+                      >
+                        <X size={12} /> Incumplio
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">

@@ -3,6 +3,7 @@
 import (
 	"context"
 	"encoding/json"
+	"federated-credit-node/internal/accounts"
 	"federated-credit-node/internal/db"
 	"fmt"
 	"image"
@@ -1704,6 +1705,14 @@ func (h *SystemHandler) autoUpgradeLevel(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		writeError(w, 500, "error upgrading level")
 		return
+	}
+
+	// Si el usuario era ahijado (tenia padrino), liberar el sponsorship
+	// porque ahora tiene sus propios limites del nuevo nivel
+	acc := accounts.New(h.Pool)
+	if err := acc.ReleaseUserSponsorship(r.Context(), userID); err != nil {
+		// No es fatal, log pero continuar
+		fmt.Printf("WARNING: error releasing sponsorship for user %s: %v\n", userID, err)
 	}
 
 	// Registrar en historial

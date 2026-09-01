@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"federated-credit-node/internal/accounts"
 	"federated-credit-node/internal/db"
 	"fmt"
 	"net/http"
@@ -1479,6 +1480,13 @@ func (h *AssemblyHandler) executeDecision(r *http.Request, decisionType string, 
 		if userIDStr != "" && levelID != "" && action == "assign" {
 			h.Pool.Exec(r.Context(), `UPDATE users SET member_level_id = $1::uuid WHERE id = $2::uuid`,
 				levelID, userIDStr)
+			// Liberar sponsorship si el usuario era ahijado
+			if uid, err := uuid.Parse(userIDStr); err == nil {
+				acc := accounts.New(h.Pool)
+				if err := acc.ReleaseUserSponsorship(r.Context(), uid); err != nil {
+					fmt.Printf("WARNING: error releasing sponsorship for user %s: %v\n", userIDStr, err)
+				}
+			}
 		}
 
 	case "federation_treaty":

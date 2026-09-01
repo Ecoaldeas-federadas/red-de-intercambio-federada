@@ -368,6 +368,15 @@ func (a *Accounts) ApproveAdmissionRequest(ctx context.Context, reqID uuid.UUID,
 		if err != nil {
 			// No es fatal, continuamos
 		}
+		// Crear registro de sponsorship en user_sponsorships para trazabilidad
+		_, err = a.Pool.Exec(ctx, `
+			INSERT INTO user_sponsorships (sponsor_id, sponsored_id, amount_held, status)
+			VALUES ($1, $2, $3, 'active')
+			ON CONFLICT (sponsor_id, sponsored_id) DO UPDATE SET amount_held = $3, status = 'active', released_at = NULL`,
+			*req.SponsoredBy, user.ID, req.SponsorAmountHeld)
+		if err != nil {
+			// No es fatal, continuamos
+		}
 	}
 
 	// Transferir documentos de admission_documents a user_documents
@@ -445,4 +454,212 @@ func (a *Accounts) RejectAdmissionRequest(ctx context.Context, reqID, reviewerID
 		return fmt.Errorf("rejecting admission request: %w", err)
 	}
 	return nil
+}
+
+// UserSponsorship representa un apadrinamiento entre usuarios.
+type UserSponsorship struct {
+	ID          uuid.UUID  `json:"id"`
+	SponsorID   uuid.UUID  `json:"sponsor_id"`
+	SponsoredID uuid.UUID  `json:"sponsored_id"`
+	AmountHeld  int64      `json:"amount_held"`
+	Status      string     `json:"status"` // active, released, defaulted
+	CreatedAt   time.Time  `json:"created_at"`
+	ReleasedAt  *time.Time `json:"released_at"`
+}
+
+// ReleaseUserSponsorship libera el limite del padrino cuando el ahijado sube de nivel.
+// Marca el sponsorship como released, restaura los limites del padrino y limpia
+// el vinculo de apadrinamiento del ahijado.
+func (a *Accounts) ReleaseUserSponsorship(ctx context.Context, sponsoredID uuid.UUID) error {
+	tx, err := a.Pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("starting transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Obtener el sponsorship activo del ahijado
+	var sponsorID uuid.UUID
+	var amountHeld int64
+	err = tx.QueryRow(ctx, `
+		SELECT sponsor_id, amount_held FROM user_sponsorships
+		WHERE sponsored_id = $1 AND status = 'active'`,
+		sponsoredID).Scan(&sponsorID, &amountHeld)
+	if err != nil {
+		// No hay sponsorship activo, nada que liberar
+		return nil
+	}
+
+	// Marcar el sponsorship como released
+	_, err = tx.Exec(ctx, `
+		UPDATE user_sponsorships SET status = 'released', released_at = NOW()
+		WHERE sponsored_id = $1 AND status = 'active'`,
+		sponsoredID)
+	if err != nil {
+		return fmt.Errorf("releasing sponsorship: %w", err)
+	}
+
+	// Restaurar los limites del padrino (simetrico)
+	_, err = tx.Exec(ctx, `
+		UPDATE users SET credit_limit = credit_limit + $2, debit_limit = debit_limit + $2
+		WHERE id = $1`,
+		sponsorID, amountHeld)
+	if err != nil {
+		return fmt.Errorf("restoring sponsor limits: %w", err)
+	}
+
+	// Limpiar el vinculo de apadrinamiento del ahijado
+	_, err = tx.Exec(ctx, `
+		UPDATE users SET sponsored_by = NULL, sponsor_amount_held = 0
+		WHERE id = $1`,
+		sponsoredID)
+	if err != nil {
+		return fmt.Errorf("clearing sponsored link: %w", err)
+	}
+
+	return tx.Commit(ctx)
+}
+
+// TransferUserDebtToSponsor transfiere la deuda del ahijado al padrino cuando
+// el ahijado incumple. Solo transfiere si el balance del ahijado es negativo.
+// Crea una transaccion InternalTransfer en el ledger para mover el saldo.
+func (a *Accounts) TransferUserDebtToSponsor(ctx context.Context, sponsoredID uuid.UUID) error {
+	tx, err := a.Pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("starting transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Obtener el sponsorship activo
+	var sponsorID uuid.UUID
+	var amountHeld int64
+	err = tx.QueryRow(ctx, `
+		SELECT sponsor_id, amount_held FROM user_sponsorships
+		WHERE sponsored_id = $1 AND status = 'active'`,
+		sponsoredID).Scan(&sponsorID, &amountHeld)
+	if err != nil {
+		return fmt.Errorf("no active sponsorship found for user: %w", err)
+	}
+
+	// Obtener el balance actual del ahijado
+	var balance int64
+	err = tx.QueryRow(ctx, `
+		SELECT COALESCE(SUM(CASE WHEN entry_type = 'credit' THEN amount ELSE -amount END), 0)
+		FROM ledger_entries WHERE account_id = $1 AND account_category = 'user_balance'`,
+		sponsoredID).Scan(&balance)
+	if err != nil {
+		return fmt.Errorf("getting sponsored balance: %w", err)
+	}
+
+	// Si el balance es positivo o cero, no hay deuda que transferir
+	if balance >= 0 {
+		return fmt.Errorf("el usuario no tiene deuda (balance: %.2f TQ)", float64(balance)/100)
+	}
+
+	// La deuda es el valor absoluto del balance negativo
+	debtAmount := -balance
+
+	// Marcar el sponsorship como defaulted
+	_, err = tx.Exec(ctx, `
+		UPDATE user_sponsorships SET status = 'defaulted', released_at = NOW()
+		WHERE sponsored_id = $1 AND status = 'active'`,
+		sponsoredID)
+	if err != nil {
+		return fmt.Errorf("marking sponsorship as defaulted: %w", err)
+	}
+
+	// Restaurar los limites del padrino (el monto retenido se libera)
+	_, err = tx.Exec(ctx, `
+		UPDATE users SET credit_limit = credit_limit + $2, debit_limit = debit_limit + $2
+		WHERE id = $1`,
+		sponsorID, amountHeld)
+	if err != nil {
+		return fmt.Errorf("restoring sponsor limits: %w", err)
+	}
+
+	// Limpiar el vinculo de apadrinamiento
+	_, err = tx.Exec(ctx, `
+		UPDATE users SET sponsored_by = NULL, sponsor_amount_held = 0, membership_status = 'suspended'
+		WHERE id = $1`,
+		sponsoredID)
+	if err != nil {
+		return fmt.Errorf("suspending defaulted user: %w", err)
+	}
+
+	// Crear transaccion ledger para transferir la deuda del ahijado al padrino
+	// Debit al ahijado (reduce su saldo negativo, lo acerca a cero)
+	// Credit al padrino (aumenta su saldo negativo, asume la deuda)
+	txID := uuid.New()
+	_, err = tx.Exec(ctx, `
+		INSERT INTO transactions (id, tx_type, sender_id, receiver_id, amount, tax_amount, status, metadata, created_at)
+		VALUES ($1, 'sponsor_debt', $2, $3, $4, 0, 'confirmed', $5, NOW())`,
+		txID, sponsoredID, sponsorID, debtAmount,
+		fmt.Sprintf(`{"type":"user_sponsor_debt_transfer","sponsor_id":"%s","sponsored_id":"%s","debt_amount":%d}`,
+			sponsorID.String(), sponsoredID.String(), debtAmount))
+	if err != nil {
+		return fmt.Errorf("creating debt transfer transaction: %w", err)
+	}
+
+	// Postear entradas del ledger
+	_, err = tx.Exec(ctx, `
+		INSERT INTO ledger_entries (transaction_id, account_id, entry_type, amount, account_category, created_at)
+		VALUES ($1, $2, 'debit', $3, 'user_balance', NOW())`,
+		txID, sponsoredID, debtAmount)
+	if err != nil {
+		return fmt.Errorf("posting debit entry: %w", err)
+	}
+	_, err = tx.Exec(ctx, `
+		INSERT INTO ledger_entries (transaction_id, account_id, entry_type, amount, account_category, created_at)
+		VALUES ($1, $2, 'credit', $3, 'user_balance', NOW())`,
+		txID, sponsorID, debtAmount)
+	if err != nil {
+		return fmt.Errorf("posting credit entry: %w", err)
+	}
+
+	return tx.Commit(ctx)
+}
+
+// GetUserActiveSponsorships devuelve los sponsorships activos de un padrino.
+func (a *Accounts) GetUserActiveSponsorships(ctx context.Context, sponsorID uuid.UUID) ([]UserSponsorship, error) {
+	rows, err := a.Pool.Query(ctx, `
+		SELECT id, sponsor_id, sponsored_id, amount_held, status, created_at, released_at
+		FROM user_sponsorships
+		WHERE sponsor_id = $1 AND status = 'active'
+		ORDER BY created_at DESC`,
+		sponsorID)
+	if err != nil {
+		return nil, fmt.Errorf("getting active sponsorships: %w", err)
+	}
+	defer rows.Close()
+
+	var sponsorships []UserSponsorship
+	for rows.Next() {
+		var s UserSponsorship
+		if err := rows.Scan(&s.ID, &s.SponsorID, &s.SponsoredID, &s.AmountHeld, &s.Status, &s.CreatedAt, &s.ReleasedAt); err != nil {
+			continue
+		}
+		sponsorships = append(sponsorships, s)
+	}
+	return sponsorships, nil
+}
+
+// GetAllUserSponsorships devuelve todos los sponsorships (para panel admin).
+func (a *Accounts) GetAllUserSponsorships(ctx context.Context) ([]UserSponsorship, error) {
+	rows, err := a.Pool.Query(ctx, `
+		SELECT id, sponsor_id, sponsored_id, amount_held, status, created_at, released_at
+		FROM user_sponsorships
+		ORDER BY created_at DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("getting all sponsorships: %w", err)
+	}
+	defer rows.Close()
+
+	var sponsorships []UserSponsorship
+	for rows.Next() {
+		var s UserSponsorship
+		if err := rows.Scan(&s.ID, &s.SponsorID, &s.SponsoredID, &s.AmountHeld, &s.Status, &s.CreatedAt, &s.ReleasedAt); err != nil {
+			continue
+		}
+		sponsorships = append(sponsorships, s)
+	}
+	return sponsorships, nil
 }

@@ -69,6 +69,9 @@ func (h *Handler) RegisterRoutesWithAuth(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequirePermission("accounts.approve_admission")).Post("/api/admission/requests/{id}/approve", h.approveAdmission)
 	r.With(am.RequirePermission("accounts.reject_admission")).Post("/api/admission/requests/{id}/reject", h.rejectAdmission)
 	r.With(am.RequireAuth).Post("/api/admission/requests/{id}/sponsor", h.sponsorAdmissionRequest)
+	r.With(am.RequireAuth).Get("/api/user/sponsorships", h.listMySponsorships)
+	r.With(am.RequirePermission("accounts.approve_admission")).Get("/api/user/sponsorships/all", h.listAllSponsorships)
+	r.With(am.RequirePermission("accounts.approve_admission")).Post("/api/users/{id}/default-to-sponsor", h.defaultToSponsor)
 
 	r.Post("/api/calculator/internal", h.calcInternal)
 	r.Post("/api/calculator/external", h.calcExternal)
@@ -520,6 +523,71 @@ func (h *Handler) sponsorAdmissionRequest(w http.ResponseWriter, r *http.Request
 		return
 	}
 	writeJSON(w, 200, map[string]string{"status": "sponsored"})
+}
+
+// listMySponsorships devuelve los sponsorships activos del usuario autenticado
+// (como padrino) y su propio sponsorship (como ahijado, si lo tiene).
+func (h *Handler) listMySponsorships(w http.ResponseWriter, r *http.Request) {
+	userIDStr := r.Header.Get("X-User-ID")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		writeError(w, 401, "authentication required")
+		return
+	}
+	active, err := h.accounts.GetUserActiveSponsorships(r.Context(), userID)
+	if err != nil {
+		writeError(w, 500, "error getting sponsorships")
+		return
+	}
+	// Obtener info del propio ahijado (si el usuario tiene sponsored_by)
+	var mySponsor *map[string]interface{}
+	var sponsoredBy *uuid.UUID
+	var sponsorAmountHeld int64
+	h.Pool.QueryRow(r.Context(), `SELECT sponsored_by, sponsor_amount_held FROM users WHERE id = $1`, userID).Scan(&sponsoredBy, &sponsorAmountHeld)
+	if sponsoredBy != nil {
+		var sponsorName string
+		h.Pool.QueryRow(r.Context(), `SELECT username FROM users WHERE id = $1`, *sponsoredBy).Scan(&sponsorName)
+		mySponsor = &map[string]interface{}{
+			"sponsor_id":       sponsoredBy.String(),
+			"sponsor_username": sponsorName,
+			"amount_held":      sponsorAmountHeld,
+		}
+	}
+	writeJSON(w, 200, map[string]interface{}{
+		"as_sponsor":   active,
+		"as_sponsored": mySponsor,
+	})
+}
+
+// listAllSponsorships devuelve todos los sponsorships (para panel admin).
+func (h *Handler) listAllSponsorships(w http.ResponseWriter, r *http.Request) {
+	all, err := h.accounts.GetAllUserSponsorships(r.Context())
+	if err != nil {
+		writeError(w, 500, "error getting all sponsorships")
+		return
+	}
+	writeJSON(w, 200, all)
+}
+
+// defaultToSponsor transfiere la deuda del ahijado al padrino cuando incumple.
+func (h *Handler) defaultToSponsor(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeError(w, 400, "invalid user id")
+		return
+	}
+	if err := h.accounts.TransferUserDebtToSponsor(r.Context(), id); err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	// Audit log
+	reviewerIDStr := r.Header.Get("X-User-ID")
+	reviewerID, _ := uuid.Parse(reviewerIDStr)
+	details, _ := json.Marshal(map[string]interface{}{"defaulted_user_id": id.String()})
+	h.Pool.Exec(r.Context(), `INSERT INTO audit_log (actor_id, action, details) VALUES ($1, 'user_default_to_sponsor', $2)`,
+		reviewerID, details)
+	writeJSON(w, 200, map[string]string{"status": "defaulted"})
 }
 
 func (h *Handler) listProducts(w http.ResponseWriter, r *http.Request) {

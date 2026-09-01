@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
-import { HelpCircle, User, Key, CreditCard, History, Shield, TrendingUp, Plus, Trash2, Globe, Copy, Check } from 'lucide-react'
+import { HelpCircle, User, Key, CreditCard, History, Shield, TrendingUp, Plus, Trash2, Globe, Copy, Check, Heart } from 'lucide-react'
 import { fmtTQ } from '../lib/format'
 
 // === Utilidades WebAuthn ===
@@ -61,6 +61,7 @@ export default function Profile() {
   const [passkeys, setPasskeys] = useState<any[]>([])
   const [nfcCards, setNfcCards] = useState<any[]>([])
   const [history, setHistory] = useState<any[]>([])
+  const [sponsorships, setSponsorships] = useState<{ asSponsor: any[], asSponsored: any }>({ asSponsor: [], asSponsored: null })
   const [error, setError] = useState('')
   const [upgradeMsg, setUpgradeMsg] = useState('')
   const [passkeyMsg, setPasskeyMsg] = useState('')
@@ -126,6 +127,10 @@ export default function Profile() {
       if (d?.id) {
         api.get(`/accounts/${d.id}/history`).then((h: any) => setHistory(Array.isArray(h) ? h : h?.transactions ?? [])).catch(() => {})
         loadNfcCards(d.id)
+        // Cargar sponsorships (como padrino y como ahijado)
+        api.get('/user/sponsorships').then((s: any) => {
+          setSponsorships({ asSponsor: Array.isArray(s?.as_sponsor) ? s.as_sponsor : [], asSponsored: s?.as_sponsored || null })
+        }).catch(() => {})
       }
     }).catch(() => {})
 
@@ -604,6 +609,48 @@ export default function Profile() {
           </div>
         ) : (
           <p className="text-gray-500 text-sm">Sin nivel asignado. Pide un ascenso para que la asamblea te asigne un nivel.</p>
+        )}
+      </div>
+
+      {/* Apadrinamiento */}
+      <div className="card">
+        <h2 className="font-semibold flex items-center gap-2 mb-3"><Heart size={18} />Apadrinamiento</h2>
+
+        {/* Como ahijado */}
+        {sponsorships.asSponsored ? (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+            <p className="text-sm font-medium text-blue-700 mb-1">Eres ahijado de:</p>
+            <div className="text-sm space-y-1">
+              <div><span className="text-gray-500">Padrino:</span> <b>{sponsorships.asSponsored.sponsor_username || sponsorships.asSponsored.sponsor_id}</b></div>
+              <div><span className="text-gray-500">Monto asignado:</span> <b>{fmtTQ(sponsorships.asSponsored.amount_held)} {currency}</b></div>
+            </div>
+            <p className="text-xs text-gray-400 mt-2">Tu padrino te asigno parte de su limite. Cuando subas de nivel, el limite de tu padrino se libera automaticamente.</p>
+          </div>
+        ) : (
+          <p className="text-xs text-gray-400 mb-3">No tienes padrino. Tu limite viene de tu nivel de miembro.</p>
+        )}
+
+        {/* Como padrino */}
+        {sponsorships.asSponsor.length > 0 ? (
+          <div>
+            <p className="text-sm font-medium mb-2">Tus ahijados activos:</p>
+            <div className="space-y-2">
+              {sponsorships.asSponsor.map((s: any, i: number) => (
+                <div key={i} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg text-sm">
+                  <div>
+                    <span className="font-medium">{s.sponsored_id?.slice(0, 8)}...</span>
+                    <span className="text-gray-500 ml-2">{fmtTQ(s.amount_held)} {currency}</span>
+                  </div>
+                  <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">Activo</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mt-2">
+              Total retenido: {fmtTQ(sponsorships.asSponsor.reduce((sum: number, s: any) => sum + (s.amount_held || 0), 0))} {currency}
+            </p>
+          </div>
+        ) : (
+          <p className="text-xs text-gray-400">No estas apadrinando a nadie.</p>
         )}
       </div>
 
