@@ -407,7 +407,8 @@ func (h *PublicProposalsHandler) runDemoStart(presetID string) {
       - %s/firmware:/app/firmware:ro
       - demo_uploads:/app/uploads
       - %s/.demo-shared:/app/.demo-shared:ro
-`, hostDirFwd, hostDirFwd)
+      - %s/internal/db/migrations:/app/internal/db/migrations:ro
+`, hostDirFwd, hostDirFwd, hostDirFwd)
 		os.WriteFile(overrideFile, []byte(overrideContent), 0644)
 		appendDemoLog("Usando override con host paths: " + hostDirFwd)
 		upCmd = exec.Command("docker", "compose", "--project-directory", "/project",
@@ -760,7 +761,8 @@ func (h *PublicProposalsHandler) resetDemoNode(w http.ResponseWriter, r *http.Re
       - %s/firmware:/app/firmware:ro
       - demo_uploads:/app/uploads
       - %s/.demo-shared:/app/.demo-shared:ro
-`, hostDirFwd, hostDirFwd)
+      - %s/internal/db/migrations:/app/internal/db/migrations:ro
+`, hostDirFwd, hostDirFwd, hostDirFwd)
 		os.WriteFile(overrideFile, []byte(overrideContent), 0644)
 		cmd = exec.Command("docker", "compose", "--project-directory", "/project",
 			"-f", composeFile, "-f", overrideFile,
