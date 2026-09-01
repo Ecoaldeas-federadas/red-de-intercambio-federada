@@ -100,6 +100,12 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("/federation/drivers/download/", s.handleDriversDownload)
 	mux.HandleFunc("/federation/drivers/sync", s.handleDriversSync)
 
+	// Node profile sharing (perfiles de fe + prohibiciones de productos)
+	mux.HandleFunc("/federation/faith-profiles/list", s.handleFaithProfilesList)
+	mux.HandleFunc("/federation/faith-profiles/sync", s.handleFaithProfilesSync)
+	mux.HandleFunc("/federation/profile-prohibitions/list", s.handleProfileProhibitionsList)
+	mux.HandleFunc("/federation/profile-prohibitions/sync", s.handleProfileProhibitionsSync)
+
 	srv := &http.Server{
 		Addr:      fmt.Sprintf(":%d", s.ListenPort),
 		Handler:   mux,

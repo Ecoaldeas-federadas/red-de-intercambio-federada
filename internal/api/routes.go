@@ -254,6 +254,10 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 	orgCatalogH := &OrganizationCatalogHandler{Pool: pool, NodeDomain: h.nodeDomain}
 	orgCatalogH.RegisterRoutes(r, am)
 
+	// Node profiles: perfiles dinamicos + prohibiciones compartidas via federation
+	nodeProfileH := &NodeProfileHandler{Pool: pool, NodeDomain: h.nodeDomain}
+	nodeProfileH.RegisterRoutes(r, am)
+
 	// FRNE: Fair exit / Salida Justa al Retirarse
 	frneH := &FRNEHandler{Pool: pool, NodeDomain: h.nodeDomain}
 	frneH.RegisterRoutes(r, am)

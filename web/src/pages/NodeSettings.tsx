@@ -73,16 +73,14 @@ export default function NodeSettings() {
   // Perfil del nodo (religion/filosofia del nodo completo)
   const [nodeFaithProfile, setNodeFaithProfile] = useState('')
   const [nodeFaithDescription, setNodeFaithDescription] = useState('')
-  const [faithProfiles] = useState([
-    { id: 'adventista', name: 'Adventista', rules: 'Sin alcohol, tabaco, cerdo, cafe' },
-    { id: 'iskcon', name: 'ISKCON', rules: 'Sin carne, huevo, ajo, cebolla, cafe, alcohol' },
-    { id: 'plum_village', name: 'Plum Village', rules: 'Sin carne, pescado, alcohol' },
-    { id: 'halal', name: 'Halal Islamico', rules: 'Sin alcohol, cerdo, carne no-halal' },
-    { id: 'kosher', name: 'Kosher Judio', rules: 'Sin cerdo, mariscos, mezcla carne+leche' },
-    { id: 'jain', name: 'Jain', rules: 'Sin carne, huevo, raices, ajo, cebolla' },
-    { id: 'vegano', name: 'Vegano secular', rules: 'Sin carne, lacteos, huevos, miel' },
-    { id: 'ital', name: 'Ital Rastafari', rules: 'Sin carne, sal, quimicos procesados' },
-  ])
+  const [faithProfiles, setFaithProfiles] = useState<any[]>([])
+  const [prohibitions, setProhibitions] = useState<any[]>([])
+  const [pendingProhibitions, setPendingProhibitions] = useState<any[]>([])
+  const [autoApprove, setAutoApprove] = useState(false)
+  const [receivePeer, setReceivePeer] = useState(true)
+  const [showCreateProfile, setShowCreateProfile] = useState(false)
+  const [newProfile, setNewProfile] = useState({ id: '', name: '', description: '', category: 'custom', icon: 'globe', default_rules: '' })
+  const [newProhibition, setNewProhibition] = useState({ product_name: '', product_category: '', reason: '' })
 
   // Horarios de comercio
   const [commerceSchedules, setCommerceSchedules] = useState<any[]>([])
@@ -246,14 +244,35 @@ export default function NodeSettings() {
     } finally {
       setOrgProfilesLoading(false)
     }
-    // Cargar perfil del nodo
+    // Cargar perfil del nodo + perfiles disponibles + prohibiciones + settings
     try {
-      const fp = await api.get<{ faith_profile: string, description: string }>('/node/faith-profile')
+      const [fp, profiles, prof, settings] = await Promise.all([
+        api.get<{ faith_profile: string, description: string, auto_approve_prohibitions: boolean, receive_peer_prohibitions: boolean }>('/node/profile'),
+        api.get<{ profiles: any[] }>('/node/faith-profiles'),
+        api.get<{ prohibitions: any[] }>('/node/profile/prohibitions'),
+        api.get<{ pending: any[] }>('/node/profile/prohibitions/pending'),
+      ])
       setNodeFaithProfile(fp.faith_profile || '')
       setNodeFaithDescription(fp.description || '')
+      setAutoApprove(fp.auto_approve_prohibitions || false)
+      setReceivePeer(fp.receive_peer_prohibitions !== false)
+      setFaithProfiles(profiles.profiles || [])
+      setProhibitions(prof.prohibitions || [])
+      setPendingProhibitions(settings.pending || [])
     } catch (e) {
       // silencioso
     }
+  }
+
+  const reloadProhibitions = async () => {
+    try {
+      const [prof, pend] = await Promise.all([
+        api.get<{ prohibitions: any[] }>('/node/profile/prohibitions'),
+        api.get<{ pending: any[] }>('/node/profile/prohibitions/pending'),
+      ])
+      setProhibitions(prof.prohibitions || [])
+      setPendingProhibitions(pend.pending || [])
+    } catch (e) { /* silencioso */ }
   }
 
   // Cargar horarios de comercio
@@ -1411,9 +1430,8 @@ export default function NodeSettings() {
           <h2 className="font-semibold flex items-center gap-2"><Building2 size={18} />Perfil del Nodo</h2>
           <p className="text-sm text-gray-600">
             El perfil religioso/filosofico del nodo determina que productos se permiten o prohiben
-            para <strong>todo el nodo</strong>. Esta politica aplica hacia otros nodos federados
-            y a todas las organizaciones dentro del nodo. Las organizaciones pueden ser mas
-            restrictivas pero no menos.
+            para <strong>todo el nodo</strong>. Los nodos federados con el mismo perfil comparten
+            prohibiciones de productos automaticamente.
           </p>
 
           {/* Perfil actual del nodo */}
@@ -1422,9 +1440,9 @@ export default function NodeSettings() {
             {nodeFaithProfile === '' ? (
               <p className="text-sm text-gray-500">No hay perfil configurado. Todos los productos estan permitidos.</p>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs px-3 py-1 rounded-full bg-purple-100 text-purple-700 font-medium">
-                  {faithProfiles.find(p => p.id === nodeFaithProfile)?.name || nodeFaithProfile}
+                  {faithProfiles.find((p: any) => p.id === nodeFaithProfile)?.name || nodeFaithProfile}
                 </span>
                 {nodeFaithDescription && <span className="text-xs text-gray-600">{nodeFaithDescription}</span>}
               </div>
@@ -1433,25 +1451,98 @@ export default function NodeSettings() {
 
           {/* Selector de perfil */}
           <div className="space-y-3">
-            <h3 className="font-medium text-sm">Seleccionar perfil del nodo</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-medium text-sm">Seleccionar perfil del nodo</h3>
+              {canManage && (
+                <button onClick={() => setShowCreateProfile(!showCreateProfile)} className="text-sm text-blue-600 hover:text-blue-700">
+                  + Crear nuevo perfil
+                </button>
+              )}
+            </div>
+
+            {/* Formulario crear nuevo perfil */}
+            {showCreateProfile && canManage && (
+              <div className="border rounded-lg p-4 bg-gray-50 space-y-3">
+                <h4 className="font-medium text-sm">Crear nuevo perfil</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">ID (ej: adventista_reforma)</label>
+                    <input className="input" value={newProfile.id} onChange={e => setNewProfile({ ...newProfile, id: e.target.value })} placeholder="mi_perfil" />
+                  </div>
+                  <div>
+                    <label className="label">Nombre</label>
+                    <input className="input" value={newProfile.name} onChange={e => setNewProfile({ ...newProfile, name: e.target.value })} placeholder="Mi Perfil" />
+                  </div>
+                  <div>
+                    <label className="label">Categoria</label>
+                    <select className="input" value={newProfile.category} onChange={e => setNewProfile({ ...newProfile, category: e.target.value })}>
+                      <option value="custom">Custom</option>
+                      <option value="cristiana">Cristiana</option>
+                      <option value="hindu">Hindu</option>
+                      <option value="islamica">Islamica</option>
+                      <option value="judia">Judia</option>
+                      <option value="budista">Budista</option>
+                      <option value="rastafari">Rastafari</option>
+                      <option value="secular">Secular</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label">Icono</label>
+                    <input className="input" value={newProfile.icon} onChange={e => setNewProfile({ ...newProfile, icon: e.target.value })} placeholder="globe" />
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Descripcion</label>
+                  <input className="input" value={newProfile.description} onChange={e => setNewProfile({ ...newProfile, description: e.target.value })} placeholder="Descripcion del perfil" />
+                </div>
+                <div>
+                  <label className="label">Reglas base (ej: sin carne, sin alcohol)</label>
+                  <input className="input" value={newProfile.default_rules} onChange={e => setNewProfile({ ...newProfile, default_rules: e.target.value })} placeholder="Sin carne, sin alcohol" />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <button onClick={() => setShowCreateProfile(false)} className="px-3 py-1 text-sm text-gray-600">Cancelar</button>
+                  <button
+                    onClick={async () => {
+                      if (!newProfile.id || !newProfile.name) { setOrgMsg({ type: 'error', text: 'ID y nombre son obligatorios' }); return }
+                      try {
+                        await api.post('/node/faith-profiles', newProfile)
+                        setOrgMsg({ type: 'success', text: 'Perfil creado y compartido con federacion' })
+                        setShowCreateProfile(false)
+                        setNewProfile({ id: '', name: '', description: '', category: 'custom', icon: 'globe', default_rules: '' })
+                        const profiles = await api.get<{ profiles: any[] }>('/node/faith-profiles')
+                        setFaithProfiles(profiles.profiles || [])
+                      } catch (e: any) { setOrgMsg({ type: 'error', text: e?.message || 'Error al crear perfil' }) }
+                    }}
+                    className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >Crear</button>
+                </div>
+                <p className="text-xs text-gray-400">El perfil se compartira automaticamente con todos los nodos federados via gossip.</p>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {faithProfiles.map(p => (
+              {faithProfiles.map((p: any) => (
                 <button
                   key={p.id}
                   onClick={async () => {
                     try {
-                      await api.put('/node/faith-profile', { faith_profile: p.id, description: p.rules })
+                      await api.put('/node/profile', { faith_profile: p.id, description: p.default_rules || p.description })
                       setNodeFaithProfile(p.id)
-                      setNodeFaithDescription(p.rules)
+                      setNodeFaithDescription(p.default_rules || p.description)
                       setOrgMsg({ type: 'success', text: `Perfil "${p.name}" aplicado al nodo` })
+                      reloadProhibitions()
                     } catch (e: any) {
                       setOrgMsg({ type: 'error', text: e?.message || 'Error al aplicar perfil' })
                     }
                   }}
                   className={`text-left border rounded-lg p-3 transition ${nodeFaithProfile === p.id ? 'border-purple-400 bg-purple-50' : 'border-gray-200 hover:border-gray-300'}`}
                 >
-                  <div className="font-medium text-sm">{p.name}</div>
-                  <div className="text-xs text-gray-500 mt-1">{p.rules}</div>
+                  <div className="flex items-center gap-2">
+                    <div className="font-medium text-sm">{p.name}</div>
+                    {p.is_official && <span className="text-xs px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded">Oficial</span>}
+                    {!p.is_official && p.created_by !== 'system' && <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">Custom</span>}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">{p.default_rules || p.description}</div>
                 </button>
               ))}
             </div>
@@ -1460,7 +1551,7 @@ export default function NodeSettings() {
               <button
                 onClick={async () => {
                   try {
-                    await api.put('/node/faith-profile', { faith_profile: '', description: '' })
+                    await api.put('/node/profile', { faith_profile: '', description: '' })
                     setNodeFaithProfile('')
                     setNodeFaithDescription('')
                     setOrgMsg({ type: 'success', text: 'Perfil removido del nodo' })
@@ -1475,10 +1566,135 @@ export default function NodeSettings() {
             )}
           </div>
 
+          {/* Configuracion de sharing federado */}
+          {nodeFaithProfile !== '' && canManage && (
+            <div className="border rounded-lg p-4 bg-gray-50 space-y-3">
+              <h3 className="font-medium text-sm">Configuracion de sharing federado</h3>
+              <p className="text-xs text-gray-500">Los nodos federados con el mismo perfil comparten prohibiciones de productos.</p>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={receivePeer} onChange={async (e) => {
+                  setReceivePeer(e.target.checked)
+                  try { await api.put('/node/profile-settings', { auto_approve_prohibitions: autoApprove, receive_peer_prohibitions: e.target.checked }) } catch {}
+                }} />
+                <span className="text-sm">Recibir prohibiciones de nodos federados</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={autoApprove} onChange={async (e) => {
+                  setAutoApprove(e.target.checked)
+                  try { await api.put('/node/profile-settings', { auto_approve_prohibitions: e.target.checked, receive_peer_prohibitions: receivePeer }) } catch {}
+                }} />
+                <span className="text-sm">Auto-aprobar prohibiciones recibidas (sin revision manual)</span>
+              </label>
+              {!autoApprove && (
+                <p className="text-xs text-blue-600">Las prohibiciones recibidas apareceran en la cola de aprobacion abajo.</p>
+              )}
+            </div>
+          )}
+
+          {/* Prohibiciones de productos */}
+          {nodeFaithProfile !== '' && (
+            <div className="space-y-3">
+              <h3 className="font-medium text-sm">Prohibiciones de productos</h3>
+              <p className="text-xs text-gray-500">Marca productos especificos como prohibidos para tu perfil. Se comparten con nodos federados.</p>
+
+              {/* Formulario nueva prohibicion */}
+              {canManage && (
+                <div className="border rounded-lg p-3 bg-gray-50 space-y-2">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <input className="input" placeholder="Nombre del producto (ej: Salchicha de cerdo)" value={newProhibition.product_name} onChange={e => setNewProhibition({ ...newProhibition, product_name: e.target.value })} />
+                    <input className="input" placeholder="Categoria (opcional)" value={newProhibition.product_category} onChange={e => setNewProhibition({ ...newProhibition, product_category: e.target.value })} />
+                    <input className="input" placeholder="Razon (opcional)" value={newProhibition.reason} onChange={e => setNewProhibition({ ...newProhibition, reason: e.target.value })} />
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (!newProhibition.product_name) { setOrgMsg({ type: 'error', text: 'Nombre del producto es obligatorio' }); return }
+                      try {
+                        await api.post('/node/profile/prohibitions', { profile_id: nodeFaithProfile, ...newProhibition, product_category: newProhibition.product_category || null, reason: newProhibition.reason || null })
+                        setNewProhibition({ product_name: '', product_category: '', reason: '' })
+                        setOrgMsg({ type: 'success', text: 'Prohibicion agregada y compartida con federacion' })
+                        reloadProhibitions()
+                      } catch (e: any) { setOrgMsg({ type: 'error', text: e?.message || 'Error al agregar prohibicion' }) }
+                    }}
+                    className="btn-primary text-sm flex items-center gap-2"
+                  ><Plus size={16} /> Agregar prohibicion</button>
+                </div>
+              )}
+
+              {/* Lista de prohibiciones */}
+              {prohibitions.length === 0 ? (
+                <p className="text-sm text-gray-500">No hay prohibiciones configuradas.</p>
+              ) : (
+                <div className="space-y-2">
+                  {prohibitions.map((p: any) => (
+                    <div key={p.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div>
+                        <span className="font-medium text-sm">{p.product_name}</span>
+                        {p.product_category && <span className="ml-2 text-xs text-gray-500">({p.product_category})</span>}
+                        {p.reason && <p className="text-xs text-gray-500 mt-1">{p.reason}</p>}
+                        {p.auto_approved && <span className="ml-2 text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">Auto</span>}
+                        {p.reported_by && p.reported_by !== nodeFaithProfile && <span className="ml-2 text-xs text-gray-400">de {p.reported_by}</span>}
+                      </div>
+                      {canManage && (
+                        <button
+                          onClick={async () => {
+                            try { await api.delete(`/node/profile/prohibitions/${p.id}`); reloadProhibitions() }
+                            catch (e: any) { setOrgMsg({ type: 'error', text: e?.message || 'Error' }) }
+                          }}
+                          className="text-red-600 hover:text-red-700"
+                        ><Trash2 size={16} /></button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Cola de aprobacion */}
+          {nodeFaithProfile !== '' && !autoApprove && pendingProhibitions.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="font-medium text-sm flex items-center gap-2">
+                <AlertTriangle size={16} className="text-yellow-600" />
+                Prohibiciones pendientes de aprobacion ({pendingProhibitions.length})
+              </h3>
+              <p className="text-xs text-gray-500">Estas prohibiciones fueron reportadas por nodos federados con tu mismo perfil. Revisa y aprueba o rechaza.</p>
+              <div className="space-y-2">
+                {pendingProhibitions.map((p: any) => (
+                  <div key={p.id} className="flex items-center justify-between p-3 border rounded-lg bg-yellow-50 border-yellow-200">
+                    <div>
+                      <span className="font-medium text-sm">{p.product_name}</span>
+                      {p.product_category && <span className="ml-2 text-xs text-gray-500">({p.product_category})</span>}
+                      {p.reason && <p className="text-xs text-gray-500 mt-1">{p.reason}</p>}
+                      <p className="text-xs text-gray-400 mt-1">Reportado por: {p.reported_by}</p>
+                    </div>
+                    {canManage && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={async () => {
+                            try { await api.post(`/node/profile/prohibitions/${p.id}/approve`); reloadProhibitions() }
+                            catch (e: any) { setOrgMsg({ type: 'error', text: e?.message || 'Error' }) }
+                          }}
+                          className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
+                        >Aprobar</button>
+                        <button
+                          onClick={async () => {
+                            try { await api.post(`/node/profile/prohibitions/${p.id}/reject`); reloadProhibitions() }
+                            catch (e: any) { setOrgMsg({ type: 'error', text: e?.message || 'Error' }) }
+                          }}
+                          className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600"
+                        >Rechazar</button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
             <Info size={16} className="inline mr-1" />
-            Para permitir o prohibir productos individuales, usa la pagina de <strong>Productos</strong> en el menu principal.
-            Ahi puedes marcar cada producto como permitido o no permitido en tu nodo.
+            Cuando un nodo con tu mismo perfil marque un producto como prohibido, lo recibiras automaticamente.
+            {autoApprove ? ' (Auto-aprobacion activada)' : ' Revisa la cola de aprobacion arriba.'}
           </div>
 
           {orgMsg && (
