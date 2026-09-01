@@ -164,19 +164,39 @@ func (h *UpdateHandler) checkUpdates(w http.ResponseWriter, r *http.Request) {
 	// Esto es distinto de currentCommit (HEAD del repo) porque el repo
 	// puede haberse adelantado al actualizar un servicio (ej: pos-web)
 	// sin reconstruir el node-app.
-	installedCommit := currentCommit // fallback: usar HEAD
+	//
+	// CRITICO: NO usar currentCommit (HEAD) como fallback. Si se actualizo
+	// un servicio (POS), git reset --hard origin/main movio HEAD al commit
+	// mas reciente, pero el node-app no se reconstruyo. Usar HEAD como
+	// fallback causaria que el check diga "no hay actualizaciones" cuando
+	// si las hay.
+	installedCommit := ""
 	if data, err := os.ReadFile("/update-state/installed-node-commit.txt"); err == nil {
 		ic := strings.TrimSpace(string(data))
-		if ic != "" {
+		if ic != "" && ic != "unknown" {
 			installedCommit = ic
+		}
+	}
+	// Si no hay installed-node-commit.txt valido, leer BUILD_COMMIT del image.
+	// Esto es lo que se inyecta en build time via ARG BUILD_COMMIT.
+	if installedCommit == "" {
+		if data, err := os.ReadFile("/app/BUILD_COMMIT"); err == nil {
+			ic := strings.TrimSpace(string(data))
+			if ic != "" && ic != "unknown" {
+				installedCommit = ic
+			}
 		}
 	}
 
 	// Hay actualizaciones si el commit instalado != commit remoto.
 	// Esto detecta correctamente el caso donde un servicio se actualizo
 	// (moviendo HEAD) pero el node-app no se reconstruyo.
-	if remoteCommit != "" && installedCommit != remoteCommit {
-		updatesAvailable = true
+	// Si installedCommit esta vacio (no se pudo determinar), asumir que
+	// hay actualizaciones para forzar el rebuild.
+	if remoteCommit != "" {
+		if installedCommit == "" || installedCommit != remoteCommit {
+			updatesAvailable = true
+		}
 	}
 
 	// Tambien verificar servicios instalados que pueden actualizarse
