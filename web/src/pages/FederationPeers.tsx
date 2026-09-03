@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useConfig } from '../hooks/useConfig'
@@ -54,6 +55,7 @@ interface Sponsorship {
 }
 
 export default function FederationPeers() {
+  const { t } = useTranslation('federation')
   const { currency } = useConfig()
   const { hasPermission } = usePermissions()
   const [peers, setPeers] = useState<Peer[]>([])
@@ -166,11 +168,11 @@ export default function FederationPeers() {
   }
 
   const blockPeer = async (peerDomain: string) => {
-    if (!confirm(`Bloquear comercio con ${peerDomain}? Esto detendra todas las transacciones con ese nodo. Solo afecta a tu nodo.`)) return
+    if (!confirm(t('peers_block_confirm', `Bloquear comercio con ${peerDomain}? Esto detendra todas las transacciones con ese nodo. Solo afecta a tu nodo.`, { domain: peerDomain }))) return
     try {
-      const reason = prompt('Razon del bloqueo (opcional):') || ''
+      const reason = prompt(t('peers_block_reason', 'Razon del bloqueo (opcional):')) || ''
       await api.post(`/federation/block/${peerDomain}`, { reason })
-      setSuccess(`Comercio bloqueado con ${peerDomain}. Propagado a todos los peers.`)
+      setSuccess(t('peers_block_success', `Comercio bloqueado con ${peerDomain}. Propagado a todos los peers.`, { domain: peerDomain }))
       setTimeout(() => setSuccess(''), 4000)
       loadBlocks()
     } catch (err) {
@@ -181,7 +183,7 @@ export default function FederationPeers() {
   const unblockPeer = async (peerDomain: string) => {
     try {
       await api.delete(`/federation/block/${peerDomain}`)
-      setSuccess(`Comercio reactivado con ${peerDomain}.`)
+      setSuccess(t('peers_unblock_success', `Comercio reactivado con ${peerDomain}.`, { domain: peerDomain }))
       setTimeout(() => setSuccess(''), 4000)
       loadBlocks()
     } catch (err) {
@@ -195,7 +197,7 @@ export default function FederationPeers() {
       await api.post('/federation/peers', newPeer)
       setShowAdd(false)
       setNewPeer({ peer_domain: '', peer_name: '', peer_public_key: '', peer_endpoint: '', notes: '' })
-      setSuccess('Nodo peer registrado')
+      setSuccess(t('peers_peer_registered', 'Nodo peer registrado'))
       setTimeout(() => setSuccess(''), 3000)
       loadPeers()
     } catch (err) {
@@ -261,7 +263,7 @@ export default function FederationPeers() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold flex items-center gap-2"><Globe size={24} /> Federacion de Nodos</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2"><Globe size={24} /> {t('peers_title', 'Federacion de Nodos')}</h1>
         <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
           <HelpCircle size={20} />
         </button>
@@ -294,7 +296,7 @@ export default function FederationPeers() {
           <p><strong>Como usar esta pagina:</strong> Copia tu clave publica y enviasela al admin del otro nodo. Pide la clave publica del otro nodo. Registra el otro nodo aqui (dominio + clave publica). Pide al otro nodo que te registre a ti. Cuando ambos se han registrado, la federacion esta activa.</p>
           <p><strong>Federacion automatica global (NUEVO):</strong> Cuando un nodo nuevo se federa con un sponsor via verificacion de 4 opciones, el sponsor propaga automaticamente la info del nuevo nodo a todos sus peers en cadena exponencial. Cada nodo establece una relacion 1-a-1 individual con el nuevo nodo. No necesitas federarte manualmente con cada nodo — al federarte con uno, entras a toda la red. Los nodos marcados como <strong>Auto-registrado</strong> fueron agregados via propagacion automatica.</p>
           <p><strong>Bloqueo unilateral (NUEVO):</strong> Puedes bloquear comercio con un nodo especifico sin necesidad de acuerdo. Solo afecta a tu nodo — los demas siguen comerciando. Util para dejar de comerciar con un nodo problematico sin afectar a la red.</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('peers_help_close', 'Cerrar')}</button>
         </div>
       )}
 
@@ -304,20 +306,20 @@ export default function FederationPeers() {
       {/* Tu nodo — clave publica */}
       {nodeKeys && (
         <div className="card bg-blue-50 border-blue-200">
-          <h2 className="font-semibold flex items-center gap-2 mb-2"><Key size={18} /> Tu nodo</h2>
+          <h2 className="font-semibold flex items-center gap-2 mb-2"><Key size={18} /> {t('peers_your_node', 'Tu nodo')}</h2>
           <div className="space-y-1 text-sm">
-            <p><span className="text-gray-500">Nombre:</span> <strong>{nodeKeys.node_name}</strong></p>
-            <p><span className="text-gray-500">Dominio:</span> <strong>{nodeKeys.node_domain}</strong></p>
+            <p><span className="text-gray-500">{t('peers_name', 'Nombre:')}</span> <strong>{nodeKeys.node_name}</strong></p>
+            <p><span className="text-gray-500">{t('peers_domain', 'Dominio:')}</span> <strong>{nodeKeys.node_domain}</strong></p>
           </div>
           <div className="mt-3">
-            <label className="text-xs text-gray-500 block mb-1">Tu clave publica (compartir con otros nodos):</label>
+            <label className="text-xs text-gray-500 block mb-1">{t('peers_your_pub_key', 'Tu clave publica (compartir con otros nodos):')}</label>
             <div className="flex gap-2">
               <code className="flex-1 text-xs bg-white p-2 rounded border border-blue-200 break-all font-mono">
                 {nodeKeys.node_public_key}
               </code>
               <button onClick={copyPublicKey} className="btn-primary text-sm py-1 px-3 flex items-center gap-1">
                 {copied ? <CheckCircle size={14} /> : <Copy size={14} />}
-                {copied ? 'Copiado' : 'Copiar'}
+                {copied ? t('peers_copied', 'Copiado') : t('peers_copy', 'Copiar')}
               </button>
             </div>
           </div>
@@ -327,19 +329,18 @@ export default function FederationPeers() {
       {/* Nodos pares registrados */}
       <div className="space-y-3">
         <div className="flex justify-between items-center">
-          <h2 className="font-semibold flex items-center gap-2"><Link2 size={18} /> Nodos federados ({peers.length})</h2>
+          <h2 className="font-semibold flex items-center gap-2"><Link2 size={18} /> {t('peers_federated_nodes', 'Nodos federados ({{count}})', { count: peers.length })}</h2>
           {canManage && (
             <button onClick={() => setShowAdd(true)} className="btn-primary flex items-center gap-2">
-              <Plus size={18} /> Registrar Nodo Peer
+              <Plus size={18} /> {t('peers_register_node', 'Registrar Nodo Peer')}
             </button>
           )}
         </div>
 
         {peers.length === 0 && (
           <div className="card text-center text-gray-500 py-8">
-            No hay nodos pares registrados.
-            <p className="text-xs mt-2">Para federarte con otro nodo, registra su dominio y clave publica aqui,
-            y pide al otro nodo que registre tu clave publica.</p>
+            {t('peers_no_peers', 'No hay nodos pares registrados.')}
+            <p className="text-xs mt-2">{t('peers_no_peers_hint', 'Para federarte con otro nodo, registra su dominio y clave publica aqui, y pide al otro nodo que registre tu clave publica.')}</p>
           </div>
         )}
 
@@ -366,12 +367,12 @@ export default function FederationPeers() {
                   }`}>{p.status}</span>
                   {p.mutual_verified && (
                     <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded flex items-center gap-1">
-                      <CheckCircle size={12} /> Mutuo
+                      <CheckCircle size={12} /> {t('peers_mutual', 'Mutuo')}
                     </span>
                   )}
                   {p.auto_accepted && (
                     <span className="text-xs bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded flex items-center gap-1">
-                      <Link2 size={12} /> Auto-registrado
+                      <Link2 size={12} /> {t('peers_auto_registered', 'Auto-registrado')}
                     </span>
                   )}
                   {p.propagated_by && (
@@ -381,7 +382,7 @@ export default function FederationPeers() {
                   )}
                   {isBlocked(p.peer_domain) && (
                     <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded flex items-center gap-1">
-                      <Ban size={12} /> Bloqueado
+                      <Ban size={12} /> {t('peers_blocked', 'Bloqueado')}
                     </span>
                   )}
                   {levelBadge && (
@@ -394,42 +395,42 @@ export default function FederationPeers() {
                 {p.peer_endpoint && <p className="text-xs text-gray-400">{p.peer_endpoint}</p>}
                 <code className="text-xs text-gray-400 block">{p.peer_public_key.substring(0, 24)}...</code>
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="text-xs text-gray-600">Saldo bilateral:</span>
+                  <span className="text-xs text-gray-600">{t('peers_bilateral_balance', 'Saldo bilateral:')}</span>
                   <span className={`text-sm font-bold ${bal > 0 ? 'text-green-600' : bal < 0 ? 'text-red-600' : 'text-gray-500'}`}>
                     {bal > 0 ? '+' : ''}{fmtTQ(bal)} {currency}
                   </span>
-                  {bal > 0 && <span className="text-xs text-green-600">(te deben)</span>}
-                  {bal < 0 && <span className="text-xs text-red-600">(debes)</span>}
-                  {bal === 0 && <span className="text-xs text-gray-400">(sin transacciones)</span>}
+                  {bal > 0 && <span className="text-xs text-green-600">{t('peers_you_owed', '(te deben)')}</span>}
+                  {bal < 0 && <span className="text-xs text-red-600">{t('peers_you_owe', '(debes)')}</span>}
+                  {bal === 0 && <span className="text-xs text-gray-400">{t('peers_no_transactions_balance', '(sin transacciones)')}</span>}
                 </div>
 
                 {/* Limite efectivo considerando patrocinios */}
                 {levelInfo && (
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                     <span className="text-gray-600 flex items-center gap-1">
-                      <Shield size={12} /> Limite nominal:
+                      <Shield size={12} /> {t('peers_nominal_limit', 'Limite nominal:')}
                       <strong className="font-bold text-gray-700">{fmtTQ(levelInfo.limit)} {currency}</strong>
                     </span>
                     {levelInfo.held_limit > 0 && (
                       <span className="text-amber-600 flex items-center gap-1">
-                        Retenido por patrocinios:
+                        {t('peers_held_limit', 'Retenido por patrocinios:')}
                         <strong className="font-bold">-{fmtTQ(levelInfo.held_limit)} {currency}</strong>
                       </span>
                     )}
                     <span className="text-gray-600 flex items-center gap-1">
-                      Limite efectivo:
+                      {t('peers_effective_limit', 'Limite efectivo:')}
                       <strong className={`font-bold ${levelInfo.effective_limit < levelInfo.limit ? 'text-amber-600' : 'text-green-600'}`}>
                         {fmtTQ(levelInfo.effective_limit)} {currency}
                       </strong>
                     </span>
                     {levelInfo.can_vote && (
                       <span className="bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded flex items-center gap-1">
-                        <CheckCircle size={10} /> Voto
+                        <CheckCircle size={10} /> {t('peers_can_vote', 'Voto')}
                       </span>
                     )}
                     {levelInfo.can_sponsor && (
                       <span className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded flex items-center gap-1">
-                        <Handshake size={10} /> Puede patrocinar
+                        <Handshake size={10} /> {t('peers_can_sponsor', 'Puede patrocinar')}
                       </span>
                     )}
                   </div>
@@ -441,7 +442,7 @@ export default function FederationPeers() {
                   className="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-1"
                 >
                   <FileText size={14} />
-                  {isExpanded ? 'Ocultar' : 'Ver historial'}
+                  {isExpanded ? t('peers_hide', 'Ocultar') : t('peers_view_history', 'Ver historial')}
                 </button>
                 {canManage && (
                   <div className="flex gap-2">
@@ -449,7 +450,7 @@ export default function FederationPeers() {
                       <button
                         onClick={() => unblockPeer(p.peer_domain)}
                         className="text-green-600 hover:text-green-700"
-                        title="Desbloquear comercio"
+                        title={t('peers_unblock', 'Desbloquear comercio')}
                       >
                         <Unlock size={16} />
                       </button>
@@ -457,12 +458,12 @@ export default function FederationPeers() {
                       <button
                         onClick={() => blockPeer(p.peer_domain)}
                         className="text-amber-600 hover:text-amber-700"
-                        title="Bloquear comercio unilateralmente"
+                        title={t('peers_block', 'Bloquear comercio unilateralmente')}
                       >
                         <Ban size={16} />
                       </button>
                     )}
-                    <button onClick={() => removePeer(p.peer_domain)} className="text-red-500 hover:text-red-700" title="Eliminar peer">
+                    <button onClick={() => removePeer(p.peer_domain)} className="text-red-500 hover:text-red-700" title={t('peers_remove_peer', 'Eliminar peer')}>
                       <Trash2 size={16} />
                     </button>
                   </div>
@@ -474,21 +475,21 @@ export default function FederationPeers() {
             {isExpanded && (
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-sm font-semibold">Transacciones con {p.peer_name || p.peer_domain}</h4>
+                  <h4 className="text-sm font-semibold">{t('peers_tx_with', 'Transacciones con {{name}}', { name: p.peer_name || p.peer_domain })}</h4>
                   {peerTxs.length > 0 && (
                     <button
                       onClick={() => exportReport(p.peer_domain)}
                       className="text-xs px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 flex items-center gap-1"
                     >
-                      <FileText size={14} /> Exportar CSV
+                      <FileText size={14} /> {t('peers_export_csv', 'Exportar CSV')}
                     </button>
                   )}
                 </div>
 
                 {loadingTxs ? (
-                  <p className="text-gray-500 text-sm py-4">Cargando transacciones...</p>
+                  <p className="text-gray-500 text-sm py-4">{t('peers_loading_txs', 'Cargando transacciones...')}</p>
                 ) : peerTxs.length === 0 ? (
-                  <p className="text-gray-500 text-sm py-4">No hay transacciones con este nodo.</p>
+                  <p className="text-gray-500 text-sm py-4">{t('peers_no_txs', 'No hay transacciones con este nodo.')}</p>
                 ) : (
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     {peerTxs.map((t, i) => {
@@ -504,7 +505,7 @@ export default function FederationPeers() {
                             )}
                             <div>
                               <p className="text-sm font-medium">
-                                {isDebit ? 'Enviado a ' : 'Recibido de '}
+                                {isDebit ? t('peers_sent_to', 'Enviado a ') : t('peers_received_from', 'Recibido de ')}
                                 <span className="font-semibold">{isDebit ? (t.receiver_display || t.receiver_node) : (t.sender_display || t.sender_node)}</span>
                               </p>
                               <p className="text-xs text-gray-500">
@@ -528,19 +529,19 @@ export default function FederationPeers() {
                     {/* Tarjetas de totales */}
                     <div className="grid grid-cols-3 gap-3 text-sm">
                       <div className="bg-red-50 rounded-lg p-2">
-                        <p className="text-gray-600 text-xs">Total enviado</p>
+                        <p className="text-gray-600 text-xs">{t('peers_total_sent', 'Total enviado')}</p>
                         <p className="font-bold text-red-600 text-lg">
                           -{fmtTQ(peerTxs.filter(t => t.direction === 'debit').reduce((s, t) => s + Math.abs(t.amount || 0), 0))} {currency}
                         </p>
                       </div>
                       <div className="bg-green-50 rounded-lg p-2">
-                        <p className="text-gray-600 text-xs">Total recibido</p>
+                        <p className="text-gray-600 text-xs">{t('peers_total_received', 'Total recibido')}</p>
                         <p className="font-bold text-green-600 text-lg">
                           +{fmtTQ(peerTxs.filter(t => t.direction === 'credit').reduce((s, t) => s + Math.abs(t.amount || 0), 0))} {currency}
                         </p>
                       </div>
                       <div className={`rounded-lg p-2 ${(peerTxs.filter(t => t.direction === 'credit').reduce((s, t) => s + Math.abs(t.amount || 0), 0) - peerTxs.filter(t => t.direction === 'debit').reduce((s, t) => s + Math.abs(t.amount || 0), 0)) >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
-                        <p className="text-gray-600 text-xs">Balance</p>
+                        <p className="text-gray-600 text-xs">{t('peers_balance', 'Balance')}</p>
                         <p className={`font-bold text-lg ${(peerTxs.filter(t => t.direction === 'credit').reduce((s, t) => s + Math.abs(t.amount || 0), 0) - peerTxs.filter(t => t.direction === 'debit').reduce((s, t) => s + Math.abs(t.amount || 0), 0)) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {(() => {
                             const net = peerTxs.filter(t => t.direction === 'credit').reduce((s, t) => s + Math.abs(t.amount || 0), 0) - peerTxs.filter(t => t.direction === 'debit').reduce((s, t) => s + Math.abs(t.amount || 0), 0)
@@ -564,7 +565,7 @@ export default function FederationPeers() {
                       const maxVal = Math.max(...months.map(m => Math.max(monthly[m].in, monthly[m].out)), 1)
                       return (
                         <div className="bg-gray-50 rounded-lg p-3">
-                          <p className="text-xs font-medium text-gray-600 mb-2">Movimientos por mes</p>
+                          <p className="text-xs font-medium text-gray-600 mb-2">{t('peers_monthly_movements', 'Movimientos por mes')}</p>
                           <div className="flex items-end gap-2 h-32">
                             {months.map(m => (
                               <div key={m} className="flex-1 flex flex-col items-center gap-1">
@@ -585,8 +586,8 @@ export default function FederationPeers() {
                             ))}
                           </div>
                           <div className="flex gap-4 mt-2 justify-center text-xs">
-                            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-500 rounded"></span> Entradas</span>
-                            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-500 rounded"></span> Salidas</span>
+                            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-500 rounded"></span> {t('peers_inputs', 'Entradas')}</span>
+                            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-500 rounded"></span> {t('peers_outputs', 'Salidas')}</span>
                           </div>
                         </div>
                       )
@@ -603,11 +604,10 @@ export default function FederationPeers() {
       {/* Patrocinios activos (padrinos) */}
       {sponsorships.length > 0 && (
         <div className="space-y-3">
-          <h2 className="font-semibold flex items-center gap-2"><Handshake size={18} /> Patrocinios Activos ({sponsorships.length})</h2>
+          <h2 className="font-semibold flex items-center gap-2"><Handshake size={18} /> {t('peers_sponsorships', 'Patrocinios Activos ({{count}})', { count: sponsorships.length })}</h2>
           <div className="card bg-amber-50 border-amber-200 text-sm text-amber-700">
             <p>
-              Los patrocinios activos muestran los nodos que tu nodo esta respaldando como padrino.
-              El limite retenido por cada patrocinio se libera cuando el nodo patrocinado alcanza el Nivel 2.
+              {t('peers_sponsorships_desc', 'Los patrocinios activos muestran los nodos que tu nodo esta respaldando como padrino. El limite retenido por cada patrocinio se libera cuando el nodo patrocinado alcanza el Nivel 2.')}
             </p>
           </div>
           {sponsorships.map((s) => (
@@ -617,16 +617,16 @@ export default function FederationPeers() {
                   <div className="flex items-center gap-2">
                     <Handshake size={16} className="text-amber-600" />
                     <p className="font-medium text-sm">
-                      Padrino: <span className="text-gray-700">{s.sponsor_domain}</span>
+                      {t('peers_sponsor', 'Padrino:')} <span className="text-gray-700">{s.sponsor_domain}</span>
                     </p>
                     <span className="text-gray-400 text-xs">→</span>
                     <p className="font-medium text-sm">
-                      Patrocinado: <span className="text-gray-700">{s.sponsored_name || s.sponsored_domain}</span>
+                      {t('peers_sponsored', 'Patrocinado:')} <span className="text-gray-700">{s.sponsored_name || s.sponsored_domain}</span>
                     </p>
                   </div>
                   <div className="flex items-center gap-3 text-xs">
                     <span className="text-amber-600">
-                      Limite retenido: <strong>{fmtTQ(s.held_limit)} {currency}</strong>
+                      {t('peers_held_limit_label', 'Limite retenido:')} <strong>{fmtTQ(s.held_limit)} {currency}</strong>
                     </span>
                     <span className={`px-2 py-0.5 rounded ${
                       s.status === 'active' ? 'bg-green-100 text-green-700' :
@@ -646,7 +646,7 @@ export default function FederationPeers() {
 
       {/* Info: como federar */}
       <div className="card bg-amber-50 border-amber-200">
-        <h3 className="font-medium text-amber-800 mb-2">Como federar dos nodos</h3>
+        <h3 className="font-medium text-amber-800 mb-2">{t('peers_how_to_federate', 'Como federar dos nodos')}</h3>
         <div className="text-sm text-amber-700 space-y-2">
           <p><strong>Metodo recomendado (automatico):</strong> Usa la verificacion de 4 opciones en la pagina de Descubrimiento de Nodos. Al confirmar, el nodo se federara automaticamente con toda la red via propagacion en cadena.</p>
           <p><strong>Metodo manual (casos especiales):</strong></p>
@@ -665,33 +665,33 @@ export default function FederationPeers() {
       {showAdd && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowAdd(false)}>
           <div className="bg-white rounded-xl p-6 w-96 space-y-3" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-bold text-lg">Registrar Nodo Peer</h2>
+            <h2 className="font-bold text-lg">{t('peers_register_modal_title', 'Registrar Nodo Peer')}</h2>
             <div>
-              <label className="label">Dominio del nodo remoto</label>
+              <label className="label">{t('peers_register_modal_domain', 'Dominio del nodo remoto')}</label>
               <input className="input" placeholder="Ej: nodo-b.org" value={newPeer.peer_domain} onChange={(e) => setNewPeer({ ...newPeer, peer_domain: e.target.value })} />
               <p className="text-xs text-gray-400 mt-1">Identificador unico del otro nodo en la red federada. Ejemplo: <code>nodo-b.org</code></p>
             </div>
             <div>
-              <label className="label">Nombre (opcional)</label>
+              <label className="label">{t('peers_register_modal_name', 'Nombre (opcional)')}</label>
               <input className="input" placeholder="Ej: Banco Comunitario B" value={newPeer.peer_name} onChange={(e) => setNewPeer({ ...newPeer, peer_name: e.target.value })} />
               <p className="text-xs text-gray-400 mt-1">Nombre descriptivo del nodo para identificarlo facilmente. Ejemplo: <code>Banco Comunitario B</code></p>
             </div>
             <div>
-              <label className="label">Clave publica (64 caracteres hexadecimales)</label>
+              <label className="label">{t('peers_register_modal_pubkey', 'Clave publica (64 caracteres hexadecimales)')}</label>
               <textarea className="input font-mono text-xs" rows={3} placeholder="Ej: a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef12345678" value={newPeer.peer_public_key} onChange={(e) => setNewPeer({ ...newPeer, peer_public_key: e.target.value })} />
               <p className="text-xs text-gray-400 mt-1">La clave publica Ed25519 del otro nodo (64 hex chars). Te la debe dar su administrador. Ejemplo: <code>a1b2c3d4e5f6...</code></p>
             </div>
             <div>
-              <label className="label">URL del nodo (opcional)</label>
+              <label className="label">{t('peers_register_modal_url', 'URL del nodo (opcional)')}</label>
               <input className="input" placeholder="Ej: https://nodo-b.org" value={newPeer.peer_endpoint} onChange={(e) => setNewPeer({ ...newPeer, peer_endpoint: e.target.value })} />
               <p className="text-xs text-gray-400 mt-1">Direccion HTTPS para conectarse via federacion. Ejemplo: <code>https://nodo-b.org</code></p>
             </div>
             <div>
-              <label className="label">Notas (opcional)</label>
+              <label className="label">{t('peers_register_modal_notes', 'Notas (opcional)')}</label>
               <input className="input" placeholder="Ej: Nodo de la comunidad vecina del norte" value={newPeer.notes} onChange={(e) => setNewPeer({ ...newPeer, notes: e.target.value })} />
               <p className="text-xs text-gray-400 mt-1">Notas internas para recordar quien es este nodo. Ejemplo: <code>Nodo de la comunidad vecina del norte</code></p>
             </div>
-            <button onClick={addPeer} className="btn-primary w-full">Registrar</button>
+            <button onClick={addPeer} className="btn-primary w-full">{t('peers_register_btn', 'Registrar')}</button>
           </div>
         </div>
       )}

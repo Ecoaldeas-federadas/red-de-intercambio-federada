@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { Plus, HelpCircle, Network, ArrowUpCircle, ArrowDownCircle } from 'lucide-react'
 import { fmtTQ, toCents } from '../lib/format'
 
 export default function FederationLimits() {
+  const { t } = useTranslation('federation')
   const { currency } = useConfig()
   const [config, setConfig] = useState<any>(null)
   const [bilaterals, setBilaterals] = useState<any[]>([])
@@ -58,7 +60,7 @@ export default function FederationLimits() {
     setSuccess('')
     const { action, credit_limit, debit_limit, reason } = changeForm
     if (credit_limit <= 0 || debit_limit <= 0) {
-      setError('Los limites deben ser mayores a 0')
+      setError(t('limits_must_be_positive', 'Los limites deben ser mayores a 0'))
       return
     }
     const verb = action === 'increase' ? 'aumentar' : 'reducir'
@@ -81,19 +83,19 @@ export default function FederationLimits() {
       setChangeRequest(null)
       setTimeout(() => setSuccess(''), 5000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear la solicitud')
+      setError(err instanceof Error ? err.message : t('limits_error_creating', 'Error al crear la solicitud'))
     }
   }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold flex items-center gap-2"><Network size={24} />Limites de Federacion</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2"><Network size={24} />{t('limits_title', 'Limites de Federacion')}</h1>
         <div className="flex gap-2">
           <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
             <HelpCircle size={20} />
           </button>
-          <button onClick={() => setShowPropose(!showPropose)} className="btn-primary flex items-center gap-2"><Plus size={18} />Proponer Bilateral</button>
+          <button onClick={() => setShowPropose(!showPropose)} className="btn-primary flex items-center gap-2"><Plus size={18} />{t('limits_propose_bilateral', 'Proponer Bilateral')}</button>
         </div>
       </div>
 
@@ -111,28 +113,28 @@ export default function FederationLimits() {
           <p><strong>Base bilateral:</strong> Limite inicial igual para todos los pares (ej: 50% del global). Se puede personalizar despues nodo por nodo.</p>
           <p><strong>Umbrales de aviso:</strong> Porcentajes del limite (ej: 50%/75%/90%) que disparan notificaciones cuando el saldo se acerca al limite.</p>
           <p><strong>Como usar esta pagina:</strong> Revisa la configuracion global. Para personalizar el limite con un nodo especifico, haz clic en "Proponer Bilateral", selecciona el nodo e ingresa los nuevos limites. El otro nodo debe confirmar la propuesta para que aplique.</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('limits_close_help', 'Cerrar')}</button>
         </div>
       )}
 
       {config && (
         <div className="card">
-          <h2 className="font-semibold mb-3">Configuracion Global</h2>
+          <h2 className="font-semibold mb-3">{t('limits_global_config', 'Configuracion Global')}</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
-              <label className="label">Credito Global</label>
+              <label className="label">{t('limits_global_credit', 'Credito Global')}</label>
               <b>{fmtTQ(config.node_global_credit_limit)} {currency}</b>
             </div>
             <div>
-              <label className="label">Debito Global</label>
+              <label className="label">{t('limits_global_debit', 'Debito Global')}</label>
               <b>{fmtTQ(config.node_global_debit_limit)} {currency}</b>
             </div>
             <div>
-              <label className="label">Base Bilateral</label>
+              <label className="label">{t('limits_bilateral_base', 'Base Bilateral')}</label>
               <b>{fmtTQ(config.node_bilateral_base_limit)} {currency}</b>
             </div>
             <div>
-              <label className="label">Umbrales de aviso</label>
+              <label className="label">{t('limits_warning_thresholds', 'Umbrales de aviso')}</label>
               <b>{config.warning_threshold_1}/{config.warning_threshold_2}/{config.warning_threshold_3}%</b>
             </div>
           </div>
@@ -141,14 +143,14 @@ export default function FederationLimits() {
 
       {showPropose && (
         <div className="card space-y-4">
-          <h2 className="font-semibold">Proponer Limite Bilateral</h2>
-          <p className="text-xs text-gray-500">Selecciona un nodo federado y propone nuevos limites. El otro nodo debe confirmar.</p>
+          <h2 className="font-semibold">{t('limits_propose_title', 'Proponer Limite Bilateral')}</h2>
+          <p className="text-xs text-gray-500">{t('limits_propose_desc', 'Selecciona un nodo federado y propone nuevos limites. El otro nodo debe confirmar.')}</p>
 
           <div>
-            <label className="label">Nodo remoto</label>
+            <label className="label">{t('limits_remote_node', 'Nodo remoto')}</label>
             {nodes.length > 0 ? (
               <select className="input" value={form.remote_node} onChange={(e) => setForm({ ...form, remote_node: e.target.value })}>
-                <option value="">Seleccionar nodo...</option>
+                <option value="">{t('limits_select_node', 'Seleccionar nodo...')}</option>
                 {nodes.map((n, i) => (
                   <option key={i} value={n.remote_node}>{n.remote_node}</option>
                 ))}
@@ -156,12 +158,12 @@ export default function FederationLimits() {
             ) : (
               <div className="space-y-2">
                 <select className="input bg-gray-100" disabled>
-                  <option value="">No hay nodos federados registrados</option>
+                  <option value="">{t('limits_no_federated_nodes', 'No hay nodos federados registrados')}</option>
                 </select>
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
-                  <p>No hay nodos federados registrados todavia.</p>
-                  <p className="text-xs mt-1">Para proponer un limite bilateral, primero debes registrar un nodo peer.</p>
-                  <a href={`${import.meta.env.BASE_URL}app/federation/peers`} className="inline-block mt-2 text-blue-600 underline text-sm font-medium">Ir a registrar nodo peer →</a>
+                  <p>{t('limits_no_federated_nodes', 'No hay nodos federados registrados todavia.')}</p>
+                  <p className="text-xs mt-1">{t('limits_no_federated_hint', 'Para proponer un limite bilateral, primero debes registrar un nodo peer.')}</p>
+                  <a href={`${import.meta.env.BASE_URL}app/federation/peers`} className="inline-block mt-2 text-blue-600 underline text-sm font-medium">{t('limits_go_register_peer', 'Ir a registrar nodo peer')} →</a>
                 </div>
               </div>
             )}
@@ -170,18 +172,18 @@ export default function FederationLimits() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">Limite de credito ({currency})</label>
+              <label className="label">{t('limits_credit_limit', `Limite de credito (${currency})`)}</label>
               <input type="number" className="input" placeholder="Ej: 1000" value={form.credit_limit} onChange={(e) => setForm({ ...form, credit_limit: toCents(e.target.value) })} />
-              <p className="text-xs text-gray-400 mt-1">Maximo saldo positivo (a tu favor) con este nodo. Ejemplo: <code>1000</code> {currency}</p>
+              <p className="text-xs text-gray-400 mt-1">{t('limits_credit_hint', 'Maximo saldo positivo (a tu favor) con este nodo.')} Ejemplo: <code>1000</code> {currency}</p>
             </div>
             <div>
-              <label className="label">Limite de debito ({currency})</label>
+              <label className="label">{t('limits_debit_limit', `Limite de debito (${currency})`)}</label>
               <input type="number" className="input" placeholder="Ej: 500" value={form.debit_limit} onChange={(e) => setForm({ ...form, debit_limit: toCents(e.target.value) })} />
-              <p className="text-xs text-gray-400 mt-1">Maximo saldo negativo (deuda) con este nodo. Ejemplo: <code>500</code> {currency}</p>
+              <p className="text-xs text-gray-400 mt-1">{t('limits_debit_hint', 'Maximo saldo negativo (deuda) con este nodo.')} Ejemplo: <code>500</code> {currency}</p>
             </div>
           </div>
 
-          <button onClick={propose} className="btn-primary" disabled={!form.remote_node}>Enviar Propuesta</button>
+          <button onClick={propose} className="btn-primary" disabled={!form.remote_node}>{t('limits_send_proposal', 'Enviar Propuesta')}</button>
         </div>
       )}
 
@@ -189,9 +191,9 @@ export default function FederationLimits() {
       {success && <div className="text-green-600 text-sm bg-green-50 p-3 rounded-lg">{success}</div>}
 
       <div className="card">
-        <h2 className="font-semibold mb-3">Limites Bilaterales</h2>
+        <h2 className="font-semibold mb-3">{t('limits_bilateral_list', 'Limites Bilaterales')}</h2>
         {bilaterals.length === 0 ? (
-          <p className="text-gray-500 text-sm">No hay limites bilaterales personalizados. Todos los nodos usan el limite base.</p>
+          <p className="text-gray-500 text-sm">{t('limits_no_bilateral', 'No hay limites bilaterales personalizados. Todos los nodos usan el limite base.')}</p>
         ) : (
           <div className="space-y-2">
             {bilaterals.map((b, i) => (
@@ -199,18 +201,18 @@ export default function FederationLimits() {
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="font-medium">{b.remote_node}</span>
-                    {b.is_customized && <span className="ml-2 text-xs bg-trueque-100 text-trueque-700 px-2 py-0.5 rounded">Personalizado</span>}
+                    {b.is_customized && <span className="ml-2 text-xs bg-trueque-100 text-trueque-700 px-2 py-0.5 rounded">{t('limits_customized', 'Personalizado')}</span>}
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-sm text-gray-600">
-                      Credito: {fmtTQ(b.credit_limit)} {currency} | Debito: {fmtTQ(b.debit_limit)} {currency}
-                      {!b.remote_confirmed && <button onClick={() => confirm(b.remote_node)} className="ml-2 text-blue-600 hover:underline">Confirmar</button>}
+                      {t('limits_credit', 'Credito')}: {fmtTQ(b.credit_limit)} {currency} | {t('limits_debit', 'Debito')}: {fmtTQ(b.debit_limit)} {currency}
+                      {!b.remote_confirmed && <button onClick={() => confirm(b.remote_node)} className="ml-2 text-blue-600 hover:underline">{t('limits_confirm', 'Confirmar')}</button>}
                     </div>
                     <button
                       onClick={() => openChangeRequest(b)}
                       className="text-xs px-3 py-1 bg-amber-600 text-white rounded hover:bg-amber-700 flex items-center gap-1"
                     >
-                      <ArrowUpCircle size={14} /> Solicitar cambio
+                      <ArrowUpCircle size={14} /> {t('limits_request_change', 'Solicitar cambio')}
                     </button>
                   </div>
                 </div>
@@ -224,39 +226,39 @@ export default function FederationLimits() {
       {changeRequest && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setChangeRequest(null)}>
           <div className="bg-white rounded-xl p-6 w-96 space-y-3" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-bold text-lg">Solicitar cambio de limite</h2>
-            <p className="text-sm text-gray-600">Nodo: <b>{changeRequest.node}</b></p>
-            <p className="text-xs text-gray-500">Limites actuales: Credito {changeRequest.currentCredit} {currency} | Debito {changeRequest.currentDebit} {currency}</p>
+            <h2 className="font-bold text-lg">{t('limits_change_title', 'Solicitar cambio de limite')}</h2>
+            <p className="text-sm text-gray-600">{t('limits_remote_node', 'Nodo')}: <b>{changeRequest.node}</b></p>
+            <p className="text-xs text-gray-500">{t('limits_current_limits', 'Limites actuales')}: {t('limits_credit', 'Credito')} {changeRequest.currentCredit} {currency} | {t('limits_debit', 'Debito')} {changeRequest.currentDebit} {currency}</p>
 
             <div>
-              <label className="label">Accion</label>
+              <label className="label">{t('limits_change_action', 'Accion')}</label>
               <select className="input" value={changeForm.action} onChange={(e) => setChangeForm({ ...changeForm, action: e.target.value })}>
-                <option value="increase">Aumentar limite</option>
-                <option value="decrease">Reducir limite</option>
+                <option value="increase">{t('limits_increase', 'Aumentar limite')}</option>
+                <option value="decrease">{t('limits_decrease', 'Reducir limite')}</option>
               </select>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">Nuevo limite credito ({currency})</label>
+                <label className="label">{t('limits_new_credit', `Nuevo limite credito (${currency})`)}</label>
                 <input type="number" className="input" value={changeForm.credit_limit} onChange={(e) => setChangeForm({ ...changeForm, credit_limit: toCents(e.target.value) })} />
               </div>
               <div>
-                <label className="label">Nuevo limite debito ({currency})</label>
+                <label className="label">{t('limits_new_debit', `Nuevo limite debito (${currency})`)}</label>
                 <input type="number" className="input" value={changeForm.debit_limit} onChange={(e) => setChangeForm({ ...changeForm, debit_limit: toCents(e.target.value) })} />
               </div>
             </div>
 
             <div>
-              <label className="label">Razon del cambio</label>
+              <label className="label">{t('limits_reason', 'Razon del cambio')}</label>
               <textarea className="input" rows={2} placeholder="Ej: Aumentamos el comercio con este nodo, necesitamos mas limite" value={changeForm.reason} onChange={(e) => setChangeForm({ ...changeForm, reason: e.target.value })} />
             </div>
 
-            <p className="text-xs text-gray-500">Esta solicitud pasara a la asamblea para votacion. Los miembros decidiran si aprueban el cambio.</p>
+            <p className="text-xs text-gray-500">{t('limits_change_hint', 'Esta solicitud pasara a la asamblea para votacion. Los miembros decidiran si aprueban el cambio.')}</p>
 
             <div className="flex gap-2">
-              <button onClick={() => setChangeRequest(null)} className="btn-secondary flex-1">Cancelar</button>
-              <button onClick={submitChangeRequest} className="btn-primary flex-1">Enviar a Asamblea</button>
+              <button onClick={() => setChangeRequest(null)} className="btn-secondary flex-1">{t('limits_cancel', 'Cancelar')}</button>
+              <button onClick={submitChangeRequest} className="btn-primary flex-1">{t('limits_send_assembly', 'Enviar a Asamblea')}</button>
             </div>
           </div>
         </div>

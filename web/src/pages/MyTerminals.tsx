@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api, apiFetch } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { Smartphone, Lock, Unlock, Eye, Activity, Power, ShoppingBag, Edit2, Globe, Clock, XCircle, CheckCircle, KeyRound, History, Download } from 'lucide-react'
@@ -29,6 +30,7 @@ interface Transaction {
 }
 
 export default function MyTerminals() {
+  const { t } = useTranslation('nfc')
   const { hasPermission } = usePermissions()
   const [terminals, setTerminals] = useState<MyTerminal[]>([])
   const [selectedTerminal, setSelectedTerminal] = useState<MyTerminal | null>(null)
@@ -313,29 +315,29 @@ export default function MyTerminals() {
       <div>
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold">Transacciones del Terminal</h1>
+            <h1 className="text-2xl font-bold">{t('my_terminals_tx_title', 'Transacciones del Terminal')}</h1>
             <p className="text-gray-500 text-sm mt-1">{selectedTerminal.label}</p>
           </div>
           <button
             onClick={() => { setSelectedTerminal(null); setTransactions([]) }}
             className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200"
           >
-            ← Volver
+            ← {t('back', 'Volver')}
           </button>
         </div>
 
         {/* Summary */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-white rounded-xl p-4 border">
-            <div className="text-gray-500 text-xs mb-1">TOTAL VENTAS</div>
+            <div className="text-gray-500 text-xs mb-1">{t('total_sales', 'TOTAL VENTAS')}</div>
             <div className="text-2xl font-bold text-green-600">{fmtTQ(totalSales)} TQ</div>
           </div>
           <div className="bg-white rounded-xl p-4 border">
-            <div className="text-gray-500 text-xs mb-1">TRANSACCIONES</div>
+            <div className="text-gray-500 text-xs mb-1">{t('transactions_count', 'TRANSACCIONES')}</div>
             <div className="text-2xl font-bold">{transactions.length}</div>
           </div>
           <div className="bg-white rounded-xl p-4 border">
-            <div className="text-gray-500 text-xs mb-1">APROBADAS</div>
+            <div className="text-gray-500 text-xs mb-1">{t('approved_count', 'APROBADAS')}</div>
             <div className="text-2xl font-bold text-green-600">
               {transactions.filter(t => t.status === 'approved').length}
             </div>
@@ -347,7 +349,7 @@ export default function MyTerminals() {
           {transactions.length === 0 ? (
             <div className="p-8 text-center text-gray-500">
               <Activity className="mx-auto mb-2" size={32} />
-              No hay transacciones
+              {t('no_transactions', 'No hay transacciones')}
             </div>
           ) : (
             <div className="divide-y">
@@ -383,10 +385,10 @@ export default function MyTerminals() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <ShoppingBag size={28} />
-          Mis Puntos de Venta
+          {t('my_terminals_title', 'Mis Puntos de Venta')}
         </h1>
         <p className="text-gray-500 text-sm mt-1">
-          Terminales asignados a tu cuenta. Puedes activarlos, desactivarlos y ver transacciones.
+          {t('my_terminals_desc', 'Terminales asignados a tu cuenta. Puedes activarlos, desactivarlos y ver transacciones.')}
         </p>
       </div>
 
@@ -395,15 +397,15 @@ export default function MyTerminals() {
       )}
 
       {loading ? (
-        <div className="text-center py-8 text-gray-500">Cargando...</div>
+        <div className="text-center py-8 text-gray-500">{t('loading', 'Cargando...')}</div>
       ) : terminals.length === 0 ? (
         <div className="bg-white rounded-xl border p-8 text-center">
           <Smartphone className="mx-auto mb-3 text-gray-300" size={48} />
-          <h2 className="text-lg font-semibold mb-2">No tienes terminales asignados</h2>
+          <h2 className="text-lg font-semibold mb-2">{t('no_terminals_assigned', 'No tienes terminales asignados')}</h2>
           <p className="text-gray-500 text-sm">
-            Si tienes un punto de venta, pide al administrador que te asigne un terminal.
+            {t('no_terminals_assigned_hint', 'Si tienes un punto de venta, pide al administrador que te asigne un terminal.')}
             <br />
-            El administrador debe registrar el terminal y asignarlo a tu cuenta.
+            {t('no_terminals_assigned_hint2', 'El administrador debe registrar el terminal y asignarlo a tu cuenta.')}
           </p>
         </div>
       ) : (
@@ -412,21 +414,21 @@ export default function MyTerminals() {
             <div key={term.id} className="bg-white rounded-xl border p-5">
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h3 className="font-semibold text-lg">{term.label || 'Sin nombre'}</h3>
+                  <h3 className="font-semibold text-lg">{term.label || t('no_name', 'Sin nombre')}</h3>
                   <p className="text-xs text-gray-500 font-mono mt-1">{term.terminal_id.slice(0, 24)}...</p>
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   {term.is_blocked ? (
                     <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full font-medium">
-                      🔒 Bloqueado
+                      🔒 {t('blocked', 'Bloqueado')}
                     </span>
                   ) : term.is_active ? (
                     <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">
-                      ● Activo
+                      ● {t('active', 'Activo')}
                     </span>
                   ) : (
                     <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">
-                      ○ Inactivo
+                      ○ {t('inactive', 'Inactivo')}
                     </span>
                   )}
                   <span className="text-xs text-gray-400">{term.terminal_type}</span>
@@ -434,8 +436,8 @@ export default function MyTerminals() {
               </div>
 
               <div className="text-sm text-gray-500 mb-4">
-                <p>📍 {term.location || 'Sin ubicacion'}</p>
-                <p>🕐 Ultima actividad: {formatTime(term.last_seen)}</p>
+                <p>📍 {term.location || t('no_location', 'Sin ubicacion')}</p>
+                <p>🕐 {t('last_activity', 'Ultima actividad:')} {formatTime(term.last_seen)}</p>
               </div>
 
               <div className="flex gap-2 flex-wrap">
@@ -444,21 +446,21 @@ export default function MyTerminals() {
                   className="flex-1 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-100 flex items-center justify-center gap-1"
                 >
                   <Eye size={16} />
-                  Transacciones
+                  {t('transactions', 'Transacciones')}
                 </button>
                 <button
                   onClick={() => handleViewShiftHistory(term)}
                   className="px-3 py-2 bg-purple-50 text-purple-600 rounded-lg text-sm font-medium hover:bg-purple-100 flex items-center justify-center gap-1"
                 >
                   <History size={16} />
-                  Turnos
+                  {t('shifts', 'Turnos')}
                 </button>
                 <button
                   onClick={() => { setShiftPinModal(term); setShiftPinValue('') }}
                   className="px-3 py-2 bg-amber-50 text-amber-600 rounded-lg text-sm font-medium hover:bg-amber-100 flex items-center justify-center gap-1"
                 >
                   <KeyRound size={16} />
-                  PIN Turno
+                  {t('shift_pin', 'PIN Turno')}
                 </button>
                 <button
                   onClick={() => { setRenaming(term); setRenameLabel(term.label || '') }}
@@ -490,13 +492,13 @@ export default function MyTerminals() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold flex items-center gap-2">
               <Globe size={24} />
-              Sesiones POS Web
+              {t('web_pos_sessions', 'Sesiones POS Web')}
             </h2>
             <button
               onClick={() => setShowWebSessions(!showWebSessions)}
               className="px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium hover:bg-gray-200"
             >
-              {showWebSessions ? 'Ocultar' : 'Mostrar'}
+              {showWebSessions ? t('hide', 'Ocultar') : t('show', 'Mostrar')}
               {pendingWebSessions.length > 0 && (
                 <span className="ml-2 bg-red-500 text-white text-xs px-1.5 rounded-full">
                   {pendingWebSessions.length}
@@ -512,7 +514,7 @@ export default function MyTerminals() {
                 <div className="mb-6">
                   <h3 className="font-semibold mb-3 flex items-center gap-2">
                     <Clock size={18} className="text-orange-500" />
-                    Solicitudes Pendientes ({pendingWebSessions.length})
+                    {t('pending_requests', 'Solicitudes Pendientes')} ({pendingWebSessions.length})
                   </h3>
                   <div className="space-y-3">
                     {pendingWebSessions.map((req) => (
@@ -574,7 +576,7 @@ export default function MyTerminals() {
                                 disabled={!selectedCode || webSessionAction === req.id}
                                 className="btn-primary flex-1 disabled:opacity-50"
                               >
-                                {webSessionAction === req.id ? 'Aprobando...' : 'Aprobar'}
+                                {webSessionAction === req.id ? t('approving', 'Aprobando...') : t('approve', 'Aprobar')}
                               </button>
                               <button
                                 onClick={() => {
@@ -584,7 +586,7 @@ export default function MyTerminals() {
                                 }}
                                 className="btn-secondary"
                               >
-                                Cancelar
+                                {t('cancel', 'Cancelar')}
                               </button>
                             </div>
                           </div>
@@ -594,14 +596,14 @@ export default function MyTerminals() {
                               onClick={() => loadWebSessionOptions(req.id)}
                               className="btn-primary flex-1"
                             >
-                              Ver codigos
+                              {t('view_codes', 'Ver codigos')}
                             </button>
                             <button
                               onClick={() => handleRejectWebSession(req.id)}
                               disabled={webSessionAction === req.id + '-reject'}
                               className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100"
                             >
-                              {webSessionAction === req.id + '-reject' ? '...' : 'Rechazar'}
+                              {webSessionAction === req.id + '-reject' ? '...' : t('reject', 'Rechazar')}
                             </button>
                           </div>
                         )}
@@ -613,10 +615,10 @@ export default function MyTerminals() {
 
               {/* Sesiones activas */}
               <div>
-                <h3 className="font-semibold mb-3">Sesiones Activas</h3>
+                <h3 className="font-semibold mb-3">{t('active_sessions', 'Sesiones Activas')}</h3>
                 {activeWebSessions.length === 0 ? (
                   <div className="bg-white rounded-xl border p-6 text-center text-gray-500">
-                    No hay sesiones web activas
+                    {t('no_active_web_sessions', 'No hay sesiones web activas')}
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -632,15 +634,15 @@ export default function MyTerminals() {
                           <div className="flex flex-col items-end gap-1">
                             {session.expired ? (
                               <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">
-                                Expirada
+                                {t('expired', 'Expirada')}
                               </span>
                             ) : session.is_active ? (
                               <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">
-                                ● Activa
+                                ● {t('active_session', 'Activa')}
                               </span>
                             ) : (
                               <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">
-                                ○ Inactiva
+                                ○ {t('inactive_session', 'Inactiva')}
                               </span>
                             )}
                           </div>
@@ -658,7 +660,7 @@ export default function MyTerminals() {
                             className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 flex items-center gap-1"
                           >
                             <XCircle size={16} />
-                            {webSessionAction === session.terminal_id + '-revoke' ? 'Anulando...' : 'Anular sesion'}
+                            {webSessionAction === session.terminal_id + '-revoke' ? t('revoking', 'Anulando...') : t('revoke_session', 'Anular sesion')}
                           </button>
                         )}
                       </div>
@@ -669,9 +671,9 @@ export default function MyTerminals() {
 
               {pendingWebSessions.length === 0 && activeWebSessions.length === 0 && (
                 <div className="bg-white rounded-xl border p-6 text-center text-gray-500">
-                  No hay solicitudes pendientes ni sesiones activas.
+                  {t('no_pending_or_active', 'No hay solicitudes pendientes ni sesiones activas.')}
                   <br />
-                  <span className="text-sm">Cuando alguien abra el POS web, aparecera aqui una solicitud.</span>
+                  <span className="text-sm">{t('no_pending_or_active_hint', 'Cuando alguien abra el POS web, aparecera aqui una solicitud.')}</span>
                 </div>
               )}
             </>
@@ -681,7 +683,7 @@ export default function MyTerminals() {
 
       {/* Info box */}
       <div className="mt-6 bg-blue-50 rounded-xl p-4 text-sm text-blue-700">
-        <p className="font-medium mb-1">💡 Como usar tu terminal</p>
+        <p className="font-medium mb-1">💡 {t('how_to_use_terminal', 'Como usar tu terminal')}</p>
         <ol className="list-decimal list-inside space-y-1 text-blue-600">
           <li>Abre el POS en tu dispositivo (celular o PC)</li>
           <li>Ingresa la URL del nodo e inicia sesion</li>
@@ -699,11 +701,10 @@ export default function MyTerminals() {
           <div className="bg-white rounded-xl p-6 max-w-sm w-full">
             <h2 className="font-bold text-lg mb-2 flex items-center gap-2">
               <KeyRound size={20} />
-              PIN del Turno
+              {t('shift_pin_title', 'PIN del Turno')}
             </h2>
             <p className="text-sm text-gray-500 mb-4">
-              Configura el PIN que se requerira para abrir y cerrar turnos en este terminal.
-              El POS lo usara localmente para funcionar sin internet.
+              {t('shift_pin_desc', 'Configura el PIN que se requerira para abrir y cerrar turnos en este terminal. El POS lo usara localmente para funcionar sin internet.')}
               <br />
               <span className="font-mono text-xs">{shiftPinModal.label}</span>
             </p>
@@ -722,13 +723,13 @@ export default function MyTerminals() {
                 disabled={shiftPinValue.length < 4 || shiftPinSaving}
                 className="btn-primary flex-1 disabled:opacity-50"
               >
-                {shiftPinSaving ? 'Guardando...' : 'Guardar PIN'}
+                {shiftPinSaving ? t('saving', 'Guardando...') : t('save_pin', 'Guardar PIN')}
               </button>
               <button
                 onClick={() => { setShiftPinModal(null); setShiftPinValue('') }}
                 className="btn-secondary"
               >
-                Cancelar
+                {t('cancel', 'Cancelar')}
               </button>
             </div>
           </div>
@@ -742,13 +743,13 @@ export default function MyTerminals() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-bold text-lg flex items-center gap-2">
                 <History size={20} />
-                Historial de Turnos: {shiftHistoryModal.label}
+                {t('shift_history_title', 'Historial de Turnos:')} {shiftHistoryModal.label}
               </h2>
               <button
                 onClick={() => { setShiftHistoryModal(null); setShifts([]); setFromDate(''); setToDate('') }}
                 className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200"
               >
-                Cerrar
+                {t('close', 'Cerrar')}
               </button>
             </div>
 
@@ -772,7 +773,7 @@ export default function MyTerminals() {
                 onClick={() => loadShifts(shiftHistoryModal.terminal_id)}
                 className="btn-primary px-4"
               >
-                Buscar
+                {t('search_btn', 'Buscar')}
               </button>
             </div>
 
@@ -783,23 +784,23 @@ export default function MyTerminals() {
                 className="px-3 py-2 bg-green-50 text-green-600 rounded-lg text-sm font-medium hover:bg-green-100 flex items-center gap-1"
               >
                 <Download size={16} />
-                Exportar Turnos CSV
+                {t('export_shifts_csv', 'Exportar Turnos CSV')}
               </button>
               <button
                 onClick={() => handleExportTransactions(shiftHistoryModal.terminal_id)}
                 className="px-3 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-100 flex items-center gap-1"
               >
                 <Download size={16} />
-                Exportar Transacciones CSV
+                {t('export_tx_csv', 'Exportar Transacciones CSV')}
               </button>
             </div>
 
             {/* Lista de turnos */}
             {shiftsLoading ? (
-              <div className="text-center py-8 text-gray-500">Cargando...</div>
+              <div className="text-center py-8 text-gray-500">{t('loading', 'Cargando...')}</div>
             ) : shifts.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
-                No hay turnos en el rango seleccionado
+                {t('no_shifts', 'No hay turnos en el rango seleccionado')}
               </div>
             ) : (
               <div className="space-y-2">
@@ -811,7 +812,7 @@ export default function MyTerminals() {
                         <span className={`ml-2 px-2 py-0.5 text-xs rounded-full font-medium ${
                           s.status === 'closed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
                         }`}>
-                          {s.status === 'closed' ? 'Cerrado' : 'Abierto'}
+                          {s.status === 'closed' ? t('shift_closed', 'Cerrado') : t('shift_open', 'Abierto')}
                         </span>
                       </div>
                       <span className="text-xs text-gray-400">{fmtDateTime(s.opened_at)}</span>
@@ -848,7 +849,7 @@ export default function MyTerminals() {
       {renaming && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 max-w-sm w-full">
-            <h2 className="font-bold text-lg mb-2">Renombrar Terminal</h2>
+            <h2 className="font-bold text-lg mb-2">{t('rename_terminal', 'Renombrar Terminal')}</h2>
             <p className="text-sm text-gray-500 mb-4">
                 ID: <span className="font-mono">{renaming.terminal_id.slice(0, 24)}...</span>
             </p>
@@ -867,13 +868,13 @@ export default function MyTerminals() {
                 disabled={!renameLabel.trim() || renameSaving}
                 className="btn-primary flex-1 disabled:opacity-50"
               >
-                {renameSaving ? 'Guardando...' : 'Guardar'}
+                {renameSaving ? t('saving', 'Guardando...') : t('save', 'Guardar')}
               </button>
               <button
                 onClick={() => { setRenaming(null); setRenameLabel('') }}
                 className="btn-secondary"
               >
-                Cancelar
+                {t('cancel', 'Cancelar')}
               </button>
             </div>
           </div>

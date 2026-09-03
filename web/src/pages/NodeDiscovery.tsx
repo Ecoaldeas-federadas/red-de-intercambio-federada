@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { Search, Globe, Send, CheckCircle, XCircle, RefreshCw, Trash2, Settings, Users, Server, Mail, ExternalLink, AlertTriangle, Clock, MapPin, FileText, Wifi, WifiOff } from 'lucide-react'
@@ -13,6 +14,7 @@ import { fmtDate } from '../lib/format'
 // El sistema solo muestra info de contacto (pais, ubicacion, gobernanza, web)
 // para que la gente se contacte fisicamente.
 export default function NodeDiscovery() {
+  const { t } = useTranslation('federation')
   const [searchParams, setSearchParams] = useSearchParams()
   const initialTab = (searchParams.get('tab') as 'discovered' | 'requests' | 'config') || 'discovered'
   const [tab, setTab] = useState<'discovered' | 'requests' | 'config'>(initialTab)
@@ -82,12 +84,12 @@ export default function NodeDiscovery() {
     }
     try {
       const res = await api.post('/nodes/contact-request', requestData) as any
-      showMsg('success', res.message || `Solicitud de contacto enviada a ${requestData.to_node_domain}`)
+      showMsg('success', res.message || t('discover_request_sent', `Solicitud de contacto enviada a ${requestData.to_node_domain}`, { domain: requestData.to_node_domain }))
       setShowRequestModal(null)
       setRequestData({ to_node_domain: '', message: '', contact_info: '' })
       loadData()
     } catch (e: any) {
-      showMsg('error', e.message || 'Error enviando solicitud')
+      showMsg('error', e.message || t('discover_error_sending', 'Error enviando solicitud'))
     }
   }
 
@@ -95,12 +97,12 @@ export default function NodeDiscovery() {
     if (!showRespondModal) return
     try {
       const res = await api.post(`/nodes/contact-requests/${showRespondModal.id}/respond`, respondData) as any
-      showMsg('success', res.message || 'Respuesta enviada')
+      showMsg('success', res.message || t('discover_response_sent', 'Respuesta enviada'))
       setShowRespondModal(null)
       setRespondData({ status: 'interested', response_message: '', response_contact: '' })
       loadData()
     } catch (e: any) {
-      showMsg('error', e.message || 'Error respondiendo solicitud')
+      showMsg('error', e.message || t('discover_error_responding', 'Error respondiendo solicitud'))
     }
   }
 
@@ -108,10 +110,10 @@ export default function NodeDiscovery() {
     setSyncing(true)
     try {
       const res = await api.post('/nodes/discovered/sync-now', {}) as any
-      showMsg('success', res.message || 'Sincronizacion completada')
+      showMsg('success', res.message || t('discover_sync_done', 'Sincronizacion completada'))
       loadData()
     } catch (e: any) {
-      showMsg('error', e.message || 'Error sincronizando')
+      showMsg('error', e.message || t('discover_error_syncing', 'Error sincronizando'))
     } finally {
       setSyncing(false)
     }
@@ -123,7 +125,7 @@ export default function NodeDiscovery() {
       showMsg(res.active ? 'success' : 'info', res.message)
       loadData()
     } catch (e: any) {
-      showMsg('error', e.message || 'Error verificando nodo')
+      showMsg('error', e.message || t('discover_error_checking', 'Error verificando nodo'))
     }
   }
 
@@ -131,23 +133,23 @@ export default function NodeDiscovery() {
     setConsensusRunning(true)
     try {
       const res = await api.post('/nodes/discovered/consensus-check', {}) as any
-      showMsg('success', res.message || 'Consenso evaluado')
+      showMsg('success', res.message || t('discover_consensus_done', 'Consenso evaluado'))
       loadData()
     } catch (e: any) {
-      showMsg('error', e.message || 'Error evaluando consenso')
+      showMsg('error', e.message || t('discover_error_consensus', 'Error evaluando consenso'))
     } finally {
       setConsensusRunning(false)
     }
   }
 
   const handleRemoveNode = async (domain: string) => {
-    if (!confirm(`Eliminar ${domain} de la lista de nodos descubiertos?`)) return
+    if (!confirm(t('discover_remove_confirm', `Eliminar ${domain} de la lista de nodos descubiertos?`, { domain }))) return
     try {
       await api.delete(`/nodes/discovered/${domain}`)
-      showMsg('success', 'Nodo eliminado')
+      showMsg('success', t('discover_node_removed', 'Nodo eliminado'))
       loadData()
     } catch (e: any) {
-      showMsg('error', e.message || 'Error eliminando nodo')
+      showMsg('error', e.message || t('discover_error_removing', 'Error eliminando nodo'))
     }
   }
 
@@ -178,14 +180,14 @@ export default function NodeDiscovery() {
       await api.post(`/federation/pair/request/${reqId}/confirm`, {
         selected_code: fedSelectedCode,
       })
-      showMsg('success', 'Nodo federado y confirmado exitosamente. Propagando a toda la red automaticamente...')
+      showMsg('success', t('discover_fed_confirmed', 'Nodo federado y confirmado exitosamente. Propagando a toda la red automaticamente...'))
       setFedApprovingId('')
       setFedPairingOptions([])
       setFedSelectedCode('')
       setFedOptionsError('')
       loadData()
     } catch (e: any) {
-      showMsg('error', e.message || 'Error al confirmar federacion')
+      showMsg('error', e.message || t('discover_error_confirming', 'Error al confirmar federacion'))
     } finally {
       setFedAction('')
     }
@@ -195,10 +197,10 @@ export default function NodeDiscovery() {
     setFedAction(reqId + '-reject')
     try {
       await api.post(`/federation/pair/request/${reqId}/reject`, {})
-      showMsg('success', 'Solicitud de federacion rechazada')
+      showMsg('success', t('discover_fed_rejected', 'Solicitud de federacion rechazada'))
       loadData()
     } catch (e: any) {
-      showMsg('error', e.message || 'Error al rechazar')
+      showMsg('error', e.message || t('discover_error_rejecting', 'Error al rechazar'))
     } finally {
       setFedAction('')
     }
@@ -207,10 +209,10 @@ export default function NodeDiscovery() {
   const handleSaveConfig = async () => {
     try {
       await api.put('/nodes/discovery-config', config)
-      showMsg('success', 'Configuracion guardada')
+      showMsg('success', t('discover_config_saved', 'Configuracion guardada'))
       loadData()
     } catch (e: any) {
-      showMsg('error', e.message || 'Error guardando config')
+      showMsg('error', e.message || t('discover_error_saving_config', 'Error guardando config'))
     }
   }
 
@@ -239,8 +241,8 @@ export default function NodeDiscovery() {
         <div className="flex items-start gap-2">
           <AlertTriangle size={18} className="text-amber-600 mt-0.5 shrink-0" />
           <div>
-            <p className="font-semibold text-gray-900 mb-1">La federacion se hace personalmente, no automaticamente</p>
-            <p>Este sistema NO federa nodos con un clic. La clave publica para federar se comparte <strong>personalmente</strong> entre las personas, no por el sistema. Aqui solo ves informacion de otros nodos (pais, ubicacion, gobernanza, web, contacto) para que te comuniques con ellos directamente. La idea es que haya contacto humano, que las personas se conozcan, que las asambleas aprueben, y luego compartan las claves en persona.</p>
+            <p className="font-semibold text-gray-900 mb-1">{t('discover_federation_personal', 'La federacion se hace personalmente, no automaticamente')}</p>
+            <p>{t('discover_federation_personal_desc', 'Este sistema NO federa nodos con un clic. La clave publica para federar se comparte personalmente entre las personas, no por el sistema. Aqui solo ves informacion de otros nodos (pais, ubicacion, gobernanza, web, contacto) para que te comuniques con ellos directamente. La idea es que haya contacto humano, que las personas se conozcan, que las asambleas aprueben, y luego compartan las claves en persona.')}</p>
           </div>
         </div>
       </div>
@@ -248,14 +250,14 @@ export default function NodeDiscovery() {
       {/* Tabs internos */}
       <div className="flex flex-wrap gap-2 border-b pb-2">
         <button onClick={() => changeTab('discovered')} className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5 ${tab === 'discovered' ? 'bg-trueque-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}>
-          <Globe size={14} /> Nodos Descubiertos ({nodes.length})
+          <Globe size={14} /> {t('discover_tab_discovered', 'Nodos Descubiertos ({{count}})', { count: nodes.length })}
         </button>
         <button onClick={() => changeTab('requests')} className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5 ${tab === 'requests' ? 'bg-trueque-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}>
-          <Mail size={14} /> Solicitudes de Contacto
+          <Mail size={14} /> {t('discover_tab_requests', 'Solicitudes de Contacto')}
           {incomingRequests.length > 0 && <span className="bg-red-500 text-white text-xs px-1.5 rounded-full">{incomingRequests.length}</span>}
         </button>
         <button onClick={() => changeTab('config')} className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5 ${tab === 'config' ? 'bg-trueque-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}>
-          <Settings size={14} /> Configuracion
+          <Settings size={14} /> {t('discover_tab_config', 'Configuracion')}
         </button>
       </div>
 
@@ -266,8 +268,8 @@ export default function NodeDiscovery() {
             <div className="flex items-start gap-2">
               <Users size={18} className="text-blue-600 mt-0.5 shrink-0" />
               <div>
-                <p className="font-semibold text-gray-900 mb-1">Como funciona el descubrimiento de nodos</p>
-                <p>No hay un servidor central. Cada nodo comparte su lista de nodos conocidos con los nodos federados, y estos a su vez la comparten con los suyos. Asi, basta con que un nodo se feder con uno solo para que toda la red descubra que existe. Para federar, contacta personalmente a la persona responsable del otro nodo e intercambien las claves publicas.</p>
+                <p className="font-semibold text-gray-900 mb-1">{t('discover_how_works', 'Como funciona el descubrimiento de nodos')}</p>
+                <p>{t('discover_how_works_desc', 'No hay un servidor central. Cada nodo comparte su lista de nodos conocidos con los nodos federados, y estos a su vez la comparten con los suyos. Asi, basta con que un nodo se feder con uno solo para que toda la red descubra que existe. Para federar, contacta personalmente a la persona responsable del otro nodo e intercambien las claves publicas.')}</p>
               </div>
             </div>
           </div>
@@ -275,16 +277,16 @@ export default function NodeDiscovery() {
           <div className="flex flex-wrap gap-2 items-center">
             <div className="relative flex-1 min-w-[200px]">
               <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
-              <input type="text" placeholder="Buscar por dominio, nombre, pais o ubicacion..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm" />
+              <input type="text" placeholder={t('discover_search_placeholder', 'Buscar por dominio, nombre, pais o ubicacion...')} value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm" />
             </div>
             <button onClick={handleSyncNow} disabled={syncing} className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-1.5 disabled:opacity-50">
-              <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} /> Sincronizar
+              <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} /> {t('discover_sync', 'Sincronizar')}
             </button>
             <button onClick={handleConsensusCheck} disabled={consensusRunning} className="px-3 py-2 bg-purple-600 text-white rounded-lg text-sm flex items-center gap-1.5 disabled:opacity-50">
-              <CheckCircle size={16} className={consensusRunning ? 'animate-spin' : ''} /> Evaluar consenso
+              <CheckCircle size={16} className={consensusRunning ? 'animate-spin' : ''} /> {t('discover_consensus', 'Evaluar consenso')}
             </button>
             <button onClick={() => { setRequestData({ to_node_domain: '', message: '', contact_info: '' }); setShowRequestModal('new') }} className="px-3 py-2 bg-trueque-600 text-white rounded-lg text-sm flex items-center gap-1.5">
-              <Send size={16} /> Solicitar contacto
+              <Send size={16} /> {t('discover_request_contact', 'Solicitar contacto')}
             </button>
           </div>
 
@@ -292,45 +294,45 @@ export default function NodeDiscovery() {
           {federatedNodes.length > 0 && (
             <div className="mb-4">
               <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
-                <Server size={16} className="text-green-600" /> Nodos Federados ({federatedNodes.length})
+                <Server size={16} className="text-green-600" /> {t('discover_federated_nodes', 'Nodos Federados ({{count}})', { count: federatedNodes.length })}
               </h3>
               <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
                 {federatedNodes.map((n: any) => (
                   <div key={n.node_domain} className={`border rounded-lg p-3 flex items-center justify-between ${n.online ? 'border-green-300 bg-green-50' : 'border-gray-300 bg-gray-50'}`}>
                     <div>
                       <div className="font-medium text-sm">{n.node_domain}</div>
-                      <div className="text-xs text-gray-500">Federado desde {fmtDate(n.created_at)}</div>
+                      <div className="text-xs text-gray-500">{t('discover_federated_since', 'Federado desde {{date}}', { date: fmtDate(n.created_at) })}</div>
                     </div>
                     <div className="flex items-center gap-1.5">
                       {n.online ? (
                         <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded flex items-center gap-1">
-                          <Wifi size={12} /> En linea
+                          <Wifi size={12} /> {t('online', 'En linea')}
                         </span>
                       ) : (
                         <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded flex items-center gap-1">
-                          <WifiOff size={12} /> Sin conexion
+                          <WifiOff size={12} /> {t('discover_no_connection', 'Sin conexion')}
                         </span>
                       )}
                     </div>
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-gray-500 mt-1">Los nodos federados no se eliminan aunque esten sin conexion. Solo muestran su estado actual.</p>
+              <p className="text-xs text-gray-500 mt-1">{t('discover_federated_hint', 'Los nodos federados no se eliminan aunque esten sin conexion. Solo muestran su estado actual.')}</p>
             </div>
           )}
 
           {/* Nodos descubiertos (no federados) */}
           <div>
             <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
-              <Globe size={16} className="text-blue-600" /> Nodos Descubiertos via Gossip
+              <Globe size={16} className="text-blue-600" /> {t('discover_discovered_gossip', 'Nodos Descubiertos via Gossip')}
             </h3>
             {loading ? (
-              <div className="text-center py-8 text-gray-500">Cargando nodos...</div>
+              <div className="text-center py-8 text-gray-500">{t('discover_loading_nodes', 'Cargando nodos...')}</div>
             ) : filteredNodes.filter((n: any) => !n.is_direct_peer).length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <Globe size={48} className="mx-auto mb-2 text-gray-300" />
-                <p>No hay nodos descubiertos aun.</p>
-                <p className="text-xs mt-1">Federate con un nodo para empezar a descubrir mas nodos en la red via gossip.</p>
+                <p>{t('discover_no_discovered', 'No hay nodos descubiertos aun.')}</p>
+                <p className="text-xs mt-1">{t('discover_no_discovered_hint', 'Federate con un nodo para empezar a descubrir mas nodos en la red via gossip.')}</p>
               </div>
             ) : (
               <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -344,8 +346,8 @@ export default function NodeDiscovery() {
                         </div>
                         <div className="text-xs text-gray-500 truncate">{n.node_domain}</div>
                       </div>
-                      {n.is_this_node && <span className="text-xs bg-trueque-100 text-trueque-700 px-2 py-0.5 rounded">Tu nodo</span>}
-                      {n.is_expelled && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Expulsado</span>}
+                      {n.is_this_node && <span className="text-xs bg-trueque-100 text-trueque-700 px-2 py-0.5 rounded">{t('discover_your_node', 'Tu nodo')}</span>}
+                      {n.is_expelled && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">{t('discover_expelled', 'Expulsado')}</span>}
                     </div>
 
                     {n.description && <p className="text-xs text-gray-600 line-clamp-2">{n.description}</p>}
@@ -381,24 +383,24 @@ export default function NodeDiscovery() {
                       <div className="flex flex-wrap gap-2 pt-2 border-t">
                         {n.public_url && (
                           <a href={n.public_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
-                            <ExternalLink size={12} /> Ver pagina
+                            <ExternalLink size={12} /> {t('discover_view_page', 'Ver pagina')}
                           </a>
                         )}
                         {n.governance_url && (
                           <a href={n.governance_url} target="_blank" rel="noopener noreferrer" className="text-xs text-purple-600 hover:underline flex items-center gap-1">
-                            <FileText size={12} /> Ver gobernanza
+                            <FileText size={12} /> {t('discover_view_governance', 'Ver gobernanza')}
                           </a>
                         )}
                         {!n.is_expelled && (
                           <button onClick={() => { setRequestData({ to_node_domain: n.node_domain, message: '', contact_info: '' }); setShowRequestModal(n.node_domain) }} className="text-xs text-trueque-600 hover:underline flex items-center gap-1">
-                            <Send size={12} /> Solicitar contacto
+                            <Send size={12} /> {t('discover_request_contact', 'Solicitar contacto')}
                           </button>
                         )}
                         <button onClick={() => handleCheckNode(n.node_domain)} className="text-xs text-gray-600 hover:underline flex items-center gap-1">
-                          <RefreshCw size={12} /> Verificar
+                          <RefreshCw size={12} /> {t('discover_verify', 'Verificar')}
                         </button>
                         <button onClick={() => handleRemoveNode(n.node_domain)} className="text-xs text-red-600 hover:underline flex items-center gap-1">
-                          <Trash2 size={12} /> Eliminar
+                          <Trash2 size={12} /> {t('discover_remove', 'Eliminar')}
                         </button>
                       </div>
                     )}
@@ -412,10 +414,10 @@ export default function NodeDiscovery() {
           {inactiveNodes.length > 0 && (
             <div className="mt-6">
               <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
-                <AlertTriangle size={16} className="text-yellow-600" /> Nodos Inactivos por Consenso ({inactiveNodes.length})
+                <AlertTriangle size={16} className="text-yellow-600" /> {t('discover_inactive_nodes', 'Nodos Inactivos por Consenso ({{count}})', { count: inactiveNodes.length })}
               </h3>
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 space-y-2">
-                <p className="text-xs text-gray-600">Estos nodos fueron marcados como inactivos porque <strong>todos</strong> los nodos de la red reportaron que no pueden conectar con ellos. No es que un solo nodo no pudo (puede ser que no tenga internet), sino que todos confirmaron que no responde. Se mantienen internamente para seguir consultando si algun dia reaparecen, pero no se muestran en la lista principal.</p>
+                <p className="text-xs text-gray-600">{t('discover_inactive_desc', 'Estos nodos fueron marcados como inactivos porque todos los nodos de la red reportaron que no pueden conectar con ellos. No es que un solo nodo no pudo (puede ser que no tenga internet), sino que todos confirmaron que no responde. Se mantienen internamente para seguir consultando si algun dia reaparecen, pero no se muestran en la lista principal.')}</p>
                 {inactiveNodes.map((n: any) => (
                   <div key={n.node_domain} className="flex items-center justify-between text-sm">
                     <div>
@@ -425,8 +427,8 @@ export default function NodeDiscovery() {
                       {n.last_checked && <span className="text-xs text-gray-500 ml-2">verificado {fmtDate(n.last_checked)}</span>}
                     </div>
                     <div className="flex gap-1">
-                      <button onClick={() => handleCheckNode(n.node_domain)} className="text-xs text-blue-600 hover:underline">Reintentar</button>
-                      <button onClick={() => handleRemoveNode(n.node_domain)} className="text-xs text-red-600 hover:underline">Eliminar</button>
+                      <button onClick={() => handleCheckNode(n.node_domain)} className="text-xs text-blue-600 hover:underline">{t('discover_retry', 'Reintentar')}</button>
+                      <button onClick={() => handleRemoveNode(n.node_domain)} className="text-xs text-red-600 hover:underline">{t('discover_remove', 'Eliminar')}</button>
                     </div>
                   </div>
                 ))}
@@ -440,20 +442,18 @@ export default function NodeDiscovery() {
       {tab === 'requests' && (
         <div className="space-y-4">
           <div className="bg-blue-50 p-3 rounded-lg text-sm text-gray-700">
-            <p>Las solicitudes de contacto <strong>no federan automaticamente</strong>. Son una forma de expresar interes y compartir informacion de contacto.</p>
-            <p className="mt-2"><strong>Federacion automatica global:</strong> Al confirmar un emparejamiento con verificacion de 4 opciones, el nuevo nodo entra automaticamente a toda la red federada. El sponsor propaga la info del nuevo nodo a todos sus peers en cadena exponencial, y cada nodo establece una relacion 1-a-1 individual. No necesitas federarte manualmente con cada nodo.</p>
+            <p>{t('discover_requests_not_auto', 'Las solicitudes de contacto no federan automaticamente. Son una forma de expresar interes y compartir informacion de contacto.')}</p>
+            <p className="mt-2">{t('discover_auto_federation', 'Federacion automatica global: Al confirmar un emparejamiento con verificacion de 4 opciones, el nuevo nodo entra automaticamente a toda la red federada. El sponsor propaga la info del nuevo nodo a todos sus peers en cadena exponencial, y cada nodo establece una relacion 1-a-1 individual. No necesitas federarte manualmente con cada nodo.')}</p>
           </div>
 
           {/* Emparejamientos federados pendientes (4 opciones) */}
           {fedPairings.length > 0 && (
             <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 space-y-3">
               <h3 className="text-sm font-semibold text-amber-800 flex items-center gap-1.5">
-                <AlertTriangle size={16} /> Emparejamientos Federados Pendientes ({fedPairings.length})
+                <AlertTriangle size={16} /> {t('discover_fed_pairings', 'Emparejamientos Federados Pendientes ({{count}})', { count: fedPairings.length })}
               </h3>
               <p className="text-xs text-amber-700">
-                Un nodo nuevo solicita federarse. El nodo nuevo le comunico un codigo de 6 digitos por telefono.
-                Haga clic en Confirmar para ver 4 opciones y elegir la correcta. Al confirmar, el nodo entrara
-                automaticamente a toda la red federada via propagacion en cadena.
+                {t('discover_fed_pairings_desc', 'Un nodo nuevo solicita federarse. El nodo nuevo le comunico un codigo de 6 digitos por telefono. Haga clic en Confirmar para ver 4 opciones y elegir la correcta. Al confirmar, el nodo entrara automaticamente a toda la red federada via propagacion en cadena.')}
               </p>
               {fedPairings.map((p: any) => (
                 <div key={p.id} className="border border-amber-200 bg-white rounded-lg p-4 space-y-2">
@@ -465,7 +465,7 @@ export default function NodeDiscovery() {
                         <div className="text-xs text-gray-500">Endpoint: {p.requesting_endpoint}</div>
                       )}
                       <div className="text-xs text-gray-400 mt-1">
-                        Codigo oculto — debe ser verificado por telefono
+                        {t('discover_hidden_code', 'Codigo oculto')} — {t('discover_hidden_code_hint', 'debe ser verificado por telefono')}
                       </div>
                     </div>
                   </div>
@@ -473,16 +473,16 @@ export default function NodeDiscovery() {
                   {fedApprovingId === p.id ? (
                     <div className="mt-3 space-y-3 border-t pt-3">
                       {fedLoadingOptions ? (
-                        <div className="text-sm text-indigo-600">Cargando opciones de verificacion...</div>
+                        <div className="text-sm text-indigo-600">{t('discover_loading_options', 'Cargando opciones de verificacion...')}</div>
                       ) : fedOptionsError ? (
                         <div className="bg-red-50 border border-red-200 rounded p-2 text-sm text-red-700">
-                          <p className="font-semibold">Error</p>
+                          <p className="font-semibold">{t('discover_error_title', 'Error')}</p>
                           <p className="text-xs">{fedOptionsError}</p>
-                          <button onClick={() => loadFedPairingOptions(p.id)} className="text-xs text-red-600 underline mt-1">Reintentar</button>
+                          <button onClick={() => loadFedPairingOptions(p.id)} className="text-xs text-red-600 underline mt-1">{t('discover_retry', 'Reintentar')}</button>
                         </div>
                       ) : fedPairingOptions.length > 0 ? (
                         <div>
-                          <p className="text-sm font-semibold mb-2">Elija el codigo que le comunico el nodo nuevo:</p>
+                          <p className="text-sm font-semibold mb-2">{t('discover_select_code', 'Elija el codigo que le comunico el nodo nuevo:')}</p>
                           <div className="grid grid-cols-2 gap-2">
                             {fedPairingOptions.map((opt) => (
                               <button
@@ -502,12 +502,12 @@ export default function NodeDiscovery() {
                               onClick={() => confirmFedPairing(p.id)}
                               disabled={fedAction === p.id || !fedSelectedCode}
                               className="btn-primary flex-1 disabled:opacity-50">
-                              {fedAction === p.id ? 'Confirmando...' : 'Confirmar Federacion'}
+                              {fedAction === p.id ? t('discover_confirming', 'Confirmando...') : t('discover_confirm_federation', 'Confirmar Federacion')}
                             </button>
                             <button
                               onClick={() => { setFedApprovingId(''); setFedPairingOptions([]); setFedSelectedCode(''); setFedOptionsError('') }}
                               className="btn-secondary">
-                              Cancelar
+                              {t('discover_cancel', 'Cancelar')}
                             </button>
                           </div>
                         </div>
@@ -518,13 +518,13 @@ export default function NodeDiscovery() {
                       <button
                         onClick={() => { setFedApprovingId(p.id); setFedOptionsError(''); loadFedPairingOptions(p.id) }}
                         className="btn-primary text-sm">
-                        Confirmar
+                        {t('discover_confirm', 'Confirmar')}
                       </button>
                       <button
                         onClick={() => rejectFedPairing(p.id)}
                         disabled={fedAction === p.id + '-reject'}
                         className="btn-secondary text-sm text-red-600">
-                        {fedAction === p.id + '-reject' ? 'Rechazando...' : 'Rechazar'}
+                        {fedAction === p.id + '-reject' ? t('discover_rejecting', 'Rechazando...') : t('discover_reject', 'Rechazar')}
                       </button>
                     </div>
                   )}
@@ -536,10 +536,10 @@ export default function NodeDiscovery() {
           {/* Solicitudes recibidas */}
           <div>
             <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
-              <Mail size={16} className="text-trueque-600" /> Solicitudes Recibidas ({incomingRequests.length})
+              <Mail size={16} className="text-trueque-600" /> {t('discover_requests_received', 'Solicitudes Recibidas ({{count}})', { count: incomingRequests.length })}
             </h3>
             {incomingRequests.length === 0 ? (
-              <div className="text-center py-6 text-gray-500 text-sm">No hay solicitudes pendientes</div>
+              <div className="text-center py-6 text-gray-500 text-sm">{t('discover_no_pending_requests', 'No hay solicitudes pendientes')}</div>
             ) : (
               <div className="space-y-2">
                 {incomingRequests.map((r: any) => (
@@ -557,21 +557,21 @@ export default function NodeDiscovery() {
                       <span className="text-xs text-gray-500">{fmtDate(r.created_at)}</span>
                     </div>
                     {r.message && <p className="text-sm text-gray-700">{r.message}</p>}
-                    {r.contact_info && <p className="text-xs text-gray-600">Contacto: {r.contact_info}</p>}
+                    {r.contact_info && <p className="text-xs text-gray-600">{t('discover_contact', 'Contacto:')} {r.contact_info}</p>}
                     {r.from_governance_url && (
                       <a href={r.from_governance_url} target="_blank" rel="noopener noreferrer" className="text-xs text-purple-600 hover:underline flex items-center gap-1">
-                        <FileText size={12} /> Ver gobernanza del nodo
+                        <FileText size={12} /> {t('discover_view_node_governance', 'Ver gobernanza del nodo')}
                       </a>
                     )}
                     <div className="bg-amber-50 border border-amber-200 p-2 rounded text-xs text-amber-700">
-                      Para federar: contacta personalmente a esta persona, revisen sus gobernanzas, las asambleas aprueban, y luego comparten las claves publicas en persona. No se federa con un clic.
+                      {t('discover_federate_hint', 'Para federar: contacta personalmente a esta persona, revisen sus gobernanzas, las asambleas aprueban, y luego comparten las claves publicas en persona. No se federa con un clic.')}
                     </div>
                     <div className="flex gap-2 pt-2">
                       <button onClick={() => { setShowRespondModal(r); setRespondData({ status: 'interested', response_message: '', response_contact: '' }) }} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs flex items-center gap-1">
-                        <CheckCircle size={14} /> Interesado
+                        <CheckCircle size={14} /> {t('discover_interested', 'Interesado')}
                       </button>
                       <button onClick={() => { setShowRespondModal(r); setRespondData({ status: 'not_interested', response_message: '', response_contact: '' }) }} className="px-3 py-1.5 bg-gray-400 text-white rounded-lg text-xs flex items-center gap-1">
-                        <XCircle size={14} /> No interesado
+                        <XCircle size={14} /> {t('discover_not_interested', 'No interesado')}
                       </button>
                     </div>
                   </div>
@@ -583,10 +583,10 @@ export default function NodeDiscovery() {
           {/* Solicitudes enviadas */}
           <div>
             <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
-              <Send size={16} className="text-gray-600" /> Solicitudes Enviadas ({outgoingRequests.length})
+              <Send size={16} className="text-gray-600" /> {t('discover_requests_sent', 'Solicitudes Enviadas ({{count}})', { count: outgoingRequests.length })}
             </h3>
             {outgoingRequests.length === 0 ? (
-              <div className="text-center py-6 text-gray-500 text-sm">No has enviado solicitudes</div>
+              <div className="text-center py-6 text-gray-500 text-sm">{t('discover_no_sent_requests', 'No has enviado solicitudes')}</div>
             ) : (
               <div className="space-y-2">
                 {outgoingRequests.map((r: any) => (
@@ -597,11 +597,11 @@ export default function NodeDiscovery() {
                         {r.message && <p className="text-xs text-gray-600 mt-0.5">{r.message}</p>}
                       </div>
                       <span className={`text-xs px-2 py-0.5 rounded ${r.status === 'interested' ? 'bg-green-100 text-green-700' : r.status === 'not_interested' ? 'bg-gray-200 text-gray-600' : 'bg-yellow-100 text-yellow-700'}`}>
-                        {r.status === 'pending' ? 'Pendiente' : r.status === 'interested' ? 'Interesado' : 'No interesado'}
+                        {r.status === 'pending' ? t('discover_status_pending', 'Pendiente') : r.status === 'interested' ? t('discover_status_interested', 'Interesado') : t('discover_status_not_interested', 'No interesado')}
                       </span>
                     </div>
-                    {r.response_message && <p className="text-xs text-gray-600 bg-gray-50 p-2 rounded">Respuesta: {r.response_message}</p>}
-                    {r.response_contact && <p className="text-xs text-gray-500">Contacto: {r.response_contact}</p>}
+                    {r.response_message && <p className="text-xs text-gray-600 bg-gray-50 p-2 rounded">{t('discover_response', 'Respuesta:')} {r.response_message}</p>}
+                    {r.response_contact && <p className="text-xs text-gray-500">{t('discover_contact', 'Contacto:')} {r.response_contact}</p>}
                   </div>
                 ))}
               </div>
@@ -617,49 +617,49 @@ export default function NodeDiscovery() {
             <div className="flex items-start gap-2">
               <Clock size={18} className="text-blue-600 mt-0.5 shrink-0" />
               <div>
-                <p className="font-semibold text-gray-900 mb-1">Intervalos de descubrimiento y verificacion</p>
-                <p>Configura cada cuanto tiempo tu nodo comparte su lista, verifica si los nodos estan activos, y limpia los inactivos. Cada nodo puede tener su propia configuracion.</p>
+                <p className="font-semibold text-gray-900 mb-1">{t('discover_config_title', 'Intervalos de descubrimiento y verificacion')}</p>
+                <p>{t('discover_config_desc', 'Configura cada cuanto tiempo tu nodo comparte su lista, verifica si los nodos estan activos, y limpia los inactivos. Cada nodo puede tener su propia configuracion.')}</p>
               </div>
             </div>
           </div>
 
           <div className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Compartir lista de nodos (horas)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('discover_share_interval', 'Compartir lista de nodos (horas)')}</label>
               <input type="number" min={1} value={config.discovery_interval_hours || 24} onChange={e => setConfig({ ...config, discovery_interval_hours: parseInt(e.target.value) || 24 })} className="w-full px-3 py-2 border rounded-lg text-sm" />
-              <p className="text-xs text-gray-500 mt-1">Cada cuanto tu nodo comparte su lista de nodos conocidos con los peers. Default: 24 horas.</p>
+              <p className="text-xs text-gray-500 mt-1">{t('discover_share_interval_hint', 'Cada cuanto tu nodo comparte su lista de nodos conocidos con los peers. Default: 24 horas.')}</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Verificar nodos activos (horas)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('discover_health_interval', 'Verificar nodos activos (horas)')}</label>
               <input type="number" min={1} value={config.health_check_interval_hours || 168} onChange={e => setConfig({ ...config, health_check_interval_hours: parseInt(e.target.value) || 168 })} className="w-full px-3 py-2 border rounded-lg text-sm" />
-              <p className="text-xs text-gray-500 mt-1">Cada cuanto tu nodo verifica si los nodos descubiertos siguen activos. Default: 168 horas (7 dias). Un nodo inactivo se decide por consenso de toda la red, no por tu sola verificacion.</p>
+              <p className="text-xs text-gray-500 mt-1">{t('discover_health_interval_hint', 'Cada cuanto tu nodo verifica si los nodos descubiertos siguen activos. Default: 168 horas (7 dias). Un nodo inactivo se decide por consenso de toda la red, no por tu sola verificacion.')}</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Limpiar nodos inactivos (dias)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('discover_cleanup_interval', 'Limpiar nodos inactivos (dias)')}</label>
               <input type="number" min={1} value={config.inactive_cleanup_interval_days || 365} onChange={e => setConfig({ ...config, inactive_cleanup_interval_days: parseInt(e.target.value) || 365 })} className="w-full px-3 py-2 border rounded-lg text-sm" />
-              <p className="text-xs text-gray-500 mt-1">Cada cuanto se eliminan los nodos inactivos de la lista visible. Se mantienen internamente para seguir consultando. Default: 365 dias. Un nodo puede configurar 90 dias (3 meses) si quiere limpiar mas frecuente.</p>
+              <p className="text-xs text-gray-500 mt-1">{t('discover_cleanup_interval_hint', 'Cada cuanto se eliminan los nodos inactivos de la lista visible. Se mantienen internamente para seguir consultando. Default: 365 dias.')}</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Intentos fallidos antes de evaluar consenso</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('discover_max_failed', 'Intentos fallidos antes de evaluar consenso')}</label>
               <input type="number" min={1} value={config.max_failed_checks || 3} onChange={e => setConfig({ ...config, max_failed_checks: parseInt(e.target.value) || 3 })} className="w-full px-3 py-2 border rounded-lg text-sm" />
-              <p className="text-xs text-gray-500 mt-1">Cuantas veces un nodo debe fallar tu verificacion antes de pedir el consenso a los demas nodos. Default: 3. Esto no marca al nodo como inactivo - solo inicia la evaluacion de consenso.</p>
+              <p className="text-xs text-gray-500 mt-1">{t('discover_max_failed_hint', 'Cuantas veces un nodo debe fallar tu verificacion antes de pedir el consenso a los demas nodos. Default: 3.')}</p>
             </div>
 
             <div className="pt-2">
-              <button onClick={handleSaveConfig} className="px-4 py-2 bg-trueque-600 text-white rounded-lg text-sm">Guardar configuracion</button>
+              <button onClick={handleSaveConfig} className="px-4 py-2 bg-trueque-600 text-white rounded-lg text-sm">{t('discover_save_config', 'Guardar configuracion')}</button>
             </div>
 
             {config.last_discovery_sync && (
               <div className="text-xs text-gray-500 pt-2 border-t">
-                Ultima sincronizacion: {new Date(config.last_discovery_sync).toLocaleString()}
+                {t('discover_last_sync', 'Ultima sincronizacion:')} {new Date(config.last_discovery_sync).toLocaleString()}
               </div>
             )}
             {config.last_health_check && (
               <div className="text-xs text-gray-500">
-                Ultima verificacion de salud: {new Date(config.last_health_check).toLocaleString()}
+                {t('discover_last_health', 'Ultima verificacion de salud:')} {new Date(config.last_health_check).toLocaleString()}
               </div>
             )}
           </div>
@@ -670,32 +670,32 @@ export default function NodeDiscovery() {
       {showRequestModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowRequestModal(null)}>
           <div className="bg-white rounded-xl p-6 max-w-md w-full space-y-3" onClick={e => e.stopPropagation()}>
-            <h3 className="font-bold text-lg">Solicitar contacto</h3>
-            <p className="text-sm text-gray-600">Enviaras una solicitud de contacto a otro nodo. Esto <strong>no federa automaticamente</strong>. El otro nodo vera tu informacion y podra contactarte personalmente para federar.</p>
+            <h3 className="font-bold text-lg">{t('discover_request_modal_title', 'Solicitar contacto')}</h3>
+            <p className="text-sm text-gray-600">{t('discover_request_modal_desc', 'Enviaras una solicitud de contacto a otro nodo. Esto no federa automaticamente. El otro nodo vera tu informacion y podra contactarte personalmente para federar.')}</p>
 
             <div className="bg-amber-50 border border-amber-200 p-2 rounded text-xs text-amber-700">
               Recuerda: la federacion se hace personalmente. Las personas se contactan, se reúnen, las asambleas aprueban, y luego comparten las claves publicas en persona.
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Dominio del nodo</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">{t('discover_request_domain', 'Dominio del nodo')}</label>
               <input type="text" placeholder="ej: mi-aldea.com" value={requestData.to_node_domain} onChange={e => setRequestData({ ...requestData, to_node_domain: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Mensaje (opcional)</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">{t('discover_request_message', 'Mensaje (opcional)')}</label>
               <textarea placeholder="Hola, somos la aldea X de [pais] y nos gustaria conocerlos..." value={requestData.message} onChange={e => setRequestData({ ...requestData, message: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" rows={3} />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Informacion de contacto</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">{t('discover_request_contact_info', 'Informacion de contacto')}</label>
               <input type="text" placeholder="ej: maria@mi-aldea.com o +1234567890" value={requestData.contact_info} onChange={e => setRequestData({ ...requestData, contact_info: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" />
-              <p className="text-xs text-gray-500 mt-1">Como pueden contactarte del otro nodo</p>
+              <p className="text-xs text-gray-500 mt-1">{t('discover_request_contact_hint', 'Como pueden contactarte del otro nodo')}</p>
             </div>
 
             <div className="flex gap-2 pt-2">
-              <button onClick={handleSendRequest} className="flex-1 px-4 py-2 bg-trueque-600 text-white rounded-lg text-sm">Enviar solicitud</button>
-              <button onClick={() => setShowRequestModal(null)} className="px-4 py-2 bg-gray-200 rounded-lg text-sm">Cancelar</button>
+              <button onClick={handleSendRequest} className="flex-1 px-4 py-2 bg-trueque-600 text-white rounded-lg text-sm">{t('discover_send_request', 'Enviar solicitud')}</button>
+              <button onClick={() => setShowRequestModal(null)} className="px-4 py-2 bg-gray-200 rounded-lg text-sm">{t('discover_cancel', 'Cancelar')}</button>
             </div>
           </div>
         </div>
@@ -705,7 +705,7 @@ export default function NodeDiscovery() {
       {showRespondModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowRespondModal(null)}>
           <div className="bg-white rounded-xl p-6 max-w-md w-full space-y-3" onClick={e => e.stopPropagation()}>
-            <h3 className="font-bold text-lg">{respondData.status === 'interested' ? 'Responder: Interesado' : 'Responder: No interesado'}</h3>
+            <h3 className="font-bold text-lg">{respondData.status === 'interested' ? t('discover_respond_interested', 'Responder: Interesado') : t('discover_respond_not_interested', 'Responder: No interesado')}</h3>
             <p className="text-sm text-gray-600">De: <strong>{showRespondModal.from_node_name || showRespondModal.from_node_domain}</strong></p>
             {(showRespondModal.from_country || showRespondModal.from_location) && (
               <p className="text-xs text-gray-600 flex items-center gap-1">
@@ -715,7 +715,7 @@ export default function NodeDiscovery() {
             {showRespondModal.message && <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded">{showRespondModal.message}</p>}
             {showRespondModal.from_governance_url && (
               <a href={showRespondModal.from_governance_url} target="_blank" rel="noopener noreferrer" className="text-xs text-purple-600 hover:underline flex items-center gap-1">
-                <FileText size={12} /> Ver gobernanza del nodo
+                <FileText size={12} /> {t('discover_view_node_governance', 'Ver gobernanza del nodo')}
               </a>
             )}
 
@@ -726,13 +726,13 @@ export default function NodeDiscovery() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Mensaje de respuesta</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">{t('discover_response_message', 'Mensaje de respuesta')}</label>
               <textarea placeholder={respondData.status === 'interested' ? 'Gracias por contactarnos! Nos gustaria conocernos. Podemos coordinar una reunion...' : 'Gracias por su interes, pero por ahora no podemos federar...'} value={respondData.response_message} onChange={e => setRespondData({ ...respondData, response_message: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" rows={3} />
             </div>
 
             {respondData.status === 'interested' && (
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Informacion de contacto</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">{t('discover_request_contact_info', 'Informacion de contacto')}</label>
                 <input type="text" placeholder="ej: admin@mi-aldea.com o +1234567890" value={respondData.response_contact} onChange={e => setRespondData({ ...respondData, response_contact: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" />
                 <p className="text-xs text-gray-500 mt-1">Como pueden contactarte del otro nodo para coordinar la reunion</p>
               </div>
@@ -740,9 +740,9 @@ export default function NodeDiscovery() {
 
             <div className="flex gap-2 pt-2">
               <button onClick={handleRespond} className={`flex-1 px-4 py-2 text-white rounded-lg text-sm ${respondData.status === 'interested' ? 'bg-green-600' : 'bg-gray-500'}`}>
-                {respondData.status === 'interested' ? 'Enviar y contactar despues' : 'Enviar respuesta'}
+                {respondData.status === 'interested' ? t('discover_send_and_contact', 'Enviar y contactar despues') : t('discover_send_response', 'Enviar respuesta')}
               </button>
-              <button onClick={() => setShowRespondModal(null)} className="px-4 py-2 bg-gray-200 rounded-lg text-sm">Cancelar</button>
+              <button onClick={() => setShowRespondModal(null)} className="px-4 py-2 bg-gray-200 rounded-lg text-sm">{t('discover_cancel', 'Cancelar')}</button>
             </div>
           </div>
         </div>

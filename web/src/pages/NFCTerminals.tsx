@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { api, apiFetch, getStorageKeys } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useSerialChipId } from '../hooks/useSerialChipId'
@@ -42,9 +43,10 @@ interface Transaction {
 }
 
 export default function NFCTerminals() {
+  const { t: tt } = useTranslation('nfc')
   const { hasPermission } = usePermissions()
   const [searchParams, setSearchParams] = useSearchParams()
-  const initialTab = (searchParams.get('tab') as 'terminals' | 'provision' | 'cards' | 'transactions' | 'pairing') || 'terminals'
+  const initialTab = (searchParams.gett('tab') as 'terminals' | 'provision' | 'cards' | 'transactions' | 'pairing') || 'terminals'
   const [tab, setTab] = useState<'terminals' | 'provision' | 'cards' | 'transactions' | 'pairing'>(initialTab)
   const changeTab = (t: 'terminals' | 'provision' | 'cards' | 'transactions' | 'pairing') => {
     setTab(t)
@@ -104,8 +106,8 @@ export default function NFCTerminals() {
     setCardListError('')
     try {
       const params = new URLSearchParams()
-      if (cardSearch) params.set('search', cardSearch)
-      if (activeOnly ?? cardActiveOnly) params.set('active', 'true')
+      if (cardSearch) params.sett('search', cardSearch)
+      if (activeOnly ?? cardActiveOnly) params.sett('active', 'true')
       const res = await api.get<any[]>(`/nfc/cards/all?${params.toString()}`)
       setAllCards(Array.isArray(res) ? res : [])
     } catch (err) {
@@ -335,7 +337,7 @@ export default function NFCTerminals() {
           target_id: assignTarget,
         }),
       })
-      setAssignTarget('')
+      setAssignTargett('')
       await loadTerminals()
       setShowAssignModal(null)
     } catch (err) {
@@ -353,7 +355,7 @@ export default function NFCTerminals() {
     try {
       if (newCard.card_type === 'classic') {
         // MIFARE Classic con certificados dinámicos
-        const res = await api.post('/nfc/cards/provision-classic', {
+        const res = await api.postt('/nfc/cards/provision-classic', {
           user_id: newCard.user_id,
           card_uid: newCard.card_uid,
           initial_pin: newCard.initial_pin,
@@ -361,7 +363,7 @@ export default function NFCTerminals() {
         setCardCryptoResult(res)
       } else if (newCard.card_type === 'ntag424' || newCard.card_type === 'desfire') {
         // NTAG424 o DESFire con clave AES
-        const res = await api.post('/nfc/cards/provision-crypto', {
+        const res = await api.postt('/nfc/cards/provision-crypto', {
           user_id: newCard.user_id,
           card_uid: newCard.card_uid,
           card_type: newCard.card_type,
@@ -384,7 +386,7 @@ export default function NFCTerminals() {
   const changePIN = async () => {
     setError('')
     try {
-      await api.put('/nfc/cards/pin', pinChange)
+      await api.putt('/nfc/cards/pin', pinChange)
       setPinChange({ card_uid: '', old_pin: '', new_pin: '' })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error')
@@ -444,7 +446,7 @@ export default function NFCTerminals() {
       const text = await res.text()
       const blob = new Blob([text], { type: 'text/plain' })
       const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
+      const a = document.createElementt('a')
       a.href = url
       a.download = 'config.h'
       a.click()
@@ -477,7 +479,7 @@ export default function NFCTerminals() {
       if (!res.ok) throw new Error('Error al descargar firmware.bin')
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
+      const a = document.createElementt('a')
       a.href = url
       a.download = `${terminalId}-firmware.bin`
       a.click()
@@ -490,7 +492,7 @@ export default function NFCTerminals() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold flex items-center gap-2"><Nfc size={24} /> Terminales NFC</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2"><Nfc size={24} /> {ttt('title', 'Terminales NFC')}</h1>
         <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
           <HelpCircle size={20} />
         </button>
@@ -520,38 +522,38 @@ export default function NFCTerminals() {
           <p><strong>Que es el token de registro:</strong> Es un codigo secreto que genera el servidor al registrar o provisionar un terminal. Se copia en el archivo config.h del firmware del ESP32 para que el terminal pueda autenticarse con el nodo al conectarse por primera vez.</p>
           <p><strong>Como vincular tarjetas:</strong> El administrador emite una tarjeta NFC asignandola a un usuario (User ID) y registrando el UID de la tarjeta fisica. La tarjeta se entrega al usuario con un PIN inicial que debe cambiar la primera vez que la use.</p>
           <p><strong>Que es el PIN:</strong> Es un codigo de 4 digitos que protege la tarjeta NFC. Se pide al usuario en cada transaccion (excepto en modo comunitario). Si se olvida, el administrador puede resetearlo a un valor por defecto.</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{ttt('cancel', 'Cerrar')}</button>
         </div>
       )}
 
       <div className="flex gap-2 flex-wrap">
         {/* Terminales y Provisionar: solo admin */}
         {canRegisterTerminal && (
-          <button onClick={() => changeTab('terminals')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'terminals' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Terminales</button>
+          <button onClick={() => changeTab('terminals')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'terminals' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{tt('tab_terminals', 'Terminales')}</button>
         )}
         {canRegisterTerminal && (
-          <button onClick={() => changeTab('provision')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'provision' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Provisionar</button>
+          <button onClick={() => changeTab('provision')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'provision' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{tt('tab_provision', 'Provisionar')}</button>
         )}
         {canRegisterTerminal && (
           <button onClick={() => changeTab('pairing')} className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1 ${tab === 'pairing' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>
-            Emparejamientos
+            {tt('tab_pairing', 'Emparejamientos')}
             {pendingPairings.length > 0 && (
               <span className="bg-red-500 text-white text-xs px-1.5 rounded-full">{pendingPairings.length}</span>
             )}
           </button>
         )}
         {/* Tarjetas: todos pueden ver (su propia tarjeta) */}
-        <button onClick={() => changeTab('cards')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'cards' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Tarjetas</button>
+        <button onClick={() => changeTab('cards')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'cards' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{tt('tab_cards', 'Tarjetas')}</button>
         {/* Transacciones: solo admin */}
         {canRegisterTerminal && (
-          <button onClick={() => changeTab('transactions')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'transactions' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Transacciones</button>
+          <button onClick={() => changeTab('transactions')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'transactions' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{tt('tab_transactions', 'Transacciones')}</button>
         )}
       </div>
 
       {/* Si el usuario no es admin y esta en una pestaña admin, forzar a cards */}
       {!canRegisterTerminal && tab !== 'cards' && (
         <div className="card bg-amber-50 border-amber-200 text-sm text-amber-700">
-          No tienes permiso para ver esta seccion. Solo puedes gestionar tu tarjeta NFC.
+          {tt('no_permission', 'No tienes permiso para ver esta seccion. Solo puedes gestionar tu tarjeta NFC.')}
         </div>
       )}
 
@@ -560,7 +562,7 @@ export default function NFCTerminals() {
       {/* Provision tab */}
       {tab === 'provision' && (
         <div className="space-y-4">
-          <h2 className="font-semibold flex items-center gap-2"><Cpu size={18} /> Provisionar Terminal Nuevo</h2>
+          <h2 className="font-semibold flex items-center gap-2"><Cpu size={18} /> {tt('provision_title', 'Provisionar Terminal Nuevo')}</h2>
           <p className="text-sm text-gray-500">
             Conecta el ESP32 por USB al computador. Primero descarga y flashea el sketch <code className="bg-gray-100 px-1 rounded">chip-id-reader.ino</code> para poder leer el chip ID.
             Luego escanea el ESP32 desde el navegador o entra el chip ID manualmente.
@@ -568,7 +570,7 @@ export default function NFCTerminals() {
 
           {/* Descargar sketch chip-id-reader.ino */}
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
-            <p className="text-sm font-medium text-amber-800">Paso 0: Descargar el sketch para leer el chip ID</p>
+            <p className="text-sm font-medium text-amber-800">{tt('provision_step0', 'Paso 0: Descargar el sketch para leer el chip ID')}</p>
             <p className="text-xs text-amber-700">
               Descarga el archivo .ino, abrelo en Arduino IDE, conecta el ESP32 por USB y subelo.
               Esto mostrara el chip ID en el monitor serie (115200 baud).
@@ -584,7 +586,7 @@ export default function NFCTerminals() {
                   const text = await res.text()
                   const blob = new Blob([text], { type: 'text/plain' })
                   const url = URL.createObjectURL(blob)
-                  const a = document.createElement('a')
+                  const a = document.createElementt('a')
                   a.href = url
                   a.download = 'chip-id-reader.ino'
                   a.click()
@@ -595,33 +597,33 @@ export default function NFCTerminals() {
               }}
               className="btn-primary flex items-center gap-2"
             >
-              <Download size={18} /> Descargar chip-id-reader.ino
+              <Download size={18} /> {tt('download_chip_reader', 'Descargar chip-id-reader.ino')}
             </button>
           </div>
 
           {/* Paso 1: Leer chip ID */}
           <div className="card space-y-3">
-            <h3 className="font-medium flex items-center gap-2"><Usb size={16} /> Paso 1: Leer Chip ID del ESP32</h3>
+            <h3 className="font-medium flex items-center gap-2"><Usb size={16} /> {tt('step1_title', 'Paso 1: Leer Chip ID del ESP32')}</h3>
 
             {serialSupported ? (
               <button onClick={scan} disabled={scanning} className="btn-primary flex items-center gap-2">
-                <Usb size={18} /> {scanning ? 'Escaneando...' : 'Escanear ESP32 via USB'}
+                <Usb size={18} /> {scanning ? tt('scanning', 'Escaneando...') : tt('scan_esp32', 'Escanear ESP32 via USB')}
               </button>
             ) : (
               <p className="text-sm text-orange-600 bg-orange-50 p-3 rounded-lg">
-                Web Serial API no soportada. Usa Chrome o Edge, o entra el chip ID manualmente abajo.
+                {tt('serial_not_supported', 'Web Serial API no soportada. Usa Chrome o Edge, o entra el chip ID manualmente abajo.')}
               </p>
             )}
 
             {serialError && <p className="text-sm text-red-600">{serialError}</p>}
             {chipId && (
               <p className="text-sm text-green-700 bg-green-50 p-3 rounded-lg">
-                Chip ID detectado: <code className="font-bold">{chipId}</code>
+                {tt('chip_id_detected', 'Chip ID detectado:')} <code className="font-bold">{chipId}</code>
               </p>
             )}
 
             <div>
-              <label className="label">Chip ID del ESP32 (12 caracteres hexadecimales)</label>
+              <label className="label">{tt('chip_id_label', 'Chip ID del ESP32 (12 caracteres hexadecimales)')}</label>
               <input
                 className="input font-mono"
                 placeholder="Ej: AABBCCDDEEFF"
@@ -635,75 +637,74 @@ export default function NFCTerminals() {
 
           {/* Paso 2: Configurar terminal */}
           <div className="card space-y-3">
-            <h3 className="font-medium flex items-center gap-2"><Cpu size={16} /> Paso 2: Configurar Terminal</h3>
+            <h3 className="font-medium flex items-center gap-2"><Cpu size={16} /> {tt('step2_config', 'Paso 2: Configurar Terminal')}</h3>
             <div>
-              <label className="label">Tipo de terminal</label>
+              <label className="label">{tt('terminal_type_label', 'Tipo de terminal')}</label>
               <select className="input" value={provisionType} onChange={(e) => setProvisionType(e.target.value)}>
-                <option value="keypad">Keypad (con encoder)</option>
-                <option value="touch">Touch (pantalla tactil)</option>
-                <option value="web">Web (monto desde app)</option>
-                <option value="community">Community (doble tarjeta)</option>
-                <option value="ble-reader">BLE Reader (lector Bluetooth)</option>
+                <option value="keypad">{tt('type_keypad', 'Keypad (con encoder)')}</option>
+                <option value="touch">{tt('type_touch', 'Touch (pantalla tactil)')}</option>
+                <option value="web">{tt('type_web', 'Web (monto desde app)')}</option>
+                <option value="community">{tt('type_community', 'Community (doble tarjeta)')}</option>
+                <option value="ble-reader">{tt('type_ble_reader', 'BLE Reader (lector Bluetooth)')}</option>
               </select>
-              <p className="text-xs text-gray-400 mt-1">Selecciona el tipo de hardware del terminal. Ejemplo: <strong>Keypad</strong> para terminal con encoder rotativo, <strong>Community</strong> para mercado de doble tarjeta.</p>
+              <p className="text-xs text-gray-400 mt-1">{tt('terminal_type_hint', 'Selecciona el tipo de hardware del terminal.')}</p>
             </div>
             <div>
-              <label className="label">Etiqueta del terminal</label>
+              <label className="label">{tt('terminal_label', 'Etiqueta del terminal')}</label>
               <input className="input" placeholder="Ej: Ferreteria Don Jose" value={provisionLabel} onChange={(e) => setProvisionLabel(e.target.value)} />
-              <p className="text-xs text-gray-400 mt-1">Nombre descriptivo para identificar el terminal en la lista. Ejemplo: <code>Ferreteria Don Jose</code></p>
+              <p className="text-xs text-gray-400 mt-1">{tt('terminal_label_hint', 'Nombre descriptivo para identificar el terminal en la lista.')}</p>
             </div>
             <div>
-              <label className="label">Ubicacion del terminal</label>
+              <label className="label">{tt('terminal_location', 'Ubicacion del terminal')}</label>
               <input className="input" placeholder="Ej: Local 5, Mercado Central" value={provisionLocation} onChange={(e) => setProvisionLocation(e.target.value)} />
-              <p className="text-xs text-gray-400 mt-1">Direccion o referencia del lugar donde se instala. Ejemplo: <code>Local 5, Mercado Central</code></p>
+              <p className="text-xs text-gray-400 mt-1">{tt('terminal_location_hint', 'Direccion o referencia del lugar donde se instala.')}</p>
             </div>
             <button
               onClick={provisionTerminal}
               disabled={!provisionChipId || provisionChipId.length !== 12 || provisioning}
               className="btn-primary w-full disabled:opacity-50"
             >
-              {provisioning ? 'Provisionando...' : 'Provisionar Terminal'}
+              {provisioning ? tt('provisioning', 'Provisionando...') : tt('provision_terminal', 'Provisionar Terminal')}
             </button>
           </div>
 
           {/* Paso 3: Descargar config.h o compilar .bin */}
           {provisionResult && (
             <div className="card bg-green-50 border-green-200 space-y-3">
-              <h3 className="font-medium text-green-800 flex items-center gap-2"><Download size={16} /> Paso 3: Obtener firmware</h3>
+              <h3 className="font-medium text-green-800 flex items-center gap-2"><Download size={16} /> {tt('step3_firmware', 'Paso 3: Obtener firmware')}</h3>
               <p className="text-sm text-green-700">
-                Terminal <strong>{provisionResult.terminal_id}</strong> provisionado correctamente.
+                {tt('terminal_provisioned', 'Terminal')} <strong>{provisionResult.terminal_id}</strong> {tt('provisioned_success', 'provisionado correctamente.')}
               </p>
 
               <div className="space-y-2">
-                <p className="text-sm font-medium text-gray-700">Opcion A: Descargar config.h (compilar manualmente)</p>
+                <p className="text-sm font-medium text-gray-700">{tt('option_a_config', 'Opcion A: Descargar config.h (compilar manualmente)')}</p>
                 <p className="text-xs text-gray-500">
-                  Descarga el config.h, copialo a la carpeta del terminal y compila con Arduino IDE.
+                  {tt('option_a_desc', 'Descarga el config.h, copialo a la carpeta del terminal y compila con Arduino IDE.')}
                 </p>
                 <button
                   onClick={() => downloadConfigH(provisionResult.terminal_id)}
                   className="btn-primary flex items-center gap-2"
                 >
-                  <Download size={18} /> Descargar config.h
+                  <Download size={18} /> {tt('download_config', 'Descargar config.h')}
                 </button>
               </div>
 
               <div className="border-t border-green-200 pt-3 space-y-2">
-                <p className="text-sm font-medium text-gray-700">Opcion B: Compilar .bin desde el servidor (un click)</p>
+                <p className="text-sm font-medium text-gray-700">{tt('option_b_compile', 'Opcion B: Compilar .bin desde el servidor (un click)')}</p>
                 <p className="text-xs text-gray-500">
-                  El servidor compila el firmware completo con el config.h inyectado y devuelve el .bin listo para flashear.
-                  Requiere que el servicio compilador este configurado.
+                  {tt('option_b_desc', 'El servidor compila el firmware completo con el config.h inyectado y devuelve el .bin listo para flashear. Requiere que el servicio compilador este configurado.')}
                 </p>
                 <button
                   onClick={() => compileFirmware(provisionResult.terminal_id)}
                   disabled={compiling}
                   className="btn-primary flex items-center gap-2 disabled:opacity-50"
                 >
-                  <Cpu size={18} /> {compiling ? 'Compilando (puede tardar 2-3 min)...' : 'Compilar .bin'}
+                  <Cpu size={18} /> {compiling ? tt('compiling', 'Compilando (puede tardar 2-3 min)...') : tt('compile_bin', 'Compilar .bin')}
                 </button>
 
                 {compileResult && (
                   <div className="bg-white p-3 rounded-lg border border-green-300 space-y-2">
-                    <p className="text-sm text-green-700 font-medium">Compilacion exitosa!</p>
+                    <p className="text-sm text-green-700 font-medium">{tt('compile_success', 'Compilacion exitosa!')}</p>
                     <p className="text-xs text-gray-500">
                       Tamano: {fmtNumber(compileResult.size / 1024, 0)} KB · Build ID: {compileResult.build_id.substring(0, 8)}
                     </p>
@@ -740,10 +741,10 @@ export default function NFCTerminals() {
       {tab === 'terminals' && (
         <div className="space-y-3">
           <div className="flex justify-between items-center">
-            <h2 className="font-semibold flex items-center gap-2"><Cpu size={18} /> Terminales registrados</h2>
+            <h2 className="font-semibold flex items-center gap-2"><Cpu size={18} /> {tt('registered_terminals', 'Terminales registrados')}</h2>
             {canRegisterTerminal && (
               <button onClick={() => setShowRegister(true)} className="btn-primary flex items-center gap-2">
-                <Plus size={18} /> Registrar Terminal
+                <Plus size={18} /> {tt('register_terminal', 'Registrar Terminal')}
               </button>
             )}
           </div>
@@ -754,22 +755,22 @@ export default function NFCTerminals() {
               <button
                 onClick={() => setTerminalFilter('all')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium ${terminalFilter === 'all' ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
-                Todos ({terminals.length})
+                {tt('filter_all', 'Todos')} ({terminals.length})
               </button>
               <button
                 onClick={() => setTerminalFilter('assigned')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium ${terminalFilter === 'assigned' ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
-                Asignados ({terminals.filter(t => t.organization_name || t.merchant_user_name).length})
+                {tt('filter_assigned', 'Asignados')} ({terminals.filter(t => t.organization_name || t.merchant_user_name).length})
               </button>
               <button
                 onClick={() => setTerminalFilter('unassigned')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium ${terminalFilter === 'unassigned' ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
-                No asignados ({terminals.filter(t => !t.organization_name && !t.merchant_user_name).length})
+                {tt('filter_unassigned', 'No asignados')} ({terminals.filter(t => !t.organization_name && !t.merchant_user_name).length})
               </button>
             </div>
             <input
               type="text"
-              placeholder="Buscar por etiqueta, persona u organizacion..."
+              placeholder={tt('search_terminals_placeholder', 'Buscar por etiqueta, persona u organizacion...')}
               value={terminalSearch}
               onChange={(e) => setTerminalSearch(e.target.value)}
               className="input flex-1 min-w-[200px] text-sm"
@@ -777,7 +778,7 @@ export default function NFCTerminals() {
           </div>
 
           {terminals.length === 0 && (
-            <div className="card text-center text-gray-500 py-8">No hay terminales registrados</div>
+            <div className="card text-center text-gray-500 py-8">{tt('no_terminals', 'No hay terminales registrados')}</div>
           )}
 
           {terminals
@@ -806,16 +807,16 @@ export default function NFCTerminals() {
                 <div>
                   <p className="font-medium">{t.label || t.terminal_id}</p>
                   <p className="text-xs text-gray-500">
-                    {t.terminal_type} · {t.location || 'sin ubicacion'} · {formatTime(t.last_seen)}
+                    {t.terminal_type} · {t.location || ttt('no_location', 'sin ubicacion')} · {formatTime(t.last_seen)}
                   </p>
                   {/* Asignacion visible directamente */}
                   {(t.organization_name || t.merchant_user_name) ? (
                     <p className="text-xs text-green-600 font-medium mt-1">
-                      ✓ Asignado a: {t.organization_name || t.merchant_user_name}
+                      ✓ {tt('assigned_to', 'Asignado a:')} {t.organization_name || t.merchant_user_name}
                     </p>
                   ) : (
                     <p className="text-xs text-amber-600 font-medium mt-1">
-                      ✗ No asignado
+                      ✗ {tt('not_assigned', 'No asignado')}
                     </p>
                   )}
                   {(t.chip_id || t.device_fingerprint || t.device_model) && (
@@ -829,22 +830,22 @@ export default function NFCTerminals() {
               </div>
               <div className="flex items-center gap-2">
                 <span className={`text-xs px-2 py-1 rounded ${t.is_registered ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                  {t.is_registered ? 'Registrado' : 'Pendiente'}
+                  {t.is_registered ? tt('registered', 'Registrado') : tt('pending', 'Pendiente')}
                 </span>
                 {canRegisterTerminal && t.is_registered && (
                   <button
                     onClick={() => openEditModal(t)}
                     className="text-gray-500 hover:text-blue-700"
-                    title="Editar etiqueta, ubicacion y tipo"
+                    title={tt('edit_terminal', 'Editar etiqueta, ubicacion y tipo')}
                   >
                     <Edit size={16} />
                   </button>
                 )}
                 {canRegisterTerminal && t.is_registered && (
                   <button
-                    onClick={() => { setShowAssignModal(t.terminal_id); setAssignTarget(''); setAssignType('user') }}
+                    onClick={() => { setShowAssignModal(t.terminal_id); setAssignTargett(''); setAssignType('user') }}
                     className="text-blue-500 hover:text-blue-700"
-                    title="Asignar a persona u organizacion"
+                    title={tt('assign_terminal', 'Asignar a persona u organizacion')}
                   >
                     <UserPlus size={16} />
                   </button>
@@ -860,9 +861,9 @@ export default function NFCTerminals() {
 
           {regToken && (
             <div className="card bg-trueque-50 border-trueque-200">
-              <p className="font-medium text-sm">Token de registro generado:</p>
+              <p className="font-medium text-sm">{tt('registration_token', 'Token de registro generado:')}</p>
               <code className="text-sm break-all">{regToken}</code>
-              <p className="text-xs text-gray-500 mt-1">Copiar este token en config.h del terminal ESP32</p>
+              <p className="text-xs text-gray-500 mt-1">{tt('copy_token_config', 'Copiar este token en config.h del terminal ESP32')}</p>
             </div>
           )}
         </div>
@@ -872,10 +873,10 @@ export default function NFCTerminals() {
       {tab === 'cards' && (
         <div className="space-y-3">
           <div className="flex justify-between items-center">
-            <h2 className="font-semibold flex items-center gap-2"><CreditCard size={18} /> Tarjetas NFC</h2>
+            <h2 className="font-semibold flex items-center gap-2"><CreditCard size={18} /> {tt('nfc_cards', 'Tarjetas NFC')}</h2>
             {canIssueCard && (
               <button onClick={() => setShowIssueCard(true)} className="btn-primary flex items-center gap-2">
-                <Plus size={18} /> Emitir Tarjeta
+                <Plus size={18} /> {tt('issue_card', 'Emitir Tarjeta')}
               </button>
             )}
           </div>
@@ -883,24 +884,24 @@ export default function NFCTerminals() {
           {/* Lista de tarjetas con búsqueda (admin) */}
           {canIssueCard && (
             <div className="card space-y-3">
-              <h3 className="font-medium flex items-center gap-2"><CreditCard size={16} /> Tarjetas emitidas</h3>
+              <h3 className="font-medium flex items-center gap-2"><CreditCard size={16} /> {tt('issued_cards', 'Tarjetas emitidas')}</h3>
               <div className="flex gap-2">
                 <input
                   className="input flex-1"
-                  placeholder="Buscar por UID, usuario, nombre o etiqueta..."
+                  placeholder={tt('search_cards', 'Buscar por UID, usuario, nombre o etiqueta...')}
                   value={cardSearch}
                   onChange={(e) => { setCardSearch(e.target.value); setCardSearchTimer(Date.now()) }}
                 />
-                <button onClick={() => loadAllCards()} className="btn-secondary">Buscar</button>
+                <button onClick={() => loadAllCards()} className="btn-secondary">{tt('search_btn', 'Buscar')}</button>
               </div>
               <label className="flex items-center gap-2 text-xs text-gray-500">
                 <input type="checkbox" checked={cardActiveOnly} onChange={(e) => { setCardActiveOnly(e.target.checked); loadAllCards(e.target.checked) }} />
-                Solo activas
+                {tt('active_only', 'Solo activas')}
               </label>
-              {cardListLoading && <p className="text-xs text-gray-400">Cargando...</p>}
+              {cardListLoading && <p className="text-xs text-gray-400">{tt('loading', 'Cargando...')}</p>}
               {cardListError && <p className="text-xs text-red-500">{cardListError}</p>}
               {!cardListLoading && allCards.length === 0 && (
-                <p className="text-xs text-gray-400">No hay tarjetas que coincidan con la búsqueda.</p>
+                <p className="text-xs text-gray-400">{tt('no_cards_found', 'No hay tarjetas que coincidan con la busqueda.')}</p>
               )}
               {allCards.length > 0 && (
                 <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -911,15 +912,15 @@ export default function NFCTerminals() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <b className="text-xs">{c.card_uid.slice(0, 16)}...</b>
                             <span className={`text-xs px-2 py-0.5 rounded ${c.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                              {c.is_active ? 'Activa' : 'Inactiva'}
+                              {c.is_active ? tt('card_active', 'Activa') : tt('card_inactive', 'Inactiva')}
                             </span>
                             <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{c.card_type}</span>
                             {c.label && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{c.label}</span>}
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
-                            Usuario: <b>{c.username}</b> {c.display_name && `(${c.display_name})`}
+                            {tt('card_user', 'Usuario:')} <b>{c.username}</b> {c.display_name && `(${c.display_name})`}
                           </p>
-                          <p className="text-xs text-gray-400">Emitida: {fmtDateTime(c.issued_at)}</p>
+                          <p className="text-xs text-gray-400">{tt('card_issued', 'Emitida:')} {fmtDateTime(c.issued_at)}</p>
                           {c.required_doc_type && <p className="text-xs text-blue-600">Doc: {c.required_doc_type}</p>}
                           {editingCardLabel === c.card_uid && (
                             <div className="flex gap-1 mt-2">
@@ -941,7 +942,7 @@ export default function NFCTerminals() {
                               onClick={() => toggleCardActive(c.card_uid, c.is_active)}
                               className={`text-xs px-2 py-1 rounded ${c.is_active ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}`}
                             >
-                              {c.is_active ? 'Desactivar' : 'Activar'}
+                              {c.is_active ? tt('deactivate', 'Desactivar') : tt('activate', 'Activar')}
                             </button>
                           )}
                           {canResetPIN && (
@@ -957,7 +958,7 @@ export default function NFCTerminals() {
                               onClick={() => { setEditingCardLabel(c.card_uid); setLabelValue(c.label || '') }}
                               className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 flex items-center gap-1"
                             >
-                              <Edit size={12} /> Etiqueta
+                              <Edit size={12} /> {tt('card_label', 'Etiqueta')}
                             </button>
                           )}
                           {canIssueCard && (
@@ -965,7 +966,7 @@ export default function NFCTerminals() {
                               onClick={() => deleteCardPermanent(c.card_uid)}
                               className="text-xs px-2 py-1 rounded bg-red-600 text-white hover:bg-red-700 flex items-center gap-1"
                             >
-                              <Trash2 size={12} /> Eliminar
+                              <Trash2 size={12} /> {tt('delete', 'Eliminar')}
                             </button>
                           )}
                         </div>
@@ -979,10 +980,10 @@ export default function NFCTerminals() {
 
           {/* Cambiar PIN - usuario normal solo su tarjeta */}
           <div className="card space-y-3">
-            <h3 className="font-medium flex items-center gap-2"><KeyRound size={16} /> Cambiar PIN de mi tarjeta</h3>
-            <p className="text-xs text-gray-500">Cambia el PIN de tu propia tarjeta NFC. Necesitas el PIN actual.</p>
+            <h3 className="font-medium flex items-center gap-2"><KeyRound size={16} /> {tt('change_pin_title', 'Cambiar PIN de mi tarjeta')}</h3>
+            <p className="text-xs text-gray-500">{tt('change_pin_desc', 'Cambia el PIN de tu propia tarjeta NFC. Necesitas el PIN actual.')}</p>
             <div>
-              <label className="label">UID de mi tarjeta</label>
+              <label className="label">{tt('my_card_uid', 'UID de mi tarjeta')}</label>
               <input className="input" placeholder="Ej: 04A3B2C1" value={pinChange.card_uid} onChange={(e) => setPinChange({ ...pinChange, card_uid: e.target.value })} />
               <p className="text-xs text-gray-400 mt-1">El UID de tu tarjeta NFC. Aparece en la parte posterior de la tarjeta.</p>
             </div>
@@ -996,7 +997,7 @@ export default function NFCTerminals() {
               <input className="input" type="password" placeholder="Ej: 5678" maxLength={4} value={pinChange.new_pin} onChange={(e) => setPinChange({ ...pinChange, new_pin: e.target.value })} />
               <p className="text-xs text-gray-400 mt-1">Elige un PIN de 4 digitos que recuerdes facil. Ejemplo: <code>5678</code></p>
             </div>
-            <button onClick={changePIN} className="btn-primary">Cambiar PIN</button>
+            <button onClick={changePIN} className="btn-primary">{tt('change_pin_btn', 'Cambiar PIN')}</button>
           </div>
         </div>
       )}
@@ -1004,25 +1005,25 @@ export default function NFCTerminals() {
       {/* Transactions tab */}
       {tab === 'transactions' && (
         <div className="space-y-3">
-          <h2 className="font-semibold flex items-center gap-2"><Activity size={18} /> Transacciones recientes</h2>
+          <h2 className="font-semibold flex items-center gap-2"><Activity size={18} /> {tt('recent_transactions', 'Transacciones recientes')}</h2>
           {transactions.length === 0 && (
-            <div className="card text-center text-gray-500 py-8">No hay transacciones</div>
+            <div className="card text-center text-gray-500 py-8">{tt('no_transactions', 'No hay transacciones')}</div>
           )}
           {transactions.map((tx) => (
             <div key={tx.id} className="card flex items-center justify-between">
               <div>
                 <p className="font-medium text-sm">
-                  {tx.transaction_type === 'community' ? 'Comunitaria' : 'Individual'} · {formatAmount(tx.amount)}
+                  {tx.transaction_type === 'community' ? tt('tx_community', 'Comunitaria') : tt('tx_individual', 'Individual')} · {formatAmount(tx.amount)}
                 </p>
                 <p className="text-xs text-gray-500">
-                  Tarjeta: {tx.card_uid.substring(0, 12)}... · {fmtDateTime(tx.created_at)}
+                  {tt('tx_card', 'Tarjeta:')} {tx.card_uid.substring(0, 12)}... · {fmtDateTime(tx.created_at)}
                 </p>
                 {tx.error_message && <p className="text-xs text-red-500">{tx.error_message}</p>}
               </div>
               <div className="flex items-center gap-2">
                 {tx.pin_verified && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">PIN OK</span>}
                 <span className={`text-xs px-2 py-1 rounded ${tx.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                  {tx.status === 'approved' ? 'Aprobada' : 'Rechazada'}
+                  {tx.status === 'approved' ? tt('tx_approved', 'Aprobada') : tt('tx_rejected', 'Rechazada')}
                 </span>
               </div>
             </div>
@@ -1041,7 +1042,7 @@ export default function NFCTerminals() {
             >
               <X size={20} />
             </button>
-            <h2 className="font-bold text-lg pr-8">Registrar Terminal</h2>
+            <h2 className="font-bold text-lg pr-8">{tt('register_modal_title', 'Registrar Terminal')}</h2>
             <div>
               <label className="label">Terminal ID</label>
               <input className="input" placeholder="Ej: TERM-001" value={newTerminal.terminal_id} onChange={(e) => setNewTerminal({ ...newTerminal, terminal_id: e.target.value })} />
@@ -1083,8 +1084,8 @@ export default function NFCTerminals() {
               <p className="text-xs text-gray-400 mt-1">Direccion o referencia del lugar. Ejemplo: <code>Local 5, Mercado Central</code></p>
             </div>
             <div className="flex gap-2">
-              <button onClick={registerTerminal} className="btn-primary flex-1">Registrar</button>
-              <button onClick={() => setShowRegister(false)} className="btn-secondary">Cancelar</button>
+              <button onClick={registerTerminal} className="btn-primary flex-1">{tt('register_btn', 'Registrar')}</button>
+              <button onClick={() => setShowRegister(false)} className="btn-secondary">{tt('cancel', 'Cancelar')}</button>
             </div>
           </div>
         </div>
@@ -1094,7 +1095,7 @@ export default function NFCTerminals() {
       {tab === 'pairing' && (
         <div className="space-y-4">
           <div className="card bg-blue-50 border-blue-200">
-            <h3 className="font-bold text-blue-900">Emparejamientos Pendientes</h3>
+            <h3 className="font-bold text-blue-900">{tt('pending_pairings', 'Emparejamientos Pendientes')}</h3>
             <p className="text-sm text-blue-700 mt-1">
               Cuando un POS Android inicia un emparejamiento, muestra un codigo de 6 digitos en pantalla.
               Aqui puedes ver los codigos pendientes y aprobarlos con un clic. Los datos del terminal se copian
@@ -1105,8 +1106,8 @@ export default function NFCTerminals() {
           {pendingPairings.length === 0 ? (
             <div className="card text-center text-gray-500 py-12">
               <Nfc className="mx-auto mb-3 text-gray-300" size={48} />
-              <p>No hay emparejamientos pendientes.</p>
-              <p className="text-sm mt-1">Cuando un POS Android o ESP32 inicie un emparejamiento, aparecera aqui automaticamente.</p>
+              <p>{tt('no_pending_pairings', 'No hay emparejamientos pendientes.')}</p>
+              <p className="text-sm mt-1">{tt('no_pending_pairings_hint', 'Cuando un POS Android o ESP32 inicie un emparejamiento, aparecera aqui automaticamente.')}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -1115,13 +1116,13 @@ export default function NFCTerminals() {
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-4">
                       <div className="bg-trueque-600 text-white text-lg font-bold px-6 py-3 rounded-xl">
-                        Codigo oculto
+                        {tt('hidden_code', 'Codigo oculto')}
                       </div>
                       <div className="flex-1">
                         <p className="font-bold text-lg">{p.terminal_label || 'POS Android'}</p>
-                        <p className="text-sm text-gray-600">Tipo: {p.terminal_type}</p>
+                        <p className="text-sm text-gray-600">{tt('pairing_type', 'Tipo:')} {p.terminal_type}</p>
                         <p className="text-sm text-gray-600">
-                          Tiempo restante: <span className={p.remaining_seconds <= 10 ? 'text-red-600 font-bold' : 'font-medium'}>
+                          {tt('time_remaining', 'Tiempo restante:')} <span className={p.remaining_seconds <= 10 ? 'text-red-600 font-bold' : 'font-medium'}>
                             {Math.floor(p.remaining_seconds / 60)}:{String(p.remaining_seconds % 60).padStart(2, '0')}
                           </span>
                         </p>
@@ -1260,13 +1261,13 @@ export default function NFCTerminals() {
                       <button
                         onClick={() => { setApprovingCode(p.id); setApproveLabel(p.terminal_label || ''); setApproveLocation(''); setOptionsError(''); loadPairingOptions(p.id) }}
                         className="btn-primary flex-1">
-                        Aprobar
+                        {tt('approve', 'Aprobar')}
                       </button>
                       <button
                         onClick={() => rejectPairing(p.id)}
                         disabled={pairingAction === p.id + '-reject'}
                         className="btn-secondary text-red-600">
-                        {pairingAction === p.id + '-reject' ? 'Rechazando...' : 'Rechazar'}
+                        {pairingAction === p.id + '-reject' ? tt('rejecting', 'Rechazando...') : tt('reject', 'Rechazar')}
                       </button>
                     </div>
                   )}
@@ -1282,7 +1283,7 @@ export default function NFCTerminals() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowEditModal(null)}>
           <div className="bg-white rounded-xl p-6 w-[500px] max-w-[90vw] space-y-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <h2 className="font-bold text-lg">Editar Terminal</h2>
+              <h2 className="font-bold text-lg">{tt('edit_terminal_title', 'Editar Terminal')}</h2>
               <button onClick={() => setShowEditModal(null)} className="text-gray-400 hover:text-gray-600">
                 <X size={20} />
               </button>
@@ -1311,8 +1312,8 @@ export default function NFCTerminals() {
             </div>
 
             <div className="flex gap-2 pt-2">
-              <button onClick={saveEditTerminal} className="btn-primary flex-1">Guardar cambios</button>
-              <button onClick={() => setShowEditModal(null)} className="btn-secondary">Cancelar</button>
+              <button onClick={saveEditTerminal} className="btn-primary flex-1">{tt('save_changes', 'Guardar cambios')}</button>
+              <button onClick={() => setShowEditModal(null)} className="btn-secondary">{tt('cancel', 'Cancelar')}</button>
             </div>
           </div>
         </div>
@@ -1323,7 +1324,7 @@ export default function NFCTerminals() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowAssignModal(null)}>
           <div className="bg-white rounded-xl p-6 w-[500px] max-w-[90vw] space-y-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <h2 className="font-bold text-lg">Asignar Terminal</h2>
+              <h2 className="font-bold text-lg">{tt('assign_terminal_title', 'Asignar Terminal')}</h2>
               <button onClick={() => setShowAssignModal(null)} className="text-gray-400 hover:text-gray-600">
                 <X size={20} />
               </button>
@@ -1332,12 +1333,12 @@ export default function NFCTerminals() {
 
             <div className="flex gap-2">
               <button
-                onClick={() => { setAssignType('user'); setAssignTarget('') }}
+                onClick={() => { setAssignType('user'); setAssignTargett('') }}
                 className={`flex-1 py-2 rounded-lg text-sm font-medium ${assignType === 'user' ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
                 Persona
               </button>
               <button
-                onClick={() => { setAssignType('org'); setAssignTarget('') }}
+                onClick={() => { setAssignType('org'); setAssignTargett('') }}
                 className={`flex-1 py-2 rounded-lg text-sm font-medium ${assignType === 'org' ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
                 Organizacion
               </button>
@@ -1374,10 +1375,10 @@ export default function NFCTerminals() {
                 onClick={() => assignTerminal(showAssignModal)}
                 disabled={!assignTarget || assigning}
                 className="btn-primary flex-1 disabled:opacity-50">
-                {assigning ? 'Asignando...' : 'Asignar'}
+                {assigning ? tt('assigning', 'Asignando...') : tt('assign_btn', 'Asignar')}
               </button>
               <button onClick={() => setShowAssignModal(null)} disabled={assigning} className="btn-secondary">
-                Cancelar
+                {tt('cancel', 'Cancelar')}
               </button>
             </div>
           </div>
@@ -1388,7 +1389,7 @@ export default function NFCTerminals() {
       {showIssueCard && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowIssueCard(false)}>
           <div className="bg-white rounded-xl p-6 w-[500px] max-w-[90vw] space-y-3" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-bold text-lg">Emitir Tarjeta NFC</h2>
+            <h2 className="font-bold text-lg">{tt('issue_card_title', 'Emitir Tarjeta NFC')}</h2>
             <EntitySelector
               label="Persona"
               placeholder="Escribe el nombre para buscar..."
@@ -1429,7 +1430,7 @@ export default function NFCTerminals() {
               <input className="input" type="password" placeholder="Ej: 1234" maxLength={4} value={newCard.initial_pin} onChange={(e) => setNewCard({ ...newCard, initial_pin: e.target.value })} />
               <p className="text-xs text-gray-400 mt-1">PIN temporal de 4 digitos. El usuario debera cambiarlo la primera vez que use la tarjeta. Ejemplo: <code>1234</code></p>
             </div>
-            <button onClick={issueCard} className="btn-primary w-full">Emitir</button>
+            <button onClick={issueCard} className="btn-primary w-full">{tt('issue_btn', 'Emitir')}</button>
           </div>
         </div>
       )}
@@ -1438,14 +1439,14 @@ export default function NFCTerminals() {
       {showResetPIN && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowResetPIN(null)}>
           <div className="bg-white rounded-xl p-6 w-80 space-y-3" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-bold text-lg">Resetear PIN</h2>
+            <h2 className="font-bold text-lg">{tt('reset_pin_title', 'Resetear PIN')}</h2>
             <p className="text-sm text-gray-500">Tarjeta: {showResetPIN}</p>
             <div>
               <label className="label">Nuevo PIN (4 digitos)</label>
               <input className="input" type="password" placeholder="Ej: 0000" maxLength={4} value={resetPINValue} onChange={(e) => setResetPINValue(e.target.value)} />
               <p className="text-xs text-gray-400 mt-1">PIN temporal de 4 digitos para resetear la tarjeta. El usuario debera cambiarlo despues. Ejemplo: <code>0000</code></p>
             </div>
-            <button onClick={() => resetPIN(showResetPIN)} className="btn-primary w-full">Resetear</button>
+            <button onClick={() => resetPIN(showResetPIN)} className="btn-primary w-full">{tt('reset_btn', 'Resetear')}</button>
           </div>
         </div>
       )}
