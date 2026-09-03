@@ -78,27 +78,27 @@ detect_project_name() {
   echo "$PROJECT_NAME"
 }
 
-# Check if node-app container is running
+# Check if demo-app container is running
 check_node_status() {
   PROJECT_NAME=$(detect_project_name)
-  # Intentar varios nombres posibles de contenedor
-  NODE_CONTAINER=""
-  for CANDIDATE in "${PROJECT_NAME}-node-app-1" "node-app" "red-de-intercambio-federada-node-app-1"; do
+  # Intentar varios nombres posibles de contenedor demo
+  DEMO_CONTAINER=""
+  for CANDIDATE in "${PROJECT_NAME}-demo-app-1" "demo-app" "red-de-intercambio-federada-demo-app-1"; do
     if docker inspect -f '{{.State.Status}}' "$CANDIDATE" 2>/dev/null | grep -qE '^(running|created|exited|restarting|paused)$'; then
-      NODE_CONTAINER="$CANDIDATE"
+      DEMO_CONTAINER="$CANDIDATE"
       break
     fi
   done
   # Si no se encontro por nombre exacto, buscar por patron
-  if [ -z "$NODE_CONTAINER" ]; then
-    NODE_CONTAINER=$(docker ps -a --format '{{.Names}}' 2>/dev/null | grep 'node-app' | head -1)
+  if [ -z "$DEMO_CONTAINER" ]; then
+    DEMO_CONTAINER=$(docker ps -a --format '{{.Names}}' 2>/dev/null | grep 'demo-app' | grep -v 'controller\|stopper' | head -1)
   fi
-  if [ -z "$NODE_CONTAINER" ]; then
+  if [ -z "$DEMO_CONTAINER" ]; then
     echo '{"running":false,"status":"not-found","container":"not-found"}'
   else
-    RUNNING=$(docker inspect -f '{{.State.Running}}' "$NODE_CONTAINER" 2>/dev/null || echo "false")
-    STATUS=$(docker inspect -f '{{.State.Status}}' "$NODE_CONTAINER" 2>/dev/null || echo "not-found")
-    echo '{"running":'"$RUNNING"',"status":"'"$STATUS"'","container":"'"$NODE_CONTAINER"'"}'
+    RUNNING=$(docker inspect -f '{{.State.Running}}' "$DEMO_CONTAINER" 2>/dev/null || echo "false")
+    STATUS=$(docker inspect -f '{{.State.Status}}' "$DEMO_CONTAINER" 2>/dev/null || echo "not-found")
+    echo '{"running":'"$RUNNING"',"status":"'"$STATUS"'","container":"'"$DEMO_CONTAINER"'"}'
   fi
 }
 
@@ -286,42 +286,47 @@ elif echo "$PATH_REQ" | grep -q '^/node-status$'; then
   send_response "$RESULT"
 
 elif echo "$PATH_REQ" | grep -q '^/start$'; then
-  log_msg "Peticion /start - arrancando node-app"
+  log_msg "Peticion /start - arrancando demo-app"
   PROJECT_NAME=$(detect_project_name)
   COMPOSE_FILE=/project/docker-compose.yml
-  OUTPUT=$(docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" up -d --no-deps node-app 2>&1)
+  # demo-app usa profile "demo", hay que pasar --profile demo
+  OUTPUT=$(docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" --profile demo up -d --no-deps demo-app 2>&1)
   CODE=$?
   log_msg "start output: $OUTPUT"
   if [ $CODE -eq 0 ]; then
-    send_response '{"success":true,"message":"Nodo arrancado"}'
+    send_response '{"success":true,"message":"Nodo Demo arrancado"}'
   else
-    send_response "{\"success\":false,\"message\":\"Error: $(json_escape "$OUTPUT")\"}"
+    # Intentar docker start directo si ya existe el contenedor
+    OUTPUT2=$(docker start "${PROJECT_NAME}-demo-app-1" 2>/dev/null || docker start "demo-app" 2>/dev/null || echo "")
+    if [ -n "$OUTPUT2" ]; then
+      send_response '{"success":true,"message":"Nodo Demo arrancado (docker start)"}'
+    else
+      send_response "{\"success\":false,\"message\":\"Error: $(json_escape "$OUTPUT")\"}"
+    fi
   fi
 
 elif echo "$PATH_REQ" | grep -q '^/stop$'; then
-  log_msg "Peticion /stop - deteniendo node-app"
+  log_msg "Peticion /stop - deteniendo demo-app"
   PROJECT_NAME=$(detect_project_name)
-  COMPOSE_FILE=/project/docker-compose.yml
-  OUTPUT=$(docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" stop node-app 2>&1)
+  OUTPUT=$(docker stop "${PROJECT_NAME}-demo-app-1" 2>/dev/null || docker stop "demo-app" 2>/dev/null || echo "no encontrado")
   CODE=$?
   log_msg "stop output: $OUTPUT"
-  if [ $CODE -eq 0 ]; then
-    send_response '{"success":true,"message":"Nodo detenido"}'
+  if echo "$OUTPUT" | grep -q "no encontrado"; then
+    send_response '{"success":false,"message":"Nodo Demo no encontrado"}'
   else
-    send_response "{\"success\":false,\"message\":\"Error: $(json_escape "$OUTPUT")\"}"
+    send_response '{"success":true,"message":"Nodo Demo detenido"}'
   fi
 
 elif echo "$PATH_REQ" | grep -q '^/restart$'; then
-  log_msg "Peticion /restart - reiniciando node-app"
+  log_msg "Peticion /restart - reiniciando demo-app"
   PROJECT_NAME=$(detect_project_name)
-  COMPOSE_FILE=/project/docker-compose.yml
-  OUTPUT=$(docker compose -f "$COMPOSE_FILE" --project-name "$PROJECT_NAME" restart node-app 2>&1)
+  OUTPUT=$(docker restart "${PROJECT_NAME}-demo-app-1" 2>/dev/null || docker restart "demo-app" 2>/dev/null || echo "no encontrado")
   CODE=$?
   log_msg "restart output: $OUTPUT"
-  if [ $CODE -eq 0 ]; then
-    send_response '{"success":true,"message":"Nodo reiniciado"}'
+  if echo "$OUTPUT" | grep -q "no encontrado"; then
+    send_response '{"success":false,"message":"Nodo Demo no encontrado. Arrancalo primero."}'
   else
-    send_response "{\"success\":false,\"message\":\"Error: $(json_escape "$OUTPUT")\"}"
+    send_response '{"success":true,"message":"Nodo Demo reiniciado"}'
   fi
 
 elif echo "$PATH_REQ" | grep -q '^/cancel$'; then

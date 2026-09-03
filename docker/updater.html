@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Control del Nodo</title>
+<title>Control del Nodo Demo</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,sans-serif;background:#f0fdf4;color:#064e3b;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem}
@@ -35,25 +35,26 @@ h1{font-size:1.25rem;margin-bottom:.5rem;text-align:center}
 .msg-error{background:#fee2e2;color:#991b1b}
 .msg-info{background:#dbeafe;color:#1e40af}
 .update-section{margin-top:1rem;padding-top:1rem;border-top:1px solid #e5e7eb}
-label{display:block;font-size:.8rem;font-weight:600;margin-bottom:.25rem}
-input[type=text],input[type=password]{width:100%;padding:.5rem;border:1px solid #d1d5db;border-radius:.25rem;font-size:.8rem;margin-bottom:.5rem}
 .info{font-size:.7rem;color:#9ca3af;margin-top:.5rem;text-align:center}
+.demo-link{display:block;text-align:center;margin-top:1rem;padding:.75rem;border-radius:.5rem;background:#059669;color:#fff;font-weight:700;text-decoration:none;font-size:.9rem}
+.demo-link:hover{background:#047857}
 </style>
 </head>
 <body>
 <div class="card">
-<h1>Control del Nodo</h1>
-<p class="subtitle">Gestor de actualizaciones - acceso directo</p>
+<h1>Control del Nodo Demo</h1>
+<p class="subtitle">Panel de control del nodo demo (se reinicia cada 24h)</p>
 <div id="status" class="status-box status-loading">Verificando estado...</div>
 <div id="msg"></div>
-<button class="btn btn-start" id="btnStart" onclick="doAction('start')">Arrancar Nodo</button>
-<button class="btn btn-stop" id="btnStop" onclick="doAction('stop')">Detener Nodo</button>
-<button class="btn btn-restart" id="btnRestart" onclick="doAction('restart')">Reiniciar Nodo</button>
+<button class="btn btn-start" id="btnStart" onclick="doAction('start')">Arrancar Nodo Demo</button>
+<button class="btn btn-stop" id="btnStop" onclick="doAction('stop')">Detener Nodo Demo</button>
+<button class="btn btn-restart" id="btnRestart" onclick="doAction('restart')">Reiniciar Nodo Demo</button>
 <div class="update-section">
-<button class="btn btn-update" id="btnUpdate" onclick="doAction('update')">Actualizar Nodo</button>
+<button class="btn btn-update" id="btnUpdate" onclick="doAction('update')">Actualizar Nodo (git pull + rebuild)</button>
 <button class="btn btn-cancel" id="btnCancel" onclick="doAction('cancel')" style="display:none">Cancelar Actualizacion</button>
 </div>
 <div class="log-box" id="logBox"></div>
+<a id="demoLink" href="/demo" target="_blank" class="demo-link" style="display:none">Abrir Nodo Demo</a>
 <p class="info">Puerto 9110 - updater-controller</p>
 </div>
 <script>
@@ -80,10 +81,28 @@ function showMsg(t,c){var m=document.getElementById('msg');m.innerHTML='<div cla
 function setStatus(r){
   var s=document.getElementById("status");
   var bs=document.getElementById("btnStart"),bh=document.getElementById("btnStop");
-  if(r.running){s.className="status-box status-running";s.textContent="Nodo: ARRANCADO ("+r.status+")";bs.disabled=true;bh.disabled=false;}
-  else if(r.status==="created"){s.className="status-box status-created";s.textContent="Nodo: CREADO pero no arrancado";bs.disabled=false;bh.disabled=true;}
-  else if(r.status==="not-found"){s.className="status-box status-stopped";s.textContent="Nodo: no encontrado";bs.disabled=false;bh.disabled=true;}
-  else{s.className="status-box status-stopped";s.textContent="Nodo: DETENIDO ("+r.status+")";bs.disabled=false;bh.disabled=true;}
+  var dl=document.getElementById("demoLink");
+  if(r.running){
+    s.className="status-box status-running";
+    s.textContent="Nodo Demo: ARRANCADO ("+r.status+")";
+    bs.disabled=true;bh.disabled=false;
+    dl.style.display="block";
+  } else if(r.status==="created"){
+    s.className="status-box status-created";
+    s.textContent="Nodo Demo: CREADO pero no arrancado";
+    bs.disabled=false;bh.disabled=true;
+    dl.style.display="none";
+  } else if(r.status==="not-found"){
+    s.className="status-box status-stopped";
+    s.textContent="Nodo Demo: no encontrado (usa Arrancar para crearlo)";
+    bs.disabled=false;bh.disabled=true;
+    dl.style.display="none";
+  } else {
+    s.className="status-box status-stopped";
+    s.textContent="Nodo Demo: DETENIDO ("+r.status+")";
+    bs.disabled=false;bh.disabled=true;
+    dl.style.display="none";
+  }
 }
 async function refreshStatus(){
   var r=await api("/node-status");
@@ -105,8 +124,8 @@ async function refreshStatus(){
 }
 async function doAction(a){
   var conf={start:"Arrancar",stop:"Detener",restart:"Reiniciar",update:"Actualizar",cancel:"Cancelar actualizacion"};
-  if(a==="update"&&!confirm("Confirmas que quieres actualizar el nodo? Se reiniciara automaticamente."))return;
-  if(a==="stop"&&!confirm("Confirmas que quieres detener el nodo?"))return;
+  if(a==="update"&&!confirm("Confirmas que quieres actualizar el nodo? Se reconstruiran node-app y demo-app. Esto tarda varios minutos."))return;
+  if(a==="stop"&&!confirm("Confirmas que quieres detener el nodo demo?"))return;
   showMsg(conf[a]+"...","msg-info");
   var r=await api("/"+a,{method:"POST"});
   if(r.success){showMsg(conf[a]+": "+(r.message||"OK"),"msg-success");}
