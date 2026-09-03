@@ -62,6 +62,15 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 	r.With(am.RequirePermission("config.manage")).Put("/api/site/settings", h.updateSiteSettings)
 	r.With(am.RequirePermission("config.manage")).Put("/api/site/admission-form", h.updateSiteAdmissionForm)
 
+	// Traducciones de contenido (multi-idioma)
+	r.With(am.RequireAuth).Get("/api/site/pages/{id}/translations", h.getPageTranslations)
+	r.With(am.RequireAuth).Get("/api/site/pages/{id}/translations/{lang}", h.getPageTranslation)
+	r.With(am.RequirePermission("config.manage")).Put("/api/site/pages/{id}/translations/{lang}", h.updatePageTranslation)
+	r.With(am.RequireAuth).Get("/api/site/settings/{lang}", h.getSiteSettingsTranslation)
+	r.With(am.RequirePermission("config.manage")).Put("/api/site/settings/{lang}", h.updateSiteSettingsTranslation)
+	r.With(am.RequireAuth).Get("/api/site/admission-form/{lang}", h.getAdmissionFormTranslation)
+	r.With(am.RequirePermission("config.manage")).Put("/api/site/admission-form/{lang}", h.updateAdmissionFormTranslation)
+
 	// Solicitudes de admision (admin)
 	r.With(am.RequireAuth).Get("/api/admission-requests", h.listAdmissionRequests)
 	r.With(am.RequirePermission("admission.manage")).Post("/api/admission-requests/{id}/elevate", h.elevateAdmissionRequest)
@@ -2531,6 +2540,7 @@ func (h *SystemHandler) getPublicPage(w http.ResponseWriter, r *http.Request) {
 	nodeDomain := r.URL.Query().Get("node")
 	nodeDomain = db.ResolveNodeDomain(r.Context(), h.Pool, nodeDomain, h.nodeDomain)
 	slug := chi.URLParam(r, "slug")
+	lang := r.URL.Query().Get("lang")
 
 	var id, title, content string
 	var subtitle, icon *string
@@ -2563,6 +2573,22 @@ func (h *SystemHandler) getPublicPage(w http.ResponseWriter, r *http.Request) {
 		}
 		writeError(w, 404, "pagina no encontrada")
 		return
+	}
+
+	// Si se solicita un idioma especifico, intentar cargar la traduccion
+	if lang != "" && lang != "es" {
+		var trTitle, trSubtitle, trContent string
+		err2 := h.Pool.QueryRow(r.Context(),
+			`SELECT COALESCE(title, ''), COALESCE(subtitle, ''), COALESCE(content, '')
+			 FROM public_page_translations
+			 WHERE page_id = $1::uuid AND language = $2`, id, lang).Scan(&trTitle, &trSubtitle, &trContent)
+		if err2 == nil && trContent != "" {
+			title = trTitle
+			if trSubtitle != "" {
+				subtitle = &trSubtitle
+			}
+			content = trContent
+		}
 	}
 
 	writeJSON(w, 200, map[string]interface{}{

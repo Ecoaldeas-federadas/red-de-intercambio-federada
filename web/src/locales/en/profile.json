@@ -18,5 +18,11 @@
   "debit_limit": "Debit limit",
   "member_since": "Member since",
   "no_passkeys": "You have no registered passkeys",
-  "no_nfc_cards": "You have no associated NFC cards"
+  "no_nfc_cards": "You have no associated NFC cards",
+  "language": {
+    "title": "Preferred language",
+    "description": "This is your preferred interface language. It is applied every time you log in.",
+    "saved": "Language saved. It will be applied every time you log in.",
+    "error": "Error saving"
+  }
 }

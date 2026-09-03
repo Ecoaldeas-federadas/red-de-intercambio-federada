@@ -49,6 +49,7 @@ import {
   ChevronUp,
   ChevronDown,
   Menu,
+  CheckCircle2,
 } from 'lucide-react'
 import { SiteBlock, BlockType, HeaderStyleType, FormFieldSchema, FormFieldType } from '../types/publicSite'
 import { FERIA_CONUQUERA_TEMPLATES } from '../components/public-site/defaultSiteData'
@@ -450,6 +451,11 @@ export default function WebsiteAdmin() {
   })
   const [editingFieldIndex, setEditingFieldIndex] = useState<number | null>(null)
 
+  // Idioma de edicion para formulario de admision y settings
+  const [adminEditLang, setAdminEditLang] = useState('es')
+  const [adminLanguages, setAdminLanguages] = useState<any[]>([])
+  const [admissionTranslations, setAdmissionTranslations] = useState<Record<string, boolean>>({})
+
   // Settings State
   const [settingsForm, setSettingsForm] = useState({
     site_title: '',
@@ -522,6 +528,12 @@ export default function WebsiteAdmin() {
 
   useEffect(() => {
     load()
+    // Cargar idiomas disponibles
+    api.get<any[]>('/languages').then((langs) => {
+      setAdminLanguages((langs || []).filter((l: any) => l.enabled))
+    }).catch(() => {
+      setAdminLanguages([{ code: 'es', native_name: 'Español' }, { code: 'en', native_name: 'English' }])
+    })
   }, [])
 
   useEffect(() => {
@@ -760,15 +772,42 @@ export default function WebsiteAdmin() {
     setError('')
     setSuccess('')
     try {
+      // Guardar en el idioma por defecto (endpoint original)
       await api.put('/site/admission-form', {
         title: formConfig.title,
         subtitle: formConfig.subtitle,
         schema: formConfig.schema,
       })
+      // Guardar traducción en el idioma seleccionado
+      if (adminEditLang !== 'es') {
+        await api.put(`/site/admission-form/${adminEditLang}`, {
+          title: formConfig.title,
+          subtitle: formConfig.subtitle,
+          schema: formConfig.schema,
+        })
+      }
+      setAdmissionTranslations(prev => ({ ...prev, [adminEditLang]: true }))
       setSuccess('¡Formulario de admisión personalizado guardado con éxito!')
       load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar el formulario')
+    }
+  }
+
+  // Cargar formulario de admisión en un idioma específico
+  const loadAdmissionFormLang = async (lang: string) => {
+    setAdminEditLang(lang)
+    try {
+      const tr = await api.get<any>(`/site/admission-form/${lang}`)
+      if (tr) {
+        setFormConfig({
+          title: tr.title || 'Solicitud de Ingreso a la Red',
+          subtitle: tr.subtitle || '',
+          schema: Array.isArray(tr.schema) && tr.schema.length > 0 ? tr.schema : DEFAULT_ADMISSION_FIELDS,
+        })
+      }
+    } catch {
+      // No hay traducción: mantener el formulario actual como punto de partida
     }
   }
 
@@ -1867,6 +1906,28 @@ export default function WebsiteAdmin() {
                     <p className="text-xs text-gray-500 mt-0.5">
                       Diseña libremente los campos que llenarán los aspirantes en <span className="font-mono">/p/unirse</span>.
                     </p>
+                    {/* Selector de idioma para el formulario */}
+                    {adminLanguages.length > 1 && (
+                      <div className="flex items-center gap-1 mt-2">
+                        <span className="text-xs text-gray-400 mr-1">Idioma:</span>
+                        {adminLanguages.map((l) => (
+                          <button
+                            key={l.code}
+                            onClick={() => loadAdmissionFormLang(l.code)}
+                            className={`px-2 py-1 rounded text-[11px] font-bold transition flex items-center gap-1 ${
+                              adminEditLang === l.code
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            {l.code.toUpperCase()}
+                            {admissionTranslations[l.code] && (
+                              <CheckCircle2 size={10} className={adminEditLang === l.code ? 'text-white' : 'text-green-500'} />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex flex-wrap gap-2">

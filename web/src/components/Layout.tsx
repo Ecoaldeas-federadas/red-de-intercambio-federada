@@ -12,6 +12,7 @@ import {
   Server, ShoppingBag, SlidersHorizontal, ScrollText, Languages,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { LanguageSwitcher } from './LanguageSwitcher'
 
 // perm = permiso requerido para ver la pestaña.
 // Si perm no esta definido, la pestaña es visible para todos.
@@ -258,6 +259,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </>
               )}
             </div>
+            <LanguageSwitcher variant="light" compact={true} />
             <Link to="/p/inicio" className="text-sm text-trueque-600 hover:text-trueque-800 flex items-center gap-1">
               <ExternalLink size={16} />
               <span className="hidden sm:inline">{t('layout.public_site', 'Sitio publico')}</span>

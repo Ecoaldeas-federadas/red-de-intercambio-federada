@@ -179,6 +179,8 @@ export function ThemeCustomizer({
   const [menuMode, setMenuMode] = useState<'plano' | 'jerarquico'>('plano')
   const [saving, setSaving] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const [menuEditLang, setMenuEditLang] = useState('es')
+  const [tcLanguages, setTcLanguages] = useState<any[]>([])
 
   // Custom palettes (persisted in localStorage)
   const [customPalettes, setCustomPalettes] = useState<ColorPreset[]>([])
@@ -187,6 +189,12 @@ export function ThemeCustomizer({
 
   useEffect(() => {
     setCustomPalettes(loadCustomPalettes())
+    // Cargar idiomas disponibles
+    api.get<any[]>('/languages').then((langs) => {
+      setTcLanguages((langs || []).filter((l: any) => l.enabled))
+    }).catch(() => {
+      setTcLanguages([{ code: 'es', native_name: 'Español' }, { code: 'en', native_name: 'English' }])
+    })
   }, [])
 
   // Panel position and minimization state
@@ -802,6 +810,28 @@ export function ThemeCustomizer({
         {/* TAB: MENU */}
         {activeTab === 'menu' && (
           <div className="space-y-3">
+            {/* Selector de idioma para editar titulos de menu */}
+            {tcLanguages.length > 1 && (
+              <div className="flex items-center gap-1 p-2 bg-emerald-50 rounded-lg">
+                <span className="text-xs text-gray-500 mr-1">Idioma del menú:</span>
+                {tcLanguages.map((l) => (
+                  <button
+                    key={l.code}
+                    onClick={() => setMenuEditLang(l.code)}
+                    className={`px-2 py-1 rounded text-[11px] font-bold transition ${
+                      menuEditLang === l.code
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-white text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {l.code.toUpperCase()}
+                  </button>
+                ))}
+                <span className="text-[10px] text-gray-400 ml-2">
+                  (Los títulos se guardan en el idioma seleccionado al guardar)
+                </span>
+              </div>
+            )}
             {/* Sub-tabs: Plano vs Jerarquico */}
             <div className="flex gap-2 p-1 bg-gray-100 rounded-xl">
               <button

@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import {
   Sparkles,
   Plus,
@@ -20,9 +20,11 @@ import {
   Code,
   CheckCircle2,
   Info,
+  Languages,
 } from 'lucide-react'
 import { SiteBlock, BlockType } from '../../types/publicSite'
 import { BlockRenderer } from './PublicBlocks'
+import { getCurrentLanguage } from '../../i18n/TranslationProvider'
 
 // Block definitions for the inline module adder
 const BLOCK_TEMPLATES: {
@@ -376,6 +378,64 @@ export function LivePageEditor({
   const [saving, setSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [error, setError] = useState('')
+  const [editLang, setEditLang] = useState(getCurrentLanguage())
+  const [languages, setLanguages] = useState<any[]>([])
+  const [pageTranslations, setPageTranslations] = useState<Record<string, boolean>>({})
+  const [pageTitle, setPageTitle] = useState(title)
+  const [pageSubtitle, setPageSubtitle] = useState(subtitle || '')
+
+  // Cargar idiomas disponibles
+  useEffect(() => {
+    api.get<any[]>('/languages').then((langs) => {
+      setLanguages((langs || []).filter((l: any) => l.enabled))
+    }).catch(() => {
+      setLanguages([
+        { code: 'es', native_name: 'Español' },
+        { code: 'en', native_name: 'English' },
+      ])
+    })
+  }, [])
+
+  // Cargar traducciones existentes de la pagina
+  useEffect(() => {
+    if (!pageId) return
+    api.get<any[]>(`/site/pages/${pageId}/translations`).then((trs) => {
+      const map: Record<string, boolean> = {}
+      ;(trs || []).forEach((t: any) => { map[t.language] = true })
+      setPageTranslations(map)
+    }).catch(() => {})
+  }, [pageId])
+
+  // Cargar contenido del idioma seleccionado
+  const loadLangContent = async (lang: string) => {
+    if (!pageId) return
+    try {
+      const tr = await api.get<any>(`/site/pages/${pageId}/translations/${lang}`)
+      if (tr?.content) {
+        try {
+          const parsed = JSON.parse(tr.content)
+          if (Array.isArray(parsed)) {
+            setBlocks(parsed)
+          }
+        } catch {}
+      }
+      setPageTitle(tr?.title || title)
+      setPageSubtitle(tr?.subtitle || subtitle || '')
+    } catch {
+      // No hay traducción: mantener contenido actual como punto de partida
+      setPageTitle(title)
+      setPageSubtitle(subtitle || '')
+    }
+    setHasChanges(false)
+  }
+
+  const handleLangChange = async (lang: string) => {
+    if (hasChanges && !confirm('Hay cambios sin guardar. ¿Cambiar de idioma de todos modos? Se perderán los cambios no guardados.')) {
+      return
+    }
+    setEditLang(lang)
+    await loadLangContent(lang)
+  }
 
   // Move block up/down
   const moveBlock = (index: number, direction: 'up' | 'down') => {
@@ -437,18 +497,34 @@ export function LivePageEditor({
     setSaving(true)
     setError('')
     try {
+      const content = JSON.stringify(blocks, null, 2)
+
+      // Guardar metadatos (slug, icon, etc.) en el idioma por defecto
+      // solo si estamos editando el idioma por defecto del nodo
       const payload = {
         slug,
-        title,
-        subtitle: subtitle || '',
+        title: pageTitle,
+        subtitle: pageSubtitle || '',
         icon: icon || 'home',
         menu_order: menuOrder || 1,
         is_published: isPublished ?? true,
         show_in_menu: showInMenu ?? true,
-        content: JSON.stringify(blocks, null, 2),
+        content,
       }
 
+      // Guardar en la pagina principal (metadatos)
       await api.put(`/site/pages/by-slug/${slug}`, payload)
+
+      // Guardar la traducción del contenido en el idioma seleccionado
+      if (pageId && editLang) {
+        await api.put(`/site/pages/${pageId}/translations/${editLang}`, {
+          title: pageTitle,
+          subtitle: pageSubtitle || '',
+          content,
+        })
+        // Marcar como traducido
+        setPageTranslations(prev => ({ ...prev, [editLang]: true }))
+      }
 
       setHasChanges(false)
       setSaveSuccess(true)
@@ -479,6 +555,30 @@ export function LivePageEditor({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Selector de idioma */}
+          {languages.length > 1 && (
+            <div className="flex items-center gap-1 bg-white/10 rounded-lg p-0.5 border border-white/20">
+              <Languages size={14} className="text-emerald-200 ml-1.5" />
+              {languages.map((l) => (
+                <button
+                  key={l.code}
+                  onClick={() => handleLangChange(l.code)}
+                  className={`px-2 py-1 rounded text-[11px] font-bold transition flex items-center gap-1 ${
+                    editLang === l.code
+                      ? 'bg-amber-500 text-gray-950'
+                      : 'text-white hover:bg-white/10'
+                  }`}
+                  title={l.native_name}
+                >
+                  {l.code.toUpperCase()}
+                  {pageTranslations[l.code] && (
+                    <CheckCircle2 size={10} className={editLang === l.code ? 'text-gray-900' : 'text-green-400'} />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
           {hasChanges && (
             <span className="text-[11px] text-amber-300 font-semibold hidden md:inline">
               ● Cambios pendientes

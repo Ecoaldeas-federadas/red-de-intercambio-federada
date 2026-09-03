@@ -477,6 +477,9 @@ export default function Profile() {
         )}
       </div>
 
+      {/* Idioma preferido */}
+      <PreferredLanguageCard />
+
       {/* Documentos de identidad (multiples, con modal) */}
       <div className="card">
         <h2 className="font-semibold flex items-center gap-2 mb-3"><Shield size={18} />Documentos de Identidad</h2>
@@ -910,6 +913,81 @@ export default function Profile() {
             </div>
           </div>
         </div>
+      )}
+    </div>
+  )
+}
+
+// === Seccion de idioma preferido del usuario ===
+function PreferredLanguageCard() {
+  const { t } = useTranslation('profile')
+  const { i18n } = useTranslation('common')
+  const [languages, setLanguages] = useState<any[]>([])
+  const [selected, setSelected] = useState(i18n.language || 'es')
+  const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState('')
+
+  useEffect(() => {
+    api.get<any[]>('/languages').then((langs) => {
+      setLanguages((langs || []).filter(l => l.enabled))
+    }).catch(() => {
+      setLanguages([
+        { code: 'es', native_name: 'Español', enabled: true },
+        { code: 'en', native_name: 'English', enabled: true },
+      ])
+    })
+    // Cargar preferencia actual
+    api.get<any>('/me/preferences').then((p) => {
+      if (p?.language) setSelected(p.language)
+    }).catch(() => {})
+  }, [])
+
+  const handleSave = async (lang: string) => {
+    setSelected(lang)
+    setSaving(true)
+    setMsg('')
+    try {
+      await api.put('/me/preferences', { language: lang })
+      // Aplicar el cambio inmediatamente
+      const { changeLanguage } = await import('../i18n/TranslationProvider')
+      await changeLanguage(lang)
+      sessionStorage.setItem('language_manually_changed', '1')
+      setMsg(t('language.saved', 'Idioma guardado. Se aplicará cada vez que inicies sesión.'))
+    } catch (e: any) {
+      setMsg(e.message || t('language.error', 'Error al guardar'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="card">
+      <h2 className="font-semibold flex items-center gap-2 mb-3">
+        <Globe size={18} /> {t('language.title', 'Idioma preferido')}
+      </h2>
+      <p className="text-xs text-gray-500 mb-3">
+        {t('language.description', 'Este es tu idioma preferido para la interfaz. Se aplica cada vez que inicias sesión.')}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {languages.map((l) => (
+          <button
+            key={l.code}
+            onClick={() => handleSave(l.code)}
+            disabled={saving}
+            className={`px-3 py-2 rounded-lg text-sm font-medium border transition ${
+              selected === l.code
+                ? 'bg-trueque-600 text-white border-trueque-600'
+                : 'bg-white text-gray-700 border-gray-200 hover:border-trueque-400'
+            }`}
+          >
+            <span className="font-mono text-xs opacity-60 mr-1">{l.code.toUpperCase()}</span>
+            {l.native_name}
+            {selected === l.code && <Check size={14} className="inline ml-1.5" />}
+          </button>
+        ))}
+      </div>
+      {msg && (
+        <div className="mt-3 text-sm p-2 rounded bg-green-50 text-green-700">{msg}</div>
       )}
     </div>
   )

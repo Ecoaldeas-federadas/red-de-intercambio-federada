@@ -2,6 +2,7 @@ import { useState, useEffect, createContext, useContext, ReactNode } from 'react
 import { api } from '../api'
 import { useAuth } from './useAuth'
 import { setFormatSettings, FormatSettings } from '../lib/format'
+import { changeLanguage } from '../i18n/TranslationProvider'
 
 export type { FormatSettings }
 
@@ -52,6 +53,13 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
         const merged = { ...DEFAULT_SETTINGS, ...p }
         setSettings(merged)
         localStorage.setItem('format_settings', JSON.stringify(merged))
+      }
+      // Aplicar el idioma preferido del usuario si no ha sido cambiado manualmente en esta sesión
+      if (p?.language && p.language !== '' && !sessionStorage.getItem('language_manually_changed')) {
+        const stored = localStorage.getItem('user_language')
+        if (stored !== p.language) {
+          changeLanguage(p.language)
+        }
       }
     }).catch(() => {})
   }, [isAuthenticated])

@@ -38,6 +38,7 @@ import { DynamicAdmissionForm } from './public-site/DynamicAdmissionForm'
 import { LoginModal } from './LoginModal'
 import { ThemeCustomizer, ThemeDraft, PageMenuItem } from './public-site/ThemeCustomizer'
 import { FERIA_CONUQUERA_TEMPLATES } from './public-site/defaultSiteData'
+import { LanguageSwitcher } from './LanguageSwitcher'
 import { PublicPageData, HeaderStyleType, SiteBlock } from '../types/publicSite'
 import { PublicGovernancePage } from './public-site/PublicGovernancePage'
 // PublicFederationPage ya no se importa: la pagina de federacion ahora usa bloques editables.
@@ -1871,6 +1872,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 <ScrollText size={12} />
                 Licencia LPF-1.0
               </Link>
+              <LanguageSwitcher variant="dark" compact={true} />
             </div>
             <div>
               {isAuthenticated ? (
@@ -2046,6 +2048,15 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 menu_order: page.menu_order,
                 show_in_menu: page.show_in_menu,
               }).catch(() => {})
+              // Guardar traducción del título en el idioma actual
+              const currentLang = localStorage.getItem('user_language') || 'es'
+              if (currentLang !== 'es') {
+                await api.put(`/site/pages/${existing.id}/translations/${currentLang}`, {
+                  title: page.title,
+                  subtitle: existing.subtitle || '',
+                  content: existing.content || '[]',
+                }).catch(() => {})
+              }
             }
           }
           await api.get('/public/settings').then((s: any) => setSettings(s))
@@ -2071,11 +2082,13 @@ export function PublicPageView() {
   const [page, setPage] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [isLiveEditing, setIsLiveEditing] = useState(false)
+  const { i18n: pageI18n } = useTranslation('public')
 
   const loadPageData = () => {
     setLoading(true)
+    const lang = pageI18n.language || 'es'
     api
-      .get(`/public/pages/${targetSlug}`)
+      .get(`/public/pages/${targetSlug}?lang=${lang}`)
       .then((d: any) => {
         let contentToUse = d.content
 
@@ -2116,7 +2129,7 @@ export function PublicPageView() {
   useEffect(() => {
     loadPageData()
     setIsLiveEditing(false)
-  }, [targetSlug])
+  }, [targetSlug, pageI18n.language])
 
   // Listen for "start live edit" event from the consolidated admin button in PublicLayout
   useEffect(() => {

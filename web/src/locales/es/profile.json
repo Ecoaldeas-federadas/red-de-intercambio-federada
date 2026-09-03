@@ -18,5 +18,11 @@
   "debit_limit": "Limite de debito",
   "member_since": "Miembro desde",
   "no_passkeys": "No tienes passkeys registrados",
-  "no_nfc_cards": "No tienes tarjetas NFC asociadas"
+  "no_nfc_cards": "No tienes tarjetas NFC asociadas",
+  "language": {
+    "title": "Idioma preferido",
+    "description": "Este es tu idioma preferido para la interfaz. Se aplica cada vez que inicias sesion.",
+    "saved": "Idioma guardado. Se aplicara cada vez que inicies sesion.",
+    "error": "Error al guardar"
+  }
 }
