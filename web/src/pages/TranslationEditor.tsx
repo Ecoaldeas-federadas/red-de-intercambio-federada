@@ -4,7 +4,7 @@ import { api } from '../api'
 import { Languages, Download, Upload, CheckCircle, AlertCircle, Loader2, Save, Plus, Network } from 'lucide-react'
 
 export default function TranslationEditor() {
-  const { t, i18n } = useTranslation('common')
+  const { t, i18n } = useTranslation('translations')
   const [languages, setLanguages] = useState<any[]>([])
   const [selectedLang, setSelectedLang] = useState('en')
   const [status, setStatus] = useState<any[]>([])
@@ -68,8 +68,8 @@ export default function TranslationEditor() {
       for (const lang of enabledLangs) {
         try {
           const status = await api.get<any[]>(`/translations/${lang.code}/status`)
-          const totalKeys = status?.length || 0
-          const translatedKeys = status?.filter((s: any) => s.has_translation).length || 0
+          const totalKeys = status?.reduce((sum: number, s: any) => sum + (s.total || 0), 0) || 0
+          const translatedKeys = status?.reduce((sum: number, s: any) => sum + (s.translated || 0), 0) || 0
           const pct = totalKeys > 0 ? Math.round((translatedKeys / totalKeys) * 100) : 0
           audit.languages.push({
             code: lang.code,
@@ -133,16 +133,16 @@ export default function TranslationEditor() {
       }
 
       if (Object.keys(nsValues).length === 0) {
-        setSaveMsg(t('translations.nothing_to_save', 'No hay traducciones para guardar'))
+        setSaveMsg(t('nothing_to_save', 'No hay traducciones para guardar'))
         return
       }
 
       await api.put(`/translations/${selectedLang}/${ns}`, nsValues)
-      setSaveMsg(t('translations.saved', 'Traducciones guardadas'))
+      setSaveMsg(t('saved', 'Traducciones guardadas'))
       loadStatus()
       loadMissing()
     } catch (e: any) {
-      setSaveMsg(e.message || t('translations.save_error', 'Error al guardar'))
+      setSaveMsg(e.message || t('save_error', 'Error al guardar'))
     } finally {
       setSaving(false)
     }
@@ -160,7 +160,7 @@ export default function TranslationEditor() {
       a.click()
       URL.revokeObjectURL(url)
     } catch (e: any) {
-      setSaveMsg(e.message || t('translations.download_error', 'Error al descargar'))
+      setSaveMsg(e.message || t('download_error', 'Error al descargar'))
     }
   }
 
@@ -169,7 +169,7 @@ export default function TranslationEditor() {
       await api.put(`/languages/${lang.code}`, { enabled: !lang.enabled })
       loadLanguages()
     } catch (e: any) {
-      setSaveMsg(e.message || t('translations.save_error', 'Error al guardar'))
+      setSaveMsg(e.message || t('save_error', 'Error al guardar'))
     }
   }
 
@@ -178,7 +178,7 @@ export default function TranslationEditor() {
       await api.put(`/languages/${code}`, { is_default: true })
       loadLanguages()
     } catch (e: any) {
-      setSaveMsg(e.message || t('translations.save_error', 'Error al guardar'))
+      setSaveMsg(e.message || t('save_error', 'Error al guardar'))
     }
   }
 
@@ -195,9 +195,9 @@ export default function TranslationEditor() {
       setNewLangName('')
       setNewLangNative('')
       loadLanguages()
-      setSaveMsg(t('translations.language_added', 'Idioma anadido'))
+      setSaveMsg(t('language_added', 'Idioma anadido'))
     } catch (e: any) {
-      setSaveMsg(e.message || t('translations.save_error', 'Error al guardar'))
+      setSaveMsg(e.message || t('save_error', 'Error al guardar'))
     }
   }
 
@@ -220,17 +220,17 @@ export default function TranslationEditor() {
         const err = await res.json()
         throw new Error(err.error || 'Upload failed')
       }
-      setUploadMsg(t('translations.upload_success', 'Archivo subido correctamente'))
+      setUploadMsg(t('upload_success', 'Archivo subido correctamente'))
       loadStatus()
       loadMissing()
     } catch (err: any) {
       setUploadError(true)
-      setUploadMsg(err.message || t('translations.upload_error', 'Error al subir archivo'))
+      setUploadMsg(err.message || t('upload_error', 'Error al subir archivo'))
     }
   }
 
   const handleInstallFederated = async (ft: any) => {
-    if (!confirm(t('translations.confirm_apply', 'Aplicar esta traduccion? Sobrescribira tus traducciones actuales de este idioma.'))) {
+    if (!confirm(t('confirm_apply', 'Aplicar esta traduccion? Sobrescribira tus traducciones actuales de este idioma.'))) {
       return
     }
     try {
@@ -238,12 +238,12 @@ export default function TranslationEditor() {
         source_node: ft.source_node,
         language_code: ft.language_code,
       })
-      setSaveMsg(t('translations.installed', 'Instalado'))
+      setSaveMsg(t('installed', 'Instalado'))
       loadFederatedTranslations()
       loadStatus()
       loadMissing()
     } catch (e: any) {
-      setSaveMsg(e.message || t('translations.save_error', 'Error al guardar'))
+      setSaveMsg(e.message || t('save_error', 'Error al guardar'))
     }
   }
 
@@ -265,14 +265,14 @@ export default function TranslationEditor() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t('translations.title', 'Traducciones')}</h1>
+        <h1 className="text-2xl font-bold">{t('title', 'Traducciones')}</h1>
       </div>
 
       {/* Panel de auditoria */}
       {auditData && auditData.languages.length > 0 && (
         <div className="card p-4">
           <h2 className="font-semibold mb-3 flex items-center gap-2">
-            <CheckCircle size={18} /> {t('translations.audit_title', 'Estado de traducciones')}
+            <CheckCircle size={18} /> {t('audit_title', 'Estado de traducciones')}
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {auditData.languages.map((lang: any) => (
@@ -297,7 +297,7 @@ export default function TranslationEditor() {
                   />
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
-                  {lang.translated} / {lang.total} {t('translations.keys_translated', 'claves traducidas')}
+                  {lang.translated} / {lang.total} {t('keys_translated', 'claves traducidas')}
                 </div>
               </div>
             ))}
@@ -308,7 +308,7 @@ export default function TranslationEditor() {
       {/* Selector de idioma */}
       <div className="card p-4">
         <label className="label flex items-center gap-2 mb-2">
-          <Languages size={16} /> {t('translations.select_language', 'Seleccionar idioma')}
+          <Languages size={16} /> {t('select_language', 'Seleccionar idioma')}
         </label>
         <div className="flex gap-2 flex-wrap">
           {languages.filter(l => l.enabled).map((lang) => (
@@ -323,7 +323,7 @@ export default function TranslationEditor() {
             >
               <span className="font-medium">{lang.native_name}</span>
               {lang.is_default && (
-                <span className="text-xs ml-2 text-gray-500">({t('translations.default', 'default')})</span>
+                <span className="text-xs ml-2 text-gray-500">({t('default', 'default')})</span>
               )}
             </button>
           ))}
@@ -333,7 +333,7 @@ export default function TranslationEditor() {
       {/* Estado de completitud */}
       {status.length > 0 && (
         <div className="card p-4">
-          <h2 className="font-semibold mb-3">{t('translations.completeness', 'Estado de traducción')}</h2>
+          <h2 className="font-semibold mb-3">{t('completeness', 'Estado de traducción')}</h2>
           <div className="space-y-2">
             {status.filter(s => s.total > 0).map((s) => (
               <div key={s.namespace} className="flex items-center gap-3">
@@ -364,14 +364,14 @@ export default function TranslationEditor() {
       {/* Editor de traducciones faltantes */}
       <div className="card p-4">
         <h2 className="font-semibold mb-3">
-          {t('translations.missing_translations', 'Traducciones faltantes')}
+          {t('missing_translations', 'Traducciones faltantes')}
           <span className="text-sm font-normal text-gray-500 ml-2">({missing.length})</span>
         </h2>
 
         {missing.length === 0 ? (
           <div className="text-center py-8 text-gray-400">
             <CheckCircle size={32} className="mx-auto mb-2 text-green-500" />
-            <p>{t('translations.all_translated', 'Todo está traducido')}</p>
+            <p>{t('all_translated', 'Todo está traducido')}</p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -385,7 +385,7 @@ export default function TranslationEditor() {
                     className="btn-primary text-xs py-1 px-3 flex items-center gap-1"
                   >
                     <Save size={14} />
-                    {t('common.save')}
+                    {t('common:save')}
                   </button>
                 </div>
                 <div className="space-y-2">
@@ -417,7 +417,7 @@ export default function TranslationEditor() {
       {/* Gestion de idiomas */}
       <div className="card p-4">
         <h2 className="font-semibold mb-3 flex items-center gap-2">
-          <Plus size={18} /> {t('translations.manage_languages', 'Gestionar idiomas')}
+          <Plus size={18} /> {t('manage_languages', 'Gestionar idiomas')}
         </h2>
 
         {/* Lista de idiomas con acciones */}
@@ -429,12 +429,12 @@ export default function TranslationEditor() {
                 <span className="text-xs text-gray-500 ml-2">({lang.code})</span>
                 {lang.is_default && (
                   <span className="text-xs ml-2 px-2 py-0.5 rounded bg-trueque-100 text-trueque-700">
-                    {t('translations.default', 'default')}
+                    {t('default', 'default')}
                   </span>
                 )}
                 {!lang.enabled && (
                   <span className="text-xs ml-2 px-2 py-0.5 rounded bg-gray-200 text-gray-600">
-                    {t('translations.disabled', 'deshabilitado')}
+                    {t('disabled', 'deshabilitado')}
                   </span>
                 )}
               </div>
@@ -442,7 +442,7 @@ export default function TranslationEditor() {
                 <button
                   onClick={() => handleDownload(lang.code)}
                   className="btn-secondary text-xs py-1 px-2 flex items-center gap-1"
-                  title={t('translations.download', 'Descargar archivo')}
+                  title={t('download', 'Descargar archivo')}
                 >
                   <Download size={14} />
                 </button>
@@ -450,14 +450,14 @@ export default function TranslationEditor() {
                   onClick={() => handleToggleEnabled(lang)}
                   className="btn-secondary text-xs py-1 px-2"
                 >
-                  {lang.enabled ? t('translations.disable', 'Deshabilitar') : t('translations.enable', 'Habilitar')}
+                  {lang.enabled ? t('disable', 'Deshabilitar') : t('enable', 'Habilitar')}
                 </button>
                 {!lang.is_default && (
                   <button
                     onClick={() => handleSetDefault(lang.code)}
                     className="btn-secondary text-xs py-1 px-2"
                   >
-                    {t('translations.set_default', 'Establecer como default')}
+                    {t('set_default', 'Establecer como default')}
                   </button>
                 )}
               </div>
@@ -467,25 +467,25 @@ export default function TranslationEditor() {
 
         {/* Anadir idioma */}
         <div className="border-t pt-4">
-          <h3 className="font-medium text-sm mb-2">{t('translations.add_language', 'Anadir idioma')}</h3>
+          <h3 className="font-medium text-sm mb-2">{t('add_language', 'Anadir idioma')}</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
             <input
               type="text"
-              placeholder={t('translations.language_code', 'Codigo (ej: en, pt, fr)')}
+              placeholder={t('language_code', 'Codigo (ej: en, pt, fr)')}
               className="input text-sm"
               value={newLangCode}
               onChange={(e) => setNewLangCode(e.target.value)}
             />
             <input
               type="text"
-              placeholder={t('translations.language_name', 'Nombre (ej: English)')}
+              placeholder={t('language_name', 'Nombre (ej: English)')}
               className="input text-sm"
               value={newLangName}
               onChange={(e) => setNewLangName(e.target.value)}
             />
             <input
               type="text"
-              placeholder={t('translations.language_native', 'Nombre nativo (ej: English)')}
+              placeholder={t('language_native', 'Nombre nativo (ej: English)')}
               className="input text-sm"
               value={newLangNative}
               onChange={(e) => setNewLangNative(e.target.value)}
@@ -496,13 +496,13 @@ export default function TranslationEditor() {
             disabled={!newLangCode || !newLangName}
             className="btn-primary text-sm mt-2 py-1 px-3 flex items-center gap-1"
           >
-            <Plus size={14} /> {t('translations.add_language', 'Anadir idioma')}
+            <Plus size={14} /> {t('add_language', 'Anadir idioma')}
           </button>
         </div>
 
         {/* Subir archivo de traduccion */}
         <div className="border-t pt-4 mt-4">
-          <h3 className="font-medium text-sm mb-2">{t('translations.upload', 'Subir archivo')}</h3>
+          <h3 className="font-medium text-sm mb-2">{t('upload', 'Subir archivo')}</h3>
           <input
             type="file"
             accept=".json"
@@ -520,12 +520,12 @@ export default function TranslationEditor() {
       {/* Traducciones de otros nodos federados */}
       <div className="card p-4">
         <h2 className="font-semibold mb-3 flex items-center gap-2">
-          <Network size={18} /> {t('translations.federation', 'Traducciones de otros nodos')}
+          <Network size={18} /> {t('federation', 'Traducciones de otros nodos')}
         </h2>
         {federatedTranslations.length === 0 ? (
           <div className="text-center py-6 text-gray-400">
             <Network size={24} className="mx-auto mb-2 opacity-30" />
-            <p className="text-sm">{t('translations.no_federation_translations', 'No hay traducciones disponibles de otros nodos')}</p>
+            <p className="text-sm">{t('no_federation_translations', 'No hay traducciones disponibles de otros nodos')}</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -535,7 +535,7 @@ export default function TranslationEditor() {
                   <span className="font-medium text-sm">{ft.display_name}</span>
                   <span className="text-xs text-gray-500 ml-2">({ft.language_code})</span>
                   <div className="text-xs text-gray-400 mt-0.5">
-                    {t('translations.node', 'Nodo')}: {ft.source_node} · v{ft.version} · {ft.num_keys} keys
+                    {t('node', 'Nodo')}: {ft.source_node} · v{ft.version} · {ft.num_keys} keys
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -544,11 +544,11 @@ export default function TranslationEditor() {
                       onClick={() => handleInstallFederated(ft)}
                       className="btn-primary text-xs py-1 px-2 flex items-center gap-1"
                     >
-                      <Download size={14} /> {t('translations.download', 'Descargar')}
+                      <Download size={14} /> {t('download', 'Descargar')}
                     </button>
                   ) : (
                     <span className="text-xs text-green-600 flex items-center gap-1">
-                      <CheckCircle size={14} /> {t('translations.installed', 'Instalado')}
+                      <CheckCircle size={14} /> {t('installed', 'Instalado')}
                     </span>
                   )}
                 </div>

@@ -1,5 +1,7 @@
 {
   "title": "Traducciones",
+  "audit_title": "Estado de traducciones",
+  "keys_translated": "claves traducidas",
   "select_language": "Seleccionar idioma",
   "default": "por defecto",
   "completeness": "Estado de traduccion",

@@ -417,17 +417,17 @@ export default function Login() {
               <div className="text-center text-sm text-gray-500">
                 {t('login.no_account', '¿No tienes cuenta? Solicita admision en tu nodo.')}
               </div>
+
+              {/* Enlace a licencia dentro del card */}
+              <div className="border-t pt-3 mt-4 text-center">
+                <Link to="/licencia" className="text-xs text-gray-400 hover:text-emerald-600 transition flex items-center justify-center gap-1">
+                  <ScrollText size={12} />
+                  {t('nav.license')}
+                </Link>
+              </div>
             </div>
           </>
         )}
-      </div>
-
-      {/* Enlace a licencia debajo del formulario */}
-      <div className="mt-4 text-center">
-        <Link to="/licencia" className="text-xs text-gray-400 hover:text-emerald-600 transition flex items-center justify-center gap-1">
-          <ScrollText size={12} />
-          {t('nav.license')}
-        </Link>
       </div>
     </div>
   )

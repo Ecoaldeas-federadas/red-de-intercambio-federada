@@ -25,6 +25,7 @@ import {
 import { SiteBlock, BlockType } from '../../types/publicSite'
 import { BlockRenderer } from './PublicBlocks'
 import { getCurrentLanguage } from '../../i18n/TranslationProvider'
+import { api } from '../../api'
 
 // Block definitions for the inline module adder
 const BLOCK_TEMPLATES: {

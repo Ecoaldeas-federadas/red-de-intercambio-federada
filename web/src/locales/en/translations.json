@@ -1,5 +1,7 @@
 {
   "title": "Translations",
+  "audit_title": "Translation status",
+  "keys_translated": "keys translated",
   "select_language": "Select language",
   "default": "default",
   "completeness": "Translation status",

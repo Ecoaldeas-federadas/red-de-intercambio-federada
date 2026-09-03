@@ -46,7 +46,7 @@ export default function NFCTerminals() {
   const { t: tt } = useTranslation('nfc')
   const { hasPermission } = usePermissions()
   const [searchParams, setSearchParams] = useSearchParams()
-  const initialTab = (searchParams.gett('tab') as 'terminals' | 'provision' | 'cards' | 'transactions' | 'pairing') || 'terminals'
+  const initialTab = (searchParams.get('tab') as 'terminals' | 'provision' | 'cards' | 'transactions' | 'pairing') || 'terminals'
   const [tab, setTab] = useState<'terminals' | 'provision' | 'cards' | 'transactions' | 'pairing'>(initialTab)
   const changeTab = (t: 'terminals' | 'provision' | 'cards' | 'transactions' | 'pairing') => {
     setTab(t)

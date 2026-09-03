@@ -14,9 +14,9 @@ interface LanguageOption {
 }
 
 interface LanguageSwitcherProps {
-  /** 'dark' para fondos oscuros (footer público), 'light' para fondos claros (header app) */
+  /** 'dark' para fondos oscuros (footer publico), 'light' para fondos claros (header app) */
   variant?: 'light' | 'dark'
-  /** Tamaño compacto (solo código ES/EN) o completo (nombre nativo) */
+  /** Tamano compacto (solo codigo ES/EN) o completo (nombre nativo) */
   compact?: boolean
   className?: string
 }
@@ -27,7 +27,10 @@ export function LanguageSwitcher({ variant = 'light', compact = true, className 
   const [languages, setLanguages] = useState<LanguageOption[]>([])
   const [open, setOpen] = useState(false)
   const [current, setCurrent] = useState(getCurrentLanguage())
+  const [focusIndex, setFocusIndex] = useState(-1)
   const ref = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     loadLanguages()
@@ -43,11 +46,31 @@ export function LanguageSwitcher({ variant = 'light', compact = true, className 
     const handleClickOutside = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false)
+        setFocusIndex(-1)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  // Enfocar la opcion seleccionada cuando se abre el dropdown
+  useEffect(() => {
+    if (open && languages.length > 0) {
+      const idx = languages.findIndex(l => l.code === current)
+      setFocusIndex(idx >= 0 ? idx : 0)
+    } else {
+      setFocusIndex(-1)
+    }
+  }, [open, languages, current])
+
+  // Mover el foco al elemento activo
+  useEffect(() => {
+    if (open && focusIndex >= 0 && listRef.current) {
+      const buttons = listRef.current.querySelectorAll('[role="option"]')
+      const btn = buttons[focusIndex] as HTMLElement
+      if (btn) btn.focus()
+    }
+  }, [focusIndex, open])
 
   const loadLanguages = async () => {
     try {
@@ -55,7 +78,7 @@ export function LanguageSwitcher({ variant = 'light', compact = true, className 
       setLanguages((langs || []).filter(l => l.enabled))
     } catch {
       setLanguages([
-        { code: 'es', name: 'Spanish', native_name: 'Español', enabled: true, is_default: true },
+        { code: 'es', name: 'Spanish', native_name: 'Espanol', enabled: true, is_default: true },
         { code: 'en', name: 'English', native_name: 'English', enabled: true, is_default: false },
       ])
     }
@@ -63,16 +86,52 @@ export function LanguageSwitcher({ variant = 'light', compact = true, className 
 
   const handleSelect = async (code: string) => {
     setOpen(false)
+    setFocusIndex(-1)
     if (code === current) return
+    // Marcar cambio manual para que usePreferences no sobrescriba en esta sesion
+    sessionStorage.setItem('language_manually_changed', 'true')
     await changeLanguage(code)
     setCurrent(code)
-    // Si el usuario está logueado, guardar preferencia en el backend
+    // Si el usuario esta logueado, guardar preferencia en el backend
     if (isAuthenticated) {
       try {
         await api.put('/me/preferences', { language: code })
       } catch {
-        // Silencioso: el cambio local ya se aplicó
+        // Silencioso: el cambio local ya se aplico
       }
+    }
+  }
+
+  const handleTriggerKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+      e.preventDefault()
+      setOpen(true)
+    } else if (e.key === 'Escape') {
+      setOpen(false)
+    }
+  }
+
+  const handleOptionKeyDown = (e: React.KeyboardEvent, index: number) => {
+    e.stopPropagation()
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setFocusIndex((index + 1) % languages.length)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setFocusIndex((index - 1 + languages.length) % languages.length)
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      handleSelect(languages[index].code)
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      setOpen(false)
+      if (triggerRef.current) triggerRef.current.focus()
+    } else if (e.key === 'Home') {
+      e.preventDefault()
+      setFocusIndex(0)
+    } else if (e.key === 'End') {
+      e.preventDefault()
+      setFocusIndex(languages.length - 1)
     }
   }
 
@@ -87,11 +146,19 @@ export function LanguageSwitcher({ variant = 'light', compact = true, className 
 
   if (languages.length <= 1) return null
 
+  // En modo dark (footer), el dropdown se abre hacia arriba para no salir de la pagina
+  const dropdownPosition = isDark ? 'bottom-full mb-1' : 'top-full mt-1'
+
   return (
     <div ref={ref} className={`relative ${className}`}>
       <button
+        ref={triggerRef}
         onClick={() => setOpen(o => !o)}
-        className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border ${textColor} ${borderColor} ${hoverColor} transition`}
+        onKeyDown={handleTriggerKeyDown}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={currentLang?.native_name || `Language: ${current}`}
+        className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border ${textColor} ${borderColor} ${hoverColor} transition focus:outline-none focus:ring-2 focus:ring-emerald-500`}
         title={currentLang?.native_name || current}
       >
         <Languages size={14} />
@@ -99,12 +166,20 @@ export function LanguageSwitcher({ variant = 'light', compact = true, className 
         <ChevronDown size={12} className={`transition ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className={`absolute right-0 top-full mt-1 ${bgColor} rounded-lg shadow-xl border ${borderColor} z-50 min-w-[140px] overflow-hidden`}>
-          {languages.map(lang => (
+        <div
+          ref={listRef}
+          role="listbox"
+          aria-label="Select language"
+          className={`absolute right-0 ${dropdownPosition} ${bgColor} rounded-lg shadow-xl border ${borderColor} z-50 min-w-[140px] overflow-hidden`}
+        >
+          {languages.map((lang, index) => (
             <button
               key={lang.code}
+              role="option"
+              aria-selected={lang.code === current}
               onClick={() => handleSelect(lang.code)}
-              className={`w-full flex items-center justify-between px-3 py-2 text-xs transition ${
+              onKeyDown={(e) => handleOptionKeyDown(e, index)}
+              className={`w-full flex items-center justify-between px-3 py-2 text-xs transition focus:outline-none ${
                 lang.code === current
                   ? (isDark ? 'bg-white/20' : 'bg-trueque-50 text-trueque-700')
                   : (isDark ? 'text-white hover:bg-white/10' : 'text-gray-700 hover:bg-gray-50')

@@ -399,6 +399,14 @@ func (th *TranslationHandler) getTranslationStatus(w http.ResponseWriter, r *htt
 		return
 	}
 
+	// Determinar el idioma origen (default) para saber el conjunto total de claves
+	defaultLang := "es"
+	var dl string
+	_ = th.Pool.QueryRow(r.Context(), `SELECT code FROM languages WHERE is_default = true LIMIT 1`).Scan(&dl)
+	if dl != "" {
+		defaultLang = dl
+	}
+
 	namespaces := []string{
 		"common", "dashboard", "transfer", "nfc", "federation", "assembly",
 		"organizations", "products", "settings", "profile", "notifications",
@@ -416,19 +424,26 @@ func (th *TranslationHandler) getTranslationStatus(w http.ResponseWriter, r *htt
 
 	var statuses []NSStatus
 	for _, ns := range namespaces {
-		defaults := th.loadJSONDefaults(lang, ns)
-		total := len(defaults)
+		// total = claves del idioma origen (default)
+		sourceKeys := th.loadJSONDefaults(defaultLang, ns)
+		total := len(sourceKeys)
 
-		// Contar overrides en BD
-		var dbCount int
-		_ = th.Pool.QueryRow(r.Context(),
-			`SELECT COUNT(*) FROM translations WHERE language = $1 AND namespace = $2 AND node_domain = $3`,
-			lang, ns, th.NodeDomain).Scan(&dbCount)
+		// Claves ya traducidas en el JSON del idioma objetivo
+		targetKeys := th.loadJSONDefaults(lang, ns)
 
-		translated := dbCount
-		if translated > total {
-			translated = total
+		// Claves con override en BD
+		dbKeys := th.loadDBOverrideKeys(r, lang, ns)
+
+		// translated = claves del origen que existen en el JSON destino O en BD
+		translated := 0
+		for k := range sourceKeys {
+			if _, ok := targetKeys[k]; ok {
+				translated++
+			} else if dbKeys[k] {
+				translated++
+			}
 		}
+
 		missing := total - translated
 		if missing < 0 {
 			missing = 0
@@ -459,6 +474,14 @@ func (th *TranslationHandler) getMissingTranslations(w http.ResponseWriter, r *h
 		return
 	}
 
+	// Determinar el idioma origen (default) para saber el conjunto total de claves
+	defaultLang := "es"
+	var dl string
+	_ = th.Pool.QueryRow(r.Context(), `SELECT code FROM languages WHERE is_default = true LIMIT 1`).Scan(&dl)
+	if dl != "" {
+		defaultLang = dl
+	}
+
 	nsParam := r.URL.Query().Get("namespace")
 
 	namespaces := []string{
@@ -479,28 +502,23 @@ func (th *TranslationHandler) getMissingTranslations(w http.ResponseWriter, r *h
 
 	var missing []MissingEntry
 	for _, ns := range namespaces {
-		defaults := th.loadJSONDefaults(lang, ns)
-
-		// Obtener claves que ya tienen override
-		rows, err := th.Pool.Query(r.Context(),
-			`SELECT key FROM translations WHERE language = $1 AND namespace = $2 AND node_domain = $3`,
-			lang, ns, th.NodeDomain)
-		if err != nil {
+		// Claves del idioma origen (conjunto total a traducir)
+		sourceKeys := th.loadJSONDefaults(defaultLang, ns)
+		if len(sourceKeys) == 0 {
 			continue
 		}
 
-		existingKeys := map[string]bool{}
-		for rows.Next() {
-			var k string
-			rows.Scan(&k)
-			existingKeys[k] = true
-		}
-		rows.Close()
+		// Claves ya traducidas en el JSON del idioma objetivo
+		targetKeys := th.loadJSONDefaults(lang, ns)
 
-		// Las claves que no estan en la BD son "missing"
-		// Pero solo si el JSON default tiene contenido (skip empty namespaces)
-		for k, v := range defaults {
-			if !existingKeys[k] {
+		// Claves con override en BD
+		dbKeys := th.loadDBOverrideKeys(r, lang, ns)
+
+		// Una clave es "missing" si esta en el origen pero NO en el JSON destino ni en BD
+		for k, v := range sourceKeys {
+			_, inTarget := targetKeys[k]
+			inDB := dbKeys[k]
+			if !inTarget && !inDB {
 				missing = append(missing, MissingEntry{
 					Namespace: ns,
 					Key:       k,
@@ -564,6 +582,27 @@ func (th *TranslationHandler) loadDBOverrides(r *http.Request, lang, ns string) 
 			continue
 		}
 		result[k] = v
+	}
+	return result
+}
+
+// loadDBOverrideKeys devuelve solo el conjunto de claves que tienen override en BD.
+func (th *TranslationHandler) loadDBOverrideKeys(r *http.Request, lang, ns string) map[string]bool {
+	result := map[string]bool{}
+	rows, err := th.Pool.Query(r.Context(),
+		`SELECT key FROM translations WHERE language = $1 AND namespace = $2 AND node_domain = $3`,
+		lang, ns, th.NodeDomain)
+	if err != nil {
+		return result
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var k string
+		if err := rows.Scan(&k); err != nil {
+			continue
+		}
+		result[k] = true
 	}
 	return result
 }
