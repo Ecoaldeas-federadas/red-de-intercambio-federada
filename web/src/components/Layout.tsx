@@ -138,15 +138,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex">
       {/* Sidebar desktop */}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-50 bg-trueque-800 text-white transform transition-all duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
-        <div className="p-4 flex items-center justify-between">
+      <aside className={`fixed lg:static inset-y-0 left-0 z-50 bg-trueque-800 text-white transform transition-all duration-300 flex flex-col h-screen ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
+        <div className="p-4 flex items-center justify-between flex-shrink-0">
           {!sidebarCollapsed && <h1 className="text-xl font-bold">Trueque</h1>}
           {sidebarCollapsed && <h1 className="text-xl font-bold mx-auto">T</h1>}
           <button className="lg:hidden" onClick={() => setSidebarOpen(false)}>
             <X size={20} />
           </button>
         </div>
-        <nav className="sidebar-scroll px-2 py-4 space-y-1 overflow-y-auto h-[calc(100vh-120px)]">
+        <nav className="sidebar-scroll px-2 py-4 space-y-1 overflow-y-auto flex-1 min-h-0">
           {visibleItems.map(({ to, labelKey, icon: Icon, end }) => {
             const label = t(labelKey)
             return (
@@ -177,7 +177,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </Link>
         </nav>
         {/* Boton contraer/expander */}
-        <div className="absolute bottom-0 left-0 right-0 border-t border-trueque-700 p-2 hidden lg:flex justify-center">
+        <div className="border-t border-trueque-700 p-2 hidden lg:flex justify-center flex-shrink-0">
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             className="flex items-center gap-1 text-xs text-trueque-100 hover:text-white px-2 py-1 rounded hover:bg-trueque-700 transition"
