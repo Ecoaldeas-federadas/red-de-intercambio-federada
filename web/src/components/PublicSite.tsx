@@ -2,6 +2,7 @@
 import { Link, useParams, useLocation } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../hooks/useAuth'
+import { useTranslation } from 'react-i18next'
 import { assetUrl } from '../utils/assetUrl'
 import {
   Home,
@@ -115,6 +116,7 @@ function getShortLabel(p: { slug: string; title: string }): string {
 
 export function PublicLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, username, logout } = useAuth()
+  const { t: tpub } = useTranslation('public')
   const location = useLocation()
   const [settings, setSettings] = useState<PublicSettings | null>(null)
   const [pages, setPages] = useState<PublicPageData[]>([])
@@ -140,8 +142,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           .filter((t) => !dbSlugs.has(t.slug))
           .map((t) => ({
             slug: t.slug,
-            title: t.title,
-            subtitle: t.subtitle,
+            title: tpub(`page_${t.slug}_title`, t.title),
+            subtitle: tpub(`page_${t.slug}_subtitle`, t.subtitle),
             icon: t.icon,
             menu_order: t.menu_order,
             is_published: true,
@@ -152,8 +154,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         // renderiza las reglas desde /api/public/governance (no bloques editables)
         const governancePage = dbSlugs.has('gobernanza') ? null : {
           slug: 'gobernanza',
-          title: 'Gobernanza',
-          subtitle: 'Ley de la Aldea - Reglas de convivencia',
+          title: tpub('page_gobernanza_title', 'Gobernanza'),
+          subtitle: tpub('page_gobernanza_subtitle', 'Ley de la Aldea - Reglas de convivencia'),
           icon: 'scale',
           menu_order: 90,
           is_published: true,
@@ -163,8 +165,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         // Pagina virtual de federacion: invita a ecoaldeas a sumarse
         const federationPage = dbSlugs.has('federacion') ? null : {
           slug: 'federacion',
-          title: 'Federacion',
-          subtitle: 'Suma tu ecoaldea a la red',
+          title: tpub('page_federacion_title', 'Federacion'),
+          subtitle: tpub('page_federacion_subtitle', 'Suma tu ecoaldea a la red'),
           icon: 'globe',
           menu_order: 95,
           is_published: true,
