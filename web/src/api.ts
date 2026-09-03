@@ -4,6 +4,17 @@
 // y el demo strip /demo -> /api/... internamente.
 const API_BASE = (typeof window !== 'undefined' && (window as any).__BASE_PATH__) ? (window as any).__BASE_PATH__ + '/api' : '/api'
 
+// ApiError es un Error que puede contener un codigo de error estable
+// para que el frontend lo traduzca con i18n.
+export class ApiError extends Error {
+  errorCode?: string
+  constructor(message: string, errorCode?: string) {
+    super(message)
+    this.name = 'ApiError'
+    this.errorCode = errorCode
+  }
+}
+
 // Claves de localStorage separadas por ruta base (padre vs demo)
 export function getStorageKeys() {
   const basePath = typeof window !== 'undefined' ? ((window as any).__BASE_PATH__ || '') : ''
@@ -95,11 +106,11 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   if (res.status === 401) {
     handleUnauthorized()
     const err = await res.json().catch(() => ({ error: 'Sesión expirada' }))
-    throw new Error(err.error || 'Sesión expirada. Por favor inicia sesión nuevamente.')
+    throw new ApiError(err.error || 'Sesión expirada. Por favor inicia sesión nuevamente.', err.error_code)
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Request failed' }))
-    throw new Error(err.error || `HTTP ${res.status}`)
+    throw new ApiError(err.error || err.message || `HTTP ${res.status}`, err.error_code)
   }
   return res.json()
 }
@@ -125,11 +136,11 @@ export const api = {
     })
     if (res.status === 401) {
       handleUnauthorized()
-      throw new Error('Sesion expirada')
+      throw new ApiError('Sesion expirada', 'error.session_expired')
     }
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'Upload failed' }))
-      throw new Error(err.error || `HTTP ${res.status}`)
+      throw new ApiError(err.error || `HTTP ${res.status}`, err.error_code)
     }
     return res.json()
   },
