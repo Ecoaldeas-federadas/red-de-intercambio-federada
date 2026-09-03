@@ -20,26 +20,39 @@ code{background:#f3f4f6;padding:.1rem .3rem;border-radius:.25rem;font-family:mon
 </head>
 <body>
 <div class="card">
-<h1>Nodo no disponible</h1>
-<p class="subtitle">El servidor del nodo no esta respondiendo</p>
-<div class="status-box">El node-app esta caido o reiniciandose</div>
-<a class="btn" href="/updater/" id="updaterLink">Ir al panel de actualizacion</a>
+<h1 id="title">Nodo no disponible</h1>
+<p class="subtitle" id="subtitle">El servidor no esta respondiendo</p>
+<div class="status-box" id="statusBox">El servidor del nodo no responde</div>
+<a class="btn" href="/updater/" id="updaterLink">Ir al panel de control del nodo demo</a>
 <script>
-// Si hay un token configurado, agregarlo automaticamente
-// El token se puede pasar via URL o configurar en el servidor
 (function(){
   var qs=window.location.search.match(/[?&]token=([^&]*)/);
   if(qs){
     var link=document.getElementById('updaterLink');
     if(link)link.href='/updater/?token='+encodeURIComponent(qs[1]);
   }
+
+  // Detectar si el usuario estaba intentando acceder al nodo demo
+  var path=window.location.pathname||'';
+  var isDemo=path.indexOf('/demo')===0;
+
+  if(isDemo){
+    document.getElementById('title').textContent='Nodo Demo no disponible';
+    document.getElementById('subtitle').textContent='El nodo demo no esta respondiendo';
+    document.getElementById('statusBox').textContent='El nodo demo esta detenido o reiniciandose. Puedes arrancarlo desde el panel de control.';
+    document.getElementById('updaterLink').textContent='Ir al panel de control (arrancar nodo demo)';
+  } else {
+    document.getElementById('title').textContent='Nodo no disponible';
+    document.getElementById('subtitle').textContent='El servidor del nodo no esta respondiendo';
+    document.getElementById('statusBox').textContent='El nodo principal esta caido o reiniciandose';
+    document.getElementById('updaterLink').textContent='Ir al panel de actualizacion';
+  }
 })();
 </script>
 <p class="info">
-Desde el panel de actualizacion puedes:<br>
-- Verificar si hay actualizaciones disponibles<br>
-- Iniciar una actualizacion<br>
-- Reiniciar el nodo<br>
+Desde el panel de control puedes:<br>
+- Arrancar, detener y reiniciar el nodo demo<br>
+- Actualizar el codigo (git pull + rebuild)<br>
 - Ver los logs del nodo<br>
 <br>
 Si el nodo esta en bucle de reinicio por una migracion rota,<br>

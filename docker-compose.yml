@@ -83,6 +83,16 @@ services:
     environment:
       - GIT_TOKEN=${GIT_TOKEN:-}
       - UPDATER_TOKEN=${UPDATER_TOKEN:-}
+    # Entry point que usa el script del volume mount (/project/docker/).
+    # Esto permite actualizar con git pull + restart sin rebuild.
+    # Strip CRLF (Windows) y ejecuta el script del volume mount.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        sed -i 's/\r$$//' /project/docker/updater-controller.sh 2>/dev/null || true
+        chmod +x /project/docker/updater-controller.sh 2>/dev/null || true
+        exec socat TCP-LISTEN:9110,reuseaddr,fork EXEC:/project/docker/updater-controller.sh
     restart: unless-stopped
 
   arduino-compiler:
