@@ -12,6 +12,7 @@ import {
   Leaf,
   Check,
   AlertCircle,
+  ScrollText,
 } from 'lucide-react'
 import { FormFieldSchema, FormFieldType } from '../../types/publicSite'
 
@@ -513,6 +514,14 @@ export function DynamicAdmissionForm() {
           )}
         </div>
       </form>
+
+      {/* Enlace a licencia */}
+      <div className="mt-4 text-center">
+        <Link to="/licencia" className="text-xs text-gray-400 hover:text-emerald-600 transition flex items-center justify-center gap-1">
+          <ScrollText size={12} />
+          Licencia LPF-1.0
+        </Link>
+      </div>
     </div>
   )
 }

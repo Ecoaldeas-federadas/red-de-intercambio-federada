@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { api } from '../api'
 import {
@@ -15,6 +15,7 @@ import {
   Key,
   Sparkles,
   Search,
+  ScrollText,
 } from 'lucide-react'
 
 interface SetupStatus {
@@ -586,6 +587,14 @@ export default function Setup() {
             )}
           </div>
         )}
+      </div>
+
+      {/* Enlace a licencia */}
+      <div className="mt-4 text-center">
+        <Link to="/licencia" className="text-xs text-gray-400 hover:text-emerald-600 transition flex items-center justify-center gap-1">
+          <ScrollText size={12} />
+          Licencia LPF-1.0
+        </Link>
       </div>
     </div>
   )

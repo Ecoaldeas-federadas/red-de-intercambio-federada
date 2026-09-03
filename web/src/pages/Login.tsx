@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useConfig } from '../hooks/useConfig'
 import { api } from '../api'
-import { Fingerprint, AlertCircle, Lock, User, Crown, Users, Building2, UserCircle, Sparkles, ArrowLeft } from 'lucide-react'
+import { Fingerprint, AlertCircle, Lock, User, Crown, Users, Building2, UserCircle, Sparkles, ArrowLeft, ScrollText } from 'lucide-react'
 
 // === Utilidades WebAuthn ===
 
@@ -420,6 +420,14 @@ export default function Login() {
             </div>
           </>
         )}
+      </div>
+
+      {/* Enlace a licencia debajo del formulario */}
+      <div className="mt-4 text-center">
+        <Link to="/licencia" className="text-xs text-gray-400 hover:text-emerald-600 transition flex items-center justify-center gap-1">
+          <ScrollText size={12} />
+          Licencia LPF-1.0
+        </Link>
       </div>
     </div>
   )

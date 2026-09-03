@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Sprout, Sun, Heart, BookOpen, Clock, Users, Globe, Zap, Leaf, Shield,
   ArrowRight, ChevronDown, ChevronUp, Search, Home, Wheat, Star,
   Moon, TreePine, HandHeart, Scale, Flower, Mountain, Sparkles,
-  CheckCircle, AlertCircle, Circle, type LucideIcon,
+  CheckCircle, AlertCircle, Circle, ScrollText, type LucideIcon,
 } from 'lucide-react'
 import { api } from '../api'
 
@@ -1314,6 +1315,14 @@ export default function SoftwareAdaptations() {
             <p>No se encontraron comunidades con ese criterio.</p>
           </div>
         )}
+
+        {/* Enlace a licencia */}
+        <div className="mt-8 text-center">
+          <Link to="/licencia" className="text-xs text-gray-400 hover:text-emerald-600 transition flex items-center justify-center gap-1">
+            <ScrollText size={12} />
+            Licencia LPF-1.0
+          </Link>
+        </div>
       </div>
     </div>
   )
