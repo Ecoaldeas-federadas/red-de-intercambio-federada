@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import {
   Sprout, Sun, Heart, BookOpen, Clock, Users, Globe, Zap, Leaf, Shield,
@@ -1083,11 +1084,18 @@ const groups: CommunityGroup[] = [
 const categories = ['Todas', 'Cristianas', 'Islámicas', 'Judías', 'Hindúes / Védicas', 'Budistas', 'Sikh', 'Bahá\'í', 'Indígenas / Ancestrales', 'Africanas', 'New Age / Esotéricas', 'Paganas / Animistas', 'Ecológicas Seculares', 'Filosóficas', 'General']
 
 export default function SoftwareAdaptations() {
+  const { t } = useTranslation('settings')
   const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('Todas')
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null)
   const [expandedAdaptation, setExpandedAdaptation] = useState<number | null>(null)
   const [pageEnabled, setPageEnabled] = useState<boolean | null>(null)
+
+  const statusLabels: Record<FeatureStatus, string> = {
+    exists: t('software_adaptations_status_available', 'Disponible'),
+    partial: t('software_adaptations_status_partial', 'Parcial'),
+    missing: t('software_adaptations_status_development', 'En desarrollo'),
+  }
 
   // Verificar si la pagina esta activa para este nodo
   useEffect(() => {
@@ -1102,9 +1110,9 @@ export default function SoftwareAdaptations() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="max-w-md text-center">
           <Globe size={48} className="mx-auto text-gray-400 mb-4" />
-          <h1 className="text-xl font-semibold text-gray-700 mb-2">Pagina no disponible</h1>
+          <h1 className="text-xl font-semibold text-gray-700 mb-2">{t('software_adaptations_page_unavailable', 'Pagina no disponible')}</h1>
           <p className="text-sm text-gray-500">
-            Esta pagina ha sido desactivada por el administrador del nodo.
+            {t('software_adaptations_page_disabled_msg', 'Esta pagina ha sido desactivada por el administrador del nodo.')}
           </p>
         </div>
       </div>
@@ -1137,11 +1145,10 @@ export default function SoftwareAdaptations() {
             <Globe size={32} />
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-3">
-            Adaptaciones del Software
+            {t('software_adaptations_title', 'Adaptaciones del Software')}
           </h1>
           <p className="text-gray-600 text-sm sm:text-base max-w-2xl mx-auto">
-            El sistema se adapta a cualquier cultura, religión, filosofía o forma de organización.
-            Cada nodo es independiente y mantiene su propia identidad. Aquí explicamos cómo.
+            {t('software_adaptations_intro', 'El sistema se adapta a cualquier cultura, religión, filosofía o forma de organización. Cada nodo es independiente y mantiene su propia identidad. Aquí explicamos cómo.')}
           </p>
         </div>
 
@@ -1149,15 +1156,15 @@ export default function SoftwareAdaptations() {
         <div className="flex flex-wrap justify-center gap-4 mb-8 text-sm">
           <div className="flex items-center gap-2">
             <CheckCircle size={16} className="text-emerald-600" />
-            <span className="text-gray-700"><strong>{statusCounts.exists}</strong> disponibles</span>
+            <span className="text-gray-700"><strong>{statusCounts.exists}</strong> {t('software_adaptations_available', 'disponibles')}</span>
           </div>
           <div className="flex items-center gap-2">
             <AlertCircle size={16} className="text-amber-600" />
-            <span className="text-gray-700"><strong>{statusCounts.partial}</strong> parciales</span>
+            <span className="text-gray-700"><strong>{statusCounts.partial}</strong> {t('software_adaptations_partial', 'parciales')}</span>
           </div>
           <div className="flex items-center gap-2">
             <Circle size={16} className="text-gray-400" />
-            <span className="text-gray-700"><strong>{statusCounts.missing}</strong> en desarrollo</span>
+            <span className="text-gray-700"><strong>{statusCounts.missing}</strong> {t('software_adaptations_development', 'en desarrollo')}</span>
           </div>
         </div>
 
@@ -1167,7 +1174,7 @@ export default function SoftwareAdaptations() {
             <Search size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Buscar comunidad, religión o funcionalidad..."
+              placeholder={t('software_adaptations_search_placeholder', 'Buscar comunidad, religión o funcionalidad...')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none text-sm"
@@ -1259,7 +1266,7 @@ export default function SoftwareAdaptations() {
                             <h3 className="font-bold text-sm text-gray-900">{adapt.title}</h3>
                             <span className={`inline-flex items-center gap-1 text-xs ${statusConfig[adapt.status].color}`}>
                               <StatusIcon size={12} />
-                              {statusConfig[adapt.status].label}
+                              {statusLabels[adapt.status]}
                             </span>
                           </div>
                           <p className="text-xs text-gray-500 mt-1 line-clamp-2">{adapt.description}</p>
@@ -1275,19 +1282,19 @@ export default function SoftwareAdaptations() {
                           <p className="text-sm text-gray-700 leading-relaxed pl-14">{adapt.description}</p>
                           {adapt.biblicalRef && (
                             <div className="ml-14 p-3 rounded-lg bg-blue-50 border border-blue-200">
-                              <p className="text-xs font-bold text-blue-800 mb-1">📖 Referencia Bíblica</p>
+                              <p className="text-xs font-bold text-blue-800 mb-1">{t('software_adaptations_biblical_ref', '📖 Referencia Bíblica')}</p>
                               <p className="text-xs text-blue-700 italic">{adapt.biblicalRef}</p>
                             </div>
                           )}
                           {adapt.sourceRef && (
                             <div className="ml-14 p-3 rounded-lg bg-amber-50 border border-amber-200">
-                              <p className="text-xs font-bold text-amber-800 mb-1">📚 Fuente</p>
+                              <p className="text-xs font-bold text-amber-800 mb-1">{t('software_adaptations_source', '📚 Fuente')}</p>
                               <p className="text-xs text-amber-700 italic">{adapt.sourceRef}</p>
                             </div>
                           )}
                           <div className="ml-14 flex items-center gap-2 text-xs text-emerald-600 font-medium pt-2">
                             <ArrowRight size={14} />
-                            <span>Funcionalidad: <strong>{adapt.feature}</strong></span>
+                            <span>{t('software_adaptations_functionality', 'Funcionalidad:')} <strong>{adapt.feature}</strong></span>
                           </div>
                         </div>
                       )}
@@ -1312,7 +1319,7 @@ export default function SoftwareAdaptations() {
         {filteredGroups.length === 0 && (
           <div className="text-center py-12 text-gray-400">
             <Search size={48} className="mx-auto mb-4 opacity-50" />
-            <p>No se encontraron comunidades con ese criterio.</p>
+            <p>{t('software_adaptations_no_results', 'No se encontraron comunidades con ese criterio.')}</p>
           </div>
         )}
 
@@ -1320,7 +1327,7 @@ export default function SoftwareAdaptations() {
         <div className="mt-8 text-center">
           <Link to="/licencia" className="text-xs text-gray-400 hover:text-emerald-600 transition flex items-center justify-center gap-1">
             <ScrollText size={12} />
-            Licencia LPF-1.0
+            {t('software_adaptations_license', 'Licencia LPF-1.0')}
           </Link>
         </div>
       </div>

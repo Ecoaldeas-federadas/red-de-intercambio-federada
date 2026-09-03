@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useConfig } from '../hooks/useConfig'
@@ -846,6 +847,7 @@ function MemberSearchAndPerms({
 }
 
 export default function Assembly() {
+  const { t } = useTranslation('assembly')
   const { hasPermission, isSuperAdmin, superAdminEnabled } = usePermissions()
   const { currency } = useConfig()
   const canManageBoard = hasPermission('assembly.manage_board')
@@ -1018,7 +1020,7 @@ export default function Assembly() {
   const createProposal = async () => {
     setError('')
     if (!proposalDesc) {
-      setError('La descripcion es obligatoria')
+      setError(t('description_required', 'La descripcion es obligatoria'))
       return
     }
     try {
@@ -1033,7 +1035,7 @@ export default function Assembly() {
       setEntityModes({})
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear propuesta')
+      setError(err instanceof Error ? err.message : t('error_create_proposal', 'Error al crear propuesta'))
     }
   }
 
@@ -1042,7 +1044,7 @@ export default function Assembly() {
       await api.post(`/assembly/proposals/${id}/vote`, { vote })
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al votar')
+      setError(err instanceof Error ? err.message : t('error_vote', 'Error al votar'))
     }
   }
 
@@ -1422,7 +1424,7 @@ export default function Assembly() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold flex items-center gap-2"><VoteIcon size={24} />Asamblea</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2"><VoteIcon size={24} />{t('title', 'Asamblea')}</h1>
         <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
           <HelpCircle size={20} />
         </button>
@@ -1437,21 +1439,21 @@ export default function Assembly() {
           <p><strong>Sesiones:</strong> Reuniones de asamblea (ordinarias, extraordinarias, urgentes). Las propuestas se discuten en sesiones.</p>
           <p><strong>Propuestas:</strong> Decisiones que se someten a votacion. Cada miembro con voto puede votar a favor, en contra o abstenerse. Cuando todos han votado, se ejecuta si hay mas votos a favor.</p>
           <p><strong>Impuestos:</strong> La asamblea decide la tasa de impuesto sobre transacciones. El dinero recaudado va a una cuenta de impuestos. La asamblea decide que hacer con ese dinero.</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('help_close', 'Cerrar')}</button>
         </div>
       )}
 
       {/* Tabs */}
       <div className="flex gap-2 flex-wrap">
-        <button onClick={() => changeTab('proposals')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'proposals' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Propuestas</button>
-        <button onClick={() => changeTab('wallet')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'wallet' ? 'bg-amber-600 text-white' : 'bg-gray-200'}`}>Billetera / Fondo</button>
-        <button onClick={() => changeTab('reports')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'reports' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Informes de Votacion</button>
-        <button onClick={() => changeTab('members')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'members' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Miembros</button>
-        <button onClick={() => changeTab('board')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'board' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Junta Directiva</button>
-        <button onClick={() => changeTab('sessions')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'sessions' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Sesiones</button>
-        <button onClick={() => changeTab('tax')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'tax' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Impuestos</button>
-        <button onClick={() => changeTab('departments')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'departments' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Building2 size={14} className="inline mr-1" />Departamentos</button>
-        <button onClick={() => changeTab('config')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'config' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Configuracion</button>
+        <button onClick={() => changeTab('proposals')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'proposals' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{t('tab_proposals', 'Propuestas')}</button>
+        <button onClick={() => changeTab('wallet')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'wallet' ? 'bg-amber-600 text-white' : 'bg-gray-200'}`}>{t('tab_wallet', 'Billetera / Fondo')}</button>
+        <button onClick={() => changeTab('reports')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'reports' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{t('tab_reports', 'Informes de Votacion')}</button>
+        <button onClick={() => changeTab('members')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'members' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{t('tab_members', 'Miembros')}</button>
+        <button onClick={() => changeTab('board')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'board' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{t('tab_board', 'Junta Directiva')}</button>
+        <button onClick={() => changeTab('sessions')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'sessions' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{t('tab_sessions', 'Sesiones')}</button>
+        <button onClick={() => changeTab('tax')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'tax' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{t('tab_tax', 'Impuestos')}</button>
+        <button onClick={() => changeTab('departments')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'departments' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}><Building2 size={14} className="inline mr-1" />{t('tab_departments', 'Departamentos')}</button>
+        <button onClick={() => changeTab('config')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'config' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{t('tab_config', 'Configuracion')}</button>
       </div>
 
       {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</div>}
@@ -1463,7 +1465,7 @@ export default function Assembly() {
             <div className="text-white rounded-xl p-6 bg-gradient-to-r from-amber-600 to-yellow-700">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-amber-100 text-sm">Fondo Comunitario (Asamblea General)</p>
+                  <p className="text-amber-100 text-sm">{t('community_fund', 'Fondo Comunitario (Asamblea General)')}</p>
                   <p className="text-4xl font-bold mt-1">
                     {fundData?.balance != null ? `${fundData.balance >= 0 ? '+' : ''}${fmtTQ(fundData.balance)}` : '...'} {currency}
                   </p>
@@ -1475,7 +1477,7 @@ export default function Assembly() {
                     <span className="text-xs bg-amber-500/30 text-amber-100 px-2 py-0.5 rounded font-mono">@impuestos</span>
                     <span className="text-xs bg-amber-500/30 text-amber-100 px-2 py-0.5 rounded font-mono">@fondo_comunitario</span>
                   </div>
-                  <p className="text-amber-100 text-xs mt-2">Los 3 nombres son aliases de la misma cuenta. Puedes usar cualquiera para transferir.</p>
+                  <p className="text-amber-100 text-xs mt-2">{t('fund_aliases_note', 'Los 3 nombres son aliases de la misma cuenta. Puedes usar cualquiera para transferir.')}</p>
                 </div>
                 <DollarSign size={48} className="text-amber-200" />
               </div>
@@ -1484,7 +1486,7 @@ export default function Assembly() {
 
           {fundData?.fund_account && fundTxs.length > 0 && (
             <div className="card">
-              <h2 className="font-semibold text-lg mb-3">Movimientos del Fondo</h2>
+              <h2 className="font-semibold text-lg mb-3">{t('fund_movements', 'Movimientos del Fondo')}</h2>
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {fundTxs.map((t, i) => {
                   const isDebit = t.direction === 'debit'
@@ -1508,10 +1510,10 @@ export default function Assembly() {
           )}
 
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
-            <p><strong>Fondo Comunitario - Informacion</strong></p>
-            <p>El Fondo Comunitario ES la cuenta de la Asamblea General. No son cuentas separadas: es una sola cuenta que recibe los impuestos y sirve como tesoro comunitario.</p>
-            <p><strong>Como transferirle:</strong> Puedes transferir a esta cuenta usando cualquiera de estos 3 nombres: <b>@asamblea</b>, <b>@impuestos</b> o <b>@fondo_comunitario</b>.</p>
-            <p><strong>Como se distribuye:</strong> Para gastar dinero del fondo, crea una propuesta de "Distribucion de fondos" en la pestana Propuestas. Los miembros votan y, si se aprueba, se ejecuta la transferencia.</p>
+            <p><strong>{t('fund_info_title', 'Fondo Comunitario - Informacion')}</strong></p>
+            <p>{t('fund_info_1', 'El Fondo Comunitario ES la cuenta de la Asamblea General. No son cuentas separadas: es una sola cuenta que recibe los impuestos y sirve como tesoro comunitario.')}</p>
+            <p><strong>{t('fund_info_transfer', 'Como transferirle:')}</strong> {t('fund_info_transfer_desc', 'Puedes transferir a esta cuenta usando cualquiera de estos 3 nombres:')} <b>@asamblea</b>, <b>@impuestos</b> o <b>@fondo_comunitario</b>.</p>
+            <p><strong>{t('fund_info_distribute', 'Como se distribuye:')}</strong> {t('fund_info_distribute_desc', 'Para gastar dinero del fondo, crea una propuesta de "Distribucion de fondos" en la pestana Propuestas. Los miembros votan y, si se aprueba, se ejecuta la transferencia.')}</p>
           </div>
         </div>
       )}
@@ -1520,16 +1522,16 @@ export default function Assembly() {
       {tab === 'proposals' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="font-semibold flex items-center gap-2"><VoteIcon size={18} />Propuestas de Asamblea</h2>
-            <button onClick={() => setShowNewProposal(!showNewProposal)} className="btn-primary flex items-center gap-2"><Plus size={18} />Nueva Propuesta</button>
+            <h2 className="font-semibold flex items-center gap-2"><VoteIcon size={18} />{t('proposals_title', 'Propuestas de Asamblea')}</h2>
+            <button onClick={() => setShowNewProposal(!showNewProposal)} className="btn-primary flex items-center gap-2"><Plus size={18} />{t('new_proposal', 'Nueva Propuesta')}</button>
           </div>
 
           {showNewProposal && (
             <div className="card space-y-4">
-              <h3 className="font-semibold">Nueva Propuesta</h3>
+              <h3 className="font-semibold">{t('new_proposal', 'Nueva Propuesta')}</h3>
 
               <div>
-                <label className="label">Tipo de propuesta</label>
+                <label className="label">{t('proposal_type_label', 'Tipo de propuesta')}</label>
                 <select className="input" value={proposalType} onChange={(e) => { setProposalType(e.target.value as ProposalType); setProposalFields({}); setEntityModes({}) }}>
                   {Object.entries(PROPOSAL_LABELS).map(([k, v]) => (
                     <option key={k} value={k}>{v}</option>

@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import {
@@ -408,6 +409,7 @@ const BLOCK_DEFINITIONS: {
 ]
 
 export default function WebsiteAdmin() {
+  const { t } = useTranslation('website')
   const { hasPermission } = usePermissions()
 
   const [searchParams, setSearchParams] = useSearchParams()
@@ -638,7 +640,7 @@ export default function WebsiteAdmin() {
     setError('')
     setSuccess('')
     if (!pageMeta.title || !pageMeta.slug) {
-      setError('El título y el slug son obligatorios')
+      setError(t('title_slug_required', 'El título y el slug son obligatorios'))
       return
     }
 
@@ -650,14 +652,14 @@ export default function WebsiteAdmin() {
 
       if (selectedPage?.id) {
         await api.put(`/site/pages/${selectedPage.id}`, payload)
-        setSuccess('¡Página y módulos guardados con éxito!')
+        setSuccess(t('page_saved_success', '¡Página y módulos guardados con éxito!'))
       } else {
         await api.post('/site/pages', payload)
-        setSuccess('¡Página creada con éxito!')
+        setSuccess(t('page_created_success', '¡Página creada con éxito!'))
       }
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al guardar la página')
+      setError(err instanceof Error ? err.message : t('error_saving_page', 'Error al guardar la página'))
     }
   }
 
@@ -709,7 +711,7 @@ export default function WebsiteAdmin() {
   const applyAllFeriaTemplates = async () => {
     if (
       !confirm(
-        '¿Deseas aplicar la plantilla completa con todos los módulos y fotos prediseñadas? Esto actualizará las páginas públicas existentes con el diseño enriquecido.'
+        t('template_confirm', '¿Deseas aplicar la plantilla completa con todos los módulos y fotos prediseñadas? Esto actualizará las páginas públicas existentes con el diseño enriquecido.')
       )
     )
       return
@@ -736,10 +738,10 @@ export default function WebsiteAdmin() {
           await api.post('/site/pages', payload)
         }
       }
-      setSuccess('¡Plantilla modular viva aplicada con éxito a todas las páginas!')
+      setSuccess(t('template_applied', '¡Plantilla modular viva aplicada con éxito a todas las páginas!'))
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al aplicar plantillas')
+      setError(err instanceof Error ? err.message : t('template_error', 'Error al aplicar plantillas'))
     }
   }
 
@@ -749,7 +751,7 @@ export default function WebsiteAdmin() {
     setSuccess('')
     try {
       await api.put('/site/settings', settingsForm)
-      setSuccess('¡Ajustes del sitio y estilo de menú guardados con éxito!')
+      setSuccess(t('settings_saved', '¡Ajustes del sitio y estilo de menú guardados con éxito!'))
       // Actualizar favicon dinamicamente si el logo cambio
       if (settingsForm.logo_url) {
         document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]').forEach(el => el.remove())
@@ -763,7 +765,7 @@ export default function WebsiteAdmin() {
       }
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al guardar')
+      setError(err instanceof Error ? err.message : t('settings_error', 'Error al guardar'))
     }
   }
 
@@ -787,10 +789,10 @@ export default function WebsiteAdmin() {
         })
       }
       setAdmissionTranslations(prev => ({ ...prev, [adminEditLang]: true }))
-      setSuccess('¡Formulario de admisión personalizado guardado con éxito!')
+      setSuccess(t('form_saved', '¡Formulario de admisión personalizado guardado con éxito!'))
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al guardar el formulario')
+      setError(err instanceof Error ? err.message : t('form_error', 'Error al guardar el formulario'))
     }
   }
 
@@ -896,10 +898,10 @@ export default function WebsiteAdmin() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 flex items-center gap-2.5">
             <Globe className="text-emerald-700" size={28} />
-            Administración del Sitio Web Público
+            {t('title', 'Administración del Sitio Web Público')}
           </h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">
-            Editor visual modular de páginas, constructor de formulario de admisión y estilos de menú.
+            {t('subtitle', 'Editor visual modular de páginas, constructor de formulario de admisión y estilos de menú.')}
           </p>
         </div>
 
@@ -911,12 +913,12 @@ export default function WebsiteAdmin() {
             className="btn-secondary text-xs sm:text-sm flex items-center gap-1.5"
           >
             <Eye size={16} />
-            Ver Sitio Público
+            {t('view_public_site', 'Ver Sitio Público')}
           </a>
           <button
             onClick={() => setShowHelp(!showHelp)}
             className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition"
-            title="Ayuda"
+            title={t('help', 'Ayuda')}
           >
             <HelpCircle size={22} />
           </button>
@@ -951,7 +953,7 @@ export default function WebsiteAdmin() {
           }`}
         >
           <FileText size={16} />
-          Páginas del Sitio ({pages.length})
+          {t('tab_pages', 'Páginas del Sitio ({{count}})', { count: pages.length })}
         </button>
 
         {selectedPage && (
@@ -964,7 +966,7 @@ export default function WebsiteAdmin() {
             }`}
           >
             <Layers size={16} />
-            Editor Modular: <span className="text-amber-300 font-normal">{pageMeta.title || selectedPage.title}</span>
+            {t('tab_builder', 'Editor Modular: {{title}}', { title: pageMeta.title || selectedPage.title })}
           </button>
         )}
 
@@ -977,7 +979,7 @@ export default function WebsiteAdmin() {
           }`}
         >
           <Sliders size={16} />
-          Estilos de Menú y Ajustes
+          {t('tab_settings', 'Estilos de Menú y Ajustes')}
         </button>
 
         <button
@@ -989,7 +991,7 @@ export default function WebsiteAdmin() {
           }`}
         >
           <Mail size={16} />
-          Admisión & Formulario Dinámico ({admissionRequests.filter((r) => r.status === 'pending' || r.status === 'pending_review').length} pendientes)
+          {t('tab_admission', 'Admisión & Formulario Dinámico ({{count}} pendientes)', { count: admissionRequests.filter((r) => r.status === 'pending' || r.status === 'pending_review').length })}
         </button>
       </div>
 
@@ -1000,8 +1002,8 @@ export default function WebsiteAdmin() {
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900">Estructura de Páginas Públicas</h2>
-              <p className="text-xs text-gray-500">Haz clic en "Editar Módulos" para personalizar los bloques de cada página.</p>
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">{t('pages_structure_title', 'Estructura de Páginas Públicas')}</h2>
+              <p className="text-xs text-gray-500">{t('pages_structure_desc', 'Haz clic en "Editar Módulos" para personalizar los bloques de cada página.')}</p>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -1011,7 +1013,7 @@ export default function WebsiteAdmin() {
                 title="Cargar todas las plantillas ricas prediseñadas"
               >
                 <RotateCcw size={15} className="text-amber-600" />
-                Cargar Plantilla Viva
+                {t('load_template', 'Cargar Plantilla Viva')}
               </button>
 
               <button
@@ -1029,7 +1031,7 @@ export default function WebsiteAdmin() {
                 className="btn-primary text-xs sm:text-sm flex items-center gap-1.5"
               >
                 <Plus size={16} />
-                Nueva Página
+                {t('new_page', 'Nueva Página')}
               </button>
             </div>
           </div>
@@ -1042,9 +1044,9 @@ export default function WebsiteAdmin() {
                 className="w-full flex items-center gap-2 p-4 text-left hover:bg-gray-50 transition"
               >
                 <Menu size={16} className="text-emerald-700" />
-                <span className="text-sm font-bold text-gray-800">Orden del Menú</span>
+                <span className="text-sm font-bold text-gray-800">{t('menu_order', 'Orden del Menú')}</span>
                 <span className="text-xs font-normal text-gray-400">
-                  ({pages.filter(p => p.show_in_menu).length} páginas{menuOrderOpen ? '' : ' — clic para desplegar'})
+                  {t('menu_order_hint', '({{count}} páginas{{suffix}})', { count: pages.filter(p => p.show_in_menu).length, suffix: menuOrderOpen ? '' : t('menu_order_click_expand', ' — clic para desplegar') })}
                 </span>
                 <span className="ml-auto">
                   {menuOrderOpen
@@ -1054,7 +1056,7 @@ export default function WebsiteAdmin() {
               </button>
               {menuOrderOpen && (
                 <div className="px-4 pb-4 space-y-1">
-                  <p className="text-xs text-gray-400 mb-2">Usa las flechas para reordenar</p>
+                  <p className="text-xs text-gray-400 mb-2">{t('menu_order_use_arrows', 'Usa las flechas para reordenar')}</p>
                   {[...pages]
                     .filter(p => p.show_in_menu)
                     .sort((a, b) => (a.menu_order || 0) - (b.menu_order || 0))
@@ -1074,10 +1076,10 @@ export default function WebsiteAdmin() {
                               await api.put(`/site/pages/${p.id}`, { ...p, menu_order: prev.menu_order })
                               await api.put(`/site/pages/${prev.id}`, { ...prev, menu_order: p.menu_order })
                               load()
-                            } catch (err) { setError('Error al reordenar') }
+                            } catch (err) { setError(t('error_reorder', 'Error al reordenar')) }
                           }}
                           className="p-1 rounded hover:bg-emerald-200 text-emerald-700 disabled:opacity-20 disabled:cursor-not-allowed"
-                          title="Subir"
+                          title={t('move_up', 'Subir')}
                         >
                           <ChevronUp size={16} />
                         </button>
@@ -1091,10 +1093,10 @@ export default function WebsiteAdmin() {
                               await api.put(`/site/pages/${p.id}`, { ...p, menu_order: next.menu_order })
                               await api.put(`/site/pages/${next.id}`, { ...next, menu_order: p.menu_order })
                               load()
-                            } catch (err) { setError('Error al reordenar') }
+                            } catch (err) { setError(t('error_reorder', 'Error al reordenar')) }
                           }}
                           className="p-1 rounded hover:bg-emerald-200 text-emerald-700 disabled:opacity-20 disabled:cursor-not-allowed"
-                          title="Bajar"
+                          title={t('move_down', 'Bajar')}
                         >
                           <ChevronDown size={16} />
                         </button>
@@ -1131,7 +1133,7 @@ export default function WebsiteAdmin() {
                           p.is_published ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600'
                         }`}
                       >
-                        {p.is_published ? 'Publicada' : 'Borrador'}
+                        {p.is_published ? t('published', 'Publicada') : t('draft', 'Borrador')}
                       </span>
                     </div>
 
@@ -1144,9 +1146,9 @@ export default function WebsiteAdmin() {
 
                     <div className="flex items-center gap-2 text-xs text-gray-400 pt-1">
                       <Layers size={14} className="text-emerald-700" />
-                      <span>{moduleCount} {moduleCount === 1 ? 'módulo' : 'módulos'}</span>
+                      <span>{moduleCount} {moduleCount === 1 ? t('module', 'módulo') : t('modules', 'módulos')}</span>
                       <span>•</span>
-                      <span>Orden: #{p.menu_order}</span>
+                      <span>{t('order_label', 'Orden: #{{order}}', { order: p.menu_order })}</span>
                     </div>
                   </div>
 
@@ -1156,7 +1158,7 @@ export default function WebsiteAdmin() {
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs"
                     >
                       <Edit size={14} />
-                      Editar Módulos
+                      {t('edit_modules', 'Editar Módulos')}
                     </button>
 
                     <a
@@ -1164,7 +1166,7 @@ export default function WebsiteAdmin() {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="p-1.5 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition"
-                      title="Ver en vivo"
+                      title={t('view_live', 'Ver en vivo')}
                     >
                       <Eye size={16} />
                     </a>
@@ -1187,11 +1189,11 @@ export default function WebsiteAdmin() {
                 onClick={() => changeTab('pages')}
                 className="p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg text-xs font-semibold"
               >
-                ← Volver a lista
+                ← {t('back_to_list', 'Volver a lista')}
               </button>
               <div>
                 <h2 className="text-base sm:text-lg font-bold text-gray-900">
-                  Editando: <span className="text-emerald-800">{pageMeta.title}</span>
+                  {t('editing', 'Editando: {{title}}', { title: pageMeta.title })}
                 </h2>
                 <p className="text-xs text-gray-500 font-mono">/p/{pageMeta.slug}</p>
               </div>
@@ -1207,13 +1209,13 @@ export default function WebsiteAdmin() {
                 }`}
               >
                 <Eye size={15} />
-                {previewMode ? 'Modo Editor' : 'Vista Previa'}
+                {previewMode ? t('editor_mode', 'Modo Editor') : t('preview_mode', 'Vista Previa')}
               </button>
 
               <button
                 onClick={() => setRawJsonMode(!rawJsonMode)}
                 className="px-3 py-2 rounded-xl text-xs font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition flex items-center gap-1"
-                title="Editar JSON sin formato"
+                title={t('edit_json', 'Editar JSON sin formato')}
               >
                 <Code size={15} />
                 JSON
@@ -1224,7 +1226,7 @@ export default function WebsiteAdmin() {
                 className="btn-primary text-xs sm:text-sm flex items-center gap-1.5 shadow"
               >
                 <Save size={16} />
-                Guardar Módulos
+                {t('save_modules', 'Guardar Módulos')}
               </button>
             </div>
           </div>
@@ -1234,17 +1236,17 @@ export default function WebsiteAdmin() {
               <div className="border-b border-gray-200 pb-3 mb-6 flex items-center justify-between text-xs text-gray-500">
                 <span className="font-bold text-gray-700 flex items-center gap-1.5">
                   <Eye size={15} className="text-amber-500" />
-                  Vista Previa en Vivo de /p/{pageMeta.slug}
+                  {t('preview_live', 'Vista Previa en Vivo de /p/{{slug}}', { slug: pageMeta.slug })}
                 </span>
                 <span className="bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded font-semibold">
-                  {blocks.length} módulos cargados
+                  {t('modules_loaded', '{{count}} módulos cargados', { count: blocks.length })}
                 </span>
               </div>
               <PageBlocksRenderer content={JSON.stringify(blocks)} />
             </div>
           ) : rawJsonMode ? (
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 space-y-4">
-              <h3 className="font-bold text-sm text-gray-800">Editor Directo de Bloques JSON</h3>
+              <h3 className="font-bold text-sm text-gray-800">{t('json_editor_title', 'Editor Directo de Bloques JSON')}</h3>
               <textarea
                 rows={18}
                 className="input font-mono text-xs w-full leading-relaxed"
@@ -1263,11 +1265,11 @@ export default function WebsiteAdmin() {
                 <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 space-y-3">
                   <h3 className="font-bold text-sm text-gray-900 flex items-center gap-1.5">
                     <FileText size={16} className="text-emerald-700" />
-                    Propiedades de la Página
+                    {t('page_properties', 'Propiedades de la Página')}
                   </h3>
 
                   <div>
-                    <label className="label text-xs font-semibold">Título de la Página</label>
+                    <label className="label text-xs font-semibold">{t('page_title_label', 'Título de la Página')}</label>
                     <input
                       className="input text-sm"
                       value={pageMeta.title}
@@ -1276,7 +1278,7 @@ export default function WebsiteAdmin() {
                   </div>
 
                   <div>
-                    <label className="label text-xs font-semibold">Subtítulo Descriptivo</label>
+                    <label className="label text-xs font-semibold">{t('page_subtitle_label', 'Subtítulo Descriptivo')}</label>
                     <input
                       className="input text-sm"
                       value={pageMeta.subtitle}
@@ -1286,7 +1288,7 @@ export default function WebsiteAdmin() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="label text-xs font-semibold">Slug (URL)</label>
+                      <label className="label text-xs font-semibold">{t('slug_label', 'Slug (URL)')}</label>
                       <input
                         className="input text-sm font-mono"
                         value={pageMeta.slug}
@@ -1294,7 +1296,7 @@ export default function WebsiteAdmin() {
                       />
                     </div>
                     <div>
-                      <label className="label text-xs font-semibold">Orden en Menú</label>
+                      <label className="label text-xs font-semibold">{t('menu_order_label', 'Orden en Menú')}</label>
                       <input
                         type="number"
                         className="input text-sm"
@@ -1313,7 +1315,7 @@ export default function WebsiteAdmin() {
                         checked={pageMeta.show_in_menu}
                         onChange={(e) => setPageMeta({ ...pageMeta, show_in_menu: e.target.checked })}
                       />
-                      Mostrar en Menú
+                      {t('show_in_menu', 'Mostrar en Menú')}
                     </label>
 
                     <label className="flex items-center gap-2 text-xs font-medium text-gray-700">
@@ -1322,7 +1324,7 @@ export default function WebsiteAdmin() {
                         checked={pageMeta.is_published}
                         onChange={(e) => setPageMeta({ ...pageMeta, is_published: e.target.checked })}
                       />
-                      Publicada
+                      {t('published_label', 'Publicada')}
                     </label>
                   </div>
                 </div>
@@ -1331,26 +1333,26 @@ export default function WebsiteAdmin() {
                   <div className="flex items-center justify-between">
                     <h3 className="font-bold text-sm text-gray-900 flex items-center gap-1.5">
                       <Layers size={16} className="text-emerald-700" />
-                      Módulos en esta Página ({blocks.length})
+                      {t('modules_in_page', 'Módulos en esta Página ({{count}})', { count: blocks.length })}
                     </h3>
                     <button
                       onClick={() => setShowAddBlockModal(true)}
                       className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-emerald-800 text-white text-xs font-bold hover:bg-emerald-700 transition shadow-xs"
                     >
                       <Plus size={14} />
-                      Añadir Módulo
+                      {t('add_module', 'Añadir Módulo')}
                     </button>
                   </div>
 
                   {blocks.length === 0 ? (
                     <div className="text-center py-8 text-gray-400 text-xs border-2 border-dashed border-gray-200 rounded-xl space-y-2">
                       <Layers size={28} className="mx-auto text-gray-300" />
-                      <p>Esta página no tiene módulos aún.</p>
+                      <p>{t('no_modules_yet', 'Esta página no tiene módulos aún.')}</p>
                       <button
                         onClick={() => setShowAddBlockModal(true)}
                         className="text-emerald-800 font-bold hover:underline"
                       >
-                        Añadir el primer módulo
+                        {t('add_first_module', 'Añadir el primer módulo')}
                       </button>
                     </div>
                   ) : (
@@ -1392,7 +1394,7 @@ export default function WebsiteAdmin() {
                                 onClick={() => moveBlock(idx, 'up')}
                                 disabled={idx === 0}
                                 className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-20"
-                                title="Mover arriba"
+                                title={t('move_up_tooltip', 'Mover arriba')}
                               >
                                 <ArrowUp size={14} />
                               </button>
@@ -1400,21 +1402,21 @@ export default function WebsiteAdmin() {
                                 onClick={() => moveBlock(idx, 'down')}
                                 disabled={idx === blocks.length - 1}
                                 className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-20"
-                                title="Mover abajo"
+                                title={t('move_down_tooltip', 'Mover abajo')}
                               >
                                 <ArrowDown size={14} />
                               </button>
                               <button
                                 onClick={() => duplicateBlock(idx)}
                                 className="p-1 text-gray-400 hover:text-blue-600"
-                                title="Duplicar módulo"
+                                title={t('duplicate_module', 'Duplicar módulo')}
                               >
                                 <Copy size={14} />
                               </button>
                               <button
                                 onClick={() => deleteBlock(idx)}
                                 className="p-1 text-gray-400 hover:text-red-600"
-                                title="Eliminar módulo"
+                                title={t('delete_module', 'Eliminar módulo')}
                               >
                                 <Trash2 size={14} />
                               </button>
@@ -1433,17 +1435,17 @@ export default function WebsiteAdmin() {
                     <div className="flex items-center justify-between border-b border-gray-200 pb-3">
                       <div>
                         <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block">
-                          Módulo #{editingBlockIndex + 1}
+                          {t('module_number', 'Módulo #{{number}}', { number: editingBlockIndex + 1 })}
                         </span>
                         <h3 className="font-bold text-base text-gray-900">
-                          Personalizar {BLOCK_DEFINITIONS.find((d) => d.type === blocks[editingBlockIndex].type)?.name}
+                          {t('customize', 'Personalizar {{name}}', { name: BLOCK_DEFINITIONS.find((d) => d.type === blocks[editingBlockIndex].type)?.name })}
                         </h3>
                       </div>
                       <button
                         onClick={() => setEditingBlockIndex(null)}
                         className="text-xs text-gray-500 hover:text-gray-800"
                       >
-                        Cerrar editor
+                        {t('close_editor', 'Cerrar editor')}
                       </button>
                     </div>
 
@@ -1459,9 +1461,9 @@ export default function WebsiteAdmin() {
                 ) : (
                   <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-gray-200 text-gray-400 space-y-3">
                     <Layers size={40} className="mx-auto text-gray-300" />
-                    <h4 className="font-bold text-gray-600 text-base">Selecciona un módulo para editarlo</h4>
+                    <h4 className="font-bold text-gray-600 text-base">{t('select_module_to_edit', 'Selecciona un módulo para editarlo')}</h4>
                     <p className="text-xs text-gray-500 max-w-sm mx-auto">
-                      Haz clic en cualquier módulo de la lista izquierda para modificar sus títulos, imágenes, tarjetas y textos en tiempo real.
+                      {t('select_module_hint', 'Haz clic en cualquier módulo de la lista izquierda para modificar sus títulos, imágenes, tarjetas y textos en tiempo real.')}
                     </p>
                   </div>
                 )}
@@ -1477,16 +1479,16 @@ export default function WebsiteAdmin() {
       {tab === 'settings' && (
         <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-gray-200 space-y-8 max-w-4xl">
           <div className="border-b border-gray-200 pb-4">
-            <h2 className="text-xl font-bold text-gray-900">Estilos de Menú y Ajustes de Identidad</h2>
+            <h2 className="text-xl font-bold text-gray-900">{t('settings_title', 'Estilos de Menú y Ajustes de Identidad')}</h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              Elige cómo se ve la cabecera y navegación del portal inspirada en FAO, Mincyt, Ecoaldeas y Revistas Agroecológicas.
+              {t('settings_desc', 'Elige cómo se ve la cabecera y navegación del portal.')}
             </p>
           </div>
 
           <div className="space-y-3">
             <h3 className="font-bold text-sm text-gray-900 flex items-center gap-2">
               <Layout size={18} className="text-emerald-800" />
-              Selecciona el Estilo de Menú y Cabecera
+              {t('select_header_style', 'Selecciona el Estilo de Menú y Cabecera')}
             </h3>
 
             <div className="grid sm:grid-cols-2 gap-3">
@@ -1527,10 +1529,10 @@ export default function WebsiteAdmin() {
           <div className="space-y-3 pt-2 border-t border-gray-200">
             <h3 className="font-bold text-sm text-gray-900 flex items-center gap-2">
               <Sparkles size={16} className="text-amber-500" />
-              Barra Superior de Avisos & Encuentros
+              {t('announcement_bar_title', 'Barra Superior de Avisos & Encuentros')}
             </h3>
             <div>
-              <label className="label text-xs font-semibold">Texto del Aviso</label>
+              <label className="label text-xs font-semibold">{t('announcement_text_label', 'Texto del Aviso')}</label>
               <input
                 className="input text-sm"
                 value={settingsForm.announcement_text}
@@ -1543,15 +1545,15 @@ export default function WebsiteAdmin() {
                 checked={settingsForm.show_announcement}
                 onChange={(e) => setSettingsForm({ ...settingsForm, show_announcement: e.target.checked })}
               />
-              Mostrar barra superior de avisos
+              {t('show_announcement', 'Mostrar barra superior de avisos')}
             </label>
           </div>
 
           <div className="space-y-4 pt-2 border-t border-gray-200">
-            <h3 className="font-bold text-sm text-gray-900">Datos de Identidad</h3>
+            <h3 className="font-bold text-sm text-gray-900">{t('identity_data_title', 'Datos de Identidad')}</h3>
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
-                <label className="label font-semibold text-xs">Título del Portal *</label>
+                <label className="label font-semibold text-xs">{t('site_title_label', 'Título del Portal *')}</label>
                 <input
                   className="input"
                   value={settingsForm.site_title}
@@ -1559,7 +1561,7 @@ export default function WebsiteAdmin() {
                 />
               </div>
               <div>
-                <label className="label font-semibold text-xs">Subtítulo / Slogan</label>
+                <label className="label font-semibold text-xs">{t('site_subtitle_label', 'Subtítulo / Slogan')}</label>
                 <input
                   className="input"
                   value={settingsForm.site_subtitle}
@@ -1569,7 +1571,7 @@ export default function WebsiteAdmin() {
             </div>
 
             <div>
-              <label className="label font-semibold text-xs">URL del Logotipo</label>
+              <label className="label font-semibold text-xs">{t('logo_url_label', 'URL del Logotipo')}</label>
               <input
                 className="input text-sm"
                 placeholder="https://ejemplo.com/logo.png"
@@ -1580,7 +1582,7 @@ export default function WebsiteAdmin() {
 
             <div className="grid sm:grid-cols-2 gap-4 pt-1">
               <div>
-                <label className="label font-semibold text-xs">Color Primario</label>
+                <label className="label font-semibold text-xs">{t('primary_color_label', 'Color Primario')}</label>
                 <div className="flex items-center gap-3">
                   <input
                     type="color"
@@ -1597,7 +1599,7 @@ export default function WebsiteAdmin() {
               </div>
 
               <div>
-                <label className="label font-semibold text-xs">Color Secundario</label>
+                <label className="label font-semibold text-xs">{t('secondary_color_label', 'Color Secundario')}</label>
                 <div className="flex items-center gap-3">
                   <input
                     type="color"
@@ -1617,11 +1619,11 @@ export default function WebsiteAdmin() {
 
           {/* Footer Settings */}
           <div className="card space-y-3">
-            <h3 className="font-bold text-sm text-gray-900">Pie de Página (Footer)</h3>
-            <p className="text-xs text-gray-500">Edita los textos que aparecen en el pie de página del sitio público.</p>
+            <h3 className="font-bold text-sm text-gray-900">{t('footer_title', 'Pie de Página (Footer)')}</h3>
+            <p className="text-xs text-gray-500">{t('footer_desc', 'Edita los textos que aparecen en el pie de página del sitio público.')}</p>
 
             <div>
-              <label className="label text-xs font-bold">Descripción del nodo (footer_about)</label>
+              <label className="label text-xs font-bold">{t('footer_about_label', 'Descripción del nodo (footer_about)')}</label>
               <textarea
                 rows={3}
                 className="input text-xs"
@@ -1632,7 +1634,7 @@ export default function WebsiteAdmin() {
             </div>
 
             <div>
-              <label className="label text-xs font-bold">Horario del footer (footer_schedule)</label>
+              <label className="label text-xs font-bold">{t('footer_schedule_label', 'Horario del footer (footer_schedule)')}</label>
               <input
                 className="input text-xs"
                 value={settingsForm.footer_schedule}
@@ -1643,7 +1645,7 @@ export default function WebsiteAdmin() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label text-xs font-bold">Instagram (usuario sin @)</label>
+                <label className="label text-xs font-bold">{t('instagram_label', 'Instagram (usuario sin @)')}</label>
                 <input
                   className="input text-xs"
                   value={settingsForm.social_instagram}
@@ -1652,7 +1654,7 @@ export default function WebsiteAdmin() {
                 />
               </div>
               <div>
-                <label className="label text-xs font-bold">Facebook (nombre de página)</label>
+                <label className="label text-xs font-bold">{t('facebook_label', 'Facebook (nombre de página)')}</label>
                 <input
                   className="input text-xs"
                   value={settingsForm.social_facebook}
@@ -1663,7 +1665,7 @@ export default function WebsiteAdmin() {
             </div>
 
             <div>
-              <label className="label text-xs font-bold">Dirección (contact_address)</label>
+              <label className="label text-xs font-bold">{t('address_label', 'Dirección (contact_address)')}</label>
               <input
                 className="input text-xs"
                 value={settingsForm.contact_address}
@@ -1675,7 +1677,7 @@ export default function WebsiteAdmin() {
 
           <button onClick={saveSettings} className="btn-primary flex items-center gap-2 shadow">
             <Save size={18} />
-            Guardar Todos los Ajustes
+            {t('save_all_settings', 'Guardar Todos los Ajustes')}
           </button>
         </div>
       )}
@@ -1696,7 +1698,7 @@ export default function WebsiteAdmin() {
               }`}
             >
               <Mail size={15} />
-              Solicitudes Recibidas ({admissionRequests.length})
+              {t('admission_subtab_requests', 'Solicitudes Recibidas ({{count}})', { count: admissionRequests.length })}
             </button>
             <button
               onClick={() => setAdmissionSubTab('form_builder')}
@@ -1707,7 +1709,7 @@ export default function WebsiteAdmin() {
               }`}
             >
               <FormInput size={15} />
-              Constructor del Formulario Dinámico
+              {t('admission_subtab_form_builder', 'Constructor del Formulario Dinámico')}
             </button>
           </div>
 
@@ -1716,18 +1718,18 @@ export default function WebsiteAdmin() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">Postulaciones y Solicitudes de Admisión</h2>
-                  <p className="text-xs text-gray-500">Evalúa las respuestas de los solicitantes antes de elevar a asamblea.</p>
+                  <h2 className="text-lg font-bold text-gray-900">{t('admission_requests_title', 'Postulaciones y Solicitudes de Admisión')}</h2>
+                  <p className="text-xs text-gray-500">{t('admission_requests_desc', 'Evalúa las respuestas de los solicitantes antes de elevar a asamblea.')}</p>
                 </div>
                 <span className="text-xs text-gray-500">
-                  {admissionRequests.length} en total
+                  {t('admission_total', '{{count}} en total', { count: admissionRequests.length })}
                 </span>
               </div>
 
               {admissionRequests.length === 0 ? (
                 <div className="card text-center py-12 text-gray-500 space-y-2">
                   <Mail size={32} className="mx-auto text-gray-300" />
-                  <p>No hay solicitudes de admisión registradas todavía.</p>
+                  <p>{t('no_admission_requests', 'No hay solicitudes de admisión registradas todavía.')}</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -1771,14 +1773,14 @@ export default function WebsiteAdmin() {
                             }`}
                           >
                             {req.status === 'approved'
-                              ? 'Aprobada'
+                              ? t('status_approved', 'Aprobada')
                               : req.status === 'rejected'
-                              ? 'Rechazada'
+                              ? t('status_rejected', 'Rechazada')
                               : req.status === 'elevated_to_assembly'
-                              ? 'Elevada a Asamblea'
+                              ? t('status_elevated', 'Elevada a Asamblea')
                               : req.status === 'defense_pending'
-                              ? 'Defensa Pendiente'
-                              : 'Pendiente de Revisión'}
+                              ? t('status_defense_pending', 'Defensa Pendiente')
+                              : t('status_pending_review', 'Pendiente de Revisión')}
                           </span>
                         </div>
 
@@ -1786,7 +1788,7 @@ export default function WebsiteAdmin() {
                         {Object.keys(customAnswers).length > 0 ? (
                           <div className="space-y-2 bg-gray-50 p-4 rounded-xl border border-gray-100 text-xs">
                             <b className="text-gray-900 block border-b border-gray-200 pb-1">
-                              Respuestas del Formulario Personalizado:
+                              {t('custom_answers_title', 'Respuestas del Formulario Personalizado:')}
                             </b>
                             {Object.entries(customAnswers).map(([key, val]) => {
                               if (['full_name', 'email', 'phone'].includes(key)) return null
@@ -1812,7 +1814,7 @@ export default function WebsiteAdmin() {
                           <>
                             {req.skills && (
                               <div className="text-xs text-gray-700">
-                                <b className="text-gray-900 block mb-0.5">Producción / Saberes que aporta:</b>
+                                <b className="text-gray-900 block mb-0.5">{t('skills_label', 'Producción / Saberes que aporta:')}</b>
                                 <p className="bg-gray-50 p-2.5 rounded-xl border border-gray-100 leading-relaxed">
                                   {req.skills}
                                 </p>
@@ -1821,7 +1823,7 @@ export default function WebsiteAdmin() {
 
                             {req.reason && (
                               <div className="text-xs text-gray-700">
-                                <b className="text-gray-900 block mb-0.5">Motivo para unirse:</b>
+                                <b className="text-gray-900 block mb-0.5">{t('reason_label', 'Motivo para unirse:')}</b>
                                 <p className="bg-gray-50 p-2.5 rounded-xl border border-gray-100 leading-relaxed">
                                   {req.reason}
                                 </p>
@@ -1837,14 +1839,14 @@ export default function WebsiteAdmin() {
                               className="btn-primary text-xs flex items-center gap-1.5"
                             >
                               <CheckCircle size={14} />
-                              Elevar a Asamblea
+                              {t('elevate_to_assembly', 'Elevar a Asamblea')}
                             </button>
                             <button
                               onClick={() => rejectAdmission(req.id)}
                               className="btn-secondary text-xs text-red-600 hover:bg-red-50 flex items-center gap-1.5 border-red-200"
                             >
                               <XCircle size={14} />
-                              Rechazar
+                              {t('reject', 'Rechazar')}
                             </button>
                           </div>
                         )}
@@ -1852,8 +1854,8 @@ export default function WebsiteAdmin() {
                         {req.status === 'defense_pending' && (
                           <div className="space-y-3 pt-2 border-t border-gray-100">
                             <div className="text-xs text-purple-700 bg-purple-50 p-3 rounded-xl border border-purple-200">
-                              <b>Defensa del postulante:</b>
-                              <p className="mt-1 italic">{req.defense_text || 'Sin texto'}</p>
+                              <b>{t('defense_label', 'Defensa del postulante:')}</b>
+                              <p className="mt-1 italic">{req.defense_text || t('no_defense_text', 'Sin texto')}</p>
                             </div>
                             <div className="flex gap-2">
                               <button
@@ -1861,14 +1863,14 @@ export default function WebsiteAdmin() {
                                 className="btn-primary text-xs flex items-center gap-1.5"
                               >
                                 <CheckCircle size={14} />
-                                Aceptar Defensa y Elevar
+                                {t('accept_defense', 'Aceptar Defensa y Elevar')}
                               </button>
                               <button
                                 onClick={() => reviewDefense(req.id, 'reject')}
                                 className="btn-secondary text-xs text-red-600 hover:bg-red-50 flex items-center gap-1.5 border-red-200"
                               >
                                 <XCircle size={14} />
-                                Rechazar Defensa
+                                {t('reject_defense', 'Rechazar Defensa')}
                               </button>
                             </div>
                           </div>
@@ -1876,11 +1878,11 @@ export default function WebsiteAdmin() {
 
                         {req.status === 'rejected' && req.rejection_reason && (
                           <div className="text-xs text-red-700 bg-red-50 p-3 rounded-xl border border-red-200 pt-2">
-                            <b>Motivo del rechazo:</b>
+                            <b>{t('rejection_reason_label', 'Motivo del rechazo:')}</b>
                             <p className="mt-1">{req.rejection_reason}</p>
                             {req.rejection_expires_at && (
                               <p className="mt-1 text-red-500">
-                                Expira: {new Date(req.rejection_expires_at).toLocaleDateString()}
+                                {t('expires_label', 'Expira:')} {new Date(req.rejection_expires_at).toLocaleDateString()}
                               </p>
                             )}
                           </div>
@@ -1901,15 +1903,15 @@ export default function WebsiteAdmin() {
                   <div>
                     <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                       <FormInput size={20} className="text-emerald-800" />
-                      Constructor de Preguntas y Formulario de Admisión
+                      {t('form_builder_title', 'Constructor de Preguntas y Formulario de Admisión')}
                     </h2>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      Diseña libremente los campos que llenarán los aspirantes en <span className="font-mono">/p/unirse</span>.
+                      {t('form_builder_desc', 'Diseña libremente los campos que llenarán los aspirantes en /p/unirse.')}
                     </p>
                     {/* Selector de idioma para el formulario */}
                     {adminLanguages.length > 1 && (
                       <div className="flex items-center gap-1 mt-2">
-                        <span className="text-xs text-gray-400 mr-1">Idioma:</span>
+                        <span className="text-xs text-gray-400 mr-1">{t('language_label', 'Idioma:')}</span>
                         {adminLanguages.map((l) => (
                           <button
                             key={l.code}
@@ -1944,7 +1946,7 @@ export default function WebsiteAdmin() {
                       title="Cargar formulario predeterminado"
                     >
                       <RotateCcw size={13} />
-                      Restablecer Preguntas
+                      {t('restore_questions', 'Restablecer Preguntas')}
                     </button>
 
                     <button
@@ -1952,7 +1954,7 @@ export default function WebsiteAdmin() {
                       className="btn-primary text-xs flex items-center gap-1.5 shadow"
                     >
                       <Save size={14} />
-                      Guardar Formulario
+                      {t('save_form', 'Guardar Formulario')}
                     </button>
                   </div>
                 </div>
@@ -1960,7 +1962,7 @@ export default function WebsiteAdmin() {
                 {/* Form Title & Subtitle */}
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="label text-xs font-semibold">Título Principal del Formulario</label>
+                    <label className="label text-xs font-semibold">{t('form_title_label', 'Título Principal del Formulario')}</label>
                     <input
                       className="input text-sm"
                       value={formConfig.title}
@@ -1968,7 +1970,7 @@ export default function WebsiteAdmin() {
                     />
                   </div>
                   <div>
-                    <label className="label text-xs font-semibold">Subtítulo Explicativo</label>
+                    <label className="label text-xs font-semibold">{t('form_subtitle_label', 'Subtítulo Explicativo')}</label>
                     <input
                       className="input text-sm"
                       value={formConfig.subtitle}
@@ -1981,14 +1983,14 @@ export default function WebsiteAdmin() {
                 <div className="space-y-3 pt-2">
                   <div className="flex items-center justify-between">
                     <h3 className="font-bold text-sm text-gray-900">
-                      Preguntas / Campos del Formulario ({formConfig.schema.length})
+                      {t('form_fields_title', 'Preguntas / Campos del Formulario ({{count}})', { count: formConfig.schema.length })}
                     </h3>
                     <button
                       onClick={() => addFormField('text')}
                       className="btn-primary text-xs flex items-center gap-1 py-1.5 px-3"
                     >
                       <Plus size={14} />
-                      Añadir Nueva Pregunta
+                      {t('add_new_question', 'Añadir Nueva Pregunta')}
                     </button>
                   </div>
 
@@ -2012,10 +2014,10 @@ export default function WebsiteAdmin() {
                               </span>
                               <div className="min-w-0">
                                 <b className="text-xs sm:text-sm text-gray-900 block truncate">
-                                  {f.label || 'Campo sin título'}
+                                  {f.label || t('untitled_field', 'Campo sin título')}
                                 </b>
                                 <span className="text-[11px] text-gray-500 font-mono">
-                                  Tipo: {f.type} {f.required && '• (Obligatorio *)'}
+                                  {t('field_type_label', 'Tipo: {{type}}', { type: f.type })} {f.required && t('required_marker', '• (Obligatorio *)')}
                                 </span>
                               </div>
                             </div>
@@ -2025,13 +2027,13 @@ export default function WebsiteAdmin() {
                                 onClick={() => setEditingFieldIndex(isEditing ? null : idx)}
                                 className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white border border-gray-200 hover:bg-gray-100 text-gray-700"
                               >
-                                {isEditing ? 'Cerrar' : 'Editar'}
+                                {isEditing ? t('close', 'Cerrar') : t('edit', 'Editar')}
                               </button>
                               <button
                                 onClick={() => moveFormField(idx, 'up')}
                                 disabled={idx === 0}
                                 className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-20"
-                                title="Mover arriba"
+                                title={t('move_up_tooltip', 'Mover arriba')}
                               >
                                 <ArrowUp size={14} />
                               </button>
@@ -2039,14 +2041,14 @@ export default function WebsiteAdmin() {
                                 onClick={() => moveFormField(idx, 'down')}
                                 disabled={idx === formConfig.schema.length - 1}
                                 className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-20"
-                                title="Mover abajo"
+                                title={t('move_down_tooltip', 'Mover abajo')}
                               >
                                 <ArrowDown size={14} />
                               </button>
                               <button
                                 onClick={() => deleteFormField(idx)}
                                 className="p-1 text-gray-400 hover:text-red-600"
-                                title="Eliminar campo"
+                                title={t('delete_field', 'Eliminar campo')}
                               >
                                 <Trash2 size={14} />
                               </button>
@@ -2058,7 +2060,7 @@ export default function WebsiteAdmin() {
                             <div className="pt-3 border-t border-gray-200 space-y-3 bg-white p-4 rounded-xl">
                               <div className="grid sm:grid-cols-2 gap-3">
                                 <div>
-                                  <label className="label text-xs font-semibold">Pregunta / Título del Campo</label>
+                                  <label className="label text-xs font-semibold">{t('field_question_label', 'Pregunta / Título del Campo')}</label>
                                   <input
                                     className="input text-xs"
                                     value={f.label}
@@ -2071,7 +2073,7 @@ export default function WebsiteAdmin() {
                                 </div>
 
                                 <div>
-                                  <label className="label text-xs font-semibold">Tipo de Respuesta</label>
+                                  <label className="label text-xs font-semibold">{t('field_response_type', 'Tipo de Respuesta')}</label>
                                   <select
                                     className="input text-xs bg-white"
                                     value={f.type}
@@ -2088,21 +2090,21 @@ export default function WebsiteAdmin() {
                                       setFormConfig({ ...formConfig, schema: updated })
                                     }}
                                   >
-                                    <option value="text">Texto Corto (Línea simple)</option>
-                                    <option value="textarea">Texto Largo / Párrafo</option>
-                                    <option value="select">Menú Desplegable</option>
-                                    <option value="radio">Selección Única (Botones circulares)</option>
-                                    <option value="checkbox">Selección Múltiple (Casillas)</option>
-                                    <option value="email">Correo Electrónico</option>
-                                    <option value="tel">Teléfono / WhatsApp</option>
-                                    <option value="number">Número</option>
+                                    <option value="text">{t('field_type_text', 'Texto Corto (Línea simple)')}</option>
+                                    <option value="textarea">{t('field_type_textarea', 'Texto Largo / Párrafo')}</option>
+                                    <option value="select">{t('field_type_select', 'Menú Desplegable')}</option>
+                                    <option value="radio">{t('field_type_radio', 'Selección Única (Botones circulares)')}</option>
+                                    <option value="checkbox">{t('field_type_checkbox', 'Selección Múltiple (Casillas)')}</option>
+                                    <option value="email">{t('field_type_email', 'Correo Electrónico')}</option>
+                                    <option value="tel">{t('field_type_tel', 'Teléfono / WhatsApp')}</option>
+                                    <option value="number">{t('field_type_number', 'Número')}</option>
                                   </select>
                                 </div>
                               </div>
 
                               <div className="grid sm:grid-cols-2 gap-3">
                                 <div>
-                                  <label className="label text-xs font-semibold">Texto de Ejemplo (Placeholder)</label>
+                                  <label className="label text-xs font-semibold">{t('placeholder_label', 'Texto de Ejemplo (Placeholder)')}</label>
                                   <input
                                     className="input text-xs"
                                     value={f.placeholder || ''}
@@ -2115,7 +2117,7 @@ export default function WebsiteAdmin() {
                                 </div>
 
                                 <div>
-                                  <label className="label text-xs font-semibold">Texto de Ayuda / Explicación</label>
+                                  <label className="label text-xs font-semibold">{t('help_text_label', 'Texto de Ayuda / Explicación')}</label>
                                   <input
                                     className="input text-xs"
                                     value={f.help_text || ''}
@@ -2133,7 +2135,7 @@ export default function WebsiteAdmin() {
                                 <div className="space-y-2 pt-2 border-t border-gray-100">
                                   <div className="flex items-center justify-between">
                                     <label className="label text-xs font-semibold">
-                                      Opciones Disponibles ({(f.options || []).length})
+                                      {t('options_label', 'Opciones Disponibles ({{count}})', { count: (f.options || []).length })}
                                     </label>
                                     <button
                                       type="button"
@@ -2145,7 +2147,7 @@ export default function WebsiteAdmin() {
                                       }}
                                       className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded"
                                     >
-                                      + Añadir Opción
+                                      {t('add_option', '+ Añadir Opción')}
                                     </button>
                                   </div>
 
@@ -2193,7 +2195,7 @@ export default function WebsiteAdmin() {
                                     }}
                                     className="accent-emerald-700"
                                   />
-                                  <span>Campo obligatorio para el solicitante (*)</span>
+                                  <span>{t('required_field', 'Campo obligatorio para el solicitante (*)')}</span>
                                 </label>
                               </div>
                             </div>
@@ -2210,7 +2212,7 @@ export default function WebsiteAdmin() {
                     className="btn-primary text-xs sm:text-sm flex items-center gap-1.5 shadow"
                   >
                     <Save size={16} />
-                    Guardar Configuración del Formulario
+                    {t('save_form_config', 'Guardar Configuración del Formulario')}
                   </button>
                 </div>
               </div>
@@ -2229,9 +2231,9 @@ export default function WebsiteAdmin() {
               <div>
                 <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                   <Plus size={20} className="text-emerald-800" />
-                  Añadir Nuevo Módulo a la Página
+                  {t('add_new_module', 'Añadir Nuevo Módulo a la Página')}
                 </h3>
-                <p className="text-xs text-gray-500">Selecciona entre los componentes visuales disponibles.</p>
+                <p className="text-xs text-gray-500">{t('select_component', 'Selecciona entre los componentes visuales disponibles.')}</p>
               </div>
               <button
                 onClick={() => setShowAddBlockModal(false)}
@@ -2276,6 +2278,7 @@ export default function WebsiteAdmin() {
 // LINK PICKER - Selector de enlaces con paginas internas, externas y anclas
 // -------------------------------------------------------------
 function LinkPicker({ value, onChange, label }: { value: string; onChange: (v: string) => void; label?: string }) {
+  const { t } = useTranslation('website')
   const [pages, setPages] = useState<any[]>([])
   const [mode, setMode] = useState<'internal' | 'external' | 'anchor'>('internal')
 
@@ -2302,19 +2305,19 @@ function LinkPicker({ value, onChange, label }: { value: string; onChange: (v: s
           onClick={() => setMode('internal')}
           className={`flex-1 px-2 py-1 text-[11px] rounded ${mode === 'internal' ? 'bg-white shadow text-emerald-700 font-medium' : 'text-gray-500'}`}
         >
-          Pagina interna
+          {t('link_picker_internal', 'Pagina interna')}
         </button>
         <button
           onClick={() => setMode('external')}
           className={`flex-1 px-2 py-1 text-[11px] rounded ${mode === 'external' ? 'bg-white shadow text-blue-700 font-medium' : 'text-gray-500'}`}
         >
-          URL externa
+          {t('link_picker_external', 'URL externa')}
         </button>
         <button
           onClick={() => setMode('anchor')}
           className={`flex-1 px-2 py-1 text-[11px] rounded ${mode === 'anchor' ? 'bg-white shadow text-purple-700 font-medium' : 'text-gray-500'}`}
         >
-          Ancla (#)
+          {t('link_picker_anchor', 'Ancla (#)')}
         </button>
       </div>
 
@@ -2324,7 +2327,7 @@ function LinkPicker({ value, onChange, label }: { value: string; onChange: (v: s
           value={value}
           onChange={(e) => onChange(e.target.value)}
         >
-          <option value="">Seleccionar pagina...</option>
+          <option value="">{t('link_picker_select_page', 'Seleccionar pagina...')}</option>
           {pages.map((p: any) => (
             <option key={p.id} value={`/p/${p.slug}`}>{p.title} (/p/{p.slug})</option>
           ))}
@@ -2355,7 +2358,7 @@ function LinkPicker({ value, onChange, label }: { value: string; onChange: (v: s
               onChange(e.target.value + (anchor ? `#${anchor}` : ''))
             }}
           >
-            <option value="">Misma pagina</option>
+            <option value="">{t('link_picker_same_page', 'Misma pagina')}</option>
             {pages.map((p: any) => (
               <option key={p.id} value={`/p/${p.slug}`}>{p.title}</option>
             ))}
@@ -2373,9 +2376,9 @@ function LinkPicker({ value, onChange, label }: { value: string; onChange: (v: s
         </div>
       )}
       <p className="text-[10px] text-gray-400">
-        {mode === 'internal' && 'Enlace a una pagina dentro del nodo.'}
-        {mode === 'external' && 'Enlace a otra pagina web (abre en nueva pestana).'}
-        {mode === 'anchor' && 'Salta a una seccion especifica dentro de una pagina (ej: #contacto).'}
+        {mode === 'internal' && t('link_picker_internal_desc', 'Enlace a una pagina dentro del nodo.')}
+        {mode === 'external' && t('link_picker_external_desc', 'Enlace a otra pagina web (abre en nueva pestana).')}
+        {mode === 'anchor' && t('link_picker_anchor_desc', 'Salta a una seccion especifica dentro de una pagina (ej: #contacto).')}
       </p>
     </div>
   )
@@ -2385,6 +2388,7 @@ function LinkPicker({ value, onChange, label }: { value: string; onChange: (v: s
 // DYNAMIC BLOCK CUSTOMIZER
 // -------------------------------------------------------------
 function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (updated: SiteBlock) => void }) {
+  const { t } = useTranslation('website')
   const updateField = (field: string, val: any) => {
     onChange({ ...block, [field]: val } as SiteBlock)
   }
@@ -2393,7 +2397,7 @@ function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (upd
     <div className="space-y-4 text-xs">
       {'title' in block && (
         <div>
-          <label className="label text-xs font-semibold">Título del Módulo</label>
+          <label className="label text-xs font-semibold">{t('block_title_label', 'Título del Módulo')}</label>
           <input
             className="input text-sm"
             value={block.title || ''}
@@ -2404,7 +2408,7 @@ function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (upd
 
       {'subtitle' in block && (
         <div>
-          <label className="label text-xs font-semibold">Subtítulo</label>
+          <label className="label text-xs font-semibold">{t('block_subtitle_label', 'Subtítulo')}</label>
           <input
             className="input text-sm"
             value={block.subtitle || ''}
@@ -2415,7 +2419,7 @@ function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (upd
 
       {'badge' in block && (
         <div>
-          <label className="label text-xs font-semibold">Insignia / Badge Superior</label>
+          <label className="label text-xs font-semibold">{t('block_badge_label', 'Insignia / Badge Superior')}</label>
           <input
             className="input text-sm"
             value={block.badge || ''}
@@ -2426,7 +2430,7 @@ function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (upd
 
       {'image_url' in block && (
         <div>
-          <label className="label text-xs font-semibold">URL de la Imagen</label>
+          <label className="label text-xs font-semibold">{t('block_image_url_label', 'URL de la Imagen')}</label>
           <input
             className="input text-sm"
             value={block.image_url || ''}
@@ -2437,7 +2441,7 @@ function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (upd
 
       {'description' in block && (
         <div>
-          <label className="label text-xs font-semibold">Descripción</label>
+          <label className="label text-xs font-semibold">{t('block_description_label', 'Descripción')}</label>
           <textarea
             rows={3}
             className="input text-sm"
@@ -2451,7 +2455,7 @@ function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (upd
       {block.type === 'hero' && (
         <div className="grid grid-cols-2 gap-3 pt-2">
           <div>
-            <label className="label text-xs font-semibold">Texto Botón Primario</label>
+            <label className="label text-xs font-semibold">{t('block_primary_cta_text', 'Texto Botón Primario')}</label>
             <input
               className="input text-sm"
               value={block.primary_cta?.text || ''}
@@ -2462,7 +2466,7 @@ function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (upd
           </div>
           <div>
             <LinkPicker
-              label="Enlace Botón Primario"
+              label={t('block_primary_cta_link', 'Enlace Botón Primario')}
               value={block.primary_cta?.link || ''}
               onChange={(v) => updateField('primary_cta', { ...block.primary_cta, link: v, text: block.primary_cta?.text || 'Ver Más' })}
             />
@@ -2474,7 +2478,7 @@ function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (upd
       {block.type === 'carousel' && (
         <div className="space-y-3 pt-2 border-t border-gray-100">
           <div className="flex items-center justify-between">
-            <h4 className="font-bold text-xs text-gray-800">Fotos del Carrusel ({block.items.length})</h4>
+            <h4 className="font-bold text-xs text-gray-800">{t('carousel_photos', 'Fotos del Carrusel ({{count}})', { count: block.items.length })}</h4>
             <button
               onClick={() => {
                 const newItems = [
@@ -2490,7 +2494,7 @@ function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (upd
               }}
               className="btn-secondary text-[11px] py-1 px-2.5"
             >
-              + Añadir Foto
+              {t('carousel_add_photo', '+ Añadir Foto')}
             </button>
           </div>
 
@@ -2498,7 +2502,7 @@ function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (upd
             {block.items.map((it, i) => (
               <div key={i} className="p-3 bg-gray-50 rounded-xl border border-gray-200 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-gray-700">Foto #{i + 1}</span>
+                  <span className="font-bold text-gray-700">{t('carousel_photo_number', 'Foto #{{number}}', { number: i + 1 })}</span>
                   <button
                     onClick={() => {
                       const newItems = block.items.filter((_, idx) => idx !== i)
@@ -2550,7 +2554,7 @@ function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (upd
       {/* RichText */}
       {block.type === 'richtext' && (
         <div>
-          <label className="label text-xs font-semibold">Contenido (Markdown / Texto)</label>
+          <label className="label text-xs font-semibold">{t('richtext_label', 'Contenido (Markdown / Texto)')}</label>
           <textarea
             rows={8}
             className="input text-xs font-mono"
@@ -2564,7 +2568,7 @@ function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (upd
       {block.type === 'faq' && (block as any).items && (
         <div className="space-y-3 pt-2 border-t border-gray-100">
           <div className="flex items-center justify-between">
-            <h4 className="font-bold text-xs text-gray-800">Preguntas y Respuestas ({(block as any).items.length})</h4>
+            <h4 className="font-bold text-xs text-gray-800">{t('faq_items_title', 'Preguntas y Respuestas ({{count}})', { count: (block as any).items.length })}</h4>
             <button
               onClick={() => {
                 const newItems = [
@@ -2575,7 +2579,7 @@ function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (upd
               }}
               className="btn-secondary text-[11px] py-1 px-2.5"
             >
-              + Añadir Pregunta
+              {t('faq_add_question', '+ Añadir Pregunta')}
             </button>
           </div>
 
@@ -2583,7 +2587,7 @@ function BlockCustomizer({ block, onChange }: { block: SiteBlock; onChange: (upd
             {(block as any).items.map((it: any, i: number) => (
               <div key={i} className="p-3 bg-gray-50 rounded-xl border border-gray-200 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-gray-700">Pregunta #{i + 1}</span>
+                  <span className="font-bold text-gray-700">{t('faq_question_number', 'Pregunta #{{number}}', { number: i + 1 })}</span>
                   <button
                     onClick={() => {
                       const newItems = (block as any).items.filter((_: any, idx: number) => idx !== i)

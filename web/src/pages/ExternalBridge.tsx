@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { Plus, Check, X, HelpCircle, Globe, Calculator, Save, Edit3, Info, Package, Building2, Wallet, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react'
@@ -7,6 +8,7 @@ import { EntitySelector } from '../components/EntitySelector'
 import { toCents, fmtNumber } from '../lib/format'
 
 export default function ExternalBridge() {
+  const { t } = useTranslation('external')
   const { currency } = useConfig()
   const [searchParams, setSearchParams] = useSearchParams()
   const [fc, setFc] = useState<any>(null)
@@ -105,7 +107,7 @@ export default function ExternalBridge() {
       setBankForm({ account_name: '', bank_name: '', account_number: '', currency: 'USD', balance: 0, is_cash: false, account_type: 'corriente', country: '' })
       load()
     } catch (e: any) {
-      alert(e.message || 'Error al guardar cuenta bancaria')
+      alert(e.message || t('error_save_bank', 'Error al guardar cuenta bancaria'))
     }
   }
 
@@ -125,12 +127,12 @@ export default function ExternalBridge() {
   }
 
   const deleteBankAccount = async (id: string) => {
-    if (!confirm('¿Eliminar esta cuenta? Se desactivara pero no se borrara el historial.')) return
+    if (!confirm(t('delete_account_confirm', '¿Eliminar esta cuenta? Se desactivara pero no se borrara el historial.'))) return
     try {
       await api.delete(`/external/bank-accounts/${id}`)
       load()
     } catch (e: any) {
-      alert(e.message || 'Error al eliminar cuenta')
+      alert(e.message || t('error_delete_account', 'Error al eliminar cuenta'))
     }
   }
 
@@ -155,7 +157,7 @@ export default function ExternalBridge() {
       setPurchaseForm({ product_name: '', quantity: 0, unit: 'kg', unit_cost_external: 0, currency: 'USD', bank_account_id: '', supplier: '', invoice_number: '', notes: '' })
       load()
     } catch (e: any) {
-      alert(e.message || 'Error al registrar compra')
+      alert(e.message || t('error_register_purchase', 'Error al registrar compra'))
     }
   }
 
@@ -170,7 +172,7 @@ export default function ExternalBridge() {
       setSaleForm({ product_name: '', quantity: 0, unit: 'kg', unit_price_external: 0, currency: 'USD', bank_account_id: '', buyer: '', notes: '' })
       load()
     } catch (e: any) {
-      alert(e.message || 'Error al registrar venta')
+      alert(e.message || t('error_register_sale', 'Error al registrar venta'))
     }
   }
 
@@ -195,7 +197,7 @@ export default function ExternalBridge() {
 
   const calculateFC = async () => {
     if (fcForm.basket_cost_external <= 0 || fcForm.basket_cost_local_tq <= 0) {
-      setFcMsg({ type: 'error', text: 'Ambos costos de la canasta deben ser mayores que cero' })
+      setFcMsg({ type: 'error', text: t('error_both_costs_positive', 'Ambos costos de la canasta deben ser mayores que cero') })
       return
     }
     try {
@@ -207,13 +209,13 @@ export default function ExternalBridge() {
       setFcPreview(res.factor)
       setFcMsg(null)
     } catch (e: any) {
-      setFcMsg({ type: 'error', text: e.message || 'Error al calcular' })
+      setFcMsg({ type: 'error', text: e.message || t('error_calculate', 'Error al calcular') })
     }
   }
 
   const saveFC = async () => {
     if (fcPreview === null || fcPreview <= 0) {
-      setFcMsg({ type: 'error', text: 'Primero calcula el FC antes de guardar' })
+      setFcMsg({ type: 'error', text: t('error_calculate_first', 'Primero calcula el FC antes de guardar') })
       return
     }
     setFcSaving(true)
@@ -224,12 +226,12 @@ export default function ExternalBridge() {
         basket_cost_external: fcForm.basket_cost_external,
         basket_cost_local_tq: fcForm.basket_cost_local_tq,
       })
-      setFcMsg({ type: 'success', text: 'FC guardado correctamente' })
+      setFcMsg({ type: 'success', text: t('success_fc_saved', 'FC guardado correctamente') })
       setShowFCForm(false)
       setFcPreview(null)
       load()
     } catch (e: any) {
-      setFcMsg({ type: 'error', text: e.message || 'Error al guardar. Necesitas permisos de administrador.' })
+      setFcMsg({ type: 'error', text: e.message || t('error_save_fc', 'Error al guardar. Necesitas permisos de administrador.') })
     } finally {
       setFcSaving(false)
     }
@@ -268,26 +270,26 @@ export default function ExternalBridge() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold flex items-center gap-2"><Globe size={24} />Comercio Externo (DEX)</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2"><Globe size={24} />{t('title', 'Comercio Externo (DEX)')}</h1>
         <div className="flex gap-2">
           <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
             <HelpCircle size={20} />
           </button>
           {subTab === 'operations' && (
-            <button onClick={() => setShowForm(!showForm)} className="btn-primary flex items-center gap-2"><Plus size={18} />Nueva Operacion</button>
+            <button onClick={() => setShowForm(!showForm)} className="btn-primary flex items-center gap-2"><Plus size={18} />{t('new_operation', 'Nueva Operacion')}</button>
           )}
         </div>
       </div>
 
       {/* Sub-pestanas */}
       <div className="flex flex-wrap gap-2 border-b pb-2">
-        <button onClick={() => { setSubTab('summary'); setSearchParams({ tab: 'summary' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'summary' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Resumen</button>
-        <button onClick={() => { setSubTab('bank'); setSearchParams({ tab: 'bank' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'bank' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Cuentas Bancarias</button>
-        <button onClick={() => { setSubTab('purchases'); setSearchParams({ tab: 'purchases' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'purchases' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Compras (Import)</button>
-        <button onClick={() => { setSubTab('sales'); setSearchParams({ tab: 'sales' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'sales' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Ventas (Export)</button>
-        <button onClick={() => { setSubTab('operations'); setSearchParams({ tab: 'operations' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'operations' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Operaciones</button>
-        <button onClick={() => { setSubTab('fc'); setSearchParams({ tab: 'fc' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'fc' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Factor de Conversion</button>
-        <button onClick={() => { setSubTab('calculator'); setSearchParams({ tab: 'calculator' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'calculator' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Calculadora de Precios</button>
+        <button onClick={() => { setSubTab('summary'); setSearchParams({ tab: 'summary' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'summary' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{t('tab_summary', 'Resumen')}</button>
+        <button onClick={() => { setSubTab('bank'); setSearchParams({ tab: 'bank' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'bank' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{t('tab_bank', 'Cuentas Bancarias')}</button>
+        <button onClick={() => { setSubTab('purchases'); setSearchParams({ tab: 'purchases' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'purchases' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{t('tab_purchases', 'Compras (Import)')}</button>
+        <button onClick={() => { setSubTab('sales'); setSearchParams({ tab: 'sales' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'sales' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{t('tab_sales', 'Ventas (Export)')}</button>
+        <button onClick={() => { setSubTab('operations'); setSearchParams({ tab: 'operations' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'operations' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{t('tab_operations', 'Operaciones')}</button>
+        <button onClick={() => { setSubTab('fc'); setSearchParams({ tab: 'fc' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'fc' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{t('tab_fc', 'Factor de Conversion')}</button>
+        <button onClick={() => { setSubTab('calculator'); setSearchParams({ tab: 'calculator' }) }} className={`px-4 py-2 rounded-lg text-sm font-medium ${subTab === 'calculator' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{t('tab_calculator', 'Calculadora de Precios')}</button>
       </div>
 
       {showHelp && (
@@ -300,7 +302,7 @@ export default function ExternalBridge() {
           <p><strong>Ventas (Export):</strong> Se registra que producto se vendio, cuanto, a que precio, y a que banco entro el dinero.</p>
           <p><strong>Factor de Conversion (FC):</strong> Relacion entre la moneda externa y el {currency}. Se calcula comparando el costo de la canasta basica alla y aca. Despues de compras reales, el sistema sugiere un recalculo del FC basado en los precios reales pagados.</p>
           <p><strong>Junta Directiva:</strong> El DEX puede requerir multi-firma para aprobar compras/ventas (ej: 2 firmas). Se configura en la pestana Cuentas Bancarias.</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('close', 'Cerrar')}</button>
         </div>
       )}
 
@@ -341,35 +343,35 @@ export default function ExternalBridge() {
           </div>
 
           <div className="card bg-blue-50">
-            <h2 className="font-semibold flex items-center gap-2 mb-3"><Wallet size={18} />Resumen del Comercio Exterior</h2>
+            <h2 className="font-semibold flex items-center gap-2 mb-3"><Wallet size={18} />{t('summary_title', 'Resumen del Comercio Exterior')}</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Saldo TQ del DEX */}
               <div className="bg-white rounded-lg p-4 border">
-                <p className="text-xs text-gray-500">Saldo en {currency} del DEX</p>
+                <p className="text-xs text-gray-500">{t('summary_dex_balance', 'Saldo en {{currency}} del DEX', { currency })}</p>
                 <p className="text-2xl font-bold text-trueque-700">{fmtNumber(summary.dex_balance_tq || 0)} {currency}</p>
-                <p className="text-xs text-gray-400 mt-1">Dinero interno disponible para compras</p>
+                <p className="text-xs text-gray-400 mt-1">{t('summary_dex_balance_desc', 'Dinero interno disponible para compras')}</p>
               </div>
               {/* FC actual */}
               <div className="bg-white rounded-lg p-4 border">
-                <p className="text-xs text-gray-500">Factor de Conversion (FC)</p>
+                <p className="text-xs text-gray-500">{t('summary_fc', 'Factor de Conversion (FC)')}</p>
                 <p className="text-2xl font-bold text-blue-700">1 {summary.fc_currency || 'USD'} = {summary.current_fc || 5} {currency}</p>
-                <p className="text-xs text-gray-400 mt-1">Cambio actual moneda externa a {currency}</p>
+                <p className="text-xs text-gray-400 mt-1">{t('summary_fc_desc', 'Cambio actual moneda externa a {{currency}}', { currency })}</p>
               </div>
               {/* Operaciones */}
               <div className="bg-white rounded-lg p-4 border">
-                <p className="text-xs text-gray-500">Operaciones</p>
+                <p className="text-xs text-gray-500">{t('summary_operations', 'Operaciones')}</p>
                 <div className="flex gap-4 mt-1">
                   <div>
                     <p className="text-sm font-bold text-amber-600">{summary.pending_purchases || 0}</p>
-                    <p className="text-xs text-gray-400">Compras pend.</p>
+                    <p className="text-xs text-gray-400">{t('summary_pending_purchases', 'Compras pend.')}</p>
                   </div>
                   <div>
                     <p className="text-sm font-bold text-green-600">{summary.completed_purchases || 0}</p>
-                    <p className="text-xs text-gray-400">Compras hechas</p>
+                    <p className="text-xs text-gray-400">{t('summary_completed_purchases', 'Compras hechas')}</p>
                   </div>
                   <div>
                     <p className="text-sm font-bold text-blue-600">{summary.completed_sales || 0}</p>
-                    <p className="text-xs text-gray-400">Ventas hechas</p>
+                    <p className="text-xs text-gray-400">{t('summary_completed_sales', 'Ventas hechas')}</p>
                   </div>
                 </div>
               </div>
@@ -378,43 +380,43 @@ export default function ExternalBridge() {
 
           {/* Saldos bancarios por moneda */}
           <div className="card">
-            <h3 className="font-medium mb-3 flex items-center gap-2"><Building2 size={16} />Saldos en Bancos Externos</h3>
+            <h3 className="font-medium mb-3 flex items-center gap-2"><Building2 size={16} />{t('bank_balances_title', 'Saldos en Bancos Externos')}</h3>
             {summary.bank_balances && summary.bank_balances.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {summary.bank_balances.map((b: any, i: number) => (
                   <div key={i} className="border rounded-lg p-3 text-center">
                     <p className="text-xs text-gray-500">{b.currency}</p>
                     <p className="text-xl font-bold text-green-700">{fmtNumber(b.balance)} {b.currency}</p>
-                    <p className="text-xs text-gray-400">{b.accounts} cuenta(s)</p>
+                    <p className="text-xs text-gray-400">{t('bank_accounts_count', '{{count}} cuenta(s)', { count: b.accounts })}</p>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-500">No hay cuentas bancarias configuradas. Ve a "Cuentas Bancarias" para agregar.</p>
+              <p className="text-sm text-gray-500">{t('no_bank_accounts_summary', 'No hay cuentas bancarias configuradas. Ve a "Cuentas Bancarias" para agregar.')}</p>
             )}
           </div>
 
           {/* Recalculo de canasta sugerido */}
           {recalcs.length > 0 && (
             <div className="card border-amber-200">
-              <h3 className="font-medium mb-3 flex items-center gap-2"><RefreshCw size={16} />Recalculo de Canasta Sugerido</h3>
+              <h3 className="font-medium mb-3 flex items-center gap-2"><RefreshCw size={16} />{t('recalc_title', 'Recalculo de Canasta Sugerido')}</h3>
               {recalcs.slice(0, 3).map((rc: any, i: number) => (
                 <div key={i} className={`border rounded-lg p-3 mb-2 ${rc.is_approved ? 'bg-green-50' : 'bg-amber-50'}`}>
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium">
-                        Canasta real: <b>{rc.currency} {rc.basket_cost_external_real}</b> | Canasta local: <b>{rc.basket_cost_local_tq} {currency}</b>
+                        {t('recalc_real_basket', 'Canasta real:')} <b>{rc.currency} {rc.basket_cost_external_real}</b> | {t('recalc_local_basket', 'Canasta local:')} <b>{rc.basket_cost_local_tq} {currency}</b>
                       </p>
-                      <p className="text-sm">FC sugerido: <b className="text-blue-700">1 {rc.currency} = {rc.suggested_fc} {currency}</b>
-                        {rc.previous_fc && <span className="text-gray-500"> (anterior: {rc.previous_fc})</span>}
+                      <p className="text-sm">{t('recalc_suggested_fc', 'FC sugerido:')} <b className="text-blue-700">1 {rc.currency} = {rc.suggested_fc} {currency}</b>
+                        {rc.previous_fc && <span className="text-gray-500"> ({t('recalc_previous', 'anterior:')} {rc.previous_fc})</span>}
                       </p>
                       {rc.notes && <p className="text-xs text-gray-500 mt-1">{rc.notes}</p>}
                     </div>
                     <div>
                       {rc.is_approved ? (
-                        <span className="text-xs font-bold text-green-700 bg-green-100 px-2 py-1 rounded">Aprobado</span>
+                        <span className="text-xs font-bold text-green-700 bg-green-100 px-2 py-1 rounded">{t('recalc_approved', 'Aprobado')}</span>
                       ) : (
-                        <button onClick={() => approveRecalc(rc.id)} className="btn-primary text-xs">Aprobar FC</button>
+                        <button onClick={() => approveRecalc(rc.id)} className="btn-primary text-xs">{t('recalc_approve_fc', 'Aprobar FC')}</button>
                       )}
                     </div>
                   </div>
@@ -429,8 +431,8 @@ export default function ExternalBridge() {
       {subTab === 'bank' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="font-semibold flex items-center gap-2"><Building2 size={18} />Cuentas Bancarias Externas</h2>
-            <button onClick={() => { setShowBankForm(!showBankForm); setEditingBankId(null); setBankForm({ account_name: '', bank_name: '', account_number: '', currency: 'USD', balance: 0, is_cash: false, account_type: 'corriente', country: '' }) }} className="btn-primary flex items-center gap-2 text-sm"><Plus size={16} />Nueva Cuenta</button>
+            <h2 className="font-semibold flex items-center gap-2"><Building2 size={18} />{t('bank_title', 'Cuentas Bancarias Externas')}</h2>
+            <button onClick={() => { setShowBankForm(!showBankForm); setEditingBankId(null); setBankForm({ account_name: '', bank_name: '', account_number: '', currency: 'USD', balance: 0, is_cash: false, account_type: 'corriente', country: '' }) }} className="btn-primary flex items-center gap-2 text-sm"><Plus size={16} />{t('bank_new', 'Nueva Cuenta')}</button>
           </div>
 
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
@@ -444,59 +446,59 @@ export default function ExternalBridge() {
 
           {showBankForm && (
             <div className="card space-y-3">
-              <h3 className="font-medium">{editingBankId ? 'Editar Cuenta Bancaria' : 'Nueva Cuenta Bancaria'}</h3>
+              <h3 className="font-medium">{editingBankId ? t('bank_edit_title', 'Editar Cuenta Bancaria') : t('bank_new_title', 'Nueva Cuenta Bancaria')}</h3>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="label">Nombre descriptivo</label>
+                  <label className="label">{t('bank_label_name', 'Nombre descriptivo')}</label>
                   <input className="input" placeholder="Ej: Banco Nacional USD" value={bankForm.account_name} onChange={(e) => setBankForm({ ...bankForm, account_name: e.target.value })} />
                 </div>
                 <div>
-                  <label className="label">Moneda</label>
+                  <label className="label">{t('bank_label_currency', 'Moneda')}</label>
                   <select className="input" value={bankForm.currency} onChange={(e) => setBankForm({ ...bankForm, currency: e.target.value })}>
                     {EXTERNAL_CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code} - {c.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="label">Banco (dejar vacio si es efectivo)</label>
+                  <label className="label">{t('bank_label_bank', 'Banco (dejar vacio si es efectivo)')}</label>
                   <input className="input" placeholder="Ej: Banco Nacional" value={bankForm.bank_name} onChange={(e) => setBankForm({ ...bankForm, bank_name: e.target.value })} disabled={bankForm.is_cash} />
                 </div>
                 <div>
-                  <label className="label">Numero de cuenta (dejar vacio si es efectivo)</label>
+                  <label className="label">{t('bank_label_account_number', 'Numero de cuenta (dejar vacio si es efectivo)')}</label>
                   <input className="input" placeholder="Ej: 1234-5678-90" value={bankForm.account_number} onChange={(e) => setBankForm({ ...bankForm, account_number: e.target.value })} disabled={bankForm.is_cash} />
                 </div>
                 <div>
-                  <label className="label">Tipo de cuenta</label>
+                  <label className="label">{t('bank_label_account_type', 'Tipo de cuenta')}</label>
                   <select className="input" value={bankForm.account_type} onChange={(e) => setBankForm({ ...bankForm, account_type: e.target.value })} disabled={bankForm.is_cash}>
-                    <option value="corriente">Cuenta corriente</option>
-                    <option value="ahorro">Cuenta de ahorro</option>
+                    <option value="corriente">{t('bank_account_type_corriente', 'Cuenta corriente')}</option>
+                    <option value="ahorro">{t('bank_account_type_ahorro', 'Cuenta de ahorro')}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="label">Pais del banco</label>
+                  <label className="label">{t('bank_label_country', 'Pais del banco')}</label>
                   <input className="input" placeholder="Ej: VE, CO, US" value={bankForm.country} onChange={(e) => setBankForm({ ...bankForm, country: e.target.value })} disabled={bankForm.is_cash} />
                 </div>
                 <div>
-                  <label className="label">Saldo inicial</label>
+                  <label className="label">{t('bank_label_balance', 'Saldo inicial')}</label>
                   <input type="number" className="input" placeholder="0" value={bankForm.balance} onChange={(e) => setBankForm({ ...bankForm, balance: parseFloat(e.target.value) || 0 })} disabled={!!editingBankId} />
-                  {editingBankId && <p className="text-xs text-gray-400 mt-1">El saldo no se edita aqui. Se actualiza automaticamente con compras y ventas.</p>}
+                  {editingBankId && <p className="text-xs text-gray-400 mt-1">{t('bank_balance_no_edit', 'El saldo no se edita aqui. Se actualiza automaticamente con compras y ventas.')}</p>}
                 </div>
                 <div className="flex items-center gap-2 pt-6">
                   <input type="checkbox" id="is_cash" checked={bankForm.is_cash} onChange={(e) => setBankForm({ ...bankForm, is_cash: e.target.checked, bank_name: '', account_number: '', account_type: '', country: '' })} />
-                  <label htmlFor="is_cash" className="text-sm">Efectivo en caja (no es cuenta bancaria)</label>
+                  <label htmlFor="is_cash" className="text-sm">{t('bank_is_cash', 'Efectivo en caja (no es cuenta bancaria)')}</label>
                 </div>
               </div>
               <div className="flex gap-2">
-                <button onClick={createBankAccount} className="btn-primary">{editingBankId ? 'Guardar Cambios' : 'Crear Cuenta'}</button>
-                <button onClick={() => { setShowBankForm(false); setEditingBankId(null) }} className="btn-secondary">Cancelar</button>
+                <button onClick={createBankAccount} className="btn-primary">{editingBankId ? t('bank_save_changes', 'Guardar Cambios') : t('bank_create', 'Crear Cuenta')}</button>
+                <button onClick={() => { setShowBankForm(false); setEditingBankId(null) }} className="btn-secondary">{t('cancel', 'Cancelar')}</button>
               </div>
             </div>
           )}
 
           {bankAccounts.length === 0 ? (
             <div className="card text-center text-gray-500 py-8">
-              No hay cuentas bancarias configuradas.
+              {t('bank_no_accounts', 'No hay cuentas bancarias configuradas.')}
               <br />
-              <span className="text-sm">Crea una cuenta para empezar a registrar compras y ventas externas.</span>
+              <span className="text-sm">{t('bank_no_accounts_hint', 'Crea una cuenta para empezar a registrar compras y ventas externas.')}</span>
             </div>
           ) : (
             <div className="space-y-3">
@@ -510,39 +512,39 @@ export default function ExternalBridge() {
                       </p>
                       {!ba.is_cash && (
                         <div className="text-xs text-gray-500 mt-1 space-y-0.5">
-                          <p><strong>Banco:</strong> {ba.bank_name || 'N/A'}</p>
-                          <p><strong>Numero:</strong> {ba.account_number || 'N/A'}</p>
-                          <p><strong>Tipo:</strong> {ba.account_type === 'ahorro' ? 'Cuenta de ahorro' : 'Cuenta corriente'}</p>
-                          {ba.country && <p><strong>Pais:</strong> {ba.country}</p>}
+                          <p><strong>{t('bank_label_bank_short', 'Banco:')}</strong> {ba.bank_name || 'N/A'}</p>
+                          <p><strong>{t('bank_label_number_short', 'Numero:')}</strong> {ba.account_number || 'N/A'}</p>
+                          <p><strong>{t('bank_label_type_short', 'Tipo:')}</strong> {ba.account_type === 'ahorro' ? t('bank_account_type_ahorro', 'Cuenta de ahorro') : t('bank_account_type_corriente', 'Cuenta corriente')}</p>
+                          {ba.country && <p><strong>{t('bank_label_country_short', 'Pais:')}</strong> {ba.country}</p>}
                         </div>
                       )}
                     </div>
                     <div className="text-right">
                       <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded">{ba.currency}</span>
                       <p className="text-2xl font-bold text-green-700 mt-1">{fmtNumber(ba.balance)} {ba.currency}</p>
-                      <p className="text-xs text-gray-400">{ba.is_cash ? 'Efectivo en caja' : 'Cuenta bancaria'}</p>
+                      <p className="text-xs text-gray-400">{ba.is_cash ? t('bank_cash', 'Efectivo en caja') : t('bank_account', 'Cuenta bancaria')}</p>
                     </div>
                   </div>
                   <div className="flex gap-2 mt-3 pt-3 border-t">
                     <button onClick={() => viewMovements(ba.id)} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
-                      <Info size={14} /> {viewingMovements === ba.id ? 'Ocultar movimientos' : 'Ver movimientos'}
+                      <Info size={14} /> {viewingMovements === ba.id ? t('bank_hide_movements', 'Ocultar movimientos') : t('bank_view_movements', 'Ver movimientos')}
                     </button>
                     <button onClick={() => editBankAccount(ba)} className="text-sm text-gray-600 hover:text-gray-800 flex items-center gap-1">
-                      <Edit3 size={14} /> Editar
+                      <Edit3 size={14} /> {t('bank_edit', 'Editar')}
                     </button>
                     <button onClick={() => deleteBankAccount(ba.id)} className="text-sm text-red-500 hover:text-red-700 flex items-center gap-1">
-                      <X size={14} /> Eliminar
+                      <X size={14} /> {t('bank_delete', 'Eliminar')}
                     </button>
                   </div>
                   {viewingMovements === ba.id && (
                     <div className="mt-3 pt-3 border-t">
-                      <h4 className="text-sm font-medium mb-2">Movimientos de la cuenta</h4>
+                      <h4 className="text-sm font-medium mb-2">{t('bank_movements_title', 'Movimientos de la cuenta')}</h4>
                       {movements.length === 0 ? (
-                        <p className="text-sm text-gray-500">No hay movimientos registrados en esta cuenta.</p>
+                        <p className="text-sm text-gray-500">{t('bank_no_movements', 'No hay movimientos registrados en esta cuenta.')}</p>
                       ) : (
                         <table className="w-full text-xs">
                           <thead><tr className="border-b text-left text-gray-600">
-                            <th className="py-1">Fecha</th><th>Tipo</th><th>Producto</th><th>Monto</th><th>Estado</th><th>Contraparte</th>
+                            <th className="py-1">{t('bank_mov_date', 'Fecha')}</th><th>{t('bank_mov_type', 'Tipo')}</th><th>{t('bank_mov_product', 'Producto')}</th><th>{t('bank_mov_amount', 'Monto')}</th><th>{t('bank_mov_status', 'Estado')}</th><th>{t('bank_mov_counterparty', 'Contraparte')}</th>
                           </tr></thead>
                           <tbody>
                             {movements.map((m, mi) => (
@@ -571,8 +573,8 @@ export default function ExternalBridge() {
       {subTab === 'purchases' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="font-semibold flex items-center gap-2"><TrendingDown size={18} />Compras Externas (Import)</h2>
-            <button onClick={() => setShowPurchaseForm(!showPurchaseForm)} className="btn-primary flex items-center gap-2 text-sm"><Plus size={16} />Nueva Compra</button>
+            <h2 className="font-semibold flex items-center gap-2"><TrendingDown size={18} />{t('purchases_title', 'Compras Externas (Import)')}</h2>
+            <button onClick={() => setShowPurchaseForm(!showPurchaseForm)} className="btn-primary flex items-center gap-2 text-sm"><Plus size={16} />{t('purchases_new', 'Nueva Compra')}</button>
           </div>
 
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
@@ -582,32 +584,32 @@ export default function ExternalBridge() {
 
           {showPurchaseForm && (
             <div className="card space-y-3">
-              <h3 className="font-medium">Registrar Nueva Compra</h3>
+              <h3 className="font-medium">{t('purchases_form_title', 'Registrar Nueva Compra')}</h3>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="label">Producto</label>
+                  <label className="label">{t('purchases_label_product', 'Producto')}</label>
                   <input className="input" placeholder="Ej: Harina de trigo" value={purchaseForm.product_name} onChange={(e) => setPurchaseForm({ ...purchaseForm, product_name: e.target.value })} />
                 </div>
                 <div>
-                  <label className="label">Cantidad</label>
+                  <label className="label">{t('purchases_label_quantity', 'Cantidad')}</label>
                   <input type="number" className="input" placeholder="Ej: 100" value={purchaseForm.quantity} onChange={(e) => setPurchaseForm({ ...purchaseForm, quantity: parseInt(e.target.value) || 0 })} />
                 </div>
                 <div>
-                  <label className="label">Unidad</label>
+                  <label className="label">{t('purchases_label_unit', 'Unidad')}</label>
                   <input className="input" placeholder="kg, litros, unidades..." value={purchaseForm.unit} onChange={(e) => setPurchaseForm({ ...purchaseForm, unit: e.target.value })} />
                 </div>
                 <div>
-                  <label className="label">Precio unitario externo</label>
+                  <label className="label">{t('purchases_label_unit_cost', 'Precio unitario externo')}</label>
                   <input type="number" className="input" placeholder="Ej: 0.80" value={purchaseForm.unit_cost_external} onChange={(e) => setPurchaseForm({ ...purchaseForm, unit_cost_external: parseFloat(e.target.value) || 0 })} />
                 </div>
                 <div>
-                  <label className="label">Moneda</label>
+                  <label className="label">{t('purchases_label_currency', 'Moneda')}</label>
                   <select className="input" value={purchaseForm.currency} onChange={(e) => setPurchaseForm({ ...purchaseForm, currency: e.target.value })}>
                     {EXTERNAL_CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="label">Cuenta bancaria (de donde sale)</label>
+                  <label className="label">{t('purchases_label_bank_account_from', 'Cuenta bancaria (de donde sale)')}</label>
                   <select className="input" value={purchaseForm.bank_account_id} onChange={(e) => setPurchaseForm({ ...purchaseForm, bank_account_id: e.target.value })}>
                     <option value="">Seleccionar...</option>
                     {bankAccounts.filter((ba: any) => ba.currency === purchaseForm.currency).map((ba: any) => (
@@ -616,20 +618,20 @@ export default function ExternalBridge() {
                   </select>
                 </div>
                 <div>
-                  <label className="label">Proveedor</label>
+                  <label className="label">{t('purchases_label_supplier', 'Proveedor')}</label>
                   <input className="input" placeholder="Ej: Distribuidora Andina" value={purchaseForm.supplier} onChange={(e) => setPurchaseForm({ ...purchaseForm, supplier: e.target.value })} />
                 </div>
                 <div>
-                  <label className="label">Numero de factura</label>
+                  <label className="label">{t('purchases_label_invoice', 'Numero de factura')}</label>
                   <input className="input" placeholder="Opcional" value={purchaseForm.invoice_number} onChange={(e) => setPurchaseForm({ ...purchaseForm, invoice_number: e.target.value })} />
                 </div>
               </div>
-              <button onClick={createPurchase} className="btn-primary">Registrar Compra</button>
+              <button onClick={createPurchase} className="btn-primary">{t('purchases_register', 'Registrar Compra')}</button>
             </div>
           )}
 
           {purchases.length === 0 ? (
-            <div className="card text-center text-gray-500 py-8">No hay compras registradas.</div>
+            <div className="card text-center text-gray-500 py-8">{t('purchases_none', 'No hay compras registradas.')}</div>
           ) : (
             <div className="space-y-2">
               {purchases.map((p: any, i: number) => (
@@ -638,21 +640,21 @@ export default function ExternalBridge() {
                     <div className="flex-1">
                       <span className="font-medium">{p.product_name}</span>
                       <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-2 text-sm">
-                        <div><span className="text-gray-500">Cant:</span> <b>{p.quantity} {p.unit}</b></div>
-                        <div><span className="text-gray-500">Costo ext:</span> <b>{p.currency} {p.unit_cost_external}</b></div>
-                        <div><span className="text-gray-500">Total ext:</span> <b>{p.currency} {p.total_external}</b></div>
-                        <div><span className="text-gray-500">Total {currency}:</span> <b className="text-trueque-700">{p.total_local_tq} {currency}</b></div>
+                        <div><span className="text-gray-500">{t('purchases_qty', 'Cant:')}</span> <b>{p.quantity} {p.unit}</b></div>
+                        <div><span className="text-gray-500">{t('purchases_ext_cost', 'Costo ext:')}</span> <b>{p.currency} {p.unit_cost_external}</b></div>
+                        <div><span className="text-gray-500">{t('purchases_ext_total', 'Total ext:')}</span> <b>{p.currency} {p.total_external}</b></div>
+                        <div><span className="text-gray-500">{t('purchases_local_total', 'Total {{currency}}:', { currency })}</span> <b className="text-trueque-700">{p.total_local_tq} {currency}</b></div>
                         <div><span className="text-gray-500">Precio sug.:</span> <b className="text-amber-600">{p.suggested_internal_price} {currency}/{p.unit}</b></div>
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
-                        {p.supplier && `Proveedor: ${p.supplier} | `}
-                        {p.bank_account_name && `Banco: ${p.bank_account_name} | `}
-                        Fecha: {String(p.purchase_date).slice(0, 10)}
+                        {p.supplier && `${t('purchases_supplier', 'Proveedor:')} ${p.supplier} | `}
+                        {p.bank_account_name && `${t('purchases_bank', 'Banco:')} ${p.bank_account_name} | `}
+                        {t('purchases_date', 'Fecha:')} {String(p.purchase_date).slice(0, 10)}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className={`text-xs px-2 py-1 rounded ${p.status === 'completed' ? 'bg-green-100 text-green-700' : p.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                        {p.status === 'completed' ? 'Completado' : p.status === 'rejected' ? 'Rechazado' : 'Pendiente'}
+                        {p.status === 'completed' ? t('status_completed', 'Completado') : p.status === 'rejected' ? t('status_rejected', 'Rechazado') : t('status_pending', 'Pendiente')}
                       </span>
                       {p.status === 'pending' && (
                         <button onClick={() => approvePurchase(p.id)} className="btn-secondary flex items-center gap-1 text-sm"><Check size={14} /> Aprobar</button>
@@ -670,8 +672,8 @@ export default function ExternalBridge() {
       {subTab === 'sales' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="font-semibold flex items-center gap-2"><TrendingUp size={18} />Ventas Externas (Export)</h2>
-            <button onClick={() => setShowSaleForm(!showSaleForm)} className="btn-primary flex items-center gap-2 text-sm"><Plus size={16} />Nueva Venta</button>
+            <h2 className="font-semibold flex items-center gap-2"><TrendingUp size={18} />{t('sales_title', 'Ventas Externas (Export)')}</h2>
+            <button onClick={() => setShowSaleForm(!showSaleForm)} className="btn-primary flex items-center gap-2 text-sm"><Plus size={16} />{t('sales_new', 'Nueva Venta')}</button>
           </div>
 
           <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700">
@@ -681,32 +683,32 @@ export default function ExternalBridge() {
 
           {showSaleForm && (
             <div className="card space-y-3">
-              <h3 className="font-medium">Registrar Nueva Venta</h3>
+              <h3 className="font-medium">{t('sales_form_title', 'Registrar Nueva Venta')}</h3>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="label">Producto</label>
+                  <label className="label">{t('sales_label_product', 'Producto')}</label>
                   <input className="input" placeholder="Ej: Cafe organico" value={saleForm.product_name} onChange={(e) => setSaleForm({ ...saleForm, product_name: e.target.value })} />
                 </div>
                 <div>
-                  <label className="label">Cantidad</label>
+                  <label className="label">{t('sales_label_quantity', 'Cantidad')}</label>
                   <input type="number" className="input" placeholder="Ej: 20" value={saleForm.quantity} onChange={(e) => setSaleForm({ ...saleForm, quantity: parseInt(e.target.value) || 0 })} />
                 </div>
                 <div>
-                  <label className="label">Unidad</label>
+                  <label className="label">{t('sales_label_unit', 'Unidad')}</label>
                   <input className="input" placeholder="kg, litros..." value={saleForm.unit} onChange={(e) => setSaleForm({ ...saleForm, unit: e.target.value })} />
                 </div>
                 <div>
-                  <label className="label">Precio unitario externo</label>
+                  <label className="label">{t('sales_label_unit_price', 'Precio unitario externo')}</label>
                   <input type="number" className="input" placeholder="Ej: 8.00" value={saleForm.unit_price_external} onChange={(e) => setSaleForm({ ...saleForm, unit_price_external: parseFloat(e.target.value) || 0 })} />
                 </div>
                 <div>
-                  <label className="label">Moneda</label>
+                  <label className="label">{t('sales_label_currency', 'Moneda')}</label>
                   <select className="input" value={saleForm.currency} onChange={(e) => setSaleForm({ ...saleForm, currency: e.target.value })}>
                     {EXTERNAL_CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="label">Cuenta bancaria (a donde entra)</label>
+                  <label className="label">{t('sales_label_bank_account_to', 'Cuenta bancaria (a donde entra)')}</label>
                   <select className="input" value={saleForm.bank_account_id} onChange={(e) => setSaleForm({ ...saleForm, bank_account_id: e.target.value })}>
                     <option value="">Seleccionar...</option>
                     {bankAccounts.filter((ba: any) => ba.currency === saleForm.currency).map((ba: any) => (
@@ -715,16 +717,16 @@ export default function ExternalBridge() {
                   </select>
                 </div>
                 <div>
-                  <label className="label">Comprador</label>
+                  <label className="label">{t('sales_label_buyer', 'Comprador')}</label>
                   <input className="input" placeholder="Ej: Cooperativa de Exportacion" value={saleForm.buyer} onChange={(e) => setSaleForm({ ...saleForm, buyer: e.target.value })} />
                 </div>
               </div>
-              <button onClick={createSale} className="btn-primary">Registrar Venta</button>
+              <button onClick={createSale} className="btn-primary">{t('sales_register', 'Registrar Venta')}</button>
             </div>
           )}
 
           {sales.length === 0 ? (
-            <div className="card text-center text-gray-500 py-8">No hay ventas registradas.</div>
+            <div className="card text-center text-gray-500 py-8">{t('sales_none', 'No hay ventas registradas.')}</div>
           ) : (
             <div className="space-y-2">
               {sales.map((s: any, i: number) => (
@@ -733,20 +735,20 @@ export default function ExternalBridge() {
                     <div className="flex-1">
                       <span className="font-medium">{s.product_name}</span>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2 text-sm">
-                        <div><span className="text-gray-500">Cant:</span> <b>{s.quantity} {s.unit}</b></div>
+                        <div><span className="text-gray-500">{t('sales_qty', 'Cant:')}</span> <b>{s.quantity} {s.unit}</b></div>
                         <div><span className="text-gray-500">Precio ext:</span> <b>{s.currency} {s.unit_price_external}</b></div>
-                        <div><span className="text-gray-500">Total ext:</span> <b>{s.currency} {s.total_external}</b></div>
-                        <div><span className="text-gray-500">Total {currency}:</span> <b className="text-trueque-700">{s.total_local_tq} {currency}</b></div>
+                        <div><span className="text-gray-500">{t('sales_ext_total', 'Total ext:')}</span> <b>{s.currency} {s.total_external}</b></div>
+                        <div><span className="text-gray-500">{t('sales_local_total', 'Total {{currency}}:', { currency })}</span> <b className="text-trueque-700">{s.total_local_tq} {currency}</b></div>
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
                         {s.buyer && `Comprador: ${s.buyer} | `}
-                        {s.bank_account_name && `Banco: ${s.bank_account_name} | `}
-                        Fecha: {String(s.sale_date).slice(0, 10)}
+                        {s.bank_account_name && `${t('sales_bank', 'Banco:')} ${s.bank_account_name} | `}
+                        {t('sales_date', 'Fecha:')} {String(s.sale_date).slice(0, 10)}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className={`text-xs px-2 py-1 rounded ${s.status === 'completed' ? 'bg-green-100 text-green-700' : s.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                        {s.status === 'completed' ? 'Completado' : s.status === 'rejected' ? 'Rechazado' : 'Pendiente'}
+                        {s.status === 'completed' ? t('status_completed', 'Completado') : s.status === 'rejected' ? t('status_rejected', 'Rechazado') : t('status_pending', 'Pendiente')}
                       </span>
                       {s.status === 'pending' && (
                         <button onClick={() => approveSale(s.id)} className="btn-secondary flex items-center gap-1 text-sm"><Check size={14} /> Aprobar</button>
@@ -764,7 +766,7 @@ export default function ExternalBridge() {
         <div className="card bg-blue-50">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <h2 className="font-semibold">Factor de Conversion Actual (FC)</h2>
+              <h2 className="font-semibold">{t('fc_current_title', 'Factor de Conversion Actual (FC)')}</h2>
               <p className="text-2xl font-bold text-blue-700 mt-1">
                 1 {fc.external_currency || 'USD'} = {fc.factor} {currency}
               </p>
@@ -783,19 +785,19 @@ export default function ExternalBridge() {
                 El FC indica cuantos {currency} equivale 1 {fc.external_currency || 'USD'}, basado en el costo de la canasta basica.
               </p>
               {fc.is_default && (
-                <p className="text-xs text-amber-600 mt-1 font-medium">Valor por defecto - presiona "Editar FC" para configurar el real de tu comunidad</p>
+                <p className="text-xs text-amber-600 mt-1 font-medium">{t('fc_default_warning', 'Valor por defecto - presiona "Editar FC" para configurar el real de tu comunidad')}</p>
               )}
             </div>
             {!showFCForm && (
               <button onClick={() => setShowFCForm(true)} className="btn-secondary flex items-center gap-1 text-sm">
-                <Edit3 size={16} /> Editar FC
+                <Edit3 size={16} /> {t('fc_edit', 'Editar FC')}
               </button>
             )}
           </div>
 
           {showFCForm && (
             <div className="mt-4 pt-4 border-t border-blue-200 space-y-3">
-              <h3 className="font-medium text-sm flex items-center gap-1"><Calculator size={16} /> Calcular FC desde Canasta Basica</h3>
+              <h3 className="font-medium text-sm flex items-center gap-1"><Calculator size={16} /> {t('fc_calc_title', 'Calcular FC desde Canasta Basica')}</h3>
               <p className="text-xs text-gray-500">
                 Compara el costo de la <strong>misma canasta basica</strong> (alimentos basicos, servicios esenciales)
                 en la moneda externa y en {currency}. El sistema calcula automaticamente el FC.
@@ -874,20 +876,20 @@ export default function ExternalBridge() {
 
               <div className="flex flex-wrap items-center gap-2">
                 <button onClick={calculateFC} className="btn-secondary flex items-center gap-1 text-sm">
-                  <Calculator size={16} /> Calcular FC
+                  <Calculator size={16} /> {t('fc_calculate', 'Calcular FC')}
                 </button>
                 {fcPreview !== null && (
                   <>
                     <span className="text-sm text-gray-600">
-                      Nuevo FC: <b className="text-blue-700">1 {fcForm.external_currency} = {fmtNumber(fcPreview)} {currency}</b>
+                      {t('fc_new_fc', 'Nuevo FC:')} <b className="text-blue-700">1 {fcForm.external_currency} = {fmtNumber(fcPreview)} {currency}</b>
                     </span>
                     <button onClick={saveFC} disabled={fcSaving} className="btn-primary flex items-center gap-1 text-sm">
-                      <Save size={16} /> {fcSaving ? 'Guardando...' : 'Guardar FC'}
+                      <Save size={16} /> {fcSaving ? t('fc_saving', 'Guardando...') : t('fc_save', 'Guardar FC')}
                     </button>
                   </>
                 )}
                 <button onClick={() => { setShowFCForm(false); setFcPreview(null); setFcMsg(null) }} className="text-gray-500 text-sm">
-                  Cancelar
+                  {t('cancel', 'Cancelar')}
                 </button>
               </div>
 
@@ -918,13 +920,13 @@ export default function ExternalBridge() {
 
       {subTab === 'operations' && showForm && (
         <div className="card space-y-4">
-          <h2 className="font-semibold">Nueva Operacion de Comercio Externo</h2>
+          <h2 className="font-semibold">{t('operations_new_title', 'Nueva Operacion de Comercio Externo')}</h2>
 
           <div>
-            <label className="label">Tipo de operacion</label>
+            <label className="label">{t('operations_label_type', 'Tipo de operacion')}</label>
             <select className="input" value={form.operation_type} onChange={(e) => setForm({ ...form, operation_type: e.target.value })}>
-              <option value="import">Importacion (comprar de fuera)</option>
-              <option value="export">Exportacion (vender afuera)</option>
+              <option value="import">{t('operations_type_import', 'Importacion (comprar de fuera)')}</option>
+              <option value="export">{t('operations_type_export', 'Exportacion (vender afuera)')}</option>
             </select>
             <p className="text-xs text-gray-400 mt-1">
               Define el sentido de la operacion. Ej: Importacion para traer harina de otra red.
@@ -941,7 +943,7 @@ export default function ExternalBridge() {
           </div>
 
           <EntitySelector
-            label="Producto"
+            label={t('operations_label_product', 'Producto')}
             helpText="Selecciona un producto existente en el catalogo. Busca por nombre o descripcion. Ej: Harina de trigo, Energia solar."
             placeholder="Ej: Harina de trigo, Energia solar..."
             value={form.product_id}
@@ -955,7 +957,7 @@ export default function ExternalBridge() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">Cantidad</label>
+              <label className="label">{t('operations_label_quantity', 'Cantidad')}</label>
               <input
                 type="number"
                 className="input"
@@ -968,7 +970,7 @@ export default function ExternalBridge() {
               </p>
             </div>
             <div>
-              <label className="label">Precio externo (USD)</label>
+              <label className="label">{t('operations_label_external_price', 'Precio externo (USD)')}</label>
               <input
                 type="number"
                 className="input"
@@ -981,7 +983,7 @@ export default function ExternalBridge() {
               </p>
             </div>
             <div>
-              <label className="label">Precio local ({currency})</label>
+              <label className="label">{t('operations_label_local_price', 'Precio local ({{currency}})', { currency })}</label>
               <input
                 type="number"
                 className="input"
@@ -994,7 +996,7 @@ export default function ExternalBridge() {
               </p>
             </div>
             <div>
-              <label className="label">Logistica (%)</label>
+              <label className="label">{t('operations_label_logistics', 'Logistica (%)')}</label>
               <input
                 type="number"
                 className="input"
@@ -1007,7 +1009,7 @@ export default function ExternalBridge() {
               </p>
             </div>
             <div>
-              <label className="label">Impuesto externo (%)</label>
+              <label className="label">{t('operations_label_external_tax', 'Impuesto externo (%)')}</label>
               <input
                 type="number"
                 className="input"
@@ -1021,7 +1023,7 @@ export default function ExternalBridge() {
             </div>
           </div>
 
-          <button onClick={create} className="btn-primary">Crear Operacion</button>
+          <button onClick={create} className="btn-primary">{t('operations_create', 'Crear Operacion')}</button>
         </div>
       )}
 
@@ -1029,9 +1031,9 @@ export default function ExternalBridge() {
       <div className="space-y-2">
         {ops.length === 0 && !showForm ? (
           <div className="card text-center text-gray-500 py-8">
-            No hay operaciones de comercio externo.
+            {t('operations_none', 'No hay operaciones de comercio externo.')}
             <br />
-            <span className="text-sm">Crea una nueva operacion con el boton de arriba.</span>
+            <span className="text-sm">{t('operations_none_hint', 'Crea una nueva operacion con el boton de arriba.')}</span>
           </div>
         ) : ops.map((op, i) => {
           const totalTQ = op.internal_value ?? op.total_trueque ?? 0
@@ -1042,32 +1044,32 @@ export default function ExternalBridge() {
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <span className="font-medium">
-                  {op.operation_type === 'import' ? 'Importacion' : 'Exportacion'}: {op.product_name}
+                  {op.operation_type === 'import' ? t('operations_import', 'Importacion') : t('operations_export', 'Exportacion')}: {op.product_name}
                 </span>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2 text-sm">
                   <div>
-                    <span className="text-gray-500">Cantidad:</span> <b>{op.quantity}</b>
+                    <span className="text-gray-500">{t('operations_quantity', 'Cantidad:')}</span> <b>{op.quantity}</b>
                   </div>
                   <div>
-                    <span className="text-gray-500">Total USD:</span> <b>${fmtNumber(usdTotal)}</b>
+                    <span className="text-gray-500">{t('operations_total_usd', 'Total USD:')}</span> <b>${fmtNumber(usdTotal)}</b>
                   </div>
                   <div>
-                    <span className="text-gray-500">Total {currency}:</span> <b className="text-trueque-700">{totalTQ} {currency}</b>
+                    <span className="text-gray-500">{t('operations_total_local', 'Total {{currency}}:', { currency })}</span> <b className="text-trueque-700">{totalTQ} {currency}</b>
                   </div>
                   <div>
-                    <span className="text-gray-500">FC usado:</span> <b>{fmtNumber(fcUsed)}</b>
+                    <span className="text-gray-500">{t('operations_fc_used', 'FC usado:')}</span> <b>{fmtNumber(fcUsed)}</b>
                   </div>
                 </div>
                 {op.buyer_seller && (
-                  <p className="text-xs text-gray-500 mt-1">Solicitado por: {op.buyer_seller}</p>
+                  <p className="text-xs text-gray-500 mt-1">{t('operations_requested_by', 'Solicitado por:')} {op.buyer_seller}</p>
                 )}
                 {op.completed_at && (
-                  <p className="text-xs text-gray-500">Completado: {String(op.completed_at).slice(0, 19)}</p>
+                  <p className="text-xs text-gray-500">{t('operations_completed', 'Completado:')} {String(op.completed_at).slice(0, 19)}</p>
                 )}
               </div>
               <div className="flex items-center gap-2">
                 <span className={`text-xs px-2 py-1 rounded ${op.status === 'approved' ? 'bg-trueque-100 text-trueque-700' : op.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                  {op.status === 'approved' ? 'Aprobado' : op.status === 'rejected' ? 'Rechazado' : 'Pendiente'}
+                  {op.status === 'approved' ? t('status_approved', 'Aprobado') : op.status === 'rejected' ? t('status_rejected', 'Rechazado') : t('status_pending', 'Pendiente')}
                 </span>
                 {op.status === 'pending' && (
                   <>
@@ -1087,7 +1089,7 @@ export default function ExternalBridge() {
       {subTab === 'calculator' && (
         <div className="space-y-4">
           <div className="card p-4 bg-blue-50 border-blue-200">
-            <h3 className="font-semibold flex items-center gap-2 mb-2"><Calculator size={18} /> Calculadora de Precios Externos</h3>
+            <h3 className="font-semibold flex items-center gap-2 mb-2"><Calculator size={18} /> {t('calculator_title', 'Calculadora de Precios Externos')}</h3>
             <p className="text-sm text-gray-600">
               Esta tabla muestra el precio de cada producto del nodo convertido a la moneda externa
               usando el FC actual. Es <strong>informativo</strong>: te ayuda a comparar si el FC
@@ -1095,7 +1097,7 @@ export default function ExternalBridge() {
             </p>
             {fc && (
               <p className="text-sm mt-2">
-                FC actual: <strong>1 {fc.external_currency || 'USD'} = {fc.factor} {currency}</strong>
+                {t('calculator_current_fc', 'FC actual:')} <strong>1 {fc.external_currency || 'USD'} = {fc.factor} {currency}</strong>
                 <span className="text-gray-500 text-xs ml-2">
                   (precio externo = precio {currency} / FC)
                 </span>
@@ -1106,24 +1108,24 @@ export default function ExternalBridge() {
           {/* Buscador */}
           <input
             className="input"
-            placeholder="Buscar producto por nombre..."
+            placeholder={t('calculator_search_placeholder', 'Buscar producto por nombre...')}
             value={calcSearch}
             onChange={(e) => setCalcSearch(e.target.value)}
           />
 
           {/* Tabla de productos */}
           {products.length === 0 ? (
-            <div className="card text-center text-gray-500 py-8">No hay productos cargados.</div>
+            <div className="card text-center text-gray-500 py-8">{t('calculator_no_products', 'No hay productos cargados.')}</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-gray-500">
-                    <th className="py-2 px-3">Producto</th>
-                    <th className="py-2 px-3 text-right">Precio ({currency})</th>
-                    <th className="py-2 px-3 text-right">Base mundial</th>
-                    <th className="py-2 px-3 text-right">Precio externo ({fc?.external_currency || 'USD'})</th>
-                    <th className="py-2 px-3">Categoria</th>
+                    <th className="py-2 px-3">{t('calculator_col_product', 'Producto')}</th>
+                    <th className="py-2 px-3 text-right">{t('calculator_col_price', 'Precio ({{currency}})', { currency })}</th>
+                    <th className="py-2 px-3 text-right">{t('calculator_col_base', 'Base mundial')}</th>
+                    <th className="py-2 px-3 text-right">{t('calculator_col_external', 'Precio externo ({{currency}})', { currency: fc?.external_currency || 'USD' })}</th>
+                    <th className="py-2 px-3">{t('calculator_col_category', 'Categoria')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1205,7 +1207,7 @@ export default function ExternalBridge() {
 
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="bg-gray-50 p-2 rounded">
-                <div className="text-xs text-gray-500">Precio</div>
+                <div className="text-xs text-gray-500">{t('modal_price', 'Precio')}</div>
                 <div className="font-mono font-medium">{fmtNumber(selectedProduct.price_tq || selectedProduct.price || 0)} {currency}</div>
                 <div className="text-xs text-gray-500">por {selectedProduct.unit || 'unidad'}</div>
               </div>
@@ -1226,7 +1228,7 @@ export default function ExternalBridge() {
                 </div>
               </div>
               <div className="bg-green-50 p-2 rounded">
-                <div className="text-xs text-gray-500">Precio externo</div>
+                <div className="text-xs text-gray-500">{t('modal_external_price', 'Precio externo')}</div>
                 <div className="font-mono font-medium">
                   {fc && fc.factor > 0
                     ? fmtNumber((selectedProduct.price_tq || selectedProduct.price || 0) / fc.factor)
@@ -1234,30 +1236,30 @@ export default function ExternalBridge() {
                 </div>
               </div>
               <div className="bg-gray-50 p-2 rounded">
-                <div className="text-xs text-gray-500">Categoria</div>
+                <div className="text-xs text-gray-500">{t('modal_category', 'Categoria')}</div>
                 <div className="font-medium">{selectedProduct.category || selectedProduct.type || '-'}</div>
               </div>
               <div className="bg-gray-50 p-2 rounded">
-                <div className="text-xs text-gray-500">Subcategoria</div>
+                <div className="text-xs text-gray-500">{t('modal_subcategory', 'Subcategoria')}</div>
                 <div className="font-medium">{selectedProduct.subcategory || '-'}</div>
               </div>
               <div className="bg-gray-50 p-2 rounded">
-                <div className="text-xs text-gray-500">Categoria padre</div>
+                <div className="text-xs text-gray-500">{t('modal_parent_category', 'Categoria padre')}</div>
                 <div className="font-medium">{selectedProduct.parent_category || '-'}</div>
               </div>
               <div className="bg-gray-50 p-2 rounded">
-                <div className="text-xs text-gray-500">Origen</div>
+                <div className="text-xs text-gray-500">{t('modal_origin', 'Origen')}</div>
                 <div className="font-medium">{selectedProduct.origin || '-'}</div>
               </div>
               {selectedProduct.product_code && (
                 <div className="bg-gray-50 p-2 rounded">
-                  <div className="text-xs text-gray-500">Codigo de producto</div>
+                  <div className="text-xs text-gray-500">{t('modal_product_code', 'Codigo de producto')}</div>
                   <div className="font-mono font-medium text-xs">{selectedProduct.product_code}</div>
                 </div>
               )}
               {fc && (
                 <div className="bg-blue-50 p-2 rounded">
-                  <div className="text-xs text-gray-500">Precio externo</div>
+                  <div className="text-xs text-gray-500">{t('modal_external_price', 'Precio externo')}</div>
                   <div className="font-mono font-medium">
                     {fc.factor > 0
                       ? fmtNumber((selectedProduct.price_tq || selectedProduct.price || 0) / fc.factor)
@@ -1292,7 +1294,7 @@ export default function ExternalBridge() {
             </div>
 
             <button onClick={() => setSelectedProduct(null)} className="w-full px-4 py-2 bg-gray-200 rounded-lg text-sm">
-              Cerrar
+              {t('modal_close', 'Cerrar')}
             </button>
           </div>
         </div>

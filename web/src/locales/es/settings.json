@@ -140,5 +140,21 @@
   "net_inst_connect": "Conectar el servidor de aldea: eth0 a Internet, eth1 a la LAN",
   "net_inst_power": "Encender el servidor desde el USB/disco",
   "net_inst_auto": "La aldea se configura automaticamente",
-  "net_inst_install_node": "Instalar el nodo de la aplicacion en otro servidor de la aldea"
+  "net_inst_install_node": "Instalar el nodo de la aplicacion en otro servidor de la aldea",
+  "software_adaptations_title": "Adaptaciones del Software",
+  "software_adaptations_intro": "El sistema se adapta a cualquier cultura, religion, filosofia o forma de organizacion. Cada nodo es independiente y mantiene su propia identidad. Aqui explicamos como.",
+  "software_adaptations_status_available": "Disponible",
+  "software_adaptations_status_partial": "Parcial",
+  "software_adaptations_status_development": "En desarrollo",
+  "software_adaptations_available": "disponibles",
+  "software_adaptations_partial": "parciales",
+  "software_adaptations_development": "en desarrollo",
+  "software_adaptations_search_placeholder": "Buscar comunidad, religion o funcionalidad...",
+  "software_adaptations_biblical_ref": "📖 Referencia Biblica",
+  "software_adaptations_source": "📚 Fuente",
+  "software_adaptations_functionality": "Funcionalidad:",
+  "software_adaptations_no_results": "No se encontraron comunidades con ese criterio.",
+  "software_adaptations_license": "Licencia LPF-1.0",
+  "software_adaptations_page_unavailable": "Pagina no disponible",
+  "software_adaptations_page_disabled_msg": "Esta pagina ha sido desactivada por el administrador del nodo."
 }
