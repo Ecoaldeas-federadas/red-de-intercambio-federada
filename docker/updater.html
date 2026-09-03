@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Control del Nodo</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f0fdf4;color:#064e3b;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem}
+.card{background:#fff;border-radius:1rem;padding:2rem;max-width:480px;width:100%;box-shadow:0 4px 6px rgba(0,0,0,.1);border:1px solid #d1fae5}
+h1{font-size:1.25rem;margin-bottom:.5rem;text-align:center}
+.subtitle{text-align:center;color:#6b7280;font-size:.8rem;margin-bottom:1.5rem}
+.status-box{padding:1rem;border-radius:.5rem;margin-bottom:1rem;text-align:center;font-weight:600}
+.status-running{background:#d1fae5;color:#065f46}
+.status-stopped{background:#fee2e2;color:#991b1b}
+.status-created{background:#fef3c7;color:#92400e}
+.status-loading{background:#dbeafe;color:#1e40af}
+.btn{display:block;width:100%;padding:.75rem 1rem;border:none;border-radius:.5rem;font-weight:700;cursor:pointer;margin-bottom:.5rem;transition:all .15s;font-size:.9rem}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-start{background:#059669;color:#fff}
+.btn-start:hover{background:#047857}
+.btn-stop{background:#dc2626;color:#fff}
+.btn-stop:hover{background:#b91c1c}
+.btn-restart{background:#d97706;color:#fff}
+.btn-restart:hover{background:#b45309}
+.btn-update{background:#2563eb;color:#fff}
+.btn-update:hover{background:#1d4ed8}
+.btn-cancel{background:#6b7280;color:#fff}
+.btn-cancel:hover{background:#4b5563}
+.log-box{margin-top:1rem;background:#1e293b;color:#a7f3d0;padding:1rem;border-radius:.5rem;font-family:monospace;font-size:.7rem;max-height:200px;overflow-y:auto;white-space:pre-wrap;display:none}
+.log-box.visible{display:block}
+.msg{padding:.75rem;border-radius:.5rem;margin-bottom:.5rem;font-size:.8rem;text-align:center}
+.msg-success{background:#d1fae5;color:#065f46}
+.msg-error{background:#fee2e2;color:#991b1b}
+.msg-info{background:#dbeafe;color:#1e40af}
+.update-section{margin-top:1rem;padding-top:1rem;border-top:1px solid #e5e7eb}
+label{display:block;font-size:.8rem;font-weight:600;margin-bottom:.25rem}
+input[type=text],input[type=password]{width:100%;padding:.5rem;border:1px solid #d1d5db;border-radius:.25rem;font-size:.8rem;margin-bottom:.5rem}
+.info{font-size:.7rem;color:#9ca3af;margin-top:.5rem;text-align:center}
+</style>
+</head>
+<body>
+<div class="card">
+<h1>Control del Nodo</h1>
+<p class="subtitle">Gestor de actualizaciones - acceso directo</p>
+<div id="status" class="status-box status-loading">Verificando estado...</div>
+<div id="msg"></div>
+<button class="btn btn-start" id="btnStart" onclick="doAction('start')">Arrancar Nodo</button>
+<button class="btn btn-stop" id="btnStop" onclick="doAction('stop')">Detener Nodo</button>
+<button class="btn btn-restart" id="btnRestart" onclick="doAction('restart')">Reiniciar Nodo</button>
+<div class="update-section">
+<button class="btn btn-update" id="btnUpdate" onclick="doAction('update')">Actualizar Nodo</button>
+<button class="btn btn-cancel" id="btnCancel" onclick="doAction('cancel')" style="display:none">Cancelar Actualizacion</button>
+</div>
+<div class="log-box" id="logBox"></div>
+<p class="info">Puerto 9110 - updater-controller</p>
+</div>
+<script>
+var TOKEN='';
+(function(){
+  var qs=window.location.search.match(/[?&]token=([^&]*)/);
+  if(qs)TOKEN=decodeURIComponent(qs[1]);
+})();
+function apiUrl(path){
+  if(!TOKEN)return path;
+  var sep=path.indexOf('?')>=0?'&':'?';
+  return path+sep+'token='+encodeURIComponent(TOKEN);
+}
+async function api(path,opts){
+  try{
+    var url=apiUrl(path);
+    var o=opts||{};
+    if(TOKEN){o.headers=o.headers||{};o.headers['Authorization']='Bearer '+TOKEN;}
+    const r=await fetch(url,o);
+    return await r.json();
+  }catch(e){return{success:false,message:e.toString()};}
+}
+function showMsg(t,c){var m=document.getElementById('msg');m.innerHTML='<div class="msg '+c+'">'+t+'</div>';}
+function setStatus(r){
+  var s=document.getElementById("status");
+  var bs=document.getElementById("btnStart"),bh=document.getElementById("btnStop");
+  if(r.running){s.className="status-box status-running";s.textContent="Nodo: ARRANCADO ("+r.status+")";bs.disabled=true;bh.disabled=false;}
+  else if(r.status==="created"){s.className="status-box status-created";s.textContent="Nodo: CREADO pero no arrancado";bs.disabled=false;bh.disabled=true;}
+  else if(r.status==="not-found"){s.className="status-box status-stopped";s.textContent="Nodo: no encontrado";bs.disabled=false;bh.disabled=true;}
+  else{s.className="status-box status-stopped";s.textContent="Nodo: DETENIDO ("+r.status+")";bs.disabled=false;bh.disabled=true;}
+}
+async function refreshStatus(){
+  var r=await api("/node-status");
+  setStatus(r);
+  var u=await api("/status");
+  if(u.status==="running"){
+    document.getElementById("btnUpdate").disabled=true;
+    document.getElementById("btnCancel").style.display="block";
+    showMsg("Actualizacion en curso: "+(u.message||""),"msg-info");
+    document.getElementById("logBox").className="log-box visible";
+    document.getElementById("logBox").textContent=u.log||"";
+  }else{
+    document.getElementById("btnUpdate").disabled=false;
+    document.getElementById("btnCancel").style.display="none";
+    if(u.status==="completed"){showMsg("Ultima actualizacion completada: "+(u.commit||""),"msg-success");}
+    else if(u.status==="error"){showMsg("Ultima actualizacion fallo: "+(u.message||""),"msg-error");}
+    else if(u.status==="cancelled"){showMsg("Actualizacion cancelada","msg-info");}
+  }
+}
+async function doAction(a){
+  var conf={start:"Arrancar",stop:"Detener",restart:"Reiniciar",update:"Actualizar",cancel:"Cancelar actualizacion"};
+  if(a==="update"&&!confirm("Confirmas que quieres actualizar el nodo? Se reiniciara automaticamente."))return;
+  if(a==="stop"&&!confirm("Confirmas que quieres detener el nodo?"))return;
+  showMsg(conf[a]+"...","msg-info");
+  var r=await api("/"+a,{method:"POST"});
+  if(r.success){showMsg(conf[a]+": "+(r.message||"OK"),"msg-success");}
+  else{showMsg(conf[a]+" fallo: "+(r.message||"error"),"msg-error");}
+  setTimeout(refreshStatus,1000);
+  if(a==="update"){setTimeout(refreshStatus,3000);setInterval(refreshStatus,3000);}
+}
+refreshStatus();
+setInterval(refreshStatus,5000);
+</script>
+</body>
+</html>
