@@ -111,6 +111,7 @@ type InitNodeRequest struct {
 	AdminPassword    string `json:"admin_password"`
 	NodeName         string `json:"node_name"`
 	NodeDomain       string `json:"node_domain"`
+	DefaultLanguage  string `json:"default_language"`
 }
 
 func (sh *SetupHandler) initNode(w http.ResponseWriter, r *http.Request) {
@@ -339,20 +340,32 @@ func (sh *SetupHandler) initNode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Guardar la configuracion del nodo en la BD (tabla node_config)
+	// Incluir default_language si fue especificado en el request
+	defaultLang := req.DefaultLanguage
+	if defaultLang == "" {
+		defaultLang = "es"
+	}
 	_, err = sh.Pool.Exec(ctx, `
-		INSERT INTO node_config (node_domain, node_name, node_public_key, node_private_key_enc, jwt_secret, initialized, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW())
+		INSERT INTO node_config (node_domain, node_name, node_public_key, node_private_key_enc, jwt_secret, initialized, created_at, updated_at, default_language)
+		VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW(), $6)
 		ON CONFLICT (node_domain) DO UPDATE SET
 			node_name = $2,
 			node_public_key = $3,
 			node_private_key_enc = $4,
 			jwt_secret = $5,
 			initialized = true,
+			default_language = $6,
 			updated_at = NOW()`,
-		nodeDomain, nodeName, nodePubKeyHex, encryptedNodePrivKey, jwtSecret)
+		nodeDomain, nodeName, nodePubKeyHex, encryptedNodePrivKey, jwtSecret, defaultLang)
 	if err != nil {
 		writeError(w, 500, fmt.Sprintf("failed to save node config: %v", err))
 		return
+	}
+
+	// Si el idioma no es 'es', marcarlo como default en la tabla languages
+	if defaultLang != "es" {
+		_, _ = sh.Pool.Exec(ctx, `UPDATE languages SET is_default = false`)
+		_, _ = sh.Pool.Exec(ctx, `UPDATE languages SET is_default = true, enabled = true WHERE code = $1`, defaultLang)
 	}
 
 	am := NewAuthMiddleware(jwtSecret)

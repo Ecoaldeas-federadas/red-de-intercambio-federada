@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { api } from '../api'
+import { useTranslation } from 'react-i18next'
 import {
   Settings,
   User,
@@ -16,6 +17,7 @@ import {
   Sparkles,
   Search,
   ScrollText,
+  Globe,
 } from 'lucide-react'
 
 interface SetupStatus {
@@ -26,9 +28,16 @@ interface SetupStatus {
   jwt_configured: boolean
 }
 
+// Idiomas disponibles para el setup (embebidos, no necesitan API)
+const SETUP_LANGUAGES = [
+  { code: 'es', name: 'Español', flag: '🇪🇸' },
+  { code: 'en', name: 'English', flag: '🇬🇧' },
+]
+
 export default function Setup() {
   const { login } = useAuth()
   const navigate = useNavigate()
+  const { t, i18n } = useTranslation('common')
 
   const [status, setStatus] = useState<SetupStatus | null>(null)
   const [loadingStatus, setLoadingStatus] = useState(true)
@@ -37,6 +46,7 @@ export default function Setup() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [nodePublicKey, setNodePublicKey] = useState('')
+  const [setupLang, setSetupLang] = useState<string>('')
 
   const [form, setForm] = useState({
     node_name: '',
@@ -53,10 +63,31 @@ export default function Setup() {
   const [presetSearch, setPresetSearch] = useState('')
   const [presetsLoading, setPresetsLoading] = useState(false)
 
+  // Inicializar idioma del setup desde localStorage o navegador
+  useEffect(() => {
+    const stored = localStorage.getItem('user_language')
+    if (stored) {
+      setSetupLang(stored)
+      i18n.changeLanguage(stored)
+    } else {
+      const browserLang = navigator.language?.split('-')[0]
+      const lang = browserLang === 'en' ? 'en' : 'es'
+      setSetupLang(lang)
+      i18n.changeLanguage(lang)
+    }
+  }, [])
+
   useEffect(() => {
     checkStatus()
     loadPresets()
   }, [])
+
+  const handleSelectLang = (lang: string) => {
+    setSetupLang(lang)
+    i18n.changeLanguage(lang)
+    localStorage.setItem('user_language', lang)
+    localStorage.setItem('node_default_language', lang)
+  }
 
   const loadPresets = async () => {
     setPresetsLoading(true)
@@ -78,7 +109,7 @@ export default function Setup() {
       const s = await api.get<SetupStatus>('/setup/status')
       setStatus(s)
       if (s.initialized) {
-        setStep(5)
+        setStep(6)
       } else {
         setForm((prev) => ({
           ...prev,
@@ -87,7 +118,7 @@ export default function Setup() {
         }))
       }
     } catch {
-      setError('No se pudo conectar con el servidor')
+      setError(t('setup.server_error'))
     } finally {
       setLoadingStatus(false)
     }
@@ -100,38 +131,41 @@ export default function Setup() {
   const handleNext = () => {
     setError('')
     if (step === 0) {
+      // Paso 0: Idioma — siempre pasa (ya hay un idioma seleccionado por defecto)
+      setStep(1)
+    } else if (step === 1) {
       if (!form.node_name.trim()) {
-        setError('El nombre del nodo es obligatorio')
+        setError(t('setup.node_name_required'))
         return
       }
       if (!form.node_domain.trim()) {
-        setError('El dominio del nodo es obligatorio')
+        setError(t('setup.node_domain_required'))
         return
       }
-      setStep(1)
-    } else if (step === 1) {
-      // Paso de preconfiguracion - siempre pasa (preset "vacio" es valido)
       setStep(2)
     } else if (step === 2) {
+      // Paso de preconfiguracion - siempre pasa (preset "vacio" es valido)
+      setStep(3)
+    } else if (step === 3) {
       if (!form.admin_username.trim()) {
-        setError('El nombre de usuario es obligatorio')
+        setError(t('setup.admin_username_required'))
         return
       }
       if (form.admin_username.length < 3) {
-        setError('El nombre de usuario debe tener al menos 3 caracteres')
-        return
-      }
-      setStep(3)
-    } else if (step === 3) {
-      if (!form.admin_password || form.admin_password.length < 8) {
-        setError('La contrasena debe tener al menos 8 caracteres')
-        return
-      }
-      if (form.admin_password !== form.admin_password_confirm) {
-        setError('Las contrasenas no coinciden')
+        setError(t('setup.admin_username_min'))
         return
       }
       setStep(4)
+    } else if (step === 4) {
+      if (!form.admin_password || form.admin_password.length < 8) {
+        setError(t('setup.password_required'))
+        return
+      }
+      if (form.admin_password !== form.admin_password_confirm) {
+        setError(t('setup.password_mismatch'))
+        return
+      }
+      setStep(5)
     }
   }
 
@@ -145,8 +179,6 @@ export default function Setup() {
     setSubmitting(true)
     try {
       // 1. Aplicar preset ANTES de crear el admin.
-      // El endpoint /setup/apply-preset solo funciona si no hay admin todavia.
-      // Si lo hacemos despues de /setup/init, devuelve 403.
       if (selectedPreset && selectedPreset !== 'vacio') {
         try {
           await api.post('/setup/apply-preset', {
@@ -154,12 +186,11 @@ export default function Setup() {
             node_domain: form.node_domain,
           })
         } catch (e) {
-          // No fallar la inicializacion si el preset falla
           console.warn('Preset application failed:', e)
         }
       }
 
-      // 2. Inicializar el nodo (crea el admin)
+      // 2. Inicializar el nodo (crea el admin) — incluir default_language
       const result = await api.post<{
         token: string
         username: string
@@ -172,14 +203,15 @@ export default function Setup() {
         admin_username: form.admin_username,
         admin_display_name: form.admin_display_name || form.admin_username,
         admin_password: form.admin_password,
+        default_language: setupLang,
       })
 
       login(result.token, result.username)
-      setSuccess('Nodo inicializado correctamente')
+      setSuccess(t('setup.init_success'))
       setNodePublicKey(result.node_public_key || '')
-      setStep(5)
+      setStep(6)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al inicializar el nodo')
+      setError(err instanceof Error ? err.message : t('setup.init_error'))
     } finally {
       setSubmitting(false)
     }
@@ -198,15 +230,15 @@ export default function Setup() {
       <div className="min-h-screen flex items-center justify-center bg-trueque-50">
         <div className="card max-w-md w-full text-center">
           <CheckCircle className="mx-auto text-green-600 mb-4" size={48} />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Nodo ya inicializado</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('setup.already_initialized')}</h1>
           <p className="text-gray-600 mb-6">
-            Este nodo ya ha sido configurado. Inicia sesion para continuar.
+            {t('setup.already_initialized_desc')}
           </p>
           <button
             onClick={() => navigate('/login')}
             className="btn-primary w-full flex items-center justify-center gap-2"
           >
-            Ir a inicio de sesion
+            {t('setup.go_to_login')}
             <ArrowRight size={20} />
           </button>
         </div>
@@ -214,12 +246,14 @@ export default function Setup() {
     )
   }
 
+  // Steps: 0=Idioma, 1=Nodo, 2=Perfil, 3=Admin, 4=Seguridad, 5=Revisar
   const steps = [
-    { label: 'Nodo', icon: Server },
-    { label: 'Perfil', icon: Sparkles },
-    { label: 'Administrador', icon: User },
-    { label: 'Seguridad', icon: Lock },
-    { label: 'Revisar', icon: CheckCircle },
+    { label: t('setup.step_language'), icon: Globe },
+    { label: t('setup.step_node'), icon: Server },
+    { label: t('setup.step_profile'), icon: Sparkles },
+    { label: t('setup.step_admin'), icon: User },
+    { label: t('setup.step_security'), icon: Lock },
+    { label: t('setup.step_review'), icon: CheckCircle },
   ]
 
   return (
@@ -230,9 +264,9 @@ export default function Setup() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-trueque-600 rounded-full mb-4">
             <Settings className="text-white" size={32} />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Configuracion Inicial del Nodo</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('setup.title')}</h1>
           <p className="text-gray-600 mt-1">
-            Bienvenido. Configuremos tu nodo de credito mutuo federado.
+            {t('setup.welcome')}
           </p>
         </div>
 
@@ -257,7 +291,7 @@ export default function Setup() {
                 </div>
                 {i < steps.length - 1 && (
                   <div
-                    className={`w-12 h-0.5 mx-1 ${isDone ? 'bg-green-600' : 'bg-gray-300'}`}
+                    className={`w-8 h-0.5 mx-1 ${isDone ? 'bg-green-600' : 'bg-gray-300'}`}
                   />
                 )}
               </div>
@@ -281,60 +315,83 @@ export default function Setup() {
           </div>
         )}
 
-        {/* Step 0: Node config */}
+        {/* Step 0: Language selection */}
         {step === 0 && (
+          <div className="space-y-4">
+            <div className="text-center">
+              <Globe className="mx-auto text-trueque-600 mb-3" size={40} />
+              <h2 className="text-xl font-semibold text-gray-900">{t('setup.select_language')}</h2>
+              <p className="text-sm text-gray-500 mt-1">{t('setup.select_language_desc')}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {SETUP_LANGUAGES.map((lang) => (
+                <button
+                  key={lang.code}
+                  onClick={() => handleSelectLang(lang.code)}
+                  className={`p-4 rounded-lg border-2 transition-colors text-center ${
+                    setupLang === lang.code
+                      ? 'border-trueque-600 bg-trueque-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="text-3xl mb-2">{lang.flag}</div>
+                  <div className="font-medium text-sm">{lang.name}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Step 1: Node config */}
+        {step === 1 && (
           <div className="space-y-4">
             <div>
               <label className="label flex items-center gap-2">
-                <Server size={16} /> Nombre del nodo
+                <Server size={16} /> {t('setup.node_name_label')}
               </label>
               <input
                 type="text"
                 className="input"
                 value={form.node_name}
                 onChange={(e) => handleChange('node_name', e.target.value)}
-                placeholder="Banco Comunitario A"
+                placeholder={t('setup.node_name_placeholder')}
               />
-              <p className="text-xs text-gray-500 mt-1">Nombre visible de tu organizacion</p>
+              <p className="text-xs text-gray-500 mt-1">{t('setup.node_name_desc', 'Nombre visible de tu organizacion')}</p>
             </div>
             <div>
               <label className="label flex items-center gap-2">
-                <Server size={16} /> Dominio del nodo
+                <Server size={16} /> {t('setup.node_domain_label')}
               </label>
               <input
                 type="text"
                 className="input"
                 value={form.node_domain}
                 onChange={(e) => handleChange('node_domain', e.target.value)}
-                placeholder="tu-dominio.com o localhost"
+                placeholder={t('setup.node_domain_placeholder')}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Dominio unico para federacion (no se puede cambiar despues)
+                {t('setup.node_domain_desc', 'Dominio unico para federacion (no se puede cambiar despues)')}
               </p>
             </div>
           </div>
         )}
 
-        {/* Step 1: Preconfiguracion (preset) */}
-        {step === 1 && (
+        {/* Step 2: Preconfiguracion (preset) */}
+        {step === 2 && (
           <div className="space-y-4">
             <div>
               <label className="label flex items-center gap-2">
-                <Sparkles size={16} /> Datos precargados del nodo
+                <Sparkles size={16} /> {t('setup.preset_title')}
               </label>
               <p className="text-xs text-gray-500 mt-1 mb-2">
-                Elige un perfil con datos de ejemplo segun la filosofia de tu comunidad.
-                Esto aplicara horarios, reglas de catalogo, textos y colores iniciales.
+                {t('setup.preset_desc')}
               </p>
               {/* Nota importante: normas universales siempre se cargan */}
               <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 mb-3">
                 <p className="text-xs text-emerald-800 flex items-start gap-2">
                   <CheckCircle size={14} className="flex-shrink-0 mt-0.5" />
                   <span>
-                    <strong>Las normas basicas siempre se cargan:</strong> como funciona el trueque,
-                    la federacion entre nodos, los limites simetricos y el modelo energetico.
-                    Estas normas aplican a todas las comunidades. El preset que elijas aqui
-                    agrega configuracion especifica de tu comunidad (horarios, reglas dieteticas, textos).
+                    {t('setup.preset_universal_note')}
                   </span>
                 </p>
               </div>
@@ -346,7 +403,7 @@ export default function Setup() {
               <input
                 type="text"
                 className="input pl-9"
-                placeholder="Buscar preconfiguracion..."
+                placeholder={t('common.search_placeholder')}
                 value={presetSearch}
                 onChange={(e) => setPresetSearch(e.target.value)}
               />
@@ -354,7 +411,7 @@ export default function Setup() {
 
             {presetsLoading && (
               <div className="flex items-center gap-2 text-sm text-gray-500">
-                <Loader2 size={16} className="animate-spin" /> Cargando preconfiguraciones...
+                <Loader2 size={16} className="animate-spin" /> {t('common.loading')}
               </div>
             )}
 
@@ -407,7 +464,7 @@ export default function Setup() {
                               <p className="text-xs text-gray-600 mt-1">{p.description}</p>
                               {p.has_demo_data && (
                                 <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-600 mt-1 inline-block">
-                                  Incluye datos de ejemplo
+                                  {t('setup.preset_includes_demo')}
                                 </span>
                               )}
                             </div>
@@ -423,114 +480,114 @@ export default function Setup() {
             {selectedPreset === 'vacio' && (
               <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
                 <p className="text-xs text-blue-700">
-                  Has elegido instalar sin datos precargados. Se cargaran las normas federadas
-                  universales (trueque, federacion, energia) y podras configurar todo lo demas
-                  manualmente desde el panel de administracion.
+                  {t('setup.preset_empty_note')}
                 </p>
               </div>
             )}
 
             {presets.length === 0 && !presetsLoading && (
               <p className="text-xs text-gray-500">
-                No se pudieron cargar las preconfiguraciones. Puedes continuar sin preconfiguracion
-                y ajustar todo manualmente despues. Las normas federadas universales se cargaran igual.
+                {t('setup.preset_load_error')}
               </p>
             )}
           </div>
         )}
 
-        {/* Step 2: Admin user */}
-        {step === 2 && (
+        {/* Step 3: Admin user */}
+        {step === 3 && (
           <div className="space-y-4">
             <div>
               <label className="label flex items-center gap-2">
-                <User size={16} /> Nombre de usuario admin
+                <User size={16} /> {t('setup.admin_username_label')}
               </label>
               <input
                 type="text"
                 className="input"
                 value={form.admin_username}
                 onChange={(e) => handleChange('admin_username', e.target.value)}
-                placeholder="admin"
+                placeholder={t('setup.admin_username_placeholder')}
               />
-              <p className="text-xs text-gray-500 mt-1">Usuario para iniciar sesion</p>
+              <p className="text-xs text-gray-500 mt-1">{t('setup.admin_username_desc', 'Usuario para iniciar sesion')}</p>
             </div>
             <div>
               <label className="label flex items-center gap-2">
-                <User size={16} /> Nombre para mostrar
+                <User size={16} /> {t('setup.admin_display_name_label')}
               </label>
               <input
                 type="text"
                 className="input"
                 value={form.admin_display_name}
                 onChange={(e) => handleChange('admin_display_name', e.target.value)}
-                placeholder="Administrador"
+                placeholder={t('setup.admin_display_name_placeholder')}
               />
-              <p className="text-xs text-gray-500 mt-1">Opcional. Nombre visible en el sistema</p>
+              <p className="text-xs text-gray-500 mt-1">{t('setup.admin_display_name_desc', 'Opcional. Nombre visible en el sistema')}</p>
             </div>
           </div>
         )}
 
-        {/* Step 3: Password */}
-        {step === 3 && (
+        {/* Step 4: Password */}
+        {step === 4 && (
           <div className="space-y-4">
             <div>
               <label className="label flex items-center gap-2">
-                <Lock size={16} /> Contrasena
+                <Lock size={16} /> {t('setup.password_label')}
               </label>
               <input
                 type="password"
                 className="input"
                 value={form.admin_password}
                 onChange={(e) => handleChange('admin_password', e.target.value)}
-                placeholder="Minimo 8 caracteres"
+                placeholder={t('setup.password_placeholder', 'Minimo 8 caracteres')}
               />
             </div>
             <div>
               <label className="label flex items-center gap-2">
-                <Lock size={16} /> Confirmar contrasena
+                <Lock size={16} /> {t('setup.password_confirm_label')}
               </label>
               <input
                 type="password"
                 className="input"
                 value={form.admin_password_confirm}
                 onChange={(e) => handleChange('admin_password_confirm', e.target.value)}
-                placeholder="Repite la contrasena"
+                placeholder={t('setup.password_confirm_placeholder', 'Repite la contrasena')}
               />
             </div>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
               <Shield size={16} className="inline mr-1" />
-              Esta contrasena se usa para iniciar sesion. Tambien se generaran
-              automaticamente las claves criptograficas Ed25519 del usuario.
+              {t('setup.password_security_note', 'Esta contrasena se usa para iniciar sesion. Tambien se generaran automaticamente las claves criptograficas Ed25519 del usuario.')}
             </div>
           </div>
         )}
 
-        {/* Step 4: Review */}
-        {step === 4 && (
+        {/* Step 5: Review */}
+        {step === 5 && (
           <div className="space-y-4">
-            <h3 className="font-semibold text-gray-900">Resumen de configuracion</h3>
+            <h3 className="font-semibold text-gray-900">{t('setup.review_title')}</h3>
             <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-500">Nodo:</span>
+                <span className="text-gray-500">{t('setup.step_node')}:</span>
                 <span className="font-medium">{form.node_name}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Dominio:</span>
+                <span className="text-gray-500">{t('setup.node_domain_label')}:</span>
                 <span className="font-medium">{form.node_domain}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Preconfiguracion:</span>
+                <span className="text-gray-500">{t('setup.step_language')}:</span>
+                <span className="font-medium">{setupLang === 'en' ? 'English' : 'Español'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">{t('setup.preset_title')}:</span>
                 <span className="font-medium">
-                  {selectedPreset === 'vacio' ? 'Vacio (manual)' : presets.find((p) => p.id === selectedPreset)?.name || selectedPreset}
+                  {selectedPreset === 'vacio' ? t('setup.preset_empty') : presets.find((p) => p.id === selectedPreset)?.name || selectedPreset}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Usuario admin:</span>
+                <span className="text-gray-500">{t('setup.admin_username_label')}:</span>
                 <span className="font-medium">{form.admin_username}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Nombre:</span>
+                <span className="text-gray-500">{t('setup.admin_display_name_label')}:</span>
                 <span className="font-medium">
                   {form.admin_display_name || form.admin_username}
                 </span>
@@ -539,49 +596,47 @@ export default function Setup() {
 
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-2 text-sm text-green-800">
               <div className="flex items-center gap-2 font-medium">
-                <Key size={16} /> Se generaran automaticamente:
+                <Key size={16} /> {t('setup.auto_generated', 'Se generaran automaticamente:')}
               </div>
               <ul className="ml-6 list-disc space-y-1">
-                <li>Claves Ed25519 del usuario administrador</li>
-                <li>Departamento "Administracion" con rol "Administrador"</li>
-                <li>Todos los permisos asignados al rol administrador</li>
-                <li>Credenciales de acceso (bcrypt) para login por contrasena</li>
+                <li>{t('setup.auto_gen_keys', 'Claves Ed25519 del usuario administrador')}</li>
+                <li>{t('setup.auto_gen_dept', 'Departamento "Administracion" con rol "Administrador"')}</li>
+                <li>{t('setup.auto_gen_perms', 'Todos los permisos asignados al rol administrador')}</li>
+                <li>{t('setup.auto_gen_credentials', 'Credenciales de acceso (bcrypt) para login por contrasena')}</li>
               </ul>
             </div>
 
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
               <AlertCircle size={16} className="inline mr-1" />
-              Asegurate de recordar tu contrasena. No hay forma de recuperarla
-              sin el proceso de recuperacion de cuenta.
+              {t('setup.password_warning', 'Asegurate de recordar tu contrasena. No hay forma de recuperarla sin el proceso de recuperacion de cuenta.')}
             </div>
           </div>
         )}
 
-        {/* Step 5: Already initialized */}
-        {step === 5 && (
+        {/* Step 6: Already initialized / Success */}
+        {step === 6 && (
           <div className="space-y-4">
             <div className="text-center py-4">
               <CheckCircle className="mx-auto text-green-600 mb-4" size={48} />
-              <p className="text-gray-600">Nodo inicializado correctamente!</p>
+              <p className="text-gray-600">{t('setup.init_success')}</p>
             </div>
 
             {nodePublicKey && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
                 <div className="flex items-center gap-2 font-medium text-blue-800">
-                  <Key size={16} /> Clave publica de tu nodo
+                  <Key size={16} /> {t('setup.node_public_key', 'Clave publica de tu nodo')}
                 </div>
                 <p className="text-xs text-blue-700">
-                  Guarda esta clave. La necesitas para federarte con otros nodos:
-                  cada nodo debe registrar la clave publica del otro.
+                  {t('setup.node_public_key_desc', 'Guarda esta clave. La necesitas para federarte con otros nodos: cada nodo debe registrar la clave publica del otro.')}
                 </p>
                 <code className="block text-xs bg-white p-2 rounded border border-blue-200 break-all font-mono">
                   {nodePublicKey}
                 </code>
                 <button
-                  onClick={() => { navigator.clipboard.writeText(nodePublicKey); setSuccess('Clave copiada!'); setTimeout(() => setSuccess(''), 2000) }}
+                  onClick={() => { navigator.clipboard.writeText(nodePublicKey); setSuccess(t('setup.key_copied', 'Clave copiada!')); setTimeout(() => setSuccess(''), 2000) }}
                   className="btn-primary text-sm py-1 px-3"
                 >
-                  Copiar clave
+                  {t('common.copy')} {t('setup.node_public_key', 'clave')}
                 </button>
               </div>
             )}
@@ -590,29 +645,29 @@ export default function Setup() {
               onClick={() => { window.location.href = '/' }}
               className="btn-primary w-full flex items-center justify-center gap-2"
             >
-              Ir al dashboard
+              {t('setup.go_to_dashboard', 'Ir al dashboard')}
               <ArrowRight size={20} />
             </button>
           </div>
         )}
 
         {/* Navigation */}
-        {step < 5 && (
+        {step < 6 && (
           <div className="flex items-center justify-between mt-6">
             <button
               onClick={handleBack}
               disabled={step === 0}
               className="px-4 py-2 text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:text-gray-900"
             >
-              Atras
+              {t('common.back')}
             </button>
 
-            {step < 4 ? (
+            {step < 5 ? (
               <button
                 onClick={handleNext}
                 className="btn-primary flex items-center gap-2"
               >
-                Siguiente
+                {t('common.next')}
                 <ArrowRight size={20} />
               </button>
             ) : (
@@ -624,12 +679,12 @@ export default function Setup() {
                 {submitting ? (
                   <>
                     <Loader2 size={20} className="animate-spin" />
-                    Inicializando...
+                    {t('setup.initializing', 'Inicializando...')}
                   </>
                 ) : (
                   <>
                     <CheckCircle size={20} />
-                    Inicializar nodo
+                    {t('setup.init_button')}
                   </>
                 )}
               </button>
@@ -642,7 +697,7 @@ export default function Setup() {
       <div className="mt-4 text-center">
         <Link to="/licencia" className="text-xs text-gray-400 hover:text-emerald-600 transition flex items-center justify-center gap-1">
           <ScrollText size={12} />
-          Licencia LPF-1.0
+          {t('nav.license')}
         </Link>
       </div>
     </div>

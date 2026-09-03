@@ -7,6 +7,8 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { ConfigProvider } from './hooks/useConfig'
 import { PreferencesProvider } from './hooks/usePreferences'
+import { TranslationProvider } from './i18n/TranslationProvider'
+import './i18n'  // Inicializa i18next
 import './index.css'
 
 // El servidor puede inyectar window.__BASE_PATH__ para servir el frontend
@@ -22,7 +24,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <BrowserRouter basename={basePath}>
       <ConfigProvider>
         <PreferencesProvider>
-          <App />
+          <TranslationProvider>
+            <App />
+          </TranslationProvider>
         </PreferencesProvider>
       </ConfigProvider>
     </BrowserRouter>

@@ -270,31 +270,62 @@ func (h *SystemHandler) getConfig(w http.ResponseWriter, r *http.Request) {
 	// Usar ActualNodeDomain para leer la configuracion
 	actualDomain := db.ActualNodeDomain(r.Context(), h.Pool, h.nodeDomain)
 
+	// Obtener idiomas habilitados
+	availableLangs := []map[string]interface{}{}
+	rows, _ := h.Pool.Query(r.Context(),
+		`SELECT code, name, native_name, enabled, is_default FROM languages WHERE enabled = true ORDER BY is_default DESC, code`)
+	if rows != nil {
+		for rows.Next() {
+			var code, name, nativeName string
+			var enabled, isDefault bool
+			rows.Scan(&code, &name, &nativeName, &enabled, &isDefault)
+			availableLangs = append(availableLangs, map[string]interface{}{
+				"code":        code,
+				"name":        name,
+				"native_name": nativeName,
+				"enabled":     enabled,
+				"is_default":  isDefault,
+			})
+		}
+		rows.Close()
+	}
+	if len(availableLangs) == 0 {
+		availableLangs = []map[string]interface{}{
+			{"code": "es", "name": "Spanish", "native_name": "Espanol", "enabled": true, "is_default": true},
+			{"code": "en", "name": "English", "native_name": "English", "enabled": true, "is_default": false},
+		}
+	}
+
 	var nodeName, currencyName, appName, currencyFullName string
+	var defaultLang string
 	err := h.Pool.QueryRow(r.Context(), `
-		SELECT node_name, currency_name, app_name, COALESCE(currency_full_name, 'Trueque')
+		SELECT node_name, currency_name, app_name, COALESCE(currency_full_name, 'Trueque'), COALESCE(default_language, 'es')
 		FROM node_config WHERE node_domain = $1`,
-		actualDomain).Scan(&nodeName, &currencyName, &appName, &currencyFullName)
+		actualDomain).Scan(&nodeName, &currencyName, &appName, &currencyFullName, &defaultLang)
 	if err != nil {
 		// Defaults
 		writeJSON(w, 200, map[string]interface{}{
-			"node_name":          actualDomain,
-			"currency_name":      "TQ",
-			"currency_full_name": "Trueque",
-			"app_name":           "Red de Intercambio",
-			"node_domain":        actualDomain,
-			"format_settings":    nodeFormatSettings(r.Context(), h.Pool, actualDomain),
+			"node_name":           actualDomain,
+			"currency_name":       "TQ",
+			"currency_full_name":  "Trueque",
+			"app_name":            "Red de Intercambio",
+			"node_domain":         actualDomain,
+			"format_settings":     nodeFormatSettings(r.Context(), h.Pool, actualDomain),
+			"default_language":    "es",
+			"available_languages": availableLangs,
 		})
 		return
 	}
 
 	writeJSON(w, 200, map[string]interface{}{
-		"node_name":          nodeName,
-		"currency_name":      currencyName,
-		"currency_full_name": currencyFullName,
-		"app_name":           appName,
-		"node_domain":        actualDomain,
-		"format_settings":    nodeFormatSettings(r.Context(), h.Pool, actualDomain),
+		"node_name":           nodeName,
+		"currency_name":       currencyName,
+		"currency_full_name":  currencyFullName,
+		"app_name":            appName,
+		"node_domain":         actualDomain,
+		"format_settings":     nodeFormatSettings(r.Context(), h.Pool, actualDomain),
+		"default_language":    defaultLang,
+		"available_languages": availableLangs,
 	})
 }
 

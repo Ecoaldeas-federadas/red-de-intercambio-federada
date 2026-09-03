@@ -322,6 +322,11 @@ func NewRouterWithAuthAndBasePath(h *Handler, ah *AuthHandlers, fh *FederationHa
 	satH := NewSatelliteAPIHandler(pool, h.nodeDomain)
 	satH.RegisterRoutes(r, am)
 
+	// Translations: i18n - idiomas y traducciones
+	SetGlobalJWTSecret(ah.JWTSecret)
+	transH := NewTranslationHandler(pool, h.nodeDomain)
+	transH.RegisterRoutes(r, am)
+
 	// Servir imagenes subidas desde /uploads/
 	r.Get("/uploads/*", func(w http.ResponseWriter, r *http.Request) {
 		uploadDir := "/app/uploads"

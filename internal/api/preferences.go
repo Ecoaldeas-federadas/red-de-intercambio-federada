@@ -10,13 +10,15 @@ import (
 
 // FormatSettings agrupa las preferencias de formato (numero, fecha, hora, etc.)
 // que el frontend usa para mostrar montos, fechas y horas al usuario.
+// Language es el idioma de la interfaz (es, en, pt, etc.) — separado del locale de formato.
 type FormatSettings struct {
-	Locale          string `json:"locale"`
-	NumberLocale    string `json:"number_locale"`
-	DateFormat      string `json:"date_format"`
-	TimeFormat      string `json:"time_format"`
-	FirstDayOfWeek  int    `json:"first_day_of_week"`
-	Timezone        string `json:"timezone"`
+	Locale         string `json:"locale"`
+	NumberLocale   string `json:"number_locale"`
+	DateFormat     string `json:"date_format"`
+	TimeFormat     string `json:"time_format"`
+	FirstDayOfWeek int    `json:"first_day_of_week"`
+	Timezone       string `json:"timezone"`
+	Language       string `json:"language"`
 }
 
 // defaultFormatSettings devuelve los defaults del sistema (locale espanol,
@@ -29,6 +31,7 @@ func defaultFormatSettings() FormatSettings {
 		TimeFormat:     "24h",
 		FirstDayOfWeek: 1,
 		Timezone:       "America/Caracas",
+		Language:       "es",
 	}
 }
 
@@ -85,11 +88,14 @@ func userFormatSettings(ctx context.Context, pool *pgxpool.Pool, userID string) 
 	}
 	var fs FormatSettings
 	err := pool.QueryRow(ctx, `
-		SELECT locale, number_locale, date_format, time_format, first_day_of_week, timezone
+		SELECT locale, number_locale, date_format, time_format, first_day_of_week, timezone, COALESCE(language, 'es')
 		FROM user_preferences WHERE user_id = $1`, userID).Scan(
-		&fs.Locale, &fs.NumberLocale, &fs.DateFormat, &fs.TimeFormat, &fs.FirstDayOfWeek, &fs.Timezone)
+		&fs.Locale, &fs.NumberLocale, &fs.DateFormat, &fs.TimeFormat, &fs.FirstDayOfWeek, &fs.Timezone, &fs.Language)
 	if err != nil {
 		return def, false
+	}
+	if fs.Language == "" {
+		fs.Language = def.Language
 	}
 	return fs, true
 }
@@ -139,6 +145,7 @@ type UpdatePreferencesRequest struct {
 	TimeFormat     *string `json:"time_format"`
 	FirstDayOfWeek *int    `json:"first_day_of_week"`
 	Timezone       *string `json:"timezone"`
+	Language       *string `json:"language"`
 }
 
 func (ah *AuthHandlers) updateMyPreferences(w http.ResponseWriter, r *http.Request) {
@@ -189,6 +196,7 @@ func (ah *AuthHandlers) updateMyPreferences(w http.ResponseWriter, r *http.Reque
 	timeFormat := current.TimeFormat
 	firstDay := current.FirstDayOfWeek
 	timezone := current.Timezone
+	language := current.Language
 
 	if req.Locale != nil {
 		locale = *req.Locale
@@ -208,10 +216,13 @@ func (ah *AuthHandlers) updateMyPreferences(w http.ResponseWriter, r *http.Reque
 	if req.Timezone != nil {
 		timezone = *req.Timezone
 	}
+	if req.Language != nil && *req.Language != "" {
+		language = *req.Language
+	}
 
 	_, err = ah.Pool.Exec(r.Context(), `
-		INSERT INTO user_preferences (user_id, locale, number_locale, date_format, time_format, first_day_of_week, timezone, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+		INSERT INTO user_preferences (user_id, locale, number_locale, date_format, time_format, first_day_of_week, timezone, language, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
 		ON CONFLICT (user_id) DO UPDATE SET
 			locale = EXCLUDED.locale,
 			number_locale = EXCLUDED.number_locale,
@@ -219,8 +230,9 @@ func (ah *AuthHandlers) updateMyPreferences(w http.ResponseWriter, r *http.Reque
 			time_format = EXCLUDED.time_format,
 			first_day_of_week = EXCLUDED.first_day_of_week,
 			timezone = EXCLUDED.timezone,
+			language = EXCLUDED.language,
 			updated_at = NOW()`,
-		userID, locale, numberLocale, dateFormat, timeFormat, firstDay, timezone)
+		userID, locale, numberLocale, dateFormat, timeFormat, firstDay, timezone, language)
 	if err != nil {
 		writeError(w, 500, "error updating preferences")
 		return
@@ -233,5 +245,6 @@ func (ah *AuthHandlers) updateMyPreferences(w http.ResponseWriter, r *http.Reque
 		TimeFormat:     timeFormat,
 		FirstDayOfWeek: firstDay,
 		Timezone:       timezone,
+		Language:       language,
 	})
 }
