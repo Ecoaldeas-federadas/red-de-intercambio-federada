@@ -2726,4 +2726,206 @@ export const FERIA_CONUQUERA_TEMPLATES: PreconfiguredPageTemplate[] = [
       },
     ],
   },
+  {
+    slug: 'federacion',
+    title: 'Federación',
+    subtitle: 'Suma tu ecoaldea a la red',
+    icon: 'globe',
+    menu_order: 95,
+    blocks: [
+      {
+        type: 'hero',
+        badge: '🌐 Plataforma Libre para Ecoaldeas y Comunidades',
+        title: 'Red de Intercambio Federada',
+        subtitle:
+          'Un sistema gratuito y configurable que permite a cada ecoaldea gestionar su economía, gobernanza e intercambios, y federarse con otras comunidades en una red de comercio justo, sin inflación y sin intermediarios.',
+        description:
+          'Cada comunidad mantiene su autonomía, sus normas y su gobernanza, pero puede intercambiar con otras comunidades federadas de manera justa.',
+        image_url: '/placeholder.svg',
+        primary_cta: {
+          text: 'Conocer más',
+          link: '/p/filosofia',
+        },
+        secondary_cta: {
+          text: 'Solicitar Ingreso',
+          link: '/p/unirse',
+        },
+        style: 'split',
+        bg_gradient: true,
+      },
+      {
+        type: 'features_grid',
+        title: '¿Qué es la Federación de Ecoaldeas?',
+        subtitle:
+          'Imagina lo que Visa y Mastercard hacen por los comercios: agruparlos en una red que permite intercambiar sin fronteras. Ahora imagina eso, pero para ecoaldeas, comunidades autogestionadas y redes de trueque.',
+        columns: 3,
+        items: [
+          {
+            icon: 'scale',
+            title: 'Gobernanza configurable',
+            description:
+              'Cada comunidad define sus propias normas, asambleas, quórum, niveles de miembro y procesos de admisión.',
+          },
+          {
+            icon: 'leaf',
+            title: 'Economía propia',
+            description:
+              'Moneda comunitaria (TQ) basada en energía (kWh/Joule), no en dinero bancario. Sin inflación, sin interés.',
+          },
+          {
+            icon: 'network',
+            title: 'Federación entre nodos',
+            description:
+              'Intercambia con otras ecoaldeas federadas. Cada nodo respeta las normas internas de los demás.',
+          },
+          {
+            icon: 'users',
+            title: 'Comunidad autogestionada',
+            description:
+              'Organizaciones, departamentos, asambleas, votaciones, admisión de miembros y recuperación de cuentas.',
+          },
+          {
+            icon: 'globe',
+            title: 'Sitio web público',
+            description:
+              'Cada nodo tiene su propio sitio web configurable para mostrar productos, filosofía y contacto.',
+          },
+          {
+            icon: 'heart',
+            title: 'Gratis y abierto',
+            description:
+              'La plataforma es gratuita. Asesoría incluida. Abierta a aportes y mejoras desde la experiencia real.',
+          },
+        ],
+      },
+      {
+        type: 'richtext',
+        title: 'Beneficios de Federarse',
+        subtitle: 'Por qué vale la pena unirse a la red de comunidades federadas',
+        content:
+          '<p>Mientras más ecoaldeas se federen, más versátil e independiente es la red. Cada ecoaldea tiene su propio sistema de comercio, pero puede intercambiar con todas las demás.</p><ul><li><strong>Sin inflación:</strong> La moneda comunitaria TQ se basa en consumo energético real (kWh/Joule), no en emisión arbitraria.</li><li><strong>Autonomía total:</strong> Cada comunidad mantiene sus normas, su gobernanza y su autonomía. La federación no se entromete en las decisiones internas de cada nodo.</li><li><strong>Comercio justo:</strong> Intercambio sin intermediarios. Los precios se calculan en base a energía, no a especulación.</li><li><strong>Identidad federada:</strong> Cada miembro se identifica con sus documentos. Al federar dos nodos, se detectan duplicados y ambas asambleas deciden cómo resolver.</li><li><strong>Gratis y con asesoría:</strong> La plataforma es gratuita. Incluye asesoría para implementar el sistema en tu ecoaldea.</li></ul>',
+      },
+      {
+        type: 'richtext',
+        title: 'Tres Niveles de Gobernanza',
+        subtitle: 'El sistema tiene tres niveles de gobernanza, cada uno independiente internamente pero sujeto al nivel superior',
+        content:
+          '<h3>1. Federación (mundial)</h3><p>Decisiones que afectan a <strong>TODOS los nodos del mundo</strong>. Se deciden por votación igualitaria de todos los nodos federados: canasta básica TQ, límite de crédito global, expulsión de nodos, protocolo de comunicación, métrica de la moneda trueque, protocolo criptográfico NFC.</p><h3>2. Aldea / Nodo (local)</h3><p>Decisiones que afectan a <strong>toda la comunidad local</strong>. Se deciden por asamblea del nodo. Cada nodo es soberano: horas de trabajo, catálogo de productos, reglas de gobernanza interna, admisión de miembros, horarios, tasas, sitio web público, adaptaciones culturales.</p><h3>3. Organizaciones (dentro de la aldea)</h3><p>Decisiones que afectan <strong>solo dentro de la organización</strong>. Se deciden por la asamblea de la organización. Un nodo puede tener varias organizaciones: reglas internas, departamentos, asambleas de organización, roles y permisos internos.</p><p><strong>Consenso federado:</strong> Un nodo propone un cambio. Todos los nodos federados lo revisan y aprueban o rechazan. Por defecto se necesita el 100% (todos). Así nadie impone reglas unilateralmente.</p>',
+      },
+      {
+        type: 'richtext',
+        title: 'Piscina Global vs Piscinas Bilaterales',
+        subtitle: 'Dos formas de manejar el saldo entre nodos federados',
+        content:
+          '<h3>Piscina Global (Multilateral)</h3><p>Un saldo compartido entre <strong>todos los nodos federados</strong>. Si comercias con el nodo B y ganas un saldo, puedes gastarlo con el nodo C. No está atado a un solo nodo. El límite depende del nivel del nodo.</p><h3>Piscinas Bilaterales</h3><p>Acuerdos específicos entre <strong>dos nodos</strong>. El saldo bilateral solo aplica entre esos dos nodos. <strong>No afecta la piscina global</strong>. Útil cuando dos nodos quieren un límite mayor del normal para su comercio.</p><p><strong>Cómo se decide:</strong> Si hay un acuerdo bilateral activo entre los dos nodos, la transacción va a la piscina bilateral. Si no hay acuerdo bilateral, va a la piscina global. Las transacciones bilaterales nunca afectan la piscina global y viceversa.</p>',
+      },
+      {
+        type: 'richtext',
+        title: 'Niveles de Nodo Federado',
+        subtitle: 'Los nodos de la federación tienen niveles que determinan sus permisos, límites y derechos',
+        content:
+          '<h3>Nivel 1: Nodo Nuevo (Límite: 1000 TQ)</h3><p>Nodo recién ingresado. Tiene voz pero <strong>no tiene voto</strong> en propuestas federadas y <strong>no puede patrocinar</strong> nuevos nodos. Debe permanecer al menos 90 días antes de poder solicitar subida de nivel.</p><h3>Nivel 2: Nodo Aceptado (Límite: 5000 TQ)</h3><p>Nodo aprobado por asamblea federada. <strong>Con derecho a voto</strong> en propuestas federadas y <strong>puede patrocinar</strong> nuevos nodos. Debe permanecer al menos 180 días antes de poder subir a nivel 3.</p><h3>Nivel 3: Nodo Pleno (Límite: 20000 TQ)</h3><p>Nodo de plena confianza. Subida <strong>automática</strong> desde nivel 2 si cumple: mínimo 180 días en nivel 2, reciprocidad (tanto aporta como recibe), y límite promedio superior a la mitad del limite actual.</p><p><strong>Subida de nivel:</strong> Nivel 1 a 2 requiere votación federada. Nivel 2 a 3 es automático si cumple reciprocidad + límite promedio.</p>',
+      },
+      {
+        type: 'richtext',
+        title: 'Sistema de Padrino (Patrocinador)',
+        subtitle: 'Cuando un nodo nuevo quiere entrar a la federación, necesita un padrino: un nodo nivel 2+ que lo respalda',
+        content:
+          '<p>Un nodo nivel 2+ acepta ser el padrino del nodo nuevo. El nodo nuevo entra a nivel 1 con su límite (ej: 1000 TQ). El límite del padrino se <strong>reduce</strong> en el mismo monto. El padrino es <strong>responsable</strong> del nodo nuevo. Si el nodo nuevo entra en default, la <strong>deuda pasa al padrino</strong>. Cuando el nodo sube a nivel 2, el límite del padrino se <strong>libera</strong>.</p><p><strong>Ejemplo:</strong> El nodo A (nivel 2, límite 5000 TQ) patrocina al nodo B (nuevo, 1000 TQ). Límite efectivo de A: 4000 TQ. A puede patrocinar hasta 4 nodos. Si B sube a nivel 2, A recupera sus 1000 TQ. Si B entra en default, A asume la deuda de B.</p><p><strong>Por qué el sistema de padrino:</strong> Evita que cualquier nodo entre a la federación sin responsabilidad. El padrino arriesga su propio límite y responde por el nodo nuevo.</p>',
+      },
+      {
+        type: 'richtext',
+        title: 'Verificación de 4 Opciones',
+        subtitle: 'Para unirse a la federación o emparejar un terminal POS, usamos un sistema que obliga a comunicarse fuera de banda',
+        content:
+          '<p>1. El nodo nuevo genera un código de 6 dígitos.<br>2. En la pantalla del padrino aparecen 4 códigos. Solo uno es el correcto.<br>3. El nodo nuevo le dice el código correcto al padrino por teléfono, mensaje o en persona.<br>4. Si el padrino elige bien, el nodo entra a la federación. Si elige mal, se rechaza. El código expira en 60 segundos.</p><p><strong>Por qué 4 opciones:</strong> Si ambos lados ven el mismo código en pantalla, un atacante en el medio podría interceptar la conexión. Con 4 opciones, el atacante tiene que adivinar (25% de probabilidad). Obligar a comunicar el código por otro canal hace que el atacante no pueda engañar a ningún lado.</p>',
+      },
+      {
+        type: 'richtext',
+        title: 'Integridad Distribuida',
+        subtitle: 'Cómo garantizamos que las transacciones entre nodos sean válidas y que nadie haga trampa',
+        content:
+          '<h3>Firma Dual</h3><p>Cada transacción entre nodos debe ser firmada por <strong>AMBOS nodos</strong> con sus claves criptográficas. El nodo A crea y firma la transacción. El nodo B verifica la firma de A, firma también, y devuelve la transacción dual-firmada. Una transacción sin ambas firmas <strong>no es válida</strong>.</p><h3>Hash Encadenado</h3><p>Cada transacción incluye el hash de la transacción anterior (como una blockchain simplificada). Si alguien intenta insertar, modificar o eliminar una transacción, la cadena se rompe y se detecta inmediatamente.</p><p><strong>Reconciliación al reconectar:</strong> Cuando un nodo que estaba offline se reconecta, compara los hashes de su cadena con los del otro nodo. Si coinciden, están sincronizados. Si no, intercambian las transacciones divergentes, verifican las firmas y los hashes, e incorporan las válidas.</p>',
+      },
+      {
+        type: 'features_grid',
+        title: '¿Qué incluye el sistema actualmente?',
+        subtitle: 'Funcionalidades completas disponibles en la plataforma',
+        columns: 3,
+        items: [
+          { icon: 'check', title: 'Gestión de miembros', description: 'Niveles, admisión con documentos, recuperación de cuentas (multisig).' },
+          { icon: 'check', title: 'Asambleas y votaciones', description: 'Propuestas, debates, quórum configurable, votaciones transparentes.' },
+          { icon: 'check', title: 'Intercambios TQ', description: 'Crédito mutuo basado en energía. Sin inflación, sin interés.' },
+          { icon: 'check', title: 'Catálogo de productos', description: 'Precios energéticos calculados por kWh/Joule.' },
+          { icon: 'check', title: 'App Android POS', description: 'Cobro QR + NFC. POS web para iPhone/computadoras.' },
+          { icon: 'check', title: 'Federación entre nodos', description: 'Piscina global multilateral + piscinas bilaterales.' },
+          { icon: 'check', title: 'Niveles de nodo federado', description: 'Nuevo, Aceptado, Pleno. Sistema de padrino responsable.' },
+          { icon: 'check', title: 'Seguridad distribuida', description: 'Firma dual + hash encadenado. Verificación anti-MITM de 4 opciones.' },
+          { icon: 'check', title: 'Sitio web público', description: 'Configurable con editor visual en vivo. Gobernanza configurable por nodo.' },
+          { icon: 'check', title: 'Comercio exterior', description: 'Conversión con 20 monedas locales. Factor de conversión configurable.' },
+          { icon: 'check', title: 'Internet paralelo', description: 'Cifrado WireGuard. Intranet local off-grid con OpenWrt.' },
+          { icon: 'check', title: 'Servicios federados', description: 'Matrix, Nextcloud, VoIP y más con un solo clic.' },
+        ],
+      },
+      {
+        type: 'faq',
+        title: 'Preguntas Frecuentes sobre la Federación',
+        subtitle: 'Resolvemos las dudas más comunes sobre cómo funciona la red de comunidades federadas',
+        items: [
+          {
+            question: '¿Para qué sirve federarse? ¿No es mejor que cada comunidad funcione sola?',
+            answer:
+              'Cada comunidad es autónoma y toma sus propias decisiones internas. Pero federarse tiene ventajas: puedes intercambiar con miembros de otras comunidades, el espectro de lo que puedes aportar y recibir se amplía, y las comunidades se apoyan mutuamente. Una comunidad sola es frágil; una red de comunidades es robusta.',
+          },
+          {
+            question: '¿Tengo que aportar algo para entrar a una comunidad federada?',
+            answer:
+              'Sí. Para entrar tienes que tener algo que aportar: productos, trabajo, talentos, servicios, o conocimientos. Si solo quieres recibir pero no tienes nada que aportar, el trueque no te va a funcionar.',
+          },
+          {
+            question: '¿Por qué el saldo perfecto es cero?',
+            answer:
+              'Si tu saldo está en cero, significa que has aportado a la comunidad exactamente lo mismo que has recibido de ella. Eso es equilibrio. Si está muy negativo, estás recibiendo mucho pero aportando poco. Si está muy positivo, estás aportando mucho pero no aprovechando lo que la comunidad ofrece.',
+          },
+          {
+            question: '¿Puedo usar mi saldo TQ en otra comunidad de la federación?',
+            answer:
+              'Sí. Si vas a otra comunidad federada, puedes usar tu tarjeta NFC o tu cuenta para intercambiar. La federación no crea dinero nuevo, solo amplía el espectro de lo que puedes recibir.',
+          },
+          {
+            question: '¿La moneda TQ tiene inflación?',
+            answer:
+              'No. La moneda TQ no tiene inflación porque no está atada al dinero de ningún país ni al oro. Está atada a la energía: 1 TQ = 1 kWh. La energía no se devalúa. Una hora de trabajo hoy vale lo mismo que una hora de trabajo dentro de 10 años.',
+          },
+          {
+            question: '¿Mi comunidad tiene que pagar para usar el software?',
+            answer:
+              'No. El software es 100% gratuito y de código abierto. Cualquier comunidad puede instalarlo, usarlo, y adaptarlo sin pagar licencias.',
+          },
+          {
+            question: '¿La federación funciona sin internet?',
+            answer:
+              'La federación puede funcionar por Internet público o por intranet comunitaria usando túneles WireGuard. Incluso comunidades sin acceso a Internet pueden federarse si instalan OpenWrt y configuran los túneles.',
+          },
+          {
+            question: '¿Quién gobierna la federación?',
+            answer:
+              'La federación se gobierna por votación de todos los nodos federados. Cada comunidad (nodo) tiene un voto. Las decisiones que afectan a toda la federación se toman colectivamente. Ninguna comunidad puede imponer reglas sobre las demás.',
+          },
+        ],
+      },
+      {
+        type: 'cta_banner',
+        badge: '🌾 Únete a la Red',
+        title: '¿Tienes una ecoaldea o quieres fundar una?',
+        subtitle:
+          'La plataforma está en pleno desarrollo y queremos que se adapte a las necesidades de cada comunidad. Escríbenos para conversar sobre tu experiencia y ver cómo podemos integrarnos.',
+        button_text: 'Solicitar Ingreso',
+        button_link: '/p/unirse',
+        secondary_text: 'Ver Filosofía',
+        secondary_link: '/p/filosofia',
+        theme: 'forest',
+      },
+    ],
+  },
 ]

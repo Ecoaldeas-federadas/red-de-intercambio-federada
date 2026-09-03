@@ -40,8 +40,8 @@ import { ThemeCustomizer, ThemeDraft, PageMenuItem } from './public-site/ThemeCu
 import { FERIA_CONUQUERA_TEMPLATES } from './public-site/defaultSiteData'
 import { PublicPageData, HeaderStyleType, SiteBlock } from '../types/publicSite'
 import { PublicGovernancePage } from './public-site/PublicGovernancePage'
-import { PublicFederationPage } from './public-site/PublicFederationPage'
-
+// PublicFederationPage ya no se importa: la pagina de federacion ahora usa bloques editables.
+// El componente se mantiene en el repositorio para referencia pero no se usa en el enrutado.
 const ICONS: Record<string, any> = {
   home: Home,
   heart: Heart,
@@ -2139,10 +2139,9 @@ export function PublicPageView() {
     return <PublicGovernancePage />
   }
 
-  // Pagina especial: federacion muestra la pagina de invitacion a ecoaldeas
-  if (targetSlug === 'federacion') {
-    return <PublicFederationPage />
-  }
+  // La pagina de federacion ahora es editable con bloques (como las demas paginas).
+  // Si no existe en la BD, se usa el template de fallback con bloques por defecto.
+  // El editor en vivo funciona normalmente en esta pagina.
 
   if (!page) {
     return (
