@@ -26,5 +26,8 @@
   "copy_from_node": "Copiar de nodo",
   "node": "Nodo",
   "version": "Version",
-  "actions": "Acciones"
+  "actions": "Acciones",
+  "disabled": "deshabilitado",
+  "language_added": "Idioma anadido",
+  "download_error": "Error al descargar"
 }

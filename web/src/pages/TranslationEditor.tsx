@@ -13,6 +13,11 @@ export default function TranslationEditor() {
   const [editingValues, setEditingValues] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
+  const [newLangCode, setNewLangCode] = useState('')
+  const [newLangName, setNewLangName] = useState('')
+  const [newLangNative, setNewLangNative] = useState('')
+  const [uploadMsg, setUploadMsg] = useState('')
+  const [uploadError, setUploadError] = useState(false)
 
   useEffect(() => {
     loadLanguages()
@@ -97,6 +102,87 @@ export default function TranslationEditor() {
       setSaveMsg(e.message || t('translations.save_error', 'Error al guardar'))
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleDownload = async (lang: string) => {
+    try {
+      const res = await fetch(`/api/translations/${lang}/download`)
+      if (!res.ok) throw new Error('Download failed')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${lang}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e: any) {
+      setSaveMsg(e.message || t('translations.download_error', 'Error al descargar'))
+    }
+  }
+
+  const handleToggleEnabled = async (lang: any) => {
+    try {
+      await api.put(`/languages/${lang.code}`, { enabled: !lang.enabled })
+      loadLanguages()
+    } catch (e: any) {
+      setSaveMsg(e.message || t('translations.save_error', 'Error al guardar'))
+    }
+  }
+
+  const handleSetDefault = async (code: string) => {
+    try {
+      await api.put(`/languages/${code}`, { is_default: true })
+      loadLanguages()
+    } catch (e: any) {
+      setSaveMsg(e.message || t('translations.save_error', 'Error al guardar'))
+    }
+  }
+
+  const handleAddLanguage = async () => {
+    if (!newLangCode || !newLangName) return
+    try {
+      await api.post('/languages', {
+        code: newLangCode,
+        name: newLangName,
+        native_name: newLangNative || newLangName,
+        enabled: true,
+      })
+      setNewLangCode('')
+      setNewLangName('')
+      setNewLangNative('')
+      loadLanguages()
+      setSaveMsg(t('translations.language_added', 'Idioma anadido'))
+    } catch (e: any) {
+      setSaveMsg(e.message || t('translations.save_error', 'Error al guardar'))
+    }
+  }
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return
+    const file = e.target.files[0]
+    setUploadMsg('')
+    setUploadError(false)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch('/api/translations/upload', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Upload failed')
+      }
+      setUploadMsg(t('translations.upload_success', 'Archivo subido correctamente'))
+      loadStatus()
+      loadMissing()
+    } catch (err: any) {
+      setUploadError(true)
+      setUploadMsg(err.message || t('translations.upload_error', 'Error al subir archivo'))
     }
   }
 
@@ -228,6 +314,109 @@ export default function TranslationEditor() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Gestion de idiomas */}
+      <div className="card p-4">
+        <h2 className="font-semibold mb-3 flex items-center gap-2">
+          <Plus size={18} /> {t('translations.manage_languages', 'Gestionar idiomas')}
+        </h2>
+
+        {/* Lista de idiomas con acciones */}
+        <div className="space-y-2 mb-4">
+          {languages.map((lang) => (
+            <div key={lang.code} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div>
+                <span className="font-medium text-sm">{lang.native_name}</span>
+                <span className="text-xs text-gray-500 ml-2">({lang.code})</span>
+                {lang.is_default && (
+                  <span className="text-xs ml-2 px-2 py-0.5 rounded bg-trueque-100 text-trueque-700">
+                    {t('translations.default', 'default')}
+                  </span>
+                )}
+                {!lang.enabled && (
+                  <span className="text-xs ml-2 px-2 py-0.5 rounded bg-gray-200 text-gray-600">
+                    {t('translations.disabled', 'deshabilitado')}
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleDownload(lang.code)}
+                  className="btn-secondary text-xs py-1 px-2 flex items-center gap-1"
+                  title={t('translations.download', 'Descargar archivo')}
+                >
+                  <Download size={14} />
+                </button>
+                <button
+                  onClick={() => handleToggleEnabled(lang)}
+                  className="btn-secondary text-xs py-1 px-2"
+                >
+                  {lang.enabled ? t('translations.disable', 'Deshabilitar') : t('translations.enable', 'Habilitar')}
+                </button>
+                {!lang.is_default && (
+                  <button
+                    onClick={() => handleSetDefault(lang.code)}
+                    className="btn-secondary text-xs py-1 px-2"
+                  >
+                    {t('translations.set_default', 'Establecer como default')}
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Anadir idioma */}
+        <div className="border-t pt-4">
+          <h3 className="font-medium text-sm mb-2">{t('translations.add_language', 'Anadir idioma')}</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <input
+              type="text"
+              placeholder={t('translations.language_code', 'Codigo (ej: en, pt, fr)')}
+              className="input text-sm"
+              value={newLangCode}
+              onChange={(e) => setNewLangCode(e.target.value)}
+            />
+            <input
+              type="text"
+              placeholder={t('translations.language_name', 'Nombre (ej: English)')}
+              className="input text-sm"
+              value={newLangName}
+              onChange={(e) => setNewLangName(e.target.value)}
+            />
+            <input
+              type="text"
+              placeholder={t('translations.language_native', 'Nombre nativo (ej: English)')}
+              className="input text-sm"
+              value={newLangNative}
+              onChange={(e) => setNewLangNative(e.target.value)}
+            />
+          </div>
+          <button
+            onClick={handleAddLanguage}
+            disabled={!newLangCode || !newLangName}
+            className="btn-primary text-sm mt-2 py-1 px-3 flex items-center gap-1"
+          >
+            <Plus size={14} /> {t('translations.add_language', 'Anadir idioma')}
+          </button>
+        </div>
+
+        {/* Subir archivo de traduccion */}
+        <div className="border-t pt-4 mt-4">
+          <h3 className="font-medium text-sm mb-2">{t('translations.upload', 'Subir archivo')}</h3>
+          <input
+            type="file"
+            accept=".json"
+            onChange={handleUpload}
+            className="text-sm"
+          />
+          {uploadMsg && (
+            <div className={`mt-2 text-sm p-2 rounded ${uploadError ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+              {uploadMsg}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

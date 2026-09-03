@@ -26,5 +26,8 @@
   "copy_from_node": "Copy from node",
   "node": "Node",
   "version": "Version",
-  "actions": "Actions"
+  "actions": "Actions",
+  "disabled": "disabled",
+  "language_added": "Language added",
+  "download_error": "Error downloading"
 }
