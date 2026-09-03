@@ -9,6 +9,7 @@ export default function TranslationEditor() {
   const [selectedLang, setSelectedLang] = useState('en')
   const [status, setStatus] = useState<any[]>([])
   const [federatedTranslations, setFederatedTranslations] = useState<any[]>([])
+  const [auditData, setAuditData] = useState<any>(null)
   const [missing, setMissing] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [editingValues, setEditingValues] = useState<Record<string, string>>({})
@@ -23,6 +24,7 @@ export default function TranslationEditor() {
   useEffect(() => {
     loadLanguages()
     loadFederatedTranslations()
+    loadAuditData()
   }, [])
 
   useEffect(() => {
@@ -53,6 +55,36 @@ export default function TranslationEditor() {
       setFederatedTranslations(res || [])
     } catch {
       setFederatedTranslations([])
+    }
+  }
+
+  const loadAuditData = async () => {
+    try {
+      // Cargar estado de traducciones por idioma
+      const audit: any = { languages: [], namespaces: [] }
+      const langs = await api.get<any[]>('/languages')
+      const enabledLangs = (langs || []).filter((l: any) => l.enabled)
+
+      for (const lang of enabledLangs) {
+        try {
+          const status = await api.get<any[]>(`/translations/${lang.code}/status`)
+          const totalKeys = status?.length || 0
+          const translatedKeys = status?.filter((s: any) => s.has_translation).length || 0
+          const pct = totalKeys > 0 ? Math.round((translatedKeys / totalKeys) * 100) : 0
+          audit.languages.push({
+            code: lang.code,
+            name: lang.native_name,
+            total: totalKeys,
+            translated: translatedKeys,
+            pct,
+          })
+        } catch {
+          audit.languages.push({ code: lang.code, name: lang.native_name, total: 0, translated: 0, pct: 0 })
+        }
+      }
+      setAuditData(audit)
+    } catch {
+      setAuditData(null)
     }
   }
 
@@ -235,6 +267,43 @@ export default function TranslationEditor() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t('translations.title', 'Traducciones')}</h1>
       </div>
+
+      {/* Panel de auditoria */}
+      {auditData && auditData.languages.length > 0 && (
+        <div className="card p-4">
+          <h2 className="font-semibold mb-3 flex items-center gap-2">
+            <CheckCircle size={18} /> {t('translations.audit_title', 'Estado de traducciones')}
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {auditData.languages.map((lang: any) => (
+              <div key={lang.code} className="border rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-medium text-sm flex items-center gap-1">
+                    <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-gray-100">{lang.code.toUpperCase()}</span>
+                    {lang.name}
+                  </span>
+                  <span className={`text-xs font-bold ${
+                    lang.pct >= 80 ? 'text-green-600' : lang.pct >= 40 ? 'text-amber-600' : 'text-red-600'
+                  }`}>
+                    {lang.pct}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className={`h-2 rounded-full transition-all ${
+                      lang.pct >= 80 ? 'bg-green-500' : lang.pct >= 40 ? 'bg-amber-500' : 'bg-red-500'
+                    }`}
+                    style={{ width: `${lang.pct}%` }}
+                  />
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {lang.translated} / {lang.total} {t('translations.keys_translated', 'claves traducidas')}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Selector de idioma */}
       <div className="card p-4">

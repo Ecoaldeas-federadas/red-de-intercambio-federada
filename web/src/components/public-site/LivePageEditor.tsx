@@ -437,6 +437,28 @@ export function LivePageEditor({
     await loadLangContent(lang)
   }
 
+  // Copiar contenido de otro idioma como punto de partida
+  const copyFromLang = async (fromLang: string) => {
+    if (!pageId) return
+    if (!confirm(`¿Copiar el contenido desde ${fromLang.toUpperCase()}? Esto reemplazará el contenido actual.`)) return
+    try {
+      const tr = await api.get<any>(`/site/pages/${pageId}/translations/${fromLang}`)
+      if (tr?.content) {
+        try {
+          const parsed = JSON.parse(tr.content)
+          if (Array.isArray(parsed)) {
+            setBlocks(parsed)
+          }
+        } catch {}
+      }
+      setPageTitle(tr?.title || title)
+      setPageSubtitle(tr?.subtitle || subtitle || '')
+      setHasChanges(true)
+    } catch {
+      setError(`No se pudo cargar el contenido de ${fromLang}`)
+    }
+  }
+
   // Move block up/down
   const moveBlock = (index: number, direction: 'up' | 'down') => {
     const target = direction === 'up' ? index - 1 : index + 1
@@ -576,6 +598,24 @@ export function LivePageEditor({
                   )}
                 </button>
               ))}
+              {/* Boton copiar de otro idioma */}
+              {languages.filter(l => l.code !== editLang && pageTranslations[l.code]).length > 0 && (
+                <button
+                  onClick={() => {
+                    const fromLangs = languages.filter(l => l.code !== editLang && pageTranslations[l.code])
+                    if (fromLangs.length === 1) {
+                      copyFromLang(fromLangs[0].code)
+                    } else {
+                      const choice = prompt(`Copiar desde: ${fromLangs.map(l => l.code.toUpperCase()).join(', ')}`)
+                      if (choice) copyFromLang(choice.toLowerCase())
+                    }
+                  }}
+                  className="px-2 py-1 rounded text-[11px] font-bold bg-white/10 hover:bg-white/20 text-white transition flex items-center gap-1 ml-1"
+                  title="Copiar contenido de otro idioma"
+                >
+                  <Copy size={11} /> Copiar de...
+                </button>
+              )}
             </div>
           )}
 
