@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { Search } from 'lucide-react'
+import { api } from '../../api'
 import { fmtNumber } from '../../lib/format'
 import {
   EdText,
@@ -50,6 +51,22 @@ import {
   History as HistoryIcon,
   Calculator as CalcIcon,
   BookOpen,
+  Eye,
+  EyeOff,
+  Server,
+  Video,
+  MessageCircle,
+  Cloud,
+  Phone,
+  Mail as MailIcon,
+  FileText as FileTextIcon,
+  Film,
+  Music,
+  GitBranch,
+  GraduationCap,
+  Mic,
+  Globe as GlobeIcon,
+  Network as NetworkIcon,
 } from 'lucide-react'
 import {
   SiteBlock,
@@ -71,6 +88,7 @@ import {
   InstitutionsPartnersBlockData,
   ResourceDownloadsBlockData,
   CalculatorPreviewBlockData,
+  ServicesDynamicBlockData,
 } from '../../types/publicSite'
 
 const ICON_MAP: Record<string, any> = {
@@ -90,6 +108,20 @@ const ICON_MAP: Record<string, any> = {
   shield: ShieldCheck,
   newspaper: Newspaper,
   book: BookOpen,
+  server: Server,
+  video: Video,
+  'message-circle': MessageCircle,
+  cloud: Cloud,
+  phone: Phone,
+  mail: MailIcon,
+  'file-text': FileTextIcon,
+  film: Film,
+  music: Music,
+  'git-branch': GitBranch,
+  'graduation-cap': GraduationCap,
+  mic: Mic,
+  globe: GlobeIcon,
+  network: NetworkIcon,
 }
 
 // -------------------------------------------------------------
@@ -1609,6 +1641,168 @@ export function ContactLocationBlock({ data }: { data: ContactLocationBlockData 
 }
 
 // -------------------------------------------------------------
+// 17. SERVICES DYNAMIC BLOCK
+// Muestra servicios federados del catalogo real (API).
+// En modo edicion: toggle mostrar/ocultar. No se puede eliminar.
+// -------------------------------------------------------------
+const SERVICE_CATEGORY_LABELS: Record<string, string> = {
+  social: 'Redes Sociales Federadas',
+  communication: 'Comunicación',
+  productivity: 'Productividad y Multimedia',
+  infrastructure: 'Infraestructura',
+}
+
+export function ServicesDynamicBlock({ data }: { data: ServicesDynamicBlockData }) {
+  const { editMode, updateField } = useInlineEdit()
+  const [services, setServices] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    api
+      .get('/services/catalog')
+      .then((res: any) => {
+        const list = res?.services || res || []
+        setServices(Array.isArray(list) ? list : [])
+        setLoading(false)
+      })
+      .catch(() => {
+        setLoading(false)
+      })
+  }, [])
+
+  const hiddenIds = data.hidden_service_ids || []
+
+  // Filtrar por categorias si estan definidas
+  const filteredServices = data.categories && data.categories.length > 0
+    ? services.filter((s) => data.categories!.includes(s.category))
+    : services
+
+  // En modo publico: solo mostrar servicios no ocultos E instalados
+  const visibleServices = editMode
+    ? filteredServices
+    : filteredServices.filter((s) => !hiddenIds.includes(s.id) && s.status === 'installed')
+
+  // Agrupar por categoria
+  const grouped = SERVICE_CATEGORY_LABELS
+    ? Object.entries(SERVICE_CATEGORY_LABELS).map(([key, label]) => ({
+        key,
+        label,
+        items: visibleServices.filter((s) => s.category === key),
+      })).filter((g) => g.items.length > 0)
+    : [{ key: 'all', label: '', items: visibleServices }]
+
+  const toggleHide = (serviceId: string) => {
+    const current = data.hidden_service_ids || []
+    const newHidden = current.includes(serviceId)
+      ? current.filter((id) => id !== serviceId)
+      : [...current, serviceId]
+    updateField?.('hidden_service_ids', newHidden)
+  }
+
+  if (loading) {
+    return (
+      <section className="my-8 sm:my-12 bg-white rounded-3xl p-6 sm:p-10 shadow-sm border border-gray-100">
+        <div className="text-center py-8 space-y-3">
+          <div className="w-10 h-10 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin mx-auto" />
+          <p className="text-gray-500 text-xs">Cargando servicios...</p>
+        </div>
+      </section>
+    )
+  }
+
+  if (!editMode && visibleServices.length === 0) {
+    return null // No mostrar nada si no hay servicios visibles
+  }
+
+  return (
+    <section className="my-8 sm:my-12 bg-white rounded-3xl p-6 sm:p-10 shadow-sm border border-gray-100 space-y-6">
+      {/* Header */}
+      <div className="space-y-1">
+        {data.title && <EdText field="title" value={data.title} as="h3" className="text-xl sm:text-2xl font-extrabold text-gray-900" />}
+        {data.subtitle && <EdText field="subtitle" value={data.subtitle} as="p" className="text-xs sm:text-sm text-gray-500" />}
+      </div>
+
+      {editMode && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700 flex items-start gap-2">
+          <Server size={16} className="flex-shrink-0 mt-0.5" />
+          <div>
+            Estos servicios provienen del catálogo real del nodo. Usa los botones <strong>Ocultar/Mostrar</strong> para controlar
+            cuáles se muestran al público. Para instalar o desinstalar servicios, usa el{' '}
+            <Link to="/app/services" className="font-bold underline">Panel de Servicios</Link>.
+            <strong> No se pueden eliminar del catálogo desde aquí.</strong>
+          </div>
+        </div>
+      )}
+
+      {/* Servicios agrupados por categoria */}
+      {grouped.map((group) => (
+        <div key={group.key} className="space-y-3">
+          {group.label && (
+            <h4 className="text-sm font-bold text-gray-700 border-b border-gray-100 pb-1">{group.label}</h4>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {group.items.map((svc: any) => {
+              const IconComp = ICON_MAP[String(svc.icon || '').toLowerCase()] || Server
+              const isHidden = hiddenIds.includes(svc.id)
+              const isInstalled = svc.status === 'installed'
+              return (
+                <div
+                  key={svc.id}
+                  className={`p-4 rounded-2xl border flex flex-col justify-between space-y-3 transition relative ${
+                    isHidden && editMode
+                      ? 'bg-gray-100 border-gray-300 opacity-60'
+                      : 'bg-gray-50 border-gray-200 hover:bg-emerald-50/40 hover:border-emerald-300'
+                  }`}
+                >
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className={`font-bold px-2 py-0.5 rounded ${
+                        isInstalled ? 'text-emerald-800 bg-emerald-100' : 'text-gray-500 bg-gray-200'
+                      }`}>
+                        {isInstalled ? 'Instalado' : 'Disponible'}
+                      </span>
+                      {svc.replaces && (
+                        <span className="text-gray-400 text-[10px]">Reemplaza: {svc.replaces}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <IconComp size={18} className="text-emerald-700 flex-shrink-0" />
+                      <h4 className="font-bold text-sm text-gray-900">{svc.name}</h4>
+                    </div>
+                    <p className="text-xs text-gray-600 leading-relaxed">{svc.what_is}</p>
+                  </div>
+
+                  {/* Controles de edición: ocultar/mostrar */}
+                  {editMode && (
+                    <button
+                      onClick={() => toggleHide(svc.id)}
+                      className={`inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition ${
+                        isHidden
+                          ? 'bg-blue-600 text-white hover:bg-blue-500'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      {isHidden ? <><Eye size={14} /> Mostrar al público</> : <><EyeOff size={14} /> Ocultar del público</>}
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+
+      {editMode && visibleServices.length === 0 && (
+        <div className="text-center py-8 text-gray-500 text-xs">
+          No hay servicios en el catálogo. Instala servicios desde el{' '}
+          <Link to="/app/services" className="font-bold underline">Panel de Servicios</Link>.
+        </div>
+      )}
+    </section>
+  )
+}
+
+// -------------------------------------------------------------
 // MASTER BLOCK RENDERER
 // -------------------------------------------------------------
 export function BlockRenderer({
@@ -1662,6 +1856,8 @@ export function BlockRenderer({
         return <ResourceDownloadsBlock data={block} />
       case 'calculator_preview':
         return <CalculatorPreviewBlock data={block} />
+      case 'services_dynamic':
+        return <ServicesDynamicBlock data={block} />
       case 'richtext':
         return <RichTextBlock data={block} />
       case 'contact_location':

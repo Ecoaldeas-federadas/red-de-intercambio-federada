@@ -17,6 +17,7 @@ export type BlockType =
   | 'institutions_partners'
   | 'resource_downloads'
   | 'calculator_preview'
+  | 'services_dynamic'
 
 export interface CtaButton {
   text: string
@@ -288,6 +289,16 @@ export interface CalculatorPreviewBlockData {
   }[]
 }
 
+export interface ServicesDynamicBlockData {
+  type: 'services_dynamic'
+  title?: string
+  subtitle?: string
+  // Lista de IDs de servicios ocultos (no se muestran al público pero no se eliminan)
+  hidden_service_ids?: string[]
+  // Categorías a mostrar (vacío = todas)
+  categories?: string[]
+}
+
 export type SiteBlock =
   | HeroBlockData
   | CarouselBlockData
@@ -307,6 +318,7 @@ export type SiteBlock =
   | InstitutionsPartnersBlockData
   | ResourceDownloadsBlockData
   | CalculatorPreviewBlockData
+  | ServicesDynamicBlockData
 
 export type HeaderStyleType =
   | 'modern_eco'

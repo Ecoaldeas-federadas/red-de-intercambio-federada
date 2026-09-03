@@ -2085,49 +2085,9 @@ func getSeedPages() []seedPage {
     "theme": "forest"
   },
   {
-    "type": "features_grid",
-    "title": "Redes Sociales Federadas",
-    "subtitle": "Reemplaza las redes sociales comerciales",
-    "columns": 3,
-    "items": [
-      {"icon":"video","title":"PeerTube","description":"Plataforma de videos. Reemplaza YouTube. Los videos se almacenan en el servidor de la aldea. Las aldeas federadas pueden ver videos entre ellas.","badge":"Reemplaza YouTube"},
-      {"icon":"message-circle","title":"Mastodon","description":"Red social de mensajes cortos. Reemplaza Twitter/X. Cada aldea tiene su propio servidor. Sin anuncios, sin algoritmos.","badge":"Reemplaza Twitter"},
-      {"icon":"image","title":"Pixelfed","description":"Red social de fotografias. Reemplaza Instagram. Sin filtros que alteran tu imagen, sin anuncios.","badge":"Reemplaza Instagram"},
-      {"icon":"users","title":"Friendica","description":"Red social completa con perfiles, grupos, eventos. Reemplaza Facebook. Sin vender tus datos.","badge":"Reemplaza Facebook"},
-      {"icon":"message-square","title":"Lemmy","description":"Plataforma de foros y discusiones. Reemplaza Reddit. La comunidad vota lo util de cada respuesta.","badge":"Reemplaza Reddit"},
-      {"icon":"book-open","title":"BookWyrm","description":"Red social para amantes de libros. Reemplaza Goodreads. Sin que Amazon vigile tus lecturas.","badge":"Reemplaza Goodreads"}
-    ]
-  },
-  {
-    "type": "features_grid",
-    "title": "Comunicacion",
-    "subtitle": "Reemplaza las apps de mensajeria y llamadas comerciales",
-    "columns": 3,
-    "items": [
-      {"icon":"phone","title":"VoIP - Telefonía","description":"Sistema telefonico de la aldea. Llamadas internas gratis, llamadas al exterior via pasarela SIP. Cada miembro tiene su extension.","badge":"Telefonia"},
-      {"icon":"message-circle","title":"Sylk Suite (Blink + SylkServer)","description":"Mensajeria, llamadas y videoconferencias federadas en una sola app. Cliente para Android, iOS, Windows, macOS, Linux y web. Colocas el dominio del nodo y se conecta automaticamente. Cifrado extremo a extremo. Federacion entre aldeas como correo electronico: usuario@aldea-a.com llama a amigo@aldea-b.com. Reemplaza WhatsApp + Zoom en uno.","badge":"Recomendado"},
-      {"icon":"mail","title":"Mailu (Servidor de Correo Ligero)","description":"Servidor de correo 100% libre (MIT). Todo en uno: SMTP, IMAP, panel admin, webmail. Cada miembro tiene su correo @tu-dominio. Cuotas de espacio configurables por usuario. Federacion automatica con cualquier servidor del mundo. Solo 1-2 GB RAM. Ideal para hardware limitado.","badge":"Recomendado"},
-      {"icon":"mail","title":"Mailcow (Servidor de Correo Completo)","description":"Suite completa con groupware: correo, calendario compartido, contactos CardDAV/CalDAV. Mas completo que Mailu pero requiere 3-4 GB RAM. Ideal para instalar en otro servidor o nodo con mas hardware. Incluye antispam, antivirus, SSL automatico.","badge":"Completo"},
-      {"icon":"message-circle","title":"Delta Chat (Cliente de Chat por Correo)","description":"CLIENTE que se ve como WhatsApp pero envia mensajes via correo federado. Cifrado extremo a extremo. App para Android, iOS y escritorio. REQUIERE Mailu o Mailcow instalado en el nodo. Cada miembro instala la app, coloca su correo@tu-dominio y se conecta automaticamente. Federacion entre aldeas.","badge":"Chat federado"},
-      {"icon":"mail","title":"SnappyMail (Webmail)","description":"Webmail rapido y moderno estilo Gmail. Leer y escribir correos desde el navegador sin instalar nada. Se conecta a Mailu o Mailcow. Adaptable a moviles.","badge":"Webmail"},
-      {"icon":"mic","title":"Mumble","description":"Chat de voz para reuniones y coordinacion. Bajo consumo de ancho de banda. Ideal para conexiones lentas.","badge":"Voz"},
-      {"icon":"cloud","title":"Nextcloud","description":"Almacenamiento y colaboracion. Reemplaza Google Drive, Dropbox. Archivos, calendarios, contactos, documentos compartidos.","badge":"Reemplaza GDrive"},
-      {"icon":"message-square","title":"Matrix","description":"Mensajeria instantanea descentralizada. Reemplaza WhatsApp, Telegram. Mensajes cifrados de extremo a extremo.","badge":"Reemplaza WhatsApp"}
-    ]
-  },
-  {
-    "type": "features_grid",
-    "title": "Productividad y Multimedia",
-    "subtitle": "Herramientas de trabajo y entretenimiento",
-    "columns": 3,
-    "items": [
-      {"icon":"file-text","title":"MediaWiki","description":"Enciclopedia y documentacion colaborativa. Reemplaza Wikipedia privada. La aldea documenta su conocimiento.","badge":"Wiki"},
-      {"icon":"film","title":"Jellyfin","description":"Servidor de medios. Reemplaza Netflix, Spotify. Peliculas, series, musica almacenadas en la aldea.","badge":"Reemplaza Netflix"},
-      {"icon":"music","title":"Navidrome","description":"Servidor de musica. Reemplaza Spotify. Tu musica en tu servidor, sin anuncios, sin tracking.","badge":"Reemplaza Spotify"},
-      {"icon":"git-branch","title":"Gitea","description":"Servidor Git. Reemplaza GitHub, GitLab. Repositorios de codigo y proyectos de la aldea.","badge":"Reemplaza GitHub"},
-      {"icon":"graduation-cap","title":"BigBlueButton","description":"Aula virtual para clases y talleres. Reemplaza Zoom, Google Classroom. Pizarra compartida, grabacion.","badge":"Reemplaza Zoom"},
-      {"icon":"home","title":"Home Assistant","description":"Automatizacion del hogar. Reemplaza Google Home, Alexa. Controla luces, sensores, energia solar. Todo local.","badge":"IoT local"}
-    ]
+    "type": "services_dynamic",
+    "title": "Servicios Disponibles",
+    "subtitle": "Catalogo real del nodo. Los servicios instalados se muestran al publico. Usa el editor para ocultar o mostrar servicios."
   },
   {
     "type": "features_grid",

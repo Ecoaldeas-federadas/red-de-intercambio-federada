@@ -222,6 +222,17 @@ const BLOCK_TEMPLATES: {
     }),
   },
   {
+    type: 'services_dynamic',
+    name: 'Servicios Federados Dinámicos',
+    description: 'Muestra los servicios reales del catálogo del nodo. Permite ocultar/mostrar sin eliminar.',
+    defaultData: () => ({
+      type: 'services_dynamic',
+      title: 'Servicios Disponibles',
+      subtitle: 'Catálogo real del nodo. Los servicios instalados se muestran al público.',
+      hidden_service_ids: [],
+    }),
+  },
+  {
     type: 'testimonials',
     name: 'Testimonios & Voces Conuqueras',
     description: 'Tarjetas de productores y miembros con citas, nombres y fotos.',
