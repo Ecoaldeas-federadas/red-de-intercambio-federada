@@ -153,12 +153,18 @@ if [ "$METHOD" = "GET" ] && { [ "$PATH_REQ" = "/" ] || [ "$PATH_REQ" = "/index.h
     exit 0
   fi
   log_msg "Sirviendo pagina de control HTML"
-  # El HTML se sirve desde un archivo separado (docker/updater.html) para evitar
-  # el problema de comillas simples del JavaScript dentro de un string de shell.
-  # Antes el HTML estaba inline en una variable shell con comillas simples (HTML='...')
-  # pero el JavaScript usa comillas simples (var TOKEN='';) que rompian la string de shell.
-  if [ -f /updater.html ]; then
-    LEN=$(wc -c < /updater.html)
+  # El HTML se sirve desde un archivo separado para evitar el problema de
+  # comillas simples del JavaScript dentro de un string de shell.
+  # Buscar en volume mount primero (hot-reload), luego en Docker copy.
+  HTML_FILE=""
+  for CANDIDATE in /project/docker/updater.html /updater.html; do
+    if [ -f "$CANDIDATE" ]; then
+      HTML_FILE="$CANDIDATE"
+      break
+    fi
+  done
+  if [ -n "$HTML_FILE" ]; then
+    LEN=$(wc -c < "$HTML_FILE")
     printf 'HTTP/1.1 200 OK\r\n'
     printf 'Content-Type: text/html; charset=utf-8\r\n'
     printf 'Access-Control-Allow-Origin: *\r\n'
@@ -166,7 +172,7 @@ if [ "$METHOD" = "GET" ] && { [ "$PATH_REQ" = "/" ] || [ "$PATH_REQ" = "/index.h
     printf 'Access-Control-Allow-Headers: Content-Type, Authorization\r\n'
     printf 'Content-Length: %d\r\n' "$LEN"
     printf '\r\n'
-    cat /updater.html
+    cat "$HTML_FILE"
   else
     send_html '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Error</title></head><body><h1>Error: updater.html no encontrado</h1></body></html>'
   fi

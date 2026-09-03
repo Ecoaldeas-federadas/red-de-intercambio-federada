@@ -3,8 +3,11 @@ RUN apk --no-cache add git docker-cli docker-cli-compose socat ca-certificates
 COPY docker/updater-controller.sh /updater-controller.sh
 COPY docker/do_update.sh /do_update.sh
 COPY docker/updater.html /updater.html
+COPY docker/entrypoint-updater.sh /entrypoint-updater.sh
 # Strip CRLF line endings (Windows) que rompen los scripts shell en Linux
-RUN sed -i 's/\r$//' /updater-controller.sh /do_update.sh && \
-    chmod +x /updater-controller.sh /do_update.sh && \
-    ls -la /updater-controller.sh /do_update.sh /updater.html
-ENTRYPOINT ["socat", "TCP-LISTEN:9110,reuseaddr,fork", "EXEC:/updater-controller.sh"]
+RUN sed -i 's/\r$//' /updater-controller.sh /do_update.sh /entrypoint-updater.sh /updater.html && \
+    chmod +x /updater-controller.sh /do_update.sh /entrypoint-updater.sh && \
+    ls -la /updater-controller.sh /do_update.sh /updater.html /entrypoint-updater.sh
+# El entrypoint usa el script del volume mount (/project/docker/) si existe,
+# permitiendo actualizar con git pull + restart sin rebuild.
+ENTRYPOINT ["/entrypoint-updater.sh"]
