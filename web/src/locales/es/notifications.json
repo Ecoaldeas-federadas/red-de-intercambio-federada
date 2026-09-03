@@ -77,5 +77,14 @@
   "notif_type_org_board_assigned": "Asignacion a junta",
   "notif_type_org_approved": "Organizacion aprobada",
   "notif_type_federation_peer_registered": "Nodo par registrado",
-  "notif_type_federation_product_approved": "Producto federado aprobado"
+  "notif_type_federation_product_approved": "Producto federado aprobado",
+
+  "webpush_vapid_error": "No se pudo obtener la clave VAPID del servidor",
+  "webpush_permission_denied": "Permiso de notificaciones denegado por el navegador",
+  "error_prefix": "Error",
+  "gateway_test_sent": "Test de {{channel}} enviado",
+  "gateway_test_error": "Error en test de {{channel}}",
+  "gateway_how_to_configure": "Como configurar {{label}}",
+  "webpush_auto_configured": "Web Push se configura automaticamente",
+  "webpush_auto_desc": "Las claves VAPID se generan solas cuando un usuario activa las notificaciones push desde su pagina de contactos. No necesitas configurar nada aqui. Solo activa la pasarela y los usuarios podran suscribirse desde sus ajustes."
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { Bell, Mail, Send, MessageSquare, Globe, Webhook, Save, TestTube, Check, X, Smartphone, BellRing, HelpCircle, ExternalLink } from 'lucide-react'
@@ -186,6 +187,7 @@ const NOTIF_TYPES = [
 ]
 
 export default function NotificationSettings() {
+  const { t } = useTranslation('notifications')
   const { hasPermission } = usePermissions()
   const canManageGateways = hasPermission('config.manage')
   const [searchParams, setSearchParams] = useSearchParams()
@@ -235,7 +237,7 @@ export default function NotificationSettings() {
     try {
       // 0. Verificar que el navegador soporta Service Worker y Push
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        setError('Tu navegador no soporta notificaciones push')
+        setError(t('webpush_not_supported', 'Tu navegador no soporta notificaciones push'))
         setWebpushLoading(false)
         return
       }
@@ -249,7 +251,7 @@ export default function NotificationSettings() {
       const vapidKey = vapidRes?.vapid_public_key
 
       if (!vapidKey) {
-        setError('No se pudo obtener la clave VAPID del servidor')
+        setError(t('webpush_vapid_error', 'No se pudo obtener la clave VAPID del servidor'))
         setWebpushLoading(false)
         return
       }
@@ -257,7 +259,7 @@ export default function NotificationSettings() {
       // 3. Solicitar permiso de notificaciones al usuario
       const permission = await Notification.requestPermission()
       if (permission !== 'granted') {
-        setError('Permiso de notificaciones denegado por el navegador')
+        setError(t('webpush_permission_denied', 'Permiso de notificaciones denegado por el navegador'))
         setWebpushLoading(false)
         return
       }
@@ -274,11 +276,11 @@ export default function NotificationSettings() {
       // 6. Enviar subscription al backend
       await api.post('/notifications/webpush/subscribe', sub.toJSON())
       setWebpushSubscribed(true)
-      setSuccess('Suscrito a notificaciones push del navegador')
+      setSuccess(t('webpush_subscribed_success', 'Suscrito a notificaciones push del navegador'))
       setTimeout(() => setSuccess(''), 3000)
     } catch (e: any) {
       console.error('Error WebPush:', e)
-      setError('Error al suscribirse: ' + (e?.message || 'desconocido'))
+      setError(t('webpush_error', 'Error al suscribirse') + ': ' + (e?.message || 'desconocido'))
     }
     setWebpushLoading(false)
   }
@@ -303,10 +305,10 @@ export default function NotificationSettings() {
       if (sub) await sub.unsubscribe()
       await api.delete('/notifications/webpush/subscribe')
       setWebpushSubscribed(false)
-      setSuccess('Suscripcion cancelada')
+      setSuccess(t('webpush_unsubscribed', 'Suscripcion cancelada'))
       setTimeout(() => setSuccess(''), 3000)
     } catch (e: any) {
-      setError('Error: ' + (e.message || 'desconocido'))
+      setError(t('error_prefix', 'Error') + ': ' + (e.message || 'desconocido'))
     }
     setWebpushLoading(false)
   }
@@ -397,9 +399,9 @@ export default function NotificationSettings() {
       }
     }
     api.put('/notifications/preferences', { preferences: payload }).then(() => {
-      setSuccess('Preferencias guardadas')
+      setSuccess(t('preferences_saved', 'Preferencias guardadas'))
       setTimeout(() => setSuccess(''), 3000)
-    }).catch(() => setError('Error al guardar preferencias'))
+    }).catch(() => setError(t('error_saving_preferences', 'Error al guardar preferencias')))
   }
 
   const saveContacts = () => {
@@ -415,9 +417,9 @@ export default function NotificationSettings() {
       digest_mode: contacts.digest_mode || 'instant',
     }
     api.put('/auth/me/contacts', payload).then(() => {
-      setSuccess('Datos de contacto guardados')
+      setSuccess(t('contacts_saved', 'Datos de contacto guardados'))
       setTimeout(() => setSuccess(''), 3000)
-    }).catch(() => setError('Error al guardar contactos'))
+    }).catch(() => setError(t('error_saving_contacts', 'Error al guardar contactos')))
   }
 
   const updateGatewayField = (channel: string, field: string, value: any) => {
@@ -438,11 +440,11 @@ export default function NotificationSettings() {
       is_active: config.is_active ?? true,
       config: config
     }).then(() => {
-      setSuccess(`Pasarela ${channel} guardada`)
+      setSuccess(t('gateway_saved', 'Pasarela {{channel}} guardada', { channel }))
       setEditingGateway(null)
       loadAll()
       setTimeout(() => setSuccess(''), 3000)
-    }).catch(() => setError(`Error al guardar pasarela ${channel}`))
+    }).catch(() => setError(t('gateway_save_error', 'Error al guardar pasarela {{channel}}', { channel })))
   }
 
   const testGateway = (channel: string) => {
@@ -450,10 +452,10 @@ export default function NotificationSettings() {
     setTestResults(prev => ({ ...prev, [channel]: null }))
     api.post(`/notifications/gateways/${channel}/test`, {}).then((d: any) => {
       const success = d?.success !== false
-      const message = d?.error ? `${d.message}: ${d.error}` : (d?.message || `Test de ${channel} enviado`)
+      const message = d?.error ? `${d.message}: ${d.error}` : (d?.message || t('gateway_test_sent', 'Test de {{channel}} enviado', { channel }))
       setTestResults(prev => ({ ...prev, [channel]: { success, message } }))
     }).catch((e: any) => {
-      const msg = e?.message || `Error en test de ${channel}`
+      const msg = e?.message || t('gateway_test_error', 'Error en test de {{channel}}', { channel })
       setTestResults(prev => ({ ...prev, [channel]: { success: false, message: msg } }))
     }).finally(() => setTestingChannel(null))
   }
@@ -515,7 +517,7 @@ export default function NotificationSettings() {
         {help && (
           <details className="bg-blue-50 border border-blue-200 rounded p-3 text-sm">
             <summary className="cursor-pointer font-medium text-blue-700 flex items-center gap-1">
-              <HelpCircle size={14} /> Como configurar {CHANNEL_INFO[channel]?.label || channel}
+              <HelpCircle size={14} /> {t('gateway_how_to_configure', 'Como configurar {{label}}', { label: CHANNEL_INFO[channel]?.label || channel })}
             </summary>
             <div className="mt-3 space-y-2">
               {help.steps.map((s, i) => (
@@ -542,11 +544,9 @@ export default function NotificationSettings() {
 
         {channel === 'webpush' && fields.length === 0 && (
           <div className="bg-indigo-50 border border-indigo-200 rounded p-3 text-sm text-indigo-700">
-            <p className="font-medium mb-1">Web Push se configura automaticamente</p>
+            <p className="font-medium mb-1">{t('webpush_auto_configured', 'Web Push se configura automaticamente')}</p>
             <p className="text-xs">
-              Las claves VAPID se generan solas cuando un usuario activa las notificaciones push
-              desde su pagina de contactos. No necesitas configurar nada aqui.
-              Solo activa la pasarela y los usuarios podran suscribirse desde sus ajustes.
+              {t('webpush_auto_desc', 'Las claves VAPID se generan solas cuando un usuario activa las notificaciones push desde su pagina de contactos. No necesitas configurar nada aqui. Solo activa la pasarela y los usuarios podran suscribirse desde sus ajustes.')}
             </p>
           </div>
         )}
@@ -556,7 +556,7 @@ export default function NotificationSettings() {
             checked={form.is_active ?? existing?.is_active ?? false}
             onChange={e => updateGatewayField(channel, 'is_active', e.target.checked)}
           />
-          Activar pasarela
+          {t('gateway_activate', 'Activar pasarela')}
         </label>
         {fields.map(f => {
           const fieldHelp = help?.fields.find(fh => fh.key === f.key)
@@ -585,12 +585,12 @@ export default function NotificationSettings() {
         })}
         <div className="flex gap-2 pt-2">
           <button onClick={() => saveGateway(channel)} className="btn-primary text-sm flex items-center gap-1">
-            <Save size={14} /> Guardar
+            <Save size={14} /> {t('gateway_save', 'Guardar')}
           </button>
           <button onClick={() => testGateway(channel)} disabled={testingChannel === channel} className="btn-secondary text-sm flex items-center gap-1">
-            <TestTube size={14} /> {testingChannel === channel ? 'Enviando...' : 'Probar'}
+            <TestTube size={14} /> {testingChannel === channel ? t('gateway_testing', 'Enviando...') : t('gateway_test', 'Probar')}
           </button>
-          <button onClick={() => setEditingGateway(null)} className="btn-secondary text-sm">Cancelar</button>
+          <button onClick={() => setEditingGateway(null)} className="btn-secondary text-sm">{t('gateway_cancel', 'Cancelar')}</button>
         </div>
         {testResults[channel] && (
           <div className={`text-sm p-2 rounded mt-2 ${testResults[channel]!.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
@@ -607,7 +607,7 @@ export default function NotificationSettings() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Bell className="text-trueque-600" />
-          Notificaciones
+          {t('settings_title', 'Notificaciones')}
         </h1>
       </div>
 
@@ -620,20 +620,20 @@ export default function NotificationSettings() {
           onClick={() => changeTab('preferences')}
           className={`px-4 py-2 text-sm font-medium border-b-2 ${tab === 'preferences' ? 'border-trueque-600 text-trueque-600' : 'border-transparent text-gray-500'}`}
         >
-          Mis preferencias
+          {t('tab_preferences', 'Mis preferencias')}
         </button>
         <button
           onClick={() => changeTab('contacts')}
           className={`px-4 py-2 text-sm font-medium border-b-2 ${tab === 'contacts' ? 'border-trueque-600 text-trueque-600' : 'border-transparent text-gray-500'}`}
         >
-          Mis contactos
+          {t('tab_contacts', 'Mis contactos')}
         </button>
         {canManageGateways && (
           <button
             onClick={() => changeTab('gateways')}
             className={`px-4 py-2 text-sm font-medium border-b-2 ${tab === 'gateways' ? 'border-trueque-600 text-trueque-600' : 'border-transparent text-gray-500'}`}
           >
-            Pasarelas (admin)
+            {t('tab_gateways', 'Pasarelas (admin)')}
           </button>
         )}
       </div>
@@ -642,16 +642,12 @@ export default function NotificationSettings() {
       {tab === 'preferences' && (
         <div className="card">
           <p className="text-sm text-gray-600 mb-4">
-            Selecciona por que canal quieres recibir cada tipo de notificacion.
-            El canal <strong>in_app</strong> (campana) siempre esta activo.
-            Solo se muestran los canales que el administrador ha configurado.
+            {t('preferences_desc', 'Selecciona por que canal quieres recibir cada tipo de notificacion. El canal in_app (campana) siempre esta activo. Solo se muestran los canales que el administrador ha configurado.')}
           </p>
           {activeChannels.length === 0 ? (
             <div className="p-6 text-center text-gray-400 text-sm">
               <Bell size={24} className="mx-auto mb-2 opacity-30" />
-              No hay pasarelas configuradas. El administrador debe activar al menos una pasarela
-              (Email, Telegram, Matrix, etc.) para que puedas elegir canales de envio.
-              Mientras tanto, recibiras notificaciones en la campana de la aplicacion.
+              {t('no_gateways_configured', 'No hay pasarelas configuradas. El administrador debe activar al menos una pasarela (Email, Telegram, Matrix, etc.) para que puedas elegir canales de envio. Mientras tanto, recibiras notificaciones en la campana de la aplicacion.')}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -660,7 +656,7 @@ export default function NotificationSettings() {
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-2 px-2">
                       <div className="flex items-center gap-2">
-                        <span>Evento</span>
+                        <span>{t('event_header', 'Evento')}</span>
                       </div>
                     </th>
                     {activeChannels.map(c => {
@@ -681,7 +677,7 @@ export default function NotificationSettings() {
                                 ref={el => { if (el) el.indeterminate = !allOn && someOn }}
                                 onChange={e => toggleAllForChannel(c.channel_code, e.target.checked)}
                               />
-                              Todos
+                              {t('all', 'Todos')}
                             </label>
                           </div>
                         </th>
@@ -704,7 +700,7 @@ export default function NotificationSettings() {
                               ref={el => { if (el) el.indeterminate = !allChannelsOn && someChannelsOn }}
                               onChange={e => toggleAllForEvent(nt.code, e.target.checked)}
                             />
-                            <span>{nt.label}</span>
+                            <span>{t('notif_type_' + nt.code, nt.label)}</span>
                           </div>
                         </td>
                         {activeChannels.map(c => (
@@ -725,15 +721,15 @@ export default function NotificationSettings() {
           )}
           <div className="mt-4 flex items-center gap-3">
             <button onClick={savePreferences} className="btn-primary flex items-center gap-2">
-              <Save size={16} /> Guardar preferencias
+              <Save size={16} /> {t('save_preferences', 'Guardar preferencias')}
             </button>
             {activeChannels.length > 0 && (
               <>
                 <button onClick={() => enableAll(true)} className="btn-secondary text-sm">
-                  Activar todo
+                  {t('enable_all', 'Activar todo')}
                 </button>
                 <button onClick={() => enableAll(false)} className="btn-secondary text-sm">
-                  Desactivar todo
+                  {t('disable_all', 'Desactivar todo')}
                 </button>
               </>
             )}
@@ -745,55 +741,53 @@ export default function NotificationSettings() {
       {tab === 'contacts' && (
         <div className="card space-y-4">
           <p className="text-sm text-gray-600">
-            Tus datos de contacto para recibir notificaciones por los distintos canales.
-            Estos datos son privados y no se comparten.
+            {t('contacts_desc', 'Tus datos de contacto para recibir notificaciones por los distintos canales. Estos datos son privados y no se comparten.')}
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Email</label>
+              <label className="block text-sm font-medium mb-1">{t('email', 'Email')}</label>
               <input type="email" value={contacts.email} onChange={e => setContacts({ ...contacts, email: e.target.value })} className="input" placeholder="tu@email.org" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Telefono (WhatsApp)</label>
+              <label className="block text-sm font-medium mb-1">{t('phone_whatsapp', 'Telefono (WhatsApp)')}</label>
               <input type="tel" value={contacts.phone} onChange={e => setContacts({ ...contacts, phone: e.target.value })} className="input" placeholder="+1234567890" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Telegram Chat ID</label>
+              <label className="block text-sm font-medium mb-1">{t('telegram_chat_id', 'Telegram Chat ID')}</label>
               <input type="text" value={contacts.telegram_chat_id} onChange={e => setContacts({ ...contacts, telegram_chat_id: e.target.value })} className="input" placeholder="123456789" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Matrix User ID</label>
+              <label className="block text-sm font-medium mb-1">{t('matrix_user_id', 'Matrix User ID')}</label>
               <input type="text" value={contacts.matrix_user_id} onChange={e => setContacts({ ...contacts, matrix_user_id: e.target.value })} className="input" placeholder="@usuario:matrix.org" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">XMPP JID</label>
+              <label className="block text-sm font-medium mb-1">{t('xmpp_jid', 'XMPP JID')}</label>
               <input type="text" value={contacts.xmpp_jid} onChange={e => setContacts({ ...contacts, xmpp_jid: e.target.value })} className="input" placeholder="usuario@jabber.org" />
             </div>
           </div>
 
           {/* Horas silenciosas */}
           <div className="border-t border-gray-200 pt-4 mt-2">
-            <h3 className="font-medium text-sm mb-1">Horas Silenciosas (Quiet Hours)</h3>
+            <h3 className="font-medium text-sm mb-1">{t('quiet_hours', 'Horas Silenciosas (Quiet Hours)')}</h3>
             <p className="text-xs text-gray-500 mb-3">
-              Durante este rango no se enviaran notificaciones por pasarelas externas (email, telegram, etc.).
-              Las notificaciones in-app (campana) siempre se entregan. Deja vacio para desactivar.
+              {t('quiet_hours_desc', 'Durante este rango no se enviaran notificaciones por pasarelas externas (email, telegram, etc.). Las notificaciones in-app (campana) siempre se entregan. Deja vacio para desactivar.')}
             </p>
             <div className="grid grid-cols-2 gap-4 max-w-xs">
               <div>
-                <label className="block text-xs text-gray-600 mb-1">Desde (hora)</label>
+                <label className="block text-xs text-gray-600 mb-1">{t('quiet_from', 'Desde (hora)')}</label>
                 <select
                   value={contacts.quiet_hours_start}
                   onChange={e => setContacts({ ...contacts, quiet_hours_start: e.target.value })}
                   className="input text-sm"
                 >
-                  <option value="">Desactivado</option>
+                  <option value="">{t('disabled', 'Desactivado')}</option>
                   {Array.from({ length: 24 }, (_, i) => (
                     <option key={i} value={i}>{i}:00</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-1">Hasta (hora)</label>
+                <label className="block text-xs text-gray-600 mb-1">{t('quiet_to', 'Hasta (hora)')}</label>
                 <select
                   value={contacts.quiet_hours_end}
                   onChange={e => setContacts({ ...contacts, quiet_hours_end: e.target.value })}
@@ -811,24 +805,22 @@ export default function NotificationSettings() {
 
           {/* Modo digest de email */}
           <div className="border-t border-gray-200 pt-4 mt-2">
-            <h3 className="font-medium text-sm mb-1">Modo de envio por email</h3>
+            <h3 className="font-medium text-sm mb-1">{t('digest_mode_title', 'Modo de envio por email')}</h3>
             <p className="text-xs text-gray-500 mb-3">
-              Elige como recibir las notificaciones por email.
-              "Instantaneo" envia cada notificacion por separado.
-              "Resumen diario" agrupa todas las notificaciones del dia en un solo email (a las 8:00 AM).
+              {t('digest_mode_desc', 'Elige como recibir las notificaciones por email. "Instantaneo" envia cada notificacion por separado. "Resumen diario" agrupa todas las notificaciones del dia en un solo email (a las 8:00 AM).')}
             </p>
             <select
               value={contacts.digest_mode}
               onChange={e => setContacts({ ...contacts, digest_mode: e.target.value })}
               className="input text-sm max-w-xs"
             >
-              <option value="instant">Instantaneo (cada notificacion por separado)</option>
-              <option value="daily">Resumen diario (un email por la manana)</option>
+              <option value="instant">{t('digest_instant', 'Instantaneo (cada notificacion por separado)')}</option>
+              <option value="daily">{t('digest_daily', 'Resumen diario (un email por la manana)')}</option>
             </select>
           </div>
           <div>
             <button onClick={saveContacts} className="btn-primary flex items-center gap-2">
-              <Save size={16} /> Guardar contactos
+              <Save size={16} /> {t('save_contacts', 'Guardar contactos')}
             </button>
           </div>
 
@@ -837,24 +829,23 @@ export default function NotificationSettings() {
             <div className="border-t border-gray-200 pt-4 mt-4">
               <div className="flex items-center gap-2 mb-2">
                 <BellRing size={18} className="text-indigo-600" />
-                <h3 className="font-medium text-sm">Notificaciones Push del Navegador</h3>
+                <h3 className="font-medium text-sm">{t('webpush_title', 'Notificaciones Push del Navegador')}</h3>
               </div>
               <p className="text-xs text-gray-500 mb-3">
-                Recibe notificaciones directamente en tu navegador, incluso cuando la app no esta abierta.
-                No requiere terceros - funciona con el estandar W3C Push.
+                {t('webpush_desc', 'Recibe notificaciones directamente en tu navegador, incluso cuando la app no esta abierta. No requiere terceros - funciona con el estandar W3C Push.')}
               </p>
               {webpushSubscribed ? (
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-green-600 flex items-center gap-1">
-                    <Check size={16} /> Suscrito
+                    <Check size={16} /> {t('webpush_subscribed', 'Suscrito')}
                   </span>
                   <button onClick={unsubscribeWebPush} disabled={webpushLoading} className="btn-secondary text-sm">
-                    {webpushLoading ? '...' : 'Cancelar suscripcion'}
+                    {webpushLoading ? '...' : t('webpush_unsubscribe', 'Cancelar suscripcion')}
                   </button>
                 </div>
               ) : (
                 <button onClick={subscribeWebPush} disabled={webpushLoading} className="btn-primary text-sm flex items-center gap-2">
-                  <BellRing size={16} /> {webpushLoading ? 'Suscribiendo...' : 'Activar notificaciones push'}
+                  <BellRing size={16} /> {webpushLoading ? t('webpush_subscribing', 'Suscribiendo...') : t('webpush_activate', 'Activar notificaciones push')}
                 </button>
               )}
             </div>
@@ -866,7 +857,7 @@ export default function NotificationSettings() {
       {tab === 'gateways' && canManageGateways && (
         <div className="space-y-3">
           <p className="text-sm text-gray-600">
-            Configura las pasarelas de envio. Prioriza redes federadas y libres (Matrix, XMPP, Telegram) sobre canales propietarios.
+            {t('gateways_desc', 'Configura las pasarelas de envio. Prioriza redes federadas y libres (Matrix, XMPP, Telegram) sobre canales propietarios.')}
           </p>
           {Object.entries(CHANNEL_INFO).map(([code, info]) => {
             const Icon = info.icon
@@ -884,10 +875,10 @@ export default function NotificationSettings() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className={`text-xs px-2 py-0.5 rounded ${isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {isActive ? 'Activa' : 'Inactiva'}
+                      {isActive ? t('gateway_active', 'Activa') : t('gateway_inactive', 'Inactiva')}
                     </span>
                     <button onClick={() => setEditingGateway(editingGateway === code ? null : code)} className="btn-secondary text-sm">
-                      {editingGateway === code ? 'Cerrar' : 'Configurar'}
+                      {editingGateway === code ? t('gateway_close', 'Cerrar') : t('gateway_configure', 'Configurar')}
                     </button>
                   </div>
                 </div>

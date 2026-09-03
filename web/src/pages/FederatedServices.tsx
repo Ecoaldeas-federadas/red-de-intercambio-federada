@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { Video, MessageCircle, Image as ImageIcon, Users, MessageSquare, BookOpen, PenTool, Calendar, Phone, Mic, Cloud, FileText, BookMarked, Globe, Film, Music, GitBranch, GraduationCap, Home, Lock, Download, Play, Square, Trash2, RefreshCw, Search, Server, AlertTriangle, CheckCircle, XCircle, Loader, Phone as PhoneIcon, HelpCircle, ExternalLink, Terminal } from 'lucide-react'
@@ -68,6 +69,7 @@ const categoryColors: Record<string, string> = {
 }
 
 export default function FederatedServices() {
+  const { t } = useTranslation('services')
   const { node_domain: nodeDomain } = useConfig()
   const isDemoNode = (window as any).__BASE_PATH__ === '/demo'
   const [services, setServices] = useState<ServiceItem[]>([])
@@ -124,7 +126,7 @@ export default function FederatedServices() {
       const res: any = await api.get('/services/catalog')
       setServices(res.services || res || [])
     } catch (e) {
-      setMsg({ type: 'error', text: 'Error al cargar servicios' })
+      setMsg({ type: 'error', text: t('error_loading_services', 'Error al cargar servicios') })
     } finally {
       setLoading(false)
     }
@@ -159,7 +161,7 @@ export default function FederatedServices() {
       }
       await loadServices()
     } catch (e: any) {
-      setInstallMsgs(prev => ({ ...prev, [svc.id]: { type: 'error', text: 'Error al instalar: ' + (e?.message || 'sin respuesta del servidor') } }))
+      setInstallMsgs(prev => ({ ...prev, [svc.id]: { type: 'error', text: t('error_installing', 'Error al instalar') + ': ' + (e?.message || 'sin respuesta del servidor') } }))
     } finally {
       setInstalling(false)
       setInstallingService(null)
@@ -174,11 +176,11 @@ export default function FederatedServices() {
     if (!confirmUninstall) return
     try {
       await api.post(`/services/${confirmUninstall.id}/uninstall`, {})
-      setMsg({ type: 'success', text: `${confirmUninstall.name} desinstalado` })
+      setMsg({ type: 'success', text: t('uninstalled', '{{name}} desinstalado', { name: confirmUninstall.name }) })
       setConfirmUninstall(null)
       await loadServices()
     } catch (e: any) {
-      setMsg({ type: 'error', text: 'Error al desinstalar' })
+      setMsg({ type: 'error', text: t('error_uninstalling', 'Error al desinstalar') })
       setConfirmUninstall(null)
     }
   }
@@ -186,20 +188,20 @@ export default function FederatedServices() {
   const startService = async (svc: ServiceItem) => {
     try {
       await api.post(`/services/${svc.id}/start`, {})
-      setMsg({ type: 'success', text: `${svc.name} iniciado` })
+      setMsg({ type: 'success', text: t('started', '{{name}} iniciado', { name: svc.name }) })
       await loadServices()
     } catch (e: any) {
-      setMsg({ type: 'error', text: 'Error al iniciar' })
+      setMsg({ type: 'error', text: t('error_starting', 'Error al iniciar') })
     }
   }
 
   const stopService = async (svc: ServiceItem) => {
     try {
       await api.post(`/services/${svc.id}/stop`, {})
-      setMsg({ type: 'success', text: `${svc.name} detenido` })
+      setMsg({ type: 'success', text: t('stopped_msg', '{{name}} detenido', { name: svc.name }) })
       await loadServices()
     } catch (e: any) {
-      setMsg({ type: 'error', text: 'Error al detener' })
+      setMsg({ type: 'error', text: t('error_stopping', 'Error al detener') })
     }
   }
 
@@ -214,9 +216,9 @@ export default function FederatedServices() {
       a.download = `${svc.id}-docker-compose.txt`
       a.click()
       window.URL.revokeObjectURL(url)
-      setMsg({ type: 'success', text: `Descarga de ${svc.name} generada` })
+      setMsg({ type: 'success', text: t('download_generated', 'Descarga de {{name}} generada', { name: svc.name }) })
     } catch (e: any) {
-      setMsg({ type: 'error', text: 'Error al descargar' })
+      setMsg({ type: 'error', text: t('error_downloading', 'Error al descargar') })
     }
   }
 
@@ -224,19 +226,19 @@ export default function FederatedServices() {
     setLogsModal({ serviceId: svc.id, serviceName: svc.name, logs: '', loading: true })
     try {
       const res: any = await api.get(`/services/${svc.id}/logs`)
-      setLogsModal({ serviceId: svc.id, serviceName: svc.name, logs: res.logs || 'Sin logs disponibles', loading: false })
+      setLogsModal({ serviceId: svc.id, serviceName: svc.name, logs: res.logs || t('no_logs', 'Sin logs disponibles'), loading: false })
     } catch (e: any) {
-      setLogsModal({ serviceId: svc.id, serviceName: svc.name, logs: 'Error al obtener logs: ' + (e?.message || 'sin respuesta'), loading: false })
+      setLogsModal({ serviceId: svc.id, serviceName: svc.name, logs: t('error_getting_logs', 'Error al obtener logs') + ': ' + (e?.message || 'sin respuesta'), loading: false })
     }
   }
 
   const restartService = async (svc: ServiceItem) => {
     try {
       await api.post(`/services/${svc.id}/restart`, {})
-      setMsg({ type: 'success', text: `${svc.name} reiniciado` })
+      setMsg({ type: 'success', text: t('restarted', '{{name}} reiniciado', { name: svc.name }) })
       await loadServices()
     } catch (e: any) {
-      setMsg({ type: 'error', text: 'Error al reiniciar' })
+      setMsg({ type: 'error', text: t('error_restarting', 'Error al reiniciar') })
     }
   }
 
@@ -246,12 +248,12 @@ export default function FederatedServices() {
       const res: any = await api.get(`/services/${svc.id}/check-update`)
       setServiceUpdateInfo((prev: any) => ({ ...prev, [svc.id]: res }))
       if (res.updates_available) {
-        setInstallMsgs((prev: any) => ({ ...prev, [svc.id]: { type: 'info', text: `${svc.name}: hay actualizaciones disponibles`, logs: res.changed_files ? `Archivos cambiados:\n${res.changed_files}` : undefined } }))
+        setInstallMsgs((prev: any) => ({ ...prev, [svc.id]: { type: 'info', text: t('updates_available', '{{name}}: hay actualizaciones disponibles', { name: svc.name }), logs: res.changed_files ? `Archivos cambiados:\n${res.changed_files}` : undefined } }))
       } else {
-        setInstallMsgs((prev: any) => ({ ...prev, [svc.id]: { type: 'success', text: `${svc.name}: ya esta actualizado` } }))
+        setInstallMsgs((prev: any) => ({ ...prev, [svc.id]: { type: 'success', text: t('already_updated', '{{name}}: ya esta actualizado', { name: svc.name }) } }))
       }
     } catch (e: any) {
-      setInstallMsgs((prev: any) => ({ ...prev, [svc.id]: { type: 'error', text: 'Error al verificar actualizaciones de ' + svc.name } }))
+      setInstallMsgs((prev: any) => ({ ...prev, [svc.id]: { type: 'error', text: t('error_checking_updates', 'Error al verificar actualizaciones de {{name}}', { name: svc.name }) } }))
     } finally {
       setCheckingServiceUpdate(null)
     }
@@ -270,14 +272,14 @@ export default function FederatedServices() {
           if (res.status === 'completed') {
             clearInterval(interval)
             setServiceUpdatePoll(null)
-            setInstallMsgs((prev: any) => ({ ...prev, [svc.id]: { type: 'success', text: `${svc.name} actualizado correctamente` } }))
+            setInstallMsgs((prev: any) => ({ ...prev, [svc.id]: { type: 'success', text: t('updated_successfully', '{{name}} actualizado correctamente', { name: svc.name }) } }))
             await loadServices()
             // Limpiar info de verificacion
             setServiceUpdateInfo((prev: any) => { const n = { ...prev }; delete n[svc.id]; return n })
           } else if (res.status === 'error') {
             clearInterval(interval)
             setServiceUpdatePoll(null)
-            setInstallMsgs((prev: any) => ({ ...prev, [svc.id]: { type: 'error', text: res.message || 'Error en la actualizacion', logs: res.log } }))
+            setInstallMsgs((prev: any) => ({ ...prev, [svc.id]: { type: 'error', text: res.message || t('error_updating', 'Error en la actualizacion'), logs: res.log } }))
           }
         } catch (e) {
           // Continuar intentando
@@ -285,7 +287,7 @@ export default function FederatedServices() {
       }, 2000)
       setServiceUpdatePoll(interval)
     } catch (e: any) {
-      setInstallMsgs((prev: any) => ({ ...prev, [svc.id]: { type: 'error', text: 'Error al iniciar actualizacion: ' + (e?.message || 'sin respuesta') } }))
+      setInstallMsgs((prev: any) => ({ ...prev, [svc.id]: { type: 'error', text: t('error_starting_update', 'Error al iniciar actualizacion') + ': ' + (e?.message || 'sin respuesta') } }))
     }
   }
 
@@ -306,18 +308,18 @@ export default function FederatedServices() {
       if (res.success) {
         setMsg({ type: 'success', text: res.message })
       } else {
-        setMsg({ type: 'error', text: res.message || 'Error al actualizar' })
+        setMsg({ type: 'error', text: res.message || t('error_update', 'Error al actualizar') })
       }
       await loadServices()
     } catch (e: any) {
-      setMsg({ type: 'error', text: 'Error al actualizar' })
+      setMsg({ type: 'error', text: t('error_update', 'Error al actualizar') })
     } finally {
       setInstalling(false)
     }
   }
 
   const updateAllServices = async () => {
-    if (!confirm('Actualizar todas las aplicaciones instaladas en este servidor?')) return
+    if (!confirm(t('update_all_confirm', 'Actualizar todas las aplicaciones instaladas en este servidor?'))) return
     setInstalling(true)
     setMsg(null)
     try {
@@ -325,7 +327,7 @@ export default function FederatedServices() {
       setMsg({ type: res.failed > 0 ? 'info' : 'success', text: res.message })
       await loadServices()
     } catch (e: any) {
-      setMsg({ type: 'error', text: 'Error al actualizar' })
+      setMsg({ type: 'error', text: t('error_update', 'Error al actualizar') })
     } finally {
       setInstalling(false)
     }
@@ -333,22 +335,22 @@ export default function FederatedServices() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'running': return <><CheckCircle size={14} className="text-green-500" /> Corriendo</>
-      case 'installing': return <><Loader size={14} className="text-blue-500 animate-spin" /> Instalando</>
-      case 'stopped': return <><Square size={14} className="text-gray-400" /> Detenido</>
-      case 'error': return <><XCircle size={14} className="text-red-500" /> Error</>
-      default: return <><Server size={14} className="text-gray-400" /> No instalado</>
+      case 'running': return <><CheckCircle size={14} className="text-green-500" /> {t('status_running', 'Corriendo')}</>
+      case 'installing': return <><Loader size={14} className="text-blue-500 animate-spin" /> {t('status_installing', 'Instalando')}</>
+      case 'stopped': return <><Square size={14} className="text-gray-400" /> {t('status_stopped', 'Detenido')}</>
+      case 'error': return <><XCircle size={14} className="text-red-500" /> {t('status_error', 'Error')}</>
+      default: return <><Server size={14} className="text-gray-400" /> {t('status_not_installed', 'No instalado')}</>
     }
   }
 
-  if (loading) return <div className="flex items-center justify-center py-8 text-gray-500"><Loader className="animate-spin mr-2" size={20} /> Cargando catalogo...</div>
+  if (loading) return <div className="flex items-center justify-center py-8 text-gray-500"><Loader className="animate-spin mr-2" size={20} /> {t('loading_catalog', 'Cargando catalogo...')}</div>
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Servicios Federados</h1>
-          <p className="text-gray-500 text-sm mt-1">Reemplaza servicios comerciales con alternativas autohospedadas y federadas</p>
+          <h1 className="text-2xl font-bold">{t('title', 'Servicios Federados')}</h1>
+          <p className="text-gray-500 text-sm mt-1">{t('subtitle', 'Reemplaza servicios comerciales con alternativas autohospedadas y federadas')}</p>
         </div>
         <div className="flex gap-2">
           {!isDemoNode && (
@@ -356,17 +358,17 @@ export default function FederatedServices() {
               onClick={updateAllServices}
               disabled={installing}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
-              title="Actualizar todas las apps instaladas"
+              title={t('update_all_title', 'Actualizar todas las apps instaladas')}
             >
-              <RefreshCw size={16} /> Actualizar todo
+              <RefreshCw size={16} /> {t('update_all', 'Actualizar todo')}
             </button>
           )}
           <button onClick={() => setShowHelp(!showHelp)} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm flex items-center gap-2">
-            <HelpCircle size={16} /> Ayuda
+            <HelpCircle size={16} /> {t('help', 'Ayuda')}
           </button>
           {!isDemoNode && (
             <button onClick={() => setShowVoIP(!showVoIP)} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-2">
-              <PhoneIcon size={16} /> Telefonía VoIP
+              <PhoneIcon size={16} /> {t('voip', 'Telefonía VoIP')}
             </button>
           )}
         </div>
@@ -376,10 +378,7 @@ export default function FederatedServices() {
         <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 text-sm text-amber-800 flex items-start gap-2">
           <Lock size={16} className="mt-0.5 flex-shrink-0" />
           <div>
-            <strong>Nodo Demo:</strong> Los servicios federados son solo para visualizacion en el demo.
-            No se pueden instalar, desinstalar ni gestionar servicios desde el nodo demo.
-            Los servicios se instalan desde el nodo padre. Esto protege el servidor demo
-            de sobrecarga por instalacion de servicios pesados.
+            <strong>{t('demo_warning', 'Nodo Demo: Los servicios federados son solo para visualizacion en el demo. No se pueden instalar, desinstalar ni gestionar servicios desde el nodo demo.')}</strong>
           </div>
         </div>
       )}
@@ -387,17 +386,17 @@ export default function FederatedServices() {
       {showHelp && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 space-y-4 text-sm">
           <div className="flex items-center gap-2 text-blue-700 font-semibold text-base">
-            <HelpCircle size={18} /> Como funcionan los servicios federados
+            <HelpCircle size={18} /> {t('help_title', 'Como funcionan los servicios federados')}
           </div>
 
           <div className="space-y-3 text-gray-700">
             <div>
-              <h4 className="font-semibold text-gray-900">Que es este catalogo?</h4>
+              <h4 className="font-semibold text-gray-900">{t('help_what_is_catalog', 'Que es este catalogo?')}</h4>
               <p>Es una lista de mas de 20 servicios autohospedados que puedes instalar en el servidor de tu nodo. Cada servicio reemplaza una plataforma comercial (YouTube, WhatsApp, Netflix, etc.) pero sin anuncios, sin vigilancia y sin empresas intermediarias. Los datos se quedan en tu servidor.</p>
             </div>
 
             <div>
-              <h4 className="font-semibold text-gray-900">Como instalo un servicio?</h4>
+              <h4 className="font-semibold text-gray-900">{t('help_how_install', 'Como instalo un servicio?')}</h4>
               <ol className="list-decimal list-inside space-y-1 ml-2">
                 <li>Busca el servicio en el catalogo (usa el buscador o filtra por categoria).</li>
                 <li>Haz clic en <strong>Detalles</strong> para ver requisitos de RAM, disco, puerto y subdominio.</li>
@@ -408,17 +407,17 @@ export default function FederatedServices() {
             </div>
 
             <div>
-              <h4 className="font-semibold text-gray-900">Que significa "Descargar Docker"?</h4>
+              <h4 className="font-semibold text-gray-900">{t('help_download_docker_q', 'Que significa "Descargar Docker"?')}</h4>
               <p>Si prefieres instalar el servicio manualmente en otro servidor (o revisar la configuracion antes de instalar), haz clic en <strong>Descargar</strong>. Se descarga un archivo con el <code className="bg-gray-200 px-1 rounded">docker-compose.yml</code> y un <code className="bg-gray-200 px-1 rounded">README.md</code> con instrucciones paso a paso. Puedes copiar ese archivo al servidor destino y ejecutar <code className="bg-gray-200 px-1 rounded">docker compose up -d</code>.</p>
             </div>
 
             <div>
-              <h4 className="font-semibold text-gray-900">Que es el subdominio sugerido?</h4>
+              <h4 className="font-semibold text-gray-900">{t('help_subdomain_q', 'Que es el subdominio sugerido?')}</h4>
               <p>Cada servicio tiene un subdominio sugerido (ej: <code className="bg-gray-200 px-1 rounded">video.{nodeDomain}</code>). Si tienes OpenWrt configurado, el subdominio se registra automaticamente en la intranet. Si no tienes OpenWrt, puedes configurar el DNS manualmente apuntando ese subdominio a la IP de tu servidor.</p>
             </div>
 
             <div>
-              <h4 className="font-semibold text-gray-900">Como agrego un servicio que no esta en el catalogo?</h4>
+              <h4 className="font-semibold text-gray-900">{t('help_add_service_q', 'Como agrego un servicio que no esta en el catalogo?')}</h4>
               <p>El catalogo esta definido en el codigo del backend (<code className="bg-gray-200 px-1 rounded">internal/api/services_catalog.go</code>). Para agregar un servicio nuevo:</p>
               <ol className="list-decimal list-inside space-y-1 ml-2 mt-1">
                 <li>Abre el archivo <code className="bg-gray-200 px-1 rounded">internal/api/services_catalog.go</code>.</li>
@@ -430,17 +429,17 @@ export default function FederatedServices() {
             </div>
 
             <div>
-              <h4 className="font-semibold text-gray-900">Que permiso necesito?</h4>
+              <h4 className="font-semibold text-gray-900">{t('help_permission_q', 'Que permiso necesito?')}</h4>
               <p>Para instalar, desinstalar, iniciar o detener servicios necesitas el permiso <code className="bg-gray-200 px-1 rounded">config.manage</code>. La Asamblea decide quien tiene este permiso mediante los roles y departamentos del sistema.</p>
             </div>
 
             <div>
-              <h4 className="font-semibold text-gray-900">Federacion entre aldeas</h4>
+              <h4 className="font-semibold text-gray-900">{t('help_federation', 'Federacion entre aldeas')}</h4>
               <p>Los servicios que soportan ActivityPub (PeerTube, Mastodon, Pixelfed, Friendica, Lemmy, BookWyrm, Funkwhale) pueden federarse con otras aldeas. Esto significa que el contenido publicado en una aldea es visible desde las otras aldeas federadas. Para federar servicios, cada aldea debe instalar el mismo servicio y configurar la federacion entre ellos.</p>
             </div>
 
             <div className="border-t pt-3">
-              <h4 className="font-semibold text-gray-900">Servicios de Correo: como funcionan</h4>
+              <h4 className="font-semibold text-gray-900">{t('help_email_services', 'Servicios de Correo: como funcionan')}</h4>
               <p className="mb-2">El correo electronico tiene tres componentes que se instalan por separado:</p>
               <ul className="list-disc list-inside space-y-1 ml-2">
                 <li><strong>Servidor de correo</strong> (Mailu o Mailcow): se instala en el nodo. Recibe y envia correos. Crea cuentas para cada miembro. Configura cuotas de espacio por usuario.</li>
@@ -450,10 +449,10 @@ export default function FederatedServices() {
             </div>
 
             <div>
-              <h4 className="font-semibold text-gray-900">Mailu vs Mailcow: cual elegir?</h4>
+              <h4 className="font-semibold text-gray-900">{t('help_mailu_vs_mailcow', 'Mailu vs Mailcow: cual elegir?')}</h4>
               <div className="grid grid-cols-2 gap-3 mt-2">
                 <div className="bg-white p-3 rounded-lg border">
-                  <div className="font-medium text-sm">Mailu (Ligero)</div>
+                  <div className="font-medium text-sm">{t('help_mailu_light', 'Mailu (Ligero)')}</div>
                   <ul className="text-xs space-y-1 mt-1 text-gray-600">
                     <li>1-2 GB RAM</li>
                     <li>Licencia MIT (sin restricciones)</li>
@@ -463,7 +462,7 @@ export default function FederatedServices() {
                   </ul>
                 </div>
                 <div className="bg-white p-3 rounded-lg border">
-                  <div className="font-medium text-sm">Mailcow (Completo)</div>
+                  <div className="font-medium text-sm">{t('help_mailcow_full', 'Mailcow (Completo)')}</div>
                   <ul className="text-xs space-y-1 mt-1 text-gray-600">
                     <li>3-4 GB RAM</li>
                     <li>Licencia GPL</li>
@@ -477,7 +476,7 @@ export default function FederatedServices() {
             </div>
 
             <div>
-              <h4 className="font-semibold text-gray-900">Como configurar los clientes de correo</h4>
+              <h4 className="font-semibold text-gray-900">{t('help_email_clients', 'Como configurar los clientes de correo')}</h4>
               <p>Despues de instalar Mailu o Mailcow, los miembros configuran sus clientes de correo asi:</p>
               <div className="bg-gray-100 p-3 rounded-lg mt-1 text-xs font-mono">
                 <div>Servidor entrante (IMAP): correo.{nodeDomain}</div>
@@ -491,7 +490,7 @@ export default function FederatedServices() {
             </div>
 
             <div>
-              <h4 className="font-semibold text-gray-900">Delta Chat: chat estilo WhatsApp via correo</h4>
+              <h4 className="font-semibold text-gray-900">{t('help_delta_chat', 'Delta Chat: chat estilo WhatsApp via correo')}</h4>
               <p>Delta Chat es un CLIENTE (app) que se instala en el celular o PC de cada miembro, no en el servidor. Para usarlo:</p>
               <ol className="list-decimal list-inside space-y-1 ml-2 mt-1">
                 <li>Instala Mailu o Mailcow en el nodo.</li>
@@ -505,7 +504,7 @@ export default function FederatedServices() {
             </div>
 
             <div>
-              <h4 className="font-semibold text-gray-900">Reglas y cuotas del servidor de correo</h4>
+              <h4 className="font-semibold text-gray-900">{t('help_mail_rules', 'Reglas y cuotas del servidor de correo')}</h4>
               <p>Desde el panel de administracion de Mailu o Mailcow puedes configurar:</p>
               <ul className="list-disc list-inside space-y-1 ml-2 mt-1">
                 <li><strong>Cuota de espacio</strong> por usuario (ej: 1 GB, 5 GB, ilimitado)</li>
@@ -522,7 +521,7 @@ export default function FederatedServices() {
           </div>
 
           <button onClick={() => setShowHelp(false)} className="text-blue-600 text-xs hover:underline">
-            Cerrar ayuda
+            {t('close_help', 'Cerrar ayuda')}
           </button>
         </div>
       )}
@@ -541,18 +540,18 @@ export default function FederatedServices() {
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             className="input pl-10"
-            placeholder="Buscar servicio o que reemplaza..."
+            placeholder={t('search_placeholder', 'Buscar servicio o que reemplaza...')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
         <select className="input max-w-[200px]" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-          <option value="all">Todas las categorias</option>
-          <option value="social">Redes Sociales</option>
-          <option value="comunicacion">Comunicacion</option>
-          <option value="productividad">Productividad</option>
-          <option value="multimedia">Multimedia</option>
-          <option value="desarrollo">Desarrollo y Otros</option>
+          <option value="all">{t('all_categories', 'Todas las categorias')}</option>
+          <option value="social">{t('cat_social', 'Redes Sociales')}</option>
+          <option value="comunicacion">{t('cat_comunicacion', 'Comunicacion')}</option>
+          <option value="productividad">{t('cat_productividad', 'Productividad')}</option>
+          <option value="multimedia">{t('cat_multimedia', 'Multimedia')}</option>
+          <option value="desarrollo">{t('cat_desarrollo', 'Desarrollo y Otros')}</option>
         </select>
       </div>
 
@@ -575,7 +574,7 @@ export default function FederatedServices() {
                       {svc.name}
                       {isExclusive && (
                         <span className="text-xs px-2 py-0.5 bg-trueque-600 text-white rounded-full font-medium">
-                          HERRAMIENTA DEL NODO
+                          {t('node_tool', 'HERRAMIENTA DEL NODO')}
                         </span>
                       )}
                     </h3>
@@ -593,7 +592,7 @@ export default function FederatedServices() {
 
               {isInstalled && isRunning && (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-2 mb-2 text-xs">
-                  <div className="text-gray-500 mb-1">URL de acceso:</div>
+                  <div className="text-gray-500 mb-1">{t('access_url', 'URL de acceso:')}</div>
                   <div className="flex items-center gap-2">
                     <code className="font-mono text-green-700 flex-1 truncate">{buildServiceURL(svc.id)}</code>
                     <a
@@ -602,7 +601,7 @@ export default function FederatedServices() {
                       rel="noopener noreferrer"
                       className="px-2 py-0.5 bg-green-600 text-white rounded text-xs font-medium hover:bg-green-700 flex items-center gap-1"
                     >
-                      <ExternalLink size={10} /> Abrir
+                      <ExternalLink size={10} /> {t('open', 'Abrir')}
                     </a>
                   </div>
                 </div>
@@ -610,26 +609,24 @@ export default function FederatedServices() {
 
               {isExclusive && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 mb-2 text-xs text-amber-700">
-                  <strong>Importante:</strong> Este POS solo procesa TQ (no dinero tradicional ni criptomonedas).
-                  Se descarga desde este nodo y se configura con su direccion, pero acepta pagos
-                  de miembros de cualquier nodo federado.
+                  <strong>{t('pos_important', 'Importante:')}</strong> {t('pos_important_desc', 'Este POS solo procesa TQ (no dinero tradicional ni criptomonedas). Se descarga desde este nodo y se configura con su direccion, pero acepta pagos de miembros de cualquier nodo federado.')}
                 </div>
               )}
 
               <div className="text-xs text-gray-500 mb-2">
-                <strong>Reemplaza:</strong> {svc.replaces}
+                <strong>{t('replaces_label', 'Reemplaza:')}</strong> {svc.replaces}
               </div>
 
               <p className="text-sm text-gray-600 mb-2 line-clamp-3">{svc.what_is}</p>
 
               <div className="text-xs text-gray-500 mb-2">
-                <strong>Reemplaza:</strong> {svc.replaces}
+                <strong>{t('replaces_label', 'Reemplaza:')}</strong> {svc.replaces}
               </div>
 
               <div className="text-xs text-gray-400 mb-3 flex gap-3">
-                <span>RAM: {svc.min_ram_mb >= 1024 ? `${svc.min_ram_mb / 1024}GB` : `${svc.min_ram_mb}MB`}</span>
-                <span>Disco: {svc.min_disk_gb}GB</span>
-                <span>Puerto: {svc.port || svc.default_port}{isInstalled && svc.port ? ' (real)' : ''}</span>
+                <span>{t('ram_short', 'RAM')}: {svc.min_ram_mb >= 1024 ? `${svc.min_ram_mb / 1024}GB` : `${svc.min_ram_mb}MB`}</span>
+                <span>{t('disk_short', 'Disco')}: {svc.min_disk_gb}GB</span>
+                <span>{t('port_label', 'Puerto')}: {svc.port || svc.default_port}{isInstalled && svc.port ? ' (real)' : ''}</span>
               </div>
 
               <div className="mt-auto flex gap-2 flex-wrap">
@@ -640,15 +637,15 @@ export default function FederatedServices() {
                     className="px-3 py-1.5 bg-trueque-600 text-white rounded-lg text-xs disabled:opacity-50 flex items-center gap-1"
                   >
                     {installingService === svc.id ? (
-                      <><Loader size={12} className="animate-spin" /> Instalando...</>
+                      <><Loader size={12} className="animate-spin" /> {t('installing', 'Instalando...')}</>
                     ) : (
-                      <><Download size={12} /> Instalar</>
+                      <><Download size={12} /> {t('install', 'Instalar')}</>
                     )}
                   </button>
                 )}
                 {!isInstalled && isDemoNode && (
                   <span className="px-3 py-1.5 bg-gray-100 text-gray-400 rounded-lg text-xs flex items-center gap-1 cursor-not-allowed">
-                    <Lock size={12} /> Instalar (demo: no disponible)
+                    <Lock size={12} /> {t('install_demo', 'Instalar (demo: no disponible)')}
                   </span>
                 )}
                 {isInstalled && isRunning && !isDemoNode && (
@@ -656,7 +653,7 @@ export default function FederatedServices() {
                     onClick={() => stopService(svc)}
                     className="px-3 py-1.5 bg-yellow-500 text-white rounded-lg text-xs flex items-center gap-1"
                   >
-                    <Square size={12} /> Detener
+                    <Square size={12} /> {t('stop', 'Detener')}
                   </button>
                 )}
                 {isInstalled && !isRunning && !isDemoNode && (
@@ -664,25 +661,25 @@ export default function FederatedServices() {
                     onClick={() => startService(svc)}
                     className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs flex items-center gap-1"
                   >
-                    <Play size={12} /> Iniciar
+                    <Play size={12} /> {t('start', 'Iniciar')}
                   </button>
                 )}
                 {isInstalled && !isDemoNode && (
                   <button
                     onClick={() => restartService(svc)}
                     className="px-3 py-1.5 bg-orange-500 text-white rounded-lg text-xs flex items-center gap-1"
-                    title="Reiniciar servicio"
+                    title={t('restart', 'Reiniciar servicio')}
                   >
-                    <RefreshCw size={12} /> Reiniciar
+                    <RefreshCw size={12} /> {t('restart', 'Reiniciar')}
                   </button>
                 )}
                 {isInstalled && !isDemoNode && (
                   <button
                     onClick={() => viewLogs(svc)}
                     className="px-3 py-1.5 bg-gray-700 text-white rounded-lg text-xs flex items-center gap-1"
-                    title="Ver consola del servicio"
+                    title={t('console', 'Ver consola del servicio')}
                   >
-                    <Terminal size={12} /> Consola
+                    <Terminal size={12} /> {t('console', 'Consola')}
                   </button>
                 )}
                 {isInstalled && isRunning && (
@@ -692,7 +689,7 @@ export default function FederatedServices() {
                     rel="noopener noreferrer"
                     className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs flex items-center gap-1"
                   >
-                    <ExternalLink size={12} /> Abrir
+                    <ExternalLink size={12} /> {t('open', 'Abrir')}
                   </a>
                 )}
                 {isInstalled && !isDemoNode && (
@@ -700,12 +697,12 @@ export default function FederatedServices() {
                     onClick={() => checkServiceUpdate(svc)}
                     disabled={checkingServiceUpdate === svc.id}
                     className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg text-xs disabled:opacity-50 flex items-center gap-1"
-                    title="Verificar si hay actualizaciones"
+                    title={t('check_update', 'Verificar si hay actualizaciones')}
                   >
                     {checkingServiceUpdate === svc.id ? (
-                      <><Loader size={12} className="animate-spin" /> Verificando...</>
+                      <><Loader size={12} className="animate-spin" /> {t('checking', 'Verificando...')}</>
                     ) : (
-                      <><Search size={12} /> Verificar</>
+                      <><Search size={12} /> {t('check_update', 'Verificar')}</>
                     )}
                   </button>
                 )}
@@ -713,9 +710,9 @@ export default function FederatedServices() {
                   <button
                     onClick={() => startServiceUpdate(svc)}
                     className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs flex items-center gap-1"
-                    title="Actualizar a la nueva version"
+                    title={t('update', 'Actualizar a la nueva version')}
                   >
-                    <RefreshCw size={12} /> Actualizar
+                    <RefreshCw size={12} /> {t('update', 'Actualizar')}
                   </button>
                 )}
                 {!isDemoNode && (
@@ -723,14 +720,14 @@ export default function FederatedServices() {
                     onClick={() => downloadService(svc)}
                     className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg text-xs flex items-center gap-1"
                   >
-                    <Download size={12} /> Descargar
+                    <Download size={12} /> {t('download', 'Descargar')}
                   </button>
                 )}
                 <button
                   onClick={() => setSelectedService(svc)}
                   className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg text-xs"
                 >
-                  Detalles
+                  {t('details', 'Detalles')}
                 </button>
                 {isInstalled && !isDemoNode && (
                   <button
@@ -751,7 +748,7 @@ export default function FederatedServices() {
                   <div className="font-medium">{installMsgs[svc.id].text}</div>
                   {installMsgs[svc.id].logs && (
                     <details className="mt-1">
-                      <summary className="cursor-pointer text-xs opacity-70">Ver detalles</summary>
+                      <summary className="cursor-pointer text-xs opacity-70">{t('view_details', 'Ver detalles')}</summary>
                       <pre className="text-xs mt-1 bg-gray-900 text-gray-100 p-2 rounded max-h-40 overflow-auto whitespace-pre-wrap font-mono">{installMsgs[svc.id].logs}</pre>
                     </details>
                   )}
@@ -764,7 +761,7 @@ export default function FederatedServices() {
 
       {filtered.length === 0 && (
         <div className="text-center py-8 text-gray-500">
-          No se encontraron servicios. Intenta con otra busqueda.
+          {t('no_services', 'No se encontraron servicios. Intenta con otra busqueda.')}
         </div>
       )}
 
@@ -777,25 +774,25 @@ export default function FederatedServices() {
                 <Trash2 size={24} className="text-red-600" />
               </div>
               <div>
-                <h2 className="text-lg font-bold">Desinstalar {confirmUninstall.name}?</h2>
-                <p className="text-sm text-gray-500">Esta accion no se puede deshacer.</p>
+                <h2 className="text-lg font-bold">{t('uninstall_confirm_title', 'Desinstalar {{name}}?', { name: confirmUninstall.name })}</h2>
+                <p className="text-sm text-gray-500">{t('uninstall_confirm_desc', 'Esta accion no se puede deshacer.')}</p>
               </div>
             </div>
             <p className="text-sm text-gray-600 mb-4">
-              Se detendra y eliminara el contenedor Docker. Los datos del servicio podrian perderse.
+              {t('uninstall_confirm_body', 'Se detendra y eliminara el contenedor Docker. Los datos del servicio podrian perderse.')}
             </p>
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setConfirmUninstall(null)}
                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm"
               >
-                Cancelar
+                {t('cancel', 'Cancelar')}
               </button>
               <button
                 onClick={doUninstall}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm flex items-center gap-2"
               >
-                <Trash2 size={14} /> Si, desinstalar
+                <Trash2 size={14} /> {t('confirm_uninstall', 'Si, desinstalar')}
               </button>
             </div>
           </div>
@@ -809,7 +806,7 @@ export default function FederatedServices() {
             <div className="flex items-center justify-between p-4 border-b border-gray-700">
               <div className="flex items-center gap-2 text-white">
                 <RefreshCw size={20} className={serviceUpdateState?.status === 'running' ? 'animate-spin text-blue-400' : 'text-green-400'} />
-                <h2 className="text-lg font-bold">Actualizando: {serviceUpdateConsole.serviceName}</h2>
+                <h2 className="text-lg font-bold">{t('updating_service', 'Actualizando: {{name}}', { name: serviceUpdateConsole.serviceName })}</h2>
               </div>
               <div className="flex gap-2">
                 {serviceUpdateState?.status !== 'running' && (
@@ -817,7 +814,7 @@ export default function FederatedServices() {
                     onClick={closeServiceUpdateConsole}
                     className="px-3 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-600"
                   >
-                    Cerrar
+                    {t('close', 'Cerrar')}
                   </button>
                 )}
               </div>
@@ -829,7 +826,7 @@ export default function FederatedServices() {
                   serviceUpdateState?.status === 'completed' ? 'text-green-400' :
                   serviceUpdateState?.status === 'error' ? 'text-red-400' : 'text-gray-400'
                 }`}>
-                  {serviceUpdateState?.message || 'Iniciando...'}
+                  {serviceUpdateState?.message || t('starting', 'Iniciando...')}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -850,7 +847,7 @@ export default function FederatedServices() {
             </div>
             <div className="flex-1 overflow-auto p-4">
               <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap overflow-auto">
-                {serviceUpdateState?.log || '$ Esperando inicio de actualizacion...'}
+                {serviceUpdateState?.log || '$ ' + t('waiting_update', 'Esperando inicio de actualizacion...')}
               </pre>
             </div>
           </div>
@@ -864,15 +861,15 @@ export default function FederatedServices() {
             <div className="flex items-center justify-between p-4 border-b border-gray-700">
               <div className="flex items-center gap-2 text-white">
                 <Terminal size={20} />
-                <h2 className="text-lg font-bold">Consola: {logsModal.serviceName}</h2>
+                <h2 className="text-lg font-bold">{t('console_service', 'Consola: {{name}}', { name: logsModal.serviceName })}</h2>
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => viewLogs({ id: logsModal.serviceId, name: logsModal.serviceName } as any)}
                   className="px-3 py-1 bg-gray-700 text-white rounded text-xs flex items-center gap-1 hover:bg-gray-600"
-                  title="Actualizar logs"
+                  title={t('refresh_logs', 'Actualizar logs')}
                 >
-                  <RefreshCw size={12} /> Actualizar
+                  <RefreshCw size={12} /> {t('refresh_logs', 'Actualizar')}
                 </button>
                 <button onClick={() => setLogsModal(null)} className="text-gray-400 hover:text-white text-2xl">&times;</button>
               </div>
@@ -880,7 +877,7 @@ export default function FederatedServices() {
             <div className="flex-1 overflow-auto p-4">
               {logsModal.loading ? (
                 <div className="flex items-center justify-center text-gray-400 py-8">
-                  <Loader className="animate-spin mr-2" size={20} /> Cargando logs...
+                  <Loader className="animate-spin mr-2" size={20} /> {t('loading_logs', 'Cargando logs...')}
                 </div>
               ) : (
                 <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap overflow-auto">{logsModal.logs}</pre>
@@ -912,39 +909,39 @@ export default function FederatedServices() {
 
             <div className="space-y-4">
               <div>
-                <h3 className="font-semibold text-sm mb-1">Que es</h3>
+                <h3 className="font-semibold text-sm mb-1">{t('what_is', 'Que es')}</h3>
                 <p className="text-sm text-gray-600">{selectedService.what_is}</p>
               </div>
 
               <div>
-                <h3 className="font-semibold text-sm mb-1">Que reemplaza</h3>
+                <h3 className="font-semibold text-sm mb-1">{t('what_replaces', 'Que reemplaza')}</h3>
                 <p className="text-sm text-gray-600">{selectedService.replaces}</p>
               </div>
 
               <div>
-                <h3 className="font-semibold text-sm mb-1">Para que sirve</h3>
+                <h3 className="font-semibold text-sm mb-1">{t('used_for', 'Para que sirve')}</h3>
                 <p className="text-sm text-gray-600">{selectedService.used_for}</p>
               </div>
 
               <div className="grid grid-cols-3 gap-3 text-sm">
                 <div className="bg-gray-50 p-3 rounded-lg">
-                  <div className="text-xs text-gray-500">RAM minima</div>
+                  <div className="text-xs text-gray-500">{t('ram_label', 'RAM minima')}</div>
                   <div className="font-medium">{selectedService.min_ram_mb >= 1024 ? `${selectedService.min_ram_mb / 1024} GB` : `${selectedService.min_ram_mb} MB`}</div>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-lg">
-                  <div className="text-xs text-gray-500">Disco minimo</div>
+                  <div className="text-xs text-gray-500">{t('disk_label', 'Disco minimo')}</div>
                   <div className="font-medium">{selectedService.min_disk_gb} GB</div>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-lg">
-                  <div className="text-xs text-gray-500">Protocolo</div>
+                  <div className="text-xs text-gray-500">{t('protocol_label', 'Protocolo')}</div>
                   <div className="font-medium">{selectedService.protocol}</div>
                 </div>
               </div>
 
               <div className="bg-blue-50 p-3 rounded-lg text-sm">
-                <strong>Subdominio sugerido:</strong> {selectedService.subdomain}.{nodeDomain}
+                <strong>{t('subdomain_suggested', 'Subdominio sugerido:')}</strong> {selectedService.subdomain}.{nodeDomain}
                 <br />
-                <span className="text-xs text-gray-500">Si tienes OpenWrt, este subdominio se registra automaticamente</span>
+                <span className="text-xs text-gray-500">{t('subdomain_hint', 'Si tienes OpenWrt, este subdominio se registra automaticamente')}</span>
               </div>
 
               <div className="flex gap-2 pt-3 border-t flex-wrap">
@@ -954,12 +951,12 @@ export default function FederatedServices() {
                     onClick={() => { if (!isDemoNode) { installService(selectedService); setSelectedService(null) } }}
                     disabled={installing || isDemoNode}
                     className="px-4 py-2 bg-trueque-600 text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                    title={isDemoNode ? 'No disponible en nodo demo' : ''}
+                    title={isDemoNode ? t('not_available_demo', 'No disponible en nodo demo') : ''}
                   >
                     {installingService === selectedService.id ? (
-                      <><Loader size={14} className="animate-spin" /> Instalando...</>
+                      <><Loader size={14} className="animate-spin" /> {t('installing', 'Instalando...')}</>
                     ) : (
-                      <><Download size={14} /> Instalar aqui</>
+                      <><Download size={14} /> {t('install_here', 'Instalar aqui')}</>
                     )}
                   </button>
                 )}
@@ -973,7 +970,7 @@ export default function FederatedServices() {
                     <div className="font-medium">{installMsgs[selectedService.id].text}</div>
                     {installMsgs[selectedService.id].logs && (
                       <details className="mt-1">
-                        <summary className="cursor-pointer text-xs opacity-70">Ver logs de instalacion</summary>
+                        <summary className="cursor-pointer text-xs opacity-70">{t('view_logs', 'Ver logs de instalacion')}</summary>
                         <pre className="text-xs mt-1 bg-gray-900 text-gray-100 p-2 rounded max-h-40 overflow-auto whitespace-pre-wrap font-mono">{installMsgs[selectedService.id].logs}</pre>
                       </details>
                     )}
@@ -990,59 +987,59 @@ export default function FederatedServices() {
                         rel="noopener noreferrer"
                         className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm flex items-center gap-2"
                       >
-                        <ExternalLink size={14} /> Abrir
+                        <ExternalLink size={14} /> {t('open', 'Abrir')}
                       </a>
                     )}
                     <button
                       onClick={() => { if (!isDemoNode) { updateService(selectedService); setSelectedService(null) } }}
                       disabled={installing || isDemoNode}
                       className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                      title={isDemoNode ? 'No disponible en nodo demo' : ''}
+                      title={isDemoNode ? t('not_available_demo', 'No disponible en nodo demo') : ''}
                     >
-                      <RefreshCw size={14} /> Actualizar
+                      <RefreshCw size={14} /> {t('update', 'Actualizar')}
                     </button>
                     {selectedService.status === 'running' ? (
                       <button
                         onClick={() => { if (!isDemoNode) { stopService(selectedService); setSelectedService(null) } }}
                         disabled={isDemoNode}
                         className="px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                        title={isDemoNode ? 'No disponible en nodo demo' : ''}
+                        title={isDemoNode ? t('not_available_demo', 'No disponible en nodo demo') : ''}
                       >
-                        <Square size={14} /> Detener
+                        <Square size={14} /> {t('stop', 'Detener')}
                       </button>
                     ) : (
                       <button
                         onClick={() => { if (!isDemoNode) { startService(selectedService); setSelectedService(null) } }}
                         disabled={isDemoNode}
                         className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                        title={isDemoNode ? 'No disponible en nodo demo' : ''}
+                        title={isDemoNode ? t('not_available_demo', 'No disponible en nodo demo') : ''}
                       >
-                        <Play size={14} /> Iniciar
+                        <Play size={14} /> {t('start', 'Iniciar')}
                       </button>
                     )}
                     <button
                       onClick={() => { if (!isDemoNode) { uninstallService(selectedService); setSelectedService(null) } }}
                       disabled={isDemoNode}
                       className="px-4 py-2 bg-red-100 text-red-600 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                      title={isDemoNode ? 'No disponible en nodo demo' : ''}
+                      title={isDemoNode ? t('not_available_demo', 'No disponible en nodo demo') : ''}
                     >
-                      <Trash2 size={14} /> Desinstalar
+                      <Trash2 size={14} /> {t('uninstall', 'Desinstalar')}
                     </button>
                     <button
                       onClick={() => { if (!isDemoNode) { restartService(selectedService); setSelectedService(null) } }}
                       disabled={isDemoNode}
                       className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                      title={isDemoNode ? 'No disponible en nodo demo' : 'Reiniciar servicio'}
+                      title={isDemoNode ? t('not_available_demo', 'No disponible en nodo demo') : t('restart', 'Reiniciar servicio')}
                     >
-                      <RefreshCw size={14} /> Reiniciar
+                      <RefreshCw size={14} /> {t('restart', 'Reiniciar')}
                     </button>
                     <button
                       onClick={() => { if (!isDemoNode) { viewLogs(selectedService) } }}
                       disabled={isDemoNode}
                       className="px-4 py-2 bg-gray-700 text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                      title={isDemoNode ? 'No disponible en nodo demo' : 'Ver consola del servicio'}
+                      title={isDemoNode ? t('not_available_demo', 'No disponible en nodo demo') : t('console', 'Ver consola del servicio')}
                     >
-                      <Terminal size={14} /> Consola
+                      <Terminal size={14} /> {t('console', 'Consola')}
                     </button>
                   </>
                 )}
@@ -1052,14 +1049,14 @@ export default function FederatedServices() {
                   onClick={() => { if (!isDemoNode) { downloadService(selectedService); setSelectedService(null) } }}
                   disabled={isDemoNode}
                   className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  title={isDemoNode ? 'No disponible en nodo demo' : ''}
+                  title={isDemoNode ? t('not_available_demo', 'No disponible en nodo demo') : ''}
                 >
-                  <Download size={14} /> Descargar Docker
+                  <Download size={14} /> {t('download_docker', 'Descargar Docker')}
                 </button>
 
                 {isDemoNode && (
                   <div className="w-full mt-2 p-3 rounded text-sm bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-2">
-                    <Lock size={14} /> Los botones de instalacion y descarga estan deshabilitados en el nodo demo.
+                    <Lock size={14} /> {t('demo_disabled', 'Los botones de instalacion y descarga estan deshabilitados en el nodo demo.')}
                   </div>
                 )}
               </div>
@@ -1073,6 +1070,7 @@ export default function FederatedServices() {
 
 // === Panel de VoIP ===
 function VoIPPanel() {
+  const { t } = useTranslation('services')
   const [config, setConfig] = useState<VoIPConfig | null>(null)
   const [extensions, setExtensions] = useState<VoIPExtension[]>([])
   const [routes, setRoutes] = useState<VoIPRoute[]>([])
@@ -1253,11 +1251,11 @@ function VoIPPanel() {
     }
   }
 
-  if (loading) return <div className="card p-4 text-center text-gray-500">Cargando VoIP...</div>
+  if (loading) return <div className="card p-4 text-center text-gray-500">{t('voip_loading', 'Cargando VoIP...')}</div>
 
   return (
     <div className="card p-4 space-y-4">
-      <h2 className="font-semibold flex items-center gap-2"><PhoneIcon size={18} /> Telefonía VoIP de la Aldea</h2>
+      <h2 className="font-semibold flex items-center gap-2"><PhoneIcon size={18} /> {t('voip_title', 'Telefonía VoIP de la Aldea')}</h2>
 
       {msg && <div className={`p-2 rounded text-sm ${msg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{msg.text}</div>}
 
@@ -1265,15 +1263,15 @@ function VoIPPanel() {
       <div className="bg-blue-50 p-3 rounded-lg">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-xs text-blue-600 mb-1">Codigo de Aldea</div>
+            <div className="text-xs text-blue-600 mb-1">{t('village_code', 'Codigo de Aldea')}</div>
             {config && config.village_code > 0 ? (
               <div className="text-2xl font-bold text-blue-700">{config.village_code}</div>
             ) : (
-              <div className="text-sm text-blue-600">No generado</div>
+              <div className="text-sm text-blue-600">{t('not_generated', 'No generado')}</div>
             )}
           </div>
           <button onClick={generateCode} className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm">
-            Generar codigo
+            {t('generate_code', 'Generar codigo')}
           </button>
         </div>
         <p className="text-xs text-blue-600 mt-2">
@@ -1285,31 +1283,31 @@ function VoIPPanel() {
       {config && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Nombre aldea</label>
+            <label className="block text-xs text-gray-500 mb-1">{t('village_name', 'Nombre aldea')}</label>
             <input className="input" value={config.village_name || ''} onChange={(e) => setConfig({ ...config, village_name: e.target.value })} />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Puerto SIP</label>
+            <label className="block text-xs text-gray-500 mb-1">{t('sip_port', 'Puerto SIP')}</label>
             <input className="input" type="number" value={config.server_port} onChange={(e) => setConfig({ ...config, server_port: parseInt(e.target.value) || 5060 })} />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">RTP inicio</label>
+            <label className="block text-xs text-gray-500 mb-1">{t('rtp_start', 'RTP inicio')}</label>
             <input className="input" type="number" value={config.rtp_start} onChange={(e) => setConfig({ ...config, rtp_start: parseInt(e.target.value) || 10000 })} />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">RTP fin</label>
+            <label className="block text-xs text-gray-500 mb-1">{t('rtp_end', 'RTP fin')}</label>
             <input className="input" type="number" value={config.rtp_end} onChange={(e) => setConfig({ ...config, rtp_end: parseInt(e.target.value) || 20000 })} />
           </div>
         </div>
       )}
 
-      <button onClick={saveConfig} className="px-4 py-2 bg-trueque-600 text-white rounded-lg text-sm">Guardar</button>
+      <button onClick={saveConfig} className="px-4 py-2 bg-trueque-600 text-white rounded-lg text-sm">{t('save', 'Guardar')}</button>
 
       {/* Extensiones */}
       <div className="border-t pt-3">
-        <h3 className="font-medium text-sm mb-2">Extensiones telefonicas locales</h3>
+        <h3 className="font-medium text-sm mb-2">{t('extensions_title', 'Extensiones telefonicas locales')}</h3>
         {extensions.length === 0 ? (
-          <p className="text-gray-500 text-xs">No hay extensiones. Crea una para cada miembro.</p>
+          <p className="text-gray-500 text-xs">{t('no_extensions', 'No hay extensiones. Crea una para cada miembro.')}</p>
         ) : (
           <div className="space-y-1">
             {extensions.map((e) => (
@@ -1327,16 +1325,16 @@ function VoIPPanel() {
           <input className="input text-sm" placeholder="Extension (ej: 2001)" value={newExt.extension} onChange={(e) => setNewExt({ ...newExt, extension: e.target.value })} />
           <input className="input text-sm" placeholder="Nombre" value={newExt.display_name} onChange={(e) => setNewExt({ ...newExt, display_name: e.target.value })} />
           <input className="input text-sm" placeholder="Password (auto)" value={newExt.password} onChange={(e) => setNewExt({ ...newExt, password: e.target.value })} />
-          <button onClick={createExt} className="px-3 py-2 bg-trueque-600 text-white rounded-lg text-sm whitespace-nowrap">Agregar</button>
+          <button onClick={createExt} className="px-3 py-2 bg-trueque-600 text-white rounded-lg text-sm whitespace-nowrap">{t('add', 'Agregar')}</button>
         </div>
       </div>
 
       {/* Rutas federadas */}
       <div className="border-t pt-3">
-        <h3 className="font-medium text-sm mb-2">Rutas a otras aldeas</h3>
-        <p className="text-xs text-gray-500 mb-2">Para llamar a otra aldea, marca su codigo + extension (ej: 105-2001)</p>
+        <h3 className="font-medium text-sm mb-2">{t('routes_title', 'Rutas a otras aldeas')}</h3>
+        <p className="text-xs text-gray-500 mb-2">{t('routes_desc', 'Para llamar a otra aldea, marca su codigo + extension (ej: 105-2001)')}</p>
         {routes.length === 0 ? (
-          <p className="text-gray-500 text-xs">No hay rutas federadas.</p>
+          <p className="text-gray-500 text-xs">{t('no_routes', 'No hay rutas federadas.')}</p>
         ) : (
           <div className="space-y-1">
             {routes.map((r) => (
@@ -1355,19 +1353,19 @@ function VoIPPanel() {
           <input className="input text-sm" type="number" placeholder="Codigo (ej: 105)" value={newRoute.remote_village_code || ''} onChange={(e) => setNewRoute({ ...newRoute, remote_village_code: parseInt(e.target.value) || 0 })} />
           <input className="input text-sm" placeholder="Nombre aldea" value={newRoute.remote_village_name} onChange={(e) => setNewRoute({ ...newRoute, remote_village_name: e.target.value })} />
           <input className="input text-sm" placeholder="Endpoint SIP" value={newRoute.remote_endpoint} onChange={(e) => setNewRoute({ ...newRoute, remote_endpoint: e.target.value })} />
-          <button onClick={createRoute} className="px-3 py-2 bg-trueque-600 text-white rounded-lg text-sm">Agregar ruta</button>
+          <button onClick={createRoute} className="px-3 py-2 bg-trueque-600 text-white rounded-lg text-sm">{t('add_route', 'Agregar ruta')}</button>
         </div>
         <button onClick={autoConfigureRoutes} className="mt-2 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-1">
-          <RefreshCw size={14} /> Auto-configurar rutas desde nodos federados
+          <RefreshCw size={14} /> {t('auto_configure_routes', 'Auto-configurar rutas desde nodos federados')}
         </button>
       </div>
 
       {/* Pasarelas PSTN */}
       <div className="border-t pt-3">
-        <h3 className="font-medium text-sm mb-2">Pasarelas PSTN (llamadas a telefonos normales)</h3>
-        <p className="text-xs text-gray-500 mb-2">Permite llamar a numeros de telefono fijos/moviles fuera de la red federada. Requiere cuenta con un proveedor SIP trunk.</p>
+        <h3 className="font-medium text-sm mb-2">{t('pstn_title', 'Pasarelas PSTN (llamadas a telefonos normales)')}</h3>
+        <p className="text-xs text-gray-500 mb-2">{t('pstn_desc', 'Permite llamar a numeros de telefono fijos/moviles fuera de la red federada. Requiere cuenta con un proveedor SIP trunk.')}</p>
         {pstnGateways.length === 0 ? (
-          <p className="text-gray-500 text-xs">No hay pasarelas PSTN configuradas. Las llamadas entre nodos federados son gratis.</p>
+          <p className="text-gray-500 text-xs">{t('no_pstn', 'No hay pasarelas PSTN configuradas. Las llamadas entre nodos federados son gratis.')}</p>
         ) : (
           <div className="space-y-1">
             {pstnGateways.map((gw) => (
@@ -1392,34 +1390,34 @@ function VoIPPanel() {
           <input className="input text-sm" placeholder="Numero entrante (opcional)" value={newGateway.inbound_number} onChange={(e) => setNewGateway({ ...newGateway, inbound_number: e.target.value })} />
           <input className="input text-sm" type="number" placeholder="Costo/min (centavos TQ)" value={newGateway.cost_per_minute || ''} onChange={(e) => setNewGateway({ ...newGateway, cost_per_minute: parseFloat(e.target.value) || 0 })} />
           <input className="input text-sm" type="number" placeholder="Llamadas simultaneas" value={newGateway.max_concurrent_calls || ''} onChange={(e) => setNewGateway({ ...newGateway, max_concurrent_calls: parseInt(e.target.value) || 2 })} />
-          <button onClick={createPSTNGateway} className="px-3 py-2 bg-trueque-600 text-white rounded-lg text-sm">Agregar pasarela</button>
+          <button onClick={createPSTNGateway} className="px-3 py-2 bg-trueque-600 text-white rounded-lg text-sm">{t('add_gateway', 'Agregar pasarela')}</button>
         </div>
       </div>
 
       {/* Saldo prepago */}
       <div className="border-t pt-3">
-        <h3 className="font-medium text-sm mb-2">Saldo prepago para llamadas externas</h3>
-        <p className="text-xs text-gray-500 mb-2">Las llamadas entre nodos federados son gratis. Las llamadas a telefonos normales (PSTN) requieren saldo.</p>
+        <h3 className="font-medium text-sm mb-2">{t('balance_title', 'Saldo prepago para llamadas externas')}</h3>
+        <p className="text-xs text-gray-500 mb-2">{t('balance_desc', 'Las llamadas entre nodos federados son gratis. Las llamadas a telefonos normales (PSTN) requieren saldo.')}</p>
         {balance !== null && (
           <div className="bg-green-50 p-3 rounded-lg mb-2">
-            <div className="text-xs text-green-600">Mi saldo</div>
+            <div className="text-xs text-green-600">{t('my_balance', 'Mi saldo')}</div>
             <div className="text-xl font-bold text-green-700">{balance.balance_display}</div>
-            <div className="text-xs text-green-500 mt-1">Recargado: {balance.total_recharged} | Gastado: {balance.total_spent}</div>
+            <div className="text-xs text-green-500 mt-1">{t('recharged', 'Recargado:')} {balance.total_recharged} | {t('spent', 'Gastado:')} {balance.total_spent}</div>
           </div>
         )}
         <div className="flex gap-2">
           <input className="input text-sm" type="number" placeholder="Monto a recargar (centavos TQ)" value={rechargeAmount || ''} onChange={(e) => setRechargeAmount(parseInt(e.target.value) || 0)} />
           <input className="input text-sm" placeholder="Metodo (transfer/cash)" value={rechargeMethod} onChange={(e) => setRechargeMethod(e.target.value)} />
           <input className="input text-sm" placeholder="Referencia" value={rechargeRef} onChange={(e) => setRechargeRef(e.target.value)} />
-          <button onClick={rechargeVoIP} className="px-3 py-2 bg-trueque-600 text-white rounded-lg text-sm whitespace-nowrap">Solicitar recarga</button>
+          <button onClick={rechargeVoIP} className="px-3 py-2 bg-trueque-600 text-white rounded-lg text-sm whitespace-nowrap">{t('request_recharge', 'Solicitar recarga')}</button>
         </div>
       </div>
 
       {/* Registro de llamadas */}
       <div className="border-t pt-3">
-        <h3 className="font-medium text-sm mb-2">Registro de llamadas (CDR)</h3>
+        <h3 className="font-medium text-sm mb-2">{t('cdr_title', 'Registro de llamadas (CDR)')}</h3>
         {cdr.length === 0 ? (
-          <p className="text-gray-500 text-xs">No hay llamadas registradas.</p>
+          <p className="text-gray-500 text-xs">{t('no_calls', 'No hay llamadas registradas.')}</p>
         ) : (
           <div className="space-y-1 max-h-48 overflow-y-auto">
             {cdr.map((c) => (

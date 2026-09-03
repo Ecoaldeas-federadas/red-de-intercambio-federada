@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { Plug, CheckCircle, XCircle, Calendar, RefreshCw } from 'lucide-react'
 import { fmtTQ, fmtDate } from '../lib/format'
 
 export default function MyServices() {
+  const { t } = useTranslation('services')
   const { currency } = useConfig()
   const [assemblyServices, setAssemblyServices] = useState<any[]>([])
   const [voluntaryServices, setVoluntaryServices] = useState<any[]>([])
@@ -32,16 +34,16 @@ export default function MyServices() {
     api.post(`/organizations/services/${serviceId}/subscribe`, {}).then(() => {
       loadData()
     }).catch((err: any) => {
-      alert(err instanceof Error ? err.message : 'Error al suscribirse')
+      alert(err instanceof Error ? err.message : t('my_services_error_subscribe', 'Error al suscribirse'))
     })
   }
 
   const handleUnsubscribe = (serviceId: string) => {
-    if (!confirm('Seguro que quieres cancelar este servicio?')) return
+    if (!confirm(t('my_services_cancel_confirm', 'Seguro que quieres cancelar este servicio?'))) return
     api.delete(`/organizations/services/${serviceId}/subscribe`).then(() => {
       loadData()
     }).catch((err: any) => {
-      alert(err instanceof Error ? err.message : 'Error al desuscribirse')
+      alert(err instanceof Error ? err.message : t('my_services_error_unsubscribe', 'Error al desuscribirse'))
     })
   }
 
@@ -59,19 +61,18 @@ export default function MyServices() {
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <Plug className="text-trueque-600" size={24} />
-        <h1 className="text-2xl font-bold">Mis Servicios</h1>
+        <h1 className="text-2xl font-bold">{t('my_services_title', 'Mis Servicios')}</h1>
       </div>
 
       {/* Servicios obligatorios de la Asamblea */}
       <div className="card">
-        <h2 className="font-semibold text-lg mb-1">Servicios Comunitarios Obligatorios</h2>
+        <h2 className="font-semibold text-lg mb-1">{t('my_services_mandatory_title', 'Servicios Comunitarios Obligatorios')}</h2>
         <p className="text-sm text-gray-500 mb-4">
-          Estos servicios son proporcionados por organizaciones de la Asamblea.
-          Todos los miembros deben pagarlos mensualmente.
+          {t('my_services_mandatory_desc', 'Estos servicios son proporcionados por organizaciones de la Asamblea. Todos los miembros deben pagarlos mensualmente.')}
         </p>
 
         {assemblyServices.length === 0 ? (
-          <p className="text-gray-400 py-4 text-center">No hay servicios comunitarios activos.</p>
+          <p className="text-gray-400 py-4 text-center">{t('my_services_no_mandatory', 'No hay servicios comunitarios activos.')}</p>
         ) : (
           <div className="space-y-3">
             {assemblyServices.map((svc: any) => (
@@ -80,31 +81,31 @@ export default function MyServices() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <h3 className="font-medium">{svc.name}</h3>
-                      <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Obligatorio</span>
+                      <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{t('my_services_mandatory_badge', 'Obligatorio')}</span>
                     </div>
                     <p className="text-sm text-gray-600 mt-1">{svc.description}</p>
                     <p className="text-sm font-medium text-trueque-700 mt-2">
-                      {fmtAmount(svc.amount)} {currency} / {svc.frequency === 'monthly' ? 'mes' : svc.frequency}
+                      {fmtAmount(svc.amount)} {currency} / {svc.frequency === 'monthly' ? t('my_services_month', 'mes') : svc.frequency}
                     </p>
                     {svc.organization_name && (
-                      <p className="text-xs text-gray-400 mt-1">Organizacion: {svc.organization_name}</p>
+                      <p className="text-xs text-gray-400 mt-1">{t('my_services_organization', 'Organizacion:')} {svc.organization_name}</p>
                     )}
                   </div>
                   <div className="text-right">
                     <CheckCircle className="text-green-500" size={20} />
-                    <p className="text-xs text-green-600 mt-1">Auto-suscrito</p>
+                    <p className="text-xs text-green-600 mt-1">{t('my_services_auto_subscribed', 'Auto-suscrito')}</p>
                   </div>
                 </div>
                 {(svc.obligations || svc.rights || svc.duties) && (
                   <div className="mt-3 pt-3 border-t border-gray-50 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                     {svc.obligations && (
-                      <div><strong className="text-gray-700">Obligaciones:</strong> <span className="text-gray-500">{svc.obligations}</span></div>
+                      <div><strong className="text-gray-700">{t('my_services_obligations', 'Obligaciones:')}</strong> <span className="text-gray-500">{svc.obligations}</span></div>
                     )}
                     {svc.rights && (
-                      <div><strong className="text-gray-700">Derechos:</strong> <span className="text-gray-500">{svc.rights}</span></div>
+                      <div><strong className="text-gray-700">{t('my_services_rights', 'Derechos:')}</strong> <span className="text-gray-500">{svc.rights}</span></div>
                     )}
                     {svc.duties && (
-                      <div><strong className="text-gray-700">Deberes:</strong> <span className="text-gray-500">{svc.duties}</span></div>
+                      <div><strong className="text-gray-700">{t('my_services_duties', 'Deberes:')}</strong> <span className="text-gray-500">{svc.duties}</span></div>
                     )}
                   </div>
                 )}
@@ -116,13 +117,13 @@ export default function MyServices() {
 
       {/* Servicios voluntarios */}
       <div className="card">
-        <h2 className="font-semibold text-lg mb-1">Servicios Voluntarios Disponibles</h2>
+        <h2 className="font-semibold text-lg mb-1">{t('my_services_voluntary_title', 'Servicios Voluntarios Disponibles')}</h2>
         <p className="text-sm text-gray-500 mb-4">
-          Puedes suscribirte o cancelar cuando quieras.
+          {t('my_services_voluntary_desc', 'Puedes suscribirte o cancelar cuando quieras.')}
         </p>
 
         {voluntaryServices.length === 0 ? (
-          <p className="text-gray-400 py-4 text-center">No hay servicios voluntarios disponibles.</p>
+          <p className="text-gray-400 py-4 text-center">{t('my_services_no_voluntary', 'No hay servicios voluntarios disponibles.')}</p>
         ) : (
           <div className="space-y-3">
             {voluntaryServices.map((svc: any) => {
@@ -134,10 +135,10 @@ export default function MyServices() {
                       <h3 className="font-medium">{svc.name}</h3>
                       <p className="text-sm text-gray-600 mt-1">{svc.description}</p>
                       <p className="text-sm font-medium text-trueque-700 mt-2">
-                        {svc.service_type === 'benefit' ? '+' : ''}{fmtAmount(svc.amount)} {currency} / {svc.frequency === 'monthly' ? 'mes' : svc.frequency}
+                        {svc.service_type === 'benefit' ? '+' : ''}{fmtAmount(svc.amount)} {currency} / {svc.frequency === 'monthly' ? t('my_services_month', 'mes') : svc.frequency}
                       </p>
                       {svc.organization_name && (
-                        <p className="text-xs text-gray-400 mt-1">Organizacion: {svc.organization_name}</p>
+                        <p className="text-xs text-gray-400 mt-1">{t('my_services_organization', 'Organizacion:')} {svc.organization_name}</p>
                       )}
                     </div>
                     <div>
@@ -146,14 +147,14 @@ export default function MyServices() {
                           onClick={() => handleUnsubscribe(svc.id)}
                           className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-sm font-medium"
                         >
-                          Cancelar
+                          {t('my_services_cancel', 'Cancelar')}
                         </button>
                       ) : (
                         <button
                           onClick={() => handleSubscribe(svc.id)}
                           className="px-3 py-1.5 bg-trueque-50 text-trueque-600 hover:bg-trueque-100 rounded-lg text-sm font-medium"
                         >
-                          Suscribirse
+                          {t('my_services_subscribe', 'Suscribirse')}
                         </button>
                       )}
                     </div>
@@ -161,13 +162,13 @@ export default function MyServices() {
                   {(svc.obligations || svc.rights || svc.duties) && (
                     <div className="mt-3 pt-3 border-t border-gray-50 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                       {svc.obligations && (
-                        <div><strong className="text-gray-700">Obligaciones:</strong> <span className="text-gray-500">{svc.obligations}</span></div>
+                        <div><strong className="text-gray-700">{t('my_services_obligations', 'Obligaciones:')}</strong> <span className="text-gray-500">{svc.obligations}</span></div>
                       )}
                       {svc.rights && (
-                        <div><strong className="text-gray-700">Derechos:</strong> <span className="text-gray-500">{svc.rights}</span></div>
+                        <div><strong className="text-gray-700">{t('my_services_rights', 'Derechos:')}</strong> <span className="text-gray-500">{svc.rights}</span></div>
                       )}
                       {svc.duties && (
-                        <div><strong className="text-gray-700">Deberes:</strong> <span className="text-gray-500">{svc.duties}</span></div>
+                        <div><strong className="text-gray-700">{t('my_services_duties', 'Deberes:')}</strong> <span className="text-gray-500">{svc.duties}</span></div>
                       )}
                     </div>
                   )}
@@ -181,14 +182,14 @@ export default function MyServices() {
       {/* Mis suscripciones activas */}
       <div className="card">
         <h2 className="font-semibold text-lg mb-1 flex items-center gap-2">
-          <Calendar size={18} /> Mis Suscripciones Activas
+          <Calendar size={18} /> {t('my_services_active_subs_title', 'Mis Suscripciones Activas')}
         </h2>
         <p className="text-sm text-gray-500 mb-4">
-          Resumen de tus servicios activos y proximos cobros.
+          {t('my_services_active_subs_desc', 'Resumen de tus servicios activos y proximos cobros.')}
         </p>
 
         {mySubs.length === 0 ? (
-          <p className="text-gray-400 py-4 text-center">No tienes suscripciones activas.</p>
+          <p className="text-gray-400 py-4 text-center">{t('my_services_no_subs', 'No tienes suscripciones activas.')}</p>
         ) : (
           <div className="space-y-2">
             {mySubs.map((sub: any) => (
@@ -198,14 +199,14 @@ export default function MyServices() {
                   <p className="text-xs text-gray-500">{sub.org_name}</p>
                   {sub.next_charge_at && (
                     <p className="text-xs text-gray-400 mt-1">
-                      Proximo cobro: {fmtDate(sub.next_charge_at)}
+                      {t('my_services_next_charge', 'Proximo cobro:')} {fmtDate(sub.next_charge_at)}
                     </p>
                   )}
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-medium text-trueque-700">{fmtAmount(sub.amount)} {currency}</p>
                   <p className="text-xs text-gray-400">
-                    {sub.status === 'auto' ? 'Obligatorio' : 'Voluntario'}
+                    {sub.status === 'auto' ? t('my_services_mandatory_label', 'Obligatorio') : t('my_services_voluntary_label', 'Voluntario')}
                   </p>
                 </div>
               </div>

@@ -77,5 +77,14 @@
   "notif_type_org_board_assigned": "Board assignment",
   "notif_type_org_approved": "Organization approved",
   "notif_type_federation_peer_registered": "Peer node registered",
-  "notif_type_federation_product_approved": "Federated product approved"
+  "notif_type_federation_product_approved": "Federated product approved",
+
+  "webpush_vapid_error": "Could not get VAPID key from server",
+  "webpush_permission_denied": "Notification permission denied by browser",
+  "error_prefix": "Error",
+  "gateway_test_sent": "Test of {{channel}} sent",
+  "gateway_test_error": "Error in test of {{channel}}",
+  "gateway_how_to_configure": "How to configure {{label}}",
+  "webpush_auto_configured": "Web Push is configured automatically",
+  "webpush_auto_desc": "VAPID keys are generated automatically when a user activates push notifications from their contacts page. You do not need to configure anything here. Just activate the gateway and users can subscribe from their settings."
 }
