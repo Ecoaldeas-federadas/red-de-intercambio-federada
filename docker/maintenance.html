@@ -23,7 +23,18 @@ code{background:#f3f4f6;padding:.1rem .3rem;border-radius:.25rem;font-family:mon
 <h1>Nodo no disponible</h1>
 <p class="subtitle">El servidor del nodo no esta respondiendo</p>
 <div class="status-box">El node-app esta caido o reiniciandose</div>
-<a class="btn" href="/updater/">Ir al panel de actualizacion</a>
+<a class="btn" href="/updater/" id="updaterLink">Ir al panel de actualizacion</a>
+<script>
+// Si hay un token configurado, agregarlo automaticamente
+// El token se puede pasar via URL o configurar en el servidor
+(function(){
+  var qs=window.location.search.match(/[?&]token=([^&]*)/);
+  if(qs){
+    var link=document.getElementById('updaterLink');
+    if(link)link.href='/updater/?token='+encodeURIComponent(qs[1]);
+  }
+})();
+</script>
 <p class="info">
 Desde el panel de actualizacion puedes:<br>
 - Verificar si hay actualizaciones disponibles<br>

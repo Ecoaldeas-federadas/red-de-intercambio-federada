@@ -114,7 +114,7 @@ El instalador genera estos archivos sin que tengas que editar nada:
 
 | Archivo | Contenido | Seguro por defecto |
 |---------|-----------|-------------------|
-| `.env` | DB_PASSWORD, JWT_SECRET | Passwords aleatorios de 24-32 bytes |
+| `.env` | DB_PASSWORD, JWT_SECRET, GIT_TOKEN, UPDATER_TOKEN | Passwords aleatorios de 24-32 bytes |
 | `config.yaml` | Configuracion completa del nodo | Defaults seguros, solo falta nombre y dominio |
 | `secrets/node_keys.txt` | Claves Ed25519 del nodo | Clave publica + privada generadas con crypto/rand |
 

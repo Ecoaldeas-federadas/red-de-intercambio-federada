@@ -82,6 +82,7 @@ services:
       - update_state:/update-state
     environment:
       - GIT_TOKEN=${GIT_TOKEN:-}
+      - UPDATER_TOKEN=${UPDATER_TOKEN:-}
     restart: unless-stopped
 
   arduino-compiler:

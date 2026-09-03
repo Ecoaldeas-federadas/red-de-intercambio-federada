@@ -136,6 +136,7 @@ function New-SecureToken($numBytes = 32) {
 
 $dbPassword = New-SecureToken 24
 $jwtSecret = New-SecureToken 32
+$updaterToken = New-SecureToken 16
 
 # 4. Generar claves Ed25519 del nodo
 # Usamos Go (mas confiable en Windows) o openssl como fallback
@@ -211,6 +212,7 @@ $envContent = @"
 
 DB_PASSWORD=$dbPassword
 JWT_SECRET=$jwtSecret
+UPDATER_TOKEN=$updaterToken
 NODE_DOMAIN=$nodeDomain
 NODE_NAME=$nodeName
 "@
@@ -221,6 +223,7 @@ $envPath = Join-Path $ROOT ".env"
 $envContent = $envContent -replace "`r`n", "`n"
 [System.IO.File]::WriteAllText($envPath, $envContent, [System.Text.UTF8Encoding]::new($false))
 Write-OK "Archivo .env generado (con passwords y secrets aleatorios)"
+Write-Host "UPDATER_TOKEN: guardalo. Accede al panel en /updater/?token=$updaterToken" -ForegroundColor Cyan
 
 # 6. Generar config.yaml
 $configContent = @"

@@ -90,6 +90,7 @@ step "Generando configuracion segura..."
 # 3. Generar secrets aleatorios
 DB_PASSWORD=$(openssl rand -hex 24 2>/dev/null || head -c 24 /dev/urandom | xxd -p | tr -d '\n')
 JWT_SECRET=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
+UPDATER_TOKEN=$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | xxd -p | tr -d '\n')
 
 # 4. Generar claves Ed25519 del nodo
 NODE_PUBLIC_KEY=""
@@ -148,11 +149,13 @@ cat > "$ROOT/.env" << EOF
 
 DB_PASSWORD=$DB_PASSWORD
 JWT_SECRET=$JWT_SECRET
+UPDATER_TOKEN=$UPDATER_TOKEN
 NODE_DOMAIN=$NODE_DOMAIN
 NODE_NAME=$NODE_NAME
 NODE_PRIVATE_KEY=$NODE_PRIVATE_KEY
 EOF
 ok "Archivo .env generado (con passwords y secrets aleatorios)"
+info "UPDATER_TOKEN: guardalo. Accede al panel en /updater/?token=$UPDATER_TOKEN"
 
 # 6. Generar config.yaml
 cat > "$ROOT/config.yaml" << EOF

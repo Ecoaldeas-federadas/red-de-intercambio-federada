@@ -81,14 +81,44 @@ detect_project_name() {
 # Check if node-app container is running
 check_node_status() {
   PROJECT_NAME=$(detect_project_name)
-  NODE_CONTAINER="${PROJECT_NAME}-node-app-1"
-  RUNNING=$(docker inspect -f '{{.State.Running}}' "$NODE_CONTAINER" 2>/dev/null || echo "false")
-  STATUS=$(docker inspect -f '{{.State.Status}}' "$NODE_CONTAINER" 2>/dev/null || echo "not-found")
-  if [ "$STATUS" = "not-found" ]; then
-    echo '{"running":false,"status":"not-found","container":"'"$NODE_CONTAINER"'"}'
+  # Intentar varios nombres posibles de contenedor
+  NODE_CONTAINER=""
+  for CANDIDATE in "${PROJECT_NAME}-node-app-1" "node-app" "red-de-intercambio-federada-node-app-1"; do
+    if docker inspect -f '{{.State.Status}}' "$CANDIDATE" 2>/dev/null | grep -qE '^(running|created|exited|restarting|paused)$'; then
+      NODE_CONTAINER="$CANDIDATE"
+      break
+    fi
+  done
+  # Si no se encontro por nombre exacto, buscar por patron
+  if [ -z "$NODE_CONTAINER" ]; then
+    NODE_CONTAINER=$(docker ps -a --format '{{.Names}}' 2>/dev/null | grep 'node-app' | head -1)
+  fi
+  if [ -z "$NODE_CONTAINER" ]; then
+    echo '{"running":false,"status":"not-found","container":"not-found"}'
   else
+    RUNNING=$(docker inspect -f '{{.State.Running}}' "$NODE_CONTAINER" 2>/dev/null || echo "false")
+    STATUS=$(docker inspect -f '{{.State.Status}}' "$NODE_CONTAINER" 2>/dev/null || echo "not-found")
     echo '{"running":'"$RUNNING"',"status":"'"$STATUS"'","container":"'"$NODE_CONTAINER"'"}'
   fi
+}
+
+# Verificar token de acceso si UPDATER_TOKEN esta configurado
+# Si no hay token configurado, acceso libre (backwards compatible)
+check_token() {
+  if [ -z "$UPDATER_TOKEN" ]; then
+    return 0
+  fi
+  # Extraer token de query string
+  QUERY_TOKEN=$(echo "$PATH_REQ" | sed -n 's/.*token=\([^&]*\).*/\1/p')
+  # Extraer token de Authorization header
+  AUTH_TOKEN=""
+  if echo "$REQUEST" | grep -qi 'Authorization: Bearer '; then
+    AUTH_TOKEN=$(echo "$REQUEST" | grep -i 'Authorization: Bearer ' | sed 's/.*Authorization: Bearer \([^[:space:]]*\).*/\1/' | tr -d '\r\n')
+  fi
+  if [ "$QUERY_TOKEN" = "$UPDATER_TOKEN" ] || [ "$AUTH_TOKEN" = "$UPDATER_TOKEN" ]; then
+    return 0
+  fi
+  return 1
 }
 
 # === RUTAS ===
@@ -105,9 +135,25 @@ if [ "$METHOD" = "OPTIONS" ]; then
 fi
 
 # Pagina HTML de control (GET /)
-if [ "$METHOD" = "GET" ] && { [ "$PATH_REQ" = "/" ] || [ "$PATH_REQ" = "/index.html" ]; }; then
+if [ "$METHOD" = "GET" ] && { [ "$PATH_REQ" = "/" ] || [ "$PATH_REQ" = "/index.html" ] || [ "$(echo "$PATH_REQ" | sed 's/\?.*//')" = "/" ]; }; then
+  # Verificar token si esta configurado
+  if ! check_token; then
+    log_msg "Acceso denegado: token invalido o ausente"
+    printf 'HTTP/1.1 401 Unauthorized\r\n'
+    printf 'Content-Type: text/html; charset=utf-8\r\n'
+    printf 'Access-Control-Allow-Origin: *\r\n'
+    printf '\r\n'
+    printf '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Acceso denegado</title></head>'
+    printf '<body style="font-family:system-ui;background:#f0fdf4;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0">'
+    printf '<div style="background:#fff;border-radius:1rem;padding:2rem;max-width:400px;text-align:center;box-shadow:0 4px 6px rgba(0,0,0,.1);border:1px solid #d1fae5">'
+    printf '<h1 style="color:#991b1b;font-size:1.25rem">Acceso denegado</h1>'
+    printf '<p style="color:#6b7280;font-size:.8rem;margin-top:.5rem">Se requiere un token de acceso para usar el panel de control del nodo.</p>'
+    printf '<p style="color:#9ca3af;font-size:.7rem;margin-top:1rem">Accede con: /updater/?token=TU_TOKEN</p>'
+    printf '</div></body></html>'
+    exit 0
+  fi
   log_msg "Sirviendo pagina de control HTML"
-  HTML='<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Control del Nodo</title><style>
+  HTML='<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔧</text></svg>"><title>Control del Nodo</title><style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,sans-serif;background:#f0fdf4;color:#064e3b;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem}
 .card{background:#fff;border-radius:1rem;padding:2rem;max-width:480px;width:100%;box-shadow:0 4px 6px rgba(0,0,0,.1);border:1px solid #d1fae5}
@@ -147,24 +193,37 @@ input[type=text],input[type=password]{width:100%;padding:.5rem;border:1px solid 
 <p class="subtitle">Gestor de actualizaciones - acceso directo</p>
 <div id="status" class="status-box status-loading">Verificando estado...</div>
 <div id="msg"></div>
-<button class="btn btn-start" id="btnStart" onclick="doAction(\"start\")">Arrancar Nodo</button>
-<button class="btn btn-stop" id="btnStop" onclick="doAction(\"stop\")">Detener Nodo</button>
-<button class="btn btn-restart" id="btnRestart" onclick="doAction(\"restart\")">Reiniciar Nodo</button>
+<button class="btn btn-start" id="btnStart" onclick="doAction('start')">Arrancar Nodo</button>
+<button class="btn btn-stop" id="btnStop" onclick="doAction('stop')">Detener Nodo</button>
+<button class="btn btn-restart" id="btnRestart" onclick="doAction('restart')">Reiniciar Nodo</button>
 <div class="update-section">
-<button class="btn btn-update" id="btnUpdate" onclick="doAction(\"update\")">Actualizar Nodo</button>
-<button class="btn btn-cancel" id="btnCancel" onclick="doAction(\"cancel\")" style="display:none">Cancelar Actualizacion</button>
+<button class="btn btn-update" id="btnUpdate" onclick="doAction('update')">Actualizar Nodo</button>
+<button class="btn btn-cancel" id="btnCancel" onclick="doAction('cancel')" style="display:none">Cancelar Actualizacion</button>
 </div>
 <div class="log-box" id="logBox"></div>
 <p class="info">Puerto 9110 - updater-controller</p>
 </div>
 <script>
+var TOKEN='';
+(function(){
+  var qs=window.location.search.match(/[?&]token=([^&]*)/);
+  if(qs)TOKEN=decodeURIComponent(qs[1]);
+})();
+function apiUrl(path){
+  if(!TOKEN)return path;
+  var sep=path.indexOf('?')>=0?'&':'?';
+  return path+sep+'token='+encodeURIComponent(TOKEN);
+}
 async function api(path,opts){
   try{
-    const r=await fetch(path,opts||{});
+    var url=apiUrl(path);
+    var o=opts||{};
+    if(TOKEN){o.headers=o.headers||{};o.headers['Authorization']='Bearer '+TOKEN;}
+    const r=await fetch(url,o);
     return await r.json();
-  }catch(e){return{success:false,message:err.toString()};}
+  }catch(e){return{success:false,message:e.toString()};}
 }
-function showMsg(t,c){var m=document.getElementById("msg");m.innerHTML=\"<div class=\\\"msg \"+c+\"\\\">\"+t+\"</div>\";}
+function showMsg(t,c){var m=document.getElementById('msg');m.innerHTML='<div class="msg '+c+'">'+t+'</div>';}
 function setStatus(r){
   var s=document.getElementById("status");
   var bs=document.getElementById("btnStart"),bh=document.getElementById("btnStop");
@@ -211,6 +270,13 @@ setInterval(refreshStatus,5000);
 fi
 
 # === API endpoints ===
+
+# Verificar token para todos los endpoints de API (excepto OPTIONS ya manejado)
+if ! check_token; then
+  log_msg "API: acceso denegado - token invalido"
+  send_response '{"success":false,"message":"Token requerido"}'
+  exit 0
+fi
 
 if echo "$PATH_REQ" | grep -q '^/update$'; then
   log_msg "Peticion /update recibida"
@@ -382,17 +448,33 @@ elif echo "$PATH_REQ" | grep -q '^/check$'; then
   if [ -f /update-state/installed-node-commit.txt ]; then
     INSTALLED=$(cat /update-state/installed-node-commit.txt | tr -d '[:space:]')
   fi
-  if [ -z "$INSTALLED" ]; then
-    INSTALLED="$CURRENT"
+  # Si no hay commit instalado conocido, leer BUILD_COMMIT del contenedor
+  if [ -z "$INSTALLED" ] || [ "$INSTALLED" = "unknown" ]; then
+    PROJECT_NAME=$(detect_project_name)
+    NODE_CONTAINER="${PROJECT_NAME}-node-app-1"
+    BUILD_COMMIT=$(docker exec "$NODE_CONTAINER" cat /app/BUILD_COMMIT 2>/dev/null | tr -d '[:space:]')
+    if [ -n "$BUILD_COMMIT" ] && [ "$BUILD_COMMIT" != "unknown" ]; then
+      INSTALLED="$BUILD_COMMIT"
+    fi
+  fi
+  # Si sigue sin conocerse, NO usar HEAD como fallback (HEAD se mueve al
+  # actualizar servicios). Asumir que hay actualizaciones para forzar rebuild.
+  if [ -z "$INSTALLED" ] || [ "$INSTALLED" = "unknown" ]; then
+    INSTALLED="unknown"
   fi
   if [ -n "$GIT_TOKEN" ]; then
     git -C "$PROJECT_DIR" remote set-url origin "https://${GIT_TOKEN}@github.com/discapacidad5/red-de-intercambio-federada.git" 2>/dev/null
   fi
   git -C "$PROJECT_DIR" fetch origin main 2>/dev/null
   REMOTE=$(git -C "$PROJECT_DIR" rev-parse --short origin/main 2>/dev/null || echo "")
-  NEW_COMMITS=$(git -C "$PROJECT_DIR" log --oneline "$INSTALLED..origin/main" 2>/dev/null || echo "")
+  NEW_COMMITS=""
+  if [ "$INSTALLED" != "unknown" ] && [ -n "$REMOTE" ]; then
+    NEW_COMMITS=$(git -C "$PROJECT_DIR" log --oneline "$INSTALLED..origin/main" 2>/dev/null || echo "")
+  fi
   UPDATES="false"
-  if [ -n "$NEW_COMMITS" ] || [ "$INSTALLED" != "$REMOTE" -a -n "$REMOTE" ]; then
+  if [ "$INSTALLED" = "unknown" ]; then
+    UPDATES="true"
+  elif [ -n "$NEW_COMMITS" ] || [ "$INSTALLED" != "$REMOTE" -a -n "$REMOTE" ]; then
     UPDATES="true"
   fi
   NEW_ESC=$(json_escape "$NEW_COMMITS")
