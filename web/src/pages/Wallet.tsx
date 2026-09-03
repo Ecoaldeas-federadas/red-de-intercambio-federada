@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { useAuth } from '../hooks/useAuth'
+import { useTranslation } from 'react-i18next'
 import { Wallet as WalletIcon, ArrowUpCircle, ArrowDownCircle, HelpCircle, Search, Calendar } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
@@ -10,6 +11,7 @@ type FilterPeriod = '24h' | '7d' | '30d' | '3m' | 'all' | 'custom'
 export default function Wallet() {
   const { currency } = useConfig()
   const { user } = useAuth()
+  const { t } = useTranslation('transfer')
   const [txs, setTxs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [balance, setBalance] = useState(0)
@@ -96,7 +98,7 @@ export default function Wallet() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold flex items-center gap-2"><WalletIcon size={24} />Mi Billetera</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2"><WalletIcon size={24} />{t('wallet.title', 'Mi Billetera')}</h1>
         <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
           <HelpCircle size={20} />
         </button>
@@ -175,7 +177,7 @@ export default function Wallet() {
           <p className="text-gray-500 py-4">Cargando...</p>
         ) : filteredTxs.length === 0 ? (
           <div className="text-center text-gray-500 py-8">
-            <p>No hay transacciones en este periodo.</p>
+            <p>{t('wallet.no_transactions', 'No hay transacciones en este periodo.')}</p>
           </div>
         ) : (
           <div className="space-y-2 max-h-[600px] overflow-y-auto">
@@ -229,7 +231,7 @@ export default function Wallet() {
               <p className="font-bold text-red-600 text-lg">-{fmtAmount(totalOut)} {currency}</p>
             </div>
             <div className={`rounded-lg p-3 ${calculatedBalance >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
-              <p className="text-gray-600 text-xs">Balance del periodo</p>
+              <p className="text-gray-600 text-xs">{t('wallet.period_balance', 'Balance del periodo')}</p>
               <p className={`font-bold text-lg ${calculatedBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {calculatedBalance >= 0 ? '+' : ''}{fmtAmount(calculatedBalance)} {currency}
               </p>

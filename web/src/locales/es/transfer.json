@@ -1,1 +1,20 @@
-{}
+{
+  "title": "Transferir Trueque",
+  "recipient_label": "Destinatario",
+  "recipient_hint": "Identificador de quien recibira el dinero. Formato @usuario@nodo. Ej: @maria@localhost o @carlos@nodo2.org. Si esta en tu mismo nodo, basta con @maria.",
+  "amount_label": "Monto",
+  "amount_hint": "Cantidad de Trueques a enviar. Acepta decimales (centavos). Ej: 1.50 para enviar un Trueque con cincuenta centavos.",
+  "reference_label": "Referencia (opcional)",
+  "reference_hint": "Nota para que el destinatario sepa el motivo del pago. Aparece en el historial de ambos.",
+  "transfer_button": "Transferir",
+  "sending": "Enviando...",
+  "success": "Transferencia enviada correctamente",
+  "error_recipient_amount": "Destinatario y monto son obligatorios",
+  "error_invalid_amount": "Monto invalido. Debe ser un numero positivo (ej: 1.50)",
+  "error_generic": "Error al transferir",
+  "wallet": {
+    "title": "Mi Billetera",
+    "period_balance": "Balance del periodo",
+    "no_transactions": "No hay transacciones en este periodo."
+  }
+}

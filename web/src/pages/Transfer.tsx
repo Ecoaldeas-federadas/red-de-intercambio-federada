@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
+import { useTranslation } from 'react-i18next'
 import { Send, AlertCircle, HelpCircle } from 'lucide-react'
 
 export default function Transfer() {
   const { currency } = useConfig()
+  const { t } = useTranslation('transfer')
   const [recipient, setRecipient] = useState('')
   const [amount, setAmount] = useState('')
   const [reference, setReference] = useState('')
@@ -17,7 +19,7 @@ export default function Transfer() {
     setError('')
     setSuccess('')
     if (!recipient || !amount) {
-      setError('Destinatario y monto son obligatorios')
+      setError(t('error_recipient_amount', 'Destinatario y monto son obligatorios'))
       return
     }
     setLoading(true)
@@ -26,7 +28,7 @@ export default function Transfer() {
       // Convertir el input del usuario (TQ con decimales) a centavos.
       const cents = Math.round(parseFloat(amount) * 100)
       if (!cents || cents <= 0) {
-        setError('Monto invalido. Debe ser un numero positivo (ej: 1.50)')
+        setError(t('error_invalid_amount', 'Monto invalido. Debe ser un numero positivo (ej: 1.50)'))
         setLoading(false)
         return
       }
@@ -35,12 +37,12 @@ export default function Transfer() {
         amount: cents,
         reference,
       })
-      setSuccess('Transferencia enviada correctamente')
+      setSuccess(t('success', 'Transferencia enviada correctamente'))
       setRecipient('')
       setAmount('')
       setReference('')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al transferir')
+      setError(err instanceof Error ? err.message : t('error_generic', 'Error al transferir'))
     } finally {
       setLoading(false)
     }
@@ -49,7 +51,7 @@ export default function Transfer() {
   return (
     <div className="max-w-lg mx-auto space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Transferir Trueque</h1>
+        <h1 className="text-2xl font-bold">{t('title', 'Transferir Trueque')}</h1>
         <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
           <HelpCircle size={20} />
         </button>
@@ -75,22 +77,22 @@ export default function Transfer() {
 
       <div className="card space-y-4">
         <div>
-          <label className="label">Destinatario</label>
+          <label className="label">{t('recipient_label', 'Destinatario')}</label>
           <input className="input" value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="@maria@localhost" />
-          <p className="text-xs text-gray-400 mt-1">Identificador de quien recibira el dinero. Formato @usuario@nodo. Ej: @maria@localhost o @carlos@nodo2.org. Si esta en tu mismo nodo, basta con @maria.</p>
+          <p className="text-xs text-gray-400 mt-1">{t('recipient_hint', 'Identificador de quien recibira el dinero. Formato @usuario@nodo. Ej: @maria@localhost o @carlos@nodo2.org. Si esta en tu mismo nodo, basta con @maria.')}</p>
         </div>
         <div>
-          <label className="label">Monto ({currency})</label>
+          <label className="label">{t('amount_label', 'Monto')} ({currency})</label>
           <input className="input" type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="1.50" />
-          <p className="text-xs text-gray-400 mt-1">Cantidad de Trueques a enviar. Acepta decimales (centavos). Ej: 1.50 para enviar un Trueque con cincuenta centavos.</p>
+          <p className="text-xs text-gray-400 mt-1">{t('amount_hint', 'Cantidad de Trueques a enviar. Acepta decimales (centavos). Ej: 1.50 para enviar un Trueque con cincuenta centavos.')}</p>
         </div>
         <div>
-          <label className="label">Referencia (opcional)</label>
+          <label className="label">{t('reference_label', 'Referencia (opcional)')}</label>
           <input className="input" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Pago por panaderia" />
-          <p className="text-xs text-gray-400 mt-1">Nota para que el destinatario sepa el motivo del pago. Aparece en el historial de ambos. Ej: "Pago por panaderia", "Devolucion del prestamo", "Regalo de cumpleanos".</p>
+          <p className="text-xs text-gray-400 mt-1">{t('reference_hint', 'Nota para que el destinatario sepa el motivo del pago. Aparece en el historial de ambos.')}</p>
         </div>
         <button onClick={handleTransfer} disabled={loading} className="btn-primary w-full flex items-center justify-center gap-2">
-          <Send size={18} />{loading ? 'Enviando...' : 'Transferir'}
+          <Send size={18} />{loading ? t('sending', 'Enviando...') : t('transfer_button', 'Transferir')}
         </button>
       </div>
     </div>

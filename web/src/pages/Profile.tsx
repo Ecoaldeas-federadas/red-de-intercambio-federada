@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
+import { useTranslation } from 'react-i18next'
 import { HelpCircle, User, Key, CreditCard, History, Shield, TrendingUp, Plus, Trash2, Globe, Copy, Check, Heart } from 'lucide-react'
 import { fmtTQ } from '../lib/format'
 
@@ -53,6 +54,7 @@ function prepareCreationOptions(opts: any): PublicKeyCredentialCreationOptions {
 
 export default function Profile() {
   const { currency } = useConfig()
+  const { t } = useTranslation('profile')
   const [showHelp, setShowHelp] = useState(false)
   const [me, setMe] = useState<any>(null)
   const [copiedUuid, setCopiedUuid] = useState(false)
@@ -406,7 +408,7 @@ export default function Profile() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold flex items-center gap-2"><User size={24} />Mi Perfil</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2"><User size={24} />{t('title', 'Mi Perfil')}</h1>
         <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
           <HelpCircle size={20} />
         </button>

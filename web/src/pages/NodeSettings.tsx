@@ -2,6 +2,7 @@
 import { useSearchParams } from 'react-router-dom'
 import { api, getStorageKeys } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
+import { useTranslation } from 'react-i18next'
 import { HelpCircle, Settings, DollarSign, Layers, Zap, Save, Plus, Edit, Building2, Users as UsersIcon, Vote as VoteIcon, Database, Download, Upload, AlertTriangle, RefreshCw, Globe, Lock, Unlock, Trash2, FileText, Server, HardDrive, CheckCircle, Info, X, Power, Play, Square, Sparkles, Clock, Shield, Scale, Flower, Sprout } from 'lucide-react'
 import { fmtTQ, toCents, fmtDate, fmtDateTime, fmtNumber } from '../lib/format'
 
@@ -22,6 +23,7 @@ const LEVEL_LABELS: Record<number, string> = {
 
 export default function NodeSettings() {
   const { hasPermission } = usePermissions()
+  const { t } = useTranslation('settings')
   const canManage = hasPermission('config.manage')
   const isDemoNode = (window as any).__BASE_PATH__ === '/demo'
 
@@ -653,7 +655,7 @@ export default function NodeSettings() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold flex items-center gap-2"><Settings size={24} />Configuracion del Nodo</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2"><Settings size={24} />{t('node_config_title', 'Configuracion del Nodo')}</h1>
         <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
           <HelpCircle size={20} />
         </button>

@@ -1,1 +1,13 @@
-{}
+{
+  "title": "Notificaciones",
+  "mark_all_read": "Marcar todas leidas",
+  "configure": "Configurar",
+  "all_count": "Todas ({{count}})",
+  "unread_count": "No leidas ({{count}})",
+  "read": "Leidas",
+  "loading": "Cargando...",
+  "no_unread": "No hay notificaciones sin leer",
+  "no_read": "No hay notificaciones leidas",
+  "no_notifications": "No hay notificaciones",
+  "error_loading": "Error al cargar notificaciones"
+}

@@ -1,1 +1,20 @@
-{}
+{
+  "title": "Transfer Trueque",
+  "recipient_label": "Recipient",
+  "recipient_hint": "Identifier of who will receive the money. Format @user@node. E.g. @maria@localhost or @carlos@node2.org. If they are on your same node, just @maria.",
+  "amount_label": "Amount",
+  "amount_hint": "Amount of Trueques to send. Accepts decimals (cents). E.g. 1.50 to send one Trueque and fifty cents.",
+  "reference_label": "Reference (optional)",
+  "reference_hint": "Note so the recipient knows the reason for the payment. Appears in both histories.",
+  "transfer_button": "Transfer",
+  "sending": "Sending...",
+  "success": "Transfer sent successfully",
+  "error_recipient_amount": "Recipient and amount are required",
+  "error_invalid_amount": "Invalid amount. Must be a positive number (e.g. 1.50)",
+  "error_generic": "Error transferring",
+  "wallet": {
+    "title": "My Wallet",
+    "period_balance": "Period balance",
+    "no_transactions": "No transactions in this period."
+  }
+}

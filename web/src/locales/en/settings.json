@@ -1,1 +1,25 @@
-{}
+{
+  "node_config_title": "Node Configuration",
+  "tab_general": "General",
+  "tab_economy": "Economy",
+  "tab_levels": "Levels",
+  "tab_assembly": "Assembly",
+  "tab_federation": "Federation",
+  "tab_external": "External Commerce",
+  "tab_nfc": "NFC",
+  "tab_demo": "Demo Node",
+  "tab_database": "Database",
+  "save": "Save",
+  "saving": "Saving...",
+  "saved": "Configuration saved",
+  "error_saving": "Error saving",
+  "node_name": "Node name",
+  "node_domain": "Node domain",
+  "currency_name": "Currency name",
+  "app_name": "Application name",
+  "default_language": "Default language",
+  "credit_limit": "Credit limit",
+  "debit_limit": "Debit limit",
+  "tax_rate": "Tax rate",
+  "demo_mode": "Demo mode"
+}

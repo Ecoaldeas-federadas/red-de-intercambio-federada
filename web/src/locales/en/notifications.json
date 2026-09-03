@@ -1,1 +1,13 @@
-{}
+{
+  "title": "Notifications",
+  "mark_all_read": "Mark all as read",
+  "configure": "Configure",
+  "all_count": "All ({{count}})",
+  "unread_count": "Unread ({{count}})",
+  "read": "Read",
+  "loading": "Loading...",
+  "no_unread": "No unread notifications",
+  "no_read": "No read notifications",
+  "no_notifications": "No notifications",
+  "error_loading": "Error loading notifications"
+}

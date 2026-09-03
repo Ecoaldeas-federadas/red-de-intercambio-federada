@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Network, Globe, Scale, Server, RefreshCw, MapPin, Wifi, Compass, Satellite } from 'lucide-react'
 import { fmtDateTime } from '../lib/format'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import NetworkConfig from './NetworkConfig'
 import FederationPeers from './FederationPeers'
@@ -17,6 +18,7 @@ import SatelliteSetup from './SatelliteSetup'
 // 5. Gobernanza: propuestas, votacion, constantes federadas
 // 6. Satelite: configurar nodo satelite para ferias offline
 export default function Federation() {
+  const { t } = useTranslation('federation')
   const [searchParams, setSearchParams] = useSearchParams()
   const initialTab = (searchParams.get('tab') as any) || 'network'
   const [tab, setTab] = useState<'network' | 'peers' | 'nodes' | 'discover' | 'gov' | 'satellite'>(initialTab)
@@ -30,7 +32,7 @@ export default function Federation() {
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-2">
         <Network size={24} className="text-trueque-600" />
-        <h1 className="text-2xl font-bold">Federacion</h1>
+        <h1 className="text-2xl font-bold">{t('title', 'Federacion')}</h1>
       </div>
 
       {/* Tabs */}
@@ -40,35 +42,35 @@ export default function Federation() {
           className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 ${tab === 'network' ? 'bg-trueque-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
         >
           <Network size={14} />
-          Red del Nodo
+          {t('tab_network', 'Red del Nodo')}
         </button>
         <button
           onClick={() => changeTab('peers')}
           className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 ${tab === 'peers' ? 'bg-trueque-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
         >
           <Globe size={14} />
-          Federar Aldeas
+          {t('tab_peers', 'Federar Aldeas')}
         </button>
         <button
           onClick={() => changeTab('nodes')}
           className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 ${tab === 'nodes' ? 'bg-trueque-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
         >
           <Server size={14} />
-          Nodos Federados
+          {t('tab_nodes', 'Nodos Federados')}
         </button>
         <button
           onClick={() => changeTab('discover')}
           className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 ${tab === 'discover' ? 'bg-trueque-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
         >
           <Compass size={14} />
-          Descubrir Nodos
+          {t('tab_discover', 'Descubrir Nodos')}
         </button>
         <button
           onClick={() => changeTab('gov')}
           className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 ${tab === 'gov' ? 'bg-trueque-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
         >
           <Scale size={14} />
-          Gobernanza
+          {t('tab_gov', 'Gobernanza')}
         </button>
         <button
           onClick={() => changeTab('satellite')}

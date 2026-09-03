@@ -1,1 +1,27 @@
-{}
+{
+  "title": "Federacion",
+  "tab_network": "Red del Nodo",
+  "tab_peers": "Federar Aldeas",
+  "tab_nodes": "Nodos Federados",
+  "tab_discover": "Descubrir Nodos",
+  "tab_gov": "Gobernanza",
+  "tab_satellite": "Satelite",
+  "connect": "Conectar",
+  "disconnect": "Desconectar",
+  "status": "Estado",
+  "online": "En linea",
+  "offline": "Desconectado",
+  "pending": "Pendiente",
+  "add_peer": "Anadir par",
+  "peer_domain": "Dominio del par",
+  "peer_key": "Clave publica del par",
+  "remove_peer": "Eliminar par",
+  "confirm_remove": "Confirmar eliminacion del par",
+  "no_peers": "No hay nodos federados",
+  "node_info": "Informacion del nodo",
+  "node_name": "Nombre del nodo",
+  "node_domain": "Dominio del nodo",
+  "node_key": "Clave publica del nodo",
+  "copy_key": "Copiar clave",
+  "key_copied": "Clave copiada"
+}

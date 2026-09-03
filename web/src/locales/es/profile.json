@@ -1,1 +1,22 @@
-{}
+{
+  "title": "Mi Perfil",
+  "passkeys": "Passkeys",
+  "nfc_cards": "Tarjetas NFC",
+  "history": "Historial",
+  "register_device": "Registrar dispositivo",
+  "delete": "Eliminar",
+  "close": "Cerrar",
+  "copied": "Copiado",
+  "level": "Nivel",
+  "trust_score": "Puntaje de confianza",
+  "account_info": "Informacion de cuenta",
+  "username": "Usuario",
+  "display_name": "Nombre visible",
+  "uuid": "UUID",
+  "balance": "Balance",
+  "credit_limit": "Limite de credito",
+  "debit_limit": "Limite de debito",
+  "member_since": "Miembro desde",
+  "no_passkeys": "No tienes passkeys registrados",
+  "no_nfc_cards": "No tienes tarjetas NFC asociadas"
+}

@@ -1,1 +1,27 @@
-{}
+{
+  "title": "Federation",
+  "tab_network": "Node Network",
+  "tab_peers": "Federate Villages",
+  "tab_nodes": "Federated Nodes",
+  "tab_discover": "Discover Nodes",
+  "tab_gov": "Governance",
+  "tab_satellite": "Satellite",
+  "connect": "Connect",
+  "disconnect": "Disconnect",
+  "status": "Status",
+  "online": "Online",
+  "offline": "Offline",
+  "pending": "Pending",
+  "add_peer": "Add peer",
+  "peer_domain": "Peer domain",
+  "peer_key": "Peer public key",
+  "remove_peer": "Remove peer",
+  "confirm_remove": "Confirm peer removal",
+  "no_peers": "No federated nodes",
+  "node_info": "Node information",
+  "node_name": "Node name",
+  "node_domain": "Node domain",
+  "node_key": "Node public key",
+  "copy_key": "Copy key",
+  "key_copied": "Key copied"
+}

@@ -1,1 +1,22 @@
-{}
+{
+  "title": "My Profile",
+  "passkeys": "Passkeys",
+  "nfc_cards": "NFC Cards",
+  "history": "History",
+  "register_device": "Register device",
+  "delete": "Delete",
+  "close": "Close",
+  "copied": "Copied",
+  "level": "Level",
+  "trust_score": "Trust score",
+  "account_info": "Account info",
+  "username": "Username",
+  "display_name": "Display name",
+  "uuid": "UUID",
+  "balance": "Balance",
+  "credit_limit": "Credit limit",
+  "debit_limit": "Debit limit",
+  "member_since": "Member since",
+  "no_passkeys": "You have no registered passkeys",
+  "no_nfc_cards": "You have no associated NFC cards"
+}

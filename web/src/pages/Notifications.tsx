@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { getNotifIcon, relativeTime } from '../lib/notifications'
+import { useTranslation } from 'react-i18next'
 import { Bell, Check, CheckCheck, Trash2, Filter } from 'lucide-react'
 
 export default function Notifications() {
   const navigate = useNavigate()
+  const { t } = useTranslation('notifications')
   const [notifications, setNotifications] = useState<any[]>([])
   const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all')
   const [loading, setLoading] = useState(true)
@@ -21,7 +23,7 @@ export default function Notifications() {
       setNotifications(Array.isArray(d) ? d : [])
       setLoading(false)
     }).catch(() => {
-      setError('Error al cargar notificaciones')
+      setError(t('error_loading', 'Error al cargar notificaciones'))
       setLoading(false)
     })
   }
@@ -60,16 +62,16 @@ export default function Notifications() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Bell className="text-trueque-600" />
-          Notificaciones
+          {t('title', 'Notificaciones')}
         </h1>
         <div className="flex gap-2">
           {unreadCount > 0 && (
             <button onClick={markAllRead} className="btn-secondary text-sm flex items-center gap-1">
-              <CheckCheck size={14} /> Marcar todas leidas
+              <CheckCheck size={14} /> {t('mark_all_read', 'Marcar todas leidas')}
             </button>
           )}
           <button onClick={() => navigate('/app/notifications/settings')} className="btn-secondary text-sm">
-            Configurar
+            {t('configure', 'Configurar')}
           </button>
         </div>
       </div>
@@ -89,18 +91,18 @@ export default function Notifications() {
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
-            {f === 'all' ? `Todas (${notifications.length})` : f === 'unread' ? `No leidas (${unreadCount})` : 'Leidas'}
+            {f === 'all' ? t('all_count', 'Todas ({{count}})', { count: notifications.length }) : f === 'unread' ? t('unread_count', 'No leidas ({{count}})', { count: unreadCount }) : t('read', 'Leidas')}
           </button>
         ))}
       </div>
 
       {/* Lista */}
       {loading ? (
-        <div className="card p-8 text-center text-gray-400">Cargando...</div>
+        <div className="card p-8 text-center text-gray-400">{t('loading', 'Cargando...')}</div>
       ) : filtered.length === 0 ? (
         <div className="card p-8 text-center text-gray-400">
           <Bell size={32} className="mx-auto mb-2 opacity-30" />
-          {filter === 'unread' ? 'No hay notificaciones sin leer' : filter === 'read' ? 'No hay notificaciones leidas' : 'No hay notificaciones'}
+          {filter === 'unread' ? t('no_unread', 'No hay notificaciones sin leer') : filter === 'read' ? t('no_read', 'No hay notificaciones leidas') : t('no_notifications', 'No hay notificaciones')}
         </div>
       ) : (
         <div className="space-y-2">
