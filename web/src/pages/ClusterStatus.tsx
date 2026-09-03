@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import { Database, AlertTriangle, CheckCircle, Plus, RefreshCw, Server, Activity } from 'lucide-react'
 import { fmtDateTime, fmtNumber } from '../lib/format'
@@ -26,6 +27,7 @@ interface ClusterStatus {
 }
 
 export default function ClusterStatus() {
+  const { t } = useTranslation('common')
   const [status, setStatus] = useState<ClusterStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [checking, setChecking] = useState(false)
@@ -36,7 +38,7 @@ export default function ClusterStatus() {
       const res = await api.get('/cluster/status')
       setStatus(res as ClusterStatus)
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.message || 'Error al cargar estado del cluster' })
+      setMsg({ type: 'error', text: e.message || t('cluster.error_load', 'Error al cargar estado del cluster') })
     } finally {
       setLoading(false)
     }
@@ -53,10 +55,10 @@ export default function ClusterStatus() {
       if ((res as ClusterStatus).needs_more_nodes) {
         setMsg({ type: 'error', text: (res as ClusterStatus).alert_message })
       } else {
-        setMsg({ type: 'success', text: 'Cluster en buen estado. No necesita mas nodos.' })
+        setMsg({ type: 'success', text: t('cluster.healthy', 'Cluster en buen estado. No necesita mas nodos.') })
       }
     } catch (e: any) {
-      setMsg({ type: 'error', text: e.message || 'Error al verificar cluster' })
+      setMsg({ type: 'error', text: e.message || t('cluster.error_check', 'Error al verificar cluster') })
     } finally {
       setChecking(false)
     }
@@ -67,7 +69,7 @@ export default function ClusterStatus() {
   }
 
   if (!status) {
-    return <div className="card p-4 text-center text-gray-500">No se pudo cargar el estado del cluster.</div>
+    return <div className="card p-4 text-center text-gray-500">{t('cluster.load_error', 'No se pudo cargar el estado del cluster.')}</div>
   }
 
   const alertColors = {
@@ -94,7 +96,7 @@ export default function ClusterStatus() {
           className="px-3 py-1.5 bg-trueque-600 text-white rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
         >
           {checking ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-          Verificar ahora
+          {t('cluster.check_now', 'Verificar ahora')}
         </button>
       </div>
 
@@ -110,13 +112,13 @@ export default function ClusterStatus() {
           {alertIcons[status.alert_level]}
           <div className="flex-1">
             <h3 className="font-semibold">
-              {status.alert_level === 'ok' && 'Cluster en buen estado'}
-              {status.alert_level === 'warning' && 'Cluster necesita atencion'}
-              {status.alert_level === 'critical' && 'Cluster necesita nodos urgentemente'}
+              {status.alert_level === 'ok' && t('cluster.status_ok', 'Cluster en buen estado')}
+              {status.alert_level === 'warning' && t('cluster.status_warning', 'Cluster necesita atencion')}
+              {status.alert_level === 'critical' && t('cluster.status_critical', 'Cluster necesita nodos urgentemente')}
             </h3>
             {status.alert_message && <p className="text-sm mt-1">{status.alert_message}</p>}
             <p className="text-xs mt-2 opacity-75">
-              Ultima verificacion: {fmtDateTime(status.last_checked)}
+              {t('cluster.last_check', 'Ultima verificacion')}: {fmtDateTime(status.last_checked)}
             </p>
           </div>
         </div>
@@ -127,32 +129,32 @@ export default function ClusterStatus() {
         <div className="card p-3 text-center">
           <Server size={20} className="mx-auto mb-1 text-blue-600" />
           <div className="text-2xl font-bold">{status.current_nodes}</div>
-          <div className="text-xs text-gray-500">Nodos activos</div>
-          <div className="text-xs text-gray-400">Min: {status.min_nodes}</div>
+          <div className="text-xs text-gray-500">{t('cluster.active_nodes', 'Nodos activos')}</div>
+          <div className="text-xs text-gray-400">{t('cluster.min', 'Min')}: {status.min_nodes}</div>
         </div>
         <div className="card p-3 text-center">
           <Database size={20} className="mx-auto mb-1 text-purple-600" />
           <div className="text-2xl font-bold">{status.tablets_used}</div>
-          <div className="text-xs text-gray-500">Tabletas usadas</div>
-          <div className="text-xs text-gray-400">de {status.tablet_limit_total}</div>
+          <div className="text-xs text-gray-500">{t('cluster.tablets_used', 'Tabletas usadas')}</div>
+          <div className="text-xs text-gray-400">{t('cluster.of', 'de')} {status.tablet_limit_total}</div>
         </div>
         <div className="card p-3 text-center">
           <Activity size={20} className="mx-auto mb-1 text-amber-600" />
           <div className="text-2xl font-bold">{fmtNumber(status.tablet_usage_pct, 1)}%</div>
-          <div className="text-xs text-gray-500">Uso de tabletas</div>
-          <div className="text-xs text-gray-400">Alerta: {status.alert_threshold}%</div>
+          <div className="text-xs text-gray-500">{t('cluster.tablet_usage', 'Uso de tabletas')}</div>
+          <div className="text-xs text-gray-400">{t('cluster.alert', 'Alerta')}: {status.alert_threshold}%</div>
         </div>
         <div className={`card p-3 text-center ${status.nodes_needed > 0 ? 'border-red-300 bg-red-50' : ''}`}>
           <Plus size={20} className="mx-auto mb-1 text-red-600" />
           <div className="text-2xl font-bold">{status.nodes_needed}</div>
-          <div className="text-xs text-gray-500">Nodos necesarios</div>
-          <div className="text-xs text-gray-400">{status.nodes_needed > 0 ? 'Agregar pronto' : 'No necesita'}</div>
+          <div className="text-xs text-gray-500">{t('cluster.nodes_needed', 'Nodos necesarios')}</div>
+          <div className="text-xs text-gray-400">{status.nodes_needed > 0 ? t('cluster.add_soon', 'Agregar pronto') : t('cluster.not_needed', 'No necesita')}</div>
         </div>
       </div>
 
       {/* Barra de progreso de tabletas */}
       <div className="card p-4">
-        <h3 className="font-semibold mb-3">Capacidad del cluster</h3>
+        <h3 className="font-semibold mb-3">{t('cluster.capacity', 'Capacidad del cluster')}</h3>
         <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
           <div
             className={`h-full transition-all ${
@@ -164,13 +166,13 @@ export default function ClusterStatus() {
           />
         </div>
         <div className="flex justify-between text-xs text-gray-500 mt-1">
-          <span>{status.tablets_used} tabletas</span>
-          <span>{status.tablet_limit_total} total ({status.tablet_limit_per_node} por nodo)</span>
+          <span>{status.tablets_used} {t('cluster.tablets', 'tabletas')}</span>
+          <span>{status.tablet_limit_total} {t('cluster.total', 'total')} ({status.tablet_limit_per_node} {t('cluster.per_node', 'por nodo')})</span>
         </div>
         {status.tablet_usage_pct >= status.alert_threshold && (
           <div className="mt-3 p-3 bg-amber-50 rounded-lg text-sm text-amber-700">
-            <strong>Atencion:</strong> El cluster esta usando {fmtNumber(status.tablet_usage_pct, 1)}% de su capacidad.
-            Cuando llegue al 100%, no podra crear mas tablas ni indices.
+            <strong>{t('cluster.attention', 'Atencion')}:</strong> {t('cluster.usage_warning', 'El cluster esta usando')} {fmtNumber(status.tablet_usage_pct, 1)}% {t('cluster.usage_warning2', 'de su capacidad.')}
+            {t('cluster.usage_warning3', 'Cuando llegue al 100%, no podra crear mas tablas ni indices.')}
             {status.nodes_needed > 0 && ` Agrega ${status.nodes_needed} nodo(s) para aumentar la capacidad.`}
           </div>
         )}
@@ -178,7 +180,7 @@ export default function ClusterStatus() {
 
       {/* Nodos del cluster */}
       <div className="card p-4">
-        <h3 className="font-semibold mb-3">Nodos configurados ({status.configured_nodes})</h3>
+        <h3 className="font-semibold mb-3">{t('cluster.configured_nodes', 'Nodos configurados')} ({status.configured_nodes})</h3>
         <div className="space-y-2">
           {status.node_details.map((n, i) => (
             <div key={i} className={`p-3 rounded-lg border ${n.is_local ? 'border-green-300 bg-green-50' : 'border-gray-200'}`}>
@@ -186,10 +188,10 @@ export default function ClusterStatus() {
                 <div className="flex items-center gap-2">
                   <Server size={16} className={n.is_local ? 'text-green-600' : 'text-gray-400'} />
                   <span className="font-mono text-sm">{n.host}</span>
-                  {n.is_local && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Este nodo</span>}
+                  {n.is_local && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">{t('cluster.this_node', 'Este nodo')}</span>}
                 </div>
                 <span className={`text-xs px-2 py-0.5 rounded ${n.reachable ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                  {n.reachable ? 'Alcanzable' : 'No alcanzable'}
+                  {n.reachable ? t('cluster.reachable', 'Alcanzable') : t('cluster.unreachable', 'No alcanzable')}
                 </span>
               </div>
             </div>
@@ -201,7 +203,7 @@ export default function ClusterStatus() {
       {status.needs_more_nodes && (
         <div className="card p-4 border-2 border-blue-300 bg-blue-50">
           <h3 className="font-semibold flex items-center gap-2 mb-3 text-blue-700">
-            <Plus size={18} /> Como agregar un nodo
+            <Plus size={18} /> {t('cluster.how_to_add', 'Como agregar un nodo')}
           </h3>
           <div className="space-y-3 text-sm text-blue-700">
             <div>

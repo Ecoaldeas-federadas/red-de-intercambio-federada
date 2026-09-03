@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import { HelpCircle, FileSearch } from 'lucide-react'
 import { fmtDateTime } from '../lib/format'
 
 export default function Audit() {
+  const { t } = useTranslation('audit')
   const [entries, setEntries] = useState<any[]>([])
   const [filter, setFilter] = useState('')
   const [showHelp, setShowHelp] = useState(false)
@@ -16,46 +18,46 @@ export default function Audit() {
   useEffect(() => { load() }, [filter])
 
   const filterLabels: Record<string, string> = {
-    '': 'Todos',
-    transfer: 'Transferencias',
-    admission: 'Admisiones',
-    admission_approved: 'Admisiones',
-    admission_reject: 'Admisiones',
-    federation: 'Federacion',
-    assembly: 'Asamblea',
-    assembly_decision: 'Asamblea',
-    assembly_execute: 'Asamblea',
-    level_upgrade: 'Niveles',
-    super_admin_toggle: 'Admin',
-    calc_param_approve: 'Calculadora',
-    governance_proposal: 'Gobernanza',
+    '': t('filter_all', 'Todos'),
+    transfer: t('filter_transfer', 'Transferencias'),
+    admission: t('filter_admission', 'Admisiones'),
+    admission_approved: t('filter_admission', 'Admisiones'),
+    admission_reject: t('filter_admission', 'Admisiones'),
+    federation: t('filter_federation', 'Federacion'),
+    assembly: t('filter_assembly', 'Asamblea'),
+    assembly_decision: t('filter_assembly', 'Asamblea'),
+    assembly_execute: t('filter_assembly', 'Asamblea'),
+    level_upgrade: t('filter_level', 'Niveles'),
+    super_admin_toggle: t('filter_admin', 'Admin'),
+    calc_param_approve: t('filter_calculator', 'Calculadora'),
+    governance_proposal: t('filter_governance', 'Gobernanza'),
   }
 
   const actionLabels: Record<string, string> = {
-    transfer: 'Transferencia',
-    admission_approved: 'Admision aprobada',
-    admission_approve: 'Admision aprobada',
-    admission_reject: 'Admision rechazada',
-    federation: 'Federacion',
-    assembly_decision: 'Decision de asamblea',
-    assembly_execute: 'Ejecucion de asamblea',
-    level_upgrade: 'Cambio de nivel',
-    super_admin_toggle: 'Cambio de super admin',
-    calc_param_approve: 'Aprobacion de calculo',
-    governance_proposal: 'Propuesta de gobernanza',
+    transfer: t('action_transfer', 'Transferencia'),
+    admission_approved: t('action_admission_approved', 'Admision aprobada'),
+    admission_approve: t('action_admission_approved', 'Admision aprobada'),
+    admission_reject: t('action_admission_reject', 'Admision rechazada'),
+    federation: t('action_federation', 'Federacion'),
+    assembly_decision: t('action_assembly_decision', 'Decision de asamblea'),
+    assembly_execute: t('action_assembly_execute', 'Ejecucion de asamblea'),
+    level_upgrade: t('action_level_upgrade', 'Cambio de nivel'),
+    super_admin_toggle: t('action_super_admin', 'Cambio de super admin'),
+    calc_param_approve: t('action_calc_approve', 'Aprobacion de calculo'),
+    governance_proposal: t('action_governance', 'Propuesta de gobernanza'),
   }
 
   const detailKeyLabels: Record<string, string> = {
-    amount: 'Monto',
-    description: 'Descripcion',
-    peer: 'Nodo peer',
-    tx_id: 'TX',
-    from: 'Origen',
-    to: 'Destino',
-    username: 'Usuario',
-    level: 'Nivel',
-    receiver_id: 'Receptor',
-    tax_amount: 'Impuesto',
+    amount: t('detail_amount', 'Monto'),
+    description: t('detail_description', 'Descripcion'),
+    peer: t('detail_peer', 'Nodo peer'),
+    tx_id: t('detail_tx', 'TX'),
+    from: t('detail_from', 'Origen'),
+    to: t('detail_to', 'Destino'),
+    username: t('detail_username', 'Usuario'),
+    level: t('detail_level', 'Nivel'),
+    receiver_id: t('detail_receiver', 'Receptor'),
+    tax_amount: t('detail_tax', 'Impuesto'),
   }
 
   const formatDetails = (d: any): string => {
@@ -82,7 +84,7 @@ export default function Audit() {
   const getActorName = (e: any): string => {
     if (e.actor_display_name) return e.actor_display_name
     if (e.actor_username) return e.actor_username
-    return 'Sistema'
+    return t('system', 'Sistema')
   }
 
   const getActionLabel = (action: string): string => {
@@ -92,7 +94,7 @@ export default function Audit() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold flex items-center gap-2"><FileSearch size={24} />Auditoria</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2"><FileSearch size={24} />{t('title', 'Auditoria')}</h1>
         <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
           <HelpCircle size={20} />
         </button>
@@ -100,31 +102,31 @@ export default function Audit() {
 
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
-          <p><strong>Auditoria - Ayuda</strong></p>
-          <p><strong>Que es:</strong> El log de auditoria es un registro inmutable y cronologico de todas las acciones importantes que ocurren en el nodo. Es la fuente de verdad para saber que paso en el sistema.</p>
-          <p><strong>Para que sirve:</strong> Permite verificar que paso, quien lo hizo y cuando. Es la base de la transparencia del sistema: cualquier miembro puede revisar el historial completo y auditar que no haya irregularidades.</p>
-          <p><strong>Que acciones se auditan:</strong></p>
+          <p><strong>{t('help_title', 'Auditoria - Ayuda')}</strong></p>
+          <p><strong>{t('help_what', 'Que es:')}</strong> {t('help_what_desc', 'El log de auditoria es un registro inmutable y cronologico de todas las acciones importantes que ocurren en el nodo. Es la fuente de verdad para saber que paso en el sistema.')}</p>
+          <p><strong>{t('help_purpose', 'Para que sirve:')}</strong> {t('help_purpose_desc', 'Permite verificar que paso, quien lo hizo y cuando. Es la base de la transparencia del sistema: cualquier miembro puede revisar el historial completo y auditar que no haya irregularidades.')}</p>
+          <p><strong>{t('help_actions', 'Que acciones se auditan:')}</strong></p>
           <ul className="list-disc list-inside ml-4">
-            <li><strong>Transferencias:</strong> Envio y recepcion de unidades entre cuentas. Muestra origen y destino.</li>
-            <li><strong>Admisiones:</strong> Ingreso de nuevos miembros al nodo</li>
-            <li><strong>Federacion:</strong> Transacciones con otros nodos (importaciones y exportaciones)</li>
-            <li><strong>Asamblea:</strong> Decisiones colectivas, propuestas y votaciones</li>
+            <li><strong>{t('help_transfers', 'Transferencias:')}</strong> {t('help_transfers_desc', 'Envio y recepcion de unidades entre cuentas. Muestra origen y destino.')}</li>
+            <li><strong>{t('help_admissions', 'Admisiones:')}</strong> {t('help_admissions_desc', 'Ingreso de nuevos miembros al nodo')}</li>
+            <li><strong>{t('help_federation', 'Federacion:')}</strong> {t('help_federation_desc', 'Transacciones con otros nodos (importaciones y exportaciones)')}</li>
+            <li><strong>{t('help_assembly', 'Asamblea:')}</strong> {t('help_assembly_desc', 'Decisiones colectivas, propuestas y votaciones')}</li>
           </ul>
-          <p><strong>Que significa cada columna:</strong></p>
+          <p><strong>{t('help_columns', 'Que significa cada columna:')}</strong></p>
           <ul className="list-disc list-inside ml-4">
-            <li><strong>Fecha:</strong> Momento exacto en que ocurrio la accion</li>
-            <li><strong>Actor:</strong> Quien realizo la accion. Puede ser un usuario o "Sistema" para acciones automaticas.</li>
-            <li><strong>Accion:</strong> Tipo de accion realizada</li>
-            <li><strong>Detalles:</strong> Informacion adicional: monto, origen, destino, descripcion, etc.</li>
+            <li><strong>{t('col_date', 'Fecha:')}</strong> {t('col_date_desc', 'Momento exacto en que ocurrio la accion')}</li>
+            <li><strong>{t('col_actor', 'Actor:')}</strong> {t('col_actor_desc', 'Quien realizo la accion. Puede ser un usuario o "Sistema" para acciones automaticas.')}</li>
+            <li><strong>{t('col_action', 'Accion:')}</strong> {t('col_action_desc', 'Tipo de accion realizada')}</li>
+            <li><strong>{t('col_details', 'Detalles:')}</strong> {t('col_details_desc', 'Informacion adicional: monto, origen, destino, descripcion, etc.')}</li>
           </ul>
-          <p><strong>Como se usa:</strong> Selecciona un filtro de tipo de accion para ver solo los registros que te interesan. Por ejemplo, pulsa "Transferencias" para ver solo envios y recepciones de unidades.</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
+          <p><strong>{t('help_usage', 'Como se usa:')}</strong> {t('help_usage_desc', 'Selecciona un filtro de tipo de accion para ver solo los registros que te interesan. Por ejemplo, pulsa "Transferencias" para ver solo envios y recepciones de unidades.')}</p>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('close', 'Cerrar')}</button>
         </div>
       )}
 
       <div>
-        <label className="label">Filtrar por tipo de accion</label>
-        <p className="text-xs text-gray-400 mt-1 mb-2">Selecciona el tipo de accion que quieres ver.</p>
+        <label className="label">{t('filter_label', 'Filtrar por tipo de accion')}</label>
+        <p className="text-xs text-gray-400 mt-1 mb-2">{t('filter_hint', 'Selecciona el tipo de accion que quieres ver.')}</p>
         <div className="flex gap-2 flex-wrap">
           {['', 'transfer', 'admission_approved', 'federation', 'assembly_decision', 'level_upgrade'].map((a) => (
             <button key={a} onClick={() => setFilter(a)} className={`px-3 py-1 rounded-lg text-sm ${filter === a ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>
@@ -137,13 +139,13 @@ export default function Audit() {
       <div className="card overflow-x-auto">
         {entries.length === 0 ? (
           <div className="text-center text-gray-500 py-8">
-            <p>No hay registros de auditoria.</p>
-            <p className="text-xs mt-2">Los registros aparecen cuando se realizan transferencias, admisiones, cambios de configuracion, etc.</p>
+            <p>{t('no_entries', 'No hay registros de auditoria.')}</p>
+            <p className="text-xs mt-2">{t('no_entries_hint', 'Los registros aparecen cuando se realizan transferencias, admisiones, cambios de configuracion, etc.')}</p>
           </div>
         ) : (
           <table className="w-full text-sm">
             <thead><tr className="border-b text-left text-gray-600">
-              <th className="py-2">Fecha</th><th>Actor</th><th>Accion</th><th>Detalles</th>
+              <th className="py-2">{t('col_date', 'Fecha')}</th><th>{t('col_actor', 'Actor')}</th><th>{t('col_action', 'Accion')}</th><th>{t('col_details', 'Detalles')}</th>
             </tr></thead>
             <tbody>
               {entries.map((e, i) => (

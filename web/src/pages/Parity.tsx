@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { Scale, HelpCircle, ArrowDownCircle, ArrowUpCircle, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { fmtNumber } from '../lib/format'
 
 export default function Parity() {
+  const { t } = useTranslation('federation')
   const { currency } = useConfig()
   const [reports, setReports] = useState<any[]>([])
   const [showHelp, setShowHelp] = useState(false)
@@ -19,18 +21,18 @@ export default function Parity() {
   }
 
   const parityLabel = (ratio: number) => {
-    if (!ratio || ratio === 0) return { text: 'Sin datos', color: 'text-gray-500', icon: <Minus size={16} /> }
-    if (ratio === -1) return { text: 'Solo importas', color: 'text-red-600', icon: <TrendingDown size={16} /> }
-    if (ratio === -2) return { text: 'Solo exportas', color: 'text-blue-600', icon: <TrendingUp size={16} /> }
-    if (ratio >= 0.9 && ratio <= 1.1) return { text: 'Equilibrado', color: 'text-green-600', icon: <TrendingUp size={16} /> }
-    if (ratio > 1.1) return { text: 'Importas mas', color: 'text-amber-600', icon: <TrendingDown size={16} /> }
-    return { text: 'Exportas mas', color: 'text-blue-600', icon: <TrendingUp size={16} /> }
+    if (!ratio || ratio === 0) return { text: t('parity_no_data'), color: 'text-gray-500', icon: <Minus size={16} /> }
+    if (ratio === -1) return { text: t('parity_only_imports'), color: 'text-red-600', icon: <TrendingDown size={16} /> }
+    if (ratio === -2) return { text: t('parity_only_exports'), color: 'text-blue-600', icon: <TrendingUp size={16} /> }
+    if (ratio >= 0.9 && ratio <= 1.1) return { text: t('parity_balanced'), color: 'text-green-600', icon: <TrendingUp size={16} /> }
+    if (ratio > 1.1) return { text: t('parity_imports_more'), color: 'text-amber-600', icon: <TrendingDown size={16} /> }
+    return { text: t('parity_exports_more'), color: 'text-blue-600', icon: <TrendingUp size={16} /> }
   }
 
   // Mostrar el numero de paridad de forma clara
   const parityDisplay = (ratio: number) => {
-    if (ratio === -1) return 'Solo importas'
-    if (ratio === -2) return 'Solo exportas'
+    if (ratio === -1) return t('parity_only_imports')
+    if (ratio === -2) return t('parity_only_exports')
     if (ratio === 0) return '—'
     return fmtNumber(ratio)
   }
@@ -38,7 +40,7 @@ export default function Parity() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold flex items-center gap-2"><Scale size={24} />Reportes de Paridad</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2"><Scale size={24} />{t('parity_reports')}</h1>
         <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
           <HelpCircle size={20} />
         </button>
@@ -113,7 +115,7 @@ export default function Parity() {
           desequilibrios. Si la paridad es alta (mucho intercambio en ambos sentidos), sugiere aumentar
           el limite bilateral. Si hay disparidad (mucho import, poco export), sugiere no aumentar el limite.</p>
 
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('parity_close')}</button>
         </div>
       )}
 
@@ -122,7 +124,7 @@ export default function Parity() {
           <div className="text-center text-gray-500 py-8">
             No hay reportes de paridad.
             <br />
-            <span className="text-sm">Los reportes se generan cuando hay transacciones con nodos federados.</span>
+            <span className="text-sm">{t('parity_no_reports_hint')}</span>
           </div>
         ) : (
           <div className="space-y-4">
@@ -142,7 +144,7 @@ export default function Parity() {
                   <div className="bg-gray-50 rounded-lg p-3 mb-3">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs text-gray-500">Paridad (import/export)</p>
+                        <p className="text-xs text-gray-500">{t('parity_ratio_label')}</p>
                         <p className={`text-2xl font-bold ${p.color}`}>{parityDisplay(r.parity_ratio)}</p>
                       </div>
                       <div className={`flex items-center gap-1 ${p.color}`}>
@@ -161,36 +163,36 @@ export default function Parity() {
                   <div className="grid grid-cols-3 gap-3 mb-3">
                     <div className="bg-green-50 rounded-lg p-3 text-center">
                       <ArrowDownCircle size={18} className="text-green-600 mx-auto mb-1" />
-                      <p className="text-xs text-gray-500">Importaciones</p>
+                      <p className="text-xs text-gray-500">{t('parity_imports')}</p>
                       <p className="font-bold text-green-700">{fmtNum(r.imports)} {currency}</p>
-                      <p className="text-[10px] text-gray-400">recibiste del nodo</p>
+                      <p className="text-[10px] text-gray-400">{t('parity_received_from')}</p>
                     </div>
                     <div className="bg-blue-50 rounded-lg p-3 text-center">
                       <ArrowUpCircle size={18} className="text-blue-600 mx-auto mb-1" />
-                      <p className="text-xs text-gray-500">Exportaciones</p>
+                      <p className="text-xs text-gray-500">{t('parity_exports')}</p>
                       <p className="font-bold text-blue-700">{fmtNum(r.exports)} {currency}</p>
-                      <p className="text-[10px] text-gray-400">enviaste al nodo</p>
+                      <p className="text-[10px] text-gray-400">{t('parity_sent_to')}</p>
                     </div>
                     <div className={`rounded-lg p-3 text-center ${r.balance >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
                       <Scale size={18} className={`mx-auto mb-1 ${r.balance >= 0 ? 'text-green-600' : 'text-red-600'}`} />
-                      <p className="text-xs text-gray-500">Balance</p>
+                      <p className="text-xs text-gray-500">{t('parity_balance')}</p>
                       <p className={`font-bold ${r.balance >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                         {r.balance >= 0 ? '+' : ''}{fmtNum(r.balance)} {currency}
                       </p>
-                      <p className="text-[10px] text-gray-400">{r.balance >= 0 ? 'te deben' : 'debes'}</p>
+                      <p className="text-[10px] text-gray-400">{r.balance >= 0 ? t('parity_you_owed') : t('parity_you_owe')}</p>
                     </div>
                   </div>
 
                   {/* FC local y remoto */}
                   <div className="grid grid-cols-2 gap-3 mb-3">
                     <div className="border border-gray-200 rounded-lg p-3">
-                      <p className="text-xs text-gray-500">FC local (tu nodo)</p>
+                      <p className="text-xs text-gray-500">{t('parity_fc_local')}</p>
                       <p className="font-bold text-lg">{fmtNum(r.local_fc)}</p>
                       <p className="text-[10px] text-gray-400">1 {currency} = {fmtNum(r.local_fc)} kWh de energia</p>
-                      <p className="text-[10px] text-blue-500 mt-1">Solo para comercio exterior</p>
+                      <p className="text-[10px] text-blue-500 mt-1">{t('parity_external_only')}</p>
                     </div>
                     <div className="border border-gray-200 rounded-lg p-3">
-                      <p className="text-xs text-gray-500">FC remoto ({r.remote_node})</p>
+                      <p className="text-xs text-gray-500">{t('parity_fc_remote', { node: r.remote_node })}</p>
                       {r.remote_fc_real ? (
                         <>
                           <p className="font-bold text-lg">{fmtNum(r.remote_fc)}</p>
@@ -198,11 +200,11 @@ export default function Parity() {
                         </>
                       ) : (
                         <>
-                          <p className="font-bold text-lg text-gray-400">No disponible</p>
-                          <p className="text-[10px] text-gray-400">El nodo remoto no ha compartido su FC</p>
+                          <p className="font-bold text-lg text-gray-400">{t('parity_fc_not_available')}</p>
+                          <p className="text-[10px] text-gray-400">{t('parity_fc_remote_hint')}</p>
                         </>
                       )}
-                      <p className="text-[10px] text-blue-500 mt-1">Solo para comercio exterior</p>
+                      <p className="text-[10px] text-blue-500 mt-1">{t('parity_external_only')}</p>
                     </div>
                   </div>
 
@@ -210,14 +212,14 @@ export default function Parity() {
                   {(r.import_pct_of_limit > 0 || r.export_pct_of_limit > 0) && (
                     <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
                       <div>
-                        <p className="text-xs text-gray-500">Uso del limite (import):</p>
+                        <p className="text-xs text-gray-500">{t('parity_limit_import')}</p>
                         <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                           <div className="bg-amber-500 h-2 rounded-full" style={{ width: `${Math.min(r.import_pct_of_limit, 100)}%` }} />
                         </div>
                         <p className="text-xs text-gray-600 mt-1">{fmtNum(r.import_pct_of_limit)}% de {fmtNum(r.credit_limit)} {currency}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">Uso del limite (export):</p>
+                        <p className="text-xs text-gray-500">{t('parity_limit_export')}</p>
                         <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                           <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${Math.min(r.export_pct_of_limit, 100)}%` }} />
                         </div>
@@ -230,7 +232,7 @@ export default function Parity() {
                   {r.suggestion && (
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-3">
                       <p className="text-sm text-amber-800">
-                        <strong>Sugerencia:</strong> {r.suggestion}
+                        <strong>{t('parity_suggestion')}</strong> {r.suggestion}
                       </p>
                     </div>
                   )}

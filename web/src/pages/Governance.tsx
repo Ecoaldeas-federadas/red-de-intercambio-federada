@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
+import { useTranslation } from 'react-i18next'
 import { Scale, Plus, Edit2, Trash2, HelpCircle, X, CheckCircle, XCircle, AlertTriangle, Info, FileText, Shield } from 'lucide-react'
 
 interface GovernanceRule {
@@ -16,41 +17,42 @@ interface GovernanceRule {
 }
 
 const CATEGORIES = [
-  { value: 'estructura', label: 'Estructura de Gobernanza' },
-  { value: 'deberes', label: 'Deberes' },
-  { value: 'permitido', label: 'Permitido' },
-  { value: 'prohibido', label: 'Prohibido' },
-  { value: 'faltas_leves', label: 'Faltas Leves' },
-  { value: 'faltas_graves', label: 'Faltas Graves' },
-  { value: 'faltas_muy_graves', label: 'Faltas Muy Graves (Expulsion)' },
-  { value: 'admision', label: 'Proceso de Admision' },
-  { value: 'salida', label: 'Proceso de Salida' },
-  { value: 'impuestos', label: 'Impuestos' },
-  { value: 'tierra', label: 'Tenencia de la Tierra' },
-  { value: 'unidades_productivas', label: 'Unidades Productivas' },
-  { value: 'bienestar', label: 'Bienestar Comunitario' },
-  { value: 'aprendizaje', label: 'Aprendizaje y Conocimiento' },
-  { value: 'convivencia', label: 'Convivencia y Cultura' },
+  { value: 'estructura', labelKey: 'governance.cat_estructura', label: 'Estructura de Gobernanza' },
+  { value: 'deberes', labelKey: 'governance.cat_deberes', label: 'Deberes' },
+  { value: 'permitido', labelKey: 'governance.cat_permitido', label: 'Permitido' },
+  { value: 'prohibido', labelKey: 'governance.cat_prohibido', label: 'Prohibido' },
+  { value: 'faltas_leves', labelKey: 'governance.cat_faltas_leves', label: 'Faltas Leves' },
+  { value: 'faltas_graves', labelKey: 'governance.cat_faltas_graves', label: 'Faltas Graves' },
+  { value: 'faltas_muy_graves', labelKey: 'governance.cat_faltas_muy_graves', label: 'Faltas Muy Graves (Expulsion)' },
+  { value: 'admision', labelKey: 'governance.cat_admision', label: 'Proceso de Admision' },
+  { value: 'salida', labelKey: 'governance.cat_salida', label: 'Proceso de Salida' },
+  { value: 'impuestos', labelKey: 'governance.cat_impuestos', label: 'Impuestos' },
+  { value: 'tierra', labelKey: 'governance.cat_tierra', label: 'Tenencia de la Tierra' },
+  { value: 'unidades_productivas', labelKey: 'governance.cat_unidades_productivas', label: 'Unidades Productivas' },
+  { value: 'bienestar', labelKey: 'governance.cat_bienestar', label: 'Bienestar Comunitario' },
+  { value: 'aprendizaje', labelKey: 'governance.cat_aprendizaje', label: 'Aprendizaje y Conocimiento' },
+  { value: 'convivencia', labelKey: 'governance.cat_convivencia', label: 'Convivencia y Cultura' },
 ]
 
 const RULE_TYPES = [
-  { value: 'permiso', label: 'Permiso', desc: 'Cosas que SE PUEDEN hacer', color: 'text-green-700 bg-green-100', icon: CheckCircle },
-  { value: 'prohibicion', label: 'Prohibicion', desc: 'Cosas que NO SE PUEDEN hacer', color: 'text-red-700 bg-red-100', icon: XCircle },
-  { value: 'deber', label: 'Deber', desc: 'Obligaciones de los miembros', color: 'text-blue-700 bg-blue-100', icon: Shield },
-  { value: 'informativo', label: 'Informativo', desc: 'Informacion general o estructura', color: 'text-gray-700 bg-gray-100', icon: Info },
-  { value: 'falta', label: 'Falta / Sancion', desc: 'Infracciones y sus consecuencias', color: 'text-orange-700 bg-orange-100', icon: AlertTriangle },
-  { value: 'proceso', label: 'Proceso', desc: 'Procedimientos (admision, salida, votacion)', color: 'text-purple-700 bg-purple-100', icon: FileText },
+  { value: 'permiso', labelKey: 'governance.type_permiso', label: 'Permiso', descKey: 'governance.type_permiso_desc', desc: 'Cosas que SE PUEDEN hacer', color: 'text-green-700 bg-green-100', icon: CheckCircle },
+  { value: 'prohibicion', labelKey: 'governance.type_prohibicion', label: 'Prohibicion', descKey: 'governance.type_prohibicion_desc', desc: 'Cosas que NO SE PUEDEN hacer', color: 'text-red-700 bg-red-100', icon: XCircle },
+  { value: 'deber', labelKey: 'governance.type_deber', label: 'Deber', descKey: 'governance.type_deber_desc', desc: 'Obligaciones de los miembros', color: 'text-blue-700 bg-blue-100', icon: Shield },
+  { value: 'informativo', labelKey: 'governance.type_informativo', label: 'Informativo', descKey: 'governance.type_informativo_desc', desc: 'Informacion general o estructura', color: 'text-gray-700 bg-gray-100', icon: Info },
+  { value: 'falta', labelKey: 'governance.type_falta', label: 'Falta / Sancion', descKey: 'governance.type_falta_desc', desc: 'Infracciones y sus consecuencias', color: 'text-orange-700 bg-orange-100', icon: AlertTriangle },
+  { value: 'proceso', labelKey: 'governance.type_proceso', label: 'Proceso', descKey: 'governance.type_proceso_desc', desc: 'Procedimientos (admision, salida, votacion)', color: 'text-purple-700 bg-purple-100', icon: FileText },
 ]
 
 const SEVERITIES = [
-  { value: 'info', label: 'Informativo', color: 'text-blue-600 bg-blue-50' },
-  { value: 'leve', label: 'Leve', color: 'text-yellow-600 bg-yellow-50' },
-  { value: 'grave', label: 'Grave', color: 'text-orange-600 bg-orange-50' },
-  { value: 'muy_grave', label: 'Muy Grave', color: 'text-red-600 bg-red-50' },
+  { value: 'info', labelKey: 'governance.sev_info', label: 'Informativo', color: 'text-blue-600 bg-blue-50' },
+  { value: 'leve', labelKey: 'governance.sev_leve', label: 'Leve', color: 'text-yellow-600 bg-yellow-50' },
+  { value: 'grave', labelKey: 'governance.sev_grave', label: 'Grave', color: 'text-orange-600 bg-orange-50' },
+  { value: 'muy_grave', labelKey: 'governance.sev_muy_grave', label: 'Muy Grave', color: 'text-red-600 bg-red-50' },
 ]
 
 export default function Governance() {
   const { hasPermission } = usePermissions()
+  const { t } = useTranslation('assembly')
   const [rules, setRules] = useState<GovernanceRule[]>([])
   const [filterCategory, setFilterCategory] = useState<string>('')
   const [showCreate, setShowCreate] = useState(false)
@@ -80,7 +82,7 @@ export default function Governance() {
       const data = await api.get<any>('/governance/rules')
       setRules(Array.isArray(data) ? data : [])
     } catch (e: any) {
-      setError(e instanceof Error ? e.message : 'Error al cargar reglas')
+      setError(e instanceof Error ? e.message : t('governance.error_load', 'Error al cargar reglas'))
     }
   }
 
@@ -89,10 +91,10 @@ export default function Governance() {
     try {
       if (editingRule) {
         const res: any = await api.put(`/governance/rules/${editingRule.id}`, formData)
-        setSuccessMsg(res?.message || 'Propuesta enviada a la asamblea')
+        setSuccessMsg(res?.message || t('governance.success_default', 'Propuesta enviada a la asamblea'))
       } else {
         const res: any = await api.post('/governance/rules', formData)
-        setSuccessMsg(res?.message || 'Propuesta enviada a la asamblea')
+        setSuccessMsg(res?.message || t('governance.success_default', 'Propuesta enviada a la asamblea'))
       }
       setShowCreate(false)
       setEditingRule(null)
@@ -100,7 +102,7 @@ export default function Governance() {
       loadRules()
       setTimeout(() => setSuccessMsg(''), 5000)
     } catch (e: any) {
-      setError(e instanceof Error ? e.message : 'Error al guardar')
+      setError(e instanceof Error ? e.message : t('governance.error_save', 'Error al guardar'))
     }
   }
 
@@ -120,14 +122,14 @@ export default function Governance() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Eliminar esta regla? Se creara una propuesta para que la asamblea lo apruebe.')) return
+    if (!confirm(t('governance.confirm_delete', 'Eliminar esta regla? Se creara una propuesta para que la asamblea lo apruebe.'))) return
     try {
       const res: any = await api.delete(`/governance/rules/${id}`)
-      setSuccessMsg(res?.message || 'Propuesta de eliminacion enviada a la asamblea')
+      setSuccessMsg(res?.message || t('governance.success_delete', 'Propuesta de eliminacion enviada a la asamblea'))
       loadRules()
       setTimeout(() => setSuccessMsg(''), 5000)
     } catch (e: any) {
-      setError(e instanceof Error ? e.message : 'Error al eliminar')
+      setError(e instanceof Error ? e.message : t('governance.error_delete', 'Error al eliminar'))
     }
   }
 
@@ -144,8 +146,8 @@ export default function Governance() {
         <div className="flex items-center gap-3">
           <Scale className="text-trueque-600" size={28} />
           <div>
-            <h1 className="text-2xl font-bold">Gobernanza - Ley de la Aldea</h1>
-            <p className="text-sm text-gray-500">Reglas de convivencia, estructura de gobierno, deberes, prohibiciones y procesos</p>
+            <h1 className="text-2xl font-bold">{t('governance.title', 'Gobernanza - Ley de la Aldea')}</h1>
+            <p className="text-sm text-gray-500">{t('governance.subtitle', 'Reglas de convivencia, estructura de gobierno, deberes, prohibiciones y procesos')}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -157,7 +159,7 @@ export default function Governance() {
               onClick={() => { setEditingRule(null); setFormData({ category: 'estructura', rule_type: 'informativo', title: '', description: '', severity: 'info', icon: 'info', sort_order: 0, voting_duration_minutes: 1440 }); setShowCreate(true) }}
               className="flex items-center gap-2 px-4 py-2 bg-trueque-600 text-white rounded-lg hover:bg-trueque-700"
             >
-              <Plus size={18} /> Nueva Regla
+              <Plus size={18} /> {t('governance.new_rule', 'Nueva Regla')}
             </button>
           )}
         </div>
@@ -165,26 +167,26 @@ export default function Governance() {
 
       {showHelp && (
         <div className="card mb-6 text-sm space-y-2">
-          <h2 className="font-bold text-base">¿Que es esta pagina?</h2>
-          <p>Aqui se definen las reglas de convivencia de la aldea: la "Ley de la Aldea".</p>
-          <p><strong>¿Para que sirve?</strong></p>
+          <h2 className="font-bold text-base">{t('governance.help_what_title', '¿Que es esta pagina?')}</h2>
+          <p>{t('governance.help_what', 'Aqui se definen las reglas de convivencia de la aldea: la "Ley de la Aldea".')}</p>
+          <p><strong>{t('governance.help_purpose_title', '¿Para que sirve?')}</strong></p>
           <ul className="list-disc list-inside ml-4 space-y-1">
-            <li>Definir como se gobierna la aldea (estructura, asamblea, circulos)</li>
-            <li>Listar los deberes de los miembros (cayapa, agroecologia, TQ)</li>
-            <li>Definir lo que esta permitido y prohibido</li>
-            <li>Establecer faltas, sanciones y causales de expulsion</li>
-            <li>Documentar el proceso de admision y salida</li>
-            <li>Explicar impuestos y tenencia de la tierra</li>
+            <li>{t('governance.help_purpose_1', 'Definir como se gobierna la aldea (estructura, asamblea, circulos)')}</li>
+            <li>{t('governance.help_purpose_2', 'Listar los deberes de los miembros (cayapa, agroecologia, TQ)')}</li>
+            <li>{t('governance.help_purpose_3', 'Definir lo que esta permitido y prohibido')}</li>
+            <li>{t('governance.help_purpose_4', 'Establecer faltas, sanciones y causales de expulsion')}</li>
+            <li>{t('governance.help_purpose_5', 'Documentar el proceso de admision y salida')}</li>
+            <li>{t('governance.help_purpose_6', 'Explicar impuestos y tenencia de la tierra')}</li>
           </ul>
-          <p><strong>¿Quien la ve?</strong></p>
+          <p><strong>{t('governance.help_who_title', '¿Quien la ve?')}</strong></p>
           <ul className="list-disc list-inside ml-4 space-y-1">
-            <li>La pagina publica /p/gobernanza muestra estas reglas a todos</li>
-            <li>El formulario de admision muestra las reglas antes de aceptar</li>
-            <li>Los miembros pueden consultarlas en cualquier momento</li>
+            <li>{t('governance.help_who_1', 'La pagina publica /p/gobernanza muestra estas reglas a todos')}</li>
+            <li>{t('governance.help_who_2', 'El formulario de admision muestra las reglas antes de aceptar')}</li>
+            <li>{t('governance.help_who_3', 'Los miembros pueden consultarlas en cualquier momento')}</li>
           </ul>
-          <p><strong>¿Como se edita?</strong></p>
-          <p>Puedes agregar, editar o eliminar reglas. Las reglas se agrupan por categoria y se ordenan por el numero de orden.</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline block pt-2">Cerrar ayuda</button>
+          <p><strong>{t('governance.help_edit_title', '¿Como se edita?')}</strong></p>
+          <p>{t('governance.help_edit', 'Puedes agregar, editar o eliminar reglas. Las reglas se agrupan por categoria y se ordenan por el numero de orden.')}</p>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline block pt-2">{t('governance.close_help', 'Cerrar ayuda')}</button>
         </div>
       )}
 
@@ -192,15 +194,14 @@ export default function Governance() {
       {successMsg && (
         <div className="bg-emerald-50 text-emerald-700 p-3 rounded-lg mb-4 border border-emerald-200">
           <strong>{successMsg}</strong>
-          <p className="text-xs mt-1">Ve a <a href="/app/assembly" className="underline">Asamblea</a> para ver la propuesta y votar.</p>
+          <p className="text-xs mt-1"><a href="/app/assembly" className="underline">{t('governance.success_proposal', 'Ve a Asamblea para ver la propuesta y votar.')}</a></p>
         </div>
       )}
 
       {/* Aviso: cambios requieren aprobacion de asamblea */}
       {canManage && (
         <div className="bg-blue-50 border border-blue-200 text-blue-800 p-3 rounded-lg mb-4 text-sm">
-          <strong>Importante:</strong> Cualquier cambio a las reglas de gobernanza (crear, modificar o eliminar) requiere aprobacion de la Asamblea General.
-          Al hacer un cambio, se crea una propuesta que debe ser votada y aprobada. La regla no se activara hasta que la asamblea la apruebe.
+          <strong>Importante:</strong> {t('governance.important_notice', 'Cualquier cambio a las reglas de gobernanza (crear, modificar o eliminar) requiere aprobacion de la Asamblea General. Al hacer un cambio, se crea una propuesta que debe ser votada y aprobada. La regla no se activara hasta que la asamblea la apruebe.')}
         </div>
       )}
 
@@ -210,7 +211,7 @@ export default function Governance() {
           onClick={() => setFilterCategory('')}
           className={`px-3 py-1.5 rounded-lg text-sm font-medium ${!filterCategory ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
         >
-          Todas ({rules.length})
+          {t('governance.all_categories', 'Todas')} ({rules.length})
         </button>
         {CATEGORIES.map(cat => {
           const count = rules.filter(r => r.category === cat.value).length
@@ -221,7 +222,7 @@ export default function Governance() {
               onClick={() => setFilterCategory(cat.value)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium ${filterCategory === cat.value ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
             >
-              {cat.label} ({count})
+              {t(cat.labelKey, cat.label)} ({count})
             </button>
           )
         })}
@@ -231,7 +232,7 @@ export default function Governance() {
       <div className="space-y-6">
         {groupedRules.map(group => (
           <div key={group.value} className="card">
-            <h2 className="text-lg font-semibold mb-3 text-trueque-700">{group.label}</h2>
+            <h2 className="text-lg font-semibold mb-3 text-trueque-700">{t(group.labelKey, group.label)}</h2>
             <div className="space-y-2">
               {group.rules.map(rule => {
                 const severity = SEVERITIES.find(s => s.value === rule.severity) || SEVERITIES[0]
@@ -243,9 +244,9 @@ export default function Governance() {
                       <div className="flex items-center gap-2 mb-1">
                         <span className={`text-xs px-2 py-0.5 rounded flex items-center gap-1 ${ruleType.color}`}>
                           <TypeIcon size={12} />
-                          {ruleType.label}
+                          {t(ruleType.labelKey, ruleType.label)}
                         </span>
-                        <span className={`text-xs px-2 py-0.5 rounded ${severity.color}`}>{severity.label}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded ${severity.color}`}>{t(severity.labelKey, severity.label)}</span>
                         <span className="font-medium">{rule.title}</span>
                         <span className="text-xs text-gray-400">#{rule.sort_order}</span>
                       </div>
@@ -274,7 +275,7 @@ export default function Governance() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-bold">{editingRule ? 'Editar Regla' : 'Nueva Regla'}</h2>
+              <h2 className="text-lg font-bold">{editingRule ? t('governance.edit_rule', 'Editar Regla') : t('governance.new_rule', 'Nueva Regla')}</h2>
               <button onClick={() => { setShowCreate(false); setEditingRule(null) }} className="text-gray-400 hover:text-gray-600">
                 <X size={20} />
               </button>

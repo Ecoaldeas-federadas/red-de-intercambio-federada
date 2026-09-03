@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
@@ -7,6 +8,7 @@ import { HelpCircle, Plus, Edit, Trash2, Check, Search, Zap, Package } from 'luc
 import { fmtNumber } from '../lib/format'
 
 export default function CalculatorParams() {
+  const { t } = useTranslation('common')
   const { hasPermission } = usePermissions()
   const { currency } = useConfig()
   const canManage = hasPermission('calculator.manage_params')
@@ -90,7 +92,7 @@ export default function CalculatorParams() {
   const save = async () => {
     setError(''); setSuccess('')
     if (!form.name || !form.category) {
-      setError('Nombre y categoria son obligatorios')
+      setError(t('calculator_params.error_name_cat', 'Nombre y categoria son obligatorios'))
       return
     }
     // Si tiene tariff_category, calcular kwh_per_unit dinamicamente como referencia
@@ -98,16 +100,16 @@ export default function CalculatorParams() {
     if (tab === 'work' && form.tariff_category) {
       payload.kwh_per_unit = baseRate * getTariffEffort(form.tariff_category) * form.effort_factor
     } else if (form.kwh_per_unit <= 0) {
-      setError('El costo en kWh debe ser mayor a 0, o selecciona un tipo de esfuerzo vinculado a la tarifa')
+      setError(t('calculator_params.error_kwh', 'El costo en kWh debe ser mayor a 0, o selecciona un tipo de esfuerzo vinculado a la tarifa'))
       return
     }
     try {
       if (editing) {
         await api.put(`/calculator/params/${editing.id}`, payload)
-        setSuccess('Parametro actualizado. Pendiente de reaprobacion.')
+        setSuccess(t('calculator_params.updated', 'Parametro actualizado. Pendiente de reaprobacion.'))
       } else {
         await api.post('/calculator/params', payload)
-        setSuccess('Parametro creado. Pendiente de aprobacion de asamblea.')
+        setSuccess(t('calculator_params.created', 'Parametro creado. Pendiente de aprobacion de asamblea.'))
       }
       setShowForm(false)
       setEditing(null)
@@ -131,7 +133,7 @@ export default function CalculatorParams() {
   const approve = async (id: string) => {
     try {
       await api.post(`/calculator/params/${id}/approve`)
-      setSuccess('Parametro aprobado')
+      setSuccess(t('calculator_params.approved', 'Parametro aprobado'))
       load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error')
@@ -139,7 +141,7 @@ export default function CalculatorParams() {
   }
 
   const remove = async (id: string) => {
-    if (!confirm('Eliminar este parametro?')) return
+    if (!confirm(t('calculator_params.confirm_delete', 'Eliminar este parametro?'))) return
     try {
       await api.delete(`/calculator/params/${id}`)
       load()
@@ -151,12 +153,12 @@ export default function CalculatorParams() {
   const saveCategory = async () => {
     setError('')
     if (!catForm.name) {
-      setError('Nombre de categoria obligatorio')
+      setError(t('calculator_params.error_cat_name', 'Nombre de categoria obligatorio'))
       return
     }
     try {
       await api.post('/calculator/categories', { ...catForm, type: tab })
-      setSuccess('Categoria creada')
+      setSuccess(t('calculator_params.cat_created', 'Categoria creada'))
       setShowCatForm(false)
       setCatForm({ type: tab, name: '', description: '' })
       load()
@@ -168,7 +170,7 @@ export default function CalculatorParams() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold flex items-center gap-2"><Zap size={24} />Parametros de Calculadora</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2"><Zap size={24} />{t('calculator_params.title', 'Parametros de Calculadora')}</h1>
         <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
           <HelpCircle size={20} />
         </button>
@@ -176,18 +178,18 @@ export default function CalculatorParams() {
 
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
-          <p><strong>Parametros de Calculadora - Ayuda</strong></p>
-          <p><strong>Que son los parametros:</strong> Los parametros son los valores de referencia que usa la calculadora de precios para determinar el costo energetico (en kWh) de cualquier trabajo o insumo. Sin estos parametros, la calculadora no puede asignar un precio justo a los productos y servicios del nodo. Cada parametro define cuanto energia representa una unidad de trabajo o de material.</p>
-          <p><strong>Para que sirve esta pagina:</strong> Aqui se gestionan todos los tipos de trabajo e insumos que usa la calculadora de precios. Puedes crear, editar, aprobar y desactivar parametros, asi como organizarlos en categorias. Es el panel de control del sistema de precios del nodo.</p>
-          <p><strong>Como se usa:</strong> 1) Selecciona la pestana "Tipos de Trabajo" o "Insumos/Materiales" segun lo que quieras gestionar. 2) Usa el buscador y el filtro de categoria para encontrar parametros existentes. 3) Crea categorias nuevas si las necesitas. 4) Crea parametros nuevos con el boton "Nuevo Parametro". 5) Aprueba los parametros pendientes con el boton de check verde. 6) Edita o elimina parametros existentes segun sea necesario.</p>
-          <p><strong>Tipos de trabajo (dinamicos segun tarifa energetica):</strong> Cada tipo de trabajo se vincula a una categoria de esfuerzo (agricola, tecnico, administrativo). El costo en kWh se calcula automaticamente desde la canasta vital: <strong>base = canasta_vital / horas_por_dia</strong>, y cada categoria tiene su factor de esfuerzo (agricola=0.61, tecnico=3.0, admin=1.0). Si la asamblea cambia la canasta vital, todos los trabajos se actualizan automaticamente. Tambien puedes especificar un factor de amplificacion adicional para trabajos mas dificiles o faciles de lo normal.</p>
-          <p><strong>Insumos/Materiales:</strong> Definen cuanto energia cuesta cada material que se usa en la produccion. Por ejemplo: harina de trigo = 1.8 kWh/kg, madera = 2.5 kWh/m3, electricidad = 1.0 kWh/kWh. Estos valores representan la energia total invertida en producir, transportar y almacenar cada insumo.</p>
-          <p><strong>Categorias:</strong> Agrupan parametros similares para encontrarlos facil. Por ejemplo: "Construccion" agrupa albañileria, plomeria, electricidad; "Alimentos" agrupa harina, azucar, verduras. Puedes crear nuevas categorias segun las necesidades de tu nodo.</p>
-          <p><strong>Factor de amplificacion:</strong> Multiplicador adicional sobre el esfuerzo base de la categoria. 1.0 = sin cambio. Usalo para trabajos mas dificiles (1.3 = 30% mas) o mas faciles (0.8 = 20% menos) de lo normal para su categoria. Por ejemplo: cavar tierra a 40°C podria tener factor 1.3 sobre la categoria agricola.</p>
-          <p><strong>Como se aprueban los parametros:</strong> Todo parametro nuevo o modificado queda en estado "Pendiente" y debe ser aprobado por asamblea. Los parametros no aprobados no aparecen en la calculadora. Un usuario con permiso de gestion (calculator.manage_params) puede aprobarlos con el boton de check verde. Esto asegura que la comunidad valide cada cambio en el sistema de precios.</p>
-          <p><strong>Quien los puede cambiar:</strong> Solo los usuarios con el permiso "calculator.manage_params" pueden crear, editar, aprobar y eliminar parametros. El resto de usuarios puede verlos pero no modificarlos. La aprobacion final requiere decision asamblearia.</p>
-          <p><strong>Moneda local:</strong> Los costos se expresan en kWh (1 {currency} = 1 kWh). El simbolo de tu moneda local es "{currency}" y aparece en los textos de ayuda de los campos.</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
+          <p><strong>{t('calculator_params.help_title', 'Parametros de Calculadora - Ayuda')}</strong></p>
+          <p><strong>{t('calculator_params.help_what', 'Que son los parametros:')}</strong> {t('calculator_params.help_what_desc', 'Los parametros son los valores de referencia que usa la calculadora de precios para determinar el costo energetico (en kWh) de cualquier trabajo o insumo. Sin estos parametros, la calculadora no puede asignar un precio justo a los productos y servicios del nodo. Cada parametro define cuanto energia representa una unidad de trabajo o de material.')}</p>
+          <p><strong>{t('calculator_params.help_purpose', 'Para que sirve esta pagina:')}</strong> {t('calculator_params.help_purpose_desc', 'Aqui se gestionan todos los tipos de trabajo e insumos que usa la calculadora de precios. Puedes crear, editar, aprobar y desactivar parametros, asi como organizarlos en categorias. Es el panel de control del sistema de precios del nodo.')}</p>
+          <p><strong>{t('calculator_params.help_usage', 'Como se usa:')}</strong> {t('calculator_params.help_usage_desc', '1) Selecciona la pestana "Tipos de Trabajo" o "Insumos/Materiales" segun lo que quieras gestionar. 2) Usa el buscador y el filtro de categoria para encontrar parametros existentes. 3) Crea categorias nuevas si las necesitas. 4) Crea parametros nuevos con el boton "Nuevo Parametro". 5) Aprueba los parametros pendientes con el boton de check verde. 6) Edita o elimina parametros existentes segun sea necesario.')}</p>
+          <p><strong>{t('calculator_params.help_work_types', 'Tipos de trabajo (dinamicos segun tarifa energetica):')}</strong> {t('calculator_params.help_work_types_desc', 'Cada tipo de trabajo se vincula a una categoria de esfuerzo (agricola, tecnico, administrativo). El costo en kWh se calcula automaticamente desde la canasta vital: ')}<strong>{t('calculator_params.help_base_formula', 'base = canasta_vital / horas_por_dia')}</strong>{t('calculator_params.help_work_types_desc2', ', y cada categoria tiene su factor de esfuerzo (agricola=0.61, tecnico=3.0, admin=1.0). Si la asamblea cambia la canasta vital, todos los trabajos se actualizan automaticamente. Tambien puedes especificar un factor de amplificacion adicional para trabajos mas dificiles o faciles de lo normal.')}</p>
+          <p><strong>{t('calculator_params.help_materials', 'Insumos/Materiales:')}</strong> {t('calculator_params.help_materials_desc', 'Definen cuanto energia cuesta cada material que se usa en la produccion. Por ejemplo: harina de trigo = 1.8 kWh/kg, madera = 2.5 kWh/m3, electricidad = 1.0 kWh/kWh. Estos valores representan la energia total invertida en producir, transportar y almacenar cada insumo.')}</p>
+          <p><strong>{t('calculator_params.help_categories', 'Categorias:')}</strong> {t('calculator_params.help_categories_desc', 'Agrupan parametros similares para encontrarlos facil. Por ejemplo: "Construccion" agrupa albañileria, plomeria, electricidad; "Alimentos" agrupa harina, azucar, verduras. Puedes crear nuevas categorias segun las necesidades de tu nodo.')}</p>
+          <p><strong>{t('calculator_params.help_effort', 'Factor de amplificacion:')}</strong> {t('calculator_params.help_effort_desc', 'Multiplicador adicional sobre el esfuerzo base de la categoria. 1.0 = sin cambio. Usalo para trabajos mas dificiles (1.3 = 30% mas) o mas faciles (0.8 = 20% menos) de lo normal para su categoria. Por ejemplo: cavar tierra a 40°C podria tener factor 1.3 sobre la categoria agricola.')}</p>
+          <p><strong>{t('calculator_params.help_approval', 'Como se aprueban los parametros:')}</strong> {t('calculator_params.help_approval_desc', 'Todo parametro nuevo o modificado queda en estado "Pendiente" y debe ser aprobado por asamblea. Los parametros no aprobados no aparecen en la calculadora. Un usuario con permiso de gestion (calculator.manage_params) puede aprobarlos con el boton de check verde. Esto asegura que la comunidad valide cada cambio en el sistema de precios.')}</p>
+          <p><strong>{t('calculator_params.help_who', 'Quien los puede cambiar:')}</strong> {t('calculator_params.help_who_desc', 'Solo los usuarios con el permiso "calculator.manage_params" pueden crear, editar, aprobar y eliminar parametros. El resto de usuarios puede verlos pero no modificarlos. La aprobacion final requiere decision asamblearia.')}</p>
+          <p><strong>{t('calculator_params.help_currency', 'Moneda local:')}</strong> {t('calculator_params.help_currency_desc', 'Los costos se expresan en kWh (1')} {currency} = 1 kWh). {t('calculator_params.help_currency_desc2', 'El simbolo de tu moneda local es "')}{currency}{t('calculator_params.help_currency_desc3', '" y aparece en los textos de ayuda de los campos.')}</p>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('calculator_params.close', 'Cerrar')}</button>
         </div>
       )}
 
@@ -195,13 +197,13 @@ export default function CalculatorParams() {
       {success && <div className="text-green-600 text-sm bg-green-50 p-3 rounded-lg">{success}</div>}
 
       <div className="flex gap-2 flex-wrap">
-        <button onClick={() => changeTab('work')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'work' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Tipos de Trabajo</button>
-        <button onClick={() => changeTab('material')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'material' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>Insumos/Materiales</button>
+        <button onClick={() => changeTab('work')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'work' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{t('calculator_params.tab_work', 'Tipos de Trabajo')}</button>
+        <button onClick={() => changeTab('material')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'material' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>{t('calculator_params.tab_material', 'Insumos/Materiales')}</button>
       </div>
 
       <div className="flex gap-2 flex-wrap items-end">
         <div className="flex-1 min-w-[200px]">
-          <label className="label">Buscar parametro</label>
+          <label className="label">{t('calculator_params.search', 'Buscar parametro')}</label>
           <div className="relative">
             <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
             <input className="input pl-9" placeholder="Ej: carpinteria, harina, albañileria..." value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -209,24 +211,24 @@ export default function CalculatorParams() {
           <p className="text-xs text-gray-400 mt-1">Escribe parte del nombre o descripcion del parametro que buscas. Ej: "carpinteria" para encontrar todos los parametros relacionados con carpinteria.</p>
         </div>
         <div>
-          <label className="label">Filtrar por categoria</label>
+          <label className="label">{t('calculator_params.filter_cat', 'Filtrar por categoria')}</label>
           <select className="input" value={filterCat} onChange={(e) => setFilterCat(e.target.value)}>
-            <option value="">Todas las categorias</option>
+            <option value="">{t('calculator_params.all_cats', 'Todas las categorias')}</option>
             {categories.map((c, i) => <option key={i} value={c.name}>{c.name}</option>)}
           </select>
           <p className="text-xs text-gray-400 mt-1">Selecciona una categoria para ver solo sus parametros. Ej: "Construccion" para ver albañileria, plomeria, etc.</p>
         </div>
         {canManage && (
           <>
-            <button onClick={() => { setShowCatForm(!showCatForm); setCatForm({ type: tab, name: '', description: '' }) }} className="btn-secondary text-sm">Nueva Categoria</button>
-            <button onClick={() => { setShowForm(!showForm); setEditing(null); setForm({ type: tab, category: '', subcategory: '', name: '', description: '', unit: tab === 'work' ? 'horas' : 'unidad', kwh_per_unit: 0, effort_factor: 1.0, tariff_category: '' }) }} className="btn-primary flex items-center gap-2 text-sm"><Plus size={16} />Nuevo Parametro</button>
+            <button onClick={() => { setShowCatForm(!showCatForm); setCatForm({ type: tab, name: '', description: '' }) }} className="btn-secondary text-sm">{t('calculator_params.new_cat', 'Nueva Categoria')}</button>
+            <button onClick={() => { setShowForm(!showForm); setEditing(null); setForm({ type: tab, category: '', subcategory: '', name: '', description: '', unit: tab === 'work' ? 'horas' : 'unidad', kwh_per_unit: 0, effort_factor: 1.0, tariff_category: '' }) }} className="btn-primary flex items-center gap-2 text-sm"><Plus size={16} />{t('calculator_params.new_param', 'Nuevo Parametro')}</button>
           </>
         )}
       </div>
 
       {showCatForm && canManage && (
         <div className="card space-y-3">
-          <h3 className="font-semibold">Nueva Categoria ({tab === 'work' ? 'Trabajo' : 'Material'})</h3>
+          <h3 className="font-semibold">{t('calculator_params.new_cat_title', 'Nueva Categoria')} ({tab === 'work' ? t('calculator_params.work', 'Trabajo') : t('calculator_params.material', 'Material')})</h3>
           <div>
             <label className="label">Nombre de la categoria</label>
             <input className="input" placeholder="Ej: Transporte" value={catForm.name} onChange={(e) => setCatForm({ ...catForm, name: e.target.value })} />
@@ -237,17 +239,17 @@ export default function CalculatorParams() {
             <input className="input" placeholder="Ej: Trabajos relacionados con transporte de personas y mercancias" value={catForm.description} onChange={(e) => setCatForm({ ...catForm, description: e.target.value })} />
             <p className="text-xs text-gray-400 mt-1">Breve explicacion de que tipos de parametros pertenecen a esta categoria. Ej: "Trabajos manuales relacionados con la construccion de edificios".</p>
           </div>
-          <button onClick={saveCategory} className="btn-primary">Crear Categoria</button>
+          <button onClick={saveCategory} className="btn-primary">{t('calculator_params.create_cat', 'Crear Categoria')}</button>
         </div>
       )}
 
       {showForm && canManage && (
         <div className="card space-y-4">
-          <h3 className="font-semibold">{editing ? 'Editar Parametro' : 'Nuevo Parametro'} ({tab === 'work' ? 'Tipo de Trabajo' : 'Insumo/Material'})</h3>
+          <h3 className="font-semibold">{editing ? t('calculator_params.edit_param', 'Editar Parametro') : t('calculator_params.new_param', 'Nuevo Parametro')} ({tab === 'work' ? t('calculator_params.work_type', 'Tipo de Trabajo') : t('calculator_params.material_input', 'Insumo/Material')})</h3>
           <div>
-            <label className="label">Categoria</label>
+            <label className="label">{t('calculator_params.category', 'Categoria')}</label>
             <select className="input" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-              <option value="">Seleccionar categoria...</option>
+              <option value="">{t('calculator_params.select_cat', 'Seleccionar categoria...')}</option>
               {categories.map((c, i) => <option key={i} value={c.name}>{c.name}</option>)}
             </select>
             <p className="text-xs text-gray-400 mt-1">A que categoria pertenece este parametro. Ej: "Construccion" para albañileria, "Alimentos" para harina. Si necesitas una categoria nueva, creala primero con el boton "Nueva Categoria".</p>
@@ -317,14 +319,14 @@ export default function CalculatorParams() {
               <p className="text-xs text-gray-400 mt-1">Multiplicador adicional sobre el esfuerzo base. 1.0 = sin cambio. Usalo para trabajos mas dificiles (1.3 = 30% mas) o mas faciles (0.8 = 20% menos) de lo normal para su categoria.</p>
             </div>
           )}
-          <button onClick={save} className="btn-primary">{editing ? 'Actualizar' : 'Crear'} (pendiente de aprobacion)</button>
+          <button onClick={save} className="btn-primary">{editing ? t('calculator_params.update', 'Actualizar') : t('calculator_params.create', 'Crear')} ({t('calculator_params.pending_approval', 'pendiente de aprobacion')})</button>
         </div>
       )}
 
       {Object.keys(grouped).length === 0 ? (
         <div className="card text-center text-gray-500 py-8">
-          <p>No hay parametros {filterCat ? `en la categoria "${filterCat}"` : ''}.</p>
-          {canManage && <p className="text-xs mt-2">Crea uno nuevo con el boton "Nuevo Parametro".</p>}
+          <p>{t('calculator_params.no_params', 'No hay parametros')} {filterCat ? `en la categoria "${filterCat}"` : ''}.</p>
+          {canManage && <p className="text-xs mt-2">{t('calculator_params.no_params_hint', 'Crea uno nuevo con el boton "Nuevo Parametro".')}</p>}
         </div>
       ) : (
         <div className="space-y-4">
@@ -342,8 +344,8 @@ export default function CalculatorParams() {
                       <div className="flex items-center gap-2">
                         <b className="text-sm">{p.name}</b>
                         {p.subcategory && <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">{p.subcategory}</span>}
-                        {!p.approved && <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">Pendiente</span>}
-                        {!p.is_active && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Inactivo</span>}
+                        {!p.approved && <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">{t('calculator_params.pending', 'Pendiente')}</span>}
+                        {!p.is_active && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">{t('calculator_params.inactive', 'Inactivo')}</span>}
                       </div>
                       {p.description && <p className="text-xs text-gray-500 mt-0.5">{p.description}</p>}
                       <p className="text-xs text-gray-400 mt-0.5">
@@ -366,9 +368,9 @@ export default function CalculatorParams() {
                     </div>
                     {canManage && (
                       <div className="flex gap-1">
-                        {!p.approved && <button onClick={() => approve(p.id)} className="text-green-600 hover:bg-green-50 p-1 rounded" title="Aprobar"><Check size={16} /></button>}
-                        <button onClick={() => edit(p)} className="text-blue-500 hover:bg-blue-50 p-1 rounded" title="Editar"><Edit size={16} /></button>
-                        <button onClick={() => remove(p.id)} className="text-red-500 hover:bg-red-50 p-1 rounded" title="Eliminar"><Trash2 size={16} /></button>
+                        {!p.approved && <button onClick={() => approve(p.id)} className="text-green-600 hover:bg-green-50 p-1 rounded" title={t('calculator_params.approve', 'Aprobar')}><Check size={16} /></button>}
+                        <button onClick={() => edit(p)} className="text-blue-500 hover:bg-blue-50 p-1 rounded" title={t('calculator_params.edit', 'Editar')}><Edit size={16} /></button>
+                        <button onClick={() => remove(p.id)} className="text-red-500 hover:bg-red-50 p-1 rounded" title={t('calculator_params.delete', 'Eliminar')}><Trash2 size={16} /></button>
                       </div>
                     )}
                   </div>

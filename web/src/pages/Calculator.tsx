@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
+import { useTranslation } from 'react-i18next'
 import { Calculator as CalcIcon, HelpCircle, Plus, Trash2, X } from 'lucide-react'
 import { fmtNumber } from '../lib/format'
 
@@ -111,6 +112,7 @@ interface WorkItem {
 
 export default function Calculator() {
   const { currency } = useConfig()
+  const { t } = useTranslation('common')
   const [mode, setMode] = useState<'simple' | 'advanced'>('simple')
   const [showHelp, setShowHelp] = useState(false)
   const [products, setProducts] = useState<any[]>([])
@@ -253,14 +255,14 @@ export default function Calculator() {
         totalTQ: res.price_trueque ?? (advForm.e_direct + advForm.e_human + advForm.e_inputs + advForm.e_amortization) * advForm.effort_factor * advForm.tariff,
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al calcular')
+      setError(err instanceof Error ? err.message : t('calculator.error_calc', 'Error al calcular'))
     }
   }
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold flex items-center gap-2"><CalcIcon size={24} />Calculadora de Precios</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2"><CalcIcon size={24} />{t('calculator.title', 'Calculadora de Precios')}</h1>
         <div className="flex gap-2">
           <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
             <HelpCircle size={20} />
@@ -271,25 +273,25 @@ export default function Calculator() {
       {/* Selector de modo */}
       <div className="flex gap-2">
         <button onClick={() => setMode('simple')} className={`px-4 py-2 rounded-lg text-sm font-medium ${mode === 'simple' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>
-          Modo facil (cuestionario)
+          {t('calculator.mode_simple', 'Modo facil (cuestionario)')}
         </button>
         <button onClick={() => setMode('advanced')} className={`px-4 py-2 rounded-lg text-sm font-medium ${mode === 'advanced' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>
-          Modo avanzado (numeros)
+          {t('calculator.mode_advanced', 'Modo avanzado (numeros)')}
         </button>
       </div>
 
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
-          <p><strong>Calculadora de Precios - Ayuda</strong></p>
-          <p><strong>Que es la calculadora:</strong> Es una herramienta que calcula el precio justo de un producto o servicio basandose en su costo energetico real. El precio en {currency} equivale a la energia total invertida en producirlo: 1 {currency} = 1 kWh. No hay ganancia ni especulacion: el precio refleja el trabajo y los materiales.</p>
-          <p><strong>Para que sirve:</strong> Sirve para determinar el precio energetico de cualquier producto o servicio antes de proponerlo a la asamblea. Asi todos los precios son justos, transparentes y comparables. El resultado lo llevas a la asamblea para que lo aprueben y lo agreguen al catalogo.</p>
-          <p><strong>Como funciona:</strong> Tienes dos modos. El <strong>Modo facil</strong> te guia con un cuestionario: seleccionas el tipo de trabajo, las horas, y los materiales usaste; el sistema calcula todo. El <strong>Modo avanzado</strong> permite ingresar los valores energeticos directamente en kWh si los conoces.</p>
-          <p><strong>Que es la energia directa:</strong> Es la energia consumida directamente en el proceso: electricidad, gas o combustible usado en la produccion. <strong>Ejemplo:</strong> 2 kWh de electricidad para hornear pan.</p>
-          <p><strong>Que es la energia humana:</strong> Es la energia del trabajo humano invertido. Se calcula multiplicando las horas trabajadas por la tarifa energetica (canasta vital / horas por dia). <strong>Ejemplo:</strong> 3 horas de trabajo x 1.0 TQ/hora (tarifa base) = 3.0 TQ. Los factores de esfuerzo ajustan hacia arriba para trabajos mas dificiles.</p>
-          <p><strong>Que es la energia de insumos:</strong> Es la energia incorporada en los materiales y materias primas usadas. Cada insumo tiene un costo energetico por unidad. <strong>Ejemplo:</strong> 1 kg de harina = 1.8 kWh, 0.5 kg de sal = 0.35 kWh.</p>
-          <p><strong>Que es el factor de esfuerzo:</strong> Es un multiplicador que ajusta el costo si el trabajo es especialmente dificil o facil. 1.0 = normal, 1.5 = 50% mas esfuerzo, 0.8 = 20% menos. <strong>Ejemplo:</strong> Cavar tierra a 40°C tiene factor 1.5.</p>
-          <p><strong>Como se calcula el precio final:</strong> Precio = (Energia directa + Energia humana + Energia de insumos + Amortizacion) x Factor de esfuerzo x Tarifa. El resultado es el precio sugerido en {currency}.</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
+          <p><strong>{t('calculator.help_title', 'Calculadora de Precios - Ayuda')}</strong></p>
+          <p><strong>Que es la calculadora:</strong> {t('calculator.help_what', `Es una herramienta que calcula el precio justo de un producto o servicio basandose en su costo energetico real. El precio en ${currency} equivale a la energia total invertida en producirlo: 1 ${currency} = 1 kWh. No hay ganancia ni especulacion: el precio refleja el trabajo y los materiales.`, { currency })}</p>
+          <p><strong>Para que sirve:</strong> {t('calculator.help_purpose', 'Sirve para determinar el precio energetico de cualquier producto o servicio antes de proponerlo a la asamblea. Asi todos los precios son justos, transparentes y comparables. El resultado lo llevas a la asamblea para que lo aprueben y lo agreguen al catalogo.')}</p>
+          <p><strong>Como funciona:</strong> {t('calculator.help_usage', 'Tienes dos modos. El <strong>Modo facil</strong> te guia con un cuestionario: seleccionas el tipo de trabajo, las horas, y los materiales usaste; el sistema calcula todo. El <strong>Modo avanzado</strong> permite ingresar los valores energeticos directamente en kWh si los conoces.')}</p>
+          <p><strong>Que es la energia directa:</strong> {t('calculator.help_direct', 'Es la energia consumida directamente en el proceso: electricidad, gas o combustible usado en la produccion. <strong>Ejemplo:</strong> 2 kWh de electricidad para hornear pan.')}</p>
+          <p><strong>Que es la energia humana:</strong> {t('calculator.help_human', 'Es la energia del trabajo humano invertido. Se calcula multiplicando las horas trabajadas por la tarifa energetica (canasta vital / horas por dia). <strong>Ejemplo:</strong> 3 horas de trabajo x 1.0 TQ/hora (tarifa base) = 3.0 TQ. Los factores de esfuerzo ajustan hacia arriba para trabajos mas dificiles.')}</p>
+          <p><strong>Que es la energia de insumos:</strong> {t('calculator.help_inputs', 'Es la energia incorporada en los materiales y materias primas usadas. Cada insumo tiene un costo energetico por unidad. <strong>Ejemplo:</strong> 1 kg de harina = 1.8 kWh, 0.5 kg de sal = 0.35 kWh.')}</p>
+          <p><strong>Que es el factor de esfuerzo:</strong> {t('calculator.help_effort', 'Es un multiplicador que ajusta el costo si el trabajo es especialmente dificil o facil. 1.0 = normal, 1.5 = 50% mas esfuerzo, 0.8 = 20% menos. <strong>Ejemplo:</strong> Cavar tierra a 40°C tiene factor 1.5.')}</p>
+          <p><strong>Como se calcula el precio final:</strong> {t('calculator.help_final', `Precio = (Energia directa + Energia humana + Energia de insumos + Amortizacion) x Factor de esfuerzo x Tarifa. El resultado es el precio sugerido en ${currency}.`, { currency })}</p>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('common.close', 'Cerrar')}</button>
         </div>
       )}
 
@@ -300,25 +302,25 @@ export default function Calculator() {
         <div className="space-y-4">
           {/* Paso 1: Trabajo */}
           <div className="card space-y-4">
-            <h2 className="font-semibold">Paso 1: Que trabajo hiciste?</h2>
-            <p className="text-xs text-gray-500">Selecciona el tipo de trabajo y cuantas horas trabajaste. El sistema sabe cuanto energia gasta cada tipo de trabajo.</p>
+            <h2 className="font-semibold">{t('calculator.step1_title', 'Paso 1: Que trabajo hiciste?')}</h2>
+            <p className="text-xs text-gray-500">{t('calculator.step1_desc', 'Selecciona el tipo de trabajo y cuantas horas trabajaste. El sistema sabe cuanto energia gasta cada tipo de trabajo.')}</p>
 
             <div>
-              <label className="label">Categoria de trabajo</label>
+              <label className="label">{t('calculator.work_category_label', 'Categoria de trabajo')}</label>
               <select className="input" value={selectedWorkCategory} onChange={(e) => { setSelectedWorkCategory(e.target.value); setSelectedWorkType('') }}>
-                <option value="">Seleccionar categoria...</option>
+                <option value="">{t('calculator.work_category_placeholder', 'Seleccionar categoria...')}</option>
                 {Object.keys(workCategories).map((cat) => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>
-              <p className="text-xs text-gray-400 mt-1">Las categorias y tipos se gestionan en Parametros de Calculadora.</p>
+              <p className="text-xs text-gray-400 mt-1">{t('calculator.work_category_hint', 'Las categorias y tipos se gestionan en Parametros de Calculadora.')}</p>
             </div>
 
             {selectedWorkCategory && (
               <div>
-                <label className="label">Tipo de trabajo</label>
+                <label className="label">{t('calculator.work_type_label', 'Tipo de trabajo')}</label>
                 <select className="input" value={selectedWorkType} onChange={(e) => setSelectedWorkType(e.target.value)}>
-                  <option value="">Seleccionar tipo...</option>
+                  <option value="">{t('calculator.work_type_placeholder', 'Seleccionar tipo...')}</option>
                   {workCategories[selectedWorkCategory]?.map((t: any) => (
                     <option key={t.name} value={t.name}>{t.name} — {t.description || ''}</option>
                   ))}
@@ -341,20 +343,20 @@ export default function Calculator() {
 
             {selectedWorkType && (
               <div>
-                <label className="label">Horas trabajadas</label>
+                <label className="label">{t('calculator.work_hours_label', 'Horas trabajadas')}</label>
                 <input type="number" min="0.5" step="0.5" className="input" value={workHours} onChange={(e) => setWorkHours(parseFloat(e.target.value) || 1)} />
-                <p className="text-xs text-gray-400 mt-1">Cuantas horas dedicaste a este trabajo.</p>
+                <p className="text-xs text-gray-400 mt-1">{t('calculator.work_hours_hint', 'Cuantas horas dedicaste a este trabajo.')}</p>
               </div>
             )}
 
             {selectedWorkType && (
-              <button onClick={addWork} className="btn-secondary flex items-center gap-2"><Plus size={16} /> Agregar trabajo</button>
+              <button onClick={addWork} className="btn-secondary flex items-center gap-2"><Plus size={16} /> {t('calculator.add_work', 'Agregar trabajo')}</button>
             )}
 
             {/* Lista de trabajos agregados */}
             {workItems.length > 0 && (
               <div className="space-y-2">
-                <h3 className="text-sm font-medium">Trabajos agregados:</h3>
+                <h3 className="text-sm font-medium">{t('calculator.work_list_title', 'Trabajos agregados:')}</h3>
                 {workItems.map((w) => (
                   <div key={w.id} className="flex items-center justify-between bg-gray-50 rounded-lg p-3 text-sm">
                     <div>
@@ -370,38 +372,38 @@ export default function Calculator() {
 
           {/* Paso 2: Insumos */}
           <div className="card space-y-4">
-            <h2 className="font-semibold">Paso 2: Que materiales/insumos usaste?</h2>
-            <p className="text-xs text-gray-500">Agrega los materiales que usaste. Puedes seleccionar de la lista comun o de los productos ya registrados en la plataforma.</p>
+            <h2 className="font-semibold">{t('calculator.step2_title', 'Paso 2: Que materiales/insumos usaste?')}</h2>
+            <p className="text-xs text-gray-500">{t('calculator.step2_desc', 'Agrega los materiales que usaste. Puedes seleccionar de la lista comun o de los productos ya registrados en la plataforma.')}</p>
 
             <div>
-              <label className="label">Insumo comun {selectedWorkCategory && `(categoria: ${selectedWorkCategory})`}</label>
+              <label className="label">{t('calculator.input_label', 'Insumo comun')} {selectedWorkCategory && `(categoria: ${selectedWorkCategory})`}</label>
               <select className="input" value={selectedInput} onChange={(e) => setSelectedInput(e.target.value)}>
-                <option value="">Seleccionar insumo...</option>
+                <option value="">{t('calculator.input_placeholder', 'Seleccionar insumo...')}</option>
                 {filteredMaterialParams.map((i: any) => (
                   <option key={i.name} value={i.name}>{i.name} (por {i.unit}) — {i.kwh_per_unit} kWh</option>
                 ))}
               </select>
               <p className="text-xs text-gray-400 mt-1">
                 {selectedWorkCategory
-                  ? `Mostrando insumos de la categoria "${selectedWorkCategory}". Los insumos se filtran segun el trabajo seleccionado.`
-                  : 'Los insumos se gestionan en Parametros de Calculadora. Selecciona un trabajo para filtrar.'}
+                  ? t('calculator.input_hint_filtered', `Mostrando insumos de la categoria "${selectedWorkCategory}". Los insumos se filtran segun el trabajo seleccionado.`, { category: selectedWorkCategory })
+                  : t('calculator.input_hint_default', 'Los insumos se gestionan en Parametros de Calculadora. Selecciona un trabajo para filtrar.')}
               </p>
             </div>
 
             {selectedInput && (
               <div className="flex gap-2 items-end">
                 <div className="flex-1">
-                  <label className="label">Cantidad ({materialParams.find((i: any) => i.name === selectedInput)?.unit})</label>
+                  <label className="label">{t('calculator.qty_label', 'Cantidad')} ({materialParams.find((i: any) => i.name === selectedInput)?.unit})</label>
                   <input type="number" min="0.1" step="0.1" className="input" value={inputQty} onChange={(e) => setInputQty(parseFloat(e.target.value) || 1)} />
                 </div>
-                <button onClick={addInput} className="btn-secondary flex items-center gap-2"><Plus size={16} /> Agregar</button>
+                <button onClick={addInput} className="btn-secondary flex items-center gap-2"><Plus size={16} /> {t('calculator.add_button', 'Agregar')}</button>
               </div>
             )}
 
             {/* Productos del registro como insumos */}
             {products.length > 0 && (
               <div>
-                <label className="label">O agrega un producto del registro como insumo</label>
+                <label className="label">{t('calculator.product_as_input_label', 'O agrega un producto del registro como insumo')}</label>
                 <div className="flex gap-2 flex-wrap">
                   {products.slice(0, 10).map((p) => (
                     <button key={p.id} onClick={() => addProductAsInput(p)} className="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded">
@@ -415,7 +417,7 @@ export default function Calculator() {
             {/* Lista de insumos agregados */}
             {inputs.length > 0 && (
               <div className="space-y-2">
-                <h3 className="text-sm font-medium">Insumos agregados:</h3>
+                <h3 className="text-sm font-medium">{t('calculator.input_list_title', 'Insumos agregados:')}</h3>
                 {inputs.map((i) => (
                   <div key={i.id} className="flex items-center justify-between bg-gray-50 rounded-lg p-3 text-sm">
                     <div>
@@ -431,7 +433,7 @@ export default function Calculator() {
 
           {/* Calcular */}
           <button onClick={calculate} className="btn-primary w-full flex items-center justify-center gap-2" disabled={workItems.length === 0 && inputs.length === 0}>
-            <CalcIcon size={18} /> Calcular precio
+            <CalcIcon size={18} /> {t('calculator.calculate_price', 'Calcular precio')}
           </button>
         </div>
       )}
@@ -439,64 +441,64 @@ export default function Calculator() {
       {/* MODO AVANZADO */}
       {mode === 'advanced' && (
         <div className="card space-y-4">
-          <h2 className="font-semibold">Modo avanzado</h2>
-          <p className="text-xs text-gray-500">Para usuarios avanzados que conocen los valores exactos en kWh. Si no sabes que significa cada campo, usa el modo facil.</p>
+          <h2 className="font-semibold">{t('calculator.advanced_title', 'Modo avanzado')}</h2>
+          <p className="text-xs text-gray-500">{t('calculator.advanced_desc', 'Para usuarios avanzados que conocen los valores exactos en kWh. Si no sabes que significa cada campo, usa el modo facil.')}</p>
 
           <div>
-            <label className="label">Energia directa (kWh)</label>
+            <label className="label">{t('calculator.e_direct_label', 'Energia directa (kWh)')}</label>
             <input type="number" className="input" value={advForm.e_direct} onChange={(e) => setAdvForm({ ...advForm, e_direct: parseFloat(e.target.value) || 0 })} />
-            <p className="text-xs text-gray-400 mt-1">Electricidad, gas o combustible consumido directamente.</p>
+            <p className="text-xs text-gray-400 mt-1">{t('calculator.e_direct_hint', 'Electricidad, gas o combustible consumido directamente.')}</p>
           </div>
           <div>
-            <label className="label">Energia humana (kWh)</label>
+            <label className="label">{t('calculator.e_human_label', 'Energia humana (kWh)')}</label>
             <input type="number" className="input" value={advForm.e_human} onChange={(e) => setAdvForm({ ...advForm, e_human: parseFloat(e.target.value) || 0 })} />
-            <p className="text-xs text-gray-400 mt-1">Energia del trabajo humano (horas x tarifa energetica).</p>
+            <p className="text-xs text-gray-400 mt-1">{t('calculator.e_human_hint', 'Energia del trabajo humano (horas x tarifa energetica).')}</p>
           </div>
           <div>
-            <label className="label">Energia de insumos (kWh)</label>
+            <label className="label">{t('calculator.e_inputs_label', 'Energia de insumos (kWh)')}</label>
             <input type="number" className="input" value={advForm.e_inputs} onChange={(e) => setAdvForm({ ...advForm, e_inputs: parseFloat(e.target.value) || 0 })} />
-            <p className="text-xs text-gray-400 mt-1">Energia incorporada en materiales e insumos.</p>
+            <p className="text-xs text-gray-400 mt-1">{t('calculator.e_inputs_hint', 'Energia incorporada en materiales e insumos.')}</p>
           </div>
           <div>
-            <label className="label">Amortizacion (kWh)</label>
+            <label className="label">{t('calculator.amortization_label', 'Amortizacion (kWh)')}</label>
             <input type="number" className="input" value={advForm.e_amortization} onChange={(e) => setAdvForm({ ...advForm, e_amortization: parseFloat(e.target.value) || 0 })} />
-            <p className="text-xs text-gray-400 mt-1">Energia amortizada de herramientas y equipos.</p>
+            <p className="text-xs text-gray-400 mt-1">{t('calculator.amortization_hint', 'Energia amortizada de herramientas y equipos.')}</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">Factor de esfuerzo</label>
+              <label className="label">{t('calculator.effort_factor_label', 'Factor de esfuerzo')}</label>
               <input type="number" step="0.1" className="input" value={advForm.effort_factor} onChange={(e) => setAdvForm({ ...advForm, effort_factor: parseFloat(e.target.value) || 1 })} />
-              <p className="text-xs text-gray-400 mt-1">1.0 = normal, 1.5 = alto esfuerzo.</p>
+              <p className="text-xs text-gray-400 mt-1">{t('calculator.effort_factor_hint', '1.0 = normal, 1.5 = alto esfuerzo.')}</p>
             </div>
             <div>
-              <label className="label">Tarifa de conversion</label>
+              <label className="label">{t('calculator.tariff_label', 'Tarifa de conversion')}</label>
               <input type="number" step="0.1" className="input" value={advForm.tariff} onChange={(e) => setAdvForm({ ...advForm, tariff: parseFloat(e.target.value) || 1 })} />
-              <p className="text-xs text-gray-400 mt-1">kWh a {currency} (por defecto 1:1).</p>
+              <p className="text-xs text-gray-400 mt-1">{t('calculator.tariff_hint', `kWh a ${currency} (por defecto 1:1).`, { currency })}</p>
             </div>
           </div>
-          <button onClick={calculateAdvanced} className="btn-primary w-full flex items-center justify-center gap-2"><CalcIcon size={18} /> Calcular</button>
+          <button onClick={calculateAdvanced} className="btn-primary w-full flex items-center justify-center gap-2"><CalcIcon size={18} /> {t('calculator.calculate', 'Calcular')}</button>
         </div>
       )}
 
       {/* Resultado */}
       {result && (
         <div className="card bg-trueque-50 space-y-3">
-          <h3 className="font-semibold">Resultado del calculo</h3>
+          <h3 className="font-semibold">{t('calculator.result_title', 'Resultado del calculo')}</h3>
           <div className="space-y-1 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-600">Energia del trabajo humano:</span>
+              <span className="text-gray-600">{t('calculator.result_human', 'Energia del trabajo humano:')}</span>
               <span className="font-medium">{fmtNumber(result.workKWh, 2)} kWh</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Energia de insumos y materiales:</span>
+              <span className="text-gray-600">{t('calculator.result_inputs', 'Energia de insumos y materiales:')}</span>
               <span className="font-medium">{fmtNumber(result.inputsKWh, 2)} kWh</span>
             </div>
             <div className="border-t border-trueque-200 pt-2 flex justify-between text-lg">
-              <span className="font-bold text-trueque-700">Precio total:</span>
+              <span className="font-bold text-trueque-700">{t('calculator.result_total', 'Precio total:')}</span>
               <span className="font-bold text-trueque-700">{fmtNumber(result.totalTQ, 2)} {currency}</span>
             </div>
           </div>
-          <p className="text-xs text-gray-500">Este es el precio sugerido para tu producto. Llevalo a la asamblea para que lo aprueben y lo agreguen al registro de productos.</p>
+          <p className="text-xs text-gray-500">{t('calculator.result_hint', 'Este es el precio sugerido para tu producto. Llevalo a la asamblea para que lo aprueben y lo agreguen al registro de productos.')}</p>
         </div>
       )}
     </div>

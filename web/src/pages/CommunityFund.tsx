@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { usePermissions } from '../hooks/usePermissions'
@@ -6,6 +7,7 @@ import { HelpCircle, Wallet, Users, Vote as VoteIcon, Plus, Check, X } from 'luc
 import { fmtTQ, toCents } from '../lib/format'
 
 export default function CommunityFund() {
+  const { t } = useTranslation('common')
   const { currency } = useConfig()
   const { hasPermission } = usePermissions()
   const [showHelp, setShowHelp] = useState(false)
@@ -36,7 +38,7 @@ export default function CommunityFund() {
   const createProposal = async () => {
     setError('')
     if (newProposal.amount <= 0 || !newProposal.recipient) {
-      setError('Monto y destinatario son obligatorios')
+      setError(t('fund.error_amount_recipient', 'Monto y destinatario son obligatorios'))
       return
     }
     try {
@@ -77,7 +79,7 @@ export default function CommunityFund() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold flex items-center gap-2"><Wallet size={24} />Fondo Comunitario</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2"><Wallet size={24} />{t('fund.title', 'Fondo Comunitario')}</h1>
         <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
           <HelpCircle size={20} />
         </button>

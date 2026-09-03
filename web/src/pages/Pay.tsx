@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../hooks/useAuth'
+import { useTranslation } from 'react-i18next'
 import Login from './Login'
 // Login se usa cuando no hay sesion; despues del login el usuario vuelve a /pay
 
@@ -58,6 +59,7 @@ export default function Pay() {
   const token = searchParams.get('t') || ''
   const navigate = useNavigate()
   const { username, isAuthenticated } = useAuth()
+  const { t } = useTranslation('transfer')
 
   const [charge, setCharge] = useState<ChargeInfo | null>(null)
   const [me, setMe] = useState<MeInfo | null>(null)
@@ -68,7 +70,7 @@ export default function Pay() {
   // --- Pantalla 1: cargar info del cargo (publico, sin login) ---
   useEffect(() => {
     if (!token) {
-      setError('Codigo QR invalido')
+      setError(t('pay.error_invalid_qr', 'Codigo QR invalido'))
       setStatus('error')
       return
     }
@@ -76,17 +78,17 @@ export default function Pay() {
     api.get<ChargeInfo>(`/pos/charge/${token}/info`)
       .then((data) => {
         if (data.status === 'expired') {
-          setError('Este codigo QR ha expirado')
+          setError(t('pay.error_expired', 'Este codigo QR ha expirado'))
           setStatus('error')
           return
         }
         if (data.status === 'paid') {
-          setError('Este pago ya fue realizado')
+          setError(t('pay.error_paid', 'Este pago ya fue realizado'))
           setStatus('error')
           return
         }
         if (data.status === 'cancelled') {
-          setError('Este pago fue cancelado')
+          setError(t('pay.error_cancelled', 'Este pago fue cancelado'))
           setStatus('error')
           return
         }
@@ -96,7 +98,7 @@ export default function Pay() {
         setStatus(isAuthenticated ? 'confirming' : 'ready')
       })
       .catch((e) => {
-        setError(e.message || 'No se pudo leer el codigo QR')
+        setError(e.message || t('pay.error_read_qr', 'No se pudo leer el codigo QR'))
         setStatus('error')
       })
   }, [token, isAuthenticated])
@@ -108,7 +110,7 @@ export default function Pay() {
     api.get<MeInfo>('/auth/me')
       .then((data) => setMe(data))
       .catch((e) => {
-        setError(e.message || 'No se pudo obtener tu cuenta')
+        setError(e.message || t('pay.error_account', 'No se pudo obtener tu cuenta'))
         setStatus('error')
       })
   }, [status, isAuthenticated, me])
@@ -147,7 +149,7 @@ export default function Pay() {
       setNewBalance(result.new_balance)
       setStatus('paid')
     } catch (e: any) {
-      setError(e.message || 'Error al procesar el pago')
+      setError(e.message || t('pay.error_process', 'Error al procesar el pago'))
       setStatus('error')
     }
   }
@@ -159,10 +161,10 @@ export default function Pay() {
   // Solo indicar el significado en texto neutro.
   const renderBalance = (balanceCentavos: number, label: string) => {
     const tag = balanceCentavos < 0
-      ? 'deuda con la comunidad (debes aportar)'
+      ? t('pay.balance_debt', 'deuda con la comunidad (debes aportar)')
       : balanceCentavos > 0
-        ? 'a favor de la comunidad (puedes recibir)'
-        : 'balance en cero'
+        ? t('pay.balance_credit', 'a favor de la comunidad (puedes recibir)')
+        : t('pay.balance_zero', 'balance en cero')
     return (
       <div>
         <p style={{ color: '#a0a0a0', fontSize: 13, marginBottom: 4 }}>{label}</p>
@@ -188,7 +190,7 @@ export default function Pay() {
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0a', color: 'white' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 48 }} className="pulse">⏳</div>
-          <p style={{ marginTop: 16 }}>Cargando pago...</p>
+          <p style={{ marginTop: 16 }}>{t('pay.loading', 'Cargando pago...')}</p>
         </div>
       </div>
     )
@@ -199,10 +201,10 @@ export default function Pay() {
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0a', color: 'white' }}>
         <div style={{ textAlign: 'center', maxWidth: 400, padding: 24 }}>
           <div style={{ fontSize: 64, marginBottom: 16 }}>❌</div>
-          <h1 style={{ fontSize: 24, marginBottom: 8 }}>Error</h1>
+          <h1 style={{ fontSize: 24, marginBottom: 8 }}>{t('pay.error_title', 'Error')}</h1>
           <p style={{ color: '#a0a0a0', marginBottom: 24 }}>{error}</p>
           <button onClick={() => navigate('/app/dashboard')} style={{ padding: '14px 24px', borderRadius: 12, background: '#0f766e', color: 'white', border: 'none', fontSize: 16, fontWeight: 600 }}>
-            Ir al inicio
+            {t('pay.go_home', 'Ir al inicio')}
           </button>
         </div>
       </div>
@@ -214,22 +216,22 @@ export default function Pay() {
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0a', color: 'white' }}>
         <div style={{ textAlign: 'center', maxWidth: 400, padding: 24 }}>
           <div style={{ fontSize: 80, marginBottom: 16 }}>✅</div>
-          <h1 style={{ fontSize: 28, color: '#16a34a', marginBottom: 8 }}>Pago Completado</h1>
+          <h1 style={{ fontSize: 28, color: '#16a34a', marginBottom: 8 }}>{t('pay.paid_title', 'Pago Completado')}</h1>
           <p style={{ fontSize: 20, marginBottom: 4 }}>{fmtTQ(charge?.amount || 0)} TQ</p>
-          <p style={{ color: '#a0a0a0', marginBottom: 24 }}>Pago realizado con exito</p>
+          <p style={{ color: '#a0a0a0', marginBottom: 24 }}>{t('pay.paid_success', 'Pago realizado con exito')}</p>
           {newBalance !== null && (
             <div style={{ background: '#1a1a1a', borderRadius: 12, padding: 16, marginBottom: 24 }}>
-              <p style={{ color: '#a0a0a0', fontSize: 13, marginBottom: 4 }}>Tu saldo actual</p>
+              <p style={{ color: '#a0a0a0', fontSize: 13, marginBottom: 4 }}>{t('pay.your_balance', 'Tu saldo actual')}</p>
               <p style={{ fontSize: 24, fontWeight: 800, color: '#e0e0e0' }}>
                 {newBalance < 0 ? '-' : ''}{fmtTQ(Math.abs(newBalance))} TQ
               </p>
               <p style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
-                {newBalance < 0 ? 'deuda con la comunidad (debes aportar)' : newBalance > 0 ? 'a favor de la comunidad (puedes recibir)' : 'balance en cero'}
+                {newBalance < 0 ? t('pay.balance_debt', 'deuda con la comunidad (debes aportar)') : newBalance > 0 ? t('pay.balance_credit', 'a favor de la comunidad (puedes recibir)') : t('pay.balance_zero', 'balance en cero')}
               </p>
             </div>
           )}
           <button onClick={() => navigate('/app/wallet')} style={{ padding: '14px 24px', borderRadius: 12, background: '#0f766e', color: 'white', border: 'none', fontSize: 16, fontWeight: 600 }}>
-            Ver mi billetera
+            {t('pay.view_wallet', 'Ver mi billetera')}
           </button>
         </div>
       </div>
@@ -243,12 +245,12 @@ export default function Pay() {
         <div style={{ maxWidth: 400, width: '100%' }}>
           <div style={{ textAlign: 'center', marginBottom: 32 }}>
             <div style={{ fontSize: 48, marginBottom: 8 }}>🛒</div>
-            <h1 style={{ fontSize: 24, fontWeight: 800 }}>Pago POS</h1>
+            <h1 style={{ fontSize: 24, fontWeight: 800 }}>{t('pay.pos_title', 'Pago POS')}</h1>
           </div>
 
           <div style={{ background: '#1a1a1a', borderRadius: 16, padding: 24, marginBottom: 24 }}>
             <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <p style={{ color: '#a0a0a0', fontSize: 14, marginBottom: 4 }}>MONTO A PAGAR</p>
+              <p style={{ color: '#a0a0a0', fontSize: 14, marginBottom: 4 }}>{t('pay.amount_to_pay', 'MONTO A PAGAR')}</p>
               <p style={{ fontSize: 48, fontWeight: 800, color: '#14b8a6' }}>
                 {fmtTQ(charge?.amount || 0)} TQ
               </p>
@@ -256,12 +258,12 @@ export default function Pay() {
 
             <div style={{ borderTop: '1px solid #333', paddingTop: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ color: '#a0a0a0', fontSize: 14 }}>Comerciante</span>
+                <span style={{ color: '#a0a0a0', fontSize: 14 }}>{t('pay.merchant', 'Comerciante')}</span>
                 <span style={{ fontSize: 14 }}>{charge?.merchant_name || 'POS'}</span>
               </div>
               {charge?.description && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <span style={{ color: '#a0a0a0', fontSize: 14 }}>Concepto</span>
+                  <span style={{ color: '#a0a0a0', fontSize: 14 }}>{t('pay.concept', 'Concepto')}</span>
                   <span style={{ fontSize: 14 }}>{charge.description}</span>
                 </div>
               )}
@@ -276,7 +278,7 @@ export default function Pay() {
               fontSize: 18, fontWeight: 700, cursor: 'pointer',
             }}
           >
-            Continuar
+            {t('pay.continue', 'Continuar')}
           </button>
 
           <button
@@ -287,7 +289,7 @@ export default function Pay() {
               fontSize: 14, cursor: 'pointer',
             }}
           >
-            Cancelar
+            {t('pay.cancel', 'Cancelar')}
           </button>
         </div>
       </div>
@@ -322,13 +324,13 @@ export default function Pay() {
 
   let warningMsg = ''
   if (exceedsCreditLimit) {
-    warningMsg = `Este pago te llevaria a ${fmtTQ(balanceAfter)} TQ, por debajo de tu tope de credito comunitario (${fmtTQ(creditLimit)} TQ). Debes aportar a la comunidad (bienes o trabajo) para poder pagar nuevamente.`
+    warningMsg = t('pay.warn_exceeds_credit', `Este pago te llevaria a ${fmtTQ(balanceAfter)} TQ, por debajo de tu tope de credito comunitario (${fmtTQ(creditLimit)} TQ). Debes aportar a la comunidad (bienes o trabajo) para poder pagar nuevamente.`, { after: fmtTQ(balanceAfter), limit: fmtTQ(creditLimit) })
   } else if (exceedsDebitLimit) {
-    warningMsg = `Este pago te llevaria a ${fmtTQ(balanceAfter)} TQ, por encima de tu tope de debito (${fmtTQ(debitLimit)} TQ). Debes recibir de la comunidad para poder pagar nuevamente.`
+    warningMsg = t('pay.warn_exceeds_debit', `Este pago te llevaria a ${fmtTQ(balanceAfter)} TQ, por encima de tu tope de debito (${fmtTQ(debitLimit)} TQ). Debes recibir de la comunidad para poder pagar nuevamente.`, { after: fmtTQ(balanceAfter), limit: fmtTQ(debitLimit) })
   } else if (nearCreditLimit) {
-    warningMsg = `Atencion: despues de este pago estarias al ${Math.round(creditUsedAfterPct)}% de tu tope de credito comunitario (${fmtTQ(creditLimit)} TQ).`
+    warningMsg = t('pay.warn_near_credit', `Atencion: despues de este pago estarias al ${Math.round(creditUsedAfterPct)}% de tu tope de credito comunitario (${fmtTQ(creditLimit)} TQ).`, { pct: Math.round(creditUsedAfterPct), limit: fmtTQ(creditLimit) })
   } else if (nearDebitLimit) {
-    warningMsg = `Atencion: despues de este pago estarias al ${Math.round(debitUsedAfterPct)}% de tu tope de debito (${fmtTQ(debitLimit)} TQ).`
+    warningMsg = t('pay.warn_near_debit', `Atencion: despues de este pago estarias al ${Math.round(debitUsedAfterPct)}% de tu tope de debito (${fmtTQ(debitLimit)} TQ).`, { pct: Math.round(debitUsedAfterPct), limit: fmtTQ(debitLimit) })
   }
 
   return (
@@ -336,12 +338,12 @@ export default function Pay() {
       <div style={{ maxWidth: 400, width: '100%' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{ fontSize: 40, marginBottom: 8 }}>🛒</div>
-          <h1 style={{ fontSize: 22, fontWeight: 800 }}>Confirmar Pago</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 800 }}>{t('pay.confirm_title', 'Confirmar Pago')}</h1>
         </div>
 
         {/* Monto a pagar */}
         <div style={{ background: '#1a1a1a', borderRadius: 16, padding: 20, marginBottom: 16, textAlign: 'center' }}>
-          <p style={{ color: '#a0a0a0', fontSize: 13, marginBottom: 4 }}>MONTO A PAGAR</p>
+          <p style={{ color: '#a0a0a0', fontSize: 13, marginBottom: 4 }}>{t('pay.amount_to_pay', 'MONTO A PAGAR')}</p>
           <p style={{ fontSize: 40, fontWeight: 800, color: '#14b8a6' }}>
             {fmtTQ(amountCentavos)} TQ
           </p>
@@ -350,22 +352,22 @@ export default function Pay() {
         {/* Quien paga y a quien - AMBOS visibles */}
         <div style={{ background: '#1a1a1a', borderRadius: 16, padding: 20, marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ color: '#a0a0a0', fontSize: 14 }}>Pagas a (vendedor)</span>
+            <span style={{ color: '#a0a0a0', fontSize: 14 }}>{t('pay.pay_to', 'Pagas a (vendedor)')}</span>
             <span style={{ fontSize: 14, fontWeight: 600 }}>{charge?.merchant_name || 'POS'}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ color: '#a0a0a0', fontSize: 14 }}>Tu cuenta (comprador)</span>
+            <span style={{ color: '#a0a0a0', fontSize: 14 }}>{t('pay.your_account', 'Tu cuenta (comprador)')}</span>
             <span style={{ fontSize: 14, fontWeight: 600 }}>@{me?.username || username}</span>
           </div>
           {me?.display_name && me.display_name !== me.username && (
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-              <span style={{ color: '#a0a0a0', fontSize: 14 }}>Nombre</span>
+              <span style={{ color: '#a0a0a0', fontSize: 14 }}>{t('pay.name', 'Nombre')}</span>
               <span style={{ fontSize: 14 }}>{me.display_name}</span>
             </div>
           )}
           {charge?.description && (
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#a0a0a0', fontSize: 14 }}>Concepto</span>
+              <span style={{ color: '#a0a0a0', fontSize: 14 }}>{t('pay.concept', 'Concepto')}</span>
               <span style={{ fontSize: 14 }}>{charge.description}</span>
             </div>
           )}
@@ -375,15 +377,15 @@ export default function Pay() {
         {me && (
           <div style={{ background: '#1a1a1a', borderRadius: 16, padding: 20, marginBottom: 16 }}>
             <div style={{ marginBottom: 16 }}>
-              {renderBalance(me.balance, 'TU SALDO ACTUAL')}
+              {renderBalance(me.balance, t('pay.your_balance_current', 'TU SALDO ACTUAL'))}
             </div>
             <div style={{ borderTop: '1px solid #333', paddingTop: 16, marginBottom: 16 }}>
-              {renderBalance(balanceAfter, 'SALDO DESPUES DE PAGAR')}
+              {renderBalance(balanceAfter, t('pay.balance_after', 'SALDO DESPUES DE PAGAR'))}
             </div>
             {/* Tope comunitario (unico, reciproco: +/- tope) */}
             <div style={{ borderTop: '1px solid #333', paddingTop: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#a0a0a0', fontSize: 12 }}>Tu tope comunitario</span>
+                <span style={{ color: '#a0a0a0', fontSize: 12 }}>{t('pay.community_limit', 'Tu tope comunitario')}</span>
                 <span style={{ fontSize: 12, color: '#888' }}>±{fmtTQ(tope)} TQ</span>
               </div>
             </div>
@@ -417,7 +419,7 @@ export default function Pay() {
             opacity: status === 'paying' ? 0.5 : 1,
           }}
         >
-          {status === 'paying' ? 'Procesando...' : '✓ Confirmar y Pagar'}
+          {status === 'paying' ? t('pay.processing', 'Procesando...') : t('pay.confirm_pay', 'Confirmar y Pagar')}
         </button>
 
         <button
@@ -428,7 +430,7 @@ export default function Pay() {
             fontSize: 14, cursor: 'pointer',
           }}
         >
-          Cancelar
+          {t('pay.cancel', 'Cancelar')}
         </button>
       </div>
     </div>

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Satellite, Download, Upload, RefreshCw, Users, CreditCard, AlertTriangle, CheckCircle } from 'lucide-react'
 import { api } from '../api'
 import { fmtDateTime } from '../lib/format'
 
 export default function SatelliteSetup() {
+  const { t } = useTranslation('satellite')
   const [status, setStatus] = useState<any>(null)
   const [cachedUsers, setCachedUsers] = useState<any[]>([])
   const [pendingTx, setPendingTx] = useState<any[]>([])
@@ -18,7 +20,7 @@ export default function SatelliteSetup() {
       const s = await api.get<any>('/satellite/snapshot/status')
       setStatus(s)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cargar estado')
+      setError(err instanceof Error ? err.message : t('error_loading'))
     }
   }
 
@@ -48,7 +50,7 @@ export default function SatelliteSetup() {
 
   const handleSnapshotPull = async () => {
     if (!nodeUrl) {
-      setError('Ingresa la URL del nodo origen (ej: https://nodo1.com:8443)')
+      setError(t('enter_node_url'))
       return
     }
     setLoading(true)
@@ -56,11 +58,11 @@ export default function SatelliteSetup() {
     setMsg('')
     try {
       const result = await api.post<any>('/satellite/snapshot/pull', { node_url: nodeUrl })
-      setMsg(`Snapshot descargado: ${result.users_cached} usuarios, ${result.cards_cached} tarjetas cacheados`)
+      setMsg(t('snapshot_downloaded', { users: result.users_cached, cards: result.cards_cached }))
       loadStatus()
       loadCachedUsers()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al descargar snapshot')
+      setError(err instanceof Error ? err.message : t('error_snapshot'))
     } finally {
       setLoading(false)
     }
@@ -68,7 +70,7 @@ export default function SatelliteSetup() {
 
   const handleSyncAll = async () => {
     if (!syncUrl) {
-      setError('Ingresa la URL del nodo origen para sincronizar')
+      setError(t('enter_sync_url'))
       return
     }
     setLoading(true)
@@ -76,11 +78,11 @@ export default function SatelliteSetup() {
     setMsg('')
     try {
       const result = await api.post<any>('/satellite/sync-all', { node_url: syncUrl })
-      setMsg(`Sincronizacion completa: ${result.synced} transacciones enviadas, ${result.failed} fallidas`)
+      setMsg(t('sync_complete', { synced: result.synced, failed: result.failed }))
       loadStatus()
       loadPendingTx()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al sincronizar')
+      setError(err instanceof Error ? err.message : t('error_sync'))
     } finally {
       setLoading(false)
     }
@@ -92,13 +94,13 @@ export default function SatelliteSetup() {
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-2">
         <Satellite size={24} className="text-purple-600" />
-        <h2 className="text-xl font-bold">Nodo Satelite</h2>
+        <h2 className="text-xl font-bold">{t('title')}</h2>
       </div>
 
       {!isSatellite && (
         <div className="card bg-amber-50 border-amber-200 text-sm text-amber-800">
-          <p><strong>Este nodo no esta configurado como satelite.</strong></p>
-          <p className="mt-1">Para configurarlo como satelite, establece <code>NODE_TYPE=satellite</code> en las variables de entorno del nodo y reinicia.</p>
+          <p><strong>{t('not_satellite')}</strong></p>
+          <p className="mt-1">{t('not_satellite_hint')} <code>NODE_TYPE=satellite</code> {t('not_satellite_env')}</p>
         </div>
       )}
 
@@ -108,27 +110,27 @@ export default function SatelliteSetup() {
       {/* Estado del cache */}
       {status && (
         <div className="card">
-          <h3 className="font-semibold flex items-center gap-2 mb-3"><RefreshCw size={16} /> Estado del Cache</h3>
+          <h3 className="font-semibold flex items-center gap-2 mb-3"><RefreshCw size={16} /> {t('cache_status')}</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
             <div className="bg-gray-50 rounded-lg p-3">
               <Users size={16} className="text-blue-600 mb-1" />
-              <div className="text-gray-500 text-xs">Usuarios cacheados</div>
+              <div className="text-gray-500 text-xs">{t('users_cached')}</div>
               <div className="font-bold text-lg">{status.users_cached || 0}</div>
             </div>
             <div className="bg-gray-50 rounded-lg p-3">
               <CreditCard size={16} className="text-indigo-600 mb-1" />
-              <div className="text-gray-500 text-xs">Tarjetas cacheadas</div>
+              <div className="text-gray-500 text-xs">{t('cards_cached')}</div>
               <div className="font-bold text-lg">{status.cards_cached || 0}</div>
             </div>
             <div className="bg-gray-50 rounded-lg p-3">
               <AlertTriangle size={16} className="text-orange-600 mb-1" />
-              <div className="text-gray-500 text-xs">Tx pendientes</div>
+              <div className="text-gray-500 text-xs">{t('pending_tx')}</div>
               <div className="font-bold text-lg">{status.pending_tx || 0}</div>
             </div>
             <div className="bg-gray-50 rounded-lg p-3">
               <CheckCircle size={16} className="text-green-600 mb-1" />
-              <div className="text-gray-500 text-xs">Ultimo snapshot</div>
-              <div className="font-bold text-xs">{status.last_cached_at ? fmtDateTime(status.last_cached_at) : 'Nunca'}</div>
+              <div className="text-gray-500 text-xs">{t('last_snapshot')}</div>
+              <div className="font-bold text-xs">{status.last_cached_at ? fmtDateTime(status.last_cached_at) : t('never')}</div>
             </div>
           </div>
         </div>
@@ -136,20 +138,19 @@ export default function SatelliteSetup() {
 
       {/* Snapshot Pull */}
       <div className="card space-y-3">
-        <h3 className="font-semibold flex items-center gap-2"><Download size={16} /> Descargar Snapshot (antes de desconectar)</h3>
+        <h3 className="font-semibold flex items-center gap-2"><Download size={16} /> {t('snapshot_pull_title')}</h3>
         <p className="text-xs text-gray-500">
-          Descarga el estado actual de usuarios y tarjetas del nodo origen. Esto permite operar offline en la feria.
-          Debes ejecutar esto ANTES de desconectarte de la red.
+          {t('snapshot_pull_desc')}
         </p>
         <div>
-          <label className="label">URL del nodo origen (servidor federado mTLS)</label>
+          <label className="label">{t('node_url_label')}</label>
           <input
             className="input"
             placeholder="https://nodo1.com:8443"
             value={nodeUrl}
             onChange={(e) => setNodeUrl(e.target.value)}
           />
-          <p className="text-xs text-gray-400 mt-1">La URL del servidor federado del nodo principal. Incluye el puerto mTLS (ej: 8443).</p>
+          <p className="text-xs text-gray-400 mt-1">{t('node_url_hint')}</p>
         </div>
         <button
           onClick={handleSnapshotPull}
@@ -157,18 +158,18 @@ export default function SatelliteSetup() {
           className="btn-primary flex items-center gap-2 disabled:opacity-50"
         >
           <Download size={18} />
-          {loading ? 'Descargando...' : 'Descargar Snapshot'}
+          {loading ? t('downloading') : t('download_snapshot')}
         </button>
       </div>
 
       {/* Sync Push */}
       <div className="card space-y-3">
-        <h3 className="font-semibold flex items-center gap-2"><Upload size={16} /> Sincronizar Transacciones (al reconectar)</h3>
+        <h3 className="font-semibold flex items-center gap-2"><Upload size={16} /> {t('sync_push_title')}</h3>
         <p className="text-xs text-gray-500">
-          Envia las transacciones registradas offline al nodo origen. Ejecuta esto cuando recuperes conexion a internet o intranet.
+          {t('sync_push_desc')}
         </p>
         <div>
-          <label className="label">URL del nodo origen</label>
+          <label className="label">{t('sync_url_label')}</label>
           <input
             className="input"
             placeholder="https://nodo1.com:8443"
@@ -182,24 +183,24 @@ export default function SatelliteSetup() {
           className="btn-primary flex items-center gap-2 disabled:opacity-50"
         >
           <Upload size={18} />
-          {loading ? 'Sincronizando...' : `Sincronizar ${status?.pending_tx || 0} transacciones`}
+          {loading ? t('syncing') : t('sync_txs', { count: status?.pending_tx || 0 })}
         </button>
       </div>
 
       {/* Usuarios cacheados */}
       {cachedUsers.length > 0 && (
         <div className="card">
-          <h3 className="font-semibold flex items-center gap-2 mb-3"><Users size={16} /> Usuarios en Cache ({cachedUsers.length})</h3>
+          <h3 className="font-semibold flex items-center gap-2 mb-3"><Users size={16} /> {t('cached_users_title', { count: cachedUsers.length })}</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-gray-500 border-b">
-                  <th className="pb-2">Usuario</th>
-                  <th className="pb-2">Nodo</th>
-                  <th className="pb-2">Saldo</th>
-                  <th className="pb-2">Limite credito</th>
-                  <th className="pb-2">Estado</th>
-                  <th className="pb-2">Cacheado</th>
+                  <th className="pb-2">{t('col_user')}</th>
+                  <th className="pb-2">{t('col_node')}</th>
+                  <th className="pb-2">{t('col_balance')}</th>
+                  <th className="pb-2">{t('col_credit_limit')}</th>
+                  <th className="pb-2">{t('col_status')}</th>
+                  <th className="pb-2">{t('col_cached')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -220,7 +221,7 @@ export default function SatelliteSetup() {
               </tbody>
             </table>
             {cachedUsers.length > 50 && (
-              <p className="text-xs text-gray-400 mt-2">Mostrando 50 de {cachedUsers.length} usuarios</p>
+              <p className="text-xs text-gray-400 mt-2">{t('showing_count', { count: cachedUsers.length })}</p>
             )}
           </div>
         </div>
@@ -229,16 +230,16 @@ export default function SatelliteSetup() {
       {/* Transacciones pendientes */}
       {pendingTx.length > 0 && (
         <div className="card">
-          <h3 className="font-semibold flex items-center gap-2 mb-3"><AlertTriangle size={16} /> Transacciones Pendientes ({pendingTx.length})</h3>
+          <h3 className="font-semibold flex items-center gap-2 mb-3"><AlertTriangle size={16} /> {t('pending_tx_title', { count: pendingTx.length })}</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-gray-500 border-b">
-                  <th className="pb-2">ID</th>
-                  <th className="pb-2">Emisor</th>
-                  <th className="pb-2">Nodo emisor</th>
-                  <th className="pb-2">Monto</th>
-                  <th className="pb-2">Fecha</th>
+                  <th className="pb-2">{t('col_id')}</th>
+                  <th className="pb-2">{t('col_sender')}</th>
+                  <th className="pb-2">{t('col_sender_node')}</th>
+                  <th className="pb-2">{t('col_amount')}</th>
+                  <th className="pb-2">{t('col_date')}</th>
                 </tr>
               </thead>
               <tbody>

@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { AlertTriangle, Users, ArrowRight, Check, X, Search, Vote } from 'lucide-react'
 import { fmtTQ } from '../lib/format'
 
 export default function MergeConflicts() {
+  const { t } = useTranslation('federation')
   const { currency } = useConfig()
   const [conflicts, setConflicts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -22,7 +24,7 @@ export default function MergeConflicts() {
     api.get('/federation/merge-conflicts').then((d: any) => {
       setConflicts(Array.isArray(d) ? d : [])
     }).catch(() => {
-      setError('Error al cargar conflictos')
+      setError(t('merge_error_loading', 'Error al cargar conflictos'))
     }).finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
@@ -102,11 +104,11 @@ export default function MergeConflicts() {
 
   const statusLabel = (status: string) => {
     switch (status) {
-      case 'pending': return 'Pendiente'
-      case 'voting': return 'Votando'
-      case 'resolved': return 'Aprobado'
-      case 'blocked': return 'Bloqueado'
-      case 'executed': return 'Ejecutado'
+      case 'pending': return t('merge_status_pending')
+      case 'voting': return t('merge_status_voting')
+      case 'resolved': return t('merge_status_resolved')
+      case 'blocked': return t('merge_status_blocked')
+      case 'executed': return t('merge_status_executed')
       default: return status
     }
   }
@@ -115,16 +117,14 @@ export default function MergeConflicts() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold flex items-center gap-2">
-          <AlertTriangle size={24} /> Conflictos de Fusion
+          <AlertTriangle size={24} /> {t('merge_title')}
         </h1>
       </div>
 
       <div className="card bg-amber-50 border-amber-200">
-        <h2 className="font-semibold text-amber-800 mb-2">Como funciona</h2>
+        <h2 className="font-semibold text-amber-800 mb-2">{t('merge_how_works')}</h2>
         <p className="text-sm text-amber-700">
-          Cuando dos nodos se federan, si hay usuarios registrados en ambos con el mismo ID nacional,
-          ambas asambleas deben consensuar en cual nodo se queda cada persona y que hacer con el saldo.
-          Mientras haya conflictos sin resolver, la federacion no se puede completar.
+          {t('merge_how_works_desc')}
         </p>
       </div>
 
@@ -133,8 +133,8 @@ export default function MergeConflicts() {
 
       {/* Escanear conflictos con otro nodo */}
       <div className="card">
-        <h2 className="font-semibold flex items-center gap-2 mb-3"><Search size={18} />Escanear Conflictos</h2>
-        <p className="text-xs text-gray-500 mb-3">Ingresa el dominio del otro nodo para buscar usuarios duplicados por ID nacional.</p>
+        <h2 className="font-semibold flex items-center gap-2 mb-3"><Search size={18} />{t('merge_scan_title')}</h2>
+        <p className="text-xs text-gray-500 mb-3">{t('merge_scan_desc')}</p>
         <div className="flex gap-2">
           <input
             className="input flex-1"
@@ -143,24 +143,24 @@ export default function MergeConflicts() {
             onChange={(e) => setScanDomain(e.target.value)}
           />
           <button onClick={scan} disabled={scanning} className="btn-primary flex items-center gap-2">
-            {scanning ? 'Escaneando...' : 'Escanear'}
+            {scanning ? t('merge_scanning') : t('merge_scan')}
           </button>
         </div>
         {scanResult && (
           <div className="mt-3 text-sm">
-            <b>Resultado:</b> {scanResult.count} conflicto(s) encontrado(s)
+            <b>{t('merge_scan_result')}</b> {scanResult.count} {t('merge_conflicts_found')}
           </div>
         )}
       </div>
 
       {/* Lista de conflictos */}
       {loading ? (
-        <div className="card text-center text-gray-500 py-8">Cargando conflictos...</div>
+        <div className="card text-center text-gray-500 py-8">{t('merge_loading')}</div>
       ) : conflicts.length === 0 ? (
         <div className="card text-center text-gray-500 py-8">
-          No hay conflictos pendientes.
+          {t('merge_no_conflicts')}
           <br />
-          <span className="text-sm">Escanea otro nodo para detectar duplicados.</span>
+          <span className="text-sm">{t('merge_no_conflicts_hint')}</span>
         </div>
       ) : (
         <div className="space-y-3">
@@ -172,7 +172,7 @@ export default function MergeConflicts() {
                     {statusLabel(c.status)}
                   </span>
                   <span className="text-xs text-gray-500">
-                    {c.match_type === 'passport' ? 'Coincidencia: Pasaporte' : c.match_type === 'both' ? 'Coincidencia: ID + Pasaporte' : 'Coincidencia: ID Nacional'}
+                    {c.match_type === 'passport' ? t('merge_match_passport') : c.match_type === 'both' ? t('merge_match_both') : t('merge_match_id')}
                   </span>
                   {c.national_id && <span className="text-xs text-gray-400">ID: {c.national_id}</span>}
                   {c.passport_number && <span className="text-xs text-gray-400">Pass: {c.passport_number}</span>}
@@ -182,13 +182,13 @@ export default function MergeConflicts() {
               {/* Usuarios en conflicto */}
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div className="bg-blue-50 p-3 rounded-lg">
-                  <div className="text-xs text-blue-600 mb-1">Nodo A</div>
+                  <div className="text-xs text-blue-600 mb-1">{t('merge_node_a')}</div>
                   <div className="font-medium">{c.node_a_domain}</div>
                   <div className="text-sm">{c.user_a_name}</div>
                   <div className="text-xs text-gray-500 mt-1">Saldo: {fmtTQ(c.balance_a)} {currency}</div>
                 </div>
                 <div className="bg-purple-50 p-3 rounded-lg">
-                  <div className="text-xs text-purple-600 mb-1">Nodo B</div>
+                  <div className="text-xs text-purple-600 mb-1">{t('merge_node_b')}</div>
                   <div className="font-medium">{c.node_b_domain}</div>
                   <div className="text-sm">{c.user_b_name}</div>
                   <div className="text-xs text-gray-500 mt-1">Saldo: {fmtTQ(c.balance_b)} {currency}</div>
@@ -217,26 +217,26 @@ export default function MergeConflicts() {
               <div className="flex gap-2 flex-wrap">
                 {c.status === 'pending' && (
                   <button onClick={() => setSelectedConflict(c)} className="btn-primary text-sm flex items-center gap-1">
-                    <Vote size={14} /> Proponer resolucion
+                    <Vote size={14} /> {t('merge_propose_resolution')}
                   </button>
                 )}
                 {c.status === 'voting' && c.vote_a_status !== 'approved' && c.vote_b_status !== 'approved' && (
                   <>
                     <button onClick={() => voteOnConflict(c.id, 'approved')} className="btn-primary text-sm flex items-center gap-1">
-                      <Check size={14} /> Aprobar
+                      <Check size={14} /> {t('merge_approve')}
                     </button>
                     <button onClick={() => voteOnConflict(c.id, 'rejected')} className="btn-danger text-sm flex items-center gap-1">
-                      <X size={14} /> Rechazar
+                      <X size={14} /> {t('merge_reject')}
                     </button>
                   </>
                 )}
                 {c.status === 'resolved' && (
                   <button onClick={() => execute(c.id)} className="btn-primary text-sm flex items-center gap-1">
-                    <ArrowRight size={14} /> Ejecutar migracion
+                    <ArrowRight size={14} /> {t('merge_execute')}
                   </button>
                 )}
                 {c.status === 'blocked' && (
-                  <span className="text-xs text-red-600">Bloqueado - ambas asambleas deben llegar a consenso</span>
+                  <span className="text-xs text-red-600">{t('merge_blocked_hint')}</span>
                 )}
               </div>
             </div>
@@ -248,11 +248,11 @@ export default function MergeConflicts() {
       {selectedConflict && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 max-w-md w-full space-y-4">
-            <h2 className="font-semibold text-lg">Proponer Resolucion</h2>
+            <h2 className="font-semibold text-lg">{t('merge_proposal_title')}</h2>
             <p className="text-sm text-gray-600">Usuario: {selectedConflict.user_a_name} / {selectedConflict.user_b_name}</p>
 
             <div>
-              <label className="label">En que nodo se queda?</label>
+              <label className="label">{t('merge_which_node')}</label>
               <select
                 className="input"
                 value={resolution.proposed_resolution}
@@ -261,19 +261,19 @@ export default function MergeConflicts() {
                 <option value="a">Nodo A ({selectedConflict.node_a_domain})</option>
                 <option value="b">Nodo B ({selectedConflict.node_b_domain})</option>
               </select>
-              <p className="text-xs text-gray-400 mt-1">No se permite membresia dual. El usuario se queda en un solo nodo.</p>
+              <p className="text-xs text-gray-400 mt-1">{t('merge_no_dual')}</p>
             </div>
 
             <div>
-              <label className="label">Que hacer con los saldos?</label>
+              <label className="label">{t('merge_balance_action')}</label>
               <select
                 className="input"
                 value={resolution.balance_action}
                 onChange={(e) => setResolution({ ...resolution, balance_action: e.target.value })}
               >
-                <option value="combine">Combinar (suma algebraica: +10 y -20 = -10)</option>
-                <option value="forgive_debt">Condonar deuda del nodo removido</option>
-                <option value="remove_balance">Descartar saldo del nodo removido</option>
+                <option value="combine">{t('merge_combine')}</option>
+                <option value="forgive_debt">{t('merge_forgive_debt')}</option>
+                <option value="remove_balance">{t('merge_remove_balance')}</option>
               </select>
               <p className="text-xs text-gray-400 mt-1">
                 Combinar: suma ambos saldos (positivo+positivo=mas positivo, negativo+negativo=mas negativo, positivo+negativo=se compensan).
