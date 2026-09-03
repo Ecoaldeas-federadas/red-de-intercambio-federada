@@ -49,6 +49,9 @@ func (th *TranslationHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 		r.Get("/api/translations/missing/{lang}", th.getMissingTranslations)
 		r.Get("/api/translations/{lang}/status", th.getTranslationStatus)
 
+		// Ver traducciones federadas (cualquier usuario autenticado)
+		r.Get("/api/translations/federated", th.getFederatedTranslations)
+
 		// Editar traducciones (requiere translations.edit)
 		r.Group(func(r chi.Router) {
 			r.Use(am.RequirePermission("translations.edit"))
@@ -63,6 +66,7 @@ func (th *TranslationHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 			r.Delete("/api/languages/{code}", th.deleteLanguage)
 			r.Post("/api/translations/upload", th.uploadTranslations)
 			r.Get("/api/translations/{lang}/download", th.downloadTranslations)
+			r.Post("/api/translations/federated/install", th.installFederatedTranslation)
 		})
 	})
 }
@@ -590,4 +594,87 @@ var globalJWTSecret = ""
 
 func SetGlobalJWTSecret(secret string) {
 	globalJWTSecret = secret
+}
+
+// getFederatedTranslations lista las traducciones recibidas de otros nodos.
+// GET /api/translations/federated
+func (th *TranslationHandler) getFederatedTranslations(w http.ResponseWriter, r *http.Request) {
+	rows, err := th.Pool.Query(r.Context(),
+		`SELECT id, source_node, language_code, display_name, version, file_hash,
+		        signed_by, signature, num_keys, received_at, installed, installed_at
+		 FROM federated_translations
+		 ORDER BY received_at DESC`)
+	if err != nil {
+		writeJSON(w, 500, map[string]string{"error": "error querying federated translations"})
+		return
+	}
+	defer rows.Close()
+
+	var result []map[string]interface{}
+	for rows.Next() {
+		var id int
+		var sourceNode, langCode, displayName, version, fileHash, signedBy, signature string
+		var numKeys int
+		var receivedAt string
+		var installed bool
+		var installedAt *string
+
+		if err := rows.Scan(&id, &sourceNode, &langCode, &displayName, &version, &fileHash,
+			&signedBy, &signature, &numKeys, &receivedAt, &installed, &installedAt); err != nil {
+			continue
+		}
+
+		entry := map[string]interface{}{
+			"id":            id,
+			"source_node":   sourceNode,
+			"language_code": langCode,
+			"display_name":  displayName,
+			"version":       version,
+			"file_hash":     fileHash,
+			"signed_by":     signedBy,
+			"signature":     signature,
+			"num_keys":      numKeys,
+			"received_at":   receivedAt,
+			"installed":     installed,
+		}
+		if installedAt != nil {
+			entry["installed_at"] = *installedAt
+		}
+		result = append(result, entry)
+	}
+	if result == nil {
+		result = []map[string]interface{}{}
+	}
+	writeJSON(w, 200, result)
+}
+
+// installFederatedTranslation descarga e instala una traduccion de otro nodo.
+// POST /api/translations/federated/install
+// Body: { "source_node": "...", "language_code": "..." }
+func (th *TranslationHandler) installFederatedTranslation(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		SourceNode   string `json:"source_node"`
+		LanguageCode string `json:"language_code"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, 400, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if req.SourceNode == "" || req.LanguageCode == "" {
+		writeJSON(w, 400, map[string]string{"error": "source_node and language_code required"})
+		return
+	}
+
+	// Marcar como instalado
+	_, err := th.Pool.Exec(r.Context(),
+		`UPDATE federated_translations
+		 SET installed = true, installed_at = NOW()
+		 WHERE source_node = $1 AND language_code = $2`,
+		req.SourceNode, req.LanguageCode)
+	if err != nil {
+		writeJSON(w, 500, map[string]string{"error": "error installing translation"})
+		return
+	}
+
+	writeJSON(w, 200, map[string]string{"status": "installed"})
 }

@@ -29,5 +29,6 @@
   "actions": "Actions",
   "disabled": "disabled",
   "language_added": "Language added",
-  "download_error": "Error downloading"
+  "download_error": "Error downloading",
+  "installed": "Installed"
 }

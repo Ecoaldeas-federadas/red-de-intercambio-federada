@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
-import { Languages, Download, Upload, CheckCircle, AlertCircle, Loader2, Save, Plus } from 'lucide-react'
+import { Languages, Download, Upload, CheckCircle, AlertCircle, Loader2, Save, Plus, Network } from 'lucide-react'
 
 export default function TranslationEditor() {
   const { t, i18n } = useTranslation('common')
   const [languages, setLanguages] = useState<any[]>([])
   const [selectedLang, setSelectedLang] = useState('en')
   const [status, setStatus] = useState<any[]>([])
+  const [federatedTranslations, setFederatedTranslations] = useState<any[]>([])
   const [missing, setMissing] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [editingValues, setEditingValues] = useState<Record<string, string>>({})
@@ -21,6 +22,7 @@ export default function TranslationEditor() {
 
   useEffect(() => {
     loadLanguages()
+    loadFederatedTranslations()
   }, [])
 
   useEffect(() => {
@@ -42,6 +44,15 @@ export default function TranslationEditor() {
       ])
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadFederatedTranslations = async () => {
+    try {
+      const res = await api.get<any[]>('/translations/federated')
+      setFederatedTranslations(res || [])
+    } catch {
+      setFederatedTranslations([])
     }
   }
 
@@ -183,6 +194,24 @@ export default function TranslationEditor() {
     } catch (err: any) {
       setUploadError(true)
       setUploadMsg(err.message || t('translations.upload_error', 'Error al subir archivo'))
+    }
+  }
+
+  const handleInstallFederated = async (ft: any) => {
+    if (!confirm(t('translations.confirm_apply', 'Aplicar esta traduccion? Sobrescribira tus traducciones actuales de este idioma.'))) {
+      return
+    }
+    try {
+      await api.post('/translations/federated/install', {
+        source_node: ft.source_node,
+        language_code: ft.language_code,
+      })
+      setSaveMsg(t('translations.installed', 'Instalado'))
+      loadFederatedTranslations()
+      loadStatus()
+      loadMissing()
+    } catch (e: any) {
+      setSaveMsg(e.message || t('translations.save_error', 'Error al guardar'))
     }
   }
 
@@ -417,6 +446,47 @@ export default function TranslationEditor() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Traducciones de otros nodos federados */}
+      <div className="card p-4">
+        <h2 className="font-semibold mb-3 flex items-center gap-2">
+          <Network size={18} /> {t('translations.federation', 'Traducciones de otros nodos')}
+        </h2>
+        {federatedTranslations.length === 0 ? (
+          <div className="text-center py-6 text-gray-400">
+            <Network size={24} className="mx-auto mb-2 opacity-30" />
+            <p className="text-sm">{t('translations.no_federation_translations', 'No hay traducciones disponibles de otros nodos')}</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {federatedTranslations.map((ft: any) => (
+              <div key={`${ft.source_node}-${ft.language_code}`} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <span className="font-medium text-sm">{ft.display_name}</span>
+                  <span className="text-xs text-gray-500 ml-2">({ft.language_code})</span>
+                  <div className="text-xs text-gray-400 mt-0.5">
+                    {t('translations.node', 'Nodo')}: {ft.source_node} · v{ft.version} · {ft.num_keys} keys
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  {!ft.installed ? (
+                    <button
+                      onClick={() => handleInstallFederated(ft)}
+                      className="btn-primary text-xs py-1 px-2 flex items-center gap-1"
+                    >
+                      <Download size={14} /> {t('translations.download', 'Descargar')}
+                    </button>
+                  ) : (
+                    <span className="text-xs text-green-600 flex items-center gap-1">
+                      <CheckCircle size={14} /> {t('translations.installed', 'Instalado')}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

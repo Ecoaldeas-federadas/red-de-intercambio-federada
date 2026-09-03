@@ -100,6 +100,11 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("/federation/drivers/download/", s.handleDriversDownload)
 	mux.HandleFunc("/federation/drivers/sync", s.handleDriversSync)
 
+	// Translation sharing (manual download, no auto-install)
+	mux.HandleFunc("/federation/translations/list", s.handleTranslationsList)
+	mux.HandleFunc("/federation/translations/download/", s.handleTranslationsDownload)
+	mux.HandleFunc("/federation/translations/sync", s.handleTranslationsSync)
+
 	// Node profile sharing (perfiles de fe + prohibiciones de productos)
 	mux.HandleFunc("/federation/faith-profiles/list", s.handleFaithProfilesList)
 	mux.HandleFunc("/federation/faith-profiles/sync", s.handleFaithProfilesSync)
