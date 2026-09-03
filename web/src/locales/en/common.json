@@ -119,7 +119,27 @@
     "session_expired": "Your session has expired. Please log in again.",
     "demo_mode": "Demo mode",
     "demo_users": "Available demo users",
-    "select_demo_user": "Select a demo user to log in"
+    "select_demo_user": "Select a demo user to log in",
+    "back_to_site": "Back to public site",
+    "demo_mode_badge": "Demo Node - Data resets every 24h",
+    "demo_enter_any_role": "Log in as any role to see the system from their perspective.",
+    "demo_password": "Password",
+    "demo_loading": "Loading demo users...",
+    "role_super_admin": "Super Admin",
+    "role_board": "Board of Directors",
+    "role_members": "Members",
+    "logging_in": "Logging in...",
+    "demo_reset_note": "All changes reset every 24 hours. Does not affect any real node.",
+    "error_enter_credentials": "Enter username and password",
+    "error_demo": "Error logging in to demo",
+    "error_enter_username": "Enter your username",
+    "error_no_passkey_support": "Your browser does not support Passkeys/WebAuthn.",
+    "error_auth_failed": "Could not authenticate",
+    "error_auth_cancelled": "Authentication cancelled or not authorized.",
+    "connecting": "Connecting...",
+    "password_placeholder": "Your password",
+    "username_hint": "Type only your name. The @{{domain}} domain is added automatically. For another node, type user@other-domain.com",
+    "no_account": "Don't have an account? Request admission to your node."
   },
   "setup": {
     "title": "Initial Node Setup",
@@ -183,6 +203,15 @@
     "key_copied": "Key copied!",
     "go_to_dashboard": "Go to dashboard"
   },
+  "layout": {
+    "view_public_site": "View public site",
+    "public_site": "Public site",
+    "expand": "Expand sidebar",
+    "collapse": "Collapse",
+    "mark_all_read": "Mark all as read",
+    "no_notifications": "No notifications",
+    "view_full_history": "View full history"
+  },
   "over_limit": {
     "banner_title": "Your account is over the credit limit.",
     "banner_desc": "You cannot make new purchases until you regularize your balance. You need to receive TQ (by selling or receiving transfers) to get back within your limit. If you don't regularize soon, you may be penalized by the assembly.",
@@ -201,5 +230,23 @@
     "invalid_request": "Invalid request",
     "network_error": "Network error",
     "session_expired": "Session expired"
+  },
+  "settings": {
+    "display_settings": "Display Settings",
+    "display_desc": "Customize how numbers, dates and times are displayed in your account. These settings are saved to your profile and apply across all your devices.",
+    "saved": "Settings saved successfully.",
+    "interface_language": "Interface Language",
+    "select_language": "Select the interface language",
+    "language_hint": "The interface language changes all system text. Number and date formatting is configured separately below.",
+    "format_locale": "Format Locale",
+    "format_locale_label": "Locale for date/time formatting",
+    "number_format": "Number Format",
+    "decimal_separator": "Decimal and thousands separator",
+    "date_format": "Date Format",
+    "time_format": "Time Format",
+    "first_day_of_week": "First day of week",
+    "timezone": "Timezone",
+    "preview": "Preview",
+    "save": "Save settings"
   }
 }

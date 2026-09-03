@@ -1,1 +1,22 @@
-{}
+{
+  "title": "Panel Principal",
+  "error_loading": "Error al cargar datos",
+  "balance": "Mi Balance",
+  "federated_nodes": "Nodos Federados",
+  "warnings": "Avisos",
+  "quick_actions": "Acciones Rapidas",
+  "transfer": "Transferir",
+  "history": "Historial",
+  "store": "Tienda",
+  "calculator": "Calculadora",
+  "upcoming_assemblies": "Proximas Asambleas",
+  "my_organizations": "Mis Organizaciones",
+  "my_departments": "Mis Departamentos",
+  "no_assemblies": "No hay asambleas proximas",
+  "no_organizations": "No perteneces a ninguna organizacion",
+  "no_departments": "No perteneces a ningun departamento",
+  "credit_limit": "Limite de Credito",
+  "debit_limit": "Limite de Debito",
+  "view_all": "Ver todo",
+  "welcome": "Bienvenido/a"
+}

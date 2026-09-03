@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
+import { useTranslation } from 'react-i18next'
 import { Wallet, AlertTriangle, Network, HelpCircle, Send, History as HistoryIcon, ShoppingBag, Calculator, Calendar, ChevronRight, Building2, Users as UsersIcon } from 'lucide-react'
 import { fmtTQ } from '../lib/format'
 
 export default function Dashboard() {
   const { currency } = useConfig()
+  const { t } = useTranslation('dashboard')
   const navigate = useNavigate()
   const [balance, setBalance] = useState<number | null>(null)
   const [creditLimit, setCreditLimit] = useState<number | null>(null)
@@ -42,13 +44,13 @@ export default function Dashboard() {
       setUpcomingAssemblies(Array.isArray(sessions) ? sessions.slice(0, 3) : [])
       setMyOrgs(Array.isArray(orgs) ? orgs : [])
       setMyDepts(Array.isArray(depts) ? depts : [])
-    }).catch(() => setError('Error al cargar datos'))
+    }).catch(() => setError(t('error_loading', 'Error al cargar datos')))
   }, [])
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Panel Principal</h1>
+        <h1 className="text-2xl font-bold">{t('title', 'Panel Principal')}</h1>
         <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
           <HelpCircle size={20} />
         </button>

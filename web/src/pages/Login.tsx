@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useConfig } from '../hooks/useConfig'
 import { api } from '../api'
+import { useTranslation } from 'react-i18next'
 import { Fingerprint, AlertCircle, Lock, User, Crown, Users, Building2, UserCircle, Sparkles, ArrowLeft, ScrollText } from 'lucide-react'
 
 // === Utilidades WebAuthn ===
@@ -31,6 +32,7 @@ function base64UrlToBuf(b64url: string): ArrayBuffer {
 export default function Login() {
   const { login } = useAuth()
   const { currency } = useConfig()
+  const { t } = useTranslation('common')
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [username, setUsername] = useState('')
@@ -88,7 +90,7 @@ export default function Login() {
     setError('')
     const fullUsername = getFullUsername()
     if (!fullUsername || !password) {
-      setError('Ingresa usuario y contrasena')
+      setError(t('login.error_enter_credentials', 'Ingresa usuario y contrasena'))
       return
     }
     setLoading(true)
@@ -101,7 +103,7 @@ export default function Login() {
       // No redirigir a '/'. Recargar para mantener la URL actual (ej: /demo/ o /main/)
       window.location.reload()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al iniciar sesion')
+      setError(err instanceof Error ? err.message : t('login.error_generic'))
     } finally {
       setLoading(false)
     }
@@ -120,7 +122,7 @@ export default function Login() {
       // No redirigir a '/'. Recargar para mantener la URL del demo
       window.location.reload()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al iniciar sesion demo')
+      setError(err instanceof Error ? err.message : t('login.error_demo', 'Error al iniciar sesion demo'))
     } finally {
       setDemoLoading(false)
     }
@@ -130,12 +132,12 @@ export default function Login() {
     setError('')
     const fullUsername = getFullUsername()
     if (!fullUsername) {
-      setError('Ingresa tu nombre de usuario')
+      setError(t('login.error_enter_username', 'Ingresa tu nombre de usuario'))
       return
     }
 
     if (!window.PublicKeyCredential) {
-      setError('Tu navegador no soporta Passkeys/WebAuthn.')
+      setError(t('login.error_no_passkey_support', 'Tu navegador no soporta Passkeys/WebAuthn.'))
       return
     }
 
@@ -160,7 +162,7 @@ export default function Login() {
       // 2. Invocar WebAuthn del navegador
       const credential = await navigator.credentials.get({ publicKey }) as PublicKeyCredential
       if (!credential) {
-        throw new Error('No se pudo autenticar')
+        throw new Error(t('login.error_auth_failed', 'No se pudo autenticar'))
       }
 
       const response = credential.response as AuthenticatorAssertionResponse
@@ -187,9 +189,9 @@ export default function Login() {
       window.location.reload()
     } catch (err: any) {
       if (err.name === 'NotAllowedError') {
-        setError('Autenticacion cancelada o no autorizada.')
+        setError(t('login.error_auth_cancelled', 'Autenticacion cancelada o no autorizada.'))
       } else {
-        setError(err instanceof Error ? err.message : 'Error al iniciar sesion')
+        setError(err instanceof Error ? err.message : t('login.error_generic'))
       }
     } finally {
       setLoading(false)
@@ -205,17 +207,17 @@ export default function Login() {
           className="flex items-center gap-1 text-sm text-gray-500 hover:text-trueque-600 mb-4 transition"
         >
           <ArrowLeft size={16} />
-          Volver al sitio publico
+          {t('login.back_to_site', 'Volver al sitio publico')}
         </Link>
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-trueque-600 rounded-full mb-4">
             <Fingerprint className="text-white" size={32} />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Trueque</h1>
-          <p className="text-gray-600 mt-1">Credito Mutuo Federado</p>
+          <p className="text-gray-600 mt-1">{t('app.tagline')}</p>
           {isDemoNode && (
             <div className="mt-2 inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-medium">
-              <Sparkles size={12} /> Nodo Demo - Los datos se reinician cada 24h
+              <Sparkles size={12} /> {t('login.demo_mode_badge', 'Nodo Demo - Los datos se reinician cada 24h')}
             </div>
           )}
         </div>
@@ -223,7 +225,7 @@ export default function Login() {
         {expiredMsg && !error && (
           <div className="mb-4 flex items-center gap-2 text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
             <AlertCircle size={18} />
-            Tu sesión ha expirado. Por favor inicia sesión nuevamente.
+            {t('login.session_expired')}
           </div>
         )}
 
@@ -238,13 +240,13 @@ export default function Login() {
         {isDemoNode ? (
           <div className="space-y-4">
             <div className="text-center text-sm text-gray-600 mb-4">
-              Entra como cualquier rol para ver el sistema desde su perspectiva.
-              Password: <code className="bg-gray-100 px-1 rounded">demo1234</code>
+              {t('login.demo_enter_any_role', 'Entra como cualquier rol para ver el sistema desde su perspectiva.')}
+              <br />{t('login.demo_password', 'Password')}: <code className="bg-gray-100 px-1 rounded">demo1234</code>
             </div>
 
             {demoUsers.length === 0 && (
               <div className="text-center text-sm text-gray-400 py-4">
-                Cargando usuarios demo...
+                {t('login.demo_loading', 'Cargando usuarios demo...')}
               </div>
             )}
 
@@ -252,7 +254,7 @@ export default function Login() {
             {demoUsers.filter(u => u.is_super_admin).length > 0 && (
               <div className="space-y-2">
                 <div className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
-                  <Crown size={12} /> Super Admin
+                  <Crown size={12} /> {t('login.role_super_admin', 'Super Admin')}
                 </div>
                 {demoUsers.filter(u => u.is_super_admin).map((u) => (
                   <button
@@ -274,7 +276,7 @@ export default function Login() {
             {demoUsers.filter(u => !u.is_super_admin && u.account_type === 'individual' && u.role === 'Directivo').length > 0 && (
               <div className="space-y-2">
                 <div className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
-                  <Users size={12} /> Junta Directiva
+                  <Users size={12} /> {t('login.role_board', 'Junta Directiva')}
                 </div>
                 {demoUsers.filter(u => !u.is_super_admin && u.account_type === 'individual' && u.role === 'Directivo').map((u) => (
                   <button
@@ -300,7 +302,7 @@ export default function Login() {
             {demoUsers.filter(u => !u.is_super_admin && u.account_type === 'individual' && u.role !== 'Directivo').length > 0 && (
               <div className="space-y-2">
                 <div className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
-                  <UserCircle size={12} /> Miembros
+                  <UserCircle size={12} /> {t('login.role_members', 'Miembros')}
                 </div>
                 {demoUsers.filter(u => !u.is_super_admin && u.account_type === 'individual' && u.role !== 'Directivo').map((u) => (
                   <button
@@ -320,12 +322,11 @@ export default function Login() {
             )}
 
             {demoLoading && (
-              <div className="text-center text-sm text-gray-500 py-2">Iniciando sesion...</div>
+              <div className="text-center text-sm text-gray-500 py-2">{t('login.logging_in', 'Iniciando sesion...')}</div>
             )}
 
             <div className="text-center text-xs text-gray-400 pt-2 border-t">
-              Todos los cambios se reinician cada 24 horas.
-              No afecta a ningun nodo real.
+              {t('login.demo_reset_note', 'Todos los cambios se reinician cada 24 horas. No afecta a ningun nodo real.')}
             </div>
           </div>
         ) : (
@@ -343,7 +344,7 @@ export default function Login() {
                 }`}
               >
                 <Lock size={16} className="inline mr-1" />
-                Contrasena
+                {t('common.password')}
               </button>
               <button
                 onClick={() => setMode('passkey')}
@@ -360,7 +361,7 @@ export default function Login() {
 
             <div className="space-y-4">
               <div>
-                <label className="label">Nombre de usuario</label>
+                <label className="label">{t('login.username_label')}</label>
                 <div className="flex items-center input p-0">
                   <input
                     type="text"
@@ -375,20 +376,19 @@ export default function Login() {
                   </span>
                 </div>
                 <p className="text-xs text-gray-400 mt-1">
-                  Escribe solo tu nombre. El dominio @{nodeDomain} se agrega automaticamente.
-                  Para otro nodo, escribe usuario@otro-dominio.com
+                  {t('login.username_hint', 'Escribe solo tu nombre. El dominio @{{domain}} se agrega automaticamente. Para otro nodo, escribe usuario@otro-dominio.com', { domain: nodeDomain })}
                 </p>
               </div>
 
               {mode === 'password' && (
                 <div>
-                  <label className="label">Contrasena</label>
+                  <label className="label">{t('login.password_label')}</label>
                   <input
                     type="password"
                     className="input"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Tu contrasena"
+                    placeholder={t('login.password_placeholder', 'Tu contrasena')}
                     onKeyDown={(e) => e.key === 'Enter' && handlePasswordLogin()}
                   />
                 </div>
@@ -401,7 +401,7 @@ export default function Login() {
                   className="btn-primary w-full flex items-center justify-center gap-2"
                 >
                   <Lock size={20} />
-                  {loading ? 'Conectando...' : 'Iniciar sesion'}
+                  {loading ? t('login.connecting', 'Conectando...') : t('login.login_button')}
                 </button>
               ) : (
                 <button
@@ -410,12 +410,12 @@ export default function Login() {
                   className="btn-primary w-full flex items-center justify-center gap-2"
                 >
                   <Fingerprint size={20} />
-                  {loading ? 'Conectando...' : 'Iniciar sesion con Passkey'}
+                  {loading ? t('login.connecting', 'Conectando...') : t('login.passkey_button')}
                 </button>
               )}
 
               <div className="text-center text-sm text-gray-500">
-                ¿No tienes cuenta? Solicita admision en tu nodo.
+                {t('login.no_account', '¿No tienes cuenta? Solicita admision en tu nodo.')}
               </div>
             </div>
           </>
@@ -426,7 +426,7 @@ export default function Login() {
       <div className="mt-4 text-center">
         <Link to="/licencia" className="text-xs text-gray-400 hover:text-emerald-600 transition flex items-center justify-center gap-1">
           <ScrollText size={12} />
-          Licencia LPF-1.0
+          {t('nav.license')}
         </Link>
       </div>
     </div>

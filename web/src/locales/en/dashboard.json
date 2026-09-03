@@ -1,1 +1,22 @@
-{}
+{
+  "title": "Dashboard",
+  "error_loading": "Error loading data",
+  "balance": "My Balance",
+  "federated_nodes": "Federated Nodes",
+  "warnings": "Warnings",
+  "quick_actions": "Quick Actions",
+  "transfer": "Transfer",
+  "history": "History",
+  "store": "Store",
+  "calculator": "Calculator",
+  "upcoming_assemblies": "Upcoming Assemblies",
+  "my_organizations": "My Organizations",
+  "my_departments": "My Departments",
+  "no_assemblies": "No upcoming assemblies",
+  "no_organizations": "You don't belong to any organization",
+  "no_departments": "You don't belong to any department",
+  "credit_limit": "Credit Limit",
+  "debit_limit": "Debit Limit",
+  "view_all": "View all",
+  "welcome": "Welcome"
+}

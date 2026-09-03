@@ -3,56 +3,60 @@ import { useAuth } from '../hooks/useAuth'
 import { usePermissions } from '../hooks/usePermissions'
 import { api } from '../api'
 import { getNotifIcon, relativeTime } from '../lib/notifications'
+import { useTranslation } from 'react-i18next'
 import {
   Home, ArrowLeftRight, History, Package, Calculator, Store, Clock,
   Network, Scale, Users, Gavel, FileSearch, Globe, UserPlus, Wallet, Shield,
   Building2, Nfc, Settings, User, PiggyBank, Zap, Plug,
   LogOut, Menu, X, ExternalLink, Bell, ChevronLeft, ChevronRight, AlertTriangle,
-  Server, ShoppingBag, SlidersHorizontal, ScrollText,
+  Server, ShoppingBag, SlidersHorizontal, ScrollText, Languages,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 // perm = permiso requerido para ver la pestaña.
 // Si perm no esta definido, la pestaña es visible para todos.
-const navItems: { to: string; label: string; icon: any; perm?: string; end?: boolean }[] = [
-  { to: '/app/dashboard', label: 'Inicio', icon: Home, end: true },
-  { to: '/app/admission-status', label: 'Mi Solicitud', icon: UserPlus },
-  { to: '/app/transfer', label: 'Transferir', icon: ArrowLeftRight },
-  { to: '/app/wallet', label: 'Billetera', icon: Wallet },
-  { to: '/app/my-services', label: 'Mis Servicios', icon: Plug },
-  { to: '/app/payments', label: 'Pagos', icon: Wallet },
-  { to: '/app/nfc-terminals', label: 'Terminales NFC', icon: Nfc, perm: 'nfc.register_terminal' },
-  { to: '/app/nfc-drivers', label: 'Drivers NFC', icon: Package, perm: 'nfc.issue_card' },
-  { to: '/app/my-terminals', label: 'Mis Puntos de Venta', icon: ShoppingBag },
-  { to: '/app/products', label: 'Productos', icon: Package },
-  { to: '/app/calculator', label: 'Calculadora', icon: Calculator },
-  { to: '/app/calculator/params', label: 'Parametros Calc.', icon: Zap, perm: 'calculator.manage_params' },
-  { to: '/app/store', label: 'Tienda', icon: Store },
-  { to: '/app/federation', label: 'Federacion', icon: Network, perm: 'federation.manage', end: true },
-  { to: '/app/federation/limits', label: 'Limites Federacion', icon: Network, perm: 'federation.set_limits' },
-  { to: '/app/federation/parity', label: 'Paridad', icon: Scale },
-  { to: '/app/federation/conflicts', label: 'Conflictos Fusion', icon: AlertTriangle, perm: 'federation.manage' },
-  { to: '/app/organizations', label: 'Organizaciones', icon: Users },
-  { to: '/app/governance', label: 'Gobernanza', icon: Scale, perm: 'governance.manage' },
-  { to: '/app/assembly', label: 'Asamblea', icon: Gavel },
-  { to: '/app/audit', label: 'Auditoria', icon: FileSearch, perm: 'config.manage' },
-  { to: '/app/external', label: 'Comercio Externo', icon: Globe, perm: 'external.approve_operation' },
-  { to: '/app/admission', label: 'Admision', icon: UserPlus, perm: 'admission.manage' },
-  { to: '/app/recovery', label: 'Recuperacion', icon: Shield, perm: 'recovery.approve' },
-  { to: '/app/fund', label: 'Fondo Comunitario', icon: PiggyBank },
-  { to: '/app/profile', label: 'Mi Perfil', icon: User },
-  { to: '/app/display-settings', label: 'Ajustes de pantalla', icon: SlidersHorizontal },
-  { to: '/app/notifications/settings', label: 'Notificaciones', icon: Bell },
-  { to: '/app/settings', label: 'Configuracion', icon: Settings, perm: 'config.manage' },
-  { to: '/app/services', label: 'Servicios Federados', icon: Server, perm: 'config.manage' },
-  { to: '/app/website', label: 'Sitio Web Publico', icon: Globe, perm: 'config.manage' },
-  { to: '/licencia', label: 'Licencia LPF-1.0', icon: ScrollText },
+// labelKey es la clave de traducción en el namespace 'common' -> 'nav.*'
+const navItems: { to: string; labelKey: string; icon: any; perm?: string; end?: boolean }[] = [
+  { to: '/app/dashboard', labelKey: 'nav.dashboard', icon: Home, end: true },
+  { to: '/app/admission-status', labelKey: 'nav.admission_status', icon: UserPlus },
+  { to: '/app/transfer', labelKey: 'nav.transfer', icon: ArrowLeftRight },
+  { to: '/app/wallet', labelKey: 'nav.wallet', icon: Wallet },
+  { to: '/app/my-services', labelKey: 'nav.my_services', icon: Plug },
+  { to: '/app/payments', labelKey: 'nav.payments', icon: Wallet },
+  { to: '/app/nfc-terminals', labelKey: 'nav.nfc_terminals', icon: Nfc, perm: 'nfc.register_terminal' },
+  { to: '/app/nfc-drivers', labelKey: 'nav.nfc_drivers', icon: Package, perm: 'nfc.issue_card' },
+  { to: '/app/my-terminals', labelKey: 'nav.my_terminals', icon: ShoppingBag },
+  { to: '/app/products', labelKey: 'nav.products', icon: Package },
+  { to: '/app/calculator', labelKey: 'nav.calculator', icon: Calculator },
+  { to: '/app/calculator/params', labelKey: 'nav.calculator_params', icon: Zap, perm: 'calculator.manage_params' },
+  { to: '/app/store', labelKey: 'nav.store', icon: Store },
+  { to: '/app/federation', labelKey: 'nav.federation', icon: Network, perm: 'federation.manage', end: true },
+  { to: '/app/federation/limits', labelKey: 'nav.federation_limits', icon: Network, perm: 'federation.set_limits' },
+  { to: '/app/federation/parity', labelKey: 'nav.parity', icon: Scale },
+  { to: '/app/federation/conflicts', labelKey: 'nav.merge_conflicts', icon: AlertTriangle, perm: 'federation.manage' },
+  { to: '/app/organizations', labelKey: 'nav.organizations', icon: Users },
+  { to: '/app/governance', labelKey: 'nav.governance', icon: Scale, perm: 'governance.manage' },
+  { to: '/app/assembly', labelKey: 'nav.assembly', icon: Gavel },
+  { to: '/app/audit', labelKey: 'nav.audit', icon: FileSearch, perm: 'config.manage' },
+  { to: '/app/external', labelKey: 'nav.external', icon: Globe, perm: 'external.approve_operation' },
+  { to: '/app/admission', labelKey: 'nav.admission', icon: UserPlus, perm: 'admission.manage' },
+  { to: '/app/recovery', labelKey: 'nav.recovery', icon: Shield, perm: 'recovery.approve' },
+  { to: '/app/fund', labelKey: 'nav.fund', icon: PiggyBank },
+  { to: '/app/profile', labelKey: 'nav.profile', icon: User },
+  { to: '/app/display-settings', labelKey: 'nav.display_settings', icon: SlidersHorizontal },
+  { to: '/app/notifications/settings', labelKey: 'nav.notifications_settings', icon: Bell },
+  { to: '/app/settings', labelKey: 'nav.settings', icon: Settings, perm: 'config.manage' },
+  { to: '/app/services', labelKey: 'nav.services', icon: Server, perm: 'config.manage' },
+  { to: '/app/website', labelKey: 'nav.website', icon: Globe, perm: 'config.manage' },
+  { to: '/app/translations', labelKey: 'nav.translations', icon: Languages, perm: 'translations.edit' },
+  { to: '/licencia', labelKey: 'nav.license', icon: ScrollText },
 ]
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { username, logout } = useAuth()
   const { hasPermission } = usePermissions()
   const navigate = useNavigate()
+  const { t } = useTranslation('common')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [showNotif, setShowNotif] = useState(false)
@@ -142,7 +146,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
         <nav className="sidebar-scroll px-2 py-4 space-y-1 overflow-y-auto h-[calc(100vh-120px)]">
-          {visibleItems.map(({ to, label, icon: Icon, end }) => (
+          {visibleItems.map(({ to, labelKey, icon: Icon, end }) => {
+            const label = t(labelKey)
+            return (
             <NavLink
               key={to}
               to={to}
@@ -158,14 +164,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Icon size={18} className="flex-shrink-0" />
               {!sidebarCollapsed && label}
             </NavLink>
-          ))}
+            )
+          })}
           <Link
             to="/p/inicio"
-            title={sidebarCollapsed ? 'Ver sitio publico' : undefined}
+            title={sidebarCollapsed ? t('layout.view_public_site', 'Ver sitio publico') : undefined}
             className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-trueque-100 hover:bg-trueque-700 mt-4 border-t border-trueque-700 pt-4 ${sidebarCollapsed ? 'justify-center' : ''}`}
           >
             <ExternalLink size={18} className="flex-shrink-0" />
-            {!sidebarCollapsed && 'Ver sitio publico'}
+            {!sidebarCollapsed && t('layout.view_public_site', 'Ver sitio publico')}
           </Link>
         </nav>
         {/* Boton contraer/expander */}
@@ -173,9 +180,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             className="flex items-center gap-1 text-xs text-trueque-100 hover:text-white px-2 py-1 rounded hover:bg-trueque-700 transition"
-            title={sidebarCollapsed ? 'Expandir barra' : 'Contraer barra'}
+            title={sidebarCollapsed ? t('layout.expand', 'Expandir barra') : t('layout.collapse', 'Contraer barra')}
           >
-            {sidebarCollapsed ? <ChevronRight size={16} /> : <><ChevronLeft size={16} /> Contraer</>}
+            {sidebarCollapsed ? <ChevronRight size={16} /> : <><ChevronLeft size={16} /> {t('layout.collapse', 'Contraer')}</>}
           </button>
         </div>
       </aside>
@@ -207,15 +214,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <div className="fixed inset-0 z-40" onClick={() => setShowNotif(false)} />
                   <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-96 overflow-y-auto">
                     <div className="flex items-center justify-between p-3 border-b border-gray-100">
-                      <span className="font-semibold text-sm">Notificaciones</span>
+                      <span className="font-semibold text-sm">{t('nav.notifications')}</span>
                       {unreadCount > 0 && (
-                        <button onClick={markAllRead} className="text-xs text-blue-600 hover:text-blue-800">Marcar todas leidas</button>
+                        <button onClick={markAllRead} className="text-xs text-blue-600 hover:text-blue-800">{t('layout.mark_all_read', 'Marcar todas leidas')}</button>
                       )}
                     </div>
                     {notifications.length === 0 ? (
                       <div className="p-6 text-center text-gray-400 text-sm">
                         <Bell size={24} className="mx-auto mb-2 opacity-30" />
-                        No hay notificaciones
+                        {t('layout.no_notifications', 'No hay notificaciones')}
                       </div>
                     ) : (
                       notifications.slice(0, 20).map((n: any) => {
@@ -244,7 +251,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         onClick={() => { setShowNotif(false); navigate('/app/notifications') }}
                         className="w-full text-center p-2 text-xs text-blue-600 hover:bg-blue-50 border-t border-gray-100"
                       >
-                        Ver historial completo
+                        {t('layout.view_full_history', 'Ver historial completo')}
                       </button>
                     )}
                   </div>
@@ -253,7 +260,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </div>
             <Link to="/p/inicio" className="text-sm text-trueque-600 hover:text-trueque-800 flex items-center gap-1">
               <ExternalLink size={16} />
-              <span className="hidden sm:inline">Sitio publico</span>
+              <span className="hidden sm:inline">{t('layout.public_site', 'Sitio publico')}</span>
             </Link>
             <span className="text-sm text-gray-600">{username}</span>
             <button onClick={handleLogout} className="text-gray-500 hover:text-red-600">
@@ -266,17 +273,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <div className="mb-4 bg-red-50 border border-red-300 rounded-lg p-3 flex items-start gap-2">
               <span className="text-red-600 text-lg">⚠</span>
               <div className="text-sm text-red-800">
-                <strong>Tu cuenta está sobre el límite de crédito.</strong> No puedes hacer nuevas compras hasta regularizar tu saldo. Debes recibir TQ (vendiendo o recibiendo transferencias) para volver a estar dentro de tu límite. Si no regularizas pronto, podrías ser penalizado por la asamblea.
+                <strong>{t('over_limit.banner_title')}</strong> {t('over_limit.banner_desc')}
               </div>
             </div>
           )}
           {isPendingAdmission && !window.location.pathname.includes('/app/admission-status') && !window.location.pathname.includes('/app/profile') && !window.location.pathname.includes('/app/notifications') ? (
             <div className="max-w-2xl mx-auto py-12 text-center space-y-4">
               <Clock size={32} className="mx-auto text-amber-500" />
-              <h2 className="text-lg font-bold text-gray-900">Tu cuenta está pendiente de aprobación</h2>
-              <p className="text-xs text-gray-600">Mientras esperas la decisión de la asamblea, solo puedes ver el estado de tu solicitud.</p>
+              <h2 className="text-lg font-bold text-gray-900">{t('pending_admission.title')}</h2>
+              <p className="text-xs text-gray-600">{t('pending_admission.desc')}</p>
               <button onClick={() => navigate('/app/admission-status')} className="btn-primary text-xs">
-                Ver estado de mi solicitud
+                {t('pending_admission.view_status')}
               </button>
             </div>
           ) : children}

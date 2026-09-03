@@ -119,7 +119,27 @@
     "session_expired": "Tu sesion ha expirado. Por favor inicia sesion nuevamente.",
     "demo_mode": "Modo demostracion",
     "demo_users": "Usuarios demo disponibles",
-    "select_demo_user": "Selecciona un usuario demo para entrar"
+    "select_demo_user": "Selecciona un usuario demo para entrar",
+    "back_to_site": "Volver al sitio publico",
+    "demo_mode_badge": "Nodo Demo - Los datos se reinician cada 24h",
+    "demo_enter_any_role": "Entra como cualquier rol para ver el sistema desde su perspectiva.",
+    "demo_password": "Contrasena",
+    "demo_loading": "Cargando usuarios demo...",
+    "role_super_admin": "Super Admin",
+    "role_board": "Junta Directiva",
+    "role_members": "Miembros",
+    "logging_in": "Iniciando sesion...",
+    "demo_reset_note": "Todos los cambios se reinician cada 24 horas. No afecta a ningun nodo real.",
+    "error_enter_credentials": "Ingresa usuario y contrasena",
+    "error_demo": "Error al iniciar sesion demo",
+    "error_enter_username": "Ingresa tu nombre de usuario",
+    "error_no_passkey_support": "Tu navegador no soporta Passkeys/WebAuthn.",
+    "error_auth_failed": "No se pudo autenticar",
+    "error_auth_cancelled": "Autenticacion cancelada o no autorizada.",
+    "connecting": "Conectando...",
+    "password_placeholder": "Tu contrasena",
+    "username_hint": "Escribe solo tu nombre. El dominio @{{domain}} se agrega automaticamente. Para otro nodo, escribe usuario@otro-dominio.com",
+    "no_account": "¿No tienes cuenta? Solicita admision en tu nodo."
   },
   "setup": {
     "title": "Configuracion Inicial del Nodo",
@@ -183,6 +203,15 @@
     "key_copied": "Clave copiada!",
     "go_to_dashboard": "Ir al dashboard"
   },
+  "layout": {
+    "view_public_site": "Ver sitio publico",
+    "public_site": "Sitio publico",
+    "expand": "Expandir barra",
+    "collapse": "Contraer",
+    "mark_all_read": "Marcar todas leidas",
+    "no_notifications": "No hay notificaciones",
+    "view_full_history": "Ver historial completo"
+  },
   "over_limit": {
     "banner_title": "Tu cuenta esta sobre el limite de credito.",
     "banner_desc": "No puedes hacer nuevas compras hasta regularizar tu saldo. Debes recibir TQ (vendiendo o recibiendo transferencias) para volver a estar dentro de tu limite. Si no regularizas pronto, podrias ser penalizado por la asamblea.",
@@ -201,5 +230,23 @@
     "invalid_request": "Peticion invalida",
     "network_error": "Error de red",
     "session_expired": "Sesion expirada"
+  },
+  "settings": {
+    "display_settings": "Ajustes de visualizacion",
+    "display_desc": "Personaliza como se muestran los numeros, fechas y horas en tu cuenta. Estos ajustes se guardan en tu perfil y se aplican en todos tus dispositivos.",
+    "saved": "Ajustes guardados correctamente.",
+    "interface_language": "Idioma de la interfaz",
+    "select_language": "Selecciona el idioma de la interfaz",
+    "language_hint": "El idioma de la interfaz cambia todos los textos del sistema. El formato de numeros y fechas se configura por separado abajo.",
+    "format_locale": "Locale de formato",
+    "format_locale_label": "Locale para formato de fecha/hora",
+    "number_format": "Formato de numeros",
+    "decimal_separator": "Separador decimal y de miles",
+    "date_format": "Formato de fecha",
+    "time_format": "Formato de hora",
+    "first_day_of_week": "Primer dia de la semana",
+    "timezone": "Zona horaria",
+    "preview": "Vista previa",
+    "save": "Guardar ajustes"
   }
 }

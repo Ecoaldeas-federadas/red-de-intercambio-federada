@@ -48,6 +48,7 @@ import MyTerminals from './pages/MyTerminals'
 import SoftwareAdaptations from './pages/SoftwareAdaptations'
 import Settings from './pages/Settings'
 import LicensePage from './pages/LicensePage'
+import TranslationEditor from './pages/TranslationEditor'
 
 // Rutas permitidas para usuarios pending_admission.
 // Cualquier otra ruta /app/* redirige a /app/admission-status.
@@ -199,6 +200,7 @@ function AppInner() {
         <Route path="/app/fund" element={<PendingAdmissionGuard><Layout><CommunityFund /></Layout></PendingAdmissionGuard>} />
         <Route path="/app/calculator/params" element={<PendingAdmissionGuard><Layout><CalculatorParams /></Layout></PendingAdmissionGuard>} />
         <Route path="/app/website" element={<PendingAdmissionGuard><Layout><WebsiteAdmin /></Layout></PendingAdmissionGuard>} />
+        <Route path="/app/translations" element={<PendingAdmissionGuard><Layout><TranslationEditor /></Layout></PendingAdmissionGuard>} />
         <Route path="/pay" element={<Pay />} />
         <Route path="/login" element={<Navigate to="/app/dashboard" replace />} />
         {/* Sitio publico tambien accesible cuando estas logueado */}
