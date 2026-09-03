@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -40,6 +41,7 @@ func NewHandler(l *ledger.Ledger, a *accounts.Accounts, p *pricing.Pricing, c *c
 
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Get("/api/health", h.health)
+	r.Get("/api/license", h.getLicense)
 
 	r.Get("/api/accounts/{id}", h.getAccount)
 	r.Get("/api/accounts/{id}/balance", h.getAccountBalance)
@@ -57,6 +59,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 
 func (h *Handler) RegisterRoutesWithAuth(r chi.Router, am *AuthMiddleware) {
 	r.Get("/api/health", h.health)
+	r.Get("/api/license", h.getLicense)
 
 	r.Get("/api/accounts/{id}", h.getAccount)
 	r.Get("/api/accounts/{id}/balance", h.getAccountBalance)
@@ -90,6 +93,31 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 
 func (h *Handler) health(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]string{"status": "ok", "node": h.nodeDomain})
+}
+
+// getLicense sirve el texto de la Licencia Publica Federada (LPF-1.0).
+// Es publico: cualquier persona puede ver la licencia sin autenticarse.
+func (h *Handler) getLicense(w http.ResponseWriter, r *http.Request) {
+	// Intentar leer el archivo LICENSE del repositorio
+	possiblePaths := []string{
+		"/app/LICENSE",
+		"/project/LICENSE",
+		"LICENSE",
+	}
+	for _, p := range possiblePaths {
+		data, err := os.ReadFile(p)
+		if err == nil {
+			writeJSON(w, 200, map[string]interface{}{
+				"name":      "Licencia Publica Federada (LPF-1.0)",
+				"version":   "1.0",
+				"author":    "discapacidad5",
+				"repo":      "https://github.com/discapacidad5/red-de-intercambio-federada",
+				"full_text": string(data),
+			})
+			return
+		}
+	}
+	writeError(w, 404, "license file not found")
 }
 
 func (h *Handler) getAccount(w http.ResponseWriter, r *http.Request) {

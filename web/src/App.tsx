@@ -47,6 +47,7 @@ import Pay from './pages/Pay'
 import MyTerminals from './pages/MyTerminals'
 import SoftwareAdaptations from './pages/SoftwareAdaptations'
 import Settings from './pages/Settings'
+import LicensePage from './pages/LicensePage'
 
 // Rutas permitidas para usuarios pending_admission.
 // Cualquier otra ruta /app/* redirige a /app/admission-status.
@@ -206,6 +207,7 @@ function AppInner() {
         <Route path="/p/adaptaciones" element={<SoftwareAdaptations />} />
         <Route path="/p/:slug" element={<PublicLayout><PublicPageView /></PublicLayout>} />
         <Route path="/p" element={<Navigate to="/p/inicio" replace />} />
+        <Route path="/licencia" element={<LicensePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     )
@@ -219,6 +221,7 @@ function AppInner() {
       <Route path="/p/unirse" element={<PublicLayout><PublicJoinForm /></PublicLayout>} />
       <Route path="/p/:slug" element={<PublicLayout><PublicPageView /></PublicLayout>} />
       <Route path="/p" element={<Navigate to="/p/inicio" replace />} />
+      <Route path="/licencia" element={<LicensePage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/setup" element={<Setup />} />
       <Route path="/pay" element={<Pay />} />

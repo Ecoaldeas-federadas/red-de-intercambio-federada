@@ -29,6 +29,7 @@ import {
   MoreHorizontal,
   Upload,
   Check,
+  ScrollText,
 } from 'lucide-react'
 import { PageBlocksRenderer } from './public-site/PublicBlocks'
 import { LivePageEditor } from './public-site/LivePageEditor'
@@ -1862,7 +1863,13 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
           {/* Bottom Copyright & Member Login Link */}
           <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-[11px] sm:text-xs text-gray-400 gap-2 text-center sm:text-left">
-            <p>© {new Date().getFullYear()} Red de Intercambio Federada.</p>
+            <div className="flex items-center gap-3 flex-wrap justify-center sm:justify-start">
+              <p>© {new Date().getFullYear()} Red de Intercambio Federada.</p>
+              <Link to="/licencia" className="text-emerald-400 hover:text-emerald-300 transition flex items-center gap-1">
+                <ScrollText size={12} />
+                Licencia LPF-1.0
+              </Link>
+            </div>
             <div>
               {isAuthenticated ? (
                 <Link to="/app/dashboard" className="text-amber-400 hover:underline">

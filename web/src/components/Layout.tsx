@@ -8,7 +8,7 @@ import {
   Network, Scale, Users, Gavel, FileSearch, Globe, UserPlus, Wallet, Shield,
   Building2, Nfc, Settings, User, PiggyBank, Zap, Plug,
   LogOut, Menu, X, ExternalLink, Bell, ChevronLeft, ChevronRight, AlertTriangle,
-  Server, ShoppingBag, SlidersHorizontal,
+  Server, ShoppingBag, SlidersHorizontal, ScrollText,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -46,6 +46,7 @@ const navItems: { to: string; label: string; icon: any; perm?: string; end?: boo
   { to: '/app/settings', label: 'Configuracion', icon: Settings, perm: 'config.manage' },
   { to: '/app/services', label: 'Servicios Federados', icon: Server, perm: 'config.manage' },
   { to: '/app/website', label: 'Sitio Web Publico', icon: Globe, perm: 'config.manage' },
+  { to: '/licencia', label: 'Licencia LPF-1.0', icon: ScrollText },
 ]
 
 export default function Layout({ children }: { children: React.ReactNode }) {

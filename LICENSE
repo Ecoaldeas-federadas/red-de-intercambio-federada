@@ -22,7 +22,7 @@ por el Creador.
 
 1.4. "Protocolo de Federacion" se refiere al conjunto de reglas, formatos,
 APIs y mecanismos de comunicacion entre nodos definidos en el Repositorio
-Principal, incluyendo但不限于 los esquemas de identidad, transporte cifrado,
+Principal, incluyendo sin limitar a los esquemas de identidad, transporte cifrado,
 propagacion, gobernanza y contabilidad federada.
 
 1.5. "Modificacion" se refiere a cualquier cambio al Software, incluyendo
