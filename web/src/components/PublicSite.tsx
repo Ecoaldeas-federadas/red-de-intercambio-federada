@@ -2134,9 +2134,28 @@ export function PublicPageView() {
     )
   }
 
-  // Pagina especial: gobernanza muestra las reglas desde la BD, no bloques editables
+  // Pagina especial: gobernanza muestra las reglas desde la BD.
+  // En modo edición: titulo/subtitulo editables, normas requieren propuesta de asamblea.
   if (targetSlug === 'gobernanza') {
-    return <PublicGovernancePage />
+    return (
+      <PublicGovernancePage
+        editMode={isLiveEditing}
+        pageTitle={page?.title}
+        pageSubtitle={page?.subtitle}
+        onFieldChange={async (field, value) => {
+          if (!page?.slug) return
+          try {
+            await api.put(`/site/pages/by-slug/${page.slug}`, {
+              ...page,
+              [field]: value,
+            })
+            loadPageData()
+          } catch (e) {
+            console.error('Error guardando:', e)
+          }
+        }}
+      />
+    )
   }
 
   // La pagina de federacion ahora es editable con bloques (como las demas paginas).

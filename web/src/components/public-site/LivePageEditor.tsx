@@ -19,6 +19,7 @@ import {
   ExternalLink,
   Code,
   CheckCircle2,
+  Info,
 } from 'lucide-react'
 import { SiteBlock, BlockType } from '../../types/publicSite'
 import { BlockRenderer } from './PublicBlocks'
@@ -526,6 +527,27 @@ export function LivePageEditor({
 
       {/* 2. VISUAL CANVAS (All Blocks Rendered Live with On-Page Toolbars) */}
       <div className="space-y-6 pt-4">
+        {/* Special notice for pages with system-linked content */}
+        {slug === 'servicios-federados' && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700 flex items-start gap-2">
+            <Info size={16} className="flex-shrink-0 mt-0.5" />
+            <div>
+              <strong>Nota sobre servicios:</strong> Los servicios listados aquí son informativos.
+              Para instalar, desinstalar o gestionar servicios reales, usa el{' '}
+              <a href="/app/services" className="font-bold underline">Panel de Servicios</a>.
+              Eliminar un servicio de esta página solo lo oculta del sitio público, no lo desinstala.
+            </div>
+          </div>
+        )}
+        {slug === 'gobernanza' && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700 flex items-start gap-2">
+            <Info size={16} className="flex-shrink-0 mt-0.5" />
+            <div>
+              <strong>Normas de la Asamblea:</strong> El título y subtítulo de esta página son editables directamente.
+              Las normas requieren aprobación de la Asamblea General — clic en una norma para proponer una modificación.
+            </div>
+          </div>
+        )}
         {/* Top Insert Button */}
         <div className="text-center py-1">
           <button

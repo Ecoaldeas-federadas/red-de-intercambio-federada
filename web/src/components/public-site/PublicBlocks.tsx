@@ -9,6 +9,7 @@ import {
   EdArrayImage,
   EdButton,
   EdLink,
+  EdAnchor,
   EdAddItem,
   EdRemoveItem,
   InlineEditProvider,
@@ -1281,13 +1282,13 @@ export function ResourceDownloadsBlock({ data }: { data: ResourceDownloadsBlockD
               <p className="text-xs text-gray-600 leading-relaxed">{res.description}</p>
             </div>
 
-            <a
+            <EdAnchor
               href={res.download_url || '#'}
               className="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-800 text-white text-xs font-bold hover:bg-emerald-700 transition shadow-xs"
             >
               <Download size={14} />
               Descargar Guía
-            </a>
+            </EdAnchor>
           </div>
         ))}
       </div>
@@ -1572,7 +1573,7 @@ export function ContactLocationBlock({ data }: { data: ContactLocationBlockData 
 
       <div className="flex flex-wrap gap-2.5 pt-1">
         {data.instagram && (
-          <a
+          <EdAnchor
             href={`https://instagram.com/${data.instagram}`}
             target="_blank"
             rel="noopener noreferrer"
@@ -1580,10 +1581,10 @@ export function ContactLocationBlock({ data }: { data: ContactLocationBlockData 
           >
             <Instagram size={15} />
             Instagram @<EdText field="instagram" value={data.instagram} as="span" />
-          </a>
+          </EdAnchor>
         )}
         {data.facebook && (
-          <a
+          <EdAnchor
             href={`https://facebook.com/${data.facebook}`}
             target="_blank"
             rel="noopener noreferrer"
@@ -1591,16 +1592,16 @@ export function ContactLocationBlock({ data }: { data: ContactLocationBlockData 
           >
             <Facebook size={15} />
             Facebook @<EdText field="facebook" value={data.facebook} as="span" />
-          </a>
+          </EdAnchor>
         )}
         {data.email && (
-          <a
+          <EdAnchor
             href={`mailto:${data.email}`}
             className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold hover:bg-emerald-100 transition"
           >
             <Mail size={15} />
             <EdText field="email" value={data.email} as="span" />
-          </a>
+          </EdAnchor>
         )}
       </div>
     </section>

@@ -109,6 +109,46 @@ export function EdLink({
 }
 
 // -------------------------------------------------------------
+// EDITABLE ANCHOR - blocks external links in edit mode
+// For <a href> tags (external URLs like Instagram, Facebook, mailto)
+// -------------------------------------------------------------
+export function EdAnchor({
+  href,
+  className = '',
+  children,
+  ...rest
+}: {
+  href: string
+  className?: string
+  children: React.ReactNode
+  [key: string]: any
+}) {
+  const { editMode } = useInlineEdit()
+
+  if (editMode) {
+    // In edit mode: render as a span that looks like a link but doesn't navigate
+    return (
+      <span
+        className={`${className} cursor-default pointer-events-none`}
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+        }}
+        {...rest}
+      >
+        {children}
+      </span>
+    )
+  }
+
+  return (
+    <a href={href} className={className} {...rest}>
+      {children}
+    </a>
+  )
+}
+
+// -------------------------------------------------------------
 // EDITABLE TEXT - contentEditable inline
 // -------------------------------------------------------------
 interface EdTextProps {

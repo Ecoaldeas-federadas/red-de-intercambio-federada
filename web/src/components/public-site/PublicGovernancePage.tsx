@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../../api'
-import { Scale, AlertTriangle, AlertOctagon, Ban, Info, CheckCircle, XCircle, Users, Home, Leaf, Coins, Calendar, UserPlus, UserX, Percent, PiggyBank, Map, Key, FileText, Globe, Network, Building2, Shield, Award, Handshake, Layers, Vote, Lock } from 'lucide-react'
+import { Scale, AlertTriangle, AlertOctagon, Ban, Info, CheckCircle, XCircle, Users, Home, Leaf, Coins, Calendar, UserPlus, UserX, Percent, PiggyBank, Map, Key, FileText, Globe, Network, Building2, Shield, Award, Handshake, Layers, Vote, Lock, MessageSquare, X, Send, Edit3 } from 'lucide-react'
 
 const CATEGORIES = [
   { value: 'estructura', label: 'Estructura de Gobernanza', icon: Users, color: 'text-blue-700 bg-blue-50' },
@@ -27,11 +28,25 @@ const SEVERITY_STYLES: Record<string, { label: string; class: string }> = {
   muy_grave: { label: 'Muy Grave', class: 'bg-red-100 text-red-700' },
 }
 
-export function PublicGovernancePage() {
+export function PublicGovernancePage({
+  editMode = false,
+  pageTitle,
+  pageSubtitle,
+  onFieldChange,
+}: {
+  editMode?: boolean
+  pageTitle?: string
+  pageSubtitle?: string
+  onFieldChange?: (field: string, value: any) => void
+} = {}) {
   const [rules, setRules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [activeCategory, setActiveCategory] = useState<string>('')
+  const [proposalModal, setProposalModal] = useState<{ rule: any } | null>(null)
+  const [proposalText, setProposalText] = useState('')
+  const [proposalSubmitting, setProposalSubmitting] = useState(false)
+  const [proposalMsg, setProposalMsg] = useState('')
 
   useEffect(() => {
     api
@@ -94,11 +109,30 @@ export function PublicGovernancePage() {
         <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-full">
           <Scale className="text-emerald-700" size={32} />
         </div>
-        <h1 className="text-3xl font-bold text-gray-900">Ley de la Aldea</h1>
-        <p className="text-gray-600 text-sm max-w-2xl mx-auto">
-          Reglas de convivencia aprobadas en Asamblea General. Estas normas rigen la vida comunitaria:
-          estructura de gobierno, deberes, permisos, prohibiciones, faltas y procesos de admision y salida.
-        </p>
+        {editMode ? (
+          <>
+            <input
+              className="text-3xl font-bold text-gray-900 text-center bg-yellow-50 border-2 border-amber-300 rounded-lg px-3 py-1 outline-none focus:ring-2 focus:ring-amber-400 w-full max-w-md"
+              value={pageTitle || 'Ley de la Aldea'}
+              onChange={(e) => onFieldChange?.('title', e.target.value)}
+              placeholder="Título de la página"
+            />
+            <textarea
+              className="text-gray-600 text-sm max-w-2xl mx-auto bg-yellow-50 border-2 border-amber-300 rounded-lg px-3 py-1 outline-none focus:ring-2 focus:ring-amber-400 w-full"
+              rows={2}
+              value={pageSubtitle || 'Reglas de convivencia aprobadas en Asamblea General...'}
+              onChange={(e) => onFieldChange?.('subtitle', e.target.value)}
+              placeholder="Subtítulo de la página"
+            />
+          </>
+        ) : (
+          <>
+            <h1 className="text-3xl font-bold text-gray-900">{pageTitle || 'Ley de la Aldea'}</h1>
+            <p className="text-gray-600 text-sm max-w-2xl mx-auto">
+              {pageSubtitle || 'Reglas de convivencia aprobadas en Asamblea General. Estas normas rigen la vida comunitaria: estructura de gobierno, deberes, permisos, prohibiciones, faltas y procesos de admision y salida.'}
+            </p>
+          </>
+        )}
         <p className="text-xs text-gray-400">
           {rules.length} reglas vigentes - Cualquier modificacion requiere aprobacion de la Asamblea General
         </p>
@@ -382,7 +416,18 @@ export function PublicGovernancePage() {
                   return (
                     <div
                       key={rule.id || i}
-                      className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition"
+                      className={`bg-white rounded-xl border p-4 shadow-sm transition relative ${
+                        editMode
+                          ? 'border-amber-300 hover:ring-2 hover:ring-amber-400 cursor-pointer'
+                          : 'border-gray-200 hover:shadow-md'
+                      }`}
+                      onClick={() => {
+                        if (editMode) {
+                          setProposalModal({ rule })
+                          setProposalText('')
+                          setProposalMsg('')
+                        }
+                      }}
                     >
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <h3 className="font-semibold text-sm text-gray-900">{rule.title}</h3>
@@ -391,6 +436,19 @@ export function PublicGovernancePage() {
                         </span>
                       </div>
                       <p className="text-xs text-gray-600 leading-relaxed">{rule.description}</p>
+                      {editMode && (
+                        <div className="absolute inset-0 bg-amber-50/80 rounded-xl flex items-center justify-center opacity-0 hover:opacity-100 transition">
+                          <div className="text-center space-y-2">
+                            <div className="inline-flex items-center gap-1.5 text-amber-800 text-xs font-bold bg-amber-100 px-3 py-1.5 rounded-lg">
+                              <MessageSquare size={14} />
+                              Requiere aprobación de Asamblea
+                            </div>
+                            <div className="text-[11px] text-amber-700">
+                              Clic para proponer una modificación
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )
                 })}
@@ -407,6 +465,106 @@ export function PublicGovernancePage() {
           Para solicitar modificaciones, contacta a la Junta Directiva o presenta una propuesta en la proxima Asamblea General.
         </p>
       </div>
+
+      {/* Modal: Proponer modificación de norma */}
+      {proposalModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setProposalModal(null)}
+        >
+          <div
+            className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-gray-100"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-gray-200 pb-3 mb-4">
+              <div className="flex items-center gap-2">
+                <MessageSquare size={20} className="text-amber-600" />
+                <h3 className="text-base font-bold text-gray-900">Proponer Modificación</h3>
+              </div>
+              <button
+                onClick={() => setProposalModal(null)}
+                className="p-1 text-gray-400 hover:text-gray-600 rounded-lg"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 space-y-1">
+                <div className="flex items-center gap-1.5 font-bold">
+                  <Edit3 size={14} /> Norma: {proposalModal.rule.title}
+                </div>
+                <p className="text-amber-700">{proposalModal.rule.description}</p>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700">
+                <strong>Esta norma fue aprobada por la Asamblea General.</strong> No se puede editar directamente.
+                Tu propuesta será enviada como una propuesta de modificación de gobernanza para que la asamblea la debata y vote.
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Describe el cambio que propones
+                </label>
+                <textarea
+                  rows={4}
+                  className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 outline-none"
+                  placeholder="Ej: Modificar el límite de crédito inicial de 500 TQ a 800 TQ porque el costo de vida ha aumentado..."
+                  value={proposalText}
+                  onChange={(e) => setProposalText(e.target.value)}
+                />
+              </div>
+
+              {proposalMsg && (
+                <div className={`text-xs p-2 rounded-lg ${
+                  proposalMsg.includes('Error') ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'
+                }`}>
+                  {proposalMsg}
+                </div>
+              )}
+
+              <div className="flex items-center justify-between gap-2 pt-2">
+                <Link
+                  to="/app/assembly"
+                  className="text-xs text-emerald-700 hover:text-emerald-800 font-medium"
+                >
+                  Ver todas las propuestas →
+                </Link>
+                <button
+                  onClick={async () => {
+                    if (!proposalText.trim()) {
+                      setProposalMsg('Error: describe el cambio que propones')
+                      return
+                    }
+                    setProposalSubmitting(true)
+                    setProposalMsg('')
+                    try {
+                      await api.post('/assembly/proposals', {
+                        title: `Modificar norma: ${proposalModal.rule.title}`,
+                        description: `Norma actual: ${proposalModal.rule.description}\n\nCambio propuesto: ${proposalText}`,
+                        type: 'policy',
+                        category: proposalModal.rule.category,
+                        target_rule_id: proposalModal.rule.id,
+                      })
+                      setProposalMsg('Propuesta enviada a la Asamblea. Será debatida en la próxima sesión.')
+                      setProposalText('')
+                    } catch (e: any) {
+                      setProposalMsg('Error: ' + (e?.message || 'no se pudo enviar la propuesta'))
+                    } finally {
+                      setProposalSubmitting(false)
+                    }
+                  }}
+                  disabled={proposalSubmitting}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-amber-600 text-white hover:bg-amber-500 transition disabled:opacity-60"
+                >
+                  {proposalSubmitting ? 'Enviando...' : 'Enviar Propuesta'}
+                  <Send size={14} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
