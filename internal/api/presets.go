@@ -73,7 +73,7 @@ func (h *PresetsHandler) applyPreset(w http.ResponseWriter, r *http.Request) {
 func (h *PresetsHandler) applyPresetSetup(w http.ResponseWriter, r *http.Request) {
 	// Solo funciona si el nodo no esta inicializado (no hay admin)
 	var hasAdmin bool
-	err := h.Pool.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM users WHERE is_admin = true)`).Scan(&hasAdmin)
+	err := h.Pool.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM users WHERE is_admin = true OR is_super_admin = true)`).Scan(&hasAdmin)
 	if err != nil {
 		writeError(w, 500, "error checking setup status")
 		return
@@ -83,13 +83,9 @@ func (h *PresetsHandler) applyPresetSetup(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	nodeDomain := r.Header.Get("X-Node-Domain")
-	if nodeDomain == "" {
-		nodeDomain = h.NodeDomain
-	}
-
 	var req struct {
-		PresetID string `json:"preset_id"`
+		PresetID   string `json:"preset_id"`
+		NodeDomain string `json:"node_domain"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -98,6 +94,15 @@ func (h *PresetsHandler) applyPresetSetup(w http.ResponseWriter, r *http.Request
 	if req.PresetID == "" || req.PresetID == "vacio" {
 		writeJSON(w, 200, map[string]interface{}{"success": true, "skipped": true})
 		return
+	}
+
+	// Usar node_domain del body, o del header, o el del handler
+	nodeDomain := req.NodeDomain
+	if nodeDomain == "" {
+		nodeDomain = r.Header.Get("X-Node-Domain")
+	}
+	if nodeDomain == "" {
+		nodeDomain = h.NodeDomain
 	}
 
 	if err := db.ApplyPreset(r.Context(), h.Pool, nodeDomain, req.PresetID); err != nil {

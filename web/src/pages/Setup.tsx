@@ -144,6 +144,22 @@ export default function Setup() {
     setError('')
     setSubmitting(true)
     try {
+      // 1. Aplicar preset ANTES de crear el admin.
+      // El endpoint /setup/apply-preset solo funciona si no hay admin todavia.
+      // Si lo hacemos despues de /setup/init, devuelve 403.
+      if (selectedPreset && selectedPreset !== 'vacio') {
+        try {
+          await api.post('/setup/apply-preset', {
+            preset_id: selectedPreset,
+            node_domain: form.node_domain,
+          })
+        } catch (e) {
+          // No fallar la inicializacion si el preset falla
+          console.warn('Preset application failed:', e)
+        }
+      }
+
+      // 2. Inicializar el nodo (crea el admin)
       const result = await api.post<{
         token: string
         username: string
@@ -157,16 +173,6 @@ export default function Setup() {
         admin_display_name: form.admin_display_name || form.admin_username,
         admin_password: form.admin_password,
       })
-
-      // Aplicar preset seleccionado (si no es "vacio")
-      if (selectedPreset && selectedPreset !== 'vacio') {
-        try {
-          await api.post('/setup/apply-preset', { preset_id: selectedPreset })
-        } catch (e) {
-          // No fallar la inicializacion si el preset falla
-          console.warn('Preset application failed:', e)
-        }
-      }
 
       login(result.token, result.username)
       setSuccess('Nodo inicializado correctamente')
@@ -314,13 +320,24 @@ export default function Setup() {
           <div className="space-y-4">
             <div>
               <label className="label flex items-center gap-2">
-                <Sparkles size={16} /> Preconfiguracion del nodo
+                <Sparkles size={16} /> Datos precargados del nodo
               </label>
-              <p className="text-xs text-gray-500 mt-1 mb-3">
-                Elige un perfil preconfigurado segun la filosofia de tu comunidad.
+              <p className="text-xs text-gray-500 mt-1 mb-2">
+                Elige un perfil con datos de ejemplo segun la filosofia de tu comunidad.
                 Esto aplicara horarios, reglas de catalogo, textos y colores iniciales.
-                Puedes elegir "Vacio" para configurar todo manualmente despues.
               </p>
+              {/* Nota importante: normas universales siempre se cargan */}
+              <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 mb-3">
+                <p className="text-xs text-emerald-800 flex items-start gap-2">
+                  <CheckCircle size={14} className="flex-shrink-0 mt-0.5" />
+                  <span>
+                    <strong>Las normas basicas siempre se cargan:</strong> como funciona el trueque,
+                    la federacion entre nodos, los limites simetricos y el modelo energetico.
+                    Estas normas aplican a todas las comunidades. El preset que elijas aqui
+                    agrega configuracion especifica de tu comunidad (horarios, reglas dieteticas, textos).
+                  </span>
+                </p>
+              </div>
             </div>
 
             {/* Buscador */}
@@ -341,8 +358,8 @@ export default function Setup() {
               </div>
             )}
 
-            {/* Lista de presets */}
-            <div className="space-y-2 max-h-80 overflow-y-auto">
+            {/* Lista de presets agrupados por categoria */}
+            <div className="space-y-3 max-h-80 overflow-y-auto">
               {presets
                 .filter((p: any) => {
                   if (!presetSearch) return true
@@ -351,40 +368,72 @@ export default function Setup() {
                     p.description?.toLowerCase().includes(q) ||
                     p.category?.toLowerCase().includes(q)
                 })
-                .map((p: any) => (
-                  <label
-                    key={p.id}
-                    className={`block p-3 rounded-lg border-2 cursor-pointer transition-colors ${
-                      selectedPreset === p.id
-                        ? 'border-trueque-600 bg-trueque-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="flex items-start gap-2">
-                      <input
-                        type="radio"
-                        name="preset"
-                        value={p.id}
-                        checked={selectedPreset === p.id}
-                        onChange={(e) => setSelectedPreset(e.target.value)}
-                        className="mt-1"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-sm">{p.name}</span>
-                          <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600">{p.category}</span>
-                        </div>
-                        <p className="text-xs text-gray-600 mt-1">{p.description}</p>
-                      </div>
+                .reduce((acc: any[], p: any) => {
+                  const cat = p.category || 'general'
+                  const group = acc.find((g) => g.category === cat)
+                  if (group) {
+                    group.items.push(p)
+                  } else {
+                    acc.push({ category: cat, items: [p] })
+                  }
+                  return acc
+                }, [])
+                .map((group: any) => (
+                  <div key={group.category}>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                      {group.category}
+                    </p>
+                    <div className="space-y-2">
+                      {group.items.map((p: any) => (
+                        <label
+                          key={p.id}
+                          className={`block p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                            selectedPreset === p.id
+                              ? 'border-trueque-600 bg-trueque-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <input
+                              type="radio"
+                              name="preset"
+                              value={p.id}
+                              checked={selectedPreset === p.id}
+                              onChange={(e) => setSelectedPreset(e.target.value)}
+                              className="mt-1"
+                            />
+                            <div className="flex-1">
+                              <span className="font-medium text-sm">{p.name}</span>
+                              <p className="text-xs text-gray-600 mt-1">{p.description}</p>
+                              {p.has_demo_data && (
+                                <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-600 mt-1 inline-block">
+                                  Incluye datos de ejemplo
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </label>
+                      ))}
                     </div>
-                  </label>
+                  </div>
                 ))}
             </div>
+
+            {/* Nota cuando se selecciona "vacio" */}
+            {selectedPreset === 'vacio' && (
+              <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+                <p className="text-xs text-blue-700">
+                  Has elegido instalar sin datos precargados. Se cargaran las normas federadas
+                  universales (trueque, federacion, energia) y podras configurar todo lo demas
+                  manualmente desde el panel de administracion.
+                </p>
+              </div>
+            )}
 
             {presets.length === 0 && !presetsLoading && (
               <p className="text-xs text-gray-500">
                 No se pudieron cargar las preconfiguraciones. Puedes continuar sin preconfiguracion
-                y ajustar todo manualmente despues.
+                y ajustar todo manualmente despues. Las normas federadas universales se cargaran igual.
               </p>
             )}
           </div>
