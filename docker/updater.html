@@ -105,9 +105,9 @@ function setStatus(r){
   }
 }
 async function refreshStatus(){
-  var r=await api("/node-status");
+  var r=await api("node-status");
   setStatus(r);
-  var u=await api("/status");
+  var u=await api("status");
   if(u.status==="running"){
     document.getElementById("btnUpdate").disabled=true;
     document.getElementById("btnCancel").style.display="block";
@@ -127,7 +127,7 @@ async function doAction(a){
   if(a==="update"&&!confirm("Confirmas que quieres actualizar el nodo? Se reconstruiran node-app y demo-app. Esto tarda varios minutos."))return;
   if(a==="stop"&&!confirm("Confirmas que quieres detener el nodo demo?"))return;
   showMsg(conf[a]+"...","msg-info");
-  var r=await api("/"+a,{method:"POST"});
+  var r=await api(a,{method:"POST"});
   if(r.success){showMsg(conf[a]+": "+(r.message||"OK"),"msg-success");}
   else{showMsg(conf[a]+" fallo: "+(r.message||"error"),"msg-error");}
   setTimeout(refreshStatus,1000);
