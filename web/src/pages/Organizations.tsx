@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { Users, Plus, HelpCircle, X, Crown, Trash2, Key, Vote as VoteIcon, ArrowRight, Landmark } from 'lucide-react'
@@ -62,6 +63,7 @@ const HELP_SECTIONS = [
 ]
 
 export default function Organizations() {
+  const { t } = useTranslation('organizations')
   const navigate = useNavigate()
   const { currency } = useConfig()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -160,17 +162,17 @@ export default function Organizations() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold">Organizaciones</h1>
+          <h1 className="text-2xl font-bold">{t('title', 'Organizaciones')}</h1>
           <button
             onClick={() => setShowHelp(!showHelp)}
             className="btn-secondary flex items-center gap-1 text-sm"
-            title="Ayuda"
+            title={t('help_button', 'Ayuda')}
           >
             <HelpCircle size={16} /> ?
           </button>
         </div>
         <button onClick={() => setShowForm(!showForm)} className="btn-primary flex items-center gap-2">
-          <Plus size={18} /> Nueva
+          <Plus size={18} /> {t('new_button', 'Nueva')}
         </button>
       </div>
 
@@ -179,7 +181,7 @@ export default function Organizations() {
           <button
             onClick={() => setShowHelp(false)}
             className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
-            title="Cerrar"
+            title={t('close', 'Cerrar')}
           >
             <X size={18} />
           </button>
@@ -199,8 +201,7 @@ export default function Organizations() {
 
       <div className="card bg-trueque-50 border-trueque-200">
         <p className="text-sm text-trueque-800">
-          Las organizaciones son grupos internos de la comunidad. No son tipos legales externos. Cada
-          comunidad define sus propios tipos segun sus necesidades.
+          {t('intro_text', 'Las organizaciones son grupos internos de la comunidad. No son tipos legales externos. Cada comunidad define sus propios tipos segun sus necesidades.')}
         </p>
       </div>
 
@@ -212,7 +213,7 @@ export default function Organizations() {
             tab === 'mine' ? 'text-trueque-700 border-b-2 border-trueque-600' : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          <Users size={16} /> Mis Organizaciones
+          <Users size={16} /> {t('tab_mine', 'Mis Organizaciones')}
           {myOrgs.length > 0 && <span className="text-xs bg-trueque-100 text-trueque-700 px-1.5 rounded">{myOrgs.length}</span>}
         </button>
         <button
@@ -221,7 +222,7 @@ export default function Organizations() {
             tab === 'all' ? 'text-trueque-700 border-b-2 border-trueque-600' : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          <Users size={16} /> Todas las Organizaciones
+          <Users size={16} /> {t('tab_all', 'Todas las Organizaciones')}
           {orgs.length > 0 && <span className="text-xs bg-gray-100 text-gray-600 px-1.5 rounded">{orgs.length}</span>}
         </button>
       </div>
@@ -229,8 +230,7 @@ export default function Organizations() {
       {tab === 'mine' && (
         <div className="card bg-blue-50 border-blue-200">
           <p className="text-sm text-blue-800">
-            Estas son las organizaciones donde tienes un rol (junta directiva o membresia).
-            Puedes trabajar en ellas: ver billetera, gestionar, transferir segun tus permisos.
+            {t('mine_intro', 'Estas son las organizaciones donde tienes un rol (junta directiva o membresia). Puedes trabajar en ellas: ver billetera, gestionar, transferir segun tus permisos.')}
           </p>
         </div>
       )}
@@ -238,8 +238,7 @@ export default function Organizations() {
       {tab === 'all' && (
         <div className="card bg-gray-50 border-gray-200">
           <p className="text-sm text-gray-700">
-            Todas las organizaciones del nodo. Puedes verlas pero solo puedes actuar en las
-            donde tienes un rol. Haz clic en una para ver su informacion publica.
+            {t('all_intro', 'Todas las organizaciones del nodo. Puedes verlas pero solo puedes actuar en las donde tienes un rol. Haz clic en una para ver su informacion publica.')}
           </p>
         </div>
       )}
@@ -248,31 +247,31 @@ export default function Organizations() {
         <div className="card space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <EntitySelector
-              label="Usuario"
-              helpText="Selecciona el usuario existente que representara a esta organizacion. Busca por nombre de usuario o nombre para mostrar."
-              placeholder="Ej: juan_perez, maria_gomez..."
+              label={t('form_user_label', 'Usuario')}
+              helpText={t('form_user_help', 'Selecciona el usuario existente que representara a esta organizacion. Busca por nombre de usuario o nombre para mostrar.')}
+              placeholder={t('form_user_placeholder', 'Ej: juan_perez, maria_gomez...')}
               value={form.username}
               onChange={(value) => setForm({ ...form, username: value })}
               endpoint="/accounts"
               valueKey="id"
               labelKey="username"
               subLabelKey="display_name"
-              emptyMessage="No se encontraron usuarios"
+              emptyMessage={t('form_user_empty', 'No se encontraron usuarios')}
             />
             <div>
-              <label className="label">Nombre</label>
+              <label className="label">{t('form_name_label', 'Nombre')}</label>
               <input
                 className="input"
-                placeholder="Ej: Cooperativa Norte, Panaderia Unida"
+                placeholder={t('form_name_placeholder', 'Ej: Cooperativa Norte, Panaderia Unida')}
                 value={form.display_name}
                 onChange={(e) => setForm({ ...form, display_name: e.target.value })}
               />
               <p className="text-xs text-gray-400 mt-1">
-                Nombre de la organizacion. Ej: Cooperativa Norte, Panaderia Unida
+                {t('form_name_hint', 'Nombre de la organizacion. Ej: Cooperativa Norte, Panaderia Unida')}
               </p>
             </div>
             <div>
-              <label className="label">Tipo de organizacion</label>
+              <label className="label">{t('form_type_label', 'Tipo de organizacion')}</label>
               <select
                 className="input"
                 value={form.organization_subtype}
@@ -292,62 +291,59 @@ export default function Organizations() {
                   ))}
               </select>
               <p className="text-xs text-gray-400 mt-1">
-                Selecciona el tipo de organizacion segun su funcion dentro de la comunidad.
+                {t('form_type_hint', 'Selecciona el tipo de organizacion segun su funcion dentro de la comunidad.')}
               </p>
             </div>
             <div>
-              <label className="label">Tasa impositiva %</label>
+              <label className="label">{t('form_tax_label', 'Tasa impositiva %')}</label>
               <input
                 type="number"
                 className="input"
-                placeholder="Ej: 0, 5, 10"
+                placeholder={t('form_tax_placeholder', 'Ej: 0, 5, 10')}
                 value={form.tax_rate}
                 onChange={(e) => setForm({ ...form, tax_rate: parseFloat(e.target.value) || 0 })}
               />
               <p className="text-xs text-gray-400 mt-1">
-                Porcentaje de impuesto que aplica a las transacciones de esta organizacion.
+                {t('form_tax_hint', 'Porcentaje de impuesto que aplica a las transacciones de esta organizacion.')}
               </p>
             </div>
             <div>
-              <label className="label">Limite credito ({currency})</label>
+              <label className="label">{t('form_credit_limit_label', 'Limite credito')} ({currency})</label>
               <input
                 type="number"
                 className="input"
-                placeholder={`Ej: -20000 (${currency})`}
+                placeholder={t('form_credit_limit_placeholder', 'Ej: -20000')}
                 value={form.credit_limit}
                 onChange={(e) => setForm({ ...form, credit_limit: toCents(e.target.value) })}
               />
               <p className="text-xs text-gray-400 mt-1">
-                Monto maximo en {currency} que la organizacion puede tener como credito (saldo
-                negativo permitido).
+                {t('form_credit_limit_hint', 'Monto maximo que la organizacion puede tener como credito (saldo negativo permitido).')}
               </p>
             </div>
             <div>
-              <label className="label">Limite debito ({currency})</label>
+              <label className="label">{t('form_debit_limit_label', 'Limite debito')} ({currency})</label>
               <input
                 type="number"
                 className="input"
-                placeholder={`Ej: 20000 (${currency})`}
+                placeholder={t('form_debit_limit_placeholder', 'Ej: 20000')}
                 value={form.debit_limit}
                 onChange={(e) => setForm({ ...form, debit_limit: toCents(e.target.value) })}
               />
               <p className="text-xs text-gray-400 mt-1">
-                Monto maximo en {currency} que la organizacion puede tener como debito (saldo
-                positivo permitido).
+                {t('form_debit_limit_hint', 'Monto maximo que la organizacion puede tener como debito (saldo positivo permitido).')}
               </p>
             </div>
           </div>
 
           <div className="border-t border-gray-200 pt-3 space-y-2">
-            <label className="label">Crear nuevo tipo de organizacion</label>
+            <label className="label">{t('form_new_type_label', 'Crear nuevo tipo de organizacion')}</label>
             <p className="text-xs text-gray-400 -mt-1">
-              Agrega un tipo personalizado si los predefinidos no cubren las necesidades de tu
-              comunidad.
+              {t('form_new_type_hint', 'Agrega un tipo personalizado si los predefinidos no cubren las necesidades de tu comunidad.')}
             </p>
             <div className="flex gap-2">
               <input
                 className="input"
-                placeholder="Ej: Mutual, Sindicato, Asociacion..."
+                placeholder={t('form_new_type_placeholder', 'Ej: Mutual, Sindicato, Asociacion...')}
                 value={newType}
                 onChange={(e) => setNewType(e.target.value)}
                 onKeyDown={(e) => {
@@ -358,7 +354,7 @@ export default function Organizations() {
                 }}
               />
               <button onClick={addType} className="btn-secondary flex items-center gap-1 whitespace-nowrap">
-                <Plus size={16} /> Agregar tipo
+                <Plus size={16} /> {t('form_add_type', 'Agregar tipo')}
               </button>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -374,7 +370,7 @@ export default function Organizations() {
           </div>
 
           <button onClick={create} className="btn-primary">
-            Crear Organizacion
+            {t('form_create_button', 'Crear Organizacion')}
           </button>
         </div>
       )}
@@ -384,8 +380,8 @@ export default function Organizations() {
           {myOrgs.length === 0 && (
             <div className="card text-center py-8 text-gray-500">
               <Users size={32} className="mx-auto mb-2 text-gray-300" />
-              <p>No eres miembro de ninguna organizacion aun.</p>
-              <p className="text-xs mt-1">Cuando te asignen a la junta directiva de una organizacion, aparecera aqui.</p>
+              <p>{t('no_membership', 'No eres miembro de ninguna organizacion aun.')}</p>
+              <p className="text-xs mt-1">{t('no_membership_hint', 'Cuando te asignen a la junta directiva de una organizacion, aparecera aqui.')}</p>
             </div>
           )}
           {/* Organizaciones creadas por la Asamblea van primero, con estilo destacado */}
@@ -405,16 +401,16 @@ export default function Organizations() {
                         <p className="text-sm text-gray-600">@{org.username}</p>
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
                           <span className="text-xs bg-amber-200 text-amber-800 px-2 py-0.5 rounded font-semibold">
-                            Creada por la Asamblea
+                            {t('created_by_assembly', 'Creada por la Asamblea')}
                           </span>
                           <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">
-                            Tu rol: {org.role}
+                            {t('your_role', 'Tu rol:')} {org.role}
                           </span>
                           {org.is_board_member && (
-                            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">Junta Directiva</span>
+                            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">{t('board_directive', 'Junta Directiva')}</span>
                           )}
                           {org.can_transfer && (
-                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Puede transferir</span>
+                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">{t('can_transfer', 'Puede transferir')}</span>
                           )}
                         </div>
                       </div>
@@ -423,13 +419,13 @@ export default function Organizations() {
                           onClick={() => navigate('/app/assembly')}
                           className="text-sm bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-700 flex items-center gap-1 font-medium"
                         >
-                          <VoteIcon size={14} /> Asamblea
+                          <VoteIcon size={14} /> {t('assembly_button', 'Asamblea')}
                         </button>
                         <button
                           onClick={() => navigate(`/app/organizations/${org.id}`)}
                           className="text-sm text-amber-700 hover:underline flex items-center gap-1 font-medium"
                         >
-                          Abrir <ArrowRight size={14} />
+                          {t('open', 'Abrir')} <ArrowRight size={14} />
                         </button>
                       </div>
                     </div>
@@ -450,13 +446,13 @@ export default function Organizations() {
                   <p className="text-sm text-gray-600">@{org.username}</p>
                   <div className="flex items-center gap-2 mt-2 flex-wrap">
                     <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">
-                      Tu rol: {org.role}
+                      {t('your_role', 'Tu rol:')} {org.role}
                     </span>
                     {org.is_board_member && (
-                      <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">Junta Directiva</span>
+                      <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">{t('board_directive', 'Junta Directiva')}</span>
                     )}
                     {org.can_transfer && (
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Puede transferir</span>
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">{t('can_transfer', 'Puede transferir')}</span>
                     )}
                   </div>
                   <div className="flex items-center justify-end mt-3">
@@ -464,7 +460,7 @@ export default function Organizations() {
                       onClick={() => navigate(`/app/organizations/${org.id}`)}
                       className="text-sm text-trueque-600 hover:underline flex items-center gap-1 font-medium"
                     >
-                      Abrir <ArrowRight size={14} />
+                      {t('open', 'Abrir')} <ArrowRight size={14} />
                     </button>
                   </div>
                 </div>
@@ -477,7 +473,7 @@ export default function Organizations() {
           {orgs.length === 0 && (
             <div className="card text-center py-8 text-gray-500">
               <Users size={32} className="mx-auto mb-2 text-gray-300" />
-              <p>No hay organizaciones en este nodo.</p>
+              <p>{t('no_organizations', 'No hay organizaciones en este nodo.')}</p>
             </div>
           )}
           {/* Organizaciones creadas por la Asamblea van primero, con estilo destacado */}
@@ -497,20 +493,20 @@ export default function Organizations() {
                         <div className="flex-1">
                           <h3 className="font-bold text-lg">{org.display_name}</h3>
                           <p className="text-sm text-gray-600">@{org.username}</p>
-                          <p className="text-xs text-amber-700 mt-1 font-semibold">Creada por la Asamblea</p>
+                          <p className="text-xs text-amber-700 mt-1 font-semibold">{t('created_by_assembly', 'Creada por la Asamblea')}</p>
                         </div>
                         <div className="flex flex-col gap-2 items-end">
                           <button
                             onClick={() => navigate('/app/assembly')}
                             className="text-sm bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-700 flex items-center gap-1 font-medium"
                           >
-                            <VoteIcon size={14} /> Asamblea
+                            <VoteIcon size={14} /> {t('assembly_button', 'Asamblea')}
                           </button>
                           <button
                             onClick={() => navigate(`/app/organizations/${org.id}`)}
                             className="text-sm text-amber-700 hover:underline flex items-center gap-1 font-medium"
                           >
-                            {myOrg ? 'Abrir' : 'Ver'} <ArrowRight size={14} />
+                            {myOrg ? t('open', 'Abrir') : t('view', 'Ver')} <ArrowRight size={14} />
                           </button>
                         </div>
                       </div>
@@ -531,11 +527,11 @@ export default function Organizations() {
                       <Users size={20} className="text-trueque-600" />
                       <h3 className="font-semibold">{org.display_name}</h3>
                       {myOrg && (
-                        <span className="text-xs bg-trueque-100 text-trueque-700 px-2 py-0.5 rounded">Tu org</span>
+                        <span className="text-xs bg-trueque-100 text-trueque-700 px-2 py-0.5 rounded">{t('your_org', 'Tu org')}</span>
                       )}
                     </div>
                     <p className="text-sm text-gray-600">@{org.username}</p>
-                    <p className="text-xs text-gray-400 mt-1">Tipo: {org.organization_subtype}</p>
+                    <p className="text-xs text-gray-400 mt-1">{t('type_label', 'Tipo:')} {org.organization_subtype}</p>
                     <div className="flex items-center justify-between mt-3">
                       <span
                         className={`text-xs px-2 py-1 rounded ${
@@ -551,7 +547,7 @@ export default function Organizations() {
                           onClick={() => navigate(`/app/organizations/${org.id}`)}
                           className="text-sm text-trueque-600 hover:underline flex items-center gap-1 font-medium"
                         >
-                          {myOrg ? 'Abrir' : 'Ver'} <ArrowRight size={14} />
+                          {myOrg ? t('open', 'Abrir') : t('view', 'Ver')} <ArrowRight size={14} />
                         </button>
                         {myOrg && (
                           <button
@@ -567,7 +563,7 @@ export default function Organizations() {
                             className="text-sm text-blue-600 hover:underline flex items-center gap-1"
                           >
                             <Crown size={14} />
-                            Junta
+                            {t('board_button', 'Junta')}
                           </button>
                         )}
                       </div>

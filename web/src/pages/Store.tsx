@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
 import { ShoppingCart, Plus, HelpCircle, Trash2, Search, Store as StoreIcon, Package, Layers, X } from 'lucide-react'
@@ -18,6 +19,7 @@ interface CompositeComponent {
 }
 
 export default function Store() {
+  const { t } = useTranslation('products')
   const { currency } = useConfig()
   const [view, setView] = useState<'mine' | 'browse'>('mine')
   const [items, setItems] = useState<any[]>([])
@@ -109,7 +111,7 @@ export default function Store() {
         if (controller.signal.aborted) return
         setModalResults([])
         setModalLoading(false)
-        setModalError(err?.message || 'Error al cargar componentes')
+        setModalError(err?.message || t('error_load_components', 'Error al cargar componentes'))
       })
     return () => controller.abort()
   }, [showComponentModal, modalFilter, modalSearchTerm])
@@ -135,7 +137,7 @@ export default function Store() {
   const confirmAddComponent = () => {
     if (!pendingComponent) return
     if (yieldProducts <= 0) {
-      setError('El numero de productos que salen debe ser mayor que cero')
+      setError(t('error_yield_zero', 'El numero de productos que salen debe ser mayor que cero'))
       return
     }
     // Determinar categoria del componente
@@ -177,15 +179,15 @@ export default function Store() {
   const saveComposite = async () => {
     setError('')
     if (!compositeName) {
-      setError('Debes darle un nombre a tu producto')
+      setError(t('error_name_required', 'Debes darle un nombre a tu producto'))
       return
     }
     if (!selectedParent || !selectedCategory) {
-      setError('Debes seleccionar la categoria padre y la categoria de tu producto')
+      setError(t('error_category_required', 'Debes seleccionar la categoria padre y la categoria de tu producto'))
       return
     }
     if (components.length === 0) {
-      setError('Debes agregar al menos un componente')
+      setError(t('error_components_required', 'Debes agregar al menos un componente'))
       return
     }
     try {
@@ -211,7 +213,7 @@ export default function Store() {
       setComponents([])
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear producto compuesto')
+      setError(err instanceof Error ? err.message : t('error_create_composite', 'Error al crear producto compuesto'))
     }
   }
 
@@ -221,13 +223,13 @@ export default function Store() {
   const addItem = async () => {
     setError('')
     if (!form.product_id) {
-      setError('Selecciona un producto del registro')
+      setError(t('error_select_product', 'Selecciona un producto del registro'))
       return
     }
     // Find the selected product to send its info
     const product = products.find((p) => p.id === form.product_id)
     if (!product) {
-      setError('Producto no encontrado')
+      setError(t('error_product_not_found', 'Producto no encontrado'))
       return
     }
     const basePrice = product.price_trueque || product.price || 0
@@ -252,7 +254,7 @@ export default function Store() {
       setForm({ product_id: '', stock: 0, quantity_per_unit: 1, extra_costs: 0, extra_description: '' })
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al agregar producto')
+      setError(err instanceof Error ? err.message : t('error_add_item', 'Error al agregar producto'))
     }
   }
 
@@ -272,7 +274,7 @@ export default function Store() {
       await api.post('/store/purchase', { item_id: item.id, quantity: parseInt(qty) })
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al comprar')
+      setError(err instanceof Error ? err.message : t('error_buy', 'Error al comprar'))
     }
   }
 
@@ -308,7 +310,7 @@ export default function Store() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold flex items-center gap-2"><ShoppingCart size={24} />Tienda</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2"><ShoppingCart size={24} />{t('store_title', 'Tienda')}</h1>
         <div className="flex gap-2">
           <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
             <HelpCircle size={20} />
@@ -319,10 +321,10 @@ export default function Store() {
       {/* Selector de vista */}
       <div className="flex gap-2">
         <button onClick={() => setView('mine')} className={`px-4 py-2 rounded-lg text-sm font-medium ${view === 'mine' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>
-          Mi Tienda
+          {t('store_my_store', 'Mi Tienda')}
         </button>
         <button onClick={() => setView('browse')} className={`px-4 py-2 rounded-lg text-sm font-medium ${view === 'browse' ? 'bg-trueque-600 text-white' : 'bg-gray-200'}`}>
-          Todas las Tiendas
+          {t('store_all_stores', 'Todas las Tiendas')}
         </button>
       </div>
 
@@ -338,7 +340,7 @@ export default function Store() {
           <p><strong>Como funciona la venta:</strong> Cuando alguien encuentra tu producto en "Buscar Productos" y lo compra, se transfiere el monto en {currency} de su cuenta a la tuya, y el stock se reduce. La transaccion es automatica y transparente.</p>
           <p><strong>Mi Tienda:</strong> Muestra los productos que tu ofreces y tu inventario personal.</p>
           <p><strong>Buscar Productos:</strong> Busca que productos estan disponibles en todas las tiendas de la red. Puedes filtrar por categoria o buscar por nombre. Asi sabes quien tiene lo que buscas.</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('close', 'Cerrar')}</button>
         </div>
       )}
 
@@ -348,8 +350,8 @@ export default function Store() {
       {view === 'mine' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="font-semibold flex items-center gap-2"><StoreIcon size={18} />Mi Tienda Personal</h2>
-            <button onClick={() => { setShowForm(!showForm); setFormMode('composite') }} className="btn-primary flex items-center gap-2"><Plus size={18} />Crear Producto Compuesto</button>
+            <h2 className="font-semibold flex items-center gap-2"><StoreIcon size={18} />{t('store_my_personal_store', 'Mi Tienda Personal')}</h2>
+            <button onClick={() => { setShowForm(!showForm); setFormMode('composite') }} className="btn-primary flex items-center gap-2"><Plus size={18} />{t('store_create_composite', 'Crear Producto Compuesto')}</button>
           </div>
 
           {showForm && (
@@ -360,54 +362,54 @@ export default function Store() {
                   onClick={() => setFormMode('composite')}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium ${formMode === 'composite' ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-600'}`}
                 >
-                  <Layers size={14} className="inline mr-1" />Producto Compuesto
+                  <Layers size={14} className="inline mr-1" />{t('store_composite_product', 'Producto Compuesto')}
                 </button>
                 <button
                   onClick={() => setFormMode('simple')}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium ${formMode === 'simple' ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-600'}`}
                 >
-                  <Package size={14} className="inline mr-1" />Producto del Catalogo
+                  <Package size={14} className="inline mr-1" />{t('store_catalog_product', 'Producto del Catalogo')}
                 </button>
               </div>
 
               {formMode === 'composite' ? (
                 <>
-                  <h3 className="font-semibold">Crear Producto Compuesto</h3>
-                  <p className="text-xs text-gray-500">Crea un producto nuevo seleccionando materias primas, productos base, horas de trabajo, embalaje y envio del catalogo aprobado. El precio se calcula automaticamente. No necesita aprobacion de asamblea porque usa componentes ya aprobados.</p>
+                  <h3 className="font-semibold">{t('store_composite_title', 'Crear Producto Compuesto')}</h3>
+                  <p className="text-xs text-gray-500">{t('store_composite_desc', 'Crea un producto nuevo seleccionando materias primas, productos base, horas de trabajo, embalaje y envio del catalogo aprobado. El precio se calcula automaticamente. No necesita aprobacion de asamblea porque usa componentes ya aprobados.')}</p>
 
                   <div>
-                    <label className="label">Nombre de tu producto</label>
-                    <input className="input" placeholder="Ej: Jugo de naranja 200ml, Pan integral, Mi mermelada" value={compositeName} onChange={(e) => setCompositeName(e.target.value)} />
+                    <label className="label">{t('store_product_name_label', 'Nombre de tu producto')}</label>
+                    <input className="input" placeholder={t('store_product_name_placeholder', 'Ej: Jugo de naranja 200ml, Pan integral, Mi mermelada')} value={compositeName} onChange={(e) => setCompositeName(e.target.value)} />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="label">Unidad de medida del producto</label>
+                      <label className="label">{t('store_unit_label', 'Unidad de medida del producto')}</label>
                       <select className="input" value={compositeUnit} onChange={(e) => setCompositeUnit(e.target.value)}>
-                        <option value="unidad">Unidad</option>
-                        <option value="ml">Mililitro (ml)</option>
-                        <option value="L">Litro (L)</option>
-                        <option value="gr">Gramo (gr)</option>
-                        <option value="kg">Kilogramo (kg)</option>
-                        <option value="manojo">Manojo</option>
-                        <option value="hora">Hora</option>
-                        <option value="carga">Carga</option>
-                        <option value="m">Metro (m)</option>
-                        <option value="m2">Metro cuadrado (m2)</option>
+                        <option value="unidad">{t('unit_unidad', 'Unidad')}</option>
+                        <option value="ml">{t('unit_ml', 'Mililitro (ml)')}</option>
+                        <option value="L">{t('unit_l', 'Litro (L)')}</option>
+                        <option value="gr">{t('unit_gr', 'Gramo (gr)')}</option>
+                        <option value="kg">{t('unit_kg', 'Kilogramo (kg)')}</option>
+                        <option value="manojo">{t('unit_manojo', 'Manojo')}</option>
+                        <option value="hora">{t('unit_hora', 'Hora')}</option>
+                        <option value="carga">{t('unit_carga', 'Carga')}</option>
+                        <option value="m">{t('unit_m', 'Metro (m)')}</option>
+                        <option value="m2">{t('unit_m2', 'Metro cuadrado (m2)')}</option>
                       </select>
                     </div>
                     <div>
-                      <label className="label">Cantidad por unidad</label>
-                      <input type="number" step="any" className="input" placeholder="Ej: 200 (para 200ml), 500 (para 500gr), 1 (para 1 unidad)" value={compositeQtyPerUnit} onChange={(e) => setCompositeQtyPerUnit(parseFloat(e.target.value) || 1)} />
-                      <p className="text-xs text-gray-500 mt-1">Ej: 200 ml, 500 gr, 1 kg, 1 unidad</p>
+                      <label className="label">{t('store_qty_per_unit_label', 'Cantidad por unidad')}</label>
+                      <input type="number" step="any" className="input" placeholder={t('store_qty_per_unit_placeholder', 'Ej: 200 (para 200ml), 500 (para 500gr), 1 (para 1 unidad)')} value={compositeQtyPerUnit} onChange={(e) => setCompositeQtyPerUnit(parseFloat(e.target.value) || 1)} />
+                      <p className="text-xs text-gray-500 mt-1">{t('store_qty_per_unit_hint', 'Ej: 200 ml, 500 gr, 1 kg, 1 unidad')}</p>
                     </div>
                   </div>
 
                   <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-3">
-                    <p className="text-xs font-semibold text-emerald-800">Ubica tu producto en su categoria exacta (3 niveles)</p>
+                    <p className="text-xs font-semibold text-emerald-800">{t('store_category_location', 'Ubica tu producto en su categoria exacta (3 niveles)')}</p>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
-                        <label className="label text-xs">1. Categoria Padre</label>
+                        <label className="label text-xs">{t('store_parent_cat_step', '1. Categoria Padre')}</label>
                         <select
                           className="input"
                           value={selectedParent}
@@ -417,14 +419,14 @@ export default function Store() {
                             setSelectedSubcategory('')
                           }}
                         >
-                          <option value="">-- Selecciona --</option>
+                          <option value="">{t('store_select_option', '-- Selecciona --')}</option>
                           {hierarchy.map((pc: any) => (
                             <option key={pc.name} value={pc.name}>{pc.name}</option>
                           ))}
                         </select>
                       </div>
                       <div>
-                        <label className="label text-xs">2. Categoria</label>
+                        <label className="label text-xs">{t('store_category_step', '2. Categoria')}</label>
                         <select
                           className="input"
                           value={selectedCategory}
@@ -434,7 +436,7 @@ export default function Store() {
                           }}
                           disabled={!selectedParent}
                         >
-                          <option value="">-- Selecciona --</option>
+                          <option value="">{t('store_select_option', '-- Selecciona --')}</option>
                           {selectedParent && hierarchy
                             .find((pc: any) => pc.name === selectedParent)
                             ?.categories?.map((c: any) => (
@@ -443,14 +445,14 @@ export default function Store() {
                         </select>
                       </div>
                       <div>
-                        <label className="label text-xs">3. Subcategoria (opcional)</label>
+                        <label className="label text-xs">{t('store_subcategory_step', '3. Subcategoria (opcional)')}</label>
                         <select
                           className="input"
                           value={selectedSubcategory}
                           onChange={(e) => setSelectedSubcategory(e.target.value)}
                           disabled={!selectedCategory}
                         >
-                          <option value="">-- Sin subcategoria --</option>
+                          <option value="">{t('store_no_subcategory', '-- Sin subcategoria --')}</option>
                           {selectedParent && selectedCategory && hierarchy
                             .find((pc: any) => pc.name === selectedParent)
                             ?.categories?.find((c: any) => c.name === selectedCategory)
@@ -462,26 +464,26 @@ export default function Store() {
                     </div>
                     <p className="text-xs text-gray-500">
                       {selectedParent && selectedCategory
-                        ? <>Ubicacion: <strong>{selectedParent} › {selectedCategory}{selectedSubcategory ? ` › ${selectedSubcategory}` : ''}</strong></>
-                        : <span className="text-amber-700">Debes seleccionar al menos categoria padre y categoria. Si necesitas una categoria nueva, pide a administracion que la cree en el catalogo.</span>}
+                        ? <>{t('store_location_label', 'Ubicacion:')} <strong>{selectedParent} › {selectedCategory}{selectedSubcategory ? ` › ${selectedSubcategory}` : ''}</strong></>
+                        : <span className="text-amber-700">{t('store_location_required', 'Debes seleccionar al menos categoria padre y categoria. Si necesitas una categoria nueva, pide a administracion que la cree en el catalogo.')}</span>}
                     </p>
                   </div>
 
                   <div>
-                    <label className="label">Descripcion</label>
-                    <textarea className="input" rows={2} placeholder="Describe tu producto: como lo haces, que lo hace especial..." value={compositeDesc} onChange={(e) => setCompositeDesc(e.target.value)} />
+                    <label className="label">{t('store_description_label', 'Descripcion')}</label>
+                    <textarea className="input" rows={2} placeholder={t('store_description_placeholder', 'Describe tu producto: como lo haces, que lo hace especial...')} value={compositeDesc} onChange={(e) => setCompositeDesc(e.target.value)} />
                   </div>
 
                   <div>
-                    <label className="label">Cantidad disponible (stock)</label>
-                    <input type="number" className="input" placeholder="Ej: 10" value={compositeStock} onChange={(e) => setCompositeStock(parseInt(e.target.value) || 1)} />
+                    <label className="label">{t('store_stock_label', 'Cantidad disponible (stock)')}</label>
+                    <input type="number" className="input" placeholder={t('store_stock_placeholder', 'Ej: 10')} value={compositeStock} onChange={(e) => setCompositeStock(parseInt(e.target.value) || 1)} />
                   </div>
 
                   {/* Selector de componentes */}
                   <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 space-y-3">
                     <div>
-                      <p className="text-sm font-semibold text-emerald-900">Agregar componentes</p>
-                      <p className="text-xs text-gray-600 mt-1">Selecciona materias primas, productos base, horas de trabajo, embalaje o envio. El precio se calcula automaticamente.</p>
+                      <p className="text-sm font-semibold text-emerald-900">{t('store_add_components', 'Agregar componentes')}</p>
+                      <p className="text-xs text-gray-600 mt-1">{t('store_add_components_desc', 'Selecciona materias primas, productos base, horas de trabajo, embalaje o envio. El precio se calcula automaticamente.')}</p>
                     </div>
 
                     {/* Boton para abrir modal de busqueda */}
@@ -489,7 +491,7 @@ export default function Store() {
                       onClick={() => setShowComponentModal(true)}
                       className="w-full border-2 border-dashed border-emerald-400 rounded-lg p-3 text-emerald-700 hover:bg-emerald-50 transition flex items-center justify-center gap-2 font-medium text-sm"
                     >
-                      <Search size={18} /> Buscar y agregar componente
+                      <Search size={18} /> {t('store_search_component', 'Buscar y agregar componente')}
                     </button>
 
                     {/* Configuracion del componente seleccionado */}
@@ -505,24 +507,24 @@ export default function Store() {
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="label text-xs">Cantidad que compraste</label>
+                            <label className="label text-xs">{t('store_qty_purchased_label', 'Cantidad que compraste')}</label>
                             <input
                               type="number"
                               step="0.01"
                               className="input"
-                              placeholder="Ej: 1"
+                              placeholder={t('store_qty_purchased_placeholder', 'Ej: 1')}
                               value={qtyPurchased}
                               onChange={(e) => setQtyPurchased(parseFloat(e.target.value) || 0)}
                             />
                             <p className="text-xs text-gray-400 mt-1">Ej: 1 {pendingComponent.unit || 'kg'}</p>
                           </div>
                           <div>
-                            <label className="label text-xs">Cuantos productos salen?</label>
+                            <label className="label text-xs">{t('store_yield_label', 'Cuantos productos salen?')}</label>
                             <input
                               type="number"
                               step="1"
                               className="input"
-                              placeholder="Ej: 50"
+                              placeholder={t('store_yield_placeholder', 'Ej: 50')}
                               value={yieldProducts}
                               onChange={(e) => setYieldProducts(parseInt(e.target.value) || 0)}
                             />
@@ -531,12 +533,12 @@ export default function Store() {
                         </div>
                         {yieldProducts > 0 && qtyPurchased > 0 && (
                           <div className="bg-white rounded-lg p-2 text-xs text-gray-700">
-                            <p>Costo por producto: <strong>{fmtTQ((pendingComponent.price_per_unit || 0) * qtyPurchased / yieldProducts)} {currency}</strong></p>
+                            <p>{t('store_cost_per_product', 'Costo por producto:')} <strong>{fmtTQ((pendingComponent.price_per_unit || 0) * qtyPurchased / yieldProducts)} {currency}</strong></p>
                             <p className="text-gray-500">= {fmtTQ(pendingComponent.price_per_unit || 0)} {currency} x {qtyPurchased} {pendingComponent.unit} / {yieldProducts} productos = {fmtNumber(qtyPurchased / yieldProducts, 4)} {pendingComponent.unit} por producto</p>
                           </div>
                         )}
                         <button onClick={confirmAddComponent} className="btn-primary w-full" disabled={yieldProducts <= 0 || qtyPurchased <= 0}>
-                          Agregar este componente
+                          {t('store_add_this_component', 'Agregar este componente')}
                         </button>
                       </div>
                     )}
@@ -544,14 +546,14 @@ export default function Store() {
                     {/* Lista de componentes agregados */}
                     {components.length > 0 && (
                       <div className="space-y-2 mt-3">
-                        <p className="text-xs font-semibold text-gray-700">Componentes de tu producto:</p>
+                        <p className="text-xs font-semibold text-gray-700">{t('store_components_list', 'Componentes de tu producto:')}</p>
                         {components.map((c, i) => (
                           <div key={i} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-gray-200">
                             <div className="flex-1">
                               <span className="text-sm font-medium">{c.component_name}</span>
                               <span className="text-xs text-gray-500 ml-2">({c.component_category})</span>
                               <span className="text-xs text-gray-500 block">
-                                Compro {c.quantity_purchased} {c.component_unit} → {c.yield_products} productos →
+                                {t('store_bought', 'Compro')} {c.quantity_purchased} {c.component_unit} → {c.yield_products} {t('store_products', 'productos')} →
                                 <strong> {fmtTQ((c.component_price || 0) * c.quantity)} {currency}</strong> por producto
                               </span>
                             </div>
@@ -566,27 +568,27 @@ export default function Store() {
                     {/* Precio total calculado */}
                     {components.length > 0 && (
                       <div className="bg-trueque-100 border border-trueque-300 rounded-lg p-3 flex justify-between items-center">
-                        <span className="font-semibold text-trueque-900">Precio total automatico:</span>
+                        <span className="font-semibold text-trueque-900">{t('store_total_price', 'Precio total automatico:')}</span>
                         <span className="text-xl font-bold text-trueque-700">{fmtNumber(compositeTotalPrice, 2)} {currency}</span>
                       </div>
                     )}
                   </div>
 
                   <button onClick={saveComposite} className="btn-primary" disabled={components.length === 0 || !compositeName || !selectedParent || !selectedCategory}>
-                    Publicar en Mi Tienda ({fmtNumber(compositeTotalPrice, 2)} {currency})
+                    {t('store_publish', 'Publicar en Mi Tienda')} ({fmtNumber(compositeTotalPrice, 2)} {currency})
                   </button>
                 </>
               ) : (
                 <>
-                  <h3 className="font-semibold">Agregar Producto del Catalogo</h3>
-                  <p className="text-xs text-gray-500">Selecciona un producto del registro global e indica cuantas unidades tienes disponibles.</p>
+                  <h3 className="font-semibold">{t('store_add_catalog_title', 'Agregar Producto del Catalogo')}</h3>
+                  <p className="text-xs text-gray-500">{t('store_add_catalog_desc', 'Selecciona un producto del registro global e indica cuantas unidades tienes disponibles.')}</p>
 
                   {/* Filtro por categoria */}
                   {categories.length > 0 && (
                     <div>
-                      <label className="label">Filtrar por categoria</label>
+                      <label className="label">{t('store_filter_category', 'Filtrar por categoria')}</label>
                       <select className="input" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
-                        <option value="">Todas las categorias</option>
+                        <option value="">{t('store_all_categories', 'Todas las categorias')}</option>
                         {categories.map((c) => (
                           <option key={c} value={c}>{c}</option>
                         ))}
@@ -595,16 +597,16 @@ export default function Store() {
                   )}
 
                   <div>
-                    <label className="label">Producto del catalogo</label>
+                    <label className="label">{t('store_catalog_product_label', 'Producto del catalogo')}</label>
                     {products.length === 0 ? (
                       <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
-                        No hay productos en el registro. La asamblea debe agregar productos primero.
+                        {t('store_no_products_registry', 'No hay productos en el registro. La asamblea debe agregar productos primero.')}
                       </p>
                     ) : (
                       <select className="input" value={form.product_id} onChange={(e) => setForm({ ...form, product_id: e.target.value, extra_costs: 0, extra_description: '' })}>
-                        <option value="">Seleccionar producto...</option>
+                        <option value="">{t('store_select_product', 'Seleccionar producto...')}</option>
                         {filteredProducts.map((p) => (
-                          <option key={p.id} value={p.id}>{p.name} — {p.price_trueque || p.price} {currency}/{p.unit || 'unidad'} ({p.category || 'sin categoria'})</option>
+                          <option key={p.id} value={p.id}>{p.name} — {p.price_trueque || p.price} {currency}/{p.unit || 'unidad'} ({p.category || t('store_no_category', 'sin categoria')})</option>
                         ))}
                       </select>
                     )}
@@ -619,7 +621,7 @@ export default function Store() {
                       </div>
                       <p className="text-xs text-gray-600">{selectedProduct.description}</p>
                       <div className="flex items-center justify-between pt-1">
-                        <span className="text-xs text-gray-500">Precio base del catalogo:</span>
+                        <span className="text-xs text-gray-500">{t('store_base_price_label', 'Precio base del catalogo:')}</span>
                         <span className="font-bold text-emerald-700">{basePrice} {currency} / {selectedProduct.unit || 'unidad'}</span>
                       </div>
                     </div>
@@ -627,11 +629,11 @@ export default function Store() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="label">Cantidad disponible (stock)</label>
-                      <input type="number" className="input" placeholder="Ej: 10" value={form.stock} onChange={(e) => setForm({ ...form, stock: parseInt(e.target.value) || 0 })} />
+                      <label className="label">{t('store_stock_label', 'Cantidad disponible (stock)')}</label>
+                      <input type="number" className="input" placeholder={t('store_stock_placeholder', 'Ej: 10')} value={form.stock} onChange={(e) => setForm({ ...form, stock: parseInt(e.target.value) || 0 })} />
                     </div>
                     <div>
-                      <label className="label">Unidades por paquete</label>
+                      <label className="label">{t('store_units_per_package', 'Unidades por paquete')}</label>
                       <input type="number" step="0.1" className="input" placeholder="Ej: 1, 0.5, 2" value={form.quantity_per_unit} onChange={(e) => setForm({ ...form, quantity_per_unit: parseFloat(e.target.value) || 1 })} />
                     </div>
                   </div>
@@ -639,16 +641,16 @@ export default function Store() {
                   {/* Costos adicionales */}
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-3">
                     <div>
-                      <p className="text-sm font-semibold text-amber-900">Costos adicionales (opcionales)</p>
-                      <p className="text-xs text-gray-600 mt-1">Para envio o presentacion especial. Si el comprador recoge en tu parcela, deja en 0.</p>
+                      <p className="text-sm font-semibold text-amber-900">{t('store_extra_costs_title', 'Costos adicionales (opcionales)')}</p>
+                      <p className="text-xs text-gray-600 mt-1">{t('store_extra_costs_desc', 'Para envio o presentacion especial. Si el comprador recoge en tu parcela, deja en 0.')}</p>
                     </div>
                     <div>
-                      <label className="label">Costo adicional en {currency}</label>
-                      <input type="number" className="input" placeholder="Ej: 5 (por envio, envase de vidrio, etc.)" value={form.extra_costs} onChange={(e) => setForm({ ...form, extra_costs: toCents(e.target.value) })} />
+                      <label className="label">{t('store_extra_cost_label', 'Costo adicional en')} {currency}</label>
+                      <input type="number" className="input" placeholder={t('store_extra_cost_placeholder', 'Ej: 5 (por envio, envase de vidrio, etc.)')} value={form.extra_costs} onChange={(e) => setForm({ ...form, extra_costs: toCents(e.target.value) })} />
                     </div>
                     <div>
-                      <label className="label">Descripcion del costo adicional</label>
-                      <input className="input" placeholder="Ej: Envase de vidrio retornable, entrega a domicilio" value={form.extra_description} onChange={(e) => setForm({ ...form, extra_description: e.target.value })} />
+                      <label className="label">{t('store_extra_desc_label', 'Descripcion del costo adicional')}</label>
+                      <input className="input" placeholder={t('store_extra_desc_placeholder', 'Ej: Envase de vidrio retornable, entrega a domicilio')} value={form.extra_description} onChange={(e) => setForm({ ...form, extra_description: e.target.value })} />
                     </div>
                   </div>
 
@@ -656,23 +658,23 @@ export default function Store() {
                   {selectedProduct && (
                     <div className="bg-trueque-50 border border-trueque-200 rounded-lg p-3 space-y-1">
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Precio base:</span>
+                        <span className="text-gray-600">{t('store_price_base', 'Precio base:')}</span>
                         <span className="font-medium">{basePrice} {currency}</span>
                       </div>
                       {extraCosts > 0 && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Costos adicionales:</span>
+                          <span className="text-gray-600">{t('store_extra_costs', 'Costos adicionales:')}</span>
                           <span className="font-medium text-amber-700">+{extraCosts} {currency}</span>
                         </div>
                       )}
                       <div className="flex justify-between text-base font-bold pt-1 border-t border-trueque-200">
-                        <span className="text-trueque-900">Precio final:</span>
+                        <span className="text-trueque-900">{t('store_final_price', 'Precio final:')}</span>
                         <span className="text-trueque-700">{finalPrice} {currency}</span>
                       </div>
                     </div>
                   )}
 
-                  <button onClick={addItem} className="btn-primary" disabled={!form.product_id}>Agregar a Mi Tienda</button>
+                  <button onClick={addItem} className="btn-primary" disabled={!form.product_id}>{t('store_add_to_store', 'Agregar a Mi Tienda')}</button>
                 </>
               )}
             </div>
@@ -680,8 +682,8 @@ export default function Store() {
 
           {items.length === 0 && !showForm ? (
             <div className="card text-center text-gray-500 py-8">
-              <p>Tu tienda esta vacia.</p>
-              <p className="text-xs mt-2">Agrega productos del registro global con el boton de arriba.</p>
+              <p>{t('store_empty', 'Tu tienda esta vacia.')}</p>
+              <p className="text-xs mt-2">{t('store_empty_hint', 'Agrega productos del registro global con el boton de arriba.')}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -699,7 +701,7 @@ export default function Store() {
                     {item.category && <span className="text-xs bg-gray-100 px-2 py-0.5 rounded mt-1 inline-block">{item.category}</span>}
                     {isComposite && (
                       <div className="mt-2 bg-emerald-50 border border-emerald-200 rounded p-2">
-                        <p className="text-[10px] font-bold text-emerald-800 uppercase">Compuesto</p>
+                        <p className="text-[10px] font-bold text-emerald-800 uppercase">{t('composite_badge', 'Compuesto')}</p>
                         <p className="text-xs text-gray-600 mt-1">{item.extra_description}</p>
                       </div>
                     )}
@@ -716,11 +718,11 @@ export default function Store() {
                         </div>
                       )}
                       <span className={`text-sm ${item.stock === 0 ? 'text-red-500' : 'text-gray-500'}`}>
-                        Stock: {item.stock}{item.stock === 0 ? ' (agotado)' : ''}
+                        {t('store_stock', 'Stock:')} {item.stock}{item.stock === 0 ? ` (${t('store_sold_out', 'agotado')})` : ''}
                       </span>
                     </div>
                     <div className="flex gap-2 mt-3">
-                      <button onClick={() => buy(item)} className="btn-primary flex-1 flex items-center justify-center gap-2"><ShoppingCart size={16} />Vender</button>
+                      <button onClick={() => buy(item)} className="btn-primary flex-1 flex items-center justify-center gap-2"><ShoppingCart size={16} />{t('store_sell', 'Vender')}</button>
                       <button onClick={() => removeItem(item.id)} className="btn-secondary text-red-600"><Trash2 size={16} /></button>
                     </div>
                   </div>
@@ -734,20 +736,20 @@ export default function Store() {
       {/* VISTA: TODAS LAS TIENDAS (MARKETPLACE) */}
       {view === 'browse' && (
         <div className="space-y-4">
-          <h2 className="font-semibold flex items-center gap-2"><StoreIcon size={18} />Todas las Tiendas</h2>
-          <p className="text-xs text-gray-500">Explora todos los productos disponibles en la comunidad. Cada producto muestra quien lo vende y su precio.</p>
+          <h2 className="font-semibold flex items-center gap-2"><StoreIcon size={18} />{t('store_all_stores', 'Todas las Tiendas')}</h2>
+          <p className="text-xs text-gray-500">{t('store_browse_desc', 'Explora todos los productos disponibles en la comunidad. Cada producto muestra quien lo vende y su precio.')}</p>
 
           {/* Filtros */}
           <div className="card space-y-3">
             <div className="flex gap-2 flex-wrap">
               <div className="flex-1 min-w-[200px]">
-                <label className="label">Buscar producto o vendedor</label>
-                <input className="input" placeholder="Ej: pan, quinua, elena, tienda..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                <label className="label">{t('store_search_seller', 'Buscar producto o vendedor')}</label>
+                <input className="input" placeholder={t('store_search_placeholder', 'Ej: pan, quinua, elena, tienda...')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
               </div>
               <div className="min-w-[180px]">
-                <label className="label">Categoria</label>
+                <label className="label">{t('store_category_label', 'Categoria')}</label>
                 <select className="input" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
-                  <option value="">Todas las categorias</option>
+                  <option value="">{t('store_all_categories', 'Todas las categorias')}</option>
                   {storeCategories.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
@@ -756,11 +758,11 @@ export default function Store() {
             </div>
             {(searchQuery || filterCategory) && (
               <button onClick={() => { setSearchQuery(''); setFilterCategory('') }} className="text-xs text-blue-600 hover:underline">
-                Limpiar filtros
+                {t('store_clear_filters', 'Limpiar filtros')}
               </button>
             )}
             <p className="text-xs text-gray-400">
-              {filteredStores.length} producto(s) disponible(s) en {new Set(filteredStores.map(s => s.owner_name).filter(Boolean)).size} tienda(s)
+              {t('store_results_count', '{{count}} producto(s) disponible(s) en {{stores}} tienda(s)', { count: filteredStores.length, stores: new Set(filteredStores.map(s => s.owner_name).filter(Boolean)).size })}
             </p>
           </div>
 
@@ -768,11 +770,11 @@ export default function Store() {
           {filteredStores.length === 0 ? (
             <div className="card text-center text-gray-500 py-8">
               <StoreIcon size={48} className="mx-auto mb-3 opacity-30" />
-              <p>No hay productos disponibles{searchQuery || filterCategory ? ' con esos filtros' : ''}.</p>
+              <p>{t('store_no_products_filters', 'No hay productos disponibles')}{searchQuery || filterCategory ? t('store_no_products_filters_suffix', ' con esos filtros') : ''}.</p>
               <p className="text-xs mt-2">
                 {searchQuery || filterCategory
-                  ? 'Intenta limpiar los filtros o buscar otro termino.'
-                  : 'Los productos aparecen cuando los miembros los agregan a sus tiendas.'}
+                  ? t('store_try_clear', 'Intenta limpiar los filtros o buscar otro termino.')
+                  : t('store_products_appear', 'Los productos aparecen cuando los miembros los agregan a sus tiendas.')}
               </p>
             </div>
           ) : (
@@ -813,7 +815,7 @@ export default function Store() {
                     {/* Vendedor */}
                     <div className="flex items-center gap-1.5 text-xs text-gray-600 bg-gray-50 rounded-lg px-2 py-1.5">
                       <StoreIcon size={12} className="flex-shrink-0 text-trueque-600" />
-                      <span className="font-medium truncate">{s.owner_name || s.store_name || 'Tienda'}</span>
+                      <span className="font-medium truncate">{s.owner_name || s.store_name || t('store_store_label', 'Tienda')}</span>
                     </div>
 
                     {/* Precio y stock */}
@@ -824,9 +826,9 @@ export default function Store() {
                       </div>
                       <div className="text-right">
                         {s.stock === 0 ? (
-                          <span className="text-xs text-red-500 font-medium">Agotado</span>
+                          <span className="text-xs text-red-500 font-medium">{t('store_out_of_stock', 'Agotado')}</span>
                         ) : (
-                          <span className="text-xs text-gray-500">Stock: {s.stock}</span>
+                          <span className="text-xs text-gray-500">{t('store_stock', 'Stock:')} {s.stock}</span>
                         )}
                       </div>
                     </div>
@@ -838,7 +840,7 @@ export default function Store() {
                     {/* Botón comprar */}
                     {s.stock > 0 && (
                       <button onClick={() => buy(s)} className="btn-primary text-sm flex items-center justify-center gap-1 w-full mt-1">
-                        <ShoppingCart size={14} /> Comprar
+                        <ShoppingCart size={14} /> {t('store_buy', 'Comprar')}
                       </button>
                     )}
                   </div>
@@ -855,7 +857,7 @@ export default function Store() {
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             {/* Header del modal */}
             <div className="flex justify-between items-center p-4 border-b">
-              <h3 className="font-bold text-lg">Buscar Componente</h3>
+              <h3 className="font-bold text-lg">{t('store_search_component_title', 'Buscar Componente')}</h3>
               <button onClick={() => setShowComponentModal(false)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
             </div>
 
@@ -866,7 +868,7 @@ export default function Store() {
                 <input
                   type="text"
                   className="input pl-10"
-                  placeholder="Escribe el nombre del componente... (ej: naranja, arcilla, tela, envase)"
+                  placeholder={t('store_component_search_placeholder', 'Escribe el nombre del componente... (ej: naranja, arcilla, tela, envase)')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   autoFocus
@@ -875,12 +877,12 @@ export default function Store() {
               {/* Filtros por categoria */}
               <div className="flex flex-wrap gap-2">
                 {[
-                  { id: 'all', label: 'Todos' },
-                  { id: 'materia_prima', label: 'Materias Primas' },
-                  { id: 'producto_base', label: 'Productos Base' },
-                  { id: 'trabajo', label: 'Trabajo (h)' },
-                  { id: 'embalaje', label: 'Embalaje' },
-                  { id: 'envio', label: 'Envio' },
+                  { id: 'all', label: t('store_cat_all', 'Todos') },
+                  { id: 'materia_prima', label: t('store_cat_raw_materials', 'Materias Primas') },
+                  { id: 'producto_base', label: t('store_cat_base_products', 'Productos Base') },
+                  { id: 'trabajo', label: t('store_cat_work', 'Trabajo (h)') },
+                  { id: 'embalaje', label: t('store_cat_packaging', 'Embalaje') },
+                  { id: 'envio', label: t('store_cat_shipping', 'Envio') },
                 ].map((cat) => (
                   <button
                     key={cat.id}
@@ -899,26 +901,26 @@ export default function Store() {
             <div className="flex-1 overflow-y-auto p-4">
               {modalLoading ? (
                 <div className="text-center py-8 text-gray-400">
-                  <p className="text-sm">Cargando componentes...</p>
+                  <p className="text-sm">{t('store_loading_components', 'Cargando componentes...')}</p>
                 </div>
               ) : modalError ? (
                 <div className="text-center py-8 text-red-500">
                   <p className="text-sm">{modalError}</p>
-                  <p className="text-xs mt-2">Si tu sesion expiro, guarda tu trabajo y vuelve a iniciar sesion.</p>
+                  <p className="text-xs mt-2">{t('store_session_expired_hint', 'Si tu sesion expiro, guarda tu trabajo y vuelve a iniciar sesion.')}</p>
                 </div>
               ) : modalResults.length === 0 ? (
                 <div className="text-center py-8 text-gray-400">
                   <Search size={32} className="mx-auto mb-2 opacity-30" />
                   <p className="text-sm">
-                    {modalSearchTerm ? `No se encontro "${modalSearchTerm}" en esta categoria` : 'No hay componentes disponibles en esta categoria'}
+                    {modalSearchTerm ? t('store_no_results_search', 'No se encontro "{{term}}" en esta categoria', { term: modalSearchTerm }) : t('store_no_results_category', 'No hay componentes disponibles en esta categoria')}
                   </p>
                   {modalSearchTerm && (
-                    <p className="text-xs mt-2">Prueba con otra palabra o cambia de categoria. Si no existe el componente, pide a administracion que lo agregue al catalogo.</p>
+                    <p className="text-xs mt-2">{t('store_no_results_hint', 'Prueba con otra palabra o cambia de categoria. Si no existe el componente, pide a administracion que lo agregue al catalogo.')}</p>
                   )}
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <p className="text-xs text-gray-500 mb-2">{modalResults.length} resultado(s)</p>
+                  <p className="text-xs text-gray-500 mb-2">{t('store_results_count_label', '{{count}} resultado(s)', { count: modalResults.length })}</p>
                   {modalResults.map((c) => (
                     <button
                       key={c.id}

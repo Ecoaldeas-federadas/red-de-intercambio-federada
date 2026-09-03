@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { useConfig } from '../hooks/useConfig'
@@ -25,6 +26,7 @@ interface Member {
 }
 
 export default function DepartmentDetail() {
+  const { t } = useTranslation('organizations')
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { currency } = useConfig()
@@ -84,12 +86,12 @@ export default function DepartmentDetail() {
   const createRole = async () => {
     setError('')
     if (!newRole.name) {
-      setError('El nombre del rol es obligatorio')
+      setError(t('error_role_name_required', 'El nombre del rol es obligatorio'))
       return
     }
     try {
       await api.post(`/departments/${id}/roles`, newRole)
-      setSuccess('Rol creado')
+      setSuccess(t('success_role_created', 'Rol creado'))
       setShowCreateRole(false)
       setNewRole({ name: '', description: '' })
       load()
@@ -102,12 +104,12 @@ export default function DepartmentDetail() {
   const assignMember = async () => {
     setError('')
     if (!newMember.user_id || !newMember.role_id) {
-      setError('Selecciona usuario y rol')
+      setError(t('error_select_user_role', 'Selecciona usuario y rol'))
       return
     }
     try {
       await api.post(`/departments/${id}/members`, newMember)
-      setSuccess('Miembro asignado')
+      setSuccess(t('success_member_assigned', 'Miembro asignado'))
       setShowAssignMember(false)
       setNewMember({ user_id: '', role_id: '' })
       load()
@@ -132,19 +134,19 @@ export default function DepartmentDetail() {
     return (
       <div className="space-y-4">
         <button onClick={() => navigate('/app/departments')} className="text-trueque-600 flex items-center gap-1">
-          <ArrowLeft size={16} /> Volver
+          <ArrowLeft size={16} /> {t('dept_detail_back', 'Volver')}
         </button>
-        <p className="text-gray-500">Cargando departamento...</p>
+        <p className="text-gray-500">{t('dept_detail_loading', 'Cargando departamento...')}</p>
       </div>
     )
   }
 
   const tabs = [
-    { key: 'info', label: 'Informacion', icon: <Building2 size={16} /> },
-    { key: 'roles', label: 'Roles', icon: <Shield size={16} /> },
-    { key: 'members', label: 'Miembros', icon: <Users size={16} /> },
-    { key: 'wallet', label: 'Billetera', icon: <WalletIcon size={16} /> },
-    { key: 'assembly', label: 'Asamblea', icon: <VoteIcon size={16} /> },
+    { key: 'info', label: t('dept_detail_tab_info', 'Informacion'), icon: <Building2 size={16} /> },
+    { key: 'roles', label: t('dept_detail_tab_roles', 'Roles'), icon: <Shield size={16} /> },
+    { key: 'members', label: t('dept_detail_tab_members', 'Miembros'), icon: <Users size={16} /> },
+    { key: 'wallet', label: t('dept_detail_tab_wallet', 'Billetera'), icon: <WalletIcon size={16} /> },
+    { key: 'assembly', label: t('dept_detail_tab_assembly', 'Asamblea'), icon: <VoteIcon size={16} /> },
   ]
 
   // Buscar la cuenta del departamento (usuario con account_type='department' asociado)
@@ -153,7 +155,7 @@ export default function DepartmentDetail() {
   return (
     <div className="space-y-4">
       <button onClick={() => navigate('/app/departments')} className="text-trueque-600 flex items-center gap-1 text-sm">
-        <ArrowLeft size={16} /> Volver a departamentos
+        <ArrowLeft size={16} /> {t('dept_detail_back_to_depts', 'Volver a departamentos')}
       </button>
 
       <div className="card">
@@ -165,19 +167,19 @@ export default function DepartmentDetail() {
             <h1 className="text-2xl font-bold">{dept.name}</h1>
             <p className="text-sm text-gray-500">{dept.description}</p>
             <p className="text-xs text-gray-400 mt-1">
-              Tipo: {dept.group_type} | Pertenece a: {dept.parent_organization_name || 'La Asamblea (nodo)'}
+              {t('dept_detail_type', 'Tipo:')} {dept.group_type} | {t('dept_detail_belongs_to', 'Pertenece a:')} {dept.parent_organization_name || t('departments_assembly_node', 'La Asamblea (nodo)')}
             </p>
           </div>
           <span className={`text-xs px-2 py-1 rounded ${dept.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-            {dept.is_active ? 'Activo' : 'Inactivo'}
+            {dept.is_active ? t('dept_detail_active', 'Activo') : t('dept_detail_inactive', 'Inactivo')}
           </span>
         </div>
         {myRole && (
           <div className="mt-3 flex items-center gap-2 text-sm">
-            <span className="text-gray-500">Tu rol aqui:</span>
+            <span className="text-gray-500">{t('dept_detail_your_role', 'Tu rol aqui:')}</span>
             <span className="font-medium text-teal-700">{myRole.role}</span>
-            {myRole.can_manage && <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded">Puede gestionar</span>}
-            {myRole.can_transfer && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Puede transferir</span>}
+            {myRole.can_manage && <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded">{t('dept_detail_can_manage', 'Puede gestionar')}</span>}
+            {myRole.can_transfer && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">{t('dept_detail_can_transfer', 'Puede transferir')}</span>}
           </div>
         )}
       </div>
@@ -203,34 +205,34 @@ export default function DepartmentDetail() {
       {/* Tab: Informacion */}
       {tab === 'info' && (
         <div className="card space-y-3">
-          <h2 className="font-semibold">Informacion del Departamento</h2>
+          <h2 className="font-semibold">{t('dept_detail_info_title', 'Informacion del Departamento')}</h2>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <p className="text-gray-500">Nombre:</p>
+              <p className="text-gray-500">{t('dept_detail_name', 'Nombre:')}</p>
               <p className="font-medium">{dept.name}</p>
             </div>
             <div>
-              <p className="text-gray-500">Tipo:</p>
+              <p className="text-gray-500">{t('dept_detail_type_label', 'Tipo:')}</p>
               <p className="font-medium">{dept.group_type}</p>
             </div>
             <div>
-              <p className="text-gray-500">Descripcion:</p>
+              <p className="text-gray-500">{t('dept_detail_description', 'Descripcion:')}</p>
               <p className="font-medium">{dept.description}</p>
             </div>
             <div>
-              <p className="text-gray-500">Pertenece a:</p>
-              <p className="font-medium">{dept.parent_organization_name || 'La Asamblea (nodo)'}</p>
+              <p className="text-gray-500">{t('dept_detail_belongs_to_label', 'Pertenece a:')}</p>
+              <p className="font-medium">{dept.parent_organization_name || t('departments_assembly_node', 'La Asamblea (nodo)')}</p>
             </div>
             {dept.head_username && (
               <div>
-                <p className="text-gray-500">Jefe del departamento:</p>
+                <p className="text-gray-500">{t('dept_detail_head', 'Jefe del departamento:')}</p>
                 <p className="font-medium">{dept.head_username}</p>
               </div>
             )}
           </div>
           {deptAccount && (
             <p className="text-xs text-gray-400">
-              Cuenta del departamento: @{deptAccount.username} | Balance: {fmtAmount(deptAccount.balance || 0)} {currency}
+              {t('dept_detail_account', 'Cuenta del departamento:')} @{deptAccount.username} | {t('dept_detail_balance', 'Balance:')} {fmtAmount(deptAccount.balance || 0)} {currency}
             </p>
           )}
         </div>
@@ -240,24 +242,24 @@ export default function DepartmentDetail() {
       {tab === 'roles' && (
         <div className="card space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold flex items-center gap-2"><Shield size={18} /> Roles</h2>
+            <h2 className="font-semibold flex items-center gap-2"><Shield size={18} /> {t('dept_detail_roles_title', 'Roles')}</h2>
             {canManage && (
               <button onClick={() => setShowCreateRole(!showCreateRole)} className="btn-primary text-sm flex items-center gap-1">
-                <Plus size={14} /> Nuevo Rol
+                <Plus size={14} /> {t('dept_detail_new_role', 'Nuevo Rol')}
               </button>
             )}
           </div>
 
           {showCreateRole && (
             <div className="border rounded-lg p-3 space-y-2">
-              <input className="input" placeholder="Nombre del rol (ej: Coordinador)" value={newRole.name} onChange={(e) => setNewRole({ ...newRole, name: e.target.value })} />
-              <input className="input" placeholder="Descripcion (opcional)" value={newRole.description} onChange={(e) => setNewRole({ ...newRole, description: e.target.value })} />
-              <button onClick={createRole} className="btn-primary text-sm">Crear</button>
+              <input className="input" placeholder={t('dept_detail_role_name_placeholder', 'Nombre del rol (ej: Coordinador)')} value={newRole.name} onChange={(e) => setNewRole({ ...newRole, name: e.target.value })} />
+              <input className="input" placeholder={t('dept_detail_role_desc_placeholder', 'Descripcion (opcional)')} value={newRole.description} onChange={(e) => setNewRole({ ...newRole, description: e.target.value })} />
+              <button onClick={createRole} className="btn-primary text-sm">{t('dept_detail_create', 'Crear')}</button>
             </div>
           )}
 
           {roles.length === 0 ? (
-            <p className="text-gray-500 text-sm">Sin roles. Crea el primero con el boton de arriba.</p>
+            <p className="text-gray-500 text-sm">{t('dept_detail_no_roles', 'Sin roles. Crea el primero con el boton de arriba.')}</p>
           ) : (
             <div className="space-y-2">
               {roles.map((role) => (
@@ -275,10 +277,10 @@ export default function DepartmentDetail() {
       {tab === 'members' && (
         <div className="card space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold flex items-center gap-2"><Users size={18} /> Miembros</h2>
+            <h2 className="font-semibold flex items-center gap-2"><Users size={18} /> {t('dept_detail_members_title', 'Miembros')}</h2>
             {canAssign && (
               <button onClick={() => setShowAssignMember(!showAssignMember)} className="btn-primary text-sm flex items-center gap-1">
-                <Plus size={14} /> Asignar Miembro
+                <Plus size={14} /> {t('dept_detail_assign_member', 'Asignar Miembro')}
               </button>
             )}
           </div>
@@ -286,23 +288,23 @@ export default function DepartmentDetail() {
           {showAssignMember && (
             <div className="border rounded-lg p-3 space-y-2">
               <select className="input" value={newMember.user_id} onChange={(e) => setNewMember({ ...newMember, user_id: e.target.value })}>
-                <option value="">Seleccionar usuario...</option>
+                <option value="">{t('dept_detail_select_user', 'Seleccionar usuario...')}</option>
                 {allUsers.map((u: any) => (
                   <option key={u.id} value={u.id}>{u.display_name || u.username} ({u.username})</option>
                 ))}
               </select>
               <select className="input" value={newMember.role_id} onChange={(e) => setNewMember({ ...newMember, role_id: e.target.value })}>
-                <option value="">Seleccionar rol...</option>
+                <option value="">{t('dept_detail_select_role', 'Seleccionar rol...')}</option>
                 {roles.map((r) => (
                   <option key={r.id} value={r.id}>{r.name}</option>
                 ))}
               </select>
-              <button onClick={assignMember} className="btn-primary text-sm">Asignar</button>
+              <button onClick={assignMember} className="btn-primary text-sm">{t('dept_detail_assign', 'Asignar')}</button>
             </div>
           )}
 
           {members.length === 0 ? (
-            <p className="text-gray-500 text-sm">Sin miembros. Asigna el primero con el boton de arriba.</p>
+            <p className="text-gray-500 text-sm">{t('dept_detail_no_members', 'Sin miembros. Asigna el primero con el boton de arriba.')}</p>
           ) : (
             <div className="space-y-2">
               {members.map((m) => (
@@ -330,12 +332,12 @@ export default function DepartmentDetail() {
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-blue-100 text-sm">Saldo de {dept.name}</p>
+                  <p className="text-blue-100 text-sm">{t('dept_detail_wallet_balance', 'Saldo de')} {dept.name}</p>
                   <p className="text-4xl font-bold mt-1">
                     {balance >= 0 ? '+' : ''}{fmtAmount(balance)} {currency}
                   </p>
                   {deptAccount && (
-                    <p className="text-blue-200 text-xs mt-2">Cuenta: @{deptAccount.username}</p>
+                    <p className="text-blue-200 text-xs mt-2">{t('dept_detail_account_label', 'Cuenta:')} @{deptAccount.username}</p>
                   )}
                 </div>
                 <WalletIcon size={48} className="text-blue-200" />
@@ -343,15 +345,15 @@ export default function DepartmentDetail() {
             </div>
             {deptAccount && (
               <p className="text-xs text-gray-400 mt-3 p-2">
-                Para transferir a este departamento, usa @{deptAccount.username} como destinatario.
+                {t('dept_detail_transfer_hint', 'Para transferir a este departamento, usa @{{username}} como destinatario.', { username: deptAccount.username })}
               </p>
             )}
           </div>
 
           <div className="card">
-            <h2 className="font-semibold text-lg mb-3">Movimientos</h2>
+            <h2 className="font-semibold text-lg mb-3">{t('dept_detail_movements', 'Movimientos')}</h2>
             {txs.length === 0 ? (
-              <p className="text-gray-500 text-sm py-4">No hay transacciones en esta cuenta.</p>
+              <p className="text-gray-500 text-sm py-4">{t('dept_detail_no_transactions', 'No hay transacciones en esta cuenta.')}</p>
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {txs.map((t, i) => {
@@ -368,7 +370,7 @@ export default function DepartmentDetail() {
                         )}
                         <div>
                           <p className="text-sm font-medium">
-                            {isDebit ? 'Enviado a ' : 'Recibido de '}
+                            {isDebit ? t('dept_detail_sent_to', 'Enviado a') + ' ' : t('dept_detail_received_from', 'Recibido de') + ' '}
                             <span className="font-semibold">{isDebit ? toName : fromName}</span>
                           </p>
                           <p className="text-xs text-gray-500">

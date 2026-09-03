@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api, getStorageKeys } from '../api'
 import { usePermissions } from '../hooks/usePermissions'
 import { useConfig } from '../hooks/useConfig'
@@ -47,6 +48,7 @@ type ProductTab = 'federated' | 'mynode' | 'composite'
 type MyNodeSubTab = 'allowed' | 'disallowed'
 
 export default function Products() {
+  const { t } = useTranslation('products')
   const { hasPermission } = usePermissions()
   const { currency } = useConfig()
   const canManage = hasPermission('products.manage')
@@ -167,7 +169,7 @@ export default function Products() {
       loadFedProposals()
       if (activeTab === 'mynode') load(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al aprobar producto federado')
+      setError(err instanceof Error ? err.message : t('error_approve_fed', 'Error al aprobar producto federado'))
     }
   }
 
@@ -177,7 +179,7 @@ export default function Products() {
       loadPending()
       if (activeTab === 'mynode') load(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al aprobar producto')
+      setError(err instanceof Error ? err.message : t('error_approve', 'Error al aprobar producto'))
     }
   }
 
@@ -186,7 +188,7 @@ export default function Products() {
       await api.post(`/products/${id}/reject`, {})
       loadPending()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al rechazar producto')
+      setError(err instanceof Error ? err.message : t('error_reject', 'Error al rechazar producto'))
     }
   }
 
@@ -201,9 +203,9 @@ export default function Products() {
           product_name: p.name,
         },
       })
-      setSuccess(`Propuesta creada en la Asamblea para desaprobar "${p.name}". La Asamblea o Junta Directiva decidira.`)
+      setSuccess(t('success_disapprove_proposal', 'Propuesta creada en la Asamblea para desaprobar "{{name}}". La Asamblea o Junta Directiva decidira.', { name: p.name }))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear propuesta')
+      setError(err instanceof Error ? err.message : t('error_proposal', 'Error al crear propuesta'))
     }
   }
 
@@ -218,9 +220,9 @@ export default function Products() {
           product_name: p.name,
         },
       })
-      setSuccess(`Propuesta creada en la Asamblea para aprobar "${p.name}". La Asamblea o Junta Directiva decidira.`)
+      setSuccess(t('success_approve_proposal', 'Propuesta creada en la Asamblea para aprobar "{{name}}". La Asamblea o Junta Directiva decidira.', { name: p.name }))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear propuesta')
+      setError(err instanceof Error ? err.message : t('error_proposal', 'Error al crear propuesta'))
     }
   }
 
@@ -235,9 +237,9 @@ export default function Products() {
           product_name: p.name,
         },
       })
-      setSuccess(`Propuesta creada en la Asamblea para eliminar "${p.name}". Requiere aprobacion de la Asamblea.`)
+      setSuccess(t('success_delete_proposal', 'Propuesta creada en la Asamblea para eliminar "{{name}}". Requiere aprobacion de la Asamblea.', { name: p.name }))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear propuesta')
+      setError(err instanceof Error ? err.message : t('error_proposal', 'Error al crear propuesta'))
     }
   }
 
@@ -246,7 +248,7 @@ export default function Products() {
       await api.post(`/federation/products/${id}/reject`, { notes: 'Rechazado por el nodo' })
       loadFedProposals()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al rechazar producto federado')
+      setError(err instanceof Error ? err.message : t('error_approve_fed', 'Error al rechazar producto federado'))
     }
   }
 
@@ -256,7 +258,7 @@ export default function Products() {
       await api.post(`/products/${id}/promote`, {})
       loadComposite()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al promover producto')
+      setError(err instanceof Error ? err.message : t('error_promote', 'Error al promover producto'))
     }
   }
 
@@ -277,9 +279,9 @@ export default function Products() {
           image_url: p.image_url,
         },
       })
-      setSuccess(`Propuesta creada en la Asamblea para importar "${p.name}". La Asamblea decidira si se aprueba.`)
+      setSuccess(t('success_import_proposal', 'Propuesta creada en la Asamblea para importar "{{name}}". La Asamblea decidira si se aprueba.', { name: p.name }))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear propuesta')
+      setError(err instanceof Error ? err.message : t('error_proposal', 'Error al crear propuesta'))
     }
   }
 
@@ -295,9 +297,9 @@ export default function Products() {
           product_name: p.name,
         },
       })
-      setSuccess(`Propuesta creada en la Asamblea para remover "${p.name}".`)
+      setSuccess(t('success_remove_proposal', 'Propuesta creada en la Asamblea para remover "{{name}}".', { name: p.name }))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear propuesta')
+      setError(err instanceof Error ? err.message : t('error_proposal', 'Error al crear propuesta'))
     }
   }
 
@@ -313,9 +315,9 @@ export default function Products() {
           product_name: p.name,
         },
       })
-      setSuccess(`Propuesta creada en la Asamblea para convertir "${p.name}" a producto base.`)
+      setSuccess(t('success_to_base_proposal', 'Propuesta creada en la Asamblea para convertir "{{name}}" a producto base.', { name: p.name }))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear propuesta')
+      setError(err instanceof Error ? err.message : t('error_proposal', 'Error al crear propuesta'))
     }
   }
 
@@ -323,11 +325,11 @@ export default function Products() {
   const allowProduct = async (p: any) => {
     try {
       await api.post(`/products/${p.id}/allow`, {})
-      setSuccess(`"${p.name}" marcado como permitido en el nodo.`)
+      setSuccess(t('success_allowed', '"{{name}}" marcado como permitido en el nodo.', { name: p.name }))
       if (activeTab === 'mynode') load(true)
       if (activeTab === 'federated') loadFederated()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al permitir producto')
+      setError(err instanceof Error ? err.message : t('error_allow', 'Error al permitir producto'))
     }
   }
 
@@ -335,11 +337,11 @@ export default function Products() {
   const disallowProduct = async (p: any) => {
     try {
       await api.post(`/products/${p.id}/disallow`, {})
-      setSuccess(`"${p.name}" marcado como NO permitido en el nodo.`)
+      setSuccess(t('success_disallowed', '"{{name}}" marcado como NO permitido en el nodo.', { name: p.name }))
       if (activeTab === 'mynode') load(true)
       if (activeTab === 'federated') loadFederated()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al no permitir producto')
+      setError(err instanceof Error ? err.message : t('error_disallow', 'Error al no permitir producto'))
     }
   }
 
@@ -371,7 +373,7 @@ export default function Products() {
 
   // Categorias y subcategorias jerarquicas
   const parentCategoryMap = products.reduce((acc, p) => {
-    const pc = p.parent_category || 'Sin categoría'
+    const pc = p.parent_category || t('no_category', 'Sin categoría')
     const cat = p.category || ''
     if (!acc[pc]) acc[pc] = new Set<string>()
     if (cat) acc[pc].add(cat)
@@ -436,7 +438,7 @@ export default function Products() {
   const save = async () => {
     setError('')
     if (!form.name || form.price <= 0) {
-      setError('Nombre y precio son obligatorios')
+      setError(t('error_name_price_required', 'Nombre y precio son obligatorios'))
       return
     }
     try {
@@ -450,7 +452,7 @@ export default function Products() {
       setShowForm(false)
       if (activeTab === 'mynode') load(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al guardar producto')
+      setError(err instanceof Error ? err.message : t('error_save', 'Error al guardar producto'))
     }
   }
 
@@ -468,39 +470,39 @@ export default function Products() {
       const data = await res.json()
       setForm({ ...form, image_url: data.url })
     } catch {
-      setError('No se pudo subir la imagen')
+      setError(t('error_upload_image', 'No se pudo subir la imagen'))
     }
   }
 
   const ProductFormFields = () => (
     <div className="space-y-4">
       <div>
-        <label className="label">Nombre del producto</label>
-        <input className="input" placeholder="Ej: Pan integral 500g" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        <label className="label">{t('form_name_label', 'Nombre del producto')}</label>
+        <input className="input" placeholder={t('form_name_placeholder', 'Ej: Pan integral 500g')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
       </div>
 
       <div>
-        <label className="label">Descripción</label>
-        <textarea className="input" rows={2} placeholder="Descripción del producto..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+        <label className="label">{t('form_description_label', 'Descripción')}</label>
+        <textarea className="input" rows={2} placeholder={t('form_description_placeholder', 'Descripción del producto...')} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
       </div>
 
       <div>
-        <label className="label">Etiqueta destacada (badge)</label>
-        <input className="input" placeholder="Ej: Fresco del Día, Plato Estrella, 100% Puro" value={form.badge} onChange={(e) => setForm({ ...form, badge: e.target.value })} />
-        <p className="text-xs text-gray-400 mt-1">Etiqueta que aparece destacada en la tarjeta del producto en la página pública.</p>
+        <label className="label">{t('form_badge_label', 'Etiqueta destacada (badge)')}</label>
+        <input className="input" placeholder={t('form_badge_placeholder', 'Ej: Fresco del Día, Plato Estrella, 100% Puro')} value={form.badge} onChange={(e) => setForm({ ...form, badge: e.target.value })} />
+        <p className="text-xs text-gray-400 mt-1">{t('form_badge_hint', 'Etiqueta que aparece destacada en la tarjeta del producto en la página pública.')}</p>
       </div>
 
       <div>
-        <label className="label">Foto del producto</label>
+        <label className="label">{t('form_photo_label', 'Foto del producto')}</label>
         <div className="flex items-center gap-3">
           {form.image_url && (
             <img src={assetUrl(form.image_url)} alt="" className="w-16 h-16 rounded-lg object-cover border border-gray-200" />
           )}
           <div className="flex-1 space-y-2">
-            <input className="input" placeholder="URL de la imagen..." value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} />
+            <input className="input" placeholder={t('form_photo_url_placeholder', 'URL de la imagen...')} value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} />
             <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-bold hover:bg-emerald-200 transition cursor-pointer border border-emerald-300">
               <Upload size={14} />
-              Subir desde PC
+              {t('form_photo_upload', 'Subir desde PC')}
               <input type="file" accept="image/*" className="hidden" onChange={(e) => {
                 const f = e.target.files?.[0]
                 if (f) handleImageUpload(f)
@@ -512,27 +514,27 @@ export default function Products() {
 
       <div className="grid grid-cols-3 gap-3">
         <div>
-          <label className="label">Categoría Padre</label>
+          <label className="label">{t('form_parent_category_label', 'Categoría Padre')}</label>
           <select
             className="input"
             value={form.parent_category}
             onChange={(e) => setForm({ ...form, parent_category: e.target.value, category: '' })}
           >
-            <option value="">Seleccionar...</option>
+            <option value="">{t('form_select_placeholder', 'Seleccionar...')}</option>
             {Object.keys(PARENT_CATEGORIES).map((pc) => (
               <option key={pc} value={pc}>{pc}</option>
             ))}
           </select>
         </div>
         <div>
-          <label className="label">Categoría</label>
+          <label className="label">{t('form_category_label', 'Categoría')}</label>
           <select
             className="input"
             value={form.category}
             onChange={(e) => setForm({ ...form, category: e.target.value })}
             disabled={!form.parent_category}
           >
-            <option value="">Seleccionar...</option>
+            <option value="">{t('form_select_placeholder', 'Seleccionar...')}</option>
             {form.parent_category && PARENT_CATEGORIES[form.parent_category]?.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
@@ -542,48 +544,48 @@ export default function Products() {
           </select>
         </div>
         <div>
-          <label className="label">Subcategoría</label>
-          <input className="input" placeholder="Ej: Hojas verdes" value={form.subcategory} onChange={(e) => setForm({ ...form, subcategory: e.target.value })} />
+          <label className="label">{t('form_subcategory_label', 'Subcategoría')}</label>
+          <input className="input" placeholder={t('form_subcategory_placeholder', 'Ej: Hojas verdes')} value={form.subcategory} onChange={(e) => setForm({ ...form, subcategory: e.target.value })} />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="label">Unidad de medida</label>
-          <input className="input" placeholder="Ej: kg, litro, unidad, hora" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
+          <label className="label">{t('form_unit_label', 'Unidad de medida')}</label>
+          <input className="input" placeholder={t('form_unit_placeholder', 'Ej: kg, litro, unidad, hora')} value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
         </div>
         <div>
-          <label className="label">Precio ({currency})</label>
-          <input type="number" className="input" placeholder="Ej: 50" value={form.price} onChange={(e) => setForm({ ...form, price: toCents(e.target.value) })} />
+          <label className="label">{t('form_price_label', 'Precio')} ({currency})</label>
+          <input type="number" className="input" placeholder={t('form_price_placeholder', 'Ej: 50')} value={form.price} onChange={(e) => setForm({ ...form, price: toCents(e.target.value) })} />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="label">Código de producto (opcional)</label>
-          <input className="input" placeholder="Ej: PAN-001" value={form.product_code} onChange={(e) => setForm({ ...form, product_code: e.target.value })} />
+          <label className="label">{t('form_code_label', 'Código de producto (opcional)')}</label>
+          <input className="input" placeholder={t('form_code_placeholder', 'Ej: PAN-001')} value={form.product_code} onChange={(e) => setForm({ ...form, product_code: e.target.value })} />
         </div>
         <div>
-          <label className="label">Visibilidad en página pública</label>
+          <label className="label">{t('form_visibility_label', 'Visibilidad en página pública')}</label>
           <button
             type="button"
             onClick={() => setForm({ ...form, is_hidden: !form.is_hidden })}
             className={`input flex items-center gap-2 cursor-pointer ${form.is_hidden ? 'text-amber-700' : 'text-emerald-700'}`}
           >
-            {form.is_hidden ? <><EyeOff size={16} /> Oculto (no se muestra)</> : <><Eye size={16} /> Visible (se muestra)</>}
+            {form.is_hidden ? <><EyeOff size={16} /> {t('form_visibility_hidden', 'Oculto (no se muestra)')}</> : <><Eye size={16} /> {t('form_visibility_visible', 'Visible (se muestra)')}</>}
           </button>
-          <p className="text-xs text-gray-400 mt-1">Ocultar no elimina el producto, solo lo quita de la página pública.</p>
+          <p className="text-xs text-gray-400 mt-1">{t('form_visibility_hint', 'Ocultar no elimina el producto, solo lo quita de la página pública.')}</p>
         </div>
       </div>
 
       <div className="flex gap-2">
         <button onClick={save} className="btn-primary flex items-center gap-2">
           <Check size={16} />
-          {editingId ? 'Guardar Cambios' : 'Crear Producto'}
+          {editingId ? t('form_save_changes', 'Guardar Cambios') : t('form_create_product', 'Crear Producto')}
         </button>
         <button onClick={() => { cancelEdit(); setShowForm(false) }} className="btn-secondary flex items-center gap-2">
           <X size={16} />
-          Cancelar
+          {t('form_cancel', 'Cancelar')}
         </button>
       </div>
     </div>
@@ -592,7 +594,7 @@ export default function Products() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold flex items-center gap-2"><Package size={24} />Productos</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2"><Package size={24} />{t('title', 'Productos')}</h1>
         <div className="flex gap-2">
           <button onClick={() => setShowHelp(!showHelp)} className="text-gray-500 hover:text-gray-700">
             <HelpCircle size={20} />
@@ -600,7 +602,7 @@ export default function Products() {
           {fedProposals.length > 0 && (
             <button onClick={() => { setShowFedPanel(!showFedPanel); loadFedProposals() }} className="btn-secondary flex items-center gap-2 relative">
               <Globe size={18} />
-              Federados
+              {t('federated_button', 'Federados')}
               <span className="absolute -top-2 -right-2 bg-amber-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
                 {fedProposals.length}
               </span>
@@ -609,7 +611,7 @@ export default function Products() {
           {canManage && (
             <button onClick={() => { setShowPending(!showPending); loadPending() }} className="btn-secondary flex items-center gap-2 relative">
               <Package size={18} />
-              Pendientes
+              {t('pending_button', 'Pendientes')}
               {pendingProducts.length > 0 && (
                 <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
                   {pendingProducts.length}
@@ -618,7 +620,7 @@ export default function Products() {
             </button>
           )}
           {canManage && activeTab === 'mynode' && (
-            <button onClick={() => { setShowForm(!showForm); setEditingId(null); setForm(emptyForm) }} className="btn-primary flex items-center gap-2"><Plus size={18} />Nuevo</button>
+            <button onClick={() => { setShowForm(!showForm); setEditingId(null); setForm(emptyForm) }} className="btn-primary flex items-center gap-2"><Plus size={18} />{t('new_button', 'Nuevo')}</button>
           )}
         </div>
       </div>
@@ -626,10 +628,10 @@ export default function Products() {
       {/* Panel de productos federados pendientes */}
       {showFedPanel && (
         <div className="card space-y-3">
-          <h2 className="font-semibold flex items-center gap-2"><Globe size={18} />Productos Federados Pendientes</h2>
-          <p className="text-xs text-gray-500">Productos base aprobados por la asamblea de otros nodos federados. Para que esten disponibles en este nodo, la asamblea local debe aprobarlos individualmente.</p>
+          <h2 className="font-semibold flex items-center gap-2"><Globe size={18} />{t('fed_pending_title', 'Productos Federados Pendientes')}</h2>
+          <p className="text-xs text-gray-500">{t('fed_pending_desc', 'Productos base aprobados por la asamblea de otros nodos federados. Para que esten disponibles en este nodo, la asamblea local debe aprobarlos individualmente.')}</p>
           {fedProposals.length === 0 ? (
-            <p className="text-sm text-gray-400 py-4 text-center">No hay productos federados pendientes.</p>
+            <p className="text-sm text-gray-400 py-4 text-center">{t('fed_pending_empty', 'No hay productos federados pendientes.')}</p>
           ) : (
             <div className="space-y-2">
               {fedProposals.map((p: any) => (
@@ -637,22 +639,22 @@ export default function Products() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">{p.name}</span>
-                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">De: {p.source_node}</span>
+                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{t('from_label', 'De:')} {p.source_node}</span>
                       <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{fmtTQ(p.price_per_unit)} TQ/{p.unit}</span>
                     </div>
                     <p className="text-xs text-gray-600 mt-1">{p.description}</p>
                     <p className="text-[10px] text-gray-400 mt-1">
                       {p.parent_category} › {p.category} {p.subcategory ? `› ${p.subcategory}` : ''}
-                      {p.is_composite && <span className="ml-2 text-emerald-600 font-medium">Compuesto</span>}
+                      {p.is_composite && <span className="ml-2 text-emerald-600 font-medium">{t('composite_badge', 'Compuesto')}</span>}
                     </p>
                   </div>
                   {canManage && (
                     <div className="flex gap-2">
                       <button onClick={() => approveFedProduct(p.id)} className="btn-primary text-sm flex items-center gap-1">
-                        <Check size={14} /> Aprobar
+                        <Check size={14} /> {t('approve', 'Aprobar')}
                       </button>
                       <button onClick={() => rejectFedProduct(p.id)} className="btn-secondary text-sm text-red-600 flex items-center gap-1">
-                        <X size={14} /> Rechazar
+                        <X size={14} /> {t('reject', 'Rechazar')}
                       </button>
                     </div>
                   )}
@@ -666,10 +668,10 @@ export default function Products() {
       {/* Panel de productos pendientes de aprobacion */}
       {showPending && (
         <div className="card space-y-3">
-          <h2 className="font-semibold flex items-center gap-2"><Package size={18} />Productos Pendientes de Aprobacion</h2>
-          <p className="text-xs text-gray-500">Productos que han sido solicitados pero aun no han sido aprobados para el catalogo. Aprobalos para que aparezcan en la lista principal.</p>
+          <h2 className="font-semibold flex items-center gap-2"><Package size={18} />{t('pending_title', 'Productos Pendientes de Aprobacion')}</h2>
+          <p className="text-xs text-gray-500">{t('pending_desc', 'Productos que han sido solicitados pero aun no han sido aprobados para el catalogo. Aprobalos para que aparezcan en la lista principal.')}</p>
           {pendingProducts.length === 0 ? (
-            <p className="text-sm text-gray-400 py-4 text-center">No hay productos pendientes de aprobacion.</p>
+            <p className="text-sm text-gray-400 py-4 text-center">{t('pending_empty', 'No hay productos pendientes de aprobacion.')}</p>
           ) : (
             <div className="space-y-2">
               {pendingProducts.map((p: any) => (
@@ -687,10 +689,10 @@ export default function Products() {
                   {canManage && (
                     <div className="flex gap-2">
                       <button onClick={() => approveProduct(p.id)} className="btn-primary text-sm flex items-center gap-1">
-                        <Check size={14} /> Aprobar
+                        <Check size={14} /> {t('approve', 'Aprobar')}
                       </button>
                       <button onClick={() => rejectProduct(p.id)} className="btn-secondary text-sm text-red-600 flex items-center gap-1">
-                        <X size={14} /> Rechazar
+                        <X size={14} /> {t('reject', 'Rechazar')}
                       </button>
                     </div>
                   )}
@@ -710,7 +712,7 @@ export default function Products() {
           <p><strong>3. Compuestos:</strong> Productos creados por la gente de tu aldea combinando productos base (ej: harina + agua = pan). Si todos los ingredientes ya están permitidos, el compuesto aparece directamente aquí sin necesidad de aprobación. Si algún ingrediente es nuevo o no está aprobado, el compuesto pasa a "Pendientes de Aprobación". Un compuesto se puede promover a producto base con el botón "Solicitar como base" para que aparezca en toda la federación y pueda usarse como ingrediente de otros compuestos.</p>
           <p><strong>Búsqueda:</strong> Escribe parte del nombre en el campo de búsqueda para encontrar productos rápidamente.</p>
           <p><strong>Página pública:</strong> Los productos aprobados aparecen automáticamente en la página pública si usas el bloque "Catálogo desde Backend".</p>
-          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">Cerrar</button>
+          <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('close', 'Cerrar')}</button>
         </div>
       )}
 
@@ -719,7 +721,7 @@ export default function Products() {
 
       {showForm && canManage && (
         <div className="card">
-          <h2 className="font-semibold mb-4">Nuevo Producto</h2>
+          <h2 className="font-semibold mb-4">{t('new_product', 'Nuevo Producto')}</h2>
           <ProductFormFields />
         </div>
       )}
@@ -735,7 +737,7 @@ export default function Products() {
           }`}
         >
           <Globe size={16} />
-          Federación
+          {t('tab_federation', 'Federación')}
         </button>
         <button
           onClick={() => { setActiveTab('mynode'); setFilterParentCategory(''); setFilterCategory(''); setFilterSubcategory('') }}
@@ -746,7 +748,7 @@ export default function Products() {
           }`}
         >
           <Package size={16} />
-          Mi Nodo
+          {t('tab_my_node', 'Mi Nodo')}
         </button>
         {activeTab === 'mynode' && (
           <div className="flex gap-1 ml-2">
@@ -758,7 +760,7 @@ export default function Products() {
                   : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
               }`}
             >
-              Permitidos
+              {t('subtab_allowed', 'Permitidos')}
             </button>
             <button
               onClick={() => { setMynodeSubTab('disallowed'); setFilterParentCategory(''); setFilterCategory(''); setFilterSubcategory('') }}
@@ -768,7 +770,7 @@ export default function Products() {
                   : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
               }`}
             >
-              No Permitidos
+              {t('subtab_disallowed', 'No Permitidos')}
             </button>
           </div>
         )}
@@ -781,7 +783,7 @@ export default function Products() {
           }`}
         >
           <Layers size={16} />
-          Compuestos
+          {t('tab_composite', 'Compuestos')}
         </button>
       </div>
 
@@ -791,7 +793,7 @@ export default function Products() {
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             className="input pl-10"
-            placeholder="Buscar producto por nombre..."
+            placeholder={t('search_placeholder', 'Buscar producto por nombre...')}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') doSearch() }}
@@ -804,7 +806,7 @@ export default function Products() {
             onChange={(e) => setFedNodeFilter(e.target.value)}
             className="input max-w-[250px]"
           >
-            <option value="">Todas las organizaciones</option>
+            <option value="">{t('all_organizations', 'Todas las organizaciones')}</option>
             {fedNodes.map((n: any) => (
               <option key={n.node_domain} value={n.node_domain}>
                 {n.node_domain} ({n.product_count})
@@ -814,19 +816,19 @@ export default function Products() {
         )}
         <button onClick={doSearch} className="btn-primary flex items-center gap-2">
           <Search size={16} />
-          Buscar
+          {t('search_button', 'Buscar')}
         </button>
         {searchTerm && (
           <button onClick={clearSearch} className="btn-secondary flex items-center gap-2">
             <X size={16} />
-            Limpiar
+            {t('clear_button', 'Limpiar')}
           </button>
         )}
       </div>
 
       {products.length === 0 && !showForm ? (
         <div className="card text-center text-gray-500 py-8">
-          <p>{loading ? 'Cargando productos...' : 'No hay productos registrados.'}</p>
+          <p>{loading ? t('loading_products', 'Cargando productos...') : t('no_products', 'No hay productos registrados.')}</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -841,10 +843,10 @@ export default function Products() {
                     filterParentCategory === '' ? 'bg-emerald-700 text-white shadow' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
                   }`}
                 >
-                  Todas ({products.length})
+                  {t('all', 'Todas')} ({products.length})
                 </button>
                 {parentCategories.map((pc) => {
-                  const count = products.filter((p) => (p.parent_category || 'Sin categoría') === pc).length
+                  const count = products.filter((p) => (p.parent_category || t('no_category', 'Sin categoría')) === pc).length
                   return (
                     <button
                       key={pc}
@@ -867,7 +869,7 @@ export default function Products() {
                       filterCategory === '' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
                     }`}
                   >
-                    Todas ({products.filter((p) => (p.parent_category || 'Sin categoría') === filterParentCategory).length})
+                    {t('all', 'Todas')} ({products.filter((p) => (p.parent_category || t('no_category', 'Sin categoría')) === filterParentCategory).length})
                   </button>
                   {categories.map((cat) => {
                     const count = products.filter((p) => p.parent_category === filterParentCategory && p.category === cat).length
@@ -918,7 +920,7 @@ export default function Products() {
           {/* Productos filtrados */}
           {filteredProducts.length === 0 ? (
             <div className="card text-center text-gray-500 py-8">
-              <p>{loading ? 'Cargando...' : 'No hay productos en esta categoría.'}</p>
+              <p>{loading ? t('loading', 'Cargando...') : t('no_products_in_category', 'No hay productos en esta categoría.')}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -959,7 +961,7 @@ export default function Products() {
                                   load(true)
                                 }}
                                 className={`transition ${p.is_hidden ? 'text-amber-500 hover:text-amber-700' : 'text-gray-400 hover:text-emerald-600'}`}
-                                title={p.is_hidden ? 'Mostrar en página pública' : 'Ocultar de página pública'}
+                                title={p.is_hidden ? t('tooltip_show_public', 'Mostrar en página pública') : t('tooltip_hide_public', 'Ocultar de página pública')}
                               >
                                 {p.is_hidden ? <EyeOff size={16} /> : <Eye size={16} />}
                               </button>
@@ -971,7 +973,7 @@ export default function Products() {
                                 <button
                                   onClick={() => allowProduct(p)}
                                   className="text-green-500 hover:text-green-700 transition"
-                                  title="Permitir este producto en el nodo"
+                                  title={t('tooltip_allow_node', 'Permitir este producto en el nodo')}
                                 >
                                   <Check size={16} />
                                 </button>
@@ -979,7 +981,7 @@ export default function Products() {
                                 <button
                                   onClick={() => disallowProduct(p)}
                                   className="text-red-400 hover:text-red-600 transition"
-                                  title="No permitir este producto en el nodo"
+                                  title={t('tooltip_disallow_node', 'No permitir este producto en el nodo')}
                                 >
                                   <X size={16} />
                                 </button>
@@ -990,7 +992,7 @@ export default function Products() {
                             <button
                               onClick={() => promoteComposite(p.id)}
                               className="text-purple-500 hover:text-purple-700 transition"
-                              title="Promover a producto base (aparece en toda la federacion)"
+                              title={t('tooltip_promote_base', 'Promover a producto base (aparece en toda la federacion)')}
                             >
                               <ArrowUpCircle size={18} />
                             </button>
@@ -999,7 +1001,7 @@ export default function Products() {
                             <button
                               onClick={() => proposeCompositeToBase(p)}
                               className="text-amber-500 hover:text-amber-700 transition"
-                              title="Proponer en Asamblea convertir a producto base"
+                              title={t('tooltip_propose_to_base', 'Proponer en Asamblea convertir a producto base')}
                             >
                               <ArrowUpCircle size={18} />
                             </button>
@@ -1008,7 +1010,7 @@ export default function Products() {
                             <button
                               onClick={() => disapproveProduct(p)}
                               className="text-amber-500 hover:text-amber-700 transition"
-                              title="Proponer desaprobar este producto en la Asamblea"
+                              title={t('tooltip_propose_disapprove', 'Proponer desaprobar este producto en la Asamblea')}
                             >
                               <EyeOff size={16} />
                             </button>
@@ -1017,7 +1019,7 @@ export default function Products() {
                             <button
                               onClick={() => approveFromFederated(p)}
                               className="text-green-500 hover:text-green-700 transition"
-                              title="Proponer aprobar este producto en la Asamblea"
+                              title={t('tooltip_propose_approve', 'Proponer aprobar este producto en la Asamblea')}
                             >
                               <Check size={16} />
                             </button>
@@ -1026,7 +1028,7 @@ export default function Products() {
                             <button
                               onClick={() => removeProduct(p)}
                               className="text-red-500 hover:text-red-700 transition"
-                              title="Proponer ELIMINAR este producto en la Asamblea (permanente)"
+                              title={t('tooltip_propose_delete', 'Proponer ELIMINAR este producto en la Asamblea (permanente)')}
                             >
                               <Trash2 size={16} />
                             </button>
@@ -1046,33 +1048,33 @@ export default function Products() {
                           {p.category && <span> › <span className="text-gray-600 font-medium">{p.category}</span></span>}
                           {p.subcategory && <span> › <span className="text-gray-600 font-medium">{p.subcategory}</span></span>}
                         </p>
-                        {p.product_code && <p className="text-xs text-gray-400">Código: {p.product_code}</p>}
+                        {p.product_code && <p className="text-xs text-gray-400">{t('code_label', 'Código:')} {p.product_code}</p>}
                         {activeTab === 'federated' && p.node_domain && (
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-xs text-blue-600">Nodo: {p.node_domain}</p>
+                            <p className="text-xs text-blue-600">{t('node_label', 'Nodo:')} {p.node_domain}</p>
                             {p.available_locally ? (
                               <span className="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                <Check size={10} /> Disponible en mi nodo
+                                <Check size={10} /> {t('available_locally', 'Disponible en mi nodo')}
                               </span>
                             ) : (
                               <span className="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                <X size={10} /> No disponible en mi nodo
+                                <X size={10} /> {t('not_available_locally', 'No disponible en mi nodo')}
                               </span>
                             )}
                             {/* Estado de permitido/no-permitido */}
                             {p.is_allowed === true && (
                               <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                                Permitido
+                                {t('allowed', 'Permitido')}
                               </span>
                             )}
                             {p.is_allowed === false && (
                               <span className="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full">
-                                No Permitido
+                                {t('not_allowed', 'No Permitido')}
                               </span>
                             )}
                             {p.is_allowed == null && canManage && (
                               <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                                Sin decidir
+                                {t('undecided', 'Sin decidir')}
                               </span>
                             )}
                             {/* Botones permitir/no permitir */}
@@ -1080,18 +1082,18 @@ export default function Products() {
                               <button
                                 onClick={() => allowProduct(p)}
                                 className="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full hover:bg-green-200 transition flex items-center gap-1"
-                                title="Permitir este producto en el nodo"
+                                title={t('tooltip_allow_node', 'Permitir este producto en el nodo')}
                               >
-                                <Check size={10} /> Permitir
+                                <Check size={10} /> {t('allow', 'Permitir')}
                               </button>
                             )}
                             {canManage && p.is_allowed !== false && (
                               <button
                                 onClick={() => disallowProduct(p)}
                                 className="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full hover:bg-red-200 transition flex items-center gap-1"
-                                title="No permitir este producto en el nodo"
+                                title={t('tooltip_disallow_node', 'No permitir este producto en el nodo')}
                               >
-                                <X size={10} /> No Permitir
+                                <X size={10} /> {t('disallow', 'No Permitir')}
                               </button>
                             )}
                             {!p.available_locally && (
@@ -1099,7 +1101,7 @@ export default function Products() {
                                 onClick={() => proposeProductToAssembly(p)}
                                 className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full hover:bg-amber-200 transition flex items-center gap-1"
                               >
-                                <ArrowUpCircle size={10} /> Proponer en Asamblea
+                                <ArrowUpCircle size={10} /> {t('propose_assembly', 'Proponer en Asamblea')}
                               </button>
                             )}
                             {/* Botones aprobar/desaprobar/eliminar para productos del propio nodo */}
@@ -1108,17 +1110,17 @@ export default function Products() {
                                 <button
                                   onClick={() => disapproveProduct(p)}
                                   className="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full hover:bg-red-200 transition flex items-center gap-1"
-                                  title="Proponer desaprobar producto en la Asamblea"
+                                  title={t('tooltip_propose_disapprove', 'Proponer desaprobar producto en la Asamblea')}
                                 >
-                                  <X size={10} /> Desaprobar
+                                  <X size={10} /> {t('disapprove', 'Desaprobar')}
                                 </button>
                               ) : (
                                 <button
                                   onClick={() => approveFromFederated(p)}
                                   className="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full hover:bg-green-200 transition flex items-center gap-1"
-                                  title="Proponer aprobar producto en la Asamblea"
+                                  title={t('tooltip_propose_approve', 'Proponer aprobar producto en la Asamblea')}
                                 >
-                                  <Check size={10} /> Aprobar
+                                  <Check size={10} /> {t('approve', 'Aprobar')}
                                 </button>
                               )
                             )}
@@ -1126,27 +1128,27 @@ export default function Products() {
                               <button
                                 onClick={() => removeProduct(p)}
                                 className="text-[10px] font-bold text-red-900 bg-red-200 px-2 py-0.5 rounded-full hover:bg-red-300 transition flex items-center gap-1"
-                                title="Proponer ELIMINAR producto en la Asamblea (permanente)"
+                                title={t('tooltip_propose_delete', 'Proponer ELIMINAR producto en la Asamblea (permanente)')}
                               >
-                                <Trash2 size={10} /> Eliminar
+                                <Trash2 size={10} /> {t('delete', 'Eliminar')}
                               </button>
                             )}
                           </div>
                         )}
                         <div className="flex items-center gap-2 pt-1">
                           {p.is_approved ? (
-                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">Aprobado</span>
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">{t('approved', 'Aprobado')}</span>
                           ) : (
-                            <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">Pendiente</span>
+                            <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">{t('pending_status', 'Pendiente')}</span>
                           )}
                           {p.is_system && (
-                            <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">Sistema</span>
+                            <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">{t('system', 'Sistema')}</span>
                           )}
                           {p.is_hidden && (
-                            <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">Oculto</span>
+                            <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">{t('hidden', 'Oculto')}</span>
                           )}
                           {activeTab === 'composite' && (
-                            <span className="text-[10px] font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">Compuesto</span>
+                            <span className="text-[10px] font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">{t('composite_badge', 'Compuesto')}</span>
                           )}
                         </div>
                       </div>
@@ -1165,7 +1167,7 @@ export default function Products() {
           {loading ? (
             <Loader2 className="animate-spin text-emerald-600" size={24} />
           ) : (
-            <span className="text-xs text-gray-400">Desliza para cargar más productos...</span>
+            <span className="text-xs text-gray-400">{t('scroll_for_more', 'Desliza para cargar más productos...')}</span>
           )}
         </div>
       )}
