@@ -32,5 +32,22 @@
   "disabled": "deshabilitado",
   "language_added": "Idioma anadido",
   "download_error": "Error al descargar",
-  "installed": "Instalado"
+  "installed": "Instalado",
+  "key_saved": "Clave guardada",
+  "key_added": "Clave agregada",
+  "seed_done": "Seed completado",
+  "seed_error": "Error en seed",
+  "seed_tooltip": "Cargar todas las claves de los JSON a la base de datos",
+  "seed_btn": "Cargar claves a BD",
+  "all_keys": "Todas las claves",
+  "total": "total",
+  "search_keys": "Buscar claves o valores...",
+  "no_keys": "No hay claves cargadas.",
+  "seed_hint": "Haz clic en \"Cargar claves a BD\" para importar todas las claves de los archivos JSON a la base de datos.",
+  "all_namespaces": "Todos",
+  "add_key": "Agregar clave",
+  "add_key_to": "Agregar clave a",
+  "key_name": "Nombre de la clave",
+  "key_value": "Valor",
+  "keys": "claves"
 }

@@ -1,25 +1,43 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
-import { Languages, Download, Upload, CheckCircle, AlertCircle, Loader2, Save, Plus, Network } from 'lucide-react'
+import { Languages, Download, Upload, CheckCircle, AlertCircle, Loader2, Save, Plus, Network, Search, Database, Edit3, X } from 'lucide-react'
+
+type KeyEntry = {
+  key: string
+  value: string
+  is_default: boolean
+}
+
+type NSResult = {
+  namespace: string
+  keys: KeyEntry[]
+}
 
 export default function TranslationEditor() {
-  const { t, i18n } = useTranslation(['translations', 'common'])
+  const { t } = useTranslation(['translations', 'common'])
   const [languages, setLanguages] = useState<any[]>([])
   const [selectedLang, setSelectedLang] = useState('en')
-  const [status, setStatus] = useState<any[]>([])
+  const [allKeys, setAllKeys] = useState<NSResult[]>([])
   const [federatedTranslations, setFederatedTranslations] = useState<any[]>([])
   const [auditData, setAuditData] = useState<any>(null)
-  const [missing, setMissing] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingKeys, setLoadingKeys] = useState(false)
   const [editingValues, setEditingValues] = useState<Record<string, string>>({})
-  const [saving, setSaving] = useState(false)
+  const [savingKey, setSavingKey] = useState<string | null>(null)
   const [saveMsg, setSaveMsg] = useState('')
   const [newLangCode, setNewLangCode] = useState('')
   const [newLangName, setNewLangName] = useState('')
   const [newLangNative, setNewLangNative] = useState('')
   const [uploadMsg, setUploadMsg] = useState('')
   const [uploadError, setUploadError] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedNs, setSelectedNs] = useState<string>('')
+  const [showAddKey, setShowAddKey] = useState(false)
+  const [newKey, setNewKey] = useState('')
+  const [newValue, setNewValue] = useState('')
+  const [seeding, setSeeding] = useState(false)
+  const [expandedNs, setExpandedNs] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     loadLanguages()
@@ -29,8 +47,8 @@ export default function TranslationEditor() {
 
   useEffect(() => {
     if (selectedLang) {
-      loadStatus()
-      loadMissing()
+      loadAllKeys()
+      loadAuditData()
     }
   }, [selectedLang])
 
@@ -39,9 +57,8 @@ export default function TranslationEditor() {
       const langs = await api.get<any[]>('/languages')
       setLanguages(langs || [])
     } catch {
-      // Fallback
       setLanguages([
-        { code: 'es', name: 'Spanish', native_name: 'Español', enabled: true, is_default: true },
+        { code: 'es', name: 'Spanish', native_name: 'Espanol', enabled: true, is_default: true },
         { code: 'en', name: 'English', native_name: 'English', enabled: true, is_default: false },
       ])
     } finally {
@@ -60,7 +77,6 @@ export default function TranslationEditor() {
 
   const loadAuditData = async () => {
     try {
-      // Cargar estado de traducciones por idioma
       const audit: any = { languages: [], namespaces: [] }
       const langs = await api.get<any[]>('/languages')
       const enabledLangs = (langs || []).filter((l: any) => l.enabled)
@@ -88,28 +104,22 @@ export default function TranslationEditor() {
     }
   }
 
-  const loadStatus = async () => {
+  const loadAllKeys = async () => {
+    setLoadingKeys(true)
     try {
-      const s = await api.get<any[]>(`/translations/${selectedLang}/status`)
-      setStatus(s || [])
-    } catch {
-      setStatus([])
-    }
-  }
-
-  const loadMissing = async () => {
-    try {
-      const m = await api.get<any[]>(`/translations/missing/${selectedLang}`)
-      setMissing(m || [])
-      // Inicializar valores de edicion con los defaults
+      const data = await api.get<NSResult[]>(`/translations/${selectedLang}/all`)
+      setAllKeys(data || [])
       const vals: Record<string, string> = {}
-      for (const entry of m || []) {
-        const key = `${entry.namespace}.${entry.key}`
-        vals[key] = entry.default_value || ''
+      for (const ns of data || []) {
+        for (const entry of ns.keys) {
+          vals[`${ns.namespace}.${entry.key}`] = entry.value
+        }
       }
       setEditingValues(vals)
     } catch {
-      setMissing([])
+      setAllKeys([])
+    } finally {
+      setLoadingKeys(false)
     }
   }
 
@@ -117,34 +127,57 @@ export default function TranslationEditor() {
     setEditingValues((prev) => ({ ...prev, [`${ns}.${key}`]: value }))
   }
 
-  const handleSave = async (ns: string) => {
-    setSaving(true)
+  const handleSaveKey = async (ns: string, key: string) => {
+    const value = editingValues[`${ns}.${key}`]
+    if (value === undefined) return
+    setSavingKey(`${ns}.${key}`)
     setSaveMsg('')
     try {
-      // Recopilar todas las traducciones editadas de este namespace
-      const nsValues: Record<string, string> = {}
-      for (const entry of missing) {
-        if (entry.namespace === ns) {
-          const val = editingValues[`${ns}.${entry.key}`]
-          if (val !== undefined && val !== '') {
-            nsValues[entry.key] = val
-          }
-        }
-      }
-
-      if (Object.keys(nsValues).length === 0) {
-        setSaveMsg(t('nothing_to_save', 'No hay traducciones para guardar'))
-        return
-      }
-
-      await api.put(`/translations/${selectedLang}/${ns}`, nsValues)
-      setSaveMsg(t('saved', 'Traducciones guardadas'))
-      loadStatus()
-      loadMissing()
+      await api.put(`/translations/${selectedLang}/${ns}/key`, { key, value })
+      setSaveMsg(t('key_saved', 'Clave guardada'))
+      setAllKeys(prev => prev.map(nsData =>
+        nsData.namespace === ns
+          ? { ...nsData, keys: nsData.keys.map(k => k.key === key ? { ...k, value, is_default: false } : k) }
+          : nsData
+      ))
+      loadAuditData()
     } catch (e: any) {
       setSaveMsg(e.message || t('save_error', 'Error al guardar'))
     } finally {
-      setSaving(false)
+      setSavingKey(null)
+    }
+  }
+
+  const handleAddKey = async () => {
+    if (!newKey || !selectedNs) return
+    setSavingKey('new')
+    try {
+      await api.post(`/translations/${selectedLang}/${selectedNs}/key`, { key: newKey, value: newValue })
+      setSaveMsg(t('key_added', 'Clave agregada'))
+      setNewKey('')
+      setNewValue('')
+      setShowAddKey(false)
+      loadAllKeys()
+      loadAuditData()
+    } catch (e: any) {
+      setSaveMsg(e.message || t('save_error', 'Error al agregar'))
+    } finally {
+      setSavingKey(null)
+    }
+  }
+
+  const handleSeed = async () => {
+    setSeeding(true)
+    setSaveMsg('')
+    try {
+      const res = await api.post<any>('/translations/seed', {})
+      setSaveMsg(t('seed_done', `Seed completado: ${res?.inserted || 0} insertadas, ${res?.skipped || 0} omitidas`))
+      loadAllKeys()
+      loadAuditData()
+    } catch (e: any) {
+      setSaveMsg(e.message || t('seed_error', 'Error en seed'))
+    } finally {
+      setSeeding(false)
     }
   }
 
@@ -221,8 +254,8 @@ export default function TranslationEditor() {
         throw new Error(err.error || 'Upload failed')
       }
       setUploadMsg(t('upload_success', 'Archivo subido correctamente'))
-      loadStatus()
-      loadMissing()
+      loadAllKeys()
+      loadAuditData()
     } catch (err: any) {
       setUploadError(true)
       setUploadMsg(err.message || t('upload_error', 'Error al subir archivo'))
@@ -240,19 +273,37 @@ export default function TranslationEditor() {
       })
       setSaveMsg(t('installed', 'Instalado'))
       loadFederatedTranslations()
-      loadStatus()
-      loadMissing()
+      loadAllKeys()
+      loadAuditData()
     } catch (e: any) {
       setSaveMsg(e.message || t('save_error', 'Error al guardar'))
     }
   }
 
-  // Agrupar missing por namespace
-  const missingByNs = missing.reduce((acc: Record<string, any[]>, entry: any) => {
-    if (!acc[entry.namespace]) acc[entry.namespace] = []
-    acc[entry.namespace].push(entry)
-    return acc
-  }, {})
+  const toggleNs = (ns: string) => {
+    setExpandedNs(prev => {
+      const next = new Set(prev)
+      if (next.has(ns)) next.delete(ns)
+      else next.add(ns)
+      return next
+    })
+  }
+
+  const filteredData = useMemo(() => {
+    if (!searchTerm) return allKeys
+    const term = searchTerm.toLowerCase()
+    return allKeys.map(ns => ({
+      ...ns,
+      keys: ns.keys.filter(k =>
+        k.key.toLowerCase().includes(term) ||
+        k.value.toLowerCase().includes(term)
+      ),
+    })).filter(ns => ns.keys.length > 0)
+  }, [allKeys, searchTerm])
+
+  const totalKeys = allKeys.reduce((sum, ns) => sum + ns.keys.length, 0)
+  const defaultKeys = allKeys.reduce((sum, ns) => sum + ns.keys.filter(k => k.is_default).length, 0)
+  const overrideKeys = totalKeys - defaultKeys
 
   if (loading) {
     return (
@@ -266,6 +317,15 @@ export default function TranslationEditor() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t('title', 'Traducciones')}</h1>
+        <button
+          onClick={handleSeed}
+          disabled={seeding}
+          className="btn-secondary text-sm py-1 px-3 flex items-center gap-2"
+          title={t('seed_tooltip', 'Cargar todas las claves de los JSON a la base de datos')}
+        >
+          {seeding ? <Loader2 size={14} className="animate-spin" /> : <Database size={14} />}
+          {t('seed_btn', 'Cargar claves a BD')}
+        </button>
       </div>
 
       {/* Panel de auditoria */}
@@ -330,86 +390,179 @@ export default function TranslationEditor() {
         </div>
       </div>
 
-      {/* Estado de completitud */}
-      {status.length > 0 && (
-        <div className="card p-4">
-          <h2 className="font-semibold mb-3">{t('completeness', 'Estado de traducción')}</h2>
-          <div className="space-y-2">
-            {status.filter(s => s.total > 0).map((s) => (
-              <div key={s.namespace} className="flex items-center gap-3">
-                <span className="text-sm font-medium w-32">{s.namespace}</span>
-                <div className="flex-1 bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-trueque-600 h-2 rounded-full transition-all"
-                    style={{ width: `${s.percent}%` }}
-                  />
-                </div>
-                <span className="text-xs text-gray-500 w-20 text-right">
-                  {s.translated}/{s.total} ({s.percent}%)
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Mensaje de guardado */}
       {saveMsg && (
         <div className="flex items-center gap-2 text-sm p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-700">
-          {saving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+          {savingKey ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
           {saveMsg}
         </div>
       )}
 
-      {/* Editor de traducciones faltantes */}
+      {/* Editor de traducciones - TODAS las claves */}
       <div className="card p-4">
-        <h2 className="font-semibold mb-3">
-          {t('missing_translations', 'Traducciones faltantes')}
-          <span className="text-sm font-normal text-gray-500 ml-2">({missing.length})</span>
-        </h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold flex items-center gap-2">
+            <Edit3 size={18} /> {t('all_keys', 'Todas las claves')}
+            <span className="text-sm font-normal text-gray-500">
+              ({totalKeys} {t('total', 'total')})
+            </span>
+          </h2>
+        </div>
 
-        {missing.length === 0 ? (
+        {/* Barra de busqueda */}
+        <div className="relative mb-4">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder={t('search_keys', 'Buscar claves o valores...')}
+            className="input text-sm pl-10"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        {loadingKeys ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="animate-spin text-trueque-600" size={24} />
+          </div>
+        ) : filteredData.length === 0 || totalKeys === 0 ? (
           <div className="text-center py-8 text-gray-400">
-            <CheckCircle size={32} className="mx-auto mb-2 text-green-500" />
-            <p>{t('all_translated', 'Todo está traducido')}</p>
+            <AlertCircle size={32} className="mx-auto mb-2 text-amber-500" />
+            <p className="mb-2">{t('no_keys', 'No hay claves cargadas.')}</p>
+            <p className="text-sm mb-3">{t('seed_hint', 'Haz clic en "Cargar claves a BD" para importar todas las claves de los archivos JSON a la base de datos.')}</p>
+            <button
+              onClick={handleSeed}
+              disabled={seeding}
+              className="btn-primary text-sm py-1 px-3 flex items-center gap-2 mx-auto"
+            >
+              {seeding ? <Loader2 size={14} className="animate-spin" /> : <Database size={14} />}
+              {t('seed_btn', 'Cargar claves a BD')}
+            </button>
           </div>
         ) : (
-          <div className="space-y-6">
-            {Object.entries(missingByNs).map(([ns, entries]) => (
-              <div key={ns}>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-medium text-sm text-gray-700">{ns}</h3>
+          <div className="space-y-3">
+            {/* Selector de namespace */}
+            <div className="flex flex-wrap gap-1 mb-3">
+              <button
+                onClick={() => setSelectedNs('')}
+                className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
+                  selectedNs === '' ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {t('all_namespaces', 'Todos')} ({totalKeys})
+              </button>
+              {allKeys.map(ns => {
+                const count = ns.keys.length
+                if (count === 0) return null
+                return (
                   <button
-                    onClick={() => handleSave(ns)}
-                    disabled={saving}
-                    className="btn-primary text-xs py-1 px-3 flex items-center gap-1"
+                    key={ns.namespace}
+                    onClick={() => setSelectedNs(selectedNs === ns.namespace ? '' : ns.namespace)}
+                    className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
+                      selectedNs === ns.namespace ? 'bg-trueque-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
                   >
-                    <Save size={14} />
-                    {t('common:save')}
+                    {ns.namespace} ({count})
                   </button>
-                </div>
-                <div className="space-y-2">
-                  {entries.map((entry: any) => {
-                    const editKey = `${ns}.${entry.key}`
-                    return (
-                      <div key={entry.key} className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        <div className="p-2 bg-gray-50 rounded text-sm text-gray-600">
-                          <span className="text-xs text-gray-400 font-mono">{entry.key}</span>
-                          <p className="mt-1">{entry.default_value}</p>
-                        </div>
-                        <textarea
-                          className="input text-sm"
-                          value={editingValues[editKey] || ''}
-                          onChange={(e) => handleEdit(ns, entry.key, e.target.value)}
-                          placeholder={entry.default_value}
-                          rows={2}
-                        />
-                      </div>
-                    )
-                  })}
-                </div>
+                )
+              })}
+            </div>
+
+            {/* Boton agregar clave */}
+            {selectedNs && (
+              <div className="mb-3">
+                {!showAddKey ? (
+                  <button
+                    onClick={() => setShowAddKey(true)}
+                    className="btn-secondary text-xs py-1 px-3 flex items-center gap-1"
+                  >
+                    <Plus size={14} /> {t('add_key', 'Agregar clave')}
+                  </button>
+                ) : (
+                  <div className="border rounded-lg p-3 bg-gray-50 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{t('add_key_to', 'Agregar clave a')}: {selectedNs}</span>
+                      <button onClick={() => setShowAddKey(false)} className="text-gray-400 hover:text-gray-600">
+                        <X size={16} />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        placeholder={t('key_name', 'Nombre de la clave')}
+                        className="input text-sm"
+                        value={newKey}
+                        onChange={(e) => setNewKey(e.target.value)}
+                      />
+                      <input
+                        type="text"
+                        placeholder={t('key_value', 'Valor')}
+                        className="input text-sm"
+                        value={newValue}
+                        onChange={(e) => setNewValue(e.target.value)}
+                      />
+                    </div>
+                    <button
+                      onClick={handleAddKey}
+                      disabled={!newKey || savingKey === 'new'}
+                      className="btn-primary text-xs py-1 px-3 flex items-center gap-1"
+                    >
+                      {savingKey === 'new' ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                      {t('common:save')}
+                    </button>
+                  </div>
+                )}
               </div>
-            ))}
+            )}
+
+            {/* Lista de claves por namespace */}
+            {(selectedNs ? filteredData.filter(ns => ns.namespace === selectedNs) : filteredData).map(ns => {
+              const isExpanded = expandedNs.has(ns.namespace) || !!selectedNs || !!searchTerm
+              return (
+                <div key={ns.namespace} className="border rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => toggleNs(ns.namespace)}
+                    className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 transition"
+                  >
+                    <span className="font-medium text-sm">{ns.namespace}</span>
+                    <span className="text-xs text-gray-500">{ns.keys.length} {t('keys', 'claves')}</span>
+                  </button>
+                  {isExpanded && (
+                    <div className="divide-y">
+                      {ns.keys.map((entry) => {
+                        const editKey = `${ns.namespace}.${entry.key}`
+                        return (
+                          <div key={entry.key} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2 p-2 items-start">
+                            <div className="min-w-0">
+                              <span className="text-xs font-mono text-gray-500 block truncate">{entry.key}</span>
+                              {entry.is_default ? (
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">JSON</span>
+                              ) : (
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-600">BD</span>
+                              )}
+                            </div>
+                            <textarea
+                              className="input text-sm py-1"
+                              value={editingValues[editKey] ?? entry.value}
+                              onChange={(e) => handleEdit(ns.namespace, entry.key, e.target.value)}
+                              rows={1}
+                            />
+                            <button
+                              onClick={() => handleSaveKey(ns.namespace, entry.key)}
+                              disabled={savingKey === editKey}
+                              className="btn-primary text-xs py-1 px-2 flex items-center gap-1 whitespace-nowrap"
+                            >
+                              {savingKey === editKey ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                              {t('common:save')}
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
@@ -420,7 +573,6 @@ export default function TranslationEditor() {
           <Plus size={18} /> {t('manage_languages', 'Gestionar idiomas')}
         </h2>
 
-        {/* Lista de idiomas con acciones */}
         <div className="space-y-2 mb-4">
           {languages.map((lang) => (
             <div key={lang.code} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -465,7 +617,6 @@ export default function TranslationEditor() {
           ))}
         </div>
 
-        {/* Anadir idioma */}
         <div className="border-t pt-4">
           <h3 className="font-medium text-sm mb-2">{t('add_language', 'Anadir idioma')}</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -500,7 +651,6 @@ export default function TranslationEditor() {
           </button>
         </div>
 
-        {/* Subir archivo de traduccion */}
         <div className="border-t pt-4 mt-4">
           <h3 className="font-medium text-sm mb-2">{t('upload', 'Subir archivo')}</h3>
           <input

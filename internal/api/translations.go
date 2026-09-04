@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -48,6 +49,7 @@ func (th *TranslationHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 		// Editor de traducciones
 		r.Get("/api/translations/missing/{lang}", th.getMissingTranslations)
 		r.Get("/api/translations/{lang}/status", th.getTranslationStatus)
+		r.Get("/api/translations/{lang}/all", th.getAllKeys)
 
 		// Ver traducciones federadas (cualquier usuario autenticado)
 		r.Get("/api/translations/federated", th.getFederatedTranslations)
@@ -56,6 +58,8 @@ func (th *TranslationHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 		r.Group(func(r chi.Router) {
 			r.Use(am.RequirePermission("translations.edit"))
 			r.Put("/api/translations/{lang}/{namespace}", th.updateTranslations)
+			r.Put("/api/translations/{lang}/{namespace}/key", th.updateSingleKey)
+			r.Post("/api/translations/{lang}/{namespace}/key", th.addSingleKey)
 		})
 
 		// Gestionar idiomas y subir/descargar (requiere translations.manage)
@@ -67,6 +71,7 @@ func (th *TranslationHandler) RegisterRoutes(r chi.Router, am *AuthMiddleware) {
 			r.Post("/api/translations/upload", th.uploadTranslations)
 			r.Get("/api/translations/{lang}/download", th.downloadTranslations)
 			r.Post("/api/translations/federated/install", th.installFederatedTranslation)
+			r.Post("/api/translations/seed", th.seedTranslations)
 		})
 	})
 }
@@ -549,6 +554,7 @@ func (th *TranslationHandler) loadJSONDefaults(lang, ns string) map[string]strin
 	path := filepath.Join(th.LocaleDir, lang, ns+".json")
 	data, err := os.ReadFile(path)
 	if err != nil {
+		log.Printf("[i18n] ERROR reading %s: %v", path, err)
 		return map[string]string{}
 	}
 
@@ -558,6 +564,7 @@ func (th *TranslationHandler) loadJSONDefaults(lang, ns string) map[string]strin
 		// Intentar aplanarlo
 		var raw map[string]interface{}
 		if err := json.Unmarshal(data, &raw); err != nil {
+			log.Printf("[i18n] ERROR parsing %s: %v", path, err)
 			return map[string]string{}
 		}
 		result = flattenJSON(raw, "")
@@ -716,4 +723,219 @@ func (th *TranslationHandler) installFederatedTranslation(w http.ResponseWriter,
 	}
 
 	writeJSON(w, 200, map[string]string{"status": "installed"})
+}
+
+// getAllKeys devuelve TODAS las claves de todos los namespaces para un idioma,
+// combinando JSON defaults + BD overrides, con indicador de origen.
+// GET /api/translations/{lang}/all
+func (th *TranslationHandler) getAllKeys(w http.ResponseWriter, r *http.Request) {
+	lang := chi.URLParam(r, "lang")
+	if lang == "" {
+		writeJSON(w, 400, map[string]string{"error": "lang required"})
+		return
+	}
+
+	namespaces := []string{
+		"common", "dashboard", "transfer", "nfc", "federation", "assembly",
+		"organizations", "products", "settings", "profile", "notifications",
+		"external", "services", "website", "public", "errors", "audit",
+		"satellite", "translations",
+	}
+
+	type KeyEntry struct {
+		Key       string `json:"key"`
+		Value     string `json:"value"`
+		IsDefault bool   `json:"is_default"`
+	}
+
+	type NSResult struct {
+		Namespace string     `json:"namespace"`
+		Keys      []KeyEntry `json:"keys"`
+	}
+
+	var results []NSResult
+	for _, ns := range namespaces {
+		defaults := th.loadJSONDefaults(lang, ns)
+		overrides := th.loadDBOverrides(r, lang, ns)
+
+		// Merge: empezar con defaults, sobrescribir con BD
+		allKeys := map[string]bool{}
+		for k := range defaults {
+			allKeys[k] = true
+		}
+		for k := range overrides {
+			allKeys[k] = true
+		}
+
+		var entries []KeyEntry
+		for k := range allKeys {
+			val := defaults[k]
+			isDefault := true
+			if ov, ok := overrides[k]; ok {
+				val = ov
+				isDefault = false
+			}
+			entries = append(entries, KeyEntry{
+				Key:       k,
+				Value:     val,
+				IsDefault: isDefault,
+			})
+		}
+		// Ordenar claves alfabeticamente
+		sort.Slice(entries, func(i, j int) bool {
+			return entries[i].Key < entries[j].Key
+		})
+		results = append(results, NSResult{
+			Namespace: ns,
+			Keys:      entries,
+		})
+	}
+
+	writeJSON(w, 200, results)
+}
+
+// updateSingleKey actualiza una clave individual en la BD.
+// PUT /api/translations/{lang}/{namespace}/key
+// Body: { "key": "save", "value": "Guardar" }
+func (th *TranslationHandler) updateSingleKey(w http.ResponseWriter, r *http.Request) {
+	lang := chi.URLParam(r, "lang")
+	ns := chi.URLParam(r, "namespace")
+	if lang == "" || ns == "" {
+		writeJSON(w, 400, map[string]string{"error": "lang and namespace required"})
+		return
+	}
+
+	var req struct {
+		Key   string `json:"key"`
+		Value string `json:"value"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, 400, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if req.Key == "" {
+		writeJSON(w, 400, map[string]string{"error": "key required"})
+		return
+	}
+
+	userID, _ := getUserID(r)
+	_, err := th.Pool.Exec(r.Context(), `
+		INSERT INTO translations (key, namespace, language, value, node_domain, updated_by)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		ON CONFLICT (key, namespace, language, node_domain) DO UPDATE SET
+			value = EXCLUDED.value, updated_at = NOW(), updated_by = EXCLUDED.updated_by`,
+		req.Key, ns, lang, req.Value, th.NodeDomain, userID)
+	if err != nil {
+		writeJSON(w, 500, map[string]string{"error": "error updating key"})
+		return
+	}
+
+	writeJSON(w, 200, map[string]string{"status": "ok"})
+}
+
+// addSingleKey agrega una clave nueva a la BD.
+// POST /api/translations/{lang}/{namespace}/key
+// Body: { "key": "new_key", "value": "New Value" }
+func (th *TranslationHandler) addSingleKey(w http.ResponseWriter, r *http.Request) {
+	lang := chi.URLParam(r, "lang")
+	ns := chi.URLParam(r, "namespace")
+	if lang == "" || ns == "" {
+		writeJSON(w, 400, map[string]string{"error": "lang and namespace required"})
+		return
+	}
+
+	var req struct {
+		Key   string `json:"key"`
+		Value string `json:"value"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, 400, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if req.Key == "" {
+		writeJSON(w, 400, map[string]string{"error": "key required"})
+		return
+	}
+
+	userID, _ := getUserID(r)
+	_, err := th.Pool.Exec(r.Context(), `
+		INSERT INTO translations (key, namespace, language, value, node_domain, updated_by)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		ON CONFLICT (key, namespace, language, node_domain) DO UPDATE SET
+			value = EXCLUDED.value, updated_at = NOW(), updated_by = EXCLUDED.updated_by`,
+		req.Key, ns, lang, req.Value, th.NodeDomain, userID)
+	if err != nil {
+		writeJSON(w, 500, map[string]string{"error": "error adding key"})
+		return
+	}
+
+	writeJSON(w, 200, map[string]string{"status": "ok"})
+}
+
+// seedTranslations lee todos los JSON del filesystem e inserta las claves en la BD.
+// POST /api/translations/seed
+// No sobrescribe ediciones existentes.
+func (th *TranslationHandler) seedTranslations(w http.ResponseWriter, r *http.Request) {
+	// Obtener idiomas habilitados
+	rows, err := th.Pool.Query(r.Context(),
+		`SELECT code FROM languages WHERE enabled = true`)
+	if err != nil {
+		writeJSON(w, 500, map[string]string{"error": "error querying languages"})
+		return
+	}
+	var langs []string
+	for rows.Next() {
+		var code string
+		if err := rows.Scan(&code); err != nil {
+			continue
+		}
+		langs = append(langs, code)
+	}
+	rows.Close()
+
+	namespaces := []string{
+		"common", "dashboard", "transfer", "nfc", "federation", "assembly",
+		"organizations", "products", "settings", "profile", "notifications",
+		"external", "services", "website", "public", "errors", "audit",
+		"satellite", "translations",
+	}
+
+	userID, _ := getUserID(r)
+	inserted := 0
+	skipped := 0
+
+	for _, lang := range langs {
+		for _, ns := range namespaces {
+			defaults := th.loadJSONDefaults(lang, ns)
+			for key, value := range defaults {
+				// Solo insertar si no existe ya en la BD
+				var exists bool
+				err := th.Pool.QueryRow(r.Context(),
+					`SELECT EXISTS(SELECT 1 FROM translations WHERE key = $1 AND namespace = $2 AND language = $3 AND node_domain = $4)`,
+					key, ns, lang, th.NodeDomain).Scan(&exists)
+				if err != nil {
+					continue
+				}
+				if exists {
+					skipped++
+					continue
+				}
+				_, err = th.Pool.Exec(r.Context(), `
+					INSERT INTO translations (key, namespace, language, value, node_domain, updated_by)
+					VALUES ($1, $2, $3, $4, $5, $6)
+					ON CONFLICT (key, namespace, language, node_domain) DO NOTHING`,
+					key, ns, lang, value, th.NodeDomain, userID)
+				if err == nil {
+					inserted++
+				}
+			}
+		}
+	}
+
+	log.Printf("[i18n] Seed completed: %d inserted, %d skipped", inserted, skipped)
+	writeJSON(w, 200, map[string]interface{}{
+		"status":   "ok",
+		"inserted": inserted,
+		"skipped":  skipped,
+	})
 }

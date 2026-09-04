@@ -294,17 +294,17 @@ export default function Payments() {
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
           <p><strong>{t('payments.help_title', 'Pagos - Ayuda')}</strong></p>
-          <p><strong>Que es un pago:</strong> {t('payments.help_what', 'Una transferencia de saldo de tu cuenta a la cuenta de otra persona u organizacion dentro de la red de intercambio. El saldo se descuenta de tu cuenta y se suma a la del destinatario.')}</p>
-          <p><strong>Para que sirve:</strong> {t('payments.help_purpose', 'Para comerciar dentro de la red: comprar productos, pagar servicios, saldar deudas, etc. Todo queda registrado en el historial de ambas partes.')}</p>
-          <p><strong>Como funciona:</strong> {t('payments.help_usage', 'Hay 3 formas de pagar:')}</p>
+          <p><strong>{t('payments.help_what_label', 'Que es un pago:')}</strong> {t('payments.help_what', 'Una transferencia de saldo de tu cuenta a la cuenta de otra persona u organizacion dentro de la red de intercambio. El saldo se descuenta de tu cuenta y se suma a la del destinatario.')}</p>
+          <p><strong>{t('payments.help_purpose_label', 'Para que sirve:')}</strong> {t('payments.help_purpose', 'Para comerciar dentro de la red: comprar productos, pagar servicios, saldar deudas, etc. Todo queda registrado en el historial de ambas partes.')}</p>
+          <p><strong>{t('payments.help_usage_label', 'Como funciona:')}</strong> {t('payments.help_usage', 'Hay 3 formas de pagar:')}</p>
           <ul className="list-disc list-inside space-y-1 ml-2">
-            <li><strong>QR:</strong> {t('payments.help_qr', 'Genera un codigo QR para que alguien te pague, o escanea el QR de otra persona para pagarle. La otra persona lo escanea con la camara de su movil o carga una foto del QR.')}</li>
-            <li><strong>NFC:</strong> {t('payments.help_nfc', 'Pago con tarjeta NFC fisica. El comercio lee la tarjeta del cliente con un lector NFC conectado a un terminal ESP32.')}</li>
-            <li><strong>Manual:</strong> {t('payments.help_manual', 'Transferencia directa ingresando el ID (UUID) del destinatario. Util cuando no hay QR ni NFC.')}</li>
+            <li><strong>{t('payments.help_qr_label', 'QR:')}</strong> {t('payments.help_qr', 'Genera un codigo QR para que alguien te pague, o escanea el QR de otra persona para pagarle. La otra persona lo escanea con la camara de su movil o carga una foto del QR.')}</li>
+            <li><strong>{t('payments.help_nfc_label', 'NFC:')}</strong> {t('payments.help_nfc', 'Pago con tarjeta NFC fisica. El comercio lee la tarjeta del cliente con un lector NFC conectado a un terminal ESP32.')}</li>
+            <li><strong>{t('payments.help_manual_label', 'Manual:')}</strong> {t('payments.help_manual', 'Transferencia directa ingresando el ID (UUID) del destinatario. Util cuando no hay QR ni NFC.')}</li>
           </ul>
-          <p><strong>Que es el monto:</strong> {t('payments.help_amount', 'Es la cantidad de saldo que se transfiere. Se mide en la moneda local del nodo. Puede ser fijo (lo defines al generar el QR) o libre (el que paga decide cuanto).')}</p>
-          <p><strong>Quien recibe:</strong> {t('payments.help_recipient', 'La cuenta del destinatario. En QR viene dentro del codigo. En NFC se obtiene del UID de la tarjeta. En manual debes ingresar su ID (UUID).')}</p>
-          <p><strong>Que es la nota / etiqueta / referencia:</strong> {t('payments.help_note', 'Un texto opcional que describe el motivo del pago (ej: "Compra de pan"). Aparece en el historial de ambos para que recuerden de que fue el pago.')}</p>
+          <p><strong>{t('payments.help_amount_label', 'Que es el monto:')}</strong> {t('payments.help_amount', 'Es la cantidad de saldo que se transfiere. Se mide en la moneda local del nodo. Puede ser fijo (lo defines al generar el QR) o libre (el que paga decide cuanto).')}</p>
+          <p><strong>{t('payments.help_recipient_label', 'Quien recibe:')}</strong> {t('payments.help_recipient', 'La cuenta del destinatario. En QR viene dentro del codigo. En NFC se obtiene del UID de la tarjeta. En manual debes ingresar su ID (UUID).')}</p>
+          <p><strong>{t('payments.help_note_label', 'Que es la nota / etiqueta / referencia:')}</strong> {t('payments.help_note', 'Un texto opcional que describe el motivo del pago (ej: "Compra de pan"). Aparece en el historial de ambos para que recuerden de que fue el pago.')}</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('common:close')}</button>
         </div>
       )}

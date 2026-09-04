@@ -32,5 +32,22 @@
   "disabled": "disabled",
   "language_added": "Language added",
   "download_error": "Error downloading",
-  "installed": "Installed"
+  "installed": "Installed",
+  "key_saved": "Key saved",
+  "key_added": "Key added",
+  "seed_done": "Seed completed",
+  "seed_error": "Error seeding",
+  "seed_tooltip": "Load all keys from JSON files into the database",
+  "seed_btn": "Load keys to DB",
+  "all_keys": "All keys",
+  "total": "total",
+  "search_keys": "Search keys or values...",
+  "no_keys": "No keys loaded.",
+  "seed_hint": "Click \"Load keys to DB\" to import all keys from JSON files into the database.",
+  "all_namespaces": "All",
+  "add_key": "Add key",
+  "add_key_to": "Add key to",
+  "key_name": "Key name",
+  "key_value": "Value",
+  "keys": "keys"
 }
