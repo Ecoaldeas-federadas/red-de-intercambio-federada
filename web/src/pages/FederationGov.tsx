@@ -401,19 +401,15 @@ export default function FederationGov() {
           </div>
 
           <div className="bg-blue-50 p-3 rounded-lg text-xs text-blue-700">
-            <strong>Proceso:</strong>
+            <strong>{t('gov_process_label', 'Proceso:')}</strong>
             <ol className="list-decimal list-inside mt-1 space-y-1">
-              <li>Creas la propuesta (tu nodo auto-aprueba)</li>
-              <li>La propuesta se comparte con todos los nodos federados</li>
-              <li>Cada nodo aprueba o rechaza</li>
-              <li>Cuando se alcanza el umbral actual (por defecto 75% = mayoria), el cambio se aplica en todos</li>
-              <li>Si no se alcanza el consenso, se sigue usando el valor actual</li>
+              <li>{t('gov_process_1', 'Creas la propuesta (tu nodo auto-aprueba)')}</li>
+              <li>{t('gov_process_2', 'La propuesta se comparte con todos los nodos federados')}</li>
+              <li>{t('gov_process_3', 'Cada nodo aprueba o rechaza')}</li>
+              <li>{t('gov_process_4', 'Cuando se alcanza el umbral actual (por defecto 75% = mayoria), el cambio se aplica en todos')}</li>
+              <li>{t('gov_process_5', 'Si no se alcanza el consenso, se sigue usando el valor actual')}</li>
             </ol>
-            <p className="mt-2"><strong>Cambio del umbral:</strong> Para cambiar el umbral de aprobacion
-            (por ejemplo de 75% a 100% o 50%+1), se crea una propuesta como cualquier otra.
-            Esa propuesta se aprueba bajo el umbral <em>actual</em>. Si el umbral actual es 75%,
-            la mayoria de los nodos debe aprobar el cambio. Una vez aprobado, las futuras propuestas
- usan el nuevo umbral.</p>
+            <p className="mt-2"><strong>{t('gov_threshold_change_label', 'Cambio del umbral:')}</strong> {t('gov_threshold_change_desc', 'Para cambiar el umbral de aprobacion (por ejemplo de 75% a 100% o 50%+1), se crea una propuesta como cualquier otra. Esa propuesta se aprueba bajo el umbral actual. Si el umbral actual es 75%, la mayoria de los nodos debe aprobar el cambio. Una vez aprobado, las futuras propuestas usan el nuevo umbral.')}</p>
           </div>
 
           <button
@@ -540,13 +536,13 @@ export default function FederationGov() {
             </div>
 
             <div className="bg-amber-50 p-3 rounded-lg text-xs text-amber-700">
-              <strong>Importante:</strong>
+              <strong>{t('gov_expel_important_label', 'Importante:')}</strong>
               <ul className="list-disc list-inside mt-1 space-y-1">
-                <li>La propuesta se crea con el umbral actual (por defecto 75%)</li>
-                <li>Todos los nodos deben aprobar para que se aplique</li>
-                <li>Si se aprueba, el nodo no podra federarse ni comerciar</li>
-                <li>El nodo expulsado puede solicitar reingreso despues</li>
-                <li>Al reingresar, hereda automaticamente todas las reglas existentes</li>
+                <li>{t('gov_expel_important_1', 'La propuesta se crea con el umbral actual (por defecto 75%)')}</li>
+                <li>{t('gov_expel_important_2', 'Todos los nodos deben aprobar para que se aplique')}</li>
+                <li>{t('gov_expel_important_3', 'Si se aprueba, el nodo no podra federarse ni comerciar')}</li>
+                <li>{t('gov_expel_important_4', 'El nodo expulsado puede solicitar reingreso despues')}</li>
+                <li>{t('gov_expel_important_5', 'Al reingresar, hereda automaticamente todas las reglas existentes')}</li>
               </ul>
             </div>
 

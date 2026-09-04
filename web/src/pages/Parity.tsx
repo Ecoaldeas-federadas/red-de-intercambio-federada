@@ -48,72 +48,54 @@ export default function Parity() {
 
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
-          <p><strong>Reportes de Paridad - Ayuda completa</strong></p>
+          <p><strong>{t('parity_help_title', 'Reportes de Paridad - Ayuda completa')}</strong></p>
 
-          <p><strong>Que es la paridad?</strong>
-          La paridad mide si el intercambio entre tu nodo y otro nodo federado esta equilibrado o desequilibrado.
-          Es como una balanza: de un lado estan las cosas que recibes del otro nodo (importaciones) y del otro
-          lado las que envias (exportaciones).</p>
+          <p><strong>{t('parity_help_what_label', 'Que es la paridad?')}</strong>
+          {t('parity_help_what', 'La paridad mide si el intercambio entre tu nodo y otro nodo federado esta equilibrado o desequilibrado. Es como una balanza: de un lado estan las cosas que recibes del otro nodo (importaciones) y del otro lado las que envias (exportaciones).')}</p>
 
-          <p><strong>Que significa cada valor?</strong></p>
+          <p><strong>{t('parity_help_values_label', 'Que significa cada valor?')}</strong></p>
           <ul className="list-disc list-inside ml-4 space-y-1">
-            <li><strong>Paridad (ratio):</strong> Es el resultado de dividir importaciones entre exportaciones.
+            <li><strong>{t('parity_help_ratio_label', 'Paridad (ratio):')}</strong> {t('parity_help_ratio', 'Es el resultado de dividir importaciones entre exportaciones.')}
               <ul className="list-disc list-inside ml-4 mt-1">
-                <li><strong>1.0</strong> = Equilibrado: importas y exportas lo mismo.</li>
-                <li><strong>{'>'} 1.0</strong> = Importas mas de lo que exportas (ej: 1.5 = importas 50% mas).</li>
-                <li><strong>{'<'} 1.0</strong> = Exportas mas de lo que importas (ej: 0.5 = exportas el doble).</li>
-                <li><strong>"Solo importas"</strong> = Has recibido productos pero nunca has enviado nada.</li>
-                <li><strong>"Solo exportas"</strong> = Has enviado productos pero nunca has recibido nada.</li>
+                <li><strong>1.0</strong> = {t('parity_help_balanced', 'Equilibrado: importas y exportas lo mismo.')}</li>
+                <li><strong>{'>'} 1.0</strong> = {t('parity_help_import_more', 'Importas mas de lo que exportas (ej: 1.5 = importas 50% mas).')}</li>
+                <li><strong>{'<'} 1.0</strong> = {t('parity_help_export_more', 'Exportas mas de lo que importas (ej: 0.5 = exportas el doble).')}</li>
+                <li><strong>{t('parity_help_only_import', '"Solo importas"')}</strong> = {t('parity_help_only_import_desc', 'Has recibido productos pero nunca has enviado nada.')}</li>
+                <li><strong>{t('parity_help_only_export', '"Solo exportas"')}</strong> = {t('parity_help_only_export_desc', 'Has enviado productos pero nunca has recibido nada.')}</li>
               </ul>
             </li>
-            <li><strong>Importaciones:</strong> Total de {currency} que has recibido del otro nodo (compras).</li>
-            <li><strong>Exportaciones:</strong> Total de {currency} que has enviado al otro nodo (ventas).</li>
-            <li><strong>Balance:</strong> Exportaciones menos importaciones. Positivo = te deben. Negativo = debes.</li>
+            <li><strong>{t('parity_help_imports_label', 'Importaciones:')}</strong> {t('parity_help_imports', 'Total de TQ que has recibido del otro nodo (compras).', { currency })}</li>
+            <li><strong>{t('parity_help_exports_label', 'Exportaciones:')}</strong> {t('parity_help_exports', 'Total de TQ que has enviado al otro nodo (ventas).', { currency })}</li>
+            <li><strong>{t('parity_help_balance_label', 'Balance:')}</strong> {t('parity_help_balance', 'Exportaciones menos importaciones. Positivo = te deben. Negativo = debes.')}</li>
           </ul>
 
-          <p><strong>Sobre el Factor de Conversion (FC) - IMPORTANTE</strong></p>
-          <p>El FC <strong>NO afecta el precio de los productos en {currency}</strong>.
-          Si vas a otro nodo con tu tarjeta y compras un producto que cuesta 50 {currency},
-          te cobran 50 {currency}. El precio es el mismo que esta publicado en la tienda.
-          No hay conversion ni cambio de precio entre nodos.</p>
+          <p><strong>{t('parity_help_fc_label', 'Sobre el Factor de Conversion (FC) - IMPORTANTE')}</strong></p>
+          <p>{t('parity_help_fc_no_affect', 'El FC NO afecta el precio de los productos. Si vas a otro nodo con tu tarjeta y compras un producto que cuesta 50, te cobran 50. El precio es el mismo que esta publicado en la tienda. No hay conversion ni cambio de precio entre nodos.')}</p>
 
-          <p>El FC se usa <strong>exclusivamente en el comercio exterior</strong>:
-          cuando Comercio Exterior compra productos internamente (en {currency}) para
-          vender afuera (en USD/moneda local) o cuando compra productos de afuera para
-          traerlos al nodo. Es una herramienta de conversion entre {currency} y moneda
-          local para el comercio exterior, no para transacciones entre nodos.</p>
+          <p>{t('parity_help_fc_exterior', 'El FC se usa exclusivamente en el comercio exterior: cuando Comercio Exterior compra productos internamente para vender afuera o cuando compra productos de afuera para traerlos al nodo. Es una herramienta de conversion entre moneda local y energia para el comercio exterior, no para transacciones entre nodos.')}</p>
 
-          <p>El FC tambien sirve como <strong>referencia informativa</strong> para que
-          los miembros sepan cuanto vale un producto en moneda local si deciden pagar
-          directamente entre ellos (fuera de la plataforma). Pero esos pagos en moneda
-          local no se registran en la plataforma: la plataforma solo registra {currency}.</p>
+          <p>{t('parity_help_fc_reference', 'El FC tambien sirve como referencia informativa para que los miembros sepan cuanto vale un producto en moneda local si deciden pagar directamente entre ellos (fuera de la plataforma). Pero esos pagos en moneda local no se registran en la plataforma.')}</p>
 
-          <p><strong>FC local:</strong> Tu Factor de Conversion. Es cuanto vale 1 {currency}
-          en energia (kWh). Ej: FC=5.0 significa que 1 {currency} = 5 kWh de energia.</p>
+          <p><strong>{t('parity_help_fc_local_label', 'FC local:')}</strong> {t('parity_help_fc_local', 'Tu Factor de Conversion. Es cuanto vale 1 unidad de moneda en energia (kWh). Ej: FC=5.0 significa que 1 = 5 kWh de energia.')}</p>
 
-          <p><strong>FC remoto:</strong> El Factor de Conversion del otro nodo. Solo aparece
-          si el otro nodo lo ha compartido. Si dice "No disponible", el otro nodo no ha
-          compartido su FC. <strong>El FC remoto no cambia el precio de los productos
-          que compras en {currency}.</strong></p>
+          <p><strong>{t('parity_help_fc_remote_label', 'FC remoto:')}</strong> {t('parity_help_fc_remote', 'El Factor de Conversion del otro nodo. Solo aparece si el otro nodo lo ha compartido. Si dice No disponible, el otro nodo no ha compartido su FC. El FC remoto no cambia el precio de los productos que compras.')}</p>
 
-          <p><strong>Para que sirve el reporte de paridad?</strong></p>
+          <p><strong>{t('parity_help_purpose_label', 'Para que sirve el reporte de paridad?')}</strong></p>
           <ul className="list-disc list-inside ml-4 space-y-1">
-            <li>Detectar relaciones comerciales desequilibradas entre nodos.</li>
-            <li>Decidir si ajustar los limites bilaterales con un nodo.</li>
-            <li>Promover exportaciones donde hay deficit.</li>
-            <li>Fomentar intercambios en areas donde hay superavit.</li>
+            <li>{t('parity_help_purpose_1', 'Detectar relaciones comerciales desequilibradas entre nodos.')}</li>
+            <li>{t('parity_help_purpose_2', 'Decidir si ajustar los limites bilaterales con un nodo.')}</li>
+            <li>{t('parity_help_purpose_3', 'Promover exportaciones donde hay deficit.')}</li>
+            <li>{t('parity_help_purpose_4', 'Fomentar intercambios en areas donde hay superavit.')}</li>
           </ul>
 
-          <p><strong>Que hacer si hay desequilibrio?</strong></p>
+          <p><strong>{t('parity_help_imbalance_label', 'Que hacer si hay desequilibrio?')}</strong></p>
           <ul className="list-disc list-inside ml-4 space-y-1">
-            <li>Si importas mucho: buscar productos locales que puedas exportar al otro nodo.</li>
-            <li>Si exportas mucho: considerar importar productos que necesites del otro nodo.</li>
-            <li>Si esta equilibrado: mantener la relacion comercial actual.</li>
+            <li>{t('parity_help_imbalance_1', 'Si importas mucho: buscar productos locales que puedas exportar al otro nodo.')}</li>
+            <li>{t('parity_help_imbalance_2', 'Si exportas mucho: considerar importar productos que necesites del otro nodo.')}</li>
+            <li>{t('parity_help_imbalance_3', 'Si esta equilibrado: mantener la relacion comercial actual.')}</li>
           </ul>
 
-          <p><strong>Sugerencias automaticas:</strong> El sistema muestra sugerencias cuando detecta
-          desequilibrios. Si la paridad es alta (mucho intercambio en ambos sentidos), sugiere aumentar
-          el limite bilateral. Si hay disparidad (mucho import, poco export), sugiere no aumentar el limite.</p>
+          <p><strong>{t('parity_help_suggestions_label', 'Sugerencias automaticas:')}</strong> {t('parity_help_suggestions', 'El sistema muestra sugerencias cuando detecta desequilibrios. Si la paridad es alta (mucho intercambio en ambos sentidos), sugiere aumentar el limite bilateral. Si hay disparidad (mucho import, poco export), sugiere no aumentar el limite.')}</p>
 
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('parity_close')}</button>
         </div>
