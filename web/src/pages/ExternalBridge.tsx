@@ -294,14 +294,14 @@ export default function ExternalBridge() {
 
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-2">
-          <p><strong>Comercio Exterior (DEX) - Como funciona</strong></p>
-          <p><strong>Que es:</strong> El Comercio Exterior permite comprar productos de fuera de la red y vender productos al exterior. Es la unica parte del sistema que maneja dinero REAL (USD, EUR, COP, etc.).</p>
-          <p><strong>Cuenta del DEX:</strong> El Comercio Exterior tiene su propia cuenta en {currency} (como una organizacion). La Asamblea le transfiere {currency} para que pueda comprar afuera. Para fondear el DEX, crea una propuesta de "Fondear Comercio Exterior" en la Asamblea.</p>
-          <p><strong>Cuentas bancarias externas:</strong> El DEX tiene cuentas en bancos reales o en efectivo (caja). Cada cuenta tiene una moneda (USD, EUR, COP...) y un saldo. Cuando se compra afuera, se descuenta del banco. Cuando se vende afuera, se suma al banco.</p>
-          <p><strong>Compras (Import):</strong> Se registra que producto se compro, cuanto, a que precio en moneda externa, y de que banco salio el dinero. El sistema calcula el precio interno sugerido usando el FC.</p>
-          <p><strong>Ventas (Export):</strong> Se registra que producto se vendio, cuanto, a que precio, y a que banco entro el dinero.</p>
-          <p><strong>Factor de Conversion (FC):</strong> Relacion entre la moneda externa y el {currency}. Se calcula comparando el costo de la canasta basica alla y aca. Despues de compras reales, el sistema sugiere un recalculo del FC basado en los precios reales pagados.</p>
-          <p><strong>Junta Directiva:</strong> El DEX puede requerir multi-firma para aprobar compras/ventas (ej: 2 firmas). Se configura en la pestana Cuentas Bancarias.</p>
+          <p><strong>{t('help_title', 'Comercio Exterior (DEX) - Como funciona')}</strong></p>
+          <p><strong>{t('help_what_label', 'Que es:')}</strong> {t('help_what', 'El Comercio Exterior permite comprar productos de fuera de la red y vender productos al exterior. Es la unica parte del sistema que maneja dinero REAL (USD, EUR, COP, etc.).')}</p>
+          <p><strong>{t('help_account_label', 'Cuenta del DEX:')}</strong> {t('help_account', 'El Comercio Exterior tiene su propia cuenta en TQ (como una organizacion). La Asamblea le transfiere TQ para que pueda comprar afuera. Para fondear el DEX, crea una propuesta de Fondear Comercio Exterior en la Asamblea.', { currency })}</p>
+          <p><strong>{t('help_banks_label', 'Cuentas bancarias externas:')}</strong> {t('help_banks', 'El DEX tiene cuentas en bancos reales o en efectivo (caja). Cada cuenta tiene una moneda (USD, EUR, COP...) y un saldo. Cuando se compra afuera, se descuenta del banco. Cuando se vende afuera, se suma al banco.')}</p>
+          <p><strong>{t('help_import_label', 'Compras (Import):')}</strong> {t('help_import', 'Se registra que producto se compro, cuanto, a que precio en moneda externa, y de que banco salio el dinero. El sistema calcula el precio interno sugerido usando el FC.')}</p>
+          <p><strong>{t('help_export_label', 'Ventas (Export):')}</strong> {t('help_export', 'Se registra que producto se vendio, cuanto, a que precio, y a que banco entro el dinero.')}</p>
+          <p><strong>{t('help_fc_label', 'Factor de Conversion (FC):')}</strong> {t('help_fc', 'Relacion entre la moneda externa y el TQ. Se calcula comparando el costo de la canasta basica alla y aca. Despues de compras reales, el sistema sugiere un recalculo del FC basado en los precios reales pagados.', { currency })}</p>
+          <p><strong>{t('help_board_label', 'Junta Directiva:')}</strong> {t('help_board', 'El DEX puede requerir multi-firma para aprobar compras/ventas (ej: 2 firmas). Se configura en la pestana Cuentas Bancarias.')}</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('close', t('common:close'))}</button>
         </div>
       )}
@@ -311,33 +311,33 @@ export default function ExternalBridge() {
         <div className="space-y-4">
           {/* Tutorial del modelo economico */}
           <div className="card bg-blue-50 border-blue-200">
-            <h2 className="font-semibold flex items-center gap-2 mb-3"><Info size={18} />Como funciona el Comercio Exterior (DEX)</h2>
+            <h2 className="font-semibold flex items-center gap-2 mb-3"><Info size={18} />{t('dex_tutorial_title', 'Como funciona el Comercio Exterior (DEX)')}</h2>
             <div className="text-sm text-gray-700 space-y-3">
-              <p><strong>El DEX es el departamento de Comercio Exterior de la comunidad.</strong> Su funcion es conectar la economia interna (TQ) con la economia externa (dinero real: USD, EUR, COP, etc.).</p>
+              <p><strong>{t('dex_intro', 'El DEX es el departamento de Comercio Exterior de la comunidad.')}</strong> {t('dex_intro_desc', 'Su funcion es conectar la economia interna (TQ) con la economia externa (dinero real: USD, EUR, COP, etc.).')}</p>
               <div className="bg-white rounded-lg p-3 border">
-                <p className="font-medium mb-2">Flujo del comercio exterior:</p>
+                <p className="font-medium mb-2">{t('dex_flow_title', 'Flujo del comercio exterior:')}</p>
                 <ol className="list-decimal list-inside ml-2 space-y-1">
-                  <li><strong>Productor interno vende al DEX:</strong> Un productor de la comunidad le vende su producto al departamento de Comercio Exterior. El DEX le paga en TQ (moneda interna).</li>
-                  <li><strong>DEX vende afuera (Export):</strong> El DEX vende ese producto en el mercado externo y recibe dinero real (USD, EUR, etc.) en una cuenta bancaria externa.</li>
-                  <li><strong>DEX compra afuera (Import):</strong> Con ese dinero real, el DEX compra los productos que la comunidad necesita pero no produce (medicinas, herramientas, insumos, etc.).</li>
-                  <li><strong>DEX vende internamente:</strong> El DEX trae esos productos y los vende dentro de la comunidad en TQ. Los miembros pueden comprarlos con su saldo interno.</li>
-                  <li><strong>El ciclo se repite:</strong> El dinero de las ventas internas se usa para comprar mas productos a los productores, y asi sigue el ciclo.</li>
+                  <li><strong>{t('dex_flow_1_label', 'Productor interno vende al DEX:')}</strong> {t('dex_flow_1', 'Un productor de la comunidad le vende su producto al departamento de Comercio Exterior. El DEX le paga en TQ (moneda interna).')}</li>
+                  <li><strong>{t('dex_flow_2_label', 'DEX vende afuera (Export):')}</strong> {t('dex_flow_2', 'El DEX vende ese producto en el mercado externo y recibe dinero real (USD, EUR, etc.) en una cuenta bancaria externa.')}</li>
+                  <li><strong>{t('dex_flow_3_label', 'DEX compra afuera (Import):')}</strong> {t('dex_flow_3', 'Con ese dinero real, el DEX compra los productos que la comunidad necesita pero no produce (medicinas, herramientas, insumos, etc.).')}</li>
+                  <li><strong>{t('dex_flow_4_label', 'DEX vende internamente:')}</strong> {t('dex_flow_4', 'El DEX trae esos productos y los vende dentro de la comunidad en TQ. Los miembros pueden comprarlos con su saldo interno.')}</li>
+                  <li><strong>{t('dex_flow_5_label', 'El ciclo se repite:')}</strong> {t('dex_flow_5', 'El dinero de las ventas internas se usa para comprar mas productos a los productores, y asi sigue el ciclo.')}</li>
                 </ol>
               </div>
               <div className="bg-white rounded-lg p-3 border">
-                <p className="font-medium mb-2">Doble contabilidad:</p>
+                <p className="font-medium mb-2">{t('dex_accounting_title', 'Doble contabilidad:')}</p>
                 <ul className="list-disc list-inside ml-2 space-y-1">
-                  <li><strong>Cuentas bancarias externas:</strong> Reflejan el dinero REAL disponible (USD, EUR, COP). Se actualizan con cada compra y venta externa.</li>
-                  <li><strong>Saldo TQ del DEX:</strong> Refleja la deuda/crédito interno del departamento. Cuando compra productos a un productor, le paga en TQ. Cuando vende productos internamente, recibe TQ.</li>
+                  <li><strong>{t('dex_accounting_banks_label', 'Cuentas bancarias externas:')}</strong> {t('dex_accounting_banks', 'Reflejan el dinero REAL disponible (USD, EUR, COP). Se actualizan con cada compra y venta externa.')}</li>
+                  <li><strong>{t('dex_accounting_tq_label', 'Saldo TQ del DEX:')}</strong> {t('dex_accounting_tq', 'Refleja la deuda/credito interno del departamento. Cuando compra productos a un productor, le paga en TQ. Cuando vende productos internamente, recibe TQ.')}</li>
                 </ul>
               </div>
               <div className="bg-white rounded-lg p-3 border">
-                <p className="font-medium mb-2">Factor de Conversion (FC):</p>
-                <p>El FC es el tipo de cambio entre moneda externa y TQ. Por ejemplo, si FC = 5, entonces 1 USD = 5 TQ. El FC se calcula comparando el costo de una canasta basica en moneda externa vs en TQ local. El FC sugerido se recalcula automaticamente desde las compras reales registradas.</p>
+                <p className="font-medium mb-2">{t('dex_fc_title', 'Factor de Conversion (FC):')}</p>
+                <p>{t('dex_fc_desc', 'El FC es el tipo de cambio entre moneda externa y TQ. Por ejemplo, si FC = 5, entonces 1 USD = 5 TQ. El FC se calcula comparando el costo de una canasta basica en moneda externa vs en TQ local. El FC sugerido se recalcula automaticamente desde las compras reales registradas.')}</p>
               </div>
               <div className="bg-white rounded-lg p-3 border">
-                <p className="font-medium mb-2">Aprobaciones:</p>
-                <p>Las compras y ventas externas pueden requerir aprobacion multiple (multi-firma). Esto significa que varias personas autorizadas deben aprobar antes de que el dinero se mueva. Esto evita que una sola persona tenga control total sobre el dinero real.</p>
+                <p className="font-medium mb-2">{t('dex_approvals_title', 'Aprobaciones:')}</p>
+                <p>{t('dex_approvals_desc', 'Las compras y ventas externas pueden requerir aprobacion multiple (multi-firma). Esto significa que varias personas autorizadas deben aprobar antes de que el dinero se mueva. Esto evita que una sola persona tenga control total sobre el dinero real.')}</p>
               </div>
             </div>
           </div>
