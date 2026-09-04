@@ -328,5 +328,18 @@
   "assign_board_hint": "Asigna miembros a los cargos de la junta directiva.",
   "no_sessions": "No hay sesiones programadas.",
   "create_session_hint": "Crea una sesion para discutir propuestas.",
-  "no_config_loaded": "No hay configuracion cargada."
+  "no_config_loaded": "No hay configuracion cargada.",
+  "help_title": "Asamblea - Ayuda",
+  "help_purpose_label": "Para que sirve:",
+  "help_purpose": "La asamblea es el organo de gobierno de la comunidad. Aqui se toman las decisiones importantes: cambios de limites, impuestos, admisiones, expulsion, politicas, etc.",
+  "help_members_label": "Miembros con voto:",
+  "help_members": "Los miembros de la asamblea son los mismos miembros de la comunidad que tienen derecho a voto (segun su nivel). No se registran aparte.",
+  "help_board_label": "Junta Directiva:",
+  "help_board": "Grupo de personas elegidas para decisiones que no requieren asamblea completa. Puede firmar decisiones con multi-firma.",
+  "help_sessions_label": "Sesiones:",
+  "help_sessions": "Reuniones de asamblea (ordinarias, extraordinarias, urgentes). Las propuestas se discuten en sesiones.",
+  "help_proposals_label": "Propuestas:",
+  "help_proposals": "Decisiones que se someten a votacion. Cada miembro con voto puede votar a favor, en contra o abstenerse.",
+  "help_taxes_label": "Impuestos:",
+  "help_taxes": "La asamblea decide la tasa de impuesto sobre transacciones. El dinero recaudado va a una cuenta de impuestos."
 }

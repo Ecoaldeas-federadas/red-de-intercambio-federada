@@ -1433,13 +1433,13 @@ export default function Assembly() {
 
       {showHelp && (
         <div className="card bg-blue-50 border-blue-200 text-sm text-gray-700 space-y-3">
-          <p><strong>Asamblea - Ayuda</strong></p>
-          <p><strong>Para que sirve:</strong> La asamblea es el organo de gobierno de la comunidad. Aqui se toman las decisiones importantes: cambios de limites, impuestos, admisiones, expulsion, politicas, etc.</p>
-          <p><strong>Miembros con voto:</strong> Los miembros de la asamblea son los mismos miembros de la comunidad que tienen derecho a voto (segun su nivel). No se registran aparte. Los niveles de miembro definen quien tiene voz, quien tiene voto, y quien cuenta para el quorum.</p>
-          <p><strong>Junta Directiva:</strong> Grupo de personas elegidas para decisiones que no requieren asamblea completa. Puede firmar decisiones con multi-firma.</p>
-          <p><strong>Sesiones:</strong> Reuniones de asamblea (ordinarias, extraordinarias, urgentes). Las propuestas se discuten en sesiones.</p>
-          <p><strong>Propuestas:</strong> Decisiones que se someten a votacion. Cada miembro con voto puede votar a favor, en contra o abstenerse. Cuando todos han votado, se ejecuta si hay mas votos a favor.</p>
-          <p><strong>Impuestos:</strong> La asamblea decide la tasa de impuesto sobre transacciones. El dinero recaudado va a una cuenta de impuestos. La asamblea decide que hacer con ese dinero.</p>
+          <p><strong>{t('help_title', 'Asamblea - Ayuda')}</strong></p>
+          <p><strong>{t('help_purpose_label', 'Para que sirve:')}</strong> {t('help_purpose', 'La asamblea es el organo de gobierno de la comunidad. Aqui se toman las decisiones importantes: cambios de limites, impuestos, admisiones, expulsion, politicas, etc.')}</p>
+          <p><strong>{t('help_members_label', 'Miembros con voto:')}</strong> {t('help_members', 'Los miembros de la asamblea son los mismos miembros de la comunidad que tienen derecho a voto (segun su nivel). No se registran aparte. Los niveles de miembro definen quien tiene voz, quien tiene voto, y quien cuenta para el quorum.')}</p>
+          <p><strong>{t('help_board_label', 'Junta Directiva:')}</strong> {t('help_board', 'Grupo de personas elegidas para decisiones que no requieren asamblea completa. Puede firmar decisiones con multi-firma.')}</p>
+          <p><strong>{t('help_sessions_label', 'Sesiones:')}</strong> {t('help_sessions', 'Reuniones de asamblea (ordinarias, extraordinarias, urgentes). Las propuestas se discuten en sesiones.')}</p>
+          <p><strong>{t('help_proposals_label', 'Propuestas:')}</strong> {t('help_proposals', 'Decisiones que se someten a votacion. Cada miembro con voto puede votar a favor, en contra o abstenerse. Cuando todos han votado, se ejecuta si hay mas votos a favor.')}</p>
+          <p><strong>{t('help_taxes_label', 'Impuestos:')}</strong> {t('help_taxes', 'La asamblea decide la tasa de impuesto sobre transacciones. El dinero recaudado va a una cuenta de impuestos. La asamblea decide que hacer con ese dinero.')}</p>
           <button onClick={() => setShowHelp(false)} className="text-blue-600 underline">{t('help_close', t('common:close'))}</button>
         </div>
       )}
